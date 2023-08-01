@@ -244,7 +244,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def getInputRowMaxBlockSize: Long =
     conf.getConfString("spark.gluten.sql.input.row.max.block.size", "8192").toLong
 
-  def enableNativeParquetWriter: Boolean = conf.getConf(NATIVE_PARQUET_WRITER_ENABLED)
+  def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
 }
 
 object GlutenConfig {
@@ -1047,10 +1047,10 @@ object GlutenConfig {
       .longConf
       .createWithDefault(-1L)
 
-  val NATIVE_PARQUET_WRITER_ENABLED =
-    buildConf("spark.gluten.sql.native.parquet.writer.enabled")
+  val NATIVE_WRITER_ENABLED =
+    buildConf("spark.gluten.sql.native.writer.enabled")
       .internal()
-      .doc("This is config to specify whether to enable the native columnar parquet writer")
+      .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
       .createWithDefault(false)
 

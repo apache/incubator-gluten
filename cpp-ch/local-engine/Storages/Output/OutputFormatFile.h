@@ -50,6 +50,8 @@ public:
     virtual OutputFormatPtr createOutputFormat(const DB::Block & header_) = 0;
 
 protected:
+    DB::Block creatHeaderWithPreferredColumnNames(const DB::Block & header);
+
     DB::ContextPtr context;
     const std::string file_uri;
     WriteBufferBuilderPtr write_buffer_builder;

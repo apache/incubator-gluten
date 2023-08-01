@@ -16,67 +16,33 @@
  */
 package org.apache.spark.sql.execution.datasources.v1
 
-import io.glutenproject.vectorized.CHColumnVector
+import io.glutenproject.GlutenConfig
 
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.internal.SQLConf
 
-import org.apache.hadoop.fs.FileStatus
-import org.apache.hadoop.mapreduce.TaskAttemptContext
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.mutable
 
-class CHParquetWriterInjects extends GlutenParquetWriterInjectsBase {
-  def createOutputWriter(
-      path: String,
-      dataSchema: StructType,
-      context: TaskAttemptContext,
-      nativeConf: java.util.Map[String, String]): OutputWriter = {
-    val originPath = path
-    val datasourceJniWrapper = new CHDatasourceJniWrapper();
-    val instance =
-      datasourceJniWrapper.nativeInitFileWriterWrapper(path, dataSchema.fieldNames, "parquet");
-
-    new OutputWriter {
-      override def write(row: InternalRow): Unit = {
-        assert(row.isInstanceOf[FakeRow])
-        val nextBatch = row.asInstanceOf[FakeRow].batch
-
-        if (nextBatch.numRows > 0) {
-          val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
-          datasourceJniWrapper.write(instance, col.getBlockAddress)
-        } else throw new IllegalStateException
-      }
-
-      override def close(): Unit = {
-        datasourceJniWrapper.close(instance)
-      }
-
-      // Do NOT add override keyword for compatibility on spark 3.1.
-      def path(): String = {
-        originPath
-      }
-    }
-  }
-
-  def inferSchema(
-      sparkSession: SparkSession,
+class CHParquetWriterInjects extends CHFormatWriterInjects {
+  override def nativeConf(
       options: Map[String, String],
-      files: Seq[FileStatus]): Option[StructType] = {
-    throw new UnsupportedOperationException("CHParquetWriterInjects does not support inferSchema")
+      compressionCodec: String): java.util.Map[String, String] = {
+    // pass options to native so that velox can take user-specified conf to write parquet,
+    // i.e., compression, block size, block rows.
+    val sparkOptions = new mutable.HashMap[String, String]()
+    sparkOptions.put(SQLConf.PARQUET_COMPRESSION.key, compressionCodec)
+    val blockSize = options.getOrElse(
+      GlutenConfig.PARQUET_BLOCK_SIZE,
+      GlutenConfig.getConf.columnarParquetWriteBlockSize.toString)
+    sparkOptions.put(GlutenConfig.PARQUET_BLOCK_SIZE, blockSize)
+    val blockRows = options.getOrElse(
+      GlutenConfig.PARQUET_BLOCK_ROWS,
+      GlutenConfig.getConf.columnarParquetWriteBlockRows.toString)
+    sparkOptions.put(GlutenConfig.PARQUET_BLOCK_ROWS, blockRows)
+    sparkOptions.asJava
   }
 
-  override def splitBlockByPartitionAndBucket(
-      row: FakeRow,
-      partitionColIndice: Array[Int],
-      hasBucket: Boolean): CHBlockStripes = {
-    val nextBatch = row.batch
-
-    if (nextBatch.numRows > 0) {
-      val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
-      new CHBlockStripes(
-        CHDatasourceJniWrapper
-          .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket))
-    } else throw new IllegalStateException
+  override def getFormatName(): String = {
+    "parquet"
   }
 }

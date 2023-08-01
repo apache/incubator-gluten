@@ -14,8 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "OutputFormatFile.h"
 #include <boost/algorithm/string/case_conv.hpp>
+
+#include "ORCOutputFormatFile.h"
+#include "OutputFormatFile.h"
 #include "ParquetOutputFormatFile.h"
 
 namespace DB
@@ -23,10 +25,15 @@ namespace DB
 namespace ErrorCodes
 {
     extern const int NOT_IMPLEMENTED;
+    extern const int BAD_ARGUMENTS;
 }
+
 }
 namespace local_engine
 {
+
+using namespace DB;
+
 OutputFormatFile::OutputFormatFile(
     DB::ContextPtr context_,
     const std::string & file_uri_,
@@ -34,6 +41,29 @@ OutputFormatFile::OutputFormatFile(
     std::vector<std::string> & preferred_column_names_)
     : context(context_), file_uri(file_uri_), write_buffer_builder(write_buffer_builder_), preferred_column_names(preferred_column_names_)
 {
+}
+
+Block OutputFormatFile::creatHeaderWithPreferredColumnNames(const Block & header)
+{
+    if (!preferred_column_names.empty())
+    {
+        /// Create a new header with the preferred column name
+        DB::NamesAndTypesList names_types_list = header.getNamesAndTypesList();
+        DB::ColumnsWithTypeAndName cols;
+        size_t index = 0;
+        for (const auto & name_type : header.getNamesAndTypesList())
+        {
+            if (name_type.name.starts_with("__bucket_value__"))
+                continue;
+
+            DB::ColumnWithTypeAndName col(name_type.type->createColumn(), name_type.type, preferred_column_names.at(index++));
+            cols.emplace_back(std::move(col));
+        }
+        assert(preferred_column_names.size() == index);
+        return {std::move(cols)};
+    }
+    else
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "preferred_column_names is empty");
 }
 
 OutputFormatFilePtr OutputFormatFileUtil::createFile(
@@ -44,11 +74,15 @@ OutputFormatFilePtr OutputFormatFileUtil::createFile(
     const std::string & format_hint)
 {
 #if USE_PARQUET
-    if (boost::to_lower_copy(file_uri).ends_with(".parquet") || "parquet" == format_hint)
-    {
+    if (boost::to_lower_copy(file_uri).ends_with(".parquet") || "parquet" == boost::to_lower_copy(format_hint))
         return std::make_shared<ParquetOutputFormatFile>(context, file_uri, write_buffer_builder, preferred_column_names);
-    }
 #endif
+
+#if USE_ORC
+    if (boost::to_lower_copy(file_uri).ends_with(".orc") || "orc" == boost::to_lower_copy(format_hint))
+        return std::make_shared<ORCOutputFormatFile>(context, file_uri, write_buffer_builder, preferred_column_names);
+#endif
+
 
     throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Format not supported for file :{}", file_uri);
 }

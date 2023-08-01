@@ -23,6 +23,7 @@
 #include <DataTypes/Serializations/ISerialization.h>
 #include <Interpreters/Aggregator.h>
 #include <Parser/CHColumnToSparkRow.h>
+#include <Parser/RelMetric.h>
 #include <Processors/Executors/PullingPipelineExecutor.h>
 #include <Processors/Formats/Impl/CHColumnToArrowColumn.h>
 #include <Processors/QueryPlan/ISourceStep.h>
@@ -35,10 +36,6 @@
 #include <base/types.h>
 #include <substrait/plan.pb.h>
 #include <Common/BlockIterator.h>
-#include <DataTypes/Serializations/ISerialization.h>
-#include <base/types.h>
-#include <Core/SortDescription.h>
-#include <Parser/RelMetric.h>
 
 namespace local_engine
 {

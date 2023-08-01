@@ -16,8 +16,9 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import io.glutenproject.execution.{TransformSupport, WholeStageTransformer}
-import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
+import io.glutenproject.execution.TransformSupport
+import io.glutenproject.execution.WholeStageTransformer
+import io.glutenproject.execution.datasource.GlutenFormatWriterInjects
 import io.glutenproject.extension.TransformPreOverrides
 import io.glutenproject.extension.columnar.AddTransformHintRule
 
@@ -26,7 +27,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.ColumnarCollapseTransformStages.transformStageCounter
 import org.apache.spark.sql.execution.SparkPlan
 
-trait GlutenParquetWriterInjectsBase extends GlutenParquetWriterInjects {
+trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
 
   /**
    * FileFormatWriter wraps some Project & Sort on the top of the original output spark plan, we
@@ -45,7 +46,7 @@ trait GlutenParquetWriterInjectsBase extends GlutenParquetWriterInjects {
     if (!transformed.isInstanceOf[TransformSupport]) {
       throw new IllegalStateException(
         "Cannot transform the SparkPlans wrapped by FileFormatWriter, " +
-          "consider disabling native parquet writer to workaround this issue.")
+          "consider disabling native writer to workaround this issue.")
     }
     val wst = WholeStageTransformer(transformed)(transformStageCounter.incrementAndGet())
     FakeRowAdaptor(wst)

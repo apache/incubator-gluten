@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.hive.execution
 
+import io.glutenproject.execution.datasource.GlutenOrcWriterInjects
 import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 
 import org.apache.spark.internal.Logging
@@ -24,6 +25,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution.datasources.{FileFormat, OutputWriter, OutputWriterFactory}
+import org.apache.spark.sql.execution.datasources.orc.OrcOptions
 import org.apache.spark.sql.execution.datasources.parquet.ParquetOptions
 import org.apache.spark.sql.hive.{HiveInspectors, HiveTableUtil}
 import org.apache.spark.sql.hive.HiveShim.{ShimFileSinkDesc => FileSinkDesc}
@@ -42,7 +44,6 @@ import org.apache.hadoop.mapred.{JobConf, Reporter}
 import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
 
 import scala.collection.JavaConverters._
-
 /* -
  * This class is copied from Spark 3.2 and modified for Gluten. \n
  * Gluten should make sure this class is loaded before the original class.
@@ -98,23 +99,33 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
 
     // Avoid referencing the outer object.
     val fileSinkConfSer = fileSinkConf
-
+    val outputFormat = fileSinkConf.tableInfo.getOutputFileFormatClassName
+    val isParquetFormat =
+      outputFormat.equals("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat");
+    val isOrcFormat = outputFormat.equals("org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat");
     if (
-      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeParquetAppliable"))
-      && fileSinkConf.tableInfo.getOutputFileFormatClassName
-        .equals("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat")
+      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable")) &&
+      (isParquetFormat || isOrcFormat)
     ) {
 
-      logInfo("Use Gluten parquet write for hive")
       val compressionCodec = if (fileSinkConf.compressed) {
         // hive related configurations
         fileSinkConf.compressCodec
-      } else {
+      } else if (isParquetFormat) {
         val parquetOptions = new ParquetOptions(options, sparkSession.sessionState.conf)
         parquetOptions.compressionCodecClassName
+      } else {
+        val orcOptions = new OrcOptions(options, sparkSession.sessionState.conf)
+        orcOptions.compressionCodec
       }
-      val nativeConf =
+
+      val nativeConf = if (isParquetFormat) {
+        logInfo("Use Gluten parquet write for hive")
         GlutenParquetWriterInjects.getInstance().nativeConf(options, compressionCodec)
+      } else {
+        logInfo("Use Gluten orc write for hive")
+        GlutenOrcWriterInjects.getInstance().nativeConf(options, compressionCodec)
+      }
 
       new OutputWriterFactory {
         private val jobConf = new SerializableJobConf(new JobConf(conf))
@@ -129,9 +140,15 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
             path: String,
             dataSchema: StructType,
             context: TaskAttemptContext): OutputWriter = {
-          GlutenParquetWriterInjects
-            .getInstance()
-            .createOutputWriter(path, dataSchema, context, nativeConf);
+          if (isParquetFormat) {
+            GlutenParquetWriterInjects
+              .getInstance()
+              .createOutputWriter(path, dataSchema, context, nativeConf);
+          } else {
+            GlutenOrcWriterInjects
+              .getInstance()
+              .createOutputWriter(path, dataSchema, context, nativeConf);
+          }
         }
       }
     } else {

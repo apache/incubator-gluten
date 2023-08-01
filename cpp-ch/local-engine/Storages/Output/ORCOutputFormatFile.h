@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #pragma once
 
 #include "config.h"
 
-#if USE_PARQUET
+#if USE_ORC
 
 #    include <memory>
 #    include <IO/WriteBuffer.h>
@@ -26,15 +27,15 @@
 
 namespace local_engine
 {
-class ParquetOutputFormatFile : public OutputFormatFile
+class ORCOutputFormatFile : public OutputFormatFile
 {
 public:
-    explicit ParquetOutputFormatFile(
+    explicit ORCOutputFormatFile(
         DB::ContextPtr context_,
         const std::string & file_uri_,
         WriteBufferBuilderPtr write_buffer_builder_,
         std::vector<std::string> & preferred_column_names_);
-    ~ParquetOutputFormatFile() override = default;
+    ~ORCOutputFormatFile() override = default;
 
     OutputFormatFile::OutputFormatPtr createOutputFormat(const DB::Block & header) override;
 };

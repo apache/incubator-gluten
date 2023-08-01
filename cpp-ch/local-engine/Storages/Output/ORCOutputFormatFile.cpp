@@ -14,25 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "ParquetOutputFormatFile.h"
 
-#if USE_PARQUET
+#include "ORCOutputFormatFile.h"
 
-#    include <memory>
-#    include <string>
-#    include <utility>
-
+#if USE_ORC
 #    include <Formats/FormatFactory.h>
-#    include <Formats/FormatSettings.h>
-#    include <Processors/Formats/Impl/ArrowBufferedStreams.h>
-#    include <Processors/Formats/Impl/CHColumnToArrowColumn.h>
-#    include <Processors/Formats/Impl/ParquetBlockOutputFormat.h>
-#    include <parquet/arrow/writer.h>
-#    include <Common/Config.h>
+#    include <Processors/Formats/Impl/ORCBlockOutputFormat.h>
 
 namespace local_engine
 {
-ParquetOutputFormatFile::ParquetOutputFormatFile(
+ORCOutputFormatFile::ORCOutputFormatFile(
     DB::ContextPtr context_,
     const std::string & file_uri_,
     WriteBufferBuilderPtr write_buffer_builder_,
@@ -41,15 +32,15 @@ ParquetOutputFormatFile::ParquetOutputFormatFile(
 {
 }
 
-OutputFormatFile::OutputFormatPtr ParquetOutputFormatFile::createOutputFormat(const DB::Block & header)
+OutputFormatFile::OutputFormatPtr ORCOutputFormatFile::createOutputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<OutputFormatFile::OutputFormat>();
     res->write_buffer = write_buffer_builder->build(file_uri);
 
     auto new_header = creatHeaderWithPreferredColumnNames(header);
-    // TODO: align all spark parquet config with ch parquet config
+    // TODO: align all spark orc config with ch orc config
     auto format_settings = DB::getFormatSettings(context);
-    auto output_format = std::make_shared<DB::ParquetBlockOutputFormat>(*(res->write_buffer), new_header, format_settings);
+    auto output_format = std::make_shared<DB::ORCBlockOutputFormat>(*(res->write_buffer), new_header, format_settings);
     res->output = output_format;
     return res;
 }

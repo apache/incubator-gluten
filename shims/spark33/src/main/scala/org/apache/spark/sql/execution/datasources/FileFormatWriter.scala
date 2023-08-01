@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources
 
+import io.glutenproject.execution.datasource.GlutenOrcWriterInjects
 import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 
 import org.apache.spark._
@@ -34,6 +35,8 @@ import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
@@ -112,7 +115,9 @@ object FileFormatWriter extends Logging {
       options: Map[String, String]): Set[String] = {
 
     val nativeEnabled =
-      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeParquetAppliable"))
+      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable")) &&
+        (fileFormat.isInstanceOf[ParquetFileFormat] || fileFormat.isInstanceOf[OrcFileFormat])
+
     if (nativeEnabled) {
       assert(plan.isInstanceOf[IFakeRowAdaptor])
     }
@@ -236,7 +241,12 @@ object FileFormatWriter extends Logging {
           wrapped)
         // TODO: to optimize, bucket value is computed twice here
       }
-      (GlutenParquetWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
+
+      if (fileFormat.isInstanceOf[ParquetFileFormat]) {
+        (GlutenParquetWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
+      } else {
+        (GlutenOrcWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
+      }
     }
 
     try {

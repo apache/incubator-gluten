@@ -16,29 +16,54 @@
  */
 package io.glutenproject.execution.datasource
 
-import io.glutenproject.GlutenConfig
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{BlockStripes, FakeRow, OutputWriter}
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.execution.datasources.BlockStripes
+import org.apache.spark.sql.execution.datasources.FakeRow
+import org.apache.spark.sql.execution.datasources.OutputWriter
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.mutable
+trait GlutenFormatWriterInjects {
+  def createOutputWriter(
+      path: String,
+      dataSchema: StructType,
+      context: TaskAttemptContext,
+      nativeConf: java.util.Map[String, String]): OutputWriter
 
-object GlutenParquetWriterInjects {
-  private var INSTANCE: GlutenFormatWriterInjects = _
+  def inferSchema(
+      sparkSession: SparkSession,
+      options: Map[String, String],
+      files: Seq[FileStatus]): Option[StructType]
 
-  def setInstance(instance: GlutenFormatWriterInjects): Unit = {
+  def executeWriterWrappedSparkPlan(plan: SparkPlan): RDD[InternalRow]
+
+  def nativeConf(
+      options: Map[String, String],
+      compressionCodec: String): java.util.Map[String, String]
+
+  def getFormatName(): String
+}
+
+trait GlutenRowSplitter {
+  def splitBlockByPartitionAndBucket(
+      row: FakeRow,
+      partitionColIndice: Array[Int],
+      hasBucket: Boolean): BlockStripes
+}
+
+object GlutenRowSplitter {
+  private var INSTANCE: GlutenRowSplitter = _
+
+  def setInstance(instance: GlutenRowSplitter): Unit = {
     INSTANCE = instance
   }
-  def getInstance(): GlutenFormatWriterInjects = {
+
+  def getInstance(): GlutenRowSplitter = {
     if (INSTANCE == null) {
       throw new IllegalStateException("GlutenOutputWriterFactoryCreator is not initialized")
     }

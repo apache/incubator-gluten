@@ -31,6 +31,7 @@ import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.{CreateDataSourceTableAsSelectCommand, DataWritingCommand, DataWritingCommandExec}
+import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.hive.execution.{CreateHiveTableAsSelectCommand, InsertIntoHiveDirCommand, InsertIntoHiveTable}
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -95,9 +96,8 @@ object GlutenWriterColumnarRules {
   //  1. pull out `Empty2Null` and required ordering to `WriteFilesExec`, see Spark3.4 `V1Writes`
   //  2. support detect partition value, partition path, bucket value, bucket path at native side,
   //     see `BaseDynamicPartitionDataWriter`
-  def isNativeParquetAppliable(cmd: DataWritingCommand): Boolean = {
-
-    if (!GlutenConfig.getConf.enableNativeParquetWriter) {
+  def isNativeAppliable(cmd: DataWritingCommand): Boolean = {
+    if (!GlutenConfig.getConf.enableNativeWriter) {
       return false
     }
 
@@ -107,9 +107,10 @@ object GlutenWriterColumnarRules {
           throw new UnsupportedOperationException(
             "Velox file format does not support create table as select.")
         }
-        "parquet".equals(command.table.provider.get)
+        "parquet".equals(command.table.provider.get) || "orc".equals(command.table.provider.get)
       case command: InsertIntoHadoopFsRelationCommand
-          if command.fileFormat.isInstanceOf[ParquetFileFormat] =>
+          if command.fileFormat.isInstanceOf[ParquetFileFormat] ||
+            command.fileFormat.isInstanceOf[OrcFileFormat] =>
         if (
           GlutenConfig.isCurrentBackendVelox
           && (command.partitionColumns.nonEmpty || command.bucketSpec.nonEmpty)
@@ -120,9 +121,12 @@ object GlutenWriterColumnarRules {
         true
       case command: InsertIntoHiveDirCommand =>
         "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat".equals(
-          command.storage.outputFormat.get)
+          command.storage.outputFormat.get) ||
+        "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat".equals(command.storage.outputFormat.get)
       case command: InsertIntoHiveTable =>
         "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat".equals(
+          command.table.storage.outputFormat.get)
+        "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat".equals(
           command.table.storage.outputFormat.get)
       case _: CreateHiveTableAsSelectCommand =>
         throw new UnsupportedOperationException(
@@ -137,9 +141,9 @@ object GlutenWriterColumnarRules {
   case class NativeWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
     override def apply(p: SparkPlan): SparkPlan = p match {
       case rc @ DataWritingCommandExec(cmd, child) =>
-        session.sparkContext.setLocalProperty("isNativeParquetAppliable", "false")
-        if (isNativeParquetAppliable(cmd)) {
-          session.sparkContext.setLocalProperty("isNativeParquetAppliable", "true")
+        session.sparkContext.setLocalProperty("isNativeAppliable", "false")
+        if (isNativeAppliable(cmd)) {
+          session.sparkContext.setLocalProperty("isNativeAppliable", "true")
           child match {
             // if the child is columnar, we can just wrap&transfer the columnar data
             case c2r: ColumnarToRowExecBase =>

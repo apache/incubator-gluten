@@ -14,34 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.execution.datasource
-
-import io.glutenproject.GlutenConfig
-
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{BlockStripes, FakeRow, OutputWriter}
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructType
-
-import org.apache.hadoop.fs.FileStatus
-import org.apache.hadoop.mapreduce.TaskAttemptContext
+package org.apache.spark.sql.execution.datasources.velox
 
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.mutable
 
-object GlutenParquetWriterInjects {
-  private var INSTANCE: GlutenFormatWriterInjects = _
-
-  def setInstance(instance: GlutenFormatWriterInjects): Unit = {
-    INSTANCE = instance
+class VeloxOrcWriterInjects extends VeloxFormatWriterInjects {
+  override def nativeConf(
+      options: Map[String, String],
+      compressionCodec: String): java.util.Map[String, String] = {
+    val sparkOptions = new mutable.HashMap[String, String]()
+    // TODO: implement it
+    sparkOptions.asJava
   }
-  def getInstance(): GlutenFormatWriterInjects = {
-    if (INSTANCE == null) {
-      throw new IllegalStateException("GlutenOutputWriterFactoryCreator is not initialized")
-    }
-    INSTANCE
+
+  override def getFormatName(): String = {
+    "orc"
   }
 }
