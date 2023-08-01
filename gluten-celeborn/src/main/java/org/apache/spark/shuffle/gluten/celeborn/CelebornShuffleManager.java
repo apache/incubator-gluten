@@ -98,7 +98,7 @@ public class CelebornShuffleManager implements ShuffleManager {
           try {
             try {
               Method method =
-                  // for Celeborn 0.3.0, see CELEBORN-798
+                  // for Celeborn 0.3.1 and above, see CELEBORN-804
                   ShuffleClient.class.getDeclaredMethod(
                       "get",
                       String.class,
@@ -117,7 +117,7 @@ public class CelebornShuffleManager implements ShuffleManager {
                           lifecycleManager.getUserIdentifier());
             } catch (NoSuchMethodException noMethod) {
               Method method =
-                  // for Celeborn 0.3.1 and above, see CELEBORN-804
+                  // for Celeborn 0.3.0, see CELEBORN-798
                   ShuffleClient.class.getDeclaredMethod(
                       "get",
                       String.class,
