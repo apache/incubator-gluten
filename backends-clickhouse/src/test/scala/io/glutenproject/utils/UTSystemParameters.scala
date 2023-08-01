@@ -19,7 +19,7 @@ package io.glutenproject.utils
 object UTSystemParameters {
 
   val CLICKHOUSE_LIB_PATH_KEY = "clickhouse.lib.path"
-  val CLICKHOUSE_LIB_PATH_DEFAULT_VALUE = "/usr/local/clickhouse/lib/libch.so"
+  val CLICKHOUSE_LIB_PATH_DEFAULT_VALUE = "/usr/local/clickhouse/lib/libchd.so"
 
   val TPCDS_DATA_PATH_KEY = "tpcds.data.path"
   val TPCDS_DATA_PATH_DEFAULT_VALUE = "/data/tpcds-data-sf1"

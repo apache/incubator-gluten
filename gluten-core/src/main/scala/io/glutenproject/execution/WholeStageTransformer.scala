@@ -33,6 +33,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -95,12 +96,8 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
 
   private var planJson: String = ""
 
-  private[this] var _materializeAtLast: Boolean = false
-
-  def materializeAtLast: Boolean = _materializeAtLast
-
-  def materializeAtLast_=(value: Boolean): Unit = {
-    _materializeAtLast = value
+  def materializeAtLast(): Boolean = {
+    child.getTagValue(GlutenWriterColumnarRules.TAG).isDefined
   }
 
   def getPlanJson: String = {

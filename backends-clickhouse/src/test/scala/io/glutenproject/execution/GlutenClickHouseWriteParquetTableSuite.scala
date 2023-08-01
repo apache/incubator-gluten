@@ -769,13 +769,13 @@ class GlutenClickHouseWriteParquetTableSuite
   test("test partitioned by constant") {
     withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
 
-      spark.sql(s"drop table IF EXISTS tmp_lzl_screen_pic_convert_save")
+      spark.sql(s"drop table IF EXISTS tmp_123")
       spark.sql(
-        s"create table tmp(" +
+        s"create table tmp_123(" +
           s"x1 string, x2 bigint,x3 string, x4 bigint, x5 string )" +
           s"partitioned by (day date) stored as parquet")
 
-      spark.sql("insert into tmp partition(day) " +
+      spark.sql("insert into tmp_123 partition(day) " +
         "select cast(id as string), id, cast(id as string), id, cast(id as string), '2023-05-09' " +
         "from range(10000000)")
     }

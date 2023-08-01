@@ -37,6 +37,7 @@ trait GlutenParquetWriterInjectsBase extends GlutenParquetWriterInjects {
    */
   override def executeWriterWrappedSparkPlan(plan: SparkPlan): RDD[InternalRow] = {
     if (plan.isInstanceOf[FakeRowAdaptor]) {
+      // here, the FakeRowAdaptor is simply a R2C converter
       return plan.execute()
     }
 
@@ -47,7 +48,6 @@ trait GlutenParquetWriterInjectsBase extends GlutenParquetWriterInjects {
           "consider disabling native parquet writer to workaround this issue.")
     }
     val wst = WholeStageTransformer(transformed)(transformStageCounter.incrementAndGet())
-    wst.materializeAtLast = true
     FakeRowAdaptor(wst)
       .execute()
   }

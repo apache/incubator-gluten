@@ -109,7 +109,7 @@ object FileFormatWriter extends Logging {
    */
   def write(
       sparkSession: SparkSession,
-      _plan: SparkPlan,
+      plan: SparkPlan,
       fileFormat: FileFormat,
       committer: FileCommitProtocol,
       outputSpec: OutputSpec,
@@ -119,17 +119,10 @@ object FileFormatWriter extends Logging {
       statsTrackers: Seq[WriteJobStatsTracker],
       options: Map[String, String]): Set[String] = {
 
-    var plan = _plan
     val nativeEnabled =
       "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeParquetAppliable"))
     if (nativeEnabled) {
       assert(plan.isInstanceOf[IFakeRowAdaptor])
-      if (plan.isInstanceOf[IFakeRowAdaptor] && plan.children.head.supportsColumnar) {
-        // this is an optimization to avoid two consecutive FakeRowAdaptor(WholeStageTransformer)
-        plan = plan.children.head.children.head
-      }
-      // otherise, the IFakeRowAdaptor is simply working as an R2C adaptor,
-      // e.g. FakeRowAdaptor(LocalTableScan)
     }
 
     val job = Job.getInstance(hadoopConf)
