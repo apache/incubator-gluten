@@ -69,7 +69,7 @@ jobs:
         run: |
           docker exec velox-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON .. && make -j'
+          mkdir build && cd build && cmake -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON -DBUILD_BENCHMARKS=ON .. && make -j'
       - name: Build and run unit test for Spark 3.2.2(other tests)
         run: |
           docker exec velox-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
@@ -226,7 +226,7 @@ jobs:
         run: |
           docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          mkdir build && cd build && cmake .. && make -j'
+          mkdir build && cd build && cmake -DBUILD_EXAMPLES=ON .. && make -j'
       - name: Build and Run unit test for Spark 3.3.1(other tests)
         run: |
           docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
