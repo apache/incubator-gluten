@@ -14,25 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.parquet
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.tags.ExtendedSQLTest
 
-@ExtendedSQLTest
-class GlutenParquetV1SchemaPruningSuite
-  extends ParquetV1SchemaPruningSuite
-  with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    super.sparkConf.set("spark.memory.offHeap.size", "3g")
+// This File includes common helper functions with Arrow dependency.
+
+#include "ConfigExtractor.h"
+#include <stdexcept>
+
+namespace gluten {
+
+std::string getConfigValue(
+    const std::unordered_map<std::string, std::string>& confMap,
+    const std::string& key,
+    const std::optional<std::string>& fallbackValue) {
+  auto got = confMap.find(key);
+  if (got == confMap.end()) {
+    if (fallbackValue == std::nullopt) {
+      throw std::runtime_error("No such config key: " + key);
+    }
+    return fallbackValue.value();
   }
+  return got->second;
 }
 
-@ExtendedSQLTest
-class GlutenParquetV2SchemaPruningSuite
-  extends ParquetV2SchemaPruningSuite
-  with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    super.sparkConf.set("spark.memory.offHeap.size", "3g")
-  }
-}
+} // namespace gluten

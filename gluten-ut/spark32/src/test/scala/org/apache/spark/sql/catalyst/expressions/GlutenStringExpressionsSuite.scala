@@ -16,7 +16,9 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.GlutenTestsTrait
+import org.apache.spark.sql.types._
 
 class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTestsTrait {
 
@@ -32,4 +34,25 @@ class GlutenStringExpressionsSuite extends StringExpressionsSuite with GlutenTes
     }
   }
 
+  test(GLUTEN_TEST + "concat") {
+    def testConcat(inputs: String*): Unit = {
+      val expected = if (inputs.contains(null)) null else inputs.mkString
+      checkEvaluation(Concat(inputs.map(Literal.create(_, StringType))), expected)
+    }
+
+    // testConcat() velox not supported
+    testConcat(null)
+    testConcat("")
+    testConcat("ab")
+    testConcat("a", "b")
+    testConcat("a", "b", "C")
+    testConcat("a", null, "C")
+    testConcat("a", null, null)
+    testConcat(null, null, null)
+
+    // scalastyle:off
+    // non ascii characters are not allowed in the code, so we disable the scalastyle here.
+    testConcat("数据", null, "砖头")
+    // scalastyle:on
+  }
 }

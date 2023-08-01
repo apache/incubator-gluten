@@ -174,7 +174,7 @@ TEST_F(FunctionTest, setVectorFromVariants) {
   ASSERT_EQ("1994-04-20", resultVec->asFlatVector<Date>()->valueAt(1).toString());
 
   resultVec = setVectorFromVariants(INTERVAL_DAY_TIME(), {variant(9020LL), variant(8875LL)}, pool_.get());
-  ASSERT_TRUE(isIntervalDayTimeType(resultVec->type()));
+  ASSERT_TRUE(resultVec->type()->isIntervalDayTime());
   ASSERT_EQ(9020, resultVec->asFlatVector<int64_t>()->valueAt(0));
   ASSERT_EQ(8875, resultVec->asFlatVector<int64_t>()->valueAt(1));
 }
