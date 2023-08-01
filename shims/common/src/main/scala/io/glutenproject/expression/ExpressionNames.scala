@@ -98,6 +98,7 @@ object ExpressionNames {
   final val TRANSLATE = "translate"
   final val SPACE = "space"
   final val EMPTY2NULL = "empty2null"
+  final val INITCAP = "initcap"
 
   // URL functions
   final val PARSE_URL = "parse_url"

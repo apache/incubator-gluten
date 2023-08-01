@@ -232,11 +232,11 @@ class GlutenClickHouseWriteParquetTableSuite
       )
 
       spark.sql(
-        "insert overwrite local directory '/tmp/test_insert_into_dir1' stored as parquet select "
+        "insert overwrite local directory './test_insert_into_dir1' stored as parquet select "
           + fields.keys.mkString(",") +
           " from origin_table cluster by (byte_field)")
       spark.sql(
-        "insert overwrite local directory '/tmp/test_insert_into_dir2' " +
+        "insert overwrite local directory './test_insert_into_dir2' " +
           "stored as parquet " +
           "select string_field, sum(int_field) as x from origin_table group by string_field")
     }
@@ -652,10 +652,9 @@ class GlutenClickHouseWriteParquetTableSuite
       ("byte_field", "byte"),
       ("boolean_field", "boolean"),
       ("decimal_field", "decimal(23,12)"),
-      ("date_field", "date")
-      // TODO(liyang)
-//      ("array", "array<int>"),
-//      ("map", "map<int, long>")
+      ("date_field", "date"),
+      ("array", "array<int>"),
+      ("map", "map<int, long>")
     )
 
     withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
@@ -667,7 +666,6 @@ class GlutenClickHouseWriteParquetTableSuite
             .write
             .partitionBy("date_field")
             .bucketBy(10, "byte_field", "string_field")
-//            .bucketBy(2, "string_field")
             .saveAsTable(parquet_table_name)
         },
         fields.keys.toSeq

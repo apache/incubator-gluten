@@ -87,6 +87,7 @@ object ExpressionMappings {
     Sig[StringTranslate](TRANSLATE),
     Sig[StringSpace](SPACE),
     Sig[Empty2Null](EMPTY2NULL),
+    Sig[InitCap](INITCAP),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
