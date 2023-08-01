@@ -570,10 +570,6 @@
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
           <configuration>
-            <upToDateChecking>
-              <enabled>true</enabled>
-            </upToDateChecking>
-
             <java>
               <googleJavaFormat>
                 <version>1.7</version>
