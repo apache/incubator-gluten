@@ -57,12 +57,11 @@ public:
     virtual InputFormatPtr createInputFormat(const DB::Block & header) = 0;
 
     /// Get schema which describes the columns of this file
-    virtual DB::NamesAndTypesList getSchema() const
+    virtual DB::NamesAndTypesList getSchema() const;
     {
         const auto & schema = file_info.schema();
         auto header = TypeParser::buildBlockFromNamedStruct(schema);
         return header.getNamesAndTypesList();
-
     }
 
     /// Spark would split a large file into small segements and read in different tasks
