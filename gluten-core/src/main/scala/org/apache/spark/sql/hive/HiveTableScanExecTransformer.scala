@@ -175,6 +175,11 @@ class HiveTableScanExecTransformer(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
+    val validationResult = super.doValidateInternal()
+    if (!validationResult.isValid) {
+      return validationResult
+    }
+
     val tableMeta = relation.tableMeta
     val planOutput = output.asInstanceOf[Seq[AttributeReference]]
     var hasComplexType = false
@@ -198,7 +203,7 @@ class HiveTableScanExecTransformer(
             if (!hasComplexType) {
               ValidationResult.ok
             } else {
-              ValidationResult.notOk("Hive scan is not defined")
+              ValidationResult.notOk("does not support complex type")
             }
         }
       case _ => ValidationResult.notOk("Hive scan is not defined")
