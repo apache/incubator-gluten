@@ -79,7 +79,7 @@ class SubstraitVeloxExprConverter {
   /// the constant expression.
   std::shared_ptr<const core::ConstantTypedExpr> literalsToConstantExpr(
       const std::vector<::substrait::Expression::Literal>& literals);
-  /// Create expression for lambda
+  /// Create expression for lambda.
   std::shared_ptr<const core::ITypedExpr> toLambdaExpr(
       const ::substrait::Expression::ScalarFunction& substraitFunc,
       const RowTypePtr& inputType);
