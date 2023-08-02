@@ -238,8 +238,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {
     val startTime = System.nanoTime()
-    // the file format for each scan exec
-    wsCxt.substraitContext.setFileFormat(Seq(fileFormat).asJava)
 
     // generate each partition of all scan exec
     val substraitPlanPartition = inputPartitions.indices.map(
