@@ -74,8 +74,8 @@ class ContextInitializer extends ContextApi {
     }
     loader
       .newTransaction()
-      .loadAndCreateLink("libarrow.so.1200.0.0", "libarrow.so.1200", false)
-      .loadAndCreateLink("libparquet.so.1200.0.0", "libparquet.so.1200", false)
+      .loadAndCreateLink("libarrow.so.800.0.0", "libarrow.so.800", false)
+      .loadAndCreateLink("libparquet.so.800.0.0", "libparquet.so.800", false)
       .commit()
     // Set the system properties.
     // Use appending policy for children with the same name in a arrow struct vector.

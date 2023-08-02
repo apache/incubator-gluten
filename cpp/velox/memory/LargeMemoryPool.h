@@ -30,21 +30,17 @@ class LargeMemoryPool : public arrow::MemoryPool {
 
   ~LargeMemoryPool();
 
-  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
+  arrow::Status Allocate(int64_t size, uint8_t** out) override;
 
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override;
+  void Free(uint8_t* buffer, int64_t size) override;
 
-  arrow::Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override;
+  arrow::Status Reallocate(int64_t oldSize, int64_t newSize, uint8_t** ptr) override;
 
   int64_t bytes_allocated() const override;
 
   int64_t max_memory() const override;
 
   std::string backend_name() const override;
-
-  int64_t total_bytes_allocated() const override;
-
-  int64_t num_allocations() const override;
 
  protected:
   virtual arrow::Status doAlloc(int64_t size, int64_t alignment, uint8_t** out);
