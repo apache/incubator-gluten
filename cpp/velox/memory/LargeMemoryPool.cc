@@ -18,15 +18,17 @@
 #include "LargeMemoryPool.h"
 #include <arrow/util/logging.h>
 #include <sys/mman.h>
+#include <algorithm>
 #include "utils/macros.h"
 
 #include <numeric>
 
 namespace gluten {
 
-arrow::Status LargeMemoryPool::Allocate(int64_t size, int64_t alignment, uint8_t** out) {
+arrow::Status LargeMemoryPool::Allocate(int64_t size, uint8_t** out) {
+  int64_t alignment = 64;
   if (size == 0) {
-    return delegated_->Allocate(0, alignment, out);
+    return delegated_->Allocate(0, out);
   }
   // make sure the size is cache line size aligned
   size = ROUND_TO_LINE(size, alignment);
@@ -49,7 +51,8 @@ arrow::Status LargeMemoryPool::Allocate(int64_t size, int64_t alignment, uint8_t
   return arrow::Status::OK();
 }
 
-void LargeMemoryPool::Free(uint8_t* buffer, int64_t size, int64_t alignment) {
+void LargeMemoryPool::Free(uint8_t* buffer, int64_t size) {
+  int64_t alignment = 64;
   if (size == 0) {
     return;
   }
@@ -67,7 +70,7 @@ void LargeMemoryPool::Free(uint8_t* buffer, int64_t size, int64_t alignment) {
   }
 }
 
-arrow::Status LargeMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) {
+arrow::Status LargeMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, uint8_t** ptr) {
   if (oldSize == 0) {
     return arrow::Status::Invalid("Cannot call reallocated on oldSize == 0");
   }
@@ -87,9 +90,9 @@ arrow::Status LargeMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, int6
   }
 
   if (newSize - oldSize > lastBuffer.size - lastBuffer.allocated) {
-    RETURN_NOT_OK(Allocate(newSize, alignment, ptr));
+    RETURN_NOT_OK(Allocate(newSize, ptr));
     memcpy(*ptr, oldPtr, std::min(oldSize, newSize));
-    Free(oldPtr, oldSize, alignment);
+    Free(oldPtr, oldSize);
   } else {
     lastBuffer.allocated += (newSize - oldSize);
   }
@@ -109,16 +112,8 @@ std::string LargeMemoryPool::backend_name() const {
   return "LargeMemoryPool";
 }
 
-int64_t LargeMemoryPool::total_bytes_allocated() const {
-  return delegated_->total_bytes_allocated();
-}
-
-int64_t LargeMemoryPool::num_allocations() const {
-  return delegated_->num_allocations();
-}
-
 arrow::Status LargeMemoryPool::doAlloc(int64_t size, int64_t alignment, uint8_t** out) {
-  return delegated_->Allocate(size, alignment, out);
+  return delegated_->Allocate(size, out);
 }
 
 void LargeMemoryPool::doFree(uint8_t* buffer, int64_t size) {
