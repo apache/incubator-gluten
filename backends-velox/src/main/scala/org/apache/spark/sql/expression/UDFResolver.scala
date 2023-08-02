@@ -22,17 +22,26 @@ import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.{ExpressionType, TypeConverter}
 import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.udf.UdfJniWrapper
+import io.glutenproject.vectorized.JniWorkspace
 
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkContext, SparkFiles}
+import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.util.Utils
 
 import com.google.common.collect.Lists
+import org.apache.hadoop.yarn.conf.YarnConfiguration
 
+import java.io.File
+import java.nio.file.{Files, Path, Paths}
+
+import scala.collection.JavaConverters.asScalaIteratorConverter
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 case class UDFExpression(
     name: String,
@@ -69,7 +78,12 @@ case class UDFExpression(
 }
 
 object UDFResolver extends Logging {
-  val UDFMap: mutable.Map[String, ExpressionType] = mutable.Map()
+  // Cache the fetched library paths for driver.
+  var localLibraryPaths: Seq[String] = Seq.empty
+
+  private val UDFMap: mutable.Map[String, ExpressionType] = mutable.Map()
+
+  private val LIB_EXTENSION = ".so"
 
   def registerUDF(name: String, bytes: Array[Byte]): Unit = {
     registerUDF(name, TypeConverter.from(bytes))
@@ -80,17 +94,117 @@ object UDFResolver extends Logging {
     logInfo(s"Registered UDF: $name -> $t")
   }
 
-  def loadAndGetFunctionDescriptions: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
-    SparkContext.getActive.get.conf
-      .getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
-      .foreach(new UdfJniWrapper().nativeLoadUdfLibraries(_))
+  def parseName(name: String): (String, String) = {
+    val index = name.lastIndexOf("#")
+    if (index == -1) {
+      (name, Paths.get(name).getFileName.toString)
+    } else {
+      (name.substring(0, index), name.substring(index + 1))
+    }
+  }
 
-    UDFMap.map {
-      case (name, t) =>
-        (
-          new FunctionIdentifier(name),
-          new ExpressionInfo(classOf[UDFExpression].getName, name),
-          (e: Seq[Expression]) => UDFExpression(name, t.dataType, t.nullable, e))
-    }.toSeq
+  def getFilesWithExtension(directory: Path, extension: String): Seq[Path] = {
+    Files
+      .walk(directory)
+      .filter(p => Files.isRegularFile(p) && p.toString.endsWith(extension))
+      .iterator()
+      .asScala
+      .toSeq
+  }
+
+  def unpackAndGetLibraries(source: File, destDir: File): Seq[String] = {
+    val sourceName = source.getName
+    val dest = new File(destDir, sourceName)
+    logInfo(
+      s"Unpacking an archive $sourceName from ${source.getAbsolutePath} to ${dest.getAbsolutePath}")
+    Utils.deleteRecursively(dest)
+    Utils.unpack(source, dest)
+    getFilesWithExtension(dest.toPath, LIB_EXTENSION).map(_.toString)
+  }
+
+  def getAllLibraries(files: Seq[String]): Seq[String] = {
+    files.map(SparkFiles.get).flatMap {
+      f =>
+        val file = new File(f)
+        if (file.isDirectory) {
+          getFilesWithExtension(Paths.get(f), LIB_EXTENSION).map(_.toString)
+        } else {
+          Seq(f)
+        }
+    }
+  }
+
+  def loadAndGetFunctionDescriptions: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
+    val sparkContext = SparkContext.getActive.get
+    val sparkConf = sparkContext.conf
+    val udfFiles = sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIBS)
+    if (udfFiles.isEmpty) {
+      Seq.empty
+    } else {
+      val files = udfFiles.get.split(",").map(Paths.get(_).getFileName.toString)
+
+      val master = sparkConf.getOption("spark.master")
+      val isYarn = master.isDefined && master.get.equals("yarn")
+      localLibraryPaths = if (isYarn) {
+        // For Yarn-client or Yarn-cluster mode,
+        // driver cannot get uploaded files via SparkFiles.get.
+        // So we need to copy and unpack files for driver first.
+        val hadoopConf = new YarnConfiguration(SparkHadoopUtil.newConfiguration(sparkConf))
+        val toLoad: ListBuffer[String] = ListBuffer()
+
+        sparkConf.getOption("spark.yarn.dist.files").foreach {
+          files =>
+            files.split(",").map(file => parseName(file)).foreach {
+              case (fullPath, nameOrAlias) =>
+                if (files.contains(nameOrAlias)) {
+                  toLoad += Utils
+                    .fetchFile(
+                      fullPath,
+                      new File(JniWorkspace.getDefault.getWorkDir),
+                      sparkConf,
+                      hadoopConf,
+                      System.currentTimeMillis,
+                      useCache = false)
+                    .toString
+                }
+            }
+        }
+
+        sparkConf.getOption("spark.yarn.dist.archives").foreach {
+          archives =>
+            archives.split(",").map(file => parseName(file)).foreach {
+              case (fullPath, nameOrAlias) =>
+                if (files.contains(nameOrAlias)) {
+                  val source = Utils
+                    .fetchFile(
+                      fullPath,
+                      Utils.createTempDir(),
+                      sparkConf,
+                      hadoopConf,
+                      System.currentTimeMillis,
+                      useCache = false)
+                  toLoad ++= unpackAndGetLibraries(
+                    source,
+                    new File(JniWorkspace.getDefault.getWorkDir))
+                }
+            }
+        }
+        toLoad
+      } else {
+        // Get the full paths of all libraries. Archives are already unpacked.
+        getAllLibraries(files)
+      }
+      val allLibs = localLibraryPaths.mkString(",")
+      logInfo(s"UDF library paths: $allLibs")
+      new UdfJniWrapper().nativeLoadUdfLibraries(allLibs)
+
+      UDFMap.map {
+        case (name, t) =>
+          (
+            new FunctionIdentifier(name),
+            new ExpressionInfo(classOf[UDFExpression].getName, name),
+            (e: Seq[Expression]) => UDFExpression(name, t.dataType, t.nullable, e))
+      }.toSeq
+    }
   }
 }
