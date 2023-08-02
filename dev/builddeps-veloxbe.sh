@@ -98,14 +98,6 @@ if [ "$ENABLE_VCPKG" = "ON" ]; then
     eval "$envs"
 fi
 
-##install arrow
-if [ "$SKIP_BUILD_EP" != "ON" ]; then
-    cd $GLUTEN_DIR/ep/build-arrow/src
-    ./get_arrow.sh --enable_custom_codec=$ARROW_ENABLE_CUSTOM_CODEC
-    ./build_arrow.sh --build_type=$BUILD_TYPE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS \
-                             --enable_ep_cache=$ENABLE_EP_CACHE
-fi
-
 ##install velox
 if [ "$SKIP_BUILD_EP" != "ON" ]; then
     cd $GLUTEN_DIR/ep/build-velox/src
