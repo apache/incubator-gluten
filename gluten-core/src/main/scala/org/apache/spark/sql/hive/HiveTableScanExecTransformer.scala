@@ -265,6 +265,16 @@ object HiveTableScanExecTransformer {
     plan.isInstanceOf[HiveTableScanExec]
   }
 
+  def getpartitionFilters(plan: SparkPlan): Seq[Expression] = {
+    plan.asInstanceOf[HiveTableScanExec].partitionPruningPred
+  }
+
+  def copyWith(plan: SparkPlan, newPartitionFilters: Seq[Expression]): SparkPlan = {
+    val hiveTableScanExec = plan.asInstanceOf[HiveTableScanExec]
+    hiveTableScanExec.copy(partitionPruningPred = newPartitionFilters)(sparkSession =
+      hiveTableScanExec.session)
+  }
+
   def validate(plan: SparkPlan): ValidationResult = {
     plan match {
       case hiveTableScan: HiveTableScanExec =>
