@@ -55,9 +55,8 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
         case _: InputAdapter =>
         case p: AdaptiveSparkPlanExec => collect(p.executedPlan)
         case p: QueryStageExec => collect(p.plan)
-        case p: GlutenPlan =>
+        case _: GlutenPlan =>
           numGlutenNodes += 1
-          p.innerChildren.foreach(collect)
         case p: SparkPlan =>
           p.logicalLink.flatMap(_.getTagValue(FALLBACK_REASON_TAG)) match {
             case Some(reason) => addFallbackNodeWithReason(p, reason)
@@ -67,7 +66,6 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
               // 2. Gluten does not support it without the fallback reason
               addFallbackNodeWithReason(p, "Gluten does not touch it or does not support it")
           }
-          p.innerChildren.foreach(collect)
         case _ =>
       }
     }
