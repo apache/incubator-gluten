@@ -115,14 +115,19 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       pipelineTime: SQLMetric,
       updateInputMetrics: (InputMetricsWrapper) => Unit,
       updateNativeMetrics: IMetrics => Unit,
-      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
+      materializeAtLast: Boolean,
+      inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
+  ): Iterator[ColumnarBatch] = {
     val beforeBuild = System.nanoTime()
     val transKernel = new CHNativeExpressionEvaluator()
     val inBatchIters = new java.util.ArrayList[GeneralInIterator](inputIterators.map {
       iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
     }.asJava)
     val resIter: GeneralOutIterator =
-      transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters)
+      transKernel.createKernelWithBatchIterator(
+        inputPartition.plan,
+        inBatchIters,
+        materializeAtLast)
 
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
@@ -167,7 +172,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
-      buildRelationBatchHolder: Seq[ColumnarBatch]): Iterator[ColumnarBatch] = {
+      buildRelationBatchHolder: Seq[ColumnarBatch],
+      materializeAtLast: Boolean): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenConfig.getConf
     val beforeBuild = System.nanoTime()
@@ -178,7 +184,10 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       }.asJava)
     // we need to complete dependency RDD's firstly
     val nativeIterator =
-      transKernel.createKernelWithBatchIterator(rootNode.toProtobuf, columnarNativeIterator)
+      transKernel.createKernelWithBatchIterator(
+        rootNode.toProtobuf,
+        columnarNativeIterator,
+        materializeAtLast)
 
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     val resIter = new Iterator[ColumnarBatch] {
