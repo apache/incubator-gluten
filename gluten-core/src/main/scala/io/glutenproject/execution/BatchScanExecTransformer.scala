@@ -83,8 +83,7 @@ class BatchScanExecTransformer(
     val aggregates = pushedAggregate(fileFormat)
     if (aggregates.nonEmpty) {
       return ValidationResult.notOk(
-        s"Not supported push down aggregation for" +
-          s" file format scan: $fileFormat")
+        s"Unsupported aggregation push down for $fileFormat format in scan.")
     }
     super.doValidateInternal()
   }
