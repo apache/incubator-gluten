@@ -244,7 +244,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     // generate each partition of all scan exec
     val substraitPlanPartition = inputPartitions.indices.map(
       i => {
-        genFilePartition(i, Seq(inputPartitions(i)), null, wsCxt)
+        genFilePartition(i, Seq(inputPartitions(i)), null, Seq(fileFormat), wsCxt)
       })
     logInfo(s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
     new NativeFileScanColumnarRDD(
