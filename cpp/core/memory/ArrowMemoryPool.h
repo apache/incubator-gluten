@@ -30,17 +30,13 @@ class ArrowMemoryPool final : public arrow::MemoryPool {
  public:
   explicit ArrowMemoryPool(MemoryAllocator* allocator) : allocator_(allocator) {}
 
-  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
+  arrow::Status Allocate(int64_t size, uint8_t** out) override;
 
-  arrow::Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override;
+  arrow::Status Reallocate(int64_t oldSize, int64_t newSize, uint8_t** ptr) override;
 
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override;
+  void Free(uint8_t* buffer, int64_t size) override;
 
   int64_t bytes_allocated() const override;
-
-  int64_t total_bytes_allocated() const override;
-
-  int64_t num_allocations() const override;
 
   std::string backend_name() const override;
 
