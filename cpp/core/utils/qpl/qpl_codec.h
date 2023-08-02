@@ -27,8 +27,6 @@ static const std::vector<std::string> qpl_supported_codec = {"gzip"};
 
 bool SupportsCodec(const std::string& codec);
 
-void EnsureQplCodecRegistered(const std::string& codec);
-
 std::unique_ptr<arrow::util::Codec> MakeQplGZipCodec(int compressionLevel);
 
 std::unique_ptr<arrow::util::Codec> MakeDefaultQplGZipCodec();

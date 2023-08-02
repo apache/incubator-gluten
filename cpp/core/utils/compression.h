@@ -33,11 +33,43 @@
 
 namespace gluten {
 
-#if defined(GLUTEN_ENABLE_QAT) or defined(GLUTEN_ENABLE_IAA)
+#if defined(GLUTEN_ENABLE_QAT)
 static const std::vector<arrow::Compression::type> kSupportedCodec = {
     arrow::Compression::LZ4_FRAME,
     arrow::Compression::ZSTD,
-    arrow::Compression::CUSTOM};
+    arrow::Compression::GZIP};
+inline Result<std::unique_ptr<arrow::util::Codec>> createCodec(arrow::Compression::type compressedType) {
+  std::unique_ptr<arrow::util::Codec> codec;
+  switch (compressedType) {
+    case arrow::Compression::LZ4_FRAME:
+      return arrow::util::Codec::Create(compressedType);
+    case arrow::Compression::ZSTD:
+      codec = qat::makeDefaultQatZstdCodec();
+    case arrow::Compression::GZIP:
+      codec = qat::makeDefaultQatGZipCodec();
+    default:
+      return nullptr;
+  }
+  return std::move(codec);
+}
+#elif defined(GLUTEN_ENABLE_IAA)
+static const std::vector<arrow::Compression::type> kSupportedCodec = {
+    arrow::Compression::LZ4_FRAME,
+    arrow::Compression::ZSTD,
+    arrow::Compression::GZIP};
+inline Result<std::unique_ptr<arrow::util::Codec>> createCodec(arrow::Compression::type compressedType) {
+  std::unique_ptr<arrow::util::Codec> codec;
+  switch (compressedType) {
+    case arrow::Compression::LZ4_FRAME:
+    case arrow::Compression::ZSTD:
+      return arrow::util::Codec::Create(compressedType);
+    case arrow::Compression::GZIP:
+      codec = qpl::MakeDefaultQplGZipCodec();
+    default:
+      return nullptr;
+  }
+  return std::move(codec);
+}
 #else
 static const std::vector<arrow::Compression::type> kSupportedCodec = {
     arrow::Compression::LZ4_FRAME,
@@ -48,7 +80,11 @@ inline std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(arrow::Compressio
   if (std::any_of(kSupportedCodec.begin(), kSupportedCodec.end(), [compressedType](const auto& codec) {
         return codec == compressedType;
       })) {
+#if defined(GLUTEN_ENABLE_QAT) or defined(GLUTEN_ENABLE_IAA)
+    GLUTEN_ASSIGN_OR_THROW(auto ret, createCodec(compressedType));
+#else
     GLUTEN_ASSIGN_OR_THROW(auto ret, arrow::util::Codec::Create(compressedType));
+#endif
     return ret;
   } else {
     return nullptr;

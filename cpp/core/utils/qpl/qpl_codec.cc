@@ -215,7 +215,7 @@ class QplGzipCodec final : public arrow::util::Codec {
   }
 
   arrow::Compression::type compression_type() const override {
-    return arrow::Compression::CUSTOM;
+    return arrow::Compression::GZIP;
   }
 
   int minimum_compression_level() const override {
@@ -240,12 +240,6 @@ bool SupportsCodec(const std::string& codec) {
     return true;
   }
   return false;
-}
-
-void EnsureQplCodecRegistered(const std::string& codec) {
-  if (codec == "gzip") {
-    arrow::util::RegisterCustomCodec([](int) { return MakeDefaultQplGZipCodec(); });
-  }
 }
 
 std::unique_ptr<arrow::util::Codec> MakeQplGZipCodec(int compressionLevel) {
