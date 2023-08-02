@@ -110,6 +110,8 @@ object ExpressionMappings {
     Sig[BitwiseAnd](BITWISE_AND),
     Sig[BitwiseOr](BITWISE_OR),
     Sig[BitwiseXor](BITWISE_XOR),
+    Sig[BitwiseGet](BITWISE_GET),
+    Sig[BitwiseCount](BITWISE_COUNT),
     Sig[ShiftLeft](SHIFTLEFT),
     Sig[ShiftRight](SHIFTRIGHT),
     Sig[Sqrt](SQRT),

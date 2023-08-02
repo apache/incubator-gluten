@@ -81,6 +81,12 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
     spark.catalog.createTable("datatab", parquetPath, fileFormat)
   }
 
+  test("Test bit_count function") {
+    runQueryAndCompare("SELECT bit_count(l_partkey) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test chr function") {
     runQueryAndCompare("SELECT chr(l_orderkey + 64) from lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
