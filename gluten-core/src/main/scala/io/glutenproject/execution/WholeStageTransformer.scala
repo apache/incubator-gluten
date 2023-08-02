@@ -38,7 +38,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 case class TransformContext(
@@ -192,7 +191,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
   }
 
   /** Find all BasicScanExecTransformers in one WholeStageTransformer */
-  def checkBatchScanExecTransformerChildren(): Seq[BasicScanExecTransformer] = {
+  private def findAllScanTransformers(): Seq[BasicScanExecTransformer] = {
     val basicScanExecTransformers = new mutable.ListBuffer[BasicScanExecTransformer]()
 
     def transformChildren(
@@ -205,6 +204,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
           case _ =>
         }
         // according to the substrait plan order
+        // SHJ may include two scans in a whole stage.
         plan match {
           case shj: HashJoinLikeExecTransformer =>
             transformChildren(shj.streamedPlan, basicScanExecTransformers)
@@ -217,7 +217,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
     }
 
     transformChildren(child, basicScanExecTransformers)
-    basicScanExecTransformers.toSeq
+    basicScanExecTransformers
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -227,7 +227,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
 
     val inputRDDs = columnarInputRDDs
     // Check if BatchScan exists.
-    val basicScanExecTransformers = checkBatchScanExecTransformerChildren()
+    val basicScanExecTransformers = findAllScanTransformers()
 
     if (basicScanExecTransformers.nonEmpty) {
 
@@ -236,7 +236,9 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
        * care of SCAN there won't be any other RDD for SCAN. As a result, genFirstStageIterator
        * rather than genFinalStageIterator will be invoked
        */
-      // the partition size of the all BasicScanExecTransformer must be the same
+
+      // If these are two scan transformers, they must have same partitions,
+      // otherwise, exchange will be inserted.
       val allScanPartitions = basicScanExecTransformers.map(_.getFlattenPartitions)
       val allScanPartitionSchemas = basicScanExecTransformers.map(_.getPartitionSchemas)
       val partitionLength = allScanPartitions.head.size
@@ -248,16 +250,14 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       val wsCxt = doWholeStageTransform()
 
       // the file format for each scan exec
-      wsCxt.substraitContext.setFileFormat(
-        basicScanExecTransformers.map(ConverterUtils.getFileFormat).asJava)
+      val fileFormats = basicScanExecTransformers.map(ConverterUtils.getFileFormat)
 
-      val partitionSchema = allScanPartitionSchemas.head
       // generate each partition of all scan exec
       val substraitPlanPartitions = (0 until partitionLength).map(
         i => {
           val currentPartitions = allScanPartitions.map(_(i))
           BackendsApiManager.getIteratorApiInstance
-            .genFilePartition(i, currentPartitions, partitionSchema, wsCxt)
+            .genFilePartition(i, currentPartitions, allScanPartitionSchemas, fileFormats, wsCxt)
         })
 
       logOnLevel(

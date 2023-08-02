@@ -55,7 +55,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   override def genFilePartition(
       index: Int,
       partitions: Seq[InputPartition],
-      partitionSchema: StructType,
+      partitionSchemas: Seq[StructType],
+      fileFormats: Seq[ReadFileFormat],
       wsCxt: WholeStageTransformContext): BaseGlutenPartition = {
     val localFilesNodesWithLocations = partitions.indices.map(
       i =>
@@ -86,7 +87,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 starts,
                 lengths,
                 partitionColumns.map(_.asJava).asJava,
-                wsCxt.substraitContext.getFileFormat.get(i)),
+                fileFormats(i)),
               SoftAffinityUtil.getFilePartitionLocations(f))
           case _ =>
             throw new UnsupportedOperationException(s"Unsupport operators.")

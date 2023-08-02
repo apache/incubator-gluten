@@ -60,10 +60,11 @@ class IteratorHandler extends IteratorApi with Logging {
   override def genFilePartition(
       index: Int,
       partitions: Seq[InputPartition],
-      partitionSchema: StructType,
+      partitionSchemas: Seq[StructType],
+      fileFormats: Seq[ReadFileFormat],
       wsCxt: WholeStageTransformContext): BaseGlutenPartition = {
 
-    def constructSplitInfo(files: Array[PartitionedFile]) = {
+    def constructSplitInfo(schema: StructType, files: Array[PartitionedFile]) = {
       val paths = mutable.ArrayBuffer.empty[String]
       val starts = mutable.ArrayBuffer.empty[java.lang.Long]
       val lengths = mutable.ArrayBuffer.empty[java.lang.Long]
@@ -79,8 +80,8 @@ class IteratorHandler extends IteratorApi with Logging {
             val partitionColumnValue = if (file.partitionValues.isNullAt(i)) {
               ExternalCatalogUtils.DEFAULT_PARTITION_NAME
             } else {
-              val pn = file.partitionValues.get(i, partitionSchema.fields(i).dataType)
-              partitionSchema.fields(i).dataType match {
+              val pn = file.partitionValues.get(i, schema.fields(i).dataType)
+              schema.fields(i).dataType match {
                 case _: BinaryType =>
                   new String(pn.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
                 case _: DateType =>
@@ -92,7 +93,7 @@ class IteratorHandler extends IteratorApi with Logging {
                 case _ => pn.toString
               }
             }
-            partitionColumn.put(partitionSchema.names(i), partitionColumnValue)
+            partitionColumn.put(schema.names(i), partitionColumnValue)
           }
           partitionColumns.append(partitionColumn.toMap)
       }
@@ -103,8 +104,10 @@ class IteratorHandler extends IteratorApi with Logging {
       i =>
         partitions(i) match {
           case f: FilePartition =>
-            val fileFormat = wsCxt.substraitContext.getFileFormat.get(0)
-            val (paths, starts, lengths, partitionColumns) = constructSplitInfo(f.files)
+            val fileFormat = fileFormats(i)
+            val partitionSchema = partitionSchemas(i)
+            val (paths, starts, lengths, partitionColumns) =
+              constructSplitInfo(partitionSchema, f.files)
             (
               LocalFilesBuilder.makeLocalFiles(
                 f.index,

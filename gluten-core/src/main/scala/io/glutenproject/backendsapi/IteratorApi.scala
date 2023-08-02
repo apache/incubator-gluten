@@ -41,7 +41,8 @@ trait IteratorApi {
   def genFilePartition(
       index: Int,
       partitions: Seq[InputPartition],
-      partitionSchema: StructType,
+      partitionSchema: Seq[StructType],
+      fileFormats: Seq[ReadFileFormat],
       wsCxt: WholeStageTransformContext): BaseGlutenPartition
 
   /**
