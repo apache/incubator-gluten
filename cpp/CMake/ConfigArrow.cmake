@@ -15,8 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set(ARROW_SHARED_LIBRARY_SUFFIX ".so.1200")
-set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.1200.0.0")
+set(ARROW_SHARED_LIBRARY_SUFFIX ".so.800")
+set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.800.0.0")
 
 set(ARROW_LIB_NAME "arrow")
 set(PARQUET_LIB_NAME "parquet")
@@ -46,7 +46,7 @@ endfunction()
 
 message(STATUS "Use existing ARROW libraries")
 
-set(ARROW_INSTALL_DIR "${ARROW_HOME}/arrow_install")
+set(ARROW_INSTALL_DIR "${ARROW_HOME}/install")
 set(ARROW_LIB_DIR "${ARROW_INSTALL_DIR}/lib")
 set(ARROW_LIB64_DIR "${ARROW_INSTALL_DIR}/lib64")
 set(ARROW_INCLUDE_DIR "${ARROW_INSTALL_DIR}/include")
