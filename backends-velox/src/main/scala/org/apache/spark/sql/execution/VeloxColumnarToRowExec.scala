@@ -161,7 +161,7 @@ class ColumnarToRowRDD(
             } else {
               val beforeConvert = System.currentTimeMillis()
               val batchHandle = ColumnarBatches.getNativeHandle(batch)
-              val info = jniWrapper.nativeColumnarToRowWrite(batchHandle, c2rId)
+              val info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId)
 
               convertTime += (System.currentTimeMillis() - beforeConvert)
 

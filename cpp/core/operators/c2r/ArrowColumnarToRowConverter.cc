@@ -32,7 +32,7 @@ namespace gluten {
 uint32_t x7[8] __attribute__((aligned(32))) = {0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7, 0x7};
 uint32_t x8[8] __attribute__((aligned(32))) = {0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8};
 
-arrow::Status ArrowColumnarToRowConverter::init() {
+arrow::Status ArrowColumnarToRowConverter::refreshStates() {
   supportAvx512_ = false;
 #if defined(__x86_64__)
   supportAvx512_ = __builtin_cpu_supports("avx512bw");
@@ -294,13 +294,13 @@ arrow::Status ArrowColumnarToRowConverter::fillBuffer(
   return arrow::Status::OK();
 }
 
-arrow::Status ArrowColumnarToRowConverter::write(std::shared_ptr<ColumnarBatch> cb) {
+arrow::Status ArrowColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb) {
   std::shared_ptr<ArrowSchema> cSchema = cb->exportArrowSchema();
   std::shared_ptr<ArrowArray> cArray = cb->exportArrowArray();
   ARROW_ASSIGN_OR_RAISE(rb_, arrow::ImportRecordBatch(cArray.get(), cSchema.get()));
   ArrowSchemaRelease(cSchema.get());
   ArrowArrayRelease(cArray.get());
-  RETURN_NOT_OK(init());
+  RETURN_NOT_OK(refreshStates());
 
   std::vector<std::shared_ptr<arrow::Array>> arrays;
   std::vector<std::vector<const uint8_t*>> dataptrs;

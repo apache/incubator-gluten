@@ -23,13 +23,13 @@ namespace gluten {
 
 class ArrowColumnarToRowConverter final : public ColumnarToRowConverter {
  public:
-  explicit ArrowColumnarToRowConverter(std::shared_ptr<arrow::MemoryPool> memoryPool)
-      : ColumnarToRowConverter(memoryPool) {}
+  explicit ArrowColumnarToRowConverter(std::shared_ptr<arrow::MemoryPool> arrowPool)
+      : ColumnarToRowConverter(), arrowPool_(arrowPool) {}
 
-  arrow::Status write(std::shared_ptr<ColumnarBatch> cb) override;
+  arrow::Status convert(std::shared_ptr<ColumnarBatch> cb) override;
 
  private:
-  arrow::Status init();
+  arrow::Status refreshStates();
 
   arrow::Status fillBuffer(
       int32_t& rowStart,
@@ -48,6 +48,10 @@ class ArrowColumnarToRowConverter final : public ColumnarToRowConverter {
       bool supportAvx512);
 
   std::shared_ptr<arrow::RecordBatch> rb_;
+
+  bool supportAvx512_;
+  std::shared_ptr<arrow::MemoryPool> arrowPool_;
+  std::shared_ptr<arrow::Buffer> buffer_;
 };
 
 } // namespace gluten

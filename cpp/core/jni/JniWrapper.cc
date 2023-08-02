@@ -543,7 +543,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToR
     jobject,
     jlong allocatorId) {
   JNI_METHOD_START
-  // convert the native batch to Spark unsafe row.
+  // Convert the native batch to Spark unsafe row.
   auto* allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocatorId);
   if (allocator == nullptr) {
     throw gluten::GlutenException("Allocator does not exist or has been closed");
@@ -557,7 +557,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToR
 }
 
 JNIEXPORT jobject JNICALL
-Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToRowWrite( // NOLINT
+Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToRowConvert( // NOLINT
     JNIEnv* env,
     jobject,
     jlong batchHandle,
@@ -565,7 +565,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToR
   JNI_METHOD_START
   auto columnarToRowConverter = columnarToRowConverterHolder.lookup(instanceId);
   std::shared_ptr<ColumnarBatch> cb = columnarBatchHolder.lookup(batchHandle);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(cb));
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(cb));
 
   const auto& offsets = columnarToRowConverter->getOffsets();
   const auto& lengths = columnarToRowConverter->getLengths();
