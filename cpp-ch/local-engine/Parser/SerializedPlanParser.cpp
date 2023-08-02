@@ -1782,7 +1782,10 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 DataTypePtr ch_type = TypeParser::parseType(substrait_type);
                 args.emplace_back(add_column(std::make_shared<DataTypeString>(), ch_type->getName()));
 
-                function_node = toFunctionNode(actions_dag, "CAST", args);
+                if (rel.cast().failure_behavior() == substrait::Expression_Cast_FailureBehavior_FAILURE_BEHAVIOR_THROW_EXCEPTION)
+                    function_node = toFunctionNode(actions_dag, "accurateCast", args);
+                else
+                    function_node = toFunctionNode(actions_dag, "CAST", args);
             }
 
             actions_dag->addOrReplaceInOutputs(*function_node);
@@ -2317,7 +2320,10 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
                 DataTypePtr ch_type = TypeParser::parseType(substrait_type);
                 args.emplace_back(std::make_shared<ASTLiteral>(ch_type->getName()));
 
-                return makeASTFunction("CAST", args);
+                if (rel.cast().failure_behavior() == substrait::Expression_Cast_FailureBehavior_FAILURE_BEHAVIOR_THROW_EXCEPTION)
+                    return makeASTFunction("accurateCast", args);
+                else
+                    return makeASTFunction("CAST", args);
             }
         }
         case substrait::Expression::RexTypeCase::kIfThen: {

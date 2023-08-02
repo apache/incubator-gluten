@@ -59,6 +59,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
 
        {"extract", ""},
        {"cast", "CAST"},
+       {"ansicast", "accurateCast"},
        {"alias", "alias"},
 
        /// datetime functions

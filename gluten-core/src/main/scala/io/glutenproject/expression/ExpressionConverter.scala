@@ -513,7 +513,17 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(newCast.child, attributeSeq),
           newCast.dataType,
           newCast.timeZoneId,
-          newCast)
+          newCast,
+          false
+        )
+      case c: AnsiCast =>
+        new CastTransformer(
+          replaceWithExpressionTransformer(c.child, attributeSeq),
+          c.dataType,
+          c.timeZoneId,
+          c,
+          true
+        )
       case k: KnownFloatingPointNormalized =>
         new KnownFloatingPointNormalizedTransformer(
           replaceWithExpressionTransformer(k.child, attributeSeq),

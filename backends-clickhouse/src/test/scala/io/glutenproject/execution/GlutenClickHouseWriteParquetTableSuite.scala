@@ -74,9 +74,8 @@ class GlutenClickHouseWriteParquetTableSuite
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
-      // TODO: support default ANSI policy
-      .set("spark.sql.storeAssignmentPolicy", "legacy")
-      // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
+//      .set("spark.sql.storeAssignmentPolicy", "legacy")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
       .setMaster("local[1]")
   }
@@ -318,6 +317,7 @@ class GlutenClickHouseWriteParquetTableSuite
 
       spark.sql(s"drop table IF EXISTS $parquet_table_name")
 
+      var exceptionMet = false
       try {
         val parquet_table_create_sql =
           s"create table $parquet_table_name as select " +
@@ -327,10 +327,12 @@ class GlutenClickHouseWriteParquetTableSuite
             " from origin_table"
         spark.sql(parquet_table_create_sql)
       } catch {
-        case _: UnsupportedOperationException => // expected
+        case _: UnsupportedOperationException => exceptionMet = true
         case _: Exception => fail("should not throw exception")
       }
-
+      if (!exceptionMet) {
+        fail("last sql should have failed")
+      }
     }
   }
 
@@ -766,7 +768,9 @@ class GlutenClickHouseWriteParquetTableSuite
   }
 
   test("test partitioned by constant") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(
+      ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
+      ("spark.gluten.enabled", "true")) {
 
       spark.sql(s"drop table IF EXISTS tmp_123")
       spark.sql(
@@ -774,9 +778,42 @@ class GlutenClickHouseWriteParquetTableSuite
           s"x1 string, x2 bigint,x3 string, x4 bigint, x5 string )" +
           s"partitioned by (day date) stored as parquet")
 
-      spark.sql("insert into tmp_123 partition(day) " +
-        "select cast(id as string), id, cast(id as string), id, cast(id as string), '2023-05-09' " +
-        "from range(10000000)")
+      spark.sql(
+        "insert into tmp_123 partition(day) " +
+          "select cast(id as string), id, cast(id as string), id, " +
+          "cast(id as string), cast('2023-05-09' as date) " +
+          "from range(10000000)")
+    }
+  }
+
+  test("test cast overflow") {
+    withSQLConf(
+      ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
+      ("spark.gluten.enabled", "true")) {
+
+      spark.sql(s"drop table IF EXISTS tmp_123")
+      spark.sql(
+        s"create table tmp_123(" +
+          s"x1 string, x2 byte )" +
+          s"stored as parquet")
+
+      spark.sql(
+        "insert into tmp_123  " +
+          "select cast(id as string), id " +
+          "from range(100)")
+
+      var exceptionMet = false
+      try {
+        spark.sql(
+          "insert into tmp_123  " +
+            "select cast(id as string), id " +
+            "from range(200)")
+      } catch {
+        case _: Exception => exceptionMet = true
+      }
+      if (!exceptionMet) {
+        fail()
+      }
     }
   }
 

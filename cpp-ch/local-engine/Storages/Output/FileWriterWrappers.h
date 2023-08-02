@@ -50,8 +50,6 @@ using FileWriterWrapperPtr = std::shared_ptr<FileWriterWrapper>;
 class NormalFileWriter : public FileWriterWrapper
 {
 public:
-    //TODO: EmptyFileReader and ConstColumnsFileReader ?
-    //TODO: to support complex types
     NormalFileWriter(OutputFormatFilePtr file_, DB::ContextPtr context_);
     ~NormalFileWriter() override = default;
     void consume(DB::Block & block) override;

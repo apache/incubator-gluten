@@ -18,15 +18,12 @@ package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.`type`.ListNode
-import io.glutenproject.substrait.`type`.MapNode
-import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.substrait.`type`.{ListNode, MapNode, TypeBuilder}
 import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import com.google.common.collect.Lists
@@ -48,13 +45,14 @@ class CastTransformer(
     child: ExpressionTransformer,
     datatype: DataType,
     timeZoneId: Option[String],
-    original: Expression)
+    original: Expression,
+    ansiMode: Boolean)
   extends ExpressionTransformer
   with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val typeNode = ConverterUtils.getTypeNode(datatype, original.nullable)
-    ExpressionBuilder.makeCast(typeNode, child.doTransform(args), SQLConf.get.ansiEnabled)
+    ExpressionBuilder.makeCast(typeNode, child.doTransform(args), ansiMode)
   }
 }
 
