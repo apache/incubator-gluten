@@ -86,6 +86,58 @@ public class CelebornShuffleManager implements ShuffleManager {
     return _columnarShuffleManager;
   }
 
+  private ShuffleClient getShuffleClient(
+      String appUniqueId,
+      String lifecycleManagerHost,
+      Integer lifecycleManagerPort,
+      CelebornConf conf,
+      UserIdentifier userIdentifier,
+      Boolean isDriver) {
+    try {
+      try {
+        Method method =
+            // for Celeborn 0.3.1 and above, see CELEBORN-804
+            ShuffleClient.class.getDeclaredMethod(
+                "get",
+                String.class,
+                String.class,
+                int.class,
+                CelebornConf.class,
+                UserIdentifier.class);
+        return (ShuffleClient)
+            method.invoke(
+                null,
+                appUniqueId,
+                lifecycleManagerHost,
+                lifecycleManagerPort,
+                conf,
+                userIdentifier);
+      } catch (NoSuchMethodException noMethod) {
+        Method method =
+            // for Celeborn 0.3.0, see CELEBORN-798
+            ShuffleClient.class.getDeclaredMethod(
+                "get",
+                String.class,
+                String.class,
+                int.class,
+                CelebornConf.class,
+                UserIdentifier.class,
+                boolean.class);
+        return (ShuffleClient)
+            method.invoke(
+                null,
+                appUniqueId,
+                lifecycleManagerHost,
+                lifecycleManagerPort,
+                conf,
+                userIdentifier,
+                isDriver);
+      }
+    } catch (ReflectiveOperationException rethrow) {
+      throw new RuntimeException(rethrow);
+    }
+  }
+
   private void initializeLifecycleManager() {
     // Only create LifecycleManager singleton in Driver. When register shuffle multiple times, we
     // need to ensure that LifecycleManager will only be created once. Parallelism needs to be
@@ -95,51 +147,14 @@ public class CelebornShuffleManager implements ShuffleManager {
       synchronized (this) {
         if (lifecycleManager == null) {
           lifecycleManager = new LifecycleManager(appUniqueId, celebornConf);
-          try {
-            try {
-              Method method =
-                  // for Celeborn 0.3.1 and above, see CELEBORN-804
-                  ShuffleClient.class.getDeclaredMethod(
-                      "get",
-                      String.class,
-                      String.class,
-                      int.class,
-                      CelebornConf.class,
-                      UserIdentifier.class);
-              shuffleClient =
-                  (ShuffleClient)
-                      method.invoke(
-                          null,
-                          appUniqueId,
-                          lifecycleManager.getHost(),
-                          Integer.valueOf(lifecycleManager.getPort()),
-                          celebornConf,
-                          lifecycleManager.getUserIdentifier());
-            } catch (NoSuchMethodException noMethod) {
-              Method method =
-                  // for Celeborn 0.3.0, see CELEBORN-798
-                  ShuffleClient.class.getDeclaredMethod(
-                      "get",
-                      String.class,
-                      String.class,
-                      int.class,
-                      CelebornConf.class,
-                      UserIdentifier.class,
-                      boolean.class);
-              shuffleClient =
-                  (ShuffleClient)
-                      method.invoke(
-                          null,
-                          appUniqueId,
-                          lifecycleManager.getHost(),
-                          Integer.valueOf(lifecycleManager.getPort()),
-                          celebornConf,
-                          lifecycleManager.getUserIdentifier(),
-                          Boolean.TRUE);
-            }
-          } catch (ReflectiveOperationException rethrow) {
-            throw new RuntimeException(rethrow);
-          }
+          shuffleClient =
+              getShuffleClient(
+                  appUniqueId,
+                  lifecycleManager.getHost(),
+                  lifecycleManager.getPort(),
+                  celebornConf,
+                  lifecycleManager.getUserIdentifier(),
+                  Boolean.TRUE);
         }
       }
     }
@@ -218,7 +233,7 @@ public class CelebornShuffleManager implements ShuffleManager {
         @SuppressWarnings("unchecked")
         CelebornShuffleHandle<K, V, V> h = ((CelebornShuffleHandle<K, V, V>) handle);
         ShuffleClient client =
-            ShuffleClient.get(
+            getShuffleClient(
                 h.appUniqueId(),
                 h.lifecycleManagerHost(),
                 h.lifecycleManagerPort(),
