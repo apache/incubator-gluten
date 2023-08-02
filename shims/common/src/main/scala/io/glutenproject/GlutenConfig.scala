@@ -329,7 +329,10 @@ object GlutenConfig {
   // Batch size.
   val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
 
-  // Whether load DLL from jars
+  // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
+  // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
+  // at runtime. This config is just for velox backend. And it is NOT applicable to the situation
+  // where deployed gluten jar is generated through static build (e.g., Gluten's release jar).
   val GLUTEN_LOAD_LIB_FROM_JAR = "spark.gluten.loadLibFromJar"
   val GLUTEN_LOAD_LIB_FROM_JAR_DEFAULT = false
 
