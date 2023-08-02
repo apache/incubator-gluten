@@ -69,7 +69,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
  public:
   explicit MyMemoryPool() {}
 
-  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
+  Status Allocate(int64_t size, uint8_t** out) override {
     RETURN_NOT_OK(pool_->Allocate(size, out));
     stats_.UpdateAllocatedBytes(size);
     // std::cout << "Allocate: size = " << size << " addr = " << std::hex <<
@@ -77,7 +77,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override {
+  Status Reallocate(int64_t oldSize, int64_t newSize, uint8_t** ptr) override {
     // auto old_ptr = *ptr;
     RETURN_NOT_OK(pool_->Reallocate(oldSize, newSize, ptr));
     stats_.UpdateAllocatedBytes(newSize - oldSize);
@@ -88,7 +88,7 @@ class MyMemoryPool final : public arrow::MemoryPool {
     return arrow::Status::OK();
   }
 
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
+  void Free(uint8_t* buffer, int64_t size) override {
     pool_->Free(buffer, size);
     stats_.UpdateAllocatedBytes(-size);
     // std::cout << "Free: size = " << size << " addr = " << std::hex <<
@@ -106,14 +106,6 @@ class MyMemoryPool final : public arrow::MemoryPool {
 
   std::string backend_name() const override {
     return pool_->backend_name();
-  }
-
-  int64_t total_bytes_allocated() const override {
-    return pool_->total_bytes_allocated();
-  }
-
-  int64_t num_allocations() const override {
-    throw pool_->num_allocations();
   }
 
  private:
