@@ -37,6 +37,7 @@ class VeloxShuffleReader final : public Reader {
   static facebook::velox::RowVectorPtr readRowVector(
       const arrow::RecordBatch& batch,
       facebook::velox::RowTypePtr rowType,
+      CodecBackend codecBackend,
       arrow::MemoryPool* arrowPool,
       facebook::velox::memory::MemoryPool* pool);
 

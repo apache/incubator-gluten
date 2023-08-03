@@ -246,13 +246,14 @@ void getUncompressedBuffers(
     const arrow::RecordBatch& batch,
     arrow::MemoryPool* arrowPool,
     const arrow::Compression::type compressType,
+    CodecBackend codecBackend,
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
   auto lengthBuffer = readColumnBuffer(batch, 1);
   const int64_t* lengthPtr = reinterpret_cast<const int64_t*>(lengthBuffer->data());
   auto valueBufferLength = lengthPtr[0];
   auto valueBuffer = readColumnBuffer(batch, 2);
   int64_t valueOffset = 0;
-  auto codec = createArrowIpcCodec(compressType);
+  auto codec = createArrowIpcCodec(compressType, codecBackend);
   for (int64_t i = 0, j = 1; i < valueBufferLength; i++, j = j + 2) {
     int64_t uncompressLength = lengthPtr[j];
     int64_t compressLength = lengthPtr[j + 1];
@@ -279,6 +280,7 @@ void getUncompressedBuffers(
 RowVectorPtr readRowVectorInternal(
     const arrow::RecordBatch& batch,
     RowTypePtr rowType,
+    CodecBackend codecBackend,
     int64_t& decompressTime,
     arrow::MemoryPool* arrowPool,
     memory::MemoryPool* pool) {
@@ -298,7 +300,7 @@ RowVectorPtr readRowVectorInternal(
     }
   } else {
     TIME_NANO_START(decompressTime);
-    getUncompressedBuffers(batch, arrowPool, compressType, buffers);
+    getUncompressedBuffers(batch, arrowPool, compressType, codecBackend, buffers);
     TIME_NANO_END(decompressTime);
   }
   return deserialize(rowType, length, buffers, pool);
@@ -323,17 +325,19 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> VeloxShuffleReader::next() {
     return nullptr;
   }
   auto rb = std::dynamic_pointer_cast<ArrowColumnarBatch>(batch)->getRecordBatch();
-  auto vp = readRowVectorInternal(*rb, rowType_, decompressTime_, pool_.get(), veloxPool_.get());
+  auto vp =
+      readRowVectorInternal(*rb, rowType_, options_.codec_backend, decompressTime_, pool_.get(), veloxPool_.get());
   return std::make_shared<VeloxColumnarBatch>(vp);
 }
 
 RowVectorPtr VeloxShuffleReader::readRowVector(
     const arrow::RecordBatch& rb,
     RowTypePtr rowType,
+    CodecBackend codecBackend,
     arrow::MemoryPool* arrowPool,
     memory::MemoryPool* pool) {
   int64_t decompressTime = 0;
-  return readRowVectorInternal(rb, rowType, decompressTime, arrowPool, pool);
+  return readRowVectorInternal(rb, rowType, codecBackend, decompressTime, arrowPool, pool);
 }
 
 } // namespace gluten

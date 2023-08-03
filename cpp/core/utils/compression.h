@@ -33,20 +33,32 @@
 
 namespace gluten {
 
+enum CodecBackend { NONE, QAT, IAA };
+
 #if defined(GLUTEN_ENABLE_QAT)
 static const std::vector<arrow::Compression::type> kSupportedCodec = {
     arrow::Compression::LZ4_FRAME,
     arrow::Compression::ZSTD,
     arrow::Compression::GZIP};
-inline Result<std::unique_ptr<arrow::util::Codec>> createCodec(arrow::Compression::type compressedType) {
+inline Result<std::unique_ptr<arrow::util::Codec>> createCodec(
+    arrow::Compression::type compressedType,
+    CodecBackend codecBackend) {
   std::unique_ptr<arrow::util::Codec> codec;
   switch (compressedType) {
     case arrow::Compression::LZ4_FRAME:
       return arrow::util::Codec::Create(compressedType);
-    case arrow::Compression::ZSTD:
+    case arrow::Compression::ZSTD: {
+      if (codecBackend == CodecBackend::NONE) {
+        return arrow::util::Codec::Create(compressedType);
+      }
       codec = qat::makeDefaultQatZstdCodec();
-    case arrow::Compression::GZIP:
+    } break;
+    case arrow::Compression::GZIP: {
+      if (codecBackend == CodecBackend::NONE) {
+        return arrow::util::Codec::Create(compressedType);
+      }
       codec = qat::makeDefaultQatGZipCodec();
+    } break;
     default:
       return nullptr;
   }
@@ -57,14 +69,20 @@ static const std::vector<arrow::Compression::type> kSupportedCodec = {
     arrow::Compression::LZ4_FRAME,
     arrow::Compression::ZSTD,
     arrow::Compression::GZIP};
-inline Result<std::unique_ptr<arrow::util::Codec>> createCodec(arrow::Compression::type compressedType) {
+inline Result<std::unique_ptr<arrow::util::Codec>> createCodec(
+    arrow::Compression::type compressedType,
+    CodecBackend codecBackend) {
   std::unique_ptr<arrow::util::Codec> codec;
   switch (compressedType) {
     case arrow::Compression::LZ4_FRAME:
     case arrow::Compression::ZSTD:
       return arrow::util::Codec::Create(compressedType);
-    case arrow::Compression::GZIP:
+    case arrow::Compression::GZIP: {
+      if (codecBackend == CodecBackend::NONE) {
+        return arrow::util::Codec::Create(compressedType);
+      }
       codec = qpl::MakeDefaultQplGZipCodec();
+    } break;
     default:
       return nullptr;
   }
@@ -76,12 +94,14 @@ static const std::vector<arrow::Compression::type> kSupportedCodec = {
     arrow::Compression::ZSTD};
 #endif
 
-inline std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(arrow::Compression::type compressedType) {
+inline std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(
+    arrow::Compression::type compressedType,
+    CodecBackend codecBackend) {
   if (std::any_of(kSupportedCodec.begin(), kSupportedCodec.end(), [compressedType](const auto& codec) {
         return codec == compressedType;
       })) {
 #if defined(GLUTEN_ENABLE_QAT) or defined(GLUTEN_ENABLE_IAA)
-    GLUTEN_ASSIGN_OR_THROW(auto ret, createCodec(compressedType));
+    GLUTEN_ASSIGN_OR_THROW(auto ret, createCodec(compressedType, codecBackend));
 #else
     GLUTEN_ASSIGN_OR_THROW(auto ret, arrow::util::Codec::Create(compressedType));
 #endif

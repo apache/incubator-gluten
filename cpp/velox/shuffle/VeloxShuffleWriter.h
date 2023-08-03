@@ -143,8 +143,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
     return options_.data_file;
   }
 
-  arrow::Status setCompressType(arrow::Compression::type compressedType);
-
   // for debugging
   void printColumnsInfo() const {
     VS_PRINT_FUNCTION_SPLIT_LINE();
