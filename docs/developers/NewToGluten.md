@@ -368,15 +368,15 @@ Refer to [velox_be.yml](https://github.com/oap-project/gluten/blob/main/.github/
 
 # Run gluten+velox on clean machine
 
-We can run gluten+velox on clean machine by one command (supported OS: Ubuntu20.04/22.04, Centos 7/8, etc.).
+We can run gluten + velox on clean machine by one command (supported OS: Ubuntu20.04/22.04, Centos 7/8, etc.).
 ```
 spark-shell --name run_gluten \
  --master yarn --deploy-mode client \
  --conf spark.plugins=io.glutenproject.GlutenPlugin \
  --conf spark.memory.offHeap.enabled=true \
  --conf spark.memory.offHeap.size=20g \
- --jars https://github.com/oap-project/gluten/releases/download/v1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-1.0.0.jar
-
+ --jars https://github.com/oap-project/gluten/releases/download/v1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-1.0.0.jar \
+ --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager
 ```
 
 # How to prioritize loading Gluten jars in Spark 
