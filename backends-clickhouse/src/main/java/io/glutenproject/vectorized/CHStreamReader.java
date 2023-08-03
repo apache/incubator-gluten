@@ -23,8 +23,6 @@ import java.io.InputStream;
 public class CHStreamReader implements AutoCloseable {
   private final ShuffleInputStream inputStream;
   private long nativeShuffleReader;
-  private boolean compressed;
-  private int bufferSize;
 
   public CHStreamReader(InputStream inputStream, int bufferSize) {
     this(inputStream, false, false, bufferSize);
@@ -35,13 +33,11 @@ public class CHStreamReader implements AutoCloseable {
       boolean forceCompress,
       boolean isCustomizedShuffleCodec,
       int bufferSize) {
-    this.bufferSize = bufferSize;
     this.inputStream =
         CHShuffleReadStreamFactory.create(
             inputStream, forceCompress, isCustomizedShuffleCodec, bufferSize);
-    this.compressed = this.inputStream.isCompressed();
-    nativeShuffleReader =
-        createNativeShuffleReader(this.inputStream, this.compressed, this.bufferSize);
+    boolean compressed = this.inputStream.isCompressed();
+    nativeShuffleReader = createNativeShuffleReader(this.inputStream, compressed, bufferSize);
   }
 
   private static native long createNativeShuffleReader(
