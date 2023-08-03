@@ -201,7 +201,8 @@ elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
     ;;
   esac
 elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
-  case "$LINUX_VERSION_ID" in
+  case "${LINUX_VERSION_ID:0:1}" in
+    2) process_setup_centos7 ;;
     3) process_setup_alinux3 ;;
     *)
       echo "Unsupport alinux version: $LINUX_VERSION_ID"
