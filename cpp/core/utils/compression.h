@@ -18,89 +18,13 @@
 #pragma once
 
 #include <arrow/util/compression.h>
-#include <bits/stl_algo.h>
-#include <vector>
-
-#include "exception.h"
-
-#ifdef GLUTEN_ENABLE_QAT
-#include "utils/qat/QatCodec.h"
-#endif
-
-#ifdef GLUTEN_ENABLE_IAA
-#include "utils/qpl/qpl_codec.h"
-#endif
 
 namespace gluten {
 
 enum CodecBackend { NONE, QAT, IAA };
 
-#if defined(GLUTEN_ENABLE_QAT)
-inline arrow::Result<std::unique_ptr<arrow::util::Codec>> createCodec(
+std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(
     arrow::Compression::type compressedType,
-    CodecBackend codecBackend) {
-  std::unique_ptr<arrow::util::Codec> codec;
-  switch (compressedType) {
-    case arrow::Compression::LZ4_FRAME:
-      return arrow::util::Codec::Create(compressedType);
-    case arrow::Compression::ZSTD: {
-      if (codecBackend == CodecBackend::NONE) {
-        return arrow::util::Codec::Create(compressedType);
-      }
-      codec = qat::makeDefaultQatZstdCodec();
-    } break;
-    case arrow::Compression::GZIP: {
-      if (codecBackend == CodecBackend::NONE) {
-        return nullptr;
-      }
-      codec = qat::makeDefaultQatGZipCodec();
-    } break;
-    default:
-      return nullptr;
-  }
-  return std::move(codec);
-}
-#elif defined(GLUTEN_ENABLE_IAA)
-inline arrow::Result<std::unique_ptr<arrow::util::Codec>> createCodec(
-    arrow::Compression::type compressedType,
-    CodecBackend codecBackend) {
-  std::unique_ptr<arrow::util::Codec> codec;
-  switch (compressedType) {
-    case arrow::Compression::LZ4_FRAME:
-    case arrow::Compression::ZSTD:
-      return arrow::util::Codec::Create(compressedType);
-    case arrow::Compression::GZIP: {
-      if (codecBackend == CodecBackend::NONE) {
-        return nullptr;
-      }
-      codec = qpl::MakeDefaultQplGZipCodec();
-    } break;
-    default:
-      return nullptr;
-  }
-  return std::move(codec);
-}
-#else
-inline arrow::Result<std::unique_ptr<arrow::util::Codec>> createCodec(arrow::Compression::type compressedType) {
-  switch (compressedType) {
-    case arrow::Compression::LZ4_FRAME:
-    case arrow::Compression::ZSTD:
-      return arrow::util::Codec::Create(compressedType);
-    default:
-      return nullptr;
-  }
-}
-#endif
-
-inline std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(
-    arrow::Compression::type compressedType,
-    CodecBackend codecBackend) {
-#if defined(GLUTEN_ENABLE_QAT) or defined(GLUTEN_ENABLE_IAA)
-  GLUTEN_ASSIGN_OR_THROW(auto ret, createCodec(compressedType, codecBackend));
-#else
-  GLUTEN_ASSIGN_OR_THROW(auto ret, createCodec(compressedType));
-#endif
-  return ret;
-}
+    CodecBackend codecBackend);
 
 } // namespace gluten
