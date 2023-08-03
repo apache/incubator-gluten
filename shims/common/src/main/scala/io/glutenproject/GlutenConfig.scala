@@ -245,6 +245,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConfString("spark.gluten.sql.input.row.max.block.size", "8192").toLong
 
   def enableNativeParquetWriter: Boolean = conf.getConf(NATIVE_PARQUET_WRITER_ENABLED)
+
+  def isLegacyStoreAssignmentPolicy: Boolean =
+    "legacy".equals(conf.getConfString("spark.sql.storeAssignmentPolicy"))
 }
 
 object GlutenConfig {

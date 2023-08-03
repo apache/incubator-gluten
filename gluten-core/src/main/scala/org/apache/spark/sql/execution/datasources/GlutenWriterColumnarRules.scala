@@ -135,8 +135,23 @@ object GlutenWriterColumnarRules {
   }
 
   case class NativeWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
+
+    private def checkAssignmentPolicy(): Boolean = {
+      if (!GlutenConfig.getConf.isLegacyStoreAssignmentPolicy) {
+        // otherwise Spark will use ansi_cast in the query plan, which we don't support
+        log.warn(
+          "When using Gluten for writing task, " +
+            "you should set `spark.sql.storeAssignmentPolicy` " +
+            "to `legacy` to avoid unexpected behavior.")
+        false
+      } else {
+        true
+      }
+    }
+
     override def apply(p: SparkPlan): SparkPlan = p match {
       case rc @ DataWritingCommandExec(cmd, child) =>
+        checkAssignmentPolicy()
         session.sparkContext.setLocalProperty("isNativeParquetAppliable", "false")
         if (isNativeParquetAppliable(cmd)) {
           session.sparkContext.setLocalProperty("isNativeParquetAppliable", "true")
