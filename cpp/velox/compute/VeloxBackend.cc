@@ -32,10 +32,10 @@
 #include "velox/common/file/FileSystems.h"
 #include "velox/serializers/PrestoSerializer.h"
 #ifdef ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
+#include "velox/connectors/hive/storage_adapters/hdfs/RegisterHdfsFileSystem.h"
 #endif
 #ifdef ENABLE_S3
-#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
+#include "velox/connectors/hive/storage_adapters/s3fs/RegisterS3FileSystem.h"
 #endif
 #include "jni/JniFileSystem.h"
 #include "udf/UdfLoader.h"
