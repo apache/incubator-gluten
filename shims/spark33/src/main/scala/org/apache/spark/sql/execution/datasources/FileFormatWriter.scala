@@ -111,6 +111,12 @@ object FileFormatWriter extends Logging {
       statsTrackers: Seq[WriteJobStatsTracker],
       options: Map[String, String]): Set[String] = {
 
+    val nativeEnabled =
+      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeParquetAppliable"))
+    if (nativeEnabled) {
+      assert(plan.isInstanceOf[IFakeRowAdaptor])
+    }
+
     val job = Job.getInstance(hadoopConf)
     job.setOutputKeyClass(classOf[Void])
     job.setOutputValueClass(classOf[InternalRow])
@@ -220,9 +226,26 @@ object FileFormatWriter extends Logging {
     // prepares the job, any exception thrown from here shouldn't cause abortJob() to be called.
     committer.setupJob(job)
 
+    def nativeWrap(plan: SparkPlan) = {
+      var wrapped: SparkPlan = plan
+      if (writerBucketSpec.isDefined) {
+        // We need to add the bucket id expression to the output of the sort plan,
+        // so that we can use backend to calculate the bucket id for each row.
+        wrapped = ProjectExec(
+          wrapped.output :+ Alias(writerBucketSpec.get.bucketIdExpression, "__bucket_value__")(),
+          wrapped)
+        // TODO: to optimize, bucket value is computed twice here
+      }
+      (GlutenParquetWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
+    }
+
     try {
       val (rdd, concurrentOutputWriterSpec) = if (orderingMatched) {
-        (empty2NullPlan.execute(), None)
+        if (!nativeEnabled) {
+          (empty2NullPlan.execute(), None)
+        } else {
+          nativeWrap(empty2NullPlan)
+        }
       } else {
         // SPARK-21165: the `requiredOrdering` is based on the attributes from analyzed plan, and
         // the physical plan may have different attribute ids due to optimizer removing some
@@ -234,8 +257,7 @@ object FileFormatWriter extends Logging {
 
         val maxWriters = sparkSession.sessionState.conf.maxConcurrentOutputFileWriters
         var concurrentWritersEnabled = maxWriters > 0 && sortColumns.isEmpty
-        val inputIsColumnar = plan.isInstanceOf[IFakeRowAdaptor]
-        if (inputIsColumnar && concurrentWritersEnabled) {
+        if (nativeEnabled && concurrentWritersEnabled) {
           log.warn(
             s"spark.sql.maxConcurrentOutputFileWriters(being set to $maxWriters) will be " +
               "ignored when native parquet writer is being active. No concurrent Writers.")
@@ -247,21 +269,10 @@ object FileFormatWriter extends Logging {
             empty2NullPlan.execute(),
             Some(ConcurrentOutputWriterSpec(maxWriters, () => sortPlan.createSorter())))
         } else {
-          if (!inputIsColumnar) {
+          if (!nativeEnabled) {
             (sortPlan.execute(), None)
           } else {
-            var wrapped: SparkPlan = sortPlan
-            if (writerBucketSpec.isDefined) {
-              // We need to add the bucket id expression to the output of the sort plan,
-              // so that we can use backend to calculate the bucket id for each row.
-              wrapped = ProjectExec(
-                wrapped.output :+ Alias(
-                  writerBucketSpec.get.bucketIdExpression,
-                  "__bucket_value__")(),
-                wrapped)
-              // TODO: to optimize, bucket value is computed twice here
-            }
-            (GlutenParquetWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
+            nativeWrap(sortPlan)
           }
         }
       }

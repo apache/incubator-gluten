@@ -143,6 +143,7 @@ class IteratorHandler extends IteratorApi with Logging {
       pipelineTime: SQLMetric,
       updateInputMetrics: (InputMetricsWrapper) => Unit,
       updateNativeMetrics: IMetrics => Unit,
+      materializeAtLast: Boolean,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     val beforeBuild = System.nanoTime()
     val columnarNativeIterators =
@@ -197,7 +198,8 @@ class IteratorHandler extends IteratorApi with Logging {
       rootNode: PlanNode,
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
-      buildRelationBatchHolder: Seq[ColumnarBatch]): Iterator[ColumnarBatch] = {
+      buildRelationBatchHolder: Seq[ColumnarBatch],
+      materializeAtLast: Boolean): Iterator[ColumnarBatch] = {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
