@@ -36,10 +36,16 @@ import scala.sys.process._
 class ContextInitializer extends ContextApi {
   private def loadLibFromJar(load: JniLibLoader): Unit = {
     val system = "cat /etc/os-release".!!
-    val systemNamePattern = "NAME=\"?(.*)\"?".r
-    val systemVersionPattern = "VERSION=\"?(.*)\"?".r
-    val systemNamePattern(systemName) = system
-    val systemVersionPattern(systemVersion) = system
+    val systemNamePattern = "^NAME=\"?(.*)\"?".r
+    val systemVersionPattern = "^VERSION=\"?(.*)\"?".r
+    val systemInfoLines = system.stripMargin.split("\n")
+    val systemNamePattern(systemName) =
+      systemInfoLines.find(_.startsWith("NAME=")).getOrElse("")
+    val systemVersionPattern(systemVersion) =
+      systemInfoLines.find(_.startsWith("VERSION=")).getOrElse("")
+    if (systemName.isEmpty || systemVersion.isEmpty) {
+      throw new GlutenException("Failed to get OS name and version info.")
+    }
     val loader = if (systemName.contains("Ubuntu") && systemVersion.startsWith("20.04")) {
       new SharedLibraryLoaderUbuntu2004
     } else if (systemName.contains("Ubuntu") && systemVersion.startsWith("22.04")) {
