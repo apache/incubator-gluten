@@ -16,7 +16,6 @@
  */
 
 #include "jni/JniErrors.h"
-#include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
@@ -47,9 +46,9 @@ class VeloxColumnarToRowTest : public ::testing::Test, public test::VectorTestBa
 
   void testRecordBatchEqual(std::shared_ptr<arrow::RecordBatch> inputBatch) {
     auto row = recordBatch2VeloxRowVector(*inputBatch);
-    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool_, veloxPool_);
+    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool_);
     auto columnarBatch = std::make_shared<VeloxColumnarBatch>(row);
-    GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(columnarBatch));
+    GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(columnarBatch));
 
     int64_t numRows = inputBatch->num_rows();
 
@@ -74,7 +73,6 @@ class VeloxColumnarToRowTest : public ::testing::Test, public test::VectorTestBa
 
  private:
   std::shared_ptr<velox::memory::MemoryPool> veloxPool_ = defaultLeafVeloxMemoryPool();
-  std::shared_ptr<arrow::MemoryPool> arrowPool_ = defaultArrowMemoryPool();
 };
 
 TEST_F(VeloxColumnarToRowTest, timestamp) {
@@ -84,12 +82,11 @@ TEST_F(VeloxColumnarToRowTest, timestamp) {
   auto row = makeRowVector({
       makeFlatVector<Timestamp>(timeValues),
   });
-  auto arrowPool = defaultArrowMemoryPool();
   auto veloxPool = defaultLeafVeloxMemoryPool();
-  auto converter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool, veloxPool);
+  auto converter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool);
   auto cb = std::make_shared<VeloxColumnarBatch>(row);
   gluten::arrowAssertOkOrThrow(
-      converter->write(cb), "Native convert columnar to row: ColumnarToRowConverter write failed");
+      converter->convert(cb), "Native convert columnar to row: ColumnarToRowConverter write failed");
 }
 
 TEST_F(VeloxColumnarToRowTest, Int_64) {
@@ -154,12 +151,11 @@ TEST_F(VeloxColumnarToRowTest, Buffer_int8_int16) {
   makeInputBatch(inputData, schema, &inputBatch);
 
   auto row = recordBatch2VeloxRowVector(*inputBatch);
-  auto arrowPool = defaultArrowMemoryPool();
   auto veloxPool = defaultLeafVeloxMemoryPool();
-  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool, veloxPool);
+  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool);
 
   auto cb = std::make_shared<VeloxColumnarBatch>(row);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(cb));
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(cb));
 
   uint8_t* address = columnarToRowConverter->getBufferAddress();
 
@@ -189,11 +185,10 @@ TEST_F(VeloxColumnarToRowTest, Buffer_int32_int64) {
   makeInputBatch(inputData, schema, &inputBatch);
 
   auto row = recordBatch2VeloxRowVector(*inputBatch);
-  auto arrowPool = defaultArrowMemoryPool();
   auto veloxPool = defaultLeafVeloxMemoryPool();
-  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool, veloxPool);
+  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool);
   auto cb = std::make_shared<VeloxColumnarBatch>(row);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(cb));
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(cb));
 
   uint8_t* address = columnarToRowConverter->getBufferAddress();
 
@@ -223,11 +218,10 @@ TEST_F(VeloxColumnarToRowTest, Buffer_float_double) {
   makeInputBatch(inputData, schema, &inputBatch);
 
   auto row = recordBatch2VeloxRowVector(*inputBatch);
-  auto arrowPool = defaultArrowMemoryPool();
   auto veloxPool = defaultLeafVeloxMemoryPool();
-  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool, veloxPool);
+  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool);
   auto cb = std::make_shared<VeloxColumnarBatch>(row);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(cb));
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(cb));
 
   uint8_t* address = columnarToRowConverter->getBufferAddress();
 
@@ -255,11 +249,10 @@ TEST_F(VeloxColumnarToRowTest, Buffer_bool_binary) {
   makeInputBatch(inputData, schema, &inputBatch);
 
   auto row = recordBatch2VeloxRowVector(*inputBatch);
-  auto arrowPool = defaultArrowMemoryPool();
   auto veloxPool = defaultLeafVeloxMemoryPool();
-  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool, veloxPool);
+  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool);
   auto cb = std::make_shared<VeloxColumnarBatch>(row);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(cb));
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(cb));
 
   uint8_t* address = columnarToRowConverter->getBufferAddress();
 
@@ -285,11 +278,10 @@ TEST_F(VeloxColumnarToRowTest, Buffer_decimal_string) {
   makeInputBatch(inputData, schema, &inputBatch);
 
   auto row = recordBatch2VeloxRowVector(*inputBatch);
-  auto arrowPool = defaultArrowMemoryPool();
   auto veloxPool = defaultLeafVeloxMemoryPool();
-  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool, veloxPool);
+  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool);
   auto cb = std::make_shared<VeloxColumnarBatch>(row);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(cb));
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(cb));
 
   uint8_t* address = columnarToRowConverter->getBufferAddress();
 
@@ -316,11 +308,10 @@ TEST_F(VeloxColumnarToRowTest, Buffer_int64_int64_with_null) {
   makeInputBatch(inputData, schema, &inputBatch);
 
   auto row = recordBatch2VeloxRowVector(*inputBatch);
-  auto arrowPool = defaultArrowMemoryPool();
   auto veloxPool = defaultLeafVeloxMemoryPool();
-  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool, veloxPool);
+  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool);
   auto cb = std::make_shared<VeloxColumnarBatch>(row);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(cb));
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(cb));
 
   uint8_t* address = columnarToRowConverter->getBufferAddress();
 
@@ -347,11 +338,10 @@ TEST_F(VeloxColumnarToRowTest, Buffer_string) {
   makeInputBatch(inputData, schema, &inputBatch);
 
   auto row = recordBatch2VeloxRowVector(*inputBatch);
-  auto arrowPool = defaultArrowMemoryPool();
   auto veloxPool = defaultLeafVeloxMemoryPool();
-  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool, veloxPool);
+  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool);
   auto cb = std::make_shared<VeloxColumnarBatch>(row);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(cb));
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(cb));
 
   uint8_t* address = columnarToRowConverter->getBufferAddress();
 
@@ -381,12 +371,11 @@ TEST_F(VeloxColumnarToRowTest, Buffer_bool) {
   makeInputBatch(inputData, schema, &inputBatch);
 
   auto row = recordBatch2VeloxRowVector(*inputBatch);
-  auto arrowPool = defaultArrowMemoryPool();
   auto veloxPool = defaultLeafVeloxMemoryPool();
-  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool, veloxPool);
+  auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool);
 
   auto cb = std::make_shared<VeloxColumnarBatch>(row);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(cb));
+  GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(cb));
 
   uint8_t* address = columnarToRowConverter->getBufferAddress();
 
