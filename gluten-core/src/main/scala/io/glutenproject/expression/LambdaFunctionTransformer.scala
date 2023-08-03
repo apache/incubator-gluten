@@ -33,7 +33,7 @@ class LambdaFunctionTransformer(
   with Logging {
 
   override def doTransform(args: Object): ExpressionNode = {
-    // hidden not used as not supported in Velox
+    // The "hidden" property of LambdaFunction is not used as it's not supported in Velox
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,

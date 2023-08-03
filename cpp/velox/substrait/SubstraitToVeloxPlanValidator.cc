@@ -165,6 +165,15 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     logValidateMsg("native validation failed due to: get_array_item is not supported.");
     return false;
   }
+  if (name == "concat") {
+    for (const auto& type : types) {
+      if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
+          type.find("list") != std::string::npos) {
+        logValidateMsg("native validation failed due to: " + type + "is not supported in concat.");
+        return false;
+      }
+    }
+  }
   if (name == "murmur3hash") {
     for (const auto& type : types) {
       if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
