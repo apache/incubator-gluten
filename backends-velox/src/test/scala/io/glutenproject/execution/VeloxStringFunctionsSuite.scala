@@ -498,7 +498,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
         s"from $LINEITEM_TABLE limit 5") { _ => }
   }
 
-  ignore("split") {
+  test("split") {
     runQueryAndCompare(
       s"select l_orderkey, l_comment, split(l_comment, ' ', 3) " +
         s"from $LINEITEM_TABLE limit 5") { _ => }

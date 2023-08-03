@@ -189,7 +189,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
   std::unordered_set<std::string> blackList = {
       "regexp_replace",
-      "split",
       "split_part",
       "factorial",
       "concat_ws",

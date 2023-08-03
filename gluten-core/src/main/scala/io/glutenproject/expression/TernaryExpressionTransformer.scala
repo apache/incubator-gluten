@@ -22,7 +22,7 @@ import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode, IntLiteralNode, StringLiteralNode}
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Expression, StringLocate, StringTranslate}
+import org.apache.spark.sql.catalyst.expressions.{Expression, StringLocate, StringSplit, StringTranslate}
 import org.apache.spark.sql.types.IntegerType
 
 import com.google.common.collect.Lists
@@ -105,6 +105,38 @@ case class StringLocateTransformer(
       TernaryExpressionTransformer(substraitExprName, substrExpr, strExpr, startExpr, original)
         .doTransform(args)
     }
+  }
+}
+
+case class StringSplitTransformer(
+    substraitExprName: String,
+    srcExpr: ExpressionTransformer,
+    regexExpr: ExpressionTransformer,
+    limitExpr: ExpressionTransformer,
+    original: StringSplit)
+  extends ExpressionTransformer
+  with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // In velox, split function just support tow args, not support limit arg for now
+    if (!BackendsApiManager.isVeloxBackend) {
+      return TernaryExpressionTransformer(
+        substraitExprName,
+        srcExpr,
+        regexExpr,
+        limitExpr,
+        original).doTransform(args)
+    }
+
+    val limit = limitExpr.doTransform(args).asInstanceOf[IntLiteralNode].getValue
+    if (limit > 0) {
+      throw new UnsupportedOperationException(
+        s"$original limit args not supported yet, except negative.")
+    }
+
+    // TODO: split function support limit arg
+    BinaryExpressionTransformer(substraitExprName, srcExpr, regexExpr, original)
+      .doTransform(args)
   }
 }
 
