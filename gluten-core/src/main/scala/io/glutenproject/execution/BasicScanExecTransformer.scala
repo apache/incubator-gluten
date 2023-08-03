@@ -22,6 +22,7 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.ColumnTypeNode
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.substrait.rel.ReadRelNode
 import io.glutenproject.substrait.rel.RelBuilder
 
 import org.apache.spark.rdd.RDD
@@ -47,6 +48,8 @@ trait BasicScanExecTransformer extends TransformSupport {
   def getFlattenPartitions: Seq[InputPartition]
 
   def getPartitionSchemas: StructType
+
+  def getDataSchemas: StructType
 
   // TODO: Remove this expensive call when CH support scan custom partition location.
   def getInputFilePaths: Seq[String]
@@ -122,6 +125,7 @@ trait BasicScanExecTransformer extends TransformSupport {
       exprNode,
       context,
       context.nextOperatorId(this.nodeName))
+    relNode.asInstanceOf[ReadRelNode].setDataSchema(getDataSchemas)
     TransformContext(output, output, relNode)
   }
 

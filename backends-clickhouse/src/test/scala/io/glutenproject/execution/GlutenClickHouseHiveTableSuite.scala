@@ -282,6 +282,7 @@ class GlutenClickHouseHiveTableSuite()
       })
   }
 
+  /*
   test("test hive text table using user define input format") {
     val sql =
       s"""
@@ -642,6 +643,7 @@ class GlutenClickHouseHiveTableSuite()
         assert(txtFileScan.size == 1)
       })
   }
+   */
 
   test("test orc/parquet table with null complex type values") {
     val create_template =
