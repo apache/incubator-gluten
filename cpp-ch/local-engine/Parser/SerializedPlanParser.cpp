@@ -76,6 +76,7 @@
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
 #include <Processors/QueryPlan/SortingStep.h>
 #include <Processors/Transforms/AggregatingTransform.h>
+#include <Processors/Transforms/MaterializingTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/CustomStorageMergeTree.h>
@@ -1231,10 +1232,8 @@ void SerializedPlanParser::parseFunctionArguments(
     std::string & function_name,
     const substrait::Expression_ScalarFunction & scalar_function)
 {
-    auto add_column = [&actions_dag, this ](const DataTypePtr & type, const Field & field) -> auto
-    {
-        return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
-    };
+    auto add_column = [&actions_dag, this](const DataTypePtr & type, const Field & field) -> auto
+    { return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field)))); };
 
     auto function_signature = function_mapping.at(std::to_string(scalar_function.function_reference()));
     const auto & args = scalar_function.arguments();
@@ -1482,9 +1481,7 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
         actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(input));
     }
     auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
-    {
-        return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
-    };
+    { return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field)))); };
     const auto & scalar_function = rel.scalar_function();
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
     auto function_name = getFunctionName(function_signature, scalar_function);
@@ -1747,9 +1744,7 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
 const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr actions_dag, const substrait::Expression & rel)
 {
     auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
-    {
-        return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
-    };
+    { return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field)))); };
 
     switch (rel.rex_type_case())
     {
@@ -2487,6 +2482,15 @@ void LocalExecutor::execute(QueryPlanPtr query_plan)
             .actions_settings
             = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3, .compile_expressions = CompileExpressions::yes},
             .process_list_element = query_status});
+
+    if (materialize)
+    {
+        /// We need to convert Sparse columns to full, because it's destination storage
+        /// may not support it or may have different settings for applying Sparse serialization.
+        pipeline_builder->addSimpleTransform(
+            [&](const Block & in_header) -> ProcessorPtr { return std::make_shared<DB::MaterializingTransform>(in_header); });
+    }
+
     query_pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder));
     LOG_DEBUG(&Poco::Logger::get("LocalExecutor"), "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(query_pipeline));
     auto t_pipeline = stopwatch.elapsedMicroseconds();
@@ -2576,7 +2580,8 @@ Block & LocalExecutor::getHeader()
 {
     return header;
 }
-LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_) : query_context(_query_context), context(context_)
+LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_, bool materialize_)
+    : query_context(_query_context), context(context_), materialize(materialize_)
 {
 }
 

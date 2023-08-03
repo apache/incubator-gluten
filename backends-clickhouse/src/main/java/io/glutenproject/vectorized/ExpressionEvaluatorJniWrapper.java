@@ -44,7 +44,11 @@ public class ExpressionEvaluatorJniWrapper {
    * @return iterator instance id
    */
   public native long nativeCreateKernelWithIterator(
-      long allocatorId, byte[] wsPlan, GeneralInIterator[] batchItr, byte[] confArray);
+      long allocatorId,
+      byte[] wsPlan,
+      GeneralInIterator[] batchItr,
+      byte[] confArray,
+      boolean materializeAtLast);
 
   /**
    * Closes the projector referenced by nativeHandler.

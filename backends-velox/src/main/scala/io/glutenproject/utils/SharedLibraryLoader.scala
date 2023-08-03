@@ -19,5 +19,5 @@ package io.glutenproject.utils
 import io.glutenproject.vectorized.JniLibLoader
 
 trait SharedLibraryLoader {
-  def loadLib(loader: JniLibLoader): Unit = {}
+  def loadLib(loader: JniLibLoader): Unit
 }

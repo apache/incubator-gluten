@@ -67,7 +67,8 @@ One Way is to use released binary jar. Here is a simple example. Currently, only
 spark-shell \
  --master yarn --deploy-mode client \
  --conf spark.plugins=io.glutenproject.GlutenPlugin \
- --conf spark.gluten.loadLibFromJar=true \
+ --conf spark.memory.offHeap.enabled=true \
+ --conf spark.memory.offHeap.size=20g \
  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
  --jars https://github.com/oap-project/gluten/releases/download/v1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-1.0.0.jar
 ```
@@ -81,9 +82,11 @@ export gluten_jvm_jar = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
 spark-shell 
   --master yarn --deploy-mode client \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
+  --conf spark.memory.offHeap.enabled=true \
+  --conf spark.memory.offHeap.size=20g \
   --conf spark.driver.extraClassPath=${gluten_jvm_jar} \
   --conf spark.executor.extraClassPath=${gluten_jvm_jar} \
-  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager \
+  --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager
   ...
 ```
 

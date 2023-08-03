@@ -45,6 +45,7 @@ object Constants {
     .set("spark.shuffle.manager", "org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager")
     .set("spark.celeborn.shuffle.writer", "hash")
     .set("spark.celeborn.push.replicate.enabled", "false")
+    .set("spark.celeborn.client.shuffle.compression.codec", "none")
     .set("spark.shuffle.service.enabled", "false")
     .set("spark.sql.adaptive.localShuffleReader.enabled", "false")
     .set("spark.dynamicAllocation.enabled", "false")
