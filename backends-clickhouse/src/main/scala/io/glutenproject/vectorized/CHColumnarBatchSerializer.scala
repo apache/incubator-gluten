@@ -54,7 +54,7 @@ private class CHColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private lazy val isUseColumnarShufflemanager =
+  private lazy val isUseColumnarShuffleManager =
     GlutenConfig.getConf.isUseColumnarShuffleManager
   private lazy val customizeBufferSize = SparkEnv.get.conf.getInt(
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
@@ -69,8 +69,11 @@ private class CHColumnarBatchSerializerInstance(
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
-
-      private var reader: CHStreamReader = _
+      private val reader: CHStreamReader = new CHStreamReader(
+        in,
+        isUseColumnarShuffleManager,
+        isCustomizedShuffleCodec,
+        customizeBufferSize)
       private var cb: ColumnarBatch = _
 
       private var numBatchesTotal: Long = _
@@ -91,35 +94,26 @@ private class CHColumnarBatchSerializerInstance(
 
       @throws(classOf[EOFException])
       override def readValue[T: ClassTag](): T = {
-        if (reader != null) {
-          if (cb != null) {
-            cb.close()
-            cb = null
-          }
-
-          var nativeBlock = reader.next()
-          while (nativeBlock.numRows() == 0) {
-            if (nativeBlock.numColumns() == 0) {
-              nativeBlock.close()
-              this.close()
-              throw new EOFException
-            }
-            nativeBlock = reader.next()
-          }
-          val numRows = nativeBlock.numRows()
-
-          numBatchesTotal += 1
-          numRowsTotal += numRows
-          cb = nativeBlock.toColumnarBatch
-          cb.asInstanceOf[T]
-        } else {
-          reader = new CHStreamReader(
-            in,
-            isUseColumnarShufflemanager,
-            isCustomizedShuffleCodec,
-            customizeBufferSize)
-          readValue()
+        if (cb != null) {
+          cb.close()
+          cb = null
         }
+
+        var nativeBlock = reader.next()
+        while (nativeBlock.numRows() == 0) {
+          if (nativeBlock.numColumns() == 0) {
+            nativeBlock.close()
+            this.close()
+            throw new EOFException
+          }
+          nativeBlock = reader.next()
+        }
+        val numRows = nativeBlock.numRows()
+
+        numBatchesTotal += 1
+        numRowsTotal += numRows
+        cb = nativeBlock.toColumnarBatch
+        cb.asInstanceOf[T]
       }
 
       override def readObject[T: ClassTag](): T = {
@@ -137,7 +131,7 @@ private class CHColumnarBatchSerializerInstance(
             cb.close()
             cb = null
           }
-          if (reader != null) reader.close()
+          reader.close()
           isClosed = true
         }
       }

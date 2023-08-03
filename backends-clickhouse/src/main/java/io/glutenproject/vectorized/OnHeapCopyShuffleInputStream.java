@@ -75,11 +75,11 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
 
   @Override
   public void close() {
-    try {
-      in.close();
-      in = null;
-    } catch (IOException e) {
-      throw new GlutenException(e);
-    }
+    GlutenException.wrap(
+        () -> {
+          in.close();
+          in = null;
+          return null;
+        });
   }
 }
