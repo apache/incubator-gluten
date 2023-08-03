@@ -87,6 +87,12 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
     }
   }
 
+  test("Test bit_get function") {
+    runQueryAndCompare("SELECT bit_get(l_partkey, 0) from lineitem limit 1") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test chr function") {
     runQueryAndCompare("SELECT chr(l_orderkey + 64) from lineitem limit 1") {
       checkOperatorMatch[ProjectExecTransformer]
