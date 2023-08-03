@@ -41,6 +41,7 @@
 #include <Poco/Logger.h>
 #include <Common/Throttler.h>
 #include <Common/logger_useful.h>
+#include <Common/ConcurrentMap.h>
 #include <Common/safe_cast.h>
 
 #include <Interpreters/Cache/FileCache.h>
@@ -395,10 +396,8 @@ public:
     }
 
 private:
-    // TODO: currently every SubstraitFileSource will create its own ReadBufferBuilder,
-    // so the cached clients are not actually shared among different tasks
-    std::map<std::string, std::shared_ptr<DB::S3::Client>> per_bucket_clients;
-    std::shared_ptr<DB::S3::Client> shared_client;
+    static local_engine::ConcurrentMap<std::string, std::shared_ptr<DB::S3::Client>> per_bucket_clients;
+    static std::shared_ptr<DB::S3::Client> shared_client;
     DB::ReadSettings new_settings;
 
     std::string & stripQuote(std::string & s)
@@ -451,8 +450,8 @@ private:
     {
         if (is_per_bucket)
         {
-            per_bucket_clients[bucket_name] = client;
-            if (per_bucket_clients.size() > 200)
+            per_bucket_clients.insert(bucket_name, client);
+            if (per_bucket_clients.size() > 500)
             {
                 //TODO: auto clean unused client when there're too many cached client
                 LOG_WARNING(&Poco::Logger::get("ReadBufferBuilder"), "Too many per_bucket_clients, {}", per_bucket_clients.size());
@@ -477,10 +476,10 @@ private:
         if (!getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE, "", true).empty())
             is_per_bucket = true;
 
-        if (is_per_bucket && per_bucket_clients.find(bucket_name) != per_bucket_clients.end()
+        if (is_per_bucket && per_bucket_clients.get(bucket_name) != nullptr
             && "true" != getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_CLIENT_CACHE_IGNORE))
         {
-            return per_bucket_clients[bucket_name];
+            return per_bucket_clients.get(bucket_name);
         }
 
         if (!is_per_bucket && shared_client
@@ -567,6 +566,9 @@ private:
         }
     }
 };
+
+local_engine::ConcurrentMap<std::string, std::shared_ptr<DB::S3::Client>> S3FileReadBufferBuilder::per_bucket_clients;
+std::shared_ptr<DB::S3::Client> S3FileReadBufferBuilder::shared_client;
 #endif
 
 #if USE_AZURE_BLOB_STORAGE
