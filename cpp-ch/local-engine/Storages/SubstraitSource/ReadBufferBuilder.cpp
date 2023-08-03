@@ -52,6 +52,8 @@
 #include <aws/s3/model/ListObjectsV2Request.h>
 #include <Common/CHUtil.h>
 
+#include <boost/compute/detail/lru_cache.hpp>
+
 namespace DB
 {
 namespace ErrorCodes
@@ -67,8 +69,7 @@ namespace ErrorCodes
 namespace local_engine
 {
 
-std::pair<size_t, size_t>
-adjustFileReadPosition(DB::SeekableReadBuffer & buffer, size_t read_start_pos, size_t read_end_pos)
+std::pair<size_t, size_t> adjustFileReadPosition(DB::SeekableReadBuffer & buffer, size_t read_start_pos, size_t read_end_pos)
 {
     auto get_next_line_pos = [&](DB::SeekableReadBuffer & buf) -> size_t
     {
@@ -124,7 +125,8 @@ public:
     explicit LocalFileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_) { }
     ~LocalFileReadBufferBuilder() override = default;
 
-    std::unique_ptr<DB::ReadBuffer> build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
+    std::unique_ptr<DB::ReadBuffer>
+    build(const substrait::ReadRel::LocalFiles::FileOrFiles & file_info, bool set_read_util_position) override
     {
         Poco::URI file_uri(file_info.uri_file());
         std::unique_ptr<DB::SeekableReadBuffer> read_buffer;
@@ -142,8 +144,7 @@ public:
         if (set_read_util_position)
         {
             read_buffer = std::make_unique<DB::BoundedReadBuffer>(std::move(read_buffer));
-            auto start_end_pos
-                = adjustFileReadPosition(*read_buffer, file_info.start(), file_info.start() + file_info.length());
+            auto start_end_pos = adjustFileReadPosition(*read_buffer, file_info.start(), file_info.start() + file_info.length());
             LOG_DEBUG(
                 &Poco::Logger::get("ReadBufferBuilder"),
                 "File read start and end position adjusted from {},{} to {},{}",
@@ -312,6 +313,8 @@ public:
 #if USE_AWS_S3
 class S3FileReadBufferBuilder : public ReadBufferBuilder
 {
+    friend void registerReadBufferBuilders();
+
 public:
     explicit S3FileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_)
     {
@@ -370,8 +373,7 @@ public:
 
         if (set_read_util_position)
         {
-            auto start_end_pos
-                = adjustFileReadPosition(*async_reader, file_info.start(), file_info.start() + file_info.length());
+            auto start_end_pos = adjustFileReadPosition(*async_reader, file_info.start(), file_info.start() + file_info.length());
             LOG_DEBUG(
                 &Poco::Logger::get("ReadBufferBuilder"),
                 "File read start and end position adjusted from {},{} to {},{}",
@@ -395,10 +397,8 @@ public:
     }
 
 private:
-    // TODO: currently every SubstraitFileSource will create its own ReadBufferBuilder,
-    // so the cached clients are not actually shared among different tasks
-    std::map<std::string, std::shared_ptr<DB::S3::Client>> per_bucket_clients;
-    std::shared_ptr<DB::S3::Client> shared_client;
+    static boost::compute::detail::lru_cache<std::string, std::shared_ptr<DB::S3::Client>> per_bucket_clients;
+    static std::shared_ptr<DB::S3::Client> shared_client;
     DB::ReadSettings new_settings;
 
     std::string & stripQuote(std::string & s)
@@ -451,12 +451,7 @@ private:
     {
         if (is_per_bucket)
         {
-            per_bucket_clients[bucket_name] = client;
-            if (per_bucket_clients.size() > 200)
-            {
-                //TODO: auto clean unused client when there're too many cached client
-                LOG_WARNING(&Poco::Logger::get("ReadBufferBuilder"), "Too many per_bucket_clients, {}", per_bucket_clients.size());
-            }
+            per_bucket_clients.insert(bucket_name, client);
         }
         else
         {
@@ -477,10 +472,10 @@ private:
         if (!getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE, "", true).empty())
             is_per_bucket = true;
 
-        if (is_per_bucket && per_bucket_clients.find(bucket_name) != per_bucket_clients.end()
+        if (is_per_bucket && per_bucket_clients.contains(bucket_name)
             && "true" != getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_CLIENT_CACHE_IGNORE))
         {
-            return per_bucket_clients[bucket_name];
+            return per_bucket_clients.get(bucket_name).get();
         }
 
         if (!is_per_bucket && shared_client
@@ -567,6 +562,9 @@ private:
         }
     }
 };
+boost::compute::detail::lru_cache<std::string, std::shared_ptr<DB::S3::Client>> S3FileReadBufferBuilder::per_bucket_clients(100);
+std::shared_ptr<DB::S3::Client> S3FileReadBufferBuilder::shared_client;
+
 #endif
 
 #if USE_AZURE_BLOB_STORAGE
@@ -609,6 +607,12 @@ void registerReadBufferBuilders()
 #if USE_AWS_S3
     factory.registerBuilder("s3", [](DB::ContextPtr context_) { return std::make_shared<S3FileReadBufferBuilder>(context_); });
     factory.registerBuilder("s3a", [](DB::ContextPtr context_) { return std::make_shared<S3FileReadBufferBuilder>(context_); });
+    factory.registerCleaner(
+        []()
+        {
+            S3FileReadBufferBuilder::per_bucket_clients.clear();
+            S3FileReadBufferBuilder::shared_client.reset();
+        });
 #endif
 
 #if USE_AZURE_BLOB_STORAGE
@@ -623,14 +627,6 @@ ReadBufferBuilderFactory & ReadBufferBuilderFactory::instance()
     return instance;
 }
 
-ReadBufferBuilderPtr ReadBufferBuilderFactory::createBuilder(const String & schema, DB::ContextPtr context)
-{
-    auto it = builders.find(schema);
-    if (it == builders.end())
-        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Not found read buffer builder for {}", schema);
-    return it->second(context);
-}
-
 void ReadBufferBuilderFactory::registerBuilder(const String & schema, NewBuilder newer)
 {
     auto it = builders.find(schema);
@@ -639,4 +635,24 @@ void ReadBufferBuilderFactory::registerBuilder(const String & schema, NewBuilder
     builders[schema] = newer;
 }
 
+ReadBufferBuilderPtr ReadBufferBuilderFactory::createBuilder(const String & schema, DB::ContextPtr context)
+{
+    auto it = builders.find(schema);
+    if (it == builders.end())
+        throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Not found read buffer builder for {}", schema);
+    return it->second(context);
+}
+
+void ReadBufferBuilderFactory::registerCleaner(Cleaner cleaner)
+{
+    cleaners.push_back(cleaner);
+}
+
+void ReadBufferBuilderFactory::clean()
+{
+    for (auto c : cleaners)
+    {
+        c();
+    }
+}
 }
