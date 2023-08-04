@@ -44,10 +44,10 @@ std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(
 #if defined(GLUTEN_ENABLE_QAT)
         codec = qat::makeDefaultQatZstdCodec();
 #else
-        return nullptr;
+        throw GlutenException("Backend QAT but not compile with option GLUTEN_ENABLE_QAT");
 #endif
       } else {
-        return nullptr;
+        throw GlutenException("Backend IAA not support zstd compression");
       }
     } break;
     case arrow::Compression::GZIP: {
@@ -57,13 +57,13 @@ std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(
 #if defined(GLUTEN_ENABLE_QAT)
         codec = qat::makeDefaultQatGZipCodec();
 #else
-        return nullptr;
+        throw GlutenException("Backend QAT but not compile with option GLUTEN_ENABLE_QAT");
 #endif
       } else {
 #if defined(GLUTEN_ENABLE_IAA)
         codec = qpl::MakeDefaultQplGZipCodec();
 #else
-        return nullptr;
+        throw GlutenException("Backend IAA but not compile with option GLUTEN_ENABLE_IAA");
 #endif
       }
     } break;
