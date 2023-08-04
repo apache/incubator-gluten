@@ -141,7 +141,7 @@ class SubstraitParser {
       {"str", "VARCHAR"},
       {"vbin", "VARBINARY"},
       {"decShort", "SHORT_DECIMAL"},
-      {"decLong", "LONG_DECIMAL"}};
+      {"decLong", "HUGEINT"}};
 };
 
 } // namespace gluten

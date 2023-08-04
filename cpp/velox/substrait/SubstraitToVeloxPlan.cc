@@ -438,6 +438,47 @@ core::PlanNodePtr SubstraitVeloxPlanConverter::toVeloxPlan(const ::substrait::Pr
   }
 }
 
+core::PlanNodePtr SubstraitVeloxPlanConverter::toVeloxPlan(const ::substrait::ExpandRel& expandRel) {
+  core::PlanNodePtr childNode;
+  if (expandRel.has_input()) {
+    childNode = toVeloxPlan(expandRel.input());
+  } else {
+    VELOX_FAIL("Child Rel is expected in ExpandRel.");
+  }
+
+  const auto& inputType = childNode->outputType();
+
+  std::vector<std::vector<core::TypedExprPtr>> projectSetExprs;
+  projectSetExprs.reserve(expandRel.fields_size());
+
+  for (const auto& projections : expandRel.fields()) {
+    std::vector<core::TypedExprPtr> projectExprs;
+    projectExprs.reserve(projections.switching_field().duplicates_size());
+
+    for (const auto& projectExpr : projections.switching_field().duplicates()) {
+      if (projectExpr.has_selection()) {
+        auto expression = exprConverter_->toVeloxExpr(projectExpr.selection(), inputType);
+        projectExprs.emplace_back(expression);
+      } else if (projectExpr.has_literal()) {
+        auto expression = exprConverter_->toVeloxExpr(projectExpr.literal());
+        projectExprs.emplace_back(expression);
+      } else {
+        VELOX_FAIL("The project in Expand Operator only support field or literal.");
+      }
+    }
+    projectSetExprs.emplace_back(projectExprs);
+  }
+
+  auto projectSize = expandRel.fields()[0].switching_field().duplicates_size();
+  std::vector<std::string> names;
+  names.reserve(projectSize);
+  for (int idx = 0; idx < projectSize; idx++) {
+    names.push_back(subParser_->makeNodeName(planNodeId_, idx));
+  }
+
+  return std::make_shared<core::ExpandNode>(nextPlanNodeId(), projectSetExprs, std::move(names), childNode);
+}
+
 const core::WindowNode::Frame createWindowFrame(
     const ::substrait::Expression_WindowFunction_Bound& lower_bound,
     const ::substrait::Expression_WindowFunction_Bound& upper_bound,
@@ -914,6 +955,9 @@ core::PlanNodePtr SubstraitVeloxPlanConverter::toVeloxPlan(const ::substrait::Re
   }
   if (rel.has_sort()) {
     return toVeloxPlan(rel.sort());
+  }
+  if (rel.has_expand()) {
+    return toVeloxPlan(rel.expand());
   }
   if (rel.has_fetch()) {
     return toVeloxPlan(rel.fetch());
