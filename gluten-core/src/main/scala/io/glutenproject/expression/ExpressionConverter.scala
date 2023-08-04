@@ -273,20 +273,20 @@ object ExpressionConverter extends SQLConfHelper with Logging {
   def normalFunctionExpressionTransform(
       expression: Expression,
       attributes: Seq[Attribute],
-      substraitFunctioName: String): ExpressionTransformer = {
+      substraitExprName: String): ExpressionTransformer = {
     if (expression.children.length == 1) {
       val childTransformer = replaceWithExpressionTransformer(expression.children(0), attributes)
-      new UnaryExpressionTransformer(substraitFunctioName, childTransformer, expression)
+      new UnaryExpressionTransformer(substraitExprName, childTransformer, expression)
     } else if (expression.children.length == 2) {
       new BinaryExpressionTransformer(
-        substraitFunctioName,
+        substraitExprName,
         replaceWithExpressionTransformer(expression.children(0), attributes),
         replaceWithExpressionTransformer(expression.children(1), attributes),
         expression
       )
     } else if (expression.children.length == 3) {
       new TernaryExpressionTransformer(
-        substraitFunctioName,
+        substraitExprName,
         replaceWithExpressionTransformer(expression.children(0), attributes),
         replaceWithExpressionTransformer(expression.children(1), attributes),
         replaceWithExpressionTransformer(expression.children(2), attributes),
@@ -294,7 +294,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       )
     } else if (expression.children.length == 3) {
       new QuaternaryExpressionTransformer(
-        substraitFunctioName,
+        substraitExprName,
         replaceWithExpressionTransformer(expression.children(0), attributes),
         replaceWithExpressionTransformer(expression.children(1), attributes),
         replaceWithExpressionTransformer(expression.children(2), attributes),
@@ -302,9 +302,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         expression
       )
     } else {
-      throw new UnsupportedOperationException(
-        s"Unsupported function: ${expression.prettyName} with ${expression.children.length} " +
-          s"children.")
+      new BasicCollectionOperationTransfomer(
+        substraitExprName,
+        expression.children.map(replaceWithExpressionTransformer(_, attributes)),
+        expression)
     }
   }
 

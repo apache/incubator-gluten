@@ -477,4 +477,5 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenStringFunctionsSuite]
     .include("initcap function")
+    .include("string concat_ws")
 }
