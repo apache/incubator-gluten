@@ -15,10 +15,12 @@
  * limitations under the License.
  */
 #include "RegistrationAllFunctions.h"
+#include <velox/expression/VectorFunction.h>
 #include "RowConstructor.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
+#include "velox/functions/sparksql/Hash.h"
 #include "velox/functions/sparksql/Register.h"
 #include "velox/functions/sparksql/aggregates/Register.h"
 #include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
@@ -34,6 +36,17 @@ void registerCustomFunctions() {
       std::vector<std::shared_ptr<velox::exec::FunctionSignature>>{},
       std::make_unique<RowConstructor>());
 }
+
+void registerFunctionOverwrite() {
+  velox::exec::registerStatefulVectorFunction(
+      "murmur3hash",
+      velox::functions::sparksql::hashWithSeedSignatures(),
+      velox::functions::sparksql::makeHashWithSeed);
+  velox::exec::registerStatefulVectorFunction(
+      "xxhash64",
+      velox::functions::sparksql::xxhash64WithSeedSignatures(),
+      velox::functions::sparksql::makeXxHash64WithSeed);
+}
 } // anonymous namespace
 
 void registerAllFunctions() {
@@ -46,6 +59,8 @@ void registerAllFunctions() {
   velox::functions::aggregate::sparksql::registerAggregateFunctions("");
   velox::window::prestosql::registerAllWindowFunctions();
   velox::functions::window::sparksql::registerWindowFunctions("");
+  // Using function overwrite to handle function names mismatch between Spark and Velox.
+  registerFunctionOverwrite();
 }
 
 } // namespace gluten
