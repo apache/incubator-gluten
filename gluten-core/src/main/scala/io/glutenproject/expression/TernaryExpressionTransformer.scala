@@ -129,9 +129,10 @@ case class StringSplitTransformer(
     }
 
     val limit = limitExpr.doTransform(args).asInstanceOf[IntLiteralNode].getValue
-    if (limit > 0) {
+    val regStr = regexExpr.doTransform(args).asInstanceOf[StringLiteralNode].getValue
+    if (limit > 0 || regStr.length > 1) {
       throw new UnsupportedOperationException(
-        s"$original limit args not supported yet, except negative.")
+        s"$original only support negative limit args and single-character pattern!")
     }
 
     // TODO: split function support limit arg
