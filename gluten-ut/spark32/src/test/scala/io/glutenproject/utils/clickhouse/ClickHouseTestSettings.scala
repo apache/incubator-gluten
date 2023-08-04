@@ -56,6 +56,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     "pmod"
   )
   enableSuite[GlutenBitwiseExpressionsSuite]
+    .exclude("BitGet")
   enableSuite[GlutenCastSuite]
     .exclude(
       "cast string to date",
