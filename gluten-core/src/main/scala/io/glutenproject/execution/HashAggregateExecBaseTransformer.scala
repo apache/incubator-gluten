@@ -72,9 +72,18 @@ abstract class HashAggregateExecBaseTransformer(
       expr => {
         ConverterUtils.getAttrFromExpr(expr).toAttribute
       })
-    groupingAttributes.toList ::: getAttrForAggregateExprs(
+    val resultAttributes = groupingAttributes.toList ::: getAttrForAggregateExprs(
       aggregateExpressions,
       aggregateAttributes)
+
+    resultAttributes.map(
+      expr =>
+        expr.dataType match {
+          case BinaryType =>
+            AttributeReference(expr.name, new ArrayType(IntegerType, true), nullable = true)()
+          case _ =>
+            expr
+        })
   }
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
