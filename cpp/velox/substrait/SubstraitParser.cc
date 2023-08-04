@@ -134,9 +134,8 @@ SubstraitParser::SubstraitType SubstraitParser::parseType(const ::substrait::Typ
       if (precision <= 18) {
         typeName = "SHORT_DECIMAL<" + std::to_string(precision) + "," + std::to_string(scale) + ">";
       } else {
-        typeName = "LONG_DECIMAL<" + std::to_string(precision) + "," + std::to_string(scale) + ">";
+        typeName = "HUGEINT<" + std::to_string(precision) + "," + std::to_string(scale) + ">";
       }
-
       nullability = substraitType.decimal().nullability();
       break;
     }
@@ -317,9 +316,8 @@ std::string SubstraitParser::findVeloxFunction(
 std::string SubstraitParser::mapToVeloxFunction(const std::string& substraitFunction, bool isDecimal) {
   auto it = substraitVeloxFunctionMap_.find(substraitFunction);
   if (isDecimal) {
-    if (substraitFunction == "add" || substraitFunction == "subtract" || substraitFunction == "multiply" ||
-        substraitFunction == "divide" || substraitFunction == "avg" || substraitFunction == "avg_merge" ||
-        substraitFunction == "sum" || substraitFunction == "sum_merge" || substraitFunction == "round") {
+    if (substraitFunction == "avg" || substraitFunction == "avg_merge" || substraitFunction == "sum" ||
+        substraitFunction == "sum_merge" || substraitFunction == "round") {
       return "decimal_" + substraitFunction;
     }
   }
