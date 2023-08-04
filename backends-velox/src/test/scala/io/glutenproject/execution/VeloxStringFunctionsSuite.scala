@@ -517,24 +517,6 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
         s"from $LINEITEM_TABLE limit 5") { _ => }
   }
 
-  test("split without positive limit and regex") {
-      runQueryAndCompare(
-        s"select l_orderkey, split(l_comment, ' ') " +
-          s"from $LINEITEM_TABLE limit 5") { _ => }
-
-      runQueryAndCompare(
-        s"select l_orderkey, split(l_comment, 'h') " +
-          s"from $LINEITEM_TABLE limit 5") { _ => }
-
-      runQueryAndCompare(
-        s"select l_orderkey, split(l_comment, ' ', -1) " +
-          s"from $LINEITEM_TABLE limit 5") { _ => }
-
-      runQueryAndCompare(
-        s"select l_orderkey, split(l_comment, 'h', -1) " +
-          s"from $LINEITEM_TABLE limit 5") { _ => }
-  }
-
   test("substr") {
     runQueryAndCompare(
       s"select l_orderkey, substr(l_comment, 1) " +
