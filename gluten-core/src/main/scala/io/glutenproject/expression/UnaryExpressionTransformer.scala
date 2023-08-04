@@ -163,22 +163,7 @@ case class CheckOverflowTransformer(
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val childNode = child.doTransform(args)
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        Seq(original.dataType, BooleanType),
-        FunctionConfig.OPT))
-
-    // just make a fake toType value, because native engine cannot accept datatype itself
-    val toTypeNodes = ExpressionBuilder.makeDecimalLiteral(
-      new Decimal().set(0, original.dataType.precision, original.dataType.scale))
-    val expressionNodes =
-      Lists.newArrayList(childNode, new BooleanLiteralNode(original.nullOnOverflow), toTypeNodes)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+    child.doTransform(args)
   }
 }
 
