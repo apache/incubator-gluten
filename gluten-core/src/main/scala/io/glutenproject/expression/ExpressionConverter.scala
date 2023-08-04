@@ -393,14 +393,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         if (attributeSeq == null) {
           throw new UnsupportedOperationException(s"attributeSeq should not be null.")
         }
-        val bindReference =
-          BindReferences.bindReference(expr, attributeSeq, allowFailures = true)
-        if (bindReference == expr) {
-          // This means bind failure.
-          throw new UnsupportedOperationException(s"$expr attribute binding failed.")
-        } else {
+        try {
+          val bindReference =
+            BindReferences.bindReference(expr, attributeSeq, allowFailures = false)
           val b = bindReference.asInstanceOf[BoundReference]
-          new AttributeReferenceTransformer(
+          AttributeReferenceTransformer(
             a.name,
             b.ordinal,
             a.dataType,
@@ -408,6 +405,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             a.exprId,
             a.qualifier,
             a.metadata)
+        } catch {
+          case e: IllegalStateException =>
+            // This situation may need developers to fix, although we just throw the below
+            // exception to let the corresponding operator fall back.
+            throw new UnsupportedOperationException(
+              s"Failed to bind reference for $expr: ${e.getMessage}")
         }
       case b: BoundReference =>
         new BoundReferenceTransformer(b.ordinal, b.dataType, b.nullable)
