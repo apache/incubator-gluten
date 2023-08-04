@@ -705,7 +705,7 @@ class GlutenClickHouseHiveTableSuite()
         |""".stripMargin
 
     val select_sql_1 = "select * from test_tbl_2582 where d1[0].a = 1"
-    val select_sql_2 = "select element_at(d1, 0).a from test_tbl_2582 where id = 1"
+    val select_sql_2 = "select element_at(d1, 1).a from test_tbl_2582 where id = 1"
 
     spark.sql(create_table_sql)
     spark.sql(insert_data_sql)
