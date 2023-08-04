@@ -60,7 +60,7 @@ public:
     virtual DB::NamesAndTypesList getSchema() const
     {
         const auto & schema = file_info.schema();
-        auto header = TypeParser::buildBlockFromNamedStruct(schema);
+        auto header = TypeParser::buildBlockFromNamedStructWithoutDFS(schema);
         return header.getNamesAndTypesList();
     }
 

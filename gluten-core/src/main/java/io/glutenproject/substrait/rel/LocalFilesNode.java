@@ -77,7 +77,6 @@ public class LocalFilesNode implements Serializable {
 
   public void setFileSchema(StructType schema) {
     this.fileSchema = schema;
-    System.out.println("set fileSchema: " + fileSchema.toString());
   }
 
   private NamedStruct buildNamedStruct() {
@@ -89,7 +88,6 @@ public class LocalFilesNode implements Serializable {
         structBuilder.addTypes(
             ConverterUtils.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
         namedStructBuilder.addNames(field.name());
-        System.out.println("field name: " + field.name());
       }
       namedStructBuilder.setStruct(structBuilder.build());
     }
