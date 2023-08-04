@@ -14,13 +14,16 @@ https://github.com/oap-project/gluten
 
 See official Gluten build guidance https://github.com/oap-project/gluten#how-to-use-gluten
 
-### 2. Install and run gluten-it
+### 2. Install and run gluten-it with Spark version
+
+> Note: Support Spark 3.2 and Spark 3.3 only
 
 ```sh
 cd gluten/tools/gluten-it
-mvn clean package
+mvn clean package -Pspark-3.2
 sbin/gluten-it.sh
 ```
+
 
 ## Usage
 
