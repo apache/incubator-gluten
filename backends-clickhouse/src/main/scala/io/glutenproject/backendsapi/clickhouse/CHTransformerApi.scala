@@ -146,8 +146,12 @@ class CHTransformerApi extends TransformerApi with Logging {
     plan match {
       case hash: HashAggregateExec =>
         CHHashAggregateExecTransformer.getAggregateResultAttributes(
-          hash.groupingExpressions,
-          hash.aggregateExpressions)
+          // when grouping expression has alias,
+          // output name will be different from grouping expressions,
+          // so using output attribute instead of grouping expression
+          hash.output.splitAt(hash.groupingExpressions.size)._1,
+          hash.aggregateExpressions
+        )
       case _ =>
         plan.output
     }
