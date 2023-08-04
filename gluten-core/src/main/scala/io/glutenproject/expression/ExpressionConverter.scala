@@ -724,7 +724,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       val newChild = exchange.child match {
         // get WholeStageTransformer directly
         case c2r: ColumnarToRowExecBase => c2r.child
-        // in case of fallbacking
+        // in fallback case
         case codeGen: WholeStageCodegenExec =>
           if (codeGen.child.isInstanceOf[ColumnarToRowExec]) {
             val wholeStageTransformer = exchange.find(_.isInstanceOf[WholeStageTransformer])

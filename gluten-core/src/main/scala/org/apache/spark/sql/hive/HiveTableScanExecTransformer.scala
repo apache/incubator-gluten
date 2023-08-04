@@ -104,7 +104,7 @@ class HiveTableScanExecTransformer(
     doExecuteColumnarInternal()
   }
 
-  private lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
+  @transient private lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
     scan match {
       case Some(fileScan) =>
         val dataSourceFilters = partitionPruningPred.flatMap {
@@ -268,6 +268,16 @@ object HiveTableScanExecTransformer {
 
   def isHiveTableScan(plan: SparkPlan): Boolean = {
     plan.isInstanceOf[HiveTableScanExec]
+  }
+
+  def getpartitionFilters(plan: SparkPlan): Seq[Expression] = {
+    plan.asInstanceOf[HiveTableScanExec].partitionPruningPred
+  }
+
+  def copyWith(plan: SparkPlan, newPartitionFilters: Seq[Expression]): SparkPlan = {
+    val hiveTableScanExec = plan.asInstanceOf[HiveTableScanExec]
+    hiveTableScanExec.copy(partitionPruningPred = newPartitionFilters)(sparkSession =
+      hiveTableScanExec.session)
   }
 
   def validate(plan: SparkPlan): ValidationResult = {
