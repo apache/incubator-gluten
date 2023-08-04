@@ -175,9 +175,7 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
             /// Refer to NamedStruct in https://github.com/oap-project/gluten/blob/main/cpp-ch/local-engine/proto/substrait/type.proto
             for (int i = 0; i < types.size(); ++i)
             {
-                if (field_names)
-                    struct_field_names.push_back(field_names->front());
-
+                struct_field_names.push_back(field_names->front());
                 struct_field_types[i] = parseType(types[i], field_names);
             }
         }
@@ -188,11 +186,9 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
                 struct_field_types[i] = parseType(types[i]);
 
             const auto & names = substrait_type.struct_().names();
-            if (!names.empty())
-            {
-                for (int i = 0; i < names.size(); ++i)
+            for (int i = 0; i < names.size(); ++i)
+                if (!names[i].empty())
                     struct_field_names.push_back(names[i]);
-            }
         }
 
         if (!struct_field_names.empty())
