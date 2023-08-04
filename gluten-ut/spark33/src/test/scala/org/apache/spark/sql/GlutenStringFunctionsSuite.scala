@@ -29,11 +29,7 @@ class GlutenStringFunctionsSuite
   import testImplicits._
 
   override def testNameBlackList: Seq[String] = super.testNameBlackList ++ Seq(
-    "string / binary length function",
-    "string split function with no limit",
-    "string split function with limit explicitly set to 0",
-    "string split function with positive limit",
-    "string split function with negative limit"
+    "string / binary length function"
   )
 
   test(GlutenTestConstants.GLUTEN_TEST + "string split function with no limit and regex pattern") {
