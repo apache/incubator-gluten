@@ -410,7 +410,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             // This situation may need developers to fix, although we just throw the below
             // exception to let the corresponding operator fall back.
             throw new UnsupportedOperationException(
-              s"Fail to bind reference for $expr: ${e.getMessage}")
+              s"Failed to bind reference for $expr: ${e.getMessage}")
         }
       case b: BoundReference =>
         new BoundReferenceTransformer(b.ordinal, b.dataType, b.nullable)
