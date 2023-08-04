@@ -690,4 +690,28 @@ class GlutenClickHouseHiveTableSuite()
       spark.sql(drop_sql)
     }
   }
+
+  test("Gluten-2582: Fix carsh in array<struct>") {
+    val create_table_sql =
+      """
+        | create table test_tbl_2582(
+        | id bigint,
+        | d1 array<struct<a:int, b:string>>) stored as parquet
+        |""".stripMargin
+
+    val insert_data_sql =
+      """
+        | insert into test_tbl_2582 values(1, array(named_struct('a', 1, 'b', 'b1'), named_struct('b', '2', 'c', 'c1')))
+        |""".stripMargin
+
+    val select_sql_1 = "select * from test_tbl_2582 where d1[0].a = 1"
+    val select_sql_2 = "select element_at(d1, 0).a from test_tbl_2582 where id = 1"
+
+    spark.sql(create_table_sql)
+    spark.sql(insert_data_sql)
+
+    compareResultsAgainstVanillaSpark(select_sql_1, true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_2, true, _ => {})
+
+  }
 }
