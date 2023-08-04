@@ -81,6 +81,10 @@ TypePtr toVeloxType(const std::string& typeName, bool asLowerCase) {
   if (DATE()->toString() == type) {
     return DATE();
   }
+  if (type == "SHORT_DECIMAL") {
+    auto decimal = getPrecisionAndScale(typeName);
+    return DECIMAL(decimal.first, decimal.second);
+  }
   auto typeKind = mapNameToTypeKind(type);
   switch (typeKind) {
     case TypeKind::BOOLEAN:
@@ -92,12 +96,7 @@ TypePtr toVeloxType(const std::string& typeName, bool asLowerCase) {
     case TypeKind::INTEGER:
       return INTEGER();
     case TypeKind::BIGINT:
-      if (type == "SHORT_DECIMAL") {
-        auto decimal = getPrecisionAndScale(typeName);
-        return DECIMAL(decimal.first, decimal.second);
-      } else {
-        return BIGINT();
-      }
+      return BIGINT();
     case TypeKind::HUGEINT: {
       auto decimal = getPrecisionAndScale(typeName);
       return DECIMAL(decimal.first, decimal.second);
