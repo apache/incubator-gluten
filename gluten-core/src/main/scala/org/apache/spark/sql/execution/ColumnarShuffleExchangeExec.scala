@@ -98,8 +98,7 @@ case class ColumnarShuffleExchangeExec(
       override val shuffleHandle: ShuffleHandle = columnarShuffleDependency.shuffleHandle
     }
 
-  // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
-  val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
+  @transient lazy val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
     .createColumnarBatchSerializer(schema, metrics)
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
