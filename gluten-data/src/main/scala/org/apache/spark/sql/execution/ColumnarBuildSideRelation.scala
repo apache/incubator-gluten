@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution.BroadCastHashJoinContext
+import io.glutenproject.init.JniTaskContext
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
@@ -96,6 +97,10 @@ case class ColumnarBuildSideRelation(
    */
   override def transform(key: Expression): Array[InternalRow] = {
     // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
+
+    // These conversion happens in Driver, we need release all resources explicitly.
+    // TODO: Manage these resources more gracefully.
+    val glutenTaskContext = new JniTaskContext
     val serializeHandle = {
       val allocator = ArrowBufferAllocators.contextInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
@@ -109,30 +114,32 @@ case class ColumnarBuildSideRelation(
       cSchema.close()
       handle
     }
-
-    var closed = false
-    TaskResources.addRecycler(50) {
-      if (!closed) {
-        ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
-        closed = true
-      }
-    }
-
-    // Convert columnar to Row.
     val jniWrapper = new NativeColumnarToRowJniWrapper()
     val c2rId = jniWrapper.nativeColumnarToRowInit(
       NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
-    var batchId = 0
-    val iterator = if (batches.length > 0) {
+
+    def releaseNativeResources(): Unit = {
+      jniWrapper.nativeClose(c2rId)
+      ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
+      glutenTaskContext.release()
+    }
+
+    val iterator = if (batches.isEmpty) {
+      releaseNativeResources()
+      Iterator.empty
+    } else {
+      var batchId = 0
+
       val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
+        var closed = false
+
         override def hasNext: Boolean = {
-          val itHasNext = batchId < batches.length
-          if (!itHasNext && !closed) {
-            jniWrapper.nativeClose(c2rId)
-            ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
+          val isBatchesFinished = batchId < batches.length
+          if (!isBatchesFinished && !closed) {
+            releaseNativeResources()
             closed = true
           }
-          itHasNext
+          isBatchesFinished
         }
 
         override def next(): Iterator[InternalRow] = {
@@ -214,8 +221,6 @@ case class ColumnarBuildSideRelation(
         }
       }
       res.flatten
-    } else {
-      Iterator.empty
     }
     iterator.toArray
   }

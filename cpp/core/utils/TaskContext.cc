@@ -40,6 +40,8 @@ class TaskContextStorage {
 };
 
 thread_local std::unique_ptr<TaskContextStorage> taskContextStorage = nullptr;
+
+// TODO: Remove this and let related unmanaged resources be managed.
 std::unique_ptr<TaskContextStorage> fallbackStorage = std::make_unique<TaskContextStorage>();
 std::mutex fallbackStorageMutex;
 } // namespace
@@ -57,7 +59,6 @@ void bindToTask(std::shared_ptr<void> object) {
   }
   // The fallback storage is used. Spark sometimes creates sub-threads from a task thread. For example,
   //   PythonRunner.scala:183 @ Spark3.2.2
-  //   GlutenSubqueryBroadcastExec.scala:73 @6bce2c33
   std::lock_guard<std::mutex> guard(fallbackStorageMutex);
   std::cout << "Binding a shared object to fallback storage. This should only happen on sub-thread of a Spark task. "
             << std::endl;
