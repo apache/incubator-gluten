@@ -160,7 +160,14 @@ function setup {
       ;;
     esac
   elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
-    case "$LINUX_VERSION_ID" in
+    case "${LINUX_VERSION_ID:0:1}" in
+    2)
+      scripts/setup-centos7.sh
+      set +u
+      export PKG_CONFIG_PATH=/usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/lib64/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
+      source /opt/rh/devtoolset-9/enable
+      set -u
+      ;;
     3) scripts/setup-centos8.sh ;;
     *)
       echo "Unsupport alinux version: $LINUX_VERSION_ID"
