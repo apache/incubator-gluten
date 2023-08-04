@@ -16,25 +16,14 @@
  */
 package org.apache.spark.sql.execution.datasources.velox
 
-import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.exception.GlutenException
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
-import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
+import io.glutenproject.GlutenConfig
 
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.utils.SparkArrowUtil
-
-import com.google.common.base.Preconditions
-import org.apache.arrow.c.ArrowSchema
-import org.apache.hadoop.fs.FileStatus
-import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import java.io.IOException
+
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.mutable
 
 class VeloxParquetWriterInjects extends VeloxFormatWriterInjects {
   override def nativeConf(

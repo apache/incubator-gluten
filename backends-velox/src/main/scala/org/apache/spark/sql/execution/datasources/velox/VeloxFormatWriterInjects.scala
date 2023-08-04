@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.datasources.velox
 
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.exception.GlutenException
+import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
@@ -25,6 +26,7 @@ import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.datasources.GlutenFormatWriterInjectsBase
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
