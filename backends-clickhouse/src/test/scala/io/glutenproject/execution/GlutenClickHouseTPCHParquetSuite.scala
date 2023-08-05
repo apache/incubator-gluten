@@ -1730,5 +1730,45 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("Gluten-2430 hash partition column not found") {
+    val sql =
+      """
+        |
+        | select a.l_shipdate,
+        |    a.l_partkey,
+        |    b.l_shipmode,
+        |    if(c.l_suppkey is not null, 'new', 'old') as usertype,
+        |    a.uid
+        |from (
+        |        select l_shipdate,
+        |            l_partkey,
+        |            l_suppkey as uid
+        |        from lineitem
+        |        where l_shipdate = '2023-03-07'
+        |        group by l_shipdate,
+        |            l_partkey,
+        |            l_suppkey
+        |    ) a
+        |    join (
+        |        select l_shipdate,
+        |            l_suppkey as uid,
+        |            l_shipmode
+        |        from lineitem
+        |        where l_shipdate = '2023-03-07'
+        |    ) b on a.l_shipdate = b.l_shipdate
+        |    and a.uid = b.uid
+        |    left join (
+        |        select l_shipdate,
+        |            l_suppkey
+        |        from lineitem
+        |        where l_shipdate = '2023-03-07'
+        |        group by l_shipdate,
+        |            l_suppkey
+        |    ) c on a.l_shipdate = c.l_shipdate
+        |    and a.uid = c.l_suppkey
+        |limit 100;
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 }
 // scalastyle:on line.size.limit

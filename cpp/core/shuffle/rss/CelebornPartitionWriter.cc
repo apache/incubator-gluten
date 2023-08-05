@@ -36,10 +36,10 @@ arrow::Status CelebornPartitionWriter::pushPartition(int32_t partitionId) {
   auto buffer = celebornBufferOs_->Finish();
   int32_t size = buffer->get()->size();
   char* dst = reinterpret_cast<char*>(buffer->get()->mutable_data());
-  celebornClient_->pushPartitonData(partitionId, dst, size);
+  int32_t celebornBytesSize = celebornClient_->pushPartitonData(partitionId, dst, size);
   shuffleWriter_->partitionCachedRecordbatch()[partitionId].clear();
   shuffleWriter_->setPartitionCachedRecordbatchSize(partitionId, 0);
-  shuffleWriter_->setPartitionLengths(partitionId, shuffleWriter_->partitionLengths()[partitionId] + size);
+  shuffleWriter_->setPartitionLengths(partitionId, shuffleWriter_->partitionLengths()[partitionId] + celebornBytesSize);
   return arrow::Status::OK();
 };
 

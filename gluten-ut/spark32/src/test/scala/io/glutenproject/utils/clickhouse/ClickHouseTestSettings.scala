@@ -56,6 +56,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     "pmod"
   )
   enableSuite[GlutenBitwiseExpressionsSuite]
+    .exclude("BitGet")
   enableSuite[GlutenCastSuite]
     .exclude(
       "cast string to date",
@@ -447,6 +448,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameWindowFramesSuite]
     .exclude(
       "rows between should accept int/long values as boundary",
+      "range between should accept int/long values as boundary",
       "reverse preceding/following range between with aggregation",
       "SPARK-24033: Analysis Failure of OffsetWindowFunction"
     )

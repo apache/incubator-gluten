@@ -285,16 +285,14 @@ jobs:
           tar -zxvf apache-celeborn-0.3.0-incubating-bin.tgz && \
           mv apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf.template apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf && \
           mv apache-celeborn-0.3.0-incubating-bin/conf/log4j2.xml.template apache-celeborn-0.3.0-incubating-bin/conf/log4j2.xml && \
-          mkdir /opt/hadoop && chmod 777 /opt/hadoop && cp apache-celeborn-0.3.0-incubating-bin/spark/celeborn-client-spark-3-shaded_2.12-0.3.0-incubating.jar /opt/hadoop/ && \
+          mkdir /opt/hadoop && chmod 777 /opt/hadoop && \
           echo -e "celeborn.worker.flusher.threads 32\nceleborn.worker.storage.dirs /opt\nceleborn.worker.monitor.disk.enabled false" > apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf && \
           bash apache-celeborn-0.3.0-incubating-bin/sbin/start-master.sh && bash apache-celeborn-0.3.0-incubating-bin/sbin/start-worker.sh && \
           cd /opt/gluten/tools/gluten-it && mvn clean install -Pspark-3.2,rss \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --disable-aqe --extra-conf=spark.driver.extraClassPath=/opt/hadoop/* \
-            --extra-conf=spark.executor.extraClassPath=/opt/hadoop/* --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
+            --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=20g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --extra-conf=spark.driver.extraClassPath=/opt/hadoop/* \
-            --extra-conf=spark.executor.extraClassPath=/opt/hadoop/* --off-heap-size=30g -s=1.0 --threads=16 --iterations=1 && \
+            --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=30g -s=1.0 --threads=16 --iterations=1 && \
           bash /apache-celeborn-0.3.0-incubating-bin/sbin/stop-worker.sh \
           && bash /apache-celeborn-0.3.0-incubating-bin/sbin/stop-master.sh && rm -rf /apache-celeborn-0.3.0-incubating-bin.tgz \
           && rm -rf /apache-celeborn-0.3.0-incubating-bin && rm -rf /opt/hadoop'

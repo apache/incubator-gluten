@@ -285,6 +285,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         applyScanTransformer(plan)
       case plan: FileSourceScanExec =>
         applyScanTransformer(plan)
+      case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
+        applyScanTransformer(plan)
       case plan: CoalesceExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         CoalesceExecTransformer(plan.numPartitions, replaceWithTransformerPlan(plan.child))
@@ -573,6 +575,20 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
         newSource
       }
+    case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
+      // TODO: Add DynamicPartitionPruningHiveScanSuite.scala
+      val newPartitionFilters: Seq[Expression] = ExpressionConverter.transformDynamicPruningExpr(
+        HiveTableScanExecTransformer.getpartitionFilters(plan),
+        reuseSubquery)
+      val hiveTableScanExecTransformer =
+        BackendsApiManager.getSparkPlanExecApiInstance.genHiveTableScanExecTransformer(plan)
+      val validateResult = hiveTableScanExecTransformer.doValidate()
+      if (validateResult.isValid) {
+        return hiveTableScanExecTransformer
+      }
+      val newSource = HiveTableScanExecTransformer.copyWith(plan, newPartitionFilters)
+      TransformHints.tagNotTransformable(newSource, validateResult.reason.get)
+      newSource
     case other =>
       throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
   }

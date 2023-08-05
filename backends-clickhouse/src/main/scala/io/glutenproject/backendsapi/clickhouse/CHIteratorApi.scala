@@ -55,7 +55,8 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   override def genFilePartition(
       index: Int,
       partitions: Seq[InputPartition],
-      partitionSchema: StructType,
+      partitionSchemas: Seq[StructType],
+      fileFormats: Seq[ReadFileFormat],
       wsCxt: WholeStageTransformContext): BaseGlutenPartition = {
     val localFilesNodesWithLocations = partitions.indices.map(
       i =>
@@ -86,7 +87,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 starts,
                 lengths,
                 partitionColumns.map(_.asJava).asJava,
-                wsCxt.substraitContext.getFileFormat.get(i)),
+                fileFormats(i)),
               SoftAffinityUtil.getFilePartitionLocations(f))
           case _ =>
             throw new UnsupportedOperationException(s"Unsupport operators.")
@@ -246,13 +247,11 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {
     val startTime = System.nanoTime()
-    // the file format for each scan exec
-    wsCxt.substraitContext.setFileFormat(Seq(fileFormat).asJava)
 
     // generate each partition of all scan exec
     val substraitPlanPartition = inputPartitions.indices.map(
       i => {
-        genFilePartition(i, Seq(inputPartitions(i)), null, wsCxt)
+        genFilePartition(i, Seq(inputPartitions(i)), null, Seq(fileFormat), wsCxt)
       })
     logInfo(s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
     new NativeFileScanColumnarRDD(

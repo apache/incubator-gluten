@@ -88,12 +88,6 @@ class SubstraitContext extends Serializable {
   private var operatorId: JLong = 0L
   private var relId: JLong = 0L
 
-  def getFileFormat: JList[ReadFileFormat] = fileFormat
-
-  def setFileFormat(format: JList[ReadFileFormat]): Unit = {
-    this.fileFormat = format
-  }
-
   def setIteratorNode(index: JLong, localFilesNode: LocalFilesNode): Unit = {
     if (iteratorNodes.containsKey(index)) {
       throw new IllegalStateException(s"Iterator index $index has been used.")
