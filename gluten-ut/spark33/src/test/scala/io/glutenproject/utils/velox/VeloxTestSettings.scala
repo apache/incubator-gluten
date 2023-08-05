@@ -603,8 +603,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetDeltaEncodingInteger]
   enableSuite[GlutenParquetDeltaEncodingLong]
   enableSuite[GlutenParquetDeltaLengthByteArrayEncodingSuite]
-    .exclude("random strings")
-    .exclude("skip with random strings")
   enableSuite[GlutenParquetEncodingSuite]
     // exclude as cases use Vectorization Column reader
     .exclude("parquet v2 pages - delta encoding")
