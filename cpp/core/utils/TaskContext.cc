@@ -57,6 +57,7 @@ void bindToTask(std::shared_ptr<void> object) {
     taskContextStorage->bind(object);
     return;
   }
+  GLUTEN_CHECK(false, "Force throw");
   // The fallback storage is used. Spark sometimes creates sub-threads from a task thread. For example,
   //   PythonRunner.scala:183 @ Spark3.2.2
   std::lock_guard<std::mutex> guard(fallbackStorageMutex);
