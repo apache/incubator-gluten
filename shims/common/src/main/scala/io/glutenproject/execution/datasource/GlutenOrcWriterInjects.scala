@@ -16,23 +16,8 @@
  */
 package io.glutenproject.execution.datasource
 
-import io.glutenproject.GlutenConfig
+object GlutenOrcWriterInjects {
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{BlockStripes, FakeRow, OutputWriter}
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructType
-
-import org.apache.hadoop.fs.FileStatus
-import org.apache.hadoop.mapreduce.TaskAttemptContext
-
-import scala.collection.JavaConverters.mapAsJavaMapConverter
-import scala.collection.mutable
-
-object GlutenParquetWriterInjects {
   private var INSTANCE: GlutenFormatWriterInjects = _
 
   def setInstance(instance: GlutenFormatWriterInjects): Unit = {

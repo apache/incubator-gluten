@@ -75,7 +75,7 @@ class GlutenClickHouseFileFormatSuite
 
   // in this case, FakeRowAdaptor does R2C
   test("parquet native writer writing a in memory DF") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
       val filePath = basePath + "/native_parquet_test"
       val format = "parquet"
 
@@ -98,7 +98,7 @@ class GlutenClickHouseFileFormatSuite
 
   // in this case, FakeRowAdaptor only wrap&transfer
   test("parquet native writer writing a DF from file") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
 
       val filePath = basePath + "/native_parquet_test"
       val format = "parquet"
@@ -122,7 +122,7 @@ class GlutenClickHouseFileFormatSuite
 
   // in this case, FakeRowAdaptor only wrap&transfer
   test("parquet native writer writing a DF from an aggregate") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
 
       val filePath = basePath + "/native_parquet_test_agg"
       val format = "parquet"

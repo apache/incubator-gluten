@@ -43,17 +43,19 @@ public:
         DB::ContextPtr context_,
         const std::string & file_uri_,
         WriteBufferBuilderPtr write_buffer_builder_,
-        std::vector<std::string> & preferred_column_names_);
+        const std::vector<std::string> & preferred_column_names_);
 
     virtual ~OutputFormatFile() = default;
 
     virtual OutputFormatPtr createOutputFormat(const DB::Block & header_) = 0;
 
 protected:
+    DB::Block creatHeaderWithPreferredColumnNames(const DB::Block & header);
+
     DB::ContextPtr context;
-    const std::string file_uri;
+    std::string file_uri;
     WriteBufferBuilderPtr write_buffer_builder;
-    const std::vector<std::string> preferred_column_names;
+    std::vector<std::string> preferred_column_names;
 };
 using OutputFormatFilePtr = std::shared_ptr<OutputFormatFile>;
 
@@ -64,7 +66,7 @@ public:
         DB::ContextPtr context,
         WriteBufferBuilderPtr write_buffer_builder_,
         const std::string & file_uri_,
-        std::vector<std::string> & preferred_column_names,
+        const std::vector<std::string> & preferred_column_names,
         const std::string & format_hint = "");
 };
 }

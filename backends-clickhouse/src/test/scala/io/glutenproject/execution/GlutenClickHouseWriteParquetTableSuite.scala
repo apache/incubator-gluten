@@ -103,8 +103,9 @@ class GlutenClickHouseWriteParquetTableSuite
     }
   }
 
-  private val parquet_table_name = "hive_parquet_test"
-  private val parquet_table_name_vanilla = "hive_parquet_test_written_by_vanilla"
+  private val table_name_template = "hive_%s_test"
+  private val table_name_vanilla_template = "hive_%s_test_written_by_vanilla"
+  private val formats = Array("orc", "parquet")
 
   def genTestData(): Seq[AllDataTypesWithComplextType] = {
     (0 to 199).map {
@@ -183,17 +184,22 @@ class GlutenClickHouseWriteParquetTableSuite
 
   import java.io.File
 
-  def writeIntoNewTableWithSql(parquet_table_create_sql: String)(fields: Seq[String]): Unit = {
-    spark.sql(parquet_table_create_sql)
+  def writeIntoNewTableWithSql(table_name: String, table_create_sql: String)(
+      fields: Seq[String]): Unit = {
+    spark.sql(table_create_sql)
     spark.sql(
-      s"insert overwrite $parquet_table_name select ${fields.mkString(",")}" +
+      s"insert overwrite $table_name select ${fields.mkString(",")}" +
         s" from origin_table")
   }
 
-  def writeAndCheckRead(write: Seq[String] => Unit, fields: Seq[String]): Unit = {
+  def writeAndCheckRead(
+      table_name: String,
+      write: Seq[String] => Unit,
+      fields: Seq[String]): Unit = {
     val originDF = spark.createDataFrame(genTestData())
     originDF.createOrReplaceTempView("origin_table")
-    spark.sql(s"drop table IF EXISTS $parquet_table_name")
+
+    spark.sql(s"drop table IF EXISTS $table_name")
 
     val rowsFromOriginTable =
       spark.sql(s"select ${fields.mkString(",")} from origin_table").collect()
@@ -206,13 +212,33 @@ class GlutenClickHouseWriteParquetTableSuite
           s"${fields
               .map(getColumnName)
               .mkString(",")} " +
-          s"from $parquet_table_name")
+          s"from $table_name")
     checkAnswer(dfFromWriteTable, rowsFromOriginTable)
+  }
+
+  def recursiveListFiles(f: File): Array[File] = {
+    val these = f.listFiles
+    these ++ these.filter(_.isDirectory).flatMap(recursiveListFiles)
+  }
+
+  def getSignature(format: String, filesOfNativeWriter: Array[File]): Array[(Long, Long)] = {
+    filesOfNativeWriter.map(
+      f => {
+        val df = if (format.equals("parquet")) {
+          spark.read.parquet(f.getAbsolutePath)
+        } else {
+          spark.read.orc(f.getAbsolutePath)
+        }
+        (
+          df.count(),
+          df.agg(("int_field", "sum")).collect().apply(0).apply(0).asInstanceOf[Long]
+        )
+      })
   }
 
   test("test insert into dir") {
     withSQLConf(
-      ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
+      ("spark.gluten.sql.native.writer.enabled", "true"),
       ("spark.gluten.enabled", "true")) {
 
       val originDF = spark.createDataFrame(genTestData())
@@ -231,25 +257,27 @@ class GlutenClickHouseWriteParquetTableSuite
         ("date_field", "date")
       )
 
-      spark.sql(
-        "insert overwrite local directory './test_insert_into_dir1' stored as parquet select "
-          + fields.keys.mkString(",") +
-          " from origin_table cluster by (byte_field)")
-      spark.sql(
-        "insert overwrite local directory './test_insert_into_dir2' " +
-          "stored as parquet " +
-          "select string_field, sum(int_field) as x from origin_table group by string_field")
+      for (format <- formats) {
+        spark.sql(
+          s"insert overwrite local directory './test_insert_into_${format}_dir1' "
+            + s"stored as $format select "
+            + fields.keys.mkString(",") +
+            " from origin_table cluster by (byte_field)")
+        spark.sql(
+          s"insert overwrite local directory './test_insert_into_${format}_dir2' " +
+            s"stored as $format " +
+            "select string_field, sum(int_field) as x from origin_table group by string_field")
+      }
     }
   }
 
   test("test insert into partition") {
     withSQLConf(
-      ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
+      ("spark.gluten.sql.native.writer.enabled", "true"),
       ("spark.gluten.enabled", "true")) {
 
       val originDF = spark.createDataFrame(genTestData())
       originDF.createOrReplaceTempView("origin_table")
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
 
       val fields: ListMap[String, String] = ListMap(
         ("string_field", "string"),
@@ -264,37 +292,40 @@ class GlutenClickHouseWriteParquetTableSuite
         ("date_field", "date")
       )
 
-      val parquet_table_create_sql =
-        s"create table if not exists $parquet_table_name (" +
-          fields
-            .map(f => s"${f._1} ${f._2}")
-            .mkString(",") +
-          " ) partitioned by (another_date_field date) " +
-          "stored as parquet"
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        spark.sql(s"drop table IF EXISTS $table_name")
 
-      spark.sql(parquet_table_create_sql)
+        val table_create_sql =
+          s"create table if not exists $table_name (" +
+            fields
+              .map(f => s"${f._1} ${f._2}")
+              .mkString(",") +
+            " ) partitioned by (another_date_field date) " +
+            s"stored as $format"
 
-      spark.sql(
-        s"insert into $parquet_table_name partition(another_date_field = '2020-01-01') select "
-          + fields.keys.mkString(",") +
-          " from origin_table")
+        spark.sql(table_create_sql)
 
-      val files = recursiveListFiles(new File(getWarehouseDir + "/" + parquet_table_name))
-        .filter(_.getName.endsWith(".parquet"))
-      assert(files.length == 1)
-      assert(files.head.getAbsolutePath.contains("another_date_field=2020-01-01"))
+        spark.sql(
+          s"insert into $table_name partition(another_date_field = '2020-01-01') select "
+            + fields.keys.mkString(",") +
+            " from origin_table")
+
+        val files = recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
+          .filter(_.getName.endsWith(s".$format"))
+        assert(files.length == 1)
+        assert(files.head.getAbsolutePath.contains("another_date_field=2020-01-01"))
+      }
     }
   }
 
   test("test CTAS") {
     withSQLConf(
-      ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
+      ("spark.gluten.sql.native.writer.enabled", "true"),
       ("spark.gluten.enabled", "true")) {
 
       val originDF = spark.createDataFrame(genTestData())
       originDF.createOrReplaceTempView("origin_table")
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
-
       val fields: ListMap[String, String] = ListMap(
         ("string_field", "string"),
         ("int_field", "int"),
@@ -308,27 +339,30 @@ class GlutenClickHouseWriteParquetTableSuite
         ("date_field", "date")
       )
 
-      val parquet_table_create_sql =
-        s"create table $parquet_table_name using parquet as select " +
-          fields
-            .map(f => s"${f._1}")
-            .mkString(",") +
-          " from origin_table"
-      spark.sql(parquet_table_create_sql)
-
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
-
-      try {
-        val parquet_table_create_sql =
-          s"create table $parquet_table_name as select " +
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        spark.sql(s"drop table IF EXISTS $table_name")
+        val table_create_sql =
+          s"create table $table_name using $format as select " +
             fields
               .map(f => s"${f._1}")
               .mkString(",") +
             " from origin_table"
-        spark.sql(parquet_table_create_sql)
-      } catch {
-        case _: UnsupportedOperationException => // expected
-        case _: Exception => fail("should not throw exception")
+        spark.sql(table_create_sql)
+        spark.sql(s"drop table IF EXISTS $table_name")
+
+        try {
+          val table_create_sql =
+            s"create table $table_name as select " +
+              fields
+                .map(f => s"${f._1}")
+                .mkString(",") +
+              " from origin_table"
+          spark.sql(table_create_sql)
+        } catch {
+          case _: UnsupportedOperationException => // expected
+          case _: Exception => fail("should not throw exception")
+        }
       }
 
     }
@@ -336,12 +370,14 @@ class GlutenClickHouseWriteParquetTableSuite
 
   test("test insert into partition, bigo's case which incur InsertIntoHiveTable") {
     withSQLConf(
-      ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
+      ("spark.gluten.sql.native.writer.enabled", "true"),
       ("spark.sql.hive.convertMetastoreParquet", "false"),
-      ("spark.gluten.enabled", "true")) {
+      ("spark.sql.hive.convertMetastoreOrc", "false"),
+      ("spark.gluten.enabled", "true")
+    ) {
+
       val originDF = spark.createDataFrame(genTestData())
       originDF.createOrReplaceTempView("origin_table")
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
       val fields: ListMap[String, String] = ListMap(
         ("string_field", "string"),
         ("int_field", "int"),
@@ -354,28 +390,33 @@ class GlutenClickHouseWriteParquetTableSuite
         ("decimal_field", "decimal(23,12)"),
         ("date_field", "date")
       )
-      val parquet_table_create_sql = s"create table if not exists $parquet_table_name (" + fields
-        .map(f => s"${f._1} ${f._2}")
-        .mkString(",") + " ) partitioned by (another_date_field string)" +
-        "stored as parquet"
 
-      spark.sql(parquet_table_create_sql)
-//      spark.sql(s"describe table extended $parquet_table_name ").show(100, false)
-      spark.sql(
-        s"insert overwrite table $parquet_table_name " +
-          "partition(another_date_field = '2020-01-01') select "
-          + fields.keys.mkString(",") + " from (select " + fields.keys.mkString(
-            ",") + ", row_number() over (order by int_field desc) as rn  " +
-          "from origin_table where float_field > 3 ) tt where rn <= 100")
-      val files = recursiveListFiles(new File(getWarehouseDir + "/" + parquet_table_name))
-        .filter(_.getName.startsWith("part"))
-      assert(files.length == 1)
-      assert(files.head.getAbsolutePath.contains("another_date_field=2020-01-01"))
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        spark.sql(s"drop table IF EXISTS $table_name")
+        val table_create_sql = s"create table if not exists $table_name (" + fields
+          .map(f => s"${f._1} ${f._2}")
+          .mkString(",") + " ) partitioned by (another_date_field string)" +
+          s"stored as $format"
+
+        spark.sql(table_create_sql)
+        spark.sql(
+          s"insert overwrite table $table_name " +
+            "partition(another_date_field = '2020-01-01') select "
+            + fields.keys.mkString(",") + " from (select " + fields.keys.mkString(
+              ",") + ", row_number() over (order by int_field desc) as rn  " +
+            "from origin_table where float_field > 3 ) tt where rn <= 100")
+        val files = recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
+          .filter(_.getName.startsWith("part"))
+        assert(files.length == 1)
+        assert(files.head.getAbsolutePath.contains("another_date_field=2020-01-01"))
+      }
     }
   }
 
   test("test 1-col partitioned table") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
 
       val fields: ListMap[String, String] = ListMap(
         ("string_field", "string"),
@@ -390,23 +431,28 @@ class GlutenClickHouseWriteParquetTableSuite
         ("date_field", "date")
       )
 
-      val parquet_table_create_sql =
-        s"create table if not exists $parquet_table_name (" +
-          fields
-            .filterNot(e => e._1.equals("date_field"))
-            .map(f => s"${f._1} ${f._2}")
-            .mkString(",") +
-          " ) partitioned by (date_field date) " +
-          "stored as parquet"
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        val table_create_sql =
+          s"create table if not exists $table_name (" +
+            fields
+              .filterNot(e => e._1.equals("date_field"))
+              .map(f => s"${f._1} ${f._2}")
+              .mkString(",") +
+            " ) partitioned by (date_field date) " +
+            s"stored as $format"
 
-      writeAndCheckRead(writeIntoNewTableWithSql(parquet_table_create_sql), fields.keys.toSeq)
+        writeAndCheckRead(
+          table_name,
+          writeIntoNewTableWithSql(table_name, table_create_sql),
+          fields.keys.toSeq)
+      }
     }
   }
 
   // even if disable native writer, this UT fail, spark bug???
   ignore("test 1-col partitioned table, partitioned by already ordered column") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "false")) {
-
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "false")) {
       val fields: ListMap[String, String] = ListMap(
         ("string_field", "string"),
         ("int_field", "int"),
@@ -419,29 +465,32 @@ class GlutenClickHouseWriteParquetTableSuite
         ("decimal_field", "decimal(23,12)"),
         ("date_field", "date")
       )
-
-      val parquet_table_create_sql =
-        s"create table if not exists $parquet_table_name (" +
-          fields
-            .filterNot(e => e._1.equals("date_field"))
-            .map(f => s"${f._1} ${f._2}")
-            .mkString(",") +
-          " ) partitioned by (date_field date) " +
-          "stored as parquet"
-
       val originDF = spark.createDataFrame(genTestData())
       originDF.createOrReplaceTempView("origin_table")
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
-      spark.sql(parquet_table_create_sql)
-      spark.sql(
-        s"insert overwrite $parquet_table_name select ${fields.mkString(",")}" +
-          s" from origin_table order by date_field")
+
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        val table_create_sql =
+          s"create table if not exists $table_name (" +
+            fields
+              .filterNot(e => e._1.equals("date_field"))
+              .map(f => s"${f._1} ${f._2}")
+              .mkString(",") +
+            " ) partitioned by (date_field date) " +
+            s"stored as $format"
+
+        spark.sql(s"drop table IF EXISTS $table_name")
+        spark.sql(table_create_sql)
+        spark.sql(
+          s"insert overwrite $table_name select ${fields.mkString(",")}" +
+            s" from origin_table order by date_field")
+      }
     }
   }
 
   test("test 2-col partitioned table") {
     withSQLConf(
-      ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
+      ("spark.gluten.sql.native.writer.enabled", "true"),
       ("spark.gluten.enabled", "true")) {
 
       val fields: ListMap[String, String] = ListMap(
@@ -457,23 +506,29 @@ class GlutenClickHouseWriteParquetTableSuite
         ("byte_field", "byte")
       )
 
-      val parquet_table_create_sql =
-        s"create table if not exists $parquet_table_name (" +
-          fields
-            .filterNot(e => e._1.equals("date_field") || e._1.equals("byte_field"))
-            .map(f => s"${f._1} ${f._2}")
-            .mkString(",") + " ) partitioned by (date_field date, byte_field byte) " +
-          "stored as parquet"
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        val table_create_sql =
+          s"create table if not exists $table_name (" +
+            fields
+              .filterNot(e => e._1.equals("date_field") || e._1.equals("byte_field"))
+              .map(f => s"${f._1} ${f._2}")
+              .mkString(",") + " ) partitioned by (date_field date, byte_field byte) " +
+            s"stored as $format"
 
-      writeAndCheckRead(writeIntoNewTableWithSql(parquet_table_create_sql), fields.keys.toSeq)
+        writeAndCheckRead(
+          table_name,
+          writeIntoNewTableWithSql(table_name, table_create_sql),
+          fields.keys.toSeq)
+      }
     }
   }
 
   ignore(
-    "test hive parquet table, all types of columns being partitioned except the date_field," +
+    "test hive parquet/orc table, all types of columns being partitioned except the date_field," +
       " ignore because takes too long") {
     withSQLConf(
-      ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
+      ("spark.gluten.sql.native.writer.enabled", "true"),
       ("spark.gluten.enabled", "true")) {
 
       val fields: ListMap[String, String] = ListMap(
@@ -490,26 +545,30 @@ class GlutenClickHouseWriteParquetTableSuite
         ("decimal_field", "decimal(23,12)")
       )
 
-      for (field <- fields.filterNot(e => e._1.equals("date_field"))) {
-        spark.sql(s"drop table if exists $parquet_table_name")
-        val parquet_table_create_sql =
-          s"create table if not exists $parquet_table_name (" +
-            " date_field date" + " ) partitioned by (" +
-            field._1 + " " + field._2 +
-            ") " +
-            "stored as parquet"
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        for (field <- fields.filterNot(e => e._1.equals("date_field"))) {
+          spark.sql(s"drop table if exists $table_name")
+          val table_create_sql =
+            s"create table if not exists $table_name (" +
+              " date_field date" + " ) partitioned by (" +
+              field._1 + " " + field._2 +
+              ") " +
+              s"stored as $format"
 
-        writeAndCheckRead(
-          writeIntoNewTableWithSql(parquet_table_create_sql),
-          List("date_field", field._1))
+          writeAndCheckRead(
+            table_name,
+            writeIntoNewTableWithSql(table_name, table_create_sql),
+            List("date_field", field._1))
+        }
       }
 
     }
   }
 
-  test("test hive parquet table, all columns being partitioned. ") {
+  test("test hive parquet/orc table, all columns being partitioned. ") {
     withSQLConf(
-      ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
+      ("spark.gluten.sql.native.writer.enabled", "true"),
       ("spark.gluten.enabled", "true")) {
 
       val fields: ListMap[String, String] = ListMap(
@@ -526,43 +585,55 @@ class GlutenClickHouseWriteParquetTableSuite
         ("decimal_field", "decimal(23,12)")
       )
 
-      val parquet_table_create_sql =
-        s"create table if not exists $parquet_table_name (" +
-          " date_field date" + " ) partitioned by (" +
-          fields
-            .filterNot(e => e._1.equals("date_field"))
-            .map(f => s"${f._1} ${f._2}")
-            .mkString(",") +
-          ") " +
-          "stored as parquet"
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        val table_create_sql =
+          s"create table if not exists $table_name (" +
+            " date_field date" + " ) partitioned by (" +
+            fields
+              .filterNot(e => e._1.equals("date_field"))
+              .map(f => s"${f._1} ${f._2}")
+              .mkString(",") +
+            ") " +
+            s"stored as $format"
 
-      writeAndCheckRead(writeIntoNewTableWithSql(parquet_table_create_sql), fields.keys.toSeq)
+        writeAndCheckRead(
+          table_name,
+          writeIntoNewTableWithSql(table_name, table_create_sql),
+          fields.keys.toSeq)
+      }
     }
   }
 
-  test(("test hive parquet table with aggregated results")) {
+  test(("test hive parquet/orc table with aggregated results")) {
     withSQLConf(
-      ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
+      ("spark.gluten.sql.native.writer.enabled", "true"),
       ("spark.gluten.enabled", "true")) {
 
       val fields: ListMap[String, String] = ListMap(
         ("sum(int_field)", "bigint")
       )
 
-      val parquet_table_create_sql =
-        s"create table if not exists $parquet_table_name (" +
-          fields
-            .map(f => s"${getColumnName(f._1)} ${f._2}")
-            .mkString(",") +
-          " ) stored as parquet"
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        val table_create_sql =
+          s"create table if not exists $table_name (" +
+            fields
+              .map(f => s"${getColumnName(f._1)} ${f._2}")
+              .mkString(",") +
+            s" ) stored as $format"
 
-      writeAndCheckRead(writeIntoNewTableWithSql(parquet_table_create_sql), fields.keys.toSeq)
+        writeAndCheckRead(
+          table_name,
+          writeIntoNewTableWithSql(table_name, table_create_sql),
+          fields.keys.toSeq)
+      }
     }
   }
 
   test("test 1-col partitioned + 1-col bucketed table") {
     withSQLConf(
-      ("spark.gluten.sql.native.parquet.writer.enabled", "true"),
+      ("spark.gluten.sql.native.writer.enabled", "true"),
       ("spark.gluten.enabled", "true")) {
 
       val fields: ListMap[String, String] = ListMap(
@@ -578,47 +649,37 @@ class GlutenClickHouseWriteParquetTableSuite
         ("date_field", "date")
       )
 
-      // spark write does not support bucketed table
-      // https://issues.apache.org/jira/browse/SPARK-19256
-      writeAndCheckRead(
-        fields => {
-          spark
-            .table("origin_table")
-            .select(fields.head, fields.tail: _*)
-            .write
-            .partitionBy("date_field")
-            .bucketBy(2, "byte_field")
-            .saveAsTable(parquet_table_name)
-        },
-        fields.keys.toSeq
-      )
-
-      assert(
-        new File(getWarehouseDir + "/" + parquet_table_name)
-          .listFiles()
-          .filter(_.isDirectory)
-          .filter(!_.getName.equals("date_field=__HIVE_DEFAULT_PARTITION__"))
-          .head
-          .listFiles()
-          .length == 2
-      ) // 2 bucket files
-    }
-  }
-
-  def recursiveListFiles(f: File): Array[File] = {
-    val these = f.listFiles
-    these ++ these.filter(_.isDirectory).flatMap(recursiveListFiles)
-  }
-
-  def getSignature(filesOfNativeWriter: Array[File]): Array[(Long, Long)] = {
-    filesOfNativeWriter.map(
-      f => {
-        val df = spark.read.parquet(f.getAbsolutePath)
-        (
-          df.count(),
-          df.agg(("int_field", "sum")).collect().apply(0).apply(0).asInstanceOf[Long]
+      for (format <- formats) {
+        // spark write does not support bucketed table
+        // https://issues.apache.org/jira/browse/SPARK-19256
+        val table_name = table_name_template.format(format)
+        writeAndCheckRead(
+          table_name,
+          fields => {
+            spark
+              .table("origin_table")
+              .select(fields.head, fields.tail: _*)
+              .write
+              .format(format)
+              .partitionBy("date_field")
+              .bucketBy(2, "byte_field")
+              .saveAsTable(table_name)
+          },
+          fields.keys.toSeq
         )
-      })
+
+        assert(
+          new File(getWarehouseDir + "/" + table_name)
+            .listFiles()
+            .filter(_.isDirectory)
+            .filter(!_.getName.equals("date_field=__HIVE_DEFAULT_PARTITION__"))
+            .head
+            .listFiles()
+            .filter(!_.isHidden)
+            .length == 2
+        ) // 2 bucket files
+      }
+    }
   }
 
   test("test table bucketed by all typed columns") {
@@ -636,41 +697,45 @@ class GlutenClickHouseWriteParquetTableSuite
       ("timestamp_field", "timestamp")
     )
 
-//    for (bucketField <- fields.keys)
-    {
-      withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    for (format <- formats) {
+      val table_name = table_name_template.format(format)
+      withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
         writeAndCheckRead(
+          table_name,
           fields => {
             spark
               .table("origin_table")
               .select(fields.head, fields.tail: _*)
               .write
+              .format(format)
               .bucketBy(10, fields.head, fields.tail: _*)
-//              .bucketBy(10, bucketField)
-              .saveAsTable(parquet_table_name)
+              .saveAsTable(table_name)
           },
           fields.keys.toSeq
         )
       }
 
-      withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
-        spark.sql(s"drop table IF EXISTS $parquet_table_name_vanilla")
+      val table_name_vanilla = table_name_vanilla_template.format(format)
+      withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+        spark.sql(s"drop table IF EXISTS $table_name_vanilla")
         spark
           .table("origin_table")
           .select(fields.keys.toSeq.head, fields.keys.toSeq.tail: _*)
           .write
+          .format(format)
           .bucketBy(10, fields.keys.toSeq.head, fields.keys.toSeq.tail: _*)
-//          .bucketBy(10, bucketField)
-          .saveAsTable(parquet_table_name_vanilla)
+          .saveAsTable(table_name_vanilla)
 
         val sigsOfNativeWriter =
           getSignature(
-            recursiveListFiles(new File(getWarehouseDir + "/" + parquet_table_name))
-              .filter(_.getName.endsWith(".parquet"))).sorted
+            format,
+            recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
+              .filter(_.getName.endsWith(s".$format"))).sorted
         val sigsOfVanillaWriter =
           getSignature(
-            recursiveListFiles(new File(getWarehouseDir + "/" + parquet_table_name_vanilla))
-              .filter(_.getName.endsWith(".parquet"))).sorted
+            format,
+            recursiveListFiles(new File(getWarehouseDir + "/" + table_name_vanilla))
+              .filter(_.getName.endsWith(s".$format"))).sorted
 
         assert(sigsOfVanillaWriter.sameElements(sigsOfNativeWriter))
       }
@@ -693,139 +758,165 @@ class GlutenClickHouseWriteParquetTableSuite
       ("map", "map<int, long>")
     )
 
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
-      writeAndCheckRead(
-        fields => {
-          spark
-            .table("origin_table")
-            .select(fields.head, fields.tail: _*)
-            .write
-            .partitionBy("date_field")
-            .bucketBy(10, "byte_field", "string_field")
-            .saveAsTable(parquet_table_name)
-        },
-        fields.keys.toSeq
-      )
-    }
+    for (format <- formats) {
+      val table_name = table_name_template.format(format)
+      withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+        writeAndCheckRead(
+          table_name,
+          fields => {
+            spark
+              .table("origin_table")
+              .select(fields.head, fields.tail: _*)
+              .write
+              .format(format)
+              .partitionBy("date_field")
+              .bucketBy(10, "byte_field", "string_field")
+              .saveAsTable(table_name)
+          },
+          fields.keys.toSeq
+        )
+      }
 
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
-      spark.sql(s"drop table IF EXISTS $parquet_table_name_vanilla")
-      spark
-        .table("origin_table")
-        .select(fields.keys.toSeq.head, fields.keys.toSeq.tail: _*)
-        .write
-        .partitionBy("date_field")
-        .bucketBy(10, "byte_field", "string_field")
-        .saveAsTable(parquet_table_name_vanilla)
+      val table_name_vanilla = table_name_vanilla_template.format(format)
+      withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+        spark.sql(s"drop table IF EXISTS $table_name_vanilla")
+        spark
+          .table("origin_table")
+          .select(fields.keys.toSeq.head, fields.keys.toSeq.tail: _*)
+          .write
+          .format(format)
+          .partitionBy("date_field")
+          .bucketBy(10, "byte_field", "string_field")
+          .saveAsTable(table_name_vanilla)
 
-      val sigsOfNativeWriter =
-        getSignature(
-          recursiveListFiles(new File(getWarehouseDir + "/" + parquet_table_name))
-            .filter(_.getName.endsWith(".parquet"))).sorted
-      val sigsOfVanillaWriter =
-        getSignature(
-          recursiveListFiles(new File(getWarehouseDir + "/" + parquet_table_name_vanilla))
-            .filter(_.getName.endsWith(".parquet"))).sorted
+        val sigsOfNativeWriter =
+          getSignature(
+            format,
+            recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
+              .filter(_.getName.endsWith(s".$format"))).sorted
+        val sigsOfVanillaWriter =
+          getSignature(
+            format,
+            recursiveListFiles(new File(getWarehouseDir + "/" + table_name_vanilla))
+              .filter(_.getName.endsWith(s".$format"))).sorted
 
-      assert(sigsOfVanillaWriter.sameElements(sigsOfNativeWriter))
+        assert(sigsOfVanillaWriter.sameElements(sigsOfNativeWriter))
+      }
     }
   }
 
   test("test consecutive blocks having same partition value") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        spark.sql(s"drop table IF EXISTS $table_name")
 
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
+        // 8096 row per block, so there will be blocks containing all 0 in p, all 1 in p
+        spark
+          .range(30000)
+          .selectExpr("id", "id % 2 as p")
+          .orderBy("p")
+          .write
+          .format(format)
+          .partitionBy("p")
+          .saveAsTable(table_name)
 
-      // 8096 row per block, so there will be blocks containing all 0 in p, all 1 in p
-      spark
-        .range(30000)
-        .selectExpr("id", "id % 2 as p")
-        .orderBy("p")
-        .write
-        .partitionBy("p")
-        .saveAsTable(parquet_table_name)
-
-      val ret = spark.sql("select sum(id) from " + parquet_table_name).collect().apply(0).apply(0)
-      assert(ret == 449985000)
+        val ret = spark.sql("select sum(id) from " + table_name).collect().apply(0).apply(0)
+        assert(ret == 449985000)
+      }
     }
   }
 
   test("test decimal with rand()") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
-
-      spark
-        .range(200)
-        .selectExpr("id", " cast((id + rand()) as decimal(23,12)) as p")
-        .write
-        .partitionBy("p")
-        .saveAsTable(parquet_table_name)
-      val ret = spark.sql("select max(p) from " + parquet_table_name).collect().apply(0).apply(0)
-
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        spark.sql(s"drop table IF EXISTS $table_name")
+        spark
+          .range(200)
+          .selectExpr("id", " cast((id + rand()) as decimal(23,12)) as p")
+          .write
+          .format(format)
+          .partitionBy("p")
+          .saveAsTable(table_name)
+        val ret = spark.sql("select max(p) from " + table_name).collect().apply(0).apply(0)
+      }
     }
   }
 
   test("test partitioned by constant") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      for (format <- formats) {
+        spark.sql(s"drop table IF EXISTS tmp_123_$format")
+        spark.sql(
+          s"create table tmp_123_$format(" +
+            s"x1 string, x2 bigint,x3 string, x4 bigint, x5 string )" +
+            s"partitioned by (day date) stored as $format")
 
-      spark.sql(s"drop table IF EXISTS tmp_123")
-      spark.sql(
-        s"create table tmp_123(" +
-          s"x1 string, x2 bigint,x3 string, x4 bigint, x5 string )" +
-          s"partitioned by (day date) stored as parquet")
-
-      spark.sql("insert into tmp_123 partition(day) " +
-        "select cast(id as string), id, cast(id as string), id, cast(id as string), '2023-05-09' " +
-        "from range(10000000)")
+        spark.sql(
+          s"insert into tmp_123_$format partition(day) " +
+            "select cast(id as string), id, cast(id as string), id, cast(id as string), " +
+            "'2023-05-09' from range(10000000)")
+      }
     }
   }
 
   test("test bucketed by constant") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
 
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        spark.sql(s"drop table IF EXISTS $table_name")
 
-      spark
-        .range(10000000)
-        .selectExpr("id", "cast('2020-01-01' as date) as p")
-        .write
-        .bucketBy(2, "p")
-        .saveAsTable(parquet_table_name)
+        spark
+          .range(10000000)
+          .selectExpr("id", "cast('2020-01-01' as date) as p")
+          .write
+          .format(format)
+          .bucketBy(2, "p")
+          .saveAsTable(table_name)
 
-      val ret = spark.sql("select count(*) from " + parquet_table_name).collect().apply(0).apply(0)
+        val ret = spark.sql("select count(*) from " + table_name).collect().apply(0).apply(0)
+      }
     }
   }
 
   test("test consecutive null values being partitioned") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
 
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        spark.sql(s"drop table IF EXISTS $table_name")
 
-      spark
-        .range(30000)
-        .selectExpr("id", "cast(null as string) as p")
-        .write
-        .partitionBy("p")
-        .saveAsTable(parquet_table_name)
+        spark
+          .range(30000)
+          .selectExpr("id", "cast(null as string) as p")
+          .write
+          .format(format)
+          .partitionBy("p")
+          .saveAsTable(table_name)
 
-      val ret = spark.sql("select count(*) from " + parquet_table_name).collect().apply(0).apply(0)
+        val ret = spark.sql("select count(*) from " + table_name).collect().apply(0).apply(0)
+      }
     }
   }
 
   test("test consecutive null values being bucketed") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      for (format <- formats) {
+        val table_name = table_name_template.format(format)
+        spark.sql(s"drop table IF EXISTS $table_name")
 
-      spark.sql(s"drop table IF EXISTS $parquet_table_name")
+        spark
+          .range(30000)
+          .selectExpr("id", "cast(null as string) as p")
+          .write
+          .format(format)
+          .bucketBy(2, "p")
+          .saveAsTable(table_name)
 
-      spark
-        .range(30000)
-        .selectExpr("id", "cast(null as string) as p")
-        .write
-        .bucketBy(2, "p")
-        .saveAsTable(parquet_table_name)
-
-      val ret = spark.sql("select count(*) from " + parquet_table_name).collect().apply(0).apply(0)
+        val ret = spark.sql("select count(*) from " + table_name).collect().apply(0).apply(0)
+      }
     }
   }
-
 }

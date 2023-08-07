@@ -48,7 +48,7 @@ void NormalFileWriter::close()
 }
 
 FileWriterWrapper *
-createFileWriterWrapper(std::string file_uri, std::vector<std::string> & preferred_column_names, const std::string & format_hint)
+createFileWriterWrapper(const std::string & file_uri, const std::vector<std::string> & preferred_column_names, const std::string & format_hint)
 {
     // the passed in file_uri is exactly what is expected to see in the output folder
     // e.g /xxx/中文/timestamp_field=2023-07-13 03%3A00%3A17.622/abc.parquet

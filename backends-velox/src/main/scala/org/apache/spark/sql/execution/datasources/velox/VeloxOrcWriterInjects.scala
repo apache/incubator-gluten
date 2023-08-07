@@ -16,33 +16,19 @@
  */
 package org.apache.spark.sql.execution.datasources.velox
 
-import io.glutenproject.GlutenConfig
-
-import org.apache.spark.sql.internal.SQLConf
-
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.mutable
 
-class VeloxParquetWriterInjects extends VeloxFormatWriterInjects {
+class VeloxOrcWriterInjects extends VeloxFormatWriterInjects {
   override def nativeConf(
       options: Map[String, String],
       compressionCodec: String): java.util.Map[String, String] = {
-    // pass options to native so that velox can take user-specified conf to write parquet,
-    // i.e., compression, block size, block rows.
     val sparkOptions = new mutable.HashMap[String, String]()
-    sparkOptions.put(SQLConf.PARQUET_COMPRESSION.key, compressionCodec)
-    val blockSize = options.getOrElse(
-      GlutenConfig.PARQUET_BLOCK_SIZE,
-      GlutenConfig.getConf.columnarParquetWriteBlockSize.toString)
-    sparkOptions.put(GlutenConfig.PARQUET_BLOCK_SIZE, blockSize)
-    val blockRows = options.getOrElse(
-      GlutenConfig.PARQUET_BLOCK_ROWS,
-      GlutenConfig.getConf.columnarParquetWriteBlockRows.toString)
-    sparkOptions.put(GlutenConfig.PARQUET_BLOCK_ROWS, blockRows)
+    // TODO: implement it
     sparkOptions.asJava
   }
 
   override def getFormatName(): String = {
-    "parquet"
+    "orc"
   }
 }
