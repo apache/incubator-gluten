@@ -17,8 +17,10 @@
 package org.apache.spark.sql
 
 import io.glutenproject.utils.FallbackUtil
-import org.apache.spark.sql.functions._
+
 import org.apache.spark.sql.catalyst.expressions.ExpressionEvalHelper
+import org.apache.spark.sql.functions._
+
 import org.junit.Assert
 
 class GlutenStringFunctionsSuite
@@ -68,4 +70,3 @@ class GlutenStringFunctionsSuite
     Assert.assertFalse(FallbackUtil.isFallback(df2.queryExecution.executedPlan))
   }
 }
-
