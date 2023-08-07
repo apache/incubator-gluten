@@ -84,7 +84,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
   virtual std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
       MemoryAllocator* allocator,
       struct ArrowSchema* cSchema) {
-    return std::make_shared<gluten::RowToColumnarConverter>(cSchema);
+    return std::make_shared<gluten::RowToColumnarConverter>();
   }
 
   virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(

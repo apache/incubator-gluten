@@ -17,14 +17,8 @@
 
 #include "VeloxColumnarToRowConverter.h"
 
-#include <arrow/array/array_base.h>
-#include <arrow/buffer.h>
-#include <arrow/c/abi.h>
-#include <arrow/type_traits.h>
-#include <arrow/util/decimal.h>
+#include <arrow/status.h>
 
-#include "arrow/c/bridge.h"
-#include "arrow/c/helpers.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "velox/row/UnsafeRowDeserializers.h"
 #include "velox/row/UnsafeRowFast.h"
@@ -35,16 +29,15 @@ using arrow::MemoryPool;
 
 namespace gluten {
 
-arrow::Status VeloxColumnarToRowConverter::init() {
-  numRows_ = rv_->size();
-  numCols_ = rv_->childrenSize();
+arrow::Status VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr rowVector) {
+  numRows_ = rowVector->size();
+  numCols_ = rowVector->childrenSize();
 
-  fast_ = std::make_unique<velox::row::UnsafeRowFast>(rv_);
+  fast_ = std::make_unique<velox::row::UnsafeRowFast>(rowVector);
 
   size_t totalMemorySize = 0;
-  if (auto fixedRowSize = velox::row::UnsafeRowFast::fixedRowSize(velox::asRowType(rv_->type()))) {
+  if (auto fixedRowSize = velox::row::UnsafeRowFast::fixedRowSize(velox::asRowType(rowVector->type()))) {
     totalMemorySize += fixedRowSize.value() * numRows_;
-
   } else {
     for (auto i = 0; i < numRows_; ++i) {
       totalMemorySize += fast_->rowSize(i);
@@ -65,10 +58,9 @@ arrow::Status VeloxColumnarToRowConverter::init() {
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxColumnarToRowConverter::write(std::shared_ptr<ColumnarBatch> cb) {
+arrow::Status VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
-  rv_ = veloxBatch->getRowVector();
-  RETURN_NOT_OK(init());
+  RETURN_NOT_OK(refreshStates(veloxBatch->getRowVector()));
 
   // Initialize the offsets_ , lengths_
   lengths_.clear();

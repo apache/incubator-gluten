@@ -151,14 +151,13 @@ class GoogleBenchmarkColumnarToRowCacheScanBenchmark : public GoogleBenchmarkCol
     std::cout << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows << std::endl;
 
     // reuse the columnarToRowConverter for batches caused system % increase a lot
-    auto arrowPool = defaultArrowMemoryPool();
     auto ctxPool = defaultLeafVeloxMemoryPool();
     for (auto _ : state) {
       for (const auto& vector : vectors) {
         auto row = std::dynamic_pointer_cast<velox::RowVector>(vector);
-        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(arrowPool, ctxPool);
+        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool);
         auto cb = std::make_shared<VeloxColumnarBatch>(row);
-        TIME_NANO_OR_THROW(writeTime, columnarToRowConverter->write(cb));
+        TIME_NANO_OR_THROW(writeTime, columnarToRowConverter->convert(cb));
       }
     }
 
@@ -201,7 +200,6 @@ class GoogleBenchmarkColumnarToRowIterateScanBenchmark : public GoogleBenchmarkC
     ASSERT_NOT_OK(::parquet::arrow::FileReader::Make(
         arrow::default_memory_pool(), ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
 
-    auto arrowPool = defaultArrowMemoryPool();
     auto ctxPool = defaultLeafVeloxMemoryPool();
     for (auto _ : state) {
       ASSERT_NOT_OK(parquetReader->GetRecordBatchReader(rowGroupIndices_, columnIndices_, &recordBatchReader));
@@ -210,11 +208,11 @@ class GoogleBenchmarkColumnarToRowIterateScanBenchmark : public GoogleBenchmarkC
         numBatches += 1;
         numRows += recordBatch->num_rows();
         auto vector = recordBatch2RowVector(*recordBatch);
-        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(arrowPool, ctxPool);
+        auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool);
         auto row = std::dynamic_pointer_cast<velox::RowVector>(vector);
         auto cb = std::make_shared<VeloxColumnarBatch>(row);
 
-        TIME_NANO_OR_THROW(writeTime, columnarToRowConverter->write(cb));
+        TIME_NANO_OR_THROW(writeTime, columnarToRowConverter->convert(cb));
         TIME_NANO_OR_THROW(elapseRead, recordBatchReader->ReadNext(&recordBatch));
       }
     }
