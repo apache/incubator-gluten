@@ -448,14 +448,26 @@ core::PlanNodePtr SubstraitVeloxPlanConverter::toVeloxPlan(const ::substrait::Ex
 
   const auto& inputType = childNode->outputType();
 
-  std::vector<std::vector<core::TypedExprPtr>> projectSetExprs;
-  projectSetExprs.reserve(expandRel.fields_size());
+  auto rowSize = expandRel.fields_size();
+  auto colSize = expandRel.fields()[0].switching_field().duplicates_size();
 
-  for (const auto& projections : expandRel.fields()) {
+  std::vector<std::string> names;
+  names.reserve(colSize);
+  for (int idx = 0; idx < colSize; idx++) {
+    names.push_back(subParser_->makeNodeName(planNodeId_, idx));
+  }
+
+  std::vector<std::shared_ptr<const core::ITypedExpr>> projectSetExprs;
+  std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> unnestFields;
+  std::vector<std::shared_ptr<const core::FieldAccessTypedExpr>> replicateFields;
+  projectSetExprs.reserve(colSize);
+  unnestFields.reserve(colSize);
+
+  for (int j = 0; j < colSize; j++) {
     std::vector<core::TypedExprPtr> projectExprs;
-    projectExprs.reserve(projections.switching_field().duplicates_size());
-
-    for (const auto& projectExpr : projections.switching_field().duplicates()) {
+    projectExprs.reserve(rowSize);
+    for (int i = 0; i < rowSize; i++) {
+      auto projectExpr = expandRel.fields()[i].switching_field().duplicates()[j];
       if (projectExpr.has_selection()) {
         auto expression = exprConverter_->toVeloxExpr(projectExpr.selection(), inputType);
         projectExprs.emplace_back(expression);
@@ -466,17 +478,18 @@ core::PlanNodePtr SubstraitVeloxPlanConverter::toVeloxPlan(const ::substrait::Ex
         VELOX_FAIL("The project in Expand Operator only support field or literal.");
       }
     }
-    projectSetExprs.emplace_back(projectExprs);
+
+    auto type = ARRAY(projectExprs[0]->type());
+    auto expr = std::make_shared<const core::CallTypedExpr>(type, std::move(projectExprs), "array_constructor");
+    unnestFields.emplace_back(std::make_shared<core::FieldAccessTypedExpr>(type, names[j]));
+    projectSetExprs.emplace_back(expr);
   }
 
-  auto projectSize = expandRel.fields()[0].switching_field().duplicates_size();
-  std::vector<std::string> names;
-  names.reserve(projectSize);
-  for (int idx = 0; idx < projectSize; idx++) {
-    names.push_back(subParser_->makeNodeName(planNodeId_, idx));
-  }
+  auto projectNode =
+      std::make_shared<core::ProjectNode>(nextPlanNodeId(), names, std::move(projectSetExprs), std::move(childNode));
 
-  return std::make_shared<core::ExpandNode>(nextPlanNodeId(), projectSetExprs, std::move(names), childNode);
+  return std::make_shared<core::UnnestNode>(
+      nextPlanNodeId(), replicateFields, unnestFields, names, std::nullopt, projectNode);
 }
 
 const core::WindowNode::Frame createWindowFrame(
