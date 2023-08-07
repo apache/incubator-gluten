@@ -276,7 +276,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       newSource
     case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
       val newPartitionFilters: Seq[Expression] = ExpressionConverter.transformDynamicPruningExpr(
-        HiveTableScanExecTransformer.getpartitionFilters(plan),
+        HiveTableScanExecTransformer.getPartitionFilters(plan),
         reuseSubquery)
       val newSource = HiveTableScanExecTransformer.copyWith(plan, newPartitionFilters)
       if (plan.logicalLink.nonEmpty) {
@@ -609,7 +609,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
     case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
       // TODO: Add DynamicPartitionPruningHiveScanSuite.scala
       val newPartitionFilters: Seq[Expression] = ExpressionConverter.transformDynamicPruningExpr(
-        HiveTableScanExecTransformer.getpartitionFilters(plan),
+        HiveTableScanExecTransformer.getPartitionFilters(plan),
         reuseSubquery)
       val hiveTableScanExecTransformer =
         BackendsApiManager.getSparkPlanExecApiInstance.genHiveTableScanExecTransformer(plan)

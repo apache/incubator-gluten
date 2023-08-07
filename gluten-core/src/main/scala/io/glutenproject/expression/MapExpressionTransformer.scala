@@ -20,18 +20,16 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
 import com.google.common.collect.Lists
 
-class CreateMapTransformer(
+case class CreateMapTransformer(
     substraitExprName: String,
     children: Seq[ExpressionTransformer],
     useStringTypeWhenEmpty: Boolean,
     original: CreateMap)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // If children is empty,
@@ -59,14 +57,13 @@ class CreateMapTransformer(
   }
 }
 
-class GetMapValueTransformer(
+case class GetMapValueTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     key: ExpressionTransformer,
     failOnError: Boolean,
     original: GetMapValue)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // ClickHouse backend doesn't support fail on error
@@ -88,9 +85,7 @@ class GetMapValueTransformer(
       Seq(original.child.dataType, original.key.dataType),
       FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val exprNodes = Lists.newArrayList(
-      childNode.asInstanceOf[ExpressionNode],
-      keyNode.asInstanceOf[ExpressionNode])
+    val exprNodes = Lists.newArrayList(childNode, keyNode)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, exprNodes, typeNode)
   }

@@ -74,7 +74,7 @@ trait BackendSettingsApi {
   def excludeScanExecFromCollapsedStage(): Boolean = false
   def avoidOverwritingFilterTransformer(): Boolean = false
   def fallbackFilterWithoutConjunctiveScan(): Boolean = false
-  def rescaleDecimalLiteral(): Boolean = false
+  def rescaleDecimalLiteral: Boolean = false
 
   /**
    * Whether to replace sort agg with hash agg., e.g., sort agg will be used in spark's planning for

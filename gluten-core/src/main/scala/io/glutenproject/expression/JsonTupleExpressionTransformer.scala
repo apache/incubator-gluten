@@ -20,28 +20,22 @@ import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.ListNode
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.Expression
 
 import com.google.common.collect.Lists
 
 case class JsonTupleExpressionTransformer(
     substraitExprName: String,
-    children: Array[ExpressionTransformer],
+    children: Seq[ExpressionTransformer],
     original: Expression)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: Object): ExpressionNode = {
     val jsonExpr = children.head
     val fields = children.tail
     val jsonExprNode = jsonExpr.doTransform(args)
     val expressNodes = Lists.newArrayList(jsonExprNode)
-    fields.foreach(
-      f => {
-        val fieldNode = f.doTransform(args)
-        expressNodes.add(fieldNode)
-      })
+    fields.foreach(f => expressNodes.add(f.doTransform(args)))
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName =
       ConverterUtils.makeFuncName(

@@ -272,7 +272,7 @@ object HiveTableScanExecTransformer {
     plan.isInstanceOf[HiveTableScanExec]
   }
 
-  def getpartitionFilters(plan: SparkPlan): Seq[Expression] = {
+  def getPartitionFilters(plan: SparkPlan): Seq[Expression] = {
     plan.asInstanceOf[HiveTableScanExec].partitionPruningPred
   }
 

@@ -70,9 +70,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       substraitExprName,
       Seq(original.left.dataType, original.right.dataType),
       FunctionConfig.OPT)
-    val exprNodes = Lists.newArrayList(
-      leftNode.asInstanceOf[ExpressionNode],
-      rightNode.asInstanceOf[ExpressionNode])
+    val exprNodes = Lists.newArrayList(leftNode, rightNode)
     ExpressionBuilder.makeScalarFunction(
       ExpressionBuilder.newScalarFunction(functionMap, functionName),
       exprNodes,
@@ -96,7 +94,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genRowToColumnarExec(child: SparkPlan): RowToColumnarExecBase = {
-    new RowToCHNativeColumnarExec(child)
+    RowToCHNativeColumnarExec(child)
   }
 
   /**
@@ -179,25 +177,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left,
       right,
       isNullAwareAntiJoin)
-
-  /**
-   * Generate Alias transformer.
-   *
-   * @param child
-   *   : The computation being performed
-   * @param name
-   *   : The name to be associated with the result of computing.
-   * @param exprId
-   * @param qualifier
-   * @param explicitMetadata
-   * @return
-   *   a transformer for alias
-   */
-  def genAliasTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Expression): AliasTransformerBase =
-    AliasTransformerBase(substraitExprName, child, original)
 
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
   def genGetMapValueTransformer(
@@ -398,6 +377,22 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHEqualNullSafeTransformer(substraitExprName, left, right, original)
   }
 
+  override def genStringLocateTransformer(
+      substraitExprName: String,
+      first: ExpressionTransformer,
+      second: ExpressionTransformer,
+      third: ExpressionTransformer,
+      original: StringLocate): ExpressionTransformer = {
+    CHStringLocateTransformer(substraitExprName, first, second, third, original)
+  }
+
+  override def genMd5Transformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Md5): ExpressionTransformer = {
+    CHMd5Transformer(substraitExprName, child, original)
+  }
+
   /** Generate an ExpressionTransformer to transform Sha2 expression. */
   override def genSha2Transformer(
       substraitExprName: String,
@@ -429,7 +424,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       timestamp: ExpressionTransformer,
       timeZoneId: Option[String],
       original: TruncTimestamp): ExpressionTransformer = {
-    new CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
+    CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
   }
 
   override def genUnixTimestampTransformer(
