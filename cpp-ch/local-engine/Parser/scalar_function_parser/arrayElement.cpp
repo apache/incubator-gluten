@@ -17,7 +17,7 @@
 #include <Parser/FunctionParser.h>
 #include <Common/CHUtil.h>
 #include <Columns/IColumn.h>
-#include <DataTypes/DataTypeNothing.h>
+#include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeArray.h>
 
 namespace DB
@@ -47,15 +47,25 @@ public:
         const DB::ActionsDAG::Node * index_arg = parsed_args[1];
 
         const DataTypeArray * array_type = checkAndGetDataType<DataTypeArray>(removeNullable(arr_arg->result_type).get());
-        if (!array_type)
-            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "First argument for function {} must be an array", getName());
+        const DataTypeMap * map_type = checkAndGetDataType<DataTypeMap>(removeNullable(arr_arg->result_type).get());
+        if (!array_type && !map_type)
+            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "First argument for function {} must be an array or map", getName());
         
-        const DB::DataTypePtr nested_type = removeNullable(array_type->getNestedType());
+        const DB::DataTypePtr nested_type = removeNullable(array_type ? array_type->getNestedType() : map_type->getValueType());
         DB::WhichDataType type_which(nested_type);
         if (type_which.isTuple())
         {
-            DB::DataTypePtr array_type_non_null = std::make_shared<DB::DataTypeArray>(nested_type);
-            const DB::ActionsDAG::Node * arr_not_null_node = ActionsDAGUtil::convertNodeType(actions_dag, arr_arg, makeNullable(array_type_non_null)->getName());
+            const DB::ActionsDAG::Node * arr_not_null_node = nullptr;
+            if (array_type)
+            {
+                DB::DataTypePtr array_type_non_null = std::make_shared<DB::DataTypeArray>(nested_type);
+                arr_not_null_node = ActionsDAGUtil::convertNodeType(actions_dag, arr_arg, makeNullable(array_type_non_null)->getName());
+            }
+            else
+            {
+                DB::DataTypePtr array_type_non_null = std::make_shared<DB::DataTypeMap>(map_type->getKeyType(), nested_type);
+                arr_not_null_node = ActionsDAGUtil::convertNodeType(actions_dag, arr_arg, makeNullable(array_type_non_null)->getName());
+            }
             return toFunctionNode(actions_dag, "arrayElement", {arr_not_null_node, index_arg});
         }
         else
