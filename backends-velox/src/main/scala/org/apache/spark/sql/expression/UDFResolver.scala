@@ -122,89 +122,104 @@ object UDFResolver extends Logging {
     getFilesWithExtension(dest.toPath, LIB_EXTENSION).map(_.toString)
   }
 
+  def getAllLibraries(files: String): Seq[String] = {
+    getAllLibraries(files.split(","))
+  }
+
   def getAllLibraries(files: Seq[String]): Seq[String] = {
-    files.map(SparkFiles.get).flatMap {
-      f =>
-        val file = new File(f)
-        if (file.isDirectory) {
-          getFilesWithExtension(Paths.get(f), LIB_EXTENSION).map(_.toString)
-        } else {
-          Seq(f)
-        }
-    }
+    files
+      .map {
+        f =>
+          val file = new File(f)
+          if (file.isAbsolute) {
+            file
+          } else {
+            new File(SparkFiles.get(f))
+          }
+      }
+      .flatMap {
+        f =>
+          if (f.isDirectory) {
+            getFilesWithExtension(f.toPath, LIB_EXTENSION).map(_.toString)
+          } else {
+            Seq(f.toString)
+          }
+      }
   }
 
   def loadAndGetFunctionDescriptions: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
     val sparkContext = SparkContext.getActive.get
     val sparkConf = sparkContext.conf
-    val udfFiles = sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIBS)
-    if (udfFiles.isEmpty) {
-      Seq.empty
-    } else {
-      val files = udfFiles.get.split(",").map(Paths.get(_).getFileName.toString)
+    sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIBS).map(_.split(",")) match {
+      case None =>
+        Seq.empty
+      case Some(udfFiles) =>
+        val master = sparkConf.getOption("spark.master")
+        val isYarn = master.isDefined && master.get.equals("yarn")
+        localLibraryPaths = if (isYarn) {
+          // For Yarn-client or Yarn-cluster mode,
+          // driver cannot get uploaded files via SparkFiles.get.
+          // So we need to copy and unpack files for driver first.
+          val hadoopConf = new YarnConfiguration(SparkHadoopUtil.newConfiguration(sparkConf))
+          val toLoad: ListBuffer[String] = ListBuffer()
 
-      val master = sparkConf.getOption("spark.master")
-      val isYarn = master.isDefined && master.get.equals("yarn")
-      localLibraryPaths = if (isYarn) {
-        // For Yarn-client or Yarn-cluster mode,
-        // driver cannot get uploaded files via SparkFiles.get.
-        // So we need to copy and unpack files for driver first.
-        val hadoopConf = new YarnConfiguration(SparkHadoopUtil.newConfiguration(sparkConf))
-        val toLoad: ListBuffer[String] = ListBuffer()
+          // Handle absolute paths
+          toLoad ++= udfFiles.filter(Paths.get(_).isAbsolute)
 
-        sparkConf.getOption("spark.yarn.dist.files").foreach {
-          files =>
-            files.split(",").map(file => parseName(file)).foreach {
-              case (fullPath, nameOrAlias) =>
-                if (files.contains(nameOrAlias)) {
-                  toLoad += Utils
-                    .fetchFile(
-                      fullPath,
-                      new File(JniWorkspace.getDefault.getWorkDir),
-                      sparkConf,
-                      hadoopConf,
-                      System.currentTimeMillis,
-                      useCache = false)
-                    .toString
-                }
-            }
+          sparkConf.getOption("spark.yarn.dist.files").foreach {
+            files =>
+              files.split(",").map(parseName).foreach {
+                case (fullPath, nameOrAlias) =>
+                  if (udfFiles.contains(nameOrAlias)) {
+                    toLoad += Utils
+                      .fetchFile(
+                        fullPath,
+                        new File(JniWorkspace.getDefault.getWorkDir),
+                        sparkConf,
+                        hadoopConf,
+                        System.currentTimeMillis,
+                        useCache = false)
+                      .toString
+                  }
+              }
+          }
+
+          sparkConf.getOption("spark.yarn.dist.archives").foreach {
+            archives =>
+              archives.split(",").map(parseName).foreach {
+                case (fullPath, nameOrAlias) =>
+                  if (udfFiles.contains(nameOrAlias)) {
+                    val source = Utils
+                      .fetchFile(
+                        fullPath,
+                        Utils.createTempDir(),
+                        sparkConf,
+                        hadoopConf,
+                        System.currentTimeMillis,
+                        useCache = false)
+                    toLoad ++= unpackAndGetLibraries(
+                      source,
+                      new File(JniWorkspace.getDefault.getWorkDir))
+                  }
+              }
+          }
+          toLoad
+        } else {
+          // Get the full paths of all libraries. Archives are already unpacked.
+          getAllLibraries(udfFiles)
         }
 
-        sparkConf.getOption("spark.yarn.dist.archives").foreach {
-          archives =>
-            archives.split(",").map(file => parseName(file)).foreach {
-              case (fullPath, nameOrAlias) =>
-                if (files.contains(nameOrAlias)) {
-                  val source = Utils
-                    .fetchFile(
-                      fullPath,
-                      Utils.createTempDir(),
-                      sparkConf,
-                      hadoopConf,
-                      System.currentTimeMillis,
-                      useCache = false)
-                  toLoad ++= unpackAndGetLibraries(
-                    source,
-                    new File(JniWorkspace.getDefault.getWorkDir))
-                }
-            }
-        }
-        toLoad
-      } else {
-        // Get the full paths of all libraries. Archives are already unpacked.
-        getAllLibraries(files)
-      }
-      val allLibs = localLibraryPaths.mkString(",")
-      logInfo(s"UDF library paths: $allLibs")
-      new UdfJniWrapper().nativeLoadUdfLibraries(allLibs)
+        val allLibs = localLibraryPaths.mkString(",")
+        logInfo(s"Loading UDF libraries from paths: $allLibs")
+        new UdfJniWrapper().nativeLoadUdfLibraries(allLibs)
 
-      UDFMap.map {
-        case (name, t) =>
-          (
-            new FunctionIdentifier(name),
-            new ExpressionInfo(classOf[UDFExpression].getName, name),
-            (e: Seq[Expression]) => UDFExpression(name, t.dataType, t.nullable, e))
-      }.toSeq
+        UDFMap.map {
+          case (name, t) =>
+            (
+              new FunctionIdentifier(name),
+              new ExpressionInfo(classOf[UDFExpression].getName, name),
+              (e: Seq[Expression]) => UDFExpression(name, t.dataType, t.nullable, e))
+        }.toSeq
     }
   }
 }

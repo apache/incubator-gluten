@@ -385,10 +385,11 @@ target_link_libraries(myudf PRIVATE ${VELOX_LIBRARY})
 
 ## Using UDF in Gluten
 
-Gluten loads the UDF libraries at runtime. Users need to configure the libray paths using the provided Spark configuration, which accepts comma separated list of library paths
+Gluten loads the UDF libraries at runtime. Users can upload UDF libraries via `--files` or `--archives`, and configure the libray paths using the provided Spark configuration, which accepts comma separated list of library paths
 
 ```
---conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=/path/to/libmyudf1.so,/path/to/libmyudf2.so
+--archives /path/to/udf_archives.zip#udf_archives
+--conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=udf_archives
 ```
 
 ## Try the example
@@ -397,7 +398,8 @@ We provided an Velox UDF example file [MyUDF.cpp](../../cpp/velox/udf/examples/M
 
 Start spark-shell or spark-sql with below configuration 
 ```
---conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=/path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
+--files /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
+--conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=libmyudf.so
 ```
 Run query. The functions `myudf1` and `myudf2` increment the input value by a constant of 5
 ```
