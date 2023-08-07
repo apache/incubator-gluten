@@ -18,41 +18,13 @@
 #pragma once
 
 #include <arrow/util/compression.h>
-#include <bits/stl_algo.h>
-#include <vector>
-
-#include "exception.h"
-
-#ifdef GLUTEN_ENABLE_QAT
-#include "utils/qat/QatCodec.h"
-#endif
-
-#ifdef GLUTEN_ENABLE_IAA
-#include "utils/qpl/qpl_codec.h"
-#endif
 
 namespace gluten {
 
-#if defined(GLUTEN_ENABLE_QAT) or defined(GLUTEN_ENABLE_IAA)
-static const std::vector<arrow::Compression::type> kSupportedCodec = {
-    arrow::Compression::LZ4_FRAME,
-    arrow::Compression::ZSTD,
-    arrow::Compression::CUSTOM};
-#else
-static const std::vector<arrow::Compression::type> kSupportedCodec = {
-    arrow::Compression::LZ4_FRAME,
-    arrow::Compression::ZSTD};
-#endif
+enum CodecBackend { NONE, QAT, IAA };
 
-inline std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(arrow::Compression::type compressedType) {
-  if (std::any_of(kSupportedCodec.begin(), kSupportedCodec.end(), [compressedType](const auto& codec) {
-        return codec == compressedType;
-      })) {
-    GLUTEN_ASSIGN_OR_THROW(auto ret, arrow::util::Codec::Create(compressedType));
-    return ret;
-  } else {
-    return nullptr;
-  }
-}
+std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(
+    arrow::Compression::type compressedType,
+    CodecBackend codecBackend);
 
 } // namespace gluten

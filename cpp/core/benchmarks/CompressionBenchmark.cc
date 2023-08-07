@@ -170,30 +170,27 @@ class BenchmarkCompression {
     auto compressionType = state.range(0);
     switch (compressionType) {
       case gluten::kLZ4: {
-        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::LZ4_FRAME);
+        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::LZ4_FRAME, CodecBackend::NONE);
         break;
       }
       case gluten::kZstd: {
-        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::ZSTD);
+        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::ZSTD, CodecBackend::NONE);
         break;
       }
 #ifdef GLUTEN_ENABLE_QAT
       case gluten::kQatGzip: {
-        qat::ensureQatCodecRegistered("gzip");
-        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::CUSTOM);
+        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::GZIP, CodecBackend::QAT);
         break;
       }
       case gluten::kQatZstd: {
-        qat::ensureQatCodecRegistered("zstd");
-        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::CUSTOM);
+        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::ZSTD, CodecBackend::QAT);
         std::cout << "load qatzstd" << std::endl;
         break;
       }
 #endif
 #ifdef GLUTEN_ENABLE_IAA
       case gluten::kQplGzip: {
-        qpl::EnsureQplCodecRegistered("gzip");
-        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::CUSTOM);
+        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::ZSTD, CodecBackend::IAA);
         break;
       }
 #endif

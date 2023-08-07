@@ -22,11 +22,14 @@
 #include <arrow/ipc/message.h>
 #include <arrow/ipc/options.h>
 
+#include "utils/compression.h"
+
 namespace gluten {
 
 struct ReaderOptions {
   arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
   arrow::Compression::type compression_type = arrow::Compression::type::LZ4_FRAME;
+  CodecBackend codec_backend = CodecBackend::NONE;
 
   static ReaderOptions defaults();
 };
@@ -48,10 +51,10 @@ class Reader {
  protected:
   std::shared_ptr<arrow::MemoryPool> pool_;
   int64_t decompressTime_ = 0;
+  ReaderOptions options_;
 
  private:
   std::shared_ptr<arrow::io::InputStream> in_;
-  ReaderOptions options_;
   std::shared_ptr<arrow::Schema> writeSchema_;
   std::unique_ptr<arrow::ipc::Message> firstMessage_;
   bool firstMessageConsumed_ = false;

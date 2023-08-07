@@ -28,8 +28,6 @@ static const std::vector<std::string> kQatSupportedCodec = {"gzip", "zstd"};
 
 bool supportsCodec(const std::string& qatCodec);
 
-void ensureQatCodecRegistered(const std::string& codec);
-
 std::unique_ptr<arrow::util::Codec> makeQatGZipCodec(QzPollingMode_T pollingMode, int compressionLevel);
 
 std::unique_ptr<arrow::util::Codec> makeDefaultQatGZipCodec();

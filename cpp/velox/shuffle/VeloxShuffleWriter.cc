@@ -311,7 +311,7 @@ arrow::Status VeloxShuffleWriter::init() {
   partitionLengths_.resize(numPartitions_);
   rawPartitionLengths_.resize(numPartitions_);
 
-  RETURN_NOT_OK(setCompressType(options_.compression_type));
+  options_.codec = createArrowIpcCodec(options_.compression_type, options_.codec_backend);
 
   RETURN_NOT_OK(pool_->init());
   RETURN_NOT_OK(initIpcWriteOptions());
@@ -359,11 +359,6 @@ arrow::Status VeloxShuffleWriter::initPartitions() {
     v.resize(numPartitions_);
   });
 
-  return arrow::Status::OK();
-}
-
-arrow::Status VeloxShuffleWriter::setCompressType(arrow::Compression::type compressedType) {
-  options_.codec = createArrowIpcCodec(compressedType);
   return arrow::Status::OK();
 }
 
