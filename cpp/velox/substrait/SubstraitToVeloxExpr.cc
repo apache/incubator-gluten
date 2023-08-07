@@ -243,6 +243,30 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toExtractExpr(
   VELOX_FAIL("Constant is expected to be the first parameter in extract.");
 }
 
+core::TypedExprPtr SubstraitVeloxExprConverter::toLambdaExpr(
+    const ::substrait::Expression::ScalarFunction& substraitFunc,
+    const RowTypePtr& inputType) {
+  // Arguments names and types.
+  std::vector<std::string> argumentNames;
+  VELOX_CHECK_GT(substraitFunc.arguments().size(), 1, "lambda should have at least 2 args.");
+  argumentNames.reserve(substraitFunc.arguments().size() - 1);
+  std::vector<TypePtr> argumentTypes;
+  argumentTypes.reserve(substraitFunc.arguments().size() - 1);
+  for (int i = 1; i < substraitFunc.arguments().size(); i++) {
+    auto arg = substraitFunc.arguments(i).value();
+    CHECK(arg.has_scalar_function());
+    const auto& veloxFunction = subParser_->findVeloxFunction(functionMap_, arg.scalar_function().function_reference());
+    CHECK_EQ(veloxFunction, "namedlambdavariable");
+    argumentNames.emplace_back(arg.scalar_function().arguments(0).value().literal().string());
+    argumentTypes.emplace_back(toVeloxType(subParser_->parseType(substraitFunc.output_type())->type));
+  }
+  auto rowType = ROW(std::move(argumentNames), std::move(argumentTypes));
+  // Arg[0] -> function.
+  auto lambda =
+      std::make_shared<core::LambdaTypedExpr>(rowType, toVeloxExpr(substraitFunc.arguments(0).value(), rowType));
+  return lambda;
+}
+
 core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
     const ::substrait::Expression::ScalarFunction& substraitFunc,
     const RowTypePtr& inputType) {
@@ -254,6 +278,12 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
   const auto& veloxFunction = subParser_->findVeloxFunction(functionMap_, substraitFunc.function_reference());
   std::string typeName = subParser_->parseType(substraitFunc.output_type())->type;
 
+  if (veloxFunction == "lambdafunction") {
+    return toLambdaExpr(substraitFunc, inputType);
+  }
+  if (veloxFunction == "namedlambdavariable") {
+    return makeFieldAccessExpr(substraitFunc.arguments(0).value().literal().string(), toVeloxType(typeName), nullptr);
+  }
   if (veloxFunction == "extract") {
     return toExtractExpr(std::move(params), toVeloxType(typeName));
   }

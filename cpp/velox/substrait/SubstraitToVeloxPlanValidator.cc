@@ -157,6 +157,23 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
       return false;
     }
   }
+  if (name == "map_from_arrays") {
+    logValidateMsg("native validation failed due to: map_from_arrays is not supported.");
+    return false;
+  }
+  if (name == "get_array_item") {
+    logValidateMsg("native validation failed due to: get_array_item is not supported.");
+    return false;
+  }
+  if (name == "concat") {
+    for (const auto& type : types) {
+      if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
+          type.find("list") != std::string::npos) {
+        logValidateMsg("native validation failed due to: " + type + "is not supported in concat.");
+        return false;
+      }
+    }
+  }
   if (name == "murmur3hash") {
     for (const auto& type : types) {
       if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
@@ -583,15 +600,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ProjectRel& proj
   if (!validateInputTypes(extension, types)) {
     logValidateMsg("native validation failed due to: Validation failed for input types in ProjectRel.");
     return false;
-  }
-
-  for (auto i = 0; i < types.size(); i++) {
-    switch (types[i]->kind()) {
-      case TypeKind::ARRAY:
-        logValidateMsg("native validation failed due to: unsupported input type ARRAY in ProjectRel.");
-        return false;
-      default:;
-    }
   }
 
   int32_t inputPlanNodeId = 0;

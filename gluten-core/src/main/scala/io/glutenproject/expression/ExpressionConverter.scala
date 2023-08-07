@@ -621,6 +621,32 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           right = replaceWithExpressionTransformer(arrayContains.right, attributeSeq),
           arrayContains
         )
+      case arrayAggregate: ArrayAggregate =>
+        new ArrayAggregateTransformer(
+          substraitExprName.get,
+          argument = replaceWithExpressionTransformer(arrayAggregate.argument, attributeSeq),
+          zero = replaceWithExpressionTransformer(arrayAggregate.zero, attributeSeq),
+          merge = replaceWithExpressionTransformer(arrayAggregate.merge, attributeSeq),
+          finish = replaceWithExpressionTransformer(arrayAggregate.finish, attributeSeq),
+          arrayAggregate
+        )
+      case namedLambdaVariable: NamedLambdaVariable =>
+        new NamedLambdaVariableTransformer(
+          substraitExprName.get,
+          name = namedLambdaVariable.name,
+          dataType = namedLambdaVariable.dataType,
+          nullable = namedLambdaVariable.nullable,
+          exprId = namedLambdaVariable.exprId
+        )
+      case lambdaFunction: LambdaFunction =>
+        new LambdaFunctionTransformer(
+          substraitExprName.get,
+          function = replaceWithExpressionTransformer(lambdaFunction.function, attributeSeq),
+          arguments =
+            lambdaFunction.arguments.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          hidden = false,
+          original = lambdaFunction
+        )
       case arrayMax: ArrayMax =>
         new UnaryArgumentCollectionOperationTransformer(
           substraitExprName.get,
