@@ -20,8 +20,6 @@ import io.glutenproject.GlutenConfig
 
 import org.apache.spark.sql.internal.SQLConf
 
-import java.io.IOException
-
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.mutable
 
