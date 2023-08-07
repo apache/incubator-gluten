@@ -97,15 +97,9 @@ class HiveFileFormat(fileSinkConf: FileSinkDesc)
     // Avoid referencing the outer object.
     val fileSinkConfSer = fileSinkConf
     val outputFormat = fileSinkConf.tableInfo.getOutputFileFormatClassName
-    val isParquetFormat =
-      outputFormat.equals("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat");
-    val isOrcFormat = outputFormat.equals("org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat");
-
-    if (
-      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable")) &&
-      (isParquetFormat || isOrcFormat)
-    ) {
-
+    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))) {
+      val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
+      val isParquetFormat = nativeFormat.equals("parquet")
       val compressionCodec = if (fileSinkConf.compressed) {
         // hive related configurations
         fileSinkConf.compressCodec

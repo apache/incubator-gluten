@@ -96,9 +96,9 @@ object GlutenWriterColumnarRules {
   //  1. pull out `Empty2Null` and required ordering to `WriteFilesExec`, see Spark3.4 `V1Writes`
   //  2. support detect partition value, partition path, bucket value, bucket path at native side,
   //     see `BaseDynamicPartitionDataWriter`
-  def isNativeAppliable(cmd: DataWritingCommand): Boolean = {
+  def isNativeAppliable(cmd: DataWritingCommand): (Boolean, String) = {
     if (!GlutenConfig.getConf.enableNativeWriter) {
-      return false
+      return (false, "")
     }
 
     cmd match {
@@ -107,7 +107,14 @@ object GlutenWriterColumnarRules {
           throw new UnsupportedOperationException(
             "Velox file format does not support create table as select.")
         }
-        "parquet".equals(command.table.provider.get) || "orc".equals(command.table.provider.get)
+
+        if ("parquet".equals(command.table.provider.get)) {
+          return (true, "parquet")
+        } else if ("orc".equals(command.table.provider.get)) {
+          return (true, "orc")
+        } else {
+          return (false, "")
+        }
       case command: InsertIntoHadoopFsRelationCommand
           if command.fileFormat.isInstanceOf[ParquetFileFormat] ||
             command.fileFormat.isInstanceOf[OrcFileFormat] =>
@@ -118,16 +125,42 @@ object GlutenWriterColumnarRules {
           throw new UnsupportedOperationException(
             "Velox file format does not support dynamic partition write and bucket write.")
         }
-        true
+
+        if (command.fileFormat.isInstanceOf[ParquetFileFormat]) {
+          return (true, "parquet")
+        } else if (command.fileFormat.isInstanceOf[OrcFileFormat]) {
+          return (true, "orc")
+        } else {
+          return (false, "")
+        }
       case command: InsertIntoHiveDirCommand =>
-        "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat".equals(
-          command.storage.outputFormat.get) ||
-        "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat".equals(command.storage.outputFormat.get)
+        if (
+          "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat".equals(
+            command.storage.outputFormat.get)
+        ) {
+          return (true, "parquet")
+        } else if (
+          "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat".equals(
+            command.storage.outputFormat.get)
+        ) {
+          return (true, "orc")
+        } else {
+          return (false, "")
+        }
       case command: InsertIntoHiveTable =>
-        "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat".equals(
-          command.table.storage.outputFormat.get)
-        "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat".equals(
-          command.table.storage.outputFormat.get)
+        if (
+          "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat".equals(
+            command.table.storage.outputFormat.get)
+        ) {
+          return (true, "parquet")
+        } else if (
+          "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat".equals(
+            command.table.storage.outputFormat.get)
+        ) {
+          return (true, "orc")
+        } else {
+          return (false, "")
+        }
       case _: CreateHiveTableAsSelectCommand =>
         throw new UnsupportedOperationException(
           "native writer cannot recognize command: " + cmd.getClass.getName +
@@ -141,9 +174,10 @@ object GlutenWriterColumnarRules {
   case class NativeWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
     override def apply(p: SparkPlan): SparkPlan = p match {
       case rc @ DataWritingCommandExec(cmd, child) =>
-        session.sparkContext.setLocalProperty("isNativeAppliable", "false")
-        if (isNativeAppliable(cmd)) {
-          session.sparkContext.setLocalProperty("isNativeAppliable", "true")
+        val (native, format) = isNativeAppliable(cmd)
+        session.sparkContext.setLocalProperty("isNativeAppliable", native.toString)
+        session.sparkContext.setLocalProperty("nativeFormat", format)
+        if (native) {
           child match {
             // if the child is columnar, we can just wrap&transfer the columnar data
             case c2r: ColumnarToRowExecBase =>

@@ -38,7 +38,7 @@ OutputFormatFile::OutputFormatFile(
     DB::ContextPtr context_,
     const std::string & file_uri_,
     WriteBufferBuilderPtr write_buffer_builder_,
-    std::vector<std::string> & preferred_column_names_)
+    const std::vector<std::string> & preferred_column_names_)
     : context(context_), file_uri(file_uri_), write_buffer_builder(write_buffer_builder_), preferred_column_names(preferred_column_names_)
 {
 }
@@ -70,7 +70,7 @@ OutputFormatFilePtr OutputFormatFileUtil::createFile(
     DB::ContextPtr context,
     local_engine::WriteBufferBuilderPtr write_buffer_builder,
     const std::string & file_uri,
-    std::vector<std::string> & preferred_column_names,
+    const std::vector<std::string> & preferred_column_names,
     const std::string & format_hint)
 {
 #if USE_PARQUET

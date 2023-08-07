@@ -35,8 +35,6 @@ import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, SQLExecution, UnsafeExternalRowSorter}
-import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.unsafe.types.UTF8String
@@ -123,8 +121,7 @@ object FileFormatWriter extends Logging {
       options: Map[String, String]): Set[String] = {
 
     val nativeEnabled =
-      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable")) &&
-        (fileFormat.isInstanceOf[ParquetFileFormat] || fileFormat.isInstanceOf[OrcFileFormat])
+      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))
 
     if (nativeEnabled) {
       assert(plan.isInstanceOf[IFakeRowAdaptor])
@@ -221,7 +218,8 @@ object FileFormatWriter extends Logging {
         // TODO: to optimize, bucket value is computed twice here
       }
 
-      if (fileFormat.isInstanceOf[ParquetFileFormat]) {
+      val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
+      if ("parquet".equals(nativeFormat)) {
         (GlutenParquetWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
       } else {
         (GlutenOrcWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
@@ -249,7 +247,7 @@ object FileFormatWriter extends Logging {
         if (nativeEnabled && concurrentWritersEnabled) {
           log.warn(
             s"spark.sql.maxConcurrentOutputFileWriters(being set to $maxWriters) will be " +
-              "ignored when native parquet writer is being active. No concurrent Writers.")
+              "ignored when native writer is being active. No concurrent Writers.")
           concurrentWritersEnabled = false
         }
 
@@ -348,7 +346,8 @@ object FileFormatWriter extends Logging {
 
     val dataWriter =
       if (sparkPartitionId != 0 && !iterator.hasNext) {
-        // In case of empty job, leave first partition to save meta for file format like parquet.
+        // In case of empty job,
+        // leave first partition to save meta for file format like parquet/orc.
         new EmptyDirectoryDataWriter(description, taskAttemptContext, committer)
       } else if (description.partitionColumns.isEmpty && description.bucketIdExpression.isEmpty) {
         new SingleDirectoryDataWriter(description, taskAttemptContext, committer)
