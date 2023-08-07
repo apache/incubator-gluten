@@ -50,6 +50,11 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
   extends Rule[SparkPlan]
   with LogLevelUtil {
   val columnarConf: GlutenConfig = GlutenConfig.getConf
+  // for fallback policy
+  lazy val fallbackPolicy = GlutenConfig.getConf.fallbackPolicy
+
+  var unsupportedFlag: Boolean = false
+
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   val reuseSubquery = isAdaptiveContext && conf.subqueryReuseEnabled
@@ -256,6 +261,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case _: TRANSFORM_SUPPORTED =>
       // supported, break
       case _: TRANSFORM_UNSUPPORTED =>
+        unsupportedFlag = true
         logDebug(s"Columnar Processing for ${plan.getClass} is under row guard.")
         plan match {
           case shj: ShuffledHashJoinExec =>
@@ -279,6 +285,9 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           case p =>
             return p.withNewChildren(p.children.map(replaceWithTransformerPlan))
         }
+    }
+    if (unsupportedFlag) {
+      return plan
     }
     plan match {
       case plan: BatchScanExec =>

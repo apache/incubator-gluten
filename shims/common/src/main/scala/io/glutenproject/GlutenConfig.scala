@@ -829,7 +829,7 @@ object GlutenConfig {
           ", note this only works with AQE disabled")
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
-      .checkValues(Set("operator", "stage", "query"))
+      .checkValues(Set("operator", "stage", "query", "once"))
       .createWithDefault("operator")
 
   val COLUMNAR_QUERY_FALLBACK_THRESHOLD =
