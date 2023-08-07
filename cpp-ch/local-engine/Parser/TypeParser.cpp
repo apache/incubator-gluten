@@ -166,6 +166,7 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
     else if (substrait_type.has_struct_())
     {
         const auto & types = substrait_type.struct_().types();
+        const auto & names = substrait_type.struct_().names();
         DB::DataTypes struct_field_types(types.size());
         DB::Strings struct_field_names;
 
@@ -184,11 +185,12 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
             /// Construct CH tuple type without DFS rule.
             for (int i = 0; i < types.size(); ++i)
                 struct_field_types[i] = parseType(types[i]);
-
             const auto & names = substrait_type.struct_().names();
             for (int i = 0; i < names.size(); ++i)
                 if (!names[i].empty())
                     struct_field_names.push_back(names[i]);
+            struct_field_names.push_back(names[i]);
+            struct_field_types[i] = parseType(types[i], field_names);
         }
 
         if (!struct_field_names.empty())
