@@ -108,7 +108,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"hypot", "hypot"},
        {"sign", "sign"},
        {"log10", "log10"},
-       {"log1p", "log1p"},
        {"log2", "log2"},
        {"log", "log"},
        {"radians", "radians"},
