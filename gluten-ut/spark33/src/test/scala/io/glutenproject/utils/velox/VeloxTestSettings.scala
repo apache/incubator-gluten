@@ -765,8 +765,6 @@ class VeloxTestSettings extends BackendTestSettings {
   // FIXME: yan
   // enableSuite[GlutenFileMetadataStructSuite]
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
-    // FIXME: yan
-    .exclude("aggregate push down - different data types")
   // FIXME: yan
   // enableSuite[GlutenParquetV2AggregatePushDownSuite]
   // enableSuite[GlutenOrcV1AggregatePushDownSuite]
