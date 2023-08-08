@@ -878,6 +878,73 @@ class GlutenClickHouseFileFormatSuite
     testFileFormatBase(filePath, orcFileFormat, sql, df => {})
   }
 
+  test("fix issue KY2717 for attribute error") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("dpqy", StringType, nullable = true)
+      ))
+    val df = spark.read
+      .option("delimiter", ",")
+      .schema(schema)
+      .csv(csvDataPath + "/dpqy.csv")
+      .toDF()
+    df.createTempView("retail_stores_CN1")
+
+    val schema1 = StructType.apply(
+      Seq(
+        StructField.apply("spfl", StringType, nullable = true)
+      ))
+    val df1 = spark.read
+      .option("delimiter", ",")
+      .schema(schema1)
+      .csv(csvDataPath + "/spfl.csv")
+      .toDF()
+    df1.createTempView("retail_stores_by_transaction")
+
+    val query =
+      """
+        |SELECT
+        |  *
+        |FROM
+        |  (
+        |    select
+        |      *
+        |    from
+        |      (
+        |        (
+        |          select
+        |            dpqy spfl
+        |          from
+        |            retail_stores_CN1
+        |          group by
+        |            dpqy
+        |          order by
+        |            dpqy
+        |          limit
+        |            2147483647
+        |        )
+        |        union
+        |        (
+        |          select
+        |            spfl
+        |          from
+        |            retail_stores_by_transaction
+        |          group by
+        |            spfl
+        |          order by
+        |            spfl
+        |          limit
+        |            2147483647
+        |        )
+        |      )
+        |    order by
+        |      spfl
+        |  ) AS qq
+        |""".stripMargin
+
+    compareResultsAgainstVanillaSpark(query, compareResult = true, _ => {})
+  }
+
   // TODO: Fix: if the field names has upper case form, it will return null value
   ignore("read data from orc file format with upper case schema names") {
     val filePath = orcDataPath + "/case_insensitive_column_matching.orc"
@@ -977,4 +1044,5 @@ class GlutenClickHouseFileFormatSuite
     spark.createDataFrame(data, schema).toDF().write.parquet(fileName)
     fileName
   }
+
 }

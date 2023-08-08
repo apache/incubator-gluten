@@ -222,10 +222,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case RangePartitioning(orderings, numPartitions) =>
         val exprs = orderings.map(ordering => ordering.child)
         val (projectExpressions, newExpressionsPosition) = {
-          selectExpressions(
-            exprs,
-            BackendsApiManager.getTransformerApiInstance
-              .getPlanOutput(plan.child))
+          selectExpressions(exprs, plan.child.output)
         }
         if (projectExpressions.isEmpty) {
           return (0, plan.outputPartitioning, plan.child)
