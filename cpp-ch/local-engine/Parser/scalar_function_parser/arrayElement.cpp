@@ -34,8 +34,8 @@ namespace local_engine
 class BaseFunctionParserArrayElement  : public FunctionParser
 {
 public:
-    explicit FunctionParserArrayElement(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
-    ~FunctionParserArrayElement() override = default;
+    explicit BaseFunctionParserArrayElement(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
+    ~BaseFunctionParserArrayElement() override = default;
 
     const ActionsDAG::Node * parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const override
     {
@@ -82,7 +82,7 @@ protected:
 class FunctionParserElementAt : public BaseFunctionParserArrayElement
 {
 public:
-    explicit FunctionParserElementAt(SerializedPlanParser * plan_parser_) : FunctionParserArrayElement(plan_parser_) { }
+    explicit FunctionParserElementAt(SerializedPlanParser * plan_parser_) : BaseFunctionParserArrayElement(plan_parser_) { }
     ~FunctionParserElementAt() override = default;
 
     static constexpr auto name = "element_at";
@@ -92,7 +92,7 @@ public:
 class FunctionParserGetArrayItem : public BaseFunctionParserArrayElement
 {
 public:
-    explicit FunctionParserGetArrayItem(SerializedPlanParser * plan_parser_) : FunctionParserArrayElement(plan_parser_) { }
+    explicit FunctionParserGetArrayItem(SerializedPlanParser * plan_parser_) : BaseFunctionParserArrayElement(plan_parser_) { }
     ~FunctionParserGetArrayItem() override = default;
     
     static constexpr auto name = "get_array_item";
@@ -102,7 +102,7 @@ public:
 class FunctionParserGetMapValue : public BaseFunctionParserArrayElement
 {
 public:
-    explicit FunctionParserGetMapValue(SerializedPlanParser * plan_parser_) : FunctionParserArrayElement(plan_parser_) { }
+    explicit FunctionParserGetMapValue(SerializedPlanParser * plan_parser_) : BaseFunctionParserArrayElement(plan_parser_) { }
     ~FunctionParserGetMapValue() override = default;
     
     static constexpr auto name = "get_map_value";
