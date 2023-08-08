@@ -704,6 +704,8 @@ void BackendInitializerUtil::init(std::string * plan)
     applyGlobalConfigAndSettings(config, settings);
     LOG_INFO(logger, "Apply configuration and setting for global context.");
 
+    ReadBufferBuilderFactory::instance().clean();
+
     std::call_once(
         init_flag,
         [&]
