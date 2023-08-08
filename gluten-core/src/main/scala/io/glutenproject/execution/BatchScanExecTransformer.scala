@@ -18,7 +18,10 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -74,6 +77,20 @@ class BatchScanExecTransformer(
         case _ => Seq.empty
       }
     }
+  }
+
+  override def doValidateInternal(): ValidationResult = {
+    val fileFormat = ConverterUtils.getFileFormat(this) match {
+      case ReadFileFormat.ParquetReadFormat => "parquet"
+      case ReadFileFormat.OrcReadFormat => "orc"
+      case _ => "other"
+    }
+    val aggregates = pushedAggregate(fileFormat)
+    if (aggregates.nonEmpty) {
+      return ValidationResult.notOk(
+        s"Unsupported aggregation push down for $fileFormat format in scan.")
+    }
+    super.doValidateInternal()
   }
 
   override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator

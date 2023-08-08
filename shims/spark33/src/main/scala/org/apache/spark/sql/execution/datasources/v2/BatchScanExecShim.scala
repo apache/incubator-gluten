@@ -23,8 +23,11 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.KeyGroupedPartitioning
 import org.apache.spark.sql.catalyst.util.InternalRowSet
+import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
+import org.apache.spark.sql.execution.datasources.v2.orc.OrcScan
+import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -110,4 +113,11 @@ class BatchScanExecShim(
     }
   }
 
+  def pushedAggregate(fileFormat: String): Option[Aggregation] = {
+    fileFormat match {
+      case "parquet" => scan.asInstanceOf[ParquetScan].pushedAggregate
+      case "orc" => scan.asInstanceOf[OrcScan].pushedAggregate
+      case _ => None
+    }
+  }
 }
