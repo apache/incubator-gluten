@@ -34,15 +34,9 @@ public class ArrowBufferAllocators {
 
   private ArrowBufferAllocators() {}
 
-  private static final BufferAllocator GLOBAL = new RootAllocator(Long.MAX_VALUE);
-
-  public static BufferAllocator globalInstance() {
-    return GLOBAL;
-  }
-
   public static BufferAllocator contextInstance() {
     if (!TaskResources.inSparkTask()) {
-      return globalInstance();
+      throw new IllegalStateException("Found computation not in a Spark Task!");
     }
     String id = ArrowBufferAllocatorManager.class.toString();
     return TaskResources.addResourceIfNotRegistered(id, ArrowBufferAllocatorManager::new).managed;

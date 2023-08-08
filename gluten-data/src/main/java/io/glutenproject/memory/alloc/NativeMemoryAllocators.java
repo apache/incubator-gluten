@@ -59,7 +59,7 @@ public final class NativeMemoryAllocators {
 
   public NativeMemoryAllocator contextInstance() {
     if (!TaskResources.inSparkTask()) {
-      return globalInstance();
+      throw new IllegalStateException("Found computation not in a Spark Task!");
     }
     final String id = NativeMemoryAllocatorManager.class + "-" + System.identityHashCode(global);
     return TaskResources.addResourceIfNotRegistered(
@@ -87,10 +87,6 @@ public final class NativeMemoryAllocators {
             spiller,
             global);
     return TaskResources.addAnonymousResource(manager).getManaged();
-  }
-
-  public NativeMemoryAllocator globalInstance() {
-    return global;
   }
 
   private static NativeMemoryAllocatorManager createNativeMemoryAllocatorManager(

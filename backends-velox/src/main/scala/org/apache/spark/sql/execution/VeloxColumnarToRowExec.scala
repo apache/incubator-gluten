@@ -125,6 +125,7 @@ class ColumnarToRowRDD(
       }
 
       if (batches.isEmpty) {
+        TaskResources.releaseCurrentResources()
         Iterator.empty
       } else {
         val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
@@ -146,6 +147,7 @@ class ColumnarToRowRDD(
             numOutputRows += batch.numRows()
 
             if (batch.numRows == 0) {
+              batch.close()
               logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
               Iterator.empty
             } else if (
@@ -159,20 +161,25 @@ class ColumnarToRowRDD(
             } else if (output.isEmpty) {
               numInputBatches += 1
               numOutputRows += batch.numRows()
-              ColumnarBatches.emptyRowIterator(batch).asScala
+              val rows = ColumnarBatches.emptyRowIterator(batch).asScala
+              batch.close()
+              rows
             } else {
+              val cols = batch.numCols()
+              val rows = batch.numRows()
               val beforeConvert = System.currentTimeMillis()
               val batchHandle = ColumnarBatches.getNativeHandle(batch)
               val info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId)
 
               convertTime += (System.currentTimeMillis() - beforeConvert)
+              batch.close()
 
               new Iterator[InternalRow] {
                 var rowId = 0
-                val row = new UnsafeRow(batch.numCols())
+                val row = new UnsafeRow(cols)
 
                 override def hasNext: Boolean = {
-                  rowId < batch.numRows()
+                  rowId < rows
                 }
 
                 override def next: UnsafeRow = {

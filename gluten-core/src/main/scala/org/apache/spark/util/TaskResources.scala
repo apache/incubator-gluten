@@ -75,6 +75,18 @@ object TaskResources extends TaskListener with Logging {
           // in case of crashing in task completion listener, errors may be swallowed
           new TaskFailureListener {
             override def onTaskFailure(context: TaskContext, error: Throwable): Unit = {
+              RESOURCE_REGISTRIES.synchronized {
+                if (!RESOURCE_REGISTRIES.containsKey(tc)) {
+                  throw new IllegalStateException(
+                    "" +
+                      "TaskMemoryResourceRegistry is not initialized, this should not happen")
+                }
+                val registry = RESOURCE_REGISTRIES.remove(context)
+                assert(
+                  registry.size() == 1,
+                  "Current Spark TaskContext contains extra registry at task completion!")
+                registry.get(Thread.currentThread().getId).releaseAll()
+              }
               // TODO:
               // The general duty of printing error message should not reside in memory module
               error match {
