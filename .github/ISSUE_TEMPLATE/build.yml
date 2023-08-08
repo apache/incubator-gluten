@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 name: Build problem
-description: Report an issue when building Velox.
+description: Report an issue when building Gluten.
 labels: ["build", "triage"]
 body:
   - type: markdown

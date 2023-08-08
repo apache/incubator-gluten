@@ -34,7 +34,7 @@ body:
       required: true
 
   - type: textarea
-    id: description
+    id: version
     attributes:
       label: Spark version
       description: Please describe spark version in your environemnt.
@@ -42,7 +42,7 @@ body:
       required: false
 
   - type: textarea
-    id: description
+    id: configurations
     attributes:
       label: Spark configurations
       description: Please describe spark configurations in your environemnt.
