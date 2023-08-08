@@ -711,6 +711,7 @@ class GlutenClickHouseHiveTableSuite()
     val select_sql_1 = "select * from test_tbl_2582 where d1[0].a = 1"
     val select_sql_2 = "select element_at(d1, 1).a from test_tbl_2582 where id = 1"
     val select_sql_3 = "select d2['a'].a from test_tbl_2582 where id = 1"
+    val select_sql_4 = "select count(1) from test_tbl_2582 where d1[0].a = 1"
 
     spark.sql(create_table_sql)
     spark.sql(insert_data_sql)
@@ -718,6 +719,7 @@ class GlutenClickHouseHiveTableSuite()
     compareResultsAgainstVanillaSpark(select_sql_1, true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_2, true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_3, true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_4, true, _ => {})
 
   }
 
