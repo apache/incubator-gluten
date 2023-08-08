@@ -16,15 +16,15 @@
  */
 package io.glutenproject.init;
 
-class InitializerJniWrapper {
+public class InitializerJniWrapper {
 
   private InitializerJniWrapper() {}
 
   // For global context
-  static native void initialize(byte[] configPlan);
+  public static native void initialize(byte[] configPlan);
 
   // For local context
-  static native long makeTaskContext();
+  public static native long makeTaskContext();
 
-  static native void closeTaskContext(long handle);
+  public static native void closeTaskContext(long handle);
 }

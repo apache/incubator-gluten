@@ -18,7 +18,6 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution.BroadCastHashJoinContext
-import io.glutenproject.init.JniTaskContext
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
@@ -32,7 +31,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.TaskResources
+import org.apache.spark.util.{JniTaskContext, TaskResources}
 
 import org.apache.arrow.c.ArrowSchema
 

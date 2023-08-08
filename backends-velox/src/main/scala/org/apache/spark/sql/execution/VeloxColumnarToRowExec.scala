@@ -134,6 +134,8 @@ class ColumnarToRowRDD(
             if (!hasNext && !closed) {
               jniWrapper.nativeClose(c2rId)
               closed = true
+
+              TaskResources.releaseCurrentResources()
             }
             hasNext
           }
@@ -183,7 +185,7 @@ class ColumnarToRowRDD(
             }
           }
         }
-        res.flatten
+        res.flatten.map(_.copy())
       }
   }
 

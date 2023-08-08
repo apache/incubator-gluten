@@ -14,20 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.spark.util
 
-
-package io.glutenproject.init
-
-import org.apache.spark.util.TaskResource
+import _root_.io.glutenproject.init.InitializerJniWrapper
 
 // To make native task context work properly, register this resource type in ContextAPI
 class JniTaskContext extends TaskResource {
 
   private val handle: Long = InitializerJniWrapper.makeTaskContext()
 
+  private var close: Boolean = false
+
+  private val defaultPriority: Long = 10
+
   override def release(): Unit = {
-    InitializerJniWrapper.closeTaskContext(handle)
+    if (!close) {
+      InitializerJniWrapper.closeTaskContext(handle)
+      close = true
+    }
   }
 
-  override def priority(): Long = 10
+  override def priority(): Long = defaultPriority
 }

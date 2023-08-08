@@ -23,7 +23,6 @@ import io.glutenproject.execution.datasource.GlutenOrcWriterInjects
 import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.expression.UDFMappings
-import io.glutenproject.init.JniTaskContext
 import io.glutenproject.utils._
 import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
 
@@ -31,7 +30,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.datasources.velox.VeloxOrcWriterInjects
 import org.apache.spark.sql.execution.datasources.velox.VeloxParquetWriterInjects
 import org.apache.spark.sql.execution.datasources.velox.VeloxRowSplitter
-import org.apache.spark.util.TaskResource
+import org.apache.spark.util.{JniTaskContext, TaskResource}
 
 import org.apache.commons.lang3.StringUtils
 

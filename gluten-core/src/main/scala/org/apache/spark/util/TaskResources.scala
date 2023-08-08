@@ -20,7 +20,6 @@ import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
-import _root_.io.glutenproject.backendsapi.BackendsApiManager
 import _root_.io.glutenproject.memory.TaskMemoryMetrics
 import _root_.io.glutenproject.utils.TaskListener
 
@@ -40,15 +39,7 @@ object TaskResources extends TaskListener with Logging {
   val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
 
   private val RESOURCE_REGISTRIES =
-    new java.util.IdentityHashMap[TaskContext, TaskResourceRegistry]()
-
-  // The fallback registry handles the case that the caller is not in a Spark task.
-  //  private val FALLBACK_REGISTRY = new TaskResourceRegistry()
-
-  //  GlutenShutdownManager.addHook(
-  //    () => {
-  //      FALLBACK_REGISTRY.releaseAll()
-  //    })
+    new java.util.IdentityHashMap[TaskContext, java.util.Map[Long, TaskResourceRegistry]]()
 
   def getLocalTaskContext(): TaskContext = {
     TaskContext.get()
@@ -58,22 +49,88 @@ object TaskResources extends TaskListener with Logging {
     TaskContext.get() != null
   }
 
-  private def getTaskResourceRegistry(): TaskResourceRegistry = {
+  def getTaskResourceRegistry(): TaskResourceRegistry = {
     if (!inSparkTask()) {
-      logWarning(
-        "Using the fallback instance of TaskResourceRegistry. " +
-          "This should only happen when call is not from Spark task.")
-      throw new IllegalStateException("Should not be here.")
+      logWarning("[BUG] Current computation not in Spark task scope.")
+      throw new IllegalStateException(
+        "[BUG] Current computation not in Spark task scope, " +
+          "please file Github issue with reproduce way.")
     }
     val tc = getLocalTaskContext()
     RESOURCE_REGISTRIES.synchronized {
+      val currentTId = Thread.currentThread().getId
+      val currentTName = Thread.currentThread().getName
+
       if (!RESOURCE_REGISTRIES.containsKey(tc)) {
-        throw new IllegalStateException(
-          "" +
-            "TaskMemoryResourceRegistry is not initialized, please ensure TaskResources " +
-            "is added to GlutenExecutorPlugin's task listener list")
+        val registry =
+          new TaskResourceRegistry(currentTId, currentTName)
+        val glutenTaskContext = new JniTaskContext
+        registry.addResource(currentTId.toString, glutenTaskContext)
+
+        val map = new util.HashMap[Long, TaskResourceRegistry]()
+        map.put(registry.id, registry)
+        RESOURCE_REGISTRIES.put(tc, map)
+
+        tc.addTaskFailureListener(
+          // in case of crashing in task completion listener, errors may be swallowed
+          new TaskFailureListener {
+            override def onTaskFailure(context: TaskContext, error: Throwable): Unit = {
+              // TODO:
+              // The general duty of printing error message should not reside in memory module
+              error match {
+                case e: TaskKilledException if e.reason == "another attempt succeeded" =>
+                case _ => logError(s"Task ${context.taskAttemptId()} failed by error: ", error)
+              }
+            }
+          })
+        tc.addTaskCompletionListener(new TaskCompletionListener {
+          override def onTaskCompletion(context: TaskContext): Unit = {
+            RESOURCE_REGISTRIES.synchronized {
+              if (!RESOURCE_REGISTRIES.containsKey(tc)) {
+                throw new IllegalStateException(
+                  "" +
+                    "TaskMemoryResourceRegistry is not initialized, this should not happen")
+              }
+              val registry = RESOURCE_REGISTRIES.remove(context)
+              assert(
+                registry.size() == 1,
+                "Current Spark TaskContext contains extra registry at task completion!")
+              registry.get(Thread.currentThread().getId).releaseAll()
+              context
+                .taskMetrics()
+                .incPeakExecutionMemory(
+                  registry.get(Thread.currentThread().getId).getSharedMetrics().peak())
+            }
+          }
+        })
+        return RESOURCE_REGISTRIES.get(tc).get(currentTId)
+      } else {
+        // Check thread name
+        val registryMap = RESOURCE_REGISTRIES.get(tc)
+        if (!registryMap.containsKey(currentTId)) {
+          logInfo(
+            s"Current thread is a sub-thread of Spark Task thread, " +
+              s"need create a new resource registry.")
+          val glutenTaskContext = new JniTaskContext
+          val registry = new TaskResourceRegistry(currentTId, currentTName)
+          registry.needExplicitRelease = true
+          registry.addResource(currentTId.toString, glutenTaskContext)
+          registryMap.put(currentTId, registry)
+        }
+        registryMap.get(Thread.currentThread().getId)
       }
-      return RESOURCE_REGISTRIES.get(tc)
+    }
+  }
+
+  def releaseCurrentResources(): Unit = {
+    RESOURCE_REGISTRIES.synchronized {
+      val currentTId = Thread.currentThread().getId
+      val registryMap = RESOURCE_REGISTRIES.get(getLocalTaskContext())
+      if (registryMap.containsKey(currentTId) && registryMap.get(currentTId).needExplicitRelease) {
+        val registry = registryMap.remove(currentTId)
+        logInfo(s"Release all resources in ${registry.name}")
+        registry.releaseAll()
+      }
     }
   }
 
@@ -108,52 +165,7 @@ object TaskResources extends TaskListener with Logging {
     getTaskResourceRegistry().getSharedMetrics()
   }
 
-  override def onTaskStart(): Unit = {
-    if (!inSparkTask()) {
-      throw new IllegalStateException("Not in a Spark task")
-    }
-    val tc = getLocalTaskContext()
-    RESOURCE_REGISTRIES.synchronized {
-      if (RESOURCE_REGISTRIES.containsKey(tc)) {
-        throw new IllegalStateException(
-          "" +
-            "TaskMemoryResourceRegistry is already initialized, this should not happen")
-      }
-      val registry = new TaskResourceRegistry
-      RESOURCE_REGISTRIES.put(tc, registry)
-      tc.addTaskFailureListener(
-        // in case of crashing in task completion listener, errors may be swallowed
-        new TaskFailureListener {
-          override def onTaskFailure(context: TaskContext, error: Throwable): Unit = {
-            // TODO:
-            // The general duty of printing error message should not reside in memory module
-            error match {
-              case e: TaskKilledException if e.reason == "another attempt succeeded" =>
-              case _ => logError(s"Task ${context.taskAttemptId()} failed by error: ", error)
-            }
-          }
-        })
-      tc.addTaskCompletionListener(new TaskCompletionListener {
-        override def onTaskCompletion(context: TaskContext): Unit = {
-          RESOURCE_REGISTRIES.synchronized {
-            if (!RESOURCE_REGISTRIES.containsKey(tc)) {
-              throw new IllegalStateException(
-                "" +
-                  "TaskMemoryResourceRegistry is not initialized, this should not happen")
-            }
-            val registry = RESOURCE_REGISTRIES.remove(context)
-            registry.releaseAll()
-            context.taskMetrics().incPeakExecutionMemory(registry.getSharedMetrics().peak())
-          }
-        }
-      })
-    }
-    // Register resources from context API
-    val resourceFactories = BackendsApiManager.getContextApiInstance.taskResourceFactories()
-    for (factory <- resourceFactories) {
-      addAnonymousResource(factory.apply())
-    }
-  }
+  override def onTaskStart(): Unit = {}
 
   private def onTaskExit(): Unit = {
     // no-op
@@ -169,7 +181,8 @@ object TaskResources extends TaskListener with Logging {
 }
 
 // thread safe
-class TaskResourceRegistry extends Logging {
+class TaskResourceRegistry(val id: Long, val name: String) extends Logging {
+  private[util] var needExplicitRelease: Boolean = false;
   private val sharedMetrics = new TaskMemoryMetrics()
   private val resources = new java.util.LinkedHashMap[String, TaskResource]()
   private val resourcesPriorityMapping =
