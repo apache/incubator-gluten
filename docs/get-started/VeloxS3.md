@@ -31,6 +31,7 @@ S3 also provides other methods for accessing, you can also use instance credenti
 ```
 spark.hadoop.fs.s3a.use.instance.credentials true
 ```
+Note that in this case, "spark.hadoop.fs.s3a.endpoint" won't take affect as Gluten will use the endpoint set during instance creation.
 
 ## Configuring S3 IAM roles
 You can also use iam role credentials by setting the following configurations. Instance credentials have higher priority than iam credentials.

@@ -171,9 +171,13 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
         {"hive.s3.aws-secret-key", awsSecretKey},
     });
   }
-
+  // Only need to set s3 endpoint when not use instance credentials.
+  if (useInstanceCredentials != "true") {
+    s3Config.insert({
+        {"hive.s3.endpoint", awsEndpoint},
+    });
+  }
   s3Config.insert({
-      {"hive.s3.endpoint", awsEndpoint},
       {"hive.s3.ssl.enabled", sslEnabled},
       {"hive.s3.path-style-access", pathStyleAccess},
   });
