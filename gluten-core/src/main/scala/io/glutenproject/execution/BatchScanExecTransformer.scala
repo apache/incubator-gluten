@@ -60,6 +60,11 @@ class BatchScanExecTransformer(
     case _ => new StructType()
   }
 
+  override def getDataSchemas: StructType = scan match {
+    case fileScan: FileScan => fileScan.readDataSchema
+    case _ => new StructType()
+  }
+
   override def getInputFilePaths: Seq[String] = {
     if (BackendsApiManager.isVeloxBackend) {
       Seq.empty[String]

@@ -121,11 +121,7 @@ message ReadRel {
       // The index of the partition this item belongs to
       uint64 partition_index = 6;
 
-      repeated partitionColumn partition_columns = 16;
-      message partitionColumn {
-        string key = 1;
-        string value = 2;
-      }
+      
 
       // The start position in byte to read from this item
       uint64 start = 7;
@@ -140,7 +136,7 @@ message ReadRel {
       message TextReadOptions {
         string field_delimiter = 1;
         uint64 max_block_size = 2;
-        NamedStruct schema = 3;
+        NamedStruct schema = 3 [deprecated=true];
         string quote = 4;
         uint64 header = 5;
         string escape = 6;
@@ -148,10 +144,10 @@ message ReadRel {
       }
       message JsonReadOptions {
         uint64 max_block_size = 1;
-        NamedStruct schema = 2;
+        NamedStruct schema = 2 [deprecated=true];
       }
 
-      // The format of the files.
+      // File reading options
       oneof file_format {
         ParquetReadOptions parquet = 9;
         ArrowReadOptions arrow = 10;
@@ -161,6 +157,15 @@ message ReadRel {
         TextReadOptions text = 14;
         JsonReadOptions json = 15;
      }
+
+     message partitionColumn {
+        string key = 1;
+        string value = 2;
+     }
+     repeated partitionColumn partition_columns = 16;
+
+     /// File schema
+     NamedStruct schema = 17;
     }
   }
 }

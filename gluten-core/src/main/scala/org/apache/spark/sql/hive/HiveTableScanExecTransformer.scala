@@ -71,6 +71,8 @@ class HiveTableScanExecTransformer(
 
   override def getPartitionSchemas: StructType = relation.tableMeta.partitionSchema
 
+  override def getDataSchemas: StructType = relation.tableMeta.dataSchema
+
   override def getInputFilePaths: Seq[String] = {
     if (BackendsApiManager.isVeloxBackend) {
       Seq.empty[String]
@@ -240,7 +242,7 @@ class HiveTableScanExecTransformer(
         case (_, _) =>
       }
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
-      readRelNode.setDataSchema(relation.tableMeta.dataSchema)
+      readRelNode.setDataSchema(getDataSchemas)
       readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
     }
     transformCtx

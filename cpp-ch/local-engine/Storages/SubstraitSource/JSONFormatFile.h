@@ -16,7 +16,6 @@
  */
 #pragma once
 
-#include "config.h"
 #include <Storages/SubstraitSource/FormatFile.h>
 
 namespace local_engine
@@ -30,7 +29,5 @@ public:
     bool supportSplit() const override { return true; }
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
-
-    DB::NamesAndTypesList getSchema() const override;
 };
 }
