@@ -36,6 +36,8 @@
 
 namespace gluten {
 
+const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";
+
 #define EVAL_START(name, thread_id) \
   //  auto eval_start = std::chrono::duration_cast<std::chrono::nanoseconds>(    \
                         std::chrono::system_clock::now().time_since_epoch()) \
@@ -63,7 +65,7 @@ static inline std::string getSpilledShuffleFileDir(const std::string& configured
 }
 
 static inline arrow::Result<std::vector<std::string>> getConfiguredLocalDirs() {
-  auto joinedDirsC = std::getenv("NATIVESQL_SPARK_LOCAL_DIRS");
+  auto joinedDirsC = std::getenv(kGlutenSparkLocalDirs.c_str());
   if (joinedDirsC != nullptr && strcmp(joinedDirsC, "") > 0) {
     auto joinedDirs = std::string(joinedDirsC);
     std::string delimiter = ",";

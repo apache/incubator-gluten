@@ -15,15 +15,14 @@
  * limitations under the License.
  */
 
+#include <chrono>
+#include <thread>
+
 #include <arrow/c/bridge.h>
 #include <arrow/util/range.h>
 #include <benchmark/benchmark.h>
 #include <gflags/gflags.h>
 #include <operators/writer/ArrowWriter.h>
-#include <velox/exec/PlanNodeStats.h>
-#include <velox/exec/Task.h>
-
-#include <chrono>
 
 #include "BatchStreamIterator.h"
 #include "BatchVectorIterator.h"
@@ -35,8 +34,7 @@
 #include "shuffle/VeloxShuffleWriter.h"
 #include "utils/ArrowTypeUtils.h"
 #include "utils/exception.h"
-
-#include <thread>
+#include "velox/exec/PlanNodeStats.h"
 
 using namespace gluten;
 
@@ -44,6 +42,9 @@ namespace {
 DEFINE_bool(skip_input, false, "Skip specifying input files.");
 DEFINE_bool(gen_orc_input, false, "Generate orc files from parquet as input files.");
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
+DEFINE_bool(qat_gzip, false, "Use QAT GZIP as shuffle compression codec");
+DEFINE_bool(qat_zstd, false, "Use QAT ZSTD as shuffle compression codec");
+DEFINE_bool(iaa_gzip, false, "Use IAA GZIP as shuffle compression codec");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
 
 static const std::string kParquetSuffix = ".parquet";
@@ -61,10 +62,17 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() {
       std::make_shared<LocalPartitionWriterCreator>(false);
 
   auto options = ShuffleWriterOptions::defaults();
-  options.buffered_write = true;
-  options.offheap_per_task = 128 * 1024 * 1024 * 1024L;
-  options.prefer_evict = false;
-  options.partitioning_name = "rr";
+  options.partitioning_name = "rr"; // Round-Robin partitioning
+  if (FLAGS_qat_gzip) {
+    options.codec_backend = CodecBackend::QAT;
+    options.compression_type = arrow::Compression::GZIP;
+  } else if (FLAGS_qat_zstd) {
+    options.codec_backend = CodecBackend::QAT;
+    options.compression_type = arrow::Compression::ZSTD;
+  } else if (FLAGS_iaa_gzip) {
+    options.codec_backend = CodecBackend::IAA;
+    options.compression_type = arrow::Compression::GZIP;
+  }
 
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter,
@@ -77,7 +85,9 @@ void cleanup(const std::shared_ptr<VeloxShuffleWriter>& shuffleWriter) {
   auto dataFile = std::filesystem::path(shuffleWriter->dataFile());
   const auto& parentDir = dataFile.parent_path();
   std::filesystem::remove(dataFile);
-  std::filesystem::remove(parentDir);
+  if (std::filesystem::is_empty(parentDir)) {
+    std::filesystem::remove(parentDir);
+  }
 }
 
 void populateWriterMetrics(
