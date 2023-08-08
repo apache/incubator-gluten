@@ -263,7 +263,7 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toLambdaExpr(
   auto rowType = ROW(std::move(argumentNames), std::move(argumentTypes));
   // Arg[0] -> function.
   auto lambda =
-      std::make_shared<core::LambdaTypedExpr>(rowType, toVeloxExpr(substraitFunc.arguments(0).value(), rowType));
+      std::make_shared<core::LambdaTypedExpr>(rowType, toVeloxExpr(substraitFunc.arguments(0).value(), inputType));
   return lambda;
 }
 
