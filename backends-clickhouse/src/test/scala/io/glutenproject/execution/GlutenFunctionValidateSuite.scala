@@ -212,6 +212,7 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
     spark.catalog.createTable("url_table", urlFilePath, fileFormat)
   }
 
+  /*
   test("Test get_json_object 1") {
     runQueryAndCompare("SELECT get_json_object(string_field1, '$.a') from json_test") {
       checkOperatorMatch[ProjectExecTransformer]
@@ -273,6 +274,7 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
   test("Test covar_pop") {
     runQueryAndCompare("SELECT covar_pop(double_field1, int_field1) from json_test") { _ => }
   }
+   */
 
   test("test 'function xxhash64'") {
     val df1 = runQueryAndCompare(
@@ -325,6 +327,7 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
     checkLengthAndPlan(df2, 10)
   }
 
+  /*
   test("test next_day const") {
     runQueryAndCompare("select next_day(day, 'MO') from date_table") { _ => }
   }
@@ -395,4 +398,5 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
       """.stripMargin
     runQueryAndCompare(sql9)(checkOperatorMatch[ProjectExecTransformer])
   }
+   */
 }

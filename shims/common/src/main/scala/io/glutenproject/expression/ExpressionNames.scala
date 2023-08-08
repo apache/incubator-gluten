@@ -93,6 +93,7 @@ object ExpressionNames {
   final val REVERSE = "reverse"
   final val SPLIT = "split"
   final val SUBSTRING = "substring"
+  final val SUBSTRING_INDEX = "substring_index"
   final val CONCAT_WS = "concat_ws"
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
