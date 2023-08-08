@@ -19,9 +19,11 @@
 #include "RowConstructor.h"
 
 #include "velox/functions/lib/RegistrationHelpers.h"
+#include "velox/expression/VectorFunction.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
+#include "velox/functions/sparksql/Hash.h"
 #include "velox/functions/sparksql/Register.h"
 #include "velox/functions/sparksql/aggregates/Register.h"
 #include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
@@ -29,8 +31,18 @@
 using namespace facebook;
 
 namespace gluten {
-
+namespace {
 void registerFunctionOverwrite() {
+  velox::exec::registerStatefulVectorFunction(
+      "murmur3hash",
+      velox::functions::sparksql::hashWithSeedSignatures(),
+      velox::functions::sparksql::makeHashWithSeed);
+
+  velox::exec::registerStatefulVectorFunction(
+      "xxhash64",
+      velox::functions::sparksql::xxhash64WithSeedSignatures(),
+      velox::functions::sparksql::makeXxHash64WithSeed);
+
   facebook::velox::functions::registerUnaryNumeric<RoundFunction>({"round"});
   facebook::velox::registerFunction<RoundFunction, int8_t, int8_t, int32_t>({"round"});
   facebook::velox::registerFunction<RoundFunction, int16_t, int16_t, int32_t>({"round"});
@@ -38,18 +50,18 @@ void registerFunctionOverwrite() {
   facebook::velox::registerFunction<RoundFunction, int64_t, int64_t, int32_t>({"round"});
   facebook::velox::registerFunction<RoundFunction, double, double, int32_t>({"round"});
   facebook::velox::registerFunction<RoundFunction, float, float, int32_t>({"round"});
-}
+} // anonymous namespace
 
 void registerAllFunctions() {
   // The registration order matters. Spark sql functions are registered after
   // presto sql functions to overwrite the registration for same named functions.
   velox::functions::prestosql::registerAllScalarFunctions();
   velox::functions::sparksql::registerFunctions("");
-  // registerCustomFunctions();
   velox::aggregate::prestosql::registerAllAggregateFunctions();
   velox::functions::aggregate::sparksql::registerAggregateFunctions("");
   velox::window::prestosql::registerAllWindowFunctions();
   velox::functions::window::sparksql::registerWindowFunctions("");
+  // Using function overwrite to handle function names mismatch between Spark and Velox.
   registerFunctionOverwrite();
 }
 
