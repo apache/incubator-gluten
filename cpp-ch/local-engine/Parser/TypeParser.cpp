@@ -86,6 +86,7 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
         field_name = field_names->front();
         field_names->pop_front();
     }
+
     if (substrait_type.has_bool_())
     {
         ch_type = DB::DataTypeFactory::instance().get("Bool");
@@ -167,6 +168,7 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
         const auto & types = substrait_type.struct_().types();
         DB::DataTypes struct_field_types(types.size());
         DB::Strings struct_field_names;
+
         if (field_names)
         {
             /// Construct CH tuple type following the DFS rule.
@@ -182,17 +184,20 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
             /// Construct CH tuple type without DFS rule.
             for (int i = 0; i < types.size(); ++i)
                 struct_field_types[i] = parseType(types[i]);
+
             const auto & names = substrait_type.struct_().names();
             for (int i = 0; i < names.size(); ++i)
                 if (!names[i].empty())
                     struct_field_names.push_back(names[i]);
-            if (!struct_field_names.empty())
-                ch_type = std::make_shared<DB::DataTypeTuple>(struct_field_types, struct_field_names);
-            else
-                ch_type = std::make_shared<DB::DataTypeTuple>(struct_field_types);
-
-            ch_type = tryWrapNullable(substrait_type.struct_().nullability(), ch_type);
         }
+
+        if (!struct_field_names.empty())
+          ch_type = std::make_shared<DB::DataTypeTuple>(struct_field_types, struct_field_names);
+        else
+          ch_type = std::make_shared<DB::DataTypeTuple>(struct_field_types);
+
+        ch_type = tryWrapNullable(substrait_type.struct_().nullability(), ch_type);
+      }
     }
     else if (substrait_type.has_list())
     {
