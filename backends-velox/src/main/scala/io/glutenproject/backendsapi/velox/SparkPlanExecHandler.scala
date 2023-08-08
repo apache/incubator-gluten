@@ -481,7 +481,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
     List()
   }
 
-  /** Define backend specfic expression mappings. */
+  /** Define backend specific expression mappings. */
   override def extraExpressionMappings: Seq[Sig] = {
     Seq(
       Sig[HLLAdapter](ExpressionNames.APPROX_DISTINCT),
