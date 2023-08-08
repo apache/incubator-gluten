@@ -99,6 +99,7 @@ object ExpressionNames {
   final val SPACE = "space"
   final val EMPTY2NULL = "empty2null"
   final val INITCAP = "initcap"
+  final val OVERLAY = "overlay"
 
   // URL functions
   final val PARSE_URL = "parse_url"
@@ -227,10 +228,13 @@ object ExpressionNames {
   final val ATTRIBUTE_REFERENCE = "attribute_reference"
   final val BOUND_REFERENCE = "bound_reference"
   final val LITERAL = "literal"
+  final val NAMED_LAMBDA_VARIABLE = "namedlambdavariable"
   final val CASE_WHEN = "case_when"
   final val IN = "in"
   final val IN_SET = "in_set"
   final val SCALAR_SUBQUERY = "scalar_subquery"
+  final val AGGREGATE = "aggregate"
+  final val LAMBDAFUNCTION = "lambdafunction"
   final val EXPLODE = "explode"
   final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"

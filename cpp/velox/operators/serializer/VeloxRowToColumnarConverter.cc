@@ -25,7 +25,7 @@ namespace gluten {
 VeloxRowToColumnarConverter::VeloxRowToColumnarConverter(
     struct ArrowSchema* cSchema,
     std::shared_ptr<memory::MemoryPool> memoryPool)
-    : RowToColumnarConverter(cSchema), pool_(memoryPool) {
+    : RowToColumnarConverter(), pool_(memoryPool) {
   rowType_ = importFromArrow(*cSchema);
   ArrowSchemaRelease(cSchema);
 }

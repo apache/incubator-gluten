@@ -16,86 +16,33 @@
  */
 package org.apache.spark.sql.execution.datasources.velox
 
-import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.exception.GlutenException
-import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
-import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
+import io.glutenproject.GlutenConfig
 
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.utils.SparkArrowUtil
 
-import com.google.common.base.Preconditions
-import org.apache.arrow.c.ArrowSchema
-import org.apache.hadoop.fs.FileStatus
-import org.apache.hadoop.mapreduce.TaskAttemptContext
+import scala.collection.JavaConverters.mapAsJavaMapConverter
+import scala.collection.mutable
 
-import java.io.IOException
-
-class VeloxParquetWriterInjects extends GlutenParquetWriterInjectsBase {
-  def createOutputWriter(
-      path: String,
-      dataSchema: StructType,
-      context: TaskAttemptContext,
-      nativeConf: java.util.Map[String, String]): OutputWriter = {
-    val originPath = path
-
-    val arrowSchema =
-      SparkArrowUtil.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
-    val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
-    var instanceId = -1L
-    val datasourceJniWrapper = new DatasourceJniWrapper()
-    val allocator = ArrowBufferAllocators.contextInstance()
-    try {
-      ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-      instanceId =
-        datasourceJniWrapper.nativeInitDatasource(originPath, cSchema.memoryAddress(), nativeConf)
-    } catch {
-      case e: IOException =>
-        throw new GlutenException(e)
-    } finally {
-      cSchema.close()
-    }
-
-    val writeQueue =
-      new VeloxWriteQueue(instanceId, arrowSchema, allocator, datasourceJniWrapper, originPath)
-
-    new OutputWriter {
-      override def write(row: InternalRow): Unit = {
-        val batch = row.asInstanceOf[FakeRow].batch
-        Preconditions.checkState(ColumnarBatches.isLightBatch(batch))
-        ColumnarBatches.retain(batch)
-        writeQueue.enqueue(batch)
-      }
-
-      override def close(): Unit = {
-        writeQueue.close()
-        datasourceJniWrapper.close(instanceId)
-      }
-
-      // Do NOT add override keyword for compatibility on spark 3.1.
-      def path(): String = {
-        originPath
-      }
-    }
-  }
-
-  def inferSchema(
-      sparkSession: SparkSession,
+class VeloxParquetWriterInjects extends VeloxFormatWriterInjects {
+  override def nativeConf(
       options: Map[String, String],
-      files: Seq[FileStatus]): Option[StructType] = {
-    DatasourceUtil.readSchema(files)
-  }
-  override def splitBlockByPartitionAndBucket(
-      row: FakeRow,
-      partitionColIndice: Array[Int],
-      hasBucket: Boolean): BlockStripes = {
-    throw new UnsupportedOperationException(
-      "VeloxParquetWriterInjects does not support splitBlockByPartitionAndBucket")
+      compressionCodec: String): java.util.Map[String, String] = {
+    // pass options to native so that velox can take user-specified conf to write parquet,
+    // i.e., compression, block size, block rows.
+    val sparkOptions = new mutable.HashMap[String, String]()
+    sparkOptions.put(SQLConf.PARQUET_COMPRESSION.key, compressionCodec)
+    val blockSize = options.getOrElse(
+      GlutenConfig.PARQUET_BLOCK_SIZE,
+      GlutenConfig.getConf.columnarParquetWriteBlockSize.toString)
+    sparkOptions.put(GlutenConfig.PARQUET_BLOCK_SIZE, blockSize)
+    val blockRows = options.getOrElse(
+      GlutenConfig.PARQUET_BLOCK_ROWS,
+      GlutenConfig.getConf.columnarParquetWriteBlockRows.toString)
+    sparkOptions.put(GlutenConfig.PARQUET_BLOCK_ROWS, blockRows)
+    sparkOptions.asJava
   }
 
+  override def getFormatName(): String = {
+    "parquet"
+  }
 }

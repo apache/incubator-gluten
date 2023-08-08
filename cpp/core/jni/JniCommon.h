@@ -25,15 +25,8 @@
 #include "compute/ProtobufUtils.h"
 #include "config/GlutenConfig.h"
 #include "memory/ArrowMemoryPool.h"
+#include "utils/compression.h"
 #include "utils/exception.h"
-
-#ifdef GLUTEN_ENABLE_QAT
-#include "utils/qat/QatCodec.h"
-#endif
-
-#ifdef GLUTEN_ENABLE_IAA
-#include "utils/qpl/qpl_codec.h"
-#endif
 
 static jint jniVersion = JNI_VERSION_1_8;
 
@@ -73,7 +66,7 @@ static inline std::string jStringToCString(JNIEnv* env, jstring string) {
   return std::string(buffer, clen);
 }
 
-static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring codecJstr, jstring codecBackendJstr) {
+static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring codecJstr) {
   if (codecJstr == NULL) {
     return arrow::Compression::UNCOMPRESSED;
   }
@@ -82,12 +75,6 @@ static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring c
   std::string codecL;
   std::transform(codecU, codecU + std::strlen(codecU), std::back_inserter(codecL), ::tolower);
 
-#if defined(GLUTEN_ENABLE_QAT) || defined(GLUTEN_ENABLE_IAA)
-  if (codecBackendJstr) {
-    codecL = "custom";
-  }
-#endif
-
   GLUTEN_ASSIGN_OR_THROW(auto compression_type, arrow::util::Codec::GetCompressionType(codecL));
 
   if (compression_type == arrow::Compression::LZ4) {
@@ -95,6 +82,20 @@ static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring c
   }
   env->ReleaseStringUTFChars(codecJstr, codecU);
   return compression_type;
+}
+
+static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecJstr) {
+  if (codecJstr == nullptr) {
+    return gluten::CodecBackend::NONE;
+  }
+  auto codecBackend = jStringToCString(env, codecJstr);
+  if (codecBackend == "qat") {
+    return gluten::CodecBackend::QAT;
+  } else if (codecBackend == "iaa") {
+    return gluten::CodecBackend::IAA;
+  } else {
+    throw std::invalid_argument("Not support this codec backend " + codecBackend);
+  }
 }
 
 static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {

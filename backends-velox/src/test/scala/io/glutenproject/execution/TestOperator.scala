@@ -476,4 +476,12 @@ class TestOperator extends WholeStageTransformerSuite {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("test overlay function") {
+    runQueryAndCompare("""
+                         |select overlay(l_shipdate placing '_' from 0) from lineitem limit 1;
+                         |""".stripMargin) {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
 }

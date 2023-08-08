@@ -88,6 +88,7 @@ object ExpressionMappings {
     Sig[StringSpace](SPACE),
     Sig[Empty2Null](EMPTY2NULL),
     Sig[InitCap](INITCAP),
+    Sig[Overlay](OVERLAY),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
@@ -186,6 +187,9 @@ object ExpressionMappings {
     Sig[Sequence](SEQUENCE),
     Sig[CreateArray](CREATE_ARRAY),
     Sig[Explode](EXPLODE),
+    Sig[ArrayAggregate](AGGREGATE),
+    Sig[LambdaFunction](LAMBDAFUNCTION),
+    Sig[NamedLambdaVariable](NAMED_LAMBDA_VARIABLE),
     Sig[PosExplode](POSEXPLODE),
     Sig[GetArrayItem](GET_ARRAY_ITEM),
     Sig[ElementAt](ELEMENT_AT),

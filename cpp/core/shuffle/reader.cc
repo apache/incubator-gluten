@@ -35,7 +35,7 @@ Reader::Reader(
     std::shared_ptr<arrow::Schema> schema,
     ReaderOptions options,
     std::shared_ptr<arrow::MemoryPool> pool)
-    : pool_(pool), in_(std::move(in)), options_(std::move(options)) {
+    : pool_(pool), options_(std::move(options)), in_(std::move(in)) {
   GLUTEN_ASSIGN_OR_THROW(firstMessage_, arrow::ipc::ReadMessage(in_.get()))
   if (firstMessage_ == nullptr) {
     throw GlutenException("Failed to read message from shuffle.");

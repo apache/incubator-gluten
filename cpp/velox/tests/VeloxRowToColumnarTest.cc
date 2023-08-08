@@ -47,10 +47,10 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
 
   void testRecordBatchEqual(std::shared_ptr<arrow::RecordBatch> inputBatch) {
     auto row = recordBatch2VeloxRowVector(*inputBatch);
-    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(arrowPool_, veloxPool_);
+    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool_);
 
     auto columnarBatch = std::make_shared<VeloxColumnarBatch>(row);
-    GLUTEN_THROW_NOT_OK(columnarToRowConverter->write(columnarBatch));
+    GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(columnarBatch));
 
     int64_t numRows = inputBatch->num_rows();
 

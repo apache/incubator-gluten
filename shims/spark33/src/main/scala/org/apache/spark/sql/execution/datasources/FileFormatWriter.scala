@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources
 
+import io.glutenproject.execution.datasource.GlutenOrcWriterInjects
 import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 
 import org.apache.spark._
@@ -112,7 +113,8 @@ object FileFormatWriter extends Logging {
       options: Map[String, String]): Set[String] = {
 
     val nativeEnabled =
-      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeParquetAppliable"))
+      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))
+
     if (nativeEnabled) {
       assert(plan.isInstanceOf[IFakeRowAdaptor])
     }
@@ -236,7 +238,13 @@ object FileFormatWriter extends Logging {
           wrapped)
         // TODO: to optimize, bucket value is computed twice here
       }
-      (GlutenParquetWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
+
+      val nativeFormat = sparkSession.sparkContext.getLocalProperty("nativeFormat")
+      if ("parquet".equals(nativeFormat)) {
+        (GlutenParquetWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
+      } else {
+        (GlutenOrcWriterInjects.getInstance().executeWriterWrappedSparkPlan(wrapped), None)
+      }
     }
 
     try {
@@ -260,7 +268,7 @@ object FileFormatWriter extends Logging {
         if (nativeEnabled && concurrentWritersEnabled) {
           log.warn(
             s"spark.sql.maxConcurrentOutputFileWriters(being set to $maxWriters) will be " +
-              "ignored when native parquet writer is being active. No concurrent Writers.")
+              "ignored when native writer is being active. No concurrent Writers.")
           concurrentWritersEnabled = false
         }
 
@@ -359,7 +367,8 @@ object FileFormatWriter extends Logging {
 
     val dataWriter =
       if (sparkPartitionId != 0 && !iterator.hasNext) {
-        // In case of empty job, leave first partition to save meta for file format like parquet.
+        // In case of empty job,
+        // leave first partition to save meta for file format like parquet/orc.
         new EmptyDirectoryDataWriter(description, taskAttemptContext, committer)
       } else if (description.partitionColumns.isEmpty && description.bucketSpec.isEmpty) {
         new SingleDirectoryDataWriter(description, taskAttemptContext, committer)

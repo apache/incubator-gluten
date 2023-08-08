@@ -32,51 +32,13 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext
 import scala.collection.JavaConverters.mapAsJavaMapConverter
 import scala.collection.mutable
 
-trait GlutenParquetWriterInjects {
-  def createOutputWriter(
-      path: String,
-      dataSchema: StructType,
-      context: TaskAttemptContext,
-      nativeConf: java.util.Map[String, String]): OutputWriter
-
-  def inferSchema(
-      sparkSession: SparkSession,
-      options: Map[String, String],
-      files: Seq[FileStatus]): Option[StructType]
-
-  def splitBlockByPartitionAndBucket(
-      row: FakeRow,
-      partitionColIndice: Array[Int],
-      hasBucket: Boolean): BlockStripes
-
-  def executeWriterWrappedSparkPlan(plan: SparkPlan): RDD[InternalRow]
-
-  def nativeConf(
-      options: Map[String, String],
-      compressionCodec: String): java.util.Map[String, String] = {
-    // pass options to native so that velox can take user-specified conf to write parquet,
-    // i.e., compression, block size, block rows.
-    val sparkOptions = new mutable.HashMap[String, String]()
-    sparkOptions.put(SQLConf.PARQUET_COMPRESSION.key, compressionCodec)
-    val blockSize = options.getOrElse(
-      GlutenConfig.PARQUET_BLOCK_SIZE,
-      GlutenConfig.getConf.columnarParquetWriteBlockSize.toString)
-    sparkOptions.put(GlutenConfig.PARQUET_BLOCK_SIZE, blockSize)
-    val blockRows = options.getOrElse(
-      GlutenConfig.PARQUET_BLOCK_ROWS,
-      GlutenConfig.getConf.columnarParquetWriteBlockRows.toString)
-    sparkOptions.put(GlutenConfig.PARQUET_BLOCK_ROWS, blockRows)
-    sparkOptions.asJava
-  }
-}
-
 object GlutenParquetWriterInjects {
-  private var INSTANCE: GlutenParquetWriterInjects = _
+  private var INSTANCE: GlutenFormatWriterInjects = _
 
-  def setInstance(instance: GlutenParquetWriterInjects): Unit = {
+  def setInstance(instance: GlutenFormatWriterInjects): Unit = {
     INSTANCE = instance
   }
-  def getInstance(): GlutenParquetWriterInjects = {
+  def getInstance(): GlutenFormatWriterInjects = {
     if (INSTANCE == null) {
       throw new IllegalStateException("GlutenOutputWriterFactoryCreator is not initialized")
     }

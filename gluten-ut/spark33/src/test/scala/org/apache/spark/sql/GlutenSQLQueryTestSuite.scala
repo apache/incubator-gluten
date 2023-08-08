@@ -211,17 +211,17 @@ class GlutenSQLQueryTestSuite
     "explain-aqe.sql", // explain plan is different
     "explain-cbo.sql", // explain
     "explain.sql", // explain
-    "group-analytics.sql" // wait velox to fix issue 3357
+    "group-analytics.sql", // wait velox to fix issue 3357
+    "array.sql", // blocked by VELOX-5768
+    "higher-order-functions.sql" // blocked by VELOX-5768
   ) ++ otherIgnoreList
 
   /**
    * List of supported cases to run with Velox backend, in lower case. Please add to the supported
    * list after enabling a sql test.
    */
-  private val veloxSupportedList: Set[String] = Set("regexp-functions.sql")
-  /*
+
   private val veloxSupportedList: Set[String] = Set(
-    "array.sql",
     "bitwise.sql",
     "cast.sql",
     "change-column.sql",
@@ -262,7 +262,6 @@ class GlutenSQLQueryTestSuite
     "group-by.sql",
     "grouping_set.sql",
     "having.sql",
-    "higher-order-functions.sql",
     "ignored.sql",
     "inline-table.sql",
     "inner-join.sql",
@@ -397,7 +396,7 @@ class GlutenSQLQueryTestSuite
     "udf-union.sql",
     "udf-window.sql"
   )
-   */
+
   /**
    * List of supported cases to run with Clickhouse backend, in lower case. Please add to the
    * supported list after enabling a sql test.

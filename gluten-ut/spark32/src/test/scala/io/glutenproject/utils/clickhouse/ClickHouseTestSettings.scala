@@ -98,7 +98,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-33386: element_at ArrayIndexOutOfBoundsException",
       "SPARK-33460: element_at NoSuchElementException"
     )
-    // enable when fix GLUTEN-2390
+    // enable when fix GLUTEN-2390 (align the NaN compare semantics)
     .excludeByPrefix("SPARK-36740")
   enableSuite[GlutenComplexTypeSuite]
     .exclude(
@@ -274,7 +274,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SPARK-40213: ascii for Latin-1 Supplement characters",
       "SPARK-40213: ascii for Latin-1 Supplement characters",
       "SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url",
-      "ParseUrl"
+      "ParseUrl",
+      "overlay for string",
+      "overlay for byte array",
+      "Check Overlay.checkInputDataTypes results"
     )
 
   enableSuite[GlutenSessionExtensionSuite]
@@ -337,6 +340,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "concat function - arrays",
       "array_max function",
       "array_min function",
+      "sort_array/array_sort functions",
       "array position function",
       "array contains function",
       "array_distinct functions",
@@ -477,4 +481,5 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenStringFunctionsSuite]
     .include("initcap function")
+    .include("string concat_ws")
 }

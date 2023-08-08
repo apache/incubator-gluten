@@ -32,11 +32,11 @@ namespace gluten {
 
 class ColumnarToRowConverter {
  public:
-  explicit ColumnarToRowConverter(std::shared_ptr<arrow::MemoryPool> arrowPool) : arrowPool_(arrowPool) {}
+  explicit ColumnarToRowConverter() {}
 
   virtual ~ColumnarToRowConverter() = default;
 
-  virtual arrow::Status write(std::shared_ptr<ColumnarBatch> cb = nullptr) = 0;
+  virtual arrow::Status convert(std::shared_ptr<ColumnarBatch> cb = nullptr) = 0;
 
   uint8_t* getBufferAddress() {
     return bufferAddress_;
@@ -51,10 +51,7 @@ class ColumnarToRowConverter {
   }
 
  protected:
-  bool supportAvx512_;
-  std::shared_ptr<arrow::MemoryPool> arrowPool_;
   std::vector<int32_t> bufferCursor_;
-  std::shared_ptr<arrow::Buffer> buffer_;
   int32_t nullBitsetWidthInBytes_;
   int32_t numCols_;
   int32_t numRows_;

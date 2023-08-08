@@ -19,7 +19,6 @@ set -exu
 ARROW_REPO=https://github.com/apache/arrow.git
 ARROW_BRANCH=apache-arrow-12.0.0
 ARROW_HOME=""
-ENABLE_CUSTOM_CODEC=OFF
 
 for arg in "$@"; do
   case $arg in
@@ -33,10 +32,6 @@ for arg in "$@"; do
     ;;
   --arrow_home=*)
     ARROW_HOME=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --enable_custom_codec=*)
-    ENABLE_CUSTOM_CODEC=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -66,7 +61,6 @@ function checkout_code {
 }
 
 echo "Preparing Arrow source code..."
-echo "ENABLE_CUSTOM_CODEC=${ENABLE_CUSTOM_CODEC}"
 
 CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
@@ -79,13 +73,6 @@ fi
 ARROW_SOURCE_DIR="${ARROW_HOME}/arrow_ep"
 
 checkout_code
-
-# apply patches
-git apply --reverse --check $CURRENT_DIR/memorypool.patch >/dev/null 2>&1 || git apply $CURRENT_DIR/memorypool.patch
-# apply patch for custom codec
-if [ $ENABLE_CUSTOM_CODEC == ON ]; then
-  git apply --reverse --check $CURRENT_DIR/custom-codec.patch >/dev/null 2>&1 || git apply $CURRENT_DIR/custom-codec.patch
-fi
 
 cat > cpp/src/parquet/symbols.map <<EOF
 {

@@ -106,7 +106,7 @@ class QatGZipCodec final : public QatZipCodec {
   }
 
   arrow::Compression::type compression_type() const override {
-    return arrow::Compression::CUSTOM;
+    return arrow::Compression::GZIP;
   }
 
   int minimum_compression_level() const override {
@@ -124,14 +124,6 @@ bool supportsCodec(const std::string& codec) {
   return !codec.empty() && std::any_of(kQatSupportedCodec.begin(), kQatSupportedCodec.end(), [&](const auto& qatCodec) {
     return qatCodec == codec;
   });
-}
-
-void ensureQatCodecRegistered(const std::string& codec) {
-  if (codec == "gzip") {
-    arrow::util::RegisterCustomCodec([](int) { return makeDefaultQatGZipCodec(); });
-  } else if (codec == "zstd") {
-    arrow::util::RegisterCustomCodec([](int) { return makeDefaultQatZstdCodec(); });
-  }
 }
 
 std::unique_ptr<arrow::util::Codec> makeQatGZipCodec(QzPollingMode_T pollingMode, int compressionLevel) {
@@ -201,7 +193,7 @@ class QatZstdCodec final : public arrow::util::Codec {
   }
 
   arrow::Compression::type compression_type() const override {
-    return arrow::Compression::CUSTOM;
+    return arrow::Compression::ZSTD;
   }
 
   arrow::Result<int64_t> Decompress(int64_t inputLen, const uint8_t* input, int64_t outputLen, uint8_t* output)

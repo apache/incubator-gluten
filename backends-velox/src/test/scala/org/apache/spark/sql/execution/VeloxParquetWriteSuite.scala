@@ -31,7 +31,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   }
 
   test("test write parquet with compression codec") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
       // compression codec details see `VeloxParquetDatasource.cc`
       Seq("snappy", "gzip", "zstd", "none", "uncompressed")
         .foreach {
@@ -66,7 +66,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   }
 
   test("test ctas") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
       withTable("velox_ctas") {
         intercept[UnsupportedOperationException] {
           spark
@@ -81,7 +81,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   }
 
   test("test parquet dynamic partition write") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
       withTempPath {
         f =>
           intercept[UnsupportedOperationException] {
@@ -98,7 +98,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   }
 
   test("test parquet bucket write") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
       withTable("bucket") {
         intercept[UnsupportedOperationException] {
           spark
@@ -114,7 +114,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   }
 
   test("parquet write with empty dataframe") {
-    withSQLConf(("spark.gluten.sql.native.parquet.writer.enabled", "true")) {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
       withTempPath {
         f =>
           val df = spark.emptyDataFrame.select(lit(1).as("i"))

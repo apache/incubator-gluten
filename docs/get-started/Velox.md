@@ -205,13 +205,18 @@ Gluten with velox backend supports [Celeborn](https://github.com/apache/incubato
 
 First refer to this URL(https://github.com/apache/incubator-celeborn) to setup a celeborn cluster.
 
-Then compile Gluten according to the following statement
+When compiling the Gluten Java module, it's required to enable `rss` profile, as follows:
 
 ```
 mvn clean package -Pbackends-velox -Pspark-3.3 -Prss -DskipTests
 ```
 
-Currently to use Celeborn following configurations are required in spark-defaults.conf
+Then add the Gluten and Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
+
+- Celeborn: celeborn-client-spark-3-shaded_2.12-0.3.0-incubating.jar
+- Gluten: gluten-velox-bundle-spark3.x_2.12-xx-xx-SNAPSHOT.jar, gluten-thirdparty-lib-xx.jar
+
+Currently to use Gluten following configurations are required in `spark-defaults.conf`
 
 ```
 spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
@@ -219,13 +224,24 @@ spark.shuffle.manager org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleMa
 # celeborn master
 spark.celeborn.master.endpoints clb-master:9097
 
-# we recommend set spark.celeborn.push.replicate.enabled to true to enable server-side data replication
-# If you have only one worker, this setting must be false 
-spark.celeborn.push.replicate.enabled true
-
-spark.celeborn.shuffle.writer hash
 spark.shuffle.service.enabled false
+
+# options: hash, sort
+# Hash shuffle writer use (partition count) * (celeborn.push.buffer.max.size) * (spark.executor.cores) memory.
+# Sort shuffle writer uses less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.  
+spark.celeborn.client.spark.shuffle.writer hash
+
+# We recommend setting spark.celeborn.client.push.replicate.enabled to true to enable server-side data replication
+# If you have only one worker, this setting must be false 
+# If your Celeborn is using HDFS, it's recommended to set this setting to false
+spark.celeborn.client.push.replicate.enabled true
+
+# Support for Spark AQE only tested under Spark 3
+# we recommend setting localShuffleReader to false to get better performance of Celeborn
 spark.sql.adaptive.localShuffleReader.enabled false
+
+# If Celeborn is using HDFS
+spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 
 # If you want to use dynamic resource allocation,
 # please refer to this URL (https://github.com/apache/incubator-celeborn/tree/main/assets/spark-patch) to apply the patch into your own Spark.

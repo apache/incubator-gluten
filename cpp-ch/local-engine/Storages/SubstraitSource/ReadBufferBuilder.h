@@ -56,14 +56,20 @@ using ReadBufferBuilderPtr = std::shared_ptr<ReadBufferBuilder>;
 class ReadBufferBuilderFactory : public boost::noncopyable
 {
 public:
-    using NewBuilder = std::function<ReadBufferBuilderPtr(DB::ContextPtr)>;
     static ReadBufferBuilderFactory & instance();
+
+    using NewBuilder = std::function<ReadBufferBuilderPtr(DB::ContextPtr)>;
+    void registerBuilder(const String & schema, NewBuilder newer);
     ReadBufferBuilderPtr createBuilder(const String & schema, DB::ContextPtr context);
 
-    void registerBuilder(const String & schema, NewBuilder newer);
+    using Cleaner = std::function<void()>; // used to clean cache and so on for each kind of builder
+    void registerCleaner(Cleaner);
+    void clean();
+
 
 private:
     std::map<String, NewBuilder> builders;
+    std::vector<Cleaner> cleaners;
 };
 
 void registerReadBufferBuilders();

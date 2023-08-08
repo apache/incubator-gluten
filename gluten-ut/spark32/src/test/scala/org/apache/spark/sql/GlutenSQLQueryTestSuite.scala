@@ -211,7 +211,9 @@ class GlutenSQLQueryTestSuite
     "explain-aqe.sql", // explain plan is different
     "explain-cbo.sql", // explain
     "explain.sql", // explain
-    "group-analytics.sql" // wait velox to fix issue 3357
+    "group-analytics.sql", // wait velox to fix issue 3357
+    "array.sql", // blocked by VELOX-5768
+    "higher-order-functions.sql" // blocked by VELOX-5768
   ) ++ otherIgnoreList
 
   /**
@@ -219,7 +221,6 @@ class GlutenSQLQueryTestSuite
    * list after enabling a sql test.
    */
   private val veloxSupportedList: Set[String] = Set(
-    "array.sql",
     "bitwise.sql",
     "cast.sql",
     "change-column.sql",
@@ -261,7 +262,6 @@ class GlutenSQLQueryTestSuite
     "group-by.sql",
     "grouping_set.sql",
     "having.sql",
-    "higher-order-functions.sql",
     "ignored.sql",
     "inline-table.sql",
     "inner-join.sql",

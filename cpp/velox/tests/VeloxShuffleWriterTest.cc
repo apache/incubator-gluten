@@ -197,8 +197,8 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     ASSERT_NOT_OK(fileReader->ReadAll(&batches));
     ASSERT_EQ(batches.size(), vectors.size());
     for (int32_t i = 0; i < batches.size(); i++) {
-      auto deserialized =
-          VeloxShuffleReader::readRowVector(*batches[i], asRowType(vectors[i]->type()), arrowPool_.get(), pool_.get());
+      auto deserialized = VeloxShuffleReader::readRowVector(
+          *batches[i], asRowType(vectors[i]->type()), CodecBackend::NONE, arrowPool_.get(), pool_.get());
       velox::test::assertEqualVectors(vectors[i], deserialized);
     }
   }
@@ -234,8 +234,8 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       // auto partitionVectors = std::move(expectedVectors[i]);
       ASSERT_EQ(expectedVectors[i].size(), batches.size());
       for (int32_t j = 0; j < batches.size(); j++) {
-        auto deserialized =
-            VeloxShuffleReader::readRowVector(*batches[j], asRowType(dataType), arrowPool_.get(), pool_.get());
+        auto deserialized = VeloxShuffleReader::readRowVector(
+            *batches[j], asRowType(dataType), CodecBackend::NONE, arrowPool_.get(), pool_.get());
         velox::test::assertEqualVectors(expectedVectors[i][j], deserialized);
       }
     }

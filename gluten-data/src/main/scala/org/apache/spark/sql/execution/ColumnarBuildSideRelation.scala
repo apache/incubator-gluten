@@ -148,7 +148,7 @@ case class ColumnarBuildSideRelation(
             batch.close()
             rows
           } else {
-            val info = jniWrapper.nativeColumnarToRowWrite(batchHandle, c2rId)
+            val info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId)
             batch.close()
             val columnNames = key.flatMap {
               case expression: AttributeReference =>

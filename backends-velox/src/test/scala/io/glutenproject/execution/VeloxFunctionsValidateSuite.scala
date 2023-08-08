@@ -304,4 +304,27 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
         }
     }
   }
+
+  test("array_aggregate") {
+    withTempPath {
+      path =>
+        Seq[Seq[Integer]](
+          Seq(1, 9, 8, 7),
+          Seq(5, null, 8, 9, 7, 2),
+          Seq.empty,
+          null
+        )
+          .toDF("i")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare(
+          "select aggregate(i, 0, (acc, x) -> acc + x," +
+            " acc -> acc * 3) as v from array_tbl;") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
 }
