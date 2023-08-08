@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 #include "RegistrationAllFunctions.h"
-#include <velox/expression/VectorFunction.h>
 #include "RowConstructor.h"
+#include "velox/expression/VectorFunction.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
