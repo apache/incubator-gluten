@@ -943,6 +943,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window bug #2586") {
+    val sql =
+      """
+        | select row_number() over (partition by n_regionkey, id  order by n_nationkey) as num from (
+        |   select n_regionkey, 'x' as id , n_nationkey from nation
+        | ) order by n_regionkey, id, n_nationkey, num
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("group with rollup") {
     val sql =
       """
