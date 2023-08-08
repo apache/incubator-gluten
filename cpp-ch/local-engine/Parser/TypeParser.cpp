@@ -246,13 +246,13 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
     std::list<std::string> field_names;
     for (int i = 0; i < struct_.names_size(); ++i)
         field_names.emplace_back(struct_.names(i));
-    
+
     for (int i = 0; i < struct_.struct_().types_size(); ++i)
     {
         auto name = field_names.front();
         const auto & substrait_type = struct_.struct_().types(i);
         auto ch_type = parseType(substrait_type, &field_names);
-        
+
         // This is a partial aggregate data column.
         // It's type is special, must be a struct type contains all arguments types.
         Poco::StringTokenizer name_parts(name, "#");
@@ -262,7 +262,7 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
             const auto * tuple_type = typeid_cast<const DB::DataTypeTuple *>(nested_data_type.get());
             if (!tuple_type)
                 throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Tuple is expected, but got {}", ch_type->getName());
-            
+
             auto args_types = tuple_type->getElements();
             AggregateFunctionProperties properties;
             auto tmp_ctx = DB::Context::createCopy(SerializedPlanParser::global_context);

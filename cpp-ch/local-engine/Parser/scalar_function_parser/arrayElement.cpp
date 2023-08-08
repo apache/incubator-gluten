@@ -31,7 +31,7 @@ namespace ErrorCodes
 namespace local_engine
 {
 
-class FunctionParserArrayElement : public FunctionParser
+class BaseFunctionParserArrayElement  : public FunctionParser
 {
 public:
     explicit FunctionParserArrayElement(SerializedPlanParser * plan_parser_) : FunctionParser(plan_parser_) {}
@@ -79,7 +79,7 @@ protected:
     }
 };
 
-class FunctionParserElementAt : public FunctionParserArrayElement
+class FunctionParserElementAt : public BaseFunctionParserArrayElement
 {
 public:
     explicit FunctionParserElementAt(SerializedPlanParser * plan_parser_) : FunctionParserArrayElement(plan_parser_) { }
@@ -89,7 +89,7 @@ public:
     String getName() const override { return name; }
 };
 
-class FunctionParserGetArrayItem : public FunctionParserArrayElement
+class FunctionParserGetArrayItem : public BaseFunctionParserArrayElement
 {
 public:
     explicit FunctionParserGetArrayItem(SerializedPlanParser * plan_parser_) : FunctionParserArrayElement(plan_parser_) { }
@@ -99,7 +99,7 @@ public:
     String getName() const override { return name; }
 };
 
-class FunctionParserGetMapValue : public FunctionParserArrayElement
+class FunctionParserGetMapValue : public BaseFunctionParserArrayElement
 {
 public:
     explicit FunctionParserGetMapValue(SerializedPlanParser * plan_parser_) : FunctionParserArrayElement(plan_parser_) { }
