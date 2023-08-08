@@ -192,12 +192,11 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
         }
 
         if (!struct_field_names.empty())
-          ch_type = std::make_shared<DB::DataTypeTuple>(struct_field_types, struct_field_names);
+            ch_type = std::make_shared<DB::DataTypeTuple>(struct_field_types, struct_field_names);
         else
-          ch_type = std::make_shared<DB::DataTypeTuple>(struct_field_types);
+            ch_type = std::make_shared<DB::DataTypeTuple>(struct_field_types);
 
         ch_type = tryWrapNullable(substrait_type.struct_().nullability(), ch_type);
-      }
     }
     else if (substrait_type.has_list())
     {
