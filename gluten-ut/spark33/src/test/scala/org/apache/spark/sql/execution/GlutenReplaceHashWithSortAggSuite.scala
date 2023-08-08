@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.HashAggregateExecTransformer
+import io.glutenproject.execution.HashAggregateExecBaseTransformer
 
 import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait}
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
@@ -30,7 +30,7 @@ class GlutenReplaceHashWithSortAggSuite
   private def checkNumAggs(df: DataFrame, hashAggCount: Int, sortAggCount: Int): Unit = {
     val plan = df.queryExecution.executedPlan
     assert(collectWithSubqueries(plan) {
-      case s @ (_: HashAggregateExecTransformer | _: ObjectHashAggregateExec) => s
+      case s @ (_: HashAggregateExecBaseTransformer | _: ObjectHashAggregateExec) => s
     }.length == hashAggCount)
     assert(collectWithSubqueries(plan) { case s: SortAggregateExec => s }.length == sortAggCount)
   }
