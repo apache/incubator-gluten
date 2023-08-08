@@ -37,12 +37,13 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   protected val backend: String
   protected val resourcePath: String
   protected val fileFormat: String
+  protected val logLevel: String = "WARN"
 
   protected var TPCHTables: Map[String, DataFrame] = _
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    sparkContext.setLogLevel("WARN")
+    sparkContext.setLogLevel(logLevel)
   }
 
   override protected def afterAll(): Unit = {

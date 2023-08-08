@@ -1892,7 +1892,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     val lastStageTransformer2 = executedPlan2.find(_.isInstanceOf[WholeStageTransformer])
     executedPlan2.execute()
     assert(lastStageTransformer2.get.asInstanceOf[WholeStageTransformer].getPlanJson.nonEmpty)
-    spark.sparkContext.setLogLevel("WARN")
+    spark.sparkContext.setLogLevel(logLevel)
   }
 }
 // scalastyle:on line.size.limit
