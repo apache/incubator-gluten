@@ -263,13 +263,21 @@ DB::SortDescription WindowRelParser::parsePartitionBy(const google::protobuf::Re
     DB::SortDescription sort_descr;
     for (const auto & expr : expressions)
     {
-        if (!expr.has_selection())
+        if (expr.has_selection())
         {
-            throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Column reference is expected.");
+            auto pos = expr.selection().direct_reference().struct_field().field();
+            auto col_name = header.getByPosition(pos).name;
+            sort_descr.push_back(DB::SortColumnDescription(col_name, 1, 1));
         }
-        auto pos = expr.selection().direct_reference().struct_field().field();
-        auto col_name = header.getByPosition(pos).name;
-        sort_descr.push_back(DB::SortColumnDescription(col_name, 1, 1));
+        else if (expr.has_literal())
+        {
+            // literal is a special case, see in #2586
+            continue;
+        }
+        else
+        {
+            throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "Unknow partition argument type: {}", expr.DebugString());
+        }
     }
     return sort_descr;
 }

@@ -14,20 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+package org.apache.spark.sql.execution.datasources.parquet
 
-#include <Storages/SubstraitSource/FormatFile.h>
+import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-namespace local_engine
-{
-class JSONFormatFile : public FormatFile
-{
-public:
-    explicit JSONFormatFile(DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
-    ~JSONFormatFile() override = default;
-
-    bool supportSplit() const override { return true; }
-
-    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
-};
-}
+class GlutenParquetDeltaByteArrayEncodingSuite
+  extends ParquetDeltaLengthByteArrayEncodingSuite
+  with GlutenSQLTestsBaseTrait {}

@@ -99,14 +99,6 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
     return res;
 }
 
-DB::NamesAndTypesList ParquetFormatFile::getSchema() const
-{
-    auto in = read_buffer_builder->build(file_info);
-    auto format_settings = DB::getFormatSettings(context);
-    DB::ParquetSchemaReader reader(*in, format_settings);
-    return reader.readSchema();
-}
-
 std::optional<size_t> ParquetFormatFile::getTotalRows()
 {
     {

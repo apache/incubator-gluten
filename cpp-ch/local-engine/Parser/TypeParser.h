@@ -31,14 +31,22 @@ public:
     ~TypeParser() = default;
 
     static String getCHTypeName(const String & spark_type_name);
+
     static DB::DataTypePtr getCHTypeByName(const String & spark_type_name);
+
     /// When parsing named structure, we need the field names.
     static DB::DataTypePtr parseType(const substrait::Type & substrait_type, std::list<String> * field_names);
+
     inline static DB::DataTypePtr parseType(const substrait::Type & substrait_type)
     {
         return parseType(substrait_type, nullptr);
     }
+
     static DB::Block buildBlockFromNamedStruct(const substrait::NamedStruct & struct_);
+
+    /// Build block from substrait NamedStruct without following DFS rules.
+    static DB::Block buildBlockFromNamedStructWithoutDFS(const substrait::NamedStruct & struct_);
+
     static bool isTypeMatched(const substrait::Type & substrait_type, const DB::DataTypePtr & ch_type);
 private:
     /// Mapping spark type names to CH type names.
