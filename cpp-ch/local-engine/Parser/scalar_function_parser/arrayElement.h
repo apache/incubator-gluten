@@ -79,37 +79,4 @@ protected:
     }
 };
 
-class FunctionParserElementAt : public BaseFunctionParserArrayElement
-{
-public:
-    explicit FunctionParserElementAt(SerializedPlanParser * plan_parser_) : BaseFunctionParserArrayElement(plan_parser_) { }
-    ~FunctionParserElementAt() override = default;
-
-    static constexpr auto name = "element_at";
-    String getName() const override { return name; }
-};
-
-class FunctionParserGetArrayItem : public BaseFunctionParserArrayElement
-{
-public:
-    explicit FunctionParserGetArrayItem(SerializedPlanParser * plan_parser_) : BaseFunctionParserArrayElement(plan_parser_) { }
-    ~FunctionParserGetArrayItem() override = default;
-    
-    static constexpr auto name = "get_array_item";
-    String getName() const override { return name; }
-};
-
-class FunctionParserGetMapValue : public BaseFunctionParserArrayElement
-{
-public:
-    explicit FunctionParserGetMapValue(SerializedPlanParser * plan_parser_) : BaseFunctionParserArrayElement(plan_parser_) { }
-    ~FunctionParserGetMapValue() override = default;
-    
-    static constexpr auto name = "get_map_value";
-    String getName() const override { return name; }
-};
-
-static FunctionParserRegister<FunctionParserElementAt> register_array_element_at;
-static FunctionParserRegister<FunctionParserGetArrayItem> register_array_get_item;
-static FunctionParserRegister<FunctionParserGetMapValue> register_map_get_value;
 }
