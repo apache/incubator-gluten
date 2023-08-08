@@ -106,8 +106,6 @@ void ExcelSerialization::deserializeNumberTextCSV(IColumn & column, ReadBuffer &
 
     if (result)
         assert_cast<ColumnVector<T> &>(column).getData().push_back(x);
-    else
-        throw DB::Exception(DB::ErrorCodes::INCORRECT_DATA, "Read error");
 }
 
 void ExcelSerialization::deserializeDate32TextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings) const
@@ -117,8 +115,6 @@ void ExcelSerialization::deserializeDate32TextCSV(IColumn & column, ReadBuffer &
 
     if (result)
         assert_cast<ColumnInt32 &>(column).getData().push_back(value.getExtenedDayNum());
-    else
-        throw DB::Exception(DB::ErrorCodes::INCORRECT_DATA, "Read error");
 }
 
 template <typename ColumnType>
@@ -139,7 +135,8 @@ void ExcelSerialization::deserializeDatetimeTextCSV(
         ++istr.position();
     }
 
-    local_engine::readDateTime64Text(x, istr, settings, time_zone, utc_time_zone, quote);
+    if (!local_engine::readDateTime64Text(x, istr, settings, time_zone, utc_time_zone, quote))
+        return;
 
     if (maybe_quote == '\'' || maybe_quote == '\"')
         assertChar(maybe_quote, istr);

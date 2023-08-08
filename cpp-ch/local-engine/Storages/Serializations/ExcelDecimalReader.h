@@ -72,9 +72,7 @@ void deserializeExcelDecimalText(IColumn & column, ReadBuffer & istr, UInt32 pre
     T x;
     UInt32 unread_scale = scale;
     bool result = readExcelCSVDecimalText(istr, x, precision, unread_scale, formatSettings);
-    if (!result || common::mulOverflow(x.value, DecimalUtils::scaleMultiplier<T>(unread_scale), x.value))
-        throw DB::Exception(DB::ErrorCodes::INCORRECT_DATA, "Read error");
-    else
+    if (result && !common::mulOverflow(x.value, DecimalUtils::scaleMultiplier<T>(unread_scale), x.value))
         assert_cast<ColumnDecimal<T> &>(column).getData().push_back(x);
 }
 }

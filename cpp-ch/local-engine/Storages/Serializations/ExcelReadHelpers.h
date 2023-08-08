@@ -90,7 +90,7 @@ bool readDatetime64TextWithExcel(
     const DateLUTImpl & time_zone,
     const DB::FormatSettings::CSV & settings,
     bool quote);
-void readDateTime64Text(
+bool readDateTime64Text(
     DB::DateTime64 & x,
     DB::ReadBuffer & buf,
     const DB::FormatSettings & settings,
