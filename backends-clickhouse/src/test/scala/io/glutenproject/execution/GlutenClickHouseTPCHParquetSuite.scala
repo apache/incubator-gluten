@@ -1709,6 +1709,23 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("test concat_ws") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select concat_ws(null), concat_ws('-'), concat_ws('-', null), concat_ws('-', null, null), " +
+          "concat_ws(null, 'a'), concat_ws('-', 'a'), concat_ws('-', 'a', null), " +
+          "concat_ws('-', 'a', null, 'b', 'c', null, array(null), array('d', null), array('f', 'g'))",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select concat_ws('-', n_comment, " +
+          "array(if(n_regionkey=0, null, cast(n_regionkey as string)))) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("GLUTEN-2422 range bound with nan/inf") {
     val sql =
       """
