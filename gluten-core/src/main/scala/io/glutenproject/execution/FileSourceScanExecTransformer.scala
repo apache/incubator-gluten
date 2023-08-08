@@ -103,6 +103,8 @@ class FileSourceScanExecTransformer(
 
   override def getPartitionSchemas: StructType = relation.partitionSchema
 
+  override def getDataSchemas: StructType = relation.dataSchema
+
   override def getInputFilePaths: Seq[String] = {
     if (BackendsApiManager.isVeloxBackend) {
       Seq.empty[String]
@@ -264,7 +266,7 @@ class FileSourceScanExecTransformer(
       }
 
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
-      readRelNode.setDataSchema(relation.dataSchema)
+      readRelNode.setDataSchema(getDataSchemas)
       readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
     }
     transformCtx

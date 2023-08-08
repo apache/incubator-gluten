@@ -42,8 +42,6 @@ public:
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
 
-    DB::NamesAndTypesList getSchema() const override;
-
     std::optional<size_t> getTotalRows() override;
 
     bool supportSplit() const override { return true; }

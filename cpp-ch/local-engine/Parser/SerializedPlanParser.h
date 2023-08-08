@@ -228,7 +228,6 @@ DataTypePtr wrapNullableType(substrait::Type_Nullability nullable, DataTypePtr n
 DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type);
 
 std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c);
-bool isTypeMatched(const substrait::Type & substrait_type, const DataTypePtr & ch_type);
 
 class SerializedPlanParser;
 

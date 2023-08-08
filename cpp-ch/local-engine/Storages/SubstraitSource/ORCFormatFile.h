@@ -16,7 +16,6 @@
  */
 #pragma once
 #include <config.h>
-#include <Common/Config.h>
 
 #if USE_ORC
 #    include <memory>
@@ -24,6 +23,7 @@
 #    include <Interpreters/Context.h>
 #    include <Storages/SubstraitSource/FormatFile.h>
 #    include <base/types.h>
+#    include <Common/Config.h>
 
 #    if USE_LOCAL_FORMATS
 #        include <Processors/Formats/IInputFormat.h>
@@ -104,8 +104,6 @@ public:
     ~ORCFormatFile() override = default;
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
-
-    DB::NamesAndTypesList getSchema() const override;
 
     std::optional<size_t> getTotalRows() override;
 

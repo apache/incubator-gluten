@@ -24,7 +24,6 @@
 #include <Processors/Formats/IRowInputFormat.h>
 #include <Processors/Formats/Impl/CSVRowInputFormat.h>
 #include <Storages/SubstraitSource/FormatFile.h>
-#include "config.h"
 
 namespace local_engine
 {
@@ -40,7 +39,7 @@ public:
     ~ExcelTextFormatFile() override = default;
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
-    DB::NamesAndTypesList getSchema() const override;
+
     bool supportSplit() const override { return true; }
 
 private:

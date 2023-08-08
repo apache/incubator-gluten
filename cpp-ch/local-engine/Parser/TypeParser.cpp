@@ -44,6 +44,7 @@ namespace DB
 namespace ErrorCodes
 {
     extern const int UNKNOWN_TYPE;
+    extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
 }
 }
 
@@ -77,6 +78,7 @@ DB::DataTypePtr TypeParser::getCHTypeByName(const String & spark_type_name)
 DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, std::list<String> * field_names)
 {
     DB::DataTypePtr ch_type = nullptr;
+
     std::string_view field_name;
     if (field_names)
     {
@@ -166,12 +168,27 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
         const auto & types = substrait_type.struct_().types();
         DB::DataTypes struct_field_types(types.size());
         DB::Strings struct_field_names;
-        for (int i = 0; i < types.size(); ++i)
-        {
-            if (field_names)
-                struct_field_names.push_back(field_names->front());
 
-            struct_field_types[i] = parseType(types[i], field_names);
+        if (field_names)
+        {
+            /// Construct CH tuple type following the DFS rule.
+            /// Refer to NamedStruct in https://github.com/oap-project/gluten/blob/main/cpp-ch/local-engine/proto/substrait/type.proto
+            for (int i = 0; i < types.size(); ++i)
+            {
+                struct_field_names.push_back(field_names->front());
+                struct_field_types[i] = parseType(types[i], field_names);
+            }
+        }
+        else
+        {
+            /// Construct CH tuple type without DFS rule.
+            for (int i = 0; i < types.size(); ++i)
+                struct_field_types[i] = parseType(types[i]);
+
+            const auto & names = substrait_type.struct_().names();
+            for (int i = 0; i < names.size(); ++i)
+                if (!names[i].empty())
+                    struct_field_names.push_back(names[i]);
         }
 
         if (!struct_field_names.empty())
@@ -255,6 +272,28 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
     }
 
     DB::Block res(std::move(internal_cols));
+    return res;
+}
+
+DB::Block TypeParser::buildBlockFromNamedStructWithoutDFS(const substrait::NamedStruct & named_struct_)
+{
+    DB::ColumnsWithTypeAndName columns;
+    const auto & names = named_struct_.names();
+    const auto & types = named_struct_.struct_().types();
+    columns.reserve(names.size());
+    if (names.size() != types.size())
+        throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Mismatch between names and types in named_struct");
+
+    int size = named_struct_.names_size();
+    for (int i = 0; i < size; ++i)
+    {
+        const auto & name = names[i];
+        const auto & type =  types[i];
+        auto ch_type = parseType(type);
+        columns.emplace_back(ColumnWithTypeAndName(ch_type, name));
+    }
+
+    DB::Block res(std::move(columns));
     return res;
 }
 

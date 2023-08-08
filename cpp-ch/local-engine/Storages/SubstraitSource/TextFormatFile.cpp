@@ -17,8 +17,8 @@
 #include "TextFormatFile.h"
 
 #include <memory>
+
 #include <Formats/FormatSettings.h>
-#include <Parser/TypeParser.h>
 #include <Processors/Formats/Impl/HiveTextRowInputFormat.h>
 #include <Poco/URI.h>
 
@@ -42,7 +42,7 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
 
     /// Initialize format settings
     DB::FormatSettings format_settings = DB::getFormatSettings(context);
-    const auto & schema = file_info.text().schema();
+    const auto & schema = file_info.schema();
     for (const auto & name : schema.names())
         format_settings.hive_text.input_field_names.push_back(name);
 
@@ -69,13 +69,6 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
     }
     res->input = std::make_shared<DB::HiveTextRowInputFormat>(header, *(res->read_buffer), params, format_settings);
     return res;
-}
-
-DB::NamesAndTypesList TextFormatFile::getSchema() const
-{
-    const auto & schema = file_info.text().schema();
-    auto header = TypeParser::buildBlockFromNamedStruct(schema);
-    return header.getNamesAndTypesList();
 }
 
 }
