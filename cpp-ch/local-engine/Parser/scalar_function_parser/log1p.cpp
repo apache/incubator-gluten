@@ -65,8 +65,8 @@ public:
         const auto * null_const_node = addColumnToActionsDAG(actions_dag, nullable_result_type, Field());
         const auto * nullable_log1p_node = ActionsDAGUtil::convertNodeType(actions_dag, log1p_node, nullable_result_type->getName(), log1p_node->result_name);
 
-        const auto * lt_node = toFunctionNode(actions_dag, "lessOrEquals", {arg_node, addColumnToActionsDAG(actions_dag, result_type, -1.0)});
-        const auto * result_node = toFunctionNode(actions_dag, "if", {lt_node, null_const_node, nullable_log1p_node});
+        const auto * le_node = toFunctionNode(actions_dag, "lessOrEquals", {arg_node, addColumnToActionsDAG(actions_dag, result_type, -1.0)});
+        const auto * result_node = toFunctionNode(actions_dag, "if", {le_node, null_const_node, nullable_log1p_node});
 
         return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
