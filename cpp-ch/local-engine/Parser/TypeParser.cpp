@@ -192,7 +192,7 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
         for (int i = 0; i < types.size(); ++i)
         {
             if (name_type_size_equals)
-                struct_field_names.push_back(names[i]);
+                struct_field_names.push_back(names[i].size() != 0 ? names[i] : "#" + std::to_string(i));
             else if (field_names)
                  struct_field_names.push_back(field_names->front());
             struct_field_types[i] = parseType(types[i], field_names);
