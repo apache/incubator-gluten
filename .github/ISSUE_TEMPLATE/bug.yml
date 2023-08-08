@@ -33,23 +33,7 @@ body:
     validations:
       required: true
 
-  - type: textarea
-    id: version
-    attributes:
-      label: Spark version
-      description: Please describe spark version in your environemnt.
-    validations:
-      required: false
-
-  - type: textarea
-    id: configurations
-    attributes:
-      label: Spark configurations
-      description: Please describe spark configurations in your environemnt.
-    validations:
-      required: false
-
-  - type: textarea
+   - type: textarea
     id: description
     attributes:
       label: Bug description
@@ -57,6 +41,23 @@ body:
       value: "[Expected behavior] and [actual behavior]."
     validations:
       required: true
+
+  - type: textarea
+    id: version
+    attributes:
+      label: Spark version
+      description: Please provide the spark version in your environment.
+    validations:
+      required: false
+
+  - type: textarea
+    id: configurations
+    attributes:
+      label: Spark configurations
+      description: Please provide the spark configurations in your environment.
+    validations:
+      required: false
+
   - type: textarea
     id: info
     attributes:
