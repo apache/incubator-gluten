@@ -1753,6 +1753,15 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(sql)(checkOperatorMatch[SortExecTransformer])
   }
 
+  test("GLUTEN-2639: log1p") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select log1p(n_regionkey), log1p(-1.0), log1p(-2.0) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("GLUTEN-2243 empty projection") {
     val sql =
       """

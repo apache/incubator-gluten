@@ -365,10 +365,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenMathFunctionsSuite]
-    .exclude(
-      "hex",
-      "log1p"
-    )
 
   enableSuite[GlutenComplexTypesSuite]
 
