@@ -100,7 +100,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
   }
 
   def getPlanJson: String = {
-    if (planJson.isEmpty) {
+    if (log.isDebugEnabled() && planJson.isEmpty) {
       logWarning("Plan in JSON string is empty. This may due to the plan has not been executed.")
     }
     planJson
@@ -190,7 +190,10 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       }
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }
-    planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(planNode.toProtobuf)
+
+    if (log.isDebugEnabled()) {
+      planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(planNode.toProtobuf)
+    }
 
     WholeStageTransformContext(planNode, substraitContext)
   }
@@ -295,7 +298,10 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       val startTime = System.nanoTime()
       val resCtx = doWholeStageTransform()
 
-      logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n$planJson")
+      if (log.isDebugEnabled()) {
+        logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n$planJson")
+      }
+
       logOnLevel(
         substraitPlanLogLevel,
         s"Generating the Substrait plan took: ${System.nanoTime() - startTime} ns.")
