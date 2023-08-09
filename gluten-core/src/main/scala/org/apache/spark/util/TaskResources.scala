@@ -76,10 +76,9 @@ object TaskResources extends TaskListener with Logging {
           new TaskFailureListener {
             override def onTaskFailure(context: TaskContext, error: Throwable): Unit = {
               RESOURCE_REGISTRIES.synchronized {
+                // All queries were fallback
                 if (!RESOURCE_REGISTRIES.containsKey(tc)) {
-                  throw new IllegalStateException(
-                    "" +
-                      "TaskMemoryResourceRegistry is not initialized, this should not happen")
+                  return
                 }
                 val registry = RESOURCE_REGISTRIES.remove(context)
                 assert(
@@ -99,9 +98,7 @@ object TaskResources extends TaskListener with Logging {
           override def onTaskCompletion(context: TaskContext): Unit = {
             RESOURCE_REGISTRIES.synchronized {
               if (!RESOURCE_REGISTRIES.containsKey(tc)) {
-                throw new IllegalStateException(
-                  "" +
-                    "TaskMemoryResourceRegistry is not initialized, this should not happen")
+                return
               }
               val registry = RESOURCE_REGISTRIES.remove(context)
               assert(
