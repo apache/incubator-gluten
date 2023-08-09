@@ -54,16 +54,6 @@ private class CHColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private lazy val isUseColumnarShuffleManager =
-    GlutenConfig.getConf.isUseColumnarShuffleManager
-  private lazy val customizeBufferSize = SparkEnv.get.conf.getInt(
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT.toInt
-  )
-  private lazy val isCustomizedShuffleCodec = SparkEnv.get.conf.getBoolean(
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE,
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT.toBoolean
-  )
   private lazy val compressionCodec =
     GlutenShuffleUtils.getCompressionCodec(SparkEnv.get.conf).toUpperCase(Locale.ROOT)
 
@@ -71,9 +61,9 @@ private class CHColumnarBatchSerializerInstance(
     new DeserializationStream {
       private val reader: CHStreamReader = new CHStreamReader(
         in,
-        isUseColumnarShuffleManager,
-        isCustomizedShuffleCodec,
-        customizeBufferSize)
+        GlutenConfig.getConf.isUseColumnarShuffleManager,
+        CHBackendSettings.useCustomizedShuffleCodec,
+        CHBackendSettings.customizeBufferSize)
       private var cb: ColumnarBatch = _
 
       private var numBatchesTotal: Long = _
@@ -139,15 +129,16 @@ private class CHColumnarBatchSerializerInstance(
   }
 
   override def serializeStream(out: OutputStream): SerializationStream = new SerializationStream {
-    private[this] var writeBuffer: Array[Byte] = new Array[Byte](customizeBufferSize)
+    private[this] var writeBuffer: Array[Byte] =
+      new Array[Byte](CHBackendSettings.customizeBufferSize)
     private[this] var dOut: BlockOutputStream =
       new BlockOutputStream(
         out,
         writeBuffer,
         dataSize,
-        isCustomizedShuffleCodec,
+        CHBackendSettings.useCustomizedShuffleCodec,
         compressionCodec,
-        customizeBufferSize
+        CHBackendSettings.customizeBufferSize
       )
 
     override def writeKey[T: ClassTag](key: T): SerializationStream = {

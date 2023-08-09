@@ -73,9 +73,8 @@ class CHColumnarShuffleWriter[K, V](
     internalCHWrite(records)
   }
 
-  def internalCHWrite(records: Iterator[Product2[K, V]]): Unit = {
-    val splitterJniWrapper: CHShuffleSplitterJniWrapper =
-      jniWrapper.asInstanceOf[CHShuffleSplitterJniWrapper]
+  private def internalCHWrite(records: Iterator[Product2[K, V]]): Unit = {
+    val splitterJniWrapper: CHShuffleSplitterJniWrapper = jniWrapper
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
       shuffleBlockResolver.writeMetadataFileAndCommit(
@@ -165,8 +164,8 @@ class CHColumnarShuffleWriter[K, V](
     }
   }
 
-  def closeCHSplitter(): Unit = {
-    jniWrapper.asInstanceOf[CHShuffleSplitterJniWrapper].close(nativeSplitter)
+  private def closeCHSplitter(): Unit = {
+    jniWrapper.close(nativeSplitter)
   }
 
   // VisibleForTesting
