@@ -34,7 +34,7 @@ import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FunctionIdentifier}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetArrayItem, GetMapValue, GetStructField, Literal, NamedExpression, StringSplit, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetArrayItem, GetMapValue, GetStructField, Literal, NamedExpression, StringSplit, StringTrim}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, CollectList, CollectSet, HLLAdapter, Partial, PartialMerge}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -151,7 +151,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
       resultExpressions: Seq[NamedExpression],
       child: SparkPlan): HashAggregateExecBaseTransformer = {
 
-    def findSpecialAggBufferExpression(aggregateExpression: AggregateExpression): Boolean = {
+    def hasSpecialInputAggBuffer(aggregateExpression: AggregateExpression): Boolean = {
       aggregateExpression.mode match {
         case Partial | PartialMerge =>
         case _ =>
@@ -165,21 +165,21 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
       }
     }
 
-    val specialAggBufferAttributes =
-      aggregateExpressions
-        .filter(findSpecialAggBufferExpression)
-        .flatMap(_.aggregateFunction.inputAggBufferAttributes)
+    val specialAggExpressions = aggregateExpressions.filter(hasSpecialInputAggBuffer)
     val newResultExpressions: Seq[NamedExpression] = resultExpressions.map(
       expr => {
-        val specialAggBufferAttrOpt = specialAggBufferAttributes.find(_ == expr)
-        if (specialAggBufferAttrOpt.isDefined) {
-          val specialAggBufferAttr = specialAggBufferAttrOpt.get
-          specialAggBufferAttr.copy(dataType = new ArrayType(IntegerType, true))(
-            specialAggBufferAttr.exprId,
-            specialAggBufferAttr.qualifier)
-        } else {
-          expr
+        var newAggBufferAttr: Option[AttributeReference] = None
+        for (specialAggExp <- specialAggExpressions) {
+          // Has only one inputAggBufferAttribute.
+          val specialAggBufferAttr = specialAggExp.aggregateFunction.inputAggBufferAttributes.head
+          if (specialAggBufferAttr == expr) {
+            newAggBufferAttr = Some(
+              specialAggBufferAttr.copy(dataType = specialAggExp.aggregateFunction.dataType)(
+                specialAggBufferAttr.exprId,
+                specialAggBufferAttr.qualifier))
+          }
         }
+        newAggBufferAttr.getOrElse(expr)
       })
 
     HashAggregateExecTransformer(

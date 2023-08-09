@@ -625,7 +625,7 @@ abstract class HashAggregateExecBaseTransformer(
             val aggBufferAttr = aggregateFunc.inputAggBufferAttributes.head
             if (BackendsApiManager.isVeloxBackend) {
               val rawAggBufferAttr =
-                aggBufferAttr.copy(dataType = new ArrayType(IntegerType, true))(
+                aggBufferAttr.copy(dataType = aggregateFunc.dataType)(
                   aggBufferAttr.exprId,
                   aggBufferAttr.qualifier)
               aggregateAttr += rawAggBufferAttr
