@@ -59,7 +59,7 @@ class SubstraitParser {
   std::vector<std::string> makeNames(const std::string& prefix, int size);
 
   /// Make node name in the format of n{nodeId}_{colIdx}.
-  std::string makeNodeName(int nodeId, int colIdx);
+  static std::string makeNodeName(int nodeId, int colIdx);
 
   /// Get the column index from a node name in the format of
   /// n{nodeId}_{colIdx}.

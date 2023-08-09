@@ -100,7 +100,7 @@ class VeloxToSubstraitPlanConvertor {
 
   /// The Expression converter used to convert Velox representations into
   /// Substrait expressions.
-  VeloxToSubstraitExprConvertorPtr exprConvertor_;
+  std::unique_ptr<VeloxToSubstraitExprConvertor> exprConvertor_;
 
   /// The Type converter used to conver velox representation into Substrait
   /// type.

@@ -86,8 +86,9 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
 
   auto veloxPool = asAggregateVeloxMemoryPool(allocator);
   auto ctxPool = veloxPool->addAggregateChild("result_iterator", facebook::velox::memory::MemoryReclaimer::create());
-  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIters_, sessionConf);
-  veloxPlan_ = veloxPlanConverter->toVeloxPlan(substraitPlan_);
+
+  VeloxPlanConverter veloxPlanConverter(inputIters_, sessionConf);
+  veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
 
   // Scan node can be required.
   std::vector<std::shared_ptr<SplitInfo>> scanInfos;
@@ -95,7 +96,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   std::vector<velox::core::PlanNodeId> streamIds;
 
   // Separate the scan ids and stream ids, and get the scan infos.
-  getInfoAndIds(veloxPlanConverter->splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
+  getInfoAndIds(veloxPlanConverter.splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   if (scanInfos.size() == 0) {
     // Source node is not required.

@@ -40,8 +40,8 @@ class FunctionTest : public ::testing::Test {
 
   std::shared_ptr<gluten::SubstraitParser> substraitParser_ = std::make_shared<gluten::SubstraitParser>();
 
-  std::shared_ptr<gluten::SubstraitVeloxPlanConverter> planConverter_ =
-      std::make_shared<gluten::SubstraitVeloxPlanConverter>(pool_.get());
+  std::shared_ptr<gluten::SubstraitToVeloxPlanConverter> planConverter_ =
+      std::make_shared<gluten::SubstraitToVeloxPlanConverter>(pool_.get());
 };
 
 TEST_F(FunctionTest, makeNames) {

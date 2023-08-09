@@ -24,6 +24,7 @@
 #include "velox/core/PlanNode.h"
 
 namespace gluten {
+
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxPlanConverter {
  public:
@@ -34,7 +35,7 @@ class VeloxPlanConverter {
   std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(::substrait::Plan& substraitPlan);
 
   const std::unordered_map<facebook::velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfos() {
-    return subVeloxPlanConverter_->splitInfos();
+    return substraitVeloxPlanConverter_.splitInfos();
   }
 
  private:
@@ -63,11 +64,10 @@ class VeloxPlanConverter {
   std::string nextPlanNodeId();
 
   int planNodeId_ = 0;
+
   std::vector<std::shared_ptr<ResultIterator>> inputIters_;
 
-  std::shared_ptr<SubstraitParser> subParser_ = std::make_shared<SubstraitParser>();
-
-  std::shared_ptr<SubstraitVeloxPlanConverter> subVeloxPlanConverter_;
+  SubstraitToVeloxPlanConverter substraitVeloxPlanConverter_;
 };
 
 } // namespace gluten
