@@ -42,7 +42,7 @@ object ValidationResult {
       ok
     } else {
       val fallbackInfo = info.getFallbackInfo.asScala
-        .mkString("native check failure:", ", ", "")
+        .mkString("native check failure: ", ", ", "")
       notOk(fallbackInfo)
     }
   }
