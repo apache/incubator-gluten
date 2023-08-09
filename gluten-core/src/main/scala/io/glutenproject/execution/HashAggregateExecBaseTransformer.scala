@@ -72,18 +72,9 @@ abstract class HashAggregateExecBaseTransformer(
       expr => {
         ConverterUtils.getAttrFromExpr(expr).toAttribute
       })
-    val resultAttributes = groupingAttributes.toList ::: getAttrForAggregateExprs(
+    groupingAttributes.toList ::: getAttrForAggregateExprs(
       aggregateExpressions,
       aggregateAttributes)
-
-    resultAttributes.map(
-      expr =>
-        expr.dataType match {
-          case BinaryType =>
-            AttributeReference(expr.name, new ArrayType(IntegerType, true), nullable = true)()
-          case _ =>
-            expr
-        })
   }
 
   override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
@@ -469,7 +460,7 @@ abstract class HashAggregateExecBaseTransformer(
   protected def getAttrForAggregateExprs(
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
-    var aggregateAttr = new ListBuffer[Attribute]()
+    val aggregateAttr = new ListBuffer[Attribute]()
     val size = aggregateExpressions.size
     var resIndex = 0
     for (expIdx <- 0 until size) {
@@ -630,12 +621,19 @@ abstract class HashAggregateExecBaseTransformer(
       case _: CollectList | _: CollectSet =>
         mode match {
           case Partial =>
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+            // Has only one input attribute.
+            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes.head
+            if (BackendsApiManager.isVeloxBackend) {
+              val rawAggBufferAttr =
+                aggBufferAttr.copy(dataType = new ArrayType(IntegerType, true))(
+                  aggBufferAttr.exprId,
+                  aggBufferAttr.qualifier)
+              aggregateAttr += rawAggBufferAttr
+            } else {
+              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr)
               aggregateAttr += attr
             }
-            resIndex += aggBufferAttr.size
+            resIndex += 1
           case Final =>
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
@@ -644,7 +642,7 @@ abstract class HashAggregateExecBaseTransformer(
         }
       case other =>
         throw new UnsupportedOperationException(
-          s"Unsupported aggregate function in getAttrForAggregateExpr")
+          s"Unsupported aggregate function in getAttrForAggregateExpr: $other")
     }
     resIndex
   }
