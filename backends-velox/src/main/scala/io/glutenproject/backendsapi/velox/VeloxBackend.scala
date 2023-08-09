@@ -47,7 +47,8 @@ object BackendSettings extends BackendSettingsApi {
 
   val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
 
-  val GLUTEN_VELOX_UDF_LIBS = getBackendConfigPrefix() + ".udfLibraryPaths"
+  val GLUTEN_VELOX_UDF_LIB_PATHS = getBackendConfigPrefix() + ".udfLibraryPaths"
+  val GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS = getBackendConfigPrefix() + ".driver.udfLibraryPaths"
 
   override def supportFileFormatRead(
       format: ReadFileFormat,
@@ -291,20 +292,7 @@ object BackendSettings extends BackendSettingsApi {
 
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
 
-  private def resolveUdfConf(nativeConf: java.util.Map[String, String]): Unit = {
-    if (nativeConf.containsKey(GLUTEN_VELOX_UDF_LIBS)) {
-      val cachedLibraryPaths = UDFResolver.localLibraryPaths
-      if (cachedLibraryPaths.isEmpty) {
-        nativeConf.put(
-          GLUTEN_VELOX_UDF_LIBS,
-          UDFResolver.getAllLibraries(nativeConf.get(GLUTEN_VELOX_UDF_LIBS)).mkString(","))
-      } else {
-        nativeConf.put(GLUTEN_VELOX_UDF_LIBS, cachedLibraryPaths.mkString(","))
-      }
-    }
-  }
-
   override def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {
-    resolveUdfConf(nativeConf)
+    UDFResolver.resolveUdfConf(nativeConf)
   }
 }

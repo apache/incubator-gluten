@@ -17,6 +17,7 @@
 package org.apache.spark.sql.expression
 
 import io.glutenproject.backendsapi.velox.BackendSettings
+import io.glutenproject.exception.GlutenException
 import io.glutenproject.expression.{ConverterUtils, ExpressionTransformer, Transformable}
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.{ExpressionType, TypeConverter}
@@ -24,7 +25,7 @@ import io.glutenproject.substrait.expression.ExpressionBuilder
 import io.glutenproject.udf.UdfJniWrapper
 import io.glutenproject.vectorized.JniWorkspace
 
-import org.apache.spark.{SparkContext, SparkFiles}
+import org.apache.spark.{SparkConf, SparkContext, SparkEnv, SparkFiles}
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.FunctionIdentifier
@@ -34,14 +35,12 @@ import org.apache.spark.sql.types.DataType
 import org.apache.spark.util.Utils
 
 import com.google.common.collect.Lists
-import org.apache.hadoop.yarn.conf.YarnConfiguration
 
 import java.io.File
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Paths}
 
 import scala.collection.JavaConverters.asScalaIteratorConverter
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 case class UDFExpression(
     name: String,
@@ -79,11 +78,14 @@ case class UDFExpression(
 
 object UDFResolver extends Logging {
   // Cache the fetched library paths for driver.
-  var localLibraryPaths: Seq[String] = Seq.empty
+  var localLibraryPaths: String = _
 
   private val UDFMap: mutable.Map[String, ExpressionType] = mutable.Map()
 
   private val LIB_EXTENSION = ".so"
+
+  private lazy val isDriver: Boolean =
+    "driver".equals(SparkEnv.get.executorId)
 
   def registerUDF(name: String, bytes: Array[Byte]): Unit = {
     registerUDF(name, TypeConverter.from(bytes))
@@ -103,115 +105,110 @@ object UDFResolver extends Logging {
     }
   }
 
-  def getFilesWithExtension(directory: Path, extension: String): Seq[Path] = {
+  def getFilesWithExtension(directory: java.nio.file.Path, extension: String): Seq[String] = {
     Files
       .walk(directory)
-      .filter(p => Files.isRegularFile(p) && p.toString.endsWith(extension))
       .iterator()
       .asScala
+      .filter(p => Files.isRegularFile(p) && p.toString.endsWith(extension))
+      .map(p => p.toString)
       .toSeq
   }
 
-  def unpackAndGetLibraries(source: File, destDir: File): Seq[String] = {
+  def resolveUdfConf(conf: java.util.Map[String, String]): Unit = {
+    if (isDriver) {
+      conf.put(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS, localLibraryPaths)
+    } else {
+      val sparkConf = SparkEnv.get.conf
+      Option(conf.get(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)) match {
+        case Some(libs) =>
+          conf.put(
+            BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS,
+            getAllLibraries(libs, sparkConf, canAccessSparkFiles = true))
+        case None =>
+      }
+    }
+  }
+
+  // Try to unpack archive. Throws exception if failed.
+  def unpack(source: File, destDir: File): File = {
     val sourceName = source.getName
     val dest = new File(destDir, sourceName)
     logInfo(
       s"Unpacking an archive $sourceName from ${source.getAbsolutePath} to ${dest.getAbsolutePath}")
-    Utils.deleteRecursively(dest)
-    Utils.unpack(source, dest)
-    getFilesWithExtension(dest.toPath, LIB_EXTENSION).map(_.toString)
+    try {
+      Utils.deleteRecursively(dest)
+      Utils.unpack(source, dest)
+    } catch {
+      case e: Exception =>
+        throw new GlutenException(s"Unpack ${source.toString} failed.", e)
+    }
+    dest
   }
 
-  def getAllLibraries(files: String): Seq[String] = {
-    getAllLibraries(files.split(","))
-  }
-
-  def getAllLibraries(files: Seq[String]): Seq[String] = {
+  // Get the full paths of all libraries.
+  // If it's a directory, get all files ends with ".so" recursively.
+  def getAllLibraries(files: String, sparkConf: SparkConf, canAccessSparkFiles: Boolean): String = {
+    val hadoopConf = SparkHadoopUtil.newConfiguration(sparkConf)
     files
+      .split(",")
       .map {
         f =>
           val file = new File(f)
-          if (file.isAbsolute) {
-            file
-          } else {
+          // Relative paths should be uploaded via --files or --archives
+          // Use SparkFiles.get to download and unpack
+          if (!file.isAbsolute) {
+            if (!canAccessSparkFiles) {
+              throw new IllegalArgumentException(
+                "On yarn-client mode, driver only accepts absolute paths, but got " + f)
+            }
             new File(SparkFiles.get(f))
+          } else {
+            // Download or copy absolute paths to JniWorkspace.
+            val uri = Utils.resolveURI(f)
+            val name = file.getName
+            val jniWorkspace = new File(JniWorkspace.getDefault.getWorkDir)
+            if (!file.isDirectory && !f.endsWith(LIB_EXTENSION)) {
+              val source = Utils
+                .doFetchFile(uri.toString, Utils.createTempDir(), name, sparkConf, hadoopConf)
+              unpack(source, jniWorkspace)
+            } else {
+              Utils.doFetchFile(uri.toString, jniWorkspace, name, sparkConf, hadoopConf)
+            }
           }
       }
       .flatMap {
         f =>
           if (f.isDirectory) {
-            getFilesWithExtension(f.toPath, LIB_EXTENSION).map(_.toString)
+            getFilesWithExtension(f.toPath, LIB_EXTENSION)
           } else {
             Seq(f.toString)
           }
       }
+      .mkString(",")
   }
 
   def loadAndGetFunctionDescriptions: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
     val sparkContext = SparkContext.getActive.get
     val sparkConf = sparkContext.conf
-    sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIBS).map(_.split(",")) match {
+    val udfLibPaths = if (sparkConf.contains(BackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS)) {
+      Some(sparkConf.get(BackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS))
+    } else {
+      sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
+    }
+
+    udfLibPaths match {
       case None =>
         Seq.empty
-      case Some(udfFiles) =>
+      case Some(paths) =>
         val master = sparkConf.getOption("spark.master")
-        val isYarn = master.isDefined && master.get.equals("yarn")
-        localLibraryPaths = if (isYarn) {
-          // For Yarn-client or Yarn-cluster mode,
-          // driver cannot get uploaded files via SparkFiles.get.
-          // So we need to copy and unpack files for driver first.
-          val hadoopConf = new YarnConfiguration(SparkHadoopUtil.newConfiguration(sparkConf))
-          val toLoad: ListBuffer[String] = ListBuffer()
+        val isYarnClient =
+          master.isDefined && master.get.equals("yarn") && Utils.isClientMode(sparkConf)
+        // For Yarn-client mode, driver cannot get uploaded files via SparkFiles.get.
+        localLibraryPaths = getAllLibraries(paths, sparkConf, canAccessSparkFiles = !isYarnClient)
 
-          // Handle absolute paths
-          toLoad ++= udfFiles.filter(Paths.get(_).isAbsolute)
-
-          sparkConf.getOption("spark.yarn.dist.files").foreach {
-            files =>
-              files.split(",").map(parseName).foreach {
-                case (fullPath, nameOrAlias) =>
-                  if (udfFiles.contains(nameOrAlias)) {
-                    toLoad += Utils
-                      .fetchFile(
-                        fullPath,
-                        new File(JniWorkspace.getDefault.getWorkDir),
-                        sparkConf,
-                        hadoopConf,
-                        System.currentTimeMillis,
-                        useCache = false)
-                      .toString
-                  }
-              }
-          }
-
-          sparkConf.getOption("spark.yarn.dist.archives").foreach {
-            archives =>
-              archives.split(",").map(parseName).foreach {
-                case (fullPath, nameOrAlias) =>
-                  if (udfFiles.contains(nameOrAlias)) {
-                    val source = Utils
-                      .fetchFile(
-                        fullPath,
-                        Utils.createTempDir(),
-                        sparkConf,
-                        hadoopConf,
-                        System.currentTimeMillis,
-                        useCache = false)
-                    toLoad ++= unpackAndGetLibraries(
-                      source,
-                      new File(JniWorkspace.getDefault.getWorkDir))
-                  }
-              }
-          }
-          toLoad
-        } else {
-          // Get the full paths of all libraries. Archives are already unpacked.
-          getAllLibraries(udfFiles)
-        }
-
-        val allLibs = localLibraryPaths.mkString(",")
-        logInfo(s"Loading UDF libraries from paths: $allLibs")
-        new UdfJniWrapper().nativeLoadUdfLibraries(allLibs)
+        logInfo(s"Loading UDF libraries from paths: $localLibraryPaths")
+        new UdfJniWrapper().nativeLoadUdfLibraries(localLibraryPaths)
 
         UDFMap.map {
           case (name, t) =>
