@@ -37,6 +37,8 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsConversion.h>
 #include <Functions/registerFunctions.h>
+#include <google/protobuf/util/json_util.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
@@ -48,8 +50,6 @@
 #include <QueryPipeline/printPipeline.h>
 #include <Storages/Output/WriteBufferBuilder.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include <substrait/algebra.pb.h>
-#include <substrait/plan.pb.h>
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/Config/ConfigProcessor.h>
@@ -422,6 +422,15 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std
         auto success = plan_ptr->ParseFromString(*plan);
         if (!success)
             break;
+
+        if (logger && logger->debug())
+        {
+            namespace pb_util = google::protobuf::util;
+            pb_util::JsonOptions options;
+            std::string json;
+            pb_util::MessageToJsonString(*plan_ptr, &json, options);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Update Config Map Plan:\n{}", json);
+        }
 
         if (!plan_ptr->has_advanced_extensions() || !plan_ptr->advanced_extensions().has_enhancement())
             break;
