@@ -49,12 +49,16 @@ class TestFileSourceScanExecTransformer(
     disableBucketedScan) {
 
   override def getPartitions: Seq[Seq[InputPartition]] =
-    BackendsApiManager.getTransformerApiInstance
-      .genInputPartitionSeq(relation, selectedPartitions)
-      .map(Seq(_))
+    getFlattenPartitions.map(Seq(_))
 
   override def getFlattenPartitions: Seq[InputPartition] =
-    BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(relation, selectedPartitions)
+    BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
+      relation,
+      selectedPartitions,
+      output,
+      optionalBucketSet,
+      optionalNumCoalescedBuckets,
+      disableBucketedScan)
 
   override val nodeNamePrefix: String = "TestNativeFile"
 }

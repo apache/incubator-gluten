@@ -295,4 +295,6 @@ object BackendSettings extends BackendSettingsApi {
   override def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {
     UDFResolver.resolveUdfConf(nativeConf)
   }
+
+  override def supportBucketScan(): Boolean = true
 }

@@ -1059,9 +1059,9 @@ int32_t SubstraitToVeloxPlanConverter::streamIsInput(const ::substrait::ReadRel&
   if (sRead.has_local_files()) {
     const auto& fileList = sRead.local_files().items();
     if (fileList.size() == 0) {
-      VELOX_FAIL("At least one file path is expected.");
+      // bucketed scan may contains empty file list
+      return -1;
     }
-
     // The stream input will be specified with the format of
     // "iterator:${index}".
     std::string filePath = fileList[0].uri_file();

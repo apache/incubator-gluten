@@ -92,14 +92,16 @@ class FileSourceScanExecTransformer(
   override def outputAttributes(): Seq[Attribute] = output
 
   override def getPartitions: Seq[Seq[InputPartition]] =
-    BackendsApiManager.getTransformerApiInstance
-      .genInputPartitionSeq(relation, dynamicallySelectedPartitions)
-      .map(Seq(_))
+    getFlattenPartitions.map(Seq(_))
 
   override def getFlattenPartitions: Seq[InputPartition] =
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
-      dynamicallySelectedPartitions)
+      dynamicallySelectedPartitions,
+      output,
+      optionalBucketSet,
+      optionalNumCoalescedBuckets,
+      disableBucketedScan)
 
   override def getPartitionSchemas: StructType = relation.partitionSchema
 
@@ -138,7 +140,7 @@ class FileSourceScanExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     // Bucketing table has `bucketId` in filename, should apply this in backends
     // TODO Support bucketed scan
-    if (bucketedScan) {
+    if (bucketedScan && !BackendsApiManager.getSettings.supportBucketScan()) {
       throw new UnsupportedOperationException("Bucketed scan is unsupported for now.")
     }
 

@@ -16,17 +16,46 @@
  */
 package io.glutenproject.utils
 
+import io.glutenproject.sql.shims.SparkShimLoader
+
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.PartitionedFileUtil
 import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.util.collection.BitSet
 
-object InputPartitionsUtil extends Logging {
+case class InputPartitionsUtil(
+    relation: HadoopFsRelation,
+    selectedPartitions: Array[PartitionDirectory],
+    output: Seq[Attribute],
+    optionalBucketSet: Option[BitSet],
+    optionalNumCoalescedBuckets: Option[Int],
+    disableBucketedScan: Boolean)
+  extends Logging {
 
-  def genInputPartitionSeq(
-      relation: HadoopFsRelation,
-      selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
-    // TODO: Support bucketed reads
+  private val bucketedScan: Boolean = {
+    if (
+      relation.sparkSession.sessionState.conf.bucketingEnabled && relation.bucketSpec.isDefined
+      && !disableBucketedScan
+    ) {
+      val spec = relation.bucketSpec.get
+      val bucketColumns = spec.bucketColumnNames.flatMap(n => toAttribute(n))
+      bucketColumns.size == spec.bucketColumnNames.size
+    } else {
+      false
+    }
+  }
+
+  def genInputPartitionSeq(): Seq[InputPartition] = {
+    if (bucketedScan) {
+      genBucketedInputPartitionSeq()
+    } else {
+      genNonBuckedInputPartitionSeq()
+    }
+  }
+
+  private def genNonBuckedInputPartitionSeq(): Seq[InputPartition] = {
     val openCostInBytes = relation.sparkSession.sessionState.conf.filesOpenCostInBytes
     val maxSplitBytes =
       FilePartition.maxSplitBytes(relation.sparkSession, selectedPartitions)
@@ -55,5 +84,46 @@ object InputPartitionsUtil extends Logging {
       .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
 
     FilePartition.getFilePartitions(relation.sparkSession, splitFiles, maxSplitBytes)
+  }
+
+  private def genBucketedInputPartitionSeq(): Seq[InputPartition] = {
+    val bucketSpec = relation.bucketSpec.get
+    logInfo(s"Planning with ${bucketSpec.numBuckets} buckets")
+    val filesGroupedToBuckets =
+      SparkShimLoader.getSparkShims.filesGroupedToBuckets(selectedPartitions)
+
+    val prunedFilesGroupedToBuckets = if (optionalBucketSet.isDefined) {
+      val bucketSet = optionalBucketSet.get
+      filesGroupedToBuckets.filter(f => bucketSet.get(f._1))
+    } else {
+      filesGroupedToBuckets
+    }
+
+    optionalNumCoalescedBuckets
+      .map {
+        numCoalescedBuckets =>
+          logInfo(s"Coalescing to $numCoalescedBuckets buckets")
+          val coalescedBuckets = prunedFilesGroupedToBuckets.groupBy(_._1 % numCoalescedBuckets)
+          Seq.tabulate(numCoalescedBuckets) {
+            bucketId =>
+              val partitionedFiles = coalescedBuckets
+                .get(bucketId)
+                .map {
+                  _.values.flatten.toArray
+                }
+                .getOrElse(Array.empty)
+              FilePartition(bucketId, partitionedFiles)
+          }
+      }
+      .getOrElse {
+        Seq.tabulate(bucketSpec.numBuckets) {
+          bucketId =>
+            FilePartition(bucketId, prunedFilesGroupedToBuckets.getOrElse(bucketId, Array.empty))
+        }
+      }
+  }
+
+  private def toAttribute(colName: String): Option[Attribute] = {
+    output.find(_.name == colName)
   }
 }

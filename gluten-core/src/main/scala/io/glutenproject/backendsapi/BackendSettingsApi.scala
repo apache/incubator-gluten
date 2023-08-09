@@ -93,4 +93,6 @@ trait BackendSettingsApi {
 
   /** Apply necessary conversions before passing to native side */
   def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {}
+
+  def supportBucketScan(): Boolean = false
 }
