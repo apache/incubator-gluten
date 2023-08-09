@@ -17,7 +17,7 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, Row, functions}
+import org.apache.spark.sql.{functions, DataFrame, Row}
 import org.apache.spark.sql.execution.LocalTableScanExec
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.types.{StructField, _}
@@ -351,7 +351,7 @@ class GlutenClickHouseFileFormatSuite
     checkAnswer(df, expectedAnswer)
   }
 
-  test("issues-KY-2711 test for ignoring special char around float value") {
+  test("issues-2677 test for ignoring special char around float value") {
     val file_path = csvDataPath + "/special_character_surrounding_float_data.csv"
     val schema = StructType.apply(
       Seq(
