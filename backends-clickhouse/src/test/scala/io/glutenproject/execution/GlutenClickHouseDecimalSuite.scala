@@ -60,7 +60,8 @@ class GlutenClickHouseDecimalSuite
     val sql =
       s"""
          | select
-         |     cast(int_field  as decimal(20, 2)) * cast(decimal_field as decimal(30, 2)) * decimal_field
+         |     cast(int_field  as decimal(20, 2))
+         |         * cast(decimal_field as decimal(30, 2)) * decimal_field
          | from $decimalTable
          | limit 1
          |""".stripMargin
