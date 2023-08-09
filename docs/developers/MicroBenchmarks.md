@@ -209,6 +209,16 @@ cd /path_to_gluten/cpp/build/velox/benchmarks
 /plan/to/plan.json \
 --threads 1 --noprint-result --with-shuffle
 ```
+By default, the compression codec for shuffle outputs is LZ4. You can switch to other codecs by adding one of the following argument flags to the command:
+- --zstd: ZSTD codec, compression level 1
+- --qat-gzip: QAT GZIP codec, compression level 1
+- --qat-zstd: QAT ZSTD codec, compression level 1
+- --iaa-gzip: IAA GZIP codec, compression level 1
+
+Note using QAT or IAA codec requires Gluten cpp is built with these features.
+Please check the corresponding section in [Velox document](../get-started/Velox.md) first for how to setup, build and enable these features in Gluten.
+For QAT support, please check [Intel® QuickAssist Technology (QAT) support](../get-started/Velox.md#intel-quickassist-technology-qat-support).
+For IAA support, please check [Intel® In-memory Analytics Accelerator (IAA/IAX) support](../get-started/Velox.md#intel-in-memory-analytics-accelerator-iaaiax-support)
 
 ## Simulate Spark with multiple processes and threads
 
@@ -240,7 +250,7 @@ done
 
 ### Run Examples
 
-We also provide some examples inputs in [cpp/velox/benchmarks/data](../../cpp/velox/benchmarks/data). E.g. [generic_q5/q5_first_stage_0.json](../../cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0.json) simulates a first-stage in TPCH Q5, which has the the most heaviest table scan. You can follow below steps to run this example.
+We also provide some example inputs in [cpp/velox/benchmarks/data](../../cpp/velox/benchmarks/data). E.g. [generic_q5/q5_first_stage_0.json](../../cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0.json) simulates a first-stage in TPCH Q5, which has the the most heaviest table scan. You can follow below steps to run this example.
 
 1. Open [generic_q5/q5_first_stage_0.json](../../cpp/velox/benchmarks/data/generic_q5/q5_first_stage_0.json) with file editor. Search for `"uriFile": "LINEITEM"` and replace `LINEITEM` with the URI to one partition file in lineitem. In the next line, replace the number in `"length": "..."` with the actual file length. Suppose you are using the provided small TPCH table in [cpp/velox/benchmarks/data/tpch_sf10m](../../cpp/velox/benchmarks/data/tpch_sf10m), the replaced JSON should be like:
 ```

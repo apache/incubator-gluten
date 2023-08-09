@@ -42,6 +42,7 @@ namespace {
 DEFINE_bool(skip_input, false, "Skip specifying input files.");
 DEFINE_bool(gen_orc_input, false, "Generate orc files from parquet as input files.");
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
+DEFINE_bool(zstd, false, "Use ZSTD as shuffle compression codec");
 DEFINE_bool(qat_gzip, false, "Use QAT GZIP as shuffle compression codec");
 DEFINE_bool(qat_zstd, false, "Use QAT ZSTD as shuffle compression codec");
 DEFINE_bool(iaa_gzip, false, "Use IAA GZIP as shuffle compression codec");
@@ -63,7 +64,10 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() {
 
   auto options = ShuffleWriterOptions::defaults();
   options.partitioning_name = "rr"; // Round-Robin partitioning
-  if (FLAGS_qat_gzip) {
+  if (FLAGS_zstd) {
+    options.codec_backend = CodecBackend::NONE;
+    options.compression_type = arrow::Compression::ZSTD;
+  } else if (FLAGS_qat_gzip) {
     options.codec_backend = CodecBackend::QAT;
     options.compression_type = arrow::Compression::GZIP;
   } else if (FLAGS_qat_zstd) {
