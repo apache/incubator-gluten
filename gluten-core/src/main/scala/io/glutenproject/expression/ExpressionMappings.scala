@@ -63,6 +63,7 @@ object ExpressionMappings {
     // SparkSQL String functions
     Sig[Ascii](ASCII),
     Sig[Chr](CHR),
+    Sig[Elt](ELT),
     Sig[Extract](EXTRACT),
     Sig[EndsWith](ENDS_WITH),
     Sig[StartsWith](STARTS_WITH),

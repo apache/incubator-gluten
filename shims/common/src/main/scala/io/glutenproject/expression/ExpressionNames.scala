@@ -74,6 +74,7 @@ object ExpressionNames {
   // SparkSQL String functions
   final val ASCII = "ascii"
   final val CHR = "chr"
+  final val ELT = "elt"
   final val EXTRACT = "extract"
   final val ENDS_WITH = "ends_with"
   final val STARTS_WITH = "starts_with"
