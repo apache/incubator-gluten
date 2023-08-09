@@ -56,7 +56,7 @@ DB::DataTypePtr SparkFunctionConv::getReturnTypeImpl(const DB::DataTypes & argum
 }
 
 /// Taken from mysql-server sql/item_strfunc.cc
-unsigned long long my_strntoull_8bit(const char *nptr,
+static unsigned long long my_strntoull_8bit(const char *nptr,
                                      size_t l, int base, const char **endptr,
                                      int *err)
 {
@@ -144,21 +144,21 @@ DB::ColumnPtr SparkFunctionConv::executeImpl(
     // Note that abs(INT_MIN) is undefined.
     if (from_base == INT_MIN || to_base == INT_MIN || abs(to_base) > 36 || abs(to_base) < 2 || abs(from_base) > 36 || abs(from_base) < 2)
     {
-        result->insertData(nullptr, input_rows_count);
+        for (size_t i = 0; i < input_rows_count; ++i)
+            result->insertData(nullptr, 1);
         return result;
     }
 
-    longlong dec;
-    const char * endptr;
-    int err;
+    longlong dec = 0;
+    const char * endptr = nullptr;
+    int err = 0;
     for (size_t i = 0; i < input_rows_count; ++i)
     {
-        auto res = arguments[0].column->getDataAt(i).toString();
-
+        auto value_str = arguments[0].column->getDataAt(i).toString();
         if (from_base < 0)
-            dec = my_strntoull_8bit(res.data(), res.length(), -from_base, &endptr, &err);
+            dec = my_strntoull_8bit(value_str.data(), value_str.length(), -from_base, &endptr, &err);
         else
-            dec = static_cast<longlong>(my_strntoull_8bit(res.data(), res.length(), from_base, &endptr, &err));
+            dec = static_cast<longlong>(my_strntoull_8bit(value_str.data(), value_str.length(), from_base, &endptr, &err));
         if (err)
         {
             result->insertData(nullptr, 1);

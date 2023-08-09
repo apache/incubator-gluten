@@ -1891,7 +1891,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       val sql =
         """
           | select conv(a, 16, 10) from(
-          |   select a from values(-10),(20') as data(a))
+          |   select a from values(10),(20) as data(a))
           |""".stripMargin
       compareResultsAgainstVanillaSpark(sql, true, { _ => })
     }
