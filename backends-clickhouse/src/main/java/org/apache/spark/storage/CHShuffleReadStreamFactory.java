@@ -16,6 +16,7 @@
  */
 package org.apache.spark.storage;
 
+import io.glutenproject.backendsapi.clickhouse.CHBackendSettings;
 import io.glutenproject.exception.GlutenException;
 import io.glutenproject.vectorized.LowCopyFileSegmentShuffleInputStream;
 import io.glutenproject.vectorized.LowCopyNettyShuffleInputStream;
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import org.xerial.snappy.SnappyInputStream;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.FilterInputStream;
 import java.io.InputStream;
@@ -81,6 +83,19 @@ public final class CHShuffleReadStreamFactory {
   }
 
   private CHShuffleReadStreamFactory() {}
+
+  public static ShuffleInputStream create(byte[] allBatches) {
+    return create(allBatches, false, CHBackendSettings.customizeBufferSize());
+  }
+
+  public static ShuffleInputStream create(byte[] allBatches, int bufferSize) {
+    return create(allBatches, false, bufferSize);
+  }
+
+  public static ShuffleInputStream create(byte[] allBatches, boolean compressed, int bufferSize) {
+    return new OnHeapCopyShuffleInputStream(
+        new ByteArrayInputStream(allBatches), bufferSize, compressed);
+  }
 
   public static ShuffleInputStream create(
       InputStream in, boolean forceCompress, boolean isCustomizedShuffleCodec, int bufferSize) {

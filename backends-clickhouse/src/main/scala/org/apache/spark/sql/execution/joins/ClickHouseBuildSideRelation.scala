@@ -27,8 +27,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import java.io.ByteArrayInputStream
+import org.apache.spark.storage.CHShuffleReadStreamFactory
 
 import scala.collection.JavaConverters._
 
@@ -55,10 +54,7 @@ case class ClickHouseBuildSideRelation(
           s"BHJ value size: " +
             s"${broadCastContext.buildHashTableId} = ${allBatches.length}")
         val storageJoinBuilder = new StorageJoinBuilder(
-          new OnHeapCopyShuffleInputStream(
-            new ByteArrayInputStream(allBatches),
-            CHBackendSettings.customizeBufferSize,
-            false),
+          CHShuffleReadStreamFactory.create(allBatches),
           broadCastContext,
           CHBackendSettings.customizeBufferSize,
           output.asJava,
@@ -85,8 +81,10 @@ case class ClickHouseBuildSideRelation(
   override def transform(key: Expression): Array[InternalRow] = {
     val allBatches = batches.flatten
     // native block reader
-    val input = new ByteArrayInputStream(allBatches)
-    val blockReader = new CHStreamReader(input, CHBackendSettings.customizeBufferSize)
+    val blockReader =
+      new CHStreamReader(
+        CHShuffleReadStreamFactory.create(allBatches),
+        CHBackendSettings.customizeBufferSize)
     val broadCastIter = new Iterator[ColumnarBatch] {
       private var current: CHNativeBlock = _
 
