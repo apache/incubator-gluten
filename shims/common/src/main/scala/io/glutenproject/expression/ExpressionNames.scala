@@ -103,6 +103,7 @@ object ExpressionNames {
   final val INITCAP = "initcap"
   final val OVERLAY = "overlay"
   final val CONV = "conv"
+  final val FIND_IN_SET = "find_in_set"
 
   // URL functions
   final val PARSE_URL = "parse_url"

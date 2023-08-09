@@ -92,6 +92,7 @@ object ExpressionMappings {
     Sig[InitCap](INITCAP),
     Sig[Overlay](OVERLAY),
     Sig[Conv](CONV),
+    Sig[FindInSet](FIND_IN_SET),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
