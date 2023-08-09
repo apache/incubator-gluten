@@ -678,6 +678,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("vectorized reader: required array with required elements")
     .exclude("vectorized reader: required array with optional elements")
     .exclude("vectorized reader: required array with legacy format")
+    .exclude("SPARK-36726: test incorrect Parquet row group file offset")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     // Timezone is not supported yet.
     .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
