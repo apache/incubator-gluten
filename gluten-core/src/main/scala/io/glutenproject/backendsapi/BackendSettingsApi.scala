@@ -90,4 +90,6 @@ trait BackendSettingsApi {
   def shuffleSupportedCodec(): Set[String]
 
   def needOutputSchemaForPlan(): Boolean = false
+
+  def supportBucketScan(): Boolean = false
 }

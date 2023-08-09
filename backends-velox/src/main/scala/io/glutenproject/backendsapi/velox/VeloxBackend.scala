@@ -289,4 +289,6 @@ object BackendSettings extends BackendSettingsApi {
   override def rescaleDecimalIntegralExpression(): Boolean = true
 
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
+
+  override def supportBucketScan(): Boolean = true
 }
