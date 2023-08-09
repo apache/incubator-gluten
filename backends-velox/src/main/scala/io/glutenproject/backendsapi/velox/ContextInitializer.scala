@@ -74,13 +74,7 @@ class ContextInitializer extends ContextApi {
     loader.loadLib(load)
   }
 
-  override def taskResourceFactories(): Seq[() => TaskResource] = {
-    Seq(() => new JniTaskContext())
-  }
-
-  override def initialize(conf: SparkConf): Unit = {
-    val workspace = JniWorkspace.getDefault
-    val loader = workspace.libLoader
+  private def loadLibWithLinux(conf: SparkConf, loader: JniLibLoader): Unit = {
     if (
       conf.getBoolean(
         GlutenConfig.GLUTEN_LOAD_LIB_FROM_JAR,
@@ -93,6 +87,31 @@ class ContextInitializer extends ContextApi {
       .loadAndCreateLink("libarrow.so.1200.0.0", "libarrow.so.1200", false)
       .loadAndCreateLink("libparquet.so.1200.0.0", "libparquet.so.1200", false)
       .commit()
+  }
+
+  private def loadLibWithMacOS(loader: JniLibLoader): Unit = {
+    loader
+      .newTransaction()
+      .loadAndCreateLink("libarrow.1200.0.0.dylib", "libarrow.1200.dylib", false)
+      .loadAndCreateLink("libparquet.1200.0.0.dylib", "libparquet.1200.dylib", false)
+      .commit()
+  }
+
+  override def taskResourceFactories(): Seq[() => TaskResource] = {
+    Seq(() => new JniTaskContext())
+  }
+
+  override def initialize(conf: SparkConf): Unit = {
+    val workspace = JniWorkspace.getDefault
+    val loader = workspace.libLoader
+
+    val osName = System.getProperty("os.name")
+    if (osName.startsWith("Mac OS X") || osName.startsWith("macOS")) {
+      loadLibWithMacOS(loader)
+    } else {
+      loadLibWithLinux(conf, loader)
+    }
+
     // Set the system properties.
     // Use appending policy for children with the same name in a arrow struct vector.
     System.setProperty("arrow.struct.conflict.policy", "CONFLICT_APPEND")

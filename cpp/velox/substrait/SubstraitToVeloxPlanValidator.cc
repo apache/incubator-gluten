@@ -96,7 +96,8 @@ bool SubstraitToVeloxPlanValidator::validateRound(
       return (arguments[1].value().literal().i64() >= 0);
     default:
       logValidateMsg(
-          "native validation failed due to: Round scale validation is not supported for type case '{}'" + typeCase);
+          "native validation failed due to: Round scale validation is not supported for type case " +
+          std::to_string(typeCase));
       return false;
   }
 }
@@ -439,7 +440,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
         default:
           logValidateMsg(
               "native validation failed due to: the window type only support ROWS and RANGE, and the input type is " +
-              windowFunction.window_type());
+              std::to_string(windowFunction.window_type()));
           return false;
       }
 
@@ -448,7 +449,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
       if (!boundTypeSupported) {
         logValidateMsg(
             "native validation failed due to: The Bound Type is not supported. " +
-            windowFunction.lower_bound().kind_case());
+            std::to_string(windowFunction.lower_bound().kind_case()));
         return false;
       }
     } catch (const VeloxException& err) {
@@ -501,7 +502,9 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
       case ::substrait::SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_LAST:
         break;
       default:
-        logValidateMsg("native validation failed due to: in windowRel, unsupported Sort direction " + sort.direction());
+        logValidateMsg(
+            "native validation failed due to: in windowRel, unsupported Sort direction " +
+            std::to_string(sort.direction()));
         return false;
     }
 
@@ -564,7 +567,9 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel
       case ::substrait::SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_LAST:
         break;
       default:
-        logValidateMsg("native validation failed due to: in sortRel, unsupported Sort direction " + sort.direction());
+        logValidateMsg(
+            "native validation failed due to: in sortRel, unsupported Sort direction " +
+            std::to_string(sort.direction()));
         return false;
     }
 
