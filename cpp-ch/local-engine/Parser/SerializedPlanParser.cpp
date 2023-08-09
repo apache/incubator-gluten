@@ -1186,9 +1186,10 @@ bool SerializedPlanParser::convertBinaryArithmeticFunDecimalArgs(
 
             UInt32 precision;
             UInt32 scale;
+
             if (func_name == "plus" || func_name == "minus")
             {
-                scale = std::max(s1, s2);
+                scale = s1;
                 precision = scale + std::max(p1 - s1, p2 - s2) + 1;
             }
             else if (func_name == "divide")
@@ -1201,6 +1202,10 @@ bool SerializedPlanParser::convertBinaryArithmeticFunDecimalArgs(
                 scale = s1;
                 precision = p1 + p2 + 1;
             }
+
+            UInt32 maxPrecision = DataTypeDecimal128::maxPrecision();
+            precision = std::min(precision, maxPrecision);
+            scale = std::min(scale, maxPrecision);
 
             ActionsDAG::NodeRawConstPtrs new_args;
             new_args.reserve(args.size());
