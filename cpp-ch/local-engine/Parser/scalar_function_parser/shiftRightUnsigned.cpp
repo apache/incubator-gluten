@@ -45,7 +45,7 @@ public:
         /// if (isInteger(a))
         ///   bitShiftRight(a::UInt32, b::UInt32)
         /// else if (isLong(a))
-        ///   bitShiftRight(a::UInt64, b::UInt32)
+        ///   bitShiftRight(a::UInt64, b::UInt64)
         /// else
         ///   throw Exception
 
