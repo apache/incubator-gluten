@@ -130,6 +130,7 @@ object ExpressionNames {
   final val BITWISE_COUNT = "bit_count"
   final val SHIFTLEFT = "shiftleft"
   final val SHIFTRIGHT = "shiftright"
+  final val SHIFTRIGHTUNSIGNED = "shiftrightunsigned"
   final val SQRT = "sqrt"
   final val CBRT = "cbrt"
   final val E = "e"

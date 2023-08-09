@@ -25,6 +25,7 @@ public:
     ParseURLParser(SerializedPlanParser * plan_parser) : FunctionParser(plan_parser) { }
     ~ParseURLParser() override = default;
     String getName() const override { return name; }
+
 protected:
     String getCHFunctionName(const substrait::Expression_ScalarFunction & substrait_func) const override;
 
