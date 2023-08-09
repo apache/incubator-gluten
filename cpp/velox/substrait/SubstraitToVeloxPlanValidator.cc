@@ -1035,6 +1035,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "sum",
       "sum_merge",
       "collect_set",
+      "collect_list",
       "count",
       "count_merge",
       "avg",
