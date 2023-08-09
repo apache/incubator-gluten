@@ -691,7 +691,7 @@ class GlutenClickHouseHiveTableSuite()
     }
   }
 
-  test("Gluten-2582: Fix carsh in array<struct>") {
+  test("Gluten-2582: Fix crash in array<struct>") {
     val create_table_sql =
       """
         | create table test_tbl_2582(
@@ -702,16 +702,22 @@ class GlutenClickHouseHiveTableSuite()
 
     val insert_data_sql =
       """
-        | insert into test_tbl_2582 values(1,
-        | array(named_struct('a', 1, 'b', 'b1'), named_struct('a', 2, 'b', 'c1')),
-        | map('a', named_struct('a', 1, 'b', 'b1'))
-        | )
+        | insert into test_tbl_2582 values
+        | (1, array(named_struct('a', 1, 'b', 'b1'), named_struct('a', 2, 'b', 'c1')),
+        | map('a', named_struct('a', 1, 'b', 'b1'))),
+        | (2, null, map('b', named_struct('a', 2, 'b','b2'))),
+        | (3, array(null, named_struct('a', 3, 'b', 'b3')), map('c', named_struct('a', 3, 'b', 'b3'))),
+        | (4, array(named_struct('a', 4, 'b', 'b4')), null),
+        | (5, array(named_struct('a', 5, 'b', 'b5')), map('c', null, 'd', named_struct('a', 5, 'b', 'b5')))
         |""".stripMargin
 
     val select_sql_1 = "select * from test_tbl_2582 where d1[0].a = 1"
     val select_sql_2 = "select element_at(d1, 1).a from test_tbl_2582 where id = 1"
     val select_sql_3 = "select d2['a'].a from test_tbl_2582 where id = 1"
     val select_sql_4 = "select count(1) from test_tbl_2582 where d1[0].a = 1"
+    val select_sql_5 = "select count(1) from test_tbl_2582 where (id = 2 or id = 3) and d1[0].a = 1"
+    val select_sql_6 =
+      "select count(1) from test_tbl_2582 where (id = 4 or id = 5) and d2['c'].a = 1"
 
     spark.sql(create_table_sql)
     spark.sql(insert_data_sql)
@@ -720,7 +726,7 @@ class GlutenClickHouseHiveTableSuite()
     compareResultsAgainstVanillaSpark(select_sql_2, true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_3, true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_4, true, _ => {})
-
+    compareResultsAgainstVanillaSpark(select_sql_5, true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_6, true, _ => {})
   }
-
 }
