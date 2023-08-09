@@ -19,7 +19,7 @@ package io.glutenproject.expression
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.TypeBuilder
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode, IntLiteralNode, StringLiteralNode}
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode, IntLiteralNode, LiteralNode, StringLiteralNode}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Expression, StringLocate, StringSplit, StringTranslate}
@@ -108,31 +108,40 @@ case class StringLocateTransformer(
   }
 }
 
-case class StringSplitTransformer(
+case class StringSplitTransformerBase(
     substraitExprName: String,
     srcExpr: ExpressionTransformer,
     regexExpr: ExpressionTransformer,
     limitExpr: ExpressionTransformer,
     original: StringSplit)
-  extends ExpressionTransformer
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    TernaryExpressionTransformer(substraitExprName, srcExpr, regexExpr, limitExpr, original)
+      .doTransform(args)
+  }
+}
+
+class StringSplitTransformer(
+    substraitExprName: String,
+    srcExpr: ExpressionTransformer,
+    regexExpr: ExpressionTransformer,
+    limitExpr: ExpressionTransformer,
+    original: StringSplit)
+  extends StringSplitTransformerBase(substraitExprName, srcExpr, regexExpr, limitExpr, original)
   with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // In velox, split function just support tow args, not support limit arg for now
-    if (!BackendsApiManager.isVeloxBackend) {
-      return TernaryExpressionTransformer(
-        substraitExprName,
-        srcExpr,
-        regexExpr,
-        limitExpr,
-        original).doTransform(args)
+    val limitNode = limitExpr.doTransform(args)
+    if (!limitNode.isInstanceOf[LiteralNode]) {
+      throw new UnsupportedOperationException(
+        s"limit args supported LiterNode, but given ${limitNode.getClass.toString}")
     }
 
-    val limit = limitExpr.doTransform(args).asInstanceOf[IntLiteralNode].getValue
-    val regStr = regexExpr.doTransform(args).asInstanceOf[StringLiteralNode].getValue
-    if (limit > 0 || regStr.length > 1) {
+    val limit = limitNode.asInstanceOf[IntLiteralNode].getValue
+    if (limit > 0) {
       throw new UnsupportedOperationException(
-        s"$original only support negative limit args and single-character pattern!")
+        s"$original limit args not supported yet, except negative.")
     }
 
     // TODO: split function support limit arg

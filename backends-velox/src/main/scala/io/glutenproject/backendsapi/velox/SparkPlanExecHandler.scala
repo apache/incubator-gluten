@@ -17,7 +17,7 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.SparkPlanExecApi
+import io.glutenproject.backendsapi.{BackendsApiManager, SparkPlanExecApi}
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression._
@@ -32,7 +32,7 @@ import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FunctionIdentifier}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, ExpressionInfo, GetStructField, Literal, NamedExpression, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, ExpressionInfo, GetStructField, Literal, NamedExpression, StringSplit, StringTrim}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -264,6 +264,20 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
   /**
    * * Expressions.
    */
+
+  /** Generate StringSplit transformer. */
+  override def genStringSplitTransformer(
+      substraitExprName: String,
+      srcExpr: ExpressionTransformer,
+      regexExpr: ExpressionTransformer,
+      limitExpr: ExpressionTransformer,
+      original: StringSplit): StringSplitTransformerBase = {
+    // In velox, split function just support tow args, not support limit arg for now
+    if (!BackendsApiManager.isVeloxBackend) {
+      return StringSplitTransformerBase(substraitExprName, srcExpr, regexExpr, limitExpr, original)
+    }
+    new StringSplitTransformer(substraitExprName, srcExpr, regexExpr, limitExpr, original)
+  }
 
   /**
    * Generate Alias transformer.

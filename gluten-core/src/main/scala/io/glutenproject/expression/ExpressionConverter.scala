@@ -583,7 +583,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           locate
         )
       case s: StringSplit =>
-        StringSplitTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genStringSplitTransformer(
           substraitExprName.get,
           replaceWithExpressionTransformer(s.str, attributeSeq),
           replaceWithExpressionTransformer(s.regex, attributeSeq),

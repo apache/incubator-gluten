@@ -126,6 +126,14 @@ trait SparkPlanExecApi {
       child: ExpressionTransformer,
       original: Expression): AliasTransformerBase
 
+  /** Generate ColumnarBatchSerializer for ColumnarShuffleExchangeExec. */
+  def genStringSplitTransformer(
+      substraitExprName: String,
+      srcExpr: ExpressionTransformer,
+      regexExpr: ExpressionTransformer,
+      limitExpr: ExpressionTransformer,
+      original: StringSplit): StringSplitTransformerBase
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
