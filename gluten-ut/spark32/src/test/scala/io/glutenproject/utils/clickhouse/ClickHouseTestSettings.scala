@@ -267,7 +267,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "translate",
       "INSTR",
       "LOCATE",
-      "LPAD/RPAD",
       "REPEAT",
       "length for string / binary",
       "SPARK-40213: ascii for Latin-1 Supplement characters",
@@ -483,4 +482,5 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .include("string split function with negative limit")
     .include("string split function with positive limit")
     .include("string substring_index function")
+    .include("string padding functions")
 }
