@@ -161,8 +161,8 @@ DB::ColumnPtr SparkFunctionConv::executeImpl(
             dec = static_cast<longlong>(my_strntoull_8bit(res.data(), res.length(), from_base, &endptr, &err));
         if (err)
         {
-            result->insertData(nullptr, input_rows_count);
-            return result;
+            result->insertData(nullptr, 1);
+            continue;
         }
         auto res_str= std::to_string(dec);
         result->insertData(res_str.data(), res_str.size());
