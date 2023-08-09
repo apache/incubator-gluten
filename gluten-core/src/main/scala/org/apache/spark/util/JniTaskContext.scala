@@ -23,16 +23,9 @@ class JniTaskContext extends TaskResource {
 
   private val handle: Long = InitializerJniWrapper.makeTaskContext()
 
-  private var close: Boolean = false
-
-  private val defaultPriority: Long = 10
-
   override def release(): Unit = {
-    if (!close) {
-      InitializerJniWrapper.closeTaskContext(handle)
-      close = true
-    }
+    InitializerJniWrapper.closeTaskContext(handle)
   }
 
-  override def priority(): Long = defaultPriority
+  override def priority(): Long = 10
 }

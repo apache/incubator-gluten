@@ -57,6 +57,12 @@ public final class NativeMemoryAllocators {
     return INSTANCES.computeIfAbsent(type, NativeMemoryAllocators::new);
   }
 
+  /** Should ONLY be used in Spark Driver scope. */
+  public NativeMemoryAllocator globalInstance() {
+    return global;
+  }
+
+  /** Should ONLY be used in Spark Task scope. */
   public NativeMemoryAllocator contextInstance() {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("Found computation not in a Spark Task!");

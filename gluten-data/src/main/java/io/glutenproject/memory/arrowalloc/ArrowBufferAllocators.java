@@ -34,6 +34,14 @@ public class ArrowBufferAllocators {
 
   private ArrowBufferAllocators() {}
 
+  private static final BufferAllocator GLOBAL = new RootAllocator();
+
+  /** Should ONLY be used in Spark Driver scope. */
+  public static BufferAllocator globalInstance() {
+    return GLOBAL;
+  }
+
+  /** Should ONLY be used in Spark Task scope. */
   public static BufferAllocator contextInstance() {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("Found computation not in a Spark Task!");
