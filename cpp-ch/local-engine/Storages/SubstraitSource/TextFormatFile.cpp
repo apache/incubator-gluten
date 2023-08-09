@@ -47,10 +47,12 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
         format_settings.hive_text.input_field_names.push_back(name);
 
     std::string text_field_delimiter = file_info.text().field_delimiter();
-    if (text_field_delimiter == "\t" || text_field_delimiter == " ")
-       format_settings.csv.allow_whitespace_or_tab_as_delimiter = true;
     format_settings.hive_text.fields_delimiter = file_info.text().field_delimiter()[0];
     format_settings.csv.empty_as_default = false;
+    format_settings.csv.allow_whitespace_or_tab_as_delimiter = true;
+    format_settings.csv.use_default_on_bad_values = true;
+    format_settings.csv.skip_trailing_empty_lines = true;
+    format_settings.csv.allow_variable_number_of_columns = true;
     char quote = *file_info.text().quote().data();
     if (quote == '\'')
     {

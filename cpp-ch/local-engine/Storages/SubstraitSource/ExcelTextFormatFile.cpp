@@ -349,7 +349,7 @@ void ExcelTextFormatReader::skipEndOfLine(DB::ReadBuffer & in)
         throw DB::Exception(DB::ErrorCodes::INCORRECT_DATA, "Expected end of line");
 }
 
-inline void ExcelTextFormatReader::skipWhitespacesAndTabs(ReadBuffer & in, const bool & allow_whitespace_or_tab_as_delimiter)
+inline void ExcelTextFormatReader::skipWhitespacesAndTabs(ReadBuffer & in, bool allow_whitespace_or_tab_as_delimiter)
 {
     if (allow_whitespace_or_tab_as_delimiter)
     {
