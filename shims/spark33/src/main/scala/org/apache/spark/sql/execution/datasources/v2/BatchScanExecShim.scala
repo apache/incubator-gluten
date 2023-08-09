@@ -113,10 +113,10 @@ class BatchScanExecShim(
     }
   }
 
-  def pushedAggregate(fileFormat: String): Option[Aggregation] = {
-    fileFormat match {
-      case "parquet" => scan.asInstanceOf[ParquetScan].pushedAggregate
-      case "orc" => scan.asInstanceOf[OrcScan].pushedAggregate
+  @transient lazy val pushedAggregate: Option[Aggregation] = {
+    scan match {
+      case s: ParquetScan => s.pushedAggregate
+      case o: OrcScan => o.pushedAggregate
       case _ => None
     }
   }

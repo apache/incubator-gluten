@@ -85,5 +85,5 @@ class BatchScanExecShim(
     }
   }
 
-  def pushedAggregate(fileFormat: String): Option[Aggregation] = None
+  @transient lazy val pushedAggregate: Option[Aggregation] = None
 }

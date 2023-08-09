@@ -80,15 +80,8 @@ class BatchScanExecTransformer(
   }
 
   override def doValidateInternal(): ValidationResult = {
-    val fileFormat = ConverterUtils.getFileFormat(this) match {
-      case ReadFileFormat.ParquetReadFormat => "parquet"
-      case ReadFileFormat.OrcReadFormat => "orc"
-      case _ => "other"
-    }
-    val aggregates = pushedAggregate(fileFormat)
-    if (aggregates.nonEmpty) {
-      return ValidationResult.notOk(
-        s"Unsupported aggregation push down for $fileFormat format in scan.")
+    if (pushedAggregate.nonEmpty) {
+      return ValidationResult.notOk(s"Unsupported aggregation push down for $scan.")
     }
     super.doValidateInternal()
   }
