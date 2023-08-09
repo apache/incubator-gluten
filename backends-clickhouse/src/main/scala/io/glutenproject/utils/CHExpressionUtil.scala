@@ -18,7 +18,7 @@ package io.glutenproject.utils
 
 import io.glutenproject.expression.ExpressionNames._
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, GetJsonObject, Literal}
+import org.apache.spark.sql.catalyst.expressions.{Expression, GetJsonObject, Literal, StringSplit}
 
 trait FunctionValidator {
   def doValidate(expr: Expression): Boolean
@@ -51,6 +51,23 @@ case class GetJsonObjectValidator() extends FunctionValidator {
   }
 }
 
+case class StringSplitValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val split = expr.asInstanceOf[StringSplit]
+    if (!split.regex.isInstanceOf[Literal] || !split.limit.isInstanceOf[Literal]) {
+      return false
+    }
+
+    // TODO(taiyang-li): When limit is positive, CH result is wrong
+    val limitLiteral = split.limit.asInstanceOf[Literal]
+    if (limitLiteral.value.asInstanceOf[Int] > 0) {
+      return false
+    }
+
+    true
+  }
+}
+
 object CHExpressionUtil {
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
@@ -63,6 +80,7 @@ object CHExpressionUtil {
     UNIX_TIMESTAMP -> UnixTimeStampValidator(),
     MIGHT_CONTAIN -> DefaultValidator(),
     GET_JSON_OBJECT -> GetJsonObjectValidator(),
-    ARRAYS_OVERLAP -> DefaultValidator()
+    ARRAYS_OVERLAP -> DefaultValidator(),
+    SPLIT -> StringSplitValidator()
   )
 }
