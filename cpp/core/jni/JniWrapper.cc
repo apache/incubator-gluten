@@ -873,8 +873,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     throw gluten::GlutenException(errorMessage);
   }
   int64_t* evictedSize = nullptr;
-  gluten::arrowAssertOkOrThrow(
-      shuffleWriter->evictFixedSize(size, evictedSize), "(shuffle) nativeEvict: evict failed");
+  gluten::arrowAssertOkOrThrow(shuffleWriter->evictFixedSize(size, evictedSize), "(shuffle) nativeEvict: evict failed");
   return reinterpret_cast<jlong>(evictedSize);
   JNI_METHOD_END(-1L)
 }
