@@ -311,8 +311,8 @@ class GlutenClickHouseFileFormatSuite
 
     val dataCorrect = new util.ArrayList[Row]()
     dataCorrect.add(Row(1, 2.toLong, 3.toShort))
-    dataCorrect.add(Row(1, 2.toLong, null))
-    dataCorrect.add(Row(1, null, 4.toShort))
+    dataCorrect.add(Row(1, 2.toLong, 3.toShort))
+    dataCorrect.add(Row(1, 2.toLong, 4.toShort))
 
     var expectedAnswer: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
@@ -332,6 +332,7 @@ class GlutenClickHouseFileFormatSuite
 
     val options = new util.HashMap[String, String]()
     options.put("delimiter", "|")
+    options.put("quote", "\'")
     options.put("header", "false")
 
     val df = spark.read
@@ -342,7 +343,40 @@ class GlutenClickHouseFileFormatSuite
 
     val dataCorrect = new util.ArrayList[Row]()
     dataCorrect.add(Row(1, 1.toLong, 10.toShort))
-    dataCorrect.add(Row(null, null, null))
+    dataCorrect.add(Row(1, null, 10.toShort))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("issue-2670 test for special char surrounding int data") {
+    val file_path = csvDataPath + "/special_char_surrounding_int_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("short_field", ShortType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("quote", "\"")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1, 2.toShort, 3.toLong))
+    dataCorrect.add(Row(1, 2.toShort, 3.toLong))
+    dataCorrect.add(Row(1, null, null))
+    dataCorrect.add(Row(1, null, -100000.toLong))
 
     var expectedAnswer: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {

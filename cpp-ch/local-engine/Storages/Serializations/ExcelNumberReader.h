@@ -300,6 +300,11 @@ inline bool readExcelFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quot
 template <typename T>
 bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
+    const UInt8 MAX_HEAD_SKIP = 2;
+    const UInt8 MAX_TAIL_SKIP = 2;
+    UInt8 head_skip=0;
+    UInt8 tail_skip=0;
+    
     using UnsignedT = make_unsigned_t<T>;
 
     bool negative = false;
@@ -409,6 +414,35 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
         else if (!has_number && !has_sign && checkMoneySymbol(buf))
         {
             continue;
+        }
+        else if (has_number && !(*buf.position() >= '0' && *buf.position() <= '9')) // process suffix
+        {
+            while (!buf.eof())
+            {
+                if(*buf.position() == settings.csv.delimiter ||*buf.position() == '\'' ||*buf.position() == '\"'
+                    || *buf.position() == '\n' || *buf.position() == '\r')
+                {
+                    break;
+                }
+                if (!((static_cast<UInt8>(*buf.position()) & 0b11000000u) == 0b10000000u)) // learn from UTF8Helpers.h
+                {
+                    tail_skip++;
+                    if (tail_skip>MAX_TAIL_SKIP)
+                        return false;
+                }
+                ++buf.position();
+            }
+            break;
+        }
+        else if (!has_number && !(*buf.position() >= '0' && *buf.position() <= '9')) // process prefix
+        {
+            if (!((static_cast<UInt8>(*buf.position()) & 0b11000000u) == 0b10000000u)) // learn from UTF8Helpers.h
+            {
+                head_skip++;
+                if (head_skip>MAX_HEAD_SKIP)
+                    return false;
+            }
+            ++buf.position();
         }
         else
             break;
