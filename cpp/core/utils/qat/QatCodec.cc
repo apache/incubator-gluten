@@ -21,6 +21,8 @@
 #include <qatseqprod.h>
 #include <qatzip.h>
 #include <zstd.h>
+#include <algorithm>
+#include <mutex>
 
 #include "QatCodec.h"
 
