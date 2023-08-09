@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "ParseURLParser.h"
+#include "parseUrl.h"
 #include <iterator>
 #include <Common/Exception.h>
 #include <DataTypes/IDataType.h>
