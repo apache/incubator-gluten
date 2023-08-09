@@ -419,7 +419,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
       runQueryAndCompare(
         "select a from (select array_intersect(split(n_comment, ' '), split(n_comment, ' ')) as arr " +
-          "from nation) lateral view explode(arr) as a order by a",
+          "from nation) lateral view explode(arr) as a order by a"
       )(checkOperatorMatch[ProjectExecTransformer])
 
       runQueryAndCompare(
