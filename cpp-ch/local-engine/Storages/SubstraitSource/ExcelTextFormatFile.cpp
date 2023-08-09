@@ -21,6 +21,7 @@
 #include <string>
 #include <utility>
 
+#include <Columns/ColumnNullable.h>
 #include <DataTypes/DataTypeDecimalBase.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/Serializations/SerializationNullable.h>
@@ -245,7 +246,6 @@ bool ExcelTextFormatReader::readField(
     {
         /// Read the column normally.
         serialization->deserializeTextCSV(column, *buf, format_settings);
-        return true;
     }
     catch (Exception & e)
     {
@@ -255,10 +255,28 @@ bool ExcelTextFormatReader::readField(
 
         skipErrorChars(*buf, has_quote, maybe_quote, format_settings);
 
-        if (column_size == column.size())
-            column.insertDefault();
+        if (column.size() == column_size + 1)
+            column.popBack(1);
+        column.insertDefault();
+
         return false;
     }
+
+    if (column_size == column.size())
+    {
+        skipErrorChars(*buf, has_quote, maybe_quote, format_settings);
+        if (column.isNullable())
+        {
+            ColumnNullable & col = assert_cast<ColumnNullable &>(column);
+            if (col.getNullMapData().size() == column_size + 1)
+                col.getNullMapData().pop_back();
+        }
+
+        column.insertDefault();
+        return false;
+    }
+
+    return true;
 }
 
 void ExcelTextFormatReader::preSkipNullValue()
