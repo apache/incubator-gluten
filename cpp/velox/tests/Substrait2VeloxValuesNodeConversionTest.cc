@@ -41,8 +41,8 @@ TEST_F(Substrait2VeloxValuesNodeConversionTest, valuesNode) {
   ::substrait::Plan substraitPlan;
   JsonToProtoConverter::readFromFile(planPath, substraitPlan);
   std::unordered_map<std::string, std::string> sessionConf = {};
-  std::shared_ptr<SubstraitVeloxPlanConverter> planConverter_ =
-      std::make_shared<SubstraitVeloxPlanConverter>(pool_.get(), sessionConf, true);
+  std::shared_ptr<SubstraitToVeloxPlanConverter> planConverter_ =
+      std::make_shared<SubstraitToVeloxPlanConverter>(pool_.get(), sessionConf, true);
   auto veloxPlan = planConverter_->toVeloxPlan(substraitPlan);
 
   RowVectorPtr expectedData = makeRowVector(

@@ -23,7 +23,9 @@
 #include "velox/type/Timestamp.h"
 
 using namespace facebook::velox;
+
 namespace {
+
 // Get values for the different supported types.
 template <typename T>
 T getLiteralValue(const ::substrait::Expression::Literal& /* literal */) {
@@ -181,9 +183,11 @@ makeFieldAccessExpr(const std::string& name, const TypePtr& type, core::FieldAcc
 
   return std::make_shared<core::FieldAccessTypedExpr>(type, name);
 }
+
 } // namespace
 
 using facebook::velox::core::variantArrayToVector;
+
 namespace gluten {
 
 std::shared_ptr<const core::FieldAccessTypedExpr> SubstraitVeloxExprConverter::toVeloxExpr(
@@ -255,10 +259,11 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toLambdaExpr(
   for (int i = 1; i < substraitFunc.arguments().size(); i++) {
     auto arg = substraitFunc.arguments(i).value();
     CHECK(arg.has_scalar_function());
-    const auto& veloxFunction = subParser_->findVeloxFunction(functionMap_, arg.scalar_function().function_reference());
+    const auto& veloxFunction =
+        substraitParser_.findVeloxFunction(functionMap_, arg.scalar_function().function_reference());
     CHECK_EQ(veloxFunction, "namedlambdavariable");
     argumentNames.emplace_back(arg.scalar_function().arguments(0).value().literal().string());
-    argumentTypes.emplace_back(toVeloxType(subParser_->parseType(substraitFunc.output_type())->type));
+    argumentTypes.emplace_back(toVeloxType(substraitParser_.parseType(substraitFunc.output_type())->type));
   }
   auto rowType = ROW(std::move(argumentNames), std::move(argumentTypes));
   // Arg[0] -> function.
@@ -275,8 +280,8 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
   for (const auto& sArg : substraitFunc.arguments()) {
     params.emplace_back(toVeloxExpr(sArg.value(), inputType));
   }
-  const auto& veloxFunction = subParser_->findVeloxFunction(functionMap_, substraitFunc.function_reference());
-  std::string typeName = subParser_->parseType(substraitFunc.output_type())->type;
+  const auto& veloxFunction = substraitParser_.findVeloxFunction(functionMap_, substraitFunc.function_reference());
+  std::string typeName = substraitParser_.parseType(substraitFunc.output_type())->type;
 
   if (veloxFunction == "lambdafunction") {
     return toLambdaExpr(substraitFunc, inputType);
@@ -388,7 +393,7 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
       }
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
-      auto veloxType = toVeloxType(subParser_->parseType(substraitLit.null())->type);
+      auto veloxType = toVeloxType(substraitParser_.parseType(substraitLit.null())->type);
       if (veloxType->isShortDecimal()) {
         return std::make_shared<core::ConstantTypedExpr>(veloxType, variant::null(TypeKind::BIGINT));
       } else if (veloxType->isLongDecimal()) {
@@ -427,7 +432,7 @@ ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substr
     case ::substrait::Expression_Literal::LiteralTypeCase::kVarChar:
       return makeArrayVector(constructFlatVector<TypeKind::VARCHAR>(listLiteral, childSize, VARCHAR(), pool_));
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
-      auto veloxType = toVeloxType(subParser_->parseType(listLiteral.null())->type);
+      auto veloxType = toVeloxType(substraitParser_.parseType(listLiteral.null())->type);
       auto kind = veloxType->kind();
       return makeArrayVector(
           VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVector, kind, listLiteral, childSize, veloxType, pool_));
@@ -478,7 +483,7 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
 core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
     const ::substrait::Expression::Cast& castExpr,
     const RowTypePtr& inputType) {
-  auto substraitType = subParser_->parseType(castExpr.type());
+  auto substraitType = substraitParser_.parseType(castExpr.type());
   auto type = toVeloxType(substraitType->type);
   bool nullOnFailure = isNullOnFailure(castExpr.failure_behavior());
 
