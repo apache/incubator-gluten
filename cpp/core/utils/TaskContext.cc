@@ -20,7 +20,6 @@
 #include "utils/exception.h"
 
 #include <iostream>
-#include <mutex>
 
 namespace {
 class TaskContextStorage {
@@ -40,10 +39,6 @@ class TaskContextStorage {
 };
 
 thread_local std::unique_ptr<TaskContextStorage> taskContextStorage = nullptr;
-
-// TODO: Remove this and let related unmanaged resources be managed.
-std::unique_ptr<TaskContextStorage> fallbackStorage = std::make_unique<TaskContextStorage>();
-std::mutex fallbackStorageMutex;
 } // namespace
 
 namespace gluten {
@@ -57,13 +52,7 @@ void bindToTask(std::shared_ptr<void> object) {
     taskContextStorage->bind(object);
     return;
   }
-  GLUTEN_CHECK(false, "Force throw");
-  // The fallback storage is used. Spark sometimes creates sub-threads from a task thread. For example,
-  //   PythonRunner.scala:183 @ Spark3.2.2
-  std::lock_guard<std::mutex> guard(fallbackStorageMutex);
-  std::cout << "Binding a shared object to fallback storage. This should only happen on sub-thread of a Spark task. "
-            << std::endl;
-  fallbackStorage->bind(object);
+  GLUTEN_CHECK(false, "[BUG] Found untracked computation, please submit issue with query plan.");
 }
 
 void createTaskContextStorage() {

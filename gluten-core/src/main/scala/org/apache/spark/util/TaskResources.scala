@@ -49,7 +49,7 @@ object TaskResources extends TaskListener with Logging {
     TaskContext.get() != null
   }
 
-  def getTaskResourceRegistry(): TaskResourceRegistry = {
+  private def getTaskResourceRegistry(): TaskResourceRegistry = {
     if (!inSparkTask()) {
       logWarning("[BUG] Current computation not in Spark task scope.")
       throw new IllegalStateException(
@@ -80,11 +80,12 @@ object TaskResources extends TaskListener with Logging {
                 if (!RESOURCE_REGISTRIES.containsKey(tc)) {
                   return
                 }
+                val tid = Thread.currentThread().getId
                 val registry = RESOURCE_REGISTRIES.remove(context)
-                assert(
-                  registry.size() == 1,
-                  "Current Spark TaskContext contains extra registry at task completion!")
-                registry.get(Thread.currentThread().getId).releaseAll()
+                // When task failed and contains sub-thread computation,
+                // we should release sub-thread's resources first.
+                registry.asScala.filter(_._1 != tid).foreach(_._2.releaseAll())
+                registry.asScala.filter(_._1 == tid).foreach(_._2.releaseAll())
               }
               // TODO:
               // The general duty of printing error message should not reside in memory module
@@ -97,6 +98,7 @@ object TaskResources extends TaskListener with Logging {
         tc.addTaskCompletionListener(new TaskCompletionListener {
           override def onTaskCompletion(context: TaskContext): Unit = {
             RESOURCE_REGISTRIES.synchronized {
+              // All queries were fallback
               if (!RESOURCE_REGISTRIES.containsKey(tc)) {
                 return
               }
@@ -114,7 +116,7 @@ object TaskResources extends TaskListener with Logging {
         })
         return RESOURCE_REGISTRIES.get(tc).get(currentTId)
       } else {
-        // Check thread name
+        // Found a sub-thread computation under same Spark task's scope, e.g. PythonRunner.
         val registryMap = RESOURCE_REGISTRIES.get(tc)
         if (!registryMap.containsKey(currentTId)) {
           logInfo(
@@ -137,7 +139,7 @@ object TaskResources extends TaskListener with Logging {
       val registryMap = RESOURCE_REGISTRIES.get(getLocalTaskContext())
       if (registryMap.containsKey(currentTId) && registryMap.get(currentTId).needExplicitRelease) {
         val registry = registryMap.remove(currentTId)
-        logInfo(s"Release all resources in ${registry.name}")
+        logDebug(s"Release all resources in ${registry.name}")
         registry.releaseAll()
       }
     }

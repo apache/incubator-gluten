@@ -90,16 +90,12 @@ case class ColumnarBuildSideRelation(
   override def asReadOnlyCopy(
       broadCastContext: BroadCastHashJoinContext): ColumnarBuildSideRelation = this
 
-  /**
-   * Transform columnar broadcast value to Array[InternalRow] by key and distinct.
-   * @return
-   */
+  /** Transform columnar broadcast value to Array[InternalRow] by key and distinct. */
   override def transform(key: Expression): Array[InternalRow] = {
     // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
 
     // These conversion happens in Driver, we need release all resources explicitly.
-    // TODO: Manage these resources more gracefully,
-    // or let this conversion happens in native whole stage.
+    // TODO: Manage these resources more gracefully.
     val glutenTaskContext = new JniTaskContext
     val serializeHandle = {
       val allocator = ArrowBufferAllocators.globalInstance()
