@@ -326,5 +326,21 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
           checkOperatorMatch[ProjectExecTransformer]
         }
     }
+    withTempPath {
+      path =>
+        Seq(
+          (1, Array[Int](1, 2, 3)),
+          (5, Array[Int](4, 5, 6))
+        )
+          .toDF("x", "ys")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("array_tbl")
+
+        runQueryAndCompare("select aggregate(ys, 0, (y, a) -> y + a + x) as v from array_tbl;") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
   }
 }
