@@ -40,7 +40,7 @@ namespace gluten {
 class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBase {
  protected:
   std::vector<std::shared_ptr<facebook::velox::connector::ConnectorSplit>> makeSplits(
-      const SubstraitVeloxPlanConverter& converter,
+      const SubstraitToVeloxPlanConverter& converter,
       std::shared_ptr<const core::PlanNode> planNode) {
     const auto& splitInfos = converter.splitInfos();
     auto leafPlanNodeIds = planNode->leafPlanNodeIds();
@@ -71,8 +71,8 @@ class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBa
   }
 
   std::shared_ptr<exec::test::TempDirectoryPath> tmpDir_{exec::test::TempDirectoryPath::create()};
-  std::shared_ptr<SubstraitVeloxPlanConverter> planConverter_ =
-      std::make_shared<SubstraitVeloxPlanConverter>(memoryPool_.get());
+  std::shared_ptr<SubstraitToVeloxPlanConverter> planConverter_ =
+      std::make_shared<SubstraitToVeloxPlanConverter>(memoryPool_.get());
 
  private:
   std::shared_ptr<memory::MemoryPool> memoryPool_{memory::addDefaultLeafMemoryPool()};

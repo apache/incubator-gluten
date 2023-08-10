@@ -23,6 +23,7 @@
 #include "velox/core/PlanNode.h"
 
 namespace gluten {
+
 struct SplitInfo {
   /// Whether the split comes from arrow array stream node.
   bool isStream = false;
@@ -47,13 +48,14 @@ struct SplitInfo {
 };
 
 /// This class is used to convert the Substrait plan into Velox plan.
-class SubstraitVeloxPlanConverter {
+class SubstraitToVeloxPlanConverter {
  public:
-  SubstraitVeloxPlanConverter(
+  SubstraitToVeloxPlanConverter(
       memory::MemoryPool* pool,
       const std::unordered_map<std::string, std::string>& confMap = {},
       bool validationMode = false)
       : pool_(pool), confMap_(confMap), validationMode_(validationMode) {}
+
   /// Used to convert Substrait ExpandRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::ExpandRel& expandRel);
 
@@ -497,11 +499,11 @@ class SubstraitVeloxPlanConverter {
 
   /// The Substrait parser used to convert Substrait representations into
   /// recognizable representations.
-  std::shared_ptr<SubstraitParser> subParser_{std::make_shared<SubstraitParser>()};
+  SubstraitParser substraitParser_;
 
   /// The Expression converter used to convert Substrait representations into
   /// Velox expressions.
-  std::shared_ptr<SubstraitVeloxExprConverter> exprConverter_;
+  std::unique_ptr<SubstraitVeloxExprConverter> exprConverter_;
 
   /// Memory pool.
   memory::MemoryPool* pool_;

@@ -34,6 +34,7 @@
 #include "shuffle/reader.h"
 
 namespace gluten {
+
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxBackend final : public Backend {
  public:
