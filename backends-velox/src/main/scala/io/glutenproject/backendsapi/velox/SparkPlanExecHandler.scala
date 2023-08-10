@@ -273,9 +273,6 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
       limitExpr: ExpressionTransformer,
       original: StringSplit): StringSplitTransformerBase = {
     // In velox, split function just support tow args, not support limit arg for now
-    if (!BackendsApiManager.isVeloxBackend) {
-      return StringSplitTransformerBase(substraitExprName, srcExpr, regexExpr, limitExpr, original)
-    }
     new StringSplitTransformer(substraitExprName, srcExpr, regexExpr, limitExpr, original)
   }
 

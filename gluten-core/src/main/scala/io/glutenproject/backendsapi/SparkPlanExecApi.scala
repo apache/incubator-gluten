@@ -132,7 +132,9 @@ trait SparkPlanExecApi {
       srcExpr: ExpressionTransformer,
       regexExpr: ExpressionTransformer,
       limitExpr: ExpressionTransformer,
-      original: StringSplit): StringSplitTransformerBase
+      original: StringSplit): StringSplitTransformerBase = {
+    StringSplitTransformerBase(substraitExprName, srcExpr, regexExpr, limitExpr, original)
+  }
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
