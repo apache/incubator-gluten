@@ -258,7 +258,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenStringExpressionsSuite]
     .exclude(
       "concat",
-      "concat_ws",
       "SPARK-22549: ConcatWs should not generate codes beyond 64KB",
       "StringComparison",
       "Substring",
@@ -482,6 +481,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenStringFunctionsSuite]
     .include("initcap function")
     .include("string concat_ws")
+    .include("string elt")
     .include("string split function with no limit")
     .include("string split function with limit explicitly set to 0")
     .include("string split function with negative limit")
