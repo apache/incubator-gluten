@@ -17,7 +17,7 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.{BackendsApiManager, SparkPlanExecApi}
+import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression._
