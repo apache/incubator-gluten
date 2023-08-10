@@ -14,27 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.vectorized;
+package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.SparkRowIterator;
-import io.glutenproject.row.SparkRowInfo;
+import io.glutenproject.execution.ColumnarToRowExecBase
 
-public class CHBlockConverterJniWrapper {
+import org.apache.spark.sql.catalyst.rules.Rule
 
-  private CHBlockConverterJniWrapper() {
-    // utility class
+object RemoveTopColumnarToRow extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = plan match {
+    case plan: ColumnarToRowExecBase => plan.child
+    case _ => plan
   }
-
-  // for ch columnar -> spark row
-  public static native SparkRowInfo convertColumnarToRow(long blockAddress, int[] masks);
-
-  // for ch columnar -> spark row
-  public static native void freeMemory(long address, long size);
-
-  // for spark row -> ch columnar
-  public static native long convertSparkRowsToCHColumn(
-      SparkRowIterator iter, String[] names, byte[][] types);
-
-  // for spark row -> ch columnar
-  public static native void freeBlock(long blockAddress);
 }

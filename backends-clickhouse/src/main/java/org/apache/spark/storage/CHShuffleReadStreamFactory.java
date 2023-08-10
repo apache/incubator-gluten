@@ -88,6 +88,10 @@ public final class CHShuffleReadStreamFactory {
     return create(allBatches, false, CHBackendSettings.customizeBufferSize());
   }
 
+  public static ShuffleInputStream create(byte[] allBatches, boolean compressed) {
+    return create(allBatches, compressed, CHBackendSettings.customizeBufferSize());
+  }
+
   public static ShuffleInputStream create(byte[] allBatches, int bufferSize) {
     return create(allBatches, false, bufferSize);
   }

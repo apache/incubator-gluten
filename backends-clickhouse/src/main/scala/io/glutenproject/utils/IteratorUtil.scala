@@ -14,27 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.vectorized;
+package io.glutenproject.utils
 
-import io.glutenproject.execution.SparkRowIterator;
-import io.glutenproject.row.SparkRowInfo;
+import io.glutenproject.vectorized.{CHNativeBlock, CHStreamReader}
 
-public class CHBlockConverterJniWrapper {
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
-  private CHBlockConverterJniWrapper() {
-    // utility class
+object IteratorUtil {
+  def createBatchIterator(blockReader: CHStreamReader): Iterator[ColumnarBatch] = {
+    new Iterator[ColumnarBatch] {
+      private var current: CHNativeBlock = _
+
+      override def hasNext: Boolean = {
+        current = blockReader.next()
+        current != null && current.numRows() > 0
+      }
+
+      override def next(): ColumnarBatch = {
+        current.toColumnarBatch
+      }
+    }
   }
 
-  // for ch columnar -> spark row
-  public static native SparkRowInfo convertColumnarToRow(long blockAddress, int[] masks);
-
-  // for ch columnar -> spark row
-  public static native void freeMemory(long address, long size);
-
-  // for spark row -> ch columnar
-  public static native long convertSparkRowsToCHColumn(
-      SparkRowIterator iter, String[] names, byte[][] types);
-
-  // for spark row -> ch columnar
-  public static native void freeBlock(long blockAddress);
 }

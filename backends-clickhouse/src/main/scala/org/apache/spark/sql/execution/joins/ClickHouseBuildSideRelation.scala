@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.joins
 
 import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.execution.{BroadCastHashJoinContext, ColumnarNativeIterator}
-import io.glutenproject.utils.PlanNodesUtil
+import io.glutenproject.utils.{IteratorUtil, PlanNodesUtil}
 import io.glutenproject.vectorized._
 
 import org.apache.spark.internal.Logging
@@ -85,18 +85,7 @@ case class ClickHouseBuildSideRelation(
       new CHStreamReader(
         CHShuffleReadStreamFactory.create(allBatches),
         CHBackendSettings.customizeBufferSize)
-    val broadCastIter = new Iterator[ColumnarBatch] {
-      private var current: CHNativeBlock = _
-
-      override def hasNext: Boolean = {
-        current = blockReader.next()
-        current != null && current.numRows() > 0
-      }
-
-      override def next(): ColumnarBatch = {
-        current.toColumnarBatch
-      }
-    }
+    val broadCastIter: Iterator[ColumnarBatch] = IteratorUtil.createBatchIterator(blockReader)
     // Expression compute, return block iterator
     val expressionEval = new SimpleExpressionEval(
       new ColumnarNativeIterator(broadCastIter.asJava),
