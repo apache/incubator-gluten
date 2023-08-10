@@ -116,6 +116,7 @@ object ExpressionMappings {
     Sig[BitwiseCount](BITWISE_COUNT),
     Sig[ShiftLeft](SHIFTLEFT),
     Sig[ShiftRight](SHIFTRIGHT),
+    Sig[ShiftRightUnsigned](SHIFTRIGHTUNSIGNED),
     Sig[Sqrt](SQRT),
     Sig[Cbrt](CBRT),
     Sig[EulerNumber](E),
