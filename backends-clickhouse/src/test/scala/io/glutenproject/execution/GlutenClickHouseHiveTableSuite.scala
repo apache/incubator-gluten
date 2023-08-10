@@ -205,15 +205,17 @@ class GlutenClickHouseHiveTableSuite()
   protected def initializeTable(
       table_name: String,
       table_create_sql: String,
-      partition: String): Unit = {
+      partitions: Seq[String]): Unit = {
     spark.createDataFrame(genTestData()).createOrReplaceTempView("tmp_t")
     val truncate_sql = "truncate table %s".format(table_name)
     val drop_sql = "drop table if exists %s".format(table_name)
     spark.sql(drop_sql)
     spark.sql(table_create_sql)
     spark.sql(truncate_sql)
-    if (partition != null) {
-      spark.sql("insert into %s select *, %s from tmp_t".format(table_name, partition))
+    if (partitions != null) {
+      for (partition <- partitions) {
+        spark.sql("insert into %s select *, %s from tmp_t".format(table_name, partition))
+      }
     } else {
       spark.sql("insert into %s select * from tmp_t".format(table_name))
     }
@@ -232,7 +234,10 @@ class GlutenClickHouseHiveTableSuite()
     super.beforeAll()
     initializeTable(txt_table_name, txt_table_create_sql, null)
     initializeTable(txt_user_define_input, txt_table_user_define_create_sql, null)
-    initializeTable(json_table_name, json_table_create_sql, "2023-06-05")
+    initializeTable(
+      json_table_name,
+      json_table_create_sql,
+      Seq("2023-06-05", "2023-06-06", "2023-06-07"))
   }
 
   override protected def afterAll(): Unit = {
@@ -410,6 +415,7 @@ class GlutenClickHouseHiveTableSuite()
          |        sum(short_field),
          |        sum(decimal_field)
          | from $json_table_name
+         | where day = '2023-06-06'
          | group by string_field
          | order by string_field
          |""".stripMargin
