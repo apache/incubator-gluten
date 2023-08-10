@@ -16,7 +16,7 @@
  */
 #include <Parser/FunctionParser.h>
 #include <Common/CHUtil.h>
-#include "DataTypes/DataTypesNumber.h"
+#include <DataTypes/DataTypesNumber.h>
 #include <Core/Field.h>
 #include <DataTypes/IDataType.h>
 
