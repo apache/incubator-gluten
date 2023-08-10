@@ -759,14 +759,9 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileMetadataStructSuite]
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
-    // FIXME: yan
-    .exclude("aggregate push down - different data types")
   enableSuite[GlutenParquetV2AggregatePushDownSuite]
-    .exclude("aggregate push down - different data types")
   enableSuite[GlutenOrcV1AggregatePushDownSuite]
-    .exclude("aggregate push down - different data types")
   enableSuite[GlutenOrcV2AggregatePushDownSuite]
-    .exclude("aggregate push down - different data types")
   enableSuite[GlutenParquetCodecSuite]
     // Unsupported compression codec.
     .exclude("write and read - file source parquet - codec: lz4")
