@@ -17,6 +17,7 @@
 
 #include "SubstraitToVeloxPlanValidator.h"
 #include <google/protobuf/wrappers.pb.h>
+#include <re2/re2.h>
 #include <string>
 #include "TypeUtils.h"
 #include "velox/exec/Aggregate.h"
@@ -150,9 +151,18 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   if (name == "extract") {
     return validateExtractExpr(params);
   }
-  if (name == "regexp_extract_all" && !scalarFunction.arguments()[1].value().has_literal()) {
-    logValidateMsg("native validation failed due to: pattern is not literal for regex_extract_all.");
-    return false;
+  if (name == "regexp_extract_all" || name == "regexp_extract" || name == "regexp_replace" || name == "rlike") {
+    auto patternArg = scalarFunction.arguments()[1].value();
+    if (!patternArg.has_literal()) {
+      logValidateMsg("native validation failed due to: pattern is not literal for regex_extract_all.");
+      return false;
+    }
+    auto pattern = patternArg.literal().string();
+    auto re2 = RE2(pattern, RE2::Quiet);
+    if (!re2.ok()) {
+      logValidateMsg("native validation failed due to: pattern " + pattern + " compilation failed in RE2.");
+      return false;
+    }
   }
   if (name == "char_length") {
     VELOX_CHECK(types.size() == 1);
