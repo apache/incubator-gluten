@@ -32,6 +32,7 @@
 #include "compute/VeloxPlanConverter.h"
 #include "config/GlutenConfig.h"
 #include "utils/ArrowTypeUtils.h"
+#include "utils/TaskContext.h"
 #include "utils/exception.h"
 
 #include <thread>
@@ -216,6 +217,7 @@ int main(int argc, char** argv) {
 
   conf.insert({gluten::kSparkBatchSize, FLAGS_batch_size});
   initVeloxBackend(conf);
+  gluten::createTaskContextStorage();
 
   try {
     if (argc < 2) {
@@ -282,6 +284,7 @@ int main(int argc, char** argv) {
 
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
+  gluten::deleteTaskContextStorage();
 
   return 0;
 }
