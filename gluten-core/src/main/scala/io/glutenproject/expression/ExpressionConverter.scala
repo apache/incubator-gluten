@@ -31,7 +31,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.hive.HiveSimpleUDFTransformer
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 trait Transformable extends Expression {
@@ -694,9 +693,6 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           isDecimalArithmetic(b.asInstanceOf[BinaryArithmetic])
         val (newLeft1, newRight1) = if (idDecimalArithmetic) {
           val rescaleBinary = b match {
-            case _: BinaryArithmetic if !conf.decimalOperationsAllowPrecisionLoss =>
-              throw new UnsupportedOperationException(
-                s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} false mode")
             case arith: BinaryArithmetic
                 if BackendsApiManager.getSettings.rescaleDecimalLiteral() =>
               rescaleLiteral(arith)
