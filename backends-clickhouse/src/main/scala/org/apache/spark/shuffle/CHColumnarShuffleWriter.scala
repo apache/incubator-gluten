@@ -77,7 +77,7 @@ class CHColumnarShuffleWriter[K, V](
     internalCHWrite(records)
   }
 
-  def internalCHWrite(records: Iterator[Product2[K, V]]): Unit = {
+  private def internalCHWrite(records: Iterator[Product2[K, V]]): Unit = {
     val splitterJniWrapper: CHShuffleSplitterJniWrapper = jniWrapper
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
@@ -187,7 +187,9 @@ class CHColumnarShuffleWriter[K, V](
     }
   }
 
-  private def closeCHSplitter(): Unit = jniWrapper.close(nativeSplitter)
+  private def closeCHSplitter(): Unit = {
+    jniWrapper.close(nativeSplitter)
+  }
 
   // VisibleForTesting
   def getPartitionLengths: Array[Long] = partitionLengths

@@ -22,6 +22,7 @@ import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{JsonReadFormat, MergeTreeReadFormat, OrcReadFormat, ParquetReadFormat, TextReadFormat}
 
+import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Alias, DenseRank, Lag, Lead, NamedExpression, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
@@ -46,25 +47,33 @@ class CHBackend extends Backend {
 
 object CHBackendSettings extends BackendSettingsApi with Logging {
 
-  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
-  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
+  private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
+  private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
 
   // experimental: when the files count per partition exceeds this threshold,
   // it will put the files into one partition.
-  val GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD =
+  val GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
       ".files.per.partition.threshold"
   val GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD_DEFAULT = "-1"
 
-  val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE =
+  private val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
       ".customized.shuffle.codec.enable"
-  val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT = "false"
+  private val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT = false
+  lazy val useCustomizedShuffleCodec: Boolean = SparkEnv.get.conf.getBoolean(
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE,
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT
+  )
 
-  val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE =
+  private val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
       ".customized.buffer.size"
-  val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT = "4096"
+  private val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT = 4096
+  lazy val customizeBufferSize: Int = SparkEnv.get.conf.getInt(
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT
+  )
 
   val GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
@@ -72,7 +81,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   // unit: SECONDS, default 1 day
   val GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME_DEFAULT: Int = 86400
 
-  val GLUTNE_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC: Set[String] = Set("lz4", "zstd", "snappy")
+  private val GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC: Set[String] = Set("lz4", "zstd", "snappy")
 
   override def supportFileFormatRead(
       format: ReadFileFormat,
@@ -130,7 +139,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
           wExpression.windowFunction match {
             case _: RowNumber | _: AggregateExpression | _: Rank | _: Lead | _: Lag |
                 _: DenseRank =>
-              allSupported = allSupported && true
+              allSupported = allSupported
             case _ =>
               logDebug(s"Not support window function: ${wExpression.getClass}")
               allSupported = false
@@ -151,9 +160,9 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       .toBoolean
 
   /** Get the config prefix for each backend */
-  override def getBackendConfigPrefix(): String =
+  override def getBackendConfigPrefix: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
 
-  override def shuffleSupportedCodec(): Set[String] = GLUTNE_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
+  override def shuffleSupportedCodec(): Set[String] = GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
   override def needOutputSchemaForPlan(): Boolean = true
 }

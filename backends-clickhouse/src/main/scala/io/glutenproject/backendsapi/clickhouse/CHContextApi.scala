@@ -50,10 +50,10 @@ class CHContextApi extends ContextApi with Logging {
 
     // Add configs
     conf.set(
-      s"${CHBackendSettings.getBackendConfigPrefix()}.runtime_config.timezone",
+      s"${CHBackendSettings.getBackendConfigPrefix}.runtime_config.timezone",
       conf.get("spark.sql.session.timeZone", TimeZone.getDefault.getID))
     conf.set(
-      s"${CHBackendSettings.getBackendConfigPrefix()}.runtime_config" +
+      s"${CHBackendSettings.getBackendConfigPrefix}.runtime_config" +
         s".local_engine.settings.log_processors_profiles",
       "true")
 

@@ -21,15 +21,13 @@ import io.glutenproject.execution.{BroadCastHashJoinContext, ColumnarNativeItera
 import io.glutenproject.utils.PlanNodesUtil
 import io.glutenproject.vectorized._
 
-import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import java.io.ByteArrayInputStream
+import org.apache.spark.storage.CHShuffleReadStreamFactory
 
 import scala.collection.JavaConverters._
 
@@ -40,11 +38,6 @@ case class ClickHouseBuildSideRelation(
     newBuildKeys: Seq[Expression] = Seq.empty)
   extends BuildSideRelation
   with Logging {
-
-  private lazy val customizeBufferSize = SparkEnv.get.conf.getInt(
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT.toInt
-  )
 
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
 
@@ -61,12 +54,9 @@ case class ClickHouseBuildSideRelation(
           s"BHJ value size: " +
             s"${broadCastContext.buildHashTableId} = ${allBatches.length}")
         val storageJoinBuilder = new StorageJoinBuilder(
-          new OnHeapCopyShuffleInputStream(
-            new ByteArrayInputStream(allBatches),
-            customizeBufferSize,
-            false),
+          CHShuffleReadStreamFactory.create(allBatches),
           broadCastContext,
-          customizeBufferSize,
+          CHBackendSettings.customizeBufferSize,
           output.asJava,
           newBuildKeys.asJava
         )
@@ -91,8 +81,10 @@ case class ClickHouseBuildSideRelation(
   override def transform(key: Expression): Array[InternalRow] = {
     val allBatches = batches.flatten
     // native block reader
-    val input = new ByteArrayInputStream(allBatches)
-    val blockReader = new CHStreamReader(input, customizeBufferSize)
+    val blockReader =
+      new CHStreamReader(
+        CHShuffleReadStreamFactory.create(allBatches),
+        CHBackendSettings.customizeBufferSize)
     val broadCastIter = new Iterator[ColumnarBatch] {
       private var current: CHNativeBlock = _
 
