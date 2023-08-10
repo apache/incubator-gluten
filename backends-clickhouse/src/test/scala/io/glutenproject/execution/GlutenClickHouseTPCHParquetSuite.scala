@@ -1815,5 +1815,37 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test("cast date issue-2474") {
+    spark.sql(
+      """
+        | create table test_date (pid BIGINT) using parquet;
+        |""".stripMargin
+    )
+    spark.sql(
+      """
+        | insert into test_date values (6927737632337729200), (6927744564414944949)
+        |""".stripMargin
+    )
+
+    val sql1 =
+      """
+        | select
+        |   pid,
+        |   from_unixtime(bigint(pid / 4294967296),'yyyy-mm-dd') < date_sub('2023-01-01', 1) as c
+        | from test_date
+        | order by pid
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+    val sql2 =
+      """
+        | select pid
+        | from test_date
+        | where from_unixtime(bigint(pid / 4294967296),'yyyy-mm-dd') < date_sub('2023-01-01', 1)
+        | order by pid
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+  }
 }
 // scalastyle:on line.size.limit
