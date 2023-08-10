@@ -57,24 +57,23 @@ ExpandTransform::Status ExpandTransform::prepare()
         return Status::PortFull;
     }
 
-    if (has_input)
+    if (!has_input)
     {
-        return Status::Ready;
-    }
+        if (input.isFinished())
+        {
+            output.finish();
+            return Status::Finished;
+        }
 
-    if (input.isFinished())
-    {
-        output.finish();
-        return Status::Finished;
-    }
-
-    if (!input.hasData())
-    {
         input.setNeeded();
-        return Status::NeedData;
+
+        if (!input.hasData())
+            return Status::NeedData;
+        
+        input_chunk = input.pull(true);
+        has_input = true;
     }
-    input_chunk = input.pull();
-    has_input = true;
+    
     return Status::Ready;
 }
 
@@ -135,6 +134,7 @@ void ExpandTransform::work()
         }
         expanded_chunks.push_back(DB::Chunk(cols, rows));
     }
+
     has_output = true;
     has_input = false;
 }
