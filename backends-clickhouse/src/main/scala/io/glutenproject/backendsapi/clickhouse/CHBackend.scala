@@ -61,7 +61,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
       ".customized.shuffle.codec.enable"
   private val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT = false
-  val useCustomizedShuffleCodec: Boolean = SparkEnv.get.conf.getBoolean(
+  lazy val useCustomizedShuffleCodec: Boolean = SparkEnv.get.conf.getBoolean(
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE,
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT
   )
@@ -70,7 +70,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
       ".customized.buffer.size"
   private val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT = 4096
-  val customizeBufferSize: Int = SparkEnv.get.conf.getInt(
+  lazy val customizeBufferSize: Int = SparkEnv.get.conf.getInt(
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT
   )
