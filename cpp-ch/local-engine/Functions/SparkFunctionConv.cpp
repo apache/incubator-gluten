@@ -73,10 +73,13 @@ static unsigned long long my_strntoull_8bit(const char *nptr,
     const char *e = nptr + l;
 
     for (; s < e && std::isspace(*s); s++)
-      ;
+        ;
 
     if (s == e)
+    {
+        err[0] = EDOM;
         goto noconv;
+    }
 
     if (*s == '-')
     {
@@ -99,19 +102,20 @@ static unsigned long long my_strntoull_8bit(const char *nptr,
         uint8_t c = *s;
 
         if (c >= '0' && c <= '9')
-          c -= '0';
+            c -= '0';
         else if (c >= 'A' && c <= 'Z')
-          c = c - 'A' + 10;
+            c = c - 'A' + 10;
         else if (c >= 'a' && c <= 'z')
-          c = c - 'a' + 10;
+            c = c - 'a' + 10;
         else
-          break;
+            break;
         if (c >= base) break;
         if (i > cutoff || (i == cutoff && c > cutlim))
-          overflow = 1;
-        else {
-          i *= static_cast<unsigned long long>(base);
-          i += c;
+            overflow = 1;
+        else
+        {
+            i *= static_cast<unsigned long long>(base);
+            i += c;
         }
     }
 
@@ -119,15 +123,15 @@ static unsigned long long my_strntoull_8bit(const char *nptr,
 
     if (endptr != nullptr) *endptr = s;
 
-    if (overflow) {
-      err[0] = ERANGE;
-      return (~static_cast<unsigned long long>(0));
+    if (overflow)
+    {
+        err[0] = ERANGE;
+        return (~static_cast<unsigned long long>(0));
     }
 
     return negative ? -i : i;
 
-  noconv:
-    err[0] = EDOM;
+noconv:
     if (endptr != nullptr) *endptr = nptr;
     return 0L;
 }
@@ -196,7 +200,7 @@ DB::ColumnPtr SparkFunctionConv::executeImpl(
             dec = my_strntoull_8bit(value_str.data(), value_str.length(), -from_base, &endptr, &err);
         else
             dec = static_cast<longlong>(my_strntoull_8bit(value_str.data(), value_str.length(), from_base, &endptr, &err));
-        if (err && err != ERANGE)
+        if (err == EDOM)
         {
             result->insertData(nullptr, 1);
             continue;
