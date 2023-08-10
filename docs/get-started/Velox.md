@@ -385,11 +385,31 @@ target_link_libraries(myudf PRIVATE ${VELOX_LIBRARY})
 
 ## Using UDF in Gluten
 
-Gluten loads the UDF libraries at runtime. Users can upload UDF libraries via `--files` or `--archives`, and configure the libray paths using the provided Spark configuration, which accepts comma separated list of library paths
+Gluten loads the UDF libraries at runtime. You can upload UDF libraries via `--files` or `--archives`, and configure the libray paths using the provided Spark configuration, which accepts comma separated list of library paths.
 
+Note if running on Yarn client mode, the uploaded files are not reachable on driver side. You should copy those files to somewhere reachable for driver and set `spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths`. This configuration is also useful when the `udfLibraryPaths` is different between driver side and executor side.
+
+- Use `--files`
+```shell
+--files /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
+--conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=libmyudf.so
+# Needed for Yarn client mode
+--conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path_to_libmyudf.so
 ```
+
+- Use `--archives`
+```shell
 --archives /path/to/udf_archives.zip#udf_archives
 --conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=udf_archives
+# Needed for Yarn client mode
+--conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path_to_udf_archives.zip
+```
+
+You can also specify the local or HDFS URIs to the UDF libraries or archives. Local URIs should exist on driver and every worker nodes.
+
+- Specify URI
+```shell
+--conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=hdfs://path_to_library_or_archive
 ```
 
 ## Try the example
