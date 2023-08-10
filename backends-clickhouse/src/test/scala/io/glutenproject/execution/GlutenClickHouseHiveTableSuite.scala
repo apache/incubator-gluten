@@ -706,9 +706,11 @@ class GlutenClickHouseHiveTableSuite()
         | (1, array(named_struct('a', 1, 'b', 'b1'), named_struct('a', 2, 'b', 'c1')),
         | map('a', named_struct('a', 1, 'b', 'b1'))),
         | (2, null, map('b', named_struct('a', 2, 'b','b2'))),
-        | (3, array(null, named_struct('a', 3, 'b', 'b3')), map('c', named_struct('a', 3, 'b', 'b3'))),
+        | (3, array(null, named_struct('a', 3, 'b', 'b3')),
+        |  map('c', named_struct('a', 3, 'b', 'b3'))),
         | (4, array(named_struct('a', 4, 'b', 'b4')), null),
-        | (5, array(named_struct('a', 5, 'b', 'b5')), map('c', null, 'd', named_struct('a', 5, 'b', 'b5')))
+        | (5, array(named_struct('a', 5, 'b', 'b5')),
+        |  map('c', null, 'd', named_struct('a', 5, 'b', 'b5')))
         |""".stripMargin
 
     val select_sql_1 = "select * from test_tbl_2582 where d1[0].a = 1"
