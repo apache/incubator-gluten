@@ -79,7 +79,7 @@ private:
     void preSkipNullValue();
     bool isEndOfLine();
     static void skipEndOfLine(DB::ReadBuffer & in);
-    static void skipWhitespacesAndTabs(DB::ReadBuffer & in, const bool & allow_whitespace_or_tab_as_delimiter);
+    static void skipWhitespacesAndTabs(DB::ReadBuffer & in, bool allow_whitespace_or_tab_as_delimiter);
 
 
     std::vector<String> input_field_names;

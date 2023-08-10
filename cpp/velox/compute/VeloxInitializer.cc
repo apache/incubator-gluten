@@ -171,9 +171,13 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
         {"hive.s3.aws-secret-key", awsSecretKey},
     });
   }
-
+  // Only need to set s3 endpoint when not use instance credentials.
+  if (useInstanceCredentials != "true") {
+    s3Config.insert({
+        {"hive.s3.endpoint", awsEndpoint},
+    });
+  }
   s3Config.insert({
-      {"hive.s3.endpoint", awsEndpoint},
       {"hive.s3.ssl.enabled", sslEnabled},
       {"hive.s3.path-style-access", pathStyleAccess},
   });
@@ -183,7 +187,6 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
 
   initCache(conf);
   initIOExecutor(conf);
-  initHWAccelerators(conf);
 
 #ifdef GLUTEN_PRINT_DEBUG
   printConf(conf);
@@ -296,29 +299,6 @@ void VeloxInitializer::initIOExecutor(const std::unordered_map<std::string, std:
   if (splitPreloadPerDriver > 0 && ioThreads > 0) {
     LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
               << ", IO threads: " << ioThreads;
-  }
-}
-
-void VeloxInitializer::initHWAccelerators(const std::unordered_map<std::string, std::string>& conf) {
-  auto got = conf.find(kShuffleCompressionCodecBackend);
-  if (got != conf.end() && !got->second.empty()) {
-#ifdef GLUTEN_ENABLE_QAT
-    if (got->second == kQatBackendName) {
-      got = conf.find(kShuffleCompressionCodec);
-      if (got != conf.end() && gluten::qat::supportsCodec(got->second)) {
-        gluten::qat::ensureQatCodecRegistered(got->second);
-      }
-    }
-#endif
-
-#ifdef GLUTEN_ENABLE_IAA
-    if (got->second == kIaaBackendName) {
-      got = conf.find(kShuffleCompressionCodec);
-      if (got != conf.end() && gluten::qpl::SupportsCodec(got->second)) {
-        gluten::qpl::EnsureQplCodecRegistered(got->second);
-      }
-    }
-#endif
   }
 }
 

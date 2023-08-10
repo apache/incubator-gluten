@@ -21,6 +21,7 @@ import io.glutenproject.GlutenConfig
 import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.read.{InputPartition, Scan, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -83,4 +84,6 @@ class BatchScanExecShim(
       partitions.map(Seq(_))
     }
   }
+
+  @transient lazy val pushedAggregate: Option[Aggregation] = None
 }

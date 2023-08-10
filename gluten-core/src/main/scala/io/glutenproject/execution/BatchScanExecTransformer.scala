@@ -18,6 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 
 import org.apache.spark.rdd.RDD
@@ -74,6 +75,13 @@ class BatchScanExecTransformer(
         case _ => Seq.empty
       }
     }
+  }
+
+  override def doValidateInternal(): ValidationResult = {
+    if (pushedAggregate.nonEmpty) {
+      return ValidationResult.notOk(s"Unsupported aggregation push down for $scan.")
+    }
+    super.doValidateInternal()
   }
 
   override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator

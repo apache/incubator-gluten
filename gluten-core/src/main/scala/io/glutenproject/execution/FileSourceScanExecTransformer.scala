@@ -29,7 +29,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.{FileSourceScanExec, InSubqueryExec, ScalarSubquery, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.{FileSourceScanExecShim, InSubqueryExec, ScalarSubquery, SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
@@ -51,7 +51,7 @@ class FileSourceScanExecTransformer(
     dataFilters: Seq[Expression],
     tableIdentifier: Option[TableIdentifier],
     disableBucketedScan: Boolean = false)
-  extends FileSourceScanExec(
+  extends FileSourceScanExecShim(
     relation,
     output,
     requiredSchema,
@@ -140,6 +140,17 @@ class FileSourceScanExecTransformer(
     // TODO Support bucketed scan
     if (bucketedScan) {
       throw new UnsupportedOperationException("Bucketed scan is unsupported for now.")
+    }
+
+    if (hasMetadataColumns) {
+      return ValidationResult.notOk(s"Unsupported metadataColumns scan in native.")
+    }
+
+    if (hasFieldIds) {
+      // Spark read schema expects field Ids , the case didn't support yet by native.
+      return ValidationResult.notOk(
+        s"Unsupported matching schema column names " +
+          s"by field ids in native scan.")
     }
     super.doValidateInternal()
   }

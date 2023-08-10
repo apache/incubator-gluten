@@ -128,6 +128,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"ends_with", "endsWith"},
        {"contains", "countSubstrings"},
        {"substring", "substring"},
+       {"substring_index", "substringIndexUTF8"},
        {"lower", "lower"},
        {"upper", "upper"},
        {"trim", ""}, // trimLeft or trimLeftSpark, depends on argument size

@@ -90,7 +90,7 @@ bool readDatetime64TextWithExcel(
     const DateLUTImpl & time_zone,
     const DB::FormatSettings::CSV & settings,
     bool quote);
-void readDateTime64Text(
+bool readDateTime64Text(
     DB::DateTime64 & x,
     DB::ReadBuffer & buf,
     const DB::FormatSettings & settings,
@@ -138,7 +138,7 @@ bool readCSVSimple(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & setti
 
     char maybe_quote = *buf.position();
     bool has_quote = false;
-   if ((settings.csv.allow_single_quotes && maybe_quote == '\'') || (settings.csv.allow_double_quotes && maybe_quote == '\"'))
+    if ((settings.csv.allow_single_quotes && maybe_quote == '\'') || (settings.csv.allow_double_quotes && maybe_quote == '\"'))
     {
         has_quote = true;
         ++buf.position();
@@ -171,7 +171,7 @@ bool readCSVSimple(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & setti
 
 
 template <typename T>
-    requires is_arithmetic_v<T>
+requires is_arithmetic_v<T>
 inline bool readCSV(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
 {
     return readCSVSimple(x, buf, settings);

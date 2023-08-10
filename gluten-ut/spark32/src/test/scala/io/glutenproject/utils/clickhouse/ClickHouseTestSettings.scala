@@ -482,4 +482,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenStringFunctionsSuite]
     .include("initcap function")
     .include("string concat_ws")
+    .include("string split function with no limit")
+    .include("string split function with limit explicitly set to 0")
+    .include("string split function with negative limit")
+    .include("string split function with positive limit")
+    .include("string substring_index function")
 }

@@ -18,7 +18,8 @@ package io.glutenproject.utils
 
 import io.glutenproject.expression.ExpressionNames._
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, GetJsonObject, Literal}
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.unsafe.types.UTF8String
 
 trait FunctionValidator {
   def doValidate(expr: Expression): Boolean
@@ -51,6 +52,42 @@ case class GetJsonObjectValidator() extends FunctionValidator {
   }
 }
 
+case class StringSplitValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val split = expr.asInstanceOf[StringSplit]
+    if (!split.regex.isInstanceOf[Literal] || !split.limit.isInstanceOf[Literal]) {
+      return false
+    }
+
+    // TODO: When limit is positive, CH result is wrong, fix it later
+    val limitLiteral = split.limit.asInstanceOf[Literal]
+    if (limitLiteral.value.asInstanceOf[Int] > 0) {
+      return false
+    }
+
+    true
+  }
+}
+
+case class SubstringIndexValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val substringIndex = expr.asInstanceOf[SubstringIndex]
+
+    // TODO: CH substringIndexUTF8 function only support string literal as delimiter
+    if (!substringIndex.delimExpr.isInstanceOf[Literal]) {
+      return false
+    }
+
+    // TODO: CH substringIndexUTF8 function only support single character as delimiter
+    val delim = substringIndex.delimExpr.asInstanceOf[Literal]
+    if (delim.value.asInstanceOf[UTF8String].toString.length != 1) {
+      return false
+    }
+
+    true
+  }
+}
+
 object CHExpressionUtil {
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
@@ -63,6 +100,8 @@ object CHExpressionUtil {
     UNIX_TIMESTAMP -> UnixTimeStampValidator(),
     MIGHT_CONTAIN -> DefaultValidator(),
     GET_JSON_OBJECT -> GetJsonObjectValidator(),
-    ARRAYS_OVERLAP -> DefaultValidator()
+    ARRAYS_OVERLAP -> DefaultValidator(),
+    SPLIT -> StringSplitValidator(),
+    SUBSTRING_INDEX -> SubstringIndexValidator()
   )
 }

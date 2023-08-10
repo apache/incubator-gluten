@@ -36,8 +36,8 @@ using namespace facebook::velox::exec;
 namespace gluten {
 class Substrait2VeloxPlanValidatorTest : public exec::test::HiveConnectorTestBase {
  protected:
-  std::shared_ptr<SubstraitVeloxPlanConverter> planConverter_ =
-      std::make_shared<SubstraitVeloxPlanConverter>(memoryPool_.get());
+  std::shared_ptr<SubstraitToVeloxPlanConverter> planConverter_ =
+      std::make_shared<SubstraitToVeloxPlanConverter>(memoryPool_.get());
 
   bool validatePlan(std::string file) {
     std::string subPlanPath = FilePathGenerator::getDataFilePath(file);

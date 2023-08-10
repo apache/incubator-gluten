@@ -39,7 +39,7 @@ bool readDateText(LocalDate & date, DB::ReadBuffer & buf, const DB::FormatSettin
     return readDateTextWithExcel(date, buf, is_us_style);
 }
 
-void readDateTime64Text(
+bool readDateTime64Text(
     DB::DateTime64 & x,
     DB::ReadBuffer & buf,
     const DB::FormatSettings & settings,
@@ -52,22 +52,21 @@ void readDateTime64Text(
     auto pr = static_cast<DB::PeekableReadBuffer>(buf);
     DB::PeekableReadBufferCheckpoint checkpoint{pr, false};
     if (readDatetime64TextWithExcel(x, scale, pr, time_zone, settings.csv, quote))
-        return;
+        return true;
     else
         pr.rollbackToCheckpoint();
 
     switch (settings.date_time_input_format)
     {
         case DB::FormatSettings::DateTimeInputFormat::Basic:
-            readDateTime64Text(x, scale, pr, time_zone);
-            return;
+            return tryReadDateTime64Text(x, scale, pr, time_zone);
         case DB::FormatSettings::DateTimeInputFormat::BestEffort:
-            parseDateTime64BestEffort(x, scale, pr, time_zone, utc_time_zone);
-            return;
+            return tryParseDateTime64BestEffort(x, scale, pr, time_zone, utc_time_zone);
         case DB::FormatSettings::DateTimeInputFormat::BestEffortUS:
-            parseDateTime64BestEffortUS(x, scale, pr, time_zone, utc_time_zone);
-            return;
+            return tryParseDateTime64BestEffortUS(x, scale, pr, time_zone, utc_time_zone);
     }
+
+    return false;
 }
 
 bool readDatetime64TextWithExcel(
@@ -193,12 +192,7 @@ bool readDatetime64TextWithExcel(
         day = 1;
 
     if (!checkDate(year, month, day))
-        throw DB::Exception(
-            DB::ErrorCodes::CANNOT_PARSE_DATETIME,
-            "Cannot read DateTime: unexpected date: {}-{}-{}",
-            year,
-            static_cast<UInt16>(month),
-            static_cast<UInt16>(day));
+        return false;
 
     time_t datetime = time_zone.makeDateTime(year, month, day, hour, minute, second);
     return DB::DecimalUtils::tryGetDecimalFromComponents<DB::DateTime64>(datetime, fractional, scale, datetime64);
