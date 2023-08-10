@@ -96,7 +96,8 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
         Row(1.011, 4, "{\"a 2\":\"b\"}"),
         Row(1.011, 5, "{\"a_2\":\"b\"}"),
         Row(1.011, 5, "{\"a\":\"b\", \"x\":{\"i\":1}}"),
-        Row(1.011, 5, "{\"a\":\"b\", \"x\":{\"i\":2}}")
+        Row(1.011, 5, "{\"a\":\"b\", \"x\":{\"i\":2}}"),
+        Row(1.011, 5, "{\"a\":1, \"x\":{\"i\":2}}")
       ))
     val dfParquet = spark.createDataFrame(data, schema)
     dfParquet
