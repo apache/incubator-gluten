@@ -110,7 +110,27 @@ class GetArrayItemTransformer(
       leftNode.asInstanceOf[ExpressionNode],
       rightNode.asInstanceOf[ExpressionNode])
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, exprNodes, typeNode)
+    val resultNode = ExpressionBuilder.makeScalarFunction(functionId, exprNodes, typeNode)
+
+    if (BackendsApiManager.isVeloxBackend) {
+      val nullResultNode = ExpressionBuilder.makeLiteral(null, original.dataType, false)
+      val lessThanFuncId = ExpressionBuilder.newScalarFunction(
+        functionMap,
+        ConverterUtils.makeFuncName(
+          ExpressionNames.LESS_THAN,
+          Seq(original.right.dataType, IntegerType),
+          FunctionConfig.OPT))
+      val lessThanFuncNode = ExpressionBuilder.makeScalarFunction(
+        lessThanFuncId,
+        Lists.newArrayList(rightNode, literalNode),
+        ConverterUtils.getTypeNode(BooleanType, true))
+      new IfThenNode(
+        Lists.newArrayList(lessThanFuncNode),
+        Lists.newArrayList(nullResultNode),
+        resultNode)
+    } else {
+      resultNode
+    }
   }
 }
 
