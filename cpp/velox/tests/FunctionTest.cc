@@ -38,8 +38,6 @@ class FunctionTest : public ::testing::Test {
 
   std::shared_ptr<memory::MemoryPool> pool_ = memory::addDefaultLeafMemoryPool();
 
-  std::shared_ptr<gluten::SubstraitParser> substraitParser_ = std::make_shared<gluten::SubstraitParser>();
-
   std::shared_ptr<gluten::SubstraitToVeloxPlanConverter> planConverter_ =
       std::make_shared<gluten::SubstraitToVeloxPlanConverter>(pool_.get());
 };
@@ -47,11 +45,11 @@ class FunctionTest : public ::testing::Test {
 TEST_F(FunctionTest, makeNames) {
   std::string prefix = "n";
   int size = 0;
-  std::vector<std::string> names = substraitParser_->makeNames(prefix, size);
+  std::vector<std::string> names = SubstraitParser::makeNames(prefix, size);
   ASSERT_EQ(names.size(), size);
 
   size = 5;
-  names = substraitParser_->makeNames(prefix, size);
+  names = SubstraitParser::makeNames(prefix, size);
   ASSERT_EQ(names.size(), size);
   for (int i = 0; i < size; i++) {
     std::string expected = "n_" + std::to_string(i);
@@ -60,13 +58,13 @@ TEST_F(FunctionTest, makeNames) {
 }
 
 TEST_F(FunctionTest, makeNodeName) {
-  std::string nodeName = substraitParser_->makeNodeName(1, 0);
+  std::string nodeName = SubstraitParser::makeNodeName(1, 0);
   ASSERT_EQ(nodeName, "n1_0");
 }
 
 TEST_F(FunctionTest, getIdxFromNodeName) {
   std::string nodeName = "n1_0";
-  int index = substraitParser_->getIdxFromNodeName(nodeName);
+  int index = SubstraitParser::getIdxFromNodeName(nodeName);
   ASSERT_EQ(index, 0);
 }
 
@@ -181,15 +179,15 @@ TEST_F(FunctionTest, setVectorFromVariants) {
 
 TEST_F(FunctionTest, getFunctionType) {
   std::vector<std::string> types;
-  substraitParser_->getSubFunctionTypes("sum:opt_i32", types);
+  SubstraitParser::getSubFunctionTypes("sum:opt_i32", types);
   ASSERT_EQ("i32", types[0]);
 
   types.clear();
-  substraitParser_->getSubFunctionTypes("sum:i32", types);
+  SubstraitParser::getSubFunctionTypes("sum:i32", types);
   ASSERT_EQ("i32", types[0]);
 
   types.clear();
-  substraitParser_->getSubFunctionTypes("sum:opt_str_str", types);
+  SubstraitParser::getSubFunctionTypes("sum:opt_str_str", types);
   ASSERT_EQ(2, types.size());
   ASSERT_EQ("str", types[0]);
   ASSERT_EQ("str", types[1]);
