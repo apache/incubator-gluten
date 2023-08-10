@@ -298,10 +298,6 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
       val startTime = System.nanoTime()
       val resCtx = doWholeStageTransform()
 
-      if (log.isDebugEnabled()) {
-        logOnLevel(substraitPlanLogLevel, s"Generating substrait plan:\n$planJson")
-      }
-
       logOnLevel(
         substraitPlanLogLevel,
         s"Generating the Substrait plan took: ${System.nanoTime() - startTime} ns.")
