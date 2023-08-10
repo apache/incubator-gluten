@@ -635,7 +635,7 @@ public read-only account：gluten/hN2xX3uQ4m
 ### Celeborn support
 
 Gluten with clickhouse backend has not yet supportted [Celeborn](https://github.com/apache/incubator-celeborn) natively as remote shuffle service using columar shuffle. However, you can still use Celeborn with row shuffle, which means a ColumarBatch will be converted to a row during shuffle.
-Below introduction is used to enable this feature
+Below introduction is used to enable this feature:
 
 First refer to this URL(https://github.com/apache/incubator-celeborn) to setup a celeborn cluster.
 
