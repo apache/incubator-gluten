@@ -562,13 +562,18 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
                 filter_name = node->result_name;
             }
 
+            bool remove_filter_column = true;
             auto input = query_plan->getCurrentDataStream().header.getNames();
-            Names input_with_condition(input);
-            input_with_condition.emplace_back(filter_name);
+            NameSet input_with_condition(input.begin(), input.end());
+            if (input_with_condition.contains(filter_name))
+                remove_filter_column = false;
+            else
+                input_with_condition.emplace(filter_name);
+
             actions_dag->removeUnusedActions(input_with_condition);
             NonNullableColumnsResolver non_nullable_columns_resolver(query_plan->getCurrentDataStream().header, *this, filter.condition());
             auto non_nullable_columns = non_nullable_columns_resolver.resolve();
-            auto filter_step = std::make_unique<FilterStep>(query_plan->getCurrentDataStream(), actions_dag, filter_name, true);
+            auto filter_step = std::make_unique<FilterStep>(query_plan->getCurrentDataStream(), actions_dag, filter_name, remove_filter_column);
             filter_step->setStepDescription("WHERE");
             steps.emplace_back(filter_step.get());
             query_plan->addStep(std::move(filter_step));

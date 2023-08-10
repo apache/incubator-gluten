@@ -962,6 +962,35 @@ class GlutenClickHouseFileFormatSuite
     }
   }
 
+  test("test_filter_not_null") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true),
+        StructField.apply("bool_field", BooleanType, nullable = true)
+      ))
+
+    val data = new util.ArrayList[Row]()
+    data.add(Row(1, 1.toLong, false))
+
+    spark
+      .createDataFrame(data, schema)
+      .toDF()
+      .createTempView("test_filter_not_null")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        | select
+        |     sum(long_field) aa
+        | from
+        | (    select long_field,case when sum(int_field) > 0 then true else false end b
+        |     from test_filter_not_null group by long_field) t where b
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
   test("empty parquet") {
     val df = spark.read.parquet(createEmptyParquet()).toDF().select($"a")
     assert(df.collect().isEmpty)
