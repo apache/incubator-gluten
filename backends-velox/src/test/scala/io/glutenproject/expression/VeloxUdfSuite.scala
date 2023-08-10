@@ -33,7 +33,7 @@ abstract class VeloxUdfSuite extends GlutenQueryTest with SQLHelper {
   // This property is used for unit tests.
   val UDFLibPathProperty: String = "velox.udf.lib.path"
 
-  protected val udfLibPath: String =
+  protected lazy val udfLibPath: String =
     sys.props.get(UDFLibPathProperty) match {
       case Some(path) =>
         path
@@ -103,7 +103,7 @@ class VeloxUdfSuiteCluster extends VeloxUdfSuite {
 
   val GLUTEN_JAR: String = "gluten.package.jar"
 
-  private val glutenJar = sys.props.get(GLUTEN_JAR) match {
+  private lazy val glutenJar = sys.props.get(GLUTEN_JAR) match {
     case Some(jar) => jar
     case None =>
       throw new IllegalArgumentException(

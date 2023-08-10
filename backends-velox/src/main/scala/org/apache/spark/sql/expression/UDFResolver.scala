@@ -117,7 +117,9 @@ object UDFResolver extends Logging {
 
   def resolveUdfConf(conf: java.util.Map[String, String]): Unit = {
     if (isDriver) {
-      conf.put(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS, localLibraryPaths)
+      if (localLibraryPaths != null) {
+        conf.put(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS, localLibraryPaths)
+      }
     } else {
       val sparkConf = SparkEnv.get.conf
       Option(conf.get(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)) match {
