@@ -133,15 +133,18 @@ class StringSplitTransformer(
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val limitNode = limitExpr.doTransform(args)
-    if (!limitNode.isInstanceOf[LiteralNode]) {
+    val regexNode = regexExpr.doTransform(args)
+    if (!limitNode.isInstanceOf[LiteralNode] || !regexNode.isInstanceOf[LiteralNode]) {
       throw new UnsupportedOperationException(
-        s"limit args supported LiterNode, but given ${limitNode.getClass.toString}")
+        s"limit and regex args supported LiterNode, " +
+          s"but given ${limitNode.getClass.toString} and ${limitNode.getClass.toString}")
     }
 
     val limit = limitNode.asInstanceOf[IntLiteralNode].getValue
-    if (limit > 0) {
+    val regex = regexNode.asInstanceOf[StringLiteralNode].getValue
+    if (limit > 0 || regex.length > 1) {
       throw new UnsupportedOperationException(
-        s"$original limit args not supported yet, except negative.")
+        s"$original supported single-length regex and negative limit, but given $limit and $regex")
     }
 
     // TODO: split function support limit arg
