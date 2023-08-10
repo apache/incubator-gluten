@@ -123,7 +123,8 @@ class SubstraitParser {
       {"bit_and_merge", "bitwise_and_agg_merge"},
       {"collect_set", "array_distinct"},
       {"murmur3hash", "hash"},
-      {"modulus", "mod"} /*Presto functions.*/};
+      {"modulus", "mod"},
+      {"make_decimal", "make_decimal_by_unscaled_value"} /*Presto functions.*/};
 
   // The map is uesd for mapping substrait type.
   // Key: type in function name.
