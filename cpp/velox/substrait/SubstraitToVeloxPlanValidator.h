@@ -25,7 +25,8 @@ namespace gluten {
 /// a Substrait plan is supported in Velox.
 class SubstraitToVeloxPlanValidator {
  public:
-  SubstraitToVeloxPlanValidator(memory::MemoryPool* pool, core::ExecCtx* execCtx) : pool_(pool), execCtx_(execCtx) {}
+  SubstraitToVeloxPlanValidator(memory::MemoryPool* pool, core::ExecCtx* execCtx)
+      : pool_(pool), execCtx_(execCtx), planConverter_(pool_, confMap_, true) {}
 
   /// Used to validate whether the computing of this Limit is supported.
   bool validate(const ::substrait::FetchRel& fetchRel);
@@ -63,7 +64,7 @@ class SubstraitToVeloxPlanValidator {
   /// Used to validate whether the computing of this Plan is supported.
   bool validate(const ::substrait::Plan& plan);
 
-  std::vector<std::string> getValidateLog() {
+  const std::vector<std::string>& getValidateLog() const {
     return validateLog_;
   }
 
@@ -78,15 +79,14 @@ class SubstraitToVeloxPlanValidator {
   std::unordered_map<std::string, std::string> confMap_ = {};
 
   /// A converter used to convert Substrait plan into Velox's plan node.
-  std::shared_ptr<SubstraitVeloxPlanConverter> planConverter_ =
-      std::make_shared<SubstraitVeloxPlanConverter>(pool_, confMap_, true);
+  SubstraitToVeloxPlanConverter planConverter_;
 
   /// A parser used to convert Substrait plan into recognizable representations.
-  std::shared_ptr<SubstraitParser> subParser_ = std::make_shared<SubstraitParser>();
+  SubstraitParser substraitParser_;
 
   /// An expression converter used to convert Substrait representations into
   /// Velox expressions.
-  std::shared_ptr<SubstraitVeloxExprConverter> exprConverter_;
+  std::unique_ptr<SubstraitVeloxExprConverter> exprConverter_;
 
   std::vector<std::string> validateLog_;
 

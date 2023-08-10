@@ -97,6 +97,4 @@ class VeloxToSubstraitExprConvertor {
   SubstraitExtensionCollectorPtr extensionCollector_;
 };
 
-using VeloxToSubstraitExprConvertorPtr = std::shared_ptr<VeloxToSubstraitExprConvertor>;
-
 } // namespace gluten
