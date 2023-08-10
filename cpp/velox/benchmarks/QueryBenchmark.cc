@@ -110,7 +110,7 @@ auto BM = [](::benchmark::State& state,
 
 int main(int argc, char** argv) {
   initVeloxBackend();
-  gluten::createTaskContextStorage();
+  gluten::createTaskContextStorage("test");
   ::benchmark::Initialize(&argc, argv);
   // Threads cannot work well, use ThreadRange instead.
   // The multi-thread performance is not correct.

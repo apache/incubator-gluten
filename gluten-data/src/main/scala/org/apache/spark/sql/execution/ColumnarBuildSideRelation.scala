@@ -62,7 +62,7 @@ case class ColumnarBuildSideRelation(
         handle
       }
 
-      TaskResources.addRecycler(50) {
+      TaskResources.addRecycler(s"BuildSideRelation_deserialized_$serializeHandle", 50) {
         ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
       }
 
@@ -111,7 +111,7 @@ case class ColumnarBuildSideRelation(
     }
 
     var closed = false
-    TaskResources.addRecycler(50) {
+    TaskResources.addRecycler(s"BuildSideRelation_transform_$serializeHandle", 50) {
       if (!closed) {
         ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
         closed = true

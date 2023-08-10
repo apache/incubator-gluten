@@ -1244,8 +1244,10 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_init_InitializerJniWrapper_makeTas
     jclass clazz) {
   JNI_METHOD_START
   static std::atomic_int64_t handle{0L};
-  gluten::createTaskContextStorage();
-  return handle++; // this is only for returning unique long int handle, although that has no effect actually
+  auto ret = handle++;
+  std::string name = "NTaskContext_" + std::to_string(ret);
+  gluten::createTaskContextStorage(name);
+  return ret; // this is only for returning unique long int handle, although that has no effect actually
   JNI_METHOD_END(-1L)
 }
 
