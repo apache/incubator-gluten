@@ -132,6 +132,43 @@ static unsigned long long my_strntoull_8bit(const char *nptr,
     return 0L;
 }
 
+static char * ll2str(int64_t val, char * dst, int radix, bool upcase)
+{
+    constexpr std::array<const char, 37> dig_vec_upper{"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"};
+    constexpr std::array<const char, 37> dig_vec_lower{"0123456789abcdefghijklmnopqrstuvwxyz"};
+    char buffer[65];
+    const char *const dig_vec = upcase ? dig_vec_upper.data() : dig_vec_lower.data();
+    auto uval = static_cast<uint64_t>(val);
+
+    if (radix < 0)
+    {
+        if (radix < -36 || radix > -2) return nullptr;
+        if (val < 0)
+        {
+            *dst++ = '-';
+            /* Avoid integer overflow in (-val) for LLONG_MIN (BUG#31799). */
+            uval = 0ULL - uval;
+        }
+        radix = -radix;
+    }
+    else if (radix > 36 || radix < 2)
+    {
+        return nullptr;
+    }
+
+    char *p = std::end(buffer);
+    do
+    {
+        *--p = dig_vec[uval % radix];
+        uval /= radix;
+    } while (uval != 0);
+
+    const size_t length = std::end(buffer) - p;
+    memcpy(dst, p, length);
+    dst[length] = '\0';
+    return dst + length;
+}
+
 DB::ColumnPtr SparkFunctionConv::executeImpl(
     const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t input_rows_count) const
 {
@@ -159,13 +196,17 @@ DB::ColumnPtr SparkFunctionConv::executeImpl(
             dec = my_strntoull_8bit(value_str.data(), value_str.length(), -from_base, &endptr, &err);
         else
             dec = static_cast<longlong>(my_strntoull_8bit(value_str.data(), value_str.length(), from_base, &endptr, &err));
-        if (err)
+        if (err && err != ERANGE)
         {
             result->insertData(nullptr, 1);
             continue;
         }
-        auto res_str= std::to_string(dec);
-        result->insertData(res_str.data(), res_str.size());
+        char ans[CONV_MAX_LENGTH + 1U];
+        auto ret_ptr = ll2str(dec, ans, to_base, true);
+        if (ret_ptr == nullptr)
+            result->insertData(nullptr, 1);
+        else
+            result->insertData(ans, ret_ptr - ans);
     }
     return result;
 }

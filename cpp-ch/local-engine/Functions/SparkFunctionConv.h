@@ -29,6 +29,7 @@ namespace local_engine
 class SparkFunctionConv: public DB::IFunction
 {
 public:
+    static constexpr uint32_t CONV_MAX_LENGTH = 64U + 1U;
     static constexpr auto name = "sparkConv";
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionConv>(); }
     SparkFunctionConv() = default;
