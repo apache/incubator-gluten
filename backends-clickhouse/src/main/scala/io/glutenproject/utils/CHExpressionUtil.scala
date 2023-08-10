@@ -110,6 +110,20 @@ case class StringRPadValidator() extends FunctionValidator {
   }
 }
 
+case class DateFormatClassValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val dateFormatClass = expr.asInstanceOf[DateFormatClass]
+
+    // TODO: CH formatDateTimeInJodaSyntax/fromUnixTimestampInJodaSyntax only support
+    // string literal as format
+    if (!dateFormatClass.formatExpr.isInstanceOf[Literal]) {
+      return false
+    }
+
+    true
+  }
+}
+
 object CHExpressionUtil {
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
