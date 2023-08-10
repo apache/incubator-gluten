@@ -55,7 +55,7 @@ It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
 **For x86_64 build**
 
 ```bash
-cd /path_to_gluten
+cd /path/to/gluten
 
 ## The script builds two jars for spark 3.2.2 and 3.3.1.
 ./dev/buildbundle-veloxbe.sh
@@ -70,39 +70,39 @@ cd /path_to_gluten
 ```bash
 export CPU_TARGET="aarch64"
 
-cd /path_to_gluten
+cd /path/to/gluten
 
 ./dev/builddeps-veloxbe.sh
 ```
 
 **Build Velox or Arrow separately**
 
-Scripts under `/path_to_gluten/ep/build-xxx/src` provide `get_xxx.sh` and `build_xxx.sh` to build Velox or Arrow separately, you could use these scripts with custom repo/branch/location.
+Scripts under `/path/to/gluten/ep/build-xxx/src` provide `get_xxx.sh` and `build_xxx.sh` to build Velox or Arrow separately, you could use these scripts with custom repo/branch/location.
 
 Velox can use pre-build arrow/parquet lib from ARROW_HOME parsed by --arrow_home to decrease build time.
 Gluten cpp module need a required VELOX_HOME parsed by --velox_home and an optional ARROW_HOME by --arrow_home, if you specify custom ep location, make sure these variables be passed correctly.
 
 ```bash
 ## fetch Arrow and compile
-cd /path_to_gluten/ep/build-arrow/src/
+cd /path/to/gluten/ep/build-arrow/src/
 ## you could use custom ep location by --arrow_home=custom_path, make sure specify --arrow_home in build_arrow.sh too.
 ./get_arrow.sh
 ./build_arrow.sh
 
 ## fetch Velox and compile
-cd /path_to_gluten/ep/build-velox/src/
+cd /path/to/gluten/ep/build-velox/src/
 ## you could use custom ep location by --velox_home=custom_path, make sure specify --velox_home in build_velox.sh too.
 ./get_velox.sh
 ## make sure specify --arrow_home or --velox_home if you have specified it in get_xxx.sh.
 ./build_velox.sh
 
 ## compile Gluten cpp module
-cd /path_to_gluten/cpp
+cd /path/to/gluten/cpp
 ## if you use custom velox_home or arrow_home, make sure specified here by --arrow_home or --velox_home 
 ./compile.sh --build_velox_backend=ON
 
 ## compile Gluten java module and create package jar
-cd /path_to_gluten
+cd /path/to/gluten
 # For spark3.2.x
 mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
 # For spark3.3.x
@@ -121,7 +121,7 @@ Hadoop hdfs support is ready via the [libhdfs3](https://github.com/apache/hawq/t
 To build Gluten with HDFS support, below command is suggested:
 
 ```bash
-cd /path_to_gluten
+cd /path/to/gluten
 ./dev/buildbundle-veloxbe.sh --enable_hdfs=ON
 ```
 
@@ -193,7 +193,7 @@ Velox supports S3 with the open source [AWS C++ SDK](https://github.com/aws/aws-
 A new build option for S3(enable_s3) is added. Below command is used to enable this feature
 
 ```
-cd /path_to_gluten
+cd /path/to/gluten
 ./dev/buildbundle-veloxbe.sh --enable_s3=ON
 ```
 
@@ -387,14 +387,14 @@ target_link_libraries(myudf PRIVATE ${VELOX_LIBRARY})
 
 Gluten loads the UDF libraries at runtime. You can upload UDF libraries via `--files` or `--archives`, and configure the libray paths using the provided Spark configuration, which accepts comma separated list of library paths.
 
-Note if running on Yarn client mode, the uploaded files are not reachable on driver side. You should copy those files to somewhere reachable for driver and set `spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths`. This configuration is also useful when the `udfLibraryPaths` is different between driver side and executor side.
+Note if running on Yarn client mode, the uploaded files are not reachable on driver side. Users should copy those files to somewhere reachable for driver and set `spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths`. This configuration is also useful when the `udfLibraryPaths` is different between driver side and executor side.
 
 - Use `--files`
 ```shell
 --files /path/to/gluten/cpp/build/velox/udf/examples/libmyudf.so
 --conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=libmyudf.so
 # Needed for Yarn client mode
---conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path_to_libmyudf.so
+--conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path/to/libmyudf.so
 ```
 
 - Use `--archives`
@@ -402,14 +402,14 @@ Note if running on Yarn client mode, the uploaded files are not reachable on dri
 --archives /path/to/udf_archives.zip#udf_archives
 --conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=udf_archives
 # Needed for Yarn client mode
---conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path_to_udf_archives.zip
+--conf spark.gluten.sql.columnar.backend.velox.driver.udfLibraryPaths=file:///path/to/udf_archives.zip
 ```
 
-You can also specify the local or HDFS URIs to the UDF libraries or archives. Local URIs should exist on driver and every worker nodes.
-
 - Specify URI
+
+You can also specify the local or HDFS URIs to the UDF libraries or archives. Local URIs should exist on driver and every worker nodes.
 ```shell
---conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=hdfs://path_to_library_or_archive
+--conf spark.gluten.sql.columnar.backend.velox.udfLibraryPaths=hdfs://path/to/library_or_archive
 ```
 
 ## Try the example
@@ -449,7 +449,7 @@ sudo apt install -y autoconf automake g++ libnuma-dev libtool numactl unzip libd
 After the set-up, you can now build Gluten with HBM. Below command is used to enable this feature
 
 ```bash
-cd /path_to_gluten
+cd /path/to/gluten
 
 ## The script builds two jars for spark 3.2.2 and 3.3.1.
 ./dev/buildbundle-veloxbe.sh --enable_hbm=ON
@@ -479,12 +479,12 @@ This environment variable is required during building Gluten and running Spark a
 It's recommended to put it in .bashrc on Driver and Worker nodes.
 
 ```bash
-echo "export ICP_ROOT=/path_to_QAT_driver" >> ~/.bashrc
+echo "export ICP_ROOT=/path/to/QAT_driver" >> ~/.bashrc
 source ~/.bashrc
 
 # Also set for root if running as non-root user
 sudo su - 
-echo "export ICP_ROOT=/path_to_QAT_driver" >> ~/.bashrc
+echo "export ICP_ROOT=/path/to/QAT_driver" >> ~/.bashrc
 exit
 ```
 
@@ -539,7 +539,7 @@ exit
 4. After the setup, you are now ready to build Gluten with QAT. Use the command below to enable this feature:
 
 ```bash
-cd /path_to_gluten
+cd /path/to/gluten
 
 ## The script builds two jars for spark 3.2.2 and 3.3.1.
 ./dev/buildbundle-veloxbe.sh --enable_qat=ON
@@ -553,7 +553,7 @@ cd /path_to_gluten
 ## run as root
 ## Overwrite QAT configuration file.
 cd /etc
-for i in {0..7}; do echo "4xxx_dev$i.conf"; done | xargs -i cp -f /path_to_gluten/docs/qat/4x16.conf {}
+for i in {0..7}; do echo "4xxx_dev$i.conf"; done | xargs -i cp -f /path/to/gluten/docs/qat/4x16.conf {}
 ## Restart QAT after updating configuration files.
 adf_ctl restart
 ```
@@ -634,7 +634,7 @@ sudo chmod -R g+rw /dev/iax
 After the set-up, you can now build Gluten with QAT. Below command is used to enable this feature
 
 ```bash
-cd /path_to_gluten
+cd /path/to/gluten
 
 ## The script builds two jars for spark 3.2.2 and 3.3.1.
 ./dev/buildbundle-veloxbe.sh --enable_iaa=ON
