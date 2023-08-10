@@ -872,9 +872,10 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     std::string errorMessage = "Invalid shuffle writer id " + std::to_string(shuffleWriterId);
     throw gluten::GlutenException(errorMessage);
   }
-  int64_t* evictedSize = nullptr;
-  gluten::arrowAssertOkOrThrow(shuffleWriter->evictFixedSize(size, evictedSize), "(shuffle) nativeEvict: evict failed");
-  return reinterpret_cast<jlong>(evictedSize);
+  int64_t evictedSize;
+  gluten::arrowAssertOkOrThrow(
+      shuffleWriter->evictFixedSize(size, &evictedSize), "(shuffle) nativeEvict: evict failed");
+  return (jlong)evictedSize;
   JNI_METHOD_END(-1L)
 }
 
