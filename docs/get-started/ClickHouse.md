@@ -631,3 +631,47 @@ The performance of Gluten + ClickHouse backend increases by **about 1/3**.
 
 https://opencicd.kyligence.com/job/Gluten/job/gluten-ci/
 public read-only account：gluten/hN2xX3uQ4m
+
+### Celeborn support
+
+Gluten with clickhouse backend has not yet supportted [Celeborn](https://github.com/apache/incubator-celeborn) natively as remote shuffle service using columar shuffle. However, you can still use Celeborn with row shuffle, which means a ColumarBatch will be converted to a row during shuffle.
+Below introduction is used to enable this feature:
+
+First refer to this URL(https://github.com/apache/incubator-celeborn) to setup a celeborn cluster.
+
+Then add the Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
+
+- Celeborn: celeborn-client-spark-3-shaded_2.12-0.3.0-incubating.jar
+
+Currently to use Celeborn following configurations are required in `spark-defaults.conf`
+
+```
+spark.shuffle.manager org.apache.spark.shuffle.celeborn.SparkShuffleManager
+
+# celeborn master
+spark.celeborn.master.endpoints clb-master:9097
+
+spark.shuffle.service.enabled false
+
+# options: hash, sort
+# Hash shuffle writer use (partition count) * (celeborn.push.buffer.max.size) * (spark.executor.cores) memory.
+# Sort shuffle writer uses less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.
+spark.celeborn.client.spark.shuffle.writer hash
+
+# We recommend setting spark.celeborn.client.push.replicate.enabled to true to enable server-side data replication
+# If you have only one worker, this setting must be false 
+# If your Celeborn is using HDFS, it's recommended to set this setting to false
+spark.celeborn.client.push.replicate.enabled true
+
+# Support for Spark AQE only tested under Spark 3
+# we recommend setting localShuffleReader to false to get better performance of Celeborn
+spark.sql.adaptive.localShuffleReader.enabled false
+
+# If Celeborn is using HDFS
+spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
+
+# If you want to use dynamic resource allocation,
+# please refer to this URL (https://github.com/apache/incubator-celeborn/tree/main/assets/spark-patch) to apply the patch into your own Spark.
+spark.dynamicAllocation.enabled false
+```
+
