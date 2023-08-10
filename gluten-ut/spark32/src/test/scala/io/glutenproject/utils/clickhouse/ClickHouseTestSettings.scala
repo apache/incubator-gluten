@@ -486,4 +486,5 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .include("string split function with limit explicitly set to 0")
     .include("string split function with negative limit")
     .include("string split function with positive limit")
+    .include("string substring_index function")
 }

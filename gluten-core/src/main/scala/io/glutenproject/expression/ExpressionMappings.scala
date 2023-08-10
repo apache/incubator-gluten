@@ -82,6 +82,7 @@ object ExpressionMappings {
     Sig[Reverse](REVERSE),
     Sig[StringSplit](SPLIT),
     Sig[Substring](SUBSTRING),
+    Sig[SubstringIndex](SUBSTRING_INDEX),
     Sig[ConcatWs](CONCAT_WS),
     Sig[StringRepeat](REPEAT),
     Sig[StringTranslate](TRANSLATE),

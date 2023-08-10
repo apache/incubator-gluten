@@ -18,7 +18,8 @@ package io.glutenproject.utils
 
 import io.glutenproject.expression.ExpressionNames._
 
-import org.apache.spark.sql.catalyst.expressions.{Expression, GetJsonObject, Literal, StringSplit}
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.unsafe.types.UTF8String
 
 trait FunctionValidator {
   def doValidate(expr: Expression): Boolean
@@ -58,9 +59,28 @@ case class StringSplitValidator() extends FunctionValidator {
       return false
     }
 
-    // TODO(taiyang-li): When limit is positive, CH result is wrong
+    // TODO: When limit is positive, CH result is wrong, fix it later
     val limitLiteral = split.limit.asInstanceOf[Literal]
     if (limitLiteral.value.asInstanceOf[Int] > 0) {
+      return false
+    }
+
+    true
+  }
+}
+
+case class SubstringIndexValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val substringIndex = expr.asInstanceOf[SubstringIndex]
+
+    // TODO: CH substringIndexUTF8 function only support string literal as delimiter
+    if (!substringIndex.delimExpr.isInstanceOf[Literal]) {
+      return false
+    }
+
+    // TODO: CH substringIndexUTF8 function only support single character as delimiter
+    val delim = substringIndex.delimExpr.asInstanceOf[Literal]
+    if (delim.value.asInstanceOf[UTF8String].toString.length != 1) {
       return false
     }
 
@@ -81,6 +101,7 @@ object CHExpressionUtil {
     MIGHT_CONTAIN -> DefaultValidator(),
     GET_JSON_OBJECT -> GetJsonObjectValidator(),
     ARRAYS_OVERLAP -> DefaultValidator(),
-    SPLIT -> StringSplitValidator()
+    SPLIT -> StringSplitValidator(),
+    SUBSTRING_INDEX -> SubstringIndexValidator()
   )
 }
