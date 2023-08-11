@@ -256,6 +256,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       val newPartitionFilters =
         ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters, reuseSubquery)
       val newSource = plan.copy(partitionFilters = newPartitionFilters)
+      newSource.setLogicalLink(plan.logicalLink.get)
       TransformHints.tag(newSource, TransformHints.getHint(plan))
       newSource
     case plan: BatchScanExec =>
@@ -266,6 +267,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery)
       }
       val newSource = plan.copy(runtimeFilters = newPartitionFilters)
+      newSource.setLogicalLink(plan.logicalLink.get)
       TransformHints.tag(newSource, TransformHints.getHint(plan))
       newSource
     case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
@@ -273,6 +275,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         HiveTableScanExecTransformer.getpartitionFilters(plan),
         reuseSubquery)
       val newSource = HiveTableScanExecTransformer.copyWith(plan, newPartitionFilters)
+      newSource.setLogicalLink(plan.logicalLink.get)
       TransformHints.tag(newSource, TransformHints.getHint(plan))
       newSource
     case other =>
