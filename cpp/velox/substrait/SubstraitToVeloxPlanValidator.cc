@@ -20,6 +20,7 @@
 #include <re2/re2.h>
 #include <string>
 #include "TypeUtils.h"
+#include "utils/Common.h"
 #include "velox/exec/Aggregate.h"
 #include "velox/expression/SignatureBinder.h"
 #include "velox/type/Tokenizer.h"
@@ -153,14 +154,14 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
   if (name == "regexp_extract_all" || name == "regexp_extract" || name == "regexp_replace" || name == "rlike") {
     const auto& patternArg = scalarFunction.arguments()[1].value();
-    if (!patternArg.has_literal()) {
-      logValidateMsg("native validation failed due to: pattern is not literal for " + name);
+    if (!patternArg.has_literal() || !patternArg.literal().has_string()) {
+      logValidateMsg("native validation failed due to: pattern is not string literal for " + name);
       return false;
     }
-    auto pattern = patternArg.literal().string();
-    auto re2 = RE2(pattern, RE2::Quiet);
-    if (!re2.ok()) {
-      logValidateMsg("native validation failed due to: pattern " + pattern + " compilation failed in RE2.");
+    const auto& pattern = patternArg.literal().string();
+    std::string error;
+    if (!validatePattern(pattern, error)) {
+      logValidateMsg(error);
       return false;
     }
   }
