@@ -41,29 +41,29 @@ class SubstraitParser {
   };
 
   /// Used to parse Substrait NamedStruct.
-  std::vector<std::shared_ptr<SubstraitType>> parseNamedStruct(const ::substrait::NamedStruct& namedStruct);
+  static std::vector<std::shared_ptr<SubstraitType>> parseNamedStruct(const ::substrait::NamedStruct& namedStruct);
 
   /// Used to parse partition columns from Substrait NamedStruct.
-  std::vector<bool> parsePartitionColumns(const ::substrait::NamedStruct& namedStruct);
+  static std::vector<bool> parsePartitionColumns(const ::substrait::NamedStruct& namedStruct);
 
   /// Parse Substrait Type.
-  std::shared_ptr<SubstraitType> parseType(const ::substrait::Type& substraitType);
+  static std::shared_ptr<SubstraitType> parseType(const ::substrait::Type& substraitType);
 
   // Parse substraitType type such as i32.
-  std::string parseType(const std::string& substraitType);
+  static std::string parseType(const std::string& substraitType);
 
   /// Parse Substrait ReferenceSegment.
-  int32_t parseReferenceSegment(const ::substrait::Expression::ReferenceSegment& refSegment);
+  static int32_t parseReferenceSegment(const ::substrait::Expression::ReferenceSegment& refSegment);
 
   /// Make names in the format of {prefix}_{index}.
-  std::vector<std::string> makeNames(const std::string& prefix, int size);
+  static std::vector<std::string> makeNames(const std::string& prefix, int size);
 
   /// Make node name in the format of n{nodeId}_{colIdx}.
   static std::string makeNodeName(int nodeId, int colIdx);
 
   /// Get the column index from a node name in the format of
   /// n{nodeId}_{colIdx}.
-  int getIdxFromNodeName(const std::string& nodeName);
+  static int getIdxFromNodeName(const std::string& nodeName);
 
   /// Find the Substrait function name according to the function id
   /// from a pre-constructed function map. The function specification can be
@@ -72,75 +72,40 @@ class SubstraitParser {
   /// Currently, the input types in the function specification are not used. But
   /// in the future, they should be used for the validation according the
   /// specifications in Substrait yaml files.
-  const std::string& findFunctionSpec(const std::unordered_map<uint64_t, std::string>& functionMap, uint64_t id) const;
+  static std::string findFunctionSpec(const std::unordered_map<uint64_t, std::string>& functionMap, uint64_t id);
 
   /// Extracts the function name for a function from specified compound name.
   /// When the input is a simple name, it will be returned.
-  std::string getSubFunctionName(const std::string& functionSpec) const;
+  static std::string getSubFunctionName(const std::string& functionSpec);
 
   /// This function is used get the types from the compound name.
-  void getSubFunctionTypes(const std::string& subFuncSpec, std::vector<std::string>& types) const;
+  static void getSubFunctionTypes(const std::string& subFuncSpec, std::vector<std::string>& types);
 
   /// Used to find the Velox function name according to the function id
   /// from a pre-constructed function map.
-  std::string findVeloxFunction(const std::unordered_map<uint64_t, std::string>& functionMap, uint64_t id) const;
+  static std::string findVeloxFunction(const std::unordered_map<uint64_t, std::string>& functionMap, uint64_t id);
 
   /// Map the Substrait function keyword into Velox function keyword.
-  std::string mapToVeloxFunction(const std::string& substraitFunction, bool isDecimal) const;
+  static std::string mapToVeloxFunction(const std::string& substraitFunction, bool isDecimal);
 
   /// @brief Return whether a config is set as true in AdvancedExtension
   /// optimization.
   /// @param extension Substrait advanced extension.
   /// @param config the key string of a config.
   /// @return Whether the config is set as true.
-  bool configSetInOptimization(const ::substrait::extensions::AdvancedExtension& extension, const std::string& config)
-      const;
+  static bool configSetInOptimization(const ::substrait::extensions::AdvancedExtension&, const std::string& config);
 
  private:
   /// A map used for mapping Substrait function keywords into Velox functions'
   /// keywords. Key: the Substrait function keyword, Value: the Velox function
   /// keyword. For those functions with different names in Substrait and Velox,
   /// a mapping relation should be added here.
-  std::unordered_map<std::string, std::string> substraitVeloxFunctionMap_ = {
-      {"is_not_null", "isnotnull"}, /*Spark functions.*/
-      {"is_null", "isnull"},
-      {"equal", "equalto"},
-      {"equal_null_safe", "equalnullsafe"},
-      {"lt", "lessthan"},
-      {"lte", "lessthanorequal"},
-      {"gt", "greaterthan"},
-      {"gte", "greaterthanorequal"},
-      {"not_equal", "notequalto"},
-      {"char_length", "length"},
-      {"strpos", "instr"},
-      {"ends_with", "endswith"},
-      {"starts_with", "startswith"},
-      {"datediff", "date_diff"},
-      {"named_struct", "row_constructor"},
-      {"bit_or", "bitwise_or_agg"},
-      {"bit_or_merge", "bitwise_or_agg_merge"},
-      {"bit_and", "bitwise_and_agg"},
-      {"bit_and_merge", "bitwise_and_agg_merge"},
-      {"collect_set", "array_distinct"},
-      {"modulus", "mod"} /*Presto functions.*/};
+  static std::unordered_map<std::string, std::string> substraitVeloxFunctionMap_;
 
   // The map is uesd for mapping substrait type.
   // Key: type in function name.
   // Value: substrait type name.
-  const std::unordered_map<std::string, std::string> typeMap_ = {
-      {"bool", "BOOLEAN"},
-      {"i8", "TINYINT"},
-      {"i16", "SMALLINT"},
-      {"i32", "INTEGER"},
-      {"i64", "BIGINT"},
-      {"fp32", "REAL"},
-      {"fp64", "DOUBLE"},
-      {"date", "DATE"},
-      {"ts", "TIMESTAMP"},
-      {"str", "VARCHAR"},
-      {"vbin", "VARBINARY"},
-      {"decShort", "SHORT_DECIMAL"},
-      {"decLong", "LONG_DECIMAL"}};
+  static const std::unordered_map<std::string, std::string> typeMap_;
 };
 
 } // namespace gluten

@@ -67,7 +67,7 @@ bool SubstraitToVeloxPlanValidator::validateInputTypes(
   const auto& sTypes = inputType.struct_().types();
   for (const auto& sType : sTypes) {
     try {
-      types.emplace_back(toVeloxType(substraitParser_.parseType(sType)->type));
+      types.emplace_back(toVeloxType(SubstraitParser::parseType(sType)->type));
     } catch (const VeloxException& err) {
       logValidateMsg("native validation failed due to: Type is not supported, " + err.message());
       return false;
@@ -140,10 +140,10 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
 
   const auto& function =
-      substraitParser_.findFunctionSpec(planConverter_.getFunctionMap(), scalarFunction.function_reference());
-  const auto& name = substraitParser_.getSubFunctionName(function);
+      SubstraitParser::findFunctionSpec(planConverter_.getFunctionMap(), scalarFunction.function_reference());
+  const auto& name = SubstraitParser::getSubFunctionName(function);
   std::vector<std::string> types;
-  substraitParser_.getSubFunctionTypes(function, types);
+  SubstraitParser::getSubFunctionTypes(function, types);
   if (name == "round") {
     return validateRound(scalarFunction, inputType);
   }
@@ -232,7 +232,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
     return false;
   }
 
-  const auto& toType = toVeloxType(substraitParser_.parseType(castExpr.type())->type);
+  const auto& toType = toVeloxType(SubstraitParser::parseType(castExpr.type())->type);
   if (toType->kind() == TypeKind::TIMESTAMP) {
     logValidateMsg("native validation failed due to: Casting to TIMESTAMP is not supported.");
     return false;
@@ -315,7 +315,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ExpandRel& expan
     std::vector<std::string> names;
     names.reserve(types.size());
     for (auto colIdx = 0; colIdx < types.size(); colIdx++) {
-      names.emplace_back(substraitParser_.makeNodeName(inputPlanNodeId, colIdx));
+      names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
     }
     rowType = std::make_shared<RowType>(std::move(names), std::move(types));
   }
@@ -408,7 +408,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   std::vector<std::string> names;
   names.reserve(types.size());
   for (auto colIdx = 0; colIdx < types.size(); colIdx++) {
-    names.emplace_back(substraitParser_.makeNodeName(inputPlanNodeId, colIdx));
+    names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
   }
   auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
 
@@ -419,7 +419,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
     try {
       const auto& windowFunction = smea.measure();
       funcSpecs.emplace_back(planConverter_.findFuncSpec(windowFunction.function_reference()));
-      toVeloxType(substraitParser_.parseType(windowFunction.output_type())->type);
+      toVeloxType(SubstraitParser::parseType(windowFunction.output_type())->type);
       for (const auto& arg : windowFunction.arguments()) {
         auto typeCase = arg.value().rex_type_case();
         switch (typeCase) {
@@ -460,7 +460,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   // Validate supported aggregate functions.
   std::unordered_set<std::string> unsupportedFuncs = {"collect_list", "collect_set"};
   for (const auto& funcSpec : funcSpecs) {
-    auto funcName = substraitParser_.getSubFunctionName(funcSpec);
+    auto funcName = SubstraitParser::getSubFunctionName(funcSpec);
     if (unsupportedFuncs.find(funcName) != unsupportedFuncs.end()) {
       logValidateMsg("native validation failed due to: " + funcName + " was not supported in WindowRel.");
       return false;
@@ -551,7 +551,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel
   std::vector<std::string> names;
   names.reserve(types.size());
   for (auto colIdx = 0; colIdx < types.size(); colIdx++) {
-    names.emplace_back(substraitParser_.makeNodeName(inputPlanNodeId, colIdx));
+    names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
   }
   auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
 
@@ -611,7 +611,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ProjectRel& proj
   std::vector<std::string> names;
   names.reserve(types.size());
   for (uint32_t colIdx = 0; colIdx < types.size(); colIdx++) {
-    names.emplace_back(substraitParser_.makeNodeName(inputPlanNodeId, colIdx));
+    names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
   }
   auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
 
@@ -665,7 +665,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FilterRel& filte
   std::vector<std::string> names;
   names.reserve(types.size());
   for (uint32_t colIdx = 0; colIdx < types.size(); colIdx++) {
-    names.emplace_back(substraitParser_.makeNodeName(inputPlanNodeId, colIdx));
+    names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
   }
   auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
 
@@ -697,7 +697,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
   }
 
   if (joinRel.has_advanced_extension() &&
-      substraitParser_.configSetInOptimization(joinRel.advanced_extension(), "isSMJ=")) {
+      SubstraitParser::configSetInOptimization(joinRel.advanced_extension(), "isSMJ=")) {
     switch (joinRel.type()) {
       case ::substrait::JoinRel_JoinType_JOIN_TYPE_INNER:
       case ::substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
@@ -738,7 +738,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
   std::vector<std::string> names;
   names.reserve(types.size());
   for (auto colIdx = 0; colIdx < types.size(); colIdx++) {
-    names.emplace_back(substraitParser_.makeNodeName(inputPlanNodeId, colIdx));
+    names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
   }
   auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
 
@@ -804,11 +804,11 @@ TypePtr SubstraitToVeloxPlanValidator::getRowType(const std::string& structType)
       continue;
     }
 
-    types.emplace_back(toVeloxType(substraitParser_.parseType(typeStr)));
+    types.emplace_back(toVeloxType(SubstraitParser::parseType(typeStr)));
     names.emplace_back("");
     childrenTypes.erase(0, pos + delimiter.length());
   }
-  types.emplace_back(toVeloxType(substraitParser_.parseType(childrenTypes)));
+  types.emplace_back(toVeloxType(SubstraitParser::parseType(childrenTypes)));
   names.emplace_back("");
   return std::make_shared<RowType>(std::move(names), std::move(types));
 }
@@ -825,7 +825,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     bool isDecimal = false;
     try {
       std::vector<std::string> funcTypes;
-      substraitParser_.getSubFunctionTypes(funcSpec, funcTypes);
+      SubstraitParser::getSubFunctionTypes(funcSpec, funcTypes);
       types.reserve(funcTypes.size());
       for (auto& type : funcTypes) {
         if (!isDecimal && type.find("dec") != std::string::npos) {
@@ -836,7 +836,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
         } else if (type.find("dec") != std::string::npos) {
           types.emplace_back(getDecimalType(type));
         } else {
-          types.emplace_back(toVeloxType(substraitParser_.parseType(type)));
+          types.emplace_back(toVeloxType(SubstraitParser::parseType(type)));
         }
       }
     } catch (const VeloxException& err) {
@@ -845,7 +845,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
           err.message());
       return false;
     }
-    auto funcName = substraitParser_.mapToVeloxFunction(substraitParser_.getSubFunctionName(funcSpec), isDecimal);
+    auto funcName = SubstraitParser::mapToVeloxFunction(SubstraitParser::getSubFunctionName(funcSpec), isDecimal);
     if (auto signatures = exec::getAggregateFunctionSignatures(funcName)) {
       for (const auto& signature : signatures.value()) {
         exec::SignatureBinder binder(*signature, types);
@@ -925,9 +925,9 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       const auto& aggFunction = smea.measure();
       const auto& functionSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
       funcSpecs.emplace_back(functionSpec);
-      toVeloxType(substraitParser_.parseType(aggFunction.output_type())->type);
+      toVeloxType(SubstraitParser::parseType(aggFunction.output_type())->type);
       // Validate the size of arguments.
-      if (substraitParser_.getSubFunctionName(functionSpec) == "count" && aggFunction.arguments().size() > 1) {
+      if (SubstraitParser::getSubFunctionName(functionSpec) == "count" && aggFunction.arguments().size() > 1) {
         logValidateMsg("native validation failed due to: count should have only one argument");
         // Count accepts only one argument.
         return false;
@@ -993,7 +993,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "covar_samp_merge",
       "approx_distinct"};
   for (const auto& funcSpec : funcSpecs) {
-    auto funcName = substraitParser_.getSubFunctionName(funcSpec);
+    auto funcName = SubstraitParser::getSubFunctionName(funcSpec);
     if (supportedAggFuncs.find(funcName) == supportedAggFuncs.end()) {
       logValidateMsg("native validation failed due to:  " + funcName + " was not supported in AggregateRel.");
       return false;
@@ -1037,7 +1037,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
     std::vector<TypePtr> veloxTypeList;
     if (readRel.has_base_schema()) {
       const auto& baseSchema = readRel.base_schema();
-      auto substraitTypeList = substraitParser_.parseNamedStruct(baseSchema);
+      auto substraitTypeList = SubstraitParser::parseNamedStruct(baseSchema);
       veloxTypeList.reserve(substraitTypeList.size());
       for (const auto& substraitType : substraitTypeList) {
         veloxTypeList.emplace_back(toVeloxType(substraitType->type));
@@ -1047,7 +1047,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
     int32_t inputPlanNodeId = 0;
     names.reserve(veloxTypeList.size());
     for (auto colIdx = 0; colIdx < veloxTypeList.size(); colIdx++) {
-      names.emplace_back(substraitParser_.makeNodeName(inputPlanNodeId, colIdx));
+      names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
     }
     auto rowType = std::make_shared<RowType>(std::move(names), std::move(veloxTypeList));
 

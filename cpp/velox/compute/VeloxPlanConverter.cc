@@ -112,8 +112,6 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
     throw std::runtime_error("Invalid input iterator.");
   }
 
-  SubstraitParser substraitParser;
-
   // Get the input schema of this iterator.
   uint64_t colNum = 0;
   std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> subTypeList;
@@ -122,7 +120,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
     // Input names is not used. Instead, new input/output names will be created
     // because the ValueStreamNode in Velox does not support name change.
     colNum = baseSchema.names().size();
-    subTypeList = substraitParser.parseNamedStruct(baseSchema);
+    subTypeList = SubstraitParser::parseNamedStruct(baseSchema);
   }
 
   std::vector<std::string> outNames;

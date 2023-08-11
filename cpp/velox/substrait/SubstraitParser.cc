@@ -254,17 +254,17 @@ int SubstraitParser::getIdxFromNodeName(const std::string& nodeName) {
   }
 }
 
-const std::string& SubstraitParser::findFunctionSpec(
+std::string SubstraitParser::findFunctionSpec(
     const std::unordered_map<uint64_t, std::string>& functionMap,
-    uint64_t id) const {
-  if (functionMap.find(id) == functionMap.end()) {
+    uint64_t id) {
+  auto x = functionMap.find(id);
+  if (x == functionMap.end()) {
     VELOX_FAIL("Could not find function id {} in function map.", id);
   }
-  std::unordered_map<uint64_t, std::string>& map = const_cast<std::unordered_map<uint64_t, std::string>&>(functionMap);
-  return map[id];
+  return x->second;
 }
 
-std::string SubstraitParser::getSubFunctionName(const std::string& subFuncSpec) const {
+std::string SubstraitParser::getSubFunctionName(const std::string& subFuncSpec) {
   // Get the position of ":" in the function name.
   std::size_t pos = subFuncSpec.find(":");
   if (pos == std::string::npos) {
@@ -273,7 +273,7 @@ std::string SubstraitParser::getSubFunctionName(const std::string& subFuncSpec) 
   return subFuncSpec.substr(0, pos);
 }
 
-void SubstraitParser::getSubFunctionTypes(const std::string& subFuncSpec, std::vector<std::string>& types) const {
+void SubstraitParser::getSubFunctionTypes(const std::string& subFuncSpec, std::vector<std::string>& types) {
   // Get the position of ":" in the function name.
   std::size_t pos = subFuncSpec.find(":");
   // Get the parameter types.
@@ -300,7 +300,7 @@ void SubstraitParser::getSubFunctionTypes(const std::string& subFuncSpec, std::v
 
 std::string SubstraitParser::findVeloxFunction(
     const std::unordered_map<uint64_t, std::string>& functionMap,
-    uint64_t id) const {
+    uint64_t id) {
   std::string funcSpec = findFunctionSpec(functionMap, id);
   std::string_view funcName = getNameBeforeDelimiter(funcSpec, ":");
   std::vector<std::string> types;
@@ -315,7 +315,7 @@ std::string SubstraitParser::findVeloxFunction(
   return mapToVeloxFunction({funcName.begin(), funcName.end()}, isDecimal);
 }
 
-std::string SubstraitParser::mapToVeloxFunction(const std::string& substraitFunction, bool isDecimal) const {
+std::string SubstraitParser::mapToVeloxFunction(const std::string& substraitFunction, bool isDecimal) {
   auto it = substraitVeloxFunctionMap_.find(substraitFunction);
   if (isDecimal) {
     if (substraitFunction == "add" || substraitFunction == "subtract" || substraitFunction == "multiply" ||
@@ -335,7 +335,7 @@ std::string SubstraitParser::mapToVeloxFunction(const std::string& substraitFunc
 
 bool SubstraitParser::configSetInOptimization(
     const ::substrait::extensions::AdvancedExtension& extension,
-    const std::string& config) const {
+    const std::string& config) {
   if (extension.has_optimization()) {
     google::protobuf::StringValue msg;
     extension.optimization().UnpackTo(&msg);
@@ -346,5 +346,44 @@ bool SubstraitParser::configSetInOptimization(
   }
   return false;
 }
+
+std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunctionMap_ = {
+    {"is_not_null", "isnotnull"}, /*Spark functions.*/
+    {"is_null", "isnull"},
+    {"equal", "equalto"},
+    {"equal_null_safe", "equalnullsafe"},
+    {"lt", "lessthan"},
+    {"lte", "lessthanorequal"},
+    {"gt", "greaterthan"},
+    {"gte", "greaterthanorequal"},
+    {"not_equal", "notequalto"},
+    {"char_length", "length"},
+    {"strpos", "instr"},
+    {"ends_with", "endswith"},
+    {"starts_with", "startswith"},
+    {"datediff", "date_diff"},
+    {"named_struct", "row_constructor"},
+    {"bit_or", "bitwise_or_agg"},
+    {"bit_or_merge", "bitwise_or_agg_merge"},
+    {"bit_and", "bitwise_and_agg"},
+    {"bit_and_merge", "bitwise_and_agg_merge"},
+    {"collect_set", "array_distinct"},
+    {"modulus", "mod"} /*Presto functions.*/
+};
+
+const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
+    {"bool", "BOOLEAN"},
+    {"i8", "TINYINT"},
+    {"i16", "SMALLINT"},
+    {"i32", "INTEGER"},
+    {"i64", "BIGINT"},
+    {"fp32", "REAL"},
+    {"fp64", "DOUBLE"},
+    {"date", "DATE"},
+    {"ts", "TIMESTAMP"},
+    {"str", "VARCHAR"},
+    {"vbin", "VARBINARY"},
+    {"decShort", "SHORT_DECIMAL"},
+    {"decLong", "LONG_DECIMAL"}};
 
 } // namespace gluten

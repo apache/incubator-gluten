@@ -93,10 +93,6 @@ class SubstraitVeloxExprConverter {
   /// Memory pool.
   memory::MemoryPool* pool_;
 
-  /// The Substrait parser used to convert Substrait representations into
-  /// recognizable representations.
-  SubstraitParser substraitParser_;
-
   /// The map storing the relations between the function id and the function
   /// name.
   std::unordered_map<uint64_t, std::string> functionMap_;
