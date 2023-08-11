@@ -351,6 +351,36 @@ class GlutenClickHouseFileFormatSuite
     checkAnswer(df, expectedAnswer)
   }
 
+  test("issues-2677 test for ignoring special char around float value") {
+    val file_path = csvDataPath + "/special_character_surrounding_float_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("float_field", FloatType, nullable = true),
+        StructField.apply("double_field", DoubleType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1.55.toFloat, 1.55.toDouble))
+    dataCorrect.add(Row(1.55.toFloat, null))
+    dataCorrect.add(Row(null, 1.55.toDouble))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
   test("read excel export csv base") {
     implicit class StringToDate(s: String) {
       def date: Date = Date.valueOf(s)

@@ -157,6 +157,11 @@ inline bool readExcelFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quot
     static_assert(std::is_same_v<T, double> || std::is_same_v<T, float>, "Argument for readFloatTextImpl must be float or double");
     static_assert('a' > '.' && 'A' > '.' && '\n' < '.' && '\t' < '.' && '\'' < '.' && '"' < '.', "Layout of char is not like ASCII");
 
+    const UInt8 MAX_HEAD_SKIP = 2;
+    const UInt8 MAX_TAIL_SKIP = 2;
+    UInt8 head_skip = 0;
+    UInt8 tail_skip = 0;
+
     bool negative = false;
     x = 0;
     UInt64 before_point = 0;
@@ -167,9 +172,24 @@ inline bool readExcelFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quot
     if (in.eof())
         return false;
 
-    if ((*in.position() < '0' || *in.position() > '9') && *in.position() != '-' && *in.position() != '+' && *in.position() != '.'
-        && !checkMoneySymbol(in))
-        return false;
+    while (!in.eof())
+    {
+
+        if ((*in.position() < '0' || *in.position() > '9') && *in.position() != '-' && *in.position() != '+' && *in.position() != '.'
+            && !checkMoneySymbol(in))
+        {
+            if (!((static_cast<UInt8>(*in.position()) & 0b11000000u) == 0b10000000u)) // learn from UTF8Helpers.h
+            {
+                head_skip++;
+                if (head_skip > MAX_HEAD_SKIP)
+                    return false;
+            }
+            ++in.position();
+        }
+        else
+            break ;
+    }
+
 
     if (*in.position() == '-')
     {
@@ -242,6 +262,27 @@ inline bool readExcelFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quot
         if (exponent_negative)
             exponent = -exponent;
     }
+
+
+    if (!(*in.position() >= '0' && *in.position() <= '9')) // process suffix
+    {
+        while (!in.eof())
+        {
+            if(*in.position() == settings.csv.delimiter ||*in.position() == '\'' ||*in.position() == '\"'
+                || *in.position() == '\n' || *in.position() == '\r')
+            {
+                break;
+            }
+            if (!((static_cast<UInt8>(*in.position()) & 0b11000000u) == 0b10000000u)) // learn from UTF8Helpers.h
+            {
+                tail_skip++;
+                if (tail_skip>MAX_TAIL_SKIP)
+                    return false;
+            }
+            ++in.position();
+        }
+    }
+
 
     if (after_point)
         x += static_cast<T>(shift10(after_point, after_point_exponent));
