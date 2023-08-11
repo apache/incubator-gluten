@@ -234,7 +234,7 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
 
   // Validate regex functions.
   if (kRegexFunctions.find(name) != kRegexFunctions.end()) {
-    validateRegexExpr(name, params);
+    validateRegexExpr(name, scalarFunction);
   }
 
   if (kBlackList.find(name) != kBlackList.end()) {

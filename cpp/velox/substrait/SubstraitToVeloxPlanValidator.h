@@ -101,7 +101,7 @@ class SubstraitToVeloxPlanValidator {
   /// Validates regex functions.
   /// Ensures the second pattern argument is a literal string.
   /// Check if the pattern can pass with RE2 compilation.
-  bool validateRegexExpr(const ::substrait::Expression::ScalarFunction& scalarFunction, const RowTypePtr& inputType);
+  bool validateRegexExpr(const std::string& name, const ::substrait::Expression::ScalarFunction& scalarFunction);
 
   /// Validate Substrait scarlar function.
   bool validateScalarFunction(
