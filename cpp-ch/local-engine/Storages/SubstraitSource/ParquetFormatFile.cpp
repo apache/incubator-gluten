@@ -19,7 +19,7 @@
 #if USE_PARQUET
 
 #    include <memory>
-#    include <string>
+#    include <numeric>
 #    include <utility>
 
 #    include <Formats/FormatFactory.h>
