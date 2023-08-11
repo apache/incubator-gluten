@@ -143,7 +143,9 @@ object UDFResolver extends Logging {
       Utils.unpack(source, dest)
     } catch {
       case e: Exception =>
-        throw new GlutenException(s"Unpack ${source.toString} failed.", e)
+        throw new GlutenException(
+          s"Unpack ${source.toString} failed. Please check if it is an archive.",
+          e)
     }
     dest
   }
@@ -193,11 +195,9 @@ object UDFResolver extends Logging {
   def loadAndGetFunctionDescriptions: Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = {
     val sparkContext = SparkContext.getActive.get
     val sparkConf = sparkContext.conf
-    val udfLibPaths = if (sparkConf.contains(BackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS)) {
-      Some(sparkConf.get(BackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS))
-    } else {
-      sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS)
-    }
+    val udfLibPaths = sparkConf
+      .getOption(BackendSettings.GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS)
+      .orElse(sparkConf.getOption(BackendSettings.GLUTEN_VELOX_UDF_LIB_PATHS))
 
     udfLibPaths match {
       case None =>
