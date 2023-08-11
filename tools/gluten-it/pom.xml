@@ -92,9 +92,6 @@
   <profiles>
     <profile>
       <id>spark-3.2</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
       <properties>
         <spark.version>${spark32.version}</spark.version>
       </properties>
@@ -122,6 +119,34 @@
       <id>spark-3.3</id>
       <properties>
         <spark.version>${spark33.version}</spark.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-sql_${scala.binary.version}</artifactId>
+          <version>${spark.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>com.google.protobuf</groupId>
+              <artifactId>protobuf-java</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-sql_${scala.binary.version}</artifactId>
+          <version>${spark.version}</version>
+          <type>test-jar</type>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <spark.version>3.4.0</spark.version>
       </properties>
       <dependencies>
         <dependency>
