@@ -131,6 +131,9 @@ case class SortMergeJoinExecTransformer(
     }
   }
 
+  override def requiredChildOrdering: Seq[Seq[SortOrder]] =
+    requiredOrders(leftKeys) :: requiredOrders(rightKeys) :: Nil
+
   override def outputOrdering: Seq[SortOrder] = joinType match {
     // For inner join, orders of both sides keys should be kept.
     case _: InnerLike =>
