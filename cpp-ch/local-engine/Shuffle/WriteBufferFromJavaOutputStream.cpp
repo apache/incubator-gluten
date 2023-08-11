@@ -40,8 +40,8 @@ void WriteBufferFromJavaOutputStream::nextImpl()
 WriteBufferFromJavaOutputStream::WriteBufferFromJavaOutputStream(jobject output_stream_, jbyteArray buffer_, size_t customize_buffer_size)
 {
     GET_JNIENV(env)
-    buffer = static_cast<jbyteArray>(env->NewWeakGlobalRef(buffer_));
-    output_stream = env->NewWeakGlobalRef(output_stream_);
+    buffer = static_cast<jbyteArray>(env->NewGlobalRef(buffer_));
+    output_stream = env->NewGlobalRef(output_stream_);
     buffer_size = customize_buffer_size;
     CLEAN_JNIENV
 }
@@ -55,8 +55,8 @@ void WriteBufferFromJavaOutputStream::finalizeImpl()
 WriteBufferFromJavaOutputStream::~WriteBufferFromJavaOutputStream()
 {
     GET_JNIENV(env)
-    env->DeleteWeakGlobalRef(output_stream);
-    env->DeleteWeakGlobalRef(buffer);
+    env->DeleteGlobalRef(output_stream);
+    env->DeleteGlobalRef(buffer);
     CLEAN_JNIENV
 }
 }

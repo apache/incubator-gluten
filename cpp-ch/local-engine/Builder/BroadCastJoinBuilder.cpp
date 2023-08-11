@@ -94,10 +94,16 @@ namespace BroadCastJoinBuilder
             catch (DB::Exception & e)
             {
                 LOG_ERROR(&Poco::Logger::get("BroadCastJoinBuilder"), "storage join create failed, {}", e.displayText());
+                result.reset();
             }
         };
         ThreadFromGlobalPool build_thread(func);
         build_thread.join();
+
+        if(!result) {
+            throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "create broadcast hash table {} failed.", key);
+        }
+
         return result;
     }
 
