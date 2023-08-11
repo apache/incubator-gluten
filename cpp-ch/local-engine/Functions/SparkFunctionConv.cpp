@@ -22,8 +22,8 @@
 #include <Poco/Types.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
-#include "DataTypes/IDataType.h"
-#include "base/types.h"
+#include <DataTypes/IDataType.h>
+#include <base/types.h>
 
 namespace DB
 {
@@ -49,7 +49,7 @@ DB::DataTypePtr SparkFunctionConv::getReturnTypeImpl(const DB::DataTypes & argum
             "Second argument for function {} must be Int", getName());
     if (!isInteger(arguments[2]))
         throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
-            "Thrid argument for function {} must be Int", getName());
+            "Third argument for function {} must be Int", getName());
 
     auto arg0_type = DB::removeNullable(arguments[0]);
     return std::make_shared<DB::DataTypeNullable>(arg0_type);
