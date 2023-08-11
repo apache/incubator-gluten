@@ -29,6 +29,32 @@ namespace gluten {
 
 namespace {
 
+static const std::unordered_set<std::string> kRegexFunctions = {
+    "regexp_extract",
+    "regexp_extract_all",
+    "regexp_replace",
+    "rlike"};
+
+static const std::unordered_set<std::string> kBlackList = {
+    "split",
+    "split_part",
+    "factorial",
+    "concat_ws",
+    "rand",
+    "json_array_length",
+    "from_unixtime",
+    "repeat",
+    "translate",
+    "add_months",
+    "date_format",
+    "trunc",
+    "sequence",
+    "posexplode",
+    "arrays_overlap",
+    "array_min",
+    "array_max",
+    "approx_percentile"};
+
 bool validateColNames(const ::substrait::NamedStruct& schema) {
   for (auto& name : schema.names()) {
     common::Tokenizer token(name);
@@ -129,6 +155,26 @@ bool SubstraitToVeloxPlanValidator::validateExtractExpr(const std::vector<core::
   return false;
 }
 
+bool SubstraitToVeloxPlanValidator::validateRegexExpr(
+    const std::string& name,
+    const ::substrait::Expression::ScalarFunction& scalarFunction) {
+  if (scalarFunction.arguments().size() < 2) {
+    logValidateMsg("native validation failed due to: wrong number of arguments for " + name);
+  }
+  const auto& patternArg = scalarFunction.arguments()[1].value();
+  if (!patternArg.has_literal() || !patternArg.literal().has_string()) {
+    logValidateMsg("native validation failed due to: pattern is not string literal for " + name);
+    return false;
+  }
+  const auto& pattern = patternArg.literal().string();
+  std::string error;
+  if (!validatePattern(pattern, error)) {
+    logValidateMsg(error);
+    return false;
+  }
+  return true;
+}
+
 bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     const ::substrait::Expression::ScalarFunction& scalarFunction,
     const RowTypePtr& inputType) {
@@ -151,19 +197,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   }
   if (name == "extract") {
     return validateExtractExpr(params);
-  }
-  if (name == "regexp_extract_all" || name == "regexp_extract" || name == "regexp_replace" || name == "rlike") {
-    const auto& patternArg = scalarFunction.arguments()[1].value();
-    if (!patternArg.has_literal() || !patternArg.literal().has_string()) {
-      logValidateMsg("native validation failed due to: pattern is not string literal for " + name);
-      return false;
-    }
-    const auto& pattern = patternArg.literal().string();
-    std::string error;
-    if (!validatePattern(pattern, error)) {
-      logValidateMsg(error);
-      return false;
-    }
   }
   if (name == "char_length") {
     VELOX_CHECK(types.size() == 1);
@@ -198,26 +231,13 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
       }
     }
   }
-  std::unordered_set<std::string> blackList = {
-      "split",
-      "split_part",
-      "factorial",
-      "concat_ws",
-      "rand",
-      "json_array_length",
-      "from_unixtime",
-      "repeat",
-      "translate",
-      "add_months",
-      "date_format",
-      "trunc",
-      "sequence",
-      "posexplode",
-      "arrays_overlap",
-      "array_min",
-      "array_max",
-      "approx_percentile"};
-  if (blackList.find(name) != blackList.end()) {
+
+  // Validate regex functions.
+  if (kRegexFunctions.find(name) != kRegexFunctions.end()) {
+    validateRegexExpr(name, params);
+  }
+
+  if (kBlackList.find(name) != kBlackList.end()) {
     logValidateMsg("native validation failed due to: Function is not supported: " + name);
     return false;
   }
