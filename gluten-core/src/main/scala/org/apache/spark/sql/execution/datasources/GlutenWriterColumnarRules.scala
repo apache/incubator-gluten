@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.extension.GlutenPlan
-
+import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
@@ -81,7 +81,7 @@ case class FakeRowAdaptor(child: SparkPlan)
 
 case class MATERIALIZE_TAG()
 
-object GlutenWriterColumnarRules {
+object GlutenWriterColumnarRules extends Logging{
   // some output formats does not recognize const and sparse columns (e.g. ColumnConst in CH)
   // So when the following two conditions are met
   // 1. a SparkPlan is columnar output(or it may be converted to another SparkPlan which is)
@@ -104,8 +104,9 @@ object GlutenWriterColumnarRules {
     cmd match {
       case command: CreateDataSourceTableAsSelectCommand =>
         if (command.table.provider.contains("velox")) {
-          throw new UnsupportedOperationException(
-            "Velox file format does not support create table as select.")
+          log.warn(
+            "Unsupported Operation: Velox file format does not support create table as select.")
+          return (false, "")
         }
 
         if ("parquet".equals(command.table.provider.get)) {
@@ -122,8 +123,9 @@ object GlutenWriterColumnarRules {
           GlutenConfig.isCurrentBackendVelox
           && (command.partitionColumns.nonEmpty || command.bucketSpec.nonEmpty)
         ) {
-          throw new UnsupportedOperationException(
-            "Velox file format does not support dynamic partition write and bucket write.")
+          log.warn(
+            "Unsupported Operation: Velox file format does not support dynamic partition write and bucket write.")
+          return (false, "")
         }
 
         if (command.fileFormat.isInstanceOf[ParquetFileFormat]) {
@@ -162,12 +164,14 @@ object GlutenWriterColumnarRules {
           return (false, "")
         }
       case _: CreateHiveTableAsSelectCommand =>
-        throw new UnsupportedOperationException(
-          "native writer cannot recognize command: " + cmd.getClass.getName +
-            " please append `using parquet` in your CTAS query")
+        log.warn(
+          "Unsupported Operation: native writer cannot recognize command: {}" +
+            " please append `using parquet` in your CTAS query.", cmd.getClass.getName)
+        return (false, "")
       case _ =>
-        throw new UnsupportedOperationException(
-          "native writer cannot recognize command: " + cmd.getClass.getName)
+        log.warn(
+          "Unsupported Operation: native writer cannot recognize command: {}", cmd.getClass.getName)
+        return (false, "")
     }
   }
 
@@ -199,7 +203,6 @@ object GlutenWriterColumnarRules {
                       aqe.isSubquery,
                       supportsColumnar = true
                     ))))
-            case other => rc.withNewChildren(Array(FakeRowAdaptor(other)))
           }
         } else {
           rc.withNewChildren(rc.children.map(apply))
