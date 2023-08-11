@@ -56,34 +56,38 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
     val localSchema = schema
     if (!new Validator().doSchemaValidate(schema)) {
       throw new UnsupportedOperationException(
-        s"schema ${schema.toString()} contains not support type in row to columnar")
+        s"Input schema contains unsupported type when convert row to columnar, " +
+          s"${schema.toString()}")
     }
+
     child.execute().mapPartitions {
       rowIterator =>
-        val arrowSchema =
-          SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
-        val jniWrapper = new NativeRowToColumnarJniWrapper()
-        val allocator = ArrowBufferAllocators.contextInstance()
-        val cSchema = ArrowSchema.allocateNew(allocator)
-        var closed = false
-        val r2cId =
-          try {
-            ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-            jniWrapper.init(
-              cSchema.memoryAddress(),
-              NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
-          } finally {
-            cSchema.close()
+        if (rowIterator.isEmpty) {
+          Iterator.empty
+        } else {
+          val arrowSchema =
+            SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
+          val jniWrapper = new NativeRowToColumnarJniWrapper()
+          val allocator = ArrowBufferAllocators.contextInstance()
+          val cSchema = ArrowSchema.allocateNew(allocator)
+          var closed = false
+          val r2cId =
+            try {
+              ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+              jniWrapper.init(
+                cSchema.memoryAddress(),
+                NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
+            } finally {
+              cSchema.close()
+            }
+
+          TaskResources.addRecycler(100) {
+            if (!closed) {
+              jniWrapper.close(r2cId)
+              closed = true
+            }
           }
 
-        TaskResources.addRecycler(100) {
-          if (!closed) {
-            jniWrapper.close(r2cId)
-            closed = true
-          }
-        }
-
-        if (rowIterator.hasNext) {
           val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
 
             override def hasNext: Boolean = {
@@ -177,8 +181,6 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
             }
           }
           new CloseableColumnBatchIterator(res)
-        } else {
-          Iterator.empty
         }
     }
   }
