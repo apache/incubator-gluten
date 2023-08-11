@@ -111,22 +111,22 @@ class ColumnarToRowRDD(
 
   private def f: Iterator[ColumnarBatch] => Iterator[InternalRow] = {
     batches =>
-      // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
-      val jniWrapper = new NativeColumnarToRowJniWrapper()
-      var closed = false
-      val c2rId = jniWrapper.nativeColumnarToRowInit(
-        NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
-
-      TaskResources.addRecycler(100) {
-        if (!closed) {
-          jniWrapper.nativeClose(c2rId)
-          closed = true
-        }
-      }
-
       if (batches.isEmpty) {
         Iterator.empty
       } else {
+        // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
+        val jniWrapper = new NativeColumnarToRowJniWrapper()
+        var closed = false
+        val c2rId = jniWrapper.nativeColumnarToRowInit(
+          NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
+
+        TaskResources.addRecycler(100) {
+          if (!closed) {
+            jniWrapper.nativeClose(c2rId)
+            closed = true
+          }
+        }
+
         val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
 
           override def hasNext: Boolean = {
