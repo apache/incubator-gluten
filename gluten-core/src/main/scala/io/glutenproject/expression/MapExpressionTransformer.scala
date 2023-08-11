@@ -38,7 +38,7 @@ class CreateMapTransformer(
     // transformation is only supported when useStringTypeWhenEmpty is false
     // because ClickHouse and Velox currently doesn't support this config.
     if (children.isEmpty && useStringTypeWhenEmpty) {
-      throw new UnsupportedOperationException(s"$original supported yet.")
+      throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
     val childNodes = new java.util.ArrayList[ExpressionNode]()
