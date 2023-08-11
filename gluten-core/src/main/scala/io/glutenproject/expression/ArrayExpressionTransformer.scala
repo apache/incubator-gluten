@@ -94,43 +94,13 @@ class GetArrayItemTransformer(
       Lists.newArrayList(literalNode, rightNode),
       ConverterUtils.getTypeNode(original.right.dataType, original.right.nullable))
 
-    val functionName = if (BackendsApiManager.isVeloxBackend) {
-      ConverterUtils.makeFuncName(
-        ExpressionMappings.expressionsMap.get(classOf[ElementAt]).get,
-        Seq(original.dataType),
-        FunctionConfig.OPT)
-    } else {
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        Seq(original.left.dataType, original.right.dataType),
-        FunctionConfig.OPT)
-    }
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val exprNodes = Lists.newArrayList(
-      leftNode.asInstanceOf[ExpressionNode],
-      rightNode.asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    val resultNode = ExpressionBuilder.makeScalarFunction(functionId, exprNodes, typeNode)
-
-    if (BackendsApiManager.isVeloxBackend) {
-      val nullResultNode = ExpressionBuilder.makeLiteral(null, original.dataType, false)
-      val lessThanFuncId = ExpressionBuilder.newScalarFunction(
-        functionMap,
-        ConverterUtils.makeFuncName(
-          ExpressionNames.LESS_THAN,
-          Seq(original.right.dataType, IntegerType),
-          FunctionConfig.OPT))
-      val lessThanFuncNode = ExpressionBuilder.makeScalarFunction(
-        lessThanFuncId,
-        Lists.newArrayList(rightNode, literalNode),
-        ConverterUtils.getTypeNode(BooleanType, true))
-      new IfThenNode(
-        Lists.newArrayList(lessThanFuncNode),
-        Lists.newArrayList(nullResultNode),
-        resultNode)
-    } else {
-      resultNode
-    }
+    BackendsApiManager.getSparkPlanExecApiInstance.genGetArrayItemExpressionNode(
+      substraitExprName: String,
+      functionMap: java.util.HashMap[String, java.lang.Long],
+      leftNode: ExpressionNode,
+      rightNode: ExpressionNode,
+      original: GetArrayItem
+    )
   }
 }
 
