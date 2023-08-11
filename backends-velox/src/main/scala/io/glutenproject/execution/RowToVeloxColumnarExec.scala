@@ -56,7 +56,8 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
     val localSchema = schema
     if (!new Validator().doSchemaValidate(schema)) {
       throw new UnsupportedOperationException(
-        s"Input schema contains unsupported type when convert row to columnar, ${schema.toString()}")
+        s"Input schema contains unsupported type when convert row to columnar, " +
+          s"${schema.toString()}")
     }
 
     child.execute().mapPartitions {
