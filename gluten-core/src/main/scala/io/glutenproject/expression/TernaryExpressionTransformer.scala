@@ -132,7 +132,10 @@ class StringSplitTransformer(
   with Logging {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    if (!regexExpr.isInstanceOf[LiteralTransformer] || !limitExpr.isInstanceOf[LiteralTransformer]) {
+    if (
+      !regexExpr.isInstanceOf[LiteralTransformer] ||
+      !limitExpr.isInstanceOf[LiteralTransformer]
+    ) {
       throw new UnsupportedOperationException(
         "Gluten only supports literal input as limit/regex for split function.")
     }
