@@ -35,6 +35,7 @@
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/reader.h"
 #include "shuffle/rss/CelebornPartitionWriter.h"
+#include "shuffle/utils.h"
 #include "utils/ArrowStatus.h"
 #include "utils/TaskContext.h"
 
@@ -829,7 +830,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     env->ReleaseStringUTFChars(dataFileJstr, dataFileC);
 
     auto localDirs = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
-    setenv("NATIVESQL_SPARK_LOCAL_DIRS", localDirs, 1);
+    setenv(gluten::kGlutenSparkLocalDirs.c_str(), localDirs, 1);
     env->ReleaseStringUTFChars(localDirsJstr, localDirs);
     partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>(preferEvict);
   } else if (partitionWriterType == "celeborn") {

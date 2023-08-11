@@ -64,7 +64,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     ARROW_ASSIGN_OR_THROW(tmpDir2_, arrow::internal::TemporaryDir::Make(tmpDirPrefix))
     auto configDirs = tmpDir1_->path().ToString() + "," + tmpDir2_->path().ToString();
 
-    setenv("NATIVESQL_SPARK_LOCAL_DIRS", configDirs.c_str(), 1);
+    setenv(kGlutenSparkLocalDirs.c_str(), configDirs.c_str(), 1);
 
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
     shuffleWriterOptions_.write_schema = true;

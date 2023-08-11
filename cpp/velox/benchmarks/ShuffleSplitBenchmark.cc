@@ -169,8 +169,6 @@ class BenchmarkShuffleSplit {
         shuffleWriter->totalBytesWritten(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
     state.counters["bytes_raw"] = benchmark::Counter(
         shuffleWriter->rawPartitionBytes(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
-    state.counters["bytes_spilled"] = benchmark::Counter(
-        shuffleWriter->totalBytesEvicted(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
     state.counters["parquet_parse"] =
         benchmark::Counter(elapseRead, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
