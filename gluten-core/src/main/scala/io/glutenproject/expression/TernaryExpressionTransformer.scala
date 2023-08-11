@@ -134,18 +134,11 @@ class StringSplitTransformer(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     if (!regexExpr.isInstanceOf[LiteralTransformer] || !limitExpr.isInstanceOf[LiteralTransformer]) {
       throw new UnsupportedOperationException(
-        s"Gluten only supports LiteralTransformer as limit/regex for split function.")
-    }
-
-    val limitNode = limitExpr.doTransform(args)
-    val regexNode = regexExpr.doTransform(args)
-    if (!limitNode.isInstanceOf[LiteralNode] || !regexNode.isInstanceOf[LiteralNode]) {
-      throw new UnsupportedOperationException(
         "Gluten only supports literal input as limit/regex for split function.")
     }
 
-    val limit = limitNode.asInstanceOf[IntLiteralNode].getValue
-    val regex = regexNode.asInstanceOf[StringLiteralNode].getValue
+    val limit = limitExpr.doTransform(args).asInstanceOf[IntLiteralNode].getValue
+    val regex = regexExpr.doTransform(args).asInstanceOf[StringLiteralNode].getValue
     if (limit > 0 || regex.length > 1) {
       throw new UnsupportedOperationException(
         s"$original supported single-length regex and negative limit, but given $limit and $regex")
