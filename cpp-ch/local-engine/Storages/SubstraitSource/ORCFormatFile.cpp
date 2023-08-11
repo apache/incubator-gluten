@@ -18,6 +18,7 @@
 
 #if USE_ORC
 #    include <memory>
+#    include <numeric>
 #    include <Formats/FormatFactory.h>
 #    include <IO/SeekableReadBuffer.h>
 #    include <Processors/Formats/Impl/ArrowBufferedStreams.h>
