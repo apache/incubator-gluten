@@ -45,6 +45,9 @@
 #include <Common/ExceptionUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
+#include <Shuffle/CachedShuffleWriter.h>
+#include <Shuffle/PartitionWriter.h>
+#include <Shuffle/ShuffleWriterBase.h>
 
 #ifdef __cplusplus
 
@@ -637,7 +640,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jstring codec,
     jstring data_file,
     jstring local_dirs,
-    jint num_sub_dirs)
+    jint num_sub_dirs,
+    jboolean prefer_spill)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -678,8 +682,18 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec)};
-    local_engine::SplitterHolder * splitter
-        = new local_engine::SplitterHolder{.splitter = local_engine::ShuffleSplitter::create(jstring2string(env, short_name), options)};
+    auto name = jstring2string(env, short_name);
+    local_engine::SplitterHolder * splitter;
+    if (prefer_spill)
+    {
+        splitter
+            = new local_engine::SplitterHolder{.splitter = local_engine::ShuffleSplitter::create(name, options)};
+    }
+    else
+    {
+        splitter
+            = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options)};
+    }
     return reinterpret_cast<jlong>(splitter);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }

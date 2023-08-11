@@ -97,7 +97,8 @@ class CHColumnarShuffleWriter[K, V](
         customizedCompressCodec,
         dataTmp.getAbsolutePath,
         localDirs,
-        subDirsPerLocalDir)
+        subDirsPerLocalDir,
+        preferSpill)
     }
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]

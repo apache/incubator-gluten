@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #pragma once
+#include <memory>
 #include <Columns/IColumn.h>
 #include <Core/Block.h>
 #include <Formats/NativeWriter.h>
@@ -23,6 +24,7 @@
 #include <Shuffle/SelectorBuilder.h>
 #include <Common/PODArray.h>
 #include <Common/PODArray_fwd.h>
+#include <Shuffle/ShuffleWriterBase.h>
 
 
 namespace local_engine
@@ -71,23 +73,23 @@ struct SplitResult
     std::vector<Int64> raw_partition_length;
 };
 
-class ShuffleSplitter
+class ShuffleSplitter : public ShuffleWriterBase
 {
 public:
     static const std::vector<std::string> compress_methods;
     using Ptr = std::unique_ptr<ShuffleSplitter>;
     static Ptr create(const std::string & short_name, SplitOptions options_);
     explicit ShuffleSplitter(SplitOptions && options);
-    virtual ~ShuffleSplitter()
+    virtual ~ShuffleSplitter() override
     {
         if (!stopped)
             stop();
     }
-    void split(DB::Block & block);
+    void split(DB::Block & block) override;
     virtual void computeAndCountPartitionId(DB::Block &) { }
     std::vector<int64_t> getPartitionLength() const { return split_result.partition_length; }
     void writeIndexFile();
-    SplitResult stop();
+    SplitResult stop() override;
 
 private:
     void init();
@@ -150,7 +152,7 @@ private:
 };
 struct SplitterHolder
 {
-    ShuffleSplitter::Ptr splitter;
+    std::unique_ptr<ShuffleWriterBase> splitter;
 };
 
 
