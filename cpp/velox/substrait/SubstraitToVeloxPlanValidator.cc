@@ -152,9 +152,9 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     return validateExtractExpr(params);
   }
   if (name == "regexp_extract_all" || name == "regexp_extract" || name == "regexp_replace" || name == "rlike") {
-    auto patternArg = scalarFunction.arguments()[1].value();
+    const auto& patternArg = scalarFunction.arguments()[1].value();
     if (!patternArg.has_literal()) {
-      logValidateMsg("native validation failed due to: pattern is not literal for regex_extract_all.");
+      logValidateMsg("native validation failed due to: pattern is not literal for " + name);
       return false;
     }
     auto pattern = patternArg.literal().string();
