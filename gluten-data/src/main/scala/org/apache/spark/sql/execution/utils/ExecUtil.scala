@@ -53,7 +53,7 @@ object ExecUtil {
       val row = new UnsafeRow(batch.numCols())
       var closed = false
 
-      TaskResources.addRecycler(100) {
+      TaskResources.addRecycler(s"ColumnarToRow_$instanceId", 100) {
         if (!closed) {
           jniWrapper.nativeClose(instanceId)
           closed = true
@@ -179,7 +179,7 @@ object ExecUtil {
             }
             val newIter = computeAndAddPartitionId(cbIter, partitionKeyExtractor)
 
-            TaskResources.addRecycler(100) {
+            TaskResources.addRecycler("RangePartitioningIter", 100) {
               newIter.closeColumnBatch()
             }
 

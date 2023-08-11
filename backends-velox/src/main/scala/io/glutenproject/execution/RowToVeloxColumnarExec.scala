@@ -81,7 +81,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
               cSchema.close()
             }
 
-          TaskResources.addRecycler(100) {
+          TaskResources.addRecycler(s"RowToColumnar_$r2cId", 100) {
             if (!closed) {
               jniWrapper.close(r2cId)
               closed = true
@@ -101,7 +101,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
 
             def nativeConvert(row: UnsafeRow): ColumnarBatch = {
               var arrowBuf: ArrowBuf = null
-              TaskResources.addRecycler(100) {
+              TaskResources.addRecycler("RowToColumnar_arrowBuf", 100) {
                 // Remind, remove isOpen here
                 if (arrowBuf != null && arrowBuf.refCnt() == 0) {
                   arrowBuf.close()

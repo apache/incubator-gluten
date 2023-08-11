@@ -47,6 +47,8 @@ public abstract class GeneralOutIterator implements AutoCloseable, Serializable 
     }
   }
 
+  public abstract String getId();
+
   protected abstract void closeInternal();
 
   protected abstract boolean hasNextInternal() throws Exception;

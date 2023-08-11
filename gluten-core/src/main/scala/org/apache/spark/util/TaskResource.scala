@@ -26,4 +26,6 @@ trait TaskResource {
 
   // #release() will be called in higher precedence if the manager has higher priority
   def priority(): Long = 100
+
+  def resourceName(): String
 }
