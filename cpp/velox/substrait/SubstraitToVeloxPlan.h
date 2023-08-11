@@ -84,9 +84,6 @@ class SubstraitToVeloxPlanConverter {
   /// Convert Substrait SortRel into Velox OrderByNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::SortRel& sortRel);
 
-  /// Check the Substrait type extension only has one unknown extension.
-  bool checkTypeExtension(const ::substrait::Plan& substraitPlan);
-
   /// Convert Substrait ReadRel into Velox PlanNode.
   /// Index: the index of the partition this item belongs to.
   /// Starts: the start positions in byte to read from the items.
@@ -117,13 +114,6 @@ class SubstraitToVeloxPlanConverter {
     return splitInfoMap_;
   }
 
-  /// Integrate Substrait emit feature. Here a given 'substrait::RelCommon'
-  /// is passed and check if emit is defined for this relation. Basically a
-  /// ProjectNode is added on top of 'noEmitNode' to represent output order
-  /// specified in 'relCommon::emit'. Return 'noEmitNode' as is
-  /// if output order is 'kDriect'.
-  core::PlanNodePtr processEmit(const ::substrait::RelCommon& relCommon, const core::PlanNodePtr& noEmitNode);
-
   /// Used to insert certain plan node as input. The plan node
   /// id will start from the setted one.
   void insertInputNode(uint64_t inputIdx, const std::shared_ptr<const core::PlanNode>& inputNode, int planNodeId) {
@@ -134,17 +124,7 @@ class SubstraitToVeloxPlanConverter {
   /// Used to check if ReadRel specifies an input of stream.
   /// If yes, the index of input stream will be returned.
   /// If not, -1 will be returned.
-  int32_t streamIsInput(const ::substrait::ReadRel& sRel);
-
-  /// Multiple conditions are connected to a binary tree structure with
-  /// the relation key words, including AND, OR, and etc. Currently, only
-  /// AND is supported. This function is used to extract all the Substrait
-  /// conditions in the binary tree structure into a vector.
-  void flattenConditions(
-      const ::substrait::Expression& sFilter,
-      std::vector<::substrait::Expression_ScalarFunction>& scalarFunctions,
-      std::vector<::substrait::Expression_SingularOrList>& singularOrLists,
-      std::vector<::substrait::Expression_IfThen>& ifThens);
+  int32_t GetStreamIndex(const ::substrait::ReadRel& sRel);
 
   /// Used to find the function specification in the constructed function map.
   std::string findFuncSpec(uint64_t id);
@@ -163,6 +143,26 @@ class SubstraitToVeloxPlanConverter {
   core::AggregationNode::Step toAggregationStep(const ::substrait::AggregateRel& sAgg);
 
  private:
+  /// Integrate Substrait emit feature. Here a given 'substrait::RelCommon'
+  /// is passed and check if emit is defined for this relation. Basically a
+  /// ProjectNode is added on top of 'noEmitNode' to represent output order
+  /// specified in 'relCommon::emit'. Return 'noEmitNode' as is
+  /// if output order is 'kDriect'.
+  core::PlanNodePtr processEmit(const ::substrait::RelCommon& relCommon, const core::PlanNodePtr& noEmitNode);
+
+  /// Multiple conditions are connected to a binary tree structure with
+  /// the relation key words, including AND, OR, and etc. Currently, only
+  /// AND is supported. This function is used to extract all the Substrait
+  /// conditions in the binary tree structure into a vector.
+  void flattenConditions(
+      const ::substrait::Expression& sFilter,
+      std::vector<::substrait::Expression_ScalarFunction>& scalarFunctions,
+      std::vector<::substrait::Expression_SingularOrList>& singularOrLists,
+      std::vector<::substrait::Expression_IfThen>& ifThens);
+
+  /// Check the Substrait type extension only has one unknown extension.
+  static bool checkTypeExtension(const ::substrait::Plan& substraitPlan);
+
   /// Range filter recorder for a field is used to make sure only the conditions
   /// that can coexist for this field being pushed down with a range filter.
   class RangeRecorder {
@@ -251,8 +251,8 @@ class SubstraitToVeloxPlanConverter {
     }
 
     // Return the initialization status.
-    bool isInitialized() {
-      return isInitialized_ ? true : false;
+    bool isInitialized() const {
+      return isInitialized_;
     }
 
     // Add a lower bound to the range. Multiple lower bounds are
@@ -330,7 +330,7 @@ class SubstraitToVeloxPlanConverter {
 
   /// Returns whether the args of a scalar function being field or
   /// field with literal. If yes, extract and set the field index.
-  bool fieldOrWithLiteral(
+  static bool fieldOrWithLiteral(
       const ::google::protobuf::RepeatedPtrField<::substrait::FunctionArgument>& arguments,
       uint32_t& fieldIndex);
 
@@ -339,7 +339,7 @@ class SubstraitToVeloxPlanConverter {
   /// and remaining functions to be handled by the remainingFilter in
   /// HiveConnector.
   void separateFilters(
-      const std::unordered_map<uint32_t, std::shared_ptr<RangeRecorder>>& rangeRecorders,
+      std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders,
       const std::vector<::substrait::Expression_ScalarFunction>& scalarFunctions,
       std::vector<::substrait::Expression_ScalarFunction>& subfieldFunctions,
       std::vector<::substrait::Expression_ScalarFunction>& remainingFunctions,
@@ -348,7 +348,7 @@ class SubstraitToVeloxPlanConverter {
       std::vector<::substrait::Expression_SingularOrList>& remainingrOrLists);
 
   /// Returns whether a function can be pushed down.
-  bool canPushdownCommonFunction(
+  static bool canPushdownCommonFunction(
       const ::substrait::Expression_ScalarFunction& scalarFunction,
       const std::string& filterName,
       uint32_t& fieldIdx);
@@ -356,52 +356,47 @@ class SubstraitToVeloxPlanConverter {
   /// Returns whether a NOT function can be pushed down.
   bool canPushdownNot(
       const ::substrait::Expression_ScalarFunction& scalarFunction,
-      const std::unordered_map<uint32_t, std::shared_ptr<RangeRecorder>>& rangeRecorders);
+      std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders);
 
   /// Returns whether a OR function can be pushed down.
   bool canPushdownOr(
       const ::substrait::Expression_ScalarFunction& scalarFunction,
-      const std::unordered_map<uint32_t, std::shared_ptr<RangeRecorder>>& rangeRecorders);
+      std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders);
 
   /// Returns whether a SingularOrList can be pushed down.
-  bool canPushdownSingularOrList(
+  static bool canPushdownSingularOrList(
       const ::substrait::Expression_SingularOrList& singularOrList,
       bool disableIntLike = false);
-
-  /// Returns a set of unique column indices for IN function to be pushed down.
-  std::unordered_set<uint32_t> getInColIndices(
-      const std::vector<::substrait::Expression_SingularOrList>& singularOrLists);
 
   /// Check whether the chidren functions of this scalar function have the same
   /// column index. Curretly used to check whether the two chilren functions of
   /// 'or' expression are effective on the same column.
-  bool chidrenFunctionsOnSameField(const ::substrait::Expression_ScalarFunction& function);
+  static bool childrenFunctionsOnSameField(const ::substrait::Expression_ScalarFunction& function);
 
   /// Extract the scalar function, and set the filter info for different types
   /// of columns. If reverse is true, the opposite filter info will be set.
   void setFilterMap(
       const ::substrait::Expression_ScalarFunction& scalarFunction,
       const std::vector<TypePtr>& inputTypeList,
-      std::unordered_map<uint32_t, std::shared_ptr<FilterInfo>>& colInfoMap,
+      std::unordered_map<uint32_t, FilterInfo>& colInfoMap,
       bool reverse = false);
 
   /// Extract SingularOrList and returns the field index.
-  uint32_t getColumnIndexFromSingularOrList(const ::substrait::Expression_SingularOrList& singularOrList);
+  static uint32_t getColumnIndexFromSingularOrList(const ::substrait::Expression_SingularOrList&);
 
   /// Extract SingularOrList and set it to the filter info map.
   void setSingularListValues(
       const ::substrait::Expression_SingularOrList& singularOrList,
-      std::unordered_map<uint32_t, std::shared_ptr<FilterInfo>>& colInfoMap);
+      std::unordered_map<uint32_t, FilterInfo>& colInfoMap);
 
   /// Set the filter info for a column base on the information
   /// extracted from filter condition.
-  template <typename T>
-  void setColInfoMap(
+  static void setColInfoMap(
       const std::string& filterName,
       uint32_t colIdx,
       std::optional<variant> literalVariant,
       bool reverse,
-      std::unordered_map<uint32_t, std::shared_ptr<FilterInfo>>& colInfoMap);
+      std::unordered_map<uint32_t, FilterInfo>& colInfoMap);
 
   /// Create a multirange to specify the filter 'x != notValue' with:
   /// x > notValue or x < notValue.
@@ -436,18 +431,18 @@ class SubstraitToVeloxPlanConverter {
       uint32_t colIdx,
       const std::string& inputName,
       const TypePtr& inputType,
-      const std::shared_ptr<FilterInfo>& filterInfo,
+      const FilterInfo& filterInfo,
       connector::hive::SubfieldFilters& filters);
 
   /// Construct subfield filters according to the pre-set map of filter info.
   connector::hive::SubfieldFilters mapToFilters(
       const std::vector<std::string>& inputNameList,
       const std::vector<TypePtr>& inputTypeList,
-      std::unordered_map<uint32_t, std::shared_ptr<FilterInfo>> colInfoMap);
+      std::unordered_map<uint32_t, FilterInfo> colInfoMap);
 
   /// Convert subfield functions into subfieldFilters to
   /// be used in Hive Connector.
-  connector::hive::SubfieldFilters toSubfieldFilters(
+  connector::hive::SubfieldFilters createSubfieldFilters(
       const std::vector<std::string>& inputNameList,
       const std::vector<TypePtr>& inputTypeList,
       const std::vector<::substrait::Expression_ScalarFunction>& subfieldFunctions,
@@ -464,9 +459,6 @@ class SubstraitToVeloxPlanConverter {
 
   /// Connect the left and right expressions with 'and' relation.
   core::TypedExprPtr connectWithAnd(core::TypedExprPtr leftExpr, core::TypedExprPtr rightExpr);
-
-  /// Set the phase of Aggregation.
-  void setPhase(const ::substrait::AggregateRel& sAgg, core::AggregationNode::Step& aggStep);
 
   /// Used to convert AggregateRel into Velox plan node.
   /// The output of child node will be used as the input of Aggregation.

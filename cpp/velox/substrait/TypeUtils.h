@@ -97,6 +97,8 @@ struct RangeTraits<TypeKind::DATE> {
 
 template <>
 struct RangeTraits<TypeKind::HUGEINT> {
+  using RangeType = common::BigintRange; // TODO
+  using MultiRangeType = common::BigintMultiRange; // TODO
   using NativeType = int128_t;
 };
 

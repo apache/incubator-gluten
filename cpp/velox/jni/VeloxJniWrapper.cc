@@ -101,6 +101,10 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailu
   JNI_METHOD_START
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto planSize = env->GetArrayLength(planArray);
+
+  auto jsonPlan = substraitFromPbToJson("Plan", planData, planSize);
+  std::cout << "[zuochunwei plan] " << jsonPlan << std::endl;
+
   ::substrait::Plan subPlan;
   gluten::parseProtobuf(planData, planSize, &subPlan);
 
