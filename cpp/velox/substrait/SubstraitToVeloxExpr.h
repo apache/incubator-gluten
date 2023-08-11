@@ -46,7 +46,7 @@ class SubstraitVeloxExprConverter {
   };
 
   /// Convert Substrait Field into Velox Field Expression.
-  std::shared_ptr<const core::FieldAccessTypedExpr> toVeloxExpr(
+  static std::shared_ptr<const core::FieldAccessTypedExpr> toVeloxExpr(
       const ::substrait::Expression::FieldReference& substraitField,
       const RowTypePtr& inputType);
 
@@ -64,7 +64,7 @@ class SubstraitVeloxExprConverter {
   core::TypedExprPtr toVeloxExpr(const ::substrait::Expression::Cast& castExpr, const RowTypePtr& inputType);
 
   /// Create expression for extract.
-  core::TypedExprPtr toExtractExpr(const std::vector<core::TypedExprPtr>& params, const TypePtr& outputType);
+  static core::TypedExprPtr toExtractExpr(const std::vector<core::TypedExprPtr>& params, const TypePtr& outputType);
 
   /// Used to convert Substrait Literal into Velox Expression.
   std::shared_ptr<const core::ConstantTypedExpr> toVeloxExpr(const ::substrait::Expression::Literal& substraitLit);
@@ -79,6 +79,7 @@ class SubstraitVeloxExprConverter {
   /// the constant expression.
   std::shared_ptr<const core::ConstantTypedExpr> literalsToConstantExpr(
       const std::vector<::substrait::Expression::Literal>& literals);
+
   /// Create expression for lambda.
   std::shared_ptr<const core::ITypedExpr> toLambdaExpr(
       const ::substrait::Expression::ScalarFunction& substraitFunc,
@@ -99,18 +100,7 @@ class SubstraitVeloxExprConverter {
 
   // The map storing the Substrait extract function input field and velox
   // function name.
-  std::unordered_map<std::string, std::string> extractDatetimeFunctionMap_ = {
-      {"MILLISECOND", "millisecond"},
-      {"SECOND", "second"},
-      {"MINUTE", "minute"},
-      {"HOUR", "hour"},
-      {"DAY", "day"},
-      {"DAY_OF_WEEK", "day_of_week"},
-      {"DAY_OF_YEAR", "day_of_year"},
-      {"MONTH", "month"},
-      {"QUARTER", "quarter"},
-      {"YEAR", "year"},
-      {"YEAR_OF_WEEK", "year_of_week"}};
+  static std::unordered_map<std::string, std::string> extractDatetimeFunctionMap_;
 };
 
 } // namespace gluten

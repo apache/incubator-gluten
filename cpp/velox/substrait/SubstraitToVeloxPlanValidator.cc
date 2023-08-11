@@ -1149,7 +1149,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::RelRoot& relRoot
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
   // Create plan converter and expression converter to help the validation.
   planConverter_.constructFunctionMap(plan);
-  exprConverter_ = std::move(std::make_unique<SubstraitVeloxExprConverter>(pool_, planConverter_.getFunctionMap()));
+  exprConverter_ = planConverter_.getExprConverter();
 
   for (const auto& rel : plan.relations()) {
     if (rel.has_root()) {
