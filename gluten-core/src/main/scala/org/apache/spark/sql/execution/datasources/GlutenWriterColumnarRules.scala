@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.extension.GlutenPlan
-import org.apache.spark.internal.Logging
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
@@ -81,7 +81,7 @@ case class FakeRowAdaptor(child: SparkPlan)
 
 case class MATERIALIZE_TAG()
 
-object GlutenWriterColumnarRules extends Logging{
+object GlutenWriterColumnarRules {
   // some output formats does not recognize const and sparse columns (e.g. ColumnConst in CH)
   // So when the following two conditions are met
   // 1. a SparkPlan is columnar output(or it may be converted to another SparkPlan which is)
@@ -104,8 +104,6 @@ object GlutenWriterColumnarRules extends Logging{
     cmd match {
       case command: CreateDataSourceTableAsSelectCommand =>
         if (command.table.provider.contains("velox")) {
-          log.warn(
-            "Unsupported Operation: Velox file format does not support create table as select.")
           return (false, "")
         }
 
@@ -123,8 +121,6 @@ object GlutenWriterColumnarRules extends Logging{
           GlutenConfig.isCurrentBackendVelox
           && (command.partitionColumns.nonEmpty || command.bucketSpec.nonEmpty)
         ) {
-          log.warn(
-            "Unsupported Operation: Velox file format does not support dynamic partition write and bucket write.")
           return (false, "")
         }
 
@@ -164,13 +160,8 @@ object GlutenWriterColumnarRules extends Logging{
           return (false, "")
         }
       case _: CreateHiveTableAsSelectCommand =>
-        log.warn(
-          "Unsupported Operation: native writer cannot recognize command: {}" +
-            " please append `using parquet` in your CTAS query.", cmd.getClass.getName)
         return (false, "")
       case _ =>
-        log.warn(
-          "Unsupported Operation: native writer cannot recognize command: {}", cmd.getClass.getName)
         return (false, "")
     }
   }
@@ -203,6 +194,7 @@ object GlutenWriterColumnarRules extends Logging{
                       aqe.isSubquery,
                       supportsColumnar = true
                     ))))
+            case other => rc.withNewChildren(Array(FakeRowAdaptor(other)))
           }
         } else {
           rc.withNewChildren(rc.children.map(apply))
