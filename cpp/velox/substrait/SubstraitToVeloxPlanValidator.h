@@ -25,7 +25,7 @@ namespace gluten {
 /// a Substrait plan is supported in Velox.
 class SubstraitToVeloxPlanValidator {
  public:
-  SubstraitToVeloxPlanValidator(memory::MemoryPool* pool, core::ExecCtx* execCtx)
+   SubstraitToVeloxPlanValidator(memory::MemoryPool* pool, core::ExecCtx* execCtx)
       : pool_(pool), execCtx_(execCtx), planConverter_(pool_, confMap_, true) {}
 
   /// Used to validate whether the computing of this Limit is supported.

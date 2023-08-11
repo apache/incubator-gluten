@@ -104,7 +104,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::JoinRel& sjoin) {
 }
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
-  int32_t iterIdx = substraitVeloxPlanConverter_.streamIsInput(sread);
+  int32_t iterIdx = substraitVeloxPlanConverter_.GetStreamIndex(sread);
   if (iterIdx == -1) {
     return;
   }
