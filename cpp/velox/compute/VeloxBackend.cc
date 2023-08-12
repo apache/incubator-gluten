@@ -54,9 +54,6 @@ void VeloxBackend::getInfoAndIds(
     std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
     std::vector<velox::core::PlanNodeId>& scanIds,
     std::vector<velox::core::PlanNodeId>& streamIds) {
-  if (splitInfoMap.size() == 0) {
-    throw std::runtime_error("At least one data source info is required. Can be scan or stream info.");
-  }
   for (const auto& leafPlanNodeId : leafPlanNodeIds) {
     auto it = splitInfoMap.find(leafPlanNodeId);
     if (it == splitInfoMap.end()) {

@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
+import org.apache.spark.SparkException
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
@@ -27,12 +28,14 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+
+import org.apache.hadoop.fs.Path
 
 class Spark33Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -94,5 +97,26 @@ class Spark33Shims extends SparkShims {
       options,
       partitionFilters,
       dataFilters)
+  }
+
+  override def filesGroupedToBuckets(
+      selectedPartitions: Array[PartitionDirectory]): Map[Int, Array[PartitionedFile]] = {
+    selectedPartitions
+      .flatMap {
+        p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, f.getPath, p.values))
+      }
+      .groupBy {
+        f =>
+          BucketingUtils
+            .getBucketId(new Path(f.filePath).getName)
+            .getOrElse(throw invalidBucketFile(f.filePath))
+      }
+  }
+
+  private def invalidBucketFile(path: String): Throwable = {
+    new SparkException(
+      errorClass = "INVALID_BUCKET_FILE",
+      messageParameters = Array(path),
+      cause = null)
   }
 }

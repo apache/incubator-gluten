@@ -21,11 +21,13 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.InputPartitionsUtil
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types._
+import org.apache.spark.util.collection.BitSet
 
 import java.util
 
@@ -60,8 +62,19 @@ class TransformerHandler extends TransformerApi with Logging {
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
       relation: HadoopFsRelation,
-      selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
-    InputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
+      selectedPartitions: Array[PartitionDirectory],
+      output: Seq[Attribute],
+      optionalBucketSet: Option[BitSet],
+      optionalNumCoalescedBuckets: Option[Int],
+      disableBucketedScan: Boolean): Seq[InputPartition] = {
+    InputPartitionsUtil(
+      relation,
+      selectedPartitions,
+      output,
+      optionalBucketSet,
+      optionalNumCoalescedBuckets,
+      disableBucketedScan)
+      .genInputPartitionSeq()
   }
 
   override def postProcessNativeConfig(
