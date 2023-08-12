@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.metrics.GlutenTimeMetric
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -26,7 +27,7 @@ import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelation, HashJoin, LongHashedRelation}
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.util.ThreadUtils
 
 import scala.concurrent.Future
@@ -56,7 +57,7 @@ case class ColumnarSubqueryBroadcastExec(
   }
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
+  @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genColumnarSubqueryBroadcastMetrics(sparkContext)
 
   override def doCanonicalize(): SparkPlan = {
@@ -72,41 +73,39 @@ case class ColumnarSubqueryBroadcastExec(
       // This will run in another thread. Set the execution id so that we can connect these jobs
       // with the correct execution.
       SQLExecution.withExecutionId(session, executionId) {
-        val beforeCollect = System.nanoTime()
-
-        val exchangeChild = child match {
-          case exec: ReusedExchangeExec =>
-            exec.child
-          case _ =>
-            child
-        }
-        val rows =
-          if (
-            exchangeChild.isInstanceOf[ColumnarBroadcastExchangeExec] ||
-            exchangeChild.isInstanceOf[AdaptiveSparkPlanExec]
-          ) {
-            // transform broadcasted columnar value to Array[InternalRow] by key
-            exchangeChild
-              .executeBroadcast[BuildSideRelation]
-              .value
-              .transform(buildKeys(index))
-              .distinct
-          } else {
-            val broadcastRelation = exchangeChild.executeBroadcast[HashedRelation]().value
-            val (iter, expr) = if (broadcastRelation.isInstanceOf[LongHashedRelation]) {
-              (broadcastRelation.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
-            } else {
-              (
-                broadcastRelation.keys(),
-                BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
+        val rows = GlutenTimeMetric.millis(longMetric("collectTime")) {
+          _ =>
+            val exchangeChild = child match {
+              case exec: ReusedExchangeExec =>
+                exec.child
+              case _ =>
+                child
             }
+            if (
+              exchangeChild.isInstanceOf[ColumnarBroadcastExchangeExec] ||
+              exchangeChild.isInstanceOf[AdaptiveSparkPlanExec]
+            ) {
+              // transform broadcasted columnar value to Array[InternalRow] by key
+              exchangeChild
+                .executeBroadcast[BuildSideRelation]
+                .value
+                .transform(buildKeys(index))
+                .distinct
+            } else {
+              val broadcastRelation = exchangeChild.executeBroadcast[HashedRelation]().value
+              val (iter, expr) = if (broadcastRelation.isInstanceOf[LongHashedRelation]) {
+                (broadcastRelation.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
+              } else {
+                (
+                  broadcastRelation.keys(),
+                  BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
+              }
 
-            val proj = UnsafeProjection.create(expr)
-            val keyIter = iter.map(proj).map(_.copy())
-            keyIter.toArray[InternalRow].distinct
-          }
-        val beforeBuild = System.nanoTime()
-        longMetric("collectTime") += (beforeBuild - beforeCollect) / 1000000
+              val proj = UnsafeProjection.create(expr)
+              val keyIter = iter.map(proj).map(_.copy())
+              keyIter.toArray[InternalRow].distinct
+            }
+        }
         val dataSize = rows.map(_.asInstanceOf[UnsafeRow].getSizeInBytes).sum
         longMetric("dataSize") += dataSize
         SQLMetrics.postDriverMetricUpdates(sparkContext, executionId, metrics.values.toSeq)

@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.execution.ColumnarToRowExecBase
+import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.vectorized.CHNativeBlock
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
@@ -29,8 +30,6 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import scala.concurrent.duration.NANOSECONDS
 
 case class CHColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBase(child = child) {
   override def nodeName: String = "CHNativeColumnarToRow"
@@ -110,12 +109,9 @@ class CHColumnarToRowRDD(
             logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
             Iterator.empty
           } else {
-            val nativeBlock = CHNativeBlock.fromColumnarBatch(batch)
-            val beforeConvert = System.nanoTime()
-            val blockAddress = nativeBlock.blockAddress()
-
-            convertTime += NANOSECONDS.toMillis(System.nanoTime() - beforeConvert)
-
+            val blockAddress = GlutenTimeMetric.millis(convertTime) {
+              _ => CHNativeBlock.fromColumnarBatch(batch).blockAddress()
+            }
             CHExecUtil.getRowIterFromSparkRowInfo(blockAddress, batch.numCols(), batch.numRows())
           }
       }
