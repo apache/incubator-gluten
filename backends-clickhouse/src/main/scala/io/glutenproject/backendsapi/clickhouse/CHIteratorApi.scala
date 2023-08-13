@@ -19,14 +19,14 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.{GlutenConfig, GlutenNumaBindingInfo}
 import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
-import io.glutenproject.metrics.{IMetrics, NativeMetrics}
+import io.glutenproject.metrics.{GlutenTimeMetric, IMetrics, NativeMetrics}
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
-import io.glutenproject.vectorized._
+import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
-import org.apache.spark._
+import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -39,8 +39,9 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import java.lang.{Long => JLong}
 import java.net.URI
-import java.util.concurrent.TimeUnit
+import java.util
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -67,15 +68,15 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 .makeExtensionTable(p.minParts, p.maxParts, p.database, p.table, p.tablePath),
               SoftAffinityUtil.getNativeMergeTreePartitionLocations(p))
           case f: FilePartition =>
-            val paths = new java.util.ArrayList[String]()
-            val starts = new java.util.ArrayList[java.lang.Long]()
-            val lengths = new java.util.ArrayList[java.lang.Long]()
+            val paths = new util.ArrayList[String]()
+            val starts = new util.ArrayList[JLong]()
+            val lengths = new util.ArrayList[JLong]()
             val partitionColumns = mutable.ArrayBuffer.empty[Map[String, String]]
             f.files.foreach {
               file =>
                 paths.add(new URI(file.filePath).toASCIIString)
-                starts.add(java.lang.Long.valueOf(file.start))
-                lengths.add(java.lang.Long.valueOf(file.length))
+                starts.add(JLong.valueOf(file.start))
+                lengths.add(JLong.valueOf(file.length))
                 // TODO: Support custom partition location
                 val partitionColumn = mutable.Map.empty[String, String]
                 partitionColumns.append(partitionColumn.toMap)
@@ -114,23 +115,22 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       inputPartition: BaseGlutenPartition,
       context: TaskContext,
       pipelineTime: SQLMetric,
-      updateInputMetrics: (InputMetricsWrapper) => Unit,
+      updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
       materializeAtLast: Boolean,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
   ): Iterator[ColumnarBatch] = {
-    val beforeBuild = System.nanoTime()
-    val transKernel = new CHNativeExpressionEvaluator()
-    val inBatchIters = new java.util.ArrayList[GeneralInIterator](inputIterators.map {
-      iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
-    }.asJava)
-    val resIter: GeneralOutIterator =
-      transKernel.createKernelWithBatchIterator(
-        inputPartition.plan,
-        inBatchIters,
-        materializeAtLast)
-
-    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
+    val resIter: GeneralOutIterator = GlutenTimeMetric.millis(pipelineTime) {
+      _ =>
+        val transKernel = new CHNativeExpressionEvaluator()
+        val inBatchIters = new util.ArrayList[GeneralInIterator](inputIterators.map {
+          iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+        }.asJava)
+        transKernel.createKernelWithBatchIterator(
+          inputPartition.plan,
+          inBatchIters,
+          materializeAtLast)
+    }
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
@@ -177,20 +177,20 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       materializeAtLast: Boolean): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenConfig.getConf
-    val beforeBuild = System.nanoTime()
-    val transKernel = new CHNativeExpressionEvaluator()
-    val columnarNativeIterator =
-      new java.util.ArrayList[GeneralInIterator](inputIterators.map {
-        iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
-      }.asJava)
-    // we need to complete dependency RDD's firstly
-    val nativeIterator =
-      transKernel.createKernelWithBatchIterator(
-        rootNode.toProtobuf,
-        columnarNativeIterator,
-        materializeAtLast)
+    val nativeIterator = GlutenTimeMetric.millis(pipelineTime) {
+      _ =>
+        val transKernel = new CHNativeExpressionEvaluator()
+        val columnarNativeIterator =
+          new java.util.ArrayList[GeneralInIterator](inputIterators.map {
+            iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+          }.asJava)
+        // we need to complete dependency RDD's firstly
+        transKernel.createKernelWithBatchIterator(
+          rootNode.toProtobuf,
+          columnarNativeIterator,
+          materializeAtLast)
+    }
 
-    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     val resIter = new Iterator[ColumnarBatch] {
       private var outputRowCount = 0L
       private var outputVectorCount = 0L
@@ -214,14 +214,14 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     }
     var closed = false
 
-    def close = {
+    def close(): Unit = {
       closed = true
       buildRelationBatchHolder.foreach(_.close) // fixing: ref cnt goes nagative
       nativeIterator.close()
       // relationHolder.clear()
     }
 
-    TaskContext.get().addTaskCompletionListener[Unit](_ => close)
+    TaskContext.get().addTaskCompletionListener[Unit](_ => close())
     new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
   }
 
@@ -246,14 +246,14 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {
-    val startTime = System.nanoTime()
+    val substraitPlanPartition = GlutenTimeMetric.withMillisTime {
+      // generate each partition of all scan exec
+      inputPartitions.indices.map(
+        i => {
+          genFilePartition(i, Seq(inputPartitions(i)), null, Seq(fileFormat), wsCxt)
+        })
+    }(t => logInfo(s"Generating the Substrait plan took: $t ms."))
 
-    // generate each partition of all scan exec
-    val substraitPlanPartition = inputPartitions.indices.map(
-      i => {
-        genFilePartition(i, Seq(inputPartitions(i)), null, Seq(fileFormat), wsCxt)
-      })
-    logInfo(s"Generating the Substrait plan took: ${(System.nanoTime() - startTime)} ns.")
     new NativeFileScanColumnarRDD(
       sparkContext,
       substraitPlanPartition,
