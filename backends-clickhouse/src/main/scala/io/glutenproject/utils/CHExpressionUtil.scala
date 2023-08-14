@@ -88,6 +88,28 @@ case class SubstringIndexValidator() extends FunctionValidator {
   }
 }
 
+case class StringLPadValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val lpad = expr.asInstanceOf[StringLPad]
+    if (!lpad.pad.isInstanceOf[Literal]) {
+      return false
+    }
+
+    true
+  }
+}
+
+case class StringRPadValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val rpad = expr.asInstanceOf[StringRPad]
+    if (!rpad.pad.isInstanceOf[Literal]) {
+      return false
+    }
+
+    true
+  }
+}
+
 object CHExpressionUtil {
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
@@ -102,6 +124,8 @@ object CHExpressionUtil {
     GET_JSON_OBJECT -> GetJsonObjectValidator(),
     ARRAYS_OVERLAP -> DefaultValidator(),
     SPLIT -> StringSplitValidator(),
-    SUBSTRING_INDEX -> SubstringIndexValidator()
+    SUBSTRING_INDEX -> SubstringIndexValidator(),
+    LPAD -> StringLPadValidator(),
+    RPAD -> StringRPadValidator()
   )
 }

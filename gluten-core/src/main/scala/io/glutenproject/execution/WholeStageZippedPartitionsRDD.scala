@@ -33,7 +33,7 @@ private[glutenproject] class ZippedPartitionsPartition(
   extends Partition {
 
   override val index: Int = idx
-  var partitionValues = rdds.map(rdd => rdd.partitions(idx))
+  var partitionValues: Seq[Partition] = rdds.map(rdd => rdd.partitions(idx))
 
   def partitions: Seq[Partition] = partitionValues
 }
@@ -50,7 +50,7 @@ class WholeStageZippedPartitionsRDD(
     materializeAtLast: Boolean)
   extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
 
-  val genFinalStageIterator = (inputIterators: Seq[Iterator[ColumnarBatch]]) => {
+  private val genFinalStageIterator = (inputIterators: Seq[Iterator[ColumnarBatch]]) => {
     BackendsApiManager.getIteratorApiInstance
       .genFinalStageIterator(
         inputIterators,
@@ -67,7 +67,7 @@ class WholeStageZippedPartitionsRDD(
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     val partitions = split.asInstanceOf[ZippedPartitionsPartition].partitions
     val inputIterators: Seq[Iterator[ColumnarBatch]] =
-      (rdds.zip(partitions)).map { case (rdd, partition) => rdd.iterator(partition, context) }
+      rdds.zip(partitions).map { case (rdd, partition) => rdd.iterator(partition, context) }
     genFinalStageIterator(inputIterators)
   }
 

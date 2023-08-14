@@ -311,8 +311,8 @@ class GlutenClickHouseFileFormatSuite
 
     val dataCorrect = new util.ArrayList[Row]()
     dataCorrect.add(Row(1, 2.toLong, 3.toShort))
-    dataCorrect.add(Row(1, 2.toLong, null))
-    dataCorrect.add(Row(1, null, 4.toShort))
+    dataCorrect.add(Row(1, 2.toLong, 3.toShort))
+    dataCorrect.add(Row(1, 2.toLong, 4.toShort))
 
     var expectedAnswer: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
@@ -332,6 +332,7 @@ class GlutenClickHouseFileFormatSuite
 
     val options = new util.HashMap[String, String]()
     options.put("delimiter", "|")
+    options.put("quote", "\'")
     options.put("header", "false")
 
     val df = spark.read
@@ -342,7 +343,70 @@ class GlutenClickHouseFileFormatSuite
 
     val dataCorrect = new util.ArrayList[Row]()
     dataCorrect.add(Row(1, 1.toLong, 10.toShort))
-    dataCorrect.add(Row(null, null, null))
+    dataCorrect.add(Row(1, null, 10.toShort))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("issue-2670 test for special char surrounding int data") {
+    val file_path = csvDataPath + "/special_char_surrounding_int_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("short_field", ShortType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("quote", "\"")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1, 2.toShort, 3.toLong))
+    dataCorrect.add(Row(1, 2.toShort, 3.toLong))
+    dataCorrect.add(Row(1, null, null))
+    dataCorrect.add(Row(1, null, -100000.toLong))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("issues-2677 test for ignoring special char around float value") {
+    val file_path = csvDataPath + "/special_character_surrounding_float_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("float_field", FloatType, nullable = true),
+        StructField.apply("double_field", DoubleType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1.55.toFloat, 1.55.toDouble))
+    dataCorrect.add(Row(1.55.toFloat, null))
+    dataCorrect.add(Row(null, 1.55.toDouble))
 
     var expectedAnswer: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
@@ -960,6 +1024,35 @@ class GlutenClickHouseFileFormatSuite
             new java.sql.Date(System.currentTimeMillis()))
         }
     }
+  }
+
+  test("test_filter_not_null") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true),
+        StructField.apply("bool_field", BooleanType, nullable = true)
+      ))
+
+    val data = new util.ArrayList[Row]()
+    data.add(Row(1, 1.toLong, false))
+
+    spark
+      .createDataFrame(data, schema)
+      .toDF()
+      .createTempView("test_filter_not_null")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        | select
+        |     sum(long_field) aa
+        | from
+        | (    select long_field,case when sum(int_field) > 0 then true else false end b
+        |     from test_filter_not_null group by long_field) t where b
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
   }
 
   test("empty parquet") {

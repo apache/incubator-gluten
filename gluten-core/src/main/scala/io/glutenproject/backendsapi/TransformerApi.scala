@@ -24,6 +24,7 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.StructField
+import org.apache.spark.util.collection.BitSet
 
 import java.util
 
@@ -53,7 +54,11 @@ trait TransformerApi {
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
       relation: HadoopFsRelation,
-      selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition]
+      selectedPartitions: Array[PartitionDirectory],
+      output: Seq[Attribute],
+      optionalBucketSet: Option[BitSet],
+      optionalNumCoalescedBuckets: Option[Int],
+      disableBucketedScan: Boolean): Seq[InputPartition]
 
   /**
    * Post process native config For example, for ClickHouse backend, sync 'spark.executor.cores' to

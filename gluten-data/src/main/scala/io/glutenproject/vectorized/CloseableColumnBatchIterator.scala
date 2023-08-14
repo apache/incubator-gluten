@@ -45,7 +45,7 @@ class CloseableColumnBatchIterator(
     res
   }
 
-  TaskResources.addRecycler(100) {
+  TaskResources.addRecycler("CloseableColumnBatchIterator", 100) {
     closeCurrentBatch()
   }
 

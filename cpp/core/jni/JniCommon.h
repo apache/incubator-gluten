@@ -47,7 +47,7 @@ static inline jmethodID getStaticMethodId(JNIEnv* env, jclass thisClass, const c
   return ret;
 }
 
-static jmethodID getStaticMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
+static inline jmethodID getStaticMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
   jmethodID ret = getStaticMethodId(env, thisClass, name, sig);
   if (ret == nullptr) {
     std::string errorMessage =
@@ -132,7 +132,7 @@ static inline void checkException(JNIEnv* env) {
   }
 }
 
-static jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
+static inline jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
   jmethodID ret = getMethodId(env, thisClass, name, sig);
   if (ret == nullptr) {
     std::string errorMessage = "Unable to find method " + std::string(name) + " within signature" + std::string(sig);
@@ -141,7 +141,7 @@ static jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const char* n
   return ret;
 }
 
-static jclass createGlobalClassReferenceOrError(JNIEnv* env, const char* className) {
+static inline jclass createGlobalClassReferenceOrError(JNIEnv* env, const char* className) {
   jclass globalClass = createGlobalClassReference(env, className);
   if (globalClass == nullptr) {
     std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for" + std::string(className);

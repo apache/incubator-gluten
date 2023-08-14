@@ -497,10 +497,6 @@ class SubstraitToVeloxPlanConverter {
   /// depends on other input nodes.
   std::unordered_map<uint64_t, std::shared_ptr<const core::PlanNode>> inputNodesMap_;
 
-  /// The Substrait parser used to convert Substrait representations into
-  /// recognizable representations.
-  SubstraitParser substraitParser_;
-
   /// The Expression converter used to convert Substrait representations into
   /// Velox expressions.
   std::unique_ptr<SubstraitVeloxExprConverter> exprConverter_;

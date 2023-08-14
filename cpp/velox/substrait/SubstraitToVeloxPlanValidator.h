@@ -81,9 +81,6 @@ class SubstraitToVeloxPlanValidator {
   /// A converter used to convert Substrait plan into Velox's plan node.
   SubstraitToVeloxPlanConverter planConverter_;
 
-  /// A parser used to convert Substrait plan into recognizable representations.
-  SubstraitParser substraitParser_;
-
   /// An expression converter used to convert Substrait representations into
   /// Velox expressions.
   std::unique_ptr<SubstraitVeloxExprConverter> exprConverter_;

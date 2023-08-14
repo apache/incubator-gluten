@@ -16,6 +16,7 @@
  */
 
 #include "shuffle/LocalPartitionWriter.h"
+#include <thread>
 
 namespace gluten {
 
@@ -35,7 +36,8 @@ arrow::Status LocalPartitionWriterBase::setLocalDirs() {
   // dir with prefix "columnar-shuffle"
   if (shuffleWriter_->options().data_file.length() == 0) {
     std::string dataFileTemp;
-    ARROW_ASSIGN_OR_RAISE(shuffleWriter_->options().data_file, createTempShuffleFile(configuredDirs_[0]));
+    size_t id = std::hash<std::thread::id>{}(std::this_thread::get_id()) % configuredDirs_.size();
+    ARROW_ASSIGN_OR_RAISE(shuffleWriter_->options().data_file, createTempShuffleFile(configuredDirs_[id]));
   }
   return arrow::Status::OK();
 }

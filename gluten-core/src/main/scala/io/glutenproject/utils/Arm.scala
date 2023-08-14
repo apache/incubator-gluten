@@ -14,11 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.velox
+package io.glutenproject.utils
 
-import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.sources.DataSourceRegister
+/** Implementation of the automatic-resource-management pattern */
+object Arm {
 
-class VeloxParquetFileFormat extends ParquetFileFormat with DataSourceRegister with Serializable {
-  override def shortName(): String = "velox"
+  /** Executes the provided code block and then closes the resource */
+  def withResource[T <: AutoCloseable, V](r: T)(block: T => V): V = {
+    try {
+      block(r)
+    } finally {
+      r.close()
+    }
+  }
 }

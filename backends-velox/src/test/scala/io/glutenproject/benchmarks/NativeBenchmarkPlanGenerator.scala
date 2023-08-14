@@ -50,6 +50,7 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
   }
 
   test("Test plan json non-empty - AQE off") {
+    spark.sparkContext.setLogLevel("DEBUG")
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
       val df = spark
         .sql("""
@@ -64,9 +65,11 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
       planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson
       assert(planJson.nonEmpty)
     }
+    spark.sparkContext.setLogLevel(logLevel)
   }
 
   test("Test plan json non-empty - AQE on") {
+    spark.sparkContext.setLogLevel("DEBUG")
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
       val df = spark
         .sql("""
@@ -82,10 +85,12 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
       val planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson
       assert(planJson.nonEmpty)
     }
+    spark.sparkContext.setLogLevel(logLevel)
   }
 
   test("generate example", GenerateExample) {
     import testImplicits._
+    spark.sparkContext.setLogLevel("DEBUG")
     withSQLConf(
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",
       SQLConf.SHUFFLE_PARTITIONS.key -> "2"
@@ -141,5 +146,6 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
       val exampleJsonFile = Paths.get(generatedPlanDir, "example.json")
       Files.write(exampleJsonFile, plan.toList.asJava, StandardCharsets.UTF_8)
     }
+    spark.sparkContext.setLogLevel(logLevel)
   }
 }

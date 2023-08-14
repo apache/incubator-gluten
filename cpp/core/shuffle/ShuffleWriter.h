@@ -43,7 +43,7 @@ struct ShuffleWriterOptions {
   arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
   CodecBackend codec_backend = CodecBackend::NONE;
   std::shared_ptr<arrow::util::Codec> codec = createArrowIpcCodec(compression_type, codec_backend);
-  bool prefer_evict = true;
+  bool prefer_evict = false;
   bool write_schema = false;
   bool buffered_write = false;
   bool write_eos = true;

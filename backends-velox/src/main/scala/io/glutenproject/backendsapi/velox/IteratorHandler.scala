@@ -157,7 +157,7 @@ class IteratorHandler extends IteratorApi with Logging {
     val resIter: GeneralOutIterator =
       transKernel.createKernelWithBatchIterator(inputPartition.plan, columnarNativeIterators)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-    TaskResources.addRecycler(100)(resIter.close())
+    TaskResources.addRecycler(s"FirstStageIterator_${resIter.getId}", 100)(resIter.close())
     val iter = new Iterator[Any] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
 
@@ -233,7 +233,7 @@ class IteratorHandler extends IteratorApi with Logging {
       }
     }
 
-    TaskResources.addRecycler(100) {
+    TaskResources.addRecycler(s"FinalStageIterator_${nativeResultIterator.getId}", 100) {
       nativeResultIterator.close()
     }
 

@@ -38,7 +38,7 @@ class CreateMapTransformer(
     // transformation is only supported when useStringTypeWhenEmpty is false
     // because ClickHouse and Velox currently doesn't support this config.
     if (children.isEmpty && useStringTypeWhenEmpty) {
-      throw new UnsupportedOperationException(s"not supported yet.")
+      throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
     val childNodes = new java.util.ArrayList[ExpressionNode]()
@@ -71,12 +71,12 @@ class GetMapValueTransformer(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // ClickHouse backend doesn't support fail on error
     if (BackendsApiManager.isCHBackend && failOnError) {
-      throw new UnsupportedOperationException(s"not supported yet.")
+      throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
     // Velox backend always fails on error
     if (BackendsApiManager.isVeloxBackend && !failOnError) {
-      throw new UnsupportedOperationException(s"not supported yet.")
+      throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
     val childNode = child.doTransform(args)

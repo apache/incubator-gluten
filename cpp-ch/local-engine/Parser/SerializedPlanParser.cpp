@@ -24,8 +24,10 @@
 #include <Columns/ColumnSet.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
+#include <Core/Joins.h>
 #include <Core/Names.h>
 #include <Core/NamesAndTypes.h>
+#include <Core/MultiEnum.h>
 #include <Core/Types.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeArray.h>
@@ -53,6 +55,7 @@
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/HashJoin.h>
+#include <Interpreters/GraceHashJoin.h>
 #include <Interpreters/ProcessList.h>
 #include <Interpreters/QueryPriorities.h>
 #include <Operator/BlocksBufferPoolTransform.h>
@@ -562,13 +565,18 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
                 filter_name = node->result_name;
             }
 
+            bool remove_filter_column = true;
             auto input = query_plan->getCurrentDataStream().header.getNames();
-            Names input_with_condition(input);
-            input_with_condition.emplace_back(filter_name);
+            NameSet input_with_condition(input.begin(), input.end());
+            if (input_with_condition.contains(filter_name))
+                remove_filter_column = false;
+            else
+                input_with_condition.emplace(filter_name);
+
             actions_dag->removeUnusedActions(input_with_condition);
             NonNullableColumnsResolver non_nullable_columns_resolver(query_plan->getCurrentDataStream().header, *this, filter.condition());
             auto non_nullable_columns = non_nullable_columns_resolver.resolve();
-            auto filter_step = std::make_unique<FilterStep>(query_plan->getCurrentDataStream(), actions_dag, filter_name, true);
+            auto filter_step = std::make_unique<FilterStep>(query_plan->getCurrentDataStream(), actions_dag, filter_name, remove_filter_column);
             filter_step->setStepDescription("WHERE");
             steps.emplace_back(filter_step.get());
             query_plan->addStep(std::move(filter_step));
@@ -2144,7 +2152,30 @@ DB::QueryPlanPtr SerializedPlanParser::parseJoin(
     }
     else
     {
-        auto hash_join = std::make_shared<HashJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty());
+        /// TODO: make grace hash join be the default hash join algorithm.
+        ///
+        /// Following is some configuration for grace hash join.
+        /// - spark.gluten.sql.columnar.backend.ch.runtime_settings.join_algorithm=grace_hash. This will
+        ///   enable grace hash join.
+        /// - spark.gluten.sql.columnar.backend.ch.runtime_settings.max_bytes_in_join=3145728. This setup
+        ///   the memory limitation fro grace hash join. If the memory consumption exceeds the limitation,
+        ///   data will be spilled to disk. Don't set the limitation too small, otherwise the buckets number
+        ///   will be too large and the performance will be bad.
+        JoinPtr hash_join = nullptr;
+        MultiEnum<DB::JoinAlgorithm> join_algorithm = context->getSettingsRef().join_algorithm;
+        if (join_algorithm.isSet(DB::JoinAlgorithm::GRACE_HASH))
+        {
+            hash_join = std::make_shared<DB::GraceHashJoin>(
+                context,
+                table_join,
+                left->getCurrentDataStream().header,
+                right->getCurrentDataStream().header,
+                context->getTempDataOnDisk());
+        }
+        else
+        {
+            hash_join = std::make_shared<HashJoin>(table_join, right->getCurrentDataStream().header.cloneEmpty());
+        }
         QueryPlanStepPtr join_step
             = std::make_unique<DB::JoinStep>(left->getCurrentDataStream(), right->getCurrentDataStream(), hash_join, 8192, 1, false);
 

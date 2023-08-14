@@ -35,6 +35,7 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.types.StructField
+import org.apache.spark.util.collection.BitSet
 
 import java.util
 
@@ -93,13 +94,23 @@ class CHTransformerApi extends TransformerApi with Logging {
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
       relation: HadoopFsRelation,
-      selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
+      selectedPartitions: Array[PartitionDirectory],
+      output: Seq[Attribute],
+      optionalBucketSet: Option[BitSet],
+      optionalNumCoalescedBuckets: Option[Int],
+      disableBucketedScan: Boolean): Seq[InputPartition] = {
     if (relation.location.isInstanceOf[ClickHouseFileIndex]) {
       // Generate NativeMergeTreePartition for MergeTree
       relation.location.asInstanceOf[ClickHouseFileIndex].partsPartitions
     } else {
       // Generate FilePartition for Parquet
-      CHInputPartitionsUtil.genInputPartitionSeq(relation, selectedPartitions)
+      CHInputPartitionsUtil(
+        relation,
+        selectedPartitions,
+        output,
+        optionalBucketSet,
+        optionalNumCoalescedBuckets,
+        disableBucketedScan).genInputPartitionSeq()
     }
   }
 

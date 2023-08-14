@@ -39,7 +39,7 @@ std::vector<std::string> gluten::splitByDelim(const std::string& s, const char d
 }
 
 std::vector<std::string> gluten::splitPaths(const std::string& s) {
-  auto splits = splitByDelim(s, ':');
+  auto splits = splitByDelim(s, ',');
   std::vector<std::string> paths;
   for (auto i = 0; i < splits.size(); ++i) {
     if (!splits[i].empty()) {

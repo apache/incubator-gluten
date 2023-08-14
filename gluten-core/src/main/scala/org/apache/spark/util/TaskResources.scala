@@ -77,10 +77,13 @@ object TaskResources extends TaskListener with Logging {
     }
   }
 
-  def addRecycler(prio: Long)(f: => Unit): Unit = {
+  def addRecycler(name: String, prio: Long)(f: => Unit): Unit = {
     addAnonymousResource(new TaskResource {
       override def release(): Unit = f
+
       override def priority(): Long = prio
+
+      override def resourceName(): String = name
     })
   }
 
@@ -184,6 +187,7 @@ class TaskResourceRegistry extends Logging {
     list.add(resource)
   }
 
+  /** Release all managed resources according to priority and reversed order */
   private[util] def releaseAll(): Unit = synchronized {
     val resourceTable: java.util.List[java.util.Map.Entry[Long, java.util.List[TaskResource]]] =
       new java.util.ArrayList(resourcesPriorityMapping.entrySet())

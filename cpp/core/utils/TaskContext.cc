@@ -25,6 +25,8 @@
 namespace {
 class TaskContextStorage {
  public:
+  TaskContextStorage(std::string name) : name_(name) {}
+
   virtual ~TaskContextStorage() {
     for (auto itr = objects_.rbegin(); itr != objects_.rend(); itr++) {
       itr->reset();
@@ -37,10 +39,11 @@ class TaskContextStorage {
 
  private:
   std::vector<std::shared_ptr<void>> objects_;
+  const std::string name_;
 };
 
 thread_local std::unique_ptr<TaskContextStorage> taskContextStorage = nullptr;
-std::unique_ptr<TaskContextStorage> fallbackStorage = std::make_unique<TaskContextStorage>();
+std::unique_ptr<TaskContextStorage> fallbackStorage = std::make_unique<TaskContextStorage>("fallback");
 std::mutex fallbackStorageMutex;
 } // namespace
 
@@ -64,9 +67,9 @@ void bindToTask(std::shared_ptr<void> object) {
   fallbackStorage->bind(object);
 }
 
-void createTaskContextStorage() {
+void createTaskContextStorage(std::string name) {
   GLUTEN_CHECK(taskContextStorage == nullptr, "Task context storage is already created");
-  taskContextStorage = std::make_unique<TaskContextStorage>();
+  taskContextStorage = std::make_unique<TaskContextStorage>(name);
 }
 
 void deleteTaskContextStorage() {

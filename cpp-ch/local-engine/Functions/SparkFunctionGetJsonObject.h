@@ -111,7 +111,7 @@ public:
                 final_out_str = std::string_view(output_str_view.data() + 1, output_str_view.size() - 2);
             }
             else
-                final_out_str = std::string_view(output_str);
+                final_out_str = output_str_view;
         }
         else
         {

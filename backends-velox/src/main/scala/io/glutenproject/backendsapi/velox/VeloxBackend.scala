@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.types._
 
 import scala.util.control.Breaks.breakable
@@ -47,6 +48,7 @@ object BackendSettings extends BackendSettingsApi {
   val SHUFFLE_SUPPORTED_CODEC = Set("lz4", "zstd")
 
   val GLUTEN_VELOX_UDF_LIB_PATHS = getBackendConfigPrefix() + ".udfLibraryPaths"
+  val GLUTEN_VELOX_DRIVER_UDF_LIB_PATHS = getBackendConfigPrefix() + ".driver.udfLibraryPaths"
 
   override def supportFileFormatRead(
       format: ReadFileFormat,
@@ -289,4 +291,10 @@ object BackendSettings extends BackendSettingsApi {
   override def rescaleDecimalIntegralExpression(): Boolean = true
 
   override def shuffleSupportedCodec(): Set[String] = SHUFFLE_SUPPORTED_CODEC
+
+  override def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {
+    UDFResolver.resolveUdfConf(nativeConf)
+  }
+
+  override def supportBucketScan(): Boolean = true
 }

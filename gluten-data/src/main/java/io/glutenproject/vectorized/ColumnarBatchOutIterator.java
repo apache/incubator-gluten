@@ -31,6 +31,12 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator {
     this.handle = handle;
   }
 
+  @Override
+  public String getId() {
+    // Using native handle as identifier
+    return String.valueOf(handle);
+  }
+
   private native boolean nativeHasNext(long nativeHandle);
 
   private native long nativeNext(long nativeHandle);

@@ -25,8 +25,8 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil}
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.types.StructType
@@ -73,5 +73,19 @@ class Spark32Shims extends SparkShims {
       options,
       partitionFilters,
       dataFilters)
+  }
+
+  override def filesGroupedToBuckets(
+      selectedPartitions: Array[PartitionDirectory]): Map[Int, Array[PartitionedFile]] = {
+    selectedPartitions
+      .flatMap {
+        p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, f.getPath, p.values))
+      }
+      .groupBy {
+        f =>
+          BucketingUtils
+            .getBucketId(f.filePath)
+            .getOrElse(throw new IllegalStateException(s"Invalid bucket file ${f.filePath}"))
+      }
   }
 }

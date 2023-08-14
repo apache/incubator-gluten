@@ -32,14 +32,12 @@ class VeloxToSubstraitTypeTest : public ::testing::Test {
 
     google::protobuf::Arena arena;
     auto substraitType = typeConvertor_->toSubstraitType(arena, type);
-    auto sameType = toVeloxType(substraitParser_->parseType(substraitType)->type);
+    auto sameType = toVeloxType(SubstraitParser::parseType(substraitType)->type);
     ASSERT_TRUE(sameType->kindEquals(type))
         << "Expected: " << type->toString() << ", but got: " << sameType->toString();
   }
 
   std::shared_ptr<VeloxToSubstraitTypeConvertor> typeConvertor_;
-
-  std::shared_ptr<SubstraitParser> substraitParser_ = std::make_shared<SubstraitParser>();
 };
 
 TEST_F(VeloxToSubstraitTypeTest, basic) {
