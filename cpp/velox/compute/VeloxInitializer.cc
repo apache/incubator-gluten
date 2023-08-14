@@ -49,6 +49,7 @@
 DECLARE_int32(split_preload_per_driver);
 DECLARE_bool(SkipRowSortInWindowOp);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
+DECLARE_bool(velox_memory_leak_check_enabled);
 
 using namespace facebook;
 
@@ -116,6 +117,7 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
     }
     FLAGS_velox_exception_user_stacktrace_enabled = (enableUserExceptionStacktrace == "true");
   }
+  FLAGS_velox_memory_leak_check_enabled = true;
 
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
