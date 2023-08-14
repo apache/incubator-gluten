@@ -54,7 +54,11 @@ set(root_directory ${PROJECT_BINARY_DIR})
 get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
 
 if (NOT DEFINED ARROW_HOME)
-  set(ARROW_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep/_build/release/third_party/arrow_ep)
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(ARROW_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep/_build/debug/third_party/arrow_ep)
+  else()
+    set(ARROW_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep/_build/release/third_party/arrow_ep)
+  endif()
 endif()
 
 #
