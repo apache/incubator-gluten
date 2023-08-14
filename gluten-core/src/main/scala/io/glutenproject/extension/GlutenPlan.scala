@@ -69,7 +69,7 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
       }
       res
     } catch {
-      case e: Throwable =>
+      case e: Exception =>
         TestStats.addFallBackClassName(this.getClass.toString)
         logValidationMessage(s"Validation failed with exception for plan: $nodeName, due to:", e)
         ValidationResult.notOk(e.getMessage)
