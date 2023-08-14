@@ -260,6 +260,7 @@ set(VELOX_SRCS
     utils/VeloxArrowUtils.cc
     utils/ArrowTypeUtils.cc
     utils/ConfigExtractor.cc
+    utils/Common.cc
     )
 add_library(velox SHARED ${VELOX_SRCS})
 
