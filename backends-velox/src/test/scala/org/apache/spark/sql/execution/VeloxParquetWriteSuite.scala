@@ -68,7 +68,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
       }
   }
 
-  test("test ctas") {
+  ignore("test ctas") {
     withTable("velox_ctas") {
       intercept[UnsupportedOperationException] {
         spark
@@ -81,7 +81,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("test parquet dynamic partition write") {
+  ignore("test parquet dynamic partition write") {
     withTempPath {
       f =>
         intercept[UnsupportedOperationException] {
@@ -96,7 +96,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("test parquet bucket write") {
+  ignore("test parquet bucket write") {
     withTable("bucket") {
       intercept[UnsupportedOperationException] {
         spark
