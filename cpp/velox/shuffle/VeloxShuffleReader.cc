@@ -358,9 +358,9 @@ RowVectorPtr VeloxShuffleReader::readRowVector(
     memory::MemoryPool* pool) {
   auto header = readColumnBuffer(batch, 0);
   uint32_t length;
-  mempcpy(&length, header->data(), sizeof(uint32_t));
+  memcpy(&length, header->data(), sizeof(uint32_t));
   int32_t compressTypeValue;
-  mempcpy(&compressTypeValue, header->data() + sizeof(uint32_t), sizeof(int32_t));
+  memcpy(&compressTypeValue, header->data() + sizeof(uint32_t), sizeof(int32_t));
   arrow::Compression::type compressType = static_cast<arrow::Compression::type>(compressTypeValue);
 
   std::vector<BufferPtr> buffers;
