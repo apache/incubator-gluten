@@ -17,9 +17,12 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.execution.WholeStageTransformerSuite
+import io.glutenproject.utils.FallbackUtil
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.functions.lit
+
+import org.junit.Assert
 
 class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
   override protected val backend: String = "velox"
@@ -73,22 +76,23 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
       spark
         .range(100)
         .toDF("id")
-        .write
-        .format("parquet")
-        .saveAsTable("velox_ctas")
+        .createOrReplaceTempView("ctas_temp")
+      val df = spark
+        .sql("CREATE TABLE velox_ctas USING PARQUET AS SELECT * FROM ctas_temp")
+      Assert.assertFalse(FallbackUtil.isFallback(df.queryExecution.executedPlan))
     }
   }
 
   test("test parquet dynamic partition write") {
     withTempPath {
       f =>
+        val path = f.getCanonicalPath
         spark
           .range(100)
           .selectExpr("id as c1", "id % 7 as p")
-          .write
-          .format("parquet")
-          .partitionBy("p")
-          .save(f.getCanonicalPath)
+          .createOrReplaceTempView("temp")
+        val df = spark.sql(s"INSERT OVERWRITE DIRECTORY '$path' USING PARQUET SELECT * FROM temp")
+        Assert.assertFalse(FallbackUtil.isFallback(df.queryExecution.executedPlan))
     }
   }
 
@@ -97,10 +101,10 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
       spark
         .range(100)
         .selectExpr("id as c1", "id % 7 as p")
-        .write
-        .format("parquet")
-        .bucketBy(7, "p")
-        .saveAsTable("bucket")
+        .createOrReplaceTempView("bucket_temp")
+      val df = spark
+        .sql("CREATE TABLE bucket USING PARQUET AS SELECT * FROM bucket_temp CLUSTERED BY (p) INTO 7 BUCKETS")
+      Assert.assertFalse(FallbackUtil.isFallback(df.queryExecution.executedPlan))
     }
   }
 
