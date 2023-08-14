@@ -140,6 +140,7 @@ object CHExpressionUtil {
     SPLIT -> StringSplitValidator(),
     SUBSTRING_INDEX -> SubstringIndexValidator(),
     LPAD -> StringLPadValidator(),
-    RPAD -> StringRPadValidator()
+    RPAD -> StringRPadValidator(),
+    DATE_FORMAT -> DateFormatClassValidator()
   )
 }
