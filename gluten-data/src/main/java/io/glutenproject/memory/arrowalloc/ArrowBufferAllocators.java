@@ -92,5 +92,10 @@ public class ArrowBufferAllocators {
     public long priority() {
       return 0L; // lowest priority
     }
+
+    @Override
+    public String resourceName() {
+      return "ArrowBufferAllocatorManager";
+    }
   }
 }

@@ -74,6 +74,7 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
       .set("spark.default.parallelism", "1")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
+      .set("spark.gluten.sql.native.writer.enabled", "true")
   }
 
   private def checkNativeWrite(sqlStr: String, native: Boolean): Unit = {
@@ -90,7 +91,7 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
     withTable("t") {
       spark.sql("CREATE TABLE t (c int) STORED AS PARQUET")
       withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "false") {
-        checkNativeWrite("INSERT OVERWRITE TABLE t SELECT 1 as c", native = false)
+        checkNativeWrite("INSERT OVERWRITE TABLE t SELECT 1 as c", native = true)
       }
       checkAnswer(spark.table("t"), Row(1))
     }
@@ -100,9 +101,7 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
     withTempPath {
       f =>
         // compatible with Spark3.3 and later
-        withSQLConf(
-          ("spark.sql.hive.convertMetastoreInsertDir" -> "false"),
-          ("spark.gluten.sql.native.writer.enabled" -> "true")) {
+        withSQLConf("spark.sql.hive.convertMetastoreInsertDir" -> "false") {
           checkNativeWrite(
             s"""
                |INSERT OVERWRITE DIRECTORY '${f.getCanonicalPath}' STORED AS PARQUET SELECT 1 as c
@@ -115,9 +114,11 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
   }
 
   test("select plain hive table") {
-    withTable("t") {
-      sql("CREATE TABLE t AS SELECT 1 as c")
-      checkAnswer(sql("SELECT * FROM t"), Row(1))
+    intercept[UnsupportedOperationException] {
+      withTable("t") {
+        sql("CREATE TABLE t AS SELECT 1 as c")
+        checkAnswer(sql("SELECT * FROM t"), Row(1))
+      }
     }
   }
 }

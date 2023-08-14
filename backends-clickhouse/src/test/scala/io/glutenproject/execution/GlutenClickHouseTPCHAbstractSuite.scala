@@ -58,7 +58,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     super.beforeAll()
-    spark.sparkContext.setLogLevel("WARN")
+    spark.sparkContext.setLogLevel(logLevel)
     if (createNullableTables) {
       createTPCHNullableTables()
     } else {

@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
+import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
@@ -52,7 +53,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
   val columnarConf: GlutenConfig = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  val reuseSubquery = isAdaptiveContext && conf.subqueryReuseEnabled
+  val reuseSubquery: Boolean = isAdaptiveContext && conf.subqueryReuseEnabled
 
   /**
    * Insert a Project as the new child of Shuffle to calculate the hash expressions.
@@ -214,7 +215,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           AddTransformHintRule().apply(
             ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newExprs = Seq[Expression]()
-        for (i <- 0 to exprs.size - 1) {
+        for (i <- exprs.indices) {
           val pos = newExpressionsPosition(i)
           newExprs = newExprs :+ project.output(pos)
         }
@@ -234,7 +235,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           AddTransformHintRule().apply(
             ProjectExec(plan.child.output ++ projectExpressions, plan.child)))
         var newOrderings = Seq[SortOrder]()
-        for (i <- 0 to orderings.size - 1) {
+        for (i <- orderings.indices) {
           val oldOrdering = orderings(i)
           val pos = newExpressionsPosition(i)
           val ordering = SortOrder(
@@ -249,6 +250,43 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         // no change for other cases
         (0, plan.outputPartitioning, plan.child)
     }
+  }
+
+  def applyScanNotTransformable(plan: SparkPlan): SparkPlan = plan match {
+    case plan: FileSourceScanExec =>
+      val newPartitionFilters =
+        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters, reuseSubquery)
+      val newSource = plan.copy(partitionFilters = newPartitionFilters)
+      if (plan.logicalLink.nonEmpty) {
+        newSource.setLogicalLink(plan.logicalLink.get)
+      }
+      TransformHints.tag(newSource, TransformHints.getHint(plan))
+      newSource
+    case plan: BatchScanExec =>
+      val newPartitionFilters: Seq[Expression] = plan.scan match {
+        case scan: FileScan =>
+          ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters, reuseSubquery)
+        case _ =>
+          ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery)
+      }
+      val newSource = plan.copy(runtimeFilters = newPartitionFilters)
+      if (plan.logicalLink.nonEmpty) {
+        newSource.setLogicalLink(plan.logicalLink.get)
+      }
+      TransformHints.tag(newSource, TransformHints.getHint(plan))
+      newSource
+    case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
+      val newPartitionFilters: Seq[Expression] = ExpressionConverter.transformDynamicPruningExpr(
+        HiveTableScanExecTransformer.getpartitionFilters(plan),
+        reuseSubquery)
+      val newSource = HiveTableScanExecTransformer.copyWith(plan, newPartitionFilters)
+      if (plan.logicalLink.nonEmpty) {
+        newSource.setLogicalLink(plan.logicalLink.get)
+      }
+      TransformHints.tag(newSource, TransformHints.getHint(plan))
+      newSource
+    case other =>
+      throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
   }
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
@@ -276,6 +314,12 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
             } else {
               return shj.withNewChildren(shj.children.map(replaceWithTransformerPlan))
             }
+          case plan: BatchScanExec =>
+            return applyScanNotTransformable(plan)
+          case plan: FileSourceScanExec =>
+            return applyScanNotTransformable(plan)
+          case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
+            return applyScanNotTransformable(plan)
           case p =>
             return p.withNewChildren(p.children.map(replaceWithTransformerPlan))
         }
@@ -610,7 +654,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
 // into native implementations.
 case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Boolean)
   extends Rule[SparkPlan] {
-  val columnarConf = GlutenConfig.getConf
+  val columnarConf: GlutenConfig = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   def transformColumnarToRowExec(plan: ColumnarToRowExec): SparkPlan = {
@@ -708,7 +752,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   with Logging
   with LogLevelUtil {
 
-  lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
+  private lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   // Tracks whether the columnar rule is called through AQE.
@@ -716,18 +760,18 @@ case class ColumnarOverrideRules(session: SparkSession)
   // This is an empirical value, may need to be changed for supporting other versions of spark.
   private val aqeStackTraceIndex = 13
 
-  lazy val wholeStageFallbackThreshold = GlutenConfig.getConf.wholeStageFallbackThreshold
+  private lazy val wholeStageFallbackThreshold = GlutenConfig.getConf.wholeStageFallbackThreshold
 
-  lazy val queryFallbackThreshold = GlutenConfig.getConf.queryFallbackThreshold
+  private lazy val queryFallbackThreshold = GlutenConfig.getConf.queryFallbackThreshold
 
   // for fallback policy
-  lazy val fallbackPolicy = GlutenConfig.getConf.fallbackPolicy
+  private lazy val fallbackPolicy = GlutenConfig.getConf.fallbackPolicy
 
   private var originalPlan: SparkPlan = _
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
 
-  def preOverrides(): List[SparkSession => Rule[SparkPlan]] = {
+  private def preOverrides(): List[SparkSession => Rule[SparkPlan]] = {
     val tagBeforeTransformHitsRules = if (this.isAdaptiveContext) {
       // When AQE is supported, rules are applied in ColumnarQueryStagePrepOverrides
       List.empty
@@ -748,7 +792,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       SparkUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPreRules)
   }
 
-  def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
+  private def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
     List(
       (s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext),
       (s: SparkSession) => VanillaColumnarPlanOverrides(s)) :::
@@ -758,8 +802,6 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   override def preColumnarTransitions: Rule[SparkPlan] = plan =>
     PhysicalPlanSelector.maybe(session, plan) {
-      var overridden: SparkPlan = plan
-      val startTime = System.nanoTime()
       val traceElements = Thread.currentThread.getStackTrace
       assert(
         traceElements.length > aqeStackTraceIndex,
@@ -773,38 +815,24 @@ case class ColumnarOverrideRules(session: SparkSession)
         AdaptiveSparkPlanExec.getClass.getName)
       // Holds the original plan for possible entire fallback.
       originalPlan = plan
-      logOnLevel(
-        transformPlanLogLevel,
-        s"preColumnarTransitions preOverriden plan:\n${plan.toString}")
-      preOverrides().foreach {
-        r =>
-          overridden = r(session)(overridden)
-          planChangeLogger.logRule(r(session).ruleName, plan, overridden)
-      }
-      logOnLevel(
-        transformPlanLogLevel,
-        s"preColumnarTransitions afterOverriden plan:\n${overridden.toString}")
-      logOnLevel(
-        transformPlanLogLevel,
-        s"preTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
-      overridden
+      transformPlan(preOverrides(), plan, "pre")
     }
 
-  def fallbackWholeStage(plan: SparkPlan): Boolean = {
+  private def fallbackWholeStage(plan: SparkPlan): Boolean = {
     if (wholeStageFallbackThreshold < 0) {
       return false
     }
     countFallbacks(plan) >= wholeStageFallbackThreshold
   }
 
-  def fallbackWholeQuery(plan: SparkPlan): Boolean = {
+  private def fallbackWholeQuery(plan: SparkPlan): Boolean = {
     if (queryFallbackThreshold < 0) {
       return false
     }
     countFallbacks(plan) >= queryFallbackThreshold
   }
 
-  def countFallbacks(plan: SparkPlan): Int = {
+  private def countFallbacks(plan: SparkPlan): Int = {
     var fallbacks = 0
     def countFallback(plan: SparkPlan): Unit = {
       plan match {
@@ -819,7 +847,7 @@ case class ColumnarOverrideRules(session: SparkSession)
           fallbacks = fallbacks + 1
         case _ =>
       }
-      plan.children.map(p => countFallback(p))
+      plan.children.foreach(p => countFallback(p))
     }
     countFallback(plan)
     fallbacks
@@ -829,7 +857,7 @@ case class ColumnarOverrideRules(session: SparkSession)
    * Ported from ApplyColumnarRulesAndInsertTransitions of Spark. Inserts an transition to columnar
    * formatted data.
    */
-  def insertRowToColumnar(plan: SparkPlan): SparkPlan = {
+  private def insertRowToColumnar(plan: SparkPlan): SparkPlan = {
     if (!plan.supportsColumnar) {
       // The tree feels kind of backwards
       // Columnar Processing will start here, so transition from row to columnar
@@ -860,7 +888,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   // Just for test use.
-  def enableAdaptiveContext: Unit = {
+  def enableAdaptiveContext(): Unit = {
     isAdaptiveContext = true
   }
 
@@ -868,30 +896,33 @@ case class ColumnarOverrideRules(session: SparkSession)
     PhysicalPlanSelector.maybe(session, plan) {
       if (fallbackPolicy == "query" && !isAdaptiveContext && fallbackWholeQuery(plan)) {
         logWarning("Fall back to run the query due to unsupported operator!")
-        insertTransitions(originalPlan, false)
+        insertTransitions(originalPlan, outputsColumnar = false)
       } else if (fallbackPolicy == "stage" && isAdaptiveContext && fallbackWholeStage(plan)) {
         logWarning("Fall back the plan due to meeting the whole stage fallback threshold!")
-        insertTransitions(originalPlan, false)
+        insertTransitions(originalPlan, outputsColumnar = false)
       } else {
-        logOnLevel(
-          transformPlanLogLevel,
-          s"postColumnarTransitions preOverriden plan:\n${plan.toString}")
-        var overridden: SparkPlan = plan
-        val startTime = System.nanoTime()
-        postOverrides().foreach {
-          r =>
-            overridden = r(session)(overridden)
-            planChangeLogger.logRule(r(session).ruleName, plan, overridden)
-        }
-        logOnLevel(
-          transformPlanLogLevel,
-          s"postColumnarTransitions afterOverriden plan:\n${overridden.toString}")
-        logOnLevel(
-          transformPlanLogLevel,
-          s"postTransform SparkPlan took: ${(System.nanoTime() - startTime) / 1000000.0} ms.")
-        overridden
+        transformPlan(postOverrides(), plan, "post")
       }
     }
+  private def transformPlan(
+      getRules: List[SparkSession => Rule[SparkPlan]],
+      plan: SparkPlan,
+      step: String) = GlutenTimeMetric.withMillisTime {
+    logOnLevel(
+      transformPlanLogLevel,
+      s"${step}ColumnarTransitions preOverriden plan:\n${plan.toString}")
+    val overridden = getRules.foldLeft(plan) {
+      (p, getRule) =>
+        val rule = getRule(session)
+        val newPlan = rule(p)
+        planChangeLogger.logRule(rule.ruleName, p, newPlan)
+        newPlan
+    }
+    logOnLevel(
+      transformPlanLogLevel,
+      s"${step}ColumnarTransitions afterOverriden plan:\n${overridden.toString}")
+    overridden
+  }(t => logOnLevel(transformPlanLogLevel, s"${step}Transform SparkPlan took: $t ms."))
 }
 
 object ColumnarOverrides extends GlutenSparkExtensionsInjector {

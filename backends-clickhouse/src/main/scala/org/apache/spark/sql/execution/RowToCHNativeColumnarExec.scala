@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.execution.{RowToColumnarExecBase, SparkRowIterator}
 import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
 import org.apache.spark.broadcast
@@ -27,13 +28,12 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafePr
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import java.util.concurrent.TimeUnit.NANOSECONDS
-
 /**
  * this class is only for test use, not yet suggested to use in non-test code the performance is not
  * optimized
  *
- * @param child
+ * @param child:
+ *   the input plan
  */
 case class RowToCHNativeColumnarExec(child: SparkPlan)
   extends RowToColumnarExecBase(child = child) {
@@ -70,17 +70,16 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
             }
 
             override def next(): ColumnarBatch = {
-              val start = System.nanoTime()
-              val slice = byteArrayIterator.take(8192);
-              val sparkRowIterator = new SparkRowIterator(slice)
-              last_address = CHBlockConverterJniWrapper
-                .convertSparkRowsToCHColumn(sparkRowIterator, fieldNames, fieldTypes);
-              val block = new CHNativeBlock(last_address)
-
-              convertTime += NANOSECONDS.toMillis(System.nanoTime() - start)
+              val block = GlutenTimeMetric.millis(convertTime) {
+                _ =>
+                  val slice = byteArrayIterator.take(8192)
+                  val sparkRowIterator = new SparkRowIterator(slice)
+                  last_address = CHBlockConverterJniWrapper
+                    .convertSparkRowsToCHColumn(sparkRowIterator, fieldNames, fieldTypes)
+                  new CHNativeBlock(last_address)
+              }
               numInputRows += block.numRows()
               numOutputBatches += 1
-
               block.toColumnarBatch
             }
           }

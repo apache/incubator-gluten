@@ -26,7 +26,7 @@ bool isOnSparkTaskMainThread();
 
 void bindToTask(std::shared_ptr<void> object);
 
-void createTaskContextStorage();
+void createTaskContextStorage(std::string name);
 
 void deleteTaskContextStorage();
 } // namespace gluten

@@ -32,6 +32,12 @@ public class BatchIterator extends GeneralOutIterator {
     this.handle = handle;
   }
 
+  @Override
+  public String getId() {
+    // Using native handle as identifier
+    return String.valueOf(handle);
+  }
+
   private native boolean nativeHasNext(long nativeHandle);
 
   private native byte[] nativeNext(long nativeHandle);

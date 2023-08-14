@@ -103,7 +103,7 @@ object GlutenWriterColumnarRules {
 
     cmd match {
       case command: CreateDataSourceTableAsSelectCommand =>
-        if (command.table.provider.contains("velox")) {
+        if (GlutenConfig.isCurrentBackendVelox) {
           return (false, "")
         }
 

@@ -17,6 +17,7 @@
 package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.vectorized._
 
 import org.apache.spark.SparkEnv
@@ -74,8 +75,7 @@ class CHColumnarShuffleWriter[K, V](
   }
 
   def internalCHWrite(records: Iterator[Product2[K, V]]): Unit = {
-    val splitterJniWrapper: CHShuffleSplitterJniWrapper =
-      jniWrapper.asInstanceOf[CHShuffleSplitterJniWrapper]
+    val splitterJniWrapper: CHShuffleSplitterJniWrapper = jniWrapper
     if (!records.hasNext) {
       partitionLengths = new Array[Long](dep.partitioner.numPartitions)
       shuffleBlockResolver.writeMetadataFileAndCommit(
@@ -104,22 +104,24 @@ class CHColumnarShuffleWriter[K, V](
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
-        val startTime = System.nanoTime()
-        firstRecordBatch = false
-        val col = cb.column(0).asInstanceOf[CHColumnVector]
-        val block = col.getBlockAddress
-        splitterJniWrapper
-          .split(nativeSplitter, cb.numRows, block)
-        dep.metrics("splitTime").add(System.nanoTime() - startTime)
+        GlutenTimeMetric.nano(dep.metrics("splitTime")) {
+          _ =>
+            firstRecordBatch = false
+            val col = cb.column(0).asInstanceOf[CHColumnVector]
+            val block = col.getBlockAddress
+            splitterJniWrapper
+              .split(nativeSplitter, cb.numRows, block)
+        }
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)
         writeMetrics.incRecordsWritten(cb.numRows)
       }
     }
-    val startTime = System.nanoTime()
-    splitResult = splitterJniWrapper.stop(nativeSplitter)
 
-    dep.metrics("splitTime").add(System.nanoTime() - startTime)
+    splitResult = GlutenTimeMetric.nano(dep.metrics("splitTime")) {
+      _ => splitterJniWrapper.stop(nativeSplitter)
+    }
+
     dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("computePidTime").add(splitResult.getTotalComputePidTime)
@@ -165,9 +167,7 @@ class CHColumnarShuffleWriter[K, V](
     }
   }
 
-  def closeCHSplitter(): Unit = {
-    jniWrapper.asInstanceOf[CHShuffleSplitterJniWrapper].close(nativeSplitter)
-  }
+  private def closeCHSplitter(): Unit = jniWrapper.close(nativeSplitter)
 
   // VisibleForTesting
   def getPartitionLengths: Array[Long] = partitionLengths

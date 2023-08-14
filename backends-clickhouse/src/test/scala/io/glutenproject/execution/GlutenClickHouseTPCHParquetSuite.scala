@@ -1869,5 +1869,28 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql2, true, { _ => })
   }
+
+  test("Test plan json non-empty") {
+    spark.sparkContext.setLogLevel("WARN")
+    val df1 = spark
+      .sql("""
+             | select * from lineitem limit 1
+             | """.stripMargin)
+    val executedPlan1 = df1.queryExecution.executedPlan
+    val lastStageTransformer1 = executedPlan1.find(_.isInstanceOf[WholeStageTransformer])
+    executedPlan1.execute()
+    assert(lastStageTransformer1.get.asInstanceOf[WholeStageTransformer].getPlanJson.isEmpty)
+
+    spark.sparkContext.setLogLevel("DEBUG")
+    val df2 = spark
+      .sql("""
+             | select * from lineitem limit 1
+             | """.stripMargin)
+    val executedPlan2 = df2.queryExecution.executedPlan
+    val lastStageTransformer2 = executedPlan2.find(_.isInstanceOf[WholeStageTransformer])
+    executedPlan2.execute()
+    assert(lastStageTransformer2.get.asInstanceOf[WholeStageTransformer].getPlanJson.nonEmpty)
+    spark.sparkContext.setLogLevel(logLevel)
+  }
 }
 // scalastyle:on line.size.limit

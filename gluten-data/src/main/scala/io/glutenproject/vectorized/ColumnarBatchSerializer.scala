@@ -106,7 +106,7 @@ private class ColumnarBatchSerializerInstance(
         // since the native reader could hold a reference to memory pool that
         // was used to create all buffers read from shuffle reader. The pool
         // should keep alive before all buffers finish consuming.
-        TaskResources.addRecycler(50) {
+        TaskResources.addRecycler(s"ShuffleReaderHandle_$handle", 50) {
           close()
           ShuffleReaderJniWrapper.INSTANCE.close(handle)
         }
