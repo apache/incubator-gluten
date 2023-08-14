@@ -213,7 +213,6 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
       case p: ShuffledHashJoinExec =>
         tagNotTransformable(p.withNewChildren(p.children.map(tagNotTransformableRecursive)))
       case p if !supportCodegen(p) =>
-        // insert row guard them recursively
         p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens))
       case p if isAQEShuffleReadExec(p) =>
         p.withNewChildren(p.children.map(tagNotTransformableForMultiCodegens))

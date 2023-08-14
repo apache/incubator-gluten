@@ -611,7 +611,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
           case ::substrait::Expression::RexTypeCase::kLiteral:
             break;
           default:
-            LOG_VALIDATION_MSG("Only field is supported in window functions.");
+            LOG_VALIDATION_MSG("Only field or constant is supported in window functions.");
             return false;
         }
       }

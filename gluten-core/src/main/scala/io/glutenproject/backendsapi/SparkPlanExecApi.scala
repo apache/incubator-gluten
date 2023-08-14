@@ -43,7 +43,7 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{BooleanType, LongType, NullType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
@@ -501,32 +501,39 @@ trait SparkPlanExecApi {
             )
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
-            val offset_wf = wf.asInstanceOf[FrameLessOffsetWindowFunction]
-            val frame = offset_wf.frame.asInstanceOf[SpecifiedWindowFrame]
+            val offsetWf = wf.asInstanceOf[FrameLessOffsetWindowFunction]
+            val frame = offsetWf.frame.asInstanceOf[SpecifiedWindowFrame]
             val childrenNodeList = new JArrayList[ExpressionNode]()
             childrenNodeList.add(
               ExpressionConverter
                 .replaceWithExpressionTransformer(
-                  offset_wf.input,
+                  offsetWf.input,
                   attributeSeq = originalInputAttributes)
                 .doTransform(args))
+            // Spark only accepts foldable offset. Converts it to LongType literal.
+            val offsetNode = ExpressionBuilder.makeLiteral(
+              // Velox always expects positive offset.
+              Math.abs(offsetWf.offset.eval(EmptyRow).asInstanceOf[Int].toLong),
+              LongType,
+              false)
+            childrenNodeList.add(offsetNode)
+            // NullType means Null is the default value. Don't pass it to native.
+            if (offsetWf.default.dataType != NullType) {
+              childrenNodeList.add(
+                ExpressionConverter
+                  .replaceWithExpressionTransformer(
+                    offsetWf.default,
+                    attributeSeq = originalInputAttributes)
+                  .doTransform(args))
+            }
+            // Always adds ignoreNulls at the end.
             childrenNodeList.add(
-              ExpressionConverter
-                .replaceWithExpressionTransformer(
-                  offset_wf.offset,
-                  attributeSeq = originalInputAttributes)
-                .doTransform(args))
-            childrenNodeList.add(
-              ExpressionConverter
-                .replaceWithExpressionTransformer(
-                  offset_wf.default,
-                  attributeSeq = originalInputAttributes)
-                .doTransform(args))
+              ExpressionBuilder.makeLiteral(offsetWf.ignoreNulls, BooleanType, false))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, offset_wf).toInt,
+              WindowFunctionsBuilder.create(args, offsetWf).toInt,
               childrenNodeList,
               columnName,
-              ConverterUtils.getTypeNode(offset_wf.dataType, offset_wf.nullable),
+              ConverterUtils.getTypeNode(offsetWf.dataType, offsetWf.nullable),
               WindowExecTransformer.getFrameBound(frame.upper),
               WindowExecTransformer.getFrameBound(frame.lower),
               frame.frameType.sql
@@ -540,7 +547,8 @@ trait SparkPlanExecApi {
                 .replaceWithExpressionTransformer(input, attributeSeq = originalInputAttributes)
                 .doTransform(args))
             childrenNodeList.add(LiteralTransformer(offset).doTransform(args))
-            childrenNodeList.add(LiteralTransformer(Literal(ignoreNulls)).doTransform(args))
+            // Always adds ignoreNulls at the end.
+            childrenNodeList.add(ExpressionBuilder.makeLiteral(ignoreNulls, BooleanType, false))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               WindowFunctionsBuilder.create(args, wf).toInt,
               childrenNodeList,
