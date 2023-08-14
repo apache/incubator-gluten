@@ -53,3 +53,4 @@ add_velox_test(
   FunctionTest.cc
   JsonToProtoConverter.cc
   FilePathGenerator.cc)
+add_velox_test(spark_functions_test SOURCES SparkFunctionTest.cc)

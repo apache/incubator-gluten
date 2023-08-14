@@ -15,7 +15,10 @@
  * limitations under the License.
  */
 #include "RegistrationAllFunctions.h"
+#include "Arithmetic.h"
 #include "RowConstructor.h"
+
+#include "velox/functions/lib/RegistrationHelpers.h"
 #include "velox/functions/prestosql/aggregates/RegisterAggregateFunctions.h"
 #include "velox/functions/prestosql/registration/RegistrationFunctions.h"
 #include "velox/functions/prestosql/window/WindowFunctionsRegistration.h"
@@ -24,8 +27,20 @@
 #include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
 
 using namespace facebook;
+using namespace facebook::velox;
+using namespace facebook::velox::functions;
 
 namespace gluten {
+
+void registerFunctionOverwrite() {
+  registerUnaryNumeric<RoundFunction>({"round"});
+  registerFunction<RoundFunction, int8_t, int8_t, int32_t>({"round"});
+  registerFunction<RoundFunction, int16_t, int16_t, int32_t>({"round"});
+  registerFunction<RoundFunction, int32_t, int32_t, int32_t>({"round"});
+  registerFunction<RoundFunction, int64_t, int64_t, int32_t>({"round"});
+  registerFunction<RoundFunction, double, double, int32_t>({"round"});
+  registerFunction<RoundFunction, float, float, int32_t>({"round"});
+}
 
 void registerAllFunctions() {
   // The registration order matters. Spark sql functions are registered after
@@ -37,6 +52,7 @@ void registerAllFunctions() {
   velox::functions::aggregate::sparksql::registerAggregateFunctions("");
   velox::window::prestosql::registerAllWindowFunctions();
   velox::functions::window::sparksql::registerWindowFunctions("");
+  registerFunctionOverwrite();
 }
 
 } // namespace gluten
