@@ -98,6 +98,18 @@ static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecJst
   }
 }
 
+static inline gluten::CompressionMode getCompressionMode(JNIEnv* env, jstring compressionModeJstr) {
+  GLUTEN_DCHECK(compressionModeJstr != nullptr, "CompressionMode cannot be null");
+  auto compressionMode = jStringToCString(env, compressionModeJstr);
+  if (compressionMode == "buffer") {
+    return gluten::CompressionMode::BUFFER;
+  } else if (compressionMode == "rowvector") {
+    return gluten::CompressionMode::ROWVECTOR;
+  } else {
+    throw std::invalid_argument("Not support this compression mode " + compressionMode);
+  }
+}
+
 static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
   int getEnvStat = vm->GetEnv(reinterpret_cast<void**>(out), jniVersion);
   if (getEnvStat == JNI_EDETACHED) {

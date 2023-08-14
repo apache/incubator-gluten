@@ -127,6 +127,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
 
+  def columnarShuffleCompressionMode: String =
+    conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_MODE)
+
   def columnarShuffleCodecBackend: Option[String] = conf
     .getConf(COLUMNAR_SHUFFLE_CODEC_BACKEND)
     .filter(Set(GLUTEN_QAT_BACKEND_NAME, GLUTEN_IAA_BACKEND_NAME).contains(_))
@@ -761,6 +764,15 @@ object GlutenConfig {
       .stringConf
       .transform(_.toLowerCase(Locale.ROOT))
       .createOptional
+
+  val COLUMNAR_SHUFFLE_COMPRESSION_MODE =
+    buildConf("spark.gluten.sql.columnar.shuffle.compressionMode")
+      .internal()
+      .doc("buffer means compress each buffer to pre allocated big buffer," +
+        "rowvector means to copy the buffers to a big buffer, and then compress the buffer")
+      .stringConf
+      .checkValues(Set("buffer", "rowvector"))
+      .createWithDefault("buffer")
 
   val COLUMNAR_SHUFFLE_BUFFER_COMPRESS_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.bufferCompressThreshold")

@@ -30,6 +30,7 @@ struct ReaderOptions {
   arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
   arrow::Compression::type compression_type = arrow::Compression::type::LZ4_FRAME;
   CodecBackend codec_backend = CodecBackend::NONE;
+  CompressionMode compression_mode = CompressionMode::BUFFER;
 
   static ReaderOptions defaults();
 };

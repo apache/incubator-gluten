@@ -24,7 +24,7 @@
 namespace gluten {
 class VeloxShuffleReader final : public Reader {
  public:
-  explicit VeloxShuffleReader(
+  VeloxShuffleReader(
       std::shared_ptr<arrow::io::InputStream> in,
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
@@ -38,6 +38,8 @@ class VeloxShuffleReader final : public Reader {
       const arrow::RecordBatch& batch,
       facebook::velox::RowTypePtr rowType,
       CodecBackend codecBackend,
+      CompressionMode compressionMode,
+      int64_t& decompressTime,
       arrow::MemoryPool* arrowPool,
       facebook::velox::memory::MemoryPool* pool);
 

@@ -42,7 +42,7 @@ struct ShuffleWriterOptions {
   int32_t buffer_compress_threshold = kDefaultBufferCompressThreshold;
   arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
   CodecBackend codec_backend = CodecBackend::NONE;
-  std::shared_ptr<arrow::util::Codec> codec = createArrowIpcCodec(compression_type, codec_backend);
+  CompressionMode compression_mode = CompressionMode::BUFFER;
   bool prefer_evict = false;
   bool write_schema = false;
   bool buffered_write = false;
@@ -228,6 +228,7 @@ class ShuffleWriter {
       : numPartitions_(numPartitions),
         partitionWriterCreator_(std::move(partitionWriterCreator)),
         options_(std::move(options)),
+        codec_(createArrowIpcCodec(options_.compression_type, options_.codec_backend)),
         pool_(std::make_shared<ShuffleBufferPool>(options_.memory_pool)) {}
   virtual ~ShuffleWriter() = default;
 
@@ -246,6 +247,8 @@ class ShuffleWriter {
 
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_;
+
+  std::unique_ptr<arrow::util::Codec> codec_;
 
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::Schema> writeSchema_;

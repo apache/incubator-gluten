@@ -120,6 +120,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
             nativeBufferSize,
             customizedCompressionCodec,
             bufferCompressThreshold,
+            GlutenConfig.getConf.columnarShuffleCompressionMode,
             celebornConf.clientPushBufferMaxSize,
             celebornPartitionPusher,
             NativeMemoryAllocators

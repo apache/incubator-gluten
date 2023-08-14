@@ -28,7 +28,8 @@ public class ShuffleReaderJniWrapper extends JniInitialized {
       long cSchema,
       long allocatorId,
       String compressionType,
-      String compressionCodecBackend);
+      String compressionCodecBackend,
+      String compressionMode);
 
   public native long next(long handle);
 

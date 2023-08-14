@@ -48,6 +48,7 @@ namespace gluten {
 struct ShuffleTestParams {
   bool prefer_evict;
   arrow::Compression::type compression_type;
+  CompressionMode compression_mode;
 
   std::string toString() const {
     std::ostringstream out;
@@ -73,6 +74,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     ShuffleTestParams params = GetParam();
     shuffleWriterOptions_.prefer_evict = params.prefer_evict;
     shuffleWriterOptions_.compression_type = params.compression_type;
+    shuffleWriterOptions_.compression_mode = params.compression_mode;
 
     partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>(shuffleWriterOptions_.prefer_evict);
     std::vector<VectorPtr> children1 = {
@@ -149,10 +151,6 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     return fileReader;
   }
 
-  // getRecordBatches() {
-  //   GLUTEN_ASSIGN_OR_THROW(messageToRead, arrow::ipc::ReadMessage(in_.get()))
-  // }
-
   void splitRowVector(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {
     std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
     GLUTEN_THROW_NOT_OK(shuffleWriter.split(cb));
@@ -196,9 +194,16 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
     ASSERT_NOT_OK(fileReader->ReadAll(&batches));
     ASSERT_EQ(batches.size(), vectors.size());
+    int64_t decompressTime;
     for (int32_t i = 0; i < batches.size(); i++) {
       auto deserialized = VeloxShuffleReader::readRowVector(
-          *batches[i], asRowType(vectors[i]->type()), CodecBackend::NONE, arrowPool_.get(), pool_.get());
+          *batches[i],
+          asRowType(vectors[i]->type()),
+          CodecBackend::NONE,
+          shuffleWriterOptions_.compression_mode,
+          decompressTime,
+          arrowPool_.get(),
+          pool_.get());
       velox::test::assertEqualVectors(vectors[i], deserialized);
     }
   }
@@ -233,9 +238,16 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       ASSERT_EQ(expectedVectors[i].size(), batches.size());
       // auto partitionVectors = std::move(expectedVectors[i]);
       ASSERT_EQ(expectedVectors[i].size(), batches.size());
+      int64_t decompressTime;
       for (int32_t j = 0; j < batches.size(); j++) {
         auto deserialized = VeloxShuffleReader::readRowVector(
-            *batches[j], asRowType(dataType), CodecBackend::NONE, arrowPool_.get(), pool_.get());
+            *batches[j],
+            asRowType(dataType),
+            CodecBackend::NONE,
+            shuffleWriterOptions_.compression_mode,
+            decompressTime,
+            arrowPool_.get(),
+            pool_.get());
         velox::test::assertEqualVectors(expectedVectors[i][j], deserialized);
       }
     }
@@ -622,14 +634,16 @@ TEST_P(VeloxShuffleWriterTest, TestSpillLargestPartition) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    TestPreferEvictParam,
+    VeloxShuffleWriteParam,
     VeloxShuffleWriterTest,
     ::testing::Values(
-        ShuffleTestParams{true, arrow::Compression::UNCOMPRESSED},
-        ShuffleTestParams{true, arrow::Compression::LZ4_FRAME},
-        ShuffleTestParams{true, arrow::Compression::ZSTD},
-        ShuffleTestParams{false, arrow::Compression::UNCOMPRESSED},
-        ShuffleTestParams{false, arrow::Compression::LZ4_FRAME},
-        ShuffleTestParams{false, arrow::Compression::ZSTD}));
+        ShuffleTestParams{true, arrow::Compression::UNCOMPRESSED, CompressionMode::BUFFER},
+        ShuffleTestParams{true, arrow::Compression::LZ4_FRAME, CompressionMode::BUFFER},
+        ShuffleTestParams{true, arrow::Compression::ZSTD, CompressionMode::BUFFER},
+        ShuffleTestParams{false, arrow::Compression::UNCOMPRESSED, CompressionMode::BUFFER},
+        ShuffleTestParams{false, arrow::Compression::LZ4_FRAME, CompressionMode::BUFFER},
+        ShuffleTestParams{false, arrow::Compression::ZSTD, CompressionMode::BUFFER},
+        ShuffleTestParams{true, arrow::Compression::UNCOMPRESSED, CompressionMode::ROWVECTOR},
+        ShuffleTestParams{false, arrow::Compression::LZ4_FRAME, CompressionMode::ROWVECTOR}));
 
 } // namespace gluten
