@@ -33,8 +33,8 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
 
   private val driverHost = conf.get(config.DRIVER_HOST_ADDRESS.key, "localhost")
   private val driverPort = conf.getInt(config.DRIVER_PORT.key, 7077)
-  private val driverUrl =
-    s"spark://${GlutenRpcConstants.GLUTEN_DRIVER_ENDPOINT_NAME}@$driverHost:$driverPort"
+  private val rpcAddress = RpcAddress(driverHost, driverPort)
+  private val driverUrl = RpcEndpointAddress(rpcAddress, GlutenRpcConstants.GLUTEN_DRIVER_ENDPOINT_NAME).toString
 
   @volatile var driverEndpointRef: RpcEndpointRef = null
 
