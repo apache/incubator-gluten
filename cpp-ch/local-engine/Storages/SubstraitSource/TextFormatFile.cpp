@@ -69,8 +69,6 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
         format_settings.csv.allow_single_quotes = false;
         format_settings.csv.allow_double_quotes = false;
     }
-    format_settings.csv.allow_variable_number_of_columns = true;
-    format_settings.csv.use_default_on_bad_values = true;
     res->input = std::make_shared<DB::HiveTextRowInputFormat>(header, *(res->read_buffer), params, format_settings);
     return res;
 }
