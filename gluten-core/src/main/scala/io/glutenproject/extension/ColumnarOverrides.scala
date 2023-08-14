@@ -252,6 +252,43 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
     }
   }
 
+  def applyScanNotTransformable(plan: SparkPlan): SparkPlan = plan match {
+    case plan: FileSourceScanExec =>
+      val newPartitionFilters =
+        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters, reuseSubquery)
+      val newSource = plan.copy(partitionFilters = newPartitionFilters)
+      if (plan.logicalLink.nonEmpty) {
+        newSource.setLogicalLink(plan.logicalLink.get)
+      }
+      TransformHints.tag(newSource, TransformHints.getHint(plan))
+      newSource
+    case plan: BatchScanExec =>
+      val newPartitionFilters: Seq[Expression] = plan.scan match {
+        case scan: FileScan =>
+          ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters, reuseSubquery)
+        case _ =>
+          ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery)
+      }
+      val newSource = plan.copy(runtimeFilters = newPartitionFilters)
+      if (plan.logicalLink.nonEmpty) {
+        newSource.setLogicalLink(plan.logicalLink.get)
+      }
+      TransformHints.tag(newSource, TransformHints.getHint(plan))
+      newSource
+    case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
+      val newPartitionFilters: Seq[Expression] = ExpressionConverter.transformDynamicPruningExpr(
+        HiveTableScanExecTransformer.getpartitionFilters(plan),
+        reuseSubquery)
+      val newSource = HiveTableScanExecTransformer.copyWith(plan, newPartitionFilters)
+      if (plan.logicalLink.nonEmpty) {
+        newSource.setLogicalLink(plan.logicalLink.get)
+      }
+      TransformHints.tag(newSource, TransformHints.getHint(plan))
+      newSource
+    case other =>
+      throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
+  }
+
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
     TransformHints.getHint(plan) match {
       case _: TRANSFORM_SUPPORTED =>
@@ -277,6 +314,12 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
             } else {
               return shj.withNewChildren(shj.children.map(replaceWithTransformerPlan))
             }
+          case plan: BatchScanExec =>
+            return applyScanNotTransformable(plan)
+          case plan: FileSourceScanExec =>
+            return applyScanNotTransformable(plan)
+          case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
+            return applyScanNotTransformable(plan)
           case p =>
             return p.withNewChildren(p.children.map(replaceWithTransformerPlan))
         }
