@@ -169,7 +169,7 @@ bool SubstraitToVeloxPlanValidator::validateRegexExpr(
   const auto& pattern = patternArg.literal().string();
   std::string error;
   if (!validatePattern(pattern, error)) {
-    logValidateMsg(error);
+    logValidateMsg("native validation failed for function: " + name + " due to: " + error);
     return false;
   }
   return true;
