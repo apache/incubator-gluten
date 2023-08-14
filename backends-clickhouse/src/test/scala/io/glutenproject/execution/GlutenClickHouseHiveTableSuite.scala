@@ -739,7 +739,6 @@ class GlutenClickHouseHiveTableSuite()
     compareResultsAgainstVanillaSpark(select_sql_6, true, _ => {})
   }
 
-<<<<<<< HEAD
   test("GLUTEN-2180: Test data field too much/few") {
     val test_table_name = "test_table_2180"
     val drop_table_sql = "drop table if exists %s".format(test_table_name)
