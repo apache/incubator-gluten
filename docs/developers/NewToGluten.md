@@ -11,7 +11,7 @@ Gluten has cpp code and java/scala code, we can use some useful IDE to read and 
 
 # Environment
 
-Now gluten supports Ubuntu20.04, Ubuntu22.04, centos8
+Now gluten supports Ubuntu20.04, Ubuntu22.04, centos8, centos7 and macOS.
 
 ## Openjdk8
 

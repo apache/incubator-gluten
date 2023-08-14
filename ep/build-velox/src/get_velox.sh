@@ -27,8 +27,7 @@ BUILD_PROTOBUF=ON
 #Set on run gluten on S3
 ENABLE_S3=OFF
 
-LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
-LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
+OS=`uname -s`
 
 for arg in "$@"; do
   case $arg in
@@ -186,31 +185,58 @@ fi
 git submodule sync --recursive
 git submodule update --init --recursive
 
-# apply patches
-sed -i 's/^  ninja -C "${BINARY_DIR}" install/  sudo ninja -C "${BINARY_DIR}" install/g' scripts/setup-helper-functions.sh
-sed -i 's/-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17/-march=native -std=c++17 -mno-avx512f/g' scripts/setup-helper-functions.sh
-if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" || "$LINUX_DISTRIBUTION" == "pop" ]]; then
-  process_setup_ubuntu
-elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
-  case "$LINUX_VERSION_ID" in
-    8) process_setup_centos8 ;;
-    7) process_setup_centos7 ;;
-    *)
-      echo "Unsupport centos version: $LINUX_VERSION_ID"
-      exit 1
-    ;;
-  esac
-elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
-  case "${LINUX_VERSION_ID:0:1}" in
-    2) process_setup_centos7 ;;
-    3) process_setup_alinux3 ;;
-    *)
-      echo "Unsupport alinux version: $LINUX_VERSION_ID"
-      exit 1
-    ;;
-  esac
+function setup_linux {
+  local LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
+  local LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
+
+  # apply patches
+  sed -i 's/^  ninja -C "${BINARY_DIR}" install/  sudo ninja -C "${BINARY_DIR}" install/g' scripts/setup-helper-functions.sh
+  sed -i 's/-mavx2 -mfma -mavx -mf16c -mlzcnt -std=c++17/-march=native -std=c++17 -mno-avx512f/g' scripts/setup-helper-functions.sh
+  if [[ "$LINUX_DISTRIBUTION" == "ubuntu" || "$LINUX_DISTRIBUTION" == "debian" || "$LINUX_DISTRIBUTION" == "pop" ]]; then
+    process_setup_ubuntu
+  elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
+    case "$LINUX_VERSION_ID" in
+      8) process_setup_centos8 ;;
+      7) process_setup_centos7 ;;
+      *)
+        echo "Unsupport centos version: $LINUX_VERSION_ID"
+        exit 1
+      ;;
+    esac
+  elif [[ "$LINUX_DISTRIBUTION" == "alinux" ]]; then
+    case "${LINUX_VERSION_ID:0:1}" in
+      2) process_setup_centos7 ;;
+      3) process_setup_alinux3 ;;
+      *)
+        echo "Unsupport alinux version: $LINUX_VERSION_ID"
+        exit 1
+      ;;
+    esac
+  else
+    echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
+    exit 1
+  fi
+}
+
+function setup_macos {
+  if [ $ENABLE_HDFS == "ON" ]; then
+    echo "Unsupport hdfs"
+    exit 1
+  fi
+  if [ $ENABLE_S3 == "ON" ]; then
+    echo "Unsupport s3"
+    exit 1
+  fi
+
+  sed -i '' $'/^  run_and_time install_fmt/a\\\n  run_and_time install_folly\\\n' scripts/setup-macos.sh
+}
+
+if [ $OS == 'Linux' ]; then
+  setup_linux
+elif [ $OS == 'Darwin' ]; then
+  setup_macos
 else
-  echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
+  echo "Unsupport kernel: $OS"
   exit 1
 fi
 
