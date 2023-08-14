@@ -42,9 +42,10 @@ else()
     endif()
 endif()
 
-if (NOT EXISTS "${CH_SOURCE_DIR}/utils/extern-local-engine/")
-    execute_process(COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/local-engine ${CH_SOURCE_DIR}/utils/extern-local-engine)
+if (EXISTS "${CH_SOURCE_DIR}/utils/extern-local-engine")
+    execute_process(COMMAND rm -rf ${CH_SOURCE_DIR}/utils/extern-local-engine)
 endif ()
+execute_process(COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/local-engine ${CH_SOURCE_DIR}/utils/extern-local-engine COMMAND_ERROR_IS_FATAL ANY)
 
 # execute_process(COMMAND find ${CMAKE_CURRENT_SOURCE_DIR}/local-engine -regex '.*\.\(c\|cpp\|h\)' -exec clang-format-15 --verbose -i --style=file -i {} \;)
 
