@@ -459,7 +459,7 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
         s"from $LINEITEM_TABLE limit 5") { _ => }
   }
 
-  ignore("regexp_replace") {
+  test("regexp_replace") {
     runQueryAndCompare(
       s"select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
         s"from $LINEITEM_TABLE limit 5")(checkOperatorMatch[ProjectExecTransformer])
@@ -469,7 +469,32 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
     // todo incorrect results
     runQueryAndCompare(
       s"select l_orderkey, regexp_replace(l_comment, '([a-z])', '1', 10) " +
-        s"from $LINEITEM_TABLE limit 5")(checkOperatorMatch[ProjectExecTransformer])
+        s"from $LINEITEM_TABLE limit 5",
+      true,
+      false)(_ => {})
+  }
+
+  test("regex invalid") {
+    // Positive lookahead
+    runQueryAndCompare(
+      s"""select regexp_replace(l_returnflag, "(?=N)", "Y") from $LINEITEM_TABLE limit 5""",
+      true,
+      false)(_ => {})
+    // Negative lookahead
+    runQueryAndCompare(
+      s"""select regexp_replace(l_returnflag, "(?!N)", "Y") from $LINEITEM_TABLE limit 5""",
+      true,
+      false)(_ => {})
+    // Positive lookbehind
+    runQueryAndCompare(
+      s"""select rlike(l_returnflag, "(?<=N)") from $LINEITEM_TABLE limit 5""",
+      true,
+      false)(_ => {})
+    // Negative lookbehind
+    runQueryAndCompare(
+      s"""select rlike(l_returnflag, "(?<!N)") from $LINEITEM_TABLE limit 5""",
+      true,
+      false)(_ => {})
   }
 
   test("replace") {

@@ -16,7 +16,6 @@
  */
 
 #include <jni.h>
-#include <malloc.h>
 #include <filesystem>
 
 #include "compute/Backend.h"
@@ -629,7 +628,7 @@ Java_io_glutenproject_vectorized_NativeRowToColumnarJniWrapper_nativeConvertRowT
   uint8_t* address = reinterpret_cast<uint8_t*>(memoryAddress);
 
   auto converter = rowToColumnarConverterHolder.lookup(r2cId);
-  auto cb = converter->convert(numRows, inRowLength, address);
+  auto cb = converter->convert(numRows, reinterpret_cast<int64_t*>(inRowLength), address);
   env->ReleaseLongArrayElements(rowLength, inRowLength, JNI_ABORT);
   return columnarBatchHolder.insert(cb);
   JNI_METHOD_END(-1)
@@ -873,10 +872,10 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     std::string errorMessage = "Invalid shuffle writer id " + std::to_string(shuffleWriterId);
     throw gluten::GlutenException(errorMessage);
   }
-  jlong evictedSize;
+  int64_t evictedSize;
   gluten::arrowAssertOkOrThrow(
       shuffleWriter->evictFixedSize(size, &evictedSize), "(shuffle) nativeEvict: evict failed");
-  return evictedSize;
+  return (jlong)evictedSize;
   JNI_METHOD_END(-1L)
 }
 
@@ -1154,18 +1153,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator
   }
   return (*alloc)->getBytes();
   JNI_METHOD_END(-1L)
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_tpc_MallocUtils_mallocTrim(JNIEnv* env, jobject obj) { // NOLINT
-  //  malloc_stats_print(statsPrint, nullptr, nullptr);
-  std::cout << "Calling malloc_trim... " << std::endl;
-  malloc_trim(0);
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_tpc_MallocUtils_mallocStats(JNIEnv* env, jobject obj) { // NOLINT
-  //  malloc_stats_print(statsPrint, nullptr, nullptr);
-  std::cout << "Calling malloc_stats... " << std::endl;
-  malloc_stats();
 }
 
 JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_serialize( // NOLINT

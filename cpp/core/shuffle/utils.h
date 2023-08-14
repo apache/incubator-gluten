@@ -25,7 +25,6 @@
 #include <arrow/type.h>
 #include <arrow/util/io_util.h>
 
-#include <bits/stdc++.h>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <chrono>
