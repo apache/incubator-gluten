@@ -68,45 +68,39 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
       }
   }
 
-  ignore("test ctas") {
+  test("test ctas") {
     withTable("velox_ctas") {
-      intercept[UnsupportedOperationException] {
-        spark
-          .range(100)
-          .toDF("id")
-          .write
-          .format("parquet")
-          .saveAsTable("velox_ctas")
-      }
+      spark
+        .range(100)
+        .toDF("id")
+        .write
+        .format("parquet")
+        .saveAsTable("velox_ctas")
     }
   }
 
-  ignore("test parquet dynamic partition write") {
+  test("test parquet dynamic partition write") {
     withTempPath {
       f =>
-        intercept[UnsupportedOperationException] {
-          spark
-            .range(100)
-            .selectExpr("id as c1", "id % 7 as p")
-            .write
-            .format("parquet")
-            .partitionBy("p")
-            .save(f.getCanonicalPath)
-        }
-    }
-  }
-
-  ignore("test parquet bucket write") {
-    withTable("bucket") {
-      intercept[UnsupportedOperationException] {
         spark
           .range(100)
           .selectExpr("id as c1", "id % 7 as p")
           .write
           .format("parquet")
-          .bucketBy(7, "p")
-          .saveAsTable("bucket")
-      }
+          .partitionBy("p")
+          .save(f.getCanonicalPath)
+    }
+  }
+
+  test("test parquet bucket write") {
+    withTable("bucket") {
+      spark
+        .range(100)
+        .selectExpr("id as c1", "id % 7 as p")
+        .write
+        .format("parquet")
+        .bucketBy(7, "p")
+        .saveAsTable("bucket")
     }
   }
 
