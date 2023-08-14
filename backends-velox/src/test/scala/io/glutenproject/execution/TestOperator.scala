@@ -484,4 +484,30 @@ class TestOperator extends WholeStageTransformerSuite {
       checkOperatorMatch[ProjectExecTransformer]
     }
   }
+
+  test("Improve the local sort ensure requirements") {
+    withSQLConf(
+      "spark.sql.autoBroadcastJoinThreshold" -> "-1",
+      "spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withTable("t1", "t2") {
+        sql("""
+              |create table t1 using parquet as
+              |select cast(id as int) as c1, cast(id as string) c2 from range(100)
+              |""".stripMargin)
+        sql("""
+              |create table t2 using parquet as
+              |select cast(id as int) as c1, cast(id as string) c2 from range(100) order by c1 desc;
+              |""".stripMargin)
+
+        runQueryAndCompare(
+          """
+            |select * from (select c1, max(c2) from t1 group by c1)t1
+            |join t2 on t1.c1 = t2.c1 and t1.c1 > conv(t2.c1, 2, 10);
+            |""".stripMargin
+        ) {
+          checkOperatorMatch[HashAggregateExecTransformer]
+        }
+      }
+    }
+  }
 }

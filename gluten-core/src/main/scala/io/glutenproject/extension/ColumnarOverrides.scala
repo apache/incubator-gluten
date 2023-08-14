@@ -27,7 +27,6 @@ import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSe
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
-import org.apache.spark.sql.GlutenRemoveRedundantSorts
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BindReferences, BoundReference, Expression, Murmur3Hash, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
@@ -346,35 +345,23 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case plan: HashAggregateExec =>
         genHashAggregateExec(plan)
       case plan: SortAggregateExec =>
-        try {
-          val child = replaceWithTransformerPlan(plan.child)
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              // If SortAggregateExec is forcibly replaced by HashAggregateExecTransformer,
-              // Sort operator is useless. So just use its child to initialize.
-              child match {
-                case sort: SortExecTransformer =>
-                  sort.child
-                case sort: SortExec =>
-                  sort.child
-                case other =>
-                  other
-              }
-            )
-        } catch {
-          case _: Throwable =>
-            logInfo(
-              "Fallback to SortAggregateExec instead of forcibly" +
-                " using HashAggregateExecTransformer!")
-            plan
-        }
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        BackendsApiManager.getSparkPlanExecApiInstance
+          .genHashAggregateExecTransformer(
+            plan.requiredChildDistributionExpressions,
+            plan.groupingExpressions,
+            plan.aggregateExpressions,
+            plan.aggregateAttributes,
+            plan.initialInputBufferOffset,
+            plan.resultExpressions,
+            plan.child match {
+              case sort: SortExecTransformer if !sort.global =>
+                replaceWithTransformerPlan(sort.child)
+              case sort: SortExec if !sort.global =>
+                replaceWithTransformerPlan(sort.child)
+              case _ => replaceWithTransformerPlan(plan.child)
+            }
+          )
       case plan: ObjectHashAggregateExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -784,9 +771,9 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => FallbackEmptySchemaRelation(),
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => TransformPreOverrides(this.isAdaptiveContext),
+        (_: SparkSession) => EnsureLocalSortRequirements,
         (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
-        (_: SparkSession) => RemoveTransformHintRule(),
-        (_: SparkSession) => GlutenRemoveRedundantSorts
+        (_: SparkSession) => RemoveTransformHintRule()
       ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
       SparkUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPreRules)
