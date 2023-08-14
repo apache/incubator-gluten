@@ -107,8 +107,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   }
 }
 
-arrow::Result<std::shared_ptr<ColumnarToRowConverter>> VeloxBackend::getColumnar2RowConverter(
-    MemoryAllocator* allocator) {
+std::shared_ptr<ColumnarToRowConverter> VeloxBackend::getColumnar2RowConverter(MemoryAllocator* allocator) {
   auto veloxPool = asAggregateVeloxMemoryPool(allocator);
   auto ctxVeloxPool = veloxPool->addLeafChild("columnar_to_row_velox");
   return std::make_shared<VeloxColumnarToRowConverter>(ctxVeloxPool);

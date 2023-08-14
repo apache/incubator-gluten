@@ -39,6 +39,7 @@
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxMemoryPool.h"
 #include "utils/TestUtils.h"
+#include "utils/macros.h"
 #include "velox/dwio/parquet/writer/Writer.h"
 #include "velox/vector/arrow/Bridge.h"
 
@@ -94,13 +95,6 @@ class GoogleBenchmarkParquetWrite {
     CPU_ZERO(&cs);
     CPU_SET(cpuindex, &cs);
     return sched_setaffinity(0, sizeof(cs), &cs);
-  }
-
-  velox::VectorPtr recordBatch2RowVector(const arrow::RecordBatch& rb) {
-    ArrowArray arrowArray;
-    ArrowSchema arrowSchema;
-    ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-    return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::defaultLeafVeloxMemoryPool().get());
   }
 
   std::shared_ptr<ColumnarBatch> recordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb) {

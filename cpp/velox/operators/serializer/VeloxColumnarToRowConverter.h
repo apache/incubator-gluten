@@ -20,7 +20,6 @@
 #include <arrow/memory_pool.h>
 #include <arrow/type.h>
 
-#include "operators/c2r/ArrowColumnarToRowConverter.h"
 #include "operators/c2r/ColumnarToRow.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/row/UnsafeRowFast.h"
@@ -33,10 +32,10 @@ class VeloxColumnarToRowConverter final : public ColumnarToRowConverter {
   explicit VeloxColumnarToRowConverter(std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool)
       : ColumnarToRowConverter(), veloxPool_(veloxPool) {}
 
-  arrow::Status convert(std::shared_ptr<ColumnarBatch> cb) override;
+  void convert(std::shared_ptr<ColumnarBatch> cb) override;
 
  private:
-  arrow::Status refreshStates(facebook::velox::RowVectorPtr rowVector);
+  void refreshStates(facebook::velox::RowVectorPtr rowVector);
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::shared_ptr<facebook::velox::row::UnsafeRowFast> fast_;

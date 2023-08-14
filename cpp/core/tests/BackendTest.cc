@@ -18,7 +18,6 @@
 #include "compute/Backend.h"
 
 #include <gtest/gtest.h>
-#include "utils/TestUtils.h"
 
 namespace gluten {
 
@@ -44,10 +43,8 @@ class DummyBackend final : public Backend {
 
       auto fArrInt32 = arrow::field("f_int32", arrow::int32());
       auto rbSchema = arrow::schema({fArrInt32});
-      const std::vector<std::string> inputDataArr = {R"([1, 2,3])"};
-      std::shared_ptr<arrow::RecordBatch> inputBatchArr;
-      makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
-      return std::make_shared<ArrowColumnarBatch>(inputBatchArr);
+      auto rb = arrow::RecordBatch::Make(rbSchema, 1, std::vector<std::shared_ptr<arrow::Array>>{});
+      return std::make_shared<ArrowColumnarBatch>(rb);
     }
 
    private:
