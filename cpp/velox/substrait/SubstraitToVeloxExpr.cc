@@ -67,13 +67,6 @@ bool getLiteralValue(const ::substrait::Expression::Literal& literal) {
   return literal.boolean();
 }
 
-#if 0
-template <>
-uint32_t getLiteralValue(const ::substrait::Expression::Literal& literal) {
-  return literal.i32();
-}
-#endif
-
 template <>
 Timestamp getLiteralValue(const ::substrait::Expression::Literal& literal) {
   return Timestamp::fromMicros(literal.timestamp());
