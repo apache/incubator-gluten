@@ -83,7 +83,6 @@ class Backend : public std::enable_shared_from_this<Backend> {
       MemoryAllocator* allocator,
       struct ArrowSchema* cSchema) {
     throw GlutenException("Not implement getRowToColumnarConverter");
-    ;
   }
 
   virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(
