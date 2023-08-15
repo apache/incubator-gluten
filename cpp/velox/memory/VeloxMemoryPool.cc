@@ -60,6 +60,10 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   ListenableArbitrator(const Config& config, AllocationListener* listener)
       : MemoryArbitrator(config), listener_(listener) {}
 
+  std::string kind() override {
+    return kind_;
+  }
+
   void reserveMemory(velox::memory::MemoryPool* pool, uint64_t) override {
     growPool(pool, memoryPoolInitCapacity_);
   }
@@ -95,8 +99,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   std::string toString() const override {
-    return fmt::format(
-        "ARBITRATOR[{}] CAPACITY {} {}", kindString(kind_), velox::succinctBytes(capacity_), stats().toString());
+    return fmt::format("ARBITRATOR[{}] CAPACITY {} {}", kind_, velox::succinctBytes(capacity_), stats().toString());
   }
 
  private:
@@ -105,18 +108,33 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     pool->grow(bytes);
   }
 
-  void abort(velox::memory::MemoryPool* pool) {
-    try {
-      pool->abort();
-    } catch (const std::exception& e) {
-      LOG(WARNING) << "Failed to abort memory pool " << pool->toString();
-    }
-    // NOTE: no matter memory pool abort throws or not, it should have been marked
-    // as aborted to prevent any new memory arbitration triggered from the aborted
-    // memory pool.
-    GLUTEN_CHECK(pool->aborted(), "Unable to abort pool");
+  gluten::AllocationListener* listener_;
+  inline static std::string kind_ = "GLUTEN";
+};
+
+class ArbitratorFactoryRegister {
+ public:
+  explicit ArbitratorFactoryRegister(gluten::AllocationListener* listener) : listener_(listener) {
+    static std::atomic_uint32_t id{0UL};
+    kind_ = "GLUTEN_ARBITRATOR_FACTORY_" + std::to_string(id++);
+    velox::memory::MemoryArbitrator::registerFactory(
+        kind_,
+        [this](
+            const velox::memory::MemoryArbitrator::Config& config) -> std::unique_ptr<velox::memory::MemoryArbitrator> {
+          return std::make_unique<ListenableArbitrator>(config, listener_);
+        });
   }
 
+  virtual ~ArbitratorFactoryRegister() {
+    velox::memory::MemoryArbitrator::unregisterFactory(kind_);
+  }
+
+  const std::string& getKind() const {
+    return kind_;
+  }
+
+ private:
+  std::string kind_;
   gluten::AllocationListener* listener_;
 };
 
@@ -155,21 +173,18 @@ std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::Me
   }
   auto wrappedAlloc = std::make_shared<VeloxMemoryAllocator>(glutenAlloc);
   bindToTask(wrappedAlloc); // keep alive util task ends
-  velox::memory::MemoryArbitrator::Config arbitratorConfig{
-      velox::memory::MemoryArbitrator::Kind::kNoOp, // do not use shared arbitrator as it will mess up the thread
-                                                    // contexts (one Spark task reclaims memory from another)
-      velox::memory::kMaxMemory, // the 2nd capacity
-      0,
-      32 << 20,
-      true};
+  auto afr = std::make_shared<ArbitratorFactoryRegister>(listener);
+  bindToTask(afr); // keep alive until task ends
   velox::memory::MemoryManagerOptions mmOptions{
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
       true,
       false,
       wrappedAlloc.get(), // the allocator is tracked by Spark
-      [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener); },
-  };
+      afr->getKind(),
+      0,
+      32 << 20,
+      true};
   std::shared_ptr<velox::memory::MemoryManager> mm = std::make_shared<velox::memory::MemoryManager>(mmOptions);
   bindToTask(mm);
   auto pool = mm->addRootPool(
