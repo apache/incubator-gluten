@@ -114,11 +114,9 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
   }
 
   test("select plain hive table") {
-    intercept[UnsupportedOperationException] {
-      withTable("t") {
-        sql("CREATE TABLE t AS SELECT 1 as c")
-        checkAnswer(sql("SELECT * FROM t"), Row(1))
-      }
+    withTable("t") {
+      sql("CREATE TABLE t AS SELECT 1 as c")
+      checkAnswer(sql("SELECT * FROM t"), Row(1))
     }
   }
 }
