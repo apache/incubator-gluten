@@ -1112,10 +1112,10 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::createSubfieldFi
     const std::vector<TypePtr>& inputTypeList,
     const std::vector<::substrait::Expression_ScalarFunction>& scalarFunctions,
     const std::vector<::substrait::Expression_SingularOrList>& singularOrLists) {
-  std::unordered_map<uint32_t, FilterInfo> column2FilterInfo;
+  std::unordered_map<uint32_t, FilterInfo> columnToFilterInfo;
   // A map between the column index and the FilterInfo.
   for (uint32_t idx = 0; idx < inputTypeList.size(); idx++) {
-    column2FilterInfo[idx];
+    columnToFilterInfo[idx];
   }
 
   // Construct the FilterInfo for the related column.
@@ -1128,7 +1128,7 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::createSubfieldFi
       auto expr = scalarFunction.arguments()[0].value();
       if (expr.has_scalar_function()) {
         // Set its chid to filter info with reverse enabled.
-        setFilterMap(scalarFunction.arguments()[0].value().scalar_function(), inputTypeList, column2FilterInfo, true);
+        setFilterMap(scalarFunction.arguments()[0].value().scalar_function(), inputTypeList, columnToFilterInfo, true);
       } else {
         // TODO: support push down of Not In.
         VELOX_NYI("Scalar function expected.");
@@ -1149,9 +1149,9 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::createSubfieldFi
       for (const auto& arg : scalarFunction.arguments()) {
         auto expr = arg.value();
         if (expr.has_scalar_function()) {
-          setFilterMap(arg.value().scalar_function(), inputTypeList, column2FilterInfo);
+          setFilterMap(arg.value().scalar_function(), inputTypeList, columnToFilterInfo);
         } else if (expr.has_singular_or_list()) {
-          setSingularListValues(expr.singular_or_list(), column2FilterInfo);
+          setSingularListValues(expr.singular_or_list(), columnToFilterInfo);
         } else {
           VELOX_NYI("Scalar function or SingularOrList expected.");
         }
@@ -1159,14 +1159,14 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::createSubfieldFi
       continue;
     }
 
-    setFilterMap(scalarFunction, inputTypeList, column2FilterInfo);
+    setFilterMap(scalarFunction, inputTypeList, columnToFilterInfo);
   }
 
   for (const auto& list : singularOrLists) {
-    setSingularListValues(list, column2FilterInfo);
+    setSingularListValues(list, columnToFilterInfo);
   }
 
-  return mapToFilters(inputNameList, inputTypeList, column2FilterInfo);
+  return mapToFilters(inputNameList, inputTypeList, columnToFilterInfo);
 }
 
 bool SubstraitToVeloxPlanConverter::fieldOrWithLiteral(
@@ -1425,42 +1425,42 @@ void SubstraitToVeloxPlanConverter::setColumnFilterInfo(
     uint32_t colIdx,
     std::optional<variant> literalVariant,
     bool reverse,
-    std::unordered_map<uint32_t, FilterInfo>& column2FilterInfo) {
+    std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo) {
   if (filterName == sIsNotNull) {
     if (reverse) {
       VELOX_NYI("Reverse not supported for filter name '{}'", filterName);
     }
-    column2FilterInfo[colIdx].forbidsNull();
+    columnToFilterInfo[colIdx].forbidsNull();
   } else if (filterName == sGte) {
     if (reverse) {
-      column2FilterInfo[colIdx].setUpper(literalVariant, true);
+      columnToFilterInfo[colIdx].setUpper(literalVariant, true);
     } else {
-      column2FilterInfo[colIdx].setLower(literalVariant, false);
+      columnToFilterInfo[colIdx].setLower(literalVariant, false);
     }
   } else if (filterName == sGt) {
     if (reverse) {
-      column2FilterInfo[colIdx].setUpper(literalVariant, false);
+      columnToFilterInfo[colIdx].setUpper(literalVariant, false);
     } else {
-      column2FilterInfo[colIdx].setLower(literalVariant, true);
+      columnToFilterInfo[colIdx].setLower(literalVariant, true);
     }
   } else if (filterName == sLte) {
     if (reverse) {
-      column2FilterInfo[colIdx].setLower(literalVariant, true);
+      columnToFilterInfo[colIdx].setLower(literalVariant, true);
     } else {
-      column2FilterInfo[colIdx].setUpper(literalVariant, false);
+      columnToFilterInfo[colIdx].setUpper(literalVariant, false);
     }
   } else if (filterName == sLt) {
     if (reverse) {
-      column2FilterInfo[colIdx].setLower(literalVariant, false);
+      columnToFilterInfo[colIdx].setLower(literalVariant, false);
     } else {
-      column2FilterInfo[colIdx].setUpper(literalVariant, true);
+      columnToFilterInfo[colIdx].setUpper(literalVariant, true);
     }
   } else if (filterName == sEqual) {
     if (reverse) {
-      column2FilterInfo[colIdx].setNotValue(literalVariant);
+      columnToFilterInfo[colIdx].setNotValue(literalVariant);
     } else {
-      column2FilterInfo[colIdx].setLower(literalVariant, false);
-      column2FilterInfo[colIdx].setUpper(literalVariant, false);
+      columnToFilterInfo[colIdx].setLower(literalVariant, false);
+      columnToFilterInfo[colIdx].setUpper(literalVariant, false);
     }
   } else {
     VELOX_NYI("setColumnFilterInfo not supported for filter name '{}'", filterName);
@@ -1470,7 +1470,7 @@ void SubstraitToVeloxPlanConverter::setColumnFilterInfo(
 void SubstraitToVeloxPlanConverter::setFilterMap(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
     const std::vector<TypePtr>& inputTypeList,
-    std::unordered_map<uint32_t, FilterInfo>& column2FilterInfo,
+    std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo,
     bool reverse) {
   auto nameSpec = SubstraitParser::findFunctionSpec(functionMap_, scalarFunction.function_reference());
   auto functionName = SubstraitParser::getSubFunctionName(nameSpec);
@@ -1521,7 +1521,7 @@ void SubstraitToVeloxPlanConverter::setFilterMap(
       if (substraitLit) {
         val = variant(substraitLit.value().i32());
       }
-      setColumnFilterInfo(functionName, colIdxVal, val, reverse, column2FilterInfo);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     case TypeKind::BIGINT:
       if (substraitLit) {
@@ -1534,31 +1534,31 @@ void SubstraitToVeloxPlanConverter::setFilterMap(
           val = variant(substraitLit.value().i64());
         }
       }
-      setColumnFilterInfo(functionName, colIdxVal, val, reverse, column2FilterInfo);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     case TypeKind::DOUBLE:
       if (substraitLit) {
         val = variant(substraitLit.value().fp64());
       }
-      setColumnFilterInfo(functionName, colIdxVal, val, reverse, column2FilterInfo);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     case TypeKind::BOOLEAN:
       if (substraitLit) {
         val = variant(substraitLit.value().boolean());
       }
-      setColumnFilterInfo(functionName, colIdxVal, val, reverse, column2FilterInfo);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     case TypeKind::VARCHAR:
       if (substraitLit) {
         val = variant(substraitLit.value().string());
       }
-      setColumnFilterInfo(functionName, colIdxVal, val, reverse, column2FilterInfo);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     case TypeKind::DATE:
       if (substraitLit) {
         val = variant(Date(substraitLit.value().date()));
       }
-      setColumnFilterInfo(functionName, colIdxVal, val, reverse, column2FilterInfo);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     case TypeKind::HUGEINT:
       if (substraitLit) {
@@ -1571,7 +1571,7 @@ void SubstraitToVeloxPlanConverter::setFilterMap(
           VELOX_NYI("TypeKind::HUGEINT only support inputType LongDecimal");
         }
       }
-      setColumnFilterInfo(functionName, colIdxVal, val, reverse, column2FilterInfo);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     default:
       VELOX_NYI("Subfield filters creation not supported for input type '{}'", inputType);
@@ -1872,7 +1872,7 @@ bool SubstraitToVeloxPlanConverter::checkTypeExtension(const ::substrait::Plan& 
 connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
     const std::vector<std::string>& inputNameList,
     const std::vector<TypePtr>& inputTypeList,
-    std::unordered_map<uint32_t, FilterInfo> column2FilterInfo) {
+    std::unordered_map<uint32_t, FilterInfo> columnToFilterInfo) {
   // Construct the subfield filters based on the filter info map.
   connector::hive::SubfieldFilters filters;
   for (uint32_t colIdx = 0; colIdx < inputNameList.size(); colIdx++) {
@@ -1880,39 +1880,39 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
     switch (inputType->kind()) {
       case TypeKind::TINYINT:
         constructSubfieldFilters<TypeKind::TINYINT, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, column2FilterInfo[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::SMALLINT:
         constructSubfieldFilters<TypeKind::SMALLINT, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, column2FilterInfo[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::INTEGER:
         constructSubfieldFilters<TypeKind::INTEGER, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, column2FilterInfo[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::BIGINT:
         constructSubfieldFilters<TypeKind::BIGINT, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, column2FilterInfo[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::DOUBLE:
         constructSubfieldFilters<TypeKind::DOUBLE, common::Filter>(
-            colIdx, inputNameList[colIdx], inputType, column2FilterInfo[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::BOOLEAN:
         constructSubfieldFilters<TypeKind::BOOLEAN, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, column2FilterInfo[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::VARCHAR:
         constructSubfieldFilters<TypeKind::VARCHAR, common::Filter>(
-            colIdx, inputNameList[colIdx], inputType, column2FilterInfo[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::DATE:
         constructSubfieldFilters<TypeKind::DATE, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, column2FilterInfo[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::HUGEINT:
         constructSubfieldFilters<TypeKind::HUGEINT, common::HugeintRange>(
-            colIdx, inputNameList[colIdx], inputType, column2FilterInfo[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       default:
         VELOX_NYI("Subfield filters creation not supported for input type '{}'", inputType);
@@ -2017,7 +2017,7 @@ uint32_t SubstraitToVeloxPlanConverter::getColumnIndexFromSingularOrList(
 
 void SubstraitToVeloxPlanConverter::setSingularListValues(
     const ::substrait::Expression_SingularOrList& singularOrList,
-    std::unordered_map<uint32_t, FilterInfo>& column2FilterInfo) {
+    std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo) {
   VELOX_CHECK(singularOrList.options_size() > 0, "At least one option is expected.");
   // Get the column index.
   uint32_t colIdx = getColumnIndexFromSingularOrList(singularOrList);
@@ -2031,7 +2031,7 @@ void SubstraitToVeloxPlanConverter::setSingularListValues(
     variants.emplace_back(exprConverter_->toVeloxExpr(option.literal())->value());
   }
   // Set the value list to filter info.
-  column2FilterInfo[colIdx].setValues(variants);
+  columnToFilterInfo[colIdx].setValues(variants);
 }
 
 } // namespace gluten
