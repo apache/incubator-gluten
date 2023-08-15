@@ -43,8 +43,6 @@ trait BasicScanExecTransformer extends TransformSupport {
 
   def outputAttributes(): Seq[Attribute]
 
-  def getPartitions: Seq[Seq[InputPartition]]
-
   def getFlattenPartitions: Seq[InputPartition]
 
   def getPartitionSchemas: StructType
@@ -130,6 +128,6 @@ trait BasicScanExecTransformer extends TransformSupport {
   }
 
   def executeInSubqueryForDynamicPruningExpression(inSubquery: InSubqueryExec): Unit = {
-    if (!inSubquery.values().isDefined) inSubquery.updateResult()
+    if (inSubquery.values().isEmpty) inSubquery.updateResult()
   }
 }

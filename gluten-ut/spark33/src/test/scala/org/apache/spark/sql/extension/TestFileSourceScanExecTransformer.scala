@@ -47,10 +47,6 @@ class TestFileSourceScanExecTransformer(
     dataFilters,
     tableIdentifier,
     disableBucketedScan) {
-
-  override def getPartitions: Seq[Seq[InputPartition]] =
-    getFlattenPartitions.map(Seq(_))
-
   override def getFlattenPartitions: Seq[InputPartition] =
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
