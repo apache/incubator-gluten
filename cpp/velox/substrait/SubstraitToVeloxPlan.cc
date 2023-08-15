@@ -72,25 +72,25 @@ template <typename T>
 // Get the lowest value for numeric type.
 T getLowest() {
   return std::numeric_limits<T>::lowest();
-};
+}
 
 // Get the lowest value for string.
 template <>
 std::string getLowest<std::string>() {
   return "";
-};
+}
 
 // Get the max value for numeric type.
 template <typename T>
 T getMax() {
   return std::numeric_limits<T>::max();
-};
+}
 
 // The max value will be used in BytesRange. Return empty string here instead.
 template <>
 std::string getMax<std::string>() {
   return "";
-};
+}
 
 // Substrait function names.
 const std::string sIsNotNull = "is_not_null";
@@ -149,7 +149,6 @@ RowTypePtr getJoinOutputType(
 
   if (outputMayIncludeLeftColumns) {
     if (core::isLeftSemiProjectJoin(joinType)) {
-      auto outputSize = leftNode->outputType()->size() + 1;
       std::vector<std::string> outputNames = leftNode->outputType()->names();
       std::vector<std::shared_ptr<const Type>> outputTypes = leftNode->outputType()->children();
       outputNames.emplace_back("exists");
@@ -162,7 +161,6 @@ RowTypePtr getJoinOutputType(
 
   if (outputMayIncludeRightColumns) {
     if (core::isRightSemiProjectJoin(joinType)) {
-      auto outputSize = rightNode->outputType()->size() + 1;
       std::vector<std::string> outputNames = rightNode->outputType()->names();
       std::vector<std::shared_ptr<const Type>> outputTypes = rightNode->outputType()->children();
       outputNames.emplace_back("exists");
@@ -725,7 +723,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Check if the ReadRel specifies an input of stream. If yes, the pre-built
   // input node will be used as the data source.
   auto splitInfo = std::make_shared<SplitInfo>();
-  auto streamIdx = streamIsInput(readRel);
+  auto streamIdx = getStreamIndex(readRel);
   if (streamIdx >= 0) {
     if (inputNodesMap_.find(streamIdx) == inputNodesMap_.end()) {
       VELOX_FAIL("Could not find source index {} in input nodes map.", streamIdx);
@@ -794,7 +792,10 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
           break;
         default:
           splitInfo->format = dwio::common::FileFormat::UNKNOWN;
+          break;
       }
+
+      fileFormat_ = splitInfo->format;
     }
   }
   // Do not hard-code connector ID and allow for connectors other than Hive.
@@ -813,9 +814,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     std::vector<::substrait::Expression_IfThen> ifThens;
     flattenConditions(readRel.filter(), scalarFunctions, singularOrLists, ifThens);
 
-    std::unordered_map<uint32_t, std::shared_ptr<RangeRecorder>> rangeRecorders;
+    std::unordered_map<uint32_t, RangeRecorder> rangeRecorders;
     for (uint32_t idx = 0; idx < veloxTypeList.size(); idx++) {
-      rangeRecorders[idx] = std::make_shared<RangeRecorder>();
+      rangeRecorders[idx];
     }
 
     // Separate the filters to be two parts. The subfield part can be
@@ -836,8 +837,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         remainingrOrLists);
 
     // Create subfield filters based on the constructed filter info map.
-    connector::hive::SubfieldFilters subfieldFilters =
-        toSubfieldFilters(colNameList, veloxTypeList, subfieldFunctions, subfieldrOrLists);
+    auto subfieldFilters = createSubfieldFilters(colNameList, veloxTypeList, subfieldFunctions, subfieldrOrLists);
     // Connect the remaining filters with 'and'.
     core::TypedExprPtr remainingFilter;
 
@@ -935,38 +935,29 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::Rel& rel) {
   if (rel.has_aggregate()) {
     return toVeloxPlan(rel.aggregate());
-  }
-  if (rel.has_project()) {
+  } else if (rel.has_project()) {
     return toVeloxPlan(rel.project());
-  }
-  if (rel.has_filter()) {
+  } else if (rel.has_filter()) {
     return toVeloxPlan(rel.filter());
-  }
-  if (rel.has_join()) {
+  } else if (rel.has_join()) {
     return toVeloxPlan(rel.join());
-  }
-  if (rel.has_read()) {
+  } else if (rel.has_read()) {
     return toVeloxPlan(rel.read());
-  }
-  if (rel.has_sort()) {
+  } else if (rel.has_sort()) {
     return toVeloxPlan(rel.sort());
-  }
-  if (rel.has_fetch()) {
+  } else if (rel.has_fetch()) {
     return toVeloxPlan(rel.fetch());
-  }
-  if (rel.has_sort()) {
+  } else if (rel.has_sort()) {
     return toVeloxPlan(rel.sort());
-  }
-  if (rel.has_expand()) {
+  } else if (rel.has_expand()) {
     return toVeloxPlan(rel.expand());
-  }
-  if (rel.has_fetch()) {
+  } else if (rel.has_fetch()) {
     return toVeloxPlan(rel.fetch());
-  }
-  if (rel.has_window()) {
+  } else if (rel.has_window()) {
     return toVeloxPlan(rel.window());
+  } else {
+    VELOX_NYI("Substrait conversion not supported for Rel.");
   }
-  VELOX_NYI("Substrait conversion not supported for Rel.");
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::RelRoot& root) {
@@ -975,8 +966,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   if (root.has_input()) {
     const auto& rel = root.input();
     return toVeloxPlan(rel);
+  } else {
+    VELOX_FAIL("Input is expected in RelRoot.");
   }
-  VELOX_FAIL("Input is expected in RelRoot.");
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::Plan& substraitPlan) {
@@ -990,12 +982,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   const auto& rel = substraitPlan.relations(0);
   if (rel.has_root()) {
     return toVeloxPlan(rel.root());
-  }
-  if (rel.has_rel()) {
+  } else if (rel.has_rel()) {
     return toVeloxPlan(rel.rel());
+  } else {
+    VELOX_FAIL("RelRoot or Rel is expected in Plan.");
   }
-
-  VELOX_FAIL("RelRoot or Rel is expected in Plan.");
 }
 
 std::string SubstraitToVeloxPlanConverter::nextPlanNodeId() {
@@ -1055,7 +1046,7 @@ std::string SubstraitToVeloxPlanConverter::findFuncSpec(uint64_t id) {
   return SubstraitParser::findFunctionSpec(functionMap_, id);
 }
 
-int32_t SubstraitToVeloxPlanConverter::streamIsInput(const ::substrait::ReadRel& sRead) {
+int32_t SubstraitToVeloxPlanConverter::getStreamIndex(const ::substrait::ReadRel& sRead) {
   if (sRead.has_local_files()) {
     const auto& fileList = sRead.local_files().items();
     if (fileList.size() == 0) {
@@ -1116,27 +1107,28 @@ void SubstraitToVeloxPlanConverter::extractJoinKeys(
   }
 }
 
-connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::toSubfieldFilters(
+connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::createSubfieldFilters(
     const std::vector<std::string>& inputNameList,
     const std::vector<TypePtr>& inputTypeList,
     const std::vector<::substrait::Expression_ScalarFunction>& scalarFunctions,
     const std::vector<::substrait::Expression_SingularOrList>& singularOrLists) {
-  std::unordered_map<uint32_t, std::shared_ptr<FilterInfo>> colInfoMap;
+  std::unordered_map<uint32_t, FilterInfo> columnToFilterInfo;
   // A map between the column index and the FilterInfo.
   for (uint32_t idx = 0; idx < inputTypeList.size(); idx++) {
-    colInfoMap[idx] = std::make_shared<FilterInfo>();
+    columnToFilterInfo[idx];
   }
 
   // Construct the FilterInfo for the related column.
   for (const auto& scalarFunction : scalarFunctions) {
     auto filterNameSpec = SubstraitParser::findFunctionSpec(functionMap_, scalarFunction.function_reference());
     auto filterName = SubstraitParser::getSubFunctionName(filterNameSpec);
+
     if (filterName == sNot) {
       VELOX_CHECK(scalarFunction.arguments().size() == 1);
       auto expr = scalarFunction.arguments()[0].value();
       if (expr.has_scalar_function()) {
         // Set its chid to filter info with reverse enabled.
-        setFilterMap(scalarFunction.arguments()[0].value().scalar_function(), inputTypeList, colInfoMap, true);
+        setFilterMap(scalarFunction.arguments()[0].value().scalar_function(), inputTypeList, columnToFilterInfo, true);
       } else {
         // TODO: support push down of Not In.
         VELOX_NYI("Scalar function expected.");
@@ -1157,9 +1149,9 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::toSubfieldFilter
       for (const auto& arg : scalarFunction.arguments()) {
         auto expr = arg.value();
         if (expr.has_scalar_function()) {
-          setFilterMap(arg.value().scalar_function(), inputTypeList, colInfoMap);
+          setFilterMap(arg.value().scalar_function(), inputTypeList, columnToFilterInfo);
         } else if (expr.has_singular_or_list()) {
-          setSingularListValues(expr.singular_or_list(), colInfoMap);
+          setSingularListValues(expr.singular_or_list(), columnToFilterInfo);
         } else {
           VELOX_NYI("Scalar function or SingularOrList expected.");
         }
@@ -1167,13 +1159,14 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::toSubfieldFilter
       continue;
     }
 
-    setFilterMap(scalarFunction, inputTypeList, colInfoMap);
+    setFilterMap(scalarFunction, inputTypeList, columnToFilterInfo);
   }
 
   for (const auto& list : singularOrLists) {
-    setSingularListValues(list, colInfoMap);
+    setSingularListValues(list, columnToFilterInfo);
   }
-  return mapToFilters(inputNameList, inputTypeList, colInfoMap);
+
+  return mapToFilters(inputNameList, inputTypeList, columnToFilterInfo);
 }
 
 bool SubstraitToVeloxPlanConverter::fieldOrWithLiteral(
@@ -1213,7 +1206,7 @@ bool SubstraitToVeloxPlanConverter::fieldOrWithLiteral(
   return fieldExists && literalExists;
 }
 
-bool SubstraitToVeloxPlanConverter::chidrenFunctionsOnSameField(
+bool SubstraitToVeloxPlanConverter::childrenFunctionsOnSameField(
     const ::substrait::Expression_ScalarFunction& function) {
   // Get the column indices of the chidren functions.
   std::vector<int32_t> colIndices;
@@ -1249,7 +1242,7 @@ bool SubstraitToVeloxPlanConverter::canPushdownCommonFunction(
     const std::string& filterName,
     uint32_t& fieldIdx) {
   // Condtions can be pushed down.
-  std::unordered_set<std::string> supportedCommonFunctions = {sIsNotNull, sGte, sGt, sLte, sLt, sEqual};
+  static const std::unordered_set<std::string> supportedCommonFunctions = {sIsNotNull, sGte, sGt, sLte, sLt, sEqual};
 
   bool canPushdown = false;
   if (supportedCommonFunctions.find(filterName) != supportedCommonFunctions.end() &&
@@ -1262,7 +1255,7 @@ bool SubstraitToVeloxPlanConverter::canPushdownCommonFunction(
 
 bool SubstraitToVeloxPlanConverter::canPushdownNot(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
-    const std::unordered_map<uint32_t, std::shared_ptr<RangeRecorder>>& rangeRecorders) {
+    std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders) {
   VELOX_CHECK(scalarFunction.arguments().size() == 1, "Only one arg is expected for Not.");
   auto notArg = scalarFunction.arguments()[0];
   if (!notArg.value().has_scalar_function()) {
@@ -1275,13 +1268,13 @@ bool SubstraitToVeloxPlanConverter::canPushdownNot(
       SubstraitParser::findFunctionSpec(functionMap_, notArg.value().scalar_function().function_reference());
   auto functionName = SubstraitParser::getSubFunctionName(argFunction);
 
-  std::unordered_set<std::string> supportedNotFunctions = {sGte, sGt, sLte, sLt, sEqual};
+  static const std::unordered_set<std::string> supportedNotFunctions = {sGte, sGt, sLte, sLt, sEqual};
 
   uint32_t fieldIdx;
   bool isFieldOrWithLiteral = fieldOrWithLiteral(notArg.value().scalar_function().arguments(), fieldIdx);
 
   if (supportedNotFunctions.find(functionName) != supportedNotFunctions.end() && isFieldOrWithLiteral &&
-      rangeRecorders.at(fieldIdx)->setCertainRangeForFunction(functionName, true /*reverse*/)) {
+      rangeRecorders.at(fieldIdx).setCertainRangeForFunction(functionName, true /*reverse*/)) {
     return true;
   }
   return false;
@@ -1289,14 +1282,14 @@ bool SubstraitToVeloxPlanConverter::canPushdownNot(
 
 bool SubstraitToVeloxPlanConverter::canPushdownOr(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
-    const std::unordered_map<uint32_t, std::shared_ptr<RangeRecorder>>& rangeRecorders) {
+    std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders) {
   // OR Conditon whose chidren functions are on different columns is not
   // supported to be pushed down.
-  if (!chidrenFunctionsOnSameField(scalarFunction)) {
+  if (!childrenFunctionsOnSameField(scalarFunction)) {
     return false;
   }
 
-  std::unordered_set<std::string> supportedOrFunctions = {sIsNotNull, sGte, sGt, sLte, sLt, sEqual};
+  static const std::unordered_set<std::string> supportedOrFunctions = {sIsNotNull, sGte, sGt, sLte, sLt, sEqual};
 
   for (const auto& arg : scalarFunction.arguments()) {
     if (arg.value().has_scalar_function()) {
@@ -1307,7 +1300,7 @@ bool SubstraitToVeloxPlanConverter::canPushdownOr(
       uint32_t fieldIdx;
       bool isFieldOrWithLiteral = fieldOrWithLiteral(arg.value().scalar_function().arguments(), fieldIdx);
       if (supportedOrFunctions.find(functionName) == supportedOrFunctions.end() || !isFieldOrWithLiteral ||
-          !rangeRecorders.at(fieldIdx)->setCertainRangeForFunction(
+          !rangeRecorders.at(fieldIdx).setCertainRangeForFunction(
               functionName, false /*reverse*/, true /*forOrRelation*/)) {
         // The arg should be field or field with literal.
         return false;
@@ -1319,7 +1312,7 @@ bool SubstraitToVeloxPlanConverter::canPushdownOr(
       }
       uint32_t fieldIdx = getColumnIndexFromSingularOrList(singularOrList);
       // Disable IN pushdown for int-like types.
-      if (!rangeRecorders.at(fieldIdx)->setInRange(true /*forOrRelation*/)) {
+      if (!rangeRecorders.at(fieldIdx).setInRange(true /*forOrRelation*/)) {
         return false;
       }
     } else {
@@ -1332,7 +1325,7 @@ bool SubstraitToVeloxPlanConverter::canPushdownOr(
 }
 
 void SubstraitToVeloxPlanConverter::separateFilters(
-    const std::unordered_map<uint32_t, std::shared_ptr<RangeRecorder>>& rangeRecorders,
+    std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders,
     const std::vector<::substrait::Expression_ScalarFunction>& scalarFunctions,
     std::vector<::substrait::Expression_ScalarFunction>& subfieldFunctions,
     std::vector<::substrait::Expression_ScalarFunction>& remainingFunctions,
@@ -1345,7 +1338,7 @@ void SubstraitToVeloxPlanConverter::separateFilters(
       continue;
     }
     uint32_t colIdx = getColumnIndexFromSingularOrList(singularOrList);
-    if (rangeRecorders.at(colIdx)->setInRange()) {
+    if (rangeRecorders.at(colIdx).setInRange()) {
       subfieldOrLists.emplace_back(singularOrList);
     } else {
       remainingOrLists.emplace_back(singularOrList);
@@ -1359,7 +1352,7 @@ void SubstraitToVeloxPlanConverter::separateFilters(
       // Check if the condition is supported to be pushed down.
       uint32_t fieldIdx;
       if (canPushdownCommonFunction(scalarFunction, filterName, fieldIdx) &&
-          rangeRecorders.at(fieldIdx)->setCertainRangeForFunction(filterName)) {
+          rangeRecorders.at(fieldIdx).setCertainRangeForFunction(filterName)) {
         subfieldFunctions.emplace_back(scalarFunction);
       } else {
         remainingFunctions.emplace_back(scalarFunction);
@@ -1394,31 +1387,27 @@ bool SubstraitToVeloxPlanConverter::RangeRecorder::setCertainRangeForFunction(
     } else {
       return setRightBound(forOrRelation);
     }
-  }
-  if (functionName == sGt || functionName == sGte) {
+  } else if (functionName == sGt || functionName == sGte) {
     if (reverse) {
       return setRightBound(forOrRelation);
     } else {
       return setLeftBound(forOrRelation);
     }
-  }
-  if (functionName == sEqual) {
+  } else if (functionName == sEqual) {
     if (reverse) {
       // Not equal means lt or gt.
       return setMultiRange();
     } else {
       return setLeftBound(forOrRelation) && setRightBound(forOrRelation);
     }
-  }
-  if (functionName == sOr) {
+  } else if (functionName == sOr) {
     if (reverse) {
       // Not supported.
       return false;
     } else {
       return setMultiRange();
     }
-  }
-  if (functionName == sIsNotNull) {
+  } else if (functionName == sIsNotNull) {
     if (reverse) {
       // Not supported.
       return false;
@@ -1426,77 +1415,62 @@ bool SubstraitToVeloxPlanConverter::RangeRecorder::setCertainRangeForFunction(
       // Is not null can always coexist with the other range.
       return true;
     }
+  } else {
+    return false;
   }
-  return false;
 }
 
-template <typename T>
-void SubstraitToVeloxPlanConverter::setColInfoMap(
+void SubstraitToVeloxPlanConverter::setColumnFilterInfo(
     const std::string& filterName,
     uint32_t colIdx,
     std::optional<variant> literalVariant,
     bool reverse,
-    std::unordered_map<uint32_t, std::shared_ptr<FilterInfo>>& colInfoMap) {
+    std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo) {
   if (filterName == sIsNotNull) {
     if (reverse) {
       VELOX_NYI("Reverse not supported for filter name '{}'", filterName);
     }
-    colInfoMap[colIdx]->forbidsNull();
-    return;
-  }
-
-  if (filterName == sGte) {
+    columnToFilterInfo[colIdx].forbidsNull();
+  } else if (filterName == sGte) {
     if (reverse) {
-      colInfoMap[colIdx]->setUpper(literalVariant, true);
+      columnToFilterInfo[colIdx].setUpper(literalVariant, true);
     } else {
-      colInfoMap[colIdx]->setLower(literalVariant, false);
+      columnToFilterInfo[colIdx].setLower(literalVariant, false);
     }
-    return;
-  }
-
-  if (filterName == sGt) {
+  } else if (filterName == sGt) {
     if (reverse) {
-      colInfoMap[colIdx]->setUpper(literalVariant, false);
+      columnToFilterInfo[colIdx].setUpper(literalVariant, false);
     } else {
-      colInfoMap[colIdx]->setLower(literalVariant, true);
+      columnToFilterInfo[colIdx].setLower(literalVariant, true);
     }
-    return;
-  }
-
-  if (filterName == sLte) {
+  } else if (filterName == sLte) {
     if (reverse) {
-      colInfoMap[colIdx]->setLower(literalVariant, true);
+      columnToFilterInfo[colIdx].setLower(literalVariant, true);
     } else {
-      colInfoMap[colIdx]->setUpper(literalVariant, false);
+      columnToFilterInfo[colIdx].setUpper(literalVariant, false);
     }
-    return;
-  }
-
-  if (filterName == sLt) {
+  } else if (filterName == sLt) {
     if (reverse) {
-      colInfoMap[colIdx]->setLower(literalVariant, false);
+      columnToFilterInfo[colIdx].setLower(literalVariant, false);
     } else {
-      colInfoMap[colIdx]->setUpper(literalVariant, true);
+      columnToFilterInfo[colIdx].setUpper(literalVariant, true);
     }
-    return;
-  }
-
-  if (filterName == sEqual) {
+  } else if (filterName == sEqual) {
     if (reverse) {
-      colInfoMap[colIdx]->setNotValue(literalVariant);
+      columnToFilterInfo[colIdx].setNotValue(literalVariant);
     } else {
-      colInfoMap[colIdx]->setLower(literalVariant, false);
-      colInfoMap[colIdx]->setUpper(literalVariant, false);
+      columnToFilterInfo[colIdx].setLower(literalVariant, false);
+      columnToFilterInfo[colIdx].setUpper(literalVariant, false);
     }
-    return;
+  } else {
+    VELOX_NYI("setColumnFilterInfo not supported for filter name '{}'", filterName);
   }
-  VELOX_NYI("SetColInfoMap not supported for filter name '{}'", filterName);
 }
 
 void SubstraitToVeloxPlanConverter::setFilterMap(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
     const std::vector<TypePtr>& inputTypeList,
-    std::unordered_map<uint32_t, std::shared_ptr<FilterInfo>>& colInfoMap,
+    std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo,
     bool reverse) {
   auto nameSpec = SubstraitParser::findFunctionSpec(functionMap_, scalarFunction.function_reference());
   auto functionName = SubstraitParser::getSubFunctionName(nameSpec);
@@ -1505,6 +1479,7 @@ void SubstraitToVeloxPlanConverter::setFilterMap(
   std::optional<uint32_t> colIdx;
   std::optional<::substrait::Expression_Literal> substraitLit;
   std::vector<std::string> typeCases;
+
   for (const auto& param : scalarFunction.arguments()) {
     auto typeCase = param.value().rex_type_case();
     switch (typeCase) {
@@ -1521,13 +1496,16 @@ void SubstraitToVeloxPlanConverter::setFilterMap(
     }
   }
 
-  std::unordered_map<std::string, std::string> functionRevertMap = {{sLt, sGt}, {sGt, sLt}, {sGte, sLte}, {sLte, sGte}};
+  static const std::unordered_map<std::string, std::string> functionRevertMap = {
+      {sLt, sGt}, {sGt, sLt}, {sGte, sLte}, {sLte, sGte}};
 
   // Handle "123 < q1" type expression case
-  if (typeCases.size() > 1 && (typeCases[0] == "kLiteral" && typeCases[1] == "kSelection") &&
-      functionRevertMap.find(functionName) != functionRevertMap.end()) {
-    // change the function name: lt => gt, gt => lt, gte => lte, lte => gte
-    functionName = functionRevertMap[functionName];
+  if (typeCases.size() > 1 && (typeCases[0] == "kLiteral" && typeCases[1] == "kSelection")) {
+    auto x = functionRevertMap.find(functionName);
+    if (x != functionRevertMap.end()) {
+      // change the function name: lt => gt, gt => lt, gte => lte, lte => gte
+      functionName = x->second;
+    }
   }
 
   if (!colIdx.has_value()) {
@@ -1543,47 +1521,57 @@ void SubstraitToVeloxPlanConverter::setFilterMap(
       if (substraitLit) {
         val = variant(substraitLit.value().i32());
       }
-      setColInfoMap<int>(functionName, colIdxVal, val, reverse, colInfoMap);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     case TypeKind::BIGINT:
       if (substraitLit) {
         if (inputType->isShortDecimal()) {
           auto decimal = substraitLit.value().decimal().value();
-          auto precision = substraitLit.value().decimal().precision();
-          auto scale = substraitLit.value().decimal().scale();
           int128_t decimalValue;
           memcpy(&decimalValue, decimal.c_str(), 16);
-          auto type = DECIMAL(precision, scale);
           val = variant(static_cast<int64_t>(decimalValue));
         } else {
           val = variant(substraitLit.value().i64());
         }
       }
-      setColInfoMap<int64_t>(functionName, colIdxVal, val, reverse, colInfoMap);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     case TypeKind::DOUBLE:
       if (substraitLit) {
         val = variant(substraitLit.value().fp64());
       }
-      setColInfoMap<double>(functionName, colIdxVal, val, reverse, colInfoMap);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     case TypeKind::BOOLEAN:
       if (substraitLit) {
         val = variant(substraitLit.value().boolean());
       }
-      setColInfoMap<bool>(functionName, colIdxVal, val, reverse, colInfoMap);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     case TypeKind::VARCHAR:
       if (substraitLit) {
         val = variant(substraitLit.value().string());
       }
-      setColInfoMap<std::string>(functionName, colIdxVal, val, reverse, colInfoMap);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     case TypeKind::DATE:
       if (substraitLit) {
         val = variant(Date(substraitLit.value().date()));
       }
-      setColInfoMap<int>(functionName, colIdxVal, val, reverse, colInfoMap);
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
+      break;
+    case TypeKind::HUGEINT:
+      if (substraitLit) {
+        if (inputType->isLongDecimal()) {
+          auto decimal = substraitLit.value().decimal().value();
+          int128_t decimalValue;
+          memcpy(&decimalValue, decimal.c_str(), 16);
+          val = variant(decimalValue);
+        } else {
+          VELOX_NYI("TypeKind::HUGEINT only support inputType LongDecimal");
+        }
+      }
+      setColumnFilterInfo(functionName, colIdxVal, val, reverse, columnToFilterInfo);
       break;
     default:
       VELOX_NYI("Subfield filters creation not supported for input type '{}'", inputType);
@@ -1752,103 +1740,119 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
     uint32_t colIdx,
     const std::string& inputName,
     const TypePtr& inputType,
-    const std::shared_ptr<FilterInfo>& filterInfo,
+    const FilterInfo& filterInfo,
     connector::hive::SubfieldFilters& filters) {
-  using NativeType = typename RangeTraits<KIND>::NativeType;
-  using RangeType = typename RangeTraits<KIND>::RangeType;
-  using MultiRangeType = typename RangeTraits<KIND>::MultiRangeType;
-
-  if (!filterInfo->isInitialized()) {
+  if (!filterInfo.isInitialized()) {
     return;
   }
 
-  uint32_t rangeSize = std::max(filterInfo->lowerBounds_.size(), filterInfo->upperBounds_.size());
-  bool nullAllowed = filterInfo->nullAllowed_;
+  bool nullAllowed = filterInfo.nullAllowed_;
+  uint32_t rangeSize = std::max(filterInfo.lowerBounds_.size(), filterInfo.upperBounds_.size());
 
-  // Handle 'in' filter.
-  if (filterInfo->valuesVector_.size() > 0) {
-    // To filter out null is a default behaviour of Spark IN expression.
-    nullAllowed = false;
-    setInFilter<KIND>(filterInfo->valuesVector_, nullAllowed, inputName, filters);
-    // Currently, In cannot coexist with other filter conditions
-    // due to multirange is in 'OR' relation but 'AND' is needed.
-    VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after IN filter.");
-    VELOX_CHECK(!filterInfo->notValue_.has_value(), "Not equal cannot be supported after IN filter.");
+  if constexpr (KIND == facebook::velox::TypeKind::HUGEINT) {
+    if (rangeSize == 0 && !nullAllowed) {
+      // TODO
+      if (fileFormat_ == facebook::velox::dwio::common::FileFormat::ORC) {
+        // uncomment the following line when Velox decimal support IsNotNull filter
+        // filters[common::Subfield(inputName, true)] = std::move(std::make_unique<common::IsNotNull>());
+        VELOX_NYI("constructSubfieldFilters not support IsNotNull for input type '{}'", inputType);
+      } else {
+        VELOX_NYI("constructSubfieldFilters not support IsNotNull for input type '{}'", inputType);
+      }
+    } else {
+      VELOX_NYI("constructSubfieldFilters only support IsNotNull for input type '{}'", inputType);
+    }
     return;
-  }
+  } else {
+    using NativeType = typename RangeTraits<KIND>::NativeType;
+    using RangeType = typename RangeTraits<KIND>::RangeType;
+    using MultiRangeType = typename RangeTraits<KIND>::MultiRangeType;
 
-  // Construct the Filters.
-  std::vector<std::unique_ptr<FilterType>> colFilters;
+    // Handle 'in' filter.
+    if (filterInfo.valuesVector_.size() > 0) {
+      // To filter out null is a default behaviour of Spark IN expression.
+      nullAllowed = false;
+      setInFilter<KIND>(filterInfo.valuesVector_, nullAllowed, inputName, filters);
+      // Currently, In cannot coexist with other filter conditions
+      // due to multirange is in 'OR' relation but 'AND' is needed.
+      VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after IN filter.");
+      VELOX_CHECK(!filterInfo.notValue_.has_value(), "Not equal cannot be supported after IN filter.");
+      return;
+    }
 
-  // Handle not(equal) filter.
-  if (filterInfo->notValue_) {
-    variant notVariant = filterInfo->notValue_.value();
-    createNotEqualFilter<KIND, FilterType>(notVariant, filterInfo->nullAllowed_, colFilters);
-    // Currently, Not-equal cannot coexist with other filter conditions
-    // due to multirange is in 'OR' relation but 'AND' is needed.
-    VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after not-equal filter.");
-    filters[common::Subfield(inputName, true)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
-    return;
-  }
+    // Construct the Filters.
+    std::vector<std::unique_ptr<FilterType>> colFilters;
 
-  // Handle null filtering.
-  if (rangeSize == 0 && !nullAllowed) {
-    std::unique_ptr<common::IsNotNull> filter = std::make_unique<common::IsNotNull>();
-    filters[common::Subfield(inputName, true)] = std::move(filter);
-    return;
-  }
+    // Handle not(equal) filter.
+    if (filterInfo.notValue_) {
+      variant notVariant = filterInfo.notValue_.value();
+      createNotEqualFilter<KIND, FilterType>(notVariant, filterInfo.nullAllowed_, colFilters);
+      // Currently, Not-equal cannot coexist with other filter conditions
+      // due to multirange is in 'OR' relation but 'AND' is needed.
+      VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after not-equal filter.");
+      filters[common::Subfield(inputName, true)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
+      return;
+    }
 
-  // Handle other filter ranges.
-  NativeType lowerBound;
-  if constexpr (KIND == facebook::velox::TypeKind::BIGINT) {
-    if (inputType->isShortDecimal()) {
-      lowerBound = DecimalUtil::kShortDecimalMin;
+    // Handle null filtering.
+    if (rangeSize == 0 && !nullAllowed) {
+      std::unique_ptr<common::IsNotNull> filter = std::make_unique<common::IsNotNull>();
+      filters[common::Subfield(inputName, true)] = std::move(filter);
+      return;
+    }
+
+    // Handle other filter ranges.
+    NativeType lowerBound;
+    if constexpr (KIND == facebook::velox::TypeKind::BIGINT) {
+      if (inputType->isShortDecimal()) {
+        lowerBound = DecimalUtil::kShortDecimalMin;
+      } else {
+        lowerBound = getLowest<NativeType>();
+      }
     } else {
       lowerBound = getLowest<NativeType>();
     }
-  } else {
-    lowerBound = getLowest<NativeType>();
-  }
 
-  NativeType upperBound;
-  if constexpr (KIND == facebook::velox::TypeKind::BIGINT) {
-    if (inputType->isShortDecimal()) {
-      upperBound = DecimalUtil::kShortDecimalMax;
+    NativeType upperBound;
+    if constexpr (KIND == facebook::velox::TypeKind::BIGINT) {
+      if (inputType->isShortDecimal()) {
+        upperBound = DecimalUtil::kShortDecimalMax;
+      } else {
+        upperBound = getMax<NativeType>();
+      }
     } else {
       upperBound = getMax<NativeType>();
     }
-  } else {
-    upperBound = getMax<NativeType>();
-  }
 
-  bool lowerUnbounded = true;
-  bool upperUnbounded = true;
-  bool lowerExclusive = false;
-  bool upperExclusive = false;
+    bool lowerUnbounded = true;
+    bool upperUnbounded = true;
+    bool lowerExclusive = false;
+    bool upperExclusive = false;
 
-  for (uint32_t idx = 0; idx < rangeSize; idx++) {
-    if (idx < filterInfo->lowerBounds_.size() && filterInfo->lowerBounds_[idx]) {
-      lowerUnbounded = false;
-      variant lowerVariant = filterInfo->lowerBounds_[idx].value();
+    for (uint32_t idx = 0; idx < rangeSize; idx++) {
+      if (idx < filterInfo.lowerBounds_.size() && filterInfo.lowerBounds_[idx]) {
+        lowerUnbounded = false;
+        variant lowerVariant = filterInfo.lowerBounds_[idx].value();
+        lowerBound = lowerVariant.value<NativeType>();
+        lowerExclusive = filterInfo.lowerExclusives_[idx];
+      }
 
-      lowerBound = lowerVariant.value<NativeType>();
+      if (idx < filterInfo.upperBounds_.size() && filterInfo.upperBounds_[idx]) {
+        upperUnbounded = false;
+        variant upperVariant = filterInfo.upperBounds_[idx].value();
+        upperBound = upperVariant.value<NativeType>();
+        upperExclusive = filterInfo.upperExclusives_[idx];
+      }
 
-      lowerExclusive = filterInfo->lowerExclusives_[idx];
+      std::unique_ptr<FilterType> filter = std::move(std::make_unique<RangeType>(
+          lowerBound, lowerUnbounded, lowerExclusive, upperBound, upperUnbounded, upperExclusive, nullAllowed));
+
+      colFilters.emplace_back(std::move(filter));
     }
-    if (idx < filterInfo->upperBounds_.size() && filterInfo->upperBounds_[idx]) {
-      upperUnbounded = false;
-      variant upperVariant = filterInfo->upperBounds_[idx].value();
-      upperBound = upperVariant.value<NativeType>();
 
-      upperExclusive = filterInfo->upperExclusives_[idx];
-    }
-    std::unique_ptr<FilterType> filter = std::make_unique<RangeType>(
-        lowerBound, lowerUnbounded, lowerExclusive, upperBound, upperUnbounded, upperExclusive, nullAllowed);
-    colFilters.emplace_back(std::move(filter));
+    // Set the SubfieldFilter.
+    setSubfieldFilter<KIND, FilterType>(std::move(colFilters), inputName, filterInfo.nullAllowed_, filters);
   }
-
-  // Set the SubfieldFilter.
-  setSubfieldFilter<KIND, FilterType>(std::move(colFilters), inputName, filterInfo->nullAllowed_, filters);
 }
 
 bool SubstraitToVeloxPlanConverter::checkTypeExtension(const ::substrait::Plan& substraitPlan) {
@@ -1868,7 +1872,7 @@ bool SubstraitToVeloxPlanConverter::checkTypeExtension(const ::substrait::Plan& 
 connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
     const std::vector<std::string>& inputNameList,
     const std::vector<TypePtr>& inputTypeList,
-    std::unordered_map<uint32_t, std::shared_ptr<FilterInfo>> colInfoMap) {
+    std::unordered_map<uint32_t, FilterInfo> columnToFilterInfo) {
   // Construct the subfield filters based on the filter info map.
   connector::hive::SubfieldFilters filters;
   for (uint32_t colIdx = 0; colIdx < inputNameList.size(); colIdx++) {
@@ -1876,35 +1880,39 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
     switch (inputType->kind()) {
       case TypeKind::TINYINT:
         constructSubfieldFilters<TypeKind::TINYINT, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, colInfoMap[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::SMALLINT:
         constructSubfieldFilters<TypeKind::SMALLINT, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, colInfoMap[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::INTEGER:
         constructSubfieldFilters<TypeKind::INTEGER, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, colInfoMap[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::BIGINT:
         constructSubfieldFilters<TypeKind::BIGINT, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, colInfoMap[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::DOUBLE:
         constructSubfieldFilters<TypeKind::DOUBLE, common::Filter>(
-            colIdx, inputNameList[colIdx], inputType, colInfoMap[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::BOOLEAN:
         constructSubfieldFilters<TypeKind::BOOLEAN, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, colInfoMap[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::VARCHAR:
         constructSubfieldFilters<TypeKind::VARCHAR, common::Filter>(
-            colIdx, inputNameList[colIdx], inputType, colInfoMap[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       case TypeKind::DATE:
         constructSubfieldFilters<TypeKind::DATE, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, colInfoMap[colIdx], filters);
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+        break;
+      case TypeKind::HUGEINT:
+        constructSubfieldFilters<TypeKind::HUGEINT, common::HugeintRange>(
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       default:
         VELOX_NYI("Subfield filters creation not supported for input type '{}'", inputType);
@@ -1932,12 +1940,14 @@ core::TypedExprPtr SubstraitToVeloxPlanConverter::connectWithAnd(
       allFilters.emplace_back(filter);
     }
   }
+
   for (auto orList : singularOrLists) {
     auto filter = exprConverter_->toVeloxExpr(orList, inputType);
     if (filter != nullptr) {
       allFilters.emplace_back(filter);
     }
   }
+
   for (auto ifThen : ifThens) {
     auto filter = exprConverter_->toVeloxExpr(ifThen, inputType);
     if (filter != nullptr) {
@@ -1949,6 +1959,7 @@ core::TypedExprPtr SubstraitToVeloxPlanConverter::connectWithAnd(
   for (auto i = 1; i < allFilters.size(); i++) {
     andFilter = connectWithAnd(andFilter, allFilters[i]);
   }
+
   return andFilter;
 }
 
@@ -1978,6 +1989,7 @@ bool SubstraitToVeloxPlanConverter::canPushdownSingularOrList(
         type != ::substrait::Expression_Literal::LiteralTypeCase::kString) {
       return false;
     }
+
     // BigintMultiRange can only accept BigintRange, so disableIntLike is set to
     // true for OR pushdown of int-like types.
     if (disableIntLike &&
@@ -2005,7 +2017,7 @@ uint32_t SubstraitToVeloxPlanConverter::getColumnIndexFromSingularOrList(
 
 void SubstraitToVeloxPlanConverter::setSingularListValues(
     const ::substrait::Expression_SingularOrList& singularOrList,
-    std::unordered_map<uint32_t, std::shared_ptr<FilterInfo>>& colInfoMap) {
+    std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo) {
   VELOX_CHECK(singularOrList.options_size() > 0, "At least one option is expected.");
   // Get the column index.
   uint32_t colIdx = getColumnIndexFromSingularOrList(singularOrList);
@@ -2019,7 +2031,7 @@ void SubstraitToVeloxPlanConverter::setSingularListValues(
     variants.emplace_back(exprConverter_->toVeloxExpr(option.literal())->value());
   }
   // Set the value list to filter info.
-  colInfoMap[colIdx]->setValues(variants);
+  columnToFilterInfo[colIdx].setValues(variants);
 }
 
 } // namespace gluten

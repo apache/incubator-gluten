@@ -83,7 +83,7 @@ class SubstraitToVeloxPlanValidator {
 
   /// An expression converter used to convert Substrait representations into
   /// Velox expressions.
-  std::unique_ptr<SubstraitVeloxExprConverter> exprConverter_;
+  SubstraitVeloxExprConverter* exprConverter_ = nullptr;
 
   std::vector<std::string> validateLog_;
 
@@ -125,7 +125,7 @@ class SubstraitToVeloxPlanValidator {
 
   /// Add necessary log for fallback
   void logValidateMsg(const std::string& log) {
-    this->validateLog_.emplace_back(log);
+    validateLog_.emplace_back(log);
   }
 };
 
