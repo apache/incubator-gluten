@@ -158,7 +158,7 @@ class IteratorHandler extends IteratorApi with Logging {
       transKernel.createKernelWithBatchIterator(inputPartition.plan, columnarNativeIterators)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
     TaskResources.addRecycler(s"FirstStageIterator_${resIter.getId}", 100)(resIter.close())
-    val iter = new Iterator[Any] {
+    val iter = new Iterator[ColumnarBatch] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
 
       override def hasNext: Boolean = {
@@ -170,21 +170,12 @@ class IteratorHandler extends IteratorApi with Logging {
         res
       }
 
-      override def next(): Any = {
-        if (!hasNext) {
-          throw new java.util.NoSuchElementException("End of stream")
-        }
-        val cb = resIter.next()
-        cb
+      override def next(): ColumnarBatch = {
+        resIter.next()
       }
     }
 
-    // TODO: SPARK-25083 remove the type erasure hack in data source scan
-    new InterruptibleIterator(
-      context,
-      new CloseableColumnBatchIterator(
-        iter.asInstanceOf[Iterator[ColumnarBatch]],
-        Some(pipelineTime)))
+    new InterruptibleIterator(context, new CloseableColumnBatchIterator(iter, Some(pipelineTime)))
   }
 
   // scalastyle:off argcount
@@ -228,8 +219,7 @@ class IteratorHandler extends IteratorApi with Logging {
       }
 
       override def next(): ColumnarBatch = {
-        val cb = nativeResultIterator.next
-        cb
+        nativeResultIterator.next
       }
     }
 

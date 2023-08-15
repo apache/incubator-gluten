@@ -41,6 +41,7 @@ class CloseableColumnBatchIterator(
     scanTime += System.nanoTime() - beforeTime
     if (!res) {
       pipelineTime.foreach(t => t += TimeUnit.NANOSECONDS.toMillis(scanTime))
+      closeCurrentBatch()
     }
     res
   }
