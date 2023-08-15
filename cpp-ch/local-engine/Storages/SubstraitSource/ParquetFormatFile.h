@@ -22,6 +22,11 @@
 #    include <memory>
 #    include <IO/ReadBuffer.h>
 #    include <Storages/SubstraitSource/FormatFile.h>
+#    include <parquet/metadata.h>
+#    include <parquet/statistics.h>
+#    include <DataTypes/DataTypesNumber.h>
+#    include <DataTypes/DataTypeString.h>
+#    include <DataTypes/DataTypeFixedString.h>
 
 namespace local_engine
 {
@@ -45,13 +50,19 @@ public:
     std::optional<size_t> getTotalRows() override;
 
     bool supportSplit() const override { return true; }
+    DB::String getFileFormat() const override { return "parquet"; }
 
 private:
     std::mutex mutex;
     std::optional<size_t> total_rows;
-
+    bool enable_row_group_maxmin_index;
     std::vector<RowGroupInfomation> collectRequiredRowGroups(int & total_row_groups);
     std::vector<RowGroupInfomation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups);
+    bool checkRowGroupIfRequired(std::unique_ptr<parquet::RowGroupMetaData> meta);
+    DB::Range getColumnMaxMin(std::shared_ptr<parquet::Statistics> statistics,
+                    parquet::Type::type parquet_data_type,
+                    DB::DataTypePtr data_type,
+                    Int32 column_type_length);
 };
 
 }

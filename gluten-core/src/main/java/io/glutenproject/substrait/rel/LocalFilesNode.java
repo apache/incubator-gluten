@@ -137,7 +137,10 @@ public class LocalFilesNode implements Serializable {
       switch (fileFormat) {
         case ParquetReadFormat:
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
-              ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder().build();
+              ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
+                  .setEnableRowGroupMaxminIndex(
+                      GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                  .build();
           fileBuilder.setParquet(parquetReadOptions);
           break;
         case OrcReadFormat:
@@ -156,7 +159,6 @@ public class LocalFilesNode implements Serializable {
           String header = fileReadProperties.getOrDefault("header", "0");
           String escape = fileReadProperties.getOrDefault("escape", "");
           String nullValue = fileReadProperties.getOrDefault("nullValue", "");
-
           ReadRel.LocalFiles.FileOrFiles.TextReadOptions textReadOptions =
               ReadRel.LocalFiles.FileOrFiles.TextReadOptions.newBuilder()
                   .setFieldDelimiter(field_delimiter)
@@ -164,14 +166,14 @@ public class LocalFilesNode implements Serializable {
                   .setHeader(Long.parseLong(header))
                   .setEscape(escape)
                   .setNullValue(nullValue)
-                  .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
+                  .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
                   .build();
           fileBuilder.setText(textReadOptions);
           break;
         case JsonReadFormat:
           ReadRel.LocalFiles.FileOrFiles.JsonReadOptions jsonReadOptions =
               ReadRel.LocalFiles.FileOrFiles.JsonReadOptions.newBuilder()
-                  .setMaxBlockSize(GlutenConfig.getConf().getInputRowMaxBlockSize())
+                  .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
                   .build();
           fileBuilder.setJson(jsonReadOptions);
           break;

@@ -87,6 +87,7 @@
 #include <Storages/MergeTree/MergeTreeData.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <base/Decimal.h>
 #include <base/types.h>
 #include <google/protobuf/util/json_util.h>
@@ -228,7 +229,6 @@ std::shared_ptr<DB::ActionsDAG> SerializedPlanParser::expressionsToActionsDAG(
         else
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "unsupported projection type {}.", magic_enum::enum_name(expr.rex_type_case()));
     }
-
     actions_dag->project(required_columns);
     return actions_dag;
 }
@@ -266,8 +266,15 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithLocalFile(const substrai
     auto header = TypeParser::buildBlockFromNamedStruct(rel.base_schema());
     auto source = std::make_shared<SubstraitFileSource>(context, header, rel.local_files());
     auto source_pipe = Pipe(source);
-    auto source_step = std::make_unique<ReadFromStorageStep>(std::move(source_pipe), "substrait local files", nullptr);
+    auto source_step = std::make_unique<SubstraitFileSourceStep>(context, std::move(source_pipe), "substrait local files");
     source_step->setStepDescription("read local files");
+    if (rel.has_filter())
+    {
+        const ActionsDAGPtr actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(header));
+        const ActionsDAG::Node * filter_node = parseExpression(actions_dag, rel.filter());
+        actions_dag->addOrReplaceInOutputs(*filter_node);
+        source_step->addFilter(actions_dag, filter_node);
+    }
     return source_step;
 }
 
