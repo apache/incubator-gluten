@@ -45,7 +45,7 @@ You can generate the example files by the following steps:
 ```
 cd gluten_home/ep/build-arrow/src
 ./get_arrow.sh
-./build_arrow.sh --build_tests=ON --build_benchmarks=ON
+./build_arrow.sh
 ```
 
 2. get and build Velox
