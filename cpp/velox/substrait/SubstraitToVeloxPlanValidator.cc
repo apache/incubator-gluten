@@ -36,7 +36,6 @@ static const std::unordered_set<std::string> kRegexFunctions = {
     "rlike"};
 
 static const std::unordered_set<std::string> kBlackList = {
-    "split",
     "split_part",
     "factorial",
     "concat_ws",
