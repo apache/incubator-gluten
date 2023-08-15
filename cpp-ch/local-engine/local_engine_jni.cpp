@@ -641,7 +641,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jstring data_file,
     jstring local_dirs,
     jint num_sub_dirs,
-    jboolean prefer_spill)
+    jboolean prefer_spill,
+    jlong spill_threshold)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -681,7 +682,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .partition_nums = static_cast<size_t>(num_partitions),
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
-        .compress_method = jstring2string(env, codec)};
+        .compress_method = jstring2string(env, codec),
+        .spill_threshold = static_cast<size_t>(spill_threshold)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     if (prefer_spill)
@@ -699,13 +701,24 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
 }
 
 JNIEXPORT void
-Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env, jobject, jlong splitterId, jint, jlong block)
+Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env, jobject, jlong splitterId, jlong block)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
     DB::Block * data = reinterpret_cast<DB::Block *>(block);
     splitter->splitter->split(*data);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+JNIEXPORT jlong
+Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_evict(JNIEnv * env, jobject, jlong splitterId)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
+    auto size = splitter->splitter->evictPartitions();
+    std::cerr << "spill data: " << size << std::endl;
+    return size;
+    LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
 
 JNIEXPORT jobject Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_stop(JNIEnv * env, jobject, jlong splitterId)

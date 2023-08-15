@@ -19,7 +19,7 @@ public:
     explicit CachedShuffleWriter(const String & short_name, SplitOptions & options);
     ~CachedShuffleWriter() override = default;
     void split(DB::Block & block) override;
-
+    size_t evictPartitions() override;
     SplitResult stop() override;
 
 private:

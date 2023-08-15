@@ -1,12 +1,15 @@
 #include "PartitionWriter.h"
 #include <filesystem>
 #include <memory>
+#include <ostream>
 #include <vector>
 #include <Compression/CompressedWriteBuffer.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Shuffle/CachedShuffleWriter.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/WriteBufferFromFile.h>
+#include <Common/ThreadPool.h>
+#include <Common/CHUtil.h>
 #include <format>
 
 using namespace DB;
@@ -34,35 +37,58 @@ void local_engine::LocalPartitionWriter::write(const PartitionInfo& partition_in
         {
             Block block = buffer.releaseColumns();
             total_partition_buffer_size += block.bytes();
-            partition_buffer[i].emplace_back(block);
+            partition_buffer[i].emplace_back(std::move(block));
         }
     }
 }
 
-void LocalPartitionWriter::evictPartitions()
+void LocalPartitionWriter::evictPartitions(bool for_memory_spill)
 {
-    auto file = getNextSpillFile();
-    WriteBufferFromFile output(file);
-    auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
-    CompressedWriteBuffer compressed_output(output, codec);
-    NativeWriter writer(compressed_output, 0, shuffle_writer->output_header);
-    SpillInfo info;
-    info.spilledFile = file;
-    size_t start = 0;
-    size_t partition_id = 0;
-    for (const auto & partition : partition_buffer)
-    {
-        PartitionSpillInfo partition_spill_info;
-        partition_spill_info.start = start;
-        for (const auto & block : partition)
+
+    auto spill_to_file = [this]() -> void {
+        auto file = getNextSpillFile();
+        WriteBufferFromFile output(file);
+        auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
+        CompressedWriteBuffer compressed_output(output, codec);
+        NativeWriter writer(compressed_output, 0, shuffle_writer->output_header);
+        SpillInfo info;
+        info.spilled_file = file;
+        size_t partition_id = 0;
+        for (auto & partition : partition_buffer)
         {
-            start += writer.write(block);
+            PartitionSpillInfo partition_spill_info;
+            partition_spill_info.start = output.count();
+            for (const auto & block : partition)
+            {
+                writer.write(block);
+            }
+            compressed_output.sync();
+            partition_spill_info.length = output.count() - partition_spill_info.start;
+            partition_spill_info.partition_id = partition_id;
+            partition_id++;
+            info.partition_spill_infos.emplace_back(partition_spill_info);
         }
-        partition_spill_info.length = start - partition_spill_info.start;
-        partition_spill_info.partition_id = partition_id;
-        partition_id++;
-        info.partitionSpillInfos.emplace_back(partition_spill_info);
+        spill_infos.emplace_back(info);
+
+    };
+
+    if (for_memory_spill)
+    {
+        // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
+        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
+        ThreadFromGlobalPool thread(spill_to_file);
+        thread.join();
     }
+    else
+    {
+        spill_to_file();
+    }
+
+    for (auto & partition : partition_buffer)
+    {
+        partition.clear();
+    }
+    total_partition_buffer_size = 0;
 }
 std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
 {
@@ -76,7 +102,7 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
     spill_inputs.reserve(spill_infos.size());
     for (const auto & spill : spill_infos)
     {
-        spill_inputs.emplace_back(std::make_shared<ReadBufferFromFile>(spill.spilledFile));
+        spill_inputs.emplace_back(std::make_shared<ReadBufferFromFile>(spill.spilled_file));
     }
 
     String buffer;
@@ -85,7 +111,7 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
         auto size_before = data_file.count();
         for (size_t i = 0; i < spill_infos.size(); ++i)
         {
-            size_t size = spill_infos[i].partitionSpillInfos[partition_id].length;
+            size_t size = spill_infos[i].partition_spill_infos[partition_id].length;
             buffer.reserve(size);
             auto count = spill_inputs[i]->readBig(buffer.data(), size);
             data_file.write(buffer.data(), count);
@@ -94,7 +120,7 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
         if (partition_block_buffer[partition_id].size() > 0)
         {
             Block block = partition_block_buffer[partition_id].releaseColumns();
-            partition_buffer[partition_id].emplace_back(block);
+            partition_buffer[partition_id].emplace_back(std::move(block));
         }
 
         for (const auto & block : partition_buffer[partition_id])
@@ -102,14 +128,13 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
             writer.write(block);
         }
         compressed_output.sync();
-//        data_file.sync();
         partition_length[partition_id] = data_file.count() - size_before;
         shuffle_writer->split_result.total_bytes_written += partition_length[partition_id];
     }
 
     for (const auto & spill : spill_infos)
     {
-        std::filesystem::remove(spill.spilledFile);
+        std::filesystem::remove(spill.spilled_file);
     }
     return partition_length;
 }
@@ -136,6 +161,10 @@ void LocalPartitionWriter::stop()
     WriteBufferFromFile output(options->data_file, options->io_buffer_size);
     auto offsets = mergeSpills(output);
     shuffle_writer->split_result.partition_length = offsets;
+}
+size_t LocalPartitionWriter::totalCacheSize()
+{
+    return total_partition_buffer_size;
 }
 PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
 {

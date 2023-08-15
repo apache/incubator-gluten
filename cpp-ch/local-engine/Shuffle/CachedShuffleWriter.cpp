@@ -54,6 +54,8 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions
     }
 
     partition_writer = std::make_unique<LocalPartitionWriter>(this);
+    split_result.partition_length.resize(options.partition_nums, 0);
+    split_result.raw_partition_length.resize(options.partition_nums, 0);
 }
 
 
@@ -70,7 +72,12 @@ void CachedShuffleWriter::split(DB::Block & block)
     }
 
     partition_writer->write(partition_info, out_block);
-    // TODO trigger spill
+
+    if (options.spill_threshold > 0 && partition_writer->totalCacheSize() > options.spill_threshold)
+    {
+        std::cerr << "spill shuffle data: " << partition_writer->totalCacheSize() << std::endl;
+        partition_writer->evictPartitions();
+    }
 }
 
 void CachedShuffleWriter::initOutputIfNeeded(Block & block)
@@ -101,6 +108,12 @@ SplitResult CachedShuffleWriter::stop()
 {
     partition_writer->stop();
     return split_result;
+}
+size_t CachedShuffleWriter::evictPartitions()
+{
+    auto size = partition_writer->totalCacheSize();
+    partition_writer->evictPartitions(true);
+    return size;
 }
 
 }

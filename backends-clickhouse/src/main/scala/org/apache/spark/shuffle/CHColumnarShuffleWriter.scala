@@ -17,11 +17,12 @@
 package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.metrics.GlutenTimeMetric
+import io.glutenproject.memory.alloc.CHNativeMemoryAllocators
+import io.glutenproject.memory.memtarget.spark.Spiller
 import io.glutenproject.vectorized._
-
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
+import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, Utils}
@@ -52,6 +53,7 @@ class CHColumnarShuffleWriter[K, V](
   private val customizedCompressCodec =
     GlutenShuffleUtils.getCompressionCodec(conf).toUpperCase(Locale.ROOT)
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
+  private val spillThreshold = GlutenConfig.getConf.chColumnarShuffleSpillThreshold
   private val writeSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
   private val jniWrapper = new CHShuffleSplitterJniWrapper
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
@@ -61,7 +63,7 @@ class CHColumnarShuffleWriter[K, V](
   private var mapStatus: MapStatus = _
   private var nativeSplitter: Long = 0
 
-  private var splitResult: SplitResult = _
+  private var splitResult: CHSplitResult = _
 
   private var partitionLengths: Array[Long] = _
 
@@ -98,31 +100,42 @@ class CHColumnarShuffleWriter[K, V](
         dataTmp.getAbsolutePath,
         localDirs,
         subDirsPerLocalDir,
-        preferSpill)
+        preferSpill,
+        spillThreshold)
+      CHNativeMemoryAllocators.createSpillable(new Spiller() {
+        override def spill(size: Long, trigger: MemoryConsumer): Long = {
+          if (nativeSplitter == 0) {
+            throw new IllegalStateException(
+              "Fatal: spill() called before a shuffle writer " +
+                "is created. This behavior should be optimized by moving memory " +
+                "allocations from make() to split()")
+          }
+          logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+          val spilled = splitterJniWrapper.evict(nativeSplitter);
+          logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+          spilled
+        }
+      })
     }
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
-        GlutenTimeMetric.nano(dep.metrics("splitTime")) {
-          _ =>
-            firstRecordBatch = false
-            val col = cb.column(0).asInstanceOf[CHColumnVector]
-            val block = col.getBlockAddress
-            splitterJniWrapper
-              .split(nativeSplitter, cb.numRows, block)
-        }
+        firstRecordBatch = false
+        val col = cb.column(0).asInstanceOf[CHColumnVector]
+        val block = col.getBlockAddress
+        splitterJniWrapper
+          .split(nativeSplitter, block)
         dep.metrics("numInputRows").add(cb.numRows)
         dep.metrics("inputBatches").add(1)
         writeMetrics.incRecordsWritten(cb.numRows)
       }
     }
 
-    splitResult = GlutenTimeMetric.nano(dep.metrics("splitTime")) {
-      _ => splitterJniWrapper.stop(nativeSplitter)
-    }
+    splitterJniWrapper.stop(nativeSplitter)
 
+    dep.metrics("splitTime").add(splitResult.getSplitTime)
     dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("computePidTime").add(splitResult.getTotalComputePidTime)

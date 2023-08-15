@@ -51,7 +51,7 @@ int64_t initializeQuery(ReservationListenerWrapperPtr listener)
     query_context->setCurrentQueryId("");
 
     auto allocator_context = std::make_shared<NativeAllocatorContext>();
-    allocator_context->thread_status = std::make_shared<ThreadStatus>();
+    allocator_context->thread_status = std::make_shared<ThreadStatus>(false);
     allocator_context->query_scope = std::make_shared<CurrentThread::QueryScope>(query_context);
     allocator_context->group = std::make_shared<ThreadGroup>(query_context);
     allocator_context->query_context = query_context;

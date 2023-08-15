@@ -27,6 +27,7 @@
 #include <Processors/Chunk.h>
 #include <Storages/IStorage.h>
 #include <base/types.h>
+#include <Common/CurrentThread.h>
 #include <Common/logger_useful.h>
 
 namespace local_engine
@@ -180,6 +181,21 @@ public:
 
     /// Release session level resources like StorageJoinBuilder. Invoked every time executor/driver shutdown.
     static void finalizeSessionally();
+};
+
+// Ignore memory track, memory should free before IgnoreMemoryTracker deconstruction
+class IgnoreMemoryTracker {
+public:
+    IgnoreMemoryTracker(size_t limit_):limit(limit_)
+    {
+        DB::CurrentThread::get().untracked_memory_limit += limit;
+    }
+    ~IgnoreMemoryTracker()
+    {
+        DB::CurrentThread::get().untracked_memory_limit -= limit;
+    }
+private:
+    size_t limit;
 };
 
 }

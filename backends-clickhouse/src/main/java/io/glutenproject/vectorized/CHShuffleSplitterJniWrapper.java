@@ -30,7 +30,8 @@ public class CHShuffleSplitterJniWrapper {
       String dataFile,
       String localDirs,
       int subDirsPerLocalDir,
-      boolean preferSpill) {
+      boolean preferSpill,
+      long spillThreshold) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
@@ -43,7 +44,8 @@ public class CHShuffleSplitterJniWrapper {
         dataFile,
         localDirs,
         subDirsPerLocalDir,
-        preferSpill);
+        preferSpill,
+        spillThreshold);
   }
 
   public native long nativeMake(
@@ -58,9 +60,12 @@ public class CHShuffleSplitterJniWrapper {
       String dataFile,
       String localDirs,
       int subDirsPerLocalDir,
-      boolean preferSpill);
+      boolean preferSpill,
+      long spillThreshold);
 
-  public native void split(long splitterId, int numRows, long block);
+  public native void split(long splitterId, long block);
+
+  public native long evict(long splitterId);
 
   public native SplitResult stop(long splitterId) throws IOException;
 
