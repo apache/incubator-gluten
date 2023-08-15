@@ -27,9 +27,12 @@ import org.apache.spark.util.TaskResources;
 public class GlutenMemoryConsumer extends MemoryConsumer implements MemoryTarget {
   private final Spiller spiller;
 
-  public GlutenMemoryConsumer(TaskMemoryManager taskMemoryManager, Spiller spiller) {
+  private final String name;
+
+  public GlutenMemoryConsumer(String name, TaskMemoryManager taskMemoryManager, Spiller spiller) {
     super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
     this.spiller = spiller;
+    this.name = name;
   }
 
   @Override
@@ -66,5 +69,10 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements MemoryTarget
   @Override
   public long bytes() {
     return getUsed();
+  }
+
+  @Override
+  public String toString() {
+    return "GlutenMemoryConsumer-" + name;
   }
 }

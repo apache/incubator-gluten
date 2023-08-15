@@ -66,6 +66,7 @@ public final class NativeMemoryAllocators {
             id,
             () ->
                 createNativeMemoryAllocatorManager(
+                    "contextInstance",
                     TaskResources.getLocalTaskContext().taskMemoryManager(),
                     TaskResources.getSharedMetrics(),
                     0.0D,
@@ -74,13 +75,14 @@ public final class NativeMemoryAllocators {
         .getManaged();
   }
 
-  public NativeMemoryAllocator create(double overAcquiredRatio, Spiller spiller) {
+  public NativeMemoryAllocator create(String name, double overAcquiredRatio, Spiller spiller) {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("Spiller must be used in a Spark task");
     }
 
     final NativeMemoryAllocatorManager manager =
         createNativeMemoryAllocatorManager(
+            name,
             TaskResources.getLocalTaskContext().taskMemoryManager(),
             TaskResources.getSharedMetrics(),
             overAcquiredRatio,
@@ -94,12 +96,13 @@ public final class NativeMemoryAllocators {
   }
 
   private static NativeMemoryAllocatorManager createNativeMemoryAllocatorManager(
+      String name,
       TaskMemoryManager taskMemoryManager,
       TaskMemoryMetrics taskMemoryMetrics,
       double overAcquiredRatio,
       Spiller spiller,
       NativeMemoryAllocator delegated) {
-    MemoryTarget target = new GlutenMemoryConsumer(taskMemoryManager, spiller);
+    MemoryTarget target = new GlutenMemoryConsumer(name, taskMemoryManager, spiller);
     if (overAcquiredRatio != 0.0D) {
       target =
           new OverAcquire(
