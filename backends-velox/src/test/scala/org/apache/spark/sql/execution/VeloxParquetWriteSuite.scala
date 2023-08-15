@@ -101,8 +101,9 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
         .range(100)
         .selectExpr("id as c1", "id % 7 as p")
         .createOrReplaceTempView("bucket_temp")
-      val df = spark.sql("CREATE TABLE bucket USING PARQUET " +
-        "AS SELECT * FROM bucket_temp CLUSTERED BY (p) INTO 7 BUCKETS")
+      val df = spark.sql(
+        "CREATE TABLE bucket USING PARQUET " +
+          "AS SELECT * FROM bucket_temp CLUSTERED BY (p) INTO 7 BUCKETS")
       Assert.assertFalse(FallbackUtil.isFallback(df.queryExecution.executedPlan))
     }
   }
