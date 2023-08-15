@@ -176,6 +176,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       original: Expression): AliasTransformerBase =
     AliasTransformerBase(substraitExprName, child, original)
 
+  /** Generate an expression transformer to transform GetMapValue to Substrait. */
+  def genGetMapValueTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: GetMapValue): ExpressionTransformer =
+    new GetMapValueTransformer(substraitExprName, left, right, original.failOnError, original)
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *

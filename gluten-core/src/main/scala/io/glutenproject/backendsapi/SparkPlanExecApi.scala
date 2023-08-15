@@ -136,6 +136,13 @@ trait SparkPlanExecApi {
     StringSplitTransformerBase(substraitExprName, srcExpr, regexExpr, limitExpr, original)
   }
 
+  /** Generate an expression transformer to transform GetMapValue to Substrait. */
+  def genGetMapValueTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: GetMapValue): ExpressionTransformer
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
