@@ -104,9 +104,9 @@ TEST_F(RoundTest, round) {
 
 TEST_F(RoundTest, roundWithDecimal) {
   runRoundWithDecimalTest<float>(testRoundWithDecFloatAndDoubleData<float>());
-  //runRoundWithDecimalTest<double>(testRoundWithDecFloatAndDoubleData<double>());
-  //runRoundWithDecimalTest<int64_t>(testRoundWithDecIntegralData<int64_t>());
-  //runRoundWithDecimalTest<int32_t>(testRoundWithDecIntegralData<int32_t>());
-  //runRoundWithDecimalTest<int16_t>(testRoundWithDecIntegralData<int16_t>());
-  //runRoundWithDecimalTest<int8_t>(testRoundWithDecIntegralData<int8_t>());
+  runRoundWithDecimalTest<double>(testRoundWithDecFloatAndDoubleData<double>());
+  runRoundWithDecimalTest<int64_t>(testRoundWithDecIntegralData<int64_t>());
+  runRoundWithDecimalTest<int32_t>(testRoundWithDecIntegralData<int32_t>());
+  runRoundWithDecimalTest<int16_t>(testRoundWithDecIntegralData<int16_t>());
+  runRoundWithDecimalTest<int8_t>(testRoundWithDecIntegralData<int8_t>());
 }
