@@ -322,7 +322,7 @@ object CHAggAndShuffleBenchmark extends SqlBasedBenchmark {
         .equalsIgnoreCase("sort")
     ) {
       // Get the file partitions for generating the `FileScanRDD`
-      val filePartitions = fileScan.getFlattenPartitions
+      val filePartitions = fileScan.getPartitions
         .map(_.asInstanceOf[FilePartition])
       spark.conf.set("spark.gluten.enabled", "false")
       val sparkExecutedPlan = allStages.queryExecution.executedPlan

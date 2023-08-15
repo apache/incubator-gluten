@@ -53,7 +53,7 @@ class BatchScanExecTransformer(
 
   override def outputAttributes(): Seq[Attribute] = output
 
-  override def getFlattenPartitions: Seq[InputPartition] = filteredFlattenPartitions
+  override def getPartitions: Seq[InputPartition] = filteredFlattenPartitions
 
   override def getPartitionSchemas: StructType = scan match {
     case fileScan: FileScan => fileScan.readPartitionSchema

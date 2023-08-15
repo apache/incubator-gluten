@@ -248,7 +248,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
 
       // If these are two scan transformers, they must have same partitions,
       // otherwise, exchange will be inserted.
-      val allScanPartitions = basicScanExecTransformers.map(_.getFlattenPartitions)
+      val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
       val allScanPartitionSchemas = basicScanExecTransformers.map(_.getPartitionSchemas)
       val partitionLength = allScanPartitions.head.size
       if (allScanPartitions.exists(_.size != partitionLength)) {

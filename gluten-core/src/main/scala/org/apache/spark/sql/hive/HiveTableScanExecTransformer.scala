@@ -65,9 +65,7 @@ class HiveTableScanExecTransformer(
 
   override def outputAttributes(): Seq[Attribute] = output
 
-  override def getPartitions: Seq[Seq[InputPartition]] = filteredPartitions
-
-  override def getFlattenPartitions: Seq[InputPartition] = filteredPartitions.flatten
+  override def getPartitions: Seq[InputPartition] = filteredPartitions.flatten
 
   override def getPartitionSchemas: StructType = relation.tableMeta.partitionSchema
 

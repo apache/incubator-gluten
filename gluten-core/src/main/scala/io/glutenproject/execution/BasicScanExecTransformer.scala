@@ -43,7 +43,7 @@ trait BasicScanExecTransformer extends TransformSupport {
 
   def outputAttributes(): Seq[Attribute]
 
-  def getFlattenPartitions: Seq[InputPartition]
+  def getPartitions: Seq[InputPartition]
 
   def getPartitionSchemas: StructType
 
@@ -70,7 +70,7 @@ trait BasicScanExecTransformer extends TransformSupport {
       sparkContext,
       WholeStageTransformContext(planNode, substraitContext),
       fileFormat,
-      getFlattenPartitions,
+      getPartitions,
       numOutputRows,
       numOutputVectors,
       scanTime

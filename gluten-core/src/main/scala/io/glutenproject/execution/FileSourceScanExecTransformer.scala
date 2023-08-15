@@ -90,7 +90,7 @@ class FileSourceScanExecTransformer(
 
   override def outputAttributes(): Seq[Attribute] = output
 
-  override def getFlattenPartitions: Seq[InputPartition] =
+  override def getPartitions: Seq[InputPartition] =
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
       dynamicallySelectedPartitions,
