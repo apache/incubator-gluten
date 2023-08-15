@@ -97,11 +97,14 @@ cp "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/resources/bin/* "${GLUTEN_SOURCE}"
 cp "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/resources/conf/* "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/conf
 
 # download 3rd party jars
-wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P "${PACKAGE_DIR_PATH}"/jars
-wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.0.1/delta-core_2.12-2.0.1.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
-wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.1/delta-storage-2.0.1.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
-wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.2.0/delta-core_2.12-2.2.0.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark33
-wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.2.0/delta-storage-2.2.0.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark33
+protobuf_version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${protobuf.version}' --non-recursive exec:exec)
+wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/${protobuf_version}/protobuf-java-${protobuf_version}.jar -P "${PACKAGE_DIR_PATH}"/jars
+delta_version_32=$(mvn -q -Dexec.executable="echo" -Dexec.args='${delta.version}' -Pspark-3.2 --non-recursive exec:exec)
+wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/${delta_version_32}/delta-core_2.12-${delta_version_32}.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
+wget https://repo1.maven.org/maven2/io/delta/delta-storage/${delta_version_32}/delta-storage-${delta_version_32}.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
+delta_version_33=$(mvn -q -Dexec.executable="echo" -Dexec.args='${delta.version}' -Pspark-3.3 --non-recursive exec:exec)
+wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/${delta_version_33}/delta-core_2.12-${delta_version_33}.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark33
+wget https://repo1.maven.org/maven2/io/delta/delta-storage/${delta_version_33}/delta-storage-${delta_version_33}.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark33
 
 # build tar.gz
 cd "${GLUTEN_SOURCE}"/dist
