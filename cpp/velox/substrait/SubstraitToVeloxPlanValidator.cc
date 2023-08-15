@@ -210,10 +210,6 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
     logValidateMsg("native validation failed due to: map_from_arrays is not supported.");
     return false;
   }
-  if (name == "get_array_item") {
-    logValidateMsg("native validation failed due to: get_array_item is not supported.");
-    return false;
-  }
   if (name == "concat") {
     for (const auto& type : types) {
       if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
