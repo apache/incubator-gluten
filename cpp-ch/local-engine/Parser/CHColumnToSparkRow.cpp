@@ -118,7 +118,16 @@ static void writeFixedLengthNullableValue(
         if (null_map[row_idx])
             bitSet(buffer_address + offsets[i], col_index);
         else
-            writer.unsafeWrite(nested_column.getDataAt(row_idx), buffer_address + offsets[i] + field_offset);
+        {
+            if (writer.getWhichDataType().isDecimal32())
+            {
+                auto field = (*col.column)[row_idx];
+                writer.write(field, buffer_address + offsets[i] + field_offset);
+            }
+            else
+                writer.unsafeWrite(nested_column.getDataAt(row_idx), buffer_address + offsets[i] + field_offset);
+        }
+
     }
 }
 
@@ -924,8 +933,8 @@ void FixedLengthDataWriter::write(const DB::Field & field, char * buffer)
     else if (which.isDecimal32())
     {
         const auto & value = field.get<Decimal32>();
-        const auto decimal = value.getValue();
-        memcpy(buffer, &decimal, 4);
+        const Int64 decimal = static_cast<Int64>(value.getValue());
+        memcpy(buffer, &decimal, 8);
     }
     else if (which.isDecimal64() || which.isDateTime64())
     {
