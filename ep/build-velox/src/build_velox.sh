@@ -118,6 +118,7 @@ function compile {
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
   echo "COMPILE_OPTION: "$COMPILE_OPTION
 
+  export simdjson_SOURCE=BUNDLED
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [ $ARCH == 'arm64' ]; then
@@ -127,8 +128,6 @@ function compile {
     exit 1
   fi
 
-  export simdjson_SOURCE=BUNDLED
-  make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   # Install deps to system as needed
   if [ -d "_build/$COMPILE_TYPE/_deps" ]; then
     cd _build/$COMPILE_TYPE/_deps
