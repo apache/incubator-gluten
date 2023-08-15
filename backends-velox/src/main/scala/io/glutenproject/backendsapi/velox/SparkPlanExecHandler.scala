@@ -71,6 +71,14 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
       leftNode: ExpressionNode,
       rightNode: ExpressionNode,
       original: GetArrayItem): ExpressionNode = {
+    if (original.dataType.isInstanceOf[DecimalType]) {
+      val decimalType = original.dataType.asInstanceOf[DecimalType]
+      val precision = decimalType.precision
+      if (precision > 18) {
+        throw new UnsupportedOperationException(
+          "GetArrayItem not support decimal precision more than 18")
+      }
+    }
     // ignore origin substraitExprName
     val functionName = ConverterUtils.makeFuncName(
       ExpressionMappings.expressionsMap.get(classOf[ElementAt]).get,
