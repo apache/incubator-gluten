@@ -116,7 +116,7 @@ case class DateFormatClassValidator() extends FunctionValidator {
 
     // TODO: CH formatDateTimeInJodaSyntax/fromUnixTimestampInJodaSyntax only support
     // string literal as format
-    if (!dateFormatClass.formatExpr.isInstanceOf[Literal]) {
+    if (!dateFormatClass.right.isInstanceOf[Literal]) {
       return false
     }
 
