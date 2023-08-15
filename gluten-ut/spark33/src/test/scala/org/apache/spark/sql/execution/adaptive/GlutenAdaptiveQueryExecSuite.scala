@@ -892,7 +892,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       df.collect()
       val plan = df.queryExecution.executedPlan
       assert(hasRepartitionShuffle(plan) == !optimizeOutRepartition)
-      val smj = findTopLevelSortMergeJoinTransform(plan)
+      val smj = findTopLevelSortMergeJoin(plan)
       assert(smj.length == 1)
       assert(smj.head.isSkewJoin == optimizeSkewJoin)
       val aqeReads = collect(smj.head) { case c: ColumnarAQEShuffleReadExec => c }
