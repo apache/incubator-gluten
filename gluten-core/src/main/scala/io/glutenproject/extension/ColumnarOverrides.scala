@@ -639,8 +639,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
 
 // This rule will try to convert the row-to-columnar and columnar-to-row
 // into native implementations.
-case class TransformPostOverrides(session: SparkSession, isAdaptiveContext: Boolean)
-  extends Rule[SparkPlan] {
+case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[SparkPlan] {
   val columnarConf: GlutenConfig = GlutenConfig.getConf
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
@@ -747,16 +746,14 @@ case class ColumnarOverrideRules(session: SparkSession)
   // This is an empirical value, may need to be changed for supporting other versions of spark.
   private val aqeStackTraceIndex = 13
 
-  private lazy val wholeStageFallbackThreshold = GlutenConfig.getConf.wholeStageFallbackThreshold
-
-  private lazy val queryFallbackThreshold = GlutenConfig.getConf.queryFallbackThreshold
-
-  // for fallback policy
-  private lazy val fallbackPolicy = GlutenConfig.getConf.fallbackPolicy
-
   private var originalPlan: SparkPlan = _
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
+
+  // Just for test use.
+  def enableAdaptiveContext(): Unit = {
+    isAdaptiveContext = true
+  }
 
   private def preOverrides(): List[SparkSession => Rule[SparkPlan]] = {
     val tagBeforeTransformHitsRules = if (this.isAdaptiveContext) {
@@ -771,21 +768,30 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => FallbackEmptySchemaRelation(),
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => TransformPreOverrides(this.isAdaptiveContext),
-        (_: SparkSession) => EnsureLocalSortRequirements,
-        (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
-        (_: SparkSession) => RemoveTransformHintRule()
+        (_: SparkSession) => EnsureLocalSortRequirements
       ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
       SparkUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPreRules)
   }
 
+  private def fallbackPolicy(): List[SparkSession => Rule[SparkPlan]] = {
+    List((_: SparkSession) => PlanFallbackPolicy(isAdaptiveContext, originalPlan))
+  }
+
   private def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
     List(
-      (s: SparkSession) => TransformPostOverrides(s, this.isAdaptiveContext),
+      (_: SparkSession) => TransformPostOverrides(this.isAdaptiveContext),
       (s: SparkSession) => VanillaColumnarPlanOverrides(s)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
       SparkUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPostRules)
+
+  private def finallyRules(): List[SparkSession => Rule[SparkPlan]] = {
+    List(
+      (s: SparkSession) => GlutenFallbackReporter(GlutenConfig.getConf, s),
+      (_: SparkSession) => RemoveTransformHintRule()
+    )
+  }
 
   override def preColumnarTransitions: Rule[SparkPlan] = plan =>
     PhysicalPlanSelector.maybe(session, plan) {
@@ -798,99 +804,26 @@ case class ColumnarOverrideRules(session: SparkSession)
       // columnar rule will be applied in adaptive execution context. This part of code
       // needs to be carefully checked when supporting higher versions of spark to make
       // sure the calling stack has not been changed.
-      this.isAdaptiveContext = traceElements(aqeStackTraceIndex).getClassName.equals(
+      isAdaptiveContext = traceElements(aqeStackTraceIndex).getClassName.equals(
         AdaptiveSparkPlanExec.getClass.getName)
       // Holds the original plan for possible entire fallback.
       originalPlan = plan
       transformPlan(preOverrides(), plan, "pre")
     }
 
-  private def fallbackWholeStage(plan: SparkPlan): Boolean = {
-    if (wholeStageFallbackThreshold < 0) {
-      return false
-    }
-    countFallbacks(plan) >= wholeStageFallbackThreshold
-  }
-
-  private def fallbackWholeQuery(plan: SparkPlan): Boolean = {
-    if (queryFallbackThreshold < 0) {
-      return false
-    }
-    countFallbacks(plan) >= queryFallbackThreshold
-  }
-
-  private def countFallbacks(plan: SparkPlan): Int = {
-    var fallbacks = 0
-    def countFallback(plan: SparkPlan): Unit = {
-      plan match {
-        // Another stage.
-        case _: QueryStageExec =>
-          return
-        case ColumnarToRowExec(p: GlutenPlan) =>
-          logDebug(s"c2r: $p")
-          fallbacks = fallbacks + 1
-        // Possible fallback for leaf node.
-        case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[GlutenPlan] =>
-          fallbacks = fallbacks + 1
-        case _ =>
-      }
-      plan.children.foreach(p => countFallback(p))
-    }
-    countFallback(plan)
-    fallbacks
-  }
-
-  /**
-   * Ported from ApplyColumnarRulesAndInsertTransitions of Spark. Inserts an transition to columnar
-   * formatted data.
-   */
-  private def insertRowToColumnar(plan: SparkPlan): SparkPlan = {
-    if (!plan.supportsColumnar) {
-      // The tree feels kind of backwards
-      // Columnar Processing will start here, so transition from row to columnar
-      RowToColumnarExec(insertTransitions(plan, outputsColumnar = false))
-    } else if (!plan.isInstanceOf[RowToColumnarTransition]) {
-      plan.withNewChildren(plan.children.map(insertRowToColumnar))
-    } else {
-      plan
-    }
-  }
-
-  /**
-   * Ported from ApplyColumnarRulesAndInsertTransitions of Spark. Inserts RowToColumnarExecs and
-   * ColumnarToRowExecs where needed.
-   */
-  def insertTransitions(plan: SparkPlan, outputsColumnar: Boolean): SparkPlan = {
-    if (outputsColumnar) {
-      insertRowToColumnar(plan)
-    } else if (plan.supportsColumnar) {
-      // `outputsColumnar` is false but the plan outputs columnar format, so add a
-      // to-row transition here.
-      ColumnarToRowExec(insertRowToColumnar(plan))
-    } else if (!plan.isInstanceOf[ColumnarToRowTransition]) {
-      plan.withNewChildren(plan.children.map(insertTransitions(_, outputsColumnar = false)))
-    } else {
-      plan
-    }
-  }
-
-  // Just for test use.
-  def enableAdaptiveContext(): Unit = {
-    isAdaptiveContext = true
-  }
-
   override def postColumnarTransitions: Rule[SparkPlan] = plan =>
     PhysicalPlanSelector.maybe(session, plan) {
-      if (fallbackPolicy == "query" && !isAdaptiveContext && fallbackWholeQuery(plan)) {
-        logWarning("Fall back to run the query due to unsupported operator!")
-        insertTransitions(originalPlan, outputsColumnar = false)
-      } else if (fallbackPolicy == "stage" && isAdaptiveContext && fallbackWholeStage(plan)) {
-        logWarning("Fall back the plan due to meeting the whole stage fallback threshold!")
-        insertTransitions(originalPlan, outputsColumnar = false)
-      } else {
-        transformPlan(postOverrides(), plan, "post")
+      val planWithFallbackPolicy = transformPlan(fallbackPolicy(), plan, "fallback")
+      val finalPlan = planWithFallbackPolicy match {
+        case FallbackNode(fallbackPlan) =>
+          fallbackPlan
+        case plan =>
+          transformPlan(postOverrides(), plan, "post")
       }
+      originalPlan = null
+      transformPlan(finallyRules(), finalPlan, "final")
     }
+
   private def transformPlan(
       getRules: List[SparkSession => Rule[SparkPlan]],
       plan: SparkPlan,
