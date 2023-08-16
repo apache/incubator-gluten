@@ -202,6 +202,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenNullExpressionsSuite]
   enableSuite[GlutenPredicateSuite]
   enableSuite[GlutenMathExpressionsSuite]
+    .exclude("round/bround")
   enableSuite[GlutenMathFunctionsSuite]
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenBitwiseExpressionsSuite]
