@@ -38,7 +38,7 @@ import java.util.{ArrayList => JArrayList}
 
 import scala.collection.JavaConverters._
 
-/** Performs a hash join of two child relations by first shuffling the data using the join keys. */
+/** Performs a sort merge join of two child relations. */
 case class SortMergeJoinExecTransformer(
     leftKeys: Seq[Expression],
     rightKeys: Seq[Expression],
@@ -212,12 +212,11 @@ case class SortMergeJoinExecTransformer(
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetricsUpdater(metrics)
 
   def genJoinParametersBuilder(): com.google.protobuf.Any.Builder = {
-    val (isSMJ, isNullAwareAntiJoin) = (0, 0)
+    val (isSMJ, isNullAwareAntiJoin) = (1, 0)
     // Start with "JoinParameters:"
     val joinParametersStr = new StringBuffer("JoinParameters:")
-    // isSMJ: 0 for SMJ, 1 for SHJ
+    // isSMJ: 0 for SHJ, 1 for SMJ
     // isNullAwareAntiJoin: 0 for false, 1 for true
-    // buildHashTableId: the unique id for the hash table of build plan
     joinParametersStr
       .append("isSMJ=")
       .append(isSMJ)
