@@ -694,9 +694,9 @@ case class HashAggregateExecTransformer(
               throw new UnsupportedOperationException(s"$other is not supported.")
           }
         case _ =>
-          Preconditions.checkState(
-            functionInputAttributes.size == 1,
-            "Only one input attribute is expected.")
+          if (functionInputAttributes.size != 1) {
+            throw new UnsupportedOperationException("Only one input attribute is expected.")
+          }
           val childNodes = new util.ArrayList[ExpressionNode](
             functionInputAttributes.toList
               .map(
