@@ -23,7 +23,7 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Expression, Like}
 import org.apache.spark.sql.catalyst.expressions.Sha2
-import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.{DecimalType, StringType}
 
 import com.google.common.collect.Lists
 
@@ -110,5 +110,30 @@ object BinaryExpressionTransformer {
       case _: Like => new LikeTransformer(substraitExprName, left, right, original)
       case _ => new BinaryExpressionTransformer(substraitExprName, left, right, original)
     }
+  }
+}
+
+class DecimalArithmeticExpressionTransformer(
+    substraitExprName: String,
+    left: ExpressionTransformer,
+    right: ExpressionTransformer,
+    resultType: DecimalType,
+    original: Expression)
+  extends ExpressionTransformer
+  with Logging {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val leftNode = left.doTransform(args)
+    val rightNode = right.doTransform(args)
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        substraitExprName,
+        original.children.map(_.dataType),
+        FunctionConfig.OPT))
+
+    val expressionNodes = Lists.newArrayList(leftNode, rightNode)
+    val typeNode = ConverterUtils.getTypeNode(resultType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }

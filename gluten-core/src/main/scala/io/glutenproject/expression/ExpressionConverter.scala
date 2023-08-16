@@ -20,10 +20,10 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{ColumnarToRowExecBase, WholeStageTransformer}
 import io.glutenproject.test.TestStats
+import io.glutenproject.utils.DecimalArithmeticUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
-import org.apache.spark.sql.catalyst.analysis.DecimalPrecision
 import org.apache.spark.sql.catalyst.expressions.{BinaryArithmetic, _}
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
@@ -44,200 +44,6 @@ trait Transformable extends Expression {
 }
 
 object ExpressionConverter extends SQLConfHelper with Logging {
-
-  /**
-   * Remove the Cast when child is PromotePrecision and PromotePrecision is Cast(Decimal, Decimal)
-   *
-   * @param arithmeticExpr
-   *   BinaryArithmetic left or right
-   * @return
-   *   expression removed child PromotePrecision->Cast
-   */
-  private def removeCastForDecimal(arithmeticExpr: Expression): Expression = {
-    arithmeticExpr match {
-      case precision: PromotePrecision =>
-        precision.child match {
-          case cast: Cast
-              if cast.dataType.isInstanceOf[DecimalType]
-                && cast.child.dataType.isInstanceOf[DecimalType] =>
-            cast.child
-          case _ => arithmeticExpr
-        }
-      case _ => arithmeticExpr
-    }
-  }
-
-  private def isPromoteCastIntegral(expr: Expression): Boolean = {
-    expr match {
-      case precision: PromotePrecision =>
-        precision.child match {
-          case cast: Cast if cast.dataType.isInstanceOf[DecimalType] =>
-            cast.child.dataType match {
-              case IntegerType | ByteType | ShortType | LongType => true
-              case _ => false
-            }
-          case _ => false
-        }
-      case _ => false
-    }
-  }
-
-  private def isPromoteCast(expr: Expression): Boolean = {
-    expr match {
-      case precision: PromotePrecision =>
-        precision.child match {
-          case cast: Cast if cast.dataType.isInstanceOf[DecimalType] => true
-          case _ => false
-        }
-      case _ => false
-    }
-  }
-
-  private def rescaleCastForOneSide(expr: Expression): Expression = {
-    expr match {
-      case precision: PromotePrecision =>
-        precision.child match {
-          case castInt: Cast
-              if castInt.dataType.isInstanceOf[DecimalType] &&
-                BackendsApiManager.getSettings.rescaleDecimalIntegralExpression() =>
-            castInt.child.dataType match {
-              case IntegerType | ByteType | ShortType =>
-                precision.withNewChildren(Seq(Cast(castInt.child, DecimalType(10, 0))))
-              case LongType =>
-                precision.withNewChildren(Seq(Cast(castInt.child, DecimalType(20, 0))))
-              case _ => expr
-            }
-          case _ => expr
-        }
-      case _ => expr
-    }
-  }
-
-  private def checkIsWiderType(
-      left: DecimalType,
-      right: DecimalType,
-      wider: DecimalType): Boolean = {
-    val widerType = DecimalPrecision.widerDecimalType(left, right)
-    widerType.equals(wider)
-  }
-
-  private def rescaleCastForDecimal(
-      left: Expression,
-      right: Expression): (Expression, Expression) = {
-    if (!BackendsApiManager.getSettings.rescaleDecimalIntegralExpression()) {
-      return (left, right)
-    }
-    // decimal * cast int
-    if (!isPromoteCast(left)) { // have removed PromotePrecision(Cast(DecimalType))
-      if (isPromoteCastIntegral(right)) {
-        val newRight = rescaleCastForOneSide(right)
-        val isWiderType = checkIsWiderType(
-          left.dataType.asInstanceOf[DecimalType],
-          newRight.dataType.asInstanceOf[DecimalType],
-          right.dataType.asInstanceOf[DecimalType])
-        if (isWiderType) {
-          (left, newRight)
-        } else {
-          (left, right)
-        }
-      } else {
-        (left, right)
-      }
-      // cast int * decimal
-    } else if (!isPromoteCast(right)) {
-      if (isPromoteCastIntegral(left)) {
-        val newLeft = rescaleCastForOneSide(left)
-        val isWiderType = checkIsWiderType(
-          newLeft.dataType.asInstanceOf[DecimalType],
-          right.dataType.asInstanceOf[DecimalType],
-          left.dataType.asInstanceOf[DecimalType])
-        if (isWiderType) {
-          (newLeft, right)
-        } else {
-          (left, right)
-        }
-      } else {
-        (left, right)
-      }
-    } else {
-      // cast int * cast int, usually user defined cast
-      (left, right)
-    }
-  }
-
-  // For decimal * 10 case, dec will be Decimal(38, 18), then the result precision is wrong,
-  // so here we will get the real precision and scale of the literal
-  private def getNewPrecisionScale(dec: Decimal): (Integer, Integer) = {
-    val input = dec.abs.toString()
-    val dotIndex = input.indexOf(".")
-    if (dotIndex == -1) {
-      return (input.length, 0)
-    }
-
-    if (dec.toBigDecimal.isValidLong) {
-      return (dotIndex, 0)
-    }
-
-    (dec.precision, dec.scale)
-  }
-
-  // change the precision and scale to literal actual precision and scale, otherwise the result
-  // precision loss
-  private def rescaleLiteral(arithmeticExpr: BinaryArithmetic): BinaryArithmetic = {
-    if (
-      arithmeticExpr.left.isInstanceOf[PromotePrecision]
-      && arithmeticExpr.right.isInstanceOf[Literal]
-    ) {
-      val lit = arithmeticExpr.right.asInstanceOf[Literal]
-      lit.value match {
-        case decLit: Decimal =>
-          val (precision, scale) = getNewPrecisionScale(decLit)
-          if (precision != decLit.precision || scale != decLit.scale) {
-            arithmeticExpr
-              .withNewChildren(Seq(arithmeticExpr.left, Cast(lit, DecimalType(precision, scale))))
-              .asInstanceOf[BinaryArithmetic]
-          } else arithmeticExpr
-        case _ => arithmeticExpr
-      }
-    } else if (
-      arithmeticExpr.right.isInstanceOf[PromotePrecision]
-      && arithmeticExpr.left.isInstanceOf[Literal]
-    ) {
-      val lit = arithmeticExpr.left.asInstanceOf[Literal]
-      lit.value match {
-        case decLit: Decimal =>
-          val (precision, scale) = getNewPrecisionScale(decLit)
-          if (precision != decLit.precision || scale != decLit.scale) {
-            arithmeticExpr
-              .withNewChildren(Seq(Cast(lit, DecimalType(precision, scale)), arithmeticExpr.right))
-              .asInstanceOf[BinaryArithmetic]
-          } else arithmeticExpr
-        case _ => arithmeticExpr
-      }
-    } else {
-      arithmeticExpr
-    }
-  }
-
-  // If casting between DecimalType, unnecessary cast is skipped to avoid data loss,
-  // because argument input type of "cast" is actually the res type of "+-*/".
-  // Cast will use a wider input type, then calculated a less scale result type than vanilla spark
-  private def isDecimalArithmetic(b: BinaryArithmetic): Boolean = {
-    if (
-      b.left.dataType.isInstanceOf[DecimalType]
-      && b.right.dataType.isInstanceOf[DecimalType]
-    ) {
-      b match {
-        case _: Divide => true
-        case _: Multiply => true
-        case _: Add => true
-        case _: Subtract => true
-        case _: Remainder => true
-        case _: Pmod => true
-        case _ => false
-      }
-    } else false
-  }
 
   def replacePythonUDFWithExpressionTransformer(
       udf: PythonUDF,
@@ -696,30 +502,39 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName.get,
           replaceWithExpressionTransformer(u.child, attributeSeq),
           u)
-      case b: BinaryExpression =>
-        val idDecimalArithmetic = b.isInstanceOf[BinaryArithmetic] &&
-          isDecimalArithmetic(b.asInstanceOf[BinaryArithmetic])
-        val (newLeft1, newRight1) = if (idDecimalArithmetic) {
+      case b: BinaryExpression
+          if b.isInstanceOf[BinaryArithmetic] &&
+            DecimalArithmeticUtil.isDecimalArithmetic(b.asInstanceOf[BinaryArithmetic]) =>
+        val (left, right) = {
           val rescaleBinary = b match {
             case _: BinaryArithmetic if !conf.decimalOperationsAllowPrecisionLoss =>
               throw new UnsupportedOperationException(
                 s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} false mode")
             case arith: BinaryArithmetic
                 if BackendsApiManager.getSettings.rescaleDecimalLiteral() =>
-              rescaleLiteral(arith)
+              DecimalArithmeticUtil.rescaleLiteral(arith)
             case _ => b
           }
-          rescaleCastForDecimal(
-            removeCastForDecimal(rescaleBinary.left),
-            removeCastForDecimal(rescaleBinary.right))
-        } else {
-          (b.left, b.right)
+          DecimalArithmeticUtil.rescaleCastForDecimal(
+            DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.left),
+            DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.right))
         }
-
+        val resultType = DecimalArithmeticUtil.getResultTypeForOperation(
+          DecimalArithmeticUtil.getOperationType(b.asInstanceOf[BinaryArithmetic]),
+          left.dataType.asInstanceOf[DecimalType],
+          right.dataType.asInstanceOf[DecimalType]
+        )
+        new DecimalArithmeticExpressionTransformer(
+          substraitExprName.get,
+          replaceWithExpressionTransformer(left, attributeSeq),
+          replaceWithExpressionTransformer(right, attributeSeq),
+          resultType,
+          b)
+      case b: BinaryExpression =>
         BinaryExpressionTransformer(
           substraitExprName.get,
-          replaceWithExpressionTransformer(newLeft1, attributeSeq),
-          replaceWithExpressionTransformer(newRight1, attributeSeq),
+          replaceWithExpressionTransformer(b.left, attributeSeq),
+          replaceWithExpressionTransformer(b.right, attributeSeq),
           b)
       case t: TernaryExpression =>
         TernaryExpressionTransformer(
