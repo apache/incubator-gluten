@@ -16,27 +16,23 @@
  */
 package io.glutenproject.execution
 
+import com.google.protobuf.Any
 import io.glutenproject.execution.VeloxAggregateFunctionsBuilder.{veloxFourIntermediateTypes, veloxSixIntermediateTypes, veloxThreeIntermediateTypes}
-import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.expression._
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
-import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode, ScalarFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.utils.GlutenDecimalUtil
-
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{BooleanType, DataType, DecimalType, DoubleType, LongType, StructField, StructType}
-
-import com.google.common.base.Preconditions
-import com.google.protobuf.Any
+import org.apache.spark.sql.types._
 
 import java.util
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
