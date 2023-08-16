@@ -57,7 +57,9 @@ case class ColumnarBuildSideRelation(
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.init(
           cSchema.memoryAddress(),
-          NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
+          NativeMemoryAllocators.getDefault
+            .contextInstance("BuildSideRelation#BatchSerializer")
+            .getNativeInstanceId)
         cSchema.close()
         handle
       }
@@ -105,7 +107,9 @@ case class ColumnarBuildSideRelation(
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
       val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.init(
         cSchema.memoryAddress(),
-        NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
+        NativeMemoryAllocators.getDefault
+          .contextInstance("BuildSideRelation#BatchSerializer")
+          .getNativeInstanceId)
       cSchema.close()
       handle
     }
@@ -121,7 +125,10 @@ case class ColumnarBuildSideRelation(
     // Convert columnar to Row.
     val jniWrapper = new NativeColumnarToRowJniWrapper()
     val c2rId = jniWrapper.nativeColumnarToRowInit(
-      NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
+      NativeMemoryAllocators
+        .getDefault()
+        .contextInstance("BuildSideRelation#ColumnarToRow")
+        .getNativeInstanceId)
     var batchId = 0
     val iterator = if (batches.length > 0) {
       val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {

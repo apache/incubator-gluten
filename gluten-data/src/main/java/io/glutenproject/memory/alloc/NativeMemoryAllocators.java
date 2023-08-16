@@ -57,16 +57,18 @@ public final class NativeMemoryAllocators {
     return INSTANCES.computeIfAbsent(type, NativeMemoryAllocators::new);
   }
 
-  public NativeMemoryAllocator contextInstance() {
+  // TODO: When remove fallback storage and ensure all allocator are in Spark task scope,
+  //  we could remove this method and use create.
+  public NativeMemoryAllocator contextInstance(String name) {
     if (!TaskResources.inSparkTask()) {
       return globalInstance();
     }
-    final String id = NativeMemoryAllocatorManager.class + "-" + System.identityHashCode(global);
+    final String id = NativeMemoryAllocatorManager.class + "-" + System.identityHashCode(global) + "-" + name;
     return TaskResources.addResourceIfNotRegistered(
             id,
             () ->
                 createNativeMemoryAllocatorManager(
-                    "contextInstance",
+                    name,
                     TaskResources.getLocalTaskContext().taskMemoryManager(),
                     TaskResources.getSharedMetrics(),
                     0.0D,

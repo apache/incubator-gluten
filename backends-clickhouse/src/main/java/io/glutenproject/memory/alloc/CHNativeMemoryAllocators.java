@@ -60,7 +60,7 @@ public abstract class CHNativeMemoryAllocators {
     if (!TaskResources.isResourceRegistered(id)) {
       final CHNativeMemoryAllocatorManager manager =
           createNativeMemoryAllocatorManager(
-              "contextInstance",
+              "ContextInstance",
               TaskResources.getLocalTaskContext().taskMemoryManager(),
               Spiller.NO_OP,
               TaskResources.getSharedMetrics());
