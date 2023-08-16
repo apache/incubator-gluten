@@ -775,7 +775,7 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   private def fallbackPolicy(): List[SparkSession => Rule[SparkPlan]] = {
-    List((_: SparkSession) => PlanFallbackPolicy(isAdaptiveContext, originalPlan))
+    List((_: SparkSession) => ExpandFallbackPolicy(isAdaptiveContext, originalPlan))
   }
 
   private def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
@@ -816,6 +816,9 @@ case class ColumnarOverrideRules(session: SparkSession)
       val planWithFallbackPolicy = transformPlan(fallbackPolicy(), plan, "fallback")
       val finalPlan = planWithFallbackPolicy match {
         case FallbackNode(fallbackPlan) =>
+          // we should use vanilla c2r rather than native c2r,
+          // and there should be no `GlutenPlan` any more,
+          // so skip the `postOverrides()`.
           fallbackPlan
         case plan =>
           transformPlan(postOverrides(), plan, "post")

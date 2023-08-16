@@ -63,7 +63,7 @@ import org.apache.spark.sql.execution.exchange.Exchange
  * @param originalPlan The vanilla SparkPlan without apply gluten transform rules
  */
 // spotless:on
-case class PlanFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkPlan)
+case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkPlan)
   extends Rule[SparkPlan] {
 
   private def countFallbacks(plan: SparkPlan): Int = {
@@ -157,7 +157,7 @@ case class PlanFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkPla
   }
 }
 
-/** A wrap to specify the plan is fallback plan, the caller side should unwrap it. */
+/** A wrapper to specify the plan is fallback plan, the caller side should unwrap it. */
 case class FallbackNode(fallbackPlan: SparkPlan) extends LeafExecNode {
   override protected def doExecute(): RDD[InternalRow] = throw new UnsupportedOperationException()
   override def output: Seq[Attribute] = fallbackPlan.output
