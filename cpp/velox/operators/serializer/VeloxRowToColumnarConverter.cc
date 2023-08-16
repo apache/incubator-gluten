@@ -26,7 +26,7 @@ VeloxRowToColumnarConverter::VeloxRowToColumnarConverter(
     struct ArrowSchema* cSchema,
     std::shared_ptr<memory::MemoryPool> memoryPool)
     : RowToColumnarConverter(), pool_(memoryPool) {
-  rowType_ = importFromArrow(*cSchema);
+  rowType_ = importFromArrow(*cSchema); // otherwise the c schema leaks memory
   ArrowSchemaRelease(cSchema);
 }
 

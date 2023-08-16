@@ -17,6 +17,7 @@
 
 #include <arrow/c/abi.h>
 #include <arrow/c/bridge.h>
+#include <arrow/c/helpers.h>
 
 #include "ArrowTypeUtils.h"
 #include "memory/VeloxMemoryPool.h"
@@ -37,5 +38,15 @@ std::shared_ptr<arrow::Schema> toArrowSchema(const velox::TypePtr& rowType) {
   toArrowSchema(rowType, &arrowSchema);
   GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&arrowSchema));
   return outputSchema;
+}
+
+facebook::velox::TypePtr fromArrowSchema(const std::shared_ptr<arrow::Schema>& schema) {
+  ArrowSchema cSchema;
+  GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*schema, &cSchema));
+  facebook::velox::TypePtr typePtr = facebook::velox::importFromArrow(cSchema);
+  // It should be facebook::velox::importFromArrow's duty to release the imported arrow c schema.
+  // Since exported Velox type prt doesn't hold memory from the c schema.
+  ArrowSchemaRelease(&cSchema); // otherwise the c schema leaks memory
+  return typePtr;
 }
 } // namespace gluten
