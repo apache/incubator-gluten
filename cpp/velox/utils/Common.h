@@ -14,25 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #pragma once
 
+#include <re2/re2.h>
 #include <memory>
+#include <string>
 
-#include <Storages/SubstraitSource/FormatFile.h>
+namespace gluten {
 
-namespace local_engine
-{
-class TextFormatFile : public FormatFile
-{
-public:
-    explicit TextFormatFile(
-        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
-    ~TextFormatFile() override = default;
+// Compile the given pattern and return the RE2 object.
+inline std::unique_ptr<re2::RE2> compilePattern(const std::string& pattern);
 
-    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
+bool validatePattern(const std::string& pattern, std::string& error);
 
-    bool supportSplit() const override { return true; }
-    DB::String getFileFormat() const override { return "text"; }
-};
-
-}
+} // namespace gluten

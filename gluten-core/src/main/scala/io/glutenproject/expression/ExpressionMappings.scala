@@ -91,6 +91,7 @@ object ExpressionMappings {
     Sig[Empty2Null](EMPTY2NULL),
     Sig[InitCap](INITCAP),
     Sig[Overlay](OVERLAY),
+    Sig[Conv](CONV),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
@@ -199,6 +200,7 @@ object ExpressionMappings {
     Sig[ArrayContains](ARRAY_CONTAINS),
     Sig[ArrayMax](ARRAY_MAX),
     Sig[ArrayMin](ARRAY_MIN),
+    Sig[ArrayJoin](ARRAY_JOIN),
     Sig[SortArray](SORT_ARRAY),
     Sig[ArraysOverlap](ARRAYS_OVERLAP),
     Sig[ArrayPosition](ARRAY_POSITION),

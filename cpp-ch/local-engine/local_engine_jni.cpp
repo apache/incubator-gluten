@@ -769,7 +769,6 @@ Java_io_glutenproject_vectorized_CHBlockConverterJniWrapper_convertColumnarToRow
 
     jobject spark_row_info_object
         = env->NewObject(spark_row_info_class, spark_row_info_constructor, offsets_arr, lengths_arr, address, column_number, total_size);
-
     return spark_row_info_object;
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
 }

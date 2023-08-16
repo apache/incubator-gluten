@@ -15,8 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set(ARROW_SHARED_LIBRARY_SUFFIX ".so.1200")
-set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.1200.0.0")
+if (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
+  set(ARROW_SHARED_LIBRARY_SUFFIX ".1200.dylib")
+  set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".1200.0.0.dylib")
+else()
+  set(ARROW_SHARED_LIBRARY_SUFFIX ".so.1200")
+  set(ARROW_SHARED_LIBRARY_PARENT_SUFFIX ".so.1200.0.0")
+endif()
 
 set(ARROW_LIB_NAME "arrow")
 set(PARQUET_LIB_NAME "parquet")

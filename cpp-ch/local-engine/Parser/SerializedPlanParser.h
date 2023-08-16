@@ -158,6 +158,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"locate", "positionUTF8Spark"},
        {"space", "space"},
        {"initcap", "initcapUTF8"},
+       {"conv", "sparkConv"},
 
        /// hash functions
        {"sha1", "SHA1"},

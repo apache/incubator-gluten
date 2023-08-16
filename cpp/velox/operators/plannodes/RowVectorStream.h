@@ -59,7 +59,7 @@ class ValueStreamNode : public facebook::velox::core::PlanNode {
     return outputType_;
   }
 
-  const std::vector<facebook::velox::core::PlanNodePtr>& sources() const {
+  const std::vector<facebook::velox::core::PlanNodePtr>& sources() const override {
     return kEmptySources;
   };
 
@@ -76,7 +76,7 @@ class ValueStreamNode : public facebook::velox::core::PlanNode {
   }
 
  private:
-  void addDetails(std::stringstream& stream) const {};
+  void addDetails(std::stringstream& stream) const override{};
 
   const facebook::velox::RowTypePtr outputType_;
   std::shared_ptr<RowVectorStream> valueStream_;

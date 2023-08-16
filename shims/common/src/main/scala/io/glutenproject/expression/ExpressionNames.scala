@@ -102,6 +102,7 @@ object ExpressionNames {
   final val EMPTY2NULL = "empty2null"
   final val INITCAP = "initcap"
   final val OVERLAY = "overlay"
+  final val CONV = "conv"
 
   // URL functions
   final val PARSE_URL = "parse_url"
@@ -202,6 +203,7 @@ object ExpressionNames {
   final val ARRAY_CONTAINS = "array_contains"
   final val ARRAY_MAX = "array_max"
   final val ARRAY_MIN = "array_min"
+  final val ARRAY_JOIN = "array_join"
   final val SORT_ARRAY = "sort_array"
   final val ARRAYS_OVERLAP = "arrays_overlap"
   final val ARRAY_POSITION = "array_position"

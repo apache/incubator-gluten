@@ -1870,6 +1870,33 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql2, true, { _ => })
   }
 
+  test("test-conv-function") {
+    {
+      val sql =
+        """
+          | select conv(a, 2, 10) from(
+          |   select a from values('100'),('1010') as data(a))
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+    {
+      val sql =
+        """
+          | select conv(a, 200, 10) from(
+          |   select a from values('100'),('1010') as data(a))
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+    {
+      val sql =
+        """
+          | select conv(a, 16, 10) from(
+          |   select a from values(10),(20) as data(a))
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
+
   test("Test plan json non-empty") {
     spark.sparkContext.setLogLevel("WARN")
     val df1 = spark

@@ -108,6 +108,7 @@ public:
     std::optional<size_t> getTotalRows() override;
 
     bool supportSplit() const override { return true; }
+    DB::String getFileFormat() const override { return "orc"; }
 
 private:
     mutable std::mutex mutex;

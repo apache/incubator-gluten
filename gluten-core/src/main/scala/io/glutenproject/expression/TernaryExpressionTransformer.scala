@@ -22,7 +22,7 @@ import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode, IntLiteralNode, StringLiteralNode}
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Expression, StringLocate, StringTranslate}
+import org.apache.spark.sql.catalyst.expressions.{Expression, StringLocate, StringSplit, StringTranslate}
 import org.apache.spark.sql.types.IntegerType
 
 import com.google.common.collect.Lists
@@ -105,6 +105,51 @@ case class StringLocateTransformer(
       TernaryExpressionTransformer(substraitExprName, substrExpr, strExpr, startExpr, original)
         .doTransform(args)
     }
+  }
+}
+
+case class StringSplitTransformerBase(
+    substraitExprName: String,
+    srcExpr: ExpressionTransformer,
+    regexExpr: ExpressionTransformer,
+    limitExpr: ExpressionTransformer,
+    original: StringSplit)
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    TernaryExpressionTransformer(substraitExprName, srcExpr, regexExpr, limitExpr, original)
+      .doTransform(args)
+  }
+}
+
+class StringSplitTransformer(
+    substraitExprName: String,
+    srcExpr: ExpressionTransformer,
+    regexExpr: ExpressionTransformer,
+    limitExpr: ExpressionTransformer,
+    original: StringSplit)
+  extends StringSplitTransformerBase(substraitExprName, srcExpr, regexExpr, limitExpr, original)
+  with Logging {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    if (
+      !regexExpr.isInstanceOf[LiteralTransformer] ||
+      !limitExpr.isInstanceOf[LiteralTransformer]
+    ) {
+      throw new UnsupportedOperationException(
+        "Gluten only supports literal input as limit/regex for split function.")
+    }
+
+    val limit = limitExpr.doTransform(args).asInstanceOf[IntLiteralNode].getValue
+    val regex = regexExpr.doTransform(args).asInstanceOf[StringLiteralNode].getValue
+    if (limit > 0 || regex.length > 1) {
+      throw new UnsupportedOperationException(
+        s"$original supported single-length regex and negative limit, but given $limit and $regex")
+    }
+
+    // TODO: split function support limit arg
+    BinaryExpressionTransformer(substraitExprName, srcExpr, regexExpr, original)
+      .doTransform(args)
   }
 }
 

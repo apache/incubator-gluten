@@ -68,11 +68,6 @@ bool getLiteralValue(const ::substrait::Expression::Literal& literal) {
 }
 
 template <>
-uint32_t getLiteralValue(const ::substrait::Expression::Literal& literal) {
-  return literal.i32();
-}
-
-template <>
 Timestamp getLiteralValue(const ::substrait::Expression::Literal& literal) {
   return Timestamp::fromMicros(literal.timestamp());
 }
@@ -285,15 +280,13 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
 
   if (veloxFunction == "lambdafunction") {
     return toLambdaExpr(substraitFunc, inputType);
-  }
-  if (veloxFunction == "namedlambdavariable") {
+  } else if (veloxFunction == "namedlambdavariable") {
     return makeFieldAccessExpr(substraitFunc.arguments(0).value().literal().string(), toVeloxType(typeName), nullptr);
-  }
-  if (veloxFunction == "extract") {
+  } else if (veloxFunction == "extract") {
     return toExtractExpr(std::move(params), toVeloxType(typeName));
+  } else {
+    return std::make_shared<const core::CallTypedExpr>(toVeloxType(typeName), std::move(params), veloxFunction);
   }
-
-  return std::make_shared<const core::CallTypedExpr>(toVeloxType(typeName), std::move(params), veloxFunction);
 }
 
 std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::literalsToConstantExpr(
@@ -547,5 +540,18 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
       VELOX_NYI("Substrait conversion not supported for Expression '{}'", typeCase);
   }
 }
+
+std::unordered_map<std::string, std::string> SubstraitVeloxExprConverter::extractDatetimeFunctionMap_ = {
+    {"MILLISECOND", "millisecond"},
+    {"SECOND", "second"},
+    {"MINUTE", "minute"},
+    {"HOUR", "hour"},
+    {"DAY", "day"},
+    {"DAY_OF_WEEK", "day_of_week"},
+    {"DAY_OF_YEAR", "day_of_year"},
+    {"MONTH", "month"},
+    {"QUARTER", "quarter"},
+    {"YEAR", "year"},
+    {"YEAR_OF_WEEK", "year_of_week"}};
 
 } // namespace gluten
