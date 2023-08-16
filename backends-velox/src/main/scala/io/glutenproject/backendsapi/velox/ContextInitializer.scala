@@ -121,12 +121,12 @@ class ContextInitializer extends ContextApi {
 
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
-      JniLibLoader.loadFromPath(libPath, true)
+      JniLibLoader.loadFromPath(libPath, false)
       return
     }
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
-    loader.mapAndLoad(baseLibName, true)
-    loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
+    loader.mapAndLoad(baseLibName, false)
+    loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, false)
 
     // inject backend-specific implementations to override spark classes
     GlutenParquetWriterInjects.setInstance(new VeloxParquetWriterInjects())
