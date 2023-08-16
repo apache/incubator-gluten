@@ -32,7 +32,7 @@ import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FunctionIdentifier}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, Expression, ExpressionInfo, GetStructField, Literal, NamedExpression, StringSplit, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetMapValue, GetStructField, Literal, NamedExpression, StringSplit, StringTrim}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -287,6 +287,19 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
       child: ExpressionTransformer,
       original: Expression): AliasTransformerBase =
     new AliasTransformer(substraitExprName, child, original)
+
+  /** Generate an expression transformer to transform GetMapValue to Substrait. */
+  override def genGetMapValueTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: GetMapValue): ExpressionTransformer = {
+    new BinaryArgumentsCollectionOperationTransformer(
+      ExpressionMappings.expressionsMap.get(classOf[ElementAt]).get,
+      left,
+      right,
+      original)
+  }
 
   /** Generate an expression transformer to transform NamedStruct to Substrait. */
   override def genNamedStructTransformer(
