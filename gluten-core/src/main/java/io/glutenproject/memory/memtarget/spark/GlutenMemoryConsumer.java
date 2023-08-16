@@ -50,6 +50,7 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements MemoryTarget
     if (acquired < size) {
       this.taskMemoryManager.showMemoryUsage();
     }
+    return acquired;
   }
 
   public long free(long size) {
