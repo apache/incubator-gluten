@@ -23,7 +23,7 @@
 
 namespace gluten {
 
-// FIXME: The namings should emphasis on "Velox" as well
+// FIXME: The namings should emphasize "Velox" as well
 void toArrowSchema(const facebook::velox::TypePtr& rowType, struct ArrowSchema* out);
 
 std::shared_ptr<arrow::Schema> toArrowSchema(const facebook::velox::TypePtr& rowType);
