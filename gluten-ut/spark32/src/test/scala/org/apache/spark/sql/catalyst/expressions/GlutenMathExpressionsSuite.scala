@@ -35,61 +35,76 @@ class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTr
     val bdPi: BigDecimal = BigDecimal(31415927L, 7)
     val floatPi: Float = 3.1415f
 
-    val doubleResults: Seq[Double] = Seq(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 3.1, 3.14, 3.142,
-      3.1416, 3.14159, 3.141593)
+    val doubleResults: Seq[Double] =
+      Seq(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 3.1, 3.14, 3.142, 3.1416, 3.14159, 3.141593)
 
-    val floatResults: Seq[Float] = Seq(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 3.0f, 3.1f, 3.14f,
-      3.142f, 3.1415f, 3.1415f, 3.1415f)
+    val floatResults: Seq[Float] =
+      Seq(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 3.0f, 3.1f, 3.14f, 3.142f, 3.1415f, 3.1415f, 3.1415f)
 
-    val bRoundFloatResults: Seq[Float] = Seq(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 3.0f, 3.1f, 3.14f,
-      3.141f, 3.1415f, 3.1415f, 3.1415f)
+    val bRoundFloatResults: Seq[Float] =
+      Seq(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 3.0f, 3.1f, 3.14f, 3.141f, 3.1415f, 3.1415f, 3.1415f)
 
     val shortResults: Seq[Short] = Seq[Short](0, 0, 30000, 31000, 31400, 31420) ++
       Seq.fill[Short](7)(31415)
 
-    val intResults: Seq[Int] = Seq(314000000, 314200000, 314160000, 314159000, 314159300,
-      314159270) ++ Seq.fill(7)(314159265)
+    val intResults: Seq[Int] =
+      Seq(314000000, 314200000, 314160000, 314159000, 314159300, 314159270) ++ Seq.fill(7)(
+        314159265)
 
-    val longResults: Seq[Long] = Seq(31415926536000000L, 31415926535900000L,
-      31415926535900000L, 31415926535898000L, 31415926535897900L, 31415926535897930L) ++
+    val longResults: Seq[Long] = Seq(31415926536000000L, 31415926535900000L, 31415926535900000L,
+      31415926535898000L, 31415926535897900L, 31415926535897930L) ++
       Seq.fill(7)(31415926535897932L)
 
-    val intResultsB: Seq[Int] = Seq(314000000, 314200000, 314160000, 314159000, 314159300,
-      314159260) ++ Seq.fill(7)(314159265)
+    val intResultsB: Seq[Int] =
+      Seq(314000000, 314200000, 314160000, 314159000, 314159300, 314159260) ++ Seq.fill(7)(
+        314159265)
 
-    scales.zipWithIndex.foreach { case (scale, i) =>
-      checkEvaluation(Round(doublePi, scale), doubleResults(i), EmptyRow)
-      checkEvaluation(Round(shortPi, scale), shortResults(i), EmptyRow)
-      checkEvaluation(Round(intPi, scale), intResults(i), EmptyRow)
-      checkEvaluation(Round(longPi, scale), longResults(i), EmptyRow)
-      checkEvaluation(Round(floatPi, scale), floatResults(i), EmptyRow)
-      checkEvaluation(BRound(doublePi, scale), doubleResults(i), EmptyRow)
-      checkEvaluation(BRound(shortPi, scale), shortResults(i), EmptyRow)
-      checkEvaluation(BRound(intPi, scale), intResultsB(i), EmptyRow)
-      checkEvaluation(BRound(longPi, scale), longResults(i), EmptyRow)
-      checkEvaluation(BRound(floatPi, scale), bRoundFloatResults(i), EmptyRow)
+    scales.zipWithIndex.foreach {
+      case (scale, i) =>
+        checkEvaluation(Round(doublePi, scale), doubleResults(i), EmptyRow)
+        checkEvaluation(Round(shortPi, scale), shortResults(i), EmptyRow)
+        checkEvaluation(Round(intPi, scale), intResults(i), EmptyRow)
+        checkEvaluation(Round(longPi, scale), longResults(i), EmptyRow)
+        checkEvaluation(Round(floatPi, scale), floatResults(i), EmptyRow)
+        checkEvaluation(BRound(doublePi, scale), doubleResults(i), EmptyRow)
+        checkEvaluation(BRound(shortPi, scale), shortResults(i), EmptyRow)
+        checkEvaluation(BRound(intPi, scale), intResultsB(i), EmptyRow)
+        checkEvaluation(BRound(longPi, scale), longResults(i), EmptyRow)
+        checkEvaluation(BRound(floatPi, scale), bRoundFloatResults(i), EmptyRow)
     }
 
-    val bdResults: Seq[BigDecimal] = Seq(BigDecimal(3), BigDecimal("3.1"), BigDecimal("3.14"),
-      BigDecimal("3.142"), BigDecimal("3.1416"), BigDecimal("3.14159"),
-      BigDecimal("3.141593"), BigDecimal("3.1415927"))
+    val bdResults: Seq[BigDecimal] = Seq(
+      BigDecimal(3),
+      BigDecimal("3.1"),
+      BigDecimal("3.14"),
+      BigDecimal("3.142"),
+      BigDecimal("3.1416"),
+      BigDecimal("3.14159"),
+      BigDecimal("3.141593"),
+      BigDecimal("3.1415927")
+    )
 
-    (0 to 7).foreach { i =>
-      checkEvaluation(Round(bdPi, i), bdResults(i), EmptyRow)
-      checkEvaluation(BRound(bdPi, i), bdResults(i), EmptyRow)
+    (0 to 7).foreach {
+      i =>
+        checkEvaluation(Round(bdPi, i), bdResults(i), EmptyRow)
+        checkEvaluation(BRound(bdPi, i), bdResults(i), EmptyRow)
     }
-    (8 to 10).foreach { scale =>
-      checkEvaluation(Round(bdPi, scale), bdPi, EmptyRow)
-      checkEvaluation(BRound(bdPi, scale), bdPi, EmptyRow)
+    (8 to 10).foreach {
+      scale =>
+        checkEvaluation(Round(bdPi, scale), bdPi, EmptyRow)
+        checkEvaluation(BRound(bdPi, scale), bdPi, EmptyRow)
     }
 
-    DataTypeTestUtils.numericTypes.foreach { dataType =>
-      checkEvaluation(Round(Literal.create(null, dataType), Literal(2)), null)
-      checkEvaluation(Round(Literal.create(null, dataType),
-        Literal.create(null, IntegerType)), null)
-      checkEvaluation(BRound(Literal.create(null, dataType), Literal(2)), null)
-      checkEvaluation(BRound(Literal.create(null, dataType),
-        Literal.create(null, IntegerType)), null)
+    DataTypeTestUtils.numericTypes.foreach {
+      dataType =>
+        checkEvaluation(Round(Literal.create(null, dataType), Literal(2)), null)
+        checkEvaluation(
+          Round(Literal.create(null, dataType), Literal.create(null, IntegerType)),
+          null)
+        checkEvaluation(BRound(Literal.create(null, dataType), Literal(2)), null)
+        checkEvaluation(
+          BRound(Literal.create(null, dataType), Literal.create(null, IntegerType)),
+          null)
     }
 
     checkEvaluation(Round(2.5, 0), 3.0)
