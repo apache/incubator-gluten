@@ -16,7 +16,6 @@
  */
 package io.glutenproject.execution
 
-import com.google.common.base.Preconditions
 import io.glutenproject.execution.VeloxAggregateFunctionsBuilder.{veloxFourIntermediateTypes, veloxSixIntermediateTypes, veloxThreeIntermediateTypes}
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
@@ -26,14 +25,18 @@ import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionB
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.GlutenDecimalUtil
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{BooleanType, DataType, DecimalType, DoubleType, LongType, StructField, StructType}
+
+import com.google.common.base.Preconditions
 import com.google.protobuf.Any
 
 import java.util
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
@@ -691,7 +694,8 @@ case class HashAggregateExecTransformer(
               throw new UnsupportedOperationException(s"$other is not supported.")
           }
         case _ =>
-          Preconditions.checkState(functionInputAttributes.size == 1,
+          Preconditions.checkState(
+            functionInputAttributes.size == 1,
             "Only one input attribute is expected.")
           val childNodes = new util.ArrayList[ExpressionNode](
             functionInputAttributes.toList
