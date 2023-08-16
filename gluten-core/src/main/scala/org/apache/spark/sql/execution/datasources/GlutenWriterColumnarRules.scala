@@ -104,8 +104,7 @@ object GlutenWriterColumnarRules {
     cmd match {
       case command: CreateDataSourceTableAsSelectCommand =>
         if (GlutenConfig.isCurrentBackendVelox) {
-          throw new UnsupportedOperationException(
-            "Velox file format does not support create table as select.")
+          return (false, "")
         }
 
         if ("parquet".equals(command.table.provider.get)) {
@@ -122,8 +121,7 @@ object GlutenWriterColumnarRules {
           GlutenConfig.isCurrentBackendVelox
           && (command.partitionColumns.nonEmpty || command.bucketSpec.nonEmpty)
         ) {
-          throw new UnsupportedOperationException(
-            "Velox file format does not support dynamic partition write and bucket write.")
+          return (false, "")
         }
 
         if (command.fileFormat.isInstanceOf[ParquetFileFormat]) {
@@ -162,12 +160,9 @@ object GlutenWriterColumnarRules {
           return (false, "")
         }
       case _: CreateHiveTableAsSelectCommand =>
-        throw new UnsupportedOperationException(
-          "native writer cannot recognize command: " + cmd.getClass.getName +
-            " please append `using parquet` in your CTAS query")
+        return (false, "")
       case _ =>
-        throw new UnsupportedOperationException(
-          "native writer cannot recognize command: " + cmd.getClass.getName)
+        return (false, "")
     }
   }
 
