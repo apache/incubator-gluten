@@ -50,7 +50,8 @@ public class TestTaskMemoryManagerSuite {
 
     listener =
         new CHManagedCHReservationListener(
-            new GlutenMemoryConsumer("test", taskMemoryManager, Spiller.NO_OP), new TaskMemoryMetrics());
+            new GlutenMemoryConsumer("test", taskMemoryManager, Spiller.NO_OP),
+            new TaskMemoryMetrics());
 
     manager = new CHNativeMemoryAllocatorManagerImpl(new CHNativeMemoryAllocator(-1L, listener));
   }

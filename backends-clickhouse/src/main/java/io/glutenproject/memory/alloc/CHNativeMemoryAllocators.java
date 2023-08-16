@@ -41,7 +41,9 @@ public abstract class CHNativeMemoryAllocators {
 
   private static CHNativeMemoryAllocatorManager createNativeMemoryAllocatorManager(
       String name,
-      TaskMemoryManager taskMemoryManager, Spiller spiller, TaskMemoryMetrics taskMemoryMetrics) {
+      TaskMemoryManager taskMemoryManager,
+      Spiller spiller,
+      TaskMemoryMetrics taskMemoryMetrics) {
 
     CHManagedCHReservationListener rl =
         new CHManagedCHReservationListener(
