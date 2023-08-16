@@ -261,18 +261,18 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
     .exclude(
-      "concat",
+      // "concat",
       "SPARK-22549: ConcatWs should not generate codes beyond 64KB",
-      "StringComparison",
-      "Substring",
-      "ascii for string",
-      "string for ascii",
-      "replace",
-      "translate",
-      "INSTR",
+      // "StringComparison",
+      // "Substring",
+      // "ascii for string",
+      // "string for ascii",
+      // "replace",
+      // "translate",
+      // "INSTR",
       "LOCATE",
       "REPEAT",
-      "length for string / binary",
+      // "length for string / binary",
       "SPARK-40213: ascii for Latin-1 Supplement characters",
       "SPARK-40213: ascii for Latin-1 Supplement characters",
       "SPARK-33468: ParseUrl in ANSI mode should fail if input string is not a valid url",
@@ -487,4 +487,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .include("string split function with positive limit")
     .include("string substring_index function")
     .include("string padding functions")
+    .include("startswith")
+    .include("endswith")
+    .include("string / binary substring function")
+    .include("string instr function")
 }
