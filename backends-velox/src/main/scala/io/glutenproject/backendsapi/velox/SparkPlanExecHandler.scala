@@ -21,7 +21,9 @@ import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression._
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
 import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializerJniWrapper}
 
 import org.apache.spark.{ShuffleDependency, SparkException}
@@ -32,7 +34,7 @@ import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FunctionIdentifier}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetMapValue, GetStructField, Literal, NamedExpression, StringSplit, StringTrim}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, CreateNamedStruct, ElementAt, Expression, ExpressionInfo, GetArrayItem, GetMapValue, GetStructField, Literal, NamedExpression, StringSplit, StringTrim}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, HLLAdapter}
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans.JoinType
@@ -49,6 +51,7 @@ import org.apache.spark.sql.expression.{UDFExpression, UDFResolver}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.common.collect.Lists
 import org.apache.commons.lang3.ClassUtils
 
 import javax.ws.rs.core.UriBuilder
@@ -56,6 +59,53 @@ import javax.ws.rs.core.UriBuilder
 import scala.collection.mutable.ArrayBuffer
 
 class SparkPlanExecHandler extends SparkPlanExecApi {
+
+  /**
+   * Transform GetArrayItem to Substrait.
+   *
+   * arrCol[index] => IF(index < 0, null, ElementAt(arrCol, index + 1))
+   */
+  override def genGetArrayItemExpressionNode(
+      substraitExprName: String,
+      functionMap: java.util.HashMap[String, java.lang.Long],
+      leftNode: ExpressionNode,
+      rightNode: ExpressionNode,
+      original: GetArrayItem): ExpressionNode = {
+    if (original.dataType.isInstanceOf[DecimalType]) {
+      val decimalType = original.dataType.asInstanceOf[DecimalType]
+      val precision = decimalType.precision
+      if (precision > 18) {
+        throw new UnsupportedOperationException(
+          "GetArrayItem not support decimal precision more than 18")
+      }
+    }
+    // ignore origin substraitExprName
+    val functionName = ConverterUtils.makeFuncName(
+      ExpressionMappings.expressionsMap.get(classOf[ElementAt]).get,
+      Seq(original.dataType),
+      FunctionConfig.OPT)
+    val exprNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
+    val resultNode = ExpressionBuilder.makeScalarFunction(
+      ExpressionBuilder.newScalarFunction(functionMap, functionName),
+      exprNodes,
+      ConverterUtils.getTypeNode(original.dataType, original.nullable))
+    val nullNode = ExpressionBuilder.makeLiteral(null, original.dataType, false)
+    val lessThanFuncId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        ExpressionNames.LESS_THAN,
+        Seq(original.right.dataType, IntegerType),
+        FunctionConfig.OPT))
+    // right node already add 1
+    val literalNode = ExpressionBuilder.makeLiteral(1.toInt, IntegerType, false)
+    val lessThanFuncNode = ExpressionBuilder.makeScalarFunction(
+      lessThanFuncId,
+      Lists.newArrayList(rightNode, literalNode),
+      ConverterUtils.getTypeNode(BooleanType, true))
+    new IfThenNode(Lists.newArrayList(lessThanFuncNode), Lists.newArrayList(nullNode), resultNode)
+  }
 
   /**
    * * Plans.

@@ -45,6 +45,14 @@ import java.util
 
 trait SparkPlanExecApi {
 
+  /** Transform GetArrayItem to Substrait. */
+  def genGetArrayItemExpressionNode(
+      substraitExprName: String,
+      functionMap: java.util.HashMap[String, java.lang.Long],
+      leftNode: ExpressionNode,
+      rightNode: ExpressionNode,
+      original: GetArrayItem): ExpressionNode
+
   /**
    * Generate ColumnarToRowExecBase.
    *

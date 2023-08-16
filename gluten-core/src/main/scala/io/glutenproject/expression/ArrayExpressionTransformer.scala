@@ -16,6 +16,7 @@
  */
 package io.glutenproject.expression
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.expression.ByteLiteralNode
@@ -93,16 +94,13 @@ class GetArrayItemTransformer(
       Lists.newArrayList(literalNode, rightNode),
       ConverterUtils.getTypeNode(original.right.dataType, original.right.nullable))
 
-    val functionName = ConverterUtils.makeFuncName(
-      substraitExprName,
-      Seq(original.left.dataType, original.right.dataType),
-      FunctionConfig.OPT)
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val exprNodes = Lists.newArrayList(
-      leftNode.asInstanceOf[ExpressionNode],
-      rightNode.asInstanceOf[ExpressionNode])
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, exprNodes, typeNode)
+    BackendsApiManager.getSparkPlanExecApiInstance.genGetArrayItemExpressionNode(
+      substraitExprName: String,
+      functionMap: java.util.HashMap[String, java.lang.Long],
+      leftNode: ExpressionNode,
+      rightNode: ExpressionNode,
+      original: GetArrayItem
+    )
   }
 }
 

@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression._
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.utils.CHJoinValidateUtil
 import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
@@ -50,11 +51,33 @@ import org.apache.spark.sql.extension.ClickHouseAnalysis
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.common.collect.Lists
+
 import java.{lang, util}
 
 import scala.collection.mutable.ArrayBuffer
 
 class CHSparkPlanExecApi extends SparkPlanExecApi {
+
+  /** Transform GetArrayItem to Substrait. */
+  override def genGetArrayItemExpressionNode(
+      substraitExprName: String,
+      functionMap: java.util.HashMap[String, java.lang.Long],
+      leftNode: ExpressionNode,
+      rightNode: ExpressionNode,
+      original: GetArrayItem): ExpressionNode = {
+    val functionName = ConverterUtils.makeFuncName(
+      substraitExprName,
+      Seq(original.left.dataType, original.right.dataType),
+      FunctionConfig.OPT)
+    val exprNodes = Lists.newArrayList(
+      leftNode.asInstanceOf[ExpressionNode],
+      rightNode.asInstanceOf[ExpressionNode])
+    ExpressionBuilder.makeScalarFunction(
+      ExpressionBuilder.newScalarFunction(functionMap, functionName),
+      exprNodes,
+      ConverterUtils.getTypeNode(original.dataType, original.nullable))
+  }
 
   /**
    * Generate ColumnarToRowExecBase.
