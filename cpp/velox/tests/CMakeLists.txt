@@ -38,9 +38,8 @@ function(add_velox_test TEST_EXEC)
 endfunction()
 
 add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
-add_velox_test(velox_data_conversion_test SOURCES ArrowToVeloxTest.cc VeloxColumnarToRowTest.cc VeloxRowToColumnarTest.cc ColumnarToRowTest.cc)
 add_velox_test(orc_test SOURCES OrcTest.cc)
-add_velox_test(velox_operators_test SOURCES VeloxColumnarBatchSerializerTest.cc)
+add_velox_test(velox_operators_test SOURCES VeloxColumnarToRowTest.cc VeloxRowToColumnarTest.cc VeloxColumnarBatchSerializerTest.cc)
 add_velox_test(
   velox_plan_conversion_test
   SOURCES

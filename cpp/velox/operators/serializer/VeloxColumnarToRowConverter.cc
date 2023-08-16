@@ -17,19 +17,15 @@
 
 #include "VeloxColumnarToRowConverter.h"
 
-#include <arrow/status.h>
-
 #include "memory/VeloxColumnarBatch.h"
 #include "velox/row/UnsafeRowDeserializers.h"
 #include "velox/row/UnsafeRowFast.h"
-#include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
-using arrow::MemoryPool;
 
 namespace gluten {
 
-arrow::Status VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr rowVector) {
+void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr rowVector) {
   numRows_ = rowVector->size();
   numCols_ = rowVector->childrenSize();
 
@@ -55,12 +51,11 @@ arrow::Status VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVec
 
   bufferAddress_ = veloxBuffers_->asMutable<uint8_t>();
   memset(bufferAddress_, 0, sizeof(int8_t) * totalMemorySize);
-  return arrow::Status::OK();
 }
 
-arrow::Status VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb) {
+void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
-  RETURN_NOT_OK(refreshStates(veloxBatch->getRowVector()));
+  refreshStates(veloxBatch->getRowVector());
 
   // Initialize the offsets_ , lengths_
   lengths_.clear();
@@ -77,8 +72,6 @@ arrow::Status VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch
     }
     offset += rowSize;
   }
-
-  return arrow::Status::OK();
 }
 
 } // namespace gluten

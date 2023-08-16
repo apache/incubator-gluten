@@ -549,8 +549,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToR
     throw gluten::GlutenException("Allocator does not exist or has been closed");
   }
   auto backend = gluten::createBackend();
-  std::shared_ptr<ColumnarToRowConverter> columnarToRowConverter =
-      gluten::arrowGetOrThrow(backend->getColumnar2RowConverter((*allocator).get()));
+  auto columnarToRowConverter = backend->getColumnar2RowConverter((*allocator).get());
   int64_t instanceID = columnarToRowConverterHolder.insert(columnarToRowConverter);
   return instanceID;
   JNI_METHOD_END(-1)
@@ -565,7 +564,7 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToR
   JNI_METHOD_START
   auto columnarToRowConverter = columnarToRowConverterHolder.lookup(instanceId);
   std::shared_ptr<ColumnarBatch> cb = columnarBatchHolder.lookup(batchHandle);
-  GLUTEN_THROW_NOT_OK(columnarToRowConverter->convert(cb));
+  columnarToRowConverter->convert(cb);
 
   const auto& offsets = columnarToRowConverter->getOffsets();
   const auto& lengths = columnarToRowConverter->getLengths();
