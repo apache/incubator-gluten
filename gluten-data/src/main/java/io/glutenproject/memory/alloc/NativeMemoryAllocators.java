@@ -63,8 +63,8 @@ public final class NativeMemoryAllocators {
     if (!TaskResources.inSparkTask()) {
       return globalInstance();
     }
-    final String id = NativeMemoryAllocatorManager.class + "-"
-        + System.identityHashCode(global) + "-" + name;
+    final String id =
+        NativeMemoryAllocatorManager.class + "-" + System.identityHashCode(global) + "-" + name;
     return TaskResources.addResourceIfNotRegistered(
             id,
             () ->
