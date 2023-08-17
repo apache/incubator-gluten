@@ -56,11 +56,15 @@ void CompressedWriteBuffer::nextImpl()
         compress_time_watch.start();
         UInt32 compressed_size = codec->compress(working_buffer.begin(), decompressed_size, out_compressed_ptr);
         compress_time += compress_time_watch.elapsedNanoseconds();
+        CityHash_v1_0_2::uint128 checksum_(0,0);
+        if (checksum)
+        {
+            checksum_ = CityHash_v1_0_2::CityHash128(out_compressed_ptr, compressed_size);
 
-        CityHash_v1_0_2::uint128 checksum = CityHash_v1_0_2::CityHash128(out_compressed_ptr, compressed_size);
 
-        writeBinaryLittleEndian(checksum.low64, out);
-        writeBinaryLittleEndian(checksum.high64, out);
+        }
+        writeBinaryLittleEndian(checksum_.low64, out);
+        writeBinaryLittleEndian(checksum_.high64, out);
 
         out.position() += compressed_size;
     }
@@ -70,11 +74,14 @@ void CompressedWriteBuffer::nextImpl()
         compress_time_watch.start();
         UInt32 compressed_size = codec->compress(working_buffer.begin(), decompressed_size, compressed_buffer.data());
         compress_time += compress_time_watch.elapsedNanoseconds();
+        CityHash_v1_0_2::uint128 checksum_(0,0);
+        if (checksum)
+        {
+            checksum_ = CityHash_v1_0_2::CityHash128(compressed_buffer.data(), compressed_size);
+        }
+        writeBinaryLittleEndian(checksum_.low64, out);
+        writeBinaryLittleEndian(checksum_.high64, out);
 
-        CityHash_v1_0_2::uint128 checksum = CityHash_v1_0_2::CityHash128(compressed_buffer.data(), compressed_size);
-
-        writeBinaryLittleEndian(checksum.low64, out);
-        writeBinaryLittleEndian(checksum.high64, out);
         Stopwatch write_time_watch;
         write_time_watch.start();
         out.write(compressed_buffer.data(), compressed_size);
@@ -87,8 +94,8 @@ CompressedWriteBuffer::~CompressedWriteBuffer()
     finalize();
 }
 
-CompressedWriteBuffer::CompressedWriteBuffer(WriteBuffer & out_, CompressionCodecPtr codec_, size_t buf_size)
-    : BufferWithOwnMemory<WriteBuffer>(buf_size), out(out_), codec(std::move(codec_))
+CompressedWriteBuffer::CompressedWriteBuffer(WriteBuffer & out_, CompressionCodecPtr codec_, size_t buf_size, bool checksum_)
+    : BufferWithOwnMemory<WriteBuffer>(buf_size), out(out_), codec(std::move(codec_)), checksum(checksum_)
 {
 }
 

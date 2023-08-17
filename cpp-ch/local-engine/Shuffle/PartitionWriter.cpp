@@ -69,9 +69,9 @@ void LocalPartitionWriter::evictPartitions(bool for_memory_spill)
 
     auto spill_to_file = [this]() -> void {
         auto file = getNextSpillFile();
-        WriteBufferFromFile output(file);
+        WriteBufferFromFile output(file, shuffle_writer->options.io_buffer_size);
         auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
-        CompressedWriteBuffer compressed_output(output, codec);
+        CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
         NativeWriter writer(compressed_output, 0, shuffle_writer->output_header);
         SpillInfo info;
         info.spilled_file = file;
@@ -122,7 +122,7 @@ void LocalPartitionWriter::evictPartitions(bool for_memory_spill)
 std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
 {
     auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
-    CompressedWriteBuffer compressed_output(data_file, codec);
+    CompressedWriteBuffer compressed_output(data_file, codec, shuffle_writer->options.io_buffer_size);
     NativeWriter writer(compressed_output, 0, shuffle_writer->output_header);
 
     std::vector<Int64> partition_length;
@@ -131,7 +131,7 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
     spill_inputs.reserve(spill_infos.size());
     for (const auto & spill : spill_infos)
     {
-        spill_inputs.emplace_back(std::make_shared<ReadBufferFromFile>(spill.spilled_file));
+        spill_inputs.emplace_back(std::make_shared<ReadBufferFromFile>(spill.spilled_file, shuffle_writer->options.io_buffer_size));
     }
 
     Stopwatch write_time_watch;

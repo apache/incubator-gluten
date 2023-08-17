@@ -35,7 +35,8 @@ public:
     explicit CompressedWriteBuffer(
         DB::WriteBuffer & out_,
         DB::CompressionCodecPtr codec_ = DB::CompressionCodecFactory::instance().getDefaultCodec(),
-        size_t buf_size = DBMS_DEFAULT_BUFFER_SIZE);
+        size_t buf_size = DBMS_DEFAULT_BUFFER_SIZE,
+        bool checksum = false);
 
     ~CompressedWriteBuffer() override;
 
@@ -76,6 +77,7 @@ private:
     DB::CompressionCodecPtr codec;
 
     DB::PODArray<char> compressed_buffer;
+    bool checksum;
     size_t compress_time = 0;
     size_t write_time = 0;
 };
