@@ -61,7 +61,7 @@ int64_t ArrowMemoryPool::num_allocations() const {
 }
 
 std::string ArrowMemoryPool::backend_name() const {
-  return "gluten allocator";
+  return "gluten arrow allocator";
 }
 
 } // namespace gluten
