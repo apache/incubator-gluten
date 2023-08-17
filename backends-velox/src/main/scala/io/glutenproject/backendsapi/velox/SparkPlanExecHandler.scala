@@ -135,7 +135,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
    * @param condition
    *   : the filter condition
    * @param child
-   *   : the chid of FilterExec
+   *   : the child of FilterExec
    * @return
    *   the transformer of FilterExec
    */
