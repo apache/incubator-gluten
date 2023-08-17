@@ -23,6 +23,7 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.ReadRelNode
 
 import org.apache.spark.rdd.RDD
@@ -174,6 +175,19 @@ class HiveTableScanExecTransformer(
     }
   }
 
+  @transient override lazy val fileFormat: ReadFileFormat = {
+    relation.tableMeta.storage.inputFormat match {
+      case Some(inputFormat)
+          if TEXT_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
+        relation.tableMeta.storage.serde match {
+          case Some("org.openx.data.jsonserde.JsonSerDe") | Some(
+                "org.apache.hive.hcatalog.data.JsonSerDe") =>
+            ReadFileFormat.JsonReadFormat
+          case _ => ReadFileFormat.TextReadFormat
+        }
+      case _ => ReadFileFormat.UnknownFormat
+    }
+  }
   override protected def doValidateInternal(): ValidationResult = {
     val validationResult = super.doValidateInternal()
     if (!validationResult.isValid) {

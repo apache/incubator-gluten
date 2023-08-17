@@ -20,7 +20,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.ColumnTypeNode
-import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.{SubstraitContext, SupportFormat}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.ReadRelNode
 import io.glutenproject.substrait.rel.RelBuilder
@@ -34,7 +34,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
 
-trait BasicScanExecTransformer extends TransformSupport {
+trait BasicScanExecTransformer extends TransformSupport with SupportFormat {
 
   // The key of merge schema option in Parquet reader.
   protected val mergeSchemaOptionKey = "mergeschema"

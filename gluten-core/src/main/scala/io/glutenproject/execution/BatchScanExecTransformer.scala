@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -120,5 +121,13 @@ class BatchScanExecTransformer(
 
   private def getPushdownFilters: Seq[Expression] = {
     pushdownFilters
+  }
+
+  @transient override lazy val fileFormat: ReadFileFormat = scan.getClass.getSimpleName match {
+    case "OrcScan" => ReadFileFormat.OrcReadFormat
+    case "ParquetScan" => ReadFileFormat.ParquetReadFormat
+    case "DwrfScan" => ReadFileFormat.DwrfReadFormat
+    case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
+    case _ => ReadFileFormat.UnknownFormat
   }
 }
