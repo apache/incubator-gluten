@@ -194,7 +194,15 @@ object GlutenWriterColumnarRules {
                       aqe.isSubquery,
                       supportsColumnar = true
                     ))))
-            case other => rc.withNewChildren(Array(FakeRowAdaptor(other)))
+            case other =>
+              if (other.supportsColumnar) {
+                rc.withNewChildren(Array(FakeRowAdaptor(other)))
+              } else {
+                rc.withNewChildren(
+                  Array(
+                    FakeRowAdaptor(
+                      BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(other))))
+              }
           }
         } else {
           rc.withNewChildren(rc.children.map(apply))
