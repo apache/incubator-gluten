@@ -961,15 +961,6 @@ object GlutenConfig {
       .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
       .createWithDefault(0.3d)
 
-  val COLUMNAR_CH_OVER_ACQUIRED_MEMORY_RATIO =
-    buildConf("spark.gluten.sql.columnar.backend.ch.overAcquiredMemoryRatio")
-      .internal()
-      .doc("If larger than 0, CH backend will try over-acquire this ratio of the total " +
-        "allocated memory as backup to avoid OOM")
-      .doubleConf
-      .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
-      .createWithDefault(0.3d)
-
   val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillThreshold")
       .internal()
