@@ -16,10 +16,10 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
+import org.apache.spark.sql.GlutenTestConstants
 import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 
 class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTrait {
   test(GlutenTestConstants.GLUTEN_TEST + "round/bround/floor/ceil") {

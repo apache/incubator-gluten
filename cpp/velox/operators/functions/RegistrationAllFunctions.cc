@@ -27,18 +27,17 @@
 #include "velox/functions/sparksql/window/WindowFunctionsRegistration.h"
 
 using namespace facebook;
-using namespace facebook::velox;
 
 namespace gluten {
 
 void registerFunctionOverwrite() {
   facebook::velox::functions::registerUnaryNumeric<RoundFunction>({"round"});
-  registerFunction<RoundFunction, int8_t, int8_t, int32_t>({"round"});
-  registerFunction<RoundFunction, int16_t, int16_t, int32_t>({"round"});
-  registerFunction<RoundFunction, int32_t, int32_t, int32_t>({"round"});
-  registerFunction<RoundFunction, int64_t, int64_t, int32_t>({"round"});
-  registerFunction<RoundFunction, double, double, int32_t>({"round"});
-  registerFunction<RoundFunction, float, float, int32_t>({"round"});
+  facebook::velox::registerFunction<RoundFunction, int8_t, int8_t, int32_t>({"round"});
+  facebook::velox::registerFunction<RoundFunction, int16_t, int16_t, int32_t>({"round"});
+  facebook::velox::registerFunction<RoundFunction, int32_t, int32_t, int32_t>({"round"});
+  facebook::velox::registerFunction<RoundFunction, int64_t, int64_t, int32_t>({"round"});
+  facebook::velox::registerFunction<RoundFunction, double, double, int32_t>({"round"});
+  facebook::velox::registerFunction<RoundFunction, float, float, int32_t>({"round"});
 }
 
 void registerAllFunctions() {
