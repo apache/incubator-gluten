@@ -134,8 +134,12 @@ class VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan]
 
   enableSuite[GlutenAdaptiveQueryExecSuite]
     .includeByPrefix(
