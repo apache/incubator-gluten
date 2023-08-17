@@ -34,19 +34,25 @@ import org.apache.spark.sql.execution.datasources.v1.CHRowSplitter
 
 import org.apache.commons.lang3.StringUtils
 
+import java.nio.file.Paths
 import java.util
 import java.util.TimeZone
 
 class CHContextApi extends ContextApi with Logging {
 
-  override def initialize(conf: SparkConf): Unit = {
+  override def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isBlank(libPath)) {
       throw new IllegalArgumentException(
         "Please set spark.gluten.sql.columnar.libpath to enable clickhouse backend")
     }
+    val realLibPath = if (isDriver || conf.get("spark.master").contains("local")) {
+      libPath
+    } else {
+      Paths.get(libPath).getFileName.toString
+    }
     // Path based load. Ignore all other loadees.
-    JniLibLoader.loadFromPath(libPath, true)
+    JniLibLoader.loadFromPath(realLibPath, true)
 
     // Add configs
     conf.set(

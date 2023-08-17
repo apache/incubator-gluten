@@ -69,7 +69,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     setPredefinedConfigs(sc, conf)
     // Initialize Backends API
     BackendsApiManager.initialize()
-    BackendsApiManager.getContextApiInstance.initialize(conf)
+    BackendsApiManager.getContextApiInstance.initialize(conf, true)
     GlutenDriverEndpoint.glutenDriverEndpointRef = (new GlutenDriverEndpoint).self
     GlutenListenerFactory.addToSparkListenerBus(sc)
     ExpressionMappings.expressionExtensionTransformer =
@@ -193,7 +193,7 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
     // Initialize Backends API
     // TODO categorize the APIs by driver's or executor's
     BackendsApiManager.initialize()
-    BackendsApiManager.getContextApiInstance.initialize(conf)
+    BackendsApiManager.getContextApiInstance.initialize(conf, false)
 
     executorEndpoint = new GlutenExecutorEndpoint(ctx.executorID(), conf)
   }

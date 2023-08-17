@@ -101,7 +101,7 @@ class ContextInitializer extends ContextApi {
     Seq(() => new JniTaskContext())
   }
 
-  override def initialize(conf: SparkConf): Unit = {
+  override def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
 
