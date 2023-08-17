@@ -1143,6 +1143,22 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         "sequence(id+10, id, -3) from range(1)")(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("GLUTEN-2491: sequence with null value as argument") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select sequence(null, 1), sequence(1, null), sequence(1, 3, null), sequence(1, 5)," +
+          "sequence(5, 1), sequence(1, 5, 2), sequence(5, 1, -2)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select sequence(n_nationkey, n_nationkey+10), sequence(n_nationkey, n_nationkey+10, 2) " +
+          "from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("Bug-398 collect_list failure") {
     val sql =
       """
