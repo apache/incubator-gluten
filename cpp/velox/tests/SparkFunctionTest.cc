@@ -22,9 +22,9 @@
 
 using namespace facebook::velox::functions::sparksql::test;
 using namespace facebook::velox;
-class RoundTest : public SparkFunctionBaseTest {
+class SparkFunctionTest : public SparkFunctionBaseTest {
  public:
-  RoundTest() {
+  SparkFunctionTest() {
     gluten::registerFunctionOverwrite();
   }
 
@@ -93,7 +93,7 @@ class RoundTest : public SparkFunctionBaseTest {
   }
 };
 
-TEST_F(RoundTest, round) {
+TEST_F(SparkFunctionTest, round) {
   runRoundTest<float>(testRoundFloatData<float>());
   runRoundTest<double>(testRoundFloatData<double>());
   runRoundTest<int64_t>(testRoundIntegralData<int64_t>());
@@ -102,7 +102,7 @@ TEST_F(RoundTest, round) {
   runRoundTest<int8_t>(testRoundIntegralData<int8_t>());
 }
 
-TEST_F(RoundTest, roundWithDecimal) {
+TEST_F(SparkFunctionTest, roundWithDecimal) {
   runRoundWithDecimalTest<float>(testRoundWithDecFloatAndDoubleData<float>());
   runRoundWithDecimalTest<double>(testRoundWithDecFloatAndDoubleData<double>());
   runRoundWithDecimalTest<int64_t>(testRoundWithDecIntegralData<int64_t>());
