@@ -16,8 +16,9 @@
  */
 package org.apache.spark.sql
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{BatchScanExecTransformer, FileSourceScanExecTransformer, FilterExecTransformerBase}
-
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions.{DynamicPruningExpression, Expression}
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode.{CODEGEN_ONLY, NO_CODEGEN}
@@ -685,6 +686,17 @@ class GlutenDynamicPartitionPruningV1SuiteAEOn
   }
 }
 
+// Test DPP with scan disabled by user for some reason, which can also mock the situation
+// that scan is not transformable.
+class GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan
+  extends GlutenDynamicPartitionPruningV1SuiteAEOn {
+
+  override def sparkConf: SparkConf = {
+    super.sparkConf.set(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key, "false")
+  }
+}
+
+
 abstract class GlutenDynamicPartitionPruningV2Suite extends GlutenDynamicPartitionPruningSuiteBase {
   override protected def runAnalyzeColumnCommands: Boolean = false
 
@@ -701,3 +713,10 @@ class GlutenDynamicPartitionPruningV2SuiteAEOff
 class GlutenDynamicPartitionPruningV2SuiteAEOn
   extends GlutenDynamicPartitionPruningV2Suite
   with EnableAdaptiveExecutionSuite
+
+class GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan
+  extends GlutenDynamicPartitionPruningV2SuiteAEOn {
+  override def sparkConf: SparkConf = {
+    super.sparkConf.set(GlutenConfig.COLUMNAR_BATCHSCAN_ENABLED.key, "false")
+  }
+}
