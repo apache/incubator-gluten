@@ -63,14 +63,6 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
         "The file path is not local or hdfs when writing data with parquet format in velox backend!");
   }
 
-  ArrowSchema cSchema{};
-  arrow::Status status = arrow::ExportSchema(*(schema_.get()), &cSchema);
-  if (!status.ok()) {
-    throw std::runtime_error("Failed to export arrow cSchema.");
-  }
-
-  type_ = velox::importFromArrow(cSchema);
-
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
     maxRowGroupBytes_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
   }
