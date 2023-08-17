@@ -96,83 +96,74 @@ object GlutenWriterColumnarRules {
   //  1. pull out `Empty2Null` and required ordering to `WriteFilesExec`, see Spark3.4 `V1Writes`
   //  2. support detect partition value, partition path, bucket value, bucket path at native side,
   //     see `BaseDynamicPartitionDataWriter`
-  def isNativeAppliable(cmd: DataWritingCommand): (Boolean, String) = {
+  def getNativeFormat(cmd: DataWritingCommand): Option[String] = {
+
+    val parquetHiveFormat = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+    val orcHiveFormat = "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"
+
     if (!GlutenConfig.getConf.enableNativeWriter) {
-      return (false, "")
+      return None
     }
 
     cmd match {
       case command: CreateDataSourceTableAsSelectCommand =>
-        if (GlutenConfig.isCurrentBackendVelox) {
-          return (false, "")
+        if (BackendsApiManager.isVeloxBackend) {
+          return None
         }
-
         if ("parquet".equals(command.table.provider.get)) {
-          return (true, "parquet")
+          Some("parquet")
         } else if ("orc".equals(command.table.provider.get)) {
-          return (true, "orc")
+          Some("orc")
         } else {
-          return (false, "")
+          None
         }
       case command: InsertIntoHadoopFsRelationCommand
           if command.fileFormat.isInstanceOf[ParquetFileFormat] ||
             command.fileFormat.isInstanceOf[OrcFileFormat] =>
         if (
-          GlutenConfig.isCurrentBackendVelox
+          BackendsApiManager.isVeloxBackend
           && (command.partitionColumns.nonEmpty || command.bucketSpec.nonEmpty)
         ) {
-          return (false, "")
+          return None
         }
 
         if (command.fileFormat.isInstanceOf[ParquetFileFormat]) {
-          return (true, "parquet")
+          Some("parquet")
         } else if (command.fileFormat.isInstanceOf[OrcFileFormat]) {
-          return (true, "orc")
+          Some("orc")
         } else {
-          return (false, "")
+          None
         }
       case command: InsertIntoHiveDirCommand =>
-        if (
-          "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat".equals(
-            command.storage.outputFormat.get)
-        ) {
-          return (true, "parquet")
-        } else if (
-          "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat".equals(
-            command.storage.outputFormat.get)
-        ) {
-          return (true, "orc")
+        if (command.storage.outputFormat.get.equals(parquetHiveFormat)) {
+          Some("parquet")
+        } else if (command.storage.outputFormat.get.equals(orcHiveFormat)) {
+          Some("orc")
         } else {
-          return (false, "")
+          None
         }
       case command: InsertIntoHiveTable =>
-        if (
-          "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat".equals(
-            command.table.storage.outputFormat.get)
-        ) {
-          return (true, "parquet")
-        } else if (
-          "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat".equals(
-            command.table.storage.outputFormat.get)
-        ) {
-          return (true, "orc")
+        if (command.table.storage.outputFormat.get.equals(parquetHiveFormat)) {
+          Some("parquet")
+        } else if (command.table.storage.outputFormat.get.equals(orcHiveFormat)) {
+          Some("orc")
         } else {
-          return (false, "")
+          None
         }
       case _: CreateHiveTableAsSelectCommand =>
-        return (false, "")
+        None
       case _ =>
-        return (false, "")
+        None
     }
   }
 
   case class NativeWritePostRule(session: SparkSession) extends Rule[SparkPlan] {
     override def apply(p: SparkPlan): SparkPlan = p match {
       case rc @ DataWritingCommandExec(cmd, child) =>
-        val (native, format) = isNativeAppliable(cmd)
-        session.sparkContext.setLocalProperty("isNativeAppliable", native.toString)
-        session.sparkContext.setLocalProperty("nativeFormat", format)
-        if (native) {
+        val format = getNativeFormat(cmd)
+        session.sparkContext.setLocalProperty("isNativeAppliable", format.isDefined.toString)
+        session.sparkContext.setLocalProperty("nativeFormat", format.getOrElse(""))
+        if (format.isDefined) {
           child match {
             // if the child is columnar, we can just wrap&transfer the columnar data
             case c2r: ColumnarToRowExecBase =>
