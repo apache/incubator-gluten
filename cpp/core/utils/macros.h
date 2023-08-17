@@ -19,6 +19,7 @@
 
 #include <time.h>
 
+#include <arrow/status.h>
 #include <chrono>
 
 #include "utils/exception.h"

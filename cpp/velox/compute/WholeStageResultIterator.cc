@@ -41,6 +41,7 @@ const std::string kHiveConnectorId = "test-hive";
 
 // memory
 const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
+const std::string kSpillStrategyDefaultValue = "auto";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
@@ -80,7 +81,7 @@ WholeStageResultIterator::WholeStageResultIterator(
 #ifdef ENABLE_HDFS
   updateHdfsTokens();
 #endif
-  spillStrategy_ = getConfigValue(confMap_, kSpillStrategy, "threshold");
+  spillStrategy_ = getConfigValue(confMap_, kSpillStrategy, kSpillStrategyDefaultValue);
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 }
 

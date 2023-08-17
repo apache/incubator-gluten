@@ -20,6 +20,7 @@
 #include <arrow/array/array_binary.h>
 
 #include "memory/VeloxColumnarBatch.h"
+#include "utils/ArrowTypeUtils.h"
 #include "utils/compression.h"
 #include "utils/macros.h"
 #include "velox/serializers/PrestoSerializer.h"
@@ -314,9 +315,7 @@ VeloxShuffleReader::VeloxShuffleReader(
     std::shared_ptr<arrow::MemoryPool> pool,
     std::shared_ptr<memory::MemoryPool> veloxPool)
     : Reader(in, schema, options, pool), veloxPool_(std::move(veloxPool)) {
-  ArrowSchema cSchema;
-  GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*schema, &cSchema));
-  rowType_ = asRowType(importFromArrow(cSchema));
+  rowType_ = asRowType(gluten::fromArrowSchema(schema));
 }
 
 arrow::Result<std::shared_ptr<ColumnarBatch>> VeloxShuffleReader::next() {

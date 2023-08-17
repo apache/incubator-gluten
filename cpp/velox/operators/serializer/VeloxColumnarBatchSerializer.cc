@@ -47,7 +47,7 @@ VeloxColumnarBatchSerializer::VeloxColumnarBatchSerializer(
   // serializeColumnarBatches don't need rowType_
   if (cSchema != nullptr) {
     rowType_ = asRowType(importFromArrow(*cSchema));
-    ArrowSchemaRelease(cSchema);
+    ArrowSchemaRelease(cSchema); // otherwise the c schema leaks memory
   }
   serde_ = std::make_unique<serializer::presto::PrestoVectorSerde>();
 }

@@ -23,7 +23,6 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <folly/executors/IOThreadPoolExecutor.h>
 
-#include <iostream>
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
@@ -47,7 +46,7 @@ class VeloxBackend final : public Backend {
       const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
       const std::unordered_map<std::string, std::string>& sessionConf = {}) override;
 
-  arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(MemoryAllocator* allocator) override;
+  std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryAllocator* allocator) override;
 
   std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
       MemoryAllocator* allocator,

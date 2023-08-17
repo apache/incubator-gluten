@@ -1894,6 +1894,10 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
         constructSubfieldFilters<TypeKind::BIGINT, common::BigintRange>(
             colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
+      case TypeKind::REAL:
+        constructSubfieldFilters<TypeKind::REAL, common::Filter>(
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+        break;
       case TypeKind::DOUBLE:
         constructSubfieldFilters<TypeKind::DOUBLE, common::Filter>(
             colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);

@@ -54,7 +54,9 @@ public class ArrowBufferAllocators {
     private final AllocationListener listener =
         new ManagedAllocationListener(
             new GlutenMemoryConsumer(
-                TaskResources.getLocalTaskContext().taskMemoryManager(), Spiller.NO_OP),
+                "ArrowContextInstance",
+                TaskResources.getLocalTaskContext().taskMemoryManager(),
+                Spiller.NO_OP),
             TaskResources.getSharedMetrics());
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);
 

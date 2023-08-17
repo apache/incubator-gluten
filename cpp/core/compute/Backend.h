@@ -21,7 +21,7 @@
 #include "compute/ResultIterator.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
-#include "operators/c2r/ArrowColumnarToRowConverter.h"
+#include "operators/c2r/ColumnarToRow.h"
 #include "operators/r2c/RowToColumnar.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "operators/writer/Datasource.h"
@@ -74,17 +74,15 @@ class Backend : public std::enable_shared_from_this<Backend> {
   }
 
   /// This function is used to create certain converter from the format used by
-  /// the backend to Spark unsafe row. By default, Arrow-to-Row converter is
-  /// used.
-  virtual arrow::Result<std::shared_ptr<ColumnarToRowConverter>> getColumnar2RowConverter(MemoryAllocator* allocator) {
-    auto memoryPool = asArrowMemoryPool(allocator);
-    return std::make_shared<ArrowColumnarToRowConverter>(memoryPool);
-  }
+  /// the backend to Spark unsafe row.
+  virtual std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryAllocator* allocator) {
+    throw GlutenException("Not implement getColumnar2RowConverter");
+  };
 
   virtual std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
       MemoryAllocator* allocator,
       struct ArrowSchema* cSchema) {
-    return std::make_shared<gluten::RowToColumnarConverter>();
+    throw GlutenException("Not implement getRowToColumnarConverter");
   }
 
   virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(

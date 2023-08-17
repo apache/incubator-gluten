@@ -45,6 +45,14 @@ import java.util
 
 trait SparkPlanExecApi {
 
+  /** Transform GetArrayItem to Substrait. */
+  def genGetArrayItemExpressionNode(
+      substraitExprName: String,
+      functionMap: java.util.HashMap[String, java.lang.Long],
+      leftNode: ExpressionNode,
+      rightNode: ExpressionNode,
+      original: GetArrayItem): ExpressionNode
+
   /**
    * Generate ColumnarToRowExecBase.
    *
@@ -135,6 +143,13 @@ trait SparkPlanExecApi {
       original: StringSplit): StringSplitTransformerBase = {
     StringSplitTransformerBase(substraitExprName, srcExpr, regexExpr, limitExpr, original)
   }
+
+  /** Generate an expression transformer to transform GetMapValue to Substrait. */
+  def genGetMapValueTransformer(
+      substraitExprName: String,
+      left: ExpressionTransformer,
+      right: ExpressionTransformer,
+      original: GetMapValue): ExpressionTransformer
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.

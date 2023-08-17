@@ -68,6 +68,7 @@ public class NativePlanEvaluator {
     final long allocId =
         NativeMemoryAllocators.getDefault()
             .create(
+                "WholeStageIterator",
                 GlutenConfig.getConf().veloxOverAcquiredMemoryRatio(),
                 (size, trigger) -> {
                   ColumnarBatchOutIterator instance =

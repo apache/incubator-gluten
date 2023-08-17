@@ -414,6 +414,33 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("test array_intersect") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select a from (select array_intersect(split(n_comment, ' '), split(n_comment, ' ')) as arr " +
+          "from nation) lateral view explode(arr) as a order by a"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select a from (select array_intersect(array(null,1,2,3,null), array(3,5,1,null,null)) as arr) " +
+          "lateral view explode(arr) as a order by a",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select array_intersect(array(null,1,2,3,null), cast(null as array<int>))",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select a from (select array_intersect(array(array(1,2),array(3,4)), array(array(1,2),array(3,4))) as arr) " +
+          "lateral view explode(arr) as a order by a",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("test array_position") {
     withSQLConf(
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
@@ -503,6 +530,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         "from lineitem order by l_orderkey desc limit 10"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df, 10)
+  }
+
+  test("test find_in_set") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select find_in_set(null, 'a'), find_in_set('a', null), " +
+          "find_in_set('a', 'a,b'), find_in_set('a', 'ab,ab')",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
   }
 
   test("test 'function regexp_replace'") {
@@ -1103,6 +1141,22 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(
       "select sequence(id, id+10), sequence(id+10, id), sequence(id, id+10, 3), " +
         "sequence(id+10, id, -3) from range(1)")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("GLUTEN-2491: sequence with null value as argument") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select sequence(null, 1), sequence(1, null), sequence(1, 3, null), sequence(1, 5)," +
+          "sequence(5, 1), sequence(1, 5, 2), sequence(5, 1, -2)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select sequence(n_nationkey, n_nationkey+10), sequence(n_nationkey, n_nationkey+10, 2) " +
+          "from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
   }
 
   test("Bug-398 collect_list failure") {

@@ -110,10 +110,12 @@ bool SubstraitToVeloxPlanValidator::validateRound(
   if (arguments.size() < 2) {
     return false;
   }
+
   if (!arguments[1].value().has_literal()) {
     logValidateMsg("native validation failued due to: Round scale is expected.");
     return false;
   }
+
   // Velox has different result with Spark on negative scale.
   auto typeCase = arguments[1].value().literal().literal_type_case();
   switch (typeCase) {
@@ -134,6 +136,7 @@ bool SubstraitToVeloxPlanValidator::validateExtractExpr(const std::vector<core::
     logValidateMsg("native validation failed due to: Value expected in variant in ExtractExpr.");
     return false;
   }
+
   auto functionArg = std::dynamic_pointer_cast<const core::ConstantTypedExpr>(params[0]);
   if (functionArg) {
     // Get the function argument.
@@ -142,8 +145,9 @@ bool SubstraitToVeloxPlanValidator::validateExtractExpr(const std::vector<core::
       logValidateMsg("native validation failed due to: Value expected in variant in ExtractExpr.");
       return false;
     }
+
     // The first parameter specifies extracting from which field.
-    std::string from = variant.value<std::string>();
+    const auto& from = variant.value<std::string>();
     // Hour causes incorrect result.
     if (from == "HOUR") {
       logValidateMsg("native validation failed due to: {extract from hour}.");
@@ -161,11 +165,13 @@ bool SubstraitToVeloxPlanValidator::validateRegexExpr(
   if (scalarFunction.arguments().size() < 2) {
     logValidateMsg("native validation failed due to: wrong number of arguments for " + name);
   }
+
   const auto& patternArg = scalarFunction.arguments()[1].value();
   if (!patternArg.has_literal() || !patternArg.literal().has_string()) {
     logValidateMsg("native validation failed due to: pattern is not string literal for " + name);
     return false;
   }
+
   const auto& pattern = patternArg.literal().string();
   std::string error;
   if (!validatePattern(pattern, error)) {
@@ -192,28 +198,24 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
   const auto& name = SubstraitParser::getSubFunctionName(function);
   std::vector<std::string> types;
   SubstraitParser::getSubFunctionTypes(function, types);
+
   if (name == "round") {
     return validateRound(scalarFunction, inputType);
-  }
-  if (name == "extract") {
+  } else if (name == "extract") {
     return validateExtractExpr(params);
-  }
-  if (name == "char_length") {
+  } else if (name == "char_length") {
     VELOX_CHECK(types.size() == 1);
     if (types[0] == "vbin") {
       logValidateMsg("native validation failed due to: Binary type is not supported in " + name);
       return false;
     }
-  }
-  if (name == "map_from_arrays") {
+  } else if (name == "map_from_arrays") {
     logValidateMsg("native validation failed due to: map_from_arrays is not supported.");
     return false;
-  }
-  if (name == "get_array_item") {
+  } else if (name == "get_array_item") {
     logValidateMsg("native validation failed due to: get_array_item is not supported.");
     return false;
-  }
-  if (name == "concat") {
+  } else if (name == "concat") {
     for (const auto& type : types) {
       if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
           type.find("list") != std::string::npos) {
@@ -221,8 +223,7 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
         return false;
       }
     }
-  }
-  if (name == "murmur3hash") {
+  } else if (name == "murmur3hash") {
     for (const auto& type : types) {
       if (type.find("struct") != std::string::npos || type.find("map") != std::string::npos ||
           type.find("list") != std::string::npos) {
@@ -298,7 +299,6 @@ bool SubstraitToVeloxPlanValidator::validateCast(
 bool SubstraitToVeloxPlanValidator::validateExpression(
     const ::substrait::Expression& expression,
     const RowTypePtr& inputType) {
-  core::TypedExprPtr veloxExpr;
   auto typeCase = expression.rex_type_case();
   switch (typeCase) {
     case ::substrait::Expression::RexTypeCase::kScalarFunction:
@@ -341,6 +341,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ExpandRel& expan
       logValidateMsg("native validation failed due to: unsupported input types in ExpandRel.");
       return false;
     }
+
     int32_t inputPlanNodeId = 0;
     std::vector<std::string> names;
     names.reserve(types.size());
@@ -561,17 +562,20 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel
   if (sortRel.has_input() && !validate(sortRel.input())) {
     return false;
   }
+
   // Get and validate the input types from extension.
   if (!sortRel.has_advanced_extension()) {
     logValidateMsg("native validation failed due to: Input types are expected in SortRel.");
     return false;
   }
+
   const auto& extension = sortRel.advanced_extension();
   std::vector<TypePtr> types;
   if (!validateInputTypes(extension, types)) {
     logValidateMsg("native validation failed due to: Validation failed for input types in SortRel.");
     return false;
   }
+
   for (const auto& type : types) {
     if (type->kind() == TypeKind::TIMESTAMP) {
       logValidateMsg("native validation failed due to: Timestamp type is not supported in SortRel.");
@@ -704,7 +708,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FilterRel& filte
   auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
 
   std::vector<core::TypedExprPtr> expressions;
-  expressions.reserve(1);
   try {
     if (!validateExpression(filterRel.condition(), rowType)) {
       return false;
@@ -725,6 +728,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
     logValidateMsg("native validation failed due to: validation fails for join left input. ");
     return false;
   }
+
   if (joinRel.has_right() && !validate(joinRel.right())) {
     logValidateMsg("native validation failed due to: validation fails for join right input. ");
     return false;
@@ -865,6 +869,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
         if (!isDecimal && type.find("dec") != std::string::npos) {
           isDecimal = true;
         }
+
         if (type.find("struct") != std::string::npos) {
           types.emplace_back(getRowType(type));
         } else if (type.find("dec") != std::string::npos) {
@@ -966,6 +971,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
         // Count accepts only one argument.
         return false;
       }
+
       for (const auto& arg : aggFunction.arguments()) {
         auto typeCase = arg.value().rex_type_case();
         switch (typeCase) {
@@ -984,7 +990,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
   }
 
   // The supported aggregation functions.
-  std::unordered_set<std::string> supportedAggFuncs = {
+  static const std::unordered_set<std::string> supportedAggFuncs = {
       "sum",
       "sum_merge",
       "collect_set",
@@ -1026,6 +1032,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       "covar_samp",
       "covar_samp_merge",
       "approx_distinct"};
+
   for (const auto& funcSpec : funcSpecs) {
     auto funcName = SubstraitParser::getSubFunctionName(funcSpec);
     if (supportedAggFuncs.find(funcName) == supportedAggFuncs.end()) {
@@ -1047,6 +1054,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
         break;
       }
     }
+
     if (!hasExpr) {
       logValidateMsg("native validation failed due to: aggregation must specify either grouping keys or aggregates.");
       return false;
@@ -1065,9 +1073,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
 
   // Validate filter in ReadRel.
   if (readRel.has_filter()) {
-    std::vector<core::TypedExprPtr> expressions;
-    expressions.reserve(1);
-
     std::vector<TypePtr> veloxTypeList;
     if (readRel.has_base_schema()) {
       const auto& baseSchema = readRel.base_schema();
@@ -1077,14 +1082,16 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
         veloxTypeList.emplace_back(toVeloxType(substraitType->type));
       }
     }
-    std::vector<std::string> names;
+
     int32_t inputPlanNodeId = 0;
+    std::vector<std::string> names;
     names.reserve(veloxTypeList.size());
     for (auto colIdx = 0; colIdx < veloxTypeList.size(); colIdx++) {
       names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
     }
-    auto rowType = std::make_shared<RowType>(std::move(names), std::move(veloxTypeList));
 
+    auto rowType = std::make_shared<RowType>(std::move(names), std::move(veloxTypeList));
+    std::vector<core::TypedExprPtr> expressions;
     try {
       expressions.emplace_back(exprConverter_->toVeloxExpr(readRel.filter(), rowType));
       // Try to compile the expressions. If there is any unregistered function
@@ -1096,6 +1103,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
       return false;
     }
   }
+
   if (readRel.has_base_schema()) {
     const auto& baseSchema = readRel.base_schema();
     if (!validateColNames(baseSchema)) {
@@ -1109,40 +1117,33 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
   if (rel.has_aggregate()) {
     return validate(rel.aggregate());
-  }
-  if (rel.has_project()) {
+  } else if (rel.has_project()) {
     return validate(rel.project());
-  }
-  if (rel.has_filter()) {
+  } else if (rel.has_filter()) {
     return validate(rel.filter());
-  }
-  if (rel.has_join()) {
+  } else if (rel.has_join()) {
     return validate(rel.join());
-  }
-  if (rel.has_read()) {
+  } else if (rel.has_read()) {
     return validate(rel.read());
-  }
-  if (rel.has_sort()) {
+  } else if (rel.has_sort()) {
     return validate(rel.sort());
-  }
-  if (rel.has_expand()) {
+  } else if (rel.has_expand()) {
     return validate(rel.expand());
-  }
-  if (rel.has_fetch()) {
+  } else if (rel.has_fetch()) {
     return validate(rel.fetch());
-  }
-  if (rel.has_window()) {
+  } else if (rel.has_window()) {
     return validate(rel.window());
+  } else {
+    return false;
   }
-  return false;
 }
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::RelRoot& relRoot) {
   if (relRoot.has_input()) {
-    const auto& rel = relRoot.input();
-    return validate(rel);
+    return validate(relRoot.input());
+  } else {
+    return false;
   }
-  return false;
 }
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
@@ -1153,11 +1154,11 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Plan& plan) {
   for (const auto& rel : plan.relations()) {
     if (rel.has_root()) {
       return validate(rel.root());
-    }
-    if (rel.has_rel()) {
+    } else if (rel.has_rel()) {
       return validate(rel.rel());
     }
   }
+
   return false;
 }
 
