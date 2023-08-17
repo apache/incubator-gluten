@@ -966,7 +966,7 @@ object GlutenConfig {
       .internal()
       .doc("Shuffle spill threshold on ch backend")
       .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("300MB")
+      .createWithDefaultString("0MB")
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")
