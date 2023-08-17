@@ -68,6 +68,13 @@ struct RangeTraits<TypeKind::BIGINT> {
 };
 
 template <>
+struct RangeTraits<TypeKind::REAL> {
+  using RangeType = common::FloatRange;
+  using MultiRangeType = common::MultiRange;
+  using NativeType = float;
+};
+
+template <>
 struct RangeTraits<TypeKind::DOUBLE> {
   using RangeType = common::DoubleRange;
   using MultiRangeType = common::MultiRange;

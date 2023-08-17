@@ -68,6 +68,12 @@ class SubstraitToVeloxPlanValidator {
     return validateLog_;
   }
 
+  void dumpValidateLog() const {
+    for (auto& log : validateLog_) {
+      std::cout << log << std::endl;
+    }
+  }
+
  private:
   /// A memory pool used for function validation.
   memory::MemoryPool* pool_;
