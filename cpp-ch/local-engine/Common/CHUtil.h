@@ -186,7 +186,7 @@ public:
 // Ignore memory track, memory should free before IgnoreMemoryTracker deconstruction
 class IgnoreMemoryTracker {
 public:
-    IgnoreMemoryTracker(size_t limit_):limit(limit_)
+    explicit IgnoreMemoryTracker(size_t limit_):limit(limit_)
     {
         DB::CurrentThread::get().untracked_memory_limit += limit;
     }

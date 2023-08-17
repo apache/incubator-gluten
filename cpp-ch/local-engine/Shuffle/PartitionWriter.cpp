@@ -3,11 +3,12 @@
 #include <memory>
 #include <ostream>
 #include <vector>
-#include <Compression/CompressedWriteBuffer.h>
+#include <Storages/IO/CompressedWriteBuffer.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Shuffle/CachedShuffleWriter.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/WriteBufferFromFile.h>
+#include <Common/Stopwatch.h>
 #include <Common/ThreadPool.h>
 #include <Common/CHUtil.h>
 #include <format>
@@ -18,6 +19,8 @@ namespace local_engine
 {
 void local_engine::LocalPartitionWriter::write(const PartitionInfo& partition_info, DB::Block & data)
 {
+    Stopwatch time;
+    time.start();
     for (size_t col = 0; col < data.columns(); ++col)
     {
         for (size_t j = 0; j < partition_info.partition_num; ++j)
@@ -36,10 +39,13 @@ void local_engine::LocalPartitionWriter::write(const PartitionInfo& partition_in
         if (buffer.size() >= shuffle_writer->options.split_size)
         {
             Block block = buffer.releaseColumns();
-            total_partition_buffer_size += block.bytes();
+            auto bytes = block.bytes();
+            total_partition_buffer_size += bytes;
+            shuffle_writer->split_result.raw_partition_length[i] += bytes;
             partition_buffer[i].emplace_back(std::move(block));
         }
     }
+    shuffle_writer->split_result.total_split_time += time.elapsedNanoseconds();
 }
 
 void LocalPartitionWriter::evictPartitions(bool for_memory_spill)
@@ -54,6 +60,8 @@ void LocalPartitionWriter::evictPartitions(bool for_memory_spill)
         SpillInfo info;
         info.spilled_file = file;
         size_t partition_id = 0;
+        Stopwatch serialization_time_watch;
+        serialization_time_watch.start();
         for (auto & partition : partition_buffer)
         {
             PartitionSpillInfo partition_spill_info;
@@ -69,9 +77,12 @@ void LocalPartitionWriter::evictPartitions(bool for_memory_spill)
             info.partition_spill_infos.emplace_back(partition_spill_info);
         }
         spill_infos.emplace_back(info);
-
+        shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
+        shuffle_writer->split_result.total_write_time += compressed_output.getWriteTime();
+        shuffle_writer->split_result.total_serialize_time += serialization_time_watch.elapsedNanoseconds();
     };
-
+    Stopwatch spill_time_watch;
+    spill_time_watch.start();
     if (for_memory_spill)
     {
         // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
@@ -83,11 +94,13 @@ void LocalPartitionWriter::evictPartitions(bool for_memory_spill)
     {
         spill_to_file();
     }
+    shuffle_writer->split_result.total_spill_time += spill_time_watch.elapsedNanoseconds();
 
     for (auto & partition : partition_buffer)
     {
         partition.clear();
     }
+    shuffle_writer->split_result.total_bytes_spilled += total_partition_buffer_size;
     total_partition_buffer_size = 0;
 }
 std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
@@ -105,10 +118,15 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
         spill_inputs.emplace_back(std::make_shared<ReadBufferFromFile>(spill.spilled_file));
     }
 
+    Stopwatch write_time_watch;
+    write_time_watch.start();
+    Stopwatch io_time_watch;
+    size_t merge_io_time = 0;
     String buffer;
     for (size_t partition_id = 0; partition_id < shuffle_writer->options.partition_nums; ++partition_id)
     {
         auto size_before = data_file.count();
+        io_time_watch.restart();
         for (size_t i = 0; i < spill_infos.size(); ++i)
         {
             size_t size = spill_infos[i].partition_spill_infos[partition_id].length;
@@ -116,21 +134,29 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
             auto count = spill_inputs[i]->readBig(buffer.data(), size);
             data_file.write(buffer.data(), count);
         }
+        merge_io_time += io_time_watch.elapsedNanoseconds();
 
         if (partition_block_buffer[partition_id].size() > 0)
         {
             Block block = partition_block_buffer[partition_id].releaseColumns();
             partition_buffer[partition_id].emplace_back(std::move(block));
         }
-
+        Stopwatch serialization_time_watch;
+        serialization_time_watch.start();
         for (const auto & block : partition_buffer[partition_id])
         {
             writer.write(block);
         }
         compressed_output.sync();
         partition_length[partition_id] = data_file.count() - size_before;
+        shuffle_writer->split_result.total_serialize_time += serialization_time_watch.elapsedNanoseconds();
         shuffle_writer->split_result.total_bytes_written += partition_length[partition_id];
     }
+    shuffle_writer->split_result.total_write_time += write_time_watch.elapsedNanoseconds();
+    shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
+    shuffle_writer->split_result.total_disk_time += compressed_output.getWriteTime();
+    shuffle_writer->split_result.total_serialize_time = shuffle_writer->split_result.total_serialize_time - shuffle_writer->split_result.total_disk_time - shuffle_writer->split_result.total_compress_time;
+    shuffle_writer->split_result.total_disk_time += merge_io_time;
 
     for (const auto & spill : spill_infos)
     {

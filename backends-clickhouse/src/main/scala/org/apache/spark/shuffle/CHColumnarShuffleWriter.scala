@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocators
 import io.glutenproject.memory.memtarget.spark.Spiller
 import io.glutenproject.vectorized._
+
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.MemoryConsumer
@@ -101,21 +102,25 @@ class CHColumnarShuffleWriter[K, V](
         localDirs,
         subDirsPerLocalDir,
         preferSpill,
-        spillThreshold)
-      CHNativeMemoryAllocators.createSpillable(new Spiller() {
-        override def spill(size: Long, trigger: MemoryConsumer): Long = {
-          if (nativeSplitter == 0) {
-            throw new IllegalStateException(
-              "Fatal: spill() called before a shuffle writer " +
-                "is created. This behavior should be optimized by moving memory " +
-                "allocations from make() to split()")
+        spillThreshold
+      )
+      CHNativeMemoryAllocators.createSpillable(
+        "ShuffleWriter",
+        new Spiller() {
+          override def spill(size: Long, trigger: MemoryConsumer): Long = {
+            if (nativeSplitter == 0) {
+              throw new IllegalStateException(
+                "Fatal: spill() called before a shuffle writer " +
+                  "is created. This behavior should be optimized by moving memory " +
+                  "allocations from make() to split()")
+            }
+            logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
+            val spilled = splitterJniWrapper.evict(nativeSplitter);
+            logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
+            spilled
           }
-          logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
-          val spilled = splitterJniWrapper.evict(nativeSplitter);
-          logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
-          spilled
         }
-      })
+      )
     }
     while (records.hasNext) {
       val cb = records.next()._2.asInstanceOf[ColumnarBatch]
@@ -132,17 +137,18 @@ class CHColumnarShuffleWriter[K, V](
         writeMetrics.incRecordsWritten(cb.numRows)
       }
     }
-
-    splitterJniWrapper.stop(nativeSplitter)
+    splitResult = splitterJniWrapper.stop(nativeSplitter)
 
     dep.metrics("splitTime").add(splitResult.getSplitTime)
+    dep.metrics("IOTime").add(splitResult.getDiskWriteTime)
+    dep.metrics("serializeTime").add(splitResult.getSerializationTime)
     dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("computePidTime").add(splitResult.getTotalComputePidTime)
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
     dep.metrics("dataSize").add(splitResult.getTotalBytesWritten)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
-    writeMetrics.incWriteTime(splitResult.getTotalWriteTime)
+    writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
     partitionLengths = splitResult.getPartitionLengths
     rawPartitionLengths = splitResult.getRawPartitionLengths

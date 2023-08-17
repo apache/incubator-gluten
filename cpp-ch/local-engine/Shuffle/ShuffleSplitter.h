@@ -24,7 +24,9 @@
 #include <Shuffle/SelectorBuilder.h>
 #include <Common/PODArray.h>
 #include <Common/PODArray_fwd.h>
+#include <base/types.h>
 #include <Shuffle/ShuffleWriterBase.h>
+#include <Storages/IO/CompressedWriteBuffer.h>
 
 
 namespace local_engine
@@ -68,10 +70,14 @@ struct SplitResult
     Int64 total_compute_pid_time = 0;
     Int64 total_write_time = 0;
     Int64 total_spill_time = 0;
+    Int64 total_compress_time = 0;
     Int64 total_bytes_written = 0;
     Int64 total_bytes_spilled = 0;
     std::vector<Int64> partition_length;
     std::vector<Int64> raw_partition_length;
+    Int64 total_split_time = 0;
+    Int64 total_disk_time = 0;
+    Int64 total_serialize_time = 0;
 };
 
 class ShuffleSplitter : public ShuffleWriterBase
@@ -107,6 +113,7 @@ protected:
     std::vector<std::unique_ptr<DB::NativeWriter>> partition_outputs;
     std::vector<std::unique_ptr<DB::WriteBuffer>> partition_write_buffers;
     std::vector<std::unique_ptr<DB::WriteBuffer>> partition_cached_write_buffers;
+    std::vector<local_engine::CompressedWriteBuffer *> compressed_buffers;
     std::vector<size_t> output_columns_indicies;
     DB::Block output_header;
     SplitOptions options;

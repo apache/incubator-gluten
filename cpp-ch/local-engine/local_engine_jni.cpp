@@ -123,8 +123,8 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     block_stripes_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
     block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", "(J[J[IIZ)V");
 
-    split_result_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/SplitResult;");
-    split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[J)V");
+    split_result_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/CHSplitResult;");
+    split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[JJJJ)V");
 
     local_engine::ShuffleReader::input_stream_class
         = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/ShuffleInputStream;");
@@ -742,11 +742,14 @@ JNIEXPORT jobject Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_s
         result.total_compute_pid_time,
         result.total_write_time,
         result.total_spill_time,
-        0,
+        result.total_compress_time,
         result.total_bytes_written,
-        result.total_bytes_written,
+        result.total_bytes_spilled,
         partition_length_arr,
-        raw_partition_length_arr);
+        raw_partition_length_arr,
+        result.total_split_time,
+        result.total_disk_time,
+        result.total_serialize_time);
 
     return split_result;
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)

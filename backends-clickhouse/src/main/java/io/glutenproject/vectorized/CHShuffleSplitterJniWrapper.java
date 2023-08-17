@@ -67,7 +67,7 @@ public class CHShuffleSplitterJniWrapper {
 
   public native long evict(long splitterId);
 
-  public native SplitResult stop(long splitterId) throws IOException;
+  public native CHSplitResult stop(long splitterId) throws IOException;
 
   public native void close(long splitterId);
 }

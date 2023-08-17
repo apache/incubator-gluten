@@ -1,5 +1,6 @@
 #include "CachedShuffleWriter.h"
 #include <Poco/StringTokenizer.h>
+#include <Common/Stopwatch.h>
 #include <Shuffle/PartitionWriter.h>
 
 
@@ -63,7 +64,10 @@ void CachedShuffleWriter::split(DB::Block & block)
 {
     initOutputIfNeeded(block);
 
+    Stopwatch compute_pid_time_watch;
+    compute_pid_time_watch.start();
     partition_info = partitioner->build(block);
+    split_result.total_compute_pid_time += compute_pid_time_watch.elapsedNanoseconds();
 
     DB::Block out_block;
     for (size_t col = 0; col < output_header.columns(); ++col)

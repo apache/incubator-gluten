@@ -20,7 +20,6 @@
 #include <memory>
 #include <string>
 #include <fcntl.h>
-#include <Compression/CompressedWriteBuffer.h>
 #include <Compression/CompressionFactory.h>
 #include <Functions/FunctionFactory.h>
 #include <IO/BrotliWriteBuffer.h>
@@ -29,6 +28,7 @@
 #include <Parser/SerializedPlanParser.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Poco/StringTokenizer.h>
+#include <Common/Stopwatch.h>
 #include <Common/DebugUtils.h>
 
 namespace local_engine
@@ -39,11 +39,8 @@ void ShuffleSplitter::split(DB::Block & block)
     {
         return;
     }
-    Stopwatch watch;
-    watch.start();
     computeAndCountPartitionId(block);
     splitBlockByPartition(block);
-    split_result.total_write_time += watch.elapsedNanoseconds();
 }
 SplitResult ShuffleSplitter::stop()
 {
@@ -54,8 +51,17 @@ SplitResult ShuffleSplitter::stop()
     {
         spillPartition(i);
         partition_outputs[i]->flush();
-        partition_write_buffers[i].reset();
+        partition_write_buffers[i]->sync();
     }
+    for (auto * item : compressed_buffers)
+    {
+        if (item)
+        {
+            split_result.total_compress_time += item->getCompressTime();
+            split_result.total_disk_time += item->getWriteTime();
+        }
+    }
+    split_result.total_serialize_time = split_result.total_spill_time - split_result.total_compress_time - split_result.total_disk_time;
     partition_outputs.clear();
     partition_cached_write_buffers.clear();
     partition_write_buffers.clear();
@@ -66,6 +72,8 @@ SplitResult ShuffleSplitter::stop()
 }
 void ShuffleSplitter::splitBlockByPartition(DB::Block & block)
 {
+    Stopwatch split_time_watch;
+    split_time_watch.start();
     if (!output_header.columns()) [[unlikely]]
     {
         if (output_columns_indicies.empty())
@@ -102,6 +110,7 @@ void ShuffleSplitter::splitBlockByPartition(DB::Block & block)
             partition_buffer[j].appendSelective(col, out_block, partition_info.partition_selector, from, length);
         }
     }
+    split_result.total_split_time += split_time_watch.elapsedNanoseconds();
 
     for (size_t i = 0; i < options.partition_nums; ++i)
     {
@@ -152,6 +161,8 @@ void ShuffleSplitter::spillPartition(size_t partition_id)
 
 void ShuffleSplitter::mergePartitionFiles()
 {
+    Stopwatch merge_io_time;
+    merge_io_time.start();
     DB::WriteBufferFromFile data_write_buffer = DB::WriteBufferFromFile(options.data_file);
     std::string buffer;
     size_t buffer_size = options.io_buffer_size;
@@ -170,6 +181,7 @@ void ShuffleSplitter::mergePartitionFiles()
         reader.close();
         std::filesystem::remove(file);
     }
+    split_result.total_disk_time += merge_io_time.elapsedNanoseconds();
     data_write_buffer.close();
 }
 
@@ -227,7 +239,9 @@ std::unique_ptr<DB::WriteBuffer> ShuffleSplitter::getPartitionWriteBuffer(size_t
         && std::find(compress_methods.begin(), compress_methods.end(), options.compress_method) != compress_methods.end())
     {
         auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(options.compress_method), {});
-        return std::make_unique<DB::CompressedWriteBuffer>(*partition_cached_write_buffers[partition_id], codec);
+        auto compressed = std::make_unique<CompressedWriteBuffer>(*partition_cached_write_buffers[partition_id], codec);
+        compressed_buffers.emplace_back(compressed.get());
+        return compressed;
     }
     else
     {
