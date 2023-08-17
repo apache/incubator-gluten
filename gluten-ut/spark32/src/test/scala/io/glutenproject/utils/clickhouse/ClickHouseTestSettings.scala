@@ -95,6 +95,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "Concat",
       "Shuffle",
       "Array Distinct", // exclude this when fix GLUTEN-2340
+      // CH arrayIntersect returns the same array element but may different permutation
+      // actual: WrappedArray(2, 4), expected: List(4, 2)
+      "Array Intersect",
       "SPARK-33386: element_at ArrayIndexOutOfBoundsException",
       "SPARK-33460: element_at NoSuchElementException"
     )

@@ -210,6 +210,7 @@ object ExpressionNames {
   final val ARRAY_POSITION = "array_position"
   final val ARRAY_DISTINCT = "array_distinct"
   final val ARRAY_UNION = "array_union"
+  final val ARRAY_INTERSECT = "array_intersect"
 
   // Map functions
   final val CREATE_MAP = "map"
