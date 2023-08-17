@@ -21,7 +21,6 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{BasicScanExecTransformer, TransformContext}
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.ReadRelNode
@@ -29,24 +28,21 @@ import io.glutenproject.substrait.rel.ReadRelNode
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, DynamicPruningExpression, Expression}
-import org.apache.spark.sql.connector.read.{InputPartition, SupportsRuntimeFiltering}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
+import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.datasources.{CatalogFileIndex, DataSourceStrategy, GlutenTextBasedScanWrapper}
-import org.apache.spark.sql.execution.datasources.v2.FileScan
-import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer._
 import org.apache.spark.sql.hive.execution.HiveTableScanExec
-import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
-import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.apache.spark.sql.types.{ArrayType, MapType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.mapred.TextInputFormat
 
+import java.net.URI
+
 import scala.collection.JavaConverters
-import scala.collection.mutable.ArrayBuffer
 
 class HiveTableScanExecTransformer(
     requestedAttributes: Seq[Attribute],
@@ -55,10 +51,6 @@ class HiveTableScanExecTransformer(
   extends HiveTableScanExec(requestedAttributes, relation, partitionPruningPred)(session)
   with BasicScanExecTransformer {
 
-  @transient lazy val scan: Option[FileScan] = getHiveTableFileScan
-
-  def getScan: Option[FileScan] = scan
-
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genHiveTableScanTransformerMetrics(sparkContext)
 
@@ -66,7 +58,7 @@ class HiveTableScanExecTransformer(
 
   override def outputAttributes(): Seq[Attribute] = output
 
-  override def getPartitions: Seq[InputPartition] = filteredPartitions.flatten
+  override def getPartitions: Seq[InputPartition] = partitions
 
   override def getPartitionSchemas: StructType = relation.tableMeta.partitionSchema
 
@@ -75,12 +67,12 @@ class HiveTableScanExecTransformer(
   override def getInputFilePaths: Seq[String] = {
     if (BackendsApiManager.isVeloxBackend) {
       Seq.empty[String]
+    } else if (BackendsApiManager.isCHBackend) {
+      // We only support reading from text file format, so we can safely return empty.
+      // see CHBackendSettings#supportFileFormatRead
+      Seq.empty[String]
     } else {
-      val inputPaths = scan match {
-        case Some(fileScan) => fileScan.fileIndex.inputFiles.toSeq
-        case _ => Seq.empty
-      }
-      inputPaths
+      throw new UnsupportedOperationException("Unsupported backend")
     }
   }
 
@@ -105,75 +97,20 @@ class HiveTableScanExecTransformer(
     doExecuteColumnarInternal()
   }
 
-  @transient private lazy val filteredPartitions: Seq[Seq[InputPartition]] = {
-    scan match {
-      case Some(fileScan) =>
-        val dataSourceFilters = partitionPruningPred.flatMap {
-          case DynamicPruningExpression(e) => DataSourceStrategy.translateRuntimeFilter(e)
-          case _ => None
-        }
-        if (dataSourceFilters.nonEmpty) {
-          // the cast is safe as runtime filters are only assigned if the scan can be filtered
-          val filterableScan = fileScan.asInstanceOf[SupportsRuntimeFiltering]
-          filterableScan.filter(dataSourceFilters.toArray)
-          // call toBatch again to get filtered partitions
-          val newPartitions = fileScan.toBatch.planInputPartitions()
-          newPartitions.map(Seq(_))
-        } else {
-          fileScan.toBatch().planInputPartitions().map(Seq(_))
-        }
-      case _ =>
-        Seq.empty
+  @transient private lazy val hivePartitionConverter =
+    new HivePartitionConverter(session.sessionState.newHadoopConf(), session)
+
+  @transient private lazy val partitions: Seq[InputPartition] =
+    if (!relation.isPartitioned) {
+      val tableLocation: URI = relation.tableMeta.storage.locationUri.getOrElse {
+        throw new UnsupportedOperationException("Table path not set.")
+      }
+      hivePartitionConverter.createFilePartition(tableLocation)
+    } else {
+      hivePartitionConverter.createFilePartition(
+        prunedPartitions,
+        relation.partitionCols.map(_.dataType))
     }
-  }
-
-  private def getHiveTableFileScan: Option[FileScan] = {
-    val tableMeta = relation.tableMeta
-    val defaultTableSize = session.sessionState.conf.defaultSizeInBytes
-    val catalogFileIndex = new CatalogFileIndex(
-      session,
-      tableMeta,
-      tableMeta.stats.map(_.sizeInBytes.toLong).getOrElse(defaultTableSize))
-    val fileIndex = catalogFileIndex.filterPartitions(partitionPruningPred)
-
-    val planOutput = output.asInstanceOf[Seq[AttributeReference]]
-    val outputFieldTypes = new ArrayBuffer[StructField]()
-    planOutput.foreach(x => outputFieldTypes.append(StructField(x.name, x.dataType, x.nullable)))
-
-    tableMeta.storage.inputFormat match {
-      case Some(inputFormat)
-          if TEXT_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
-        tableMeta.storage.serde match {
-          case Some("org.openx.data.jsonserde.JsonSerDe") | Some(
-                "org.apache.hive.hcatalog.data.JsonSerDe") =>
-            val scan = JsonScan(
-              session,
-              fileIndex,
-              tableMeta.schema,
-              StructType(outputFieldTypes.toArray),
-              tableMeta.partitionSchema,
-              new CaseInsensitiveStringMap(JavaConverters.mapAsJavaMap(tableMeta.properties)),
-              Array.empty,
-              partitionPruningPred,
-              Seq.empty
-            )
-            Option.apply(GlutenTextBasedScanWrapper.wrap(scan, tableMeta.dataSchema))
-          case _ =>
-            val scan = SparkShimLoader.getSparkShims.getTextScan(
-              session,
-              fileIndex,
-              tableMeta.schema,
-              StructType(outputFieldTypes.toArray),
-              tableMeta.partitionSchema,
-              new CaseInsensitiveStringMap(JavaConverters.mapAsJavaMap(tableMeta.properties)),
-              partitionPruningPred,
-              Seq.empty
-            )
-            Some(GlutenTextBasedScanWrapper.wrap(scan, tableMeta.dataSchema))
-        }
-      case _ => None
-    }
-  }
 
   @transient override lazy val fileFormat: ReadFileFormat = {
     relation.tableMeta.storage.inputFormat match {
@@ -188,6 +125,7 @@ class HiveTableScanExecTransformer(
       case _ => ReadFileFormat.UnknownFormat
     }
   }
+
   override protected def doValidateInternal(): ValidationResult = {
     val validationResult = super.doValidateInternal()
     if (!validationResult.isValid) {
@@ -206,25 +144,19 @@ class HiveTableScanExecTransformer(
         } else hasComplexType
       })
 
-    tableMeta.storage.inputFormat match {
-      case Some(inputFormat)
-          if TEXT_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
-        tableMeta.storage.serde match {
-          case Some("org.openx.data.jsonserde.JsonSerDe") | Some(
-                "org.apache.hive.hcatalog.data.JsonSerDe") =>
-            ValidationResult.ok
-          case _ =>
-            if (!hasComplexType) {
-              ValidationResult.ok
-            } else {
-              ValidationResult.notOk("does not support complex type")
-            }
+    fileFormat match {
+      case ReadFileFormat.JsonReadFormat => ValidationResult.ok
+      case ReadFileFormat.TextReadFormat =>
+        if (!hasComplexType) {
+          ValidationResult.ok
+        } else {
+          ValidationResult.notOk("does not support complex type")
         }
-      case _ => ValidationResult.notOk("Hive scan is not defined")
+      case _ => ValidationResult.notOk("Unknown file format")
     }
   }
 
-  def createDefaultTextOption(): Map[String, String] = {
+  private def createDefaultTextOption(): Map[String, String] = {
     var options: Map[String, String] = Map()
     options += ("field_delimiter" -> DEFAULT_FIELD_DELIMITER.toString)
     options += ("nullValue" -> NULL_VALUE.toString)
@@ -236,8 +168,6 @@ class HiveTableScanExecTransformer(
     if (
       transformCtx.root != null
       && transformCtx.root.isInstanceOf[ReadRelNode]
-      && scan.isDefined
-      && scan.get.isInstanceOf[GlutenTextBasedScanWrapper]
     ) {
       val properties = relation.tableMeta.storage.properties ++ relation.tableMeta.properties
       var options: Map[String, String] = createDefaultTextOption()
