@@ -145,10 +145,10 @@ bool SubstraitToVeloxPlanValidator::validateExtractExpr(const std::vector<core::
     // The first parameter specifies extracting from which field.
     std::string from = variant.value<std::string>();
     // Hour causes incorrect result.
-    if (from == "HOUR") {
-      logValidateMsg("native validation failed due to: {extract from hour}.");
-      return false;
-    }
+    // if (from == "HOUR") {
+    //   logValidateMsg("native validation failed due to: {extract from hour}.");
+    //   return false;
+    // }
     return true;
   }
   logValidateMsg("native validation failed due to: Constant is expected to be the first parameter in extract.");
@@ -263,10 +263,10 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   }
 
   const auto& toType = toVeloxType(SubstraitParser::parseType(castExpr.type())->type);
-  if (toType->kind() == TypeKind::TIMESTAMP) {
-    logValidateMsg("native validation failed due to: Casting to TIMESTAMP is not supported.");
-    return false;
-  }
+  // if (toType->kind() == TypeKind::TIMESTAMP) {
+  //   logValidateMsg("native validation failed due to: Casting to TIMESTAMP is not supported.");
+  //   return false;
+  // }
 
   core::TypedExprPtr input = exprConverter_->toVeloxExpr(castExpr.input(), inputType);
 
@@ -278,17 +278,17 @@ bool SubstraitToVeloxPlanValidator::validateCast(
     case TypeKind::VARBINARY:
       logValidateMsg("native validation failed due to: Invalid input type in casting: ARRAY/MAP/ROW/VARBINARY");
       return false;
-    case TypeKind::DATE: {
-      if (toType->kind() == TypeKind::TIMESTAMP) {
-        logValidateMsg("native validation failed due to: Casting from DATE to TIMESTAMP is not supported.");
-        return false;
-      }
-    }
-    case TypeKind::TIMESTAMP: {
-      logValidateMsg(
-          "native validation failed due to: Casting from TIMESTAMP is not supported or has incorrect result.");
-      return false;
-    }
+    // case TypeKind::DATE: {
+    //   if (toType->kind() == TypeKind::TIMESTAMP) {
+    //     logValidateMsg("native validation failed due to: Casting from DATE to TIMESTAMP is not supported.");
+    //     return false;
+    //   }
+    // }
+    // case TypeKind::TIMESTAMP: {
+    //   logValidateMsg(
+    //       "native validation failed due to: Casting from TIMESTAMP is not supported or has incorrect result.");
+    //   return false;
+    // }
     default: {
     }
   }
