@@ -713,10 +713,26 @@ class GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan
   }
 }
 
+// Same as above except AQE is off.
+class GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan
+  extends GlutenDynamicPartitionPruningV2SuiteAEOff {
+  override def sparkConf: SparkConf = {
+    super.sparkConf.set(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key, "false")
+  }
+}
+
 // Test DPP with batch scan disabled by user for some reason, which can also mock the situation
 // that scan is not transformable.
 class GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan
   extends GlutenDynamicPartitionPruningV2SuiteAEOn {
+  override def sparkConf: SparkConf = {
+    super.sparkConf.set(GlutenConfig.COLUMNAR_BATCHSCAN_ENABLED.key, "false")
+  }
+}
+
+// Same as above except AQE is off.
+class GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan
+  extends GlutenDynamicPartitionPruningV2SuiteAEOff {
   override def sparkConf: SparkConf = {
     super.sparkConf.set(GlutenConfig.COLUMNAR_BATCHSCAN_ENABLED.key, "false")
   }
