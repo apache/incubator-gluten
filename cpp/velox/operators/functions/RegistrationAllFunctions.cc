@@ -28,12 +28,11 @@
 
 using namespace facebook;
 using namespace facebook::velox;
-using namespace facebook::velox::functions;
 
 namespace gluten {
 
 void registerFunctionOverwrite() {
-  registerUnaryNumeric<RoundFunction>({"round"});
+  facebook::velox::functions::registerUnaryNumeric<RoundFunction>({"round"});
   registerFunction<RoundFunction, int8_t, int8_t, int32_t>({"round"});
   registerFunction<RoundFunction, int16_t, int16_t, int32_t>({"round"});
   registerFunction<RoundFunction, int32_t, int32_t, int32_t>({"round"});

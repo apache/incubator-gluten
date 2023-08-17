@@ -26,7 +26,7 @@ class GlutenMathExpressionsSuite extends MathExpressionsSuite with GlutenTestsTr
     "bin"
   )
 
-  test("Gluten - round/bround") {
+  test(GlutenTestConstants.GLUTEN_TEST + "round/bround") {
     val scales = -6 to 6
     val doublePi: Double = math.Pi
     val shortPi: Short = 31415
