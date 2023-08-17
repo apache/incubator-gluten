@@ -505,6 +505,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     checkLengthAndPlan(df, 10)
   }
 
+  test("test find_in_set") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select find_in_set(null, 'a'), find_in_set('a', null), " +
+          "find_in_set('a', 'a,b'), find_in_set('a', 'ab,ab')",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("test 'function regexp_replace'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
