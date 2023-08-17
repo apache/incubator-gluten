@@ -322,7 +322,7 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> VeloxShuffleReader::next() {
   ARROW_ASSIGN_OR_RAISE(auto batch, Reader::next());
   if (batch == nullptr) {
     // Some empty batch has not been released here, so check is needed.
-    if (veloxPool_->currentBytes() == 0 || veloxPool_->reservedBytes() == 0) {
+    if (veloxPool_->currentBytes() == 0 && veloxPool_->reservedBytes() == 0) {
       veloxPool_->shrinkManaged(veloxPool_.get(), veloxPool_->capacity());
     }
     return nullptr;
