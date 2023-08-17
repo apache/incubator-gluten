@@ -88,7 +88,7 @@ private class CelebornColumnarBatchSerializerInstance(
         val handle = ShuffleReaderJniWrapper.INSTANCE.make(
           jniByteInputStream,
           cSchema.memoryAddress(),
-          NativeMemoryAllocators.getDefault().contextInstance.getNativeInstanceId,
+          NativeMemoryAllocators.getDefault().contextInstance("ShuffleReader").getNativeInstanceId,
           compressionCodec,
           compressionCodecBackend
         )

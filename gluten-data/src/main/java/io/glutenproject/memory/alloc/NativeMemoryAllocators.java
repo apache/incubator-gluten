@@ -57,15 +57,19 @@ public final class NativeMemoryAllocators {
     return INSTANCES.computeIfAbsent(type, NativeMemoryAllocators::new);
   }
 
-  public NativeMemoryAllocator contextInstance() {
+  // TODO: When remove fallback storage and ensure all allocator are in Spark task scope,
+  //  we could remove this method and use create.
+  public NativeMemoryAllocator contextInstance(String name) {
     if (!TaskResources.inSparkTask()) {
       return globalInstance();
     }
-    final String id = NativeMemoryAllocatorManager.class + "-" + System.identityHashCode(global);
+    final String id =
+        NativeMemoryAllocatorManager.class + "-" + System.identityHashCode(global) + "-" + name;
     return TaskResources.addResourceIfNotRegistered(
             id,
             () ->
                 createNativeMemoryAllocatorManager(
+                    name,
                     TaskResources.getLocalTaskContext().taskMemoryManager(),
                     TaskResources.getSharedMetrics(),
                     0.0D,
@@ -74,13 +78,14 @@ public final class NativeMemoryAllocators {
         .getManaged();
   }
 
-  public NativeMemoryAllocator create(double overAcquiredRatio, Spiller spiller) {
+  public NativeMemoryAllocator create(String name, double overAcquiredRatio, Spiller spiller) {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("Spiller must be used in a Spark task");
     }
 
     final NativeMemoryAllocatorManager manager =
         createNativeMemoryAllocatorManager(
+            name,
             TaskResources.getLocalTaskContext().taskMemoryManager(),
             TaskResources.getSharedMetrics(),
             overAcquiredRatio,
@@ -94,12 +99,13 @@ public final class NativeMemoryAllocators {
   }
 
   private static NativeMemoryAllocatorManager createNativeMemoryAllocatorManager(
+      String name,
       TaskMemoryManager taskMemoryManager,
       TaskMemoryMetrics taskMemoryMetrics,
       double overAcquiredRatio,
       Spiller spiller,
       NativeMemoryAllocator delegated) {
-    MemoryTarget target = new GlutenMemoryConsumer(taskMemoryManager, spiller);
+    MemoryTarget target = new GlutenMemoryConsumer(name, taskMemoryManager, spiller);
     if (overAcquiredRatio != 0.0D) {
       target =
           new OverAcquire(

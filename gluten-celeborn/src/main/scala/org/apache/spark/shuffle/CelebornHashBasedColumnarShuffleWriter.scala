@@ -125,6 +125,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
             NativeMemoryAllocators
               .getDefault()
               .create(
+                "CelebornShuffleWriter",
                 0.0d,
                 new Spiller() {
                   override def spill(size: Long, trigger: MemoryConsumer): Long = {

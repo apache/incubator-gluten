@@ -45,7 +45,10 @@ object ExecUtil {
     var info: NativeColumnarToRowInfo = null
     val batchHandle = ColumnarBatches.getNativeHandle(batch)
     val instanceId = jniWrapper.nativeColumnarToRowInit(
-      NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
+      NativeMemoryAllocators
+        .getDefault()
+        .contextInstance("ExecUtil#ColumnarToRow")
+        .getNativeInstanceId)
     info = jniWrapper.nativeColumnarToRowConvert(batchHandle, instanceId)
 
     new Iterator[InternalRow] {

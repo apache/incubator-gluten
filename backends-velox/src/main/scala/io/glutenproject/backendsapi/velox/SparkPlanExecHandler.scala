@@ -292,7 +292,9 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
             val handleArray = input.map(ColumnarBatches.getNativeHandle).toArray
             val serializeResult = ColumnarBatchSerializerJniWrapper.INSTANCE.serialize(
               handleArray,
-              NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
+              NativeMemoryAllocators.getDefault
+                .contextInstance("BroadcastRelation")
+                .getNativeInstanceId)
             input.foreach(ColumnarBatches.release)
             Iterator((serializeResult.getNumRows, serializeResult.getSerialized))
           }

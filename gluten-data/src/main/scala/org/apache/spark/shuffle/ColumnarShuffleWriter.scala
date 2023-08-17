@@ -138,6 +138,7 @@ class ColumnarShuffleWriter[K, V](
             NativeMemoryAllocators
               .getDefault()
               .create(
+                "ShuffleWriter",
                 0.0d,
                 new Spiller() {
                   override def spill(size: Long, trigger: MemoryConsumer): Long = {

@@ -40,11 +40,14 @@ public abstract class CHNativeMemoryAllocators {
   private static final CHNativeMemoryAllocator GLOBAL = CHNativeMemoryAllocator.getDefault();
 
   private static CHNativeMemoryAllocatorManager createNativeMemoryAllocatorManager(
-      TaskMemoryManager taskMemoryManager, Spiller spiller, TaskMemoryMetrics taskMemoryMetrics) {
+      String name,
+      TaskMemoryManager taskMemoryManager,
+      Spiller spiller,
+      TaskMemoryMetrics taskMemoryMetrics) {
 
     CHManagedCHReservationListener rl =
         new CHManagedCHReservationListener(
-            new GlutenMemoryConsumer(taskMemoryManager, spiller), taskMemoryMetrics);
+            new GlutenMemoryConsumer(name, taskMemoryManager, spiller), taskMemoryMetrics);
     return new CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator.createListenable(rl));
   }
 
@@ -57,6 +60,7 @@ public abstract class CHNativeMemoryAllocators {
     if (!TaskResources.isResourceRegistered(id)) {
       final CHNativeMemoryAllocatorManager manager =
           createNativeMemoryAllocatorManager(
+              "ContextInstance",
               TaskResources.getLocalTaskContext().taskMemoryManager(),
               Spiller.NO_OP,
               TaskResources.getSharedMetrics());
@@ -69,13 +73,14 @@ public abstract class CHNativeMemoryAllocators {
     return CHNativeMemoryAllocator.getDefaultForUT();
   }
 
-  public static CHNativeMemoryAllocator createSpillable(Spiller spiller) {
+  public static CHNativeMemoryAllocator createSpillable(String name, Spiller spiller) {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("spiller must be used in a Spark task");
     }
 
     final CHNativeMemoryAllocatorManager manager =
         createNativeMemoryAllocatorManager(
+            name,
             TaskResources.getLocalTaskContext().taskMemoryManager(),
             spiller,
             TaskResources.getSharedMetrics());

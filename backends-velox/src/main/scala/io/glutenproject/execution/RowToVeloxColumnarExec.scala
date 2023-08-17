@@ -76,7 +76,9 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
               ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
               jniWrapper.init(
                 cSchema.memoryAddress(),
-                NativeMemoryAllocators.getDefault.contextInstance().getNativeInstanceId)
+                NativeMemoryAllocators.getDefault
+                  .contextInstance("RowToColumnar")
+                  .getNativeInstanceId)
             } finally {
               cSchema.close()
             }
