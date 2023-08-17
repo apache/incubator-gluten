@@ -156,7 +156,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // FIXME(yma11): ObjectType is not covered in RowEncoder/Serializer in vanilla spark
     .exclude("SPARK-37967: Literal.create support ObjectType")
   enableSuite[GlutenMathExpressionsSuite]
-    // Spark round UT for round(3.1415,3) is not correct. 
+    // Spark round UT for round(3.1415,3) is not correct.
     .exclude("round/bround/floor/ceil")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
