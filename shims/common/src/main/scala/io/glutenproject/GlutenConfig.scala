@@ -359,12 +359,11 @@ object GlutenConfig {
   private var current_backend_prefix = ""
 
   def isCurrentBackendVelox: Boolean = {
-    return current_backend_prefix != null && current_backend_prefix.endsWith(GLUTEN_VELOX_BACKEND)
+    current_backend_prefix.endsWith(GLUTEN_VELOX_BACKEND)
   }
 
   def isCurrentBackendCH: Boolean = {
-    return current_backend_prefix != null && current_backend_prefix.endsWith(
-      GLUTEN_CLICKHOUSE_BACKEND)
+    current_backend_prefix.endsWith(GLUTEN_CLICKHOUSE_BACKEND)
   }
 
   def getConf: GlutenConfig = {
