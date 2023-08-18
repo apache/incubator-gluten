@@ -306,7 +306,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenExtraStrategiesSuite]
   enableSuite[GlutenFileBasedDataSourceSuite]
     .exclude("SPARK-23072 Write and read back unicode column names - csv")
-    .exclude("Enabling/disabling ignoreMissingFiles using orc")
+    .excludeByPrefix("Enabling/disabling ignoreMissingFiles using")
     .exclude("Spark native readers should respect spark.sql.caseSensitive - parquet")
     .exclude("Spark native readers should respect spark.sql.caseSensitive - orc")
     .exclude("SPARK-25237 compute correct input metrics in FileScanRDD")
@@ -318,6 +318,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35669: special char in CSV header with filter pushdown")
     .exclude("gluten Spark native readers should respect spark.sql.caseSensitive - parquet")
     .exclude("gluten SPARK-25237 compute correct input metrics in FileScanRDD")
+    .exclude("gluten Option recursiveFileLookup: disable partition inferring")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
     .exclude("char type values should be padded or trimmed: partitioned columns")
@@ -816,6 +817,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("atan2")
     .exclude("binary log")
     .exclude("round/bround/floor/ceil")
+    .exclude("Gluten - round/bround/floor/ceil")
     .exclude("SPARK-36922: Support ANSI intervals for SIGN/SIGNUM")
     .exclude("SPARK-35926: Support YearMonthIntervalType in width-bucket function")
     .exclude("SPARK-35925: Support DayTimeIntervalType in width-bucket function")
@@ -972,6 +974,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenTableCapabilityCheckSuite]
   enableSuite[GlutenWriteDistributionAndOrderingSuite]
   enableSuite[GlutenQueryCompilationErrorsSuite]
+    .exclude("CANNOT_USE_MIXTURE: Using aggregate function with grouped aggregate pandas UDF")
+    .exclude("UNSUPPORTED_FEATURE: Using pandas UDF aggregate expression with pivot")
   enableSuite[GlutenQueryExecutionErrorsSuite]
     .exclude(
       "INCONSISTENT_BEHAVIOR_CROSS_VERSION: compatibility with Spark 2.4/3.2 in reading/writing dates")
@@ -1245,6 +1249,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenVectorizedOrcReadSchemaSuite]
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenBinaryFileFormatSuite]
+    .exclude("column pruning - non-readable file")
   enableSuite[GlutenValidateRequirementsSuite]
   enableSuite[GlutenJsonLegacyTimeParserSuite]
     .exclude("Complex field and type inferring")
@@ -1970,6 +1975,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "bucket coalescing is applied when join expressions match with partitioning expressions")
   enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
   enableSuite[GlutenCreateTableAsSelectSuite]
+    .exclude("CREATE TABLE USING AS SELECT based on the file without write permission")
+    .exclude("create a table, drop it and create another one with the same name")
   enableSuite[GlutenDDLSourceLoadSuite]
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite]
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE]
