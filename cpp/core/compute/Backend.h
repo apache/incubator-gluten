@@ -103,12 +103,11 @@ class Backend : public std::enable_shared_from_this<Backend> {
   }
 
   virtual std::shared_ptr<Reader> getShuffleReader(
-      std::shared_ptr<arrow::io::InputStream> in,
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,
       MemoryAllocator* allocator) {
-    return std::make_shared<Reader>(in, schema, options, pool);
+    return std::make_shared<Reader>(schema, options, pool);
   }
 
   virtual std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
