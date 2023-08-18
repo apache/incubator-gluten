@@ -18,17 +18,16 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.init.JniInitialized;
 
-public class ColumnarBatchSerializerJniWrapper extends JniInitialized {
+public class ColumnarBatchSerdeJniWrapper extends JniInitialized {
 
-  public static final ColumnarBatchSerializerJniWrapper INSTANCE =
-      new ColumnarBatchSerializerJniWrapper();
+  public static final ColumnarBatchSerdeJniWrapper INSTANCE = new ColumnarBatchSerdeJniWrapper();
 
-  private ColumnarBatchSerializerJniWrapper() {}
+  private ColumnarBatchSerdeJniWrapper() {}
 
   public native ColumnarBatchSerializeResult serialize(long[] handles, long allocId);
 
   // Return the native ColumnarBatchSerializer handle
-  public native long init(long cSchema, long allocId);
+  public native long initDeserializer(long cSchema, long allocId);
 
   public native long deserialize(long handle, byte[] data);
 

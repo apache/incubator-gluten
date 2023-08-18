@@ -100,7 +100,7 @@ case class ColumnarShuffleExchangeExec(
 
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
-    .createColumnarBatchSerializer(schema, metrics)
+    .createColumnarShuffleSerializer(schema, metrics)
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 

@@ -20,9 +20,7 @@
 #include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "velox/common/memory/Memory.h"
-#include "velox/vector/ComplexVector.h"
 #include "velox/vector/FlatVector.h"
-#include "velox/vector/arrow/Bridge.h"
 
 #include <iostream>
 
@@ -30,25 +28,10 @@ using namespace facebook::velox;
 
 namespace gluten {
 
-namespace {
-std::unique_ptr<ByteStream> toByteStream(uint8_t* data, int32_t size) {
-  auto byteStream = std::make_unique<ByteStream>();
-  ByteRange byteRange{data, size, 0};
-  byteStream->resetInput({byteRange});
-  return byteStream;
-}
-} // namespace
-
 VeloxColumnarBatchSerializer::VeloxColumnarBatchSerializer(
-    std::shared_ptr<arrow::MemoryPool> arrowPool,
-    std::shared_ptr<memory::MemoryPool> veloxPool,
-    struct ArrowSchema* cSchema)
-    : ColumnarBatchSerializer(arrowPool, cSchema), veloxPool_(std::move(veloxPool)) {
-  // serializeColumnarBatches don't need rowType_
-  if (cSchema != nullptr) {
-    rowType_ = asRowType(importFromArrow(*cSchema));
-    ArrowSchemaRelease(cSchema); // otherwise the c schema leaks memory
-  }
+    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+    std::shared_ptr<arrow::MemoryPool> arrowPool)
+    : ColumnarBatchSerializer(), veloxPool_(std::move(veloxPool)), arrowPool_(std::move(arrowPool)) {
   serde_ = std::make_unique<serializer::presto::PrestoVectorSerde>();
 }
 
@@ -62,7 +45,7 @@ std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBa
   auto serializer = serde_->createSerializer(rowType, numRows, arena.get(), /* serdeOptions */ nullptr);
   for (auto& batch : batches) {
     auto rowVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch)->getRowVector();
-    auto numRows = rowVector->size();
+    numRows = rowVector->size();
     std::vector<IndexRange> rows(numRows);
     for (int i = 0; i < numRows; i++) {
       rows[i] = IndexRange{i, 1};
@@ -81,10 +64,4 @@ std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBa
   return valueBuffer;
 }
 
-std::shared_ptr<ColumnarBatch> VeloxColumnarBatchSerializer::deserialize(uint8_t* data, int32_t size) {
-  RowVectorPtr result;
-  auto byteStream = toByteStream(data, size);
-  serde_->deserialize(byteStream.get(), veloxPool_.get(), rowType_, &result, /* serdeOptions */ nullptr);
-  return std::make_shared<VeloxColumnarBatch>(result);
-}
 } // namespace gluten

@@ -21,7 +21,7 @@ import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
-import io.glutenproject.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
+import io.glutenproject.vectorized.{ColumnarBatchSerdeJniWrapper, NativeColumnarToRowJniWrapper}
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression, UnsafeProjection, UnsafeRow}
@@ -55,7 +55,7 @@ case class ColumnarBuildSideRelation(
           StructType.fromAttributes(output),
           SQLConf.get.sessionLocalTimeZone)
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-        val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.init(
+        val handle = ColumnarBatchSerdeJniWrapper.INSTANCE.initDeserializer(
           cSchema.memoryAddress(),
           NativeMemoryAllocators.getDefault
             .contextInstance("BuildSideRelation#BatchSerializer")
@@ -65,7 +65,7 @@ case class ColumnarBuildSideRelation(
       }
 
       TaskResources.addRecycler(s"BuildSideRelation_deserialized_$serializeHandle", 50) {
-        ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
+        ColumnarBatchSerdeJniWrapper.INSTANCE.close(serializeHandle)
       }
 
       override def hasNext: Boolean = {
@@ -79,7 +79,7 @@ case class ColumnarBuildSideRelation(
 
       override def next: ColumnarBatch = {
         val handle =
-          ColumnarBatchSerializerJniWrapper.INSTANCE.deserialize(serializeHandle, batches(batchId))
+          ColumnarBatchSerdeJniWrapper.INSTANCE.deserialize(serializeHandle, batches(batchId))
         if (batchId == batches.length - 1) {
           finalBatch = handle
         }
@@ -105,7 +105,7 @@ case class ColumnarBuildSideRelation(
         StructType.fromAttributes(output),
         SQLConf.get.sessionLocalTimeZone)
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-      val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.init(
+      val handle = ColumnarBatchSerdeJniWrapper.INSTANCE.initDeserializer(
         cSchema.memoryAddress(),
         NativeMemoryAllocators.getDefault
           .contextInstance("BuildSideRelation#BatchSerializer")
@@ -117,7 +117,7 @@ case class ColumnarBuildSideRelation(
     var closed = false
     TaskResources.addRecycler(s"BuildSideRelation_transform_$serializeHandle", 50) {
       if (!closed) {
-        ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
+        ColumnarBatchSerdeJniWrapper.INSTANCE.close(serializeHandle)
         closed = true
       }
     }
@@ -136,7 +136,7 @@ case class ColumnarBuildSideRelation(
           val itHasNext = batchId < batches.length
           if (!itHasNext && !closed) {
             jniWrapper.nativeClose(c2rId)
-            ColumnarBatchSerializerJniWrapper.INSTANCE.close(serializeHandle)
+            ColumnarBatchSerdeJniWrapper.INSTANCE.close(serializeHandle)
             closed = true
           }
           itHasNext
@@ -146,7 +146,7 @@ case class ColumnarBuildSideRelation(
           val batchBytes = batches(batchId)
           batchId += 1
           val batchHandle =
-            ColumnarBatchSerializerJniWrapper.INSTANCE.deserialize(serializeHandle, batchBytes)
+            ColumnarBatchSerdeJniWrapper.INSTANCE.deserialize(serializeHandle, batchBytes)
           val batch = ColumnarBatches.create(batchHandle)
           if (batch.numRows == 0) {
             Iterator.empty

@@ -132,13 +132,11 @@ std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
   return shuffle_writer;
 }
 
-std::shared_ptr<ColumnarBatchSerializer> VeloxBackend::getColumnarBatchSerializer(
-    MemoryAllocator* allocator,
-    struct ArrowSchema* cSchema) {
+std::shared_ptr<ColumnarBatchSerde> VeloxBackend::getColumnarBatchSerde(MemoryAllocator* allocator) {
   auto arrowPool = asArrowMemoryPool(allocator);
   auto veloxPool = asAggregateVeloxMemoryPool(allocator);
-  auto ctxVeloxPool = veloxPool->addLeafChild("velox_columnar_batch_serializer");
-  return std::make_shared<VeloxColumnarBatchSerializer>(arrowPool, ctxVeloxPool, cSchema);
+  auto ctxVeloxPool = veloxPool->addLeafChild("velox_columnar_batch_serde");
+  return std::make_shared<VeloxColumnarBatchSerde>(ctxVeloxPool, arrowPool);
 }
 
 } // namespace gluten

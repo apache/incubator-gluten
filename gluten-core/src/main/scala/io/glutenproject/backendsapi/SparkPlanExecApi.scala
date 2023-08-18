@@ -18,7 +18,7 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
 import io.glutenproject.expression._
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
+import io.glutenproject.substrait.expression.{ExpressionNode, WindowFunctionNode}
 
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.rdd.RDD
@@ -168,20 +168,14 @@ trait SparkPlanExecApi {
       writeMetrics: Map[String, SQLMetric],
       metrics: Map[String, SQLMetric]): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch]
 
-  /**
-   * Generate ColumnarShuffleWriter for ColumnarShuffleManager.
-   *
-   * @return
-   */
+  /** Generate ColumnarShuffleWriter for ColumnarShuffleManager. */
   def genColumnarShuffleWriter[K, V](
       parameters: GenShuffleWriterParameters[K, V]): GlutenShuffleWriterWrapper[K, V]
 
-  /**
-   * Generate ColumnarBatchSerializer for ColumnarShuffleExchangeExec.
-   *
-   * @return
-   */
-  def createColumnarBatchSerializer(schema: StructType, metrics: Map[String, SQLMetric]): Serializer
+  /** Generate ColumnarShuffleSerializer for ColumnarShuffleExchangeExec. */
+  def createColumnarShuffleSerializer(
+      schema: StructType,
+      metrics: Map[String, SQLMetric]): Serializer
 
   /** Create broadcast relation for BroadcastExchangeExec */
   def createBroadcastRelation(
@@ -197,39 +191,19 @@ trait SparkPlanExecApi {
    */
   def genExtendedDataSourceV2Strategies(): List[SparkSession => Strategy]
 
-  /**
-   * Generate extended Analyzers. Currently only for ClickHouse backend.
-   *
-   * @return
-   */
+  /** Generate extended Analyzers. Currently only for ClickHouse backend. */
   def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]]
 
-  /**
-   * Generate extended Optimizers. Currently only for Velox backend.
-   *
-   * @return
-   */
+  /** Generate extended Optimizers. Currently only for Velox backend. */
   def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]]
 
-  /**
-   * Generate extended Strategies
-   *
-   * @return
-   */
+  /** Generate extended Strategies */
   def genExtendedStrategies(): List[SparkSession => Strategy]
 
-  /**
-   * Generate extended columnar pre-rules.
-   *
-   * @return
-   */
+  /** Generate extended columnar pre-rules. */
   def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]]
 
-  /**
-   * Generate extended columnar post-rules.
-   *
-   * @return
-   */
+  /** Generate extended columnar post-rules. */
   def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
 
   /** Generate an ExpressionTransformer to transform GetStructFiled expression. */
@@ -342,110 +316,7 @@ trait SparkPlanExecApi {
       windowExpression: Seq[NamedExpression],
       windowExpressionNodes: util.ArrayList[WindowFunctionNode],
       originalInputAttributes: Seq[Attribute],
-      args: util.HashMap[String, java.lang.Long]): Unit = {
-
-    windowExpression.map {
-      windowExpr =>
-        val aliasExpr = windowExpr.asInstanceOf[Alias]
-        val columnName = s"${aliasExpr.name}_${aliasExpr.exprId.id}"
-        val wExpression = aliasExpr.child.asInstanceOf[WindowExpression]
-        wExpression.windowFunction match {
-          case wf @ (RowNumber() | Rank(_) | DenseRank(_) | CumeDist() | PercentRank(_)) =>
-            val aggWindowFunc = wf.asInstanceOf[AggregateWindowFunction]
-            val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
-              new util.ArrayList[ExpressionNode](),
-              columnName,
-              ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
-              frame.frameType.sql
-            )
-            windowExpressionNodes.add(windowFunctionNode)
-          case aggExpression: AggregateExpression =>
-            val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
-            val aggregateFunc = aggExpression.aggregateFunction
-            val substraitAggFuncName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
-            if (substraitAggFuncName.isEmpty) {
-              throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
-            }
-
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
-            aggregateFunc.children.foreach(
-              expr =>
-                childrenNodeList.add(
-                  ExpressionConverter
-                    .replaceWithExpressionTransformer(expr, originalInputAttributes)
-                    .doTransform(args)))
-
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,
-              childrenNodeList,
-              columnName,
-              ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
-              frame.frameType.sql
-            )
-            windowExpressionNodes.add(windowFunctionNode)
-          case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
-            val offset_wf = wf.asInstanceOf[FrameLessOffsetWindowFunction]
-            val frame = offset_wf.frame.asInstanceOf[SpecifiedWindowFrame]
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
-            childrenNodeList.add(
-              ExpressionConverter
-                .replaceWithExpressionTransformer(
-                  offset_wf.input,
-                  attributeSeq = originalInputAttributes)
-                .doTransform(args))
-            childrenNodeList.add(
-              ExpressionConverter
-                .replaceWithExpressionTransformer(
-                  offset_wf.offset,
-                  attributeSeq = originalInputAttributes)
-                .doTransform(args))
-            childrenNodeList.add(
-              ExpressionConverter
-                .replaceWithExpressionTransformer(
-                  offset_wf.default,
-                  attributeSeq = originalInputAttributes)
-                .doTransform(args))
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, offset_wf).toInt,
-              childrenNodeList,
-              columnName,
-              ConverterUtils.getTypeNode(offset_wf.dataType, offset_wf.nullable),
-              WindowExecTransformer.getFrameBound(frame.upper),
-              WindowExecTransformer.getFrameBound(frame.lower),
-              frame.frameType.sql
-            )
-            windowExpressionNodes.add(windowFunctionNode)
-          case wf @ NthValue(input, offset: Literal, _) =>
-            val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
-            childrenNodeList.add(
-              ExpressionConverter
-                .replaceWithExpressionTransformer(input, attributeSeq = originalInputAttributes)
-                .doTransform(args))
-            childrenNodeList.add(new LiteralTransformer(offset).doTransform(args))
-            val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              WindowFunctionsBuilder.create(args, wf).toInt,
-              childrenNodeList,
-              columnName,
-              ConverterUtils.getTypeNode(wf.dataType, wf.nullable),
-              frame.upper.sql,
-              frame.lower.sql,
-              frame.frameType.sql
-            )
-            windowExpressionNodes.add(windowFunctionNode)
-          case _ =>
-            throw new UnsupportedOperationException(
-              "unsupported window function type: " +
-                wExpression.windowFunction)
-        }
-    }
-  }
+      args: util.HashMap[String, java.lang.Long]): Unit
 
   def genInjectedFunctions(): Seq[(FunctionIdentifier, ExpressionInfo, FunctionBuilder)] = Seq.empty
 

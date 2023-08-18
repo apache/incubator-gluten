@@ -41,7 +41,7 @@ import java.nio.ByteBuffer
 
 import scala.reflect.ClassTag
 
-class ColumnarBatchSerializer(
+class ColumnarShuffleSerializer(
     schema: StructType,
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
@@ -56,13 +56,13 @@ class ColumnarBatchSerializer(
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
-    new ColumnarBatchSerializerInstance(schema, readBatchNumRows, numOutputRows, decompressTime)
+    new ColumnarShuffleSerializerInstance(schema, readBatchNumRows, numOutputRows, decompressTime)
   }
 
   override def supportsRelocationOfSerializedObjects: Boolean = supportsRelocation
 }
 
-private class ColumnarBatchSerializerInstance(
+private class ColumnarShuffleSerializerInstance(
     schema: StructType,
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,

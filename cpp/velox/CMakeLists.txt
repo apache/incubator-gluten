@@ -235,6 +235,7 @@ set(VELOX_SRCS
     compute/VeloxPlanConverter.cc
     operators/functions/RegistrationAllFunctions.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
+    operators/serializer/VeloxColumnarBatchSerde.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
     operators/writer/VeloxParquetDatasource.cc

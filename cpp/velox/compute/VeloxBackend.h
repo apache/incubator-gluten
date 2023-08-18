@@ -25,7 +25,7 @@
 
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
-#include "operators/serializer/VeloxColumnarBatchSerializer.h"
+#include "operators/serializer/VeloxColumnarBatchSerde.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
 #include "operators/writer/VeloxParquetDatasource.h"
 #include "shuffle/ShuffleWriter.h"
@@ -78,9 +78,7 @@ class VeloxBackend final : public Backend {
     return std::make_shared<VeloxShuffleReader>(in, schema, options, pool, ctxVeloxPool);
   }
 
-  std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
-      MemoryAllocator* allocator,
-      struct ArrowSchema* cSchema) override;
+  std::shared_ptr<ColumnarBatchSerde> getColumnarBatchSerde(MemoryAllocator* allocator) override;
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
     return veloxPlan_;

@@ -17,25 +17,23 @@
 
 #pragma once
 
+#include <arrow/c/abi.h>
+
+#include "ColumnarBatchSerializer.h"
 #include "memory/ColumnarBatch.h"
-#include "operators/serializer/ColumnarBatchSerde.h"
-#include "velox/serializers/PrestoSerializer.h"
+#include "memory/MemoryAllocator.h"
 
 namespace gluten {
 
-class VeloxColumnarBatchSerializer final : public ColumnarBatchSerializer {
+class ColumnarBatchSerde {
  public:
-  VeloxColumnarBatchSerializer(
-      std::shared_ptr<facebook::velox::memory::MemoryPool>,
-      std::shared_ptr<arrow::MemoryPool>);
+  ColumnarBatchSerde() = default;
 
-  std::shared_ptr<arrow::Buffer> serializeColumnarBatches(
-      const std::vector<std::shared_ptr<ColumnarBatch>>& batches) override;
+  virtual std::shared_ptr<ColumnarBatchSerializer> createSerializer() = 0;
 
- private:
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
-  std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_;
-  std::shared_ptr<arrow::MemoryPool> arrowPool_;
+  virtual void initDeserializer(struct ArrowSchema* cSchema) = 0;
+
+  virtual std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) = 0;
 };
 
 } // namespace gluten

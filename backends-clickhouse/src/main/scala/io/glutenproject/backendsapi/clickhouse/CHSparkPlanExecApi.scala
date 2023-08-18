@@ -245,11 +245,11 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
-   * Generate ColumnarBatchSerializer for ColumnarShuffleExchangeExec.
+   * Generate ColumnarShuffleSerializer for ColumnarShuffleExchangeExec.
    *
    * @return
    */
-  override def createColumnarBatchSerializer(
+  override def createColumnarShuffleSerializer(
       schema: StructType,
       metrics: Map[String, SQLMetric]): Serializer = {
     new CHColumnarBatchSerializer(

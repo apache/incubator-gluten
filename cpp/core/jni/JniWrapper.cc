@@ -28,7 +28,7 @@
 #include "operators/writer/Datasource.h"
 
 #include <arrow/c/bridge.h>
-#include "operators/serializer/ColumnarBatchSerializer.h"
+#include "operators/serializer/ColumnarBatchSerde.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/ShuffleWriter.h"
@@ -91,7 +91,7 @@ static ConcurrentMap<std::shared_ptr<ColumnarBatch>> columnarBatchHolder;
 
 static ConcurrentMap<std::shared_ptr<Datasource>> glutenDatasourceHolder;
 
-static ConcurrentMap<std::shared_ptr<ColumnarBatchSerializer>> columnarBatchSerializerHolder;
+static ConcurrentMap<std::shared_ptr<ColumnarBatchSerde>> columnarBatchSerdeHolder;
 
 std::shared_ptr<ResultIterator> getArrayIterator(JNIEnv* env, jlong id) {
   auto handler = resultIteratorHolder.lookup(id);
@@ -1154,7 +1154,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_serialize( // NOLINT
+JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerdeJniWrapper_serialize( // NOLINT
     JNIEnv* env,
     jobject,
     jlongArray handles,
@@ -1175,7 +1175,8 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializ
   env->ReleaseLongArrayElements(handles, batchhandles, JNI_ABORT);
 
   auto backend = createBackend();
-  auto serializer = backend->getColumnarBatchSerializer((*allocator).get(), nullptr);
+  auto serde = backend->getColumnarBatchSerde((*allocator).get());
+  auto serializer = serde->createSerializer();
   auto buffer = serializer->serializeColumnarBatches(batches);
   auto bufferArr = env->NewByteArray(buffer->size());
   env->SetByteArrayRegion(bufferArr, 0, buffer->size(), reinterpret_cast<const jbyte*>(buffer->data()));
@@ -1187,7 +1188,7 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializ
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_init( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerdeJniWrapper_initDeserializer( // NOLINT
     JNIEnv* env,
     jobject,
     jlong cSchema,
@@ -1196,32 +1197,32 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializer
   auto* allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocId);
   GLUTEN_DCHECK(allocator != nullptr, "Memory pool does not exist or has been closed");
   auto backend = createBackend();
-  auto serializer =
-      backend->getColumnarBatchSerializer((*allocator).get(), reinterpret_cast<struct ArrowSchema*>(cSchema));
-  return columnarBatchSerializerHolder.insert(serializer);
+  auto serde = backend->getColumnarBatchSerde((*allocator).get());
+  serde->initDeserializer(reinterpret_cast<struct ArrowSchema*>(cSchema));
+  return columnarBatchSerdeHolder.insert(serde);
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_deserialize( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerdeJniWrapper_deserialize( // NOLINT
     JNIEnv* env,
     jobject,
     jlong handle,
     jbyteArray data) {
   JNI_METHOD_START
-  std::shared_ptr<ColumnarBatchSerializer> serializer = columnarBatchSerializerHolder.lookup(handle);
-  GLUTEN_DCHECK(serializer != nullptr, "ColumnarBatchSerializer cannot be null");
+  std::shared_ptr<ColumnarBatchSerde> serde = columnarBatchSerdeHolder.lookup(handle);
+  GLUTEN_DCHECK(serde != nullptr, "ColumnarBatchSerializer cannot be null");
   int32_t size = env->GetArrayLength(data);
   jbyte* serialized = env->GetByteArrayElements(data, nullptr);
-  auto batch = serializer->deserialize(reinterpret_cast<uint8_t*>(serialized), size);
+  auto batch = serde->deserialize(reinterpret_cast<uint8_t*>(serialized), size);
   env->ReleaseByteArrayElements(data, serialized, JNI_ABORT);
   return columnarBatchHolder.insert(batch);
   JNI_METHOD_END(-1L)
 }
 
 JNIEXPORT void JNICALL
-Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_close(JNIEnv* env, jobject, jlong handle) { // NOLINT
+Java_io_glutenproject_vectorized_ColumnarBatchSerdeJniWrapper_close(JNIEnv* env, jobject, jlong handle) { // NOLINT
   JNI_METHOD_START
-  columnarBatchSerializerHolder.erase(handle);
+  columnarBatchSerdeHolder.erase(handle);
   JNI_METHOD_END()
 }
 

@@ -23,7 +23,7 @@
 #include "memory/ColumnarBatch.h"
 #include "operators/c2r/ColumnarToRow.h"
 #include "operators/r2c/RowToColumnar.h"
-#include "operators/serializer/ColumnarBatchSerializer.h"
+#include "operators/serializer/ColumnarBatchSerde.h"
 #include "operators/writer/Datasource.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/reader.h"
@@ -111,10 +111,8 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return std::make_shared<Reader>(in, schema, options, pool);
   }
 
-  virtual std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
-      MemoryAllocator* allocator,
-      struct ArrowSchema* cSchema) {
-    throw GlutenException("Not implement getColumnarBatchSerializer");
+  virtual std::shared_ptr<ColumnarBatchSerde> getColumnarBatchSerde(MemoryAllocator* allocator) {
+    throw GlutenException("Not implement getColumnarBatchSerde");
   }
 
   std::unordered_map<std::string, std::string> getConfMap() {

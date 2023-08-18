@@ -17,25 +17,29 @@
 
 #pragma once
 
+#include <arrow/c/abi.h>
+
 #include "memory/ColumnarBatch.h"
 #include "operators/serializer/ColumnarBatchSerde.h"
 #include "velox/serializers/PrestoSerializer.h"
 
 namespace gluten {
 
-class VeloxColumnarBatchSerializer final : public ColumnarBatchSerializer {
+class VeloxColumnarBatchSerde final : public ColumnarBatchSerde {
  public:
-  VeloxColumnarBatchSerializer(
-      std::shared_ptr<facebook::velox::memory::MemoryPool>,
-      std::shared_ptr<arrow::MemoryPool>);
+  VeloxColumnarBatchSerde(std::shared_ptr<facebook::velox::memory::MemoryPool>, std::shared_ptr<arrow::MemoryPool>);
 
-  std::shared_ptr<arrow::Buffer> serializeColumnarBatches(
-      const std::vector<std::shared_ptr<ColumnarBatch>>& batches) override;
+  std::shared_ptr<ColumnarBatchSerializer> createSerializer() override;
+
+  void initDeserializer(struct ArrowSchema* cSchema) override;
+
+  std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) override;
 
  private:
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
-  std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_;
   std::shared_ptr<arrow::MemoryPool> arrowPool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  facebook::velox::RowTypePtr rowType_;
+  std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_;
 };
 
 } // namespace gluten

@@ -17,26 +17,16 @@
 
 #pragma once
 
-#include <arrow/c/abi.h>
-
 #include "memory/ColumnarBatch.h"
 
 namespace gluten {
 
 class ColumnarBatchSerializer {
  public:
-  ColumnarBatchSerializer(std::shared_ptr<arrow::MemoryPool> arrowPool, struct ArrowSchema* cSchema)
-      : arrowPool_(std::move(arrowPool)) {}
-
-  virtual ~ColumnarBatchSerializer() = default;
+  ColumnarBatchSerializer() = default;
 
   virtual std::shared_ptr<arrow::Buffer> serializeColumnarBatches(
       const std::vector<std::shared_ptr<ColumnarBatch>>& batches) = 0;
-
-  virtual std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) = 0;
-
- protected:
-  std::shared_ptr<arrow::MemoryPool> arrowPool_;
 };
 
 } // namespace gluten
