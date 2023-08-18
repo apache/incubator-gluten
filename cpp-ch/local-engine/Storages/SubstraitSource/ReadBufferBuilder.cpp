@@ -407,6 +407,18 @@ private:
         return s;
     }
 
+    std::string toBucketNameSetting(const std::string & bucket_name, const std::string & config_name)
+    {
+        if (!config_name.starts_with(BackendInitializerUtil::S3A_PREFIX))
+        {
+            // Currently per bucket only support fs.s3a.xxx
+            return config_name;
+        }
+        // like: fs.s3a.bucket.bucket_name.assumed.role.externalId
+        return BackendInitializerUtil::S3A_PREFIX + "bucket." + bucket_name + "."
+                           + config_name.substr(BackendInitializerUtil::S3A_PREFIX.size());
+    }
+
     std::string getSetting(
         const DB::Settings & settings,
         const std::string & bucket_name,
@@ -415,36 +427,14 @@ private:
         const bool require_per_bucket = false)
     {
         std::string ret;
-        if (!require_per_bucket)
-        {
-            // if there's a bucket specific config, prefer it to non per bucket config
-            if (settings.tryGetString(bucket_name + "." + config_name, ret))
-            {
-                return stripQuote(ret);
-            }
-            else
-            {
-                if (settings.tryGetString(config_name, ret))
-                {
-                    return stripQuote(ret);
-                }
-                else
-                {
-                    return default_value;
-                }
-            }
-        }
-        else
-        {
-            if (settings.tryGetString(bucket_name + "." + config_name, ret))
-            {
-                return stripQuote(ret);
-            }
-            else
-            {
-                return default_value;
-            }
-        }
+        // if there's a bucket specific config, prefer it to non per bucket config
+        if (settings.tryGetString(toBucketNameSetting(bucket_name, config_name), ret))
+            return stripQuote(ret);
+
+        if (!require_per_bucket && settings.tryGetString(config_name, ret))
+            return stripQuote(ret);
+
+        return default_value;
     }
 
     void cacheClient(const std::string & bucket_name, const bool is_per_bucket, std::shared_ptr<DB::S3::Client> client)
