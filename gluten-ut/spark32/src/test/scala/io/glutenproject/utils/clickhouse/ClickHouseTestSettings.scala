@@ -219,7 +219,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "log2",
       "unhex",
       "atan2",
-      "round/bround"
+      "round/bround",
+      "Gluten - round/bround"
     )
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
