@@ -18,15 +18,14 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
-
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
+import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File
 import java.sql.Timestamp
@@ -122,7 +121,7 @@ class GlutenClickHouseHiveTableSuite()
   private val parquet_table_name = "hive_parquet_test"
 
   private val txt_table_create_sql = genTableCreateSql(txt_table_name, "textfile")
-  private val parquet_table_create_sql = genTableCreateSql(parquet_table_name, "parquet");
+  private val parquet_table_create_sql = genTableCreateSql(parquet_table_name, "parquet")
   private val json_table_create_sql = "create table if not exists %s (".format(json_table_name) +
     "string_field string," +
     "int_field int," +
@@ -286,7 +285,7 @@ class GlutenClickHouseHiveTableSuite()
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -311,7 +310,7 @@ class GlutenClickHouseHiveTableSuite()
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -325,7 +324,7 @@ class GlutenClickHouseHiveTableSuite()
       s"int_field, string_field from $txt_table_name order by string_field"
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -338,7 +337,7 @@ class GlutenClickHouseHiveTableSuite()
     val sql1 = s"select count(1), count(*) from $txt_table_name"
     compareResultsAgainstVanillaSpark(
       sql1,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -349,7 +348,7 @@ class GlutenClickHouseHiveTableSuite()
     val sql2 = s"select count(*) from $txt_table_name where int_field >= 100"
     compareResultsAgainstVanillaSpark(
       sql2,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -366,7 +365,7 @@ class GlutenClickHouseHiveTableSuite()
     var sql = "select * from test_empty_partitions where day = '2023-01-01';"
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -385,7 +384,7 @@ class GlutenClickHouseHiveTableSuite()
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -403,7 +402,7 @@ class GlutenClickHouseHiveTableSuite()
     val sql = s"select SHORT_FIELD, int_field, LONG_field from $txt_table_name order by int_field"
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -429,7 +428,7 @@ class GlutenClickHouseHiveTableSuite()
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val jsonFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -446,7 +445,7 @@ class GlutenClickHouseHiveTableSuite()
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val jsonFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -505,7 +504,7 @@ class GlutenClickHouseHiveTableSuite()
     val sql3 = "select * from " + allow_single_quote_table_name
     compareResultsAgainstVanillaSpark(
       sql1,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan =
           collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
@@ -513,7 +512,7 @@ class GlutenClickHouseHiveTableSuite()
       })
     compareResultsAgainstVanillaSpark(
       sql2,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan =
           collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
@@ -521,7 +520,7 @@ class GlutenClickHouseHiveTableSuite()
       })
     compareResultsAgainstVanillaSpark(
       sql3,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan =
           collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
@@ -561,7 +560,7 @@ class GlutenClickHouseHiveTableSuite()
 
     compareResultsAgainstVanillaSpark(
       sql1,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -570,7 +569,7 @@ class GlutenClickHouseHiveTableSuite()
       })
     compareResultsAgainstVanillaSpark(
       sql2,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -595,7 +594,7 @@ class GlutenClickHouseHiveTableSuite()
          |""".stripMargin
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan = collect(df.queryExecution.executedPlan) {
           case l: HiveTableScanExecTransformer => l
@@ -606,33 +605,37 @@ class GlutenClickHouseHiveTableSuite()
   }
 
   test("test hive compressed txt table") {
-    val txt_compressed_table_name = "hive_compressed_txt_test"
-    val drop_table_sql = "drop table if exists %s".format(txt_compressed_table_name)
-    val create_table_sql =
-      "create table if not exists %s (".format(txt_compressed_table_name) +
-        "id bigint," +
-        "name string," +
-        "sex string) stored as textfile"
-    spark.sql(drop_table_sql)
-    spark.sql(create_table_sql)
-    spark.sql("SET hive.exec.compress.output=true")
-    spark.sql("SET mapred.output.compress=true")
-    spark.sql("SET mapred.output.compression.codec=org.apache.hadoop.io.compress.DefaultCodec")
-    val insert_sql =
-      s"""
-         | insert into $txt_compressed_table_name values(1, "a", "b")
-         |""".stripMargin
-    spark.sql(insert_sql)
+    withSQLConf(SQLConf.FILES_MAX_PARTITION_BYTES.key -> "11") {
+      Seq("DefaultCodec", "BZip2Codec").foreach { compress =>
+        val txt_compressed_table_name = "hive_compressed_txt_test"
+        val drop_table_sql = "drop table if exists %s".format(txt_compressed_table_name)
+        val create_table_sql =
+          "create table if not exists %s (".format(txt_compressed_table_name) +
+            "id bigint," +
+            "name string," +
+            "sex string) stored as textfile"
+        spark.sql(drop_table_sql)
+        spark.sql(create_table_sql)
+        spark.sql("SET hive.exec.compress.output=true")
+        spark.sql("SET mapred.output.compress=true")
+        spark.sql(s"SET mapred.output.compression.codec=org.apache.hadoop.io.compress.$compress")
+        val insert_sql =
+          s"""
+             | insert into $txt_compressed_table_name values(1, "a", "b")
+             |""".stripMargin
+        spark.sql(insert_sql)
 
-    val sql = "select * from " + txt_compressed_table_name
-    compareResultsAgainstVanillaSpark(
-      sql,
-      true,
-      df => {
-        val txtFileScan =
-          collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
-        assert(txtFileScan.size == 1)
-      })
+        val sql = "select * from " + txt_compressed_table_name
+        compareResultsAgainstVanillaSpark(
+          sql,
+          compareResult = true,
+          df => {
+            val txtFileScan =
+              collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
+            assert(txtFileScan.size == 1)
+          })
+      }
+    }
   }
 
   test("text hive txt table with multiple compressed method") {
@@ -649,7 +652,7 @@ class GlutenClickHouseHiveTableSuite()
     val sql = "select * from " + compressed_txt_table_name
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan =
           collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
@@ -697,9 +700,9 @@ class GlutenClickHouseHiveTableSuite()
       spark.sql(create_sql)
       spark.sql(insert_sql)
 
-      compareResultsAgainstVanillaSpark(select1_sql, true, _ => {})
-      compareResultsAgainstVanillaSpark(select2_sql, true, _ => {})
-      compareResultsAgainstVanillaSpark(select3_sql, true, _ => {})
+      compareResultsAgainstVanillaSpark(select1_sql, compareResult = true, _ => {})
+      compareResultsAgainstVanillaSpark(select2_sql, compareResult = true, _ => {})
+      compareResultsAgainstVanillaSpark(select3_sql, compareResult = true, _ => {})
 
       spark.sql(drop_sql)
     }
@@ -738,12 +741,12 @@ class GlutenClickHouseHiveTableSuite()
     spark.sql(create_table_sql)
     spark.sql(insert_data_sql)
 
-    compareResultsAgainstVanillaSpark(select_sql_1, true, _ => {})
-    compareResultsAgainstVanillaSpark(select_sql_2, true, _ => {})
-    compareResultsAgainstVanillaSpark(select_sql_3, true, _ => {})
-    compareResultsAgainstVanillaSpark(select_sql_4, true, _ => {})
-    compareResultsAgainstVanillaSpark(select_sql_5, true, _ => {})
-    compareResultsAgainstVanillaSpark(select_sql_6, true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_1, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_2, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_3, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_4, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_5, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_6, compareResult = true, _ => {})
   }
 
   test("GLUTEN-2180: Test data field too much/few") {
@@ -760,7 +763,7 @@ class GlutenClickHouseHiveTableSuite()
     val sql = "select * from " + test_table_name
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan =
           collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
@@ -784,7 +787,7 @@ class GlutenClickHouseHiveTableSuite()
     val sql = "select * from " + test_table_name
     compareResultsAgainstVanillaSpark(
       sql,
-      true,
+      compareResult = true,
       df => {
         val txtFileScan =
           collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
@@ -803,7 +806,7 @@ class GlutenClickHouseHiveTableSuite()
          | and timestamp_field <= to_timestamp($currentTimestamp)
          | and array_field[0] > 0 and map_field[9] >= 0 and decimal_field > 5
          |""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, _ => {})
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, _ => {})
   }
 
   test("test parquet push down filter with null value") {
@@ -828,13 +831,13 @@ class GlutenClickHouseHiveTableSuite()
         | (7, 'e', 24, '2023-08-01', '12')
         |""".stripMargin
 
-    val select_sql_1 = "select count(1) from test_tbl_2456 where name is null or age is null";
+    val select_sql_1 = "select count(1) from test_tbl_2456 where name is null or age is null"
     val select_sql_2 = "select count(1) from test_tbl_2456 where age > 0 and day = '2023-08-01'"
 
     spark.sql(create_table_sql)
     spark.sql(insert_data_sql)
-    compareResultsAgainstVanillaSpark(select_sql_1, true, _ => {})
-    compareResultsAgainstVanillaSpark(select_sql_2, true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_1, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_2, compareResult = true, _ => {})
   }
 
   test("test parquet push down filter with multi-nested column types") {
@@ -873,7 +876,7 @@ class GlutenClickHouseHiveTableSuite()
         |""".stripMargin
     spark.sql(create_table_sql)
     spark.sql(insert_data_sql)
-    compareResultsAgainstVanillaSpark(select_sql_1, true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_1, compareResult = true, _ => {})
   }
 
 }

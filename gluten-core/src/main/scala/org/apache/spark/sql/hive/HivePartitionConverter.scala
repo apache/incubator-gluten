@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.hive
 
+import io.glutenproject.backendsapi.BackendsApiManager
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
 import org.apache.spark.sql.catalyst.analysis.CastSupport
@@ -28,7 +30,7 @@ import org.apache.spark.sql.types.DataType
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.hadoop.hive.ql.metadata.{Partition => HivePartition}
-import org.apache.hadoop.io.compress.{CompressionCodecFactory, SplittableCompressionCodec}
+import org.apache.hadoop.io.compress.CompressionCodecFactory
 
 import java.net.URI
 
@@ -51,7 +53,8 @@ class HivePartitionConverter(hadoopConf: Configuration, session: SparkSession)
     //       partition.files is an Array[FileStatus] on vanilla Apache Spark,
     //       but an Array[SerializableFileStatus] on Databricks.
     val codec = codecFactory.getCodec(filePath)
-    codec == null || codec.isInstanceOf[SplittableCompressionCodec]
+    codec == null || BackendsApiManager.getValidatorApiInstance.doCompressionSplittableValidate(
+      codec.getClass.getSimpleName)
   }
 
   private def isNonEmptyDataFile(f: FileStatus): Boolean = {
