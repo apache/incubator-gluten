@@ -318,7 +318,8 @@ std::string SubstraitParser::mapToVeloxFunction(const std::string& substraitFunc
   auto it = substraitVeloxFunctionMap_.find(substraitFunction);
   if (isDecimal) {
     if (substraitFunction == "round" || substraitFunction == "sum" || substraitFunction == "lt" ||
-        substraitFunction == "lte" || substraitFunction == "gt" || substraitFunction == "gte") {
+        substraitFunction == "lte" || substraitFunction == "gt" || substraitFunction == "gte" ||
+        substraitFunction == "equal") {
       return "decimal_" + substraitFunction;
     }
     if (substraitFunction == "equal") {
