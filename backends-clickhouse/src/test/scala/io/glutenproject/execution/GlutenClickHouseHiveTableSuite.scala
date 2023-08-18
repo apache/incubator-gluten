@@ -18,14 +18,16 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+import org.apache.spark.sql.internal.SQLConf
+
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.internal.SQLConf
 
 import java.io.File
 import java.sql.Timestamp
@@ -343,7 +345,8 @@ class GlutenClickHouseHiveTableSuite()
           case l: HiveTableScanExecTransformer => l
         }
         assert(txtFileScan.size == 1)
-      })
+      }
+    )
 
     val sql2 = s"select count(*) from $txt_table_name where int_field >= 100"
     compareResultsAgainstVanillaSpark(
@@ -354,7 +357,8 @@ class GlutenClickHouseHiveTableSuite()
           case l: HiveTableScanExecTransformer => l
         }
         assert(txtFileScan.size == 1)
-      })
+      }
+    )
   }
 
   test("fix bug: https://github.com/oap-project/gluten/issues/2022") {
@@ -434,7 +438,8 @@ class GlutenClickHouseHiveTableSuite()
           case l: HiveTableScanExecTransformer => l
         }
         assert(jsonFileScan.size == 1)
-      })
+      }
+    )
   }
 
   test("test hive json table complex data type") {
@@ -509,7 +514,8 @@ class GlutenClickHouseHiveTableSuite()
         val txtFileScan =
           collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
         assert(txtFileScan.size == 1)
-      })
+      }
+    )
     compareResultsAgainstVanillaSpark(
       sql2,
       compareResult = true,
@@ -517,7 +523,8 @@ class GlutenClickHouseHiveTableSuite()
         val txtFileScan =
           collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
         assert(txtFileScan.size == 1)
-      })
+      }
+    )
     compareResultsAgainstVanillaSpark(
       sql3,
       compareResult = true,
@@ -525,7 +532,8 @@ class GlutenClickHouseHiveTableSuite()
         val txtFileScan =
           collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
         assert(txtFileScan.size == 1)
-      })
+      }
+    )
   }
 
   test("text hive table with space/tab delimiter") {
@@ -566,7 +574,8 @@ class GlutenClickHouseHiveTableSuite()
           case l: HiveTableScanExecTransformer => l
         }
         assert(txtFileScan.size == 1)
-      })
+      }
+    )
     compareResultsAgainstVanillaSpark(
       sql2,
       compareResult = true,
@@ -575,7 +584,8 @@ class GlutenClickHouseHiveTableSuite()
           case l: HiveTableScanExecTransformer => l
         }
         assert(txtFileScan.size == 1)
-      })
+      }
+    )
   }
 
   test("test hive table with illegal partition path") {
@@ -606,34 +616,37 @@ class GlutenClickHouseHiveTableSuite()
 
   test("test hive compressed txt table") {
     withSQLConf(SQLConf.FILES_MAX_PARTITION_BYTES.key -> "11") {
-      Seq("DefaultCodec", "BZip2Codec").foreach { compress =>
-        val txt_compressed_table_name = "hive_compressed_txt_test"
-        val drop_table_sql = "drop table if exists %s".format(txt_compressed_table_name)
-        val create_table_sql =
-          "create table if not exists %s (".format(txt_compressed_table_name) +
-            "id bigint," +
-            "name string," +
-            "sex string) stored as textfile"
-        spark.sql(drop_table_sql)
-        spark.sql(create_table_sql)
-        spark.sql("SET hive.exec.compress.output=true")
-        spark.sql("SET mapred.output.compress=true")
-        spark.sql(s"SET mapred.output.compression.codec=org.apache.hadoop.io.compress.$compress")
-        val insert_sql =
-          s"""
-             | insert into $txt_compressed_table_name values(1, "a", "b")
-             |""".stripMargin
-        spark.sql(insert_sql)
+      Seq("DefaultCodec", "BZip2Codec").foreach {
+        compress =>
+          val txt_compressed_table_name = "hive_compressed_txt_test"
+          val drop_table_sql = "drop table if exists %s".format(txt_compressed_table_name)
+          val create_table_sql =
+            "create table if not exists %s (".format(txt_compressed_table_name) +
+              "id bigint," +
+              "name string," +
+              "sex string) stored as textfile"
+          spark.sql(drop_table_sql)
+          spark.sql(create_table_sql)
+          spark.sql("SET hive.exec.compress.output=true")
+          spark.sql("SET mapred.output.compress=true")
+          spark.sql(s"SET mapred.output.compression.codec=org.apache.hadoop.io.compress.$compress")
+          val insert_sql =
+            s"""
+               | insert into $txt_compressed_table_name values(1, "a", "b")
+               |""".stripMargin
+          spark.sql(insert_sql)
 
-        val sql = "select * from " + txt_compressed_table_name
-        compareResultsAgainstVanillaSpark(
-          sql,
-          compareResult = true,
-          df => {
-            val txtFileScan =
-              collect(df.queryExecution.executedPlan) { case l: HiveTableScanExecTransformer => l }
-            assert(txtFileScan.size == 1)
-          })
+          val sql = "select * from " + txt_compressed_table_name
+          compareResultsAgainstVanillaSpark(
+            sql,
+            compareResult = true,
+            df => {
+              val txtFileScan =
+                collect(df.queryExecution.executedPlan) {
+                  case l: HiveTableScanExecTransformer => l
+                }
+              assert(txtFileScan.size == 1)
+            })
       }
     }
   }
