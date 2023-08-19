@@ -39,6 +39,7 @@
 
 #include <hdfs/hdfs.h>
 #include <Poco/Logger.h>
+#include <Common/FileCacheConcurrentMap.h>
 #include <Common/Throttler.h>
 #include <Common/logger_useful.h>
 #include <Common/safe_cast.h>
@@ -326,12 +327,13 @@ public:
         file_cache_settings.base_path = cache_base_path;
         new_settings = DB::ReadSettings();
         new_settings.enable_filesystem_cache = context->getConfigRef().getBool("s3.local_cache.enabled", false);
+
         if (new_settings.enable_filesystem_cache)
         {
-            auto cache = DB::FileCacheFactory::instance().getOrCreate("s3_local_cache", file_cache_settings);
-            cache->initialize();
+            file_cache = DB::FileCacheFactory::instance().getOrCreate("s3_local_cache", file_cache_settings);
+            file_cache->initialize();
 
-            new_settings.remote_fs_cache = cache;
+            new_settings.remote_fs_cache = file_cache;
         }
     }
 
@@ -346,6 +348,36 @@ public:
         const auto client = getClient(bucket);
         std::string key = file_uri.getPath().substr(1);
         size_t object_size = DB::S3::getObjectSize(*client, bucket, key, "");
+
+        if (new_settings.enable_filesystem_cache)
+        {
+            const auto & settings = context->getSettingsRef();
+            String accept_cache_time_str = getSetting(settings, "", "spark.kylin.local-cache.accept-cache-time");
+            Int64 accept_cache_time;
+            if (accept_cache_time_str.empty())
+            {
+                accept_cache_time = DateTimeUtil::currentTimeMillis();
+            }
+            else
+            {
+                accept_cache_time = std::stoll(accept_cache_time_str);
+            }
+
+            auto file_cache_key = DB::FileCacheKey(key);
+            auto last_cache_time = files_cache_time_map.get(file_cache_key);
+            // quick check
+            if (last_cache_time != std::nullopt && last_cache_time.has_value())
+            {
+                if (last_cache_time.value() < accept_cache_time)
+                {
+                    files_cache_time_map.update_cache_time(file_cache_key, key, accept_cache_time, file_cache);
+                }
+            }
+            else
+            {
+                files_cache_time_map.update_cache_time(file_cache_key, key, accept_cache_time, file_cache);
+            }
+        }
 
         auto read_buffer_creator
             = [bucket, client, this](const std::string & path, size_t read_until_position) -> std::unique_ptr<DB::ReadBufferFromFileBase>
@@ -399,7 +431,9 @@ public:
 private:
     static boost::compute::detail::lru_cache<std::string, std::shared_ptr<DB::S3::Client>> per_bucket_clients;
     static std::shared_ptr<DB::S3::Client> shared_client;
+    static FileCacheConcurrentMap files_cache_time_map;
     DB::ReadSettings new_settings;
+    DB::FileCachePtr file_cache;
 
     std::string & stripQuote(std::string & s)
     {
@@ -554,6 +588,7 @@ private:
 };
 boost::compute::detail::lru_cache<std::string, std::shared_ptr<DB::S3::Client>> S3FileReadBufferBuilder::per_bucket_clients(100);
 std::shared_ptr<DB::S3::Client> S3FileReadBufferBuilder::shared_client;
+FileCacheConcurrentMap S3FileReadBufferBuilder::files_cache_time_map;
 
 #endif
 

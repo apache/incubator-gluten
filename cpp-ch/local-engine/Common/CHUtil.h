@@ -118,10 +118,10 @@ public:
     /// 2. session level resources like settings/configs, they can be initialized multiple times following the lifetime of executor/driver
     static void init(std::string * plan);
 
-    static void updateConfig(DB::ContextMutablePtr , std::string *);
+    static void updateConfig(DB::ContextMutablePtr, std::string *);
 
 
-   // use excel text parser
+    // use excel text parser
     inline static const std::string USE_EXCEL_PARSER = "use_excel_serialization";
     inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
 
@@ -184,18 +184,20 @@ public:
 };
 
 // Ignore memory track, memory should free before IgnoreMemoryTracker deconstruction
-class IgnoreMemoryTracker {
+class IgnoreMemoryTracker
+{
 public:
-    explicit IgnoreMemoryTracker(size_t limit_):limit(limit_)
-    {
-        DB::CurrentThread::get().untracked_memory_limit += limit;
-    }
-    ~IgnoreMemoryTracker()
-    {
-        DB::CurrentThread::get().untracked_memory_limit -= limit;
-    }
+    explicit IgnoreMemoryTracker(size_t limit_) : limit(limit_) { DB::CurrentThread::get().untracked_memory_limit += limit; }
+    ~IgnoreMemoryTracker() { DB::CurrentThread::get().untracked_memory_limit -= limit; }
+
 private:
     size_t limit;
+};
+
+class DateTimeUtil
+{
+public:
+    static Int64 currentTimeMillis();
 };
 
 }
