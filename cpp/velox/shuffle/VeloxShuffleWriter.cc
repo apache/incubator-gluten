@@ -964,8 +964,11 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       auto partition = row2Partition_[row];
       if (complexTypeData_[partition] == nullptr) {
         // TODO: maybe memory issue, copy many times
+        if (arenas_[partition] == nullptr) {
+          arenas_[partition] = std::make_unique<facebook::velox::StreamArena>(veloxPool_.get());
+        }
         complexTypeData_[partition] = std::move(serde_->createSerializer(
-            complexWriteType_, partition2RowCount_[partition], arena_.get(), /* serdeOptions */ nullptr));
+            complexWriteType_, partition2RowCount_[partition], arenas_[partition].get(), /* serdeOptions */ nullptr));
       }
       rowIndexs[partition].emplace_back(IndexRange{row, 1});
     }
@@ -1338,6 +1341,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       complexTypeData_[partitionId]->flush(&out);
       allBuffers.emplace_back(valueBuffer);
       complexTypeData_[partitionId] = nullptr;
+      arenas_[partitionId] = nullptr;
     }
 
     return makeRecordBatch(numRows, allBuffers);
