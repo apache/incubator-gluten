@@ -61,8 +61,8 @@ public:
     }
     SerializedPlanBuilder & registerFunction(int id, const std::string & name);
     SerializedPlanBuilder & filter(substrait::Expression * condition);
-    SerializedPlanBuilder & project(std::vector<substrait::Expression *> projections);
-    SerializedPlanBuilder & aggregate(std::vector<int32_t> keys, std::vector<substrait::AggregateRel_Measure *> aggregates);
+    SerializedPlanBuilder & project(const std::vector<substrait::Expression *>& projections);
+    SerializedPlanBuilder & aggregate(const std::vector<int32_t>& keys, const std::vector<substrait::AggregateRel_Measure *>& aggregates);
     SerializedPlanBuilder & read(const std::string & path, SchemaPtr schema);
     SerializedPlanBuilder & readMergeTree(
         const std::string & database,

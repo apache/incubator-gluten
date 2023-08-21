@@ -17,7 +17,7 @@ public:
 class BlockStripeSplitter
 {
 public:
-    static BlockStripes split(const DB::Block & block, const std::vector<size_t> partitionColIndice, const bool hasBucket);
+    static BlockStripes split(const DB::Block & block, const std::vector<size_t>& partitionColIndice, const bool hasBucket);
 };
 
 }

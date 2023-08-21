@@ -294,7 +294,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithJavaIter(const substrait
     return source_step;
 }
 
-IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, std::vector<String> columns)
+IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, const std::vector<String>& columns)
 {
     if (columns.empty())
         return nullptr;
@@ -2476,7 +2476,7 @@ void SerializedPlanParser::reorderJoinOutput(QueryPlan & plan, DB::Names cols)
     plan.addStep(std::move(project_step));
 }
 
-void SerializedPlanParser::removeNullable(std::vector<String> require_columns, ActionsDAGPtr actionsDag)
+void SerializedPlanParser::removeNullable(const std::vector<String>& require_columns, ActionsDAGPtr actionsDag)
 {
     for (const auto & item : require_columns)
     {
@@ -2492,7 +2492,7 @@ void SerializedPlanParser::removeNullable(std::vector<String> require_columns, A
 }
 
 void SerializedPlanParser::wrapNullable(
-    std::vector<String> columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names)
+    const std::vector<String>& columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names)
 {
     for (const auto & item : columns)
     {

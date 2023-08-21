@@ -204,7 +204,7 @@ public:
     }
 
     std::pair<size_t, size_t>
-    adjustFileReadStartAndEndPos(size_t read_start_pos, size_t read_end_pos, std::string uri_path, std::string file_path)
+    adjustFileReadStartAndEndPos(size_t read_start_pos, size_t read_end_pos, const std::string& uri_path, const std::string& file_path)
     {
         std::string hdfs_file_path = uri_path + file_path;
         auto builder = DB::createHDFSBuilder(hdfs_file_path, context->getConfigRef());
@@ -449,7 +449,7 @@ private:
         }
     }
 
-    std::shared_ptr<DB::S3::Client> getClient(std::string bucket_name)
+    std::shared_ptr<DB::S3::Client> getClient(const std::string& bucket_name)
     {
         const auto & config = context->getConfigRef();
         const auto & settings = context->getSettingsRef();

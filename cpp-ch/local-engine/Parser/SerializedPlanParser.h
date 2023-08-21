@@ -365,13 +365,13 @@ private:
     const ActionsDAG::Node *
     toFunctionNode(ActionsDAGPtr actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
     // remove nullable after isNotNull
-    void removeNullable(std::vector<String> require_columns, ActionsDAGPtr actionsDag);
+    void removeNullable(const std::vector<String>& require_columns, ActionsDAGPtr actionsDag);
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
 
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
-    void wrapNullable(std::vector<String> columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names);
+    void wrapNullable(const std::vector<String>& columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names);
 
-    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, std::vector<String> columns);
+    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::vector<String>& columns);
 
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
 
