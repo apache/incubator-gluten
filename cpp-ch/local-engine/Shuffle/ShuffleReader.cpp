@@ -29,6 +29,7 @@ local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool
     if (compressed)
     {
         compressed_in = std::make_unique<CompressedReadBuffer>(*in);
+        compressed_in->disableChecksumming();
         input_stream = std::make_unique<NativeReader>(*compressed_in, 0);
     }
     else

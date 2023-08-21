@@ -45,6 +45,9 @@
 #include <Common/ExceptionUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
+#include <Shuffle/CachedShuffleWriter.h>
+#include <Shuffle/PartitionWriter.h>
+#include <Shuffle/ShuffleWriterBase.h>
 
 #ifdef __cplusplus
 
@@ -120,8 +123,8 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     block_stripes_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
     block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", "(J[J[IIZ)V");
 
-    split_result_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/SplitResult;");
-    split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[J)V");
+    split_result_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/CHSplitResult;");
+    split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[JJJJ)V");
 
     local_engine::ShuffleReader::input_stream_class
         = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/ShuffleInputStream;");
@@ -637,7 +640,9 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jstring codec,
     jstring data_file,
     jstring local_dirs,
-    jint num_sub_dirs)
+    jint num_sub_dirs,
+    jboolean prefer_spill,
+    jlong spill_threshold)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -677,21 +682,43 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .partition_nums = static_cast<size_t>(num_partitions),
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
-        .compress_method = jstring2string(env, codec)};
-    local_engine::SplitterHolder * splitter
-        = new local_engine::SplitterHolder{.splitter = local_engine::ShuffleSplitter::create(jstring2string(env, short_name), options)};
+        .compress_method = jstring2string(env, codec),
+        .spill_threshold = static_cast<size_t>(spill_threshold)};
+    auto name = jstring2string(env, short_name);
+    local_engine::SplitterHolder * splitter;
+    if (prefer_spill)
+    {
+        splitter
+            = new local_engine::SplitterHolder{.splitter = local_engine::ShuffleSplitter::create(name, options)};
+    }
+    else
+    {
+        splitter
+            = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options)};
+    }
     return reinterpret_cast<jlong>(splitter);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
 JNIEXPORT void
-Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env, jobject, jlong splitterId, jint, jlong block)
+Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env, jobject, jlong splitterId, jlong block)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
     DB::Block * data = reinterpret_cast<DB::Block *>(block);
     splitter->splitter->split(*data);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+JNIEXPORT jlong
+Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_evict(JNIEnv * env, jobject, jlong splitterId)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
+    auto size = splitter->splitter->evictPartitions();
+    std::cerr << "spill data: " << size << std::endl;
+    return size;
+    LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
 
 JNIEXPORT jobject Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_stop(JNIEnv * env, jobject, jlong splitterId)
@@ -715,11 +742,14 @@ JNIEXPORT jobject Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_s
         result.total_compute_pid_time,
         result.total_write_time,
         result.total_spill_time,
-        0,
+        result.total_compress_time,
         result.total_bytes_written,
-        result.total_bytes_written,
+        result.total_bytes_spilled,
         partition_length_arr,
-        raw_partition_length_arr);
+        raw_partition_length_arr,
+        result.total_split_time,
+        result.total_disk_time,
+        result.total_serialize_time);
 
     return split_result;
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)

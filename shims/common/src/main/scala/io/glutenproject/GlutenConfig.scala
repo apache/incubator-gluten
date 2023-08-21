@@ -211,6 +211,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxOverAcquiredMemoryRatio: Double = conf.getConf(COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO)
 
+  def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -958,6 +960,13 @@ object GlutenConfig {
       .doubleConf
       .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
       .createWithDefault(0.3d)
+
+  val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.backend.ch.spillThreshold")
+      .internal()
+      .doc("Shuffle spill threshold on ch backend")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("0MB")
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")

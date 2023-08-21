@@ -40,22 +40,31 @@ struct PartitionInfo
     static PartitionInfo fromSelector(DB::IColumn::Selector selector, size_t partition_num);
 };
 
-class RoundRobinSelectorBuilder
+class SelectorBuilder
+{
+public:
+    virtual ~SelectorBuilder() = default;
+    virtual PartitionInfo build(DB::Block & block) = 0;
+};
+
+class RoundRobinSelectorBuilder : public SelectorBuilder
 {
 public:
     explicit RoundRobinSelectorBuilder(size_t parts_num_) : parts_num(parts_num_) { }
-    PartitionInfo build(DB::Block & block);
+    ~RoundRobinSelectorBuilder() override = default;
+    PartitionInfo build(DB::Block & block) override;
 
 private:
     size_t parts_num;
     Int32 pid_selection = 0;
 };
 
-class HashSelectorBuilder
+class HashSelectorBuilder : public SelectorBuilder
 {
 public:
     explicit HashSelectorBuilder(UInt32 parts_num_, const std::vector<size_t> & exprs_index_, const std::string & hash_function_name_);
-    PartitionInfo build(DB::Block & block);
+    ~HashSelectorBuilder() override = default;
+    PartitionInfo build(DB::Block & block) override;
 
 private:
     UInt32 parts_num;
@@ -64,11 +73,12 @@ private:
     DB::FunctionBasePtr hash_function;
 };
 
-class RangeSelectorBuilder
+class RangeSelectorBuilder : public SelectorBuilder
 {
 public:
     explicit RangeSelectorBuilder(const std::string & options_, const size_t partition_num_);
-    PartitionInfo build(DB::Block & block);
+    ~RangeSelectorBuilder() override = default;
+    PartitionInfo build(DB::Block & block) override;
 
 private:
     DB::SortDescription sort_descriptions;
