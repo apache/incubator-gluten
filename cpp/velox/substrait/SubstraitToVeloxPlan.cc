@@ -812,10 +812,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     std::vector<::substrait::Expression_IfThen> ifThens;
     flattenConditions(readRel.filter(), scalarFunctions, singularOrLists, ifThens);
 
-    std::unordered_map<uint32_t, RangeRecorder> rangeRecorders;
-    for (uint32_t idx = 0; idx < veloxTypeList.size(); idx++) {
-      rangeRecorders[idx];
-    }
+    // The vector's subscript stands for the column index.
+    std::vector<RangeRecorder> rangeRecorders(veloxTypeList.size());
 
     // Separate the filters to be two parts. The subfield part can be
     // pushed down.
@@ -1109,11 +1107,8 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::createSubfieldFi
     const std::vector<TypePtr>& inputTypeList,
     const std::vector<::substrait::Expression_ScalarFunction>& scalarFunctions,
     const std::vector<::substrait::Expression_SingularOrList>& singularOrLists) {
-  std::unordered_map<uint32_t, FilterInfo> columnToFilterInfo;
-  // A map between the column index and the FilterInfo.
-  for (uint32_t idx = 0; idx < inputTypeList.size(); idx++) {
-    columnToFilterInfo[idx];
-  }
+  // The vector's subscript stands for the column index.
+  std::vector<FilterInfo> columnToFilterInfo(inputTypeList.size());
 
   // Process scalarFunctions.
   for (const auto& scalarFunction : scalarFunctions) {
@@ -1250,7 +1245,7 @@ bool SubstraitToVeloxPlanConverter::canPushdownCommonFunction(
 
 bool SubstraitToVeloxPlanConverter::canPushdownNot(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
-    std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders) {
+    std::vector<RangeRecorder>& rangeRecorders) {
   VELOX_CHECK(scalarFunction.arguments().size() == 1, "Only one arg is expected for Not.");
   const auto& notArg = scalarFunction.arguments()[0];
   if (!notArg.value().has_scalar_function()) {
@@ -1277,7 +1272,7 @@ bool SubstraitToVeloxPlanConverter::canPushdownNot(
 
 bool SubstraitToVeloxPlanConverter::canPushdownOr(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
-    std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders) {
+    std::vector<RangeRecorder>& rangeRecorders) {
   // OR Conditon whose children functions are on different columns is not
   // supported to be pushed down.
   if (!childrenFunctionsOnSameField(scalarFunction)) {
@@ -1320,7 +1315,7 @@ bool SubstraitToVeloxPlanConverter::canPushdownOr(
 }
 
 void SubstraitToVeloxPlanConverter::separateFilters(
-    std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders,
+    std::vector<RangeRecorder>& rangeRecorders,
     const std::vector<::substrait::Expression_ScalarFunction>& scalarFunctions,
     std::vector<::substrait::Expression_ScalarFunction>& subfieldFunctions,
     std::vector<::substrait::Expression_ScalarFunction>& remainingFunctions,
@@ -1463,7 +1458,7 @@ void SubstraitToVeloxPlanConverter::setColumnFilterInfo(
 void SubstraitToVeloxPlanConverter::setFilterInfo(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
     const std::vector<TypePtr>& inputTypeList,
-    std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo,
+    std::vector<FilterInfo>& columnToFilterInfo,
     bool reverse) {
   auto nameSpec = SubstraitParser::findFunctionSpec(functionMap_, scalarFunction.function_reference());
   auto functionName = SubstraitParser::getSubFunctionName(nameSpec);
@@ -1870,7 +1865,7 @@ bool SubstraitToVeloxPlanConverter::checkTypeExtension(const ::substrait::Plan& 
 connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
     const std::vector<std::string>& inputNameList,
     const std::vector<TypePtr>& inputTypeList,
-    std::unordered_map<uint32_t, FilterInfo> columnToFilterInfo) {
+    std::vector<FilterInfo>& columnToFilterInfo) {
   // Construct the subfield filters based on the filter info map.
   connector::hive::SubfieldFilters filters;
   for (uint32_t colIdx = 0; colIdx < inputNameList.size(); colIdx++) {
@@ -2020,7 +2015,7 @@ uint32_t SubstraitToVeloxPlanConverter::getColumnIndexFromSingularOrList(
 
 void SubstraitToVeloxPlanConverter::setFilterInfo(
     const ::substrait::Expression_SingularOrList& singularOrList,
-    std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo) {
+    std::vector<FilterInfo>& columnToFilterInfo) {
   VELOX_CHECK(singularOrList.options_size() > 0, "At least one option is expected.");
   // Get the column index.
   uint32_t colIdx = getColumnIndexFromSingularOrList(singularOrList);
