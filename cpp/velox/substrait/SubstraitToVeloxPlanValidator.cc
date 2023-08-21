@@ -140,7 +140,7 @@ bool SubstraitToVeloxPlanValidator::validateExtractExpr(const std::vector<core::
   auto functionArg = std::dynamic_pointer_cast<const core::ConstantTypedExpr>(params[0]);
   if (functionArg) {
     // Get the function argument.
-    auto variant = functionArg->value();
+    const auto& variant = functionArg->value();
     if (!variant.hasValue()) {
       logValidateMsg("native validation failed due to: Value expected in variant in ExtractExpr.");
       return false;
@@ -489,7 +489,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
   }
 
   // Validate supported aggregate functions.
-  std::unordered_set<std::string> unsupportedFuncs = {"collect_list", "collect_set"};
+  static const std::unordered_set<std::string> unsupportedFuncs = {"collect_list", "collect_set"};
   for (const auto& funcSpec : funcSpecs) {
     auto funcName = SubstraitParser::getSubFunctionName(funcSpec);
     if (unsupportedFuncs.find(funcName) != unsupportedFuncs.end()) {

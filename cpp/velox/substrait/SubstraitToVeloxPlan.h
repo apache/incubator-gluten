@@ -250,14 +250,14 @@ class SubstraitToVeloxPlanConverter {
     // Disable null allow.
     void forbidsNull() {
       nullAllowed_ = false;
-      if (!isInitialized_) {
-        isInitialized_ = true;
+      if (!initialized_) {
+        initialized_ = true;
       }
     }
 
     // Return the initialization status.
     bool isInitialized() const {
-      return isInitialized_;
+      return initialized_;
     }
 
     // Add a lower bound to the range. Multiple lower bounds are
@@ -265,8 +265,8 @@ class SubstraitToVeloxPlanConverter {
     void setLower(const std::optional<variant>& left, bool isExclusive) {
       lowerBounds_.emplace_back(left);
       lowerExclusives_.emplace_back(isExclusive);
-      if (!isInitialized_) {
-        isInitialized_ = true;
+      if (!initialized_) {
+        initialized_ = true;
       }
     }
 
@@ -275,31 +275,31 @@ class SubstraitToVeloxPlanConverter {
     void setUpper(const std::optional<variant>& right, bool isExclusive) {
       upperBounds_.emplace_back(right);
       upperExclusives_.emplace_back(isExclusive);
-      if (!isInitialized_) {
-        isInitialized_ = true;
+      if (!initialized_) {
+        initialized_ = true;
       }
     }
 
     // Set a list of values to be used in the push down of 'in' expression.
     void setValues(const std::vector<variant>& values) {
       for (const auto& value : values) {
-        valuesVector_.emplace_back(value);
+        values_.emplace_back(value);
       }
-      if (!isInitialized_) {
-        isInitialized_ = true;
+      if (!initialized_) {
+        initialized_ = true;
       }
     }
 
     // Set a value for the not(equal) condition.
     void setNotValue(const std::optional<variant>& notValue) {
       notValue_ = notValue;
-      if (!isInitialized_) {
-        isInitialized_ = true;
+      if (!initialized_) {
+        initialized_ = true;
       }
     }
 
     // Whether this filter map is initialized.
-    bool isInitialized_ = false;
+    bool initialized_ = false;
 
     // The null allow.
     bool nullAllowed_ = false;
@@ -320,7 +320,7 @@ class SubstraitToVeloxPlanConverter {
     std::vector<std::optional<variant>> upperBounds_;
 
     // The list of values used in 'in' expression.
-    std::vector<variant> valuesVector_;
+    std::vector<variant> values_;
   };
 
   /// Helper Function to convert Substrait sortField to Velox sortingKeys and
@@ -373,35 +373,34 @@ class SubstraitToVeloxPlanConverter {
       const ::substrait::Expression_SingularOrList& singularOrList,
       bool disableIntLike = false);
 
-  /// Check whether the chidren functions of this scalar function have the same
+  /// Check whether the children functions of this scalar function have the same
   /// column index. Curretly used to check whether the two chilren functions of
   /// 'or' expression are effective on the same column.
   static bool childrenFunctionsOnSameField(const ::substrait::Expression_ScalarFunction& function);
 
   /// Extract the scalar function, and set the filter info for different types
   /// of columns. If reverse is true, the opposite filter info will be set.
-  void setFilterMap(
+  void setFilterInfo(
       const ::substrait::Expression_ScalarFunction& scalarFunction,
       const std::vector<TypePtr>& inputTypeList,
-      std::unordered_map<uint32_t, FilterInfo>& colInfoMap,
+      std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo,
       bool reverse = false);
+
+  /// Extract SingularOrList and set it to the filter info map.
+  void setFilterInfo(
+      const ::substrait::Expression_SingularOrList& singularOrList,
+      std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo);
 
   /// Extract SingularOrList and returns the field index.
   static uint32_t getColumnIndexFromSingularOrList(const ::substrait::Expression_SingularOrList&);
-
-  /// Extract SingularOrList and set it to the filter info map.
-  void setSingularListValues(
-      const ::substrait::Expression_SingularOrList& singularOrList,
-      std::unordered_map<uint32_t, FilterInfo>& colInfoMap);
 
   /// Set the filter info for a column base on the information
   /// extracted from filter condition.
   static void setColumnFilterInfo(
       const std::string& filterName,
-      uint32_t colIdx,
       std::optional<variant> literalVariant,
-      bool reverse,
-      std::unordered_map<uint32_t, FilterInfo>& colInfoMap);
+      FilterInfo& columnToFilterInfo,
+      bool reverse);
 
   /// Create a multirange to specify the filter 'x != notValue' with:
   /// x > notValue or x < notValue.
@@ -443,7 +442,7 @@ class SubstraitToVeloxPlanConverter {
   connector::hive::SubfieldFilters mapToFilters(
       const std::vector<std::string>& inputNameList,
       const std::vector<TypePtr>& inputTypeList,
-      std::unordered_map<uint32_t, FilterInfo> colInfoMap);
+      std::unordered_map<uint32_t, FilterInfo> columnToFilterInfo);
 
   /// Convert subfield functions into subfieldFilters to
   /// be used in Hive Connector.
