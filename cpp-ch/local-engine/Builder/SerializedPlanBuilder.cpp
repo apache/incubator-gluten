@@ -211,7 +211,7 @@ SerializedPlanBuilder::SerializedPlanBuilder() : plan(std::make_unique<substrait
 }
 
 SerializedPlanBuilder &
-SerializedPlanBuilder::aggregate(const std::vector<int32_t>& /*keys*/, const std::vector<substrait::AggregateRel_Measure *>& aggregates)
+SerializedPlanBuilder::aggregate(const std::vector<int32_t> & /*keys*/, const std::vector<substrait::AggregateRel_Measure *> & aggregates)
 {
     substrait::Rel * rel = new substrait::Rel();
     auto * agg = rel->mutable_aggregate();
@@ -226,7 +226,7 @@ SerializedPlanBuilder::aggregate(const std::vector<int32_t>& /*keys*/, const std
     return *this;
 }
 
-SerializedPlanBuilder & SerializedPlanBuilder::project(const std::vector<substrait::Expression *>& projections)
+SerializedPlanBuilder & SerializedPlanBuilder::project(const std::vector<substrait::Expression *> & projections)
 {
     substrait::Rel * project = new substrait::Rel();
     for (auto * expr : projections)

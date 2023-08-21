@@ -26,9 +26,9 @@
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/Joins.h>
+#include <Core/MultiEnum.h>
 #include <Core/Names.h>
 #include <Core/NamesAndTypes.h>
-#include <Core/MultiEnum.h>
 #include <Core/Types.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeArray.h>
@@ -55,8 +55,8 @@
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
 #include <Interpreters/Context.h>
-#include <Interpreters/HashJoin.h>
 #include <Interpreters/GraceHashJoin.h>
+#include <Interpreters/HashJoin.h>
 #include <Interpreters/ProcessList.h>
 #include <Interpreters/QueryPriorities.h>
 #include <Operator/BlocksBufferPoolTransform.h>
@@ -294,7 +294,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithJavaIter(const substrait
     return source_step;
 }
 
-IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, const std::vector<String>& columns)
+IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, const std::vector<String> & columns)
 {
     if (columns.empty())
         return nullptr;
@@ -584,7 +584,8 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             actions_dag->removeUnusedActions(input_with_condition);
             NonNullableColumnsResolver non_nullable_columns_resolver(query_plan->getCurrentDataStream().header, *this, filter.condition());
             auto non_nullable_columns = non_nullable_columns_resolver.resolve();
-            auto filter_step = std::make_unique<FilterStep>(query_plan->getCurrentDataStream(), actions_dag, filter_name, remove_filter_column);
+            auto filter_step
+                = std::make_unique<FilterStep>(query_plan->getCurrentDataStream(), actions_dag, filter_name, remove_filter_column);
             filter_step->setStepDescription("WHERE");
             steps.emplace_back(filter_step.get());
             query_plan->addStep(std::move(filter_step));
@@ -2476,7 +2477,7 @@ void SerializedPlanParser::reorderJoinOutput(QueryPlan & plan, DB::Names cols)
     plan.addStep(std::move(project_step));
 }
 
-void SerializedPlanParser::removeNullable(const std::vector<String>& require_columns, ActionsDAGPtr actionsDag)
+void SerializedPlanParser::removeNullable(const std::vector<String> & require_columns, ActionsDAGPtr actionsDag)
 {
     for (const auto & item : require_columns)
     {
@@ -2492,7 +2493,7 @@ void SerializedPlanParser::removeNullable(const std::vector<String>& require_col
 }
 
 void SerializedPlanParser::wrapNullable(
-    const std::vector<String>& columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names)
+    const std::vector<String> & columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names)
 {
     for (const auto & item : columns)
     {
@@ -2752,8 +2753,7 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
 }
 
 std::string NonNullableColumnsResolver::safeGetFunctionName(
-    const std::string & function_signature,
-    const substrait::Expression_ScalarFunction & function)
+    const std::string & function_signature, const substrait::Expression_ScalarFunction & function)
 {
     try
     {

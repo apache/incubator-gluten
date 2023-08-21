@@ -9,7 +9,7 @@
 using namespace local_engine;
 
 BlockStripes
-local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vector<size_t>& partitionColIndice, const bool hasBucket)
+local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vector<size_t> & partitionColIndice, const bool hasBucket)
 {
     BlockStripes ret;
     ret.originalBlockAddress = reinterpret_cast<int64_t>(&block);

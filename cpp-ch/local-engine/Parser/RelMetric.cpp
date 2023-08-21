@@ -14,20 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Processors/IProcessor.h>
 #include "RelMetric.h"
+#include <Processors/IProcessor.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 
 using namespace rapidjson;
 
 namespace local_engine
 {
-RelMetric::RelMetric(size_t id_, const String& name_, std::vector<DB::IQueryPlanStep *>& steps_) : id(id_), name(name_), steps(steps_)
+RelMetric::RelMetric(size_t id_, const String & name_, std::vector<DB::IQueryPlanStep *> & steps_) : id(id_), name(name_), steps(steps_)
 {
 }
-RelMetric::RelMetric(const String& name_, const std::vector<RelMetricPtr> & inputs_, std::vector<DB::IQueryPlanStep *>& steps_) : name(name_), steps(steps_), inputs(inputs_)
+RelMetric::RelMetric(const String & name_, const std::vector<RelMetricPtr> & inputs_, std::vector<DB::IQueryPlanStep *> & steps_)
+    : name(name_), steps(steps_), inputs(inputs_)
 {
-    auto rel = std::max_element(inputs.begin(), inputs.end(), [](RelMetricPtr a, RelMetricPtr b) {return a->id < b->id;});
+    auto rel = std::max_element(inputs.begin(), inputs.end(), [](RelMetricPtr a, RelMetricPtr b) { return a->id < b->id; });
     id = rel->get()->id + 1;
 }
 size_t RelMetric::getId() const

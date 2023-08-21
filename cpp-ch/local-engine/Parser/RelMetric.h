@@ -37,8 +37,8 @@ struct RelMetricTimes
 class RelMetric
 {
 public:
-    explicit RelMetric(size_t id, const String& name, std::vector<DB::IQueryPlanStep *>& steps);
-    explicit RelMetric(const String& name, const std::vector<RelMetricPtr> & inputs, std::vector<DB::IQueryPlanStep *>& steps);
+    explicit RelMetric(size_t id, const String & name, std::vector<DB::IQueryPlanStep *> & steps);
+    explicit RelMetric(const String & name, const std::vector<RelMetricPtr> & inputs, std::vector<DB::IQueryPlanStep *> & steps);
 
     size_t getId() const;
     const String & getName() const;
@@ -61,4 +61,3 @@ public:
     static std::string serializeRelMetric(RelMetricPtr rel_metric, bool flatten = true);
 };
 }
-

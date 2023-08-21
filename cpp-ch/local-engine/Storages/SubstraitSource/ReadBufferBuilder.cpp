@@ -19,12 +19,12 @@
 #include <Disks/IO/ReadBufferFromAzureBlobStorage.h>
 #include <Disks/IO/ReadBufferFromRemoteFSGather.h>
 #include <Disks/ObjectStorages/AzureBlobStorage/AzureBlobStorageAuth.h>
+#include <IO/BoundedReadBuffer.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/ReadBufferFromS3.h>
 #include <IO/S3/getObjectInfo.h>
 #include <IO/S3Common.h>
 #include <IO/SeekableReadBuffer.h>
-#include <IO/BoundedReadBuffer.h>
 #include <Interpreters/Context_fwd.h>
 #include <Storages/HDFS/HDFSCommon.h>
 #include <Storages/HDFS/ReadBufferFromHDFS.h>
@@ -204,7 +204,7 @@ public:
     }
 
     std::pair<size_t, size_t>
-    adjustFileReadStartAndEndPos(size_t read_start_pos, size_t read_end_pos, const std::string& uri_path, const std::string& file_path)
+    adjustFileReadStartAndEndPos(size_t read_start_pos, size_t read_end_pos, const std::string & uri_path, const std::string & file_path)
     {
         std::string hdfs_file_path = uri_path + file_path;
         auto builder = DB::createHDFSBuilder(hdfs_file_path, context->getConfigRef());
@@ -416,7 +416,7 @@ private:
         }
         // like: fs.s3a.bucket.bucket_name.assumed.role.externalId
         return BackendInitializerUtil::S3A_PREFIX + "bucket." + bucket_name + "."
-                           + config_name.substr(BackendInitializerUtil::S3A_PREFIX.size());
+            + config_name.substr(BackendInitializerUtil::S3A_PREFIX.size());
     }
 
     std::string getSetting(
@@ -449,7 +449,7 @@ private:
         }
     }
 
-    std::shared_ptr<DB::S3::Client> getClient(const std::string& bucket_name)
+    std::shared_ptr<DB::S3::Client> getClient(const std::string & bucket_name)
     {
         const auto & config = context->getConfigRef();
         const auto & settings = context->getSettingsRef();
