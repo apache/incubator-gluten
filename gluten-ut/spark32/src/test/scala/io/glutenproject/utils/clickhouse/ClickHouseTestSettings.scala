@@ -269,7 +269,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "string for ascii",
       "replace",
       "translate",
-      "INSTR",
+      // "INSTR",
       "LOCATE",
       "REPEAT",
       "length for string / binary",
@@ -487,4 +487,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .include("string split function with positive limit")
     .include("string substring_index function")
     .include("string padding functions")
+    .include("startswith")
+    .include("endswith")
+    .include("string / binary substring function")
+    .include("string instr function")
 }

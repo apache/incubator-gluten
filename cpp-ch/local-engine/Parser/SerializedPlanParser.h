@@ -123,18 +123,18 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        /// string functions
        {"like", "like"},
        {"not_like", "notLike"},
-       {"starts_with", "startsWith"},
-       {"ends_with", "endsWith"},
+       {"starts_with", "startsWithUTF8"},
+       {"ends_with", "endsWithUTF8"},
        {"contains", "countSubstrings"},
-       {"substring", "substring"},
+       {"substring", "substringUTF8"},
        {"substring_index", "substringIndexUTF8"},
-       {"lower", "lower"},
-       {"upper", "upper"},
+       {"lower", "lowerUTF8"},
+       {"upper", "upperUTF8"},
        {"trim", ""}, // trimLeft or trimLeftSpark, depends on argument size
        {"ltrim", ""}, // trimRight or trimRightSpark, depends on argument size
        {"rtrim", ""}, // trimBoth or trimBothSpark, depends on argument size
        {"concat", ""}, /// dummy mapping
-       {"strpos", "position"},
+       {"strpos", "positionUTF8"},
        {"char_length",
         "char_length"}, /// Notice: when input argument is binary type, corresponding ch function is length instead of char_length
        {"replace", "replaceAll"},
