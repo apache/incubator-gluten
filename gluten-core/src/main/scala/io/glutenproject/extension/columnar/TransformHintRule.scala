@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.extension.ValidationResult
+import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.utils.PhysicalPlanSelector
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
@@ -102,6 +102,13 @@ object TransformHints {
 
   def tagNotTransformable(plan: SparkPlan, reason: String): Unit = {
     tag(plan, TRANSFORM_UNSUPPORTED(Some(reason)))
+  }
+
+  def tagAllNotTransformable(plan: SparkPlan, reason: String): Unit = {
+    plan.foreach {
+      case _: GlutenPlan => // ignore
+      case other => tagNotTransformable(other, reason)
+    }
   }
 
   def getHint(plan: SparkPlan): TransformHint = {

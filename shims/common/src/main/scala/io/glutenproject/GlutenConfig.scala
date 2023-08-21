@@ -164,8 +164,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def queryFallbackThreshold: Int = conf.getConf(COLUMNAR_QUERY_FALLBACK_THRESHOLD)
 
-  def fallbackPolicy: String = conf.getConf(COLUMNAR_FALLBACK_POLICY)
-
   def numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean = conf.getConf(COLUMNAR_NUMA_BINDING_ENABLED)
     if (!enableNumaBinding) {
@@ -816,29 +814,13 @@ object GlutenConfig {
       .longConf
       .createWithDefault(100 * 1000 * 1000)
 
-  val COLUMNAR_FALLBACK_POLICY =
-    buildConf("spark.gluten.sql.columnar.fallback.policy")
-      .internal()
-      .doc(
-        "The fallback policy in gluten. 'operator' means fallback the " +
-          "operator if unsupported. 'stage' means fallback each stage if " +
-          "the number of unsupported operator/expressions >= " +
-          "${COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key}, note this only works with AQE enabled" +
-          " , 'query' means fallback the whole query " +
-          "if number of unsupported operator >= ${COLUMNAR_QUERY_FALLBACK_THRESHOLD.key}" +
-          ", note this only works with AQE disabled")
-      .stringConf
-      .transform(_.toLowerCase(Locale.ROOT))
-      .checkValues(Set("operator", "stage", "query"))
-      .createWithDefault("operator")
-
   val COLUMNAR_QUERY_FALLBACK_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.query.fallback.threshold")
       .internal()
       .doc("The threshold for whether query will fall back " +
         "by counting the number of ColumnarToRow & vanilla leaf node.")
       .intConf
-      .createWithDefault(1)
+      .createWithDefault(-1)
 
   val COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.wholeStage.fallback.threshold")
