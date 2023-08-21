@@ -1821,8 +1821,10 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       upperBound = getMax<NativeType>();
     }
 
-    bool lowerUnbounded = true, upperUnbounded = true;
-    bool lowerExclusive = false, upperExclusive = false;
+    bool lowerUnbounded = true;
+    bool upperUnbounded = true;
+    bool lowerExclusive = false;
+    bool upperExclusive = false;
 
     // Handle other filter ranges.
     for (uint32_t idx = 0; idx < rangeSize; idx++) {
