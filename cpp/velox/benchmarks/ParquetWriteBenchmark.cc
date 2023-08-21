@@ -115,7 +115,7 @@ class GoogleBenchmarkParquetWrite {
   ::parquet::ArrowReaderProperties properties_;
 };
 
-class GoogleBenchmarkArrowParquetWriteCacheScanBenchmark : public GoogleBenchmarkParquetWrite {
+/*class GoogleBenchmarkArrowParquetWriteCacheScanBenchmark : public GoogleBenchmarkParquetWrite {
  public:
   GoogleBenchmarkArrowParquetWriteCacheScanBenchmark(std::string fileName, std::string outputPath)
       : GoogleBenchmarkParquetWrite(fileName, outputPath) {}
@@ -208,7 +208,7 @@ class GoogleBenchmarkArrowParquetWriteCacheScanBenchmark : public GoogleBenchmar
     state.counters["write_time"] =
         benchmark::Counter(writeTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
   }
-};
+};*/
 
 class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmarkParquetWrite {
  public:

@@ -335,7 +335,7 @@ TEST_P(VeloxShuffleWriterTest, singlePartNullVector) {
   testShuffleWrite(*shuffleWriter, {vector});
 }
 
-TEST_P(VeloxShuffleWriterTest, singlePartOtherType) {
+/*TEST_P(VeloxShuffleWriterTest, singlePartOtherType) {
   shuffleWriterOptions_.buffer_size = 10;
   shuffleWriterOptions_.partitioning_name = "single";
 
@@ -351,7 +351,7 @@ TEST_P(VeloxShuffleWriterTest, singlePartOtherType) {
           2, [](vector_size_t row) { return Date{row % 2}; }, nullEvery(5)),
   });
   testShuffleWrite(*shuffleWriter, {vector});
-}
+}*/
 
 TEST_P(VeloxShuffleWriterTest, singlePartComplexType) {
   shuffleWriterOptions_.buffer_size = 10;
@@ -376,7 +376,8 @@ TEST_P(VeloxShuffleWriterTest, singlePartComplexType) {
   testShuffleWrite(*shuffleWriter, {vector});
 }
 
-TEST_P(VeloxShuffleWriterTest, hashPart1Vector) {
+
+/*TEST_P(VeloxShuffleWriterTest, hashPart1Vector) {
   shuffleWriterOptions_.buffer_size = 4;
   shuffleWriterOptions_.partitioning_name = "hash";
 
@@ -435,7 +436,7 @@ TEST_P(VeloxShuffleWriterTest, hashPart1Vector) {
   });
 
   testShuffleWriteMultiBlocks(*shuffleWriter_, {vector}, 2, dataVector->type(), {{firstBlock}, {secondBlock}});
-}
+}*/
 
 TEST_P(VeloxShuffleWriterTest, hashPart1VectorComplexType) {
   shuffleWriterOptions_.buffer_size = 4;

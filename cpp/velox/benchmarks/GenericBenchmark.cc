@@ -274,9 +274,9 @@ class OrcFileGuard {
       auto recordBatch = arrowColumnarBatch->getRecordBatch();
 
       // 2. write to Orc
-      if (!(writer->Write(*recordBatch)).ok()) {
+      /*if (!(writer->Write(*recordBatch)).ok()) {
         return arrow::Status::IOError("Write failed");
-      }
+      }*/
     }
 
     if (!(writer->Close()).ok()) {

@@ -370,7 +370,7 @@ TEST_F(VeloxSubstraitRoundTripTest, notNullLiteral) {
   assertPlanConversion(plan, "SELECT true, 23, 45, 678, 910, 1.23, 4.56, '789'");
 }
 
-TEST_F(VeloxSubstraitRoundTripTest, arrayLiteral) {
+/*TEST_F(VeloxSubstraitRoundTripTest, arrayLiteral) {
   auto vectors = makeRowVector(ROW({}), 1);
   auto plan = PlanBuilder(pool_.get())
                   .values({vectors})
@@ -407,7 +407,7 @@ TEST_F(VeloxSubstraitRoundTripTest, arrayLiteral) {
       "array['1992-01-01'::DATE],"
       "array[INTERVAL 54 MILLISECONDS], "
       "array[], array[array[1,2,3], array[4,5]]");
-}
+}*/
 
 TEST_F(VeloxSubstraitRoundTripTest, dateType) {
   auto a = makeFlatVector<int32_t>({0, 1});

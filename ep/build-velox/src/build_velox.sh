@@ -24,7 +24,7 @@ VELOX_HOME=""
 ARROW_HOME=""
 ENABLE_EP_CACHE=OFF
 ENABLE_BENCHMARK=OFF
-RUN_SETUP_SCRIPT=ON
+RUN_SETUP_SCRIPT=OFF
 
 OS=`uname -s`
 ARCH=`uname -m`
@@ -84,12 +84,23 @@ function compile {
     fi
   fi
 
+  
   if [ $OS == 'Linux' ]; then
     # create libvelox_hive_connector.a for VeloxInitializer.cc
+    git checkout third_party/CMakeLists.txt
+    sed -i '/-DARROW_PARQUET=ON/a\      -DARROW_ORC=ON' third_party/CMakeLists.txt
     sed -i 's/OBJECT//' velox/connectors/hive/CMakeLists.txt
+    git checkout velox/core/PlanNode.h
+    sed -i '/Abi.h/d' velox/core/PlanNode.h
+    sed -i '/Bridge.h/astruct ArrowArrayStream;' velox/core/PlanNode.h
   elif [ $OS == 'Darwin' ]; then
+    git checkout third_party/CMakeLists.txt
+    sed -i '/-DARROW_PARQUET=ON/a\      -DARROW_ORC=ON' third_party/CMakeLists.txt
     # create libvelox_hive_connector.a for VeloxInitializer.cc
-    sed -i '' 's/OBJECT//' velox/connectors/hive/CMakeLists.txt
+    sed -i 's/OBJECT//' velox/connectors/hive/CMakeLists.txt
+    git checkout velox/core/PlanNode.h
+    sed -i '/Abi.h/d' velox/core/PlanNode.h
+    sed -i '/Bridge.h/astruct ArrowArrayStream;' velox/core/PlanNode.h
   else
     echo "Unsupport kernel: $OS"
     exit 1
