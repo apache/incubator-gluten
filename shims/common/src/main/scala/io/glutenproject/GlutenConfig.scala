@@ -394,6 +394,12 @@ object GlutenConfig {
       k => {
         if (conf.contains(k)) {
           nativeConfMap.put(k, conf(k))
+        } else {
+          // Session's local time zone must be set. If not explicitly set by user,
+          // its default value is used, consistent with spark.
+          if (k.equals(SQLConf.SESSION_LOCAL_TIMEZONE.key)) {
+            nativeConfMap.put(k, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
+          }
         }
       })
 
