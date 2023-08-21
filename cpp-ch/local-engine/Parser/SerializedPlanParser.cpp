@@ -294,10 +294,11 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithJavaIter(const substrait
     return source_step;
 }
 
-IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, const std::vector<String> & columns)
+IQueryPlanStep * SerializedPlanParser::addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns)
 {
     if (columns.empty())
         return nullptr;
+
     auto remove_nullable_actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(plan.getCurrentDataStream().header));
     removeNullable(columns, remove_nullable_actions_dag);
     auto expression_step = std::make_unique<ExpressionStep>(plan.getCurrentDataStream(), remove_nullable_actions_dag);
@@ -356,7 +357,8 @@ DB::QueryPlanPtr SerializedPlanParser::parseMergeTreeTable(const substrait::Read
     query_context.storage_snapshot = std::make_shared<StorageSnapshot>(*storage, metadata);
     query_context.custom_storage_merge_tree = storage;
     auto query_info = buildQueryInfo(names_and_types_list);
-    std::vector<std::string> non_nullable_columns;
+
+    std::set<String> non_nullable_columns;
     if (rel.has_filter())
     {
         NonNullableColumnsResolver non_nullable_columns_resolver(header, *this, rel.filter());
@@ -2477,30 +2479,30 @@ void SerializedPlanParser::reorderJoinOutput(QueryPlan & plan, DB::Names cols)
     plan.addStep(std::move(project_step));
 }
 
-void SerializedPlanParser::removeNullable(const std::vector<String> & require_columns, ActionsDAGPtr actionsDag)
+void SerializedPlanParser::removeNullable(const std::set<String> & require_columns, ActionsDAGPtr actions_dag)
 {
     for (const auto & item : require_columns)
     {
-        const auto * require_node = actionsDag->tryFindInOutputs(item);
+        const auto * require_node = actions_dag->tryFindInOutputs(item);
         if (require_node)
         {
             auto function_builder = FunctionFactory::instance().get("assumeNotNull", context);
             ActionsDAG::NodeRawConstPtrs args = {require_node};
-            const auto & node = actionsDag->addFunction(function_builder, args, item);
-            actionsDag->addOrReplaceInOutputs(node);
+            const auto & node = actions_dag->addFunction(function_builder, args, item);
+            actions_dag->addOrReplaceInOutputs(node);
         }
     }
 }
 
 void SerializedPlanParser::wrapNullable(
-    const std::vector<String> & columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names)
+    const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names)
 {
     for (const auto & item : columns)
     {
         ActionsDAG::NodeRawConstPtrs args;
-        args.emplace_back(&actionsDag->findInOutputs(item));
-        const auto * node = toFunctionNode(actionsDag, "toNullable", args);
-        actionsDag->addOrReplaceInOutputs(*node);
+        args.emplace_back(&actions_dag->findInOutputs(item));
+        const auto * node = toFunctionNode(actions_dag, "toNullable", args);
+        actions_dag->addOrReplaceInOutputs(*node);
         nullable_measure_names[item] = node->result_name;
     }
 }
@@ -2686,7 +2688,7 @@ NonNullableColumnsResolver::NonNullableColumnsResolver(
 }
 
 // make it simple at present, if the condition contains or, return empty for both side.
-std::vector<std::string> NonNullableColumnsResolver::resolve()
+std::set<String> NonNullableColumnsResolver::resolve()
 {
     collected_columns.clear();
     visit(cond_rel);
@@ -2747,7 +2749,7 @@ void NonNullableColumnsResolver::visitNonNullable(const substrait::Expression & 
         const auto & selection = expr.selection();
         auto column_pos = selection.direct_reference().struct_field().field();
         auto column_name = header.getByPosition(column_pos).name;
-        collected_columns.push_back(column_name);
+        collected_columns.insert(column_name);
     }
     // else, do nothing.
 }
