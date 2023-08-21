@@ -117,7 +117,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
 
     val chFileScan = chScanPlan.head
     val outputAttrs = chFileScan.outputAttributes()
-    val filePartitions = chFileScan.getFlattenPartitions
+    val filePartitions = chFileScan.getPartitions
       .take(readFileCnt)
       .map(_.asInstanceOf[FilePartition])
 

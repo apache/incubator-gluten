@@ -17,7 +17,7 @@
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
+import io.glutenproject.execution.BasicScanExecTransformer
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
@@ -26,10 +26,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.execution.datasources.GlutenTextBasedScanWrapper
-import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
-import org.apache.spark.sql.execution.datasources.v2.text.TextScan
-import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -39,10 +35,12 @@ import io.substrait.proto.Type
 import java.util.{ArrayList => JArrayList, List => JList}
 import java.util.Locale
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 object ConverterUtils extends Logging {
 
+  @tailrec
   def getAttrFromExpr(fieldExpr: Expression, skipAlias: Boolean = false): AttributeReference = {
     fieldExpr match {
       case a: Cast =>
@@ -211,7 +209,7 @@ object ConverterUtils extends Logging {
       case Type.KindCase.MAP =>
         val map = substraitType.getMap
         val (keyType, _) = parseFromSubstraitType(map.getKey)
-        val (valueType, valueContainsNull) = parseFromSubstraitType(map.getValue())
+        val (valueType, valueContainsNull) = parseFromSubstraitType(map.getValue)
         (
           MapType(keyType, valueType, valueContainsNull),
           isNullable(substraitType.getMap.getNullability))
@@ -445,43 +443,7 @@ object ConverterUtils extends Logging {
     }
   }
 
-  def getFileFormat(scan: BasicScanExecTransformer): ReadFileFormat = {
-    scan match {
-      case f: BatchScanExecTransformer =>
-        f.scan.getClass.getSimpleName match {
-          case "OrcScan" => ReadFileFormat.OrcReadFormat
-          case "ParquetScan" => ReadFileFormat.ParquetReadFormat
-          case "DwrfScan" => ReadFileFormat.DwrfReadFormat
-          case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
-          case _ => ReadFileFormat.UnknownFormat
-        }
-      case f: FileSourceScanExecTransformer =>
-        f.relation.fileFormat.getClass.getSimpleName match {
-          case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
-          case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
-          case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
-          case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
-          case "CSVFileFormat" => ReadFileFormat.TextReadFormat
-          case _ => ReadFileFormat.UnknownFormat
-        }
-      case f: HiveTableScanExecTransformer =>
-        f.getScan match {
-          case Some(fileScan) =>
-            fileScan match {
-              case scanWrapper: GlutenTextBasedScanWrapper =>
-                scanWrapper.getScan match {
-                  case _: JsonScan => ReadFileFormat.JsonReadFormat
-                  case _: TextScan => ReadFileFormat.TextReadFormat
-                  case _ => ReadFileFormat.UnknownFormat
-                }
-              case _ =>
-                ReadFileFormat.UnknownFormat
-            }
-          case _ => ReadFileFormat.UnknownFormat
-        }
-      case _ => ReadFileFormat.UnknownFormat
-    }
-  }
+  def getFileFormat(scan: BasicScanExecTransformer): ReadFileFormat = scan.fileFormat
 
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"
