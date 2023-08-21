@@ -819,8 +819,10 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
     // Separate the filters to be two parts. The subfield part can be
     // pushed down.
-    std::vector<::substrait::Expression_ScalarFunction> subfieldFunctions, remainingFunctions;
-    std::vector<::substrait::Expression_SingularOrList> subfieldrOrLists, remainingrOrLists;
+    std::vector<::substrait::Expression_ScalarFunction> subfieldFunctions;
+    std::vector<::substrait::Expression_ScalarFunction> remainingFunctions;
+    std::vector<::substrait::Expression_SingularOrList> subfieldrOrLists;
+    std::vector<::substrait::Expression_SingularOrList> remainingrOrLists;
 
     separateFilters(
         rangeRecorders,
@@ -1113,7 +1115,7 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::createSubfieldFi
     columnToFilterInfo[idx];
   }
 
-  // process scalarFunctions
+  // Process scalarFunctions.
   for (const auto& scalarFunction : scalarFunctions) {
     auto filterNameSpec = SubstraitParser::findFunctionSpec(functionMap_, scalarFunction.function_reference());
     auto filterName = SubstraitParser::getSubFunctionName(filterNameSpec);
@@ -1154,7 +1156,7 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::createSubfieldFi
     }
   }
 
-  // process singularOrLists
+  // Process singularOrLists.
   for (const auto& list : singularOrLists) {
     setFilterInfo(list, columnToFilterInfo);
   }
@@ -1597,7 +1599,8 @@ void SubstraitToVeloxPlanConverter::createNotEqualFilter(
       true, /*upperExclusive*/
       nullAllowed); /*nullAllowed*/
 
-  // keep this emplace_back order
+  // To avoid overlap of BigintMultiRange, keep this appending order to make sure lower bound of one range is less than
+  // the upper bounds of others.
   colFilters.emplace_back(std::move(upperFilter));
   colFilters.emplace_back(std::move(lowerFilter));
 }
