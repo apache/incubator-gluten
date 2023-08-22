@@ -952,9 +952,9 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
     jstring compressionBackend,
     jstring compressionMode) {
   JNI_METHOD_START
-    MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
-    GLUTEN_CHECK(memoryManager != nullptr, "MemoryManager should not be null.");
-    auto pool = asArrowMemoryPool(memoryManager->getMemoryAllocator());
+  MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
+  GLUTEN_CHECK(memoryManager != nullptr, "MemoryManager should not be null.");
+  auto pool = asArrowMemoryPool(memoryManager->getMemoryAllocator());
   ReaderOptions options = ReaderOptions::defaults();
   options.ipc_read_options.memory_pool = pool.get();
   options.ipc_read_options.use_threads = false;
