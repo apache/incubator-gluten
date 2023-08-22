@@ -17,18 +17,10 @@
 
 #pragma once
 
-#include <arrow/util/compression.h>
-
-namespace gluten {
-
-enum CodecBackend { NONE, QAT, IAA };
-
-// BUFFER mode will preallocate max compressed buffer, and then compress each buffer to the max compressed buffer
-// ROWVECTOR mode will copy the buffers to a big buffer and then compress the big buffer
-enum CompressionMode { BUFFER, ROWVECTOR };
-
-std::unique_ptr<arrow::util::Codec> createArrowIpcCodec(
-    arrow::Compression::type compressedType,
-    CodecBackend codecBackend);
-
-} // namespace gluten
+#if defined(__GNUC__)
+#define LIKELY(x) (__builtin_expect((x), 1))
+#define UNLIKELY(x) (__builtin_expect((x), 0))
+#else
+#define LIKELY(x) (x)
+#define UNLIKELY(x) (x)
+#endif

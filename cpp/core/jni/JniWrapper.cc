@@ -746,6 +746,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jstring codecJstr,
     jstring codecBackendJstr,
     jint bufferCompressThreshold,
+    jstring compressionModeJstr,
     jstring dataFileJstr,
     jint numSubDirs,
     jstring localDirsJstr,
@@ -777,6 +778,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   if (codecJstr != NULL) {
     shuffleWriterOptions.compression_type = getCompressionType(env, codecJstr);
     shuffleWriterOptions.codec_backend = getCodecBackend(env, codecBackendJstr);
+    shuffleWriterOptions.compression_mode = getCompressionMode(env, compressionModeJstr);
   }
 
   auto* allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocatorId);
@@ -963,7 +965,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
     jlong cSchema,
     jlong allocId,
     jstring compressionType,
-    jstring compressionBackend) {
+    jstring compressionBackend,
+    jstring compressionMode) {
   JNI_METHOD_START
   auto* allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocId);
   if (allocator == nullptr) {
@@ -977,6 +980,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
   if (compressionType != nullptr) {
     options.compression_type = getCompressionType(env, compressionType);
     options.codec_backend = getCodecBackend(env, compressionBackend);
+    options.compression_mode = getCompressionMode(env, compressionMode);
   }
   std::shared_ptr<arrow::Schema> schema =
       gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));

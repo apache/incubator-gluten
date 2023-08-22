@@ -131,6 +131,7 @@ class ColumnarShuffleWriter[K, V](
             compressionCodec,
             compressionCodecBackend,
             bufferCompressThreshold,
+            GlutenConfig.getConf.columnarShuffleCompressionMode,
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
