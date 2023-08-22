@@ -44,7 +44,6 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "1")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
-      rule.enableAdaptiveContext()
       rule.preColumnarTransitions(originalPlan)
       rule.enableAdaptiveContext()
       // Fake output of preColumnarTransitions, mocking replacing UnaryOp1 with UnaryOp1Transformer.
@@ -61,7 +60,6 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "4")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
-      rule.enableAdaptiveContext()
       rule.preColumnarTransitions(originalPlan)
       rule.enableAdaptiveContext()
       // Fake output of preColumnarTransitions, mocking replacing UnaryOp1 with UnaryOp1Transformer.
@@ -80,7 +78,6 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "2")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
-      rule.enableAdaptiveContext()
       rule.preColumnarTransitions(originalPlan)
       rule.enableAdaptiveContext()
       // Fake output of preColumnarTransitions, mocking replacing UnaryOp1 with UnaryOp1Transformer
@@ -100,7 +97,6 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     withSQLConf(("spark.gluten.sql.columnar.wholeStage.fallback.threshold", "3")) {
       val originalPlan = UnaryOp2(UnaryOp1(UnaryOp2(UnaryOp1(LeafOp()))))
       val rule = ColumnarOverrideRules(spark)
-      rule.enableAdaptiveContext()
       rule.preColumnarTransitions(originalPlan)
       rule.enableAdaptiveContext()
       // Fake output of preColumnarTransitions, mocking replacing UnaryOp1 with UnaryOp1Transformer
