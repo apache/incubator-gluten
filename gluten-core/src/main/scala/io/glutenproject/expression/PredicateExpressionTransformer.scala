@@ -20,45 +20,58 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Expression, Like}
-import org.apache.spark.sql.catalyst.expressions.Sha2
-import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types._
 
 import com.google.common.collect.Lists
 
-/** Transformer for the normal binary expression */
-class BinaryExpressionTransformer(
-    substraitExprName: String,
-    left: ExpressionTransformer,
-    right: ExpressionTransformer,
-    original: Expression)
-  extends ExpressionTransformer
-  with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val leftNode = left.doTransform(args)
-    val rightNode = right.doTransform(args)
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        original.children.map(_.dataType),
-        FunctionConfig.OPT))
+import scala.collection.JavaConverters._
 
-    val expressionNodes = Lists.newArrayList(leftNode, rightNode)
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+case class InTransformer(
+    value: ExpressionTransformer,
+    list: Seq[Expression],
+    valueType: DataType,
+    original: Expression)
+  extends ExpressionTransformer {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // Stores the values in a List Literal.
+    val values: Set[Any] = list.map(_.asInstanceOf[Literal].value).toSet
+    InExpressionTransformer.toTransformer(value.doTransform(args), values, valueType)
   }
 }
 
-class LikeTransformer(
+case class InSetTransformer(
+    value: ExpressionTransformer,
+    hset: Set[Any],
+    valueType: DataType,
+    original: Expression)
+  extends ExpressionTransformer {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    InExpressionTransformer.toTransformer(value.doTransform(args), hset, valueType)
+  }
+}
+
+object InExpressionTransformer {
+
+  def toTransformer(
+      leftNode: ExpressionNode,
+      values: Set[Any],
+      valueType: DataType): ExpressionNode = {
+    val expressionNodes = new java.util.ArrayList[ExpressionNode](
+      values
+        .map(value => ExpressionBuilder.makeLiteral(value, valueType, value == null))
+        .asJava)
+
+    ExpressionBuilder.makeSingularOrListNode(leftNode, expressionNodes)
+  }
+}
+
+case class LikeTransformer(
     substraitExprName: String,
     left: ExpressionTransformer,
     right: ExpressionTransformer,
     original: Expression)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode = left.doTransform(args)
     val rightNode = right.doTransform(args)
@@ -84,31 +97,5 @@ class LikeTransformer(
       }
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
-  }
-}
-
-class Sha2Transformer(
-    substraitExprName: String,
-    left: ExpressionTransformer,
-    right: ExpressionTransformer,
-    original: Sha2)
-  extends ExpressionTransformer
-  with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    BinaryExpressionTransformer(substraitExprName, left, right, original).doTransform(args)
-  }
-}
-
-object BinaryExpressionTransformer {
-
-  def apply(
-      substraitExprName: String,
-      left: ExpressionTransformer,
-      right: ExpressionTransformer,
-      original: Expression): ExpressionTransformer = {
-    original match {
-      case _: Like => new LikeTransformer(substraitExprName, left, right, original)
-      case _ => new BinaryExpressionTransformer(substraitExprName, left, right, original)
-    }
   }
 }

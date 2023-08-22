@@ -20,19 +20,17 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
 import com.google.common.collect.Lists
 
-class CreateArrayTransformer(
+case class CreateArrayTransformer(
     substraitExprName: String,
     children: Seq[ExpressionTransformer],
     useStringTypeWhenEmpty: Boolean,
     original: CreateArray)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // If children is empty,
@@ -60,14 +58,13 @@ class CreateArrayTransformer(
   }
 }
 
-class GetArrayItemTransformer(
+case class GetArrayItemTransformer(
     substraitExprName: String,
     left: ExpressionTransformer,
     right: ExpressionTransformer,
     failOnError: Boolean,
     original: GetArrayItem)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // Ignore failOnError for clickhouse backend
@@ -96,67 +93,5 @@ class GetArrayItemTransformer(
       rightNode: ExpressionNode,
       original: GetArrayItem
     )
-  }
-}
-
-class ArrayAggregateTransformer(
-    substraitExprName: String,
-    argument: ExpressionTransformer,
-    zero: ExpressionTransformer,
-    merge: ExpressionTransformer,
-    finish: ExpressionTransformer,
-    original: ArrayAggregate)
-  extends ExpressionTransformer
-  with Logging {
-  override def doTransform(args: Object): ExpressionNode = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val argumentNode = argument.doTransform(args)
-    val zeroNode = zero.doTransform(args)
-    val mergeNode = merge.doTransform(args)
-    val finishNode = finish.doTransform(args)
-    val arrayAggFunctionName = ConverterUtils.makeFuncName(
-      substraitExprName,
-      Seq(original.argument.dataType),
-      FunctionConfig.OPT)
-    val arrayAggFunctionId = ExpressionBuilder.newScalarFunction(functionMap, arrayAggFunctionName)
-    val exprNodes = Lists.newArrayList(
-      argumentNode.asInstanceOf[ExpressionNode],
-      zeroNode.asInstanceOf[ExpressionNode],
-      mergeNode.asInstanceOf[ExpressionNode],
-      finishNode.asInstanceOf[ExpressionNode]
-    )
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(arrayAggFunctionId, exprNodes, typeNode)
-  }
-}
-
-class SequenceTransformer(
-    substraitExprName: String,
-    start: ExpressionTransformer,
-    stop: ExpressionTransformer,
-    stepOpt: Option[ExpressionTransformer],
-    original: Sequence)
-  extends ExpressionTransformer
-  with Logging {
-  override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-
-    val startNode = start.doTransform(args)
-    val stopNode = stop.doTransform(args)
-    val stepNodeOpt = stepOpt.map(_.doTransform(args))
-
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        original.children.map(_.dataType),
-        FunctionConfig.OPT))
-
-    val expressionNodes = Lists.newArrayList(startNode, stopNode)
-    if (stepNodeOpt.isDefined) {
-      expressionNodes.add(stepNodeOpt.get)
-    }
-    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }

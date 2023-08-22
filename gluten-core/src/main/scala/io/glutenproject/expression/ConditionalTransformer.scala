@@ -16,44 +16,52 @@
  */
 package io.glutenproject.expression
 
-import io.glutenproject.substrait.expression.ExpressionNode
-import io.glutenproject.substrait.expression.IfThenNode
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 
-import java.util
+import java.util.{ArrayList => JArrayList}
 
-class IfTransformer(
-    predicate: ExpressionTransformer,
-    trueValue: ExpressionTransformer,
-    falseValue: ExpressionTransformer,
+/** A version of substring that supports columnar processing for utf8. */
+case class CaseWhenTransformer(
+    branches: Seq[(ExpressionTransformer, ExpressionTransformer)],
+    elseValue: Option[ExpressionTransformer],
     original: Expression)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    val ifNodes: util.ArrayList[ExpressionNode] = new util.ArrayList[ExpressionNode]
-    ifNodes.add(predicate.doTransform(args))
-
-    val thenNodes: util.ArrayList[ExpressionNode] = new util.ArrayList[ExpressionNode]
-    thenNodes.add(trueValue.doTransform(args))
-
-    val elseValueNode = falseValue.doTransform(args)
+    // generate branches nodes
+    val ifNodes = new JArrayList[ExpressionNode]
+    val thenNodes = new JArrayList[ExpressionNode]
+    branches.foreach(
+      branch => {
+        ifNodes.add(branch._1.doTransform(args))
+        thenNodes.add(branch._2.doTransform(args))
+      })
+    val branchDataType = original.asInstanceOf[CaseWhen].inputTypesForMerging(0)
+    // generate else value node, maybe null
+    val elseValueNode = elseValue
+      .map(_.doTransform(args))
+      .getOrElse(ExpressionBuilder.makeLiteral(null, branchDataType, true))
     new IfThenNode(ifNodes, thenNodes, elseValueNode)
   }
 }
 
-object IfTransformer {
+case class IfTransformer(
+    predicate: ExpressionTransformer,
+    trueValue: ExpressionTransformer,
+    falseValue: ExpressionTransformer,
+    original: Expression)
+  extends ExpressionTransformer {
 
-  def create(
-      predicate: ExpressionTransformer,
-      trueValue: ExpressionTransformer,
-      falseValue: ExpressionTransformer,
-      original: Expression): ExpressionTransformer = original match {
-    case i: If =>
-      new IfTransformer(predicate, trueValue, falseValue, original)
-    case other =>
-      throw new UnsupportedOperationException(s"not currently supported: $other.")
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val ifNodes = new JArrayList[ExpressionNode]
+    ifNodes.add(predicate.doTransform(args))
+
+    val thenNodes = new JArrayList[ExpressionNode]
+    thenNodes.add(trueValue.doTransform(args))
+
+    val elseValueNode = falseValue.doTransform(args)
+    new IfThenNode(ifNodes, thenNodes, elseValueNode)
   }
 }

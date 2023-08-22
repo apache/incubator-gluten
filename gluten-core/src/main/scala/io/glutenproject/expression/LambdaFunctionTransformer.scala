@@ -18,19 +18,17 @@ package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.LambdaFunction
 
 import java.util.ArrayList
 
-class LambdaFunctionTransformer(
+case class LambdaFunctionTransformer(
     substraitExprName: String,
     function: ExpressionTransformer,
     arguments: Seq[ExpressionTransformer],
     hidden: Boolean = false,
     original: LambdaFunction)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: Object): ExpressionNode = {
     // Need to fallback when hidden be true as it's not supported in Velox

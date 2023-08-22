@@ -16,32 +16,29 @@
  */
 package io.glutenproject.expression
 
-import io.glutenproject.substrait.expression.ExpressionBuilder
-import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.PythonUDF
+import org.apache.spark.sql.catalyst.expressions._
 
-import java.util.ArrayList
-case class PythonUDFTransformer(
+case class HashExpressionTransformer(
     substraitExprName: String,
-    children: Seq[ExpressionTransformer],
-    original: PythonUDF)
-  extends ExpressionTransformer
-  with Logging {
+    exps: Seq[ExpressionTransformer],
+    original: Expression)
+  extends ExpressionTransformer {
+
   override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val nodes = new java.util.ArrayList[ExpressionNode]()
+    exps.foreach(
+      expression => {
+        nodes.add(expression.doTransform(args))
+      })
+    val childrenTypes = original.children.map(child => child.dataType)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(
-      functionMap,
-      ConverterUtils.makeFuncName(
-        substraitExprName,
-        original.children.map(_.dataType),
-        ConverterUtils.FunctionConfig.OPT))
-
-    val expressionNodes = new ArrayList[ExpressionNode]
-    children.foreach(child => expressionNodes.add(child.doTransform(args)))
-
+    val functionName =
+      ConverterUtils.makeFuncName(substraitExprName, childrenTypes, FunctionConfig.OPT)
+    val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+    ExpressionBuilder.makeScalarFunction(functionId, nodes, typeNode)
   }
 }

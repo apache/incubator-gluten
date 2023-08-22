@@ -24,7 +24,7 @@ import org.apache.spark.sql.types._
 
 import com.google.common.collect.Lists
 
-case class AliasTransformerBase(
+case class AliasTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Expression)

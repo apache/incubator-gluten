@@ -81,12 +81,10 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
     }
     // ignore origin substraitExprName
     val functionName = ConverterUtils.makeFuncName(
-      ExpressionMappings.expressionsMap.get(classOf[ElementAt]).get,
+      ExpressionMappings.expressionsMap(classOf[ElementAt]),
       Seq(original.dataType),
       FunctionConfig.OPT)
-    val exprNodes = Lists.newArrayList(
-      leftNode.asInstanceOf[ExpressionNode],
-      rightNode.asInstanceOf[ExpressionNode])
+    val exprNodes = Lists.newArrayList(leftNode, rightNode)
     val resultNode = ExpressionBuilder.makeScalarFunction(
       ExpressionBuilder.newScalarFunction(functionMap, functionName),
       exprNodes,
@@ -203,9 +201,9 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
 
   override def genHashExpressionTransformer(
       substraitExprName: String,
-      exps: Seq[ExpressionTransformer],
+      exprs: Seq[ExpressionTransformer],
       original: Expression): ExpressionTransformer = {
-    HashExpressionTransformer(substraitExprName, exps, original)
+    VeloxHashExpressionTransformer(substraitExprName, exprs, original)
   }
 
   /**
@@ -323,9 +321,9 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
       srcExpr: ExpressionTransformer,
       regexExpr: ExpressionTransformer,
       limitExpr: ExpressionTransformer,
-      original: StringSplit): StringSplitTransformerBase = {
+      original: StringSplit): ExpressionTransformer = {
     // In velox, split function just support tow args, not support limit arg for now
-    new StringSplitTransformer(substraitExprName, srcExpr, regexExpr, limitExpr, original)
+    VeloxStringSplitTransformer(substraitExprName, srcExpr, regexExpr, limitExpr, original)
   }
 
   /**
@@ -337,8 +335,8 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
   override def genAliasTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
-      original: Expression): AliasTransformerBase =
-    new AliasTransformer(substraitExprName, child, original)
+      original: Expression): ExpressionTransformer =
+    VeloxAliasTransformer(substraitExprName, child, original)
 
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
   override def genGetMapValueTransformer(
@@ -346,19 +344,19 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: GetMapValue): ExpressionTransformer = {
-    new BinaryArgumentsCollectionOperationTransformer(
-      ExpressionMappings.expressionsMap.get(classOf[ElementAt]).get,
-      left,
-      right,
+    GenericExpressionTransformer(
+      ExpressionMappings.expressionsMap(classOf[ElementAt]),
+      Seq(left, right),
       original)
   }
 
   /** Generate an expression transformer to transform NamedStruct to Substrait. */
   override def genNamedStructTransformer(
       substraitExprName: String,
+      children: Seq[ExpressionTransformer],
       original: CreateNamedStruct,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
-    NamedStructTransformer(substraitExprName, original, attributeSeq)
+    VeloxNamedStructTransformer(substraitExprName, original, attributeSeq)
   }
 
   /** Generate an ExpressionTransformer to transform GetStructFiled expression. */
@@ -367,7 +365,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
       childTransformer: ExpressionTransformer,
       ordinal: Int,
       original: GetStructField): ExpressionTransformer = {
-    new GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
+    VeloxGetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
   }
 
   /**

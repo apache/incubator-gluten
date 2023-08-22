@@ -20,7 +20,7 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.types._
 
-class BoundReferenceTransformer(ordinal: Int, dataType: DataType, nullable: Boolean)
+case class BoundReferenceTransformer(ordinal: Int, dataType: DataType, nullable: Boolean)
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {

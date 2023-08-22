@@ -20,14 +20,13 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
 import com.google.common.collect.Lists
 
 /** The extract trait for 'GetDateField' from Date */
-class ExtractDateTransformer(
+case class ExtractDateTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Expression)
@@ -55,13 +54,12 @@ class ExtractDateTransformer(
   }
 }
 
-class DateDiffTransformer(
+case class DateDiffTransformer(
     substraitExprName: String,
     endDate: ExpressionTransformer,
     startDate: ExpressionTransformer,
     original: DateDiff)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val endDateNode = endDate.doTransform(args)
@@ -88,14 +86,13 @@ class DateDiffTransformer(
   }
 }
 
-class FromUnixTimeTransformer(
+case class FromUnixTimeTransformer(
     substraitExprName: String,
     sec: ExpressionTransformer,
     format: ExpressionTransformer,
     timeZoneId: Option[String] = None,
     original: FromUnixTime)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val secNode = sec.doTransform(args)
@@ -134,8 +131,7 @@ case class ToUnixTimestampTransformer(
     timeZoneId: Option[String],
     failOnError: Boolean,
     original: ToUnixTimestamp)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val dataTypes = Seq(original.timeExp.dataType, StringType)
@@ -154,14 +150,13 @@ case class ToUnixTimestampTransformer(
   }
 }
 
-class TruncTimestampTransformer(
+case class TruncTimestampTransformer(
     substraitExprName: String,
     format: ExpressionTransformer,
     timestamp: ExpressionTransformer,
     timeZoneId: Option[String] = None,
     original: TruncTimestamp)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val timestampNode = timestamp.doTransform(args)
@@ -190,15 +185,14 @@ class TruncTimestampTransformer(
   }
 }
 
-class MonthsBetweenTransformer(
+case class MonthsBetweenTransformer(
     substraitExprName: String,
     date1: ExpressionTransformer,
     date2: ExpressionTransformer,
     roundOff: ExpressionTransformer,
     timeZoneId: Option[String] = None,
     original: MonthsBetween)
-  extends ExpressionTransformer
-  with Logging {
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val date1Node = date1.doTransform(args)
