@@ -274,8 +274,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
         iter =>
           val input = new ArrayBuffer[ColumnarBatch]()
           // This iter is ClosableColumnarBatch, hasNext will remove it from native batch map,
-          // and serialize function append(RowVector) may reserve the buffer,
-          // so we can not release the batch before flush to OutputStream
+          // however, we need collect all batches for serialize, so retain is needed.
           while (iter.hasNext) {
             val batch = iter.next
             if (batch.numCols() != 0) {
