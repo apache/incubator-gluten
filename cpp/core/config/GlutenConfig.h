@@ -29,7 +29,9 @@ const std::string kGlutenSaveDir = "spark.gluten.saveDir";
 
 const std::string kCaseSensitive = "spark.sql.caseSensitive";
 
-const std::string kSessionTimezone = "spark.gluten.sql.session.timeZone";
+const std::string kSessionTimezone = "spark.sql.session.timeZone";
+
+const std::string kDefaultSessionTimezone = "spark.gluten.sql.session.timeZone.default";
 
 const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";
 
