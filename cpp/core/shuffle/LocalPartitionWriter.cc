@@ -84,10 +84,6 @@ class PreferEvictPartitionWriter::LocalPartitionWriterInstance {
     const auto& dataFileOs = partitionWriter_->dataFileOs_;
     ARROW_ASSIGN_OR_RAISE(auto before_write, dataFileOs->Tell());
 
-    if (shuffleWriter_->options().write_schema) {
-      RETURN_NOT_OK(writeSchemaPayload(dataFileOs.get()));
-    }
-
     if (spilledFileOpened_) {
       RETURN_NOT_OK(spilledFileOs_->Close());
       RETURN_NOT_OK(mergeSpilled());
@@ -137,20 +133,6 @@ class PreferEvictPartitionWriter::LocalPartitionWriterInstance {
     auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
     RETURN_NOT_OK(fs->DeleteFile(spilledFile_));
     bytes_spilled += nbytes;
-    return arrow::Status::OK();
-  }
-
-  arrow::Status writeSchemaPayload(arrow::io::OutputStream* os) {
-    std::shared_ptr<arrow::ipc::IpcPayload> payload;
-    if (shuffleWriter_->options().compression_type == arrow::Compression::type::UNCOMPRESSED) {
-      ARROW_ASSIGN_OR_RAISE(payload, partitionWriter_->getSchemaPayload(shuffleWriter_->writeSchema()));
-    } else {
-      ARROW_ASSIGN_OR_RAISE(payload, partitionWriter_->getSchemaPayload(shuffleWriter_->compressWriteSchema()));
-    }
-
-    int32_t metadataLength = 0; // unused
-    RETURN_NOT_OK(
-        arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, &metadataLength));
     return arrow::Status::OK();
   }
 
@@ -310,7 +292,6 @@ arrow::Status PreferCachePartitionWriter::stop() {
   int64_t totalBytesWritten = 0;
   int64_t lastPayloadCompressTime = 0;
   auto numPartitions = shuffleWriter_->numPartitions();
-  auto writeSchema = shuffleWriter_->options().write_schema;
 
   TIME_NANO_START(totalWriteTime)
   // 0. Open final file
@@ -335,10 +316,6 @@ arrow::Status PreferCachePartitionWriter::stop() {
       // 5. read if partition exists in the spilled file and write to the final file
       if (partitionSpillInfo.partitionId == pid) { // A hit
         if (firstWrite) {
-          // Write schema payload for this partition
-          if (writeSchema) {
-            RETURN_NOT_OK(writeSchemaPayload(dataFileOs_.get()));
-          }
           firstWrite = false;
         }
         ARROW_ASSIGN_OR_RAISE(auto raw, spilledFiles[i]->ReadAt(partitionSpillInfo.start, partitionSpillInfo.length));
@@ -351,10 +328,6 @@ arrow::Status PreferCachePartitionWriter::stop() {
     auto cachedPayloadSize = shuffleWriter_->partitionCachedRecordbatchSize()[pid];
     if (cachedPayloadSize > 0) {
       if (firstWrite) {
-        // Write schema payload for this partition
-        if (writeSchema) {
-          RETURN_NOT_OK(writeSchemaPayload(dataFileOs_.get()));
-        }
         firstWrite = false;
       }
       RETURN_NOT_OK(flushCachedPayloads(dataFileOs_.get(), shuffleWriter_->partitionCachedRecordbatch()[pid]));
@@ -366,10 +339,6 @@ arrow::Status PreferCachePartitionWriter::stop() {
     ARROW_ASSIGN_OR_RAISE(auto rb, shuffleWriter_->createArrowRecordBatchFromBuffer(pid, true));
     if (rb) {
       if (firstWrite) {
-        // Write schema payload for this partition
-        if (writeSchema) {
-          RETURN_NOT_OK(writeSchemaPayload(dataFileOs_.get()));
-        }
         firstWrite = false;
       }
       // Record rawPartitionLength and flush the last payload.

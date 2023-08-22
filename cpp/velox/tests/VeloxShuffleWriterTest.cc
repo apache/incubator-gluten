@@ -18,6 +18,7 @@
 #include "shuffle/VeloxShuffleWriter.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
+#include "utils/ArrowTypeUtils.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/vector/arrow/Bridge.h"
@@ -68,7 +69,6 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     setenv(kGlutenSparkLocalDirs.c_str(), configDirs.c_str(), 1);
 
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
-    shuffleWriterOptions_.write_schema = true;
     shuffleWriterOptions_.buffer_compress_threshold = 0;
 
     ShuffleTestParams params = GetParam();
@@ -141,16 +141,6 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     ASSERT_EQ(*arrow::internal::FileExists(*arrow::internal::PlatformFilename::FromString(fileName)), true);
   }
 
-  arrow::Result<std::shared_ptr<arrow::ipc::RecordBatchReader>> getRecordBatchStreamReader(
-      const std::string& fileName) {
-    if (file_ != nullptr && !file_->closed()) {
-      RETURN_NOT_OK(file_->Close());
-    }
-    ARROW_ASSIGN_OR_RAISE(file_, arrow::io::ReadableFile::Open(fileName))
-    ARROW_ASSIGN_OR_RAISE(auto fileReader, arrow::ipc::RecordBatchStreamReader::Open(file_))
-    return fileReader;
-  }
-
   void splitRowVector(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {
     std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
     GLUTEN_THROW_NOT_OK(shuffleWriter.split(cb));
@@ -164,11 +154,26 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     return copy;
   }
 
-  std::shared_ptr<arrow::Schema> getExpectedSchema(VeloxShuffleWriter& shuffleWriter) {
-    if (shuffleWriterOptions_.compression_type == arrow::Compression::UNCOMPRESSED) {
-      return shuffleWriter.writeSchema();
-    } else {
-      return shuffleWriter.compressWriteSchema();
+  std::shared_ptr<arrow::Schema> getArrowSchema(velox::RowVectorPtr& rowVector) {
+    return toArrowSchema(rowVector->type());
+  }
+
+  void setReadableFile(const std::string& fileName) {
+    if (file_ != nullptr && !file_->closed()) {
+      GLUTEN_THROW_NOT_OK(file_->Close());
+    }
+    GLUTEN_ASSIGN_OR_THROW(file_, arrow::io::ReadableFile::Open(fileName))
+  }
+
+  void getRowVectors(std::shared_ptr<arrow::Schema> schema, std::vector<velox::RowVectorPtr>& vectors) {
+    ReaderOptions options;
+    options.compression_type = shuffleWriterOptions_.compression_type;
+    options.compression_mode = shuffleWriterOptions_.compression_mode;
+    auto reader = std::make_shared<VeloxShuffleReader>(schema, options, arrowPool_, pool_);
+    auto iter = reader->readStream(file_);
+    while (iter->hasNext()) {
+      auto vector = std::dynamic_pointer_cast<VeloxColumnarBatch>(iter->next())->getRowVector();
+      vectors.emplace_back(vector);
     }
   }
 
@@ -184,27 +189,14 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     const auto& lengths = shuffleWriter.partitionLengths();
     ASSERT_EQ(lengths.size(), 1);
 
-    std::shared_ptr<arrow::ipc::RecordBatchReader> fileReader;
-    ARROW_ASSIGN_OR_THROW(fileReader, getRecordBatchStreamReader(shuffleWriter.dataFile()));
-    auto expectedSchema = getExpectedSchema(shuffleWriter);
-    // verify schema
-    ASSERT_TRUE(fileReader->schema()->Equals(expectedSchema, true))
-        << "File schema: " << fileReader->schema()->ToString() << " expectedSchema: " << expectedSchema->ToString()
-        << std::endl;
-    std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-    ASSERT_NOT_OK(fileReader->ReadAll(&batches));
-    ASSERT_EQ(batches.size(), vectors.size());
-    int64_t decompressTime;
-    for (int32_t i = 0; i < batches.size(); i++) {
-      auto deserialized = VeloxShuffleReader::readRowVector(
-          *batches[i],
-          asRowType(vectors[i]->type()),
-          CodecBackend::NONE,
-          shuffleWriterOptions_.compression_mode,
-          decompressTime,
-          arrowPool_.get(),
-          pool_.get());
-      velox::test::assertEqualVectors(vectors[i], deserialized);
+    auto schema = getArrowSchema(vectors[0]);
+    std::vector<velox::RowVectorPtr> deserializedVectors;
+    setReadableFile(shuffleWriter.dataFile());
+    getRowVectors(schema, deserializedVectors);
+
+    ASSERT_EQ(deserializedVectors.size(), vectors.size());
+    for (int32_t i = 0; i < deserializedVectors.size(); i++) {
+      velox::test::assertEqualVectors(vectors[i], deserializedVectors[i]);
     }
   }
 
@@ -218,37 +210,20 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     checkFileExists(shuffleWriter.dataFile());
     // verify output temporary files
     const auto& lengths = shuffleWriter.partitionLengths();
-    auto expectedSchema = getExpectedSchema(shuffleWriter);
     ASSERT_EQ(lengths.size(), expectPartitionLength);
     int64_t lengthSum = std::accumulate(lengths.begin(), lengths.end(), 0);
-
-    // verify schema
+    auto schema = getArrowSchema(expectedVectors[0][0]);
+    setReadableFile(shuffleWriter.dataFile());
+    ASSERT_EQ(*file_->GetSize(), lengthSum);
     for (int32_t i = 0; i < expectPartitionLength; i++) {
-      std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
-      GLUTEN_ASSIGN_OR_THROW(auto fileReader, getRecordBatchStreamReader(shuffleWriter_->dataFile()));
-      if (i == 0) {
-        ASSERT_EQ(*file_->GetSize(), lengthSum);
-      }
-      ASSERT_TRUE(fileReader->schema()->Equals(expectedSchema, true));
+      std::vector<velox::RowVectorPtr> deserializedVectors;
+      getRowVectors(schema, deserializedVectors);
       if (i != 0) {
         ASSERT_NOT_OK(file_->Advance(lengths[i - 1]));
       }
-      ASSERT_NOT_OK(fileReader->ReadAll(&batches));
-      // ASSERT_EQ(batches.size(), vectors.size()); //input batch may be empty
-      ASSERT_EQ(expectedVectors[i].size(), batches.size());
-      // auto partitionVectors = std::move(expectedVectors[i]);
-      ASSERT_EQ(expectedVectors[i].size(), batches.size());
-      int64_t decompressTime;
-      for (int32_t j = 0; j < batches.size(); j++) {
-        auto deserialized = VeloxShuffleReader::readRowVector(
-            *batches[j],
-            asRowType(dataType),
-            CodecBackend::NONE,
-            shuffleWriterOptions_.compression_mode,
-            decompressTime,
-            arrowPool_.get(),
-            pool_.get());
-        velox::test::assertEqualVectors(expectedVectors[i][j], deserialized);
+      ASSERT_EQ(expectedVectors[i].size(), deserializedVectors.size());
+      for (int32_t j = 0; j < expectedVectors[i].size(); j++) {
+        velox::test::assertEqualVectors(expectedVectors[i][j], deserializedVectors[j]);
       }
     }
   }
@@ -579,7 +554,6 @@ TEST_P(VeloxShuffleWriterTest, memoryLeak) {
   int32_t numPartitions = 2;
   shuffleWriterOptions_.buffer_size = 4;
   shuffleWriterOptions_.memory_pool = pool;
-  shuffleWriterOptions_.write_schema = false;
   shuffleWriterOptions_.partitioning_name = "rr";
 
   ARROW_ASSIGN_OR_THROW(

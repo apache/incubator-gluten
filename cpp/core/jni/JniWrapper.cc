@@ -739,7 +739,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jstring localDirsJstr,
     jboolean preferEvict,
     jlong memoryManagerId,
-    jboolean writeSchema,
     jboolean writeEOS,
     jlong firstBatchHandle,
     jlong taskAttemptId,
@@ -802,7 +801,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
       throw gluten::GlutenException(std::string("Shuffle DataFile can't be null"));
     }
 
-    shuffleWriterOptions.write_schema = writeSchema;
     shuffleWriterOptions.write_eos = writeEOS;
     shuffleWriterOptions.prefer_evict = preferEvict;
 

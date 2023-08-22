@@ -55,7 +55,6 @@ class CHColumnarShuffleWriter[K, V](
     GlutenShuffleUtils.getCompressionCodec(conf).toUpperCase(Locale.ROOT)
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
   private val spillThreshold = GlutenConfig.getConf.chColumnarShuffleSpillThreshold
-  private val writeSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
   private val jniWrapper = new CHShuffleSplitterJniWrapper
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
   // and then call stop() with success = false if they get an exception, we want to make sure
