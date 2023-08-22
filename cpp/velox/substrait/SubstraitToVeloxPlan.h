@@ -344,7 +344,7 @@ class SubstraitToVeloxPlanConverter {
   /// and remaining functions to be handled by the remainingFilter in
   /// HiveConnector.
   void separateFilters(
-      std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders,
+      std::vector<RangeRecorder>& rangeRecorders,
       const std::vector<::substrait::Expression_ScalarFunction>& scalarFunctions,
       std::vector<::substrait::Expression_ScalarFunction>& subfieldFunctions,
       std::vector<::substrait::Expression_ScalarFunction>& remainingFunctions,
@@ -361,12 +361,12 @@ class SubstraitToVeloxPlanConverter {
   /// Returns whether a NOT function can be pushed down.
   bool canPushdownNot(
       const ::substrait::Expression_ScalarFunction& scalarFunction,
-      std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders);
+      std::vector<RangeRecorder>& rangeRecorders);
 
   /// Returns whether a OR function can be pushed down.
   bool canPushdownOr(
       const ::substrait::Expression_ScalarFunction& scalarFunction,
-      std::unordered_map<uint32_t, RangeRecorder>& rangeRecorders);
+      std::vector<RangeRecorder>& rangeRecorders);
 
   /// Returns whether a SingularOrList can be pushed down.
   static bool canPushdownSingularOrList(
@@ -383,13 +383,13 @@ class SubstraitToVeloxPlanConverter {
   void setFilterInfo(
       const ::substrait::Expression_ScalarFunction& scalarFunction,
       const std::vector<TypePtr>& inputTypeList,
-      std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo,
+      std::vector<FilterInfo>& columnToFilterInfo,
       bool reverse = false);
 
   /// Extract SingularOrList and set it to the filter info map.
   void setFilterInfo(
       const ::substrait::Expression_SingularOrList& singularOrList,
-      std::unordered_map<uint32_t, FilterInfo>& columnToFilterInfo);
+      std::vector<FilterInfo>& columnToFilterInfo);
 
   /// Extract SingularOrList and returns the field index.
   static uint32_t getColumnIndexFromSingularOrList(const ::substrait::Expression_SingularOrList&);
@@ -442,7 +442,7 @@ class SubstraitToVeloxPlanConverter {
   connector::hive::SubfieldFilters mapToFilters(
       const std::vector<std::string>& inputNameList,
       const std::vector<TypePtr>& inputTypeList,
-      std::unordered_map<uint32_t, FilterInfo> columnToFilterInfo);
+      std::vector<FilterInfo>& columnToFilterInfo);
 
   /// Convert subfield functions into subfieldFilters to
   /// be used in Hive Connector.
