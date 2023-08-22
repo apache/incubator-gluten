@@ -52,6 +52,7 @@ createFileWriterWrapper(const std::string & file_uri, const std::vector<std::str
 {
     // the passed in file_uri is exactly what is expected to see in the output folder
     // e.g /xxx/中文/timestamp_field=2023-07-13 03%3A00%3A17.622/abc.parquet
+    LOG_INFO(&Poco::Logger::get("FileWriterWrappers"), "Create native writer, format_hint: {}, file: {}", format_hint, file_uri);
     std::string encoded;
     Poco::URI::encode(file_uri, "", encoded); // encode the space and % seen in the file_uri
     Poco::URI poco_uri(encoded);
