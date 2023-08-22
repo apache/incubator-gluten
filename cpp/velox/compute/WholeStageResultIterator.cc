@@ -289,8 +289,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
     // To align with Spark's behavior, allow decimal in casting string to int.
     configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
-    // Uses nullopt as default, expecting it is always set. If not, an exception will be thrown.
-    auto defaultTimezone = getConfigValue(confMap_, kDefaultSessionTimezone, std::nullopt);
+    auto defaultTimezone = getConfigValue(confMap_, kDefaultSessionTimezone, "");
     configs[velox::core::QueryConfig::kSessionTimezone] = getConfigValue(confMap_, kSessionTimezone, defaultTimezone);
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = std::to_string(true);
