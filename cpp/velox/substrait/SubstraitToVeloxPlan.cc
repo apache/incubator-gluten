@@ -1759,7 +1759,7 @@ void SubstraitToVeloxPlanConverter::setSubfieldFilter(
       });
     }
 
-    filters[common::Subfield(inputName, true)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
+    filters[common::Subfield(inputName)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
   }
 }
 
