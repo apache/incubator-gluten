@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 #pragma once
+#include <jni.h>
 #include <Formats/NativeWriter.h>
-#include <Shuffle/WriteBufferFromJavaOutputStream.h>
 
 namespace local_engine
 {
@@ -30,8 +30,8 @@ public:
     void flush();
 
 private:
-    std::unique_ptr<DB::CompressedWriteBuffer> compressed_out;
-    std::unique_ptr<WriteBufferFromJavaOutputStream> write_buffer;
+    std::unique_ptr<DB::WriteBuffer> compressed_out;
+    std::unique_ptr<DB::WriteBuffer> write_buffer;
     std::unique_ptr<DB::NativeWriter> native_writer;
     bool compression_enable;
 };

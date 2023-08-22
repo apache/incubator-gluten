@@ -20,9 +20,7 @@ import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.utils.IteratorUtil
 import io.glutenproject.vectorized.{BlockOutputStream, CHBlockWriterJniWrapper, CHStreamReader}
 
-import org.apache.spark.SparkEnv
 import org.apache.spark.benchmark.Benchmark
-import org.apache.spark.io.CompressionCodec
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.BoundReference
@@ -31,10 +29,11 @@ import org.apache.spark.sql.execution.{RemoveTopColumnarToRow, SparkPlan}
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
 import org.apache.spark.sql.execution.joins.ClickHouseBuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.CHShuffleReadStreamFactory
 
-import java.io.{ByteArrayOutputStream, DataOutputStream}
+import java.io.ByteArrayOutputStream
 
 object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark {
 
@@ -62,22 +61,23 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
                                  |select $scanSchema from parquet.`$parquetDir`
                                  |
                                  |""".stripMargin)
-
-    val benchmark = new Benchmark(
-      "CHStorageJoinBenchmark",
-      readFileCnt,
-      outputPerIteration = false,
-      output = output)
-    benchmark.addCase("mapPartitions", executedCnt) {
+    val rowCount = chParquet.count()
+    val benchmark =
+      new Benchmark("CHStorageJoinBenchmark", rowCount, outputPerIteration = false, output = output)
+    benchmark.addCase("mapPartitions with CHBlockWriterJniWrapper", executedCnt) {
       _ => createBroadcastRelation1(RemoveTopColumnarToRow(chParquet.queryExecution.executedPlan))
     }
-    benchmark.addCase("map", executedCnt) {
+    benchmark.addCase("map with CHBlockWriterJniWrapper", executedCnt) {
       _ => createBroadcastRelation2(RemoveTopColumnarToRow(chParquet.queryExecution.executedPlan))
     }
-    benchmark.addCase("5", executedCnt) {
+
+    benchmark.addCase("mapPartitions with compressed lz4 BlockOutputStream", executedCnt) {
+      _ => createBroadcastRelation4(RemoveTopColumnarToRow(chParquet.queryExecution.executedPlan))
+    }
+    benchmark.addCase("mapPartitionsInternal with compressed lz4 BlockOutputStream", executedCnt) {
       _ => createBroadcastRelation5(RemoveTopColumnarToRow(chParquet.queryExecution.executedPlan))
     }
-    benchmark.addCase("6", executedCnt) {
+    benchmark.addCase("map with compressed lz4 BlockOutputStream", executedCnt) {
       _ => createBroadcastRelation6(RemoveTopColumnarToRow(chParquet.queryExecution.executedPlan))
     }
     benchmark.run()
@@ -136,48 +136,20 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
       Seq(BoundReference(0, child.output.head.dataType, child.output.head.nullable)))
   }
 
-//  def createBroadcastRelation3(child: SparkPlan): ClickHouseBuildSideRelation = {
-//    val countsAndBytes = child
-//      .executeColumnar()
-//      .map(cb => new SerializableColumnarBatch(cb))
-//      .collect
-//
-//    val batches = countsAndBytes.map(_.getBuffer)
-//    val rawSize = batches.map(_.length).sum
-//    ClickHouseBuildSideRelation(
-//      NoopBroadcastMode,
-//      child.output,
-//      batches,
-//      Seq(BoundReference(0, child.output.head.dataType, child.output.head.nullable)))
-//  }
-
   def createBroadcastRelation4(child: SparkPlan): ClickHouseBuildSideRelation = {
+    val dataSize = SQLMetrics.createSizeMetric(spark.sparkContext, "size of files read")
+
     val countsAndBytes = child
       .executeColumnar()
-      .mapPartitionsInternal {
-        iter =>
-          var count = 0
-          val codec = CompressionCodec.createCodec(SparkEnv.get.conf)
-          val bos = new ByteArrayOutputStream()
-          val out = new DataOutputStream(codec.compressedOutputStream(bos))
-          while (iter.hasNext) {
-            val batch = iter.next()
-            count += batch.numRows
-            val blockNativeWriter = new CHBlockWriterJniWrapper()
-            blockNativeWriter.write(batch)
-            val bytes = blockNativeWriter.collectAsByteArray()
-            out.writeInt(bytes.length)
-            out.write(bytes)
-          }
-          out.writeInt(-1)
-          out.flush()
-          out.close()
-          Iterator((count, bos.toByteArray))
-      }
+      .mapPartitions(iter => CHExecUtil.toBytes(dataSize, iter))
       .collect()
+
+    val count0 = countsAndBytes.map(_._1).sum
     val batches = countsAndBytes.map(_._2)
-    val rawSize = batches.map(_.length).sum
+    val rawSize = dataSize.value
     val allBytes = batches.flatten
+    val count1 = iterateBatch(allBytes, compressed = true)
+    require(count0 == count1, s"count0: $count0, count1: $count1")
     ClickHouseBuildSideRelation(
       NoopBroadcastMode,
       child.output,
@@ -190,21 +162,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
 
     val countsAndBytes = child
       .executeColumnar()
-      .mapPartitionsInternal {
-        iter =>
-          var count = 0
-          val bos = new ByteArrayOutputStream()
-          val buffer = new Array[Byte](4 << 10) // 4K
-          val dout = new BlockOutputStream(bos, buffer, dataSize, true, "lz4", buffer.length)
-          while (iter.hasNext) {
-            val batch = iter.next()
-            count += batch.numRows
-            dout.write(batch)
-          }
-          dout.flush()
-          dout.close()
-          Iterator((count, bos.toByteArray))
-      }
+      .mapPartitionsInternal(iter => CHExecUtil.toBytes(dataSize, iter))
       .collect()
 
     val count0 = countsAndBytes.map(_._1).sum
@@ -253,7 +211,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
   def iterateBatch(array: Array[Byte], compressed: Boolean): Int = {
     val blockReader =
       new CHStreamReader(
-        CHShuffleReadStreamFactory.create(array, compressed),
+        CHShuffleReadStreamFactory.create(array, compressed, CHBackendSettings.customizeBufferSize),
         CHBackendSettings.customizeBufferSize)
     val broadCastIter: Iterator[ColumnarBatch] = IteratorUtil.createBatchIterator(blockReader)
     broadCastIter.foldLeft(0) {

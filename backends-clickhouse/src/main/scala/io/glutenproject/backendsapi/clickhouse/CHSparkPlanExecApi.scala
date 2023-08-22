@@ -22,7 +22,7 @@ import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.utils.CHJoinValidateUtil
-import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
+import io.glutenproject.vectorized.CHColumnarBatchSerializer
 
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
@@ -84,7 +84,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genColumnarToRowExec(child: SparkPlan): ColumnarToRowExecBase = {
-    CHColumnarToRowExec(child);
+    CHColumnarToRowExec(child)
   }
 
   /**
@@ -291,32 +291,17 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         }
         (newChild, (child.output ++ appendedProjections).map(_.toAttribute), preProjectionBuildKeys)
       }
-    val countsAndBytes = newChild
-      .executeColumnar()
-      .mapPartitions {
-        iter =>
-          var _numRows: Long = 0
-
-          // Use for reading bytes array from block
-          val blockNativeWriter = new CHBlockWriterJniWrapper()
-          while (iter.hasNext) {
-            val batch = iter.next
-            blockNativeWriter.write(batch)
-            _numRows += batch.numRows
-          }
-          Iterator((_numRows, blockNativeWriter.collectAsByteArray()))
-      }
-      .collect
+    val countsAndBytes =
+      CHExecUtil.buildSideRDD(dataSize, newChild).collect
 
     val batches = countsAndBytes.map(_._2)
-    val rawSize = batches.map(_.length).sum
+    val rawSize = dataSize.value
     if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
       throw new SparkException(
         s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
     }
     numOutputRows += countsAndBytes.map(_._1).sum
-    dataSize += rawSize
-    ClickHouseBuildSideRelation(mode, newOutput, batches, newBuildKeys)
+    ClickHouseBuildSideRelation(mode, newOutput, batches.flatten, newBuildKeys)
   }
 
   /**

@@ -16,14 +16,20 @@
  */
 #pragma once
 #include <jni.h>
-#include <Compression/CompressedReadBuffer.h>
 #include <Formats/NativeReader.h>
-#include <IO/ReadBuffer.h>
+#include <IO/BufferWithOwnMemory.h>
 #include <Common/BlockIterator.h>
 
+namespace DB
+{
+class CompressedReadBuffer;
+class NativeReader;
+}
 
 namespace local_engine
 {
+std::unique_ptr<DB::ReadBuffer> createCompressedReadBuffer(std::unique_ptr<DB::ReadBuffer> & in);
+
 class ReadBufferFromJavaInputStream;
 class ShuffleReader : BlockIterator
 {
@@ -33,10 +39,10 @@ public:
     ~ShuffleReader();
     static jclass input_stream_class;
     static jmethodID input_stream_read;
-    std::unique_ptr<DB::ReadBuffer> in;
 
 private:
-    std::unique_ptr<DB::CompressedReadBuffer> compressed_in;
+    std::unique_ptr<DB::ReadBuffer> in;
+    std::unique_ptr<DB::ReadBuffer> compressed_in;
     std::unique_ptr<DB::NativeReader> input_stream;
     DB::Block header;
 };

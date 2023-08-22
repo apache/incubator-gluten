@@ -16,7 +16,6 @@
  */
 package org.apache.spark.storage;
 
-import io.glutenproject.backendsapi.clickhouse.CHBackendSettings;
 import io.glutenproject.exception.GlutenException;
 import io.glutenproject.vectorized.LowCopyFileSegmentShuffleInputStream;
 import io.glutenproject.vectorized.LowCopyNettyShuffleInputStream;
@@ -83,18 +82,6 @@ public final class CHShuffleReadStreamFactory {
   }
 
   private CHShuffleReadStreamFactory() {}
-
-  public static ShuffleInputStream create(byte[] allBatches) {
-    return create(allBatches, false, CHBackendSettings.customizeBufferSize());
-  }
-
-  public static ShuffleInputStream create(byte[] allBatches, boolean compressed) {
-    return create(allBatches, compressed, CHBackendSettings.customizeBufferSize());
-  }
-
-  public static ShuffleInputStream create(byte[] allBatches, int bufferSize) {
-    return create(allBatches, false, bufferSize);
-  }
 
   public static ShuffleInputStream create(byte[] allBatches, boolean compressed, int bufferSize) {
     return new OnHeapCopyShuffleInputStream(

@@ -17,6 +17,7 @@
 #include "ShuffleWriter.h"
 #include <Compression/CompressedWriteBuffer.h>
 #include <Compression/CompressionFactory.h>
+#include <Shuffle/WriteBufferFromJavaOutputStream.h>
 #include <boost/algorithm/string/case_conv.hpp>
 
 using namespace DB;

@@ -131,7 +131,7 @@ private class CHColumnarBatchSerializerInstance(
   override def serializeStream(out: OutputStream): SerializationStream = new SerializationStream {
     private[this] var writeBuffer: Array[Byte] =
       new Array[Byte](CHBackendSettings.customizeBufferSize)
-    private[this] var dOut: BlockOutputStream =
+    private[this] val dOut: BlockOutputStream =
       new BlockOutputStream(
         out,
         writeBuffer,

@@ -34,7 +34,7 @@ import scala.collection.JavaConverters._
 case class ClickHouseBuildSideRelation(
     mode: BroadcastMode,
     output: Seq[Attribute],
-    batches: Array[Array[Byte]],
+    batches: Array[Byte],
     newBuildKeys: Seq[Expression] = Seq.empty)
   extends BuildSideRelation
   with Logging {
@@ -49,12 +49,11 @@ case class ClickHouseBuildSideRelation(
       broadCastContext: BroadCastHashJoinContext): (Long, ClickHouseBuildSideRelation) =
     synchronized {
       if (hashTableData == 0) {
-        val allBatches = batches.flatten
         logDebug(
           s"BHJ value size: " +
-            s"${broadCastContext.buildHashTableId} = ${allBatches.length}")
+            s"${broadCastContext.buildHashTableId} = ${batches.length}")
         val storageJoinBuilder = new StorageJoinBuilder(
-          CHShuffleReadStreamFactory.create(allBatches),
+          CHShuffleReadStreamFactory.create(batches, true, CHBackendSettings.customizeBufferSize),
           broadCastContext,
           CHBackendSettings.customizeBufferSize,
           output.asJava,
@@ -79,11 +78,10 @@ case class ClickHouseBuildSideRelation(
    * @return
    */
   override def transform(key: Expression): Array[InternalRow] = {
-    val allBatches = batches.flatten
     // native block reader
     val blockReader =
       new CHStreamReader(
-        CHShuffleReadStreamFactory.create(allBatches),
+        CHShuffleReadStreamFactory.create(batches, true, CHBackendSettings.customizeBufferSize),
         CHBackendSettings.customizeBufferSize)
     val broadCastIter: Iterator[ColumnarBatch] = IteratorUtil.createBatchIterator(blockReader)
     // Expression compute, return block iterator
