@@ -33,11 +33,7 @@ public:
 class BlockStripeSplitter
 {
 public:
-<<<<<<< HEAD
-    static BlockStripes split(const DB::Block & block, const std::vector<size_t> & partitionColIndice, const bool hasBucket);
-=======
     static BlockStripes split(const DB::Block & block, const std::vector<size_t> & partition_col_indice, bool has_bucket);
->>>>>>> deduplicate actions in  removenullable step
 };
 
 }
