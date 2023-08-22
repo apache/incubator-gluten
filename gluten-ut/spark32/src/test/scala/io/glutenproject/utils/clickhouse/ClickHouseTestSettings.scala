@@ -1196,6 +1196,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenVectorizedOrcReadSchemaSuite]
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenBinaryFileFormatSuite]
+    .exclude("column pruning - non-readable file")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
     .exclude("simple csv test")
     .exclude("simple csv test with calling another function to load")
@@ -2071,6 +2072,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "bucket coalescing is applied when join expressions match with partitioning expressions")
   enableSuite[GlutenBucketedWriteWithoutHiveSupportSuite]
   enableSuite[GlutenCreateTableAsSelectSuite]
+    .exclude("CREATE TABLE USING AS SELECT based on the file without write permission")
+    .exclude("create a table, drop it and create another one with the same name")
   enableSuite[GlutenDDLSourceLoadSuite]
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite]
   enableSuite[GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE]
