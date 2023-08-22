@@ -260,7 +260,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
 
     auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
     auto memoryManager = getDefaultMemoryManager();
-    auto veloxPool = reinterpret_cast<facebook::velox::memory::MemoryPool*>(memoryManager->getMemoryPool());
+    auto veloxPool = memoryManager->getAggregateMemoryPool();
 
     for (auto _ : state) {
       // Init VeloxParquetDataSource

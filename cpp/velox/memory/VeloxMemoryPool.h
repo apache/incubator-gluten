@@ -26,8 +26,8 @@ namespace gluten {
 //     MemoryAllocator* allocator,
 //     bool track = false);
 
-//std::shared_ptr<facebook::velox::memory::MemoryPool>
-//asAggregateVeloxMemoryPool(std::string name, std::shared_ptr<AllocationListener> listener, bool track = false);
+// std::shared_ptr<facebook::velox::memory::MemoryPool>
+// asAggregateVeloxMemoryPool(std::string name, std::shared_ptr<AllocationListener> listener, bool track = false);
 
 std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool();
 
