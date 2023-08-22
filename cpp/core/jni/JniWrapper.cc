@@ -283,7 +283,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   javaReservationListenerClass = createGlobalClassReference(
       env,
-      "Lio/glutenproject/memory/alloc/"
+      "Lio/glutenproject/memory/nmm/"
       "ReservationListener;");
 
   reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserveOrThrow", "(J)V");

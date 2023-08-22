@@ -40,7 +40,7 @@ class VeloxBackend final : public Backend {
  public:
   explicit VeloxBackend(const std::unordered_map<std::string, std::string>& confMap);
 
-  inline std::shared_ptr<velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
+  inline std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
     if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {
       return veloxMemoryManager->getAggregateMemoryPool();
     } else {
@@ -48,7 +48,7 @@ class VeloxBackend final : public Backend {
     }
   }
 
-  inline std::shared_ptr<velox::memory::MemoryPool> getLeafVeloxPool(MemoryManager* memoryManager) {
+  inline std::shared_ptr<facebook::velox::memory::MemoryPool> getLeafVeloxPool(MemoryManager* memoryManager) {
     if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {
       return veloxMemoryManager->getLeafMemoryPool();
     } else {
