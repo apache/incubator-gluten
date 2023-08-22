@@ -1506,6 +1506,16 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
 
   auto inputType = inputTypeList[colIdxVal];
   switch (inputType->kind()) {
+    case TypeKind::TINYINT:
+      if (substraitLit) {
+        val = variant(substraitLit.value().i8());
+      }
+      break;
+    case TypeKind::SMALLINT:
+      if (substraitLit) {
+        val = variant(substraitLit.value().i16());
+      }
+      break;
     case TypeKind::INTEGER:
       if (substraitLit) {
         val = variant(substraitLit.value().i32());
@@ -1561,7 +1571,7 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
       }
       break;
     default:
-      VELOX_NYI("Subfield filters creation not supported for input type '{}'", inputType);
+      VELOX_NYI("Subfield filters creation not supported for input type '{}' in setFilterInfo", inputType);
   }
 
   setColumnFilterInfo(functionName, val, columnToFilterInfo[colIdxVal], reverse);
@@ -1912,7 +1922,7 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
             colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       default:
-        VELOX_NYI("Subfield filters creation not supported for input type '{}'", inputType);
+        VELOX_NYI("Subfield filters creation not supported for input type '{}' in mapToFilters", inputType);
     }
   }
 
