@@ -17,7 +17,6 @@
 package io.glutenproject.vectorized
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
@@ -70,49 +69,49 @@ private class ColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
+  private lazy val shuffleReaderHandle = {
+    val allocator: BufferAllocator = ArrowBufferAllocators
+      .contextInstance()
+      .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
+    val arrowSchema =
+      SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
+    val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
+    ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+    val conf = SparkEnv.get.conf
+    val compressionCodec =
+      if (conf.getBoolean("spark.shuffle.compress", true)) {
+        GlutenShuffleUtils.getCompressionCodec(conf)
+      } else {
+        null // uncompressed
+      }
+    val compressionCodecBackend =
+      GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
+    val handle = ShuffleReaderJniWrapper.INSTANCE.make(
+      cSchema.memoryAddress(),
+      NativeMemoryAllocators.getDefault().contextInstance("ShuffleReader").getNativeInstanceId,
+      compressionCodec,
+      compressionCodecBackend,
+      GlutenConfig.getConf.columnarShuffleCompressionMode
+    )
+    // Close shuffle reader instance as lately as the end of task processing,
+    // since the native reader could hold a reference to memory pool that
+    // was used to create all buffers read from shuffle reader. The pool
+    // should keep alive before all buffers finish consuming.
+    TaskResources.addRecycler(s"ShuffleReaderHandle_$handle", 50) {
+      cSchema.close()
+      ShuffleReaderJniWrapper.INSTANCE.close(handle)
+      allocator.close()
+    }
+    handle
+  }
+
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
-
-      private val allocator: BufferAllocator = ArrowBufferAllocators
-        .contextInstance()
-        .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
+      private lazy val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
+      private lazy val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
+        ShuffleReaderJniWrapper.INSTANCE.readStream(shuffleReaderHandle, byteIn))
 
       private val readerMetrics = new ShuffleReaderMetrics()
-
-      private lazy val jniByteInputStream = JniByteInputStreams.create(in)
-      private lazy val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
-
-      private lazy val shuffleReaderHandle = {
-        val arrowSchema =
-          SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-        ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-        val conf = SparkEnv.get.conf
-        val compressionCodec =
-          if (conf.getBoolean("spark.shuffle.compress", true)) {
-            GlutenShuffleUtils.getCompressionCodec(conf)
-          } else {
-            null // uncompressed
-          }
-        val compressionCodecBackend =
-          GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
-        val handle = ShuffleReaderJniWrapper.INSTANCE.make(
-          jniByteInputStream,
-          cSchema.memoryAddress(),
-          NativeMemoryAllocators.getDefault().contextInstance("ShuffleReader").getNativeInstanceId,
-          compressionCodec,
-          compressionCodecBackend,
-          GlutenConfig.getConf.columnarShuffleCompressionMode
-        )
-        // Close shuffle reader instance as lately as the end of task processing,
-        // since the native reader could hold a reference to memory pool that
-        // was used to create all buffers read from shuffle reader. The pool
-        // should keep alive before all buffers finish consuming.
-        TaskResources.addRecycler(s"ShuffleReaderHandle_$handle", 50) {
-          close()
-          ShuffleReaderJniWrapper.INSTANCE.close(handle)
-        }
-        handle
-      }
 
       private var cb: ColumnarBatch = _
 
@@ -120,6 +119,16 @@ private class ColumnarBatchSerializerInstance(
       private var numRowsTotal: Long = _
 
       private var isClosed: Boolean = false
+
+      // We don't yet have a path to propagate `close` calls from Velox's value stream
+      // to Spark-side's endpoint like this place.
+      //
+      // E.g. A Velox limit operator may suddenly drop the input stream after emitting enough
+      // rows. In the case DeserializationStream#close() will not be called. Spark doesn't
+      // call close() either. So we should handle the case especially.
+      TaskResources.addRecycler(s"ShuffleReaderDeserializationStream_${wrappedOut.getId}", 50) {
+        this.close()
+      }
 
       override def asIterator: Iterator[Any] = {
         // This method is never called by shuffle code.
@@ -139,21 +148,21 @@ private class ColumnarBatchSerializerInstance(
           cb = null
         }
         val batch = {
-          val batchHandle =
+          val maybeBatch =
             try {
-              ShuffleReaderJniWrapper.INSTANCE.next(shuffleReaderHandle)
+              wrappedOut.next()
             } catch {
               case ioe: IOException =>
                 this.close()
                 logError("Failed to load next RecordBatch", ioe)
                 throw ioe
             }
-          if (batchHandle == -1L) {
+          if (maybeBatch == null) {
             // EOF reached
             this.close()
             throw new EOFException
           }
-          ColumnarBatches.create(batchHandle)
+          maybeBatch
         }
         val numRows = batch.numRows()
         logDebug(s"Read ColumnarBatch of $numRows rows")
@@ -177,11 +186,11 @@ private class ColumnarBatchSerializerInstance(
             readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }
           numOutputRows += numRowsTotal
-
-          cSchema.close()
-          jniByteInputStream.close()
-          if (cb != null) cb.close()
-          allocator.close()
+          wrappedOut.close()
+          byteIn.close()
+          if (cb != null) {
+            cb.close()
+          }
           isClosed = true
         }
       }

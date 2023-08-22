@@ -25,10 +25,20 @@ namespace gluten {
 
 class Backend;
 
+// FIXME the code is tightly coupled with Velox plan execution. Should cleanup the abstraction for uses from
+//  other places.
 class ResultIterator {
  public:
   explicit ResultIterator(std::unique_ptr<ColumnarBatchIterator> iter, std::shared_ptr<Backend> backend = nullptr)
       : iter_(std::move(iter)), next_(nullptr), backend_(std::move(backend)) {}
+
+  // copy constructor and copy assignment (deleted)
+  ResultIterator(const ResultIterator& in) = delete;
+  ResultIterator& operator=(const ResultIterator&) = delete;
+
+  // move constructor and move assignment
+  ResultIterator(ResultIterator&& in) = default;
+  ResultIterator& operator=(ResultIterator&& in) = default;
 
   bool hasNext() {
     checkValid();

@@ -68,14 +68,13 @@ class VeloxBackend final : public Backend {
   }
 
   std::shared_ptr<Reader> getShuffleReader(
-      std::shared_ptr<arrow::io::InputStream> in,
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,
       MemoryAllocator* allocator) override {
     auto veloxPool = asAggregateVeloxMemoryPool(allocator);
     auto ctxVeloxPool = veloxPool->addLeafChild("velox_shuffle_reader");
-    return std::make_shared<VeloxShuffleReader>(in, schema, options, pool, ctxVeloxPool);
+    return std::make_shared<VeloxShuffleReader>(schema, options, pool, ctxVeloxPool);
   }
 
   std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
