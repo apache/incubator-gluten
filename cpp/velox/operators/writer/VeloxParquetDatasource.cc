@@ -107,7 +107,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
         maxRowGroupRows_, maxRowGroupRows_, [&]() { return false; });
   };
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_, schema_);
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_);
 }
 
 void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
