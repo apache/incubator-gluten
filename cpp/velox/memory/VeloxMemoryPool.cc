@@ -93,6 +93,12 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     return true;
   }
 
+  uint64_t shrinkMemory(
+      const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools,
+      uint64_t targetBytes) override {
+    GLUTEN_CHECK(false, "Unreachable");
+  }
+
   Stats stats() const override {
     Stats stats; // no-op
     return stats;
