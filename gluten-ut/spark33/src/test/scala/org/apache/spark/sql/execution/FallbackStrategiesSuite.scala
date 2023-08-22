@@ -119,7 +119,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     val newPlan = rule.preColumnarTransitions(originalPlan)
     val reason = TransformHints.getHint(newPlan).asInstanceOf[TRANSFORM_UNSUPPORTED].reason
     assert(reason.isDefined)
-    if (BackendsApiManager.isVeloxBackend) {
+    if (BackendsApiManager.getSettings.fallbackOnEmptySchema(newPlan)) {
       assert(
         reason.get.contains("fake reason") &&
           reason.get.contains("at least one of its children has empty output"))
