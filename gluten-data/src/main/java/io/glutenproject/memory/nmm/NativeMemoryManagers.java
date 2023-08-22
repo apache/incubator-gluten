@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.alloc;
+package io.glutenproject.memory.nmm;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.memory.TaskMemoryMetrics;
@@ -29,6 +29,7 @@ import org.apache.spark.util.TaskResources;
 
 public final class NativeMemoryManagers {
 
+  // TODO: Let all caller support spill.
   public static NativeMemoryManager contextInstance(String name) {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("This method must be called in a Spark task.");

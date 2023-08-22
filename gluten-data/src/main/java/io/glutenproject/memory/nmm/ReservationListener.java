@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.alloc;
+package io.glutenproject.memory.nmm;
 
 public interface ReservationListener {
   ReservationListener NOOP =
@@ -33,6 +33,11 @@ public interface ReservationListener {
         }
 
         @Override
+        public long getUsedBytes() {
+          return 0;
+        }
+
+        @Override
         public void inactivate() {}
       };
 
@@ -43,4 +48,6 @@ public interface ReservationListener {
   long unreserve(long size);
 
   void inactivate();
+
+  long getUsedBytes();
 }

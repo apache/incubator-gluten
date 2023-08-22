@@ -16,8 +16,8 @@
  */
 package io.glutenproject.utils
 
-import io.glutenproject.memory.alloc.NativeMemoryManagers
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 
 import org.apache.spark.sql.types.StructType

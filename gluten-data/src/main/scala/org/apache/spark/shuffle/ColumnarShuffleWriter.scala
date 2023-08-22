@@ -18,8 +18,8 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.alloc.NativeMemoryManagers
 import io.glutenproject.memory.memtarget.spark.Spiller
+import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
 
 import org.apache.spark._

@@ -18,8 +18,8 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.memtarget.spark.Spiller
+import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
 
 import org.apache.spark._
@@ -123,11 +123,9 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
             GlutenConfig.getConf.columnarShuffleCompressionMode,
             celebornConf.clientPushBufferMaxSize,
             celebornPartitionPusher,
-            NativeMemoryAllocators
-              .getDefault()
+            NativeMemoryManagers
               .create(
                 "CelebornShuffleWriter",
-                0.0d,
                 new Spiller() {
                   override def spill(size: Long, trigger: MemoryConsumer): Long = {
                     if (nativeShuffleWriter == -1L) {

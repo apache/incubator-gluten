@@ -18,7 +18,7 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.memory.alloc.NativeMemoryManagers;
+import io.glutenproject.memory.nmm.NativeMemoryManagers;
 import io.glutenproject.substrait.expression.ExpressionBuilder;
 import io.glutenproject.substrait.expression.StringMapNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;

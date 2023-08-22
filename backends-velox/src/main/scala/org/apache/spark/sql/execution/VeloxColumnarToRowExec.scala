@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution.ColumnarToRowExecBase
-import io.glutenproject.memory.alloc.NativeMemoryManagers
+import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}

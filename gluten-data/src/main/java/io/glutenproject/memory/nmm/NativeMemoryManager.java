@@ -14,31 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.alloc;
+package io.glutenproject.memory.nmm;
 
 import org.apache.spark.util.TaskResource;
+import org.apache.spark.util.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NativeMemoryManager implements TaskResource {
 
+  private static Logger LOGGER = LoggerFactory.getLogger(NativeMemoryManager.class);
+
   private final long nativeInstanceId;
   private final String name;
+  private final ReservationListener listener;
 
-  private NativeMemoryManager(String name, long nativeInstanceId) {
+  private NativeMemoryManager(String name, long nativeInstanceId, ReservationListener listener) {
     this.name = name;
     this.nativeInstanceId = nativeInstanceId;
+    this.listener = listener;
   }
 
   public static NativeMemoryManager create(String name, ReservationListener listener) {
     long allocatorId = NativeMemoryAllocators.getDefault().globalInstance().getNativeInstanceId();
-    return new NativeMemoryManager(name, createListenableManager(name, allocatorId, listener));
+    return new NativeMemoryManager(
+        name, createListenableManager(name, allocatorId, listener), listener);
   }
 
   public long getNativeInstanceId() {
     return this.nativeInstanceId;
-  }
-
-  public void close() {
-    releaseManager(this.nativeInstanceId);
   }
 
   public static native long createListenableManager(
@@ -49,6 +53,11 @@ public class NativeMemoryManager implements TaskResource {
   @Override
   public void release() throws Exception {
     releaseManager(nativeInstanceId);
+    if (listener.getUsedBytes() != 0) {
+      LOGGER.warn(
+          "Reservation listener still has unreserved bytes, may has memory leak, size "
+              + Utils.bytesToString(listener.getUsedBytes()));
+    }
   }
 
   @Override

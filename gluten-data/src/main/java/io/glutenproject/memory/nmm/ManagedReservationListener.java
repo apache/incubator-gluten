@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.alloc;
+package io.glutenproject.memory.nmm;
 
 import io.glutenproject.memory.TaskMemoryMetrics;
 import io.glutenproject.memory.memtarget.MemoryTarget;
@@ -51,6 +51,7 @@ public class ManagedReservationListener implements ReservationListener {
         if (granted < size) {
           if (granted != 0L) {
             target.repay(granted);
+            reserved -= granted;
           }
           onOom.accept(
               "Not enough spark off-heap execution memory. "
@@ -95,6 +96,11 @@ public class ManagedReservationListener implements ReservationListener {
       metrics.inc(-size);
       return size;
     }
+  }
+
+  @Override
+  public long getUsedBytes() {
+    return reserved;
   }
 
   @Override

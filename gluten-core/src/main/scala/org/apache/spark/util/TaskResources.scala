@@ -136,7 +136,6 @@ object TaskResources extends TaskListener with Logging {
                 "" +
                   "TaskMemoryResourceRegistry is not initialized, this should not happen")
             }
-            // context.taskMemoryManager().showMemoryUsage()
             val registry = RESOURCE_REGISTRIES.remove(context)
             registry.releaseAll()
             context.taskMetrics().incPeakExecutionMemory(registry.getSharedMetrics().peak())

@@ -18,8 +18,8 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.velox.Validator
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.alloc.NativeMemoryManagers
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized._
 
