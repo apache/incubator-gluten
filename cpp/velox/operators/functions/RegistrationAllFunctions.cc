@@ -50,6 +50,7 @@ void registerFunctionOverwrite() {
   facebook::velox::registerFunction<RoundFunction, int64_t, int64_t, int32_t>({"round"});
   facebook::velox::registerFunction<RoundFunction, double, double, int32_t>({"round"});
   facebook::velox::registerFunction<RoundFunction, float, float, int32_t>({"round"});
+}
 } // anonymous namespace
 
 void registerAllFunctions() {
