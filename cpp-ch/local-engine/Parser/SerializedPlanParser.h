@@ -238,10 +238,11 @@ class SerializedPlanParser;
 class NonNullableColumnsResolver
 {
 public:
-    explicit NonNullableColumnsResolver(const DB::Block & header_, SerializedPlanParser & parser_,  const substrait::Expression & cond_rel_);
+    explicit NonNullableColumnsResolver(const DB::Block & header_, SerializedPlanParser & parser_, const substrait::Expression & cond_rel_);
     ~NonNullableColumnsResolver() = default;
     // return column names
     std::vector<std::string> resolve();
+
 private:
     DB::Block header;
     SerializedPlanParser & parser;
@@ -273,7 +274,7 @@ public:
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
     // mergetree need create two steps in parse, can't return single step
-    DB::QueryPlanPtr parseMergeTreeTable(const substrait::ReadRel & rel, std::vector<IQueryPlanStep *>& steps);
+    DB::QueryPlanPtr parseMergeTreeTable(const substrait::ReadRel & rel, std::vector<IQueryPlanStep *> & steps);
     PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
@@ -283,10 +284,7 @@ public:
     void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
     std::shared_ptr<DB::ActionsDAG> expressionsToActionsDAG(
         const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
-    RelMetricPtr getMetric()
-    {
-        return metrics.at(0);
-    }
+    RelMetricPtr getMetric() { return metrics.at(0); }
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
 
@@ -301,7 +299,8 @@ private:
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
     void
     collectJoinKeys(const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start);
-    DB::QueryPlanPtr parseJoin(substrait::JoinRel join, DB::QueryPlanPtr left, DB::QueryPlanPtr right, std::vector<IQueryPlanStep *>& steps);
+    DB::QueryPlanPtr
+    parseJoin(substrait::JoinRel join, DB::QueryPlanPtr left, DB::QueryPlanPtr right, std::vector<IQueryPlanStep *> & steps);
     void parseJoinKeysAndCondition(
         std::shared_ptr<TableJoin> table_join,
         substrait::JoinRel & join,
@@ -309,7 +308,7 @@ private:
         DB::QueryPlanPtr & right,
         const NamesAndTypesList & alias_right,
         Names & names,
-        std::vector<IQueryPlanStep *>& steps);
+        std::vector<IQueryPlanStep *> & steps);
 
     static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
     DB::ActionsDAGPtr parseFunction(
@@ -333,14 +332,9 @@ private:
         bool keep_result = false,
         bool position = false);
     bool convertBinaryArithmeticFunDecimalArgs(
-        ActionsDAGPtr actions_dag,
-        ActionsDAG::NodeRawConstPtrs & args,
-        const substrait::Expression_ScalarFunction & arithmeticFun);
+        ActionsDAGPtr actions_dag, ActionsDAG::NodeRawConstPtrs & args, const substrait::Expression_ScalarFunction & arithmeticFun);
     const ActionsDAG::Node * parseFunctionWithDAG(
-        const substrait::Expression & rel,
-        std::string & result_name,
-        DB::ActionsDAGPtr actions_dag = nullptr,
-        bool keep_result = false);
+        const substrait::Expression & rel, std::string & result_name, DB::ActionsDAGPtr actions_dag = nullptr, bool keep_result = false);
     ActionsDAG::NodeRawConstPtrs parseArrayJoinWithDAG(
         const substrait::Expression & rel,
         std::vector<String> & result_name,
@@ -357,21 +351,20 @@ private:
         ActionsDAG::NodeRawConstPtrs & parsed_args,
         const std::string & function_name,
         const substrait::FunctionArgument & arg);
-    const DB::ActionsDAG::Node * parseFunctionArgument(
-        DB::ActionsDAGPtr & actions_dag,
-        const std::string & function_name,
-        const substrait::FunctionArgument & arg);
+    const DB::ActionsDAG::Node *
+    parseFunctionArgument(DB::ActionsDAGPtr & actions_dag, const std::string & function_name, const substrait::FunctionArgument & arg);
     const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr actions_dag, const substrait::Expression & rel);
     const ActionsDAG::Node *
     toFunctionNode(ActionsDAGPtr actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
     // remove nullable after isNotNull
-    void removeNullable(std::vector<String> require_columns, ActionsDAGPtr actionsDag);
+    void removeNullable(const std::vector<String> & require_columns, ActionsDAGPtr actionsDag);
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
 
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
-    void wrapNullable(std::vector<String> columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names);
+    void wrapNullable(
+        const std::vector<String> & columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names);
 
-    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, std::vector<String> columns);
+    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::vector<String> & columns);
 
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
 
@@ -405,10 +398,7 @@ public:
     Block & getHeader();
     const RelMetricPtr getMetric() const { return metric; }
     void setMetric(RelMetricPtr metric_) { metric = metric_; }
-    void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_)
-    {
-        extra_plan_holder = std::move(extra_plan_holder_);
-    }
+    void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
 private:
     QueryContext query_context;
@@ -431,7 +421,9 @@ class ASTParser
 {
 public:
     explicit ASTParser(const ContextPtr & _context, std::unordered_map<std::string, std::string> & _function_mapping)
-        : context(_context), function_mapping(_function_mapping){}
+        : context(_context), function_mapping(_function_mapping)
+    {
+    }
     ~ASTParser() = default;
 
     ASTPtr parseToAST(const Names & names, const substrait::Expression & rel);
