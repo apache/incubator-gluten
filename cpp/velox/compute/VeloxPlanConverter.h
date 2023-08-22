@@ -18,7 +18,7 @@
 #pragma once
 
 #include "compute/ResultIterator.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
 #include "velox/core/PlanNode.h"
@@ -30,6 +30,7 @@ class VeloxPlanConverter {
  public:
   explicit VeloxPlanConverter(
       std::vector<std::shared_ptr<ResultIterator>>& inputIters,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       const std::unordered_map<std::string, std::string>& confMap);
 
   std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(::substrait::Plan& substraitPlan);
@@ -66,6 +67,8 @@ class VeloxPlanConverter {
   int planNodeId_ = 0;
 
   std::vector<std::shared_ptr<ResultIterator>> inputIters_;
+
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
 
   SubstraitToVeloxPlanConverter substraitVeloxPlanConverter_;
 };

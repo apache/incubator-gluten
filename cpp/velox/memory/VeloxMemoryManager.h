@@ -19,122 +19,30 @@
 
 #include "memory/MemoryAllocator.h"
 #include "memory/MemoryManager.h"
-#include "utils/TaskContext.h"
-#include "velox/common/memory/MemoryAllocator.h"
+#include "velox/common/memory/Memory.h"
+#include "velox/common/memory/MemoryPool.h"
 
 namespace gluten {
-
-using namespace facebook;
-
-/// We assume in a single Spark task. No thread-safety should be guaranteed.
-class ListenableArbitrator : public velox::memory::MemoryArbitrator {
- public:
-  ListenableArbitrator(const Config& config, AllocationListener* listener)
-      : MemoryArbitrator(config), listener_(listener) {}
-
-  void reserveMemory(velox::memory::MemoryPool* pool, uint64_t) override {
-    growPool(pool, initMemoryPoolCapacity_);
-  }
-
-  uint64_t releaseMemory(velox::memory::MemoryPool* pool, uint64_t bytes) override {
-    uint64_t freeBytes = pool->shrink(bytes);
-    listener_->allocationChanged(-freeBytes);
-    if (bytes == 0 && pool->capacity() != 0) {
-      // So far only MemoryManager::dropPool() calls with 0 bytes. Let's assert the pool
-      //   gives all capacity back to Spark
-      //
-      // We are likely in destructor, do not throw. INFO log is fine since we have leak checks from Spark's memory
-      //   manager
-      LOG(INFO) << "Memory pool " << pool->name() << " not completely shrunk when Memory::dropPool() is called";
-    }
-    return freeBytes;
-  }
-
-  bool growMemory(
-      velox::memory::MemoryPool* pool,
-      const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& candidatePools,
-      uint64_t targetBytes) override {
-    GLUTEN_CHECK(candidatePools.size() == 1, "ListenableArbitrator should only be used within a single root pool");
-    auto candidate = candidatePools.back();
-    GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
-    growPool(pool, targetBytes);
-    return true;
-  }
-
-  Stats stats() const override {
-    Stats stats; // no-op
-    return stats;
-  }
-
-  std::string toString() const override {
-    return fmt::format(
-        "ARBITRATOR[{}] CAPACITY {} {}", kindString(kind_), velox::succinctBytes(capacity_), stats().toString());
-  }
-
- private:
-  void growPool(memory::MemoryPool* pool, uint64_t bytes) {
-    listener_->allocationChanged(bytes);
-    pool->grow(bytes);
-  }
-
-  void abort(velox::memory::MemoryPool* pool) {
-    try {
-      pool->abort();
-    } catch (const std::exception& e) {
-      LOG(WARNING) << "Failed to abort memory pool " << pool->toString();
-    }
-    // NOTE: no matter memory pool abort throws or not, it should have been marked
-    // as aborted to prevent any new memory arbitration triggered from the aborted
-    // memory pool.
-    VELOX_CHECK(pool->aborted());
-  }
-
-  gluten::AllocationListener* listener_;
-};
 
 class VeloxMemoryManager final : public MemoryManager {
  public:
   explicit VeloxMemoryManager(
       std::string name,
       std::shared_ptr<MemoryAllocator> allocator,
-      std::shared_ptr<AllocationListener> listener)
-      : MemoryManager(), name_(name) {
-    glutenAlloc_ = std::make_shared<ListenableMemoryAllocator>(allocator.get(), listener);
-
-    velox::memory::MemoryArbitrator::Config arbitratorConfig{
-        velox::memory::MemoryArbitrator::Kind::kNoOp, // do not use shared arbitrator as it will mess up the thread
-                                                      // contexts (one Spark task reclaims memory from another)
-        velox::memory::kMaxMemory, // the 2nd capacity
-        0,
-        32 << 20,
-        true};
-    velox::memory::IMemoryManager::Options mmOptions{
-        velox::memory::MemoryAllocator::kMaxAlignment,
-        velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
-        true,
-        false,
-        velox::memory::MemoryAllocator::getInstance(),
-        [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener.get()); },
-    };
-    veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
-    veloxPool_ = veloxMemoryManager_->addRootPool(
-        name_ + "_root",
-        velox::memory::kMaxMemory, // the 3rd capacity
-        facebook::velox::memory::MemoryReclaimer::create());
-    veloxLeafPool_ = veloxPool_->addLeafChild(name_ + "_default_leaf");
-  }
+      std::shared_ptr<AllocationListener> listener);
 
   ~VeloxMemoryManager() {
+    // Release order is important, from leaf to root.
     veloxLeafPool_ = nullptr;
     veloxPool_ = nullptr;
     veloxMemoryManager_ = nullptr;
   }
 
-  std::shared_ptr<velox::memory::MemoryPool> getAggregateMemoryPool() {
+  std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateMemoryPool() {
     return veloxPool_;
   }
 
-  std::shared_ptr<velox::memory::MemoryPool> getLeafMemoryPool() {
+  std::shared_ptr<facebook::velox::memory::MemoryPool> getLeafMemoryPool() {
     return veloxLeafPool_;
   }
 
@@ -144,10 +52,13 @@ class VeloxMemoryManager final : public MemoryManager {
 
  private:
   std::string name_;
-  std::unique_ptr<velox::memory::MemoryManager> veloxMemoryManager_;
-  std::shared_ptr<velox::memory::MemoryPool> veloxPool_;
-  std::shared_ptr<velox::memory::MemoryPool> veloxLeafPool_;
+  std::unique_ptr<facebook::velox::memory::MemoryManager> veloxMemoryManager_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxLeafPool_;
   std::shared_ptr<MemoryAllocator> glutenAlloc_;
 };
 
+/// This pool is not tracked by Spark, should only used in test or validation.
+/// TODO: Remove this pool with tracked pool.
+std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool();
 } // namespace gluten

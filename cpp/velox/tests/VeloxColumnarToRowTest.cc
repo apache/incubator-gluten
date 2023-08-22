@@ -17,7 +17,7 @@
 
 #include "jni/JniErrors.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"

@@ -18,7 +18,7 @@
 #include "jni/JniErrors.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "operators/serializer//VeloxColumnarToRowConverter.h"
 #include "operators/serializer//VeloxRowToColumnarConverter.h"
 #include "utils/ArrowTypeUtils.h"

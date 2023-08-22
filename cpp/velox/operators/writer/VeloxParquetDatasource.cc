@@ -19,9 +19,6 @@
 
 #include <arrow/array/array_base.h>
 #include <arrow/buffer.h>
-#include <arrow/type_traits.h>
-
-#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -29,13 +26,11 @@
 #include "compute/Backend.h"
 #include "compute/VeloxBackend.h"
 #include "config/GlutenConfig.h"
-#include "memory/MemoryAllocator.h"
-#include "memory/VeloxMemoryPool.h"
+
 #include "utils/ArrowTypeUtils.h"
 #include "velox/core/QueryConfig.h"
 #include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/Options.h"
-#include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
 using namespace facebook::velox::dwio::common;

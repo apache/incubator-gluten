@@ -30,8 +30,11 @@ namespace gluten {
 
 VeloxPlanConverter::VeloxPlanConverter(
     std::vector<std::shared_ptr<ResultIterator>>& inputIters,
+    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
     const std::unordered_map<std::string, std::string>& confMap)
-    : inputIters_(inputIters), substraitVeloxPlanConverter_(defaultLeafVeloxMemoryPool().get(), confMap) {}
+    : inputIters_(inputIters),
+      veloxPool_(std::move(veloxPool)),
+      substraitVeloxPlanConverter_(veloxPool_.get(), confMap) {}
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {

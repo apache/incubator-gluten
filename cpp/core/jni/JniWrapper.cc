@@ -215,7 +215,7 @@ class JniColumnarBatchIterator : public ColumnarBatchIterator {
     auto batch = columnarBatchHolder.lookup(handle);
     if (writer_ != nullptr) {
       // save snapshot of the batch to file
-      std::shared_ptr<ArrowSchema> schema = batch->exportArrowSchema();
+      std::shared_ptr<ArrowSchema> schema = batch->e_xportArrowSchema();
       std::shared_ptr<ArrowArray> array = batch->exportArrowArray();
       auto rb = gluten::arrowGetOrThrow(arrow::ImportRecordBatch(array.get(), schema.get()));
       GLUTEN_THROW_NOT_OK(writer_->initWriter(*(rb->schema().get())));

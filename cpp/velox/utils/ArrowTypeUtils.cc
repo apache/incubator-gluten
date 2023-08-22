@@ -20,7 +20,7 @@
 #include <arrow/c/helpers.h>
 
 #include "ArrowTypeUtils.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "utils/exception.h"
 #include "velox/vector/BaseVector.h"
 #include "velox/vector/arrow/Bridge.h"
@@ -29,6 +29,7 @@ using namespace facebook;
 
 namespace gluten {
 
+// TODO: Use tracked memory pool
 void toArrowSchema(const velox::TypePtr& rowType, struct ArrowSchema* out) {
   exportToArrow(velox::BaseVector::create(rowType, 0, defaultLeafVeloxMemoryPool().get()), *out);
 }

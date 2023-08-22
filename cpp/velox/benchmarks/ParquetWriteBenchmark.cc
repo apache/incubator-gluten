@@ -37,7 +37,7 @@
 #include "compute/VeloxBackend.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "utils/TestUtils.h"
 #include "utils/macros.h"
 #include "velox/dwio/parquet/writer/Writer.h"

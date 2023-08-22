@@ -84,7 +84,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   auto veloxPool = getAggregateVeloxPool(memoryManager);
   auto ctxPool = veloxPool->addAggregateChild("result_iterator", facebook::velox::memory::MemoryReclaimer::create());
 
-  VeloxPlanConverter veloxPlanConverter(inputIters_, sessionConf);
+  VeloxPlanConverter veloxPlanConverter(inputIters_, ctxPool->addLeafChild("plan_converter"), sessionConf);
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
 
   // Scan node can be required.
