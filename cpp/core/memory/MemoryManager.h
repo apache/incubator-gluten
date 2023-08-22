@@ -14,25 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.vectorized;
 
-import io.glutenproject.init.JniInitialized;
+#pragma once
 
-public class ShuffleReaderJniWrapper extends JniInitialized {
-  public static final ShuffleReaderJniWrapper INSTANCE = new ShuffleReaderJniWrapper();
+#include "MemoryAllocator.h"
 
-  private ShuffleReaderJniWrapper() {}
+namespace gluten {
 
-  public native long make(
-      long cSchema,
-      long memoryManagerId,
-      String compressionType,
-      String compressionCodecBackend,
-      String compressionMode);
+class MemoryManager {
+ public:
+  MemoryManager() = default;
 
-  public native long readStream(long handle, JniByteInputStream jniIn);
+  virtual ~MemoryManager() = default;
 
-  public native void populateMetrics(long handle, ShuffleReaderMetrics metrics);
+  virtual MemoryAllocator* getMemoryAllocator() = 0;
+};
 
-  public native void close(long handle);
-}
+} // namespace gluten

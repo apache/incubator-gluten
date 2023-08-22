@@ -16,6 +16,7 @@
  */
 package io.glutenproject.utils
 
+import io.glutenproject.memory.alloc.NativeMemoryManagers
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 
@@ -41,6 +42,7 @@ object DatasourceUtil {
     val instanceId = datasourceJniWrapper.nativeInitDatasource(
       file.getPath.toString,
       -1,
+      NativeMemoryManagers.contextInstance("VeloxWriter").getNativeInstanceId,
       new util.HashMap[String, String]())
     val cSchema = ArrowSchema.allocateNew(allocator)
     datasourceJniWrapper.inspectSchema(instanceId, cSchema.memoryAddress())

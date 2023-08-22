@@ -54,6 +54,7 @@ bool isOnSparkTaskMainThread() {
 }
 
 void bindToTask(std::shared_ptr<void> object) {
+  GLUTEN_CHECK(false, "Should not be here");
   if (isOnSparkTaskMainThread()) {
     taskContextStorage->bind(object);
     return;

@@ -22,7 +22,7 @@ import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.memory.alloc.NativeMemoryAllocators
+import io.glutenproject.memory.alloc.NativeMemoryManagers
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, IfThenNode}
 import io.glutenproject.vectorized.{ColumnarBatchSerializer, ColumnarBatchSerializerJniWrapper}
 
@@ -290,7 +290,7 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
             val handleArray = input.map(ColumnarBatches.getNativeHandle).toArray
             val serializeResult = ColumnarBatchSerializerJniWrapper.INSTANCE.serialize(
               handleArray,
-              NativeMemoryAllocators.getDefault
+              NativeMemoryManagers
                 .contextInstance("BroadcastRelation")
                 .getNativeInstanceId)
             input.foreach(ColumnarBatches.release)

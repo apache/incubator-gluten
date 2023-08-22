@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources.velox
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.exception.GlutenException
 import io.glutenproject.execution.datasource.GlutenRowSplitter
+import io.glutenproject.memory.alloc.NativeMemoryManagers
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
@@ -54,8 +55,11 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     val allocator = ArrowBufferAllocators.contextInstance()
     try {
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-      instanceId =
-        datasourceJniWrapper.nativeInitDatasource(originPath, cSchema.memoryAddress(), nativeConf)
+      instanceId = datasourceJniWrapper.nativeInitDatasource(
+        originPath,
+        cSchema.memoryAddress(),
+        NativeMemoryManagers.contextInstance("VeloxWriter").getNativeInstanceId,
+        nativeConf)
     } catch {
       case e: IOException =>
         throw new GlutenException(e)

@@ -27,6 +27,7 @@
 
 #include "compute/ProtobufUtils.h"
 #include "memory/VeloxColumnarBatch.h"
+#include "memory/VeloxMemoryManager.h"
 #include "utils/exception.h"
 #include "velox/common/memory/Memory.h"
 #include "velox/dwio/common/tests/utils/DataFiles.h"
@@ -103,3 +104,9 @@ inline std::shared_ptr<gluten::ColumnarBatch> convertBatch(std::shared_ptr<glute
 bool endsWith(const std::string& data, const std::string& suffix);
 
 void setCpu(uint32_t cpuindex);
+
+/// Test only.
+inline std::shared_ptr<gluten::MemoryManager> getDefaultMemoryManager() {
+  return std::make_shared<gluten::VeloxMemoryManager>(
+      "default", std::shared_ptr<gluten::AllocationListener>(gluten::AllocationListener::noop()));
+}

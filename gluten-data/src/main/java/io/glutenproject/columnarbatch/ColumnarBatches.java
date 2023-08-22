@@ -221,8 +221,8 @@ public class ColumnarBatches {
     }
   }
 
-  public static Iterator<InternalRow> emptyRowIterator(ColumnarBatch batch) {
-    final int maxRows = batch.numRows();
+  public static Iterator<InternalRow> emptyRowIterator(int numRows) {
+    final int maxRows = numRows;
     return new Iterator<InternalRow>() {
       int rowId = 0;
 

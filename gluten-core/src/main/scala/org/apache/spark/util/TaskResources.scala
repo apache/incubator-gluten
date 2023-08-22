@@ -42,14 +42,6 @@ object TaskResources extends TaskListener with Logging {
   private val RESOURCE_REGISTRIES =
     new java.util.IdentityHashMap[TaskContext, TaskResourceRegistry]()
 
-  // The fallback registry handles the case that the caller is not in a Spark task.
-  private val FALLBACK_REGISTRY = new TaskResourceRegistry()
-
-  GlutenShutdownManager.addHook(
-    () => {
-      FALLBACK_REGISTRY.releaseAll()
-    })
-
   def getLocalTaskContext(): TaskContext = {
     TaskContext.get()
   }
@@ -60,10 +52,10 @@ object TaskResources extends TaskListener with Logging {
 
   private def getTaskResourceRegistry(): TaskResourceRegistry = {
     if (!inSparkTask()) {
-      logInfo(
+      logWarning(
         "Using the fallback instance of TaskResourceRegistry. " +
           "This should only happen when call is not from Spark task.")
-      return FALLBACK_REGISTRY
+      throw new IllegalStateException("Found a caller not in Spark task scope.")
     }
     val tc = getLocalTaskContext()
     RESOURCE_REGISTRIES.synchronized {
@@ -144,6 +136,7 @@ object TaskResources extends TaskListener with Logging {
                 "" +
                   "TaskMemoryResourceRegistry is not initialized, this should not happen")
             }
+            // context.taskMemoryManager().showMemoryUsage()
             val registry = RESOURCE_REGISTRIES.remove(context)
             registry.releaseAll()
             context.taskMetrics().incPeakExecutionMemory(registry.getSharedMetrics().peak())
@@ -205,6 +198,7 @@ class TaskResourceRegistry extends Logging {
         e.getValue.asScala.reverse.foreach(
           m =>
             try { // LIFO
+              // logWarning(s"Prepare release ${m.resourceName()}")
               m.release()
             } catch {
               case e: Throwable =>

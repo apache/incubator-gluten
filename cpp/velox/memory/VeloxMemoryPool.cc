@@ -32,8 +32,8 @@ namespace gluten {
 //   gluten allocator is only used to do allocation-reporting to Spark in mmap case
 class VeloxMemoryAllocator final : public velox::memory::MemoryAllocator {
  public:
-  VeloxMemoryAllocator(gluten::MemoryAllocator* glutenAlloc, velox::memory::MemoryAllocator* veloxAlloc)
-      : glutenAlloc_(glutenAlloc), veloxAlloc_(veloxAlloc) {}
+  VeloxMemoryAllocator(gluten::MemoryAllocator* glutenAlloc, velox::memory::MemoryAllocator* veloxAlloc, bool track)
+      : glutenAlloc_(glutenAlloc), veloxAlloc_(veloxAlloc), track_(track) {}
 
   Kind kind() const override {
     return veloxAlloc_->kind();
@@ -65,13 +65,11 @@ class VeloxMemoryAllocator final : public velox::memory::MemoryAllocator {
   }
 
   void* allocateBytes(uint64_t bytes, uint16_t alignment) override {
-    void* out;
-    VELOX_CHECK(glutenAlloc_->allocateAligned(alignment, bytes, &out))
-    return out;
+    return veloxAlloc_->allocateBytes(bytes, alignment);
   }
 
   void freeBytes(void* p, uint64_t size) noexcept override {
-    VELOX_CHECK(glutenAlloc_->free(p, size));
+    return veloxAlloc_->freeBytes(p, size);
   }
 
   bool checkConsistency() const override {
@@ -97,72 +95,7 @@ class VeloxMemoryAllocator final : public velox::memory::MemoryAllocator {
  private:
   gluten::MemoryAllocator* glutenAlloc_;
   velox::memory::MemoryAllocator* veloxAlloc_;
-};
-
-// We assume in a single Spark task. No thread-safety should be guaranteed.
-class ListenableArbitrator : public velox::memory::MemoryArbitrator {
- public:
-  ListenableArbitrator(const Config& config, AllocationListener* listener)
-      : MemoryArbitrator(config), listener_(listener) {}
-
-  void reserveMemory(velox::memory::MemoryPool* pool, uint64_t) override {
-    growPool(pool, initMemoryPoolCapacity_);
-  }
-
-  uint64_t releaseMemory(velox::memory::MemoryPool* pool, uint64_t bytes) override {
-    uint64_t freeBytes = pool->shrink(bytes);
-    listener_->allocationChanged(-freeBytes);
-    if (bytes == 0 && pool->capacity() != 0) {
-      // So far only MemoryManager::dropPool() calls with 0 bytes. Let's assert the pool
-      //   gives all capacity back to Spark
-      //
-      // We are likely in destructor, do not throw. INFO log is fine since we have leak checks from Spark's memory
-      //   manager
-      LOG(INFO) << "Memory pool " << pool->name() << " not completely shrunk when Memory::dropPool() is called";
-    }
-    return freeBytes;
-  }
-
-  bool growMemory(
-      velox::memory::MemoryPool* pool,
-      const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& candidatePools,
-      uint64_t targetBytes) override {
-    GLUTEN_CHECK(candidatePools.size() == 1, "ListenableArbitrator should only be used within a single root pool");
-    auto candidate = candidatePools.back();
-    GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
-    growPool(pool, targetBytes);
-    return true;
-  }
-
-  Stats stats() const override {
-    Stats stats; // no-op
-    return stats;
-  }
-
-  std::string toString() const override {
-    return fmt::format(
-        "ARBITRATOR[{}] CAPACITY {} {}", kindString(kind_), velox::succinctBytes(capacity_), stats().toString());
-  }
-
- private:
-  void growPool(memory::MemoryPool* pool, uint64_t bytes) {
-    listener_->allocationChanged(bytes);
-    pool->grow(bytes);
-  }
-
-  void abort(velox::memory::MemoryPool* pool) {
-    try {
-      pool->abort();
-    } catch (const std::exception& e) {
-      LOG(WARNING) << "Failed to abort memory pool " << pool->toString();
-    }
-    // NOTE: no matter memory pool abort throws or not, it should have been marked
-    // as aborted to prevent any new memory arbitration triggered from the aborted
-    // memory pool.
-    VELOX_CHECK(pool->aborted());
-  }
-
-  gluten::AllocationListener* listener_;
+  bool track_{false};
 };
 
 velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
@@ -183,7 +116,7 @@ std::shared_ptr<velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
   return leaf;
 }
 
-std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::MemoryAllocator* allocator) {
+std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::MemoryAllocator* allocator, bool track) {
   // this pool is tracked by Spark
   static std::atomic_uint32_t id = 0;
   velox::memory::MemoryAllocator* veloxAlloc = velox::memory::MemoryAllocator::getInstance();
@@ -199,7 +132,7 @@ std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::Me
     glutenAlloc = allocator;
     listener = AllocationListener::noop();
   }
-  auto wrappedAlloc = std::make_shared<VeloxMemoryAllocator>(glutenAlloc, veloxAlloc);
+  auto wrappedAlloc = std::make_shared<VeloxMemoryAllocator>(glutenAlloc, veloxAlloc, track);
   bindToTask(wrappedAlloc); // keep alive util task ends
   velox::memory::MemoryArbitrator::Config arbitratorConfig{
       velox::memory::MemoryArbitrator::Kind::kNoOp, // do not use shared arbitrator as it will mess up the thread
@@ -212,7 +145,7 @@ std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::Me
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
       true,
-      false,
+      track,
       wrappedAlloc.get(), // the allocator is tracked by Spark
       [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener); },
   };

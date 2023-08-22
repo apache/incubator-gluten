@@ -259,11 +259,13 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     auto fileName = "velox_parquet_write.parquet";
 
     auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
+    auto memoryManager = getDefaultMemoryManager();
+    auto veloxPool = reinterpret_cast<facebook::velox::memory::MemoryPool*>(memoryManager->getMemoryPool());
 
     for (auto _ : state) {
       // Init VeloxParquetDataSource
-      auto veloxParquetDatasource =
-          std::make_unique<gluten::VeloxParquetDatasource>(outputPath_ + "/" + fileName, localSchema);
+      auto veloxParquetDatasource = std::make_unique<gluten::VeloxParquetDatasource>(
+          outputPath_ + "/" + fileName, veloxPool->addAggregateChild("writer_benchmark"), localSchema);
 
       veloxParquetDatasource->init(backend->getConfMap());
       auto start = std::chrono::steady_clock::now();

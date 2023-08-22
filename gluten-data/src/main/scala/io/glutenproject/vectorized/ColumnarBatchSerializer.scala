@@ -17,7 +17,7 @@
 package io.glutenproject.vectorized
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.memory.alloc.NativeMemoryAllocators
+import io.glutenproject.memory.alloc.NativeMemoryManagers
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.utils.ArrowAbiUtil
 
@@ -88,7 +88,7 @@ private class ColumnarBatchSerializerInstance(
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
     val handle = ShuffleReaderJniWrapper.INSTANCE.make(
       cSchema.memoryAddress(),
-      NativeMemoryAllocators.getDefault().contextInstance("ShuffleReader").getNativeInstanceId,
+      NativeMemoryManagers.contextInstance("ShuffleReader").getNativeInstanceId,
       compressionCodec,
       compressionCodecBackend,
       GlutenConfig.getConf.columnarShuffleCompressionMode

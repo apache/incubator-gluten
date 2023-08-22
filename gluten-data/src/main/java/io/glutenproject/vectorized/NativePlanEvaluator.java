@@ -18,7 +18,7 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.memory.alloc.NativeMemoryAllocators;
+import io.glutenproject.memory.alloc.NativeMemoryManagers;
 import io.glutenproject.substrait.expression.ExpressionBuilder;
 import io.glutenproject.substrait.expression.StringMapNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
@@ -65,11 +65,9 @@ public class NativePlanEvaluator {
   public GeneralOutIterator createKernelWithBatchIterator(
       Plan wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
-    final long allocId =
-        NativeMemoryAllocators.getDefault()
-            .create(
+    final long memoryManagerId =
+        NativeMemoryManagers.create(
                 "WholeStageIterator",
-                GlutenConfig.getConf().veloxOverAcquiredMemoryRatio(),
                 (size, trigger) -> {
                   ColumnarBatchOutIterator instance =
                       Optional.of(outIterator.get())
@@ -91,7 +89,7 @@ public class NativePlanEvaluator {
 
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(
-            allocId,
+            memoryManagerId,
             getPlanBytesBuf(wsPlan),
             iterList.toArray(new GeneralInIterator[0]),
             TaskContext.get().stageId(),

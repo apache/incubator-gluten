@@ -25,10 +25,10 @@ public class ColumnarBatchSerializerJniWrapper extends JniInitialized {
 
   private ColumnarBatchSerializerJniWrapper() {}
 
-  public native ColumnarBatchSerializeResult serialize(long[] handles, long allocId);
+  public native ColumnarBatchSerializeResult serialize(long[] handles, long memoryManagerId);
 
   // Return the native ColumnarBatchSerializer handle
-  public native long init(long cSchema, long allocId);
+  public native long init(long cSchema, long memoryManagerId);
 
   public native long deserialize(long handle, byte[] data);
 

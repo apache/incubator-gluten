@@ -22,6 +22,8 @@
 
 namespace gluten {
 
+// TODO clean this file
+
 bool isOnSparkTaskMainThread();
 
 void bindToTask(std::shared_ptr<void> object);

@@ -29,11 +29,13 @@ public class DatasourceJniWrapper extends JniInitialized {
 
   public DatasourceJniWrapper() throws IOException {}
 
-  public long nativeInitDatasource(String filePath, long cSchema, Map<String, String> options) {
-    return nativeInitDatasource(filePath, cSchema, JniUtils.toNativeConf(options));
+  public long nativeInitDatasource(
+      String filePath, long cSchema, long memoryManagerId, Map<String, String> options) {
+    return nativeInitDatasource(filePath, cSchema, memoryManagerId, JniUtils.toNativeConf(options));
   }
 
-  public native long nativeInitDatasource(String filePath, long cSchema, byte[] options);
+  public native long nativeInitDatasource(
+      String filePath, long cSchema, long memoryManagerId, byte[] options);
 
   public native void inspectSchema(long instanceId, long cSchemaAddress);
 

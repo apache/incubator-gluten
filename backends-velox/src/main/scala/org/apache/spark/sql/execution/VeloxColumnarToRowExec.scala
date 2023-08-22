@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution.ColumnarToRowExecBase
-import io.glutenproject.memory.alloc.NativeMemoryAllocators
+import io.glutenproject.memory.alloc.NativeMemoryManagers
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
@@ -118,7 +118,7 @@ class ColumnarToRowRDD(
         val jniWrapper = new NativeColumnarToRowJniWrapper()
         var closed = false
         val c2rId = jniWrapper.nativeColumnarToRowInit(
-          NativeMemoryAllocators.getDefault().contextInstance("ColumnarToRow").getNativeInstanceId)
+          NativeMemoryManagers.contextInstance("ColumnarToRow").getNativeInstanceId)
 
         TaskResources.addRecycler(s"ColumnarToRow_$c2rId", 100) {
           if (!closed) {
@@ -144,6 +144,7 @@ class ColumnarToRowRDD(
             numOutputRows += batch.numRows()
 
             if (batch.numRows == 0) {
+              batch.close()
               logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
               Iterator.empty
             } else if (
@@ -157,20 +158,25 @@ class ColumnarToRowRDD(
             } else if (output.isEmpty) {
               numInputBatches += 1
               numOutputRows += batch.numRows()
-              ColumnarBatches.emptyRowIterator(batch).asScala
+              val rows = ColumnarBatches.emptyRowIterator(batch.numRows()).asScala
+              batch.close()
+              rows
             } else {
+              val cols = batch.numCols()
+              val rows = batch.numRows()
               val beforeConvert = System.currentTimeMillis()
               val batchHandle = ColumnarBatches.getNativeHandle(batch)
               val info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId)
 
               convertTime += (System.currentTimeMillis() - beforeConvert)
+              batch.close()
 
               new Iterator[InternalRow] {
                 var rowId = 0
-                val row = new UnsafeRow(batch.numCols())
+                val row = new UnsafeRow(cols)
 
                 override def hasNext: Boolean = {
-                  rowId < batch.numRows()
+                  rowId < rows
                 }
 
                 override def next: UnsafeRow = {

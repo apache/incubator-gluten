@@ -20,6 +20,7 @@ package io.glutenproject.init
 
 import org.apache.spark.util.TaskResource
 
+// TODO delete this class
 // To make native task context work properly, register this resource type in ContextAPI
 class JniTaskContext extends TaskResource {
 

@@ -42,7 +42,7 @@ public class ArrowBufferAllocators {
 
   public static BufferAllocator contextInstance() {
     if (!TaskResources.inSparkTask()) {
-      return globalInstance();
+      throw new IllegalStateException("This method must be called in a Spark task.");
     }
     String id = ArrowBufferAllocatorManager.class.toString();
     return TaskResources.addResourceIfNotRegistered(id, ArrowBufferAllocatorManager::new).managed;

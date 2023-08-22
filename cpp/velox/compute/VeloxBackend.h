@@ -25,6 +25,7 @@
 
 #include "WholeStageResultIterator.h"
 #include "compute/Backend.h"
+#include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
 #include "operators/writer/VeloxParquetDatasource.h"
@@ -39,17 +40,41 @@ class VeloxBackend final : public Backend {
  public:
   explicit VeloxBackend(const std::unordered_map<std::string, std::string>& confMap);
 
+  inline std::shared_ptr<velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
+    if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {
+      return veloxMemoryManager->getAggregateMemoryPool();
+    } else {
+      GLUTEN_CHECK(false, "Should use VeloxMemoryManager here.");
+    }
+  }
+
+  inline std::shared_ptr<velox::memory::MemoryPool> getLeafVeloxPool(MemoryManager* memoryManager) {
+    if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {
+      return veloxMemoryManager->getLeafMemoryPool();
+    } else {
+      GLUTEN_CHECK(false, "Should use VeloxMemoryManager here.");
+    }
+  }
+
+  MemoryManager* getMemoryManager(
+      std::string name,
+      std::shared_ptr<MemoryAllocator> allocator,
+      std::shared_ptr<AllocationListener> listener) override {
+    auto veloxMemoryManager = new VeloxMemoryManager(name, allocator, listener);
+    return veloxMemoryManager;
+  }
+
   // FIXME This is not thread-safe?
   std::shared_ptr<ResultIterator> getResultIterator(
-      MemoryAllocator* allocator,
+      MemoryManager* memoryManager,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
       const std::unordered_map<std::string, std::string>& sessionConf = {}) override;
 
-  std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryAllocator* allocator) override;
+  std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryManager* memoryManager) override;
 
   std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
-      MemoryAllocator* allocator,
+      MemoryManager* memoryManager,
       struct ArrowSchema* cSchema) override;
 
   std::shared_ptr<ShuffleWriter> makeShuffleWriter(
@@ -62,23 +87,27 @@ class VeloxBackend final : public Backend {
     return iter->getMetrics(exportNanos);
   }
 
-  std::shared_ptr<Datasource> getDatasource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
-      override {
-    return std::make_shared<VeloxParquetDatasource>(filePath, schema);
+  std::shared_ptr<Datasource> getDatasource(
+      const std::string& filePath,
+      MemoryManager* memoryManager,
+      std::shared_ptr<arrow::Schema> schema) override {
+    auto veloxPool = getAggregateVeloxPool(memoryManager);
+    auto ctxVeloxPool = veloxPool->addAggregateChild("velox_parquet_writer");
+    return std::make_shared<VeloxParquetDatasource>(filePath, ctxVeloxPool, schema);
   }
 
   std::shared_ptr<Reader> getShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,
-      MemoryAllocator* allocator) override {
-    auto veloxPool = asAggregateVeloxMemoryPool(allocator);
-    auto ctxVeloxPool = veloxPool->addLeafChild("velox_shuffle_reader");
+      MemoryManager* memoryManager) override {
+    auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
     return std::make_shared<VeloxShuffleReader>(schema, options, pool, ctxVeloxPool);
   }
 
   std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
-      MemoryAllocator* allocator,
+      MemoryManager* memoryManager,
+      std::shared_ptr<arrow::MemoryPool> arrowPool,
       struct ArrowSchema* cSchema) override;
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
