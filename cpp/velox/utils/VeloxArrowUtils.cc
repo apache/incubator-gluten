@@ -58,7 +58,7 @@ arrow::Status MyMemoryPool::Allocate(int64_t size, uint8_t** out) {
   if (bytes_allocated() + size > capacity_) {
     return arrow::Status::OutOfMemory("malloc of size ", size, " failed");
   }
-  RETURN_NOT_OK(pool_->Allocate(size, alignment, out));
+  RETURN_NOT_OK(pool_->Allocate(size, out));
   stats_.UpdateAllocatedBytes(size);
   return arrow::Status::OK();
 }
@@ -68,7 +68,7 @@ arrow::Status MyMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, uint8_t
     return arrow::Status::OutOfMemory("malloc of size ", newSize, " failed");
   }
   // auto old_ptr = *ptr;
-  RETURN_NOT_OK(pool_->Reallocate(oldSize, newSize, alignment, ptr));
+  RETURN_NOT_OK(pool_->Reallocate(oldSize, newSize, ptr));
   stats_.UpdateAllocatedBytes(newSize - oldSize);
   return arrow::Status::OK();
 }

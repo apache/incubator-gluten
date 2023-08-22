@@ -20,6 +20,5 @@
 namespace gluten {
 
 void registerAllFunctions();
-void registerFunctionOverwrite();
 
 } // namespace gluten
