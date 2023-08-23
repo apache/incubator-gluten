@@ -80,7 +80,6 @@ object TransformHints {
         case originalHint @ TRANSFORM_UNSUPPORTED(Some(originalReason)) =>
           hint match {
             case TRANSFORM_UNSUPPORTED(Some(newReason)) =>
-              untag(plan)
               TRANSFORM_UNSUPPORTED(Some(originalReason + "; " + newReason))
             case TRANSFORM_UNSUPPORTED(None) =>
               originalHint
@@ -90,7 +89,6 @@ object TransformHints {
                   s"cannot mark it as transformable after that:\n${plan.toString()}")
           }
         case _ =>
-          untag(plan)
           hint
       }
       .getOrElse(hint)
