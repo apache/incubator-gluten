@@ -14,21 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.memory
+package io.glutenproject.memory.memtarget;
 
-import org.apache.spark.SparkEnv
+public final class MemoryTargets {
 
-object SparkMemoryUtil {
-  private val mmClazz = classOf[MemoryManager]
-  private val smpField = mmClazz.getDeclaredField("offHeapStorageMemoryPool")
-  private val empField = mmClazz.getDeclaredField("offHeapExecutionMemoryPool")
-  smpField.setAccessible(true)
-  empField.setAccessible(true)
+  private MemoryTargets() {
+    // enclose factory ctor
+  }
 
-  def getCurrentAvailableOffHeapMemory: Long = {
-    val mm = SparkEnv.get.memoryManager
-    val smp = smpField.get(mm).asInstanceOf[StorageMemoryPool]
-    val emp = empField.get(mm).asInstanceOf[ExecutionMemoryPool]
-    smp.memoryFree + emp.memoryFree
+  public static TaskManagedMemoryTarget overAcquire(
+      TaskManagedMemoryTarget target, double overAcquiredRatio) {
+    if (overAcquiredRatio == 0.0D) {
+      return target;
+    }
+    return new OverAcquire(target, overAcquiredRatio);
+  }
+
+  public static MemoryTarget throwOnOom(TaskManagedMemoryTarget target) {
+    return new ThrowOnOomMemoryTarget(target);
   }
 }

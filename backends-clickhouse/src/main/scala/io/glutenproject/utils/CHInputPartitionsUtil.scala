@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.PartitionedFileUtil
 import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation, PartitionDirectory, PartitionedFile}
-import org.apache.spark.util.SparkResourcesUtil
+import org.apache.spark.util.SparkResourceUtil
 import org.apache.spark.util.collection.BitSet
 
 import scala.collection.mutable.ArrayBuffer
@@ -83,7 +83,7 @@ case class CHInputPartitionsUtil(
       }
       .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
 
-    val totalCores = SparkResourcesUtil.getTotalCores(relation.sparkSession.sessionState.conf)
+    val totalCores = SparkResourceUtil.getTotalCores(relation.sparkSession.sessionState.conf)
     val fileCntPerPartition = math.ceil((splitFiles.size * 1.0) / totalCores).toInt
     val fileCntThreshold = relation.sparkSession.sessionState.conf
       .getConfString(

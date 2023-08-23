@@ -14,35 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.nmm;
+package io.glutenproject.memory.memtarget;
 
-public interface ReservationListener {
-  ReservationListener NOOP =
-      new ReservationListener() {
-        @Override
-        public long reserve(long size) {
-          return 0L;
-        }
+import org.apache.spark.memory.TaskMemoryManager;
 
-        @Override
-        public long unreserve(long size) {
-          return 0L;
-        }
-
-        @Override
-        public long getUsedBytes() {
-          return 0;
-        }
-
-        @Override
-        public void inactivate() {}
-      };
-
-  long reserve(long size);
-
-  long unreserve(long size);
-
-  void inactivate();
-
-  long getUsedBytes();
+// Memory target that is bind to Spark TMM (task memory manager). This is typically a Spark
+// consumer.
+public interface TaskManagedMemoryTarget extends MemoryTarget {
+  TaskMemoryManager getTaskMemoryManager();
 }

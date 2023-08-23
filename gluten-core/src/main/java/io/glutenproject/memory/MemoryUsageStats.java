@@ -14,35 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.nmm;
+package io.glutenproject.memory;
 
-public interface ReservationListener {
-  ReservationListener NOOP =
-      new ReservationListener() {
-        @Override
-        public long reserve(long size) {
-          return 0L;
-        }
+public class MemoryUsageStats {
+  public final long peak;
+  public final long current;
 
-        @Override
-        public long unreserve(long size) {
-          return 0L;
-        }
-
-        @Override
-        public long getUsedBytes() {
-          return 0;
-        }
-
-        @Override
-        public void inactivate() {}
-      };
-
-  long reserve(long size);
-
-  long unreserve(long size);
-
-  void inactivate();
-
-  long getUsedBytes();
+  MemoryUsageStats(MemoryUsage usage) {
+    this.peak = usage.peak();
+    this.current = usage.current();
+  }
 }

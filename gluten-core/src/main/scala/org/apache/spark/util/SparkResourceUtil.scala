@@ -20,7 +20,7 @@ import org.apache.spark.{SparkConf, SparkMasterRegex}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
-object SparkResourcesUtil extends Logging {
+object SparkResourceUtil extends Logging {
 
   /** Get the total cores of the Spark application */
   def getTotalCores(sqlConf: SQLConf): Int = {

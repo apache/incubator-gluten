@@ -220,11 +220,11 @@ class SparkAllocationListener final : public gluten::AllocationListener {
       return;
     }
     if (granted < 0) {
-      env->CallObjectMethod(javaListener_, javaUnreserveMethod_, -granted);
+      env->CallLongMethod(javaListener_, javaUnreserveMethod_, -granted);
       checkException(env);
       return;
     }
-    env->CallObjectMethod(javaListener_, javaReserveMethod_, granted);
+    env->CallLongMethod(javaListener_, javaReserveMethod_, granted);
     checkException(env);
   }
 

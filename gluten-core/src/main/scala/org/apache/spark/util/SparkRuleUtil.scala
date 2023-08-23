@@ -21,7 +21,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
-object SparkUtil extends Logging {
+object SparkRuleUtil extends Logging {
 
   /** Add the extended pre/post column rules */
   def extendedColumnarRules(

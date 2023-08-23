@@ -16,13 +16,11 @@
  */
 package io.glutenproject.memory.nmm;
 
-import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.memory.MemoryUsage;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.function.Consumer;
 
 /** Reserve Spark managed memory. */
 public class ManagedReservationListener implements ReservationListener {
@@ -30,59 +28,24 @@ public class ManagedReservationListener implements ReservationListener {
   private static final Logger LOG = LoggerFactory.getLogger(ManagedReservationListener.class);
 
   private MemoryTarget target;
-  private final TaskMemoryMetrics metrics;
+  private final MemoryUsage sharedUsage; // shared task metrics
   private volatile boolean open = true;
-  private volatile long reserved = 0L;
 
-  public ManagedReservationListener(MemoryTarget target, TaskMemoryMetrics metrics) {
+  public ManagedReservationListener(MemoryTarget target, MemoryUsage sharedUsage) {
     this.target = target;
-    this.metrics = metrics;
+    this.sharedUsage = sharedUsage;
   }
 
-  private long reserve0(long size, Consumer<String> onOom) {
+  @Override
+  public long reserve(long size) {
     synchronized (this) {
       try {
-        if (!open) {
-          return 0L;
-        }
-        long granted = target.borrow(size);
-        reserved += granted;
-        metrics.inc(granted);
-        if (granted < size) {
-          if (granted != 0L) {
-            target.repay(granted);
-            reserved -= granted;
-          }
-          onOom.accept(
-              "Not enough spark off-heap execution memory. "
-                  + "Acquired: "
-                  + size
-                  + ", granted: "
-                  + granted
-                  + ". "
-                  + "Try tweaking config option spark.memory.offHeap.size to "
-                  + "get larger space to run this application. ");
-        }
-        return granted;
+        return target.borrow(size);
       } catch (Exception e) {
         LOG.error("Error reserving memory from target", e);
         throw e;
       }
     }
-  }
-
-  @Override
-  public void reserveOrThrow(long size) {
-    reserve0(
-        size,
-        s -> {
-          throw new OutOfMemoryException(s);
-        });
-  }
-
-  @Override
-  public long reserve(long size) {
-    return reserve0(size, LOG::warn);
   }
 
   @Override
@@ -92,15 +55,14 @@ public class ManagedReservationListener implements ReservationListener {
         return 0L;
       }
       target.repay(size);
-      reserved -= size;
-      metrics.inc(-size);
+      sharedUsage.inc(-size);
       return size;
     }
   }
 
   @Override
   public long getUsedBytes() {
-    return reserved;
+    return target.stats().current;
   }
 
   @Override

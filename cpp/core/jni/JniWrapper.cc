@@ -285,7 +285,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       "Lio/glutenproject/memory/nmm/"
       "ReservationListener;");
 
-  reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserveOrThrow", "(J)V");
+  reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", "(J)J");
   unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", "(J)J");
 
   veloxColumnarbatchScannerClass =
