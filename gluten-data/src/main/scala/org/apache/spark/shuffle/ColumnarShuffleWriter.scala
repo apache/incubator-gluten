@@ -189,6 +189,7 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
+    dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 

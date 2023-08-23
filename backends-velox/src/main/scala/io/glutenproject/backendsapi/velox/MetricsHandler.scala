@@ -240,6 +240,7 @@ class MetricsHandler extends MetricsApi with Logging {
     Map(
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
       "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
+      "splitBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "split buffer size total"),
       "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to split"),
       "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to spill"),
       "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
