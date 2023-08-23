@@ -1570,6 +1570,12 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
         }
       }
       break;
+    case TypeKind::ARRAY:
+      // Doing nothing here can let filter IsNotNull still work.
+      break;
+    case TypeKind::MAP:
+      // Doing nothing here can let filter IsNotNull still work.
+      break;
     default:
       VELOX_NYI("Subfield filters creation not supported for input type '{}' in setFilterInfo", inputType);
   }
@@ -1753,19 +1759,15 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
   uint32_t rangeSize = std::max(filterInfo.lowerBounds_.size(), filterInfo.upperBounds_.size());
 
   if constexpr (KIND == facebook::velox::TypeKind::HUGEINT) {
+    // TODO: open it when the Velox's modification is ready.
+    VELOX_NYI("constructSubfieldFilters not support for HUGEINT type");
+  } else if constexpr (KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::MAP) {
+    // Only IsNotNull filter is supported for the above two type kinds now.
     if (rangeSize == 0 && !nullAllowed) {
-      // TODO
-      if (fileFormat_ == facebook::velox::dwio::common::FileFormat::ORC) {
-        // uncomment the following line when Velox decimal support IsNotNull filter
-        // filters[common::Subfield(inputName, true)] = std::move(std::make_unique<common::IsNotNull>());
-        VELOX_NYI("constructSubfieldFilters not support IsNotNull for input type '{}'", inputType);
-      } else {
-        VELOX_NYI("constructSubfieldFilters not support IsNotNull for input type '{}'", inputType);
-      }
+      filters[common::Subfield(inputName, true)] = std::move(std::make_unique<common::IsNotNull>());
     } else {
       VELOX_NYI("constructSubfieldFilters only support IsNotNull for input type '{}'", inputType);
     }
-    return;
   } else {
     using NativeType = typename RangeTraits<KIND>::NativeType;
     using RangeType = typename RangeTraits<KIND>::RangeType;
@@ -1919,6 +1921,14 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
         break;
       case TypeKind::HUGEINT:
         constructSubfieldFilters<TypeKind::HUGEINT, common::HugeintRange>(
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+        break;
+      case TypeKind::ARRAY:
+        constructSubfieldFilters<TypeKind::ARRAY, common::Filter>(
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+        break;
+      case TypeKind::MAP:
+        constructSubfieldFilters<TypeKind::MAP, common::Filter>(
             colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
         break;
       default:
