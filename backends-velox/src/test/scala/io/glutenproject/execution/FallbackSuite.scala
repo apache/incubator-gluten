@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.{SparkPlan, VeloxColumnarToRowExec}
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec}
 
 class FallbackSuite extends WholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -103,6 +103,23 @@ class FallbackSuite extends WholeStageTransformerSuite with AdaptiveSparkPlanHel
                |LEFT JOIN tmp2 on tmp1.c1 = tmp2.c1
                |""".stripMargin)
         .show()
+    }
+  }
+
+  test("fallback with AQE read") {
+    runQueryAndCompare(
+      """
+        |select java_method('java.lang.Integer', 'sum', c1, c1), * from (
+        |select /*+ repartition */ cast(c1 as int) as c1 from tmp1
+        |)
+        |""".stripMargin
+    ) {
+      df =>
+        val aqeRead = find(df.queryExecution.executedPlan) {
+          case _: ColumnarAQEShuffleReadExec => true
+          case _ => false
+        }
+        assert(aqeRead.isDefined)
     }
   }
 }

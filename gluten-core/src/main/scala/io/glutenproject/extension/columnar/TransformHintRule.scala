@@ -75,15 +75,24 @@ object TransformHints {
   }
 
   def tag(plan: SparkPlan, hint: TransformHint): Unit = {
-    if (isAlreadyTagged(plan)) {
-      if (isNotTransformable(plan) && hint.isInstanceOf[TRANSFORM_SUPPORTED]) {
-        throw new UnsupportedOperationException(
-          s"Plan was already tagged as non-transformable, " +
-            s"cannot mark it as transformable after that: ${plan.toString()}")
+    val mergedHint = getHintOption(plan)
+      .map {
+        case originalHint @ TRANSFORM_UNSUPPORTED(Some(originalReason)) =>
+          hint match {
+            case TRANSFORM_UNSUPPORTED(Some(newReason)) =>
+              TRANSFORM_UNSUPPORTED(Some(originalReason + "; " + newReason))
+            case TRANSFORM_UNSUPPORTED(None) =>
+              originalHint
+            case _ =>
+              throw new UnsupportedOperationException(
+                "Plan was already tagged as non-transformable, " +
+                  s"cannot mark it as transformable after that:\n${plan.toString()}")
+          }
+        case _ =>
+          hint
       }
-      untag(plan)
-    }
-    plan.setTagValue(TAG, hint)
+      .getOrElse(hint)
+    plan.setTagValue(TAG, mergedHint)
   }
 
   def untag(plan: SparkPlan): Unit = {

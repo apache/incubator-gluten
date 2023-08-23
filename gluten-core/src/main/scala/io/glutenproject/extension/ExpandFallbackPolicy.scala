@@ -17,6 +17,7 @@
 package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.BroadcastHashJoinExecTransformer
 import io.glutenproject.extension.columnar.TransformHints
 
@@ -24,10 +25,10 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, SparkPlan}
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, BroadcastQueryStageExec, QueryStageExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, BroadcastQueryStageExec, ColumnarAQEShuffleReadExec, QueryStageExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.command.ExecutedCommandExec
-import org.apache.spark.sql.execution.exchange.Exchange
+import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
 
 // spotless:off
 /**
@@ -74,7 +75,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
         case _: CommandResultExec | _: ExecutedCommandExec => // ignore
         // we plan exchange to columnar exchange in columnar rules and the exchange does not
         // support columnar, so the output columnar is always false in AQE postStageCreationRules
-        case ColumnarToRowExec(s: Exchange) if s.supportsColumnar && isAdaptiveContext =>
+        case ColumnarToRowExec(s: Exchange) if isAdaptiveContext =>
           countFallback(s)
         case ColumnarToRowExec(p: GlutenPlan) =>
           logDebug(s"Find a columnar to row for gluten plan:\n$p")
@@ -138,9 +139,23 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
 
   private def fallbackToRowBasedPlan(): SparkPlan = {
     val transformPostOverrides = TransformPostOverrides(isAdaptiveContext)
-    val planWithColumnarToRow = InsertTransitions.insertTransitions(originalPlan, false)
+    val planWithReplacedAQERead = originalPlan.transform {
+      case plan: AQEShuffleReadExec
+          if BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
+        plan.child match {
+          case ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _) =>
+            ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs)
+          case ShuffleQueryStageExec(_, ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec), _) =>
+            ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs)
+          case _ =>
+            plan
+        }
+    }
+    val planWithColumnarToRow = InsertTransitions.insertTransitions(planWithReplacedAQERead, false)
     planWithColumnarToRow.transform {
       case c2r @ ColumnarToRowExec(_: ShuffleQueryStageExec) =>
+        transformPostOverrides.transformColumnarToRowExec(c2r)
+      case c2r @ ColumnarToRowExec(_: ColumnarAQEShuffleReadExec) =>
         transformPostOverrides.transformColumnarToRowExec(c2r)
     }
   }
