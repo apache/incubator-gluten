@@ -240,19 +240,21 @@ class NonNullableColumnsResolver
 public:
     explicit NonNullableColumnsResolver(const DB::Block & header_, SerializedPlanParser & parser_, const substrait::Expression & cond_rel_);
     ~NonNullableColumnsResolver() = default;
+
     // return column names
-    std::vector<std::string> resolve();
+    std::set<String> resolve();
 
 private:
     DB::Block header;
     SerializedPlanParser & parser;
     const substrait::Expression & cond_rel;
 
-    std::vector<std::string> collected_columns;
+    std::set<String> collected_columns;
 
     void visit(const substrait::Expression & expr);
     void visitNonNullable(const substrait::Expression & expr);
-    std::string safeGetFunctionName(const std::string & function_signature, const substrait::Expression_ScalarFunction & function);
+
+    String safeGetFunctionName(const String & function_signature, const substrait::Expression_ScalarFunction & function);
 };
 
 class SerializedPlanParser
@@ -357,15 +359,12 @@ private:
     const ActionsDAG::Node *
     toFunctionNode(ActionsDAGPtr actions_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args);
     // remove nullable after isNotNull
-    void removeNullable(const std::vector<String> & require_columns, ActionsDAGPtr actionsDag);
+    void removeNullable(const std::set<String> & require_columns, ActionsDAGPtr actions_dag);
     std::string getUniqueName(const std::string & name) { return name + "_" + std::to_string(name_no++); }
-
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(
-        const std::vector<String> & columns, ActionsDAGPtr actionsDag, std::map<std::string, std::string> & nullable_measure_names);
-
-    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::vector<String> & columns);
-
+        const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
+    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
 
     int name_no = 0;

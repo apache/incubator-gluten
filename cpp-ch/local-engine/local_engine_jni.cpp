@@ -776,8 +776,8 @@ Java_io_glutenproject_vectorized_CHBlockConverterJniWrapper_convertColumnarToRow
     if (masks != nullptr)
     {
         jint size = env->GetArrayLength(masks);
-        jboolean isCp = JNI_FALSE;
-        jint * values = env->GetIntArrayElements(masks, &isCp);
+        jboolean is_cp = JNI_FALSE;
+        jint * values = env->GetIntArrayElements(masks, &is_cp);
         mask = std::make_unique<std::vector<size_t>>();
         for (int j = 0; j < size; j++)
         {
@@ -942,22 +942,22 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     auto * block = reinterpret_cast<DB::Block *>(blockAddress);
     int * pIndice = env->GetIntArrayElements(partitionColIndice, nullptr);
     int size = env->GetArrayLength(partitionColIndice);
-    std::vector<size_t> partitionColIndiceVec;
+
+    std::vector<size_t> partition_col_indice_vec;
     for (int i = 0; i < size; ++i)
-    {
-        partitionColIndiceVec.push_back(pIndice[i]);
-    }
+        partition_col_indice_vec.push_back(pIndice[i]);
+
     env->ReleaseIntArrayElements(partitionColIndice, pIndice, JNI_ABORT);
-    local_engine::BlockStripes bs = local_engine::BlockStripeSplitter::split(*block, partitionColIndiceVec, hasBucket);
+    local_engine::BlockStripes bs = local_engine::BlockStripeSplitter::split(*block, partition_col_indice_vec, hasBucket);
 
 
-    auto * addresses = env->NewLongArray(bs.blockAddresses.size());
-    env->SetLongArrayRegion(addresses, 0, bs.blockAddresses.size(), bs.blockAddresses.data());
-    auto * indices = env->NewIntArray(bs.headingRowIndice.size());
-    env->SetIntArrayRegion(indices, 0, bs.headingRowIndice.size(), bs.headingRowIndice.data());
+    auto * addresses = env->NewLongArray(bs.block_addresses.size());
+    env->SetLongArrayRegion(addresses, 0, bs.block_addresses.size(), bs.block_addresses.data());
+    auto * indices = env->NewIntArray(bs.heading_row_indice.size());
+    env->SetIntArrayRegion(indices, 0, bs.heading_row_indice.size(), bs.heading_row_indice.data());
 
     jobject block_stripes = env->NewObject(
-        block_stripes_class, block_stripes_constructor, bs.originalBlockAddress, addresses, indices, bs.originBlockColNum, bs.noNeedSplit);
+        block_stripes_class, block_stripes_constructor, bs.original_block_address, addresses, indices, bs.origin_block_col_num, bs.no_need_split);
     return block_stripes;
 
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
