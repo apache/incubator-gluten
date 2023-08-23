@@ -227,12 +227,12 @@ public:
         size_t hdfs_file_size = hdfs_file_info->mSize;
 
         /// initial_pos maybe in the middle of a row, so we need to find the next row start position.
-        auto get_next_line_pos = [&](hdfsFS hdfsFs, hdfsFile file, size_t initial_pos, size_t file_size) -> size_t
+        auto get_next_line_pos = [&](hdfsFS hdfs_fs, hdfsFile file, size_t initial_pos, size_t file_size) -> size_t
         {
             if (initial_pos == 0 || initial_pos == file_size)
                 return initial_pos;
 
-            int seek_ret = hdfsSeek(hdfsFs, file, initial_pos);
+            int seek_ret = hdfsSeek(hdfs_fs, file, initial_pos);
             if (seek_ret < 0)
                 throw DB::Exception(
                     DB::ErrorCodes::CANNOT_SEEK_THROUGH_FILE,
@@ -245,7 +245,7 @@ public:
 
             auto do_read = [&]() -> int
             {
-                auto n = hdfsRead(hdfsFs, file, buf, buf_size);
+                auto n = hdfsRead(hdfs_fs, file, buf, buf_size);
                 if (n < 0)
                     throw DB::Exception(
                         DB::ErrorCodes::CANNOT_READ_FROM_FILE_DESCRIPTOR,
