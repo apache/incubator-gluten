@@ -45,6 +45,8 @@ class VeloxMemoryManager final : public MemoryManager {
 
  private:
   std::string name_;
+
+  // This is a listenable allocator used for arrow.
   std::shared_ptr<MemoryAllocator> glutenAlloc_;
   std::shared_ptr<AllocationListener> listener_;
   std::unique_ptr<facebook::velox::memory::MemoryManager> veloxMemoryManager_;
