@@ -300,7 +300,7 @@ case class CHTruncTimestampTransformer(
       timeZoneIgnore && timeZoneId.nonEmpty &&
       !timeZoneId.get.equalsIgnoreCase(
         SQLConf.get.getConfString(
-          s"${CHBackendSettings.getBackendConfigPrefix()}.runtime_config.timezone")
+          s"${CHBackendSettings.getBackendConfigPrefix}.runtime_config.timezone")
       )
     ) {
       throw new UnsupportedOperationException(

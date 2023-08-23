@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.xerial.snappy.SnappyOutputStream;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
 
@@ -79,10 +80,12 @@ public final class CHShuffleWriteStreamFactory {
         out = (OutputStream) FIELD_LZ4BlockOutputStream_out.get(os);
       } else if (os instanceof LZFOutputStream) {
         out = (OutputStream) FIELD_LZFOutputStream_out.get(os);
+      } else if (os instanceof ByteArrayOutputStream) {
+        out = os;
       }
     } catch (IllegalAccessException e) {
       LOG.error("Can not get the field 'out' from compression output stream: ", e);
-      return out;
+      return null;
     }
     return out;
   }

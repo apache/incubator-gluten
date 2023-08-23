@@ -26,11 +26,15 @@
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
+#include <Shuffle/CachedShuffleWriter.h>
 #include <Shuffle/NativeSplitter.h>
 #include <Shuffle/NativeWriterInMemory.h>
+#include <Shuffle/PartitionWriter.h>
 #include <Shuffle/ShuffleReader.h>
 #include <Shuffle/ShuffleSplitter.h>
 #include <Shuffle/ShuffleWriter.h>
+#include <Shuffle/ShuffleWriterBase.h>
+#include <Shuffle/WriteBufferFromJavaOutputStream.h>
 #include <Storages/Output/BlockStripeSplitter.h>
 #include <Storages/Output/FileWriterWrappers.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
@@ -45,9 +49,6 @@
 #include <Common/ExceptionUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/QueryContext.h>
-#include <Shuffle/CachedShuffleWriter.h>
-#include <Shuffle/PartitionWriter.h>
-#include <Shuffle/ShuffleWriterBase.h>
 
 #ifdef __cplusplus
 
@@ -688,20 +689,17 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     local_engine::SplitterHolder * splitter;
     if (prefer_spill)
     {
-        splitter
-            = new local_engine::SplitterHolder{.splitter = local_engine::ShuffleSplitter::create(name, options)};
+        splitter = new local_engine::SplitterHolder{.splitter = local_engine::ShuffleSplitter::create(name, options)};
     }
     else
     {
-        splitter
-            = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options)};
+        splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options)};
     }
     return reinterpret_cast<jlong>(splitter);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
-JNIEXPORT void
-Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env, jobject, jlong splitterId, jlong block)
+JNIEXPORT void Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env, jobject, jlong splitterId, jlong block)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
@@ -710,8 +708,7 @@ Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env,
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
-JNIEXPORT jlong
-Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_evict(JNIEnv * env, jobject, jlong splitterId)
+JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_evict(JNIEnv * env, jobject, jlong splitterId)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);

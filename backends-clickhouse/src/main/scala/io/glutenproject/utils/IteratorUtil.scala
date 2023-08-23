@@ -14,25 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <jni.h>
-#include <Formats/NativeWriter.h>
+package io.glutenproject.utils
 
-namespace local_engine
-{
-class ShuffleWriter
-{
-public:
-    ShuffleWriter(
-        jobject output_stream, jbyteArray buffer, const std::string & codecStr, bool enable_compression, size_t customize_buffer_size);
-    virtual ~ShuffleWriter();
-    void write(const DB::Block & block);
-    void flush();
+import io.glutenproject.vectorized.{CHNativeBlock, CHStreamReader}
 
-private:
-    std::unique_ptr<DB::WriteBuffer> compressed_out;
-    std::unique_ptr<DB::WriteBuffer> write_buffer;
-    std::unique_ptr<DB::NativeWriter> native_writer;
-    bool compression_enable;
-};
+import org.apache.spark.sql.vectorized.ColumnarBatch
+
+object IteratorUtil {
+  def createBatchIterator(blockReader: CHStreamReader): Iterator[ColumnarBatch] = {
+    new Iterator[ColumnarBatch] {
+      private var current: CHNativeBlock = _
+
+      override def hasNext: Boolean = {
+        current = blockReader.next()
+        current != null && current.numRows() > 0
+      }
+
+      override def next(): ColumnarBatch = {
+        current.toColumnarBatch
+      }
+    }
+  }
+
 }

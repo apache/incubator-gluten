@@ -21,6 +21,10 @@ import io.glutenproject.row.SparkRowInfo;
 
 public class CHBlockConverterJniWrapper {
 
+  private CHBlockConverterJniWrapper() {
+    // utility class
+  }
+
   // for ch columnar -> spark row
   public static native SparkRowInfo convertColumnarToRow(long blockAddress, int[] masks);
 

@@ -20,7 +20,6 @@ import io.glutenproject.exception.GlutenException;
 
 import io.netty.util.internal.PlatformDependent;
 
-import java.io.IOException;
 import java.io.InputStream;
 
 public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
@@ -30,7 +29,7 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
   private int bufferSize;
   private long bytesRead = 0L;
 
-  private byte[] buffer = null;
+  private byte[] buffer;
 
   public OnHeapCopyShuffleInputStream(InputStream in, int bufferSize, boolean isCompressed) {
     this.in = in;
@@ -41,26 +40,25 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
 
   @Override
   public long read(long destAddress, long maxReadSize) {
-    int maxReadSize32 = Math.toIntExact(maxReadSize);
-    if (maxReadSize32 > this.bufferSize) {
-      this.bufferSize = maxReadSize32;
-      this.buffer = new byte[this.bufferSize];
-    }
-    try {
-      // The code conducts copy as long as 'in' wraps off-heap data,
-      // which is about to be moved to heap
-      int read = in.read(buffer, 0, maxReadSize32);
-      if (read == -1 || read == 0) {
-        return 0;
-      }
-      // The code conducts copy, from heap to off-heap
-      // memCopyFromHeap(buffer, destAddress, read);
-      PlatformDependent.copyMemory(buffer, 0, destAddress, read);
-      bytesRead += read;
-      return read;
-    } catch (IOException e) {
-      throw new GlutenException(e);
-    }
+    return GlutenException.wrap(
+        () -> {
+          int maxReadSize32 = Math.toIntExact(maxReadSize);
+          if (maxReadSize32 > this.bufferSize) {
+            this.bufferSize = maxReadSize32;
+            this.buffer = new byte[this.bufferSize];
+          }
+          // The code conducts copy as long as 'in' wraps off-heap data,
+          // which is about to be moved to heap
+          int read = in.read(buffer, 0, maxReadSize32);
+          if (read == -1 || read == 0) {
+            return 0;
+          }
+          // The code conducts copy, from heap to off-heap
+          // memCopyFromHeap(buffer, destAddress, read);
+          PlatformDependent.copyMemory(buffer, 0, destAddress, read);
+          bytesRead += read;
+          return read;
+        });
   }
 
   @Override
@@ -75,11 +73,11 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
 
   @Override
   public void close() {
-    try {
-      in.close();
-      in = null;
-    } catch (IOException e) {
-      throw new GlutenException(e);
-    }
+    GlutenException.wrap(
+        () -> {
+          in.close();
+          in = null;
+          return null;
+        });
   }
 }

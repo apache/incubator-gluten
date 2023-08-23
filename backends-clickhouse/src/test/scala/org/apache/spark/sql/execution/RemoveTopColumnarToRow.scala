@@ -14,25 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <jni.h>
-#include <Formats/NativeWriter.h>
+package org.apache.spark.sql.execution
 
-namespace local_engine
-{
-class ShuffleWriter
-{
-public:
-    ShuffleWriter(
-        jobject output_stream, jbyteArray buffer, const std::string & codecStr, bool enable_compression, size_t customize_buffer_size);
-    virtual ~ShuffleWriter();
-    void write(const DB::Block & block);
-    void flush();
+import io.glutenproject.execution.ColumnarToRowExecBase
 
-private:
-    std::unique_ptr<DB::WriteBuffer> compressed_out;
-    std::unique_ptr<DB::WriteBuffer> write_buffer;
-    std::unique_ptr<DB::NativeWriter> native_writer;
-    bool compression_enable;
-};
+import org.apache.spark.sql.catalyst.rules.Rule
+
+object RemoveTopColumnarToRow extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan = plan match {
+    case plan: ColumnarToRowExecBase => plan.child
+    case _ => plan
+  }
 }

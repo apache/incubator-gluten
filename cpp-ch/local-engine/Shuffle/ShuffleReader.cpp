@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 #include "ShuffleReader.h"
+#include <Compression/CompressedReadBuffer.h>
+#include <IO/ReadBuffer.h>
 #include <jni/jni_common.h>
 #include <Common/DebugUtils.h>
 #include <Common/JNIUtils.h>
@@ -24,12 +26,18 @@ using namespace DB;
 
 namespace local_engine
 {
+std::unique_ptr<ReadBuffer> createCompressedReadBuffer(std::unique_ptr<ReadBuffer> & in)
+{
+    auto compressed_in = std::make_unique<CompressedReadBuffer>(*in);
+    compressed_in->disableChecksumming();
+    return compressed_in;
+}
+
 local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed) : in(std::move(in_))
 {
     if (compressed)
     {
-        compressed_in = std::make_unique<CompressedReadBuffer>(*in);
-        compressed_in->disableChecksumming();
+        compressed_in = createCompressedReadBuffer(in);
         input_stream = std::make_unique<NativeReader>(*compressed_in, 0);
     }
     else

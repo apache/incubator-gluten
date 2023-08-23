@@ -32,7 +32,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BindReferences, BoundReference, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.catalyst.plans.physical.{SinglePartition, _}
-import org.apache.spark.sql.execution.PartitionIdPassthrough
+import org.apache.spark.sql.execution.{PartitionIdPassthrough, SparkPlan}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleWriteMetricsReporter}
 import org.apache.spark.sql.internal.SQLConf
@@ -42,6 +42,8 @@ import org.apache.spark.util.MutablePair
 
 import io.substrait.proto.Type
 
+import java.io.ByteArrayOutputStream
+
 import scala.collection.JavaConverters._
 
 object CHExecUtil extends Logging {
@@ -50,6 +52,34 @@ object CHExecUtil extends Logging {
     val (datatype, nullable) =
       ConverterUtils.parseFromSubstraitType(Type.parseFrom(substraitType))
     datatype
+  }
+
+  def toBytes(
+      dataSize: SQLMetric,
+      iter: Iterator[ColumnarBatch],
+      compressionCodec: Option[String] = Some("lz4"),
+      bufferSize: Int = 4 << 10): Iterator[(Int, Array[Byte])] = {
+    var count = 0
+    val bos = new ByteArrayOutputStream()
+    val buffer = new Array[Byte](bufferSize) // 4K
+    val blockOutputStream =
+      compressionCodec
+        .map(new BlockOutputStream(bos, buffer, dataSize, true, _, bufferSize))
+        .getOrElse(new BlockOutputStream(bos, buffer, dataSize, false, "", bufferSize))
+    while (iter.hasNext) {
+      val batch = iter.next()
+      count += batch.numRows
+      blockOutputStream.write(batch)
+    }
+    blockOutputStream.flush()
+    blockOutputStream.close()
+    Iterator((count, bos.toByteArray))
+  }
+
+  def buildSideRDD(dataSize: SQLMetric, newChild: SparkPlan): RDD[(Int, Array[Byte])] = {
+    newChild
+      .executeColumnar()
+      .mapPartitionsInternal(iter => toBytes(dataSize, iter))
   }
 
   private def buildRangePartitionSampleRDD(
@@ -117,28 +147,29 @@ object CHExecUtil extends Logging {
       cbIter: Iterator[ColumnarBatch],
       options: IteratorOptions,
       records_written_metric: SQLMetric): CloseablePartitionedBlockIterator = {
-    val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
-      val splitIterator = new BlockSplitIterator(
-        cbIter
-          .map(
-            CHNativeBlock
-              .fromColumnarBatch(_)
-              .blockAddress()
-              .asInstanceOf[java.lang.Long])
-          .asJava,
-        options
-      )
-      override def hasNext: Boolean = splitIterator.hasNext
-      override def next(): Product2[Int, ColumnarBatch] = {
-        val nextBatch = splitIterator.next()
-        // need add rows before shuffle write, one block will convert to one row
-        // Because one is always added during shuffle write
-        // one line needs to be subtracted here
-        records_written_metric.add(nextBatch.numRows() - 1)
-        (splitIterator.nextPartitionId(), nextBatch)
-      };
-      override def close(): Unit = splitIterator.close();
-    }
+    val iter: Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable =
+      new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
+        val splitIterator = new BlockSplitIterator(
+          cbIter
+            .map(
+              CHNativeBlock
+                .fromColumnarBatch(_)
+                .blockAddress()
+                .asInstanceOf[java.lang.Long])
+            .asJava,
+          options
+        )
+        override def hasNext: Boolean = splitIterator.hasNext
+        override def next(): Product2[Int, ColumnarBatch] = {
+          val nextBatch = splitIterator.next()
+          // need add rows before shuffle write, one block will convert to one row
+          // Because one is always added during shuffle write
+          // one line needs to be subtracted here
+          records_written_metric.add(nextBatch.numRows() - 1)
+          (splitIterator.nextPartitionId(), nextBatch)
+        }
+        override def close(): Unit = splitIterator.close()
+      }
     new CloseablePartitionedBlockIterator(iter)
   }
 
