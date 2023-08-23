@@ -40,8 +40,6 @@
 
 using namespace gluten;
 
-static jclass serializableObjBuilderClass;
-
 static jclass javaReservationListenerClass;
 
 static jmethodID reserveMemoryMethod;
@@ -237,9 +235,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   gluten::getJniCommonState()->ensureInitialized(env);
   gluten::getJniErrorState()->ensureInitialized(env);
 
-  serializableObjBuilderClass =
-      createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/NativeSerializableObject;");
-
   byteArrayClass = createGlobalClassReferenceOrError(env, "[B");
 
   jniByteInputStreamClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/JniByteInputStream;");
@@ -298,7 +293,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
-  env->DeleteGlobalRef(serializableObjBuilderClass);
   env->DeleteGlobalRef(jniByteInputStreamClass);
   env->DeleteGlobalRef(splitResultClass);
   env->DeleteGlobalRef(columnarBatchSerializeResultClass);

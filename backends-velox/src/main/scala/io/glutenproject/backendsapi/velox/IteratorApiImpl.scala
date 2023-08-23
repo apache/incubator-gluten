@@ -159,19 +159,21 @@ class IteratorApiImpl extends IteratorApi with Logging {
     TaskResources.addRecycler(s"FirstStageIterator_${resIter.getId}", 100)(resIter.close())
     val iter = new Iterator[ColumnarBatch] {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
+      var finished = false
 
       override def hasNext: Boolean = {
         val res = resIter.hasNext
         if (!res) {
           updateNativeMetrics(resIter.getMetrics)
           updateInputMetrics(inputMetrics)
+          finished = true
         }
         res
       }
 
       override def next(): ColumnarBatch = {
-        if (!hasNext) {
-          throw new java.util.NoSuchElementException("End of stream")
+        if (finished) {
+          throw new java.util.NoSuchElementException("End of stream.")
         }
         resIter.next()
       }
