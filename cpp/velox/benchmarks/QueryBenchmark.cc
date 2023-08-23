@@ -44,7 +44,7 @@ std::shared_ptr<ResultIterator> getResultIterator(
 
   std::vector<std::shared_ptr<ResultIterator>> inputIter;
   std::unordered_map<std::string, std::string> sessionConf = {};
-  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, veloxPool, sessionConf);
+  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, sessionConf);
   veloxPlan = veloxPlanConverter->toVeloxPlan(backend->getPlan());
 
   // In test, use setScanInfos to replace the one got from Substrait.
