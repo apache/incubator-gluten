@@ -169,7 +169,7 @@ class ColumnarToRowRDD(
               val info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId)
 
               convertTime += (System.currentTimeMillis() - beforeConvert)
-              batch.close()
+              // batch.close()
 
               new Iterator[InternalRow] {
                 var rowId = 0

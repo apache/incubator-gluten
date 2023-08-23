@@ -48,6 +48,10 @@ public final class NativeMemoryAllocators {
     return INSTANCES.computeIfAbsent(type, NativeMemoryAllocators::new);
   }
 
+  public NativeMemoryAllocator getListenableInstance(ReservationListener listener) {
+    return NativeMemoryAllocator.createListenable(listener, global);
+  }
+
   public NativeMemoryAllocator globalInstance() {
     return global;
   }

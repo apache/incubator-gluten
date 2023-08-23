@@ -37,7 +37,6 @@
 #include "shuffle/rss/CelebornPartitionWriter.h"
 #include "shuffle/utils.h"
 #include "utils/ArrowStatus.h"
-#include "utils/TaskContext.h"
 
 using namespace gluten;
 
@@ -1112,8 +1111,9 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_c
   if (delegatedAllocator == nullptr) {
     throw gluten::GlutenException("Allocator does not exist or has been closed");
   }
+  // TODO: let this magic number be a config
   auto listener =
-      std::make_shared<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, 1L << 20);
+      std::make_shared<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, 8L << 20);
   std::shared_ptr<MemoryAllocator>* allocator = new std::shared_ptr<MemoryAllocator>;
   *allocator = std::make_shared<ListenableMemoryAllocator>((*delegatedAllocator).get(), listener);
   return reinterpret_cast<jlong>(allocator);
@@ -1153,16 +1153,14 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_cre
   if (env->GetJavaVM(&vm) != JNI_OK) {
     throw gluten::GlutenException("Unable to get JavaVM instance");
   }
-  auto* allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocatorId);
+  auto* allocator = reinterpret_cast<std::shared_ptr<ListenableMemoryAllocator>*>(allocatorId);
   if (allocator == nullptr) {
     throw gluten::GlutenException("Allocator does not exist or has been closed");
   }
 
   auto name = jStringToCString(env, jname);
-  auto listener =
-      std::make_shared<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, 1L << 20);
   auto backend = createBackend();
-  auto manager = backend->getMemoryManager(name, *allocator, listener);
+  auto manager = backend->getMemoryManager(name, *allocator, (*allocator)->listener());
   return reinterpret_cast<jlong>(manager);
   JNI_METHOD_END(-1L)
 }

@@ -25,7 +25,6 @@
 #include "config/GlutenConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
 #include "shuffle/VeloxShuffleWriter.h"
-#include "utils/TaskContext.h"
 #include "velox/common/file/FileSystems.h"
 
 using namespace facebook;

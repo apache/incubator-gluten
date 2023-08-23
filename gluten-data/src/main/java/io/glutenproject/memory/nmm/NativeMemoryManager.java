@@ -36,7 +36,8 @@ public class NativeMemoryManager implements TaskResource {
   }
 
   public static NativeMemoryManager create(String name, ReservationListener listener) {
-    long allocatorId = NativeMemoryAllocators.getDefault().globalInstance().getNativeInstanceId();
+    long allocatorId =
+        NativeMemoryAllocators.getDefault().getListenableInstance(listener).getNativeInstanceId();
     return new NativeMemoryManager(
         name, createListenableManager(name, allocatorId, listener), listener);
   }
@@ -45,7 +46,7 @@ public class NativeMemoryManager implements TaskResource {
     return this.nativeInstanceId;
   }
 
-  public static native long createListenableManager(
+  private static native long createListenableManager(
       String name, long allocatorId, ReservationListener listener);
 
   private static native void releaseManager(long allocatorId);

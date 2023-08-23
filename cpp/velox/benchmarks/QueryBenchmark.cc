@@ -22,7 +22,6 @@
 #include "compute/VeloxPlanConverter.h"
 #include "memory/VeloxMemoryManager.h"
 #include "utils/ArrowTypeUtils.h"
-#include "utils/TaskContext.h"
 
 using namespace facebook;
 using namespace gluten;
@@ -113,7 +112,6 @@ auto BM = [](::benchmark::State& state,
 
 int main(int argc, char** argv) {
   initVeloxBackend();
-  gluten::createTaskContextStorage("test");
   ::benchmark::Initialize(&argc, argv);
   // Threads cannot work well, use ThreadRange instead.
   // The multi-thread performance is not correct.
@@ -150,7 +148,6 @@ int main(int argc, char** argv) {
 
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
-  gluten::deleteTaskContextStorage();
 
   return 0;
 }
