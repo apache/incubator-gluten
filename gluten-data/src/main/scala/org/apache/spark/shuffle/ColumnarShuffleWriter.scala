@@ -84,7 +84,7 @@ class ColumnarShuffleWriter[K, V](
 
   private var nativeShuffleWriter: Long = -1L
 
-  private var splitResult: SplitResult = _
+  private var splitResult: GlutenSplitResult = _
 
   private var partitionLengths: Array[Long] = _
 
