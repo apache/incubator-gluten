@@ -22,9 +22,8 @@ import io.glutenproject.row.SparkRowInfo
 import io.glutenproject.vectorized._
 import io.glutenproject.vectorized.BlockSplitIterator.IteratorOptions
 
-import org.apache.spark.{ShuffleDependency, SparkEnv}
+import org.apache.spark.ShuffleDependency
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.config.IO_COMPRESSION_CODEC
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.ColumnarShuffleDependency
@@ -58,7 +57,7 @@ object CHExecUtil extends Logging {
   def toBytes(
       dataSize: SQLMetric,
       iter: Iterator[ColumnarBatch],
-      compressionCodec: Option[String] = Option(SparkEnv.get.conf.get(IO_COMPRESSION_CODEC)),
+      compressionCodec: Option[String] = Some("lz4"),
       bufferSize: Int = 4 << 10): Iterator[(Int, Array[Byte])] = {
     var count = 0
     val bos = new ByteArrayOutputStream()
