@@ -33,6 +33,5 @@ jobs:
       - name: trigger_tpch_bench
         if: contains(github.event.comment.body, '/Benchmark Velox')   # check the comment if it contains the keywords
         run: |
-          PR_NUMBER=$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }')
-          branchname=origin/pr/${PR_NUMBER}/head
+          branchname=origin/pr/${{ github.event.issue.number }}/head
           curl --noproxy 10.0.0.68 -L -X POST http://10.0.0.68:8080/job/Gluten_Perf_Github_Action_Check/build --user jenkins:11fd1b5a82bfd638bd9b3749c96b324ff2 --data-urlencode json='{"parameter": [{"name":"sha1", "value":"'$branchname'"}]}'
