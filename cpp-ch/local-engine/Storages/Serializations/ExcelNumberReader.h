@@ -215,14 +215,6 @@ inline bool readExcelFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quot
     else
     {
         x = before_point;
-
-        /// Shortcut for the common case when there is an integer that fit in Int64.
-        if (read_digits && (in.eof() || *in.position() < '.'))
-        {
-            if (negative)
-                x = -x;
-            return true;
-        }
     }
 
     if (checkChar('.', in))
