@@ -31,13 +31,6 @@ class VeloxMemoryManager final : public MemoryManager {
       std::shared_ptr<MemoryAllocator> allocator,
       std::shared_ptr<AllocationListener> listener);
 
-  ~VeloxMemoryManager() {
-    // Release order is important, from leaf to root.
-    veloxLeafPool_ = nullptr;
-    veloxPool_ = nullptr;
-    veloxMemoryManager_ = nullptr;
-  }
-
   std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateMemoryPool() {
     return veloxPool_;
   }
@@ -52,11 +45,11 @@ class VeloxMemoryManager final : public MemoryManager {
 
  private:
   std::string name_;
+  std::shared_ptr<MemoryAllocator> glutenAlloc_;
+  std::shared_ptr<AllocationListener> listener_;
   std::unique_ptr<facebook::velox::memory::MemoryManager> veloxMemoryManager_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxLeafPool_;
-  std::shared_ptr<MemoryAllocator> glutenAlloc_;
-  std::shared_ptr<AllocationListener> listener_;
 };
 
 /// This pool is not tracked by Spark, should only used in test or validation.

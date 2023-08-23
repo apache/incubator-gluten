@@ -1119,7 +1119,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_b
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_createListenableManager( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_create( // NOLINT
     JNIEnv* env,
     jclass,
     jstring jname,

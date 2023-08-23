@@ -76,26 +76,26 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
   virtual MemoryManager*
   getMemoryManager(std::string name, std::shared_ptr<MemoryAllocator> allocator, std::shared_ptr<AllocationListener>) {
-    throw GlutenException("Not implement getMemoryManager");
+    throw GlutenException("getMemoryManager not implemented.");
   }
 
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row.
   virtual std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryManager* memoryManager) {
-    throw GlutenException("Not implement getColumnar2RowConverter");
+    throw GlutenException("getColumnar2RowConverter not implemented.");
   }
 
   virtual std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
       MemoryManager* memoryManager,
       struct ArrowSchema* cSchema) {
-    throw GlutenException("Not implement getRowToColumnarConverter");
+    throw GlutenException("getRowToColumnarConverter not implemented.");
   }
 
   virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options) {
-    throw GlutenException("Not implement makeShuffleWriter");
+    throw GlutenException("makeShuffleWriter not implemented.");
   }
 
   virtual std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) {
@@ -104,7 +104,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
 
   virtual std::shared_ptr<Datasource>
   getDatasource(const std::string& filePath, MemoryManager* memoryManager, std::shared_ptr<arrow::Schema> schema) {
-    throw GlutenException("Not implement getDatasource");
+    throw GlutenException("getDatasource not implemented.");
   }
 
   virtual std::shared_ptr<Reader> getShuffleReader(
@@ -119,7 +119,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
       MemoryManager* memoryManager,
       std::shared_ptr<arrow::MemoryPool> arrowPool,
       struct ArrowSchema* cSchema) {
-    throw GlutenException("Not implement getColumnarBatchSerializer");
+    throw GlutenException("getColumnarBatchSerializer not implemented.");
   }
 
   std::unordered_map<std::string, std::string> getConfMap() {

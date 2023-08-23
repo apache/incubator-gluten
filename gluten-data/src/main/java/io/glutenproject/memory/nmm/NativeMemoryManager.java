@@ -37,16 +37,14 @@ public class NativeMemoryManager implements TaskResource {
 
   public static NativeMemoryManager create(String name, ReservationListener listener) {
     long allocatorId = NativeMemoryAllocators.getDefault().globalInstance().getNativeInstanceId();
-    return new NativeMemoryManager(
-        name, createListenableManager(name, allocatorId, listener), listener);
+    return new NativeMemoryManager(name, create(name, allocatorId, listener), listener);
   }
 
   public long getNativeInstanceId() {
     return this.nativeInstanceId;
   }
 
-  private static native long createListenableManager(
-      String name, long allocatorId, ReservationListener listener);
+  private static native long create(String name, long allocatorId, ReservationListener listener);
 
   private static native void releaseManager(long allocatorId);
 
@@ -63,7 +61,7 @@ public class NativeMemoryManager implements TaskResource {
 
   @Override
   public long priority() {
-    return 0L;
+    return 0L; // lowest release priority
   }
 
   @Override
