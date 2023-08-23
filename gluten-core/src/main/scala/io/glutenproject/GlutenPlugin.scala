@@ -16,6 +16,7 @@
  */
 package io.glutenproject
 
+import io.glutenproject.GlutenConfig.GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.events.GlutenBuildInfoEvent
@@ -32,7 +33,7 @@ import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.rpc.{GlutenDriverEndpoint, GlutenExecutorEndpoint}
 import org.apache.spark.sql.SparkSessionExtensions
 import org.apache.spark.sql.execution.ui.GlutenEventUtils
-import org.apache.spark.sql.internal.StaticSQLConf
+import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.sql.utils.ExpressionUtil
 import org.apache.spark.util.{SparkResourcesUtil, TaskResources}
 
@@ -149,6 +150,9 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
       throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
     }
+    // Session's local time zone must be set. If not explicitly set by user, its default
+    // value (detected for the platform) is used, consistent with spark.
+    conf.set(GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
     val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
     conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
     // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled

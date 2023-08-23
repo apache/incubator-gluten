@@ -353,6 +353,10 @@ object GlutenConfig {
   val GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF =
     "spark.gluten.sql.columnar.extended.expressions.transformer"
 
+  // This is an internal config property set by Gluten. It is used to hold default session timezone
+  // and will be really used by Gluten only if `spark.sql.session.timeZone` is not set.
+  val GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY = "spark.gluten.sql.session.timeZone.default"
+
   // Principal of current user
   val GLUTEN_UGI_USERNAME = "spark.gluten.ugi.username"
   // Tokens of current user, split by `\0`
@@ -391,7 +395,8 @@ object GlutenConfig {
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
-      SQLConf.SESSION_LOCAL_TIMEZONE.key
+      SQLConf.SESSION_LOCAL_TIMEZONE.key,
+      GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
     )
     keys.forEach(
       k => {
