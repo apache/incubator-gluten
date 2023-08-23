@@ -1097,29 +1097,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_g
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_createListenableAllocator( // NOLINT
-    JNIEnv* env,
-    jclass,
-    jobject jlistener,
-    jlong delegatedAllocatorId) {
-  JNI_METHOD_START
-  JavaVM* vm;
-  if (env->GetJavaVM(&vm) != JNI_OK) {
-    throw gluten::GlutenException("Unable to get JavaVM instance");
-  }
-  auto* delegatedAllocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(delegatedAllocatorId);
-  if (delegatedAllocator == nullptr) {
-    throw gluten::GlutenException("Allocator does not exist or has been closed");
-  }
-  // TODO: let this magic number be a config
-  auto listener =
-      std::make_shared<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, 8L << 20);
-  std::shared_ptr<MemoryAllocator>* allocator = new std::shared_ptr<MemoryAllocator>;
-  *allocator = std::make_shared<ListenableMemoryAllocator>((*delegatedAllocator).get(), listener);
-  return reinterpret_cast<jlong>(allocator);
-  JNI_METHOD_END(-1L)
-}
-
 JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_releaseAllocator( // NOLINT
     JNIEnv* env,
     jclass,
@@ -1153,14 +1130,17 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_cre
   if (env->GetJavaVM(&vm) != JNI_OK) {
     throw gluten::GlutenException("Unable to get JavaVM instance");
   }
-  auto* allocator = reinterpret_cast<std::shared_ptr<ListenableMemoryAllocator>*>(allocatorId);
+  auto* allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocatorId);
   if (allocator == nullptr) {
     throw gluten::GlutenException("Allocator does not exist or has been closed");
   }
 
   auto name = jStringToCString(env, jname);
   auto backend = createBackend();
-  auto manager = backend->getMemoryManager(name, *allocator, (*allocator)->listener());
+  // TODO: let this magic number be a config
+  auto listener =
+      std::make_shared<SparkAllocationListener>(vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, 8L << 20);
+  auto manager = backend->getMemoryManager(name, *allocator, listener);
   return reinterpret_cast<jlong>(manager);
   JNI_METHOD_END(-1L)
 }

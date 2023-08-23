@@ -37,22 +37,12 @@ public class NativeMemoryAllocator {
     return new NativeMemoryAllocator(getAllocator(type.name()), ReservationListener.NOOP);
   }
 
-  public static NativeMemoryAllocator createListenable(
-      ReservationListener listener, NativeMemoryAllocator delegated) {
-    return new NativeMemoryAllocator(
-        createListenableAllocator(listener, delegated.nativeInstanceId), listener);
-  }
-
   public ReservationListener listener() {
     return listener;
   }
 
   public long getNativeInstanceId() {
     return this.nativeInstanceId;
-  }
-
-  public long getBytesAllocated() {
-    return bytesAllocated(this.nativeInstanceId);
   }
 
   public void close() {
@@ -65,6 +55,4 @@ public class NativeMemoryAllocator {
       ReservationListener listener, long delegatedAllocatorId);
 
   private static native void releaseAllocator(long allocatorId);
-
-  private static native long bytesAllocated(long allocatorId);
 }

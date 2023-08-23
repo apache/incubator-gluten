@@ -56,6 +56,7 @@ class VeloxMemoryManager final : public MemoryManager {
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxLeafPool_;
   std::shared_ptr<MemoryAllocator> glutenAlloc_;
+  std::shared_ptr<AllocationListener> listener_;
 };
 
 /// This pool is not tracked by Spark, should only used in test or validation.

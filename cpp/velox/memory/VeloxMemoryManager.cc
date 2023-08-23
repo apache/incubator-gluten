@@ -93,9 +93,8 @@ VeloxMemoryManager::VeloxMemoryManager(
     std::string name,
     std::shared_ptr<MemoryAllocator> allocator,
     std::shared_ptr<AllocationListener> listener)
-    : MemoryManager(), name_(name) {
-  glutenAlloc_ = std::make_shared<ListenableMemoryAllocator>(allocator.get(), listener);
-
+    : MemoryManager(), name_(name), listener_(std::move(listener)) {
+  glutenAlloc_ = std::make_shared<ListenableMemoryAllocator>(allocator.get(), listener_);
   velox::memory::MemoryArbitrator::Config arbitratorConfig{
       velox::memory::MemoryArbitrator::Kind::kNoOp, // do not use shared arbitrator as it will mess up the thread
                                                     // contexts (one Spark task reclaims memory from another)
@@ -109,7 +108,7 @@ VeloxMemoryManager::VeloxMemoryManager(
       true,
       false,
       velox::memory::MemoryAllocator::getInstance(),
-      [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener.get()); },
+      [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener_.get()); },
   };
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
   veloxPool_ = veloxMemoryManager_->addRootPool(

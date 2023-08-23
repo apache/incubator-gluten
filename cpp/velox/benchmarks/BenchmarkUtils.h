@@ -107,8 +107,9 @@ void setCpu(uint32_t cpuindex);
 
 /// Test only.
 inline std::shared_ptr<gluten::VeloxMemoryManager> getDefaultMemoryManager() {
-  return std::make_shared<gluten::VeloxMemoryManager>(
-      "default",
+  static auto memoryManager = std::make_shared<gluten::VeloxMemoryManager>(
+      "benchmark",
       gluten::defaultMemoryAllocator(),
       std::shared_ptr<gluten::AllocationListener>(gluten::AllocationListener::noop()));
+  return memoryManager;
 }
