@@ -114,14 +114,19 @@ object RowToVeloxColumnarExec {
     }
 
     val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
+      var finished = false
 
       override def hasNext: Boolean = {
-        val itHasNext = it.hasNext
-        if (!itHasNext && !closed) {
-          jniWrapper.close(r2cHandle)
-          closed = true
+        if (finished) {
+          false
+        } else {
+          val itHasNext = it.hasNext
+          if (!itHasNext && !closed) {
+            jniWrapper.close(r2cHandle)
+            closed = true
+          }
+          itHasNext
         }
-        itHasNext
       }
 
       def nativeConvert(row: UnsafeRow): ColumnarBatch = {
@@ -154,25 +159,30 @@ object RowToVeloxColumnarExec {
         rowLength += sizeInBytes.toLong
         rowCount += 1
 
-        while (rowCount < columnBatchSize && it.hasNext) {
-          val row = it.next()
-          val unsafeRow = convertToUnsafeRow(row)
-          val sizeInBytes = unsafeRow.getSizeInBytes
-          if ((offset + sizeInBytes) > arrowBuf.capacity()) {
-            val tmpBuf = allocator.buffer(((offset + sizeInBytes) * 2).toLong)
-            tmpBuf.setBytes(0, arrowBuf, 0, offset)
-            arrowBuf.close()
-            arrowBuf = tmpBuf
+        while (rowCount < columnBatchSize && !finished) {
+          val iterHasNext = it.hasNext
+          if (!iterHasNext) {
+            finished = true
+          } else {
+            val row = it.next()
+            val unsafeRow = convertToUnsafeRow(row)
+            val sizeInBytes = unsafeRow.getSizeInBytes
+            if ((offset + sizeInBytes) > arrowBuf.capacity()) {
+              val tmpBuf = allocator.buffer(((offset + sizeInBytes) * 2).toLong)
+              tmpBuf.setBytes(0, arrowBuf, 0, offset)
+              arrowBuf.close()
+              arrowBuf = tmpBuf
+            }
+            Platform.copyMemory(
+              unsafeRow.getBaseObject,
+              unsafeRow.getBaseOffset,
+              null,
+              arrowBuf.memoryAddress() + offset,
+              sizeInBytes)
+            offset += sizeInBytes
+            rowLength += sizeInBytes.toLong
+            rowCount += 1
           }
-          Platform.copyMemory(
-            unsafeRow.getBaseObject,
-            unsafeRow.getBaseOffset,
-            null,
-            arrowBuf.memoryAddress() + offset,
-            sizeInBytes)
-          offset += sizeInBytes
-          rowLength += sizeInBytes.toLong
-          rowCount += 1
         }
         numInputRows += rowCount
         try {

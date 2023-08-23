@@ -170,9 +170,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
       }
 
       override def next(): ColumnarBatch = {
-        if (!hasNext) {
-          throw new java.util.NoSuchElementException("End of stream")
-        }
         resIter.next()
       }
     }
