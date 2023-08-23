@@ -55,7 +55,8 @@ public class NativeMemoryManager implements TaskResource {
     releaseManager(nativeInstanceId);
     if (listener.getUsedBytes() != 0) {
       LOGGER.warn(
-          "Reservation listener still has unreserved bytes, may has memory leak, size "
+          name
+              + " Reservation listener still has unreserved bytes, may has memory leak, size "
               + Utils.bytesToString(listener.getUsedBytes()));
     }
   }

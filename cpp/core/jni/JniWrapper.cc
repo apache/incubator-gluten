@@ -1080,7 +1080,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_vel
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_getAllocator( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_getAllocator( // NOLINT
     JNIEnv* env,
     jclass,
     jstring jTypeName) {
@@ -1098,7 +1098,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_createListenableAllocator( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_createListenableAllocator( // NOLINT
     JNIEnv* env,
     jclass,
     jobject jlistener,
@@ -1120,7 +1120,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_releaseAllocator( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_releaseAllocator( // NOLINT
     JNIEnv* env,
     jclass,
     jlong allocatorId) {
@@ -1129,7 +1129,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_bytesAllocated( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_bytesAllocated( // NOLINT
     JNIEnv* env,
     jclass,
     jlong allocatorId) {
@@ -1142,7 +1142,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryManager_createListenableManager( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_createListenableManager( // NOLINT
     JNIEnv* env,
     jclass,
     jstring jname,
@@ -1167,7 +1167,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryManager_c
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryManager_releaseManager( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_releaseManager( // NOLINT
     JNIEnv* env,
     jclass,
     jlong memoryManagerId) {
