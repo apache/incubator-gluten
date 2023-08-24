@@ -885,29 +885,38 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
       return false;
     }
     auto funcName = SubstraitParser::mapToVeloxFunction(SubstraitParser::getSubFunctionName(funcSpec), isDecimal);
-    if (auto signatures = exec::getAggregateFunctionSignatures(funcName)) {
-      for (const auto& signature : signatures.value()) {
-        exec::SignatureBinder binder(*signature, types);
-        if (binder.tryBind()) {
-          auto resolveType = binder.tryResolveType(
-              exec::isPartialOutput(planConverter_.toAggregationStep(aggRel)) ? signature->intermediateType()
-                                                                              : signature->returnType());
-          if (resolveType == nullptr) {
-            logValidateMsg(
-                "native validation failed due to: Validation failed for function " + funcName +
-                "resolve type in AggregateRel.");
-            return false;
-          }
-          return true;
-        }
-      }
+    auto signaturesOpt = exec::getAggregateFunctionSignatures(funcName);
+    if (!signaturesOpt) {
       logValidateMsg(
-          "native validation failed due to: Validation failed for function " + funcName + " bind in AggregateRel.");
+          "native validation failed due to: can not find function signature for " + funcName + " in AggregateRel.");
+      return false;
+    }
+
+    bool resolved = false;
+    for (const auto& signature : signaturesOpt.value()) {
+      exec::SignatureBinder binder(*signature, types);
+      if (binder.tryBind()) {
+        auto resolveType = binder.tryResolveType(
+            exec::isPartialOutput(planConverter_.toAggregationStep(aggRel)) ? signature->intermediateType()
+                                                                            : signature->returnType());
+        if (resolveType == nullptr) {
+          logValidateMsg(
+              "native validation failed due to: Validation failed for function " + funcName +
+              "resolve type in AggregateRel.");
+          return false;
+        }
+        resolved = true;
+        break;
+      }
+    }
+    if (!resolved) {
+      logValidateMsg(
+          "native validation failed due to: Validation failed for function " + funcName +
+          " bind signatures in AggregateRel.");
       return false;
     }
   }
-  logValidateMsg("native validation failed due to: Validation failed for function resolve in AggregateRel.");
-  return false;
+  return true;
 }
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& aggRel) {
