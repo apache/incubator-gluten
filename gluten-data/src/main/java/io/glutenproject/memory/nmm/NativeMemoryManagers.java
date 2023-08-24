@@ -22,6 +22,7 @@ import io.glutenproject.memory.memtarget.MemoryTarget;
 import io.glutenproject.memory.memtarget.MemoryTargets;
 import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
+
 import org.apache.spark.TaskContext;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
@@ -42,9 +43,7 @@ public final class NativeMemoryManagers {
                 TaskResources.getSharedUsage()));
   }
 
-  /**
-   * Create a temporary memory manager, caller should call NativeMemoryManager#release manually.
-   */
+  /** Create a temporary memory manager, caller should call NativeMemoryManager#release manually. */
   public static NativeMemoryManager tmpInstance(String name) {
     if (TaskResources.inSparkTask()) {
       throw new IllegalStateException("This method should not used here.");
