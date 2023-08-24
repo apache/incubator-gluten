@@ -134,9 +134,9 @@ int64_t getBatchNbytes(const arrow::RecordBatch& rb) {
 }
 
 std::shared_ptr<arrow::Array> makeNullBinaryArray(std::shared_ptr<arrow::DataType> type, ShuffleBufferPool* pool) {
-  std::shared_ptr<arrow::Buffer> offsetBuffer;
+  std::shared_ptr<arrow::ResizableBuffer> offsetBuffer;
   size_t sizeofBinaryOffset = sizeof(arrow::LargeStringType::offset_type);
-  GLUTEN_THROW_NOT_OK(pool->allocate(offsetBuffer, sizeofBinaryOffset * 2));
+  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(offsetBuffer, sizeofBinaryOffset * 2));
   // set the first offset to 0, and set the value offset
   uint8_t* offsetaddr = offsetBuffer->mutable_data();
   memset(offsetaddr, 0, sizeofBinaryOffset);
@@ -156,9 +156,9 @@ std::shared_ptr<arrow::Array> makeBinaryArray(
     return makeNullBinaryArray(type, pool);
   }
 
-  std::shared_ptr<arrow::Buffer> offsetBuffer;
+  std::shared_ptr<arrow::ResizableBuffer> offsetBuffer;
   size_t sizeofBinaryOffset = sizeof(arrow::LargeStringType::offset_type);
-  GLUTEN_THROW_NOT_OK(pool->allocate(offsetBuffer, sizeofBinaryOffset * 2));
+  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(offsetBuffer, sizeofBinaryOffset * 2));
   // set the first offset to 0, and set the value offset
   uint8_t* offsetaddr = offsetBuffer->mutable_data();
   memset(offsetaddr, 0, sizeofBinaryOffset);
@@ -594,6 +594,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
 }
 
 arrow::Status VeloxShuffleWriter::stop() {
+  setSplitBufferSize(pool_->bytesAllocated());
   EVAL_START("write", options_.thread_id)
   RETURN_NOT_OK(partitionWriter_->stop());
   if (options_.ipc_memory_pool != options_.memory_pool) {

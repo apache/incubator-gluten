@@ -173,9 +173,9 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
    * temporary file. And stop processing splitting
    *
    * @param shuffleWriterId shuffle writer instance id
-   * @return SplitResult
+   * @return GlutenSplitResult
    */
-  public native SplitResult stop(long shuffleWriterId) throws IOException;
+  public native GlutenSplitResult stop(long shuffleWriterId) throws IOException;
 
   /**
    * Release resources associated with designated shuffle writer instance.

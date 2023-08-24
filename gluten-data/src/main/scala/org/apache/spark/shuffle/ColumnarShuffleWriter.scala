@@ -84,7 +84,7 @@ class ColumnarShuffleWriter[K, V](
 
   private var nativeShuffleWriter: Long = -1L
 
-  private var splitResult: SplitResult = _
+  private var splitResult: GlutenSplitResult = _
 
   private var partitionLengths: Array[Long] = _
 
@@ -190,6 +190,7 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
+    dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
