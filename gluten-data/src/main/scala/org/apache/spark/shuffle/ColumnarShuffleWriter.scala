@@ -18,8 +18,8 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.memtarget.spark.Spiller
+import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
 
 import org.apache.spark._
@@ -122,6 +122,7 @@ class ColumnarShuffleWriter[K, V](
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
+        val rows = cb.numRows()
         val handle = ColumnarBatches.getNativeHandle(cb)
         if (nativeShuffleWriter == -1L) {
           nativeShuffleWriter = jniWrapper.make(
@@ -136,11 +137,9 @@ class ColumnarShuffleWriter[K, V](
             blockManager.subDirsPerLocalDir,
             localDirs,
             preferSpill,
-            NativeMemoryAllocators
-              .getDefault()
+            NativeMemoryManagers
               .create(
                 "ShuffleWriter",
-                0.0d,
                 new Spiller() {
                   override def spill(size: Long, trigger: MemoryConsumer): Long = {
                     if (nativeShuffleWriter == -1L) {
@@ -165,19 +164,21 @@ class ColumnarShuffleWriter[K, V](
           )
         }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(nativeShuffleWriter, cb.numRows, handle)
+        val bytes = jniWrapper.split(nativeShuffleWriter, rows, handle)
         dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
-        dep.metrics("numInputRows").add(cb.numRows)
+        dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
-        writeMetrics.incRecordsWritten(cb.numRows())
+        writeMetrics.incRecordsWritten(rows)
       }
+      cb.close()
     }
 
     val startTime = System.nanoTime()
     if (nativeShuffleWriter != -1L) {
       splitResult = jniWrapper.stop(nativeShuffleWriter)
+      closeShuffleWriter
     }
 
     dep
@@ -219,8 +220,9 @@ class ColumnarShuffleWriter[K, V](
     internalWrite(records)
   }
 
-  def closeShuffleWriter(): Unit = {
+  private def closeShuffleWriter(): Unit = {
     jniWrapper.close(nativeShuffleWriter)
+    nativeShuffleWriter = -1L
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {

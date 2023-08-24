@@ -14,33 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.alloc;
 
-public interface ReservationListener {
-  ReservationListener NOOP =
-      new ReservationListener() {
-        @Override
-        public void reserveOrThrow(long size) {}
+#pragma once
 
-        @Override
-        public long reserve(long size) {
-          return 0L;
-        }
+#include "MemoryAllocator.h"
 
-        @Override
-        public long unreserve(long size) {
-          return 0L;
-        }
+namespace gluten {
 
-        @Override
-        public void inactivate() {}
-      };
+class MemoryManager {
+ public:
+  MemoryManager() = default;
 
-  long reserve(long size);
+  virtual ~MemoryManager() = default;
 
-  void reserveOrThrow(long size);
+  virtual MemoryAllocator* getMemoryAllocator() = 0;
+};
 
-  long unreserve(long size);
-
-  void inactivate();
-}
+} // namespace gluten

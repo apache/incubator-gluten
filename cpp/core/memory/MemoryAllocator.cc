@@ -108,8 +108,8 @@ MemoryAllocator* ListenableMemoryAllocator::delegatedAllocator() {
   return delegated_;
 }
 
-AllocationListener* ListenableMemoryAllocator::listener() {
-  return listener_.get();
+std::shared_ptr<AllocationListener> ListenableMemoryAllocator::listener() {
+  return listener_;
 }
 
 bool StdMemoryAllocator::allocate(int64_t size, void** out) {

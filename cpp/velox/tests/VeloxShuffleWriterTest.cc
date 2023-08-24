@@ -17,7 +17,7 @@
 
 #include "shuffle/VeloxShuffleWriter.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/vector/arrow/Bridge.h"

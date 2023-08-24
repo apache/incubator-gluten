@@ -24,7 +24,7 @@ namespace gluten {
 class DummyBackend final : public Backend {
  public:
   std::shared_ptr<ResultIterator> getResultIterator(
-      MemoryAllocator* allocator,
+      MemoryManager* memoryManager,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
       const std::unordered_map<std::string, std::string>& sessionConf) override {
@@ -65,7 +65,7 @@ TEST(TestExecBackend, CreateBackend) {
 
 TEST(TestExecBackend, GetResultIterator) {
   auto backend = std::make_shared<DummyBackend>();
-  auto iter = backend->getResultIterator(defaultMemoryAllocator().get(), "/tmp/test-spill", {}, {});
+  auto iter = backend->getResultIterator(nullptr, "/tmp/test-spill", {}, {});
   ASSERT_TRUE(iter->hasNext());
   auto next = iter->next();
   ASSERT_NE(next, nullptr);

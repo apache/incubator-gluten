@@ -44,7 +44,7 @@
 #include "arrow/array/util.h"
 #include "arrow/result.h"
 
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/Partitioner.h"
 #include "shuffle/ShuffleWriter.h"

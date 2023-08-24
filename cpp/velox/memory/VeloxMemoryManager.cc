@@ -15,21 +15,18 @@
  * limitations under the License.
  */
 
-#include "VeloxMemoryPool.h"
-#include "compute/Backend.h"
-#include "compute/VeloxBackend.h"
-#include "compute/VeloxInitializer.h"
-#include "utils/TaskContext.h"
-#include "velox/common/memory/MemoryAllocator.h"
+#include "VeloxMemoryManager.h"
 
-#include <glog/logging.h>
-
-using namespace facebook;
+#include "utils/exception.h"
 
 namespace gluten {
 
+using namespace facebook;
+
 // So far HbmMemoryAllocator would not work correctly since the underlying
 //   gluten allocator is only used to do allocation-reporting to Spark in mmap case
+// This allocator only hook `allocateBytes` and `freeBytes`, we can not ensure this behavior is safe enough,
+// so, only use this allocator when build with GLUTEN_ENABLE_HBM.
 class VeloxMemoryAllocator final : public velox::memory::MemoryAllocator {
  public:
   VeloxMemoryAllocator(gluten::MemoryAllocator* glutenAlloc, velox::memory::MemoryAllocator* veloxAlloc)
@@ -99,7 +96,7 @@ class VeloxMemoryAllocator final : public velox::memory::MemoryAllocator {
   velox::memory::MemoryAllocator* veloxAlloc_;
 };
 
-// We assume in a single Spark task. No thread-safety should be guaranteed.
+/// We assume in a single Spark task. No thread-safety should be guaranteed.
 class ListenableArbitrator : public velox::memory::MemoryArbitrator {
  public:
   ListenableArbitrator(const Config& config, AllocationListener* listener)
@@ -145,7 +142,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
  private:
-  void growPool(memory::MemoryPool* pool, uint64_t bytes) {
+  void growPool(velox::memory::MemoryPool* pool, uint64_t bytes) {
     listener_->allocationChanged(bytes);
     pool->grow(bytes);
   }
@@ -165,42 +162,16 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   gluten::AllocationListener* listener_;
 };
 
-velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
-  return &(facebook::velox::memory::defaultMemoryManager());
-}
-
-static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
-  auto* mm = getDefaultVeloxMemoryManager();
-  static auto root = mm->addRootPool(
-      "gluten_root", mm->capacity(), facebook::velox::memory::MemoryReclaimer::create()); // the 3rd capacity
-  return root;
-}
-
-std::shared_ptr<velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
-  // this pool is not tracked by Spark
-  static auto leaf =
-      rootVeloxMemoryPool()->addLeafChild("default_leaf", true, facebook::velox::memory::MemoryReclaimer::create());
-  return leaf;
-}
-
-std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::MemoryAllocator* allocator) {
-  // this pool is tracked by Spark
-  static std::atomic_uint32_t id = 0;
-  velox::memory::MemoryAllocator* veloxAlloc = velox::memory::MemoryAllocator::getInstance();
-  gluten::MemoryAllocator* glutenAlloc;
-  gluten::AllocationListener* listener;
-  if (dynamic_cast<gluten::ListenableMemoryAllocator*>(allocator)) {
-    // unwrap allocator and listener
-    auto listenable = dynamic_cast<gluten::ListenableMemoryAllocator*>(allocator);
-    glutenAlloc = listenable->delegatedAllocator();
-    listener = listenable->listener();
-  } else {
-    // use the allocator directly
-    glutenAlloc = allocator;
-    listener = AllocationListener::noop();
-  }
-  auto wrappedAlloc = std::make_shared<VeloxMemoryAllocator>(glutenAlloc, veloxAlloc);
-  bindToTask(wrappedAlloc); // keep alive util task ends
+VeloxMemoryManager::VeloxMemoryManager(
+    std::string name,
+    std::shared_ptr<MemoryAllocator> allocator,
+    std::shared_ptr<AllocationListener> listener)
+    : MemoryManager(), name_(name), listener_(std::move(listener)) {
+  auto veloxAlloc = velox::memory::MemoryAllocator::getInstance();
+  glutenAlloc_ = std::make_shared<ListenableMemoryAllocator>(allocator.get(), listener_);
+#ifdef GLUTEN_ENABLE_HBM
+  auto wrappedAlloc = std::make_shared<VeloxMemoryAllocator>(allocator.get(), veloxAlloc);
+#endif
   velox::memory::MemoryArbitrator::Config arbitratorConfig{
       velox::memory::MemoryArbitrator::Kind::kNoOp, // do not use shared arbitrator as it will mess up the thread
                                                     // contexts (one Spark task reclaims memory from another)
@@ -213,15 +184,36 @@ std::shared_ptr<velox::memory::MemoryPool> asAggregateVeloxMemoryPool(gluten::Me
       velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
       true,
       false,
-      wrappedAlloc.get(), // the allocator is tracked by Spark
-      [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener); },
+#ifdef GLUTEN_ENABLE_HBM
+      wrappedAlloc.get(),
+#else
+      veloxAlloc,
+#endif
+      [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener_.get()); },
   };
-  std::shared_ptr<velox::memory::MemoryManager> mm = std::make_shared<velox::memory::MemoryManager>(mmOptions);
-  bindToTask(mm);
-  auto pool = mm->addRootPool(
-      "wrapped_root_" + std::to_string(id++),
+  veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
+  veloxPool_ = veloxMemoryManager_->addRootPool(
+      name_ + "_root",
       velox::memory::kMaxMemory, // the 3rd capacity
       facebook::velox::memory::MemoryReclaimer::create());
-  return pool;
+  veloxLeafPool_ = veloxPool_->addLeafChild(name_ + "_default_leaf");
 }
+
+velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
+  return &(facebook::velox::memory::defaultMemoryManager());
+}
+
+static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
+  auto* mm = getDefaultVeloxMemoryManager();
+  static auto root = mm->addRootPool(
+      "gluten_root", mm->capacity(), facebook::velox::memory::MemoryReclaimer::create()); // the 3rd capacity
+  return root;
+}
+
+std::shared_ptr<velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
+  static auto leaf =
+      rootVeloxMemoryPool()->addLeafChild("default_leaf", true, facebook::velox::memory::MemoryReclaimer::create());
+  return leaf;
+}
+
 } // namespace gluten

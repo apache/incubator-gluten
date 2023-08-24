@@ -25,7 +25,6 @@
 #include "config/GlutenConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
 #include "shuffle/VeloxShuffleWriter.h"
-#include "utils/TaskContext.h"
 #include "velox/common/file/FileSystems.h"
 
 using namespace facebook;
@@ -70,7 +69,7 @@ void VeloxBackend::getInfoAndIds(
 }
 
 std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
-    MemoryAllocator* allocator,
+    MemoryManager* memoryManager,
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
@@ -81,7 +80,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
     inputIters_ = std::move(inputs);
   }
 
-  auto veloxPool = asAggregateVeloxMemoryPool(allocator);
+  auto veloxPool = getAggregateVeloxPool(memoryManager);
   auto ctxPool = veloxPool->addAggregateChild("result_iterator", facebook::velox::memory::MemoryReclaimer::create());
 
   VeloxPlanConverter veloxPlanConverter(inputIters_, sessionConf);
@@ -107,19 +106,16 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   }
 }
 
-std::shared_ptr<ColumnarToRowConverter> VeloxBackend::getColumnar2RowConverter(MemoryAllocator* allocator) {
-  auto veloxPool = asAggregateVeloxMemoryPool(allocator);
-  auto ctxVeloxPool = veloxPool->addLeafChild("columnar_to_row_velox");
+std::shared_ptr<ColumnarToRowConverter> VeloxBackend::getColumnar2RowConverter(MemoryManager* memoryManager) {
+  auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return std::make_shared<VeloxColumnarToRowConverter>(ctxVeloxPool);
 }
 
 std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
-    MemoryAllocator* allocator,
+    MemoryManager* memoryManager,
     struct ArrowSchema* cSchema) {
-  auto veloxAggregatePool = asAggregateVeloxMemoryPool(allocator);
-  auto veloxPool = veloxAggregatePool->addLeafChild("row_to_columnar");
-  gluten::bindToTask(veloxPool);
-  return std::make_shared<VeloxRowToColumnarConverter>(cSchema, veloxPool);
+  auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
+  return std::make_shared<VeloxRowToColumnarConverter>(cSchema, ctxVeloxPool);
 }
 
 std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
@@ -133,11 +129,10 @@ std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
 }
 
 std::shared_ptr<ColumnarBatchSerializer> VeloxBackend::getColumnarBatchSerializer(
-    MemoryAllocator* allocator,
+    MemoryManager* memoryManager,
+    std::shared_ptr<arrow::MemoryPool> arrowPool,
     struct ArrowSchema* cSchema) {
-  auto arrowPool = asArrowMemoryPool(allocator);
-  auto veloxPool = asAggregateVeloxMemoryPool(allocator);
-  auto ctxVeloxPool = veloxPool->addLeafChild("velox_columnar_batch_serializer");
+  auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return std::make_shared<VeloxColumnarBatchSerializer>(arrowPool, ctxVeloxPool, cSchema);
 }
 

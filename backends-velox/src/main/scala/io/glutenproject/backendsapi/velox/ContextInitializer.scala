@@ -23,7 +23,6 @@ import io.glutenproject.execution.datasource.GlutenOrcWriterInjects
 import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.expression.UDFMappings
-import io.glutenproject.init.JniTaskContext
 import io.glutenproject.utils._
 import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
 
@@ -97,9 +96,7 @@ class ContextInitializer extends ContextApi {
       .commit()
   }
 
-  override def taskResourceFactories(): Seq[() => TaskResource] = {
-    Seq(() => new JniTaskContext())
-  }
+  override def taskResourceFactories(): Seq[() => TaskResource] = Seq.empty
 
   override def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault

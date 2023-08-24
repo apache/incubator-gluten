@@ -18,8 +18,8 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.velox.Validator
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized._
 
@@ -76,7 +76,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
               ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
               jniWrapper.init(
                 cSchema.memoryAddress(),
-                NativeMemoryAllocators.getDefault
+                NativeMemoryManagers
                   .contextInstance("RowToColumnar")
                   .getNativeInstanceId)
             } finally {

@@ -21,6 +21,7 @@
 #include "compute/ResultIterator.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
+#include "memory/MemoryManager.h"
 #include "operators/c2r/ColumnarToRow.h"
 #include "operators/r2c/RowToColumnar.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
@@ -46,7 +47,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
   virtual ~Backend() = default;
 
   virtual std::shared_ptr<ResultIterator> getResultIterator(
-      MemoryAllocator* allocator,
+      MemoryManager* memoryManager,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
       const std::unordered_map<std::string, std::string>& sessionConf) = 0;
@@ -73,47 +74,52 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return substraitPlan_;
   }
 
+  virtual MemoryManager*
+  getMemoryManager(std::string name, std::shared_ptr<MemoryAllocator> allocator, std::shared_ptr<AllocationListener>) {
+    throw GlutenException("getMemoryManager not implemented.");
+  }
+
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row.
-  virtual std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryAllocator* allocator) {
-    throw GlutenException("Not implement getColumnar2RowConverter");
-  };
+  virtual std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryManager* memoryManager) {
+    throw GlutenException("getColumnar2RowConverter not implemented.");
+  }
 
   virtual std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
-      MemoryAllocator* allocator,
+      MemoryManager* memoryManager,
       struct ArrowSchema* cSchema) {
-    throw GlutenException("Not implement getRowToColumnarConverter");
+    throw GlutenException("getRowToColumnarConverter not implemented.");
   }
 
   virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options) {
-    throw GlutenException("Not implement makeShuffleWriter");
+    throw GlutenException("makeShuffleWriter not implemented.");
   }
 
   virtual std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) {
     return nullptr;
   }
 
-  virtual std::shared_ptr<Datasource> getDatasource(
-      const std::string& filePath,
-      std::shared_ptr<arrow::Schema> schema) {
-    throw GlutenException("Not implement getDatasource");
+  virtual std::shared_ptr<Datasource>
+  getDatasource(const std::string& filePath, MemoryManager* memoryManager, std::shared_ptr<arrow::Schema> schema) {
+    throw GlutenException("getDatasource not implemented.");
   }
 
   virtual std::shared_ptr<Reader> getShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,
-      MemoryAllocator* allocator) {
+      MemoryManager* memoryManager) {
     return std::make_shared<Reader>(schema, options, pool);
   }
 
   virtual std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
-      MemoryAllocator* allocator,
+      MemoryManager* memoryManager,
+      std::shared_ptr<arrow::MemoryPool> arrowPool,
       struct ArrowSchema* cSchema) {
-    throw GlutenException("Not implement getColumnarBatchSerializer");
+    throw GlutenException("getColumnarBatchSerializer not implemented.");
   }
 
   std::unordered_map<std::string, std::string> getConfMap() {

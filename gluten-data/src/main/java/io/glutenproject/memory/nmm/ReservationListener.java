@@ -14,16 +14,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.memory.nmm;
 
-#pragma once
+public interface ReservationListener {
+  ReservationListener NOOP =
+      new ReservationListener() {
+        @Override
+        public void reserveOrThrow(long size) {}
 
-#include "memory/MemoryAllocator.h"
-#include "velox/common/memory/Memory.h"
+        @Override
+        public long reserve(long size) {
+          return 0L;
+        }
 
-namespace gluten {
+        @Override
+        public long unreserve(long size) {
+          return 0L;
+        }
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> asAggregateVeloxMemoryPool(MemoryAllocator* allocator);
+        @Override
+        public long getUsedBytes() {
+          return 0;
+        }
 
-std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool();
+        @Override
+        public void inactivate() {}
+      };
 
-} // namespace gluten
+  long reserve(long size);
+
+  void reserveOrThrow(long size);
+
+  long unreserve(long size);
+
+  void inactivate();
+
+  long getUsedBytes();
+}

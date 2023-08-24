@@ -193,7 +193,6 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/rss/CelebornPartitionWriter.cc
         memory/ColumnarBatch.cc
         utils/Compression.cc
-        utils/TaskContext.cc
         utils/StringUtil.cc)
 
 file(MAKE_DIRECTORY ${root_directory}/releases)

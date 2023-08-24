@@ -24,7 +24,7 @@ public class NativeColumnarToRowJniWrapper extends JniInitialized {
 
   public NativeColumnarToRowJniWrapper() throws IOException {}
 
-  public native long nativeColumnarToRowInit(long allocatorId) throws RuntimeException;
+  public native long nativeColumnarToRowInit(long memoryManagerId) throws RuntimeException;
 
   public native NativeColumnarToRowInfo nativeColumnarToRowConvert(
       long batchHandle, long instanceId) throws RuntimeException;

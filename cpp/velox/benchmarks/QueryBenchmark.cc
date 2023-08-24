@@ -20,8 +20,8 @@
 
 #include "BenchmarkUtils.h"
 #include "compute/VeloxPlanConverter.h"
+#include "memory/VeloxMemoryManager.h"
 #include "utils/ArrowTypeUtils.h"
-#include "utils/TaskContext.h"
 
 using namespace facebook;
 using namespace gluten;
@@ -34,11 +34,10 @@ const std::string getFilePath(const std::string& fileName) {
 
 // Used by unit test and benchmark.
 std::shared_ptr<ResultIterator> getResultIterator(
-    MemoryAllocator* allocator,
+    std::shared_ptr<velox::memory::MemoryPool> veloxPool,
     std::shared_ptr<Backend> backend,
     const std::vector<std::shared_ptr<SplitInfo>>& setScanInfos,
     std::shared_ptr<const facebook::velox::core::PlanNode>& veloxPlan) {
-  auto veloxPool = asAggregateVeloxMemoryPool(allocator);
   auto ctxPool = veloxPool->addAggregateChild(
       "query_benchmark_result_iterator", facebook::velox::memory::MemoryReclaimer::create());
 
@@ -75,6 +74,9 @@ auto BM = [](::benchmark::State& state,
   const auto& filePath = getFilePath("plan/" + jsonFile);
   auto plan = getPlanFromFile(filePath);
 
+  auto memoryManager = getDefaultMemoryManager();
+  auto veloxPool = memoryManager->getAggregateMemoryPool();
+
   std::vector<std::shared_ptr<SplitInfo>> scanInfos;
   scanInfos.reserve(datasetPaths.size());
   for (const auto& datasetPath : datasetPaths) {
@@ -92,7 +94,7 @@ auto BM = [](::benchmark::State& state,
 
     backend->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
     std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan;
-    auto resultIter = getResultIterator(gluten::defaultMemoryAllocator().get(), backend, scanInfos, veloxPlan);
+    auto resultIter = getResultIterator(veloxPool, backend, scanInfos, veloxPlan);
     auto outputSchema = toArrowSchema(veloxPlan->outputType());
     while (resultIter->hasNext()) {
       auto array = resultIter->next()->exportArrowArray();
@@ -110,7 +112,6 @@ auto BM = [](::benchmark::State& state,
 
 int main(int argc, char** argv) {
   initVeloxBackend();
-  gluten::createTaskContextStorage("test");
   ::benchmark::Initialize(&argc, argv);
   // Threads cannot work well, use ThreadRange instead.
   // The multi-thread performance is not correct.
@@ -147,7 +148,6 @@ int main(int argc, char** argv) {
 
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
-  gluten::deleteTaskContextStorage();
 
   return 0;
 }

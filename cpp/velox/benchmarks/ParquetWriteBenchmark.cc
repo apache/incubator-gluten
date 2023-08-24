@@ -37,7 +37,7 @@
 #include "compute/VeloxBackend.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "utils/TestUtils.h"
 #include "utils/macros.h"
 #include "velox/dwio/parquet/writer/Writer.h"
@@ -259,11 +259,13 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     auto fileName = "velox_parquet_write.parquet";
 
     auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
+    auto memoryManager = getDefaultMemoryManager();
+    auto veloxPool = memoryManager->getAggregateMemoryPool();
 
     for (auto _ : state) {
       // Init VeloxParquetDataSource
-      auto veloxParquetDatasource =
-          std::make_unique<gluten::VeloxParquetDatasource>(outputPath_ + "/" + fileName, localSchema);
+      auto veloxParquetDatasource = std::make_unique<gluten::VeloxParquetDatasource>(
+          outputPath_ + "/" + fileName, veloxPool->addAggregateChild("writer_benchmark"), localSchema);
 
       veloxParquetDatasource->init(backend->getConfMap());
       auto start = std::chrono::steady_clock::now();
