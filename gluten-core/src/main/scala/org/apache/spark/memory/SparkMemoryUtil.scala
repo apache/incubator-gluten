@@ -88,7 +88,7 @@ object SparkMemoryUtil {
     val peakWidth = stats.map(each => getBytes(each.peak).length).max
     for (i <- stats.indices) {
       val each = stats(i)
-      sb.append("    from ") // indent with 4 whitespaces (align with exception stack trace)
+      sb.append("\tfrom ") // indent with a tab (align with exception stack trace)
       sb.append(
         s"%${nameWidth}s: Current used bytes: %${usedWidth}s, peak bytes: %${peakWidth}s"
           .format(each.name, getBytes(each.used), getBytes(each.peak)))
