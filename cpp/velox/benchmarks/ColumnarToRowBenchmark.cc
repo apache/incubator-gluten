@@ -21,7 +21,6 @@
 #include <arrow/io/interfaces.h>
 #include <arrow/memory_pool.h>
 #include <arrow/record_batch.h>
-// #include <arrow/testing/gtest_util.h>
 #include <arrow/type.h>
 #include <arrow/util/io_util.h>
 #include <benchmark/benchmark.h>
@@ -33,9 +32,10 @@
 
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
 #include "utils/TestUtils.h"
+#include "utils/macros.h"
 #include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
@@ -157,7 +157,9 @@ class GoogleBenchmarkColumnarToRowCacheScanBenchmark : public GoogleBenchmarkCol
         auto row = std::dynamic_pointer_cast<velox::RowVector>(vector);
         auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool);
         auto cb = std::make_shared<VeloxColumnarBatch>(row);
-        TIME_NANO_OR_THROW(writeTime, columnarToRowConverter->convert(cb));
+        TIME_NANO_START(writeTime);
+        columnarToRowConverter->convert(cb);
+        TIME_NANO_END(writeTime);
       }
     }
 
@@ -211,8 +213,9 @@ class GoogleBenchmarkColumnarToRowIterateScanBenchmark : public GoogleBenchmarkC
         auto columnarToRowConverter = std::make_shared<gluten::VeloxColumnarToRowConverter>(ctxPool);
         auto row = std::dynamic_pointer_cast<velox::RowVector>(vector);
         auto cb = std::make_shared<VeloxColumnarBatch>(row);
-
-        TIME_NANO_OR_THROW(writeTime, columnarToRowConverter->convert(cb));
+        TIME_NANO_START(writeTime);
+        columnarToRowConverter->convert(cb);
+        TIME_NANO_END(writeTime);
         TIME_NANO_OR_THROW(elapseRead, recordBatchReader->ReadNext(&recordBatch));
       }
     }

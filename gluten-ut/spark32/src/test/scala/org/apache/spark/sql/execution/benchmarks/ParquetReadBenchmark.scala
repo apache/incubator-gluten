@@ -61,7 +61,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
   def beforeAll(): Unit = {}
 
   override def getSparkSession: SparkSession = {
-    beforeAll();
+    beforeAll()
     val conf = new SparkConf()
       .setAppName("ParquetReadBenchmark")
       .setIfMissing("spark.master", s"local[$thrdNum]")
@@ -114,7 +114,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
       case scan: FileSourceScanExecTransformer => scan
     }.head
 
-    val filePartitions = fileScan.getFlattenPartitions
+    val filePartitions = fileScan.getPartitions
       .map(_.asInstanceOf[FilePartition])
 
     val wholeStageTransform = parquetReadDf.queryExecution.executedPlan.collect {
@@ -181,7 +181,7 @@ object ParquetReadBenchmark extends SqlBasedBenchmark {
       val fileScan = vanillaScanPlan.head
       val fileScanOutput = fileScan.output
       val relation = fileScan.relation
-      val readFile: (PartitionedFile) => Iterator[InternalRow] =
+      val readFile: PartitionedFile => Iterator[InternalRow] =
         relation.fileFormat.buildReaderWithPartitionValues(
           sparkSession = relation.sparkSession,
           dataSchema = relation.dataSchema,

@@ -16,6 +16,7 @@
  */
 package io.glutenproject.memory.arrowalloc;
 
+import io.glutenproject.memory.memtarget.MemoryTargets;
 import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
 
@@ -42,7 +43,7 @@ public class ArrowBufferAllocators {
 
   public static BufferAllocator contextInstance() {
     if (!TaskResources.inSparkTask()) {
-      return globalInstance();
+      throw new IllegalStateException("This method must be called in a Spark task.");
     }
     String id = ArrowBufferAllocatorManager.class.toString();
     return TaskResources.addResourceIfNotRegistered(id, ArrowBufferAllocatorManager::new).managed;
@@ -53,9 +54,12 @@ public class ArrowBufferAllocators {
     private static final List<BufferAllocator> LEAKED = new Vector<>();
     private final AllocationListener listener =
         new ManagedAllocationListener(
-            new GlutenMemoryConsumer(
-                TaskResources.getLocalTaskContext().taskMemoryManager(), Spiller.NO_OP),
-            TaskResources.getSharedMetrics());
+            MemoryTargets.throwOnOom(
+                new GlutenMemoryConsumer(
+                    "ArrowContextInstance",
+                    TaskResources.getLocalTaskContext().taskMemoryManager(),
+                    Spiller.NO_OP)),
+            TaskResources.getSharedUsage());
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);
 
     public ArrowBufferAllocatorManager() {}

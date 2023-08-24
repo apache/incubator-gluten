@@ -43,12 +43,7 @@ namespace local_engine
 
 void StorageJoinFromReadBuffer::restore()
 {
-    if (!in)
-    {
-        throw std::runtime_error("input reader buffer is not available");
-    }
-    ContextPtr ctx = nullptr;
-    NativeReader block_stream(*in, 0);
+    NativeReader block_stream(in, 0);
 
     ProfileInfo info;
     {
@@ -59,11 +54,10 @@ void StorageJoinFromReadBuffer::restore()
             join->addBlockToJoin(final_block, true);
         }
     }
-    in.reset();
 }
 
 StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
-    std::unique_ptr<DB::ReadBuffer> in_,
+    DB::ReadBuffer & in_,
     const Names & key_names_,
     bool use_nulls_,
     DB::SizeLimits limits_,
@@ -73,13 +67,7 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     const ConstraintsDescription & constraints_,
     const String & comment,
     const bool overwrite_)
-    : key_names(key_names_)
-    , use_nulls(use_nulls_)
-    , limits(limits_)
-    , kind(kind_)
-    , strictness(strictness_)
-    , overwrite(overwrite_)
-    , in(std::move(in_))
+    : key_names(key_names_), use_nulls(use_nulls_), limits(limits_), kind(kind_), strictness(strictness_), overwrite(overwrite_), in(in_)
 {
     storage_metadata_.setColumns(columns_);
     storage_metadata_.setConstraints(constraints_);

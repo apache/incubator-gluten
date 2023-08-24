@@ -20,12 +20,14 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -40,7 +42,7 @@ class BatchScanExecTransformer(
   with BasicScanExecTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
+  @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetrics(sparkContext)
 
   override def filterExprs(): Seq[Expression] = scan match {
@@ -52,9 +54,7 @@ class BatchScanExecTransformer(
 
   override def outputAttributes(): Seq[Attribute] = output
 
-  override def getPartitions: Seq[Seq[InputPartition]] = filteredPartitions
-
-  override def getFlattenPartitions: Seq[InputPartition] = filteredFlattenPartitions
+  override def getPartitions: Seq[InputPartition] = filteredFlattenPartitions
 
   override def getPartitionSchemas: StructType = scan match {
     case fileScan: FileScan => fileScan.readPartitionSchema
@@ -92,8 +92,8 @@ class BatchScanExecTransformer(
 
   override def equals(other: Any): Boolean = other match {
     case that: BatchScanExecTransformer =>
-      (that.canEqual(this)) && super.equals(that) &&
-      this.pushdownFilters == that.getPushdownFilters()
+      that.canEqual(this) && super.equals(that) &&
+      this.pushdownFilters == that.getPushdownFilters
     case _ => false
   }
 
@@ -119,7 +119,15 @@ class BatchScanExecTransformer(
   @transient protected lazy val filteredFlattenPartitions: Seq[InputPartition] =
     filteredPartitions.flatten
 
-  def getPushdownFilters(): Seq[Expression] = {
+  private def getPushdownFilters: Seq[Expression] = {
     pushdownFilters
+  }
+
+  @transient override lazy val fileFormat: ReadFileFormat = scan.getClass.getSimpleName match {
+    case "OrcScan" => ReadFileFormat.OrcReadFormat
+    case "ParquetScan" => ReadFileFormat.ParquetReadFormat
+    case "DwrfScan" => ReadFileFormat.DwrfReadFormat
+    case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
+    case _ => ReadFileFormat.UnknownFormat
   }
 }

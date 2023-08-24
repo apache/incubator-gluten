@@ -22,6 +22,7 @@
 #include <arrow/ipc/message.h>
 #include <arrow/ipc/options.h>
 
+#include "compute/ResultIterator.h"
 #include "utils/compression.h"
 
 namespace gluten {
@@ -30,23 +31,23 @@ struct ReaderOptions {
   arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
   arrow::Compression::type compression_type = arrow::Compression::type::LZ4_FRAME;
   CodecBackend codec_backend = CodecBackend::NONE;
+  CompressionMode compression_mode = CompressionMode::BUFFER;
 
   static ReaderOptions defaults();
 };
 
 class Reader {
  public:
-  Reader(
-      std::shared_ptr<arrow::io::InputStream> in,
-      std::shared_ptr<arrow::Schema> schema,
-      ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool);
+  Reader(std::shared_ptr<arrow::Schema> schema, ReaderOptions options, std::shared_ptr<arrow::MemoryPool> pool);
 
   virtual ~Reader() = default;
 
-  virtual arrow::Result<std::shared_ptr<ColumnarBatch>> next();
+  // FIXME iterator should be unique_ptr or un-copyable singleton
+  virtual std::shared_ptr<ResultIterator> readStream(std::shared_ptr<arrow::io::InputStream> in);
+
   arrow::Status close();
   int64_t getDecompressTime();
+  const std::shared_ptr<arrow::MemoryPool>& getPool() const;
 
  protected:
   std::shared_ptr<arrow::MemoryPool> pool_;
@@ -54,10 +55,7 @@ class Reader {
   ReaderOptions options_;
 
  private:
-  std::shared_ptr<arrow::io::InputStream> in_;
-  std::shared_ptr<arrow::Schema> writeSchema_;
-  std::unique_ptr<arrow::ipc::Message> firstMessage_;
-  bool firstMessageConsumed_ = false;
+  std::shared_ptr<arrow::Schema> schema_;
 };
 
 } // namespace gluten

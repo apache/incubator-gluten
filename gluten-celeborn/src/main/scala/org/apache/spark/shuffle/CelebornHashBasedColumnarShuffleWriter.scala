@@ -18,8 +18,8 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.memtarget.spark.Spiller
+import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
 
 import org.apache.spark._
@@ -28,7 +28,7 @@ import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.SparkResourcesUtil
+import org.apache.spark.util.SparkResourceUtil
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
@@ -91,7 +91,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
 
   private def availableOffHeapPerTask(): Long = {
     // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
+    val executorCores = SparkResourceUtil.getExecutorCores(conf)
     val taskCores = conf.getInt("spark.task.cpus", 1)
     val perTask =
       SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
@@ -120,12 +120,12 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
             nativeBufferSize,
             customizedCompressionCodec,
             bufferCompressThreshold,
+            GlutenConfig.getConf.columnarShuffleCompressionMode,
             celebornConf.clientPushBufferMaxSize,
             celebornPartitionPusher,
-            NativeMemoryAllocators
-              .getDefault()
+            NativeMemoryManagers
               .create(
-                0.0d,
+                "CelebornShuffleWriter",
                 new Spiller() {
                   override def spill(size: Long, trigger: MemoryConsumer): Long = {
                     if (nativeShuffleWriter == -1L) {

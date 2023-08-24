@@ -16,7 +16,6 @@
 
 set -exu
 
-BUILD_TESTS=OFF
 BUILD_TYPE=release
 NPROC=$(nproc --ignore=2)
 TARGET_BUILD_COMMIT=""
@@ -25,10 +24,6 @@ ENABLE_EP_CACHE=OFF
 
 for arg in "$@"; do
   case $arg in
-  --build_tests=*)
-    BUILD_TESTS=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
   --build_type=*)
     BUILD_TYPE=("${arg#*=}")
     shift # Remove argument name from processing
@@ -61,14 +56,9 @@ ARROW_INSTALL_DIR="${ARROW_HOME}/arrow_install"
 
 echo "Building Arrow from Source..."
 echo "CMAKE Arguments:"
-echo "BUILD_TESTS=${BUILD_TESTS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 echo "ARROW_HOME=${ARROW_HOME}"
 
-WITH_JSON=OFF
-if [ $BUILD_TESTS == ON ]; then
-  WITH_JSON=ON
-fi
 pushd $ARROW_SOURCE_DIR
 
 TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
@@ -111,7 +101,6 @@ cmake -G Ninja \
   -DARROW_WITH_LZ4=ON \
   -DARROW_WITH_SNAPPY=ON \
   -DARROW_WITH_ZLIB=ON \
-  -DARROW_JSON=$WITH_JSON \
   -DARROW_PARQUET=ON \
   -DARROW_ORC=ON \
   -DARROW_WITH_ZSTD=ON \

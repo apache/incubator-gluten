@@ -20,7 +20,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.ColumnTypeNode
-import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.{SubstraitContext, SupportFormat}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.ReadRelNode
 import io.glutenproject.substrait.rel.RelBuilder
@@ -34,7 +34,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
 
-trait BasicScanExecTransformer extends TransformSupport {
+trait BasicScanExecTransformer extends TransformSupport with SupportFormat {
 
   // The key of merge schema option in Parquet reader.
   protected val mergeSchemaOptionKey = "mergeschema"
@@ -43,9 +43,7 @@ trait BasicScanExecTransformer extends TransformSupport {
 
   def outputAttributes(): Seq[Attribute]
 
-  def getPartitions: Seq[Seq[InputPartition]]
-
-  def getFlattenPartitions: Seq[InputPartition]
+  def getPartitions: Seq[InputPartition]
 
   def getPartitionSchemas: StructType
 
@@ -72,7 +70,7 @@ trait BasicScanExecTransformer extends TransformSupport {
       sparkContext,
       WholeStageTransformContext(planNode, substraitContext),
       fileFormat,
-      getFlattenPartitions,
+      getPartitions,
       numOutputRows,
       numOutputVectors,
       scanTime
@@ -130,6 +128,6 @@ trait BasicScanExecTransformer extends TransformSupport {
   }
 
   def executeInSubqueryForDynamicPruningExpression(inSubquery: InSubqueryExec): Unit = {
-    if (!inSubquery.values().isDefined) inSubquery.updateResult()
+    if (inSubquery.values().isEmpty) inSubquery.updateResult()
   }
 }

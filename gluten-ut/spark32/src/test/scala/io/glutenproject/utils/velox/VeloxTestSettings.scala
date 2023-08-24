@@ -134,8 +134,12 @@ class VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan]
 
   enableSuite[GlutenAdaptiveQueryExecSuite]
     .includeByPrefix(
@@ -184,6 +188,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Shuffle")
     // TODO: ArrayDistinct should handle duplicated Double.NaN
     .excludeByPrefix("SPARK-36741")
+    // TODO: ArrayIntersect should handle duplicated Double.NaN
+    .excludeByPrefix("SPARK-36754")
     .exclude("Concat")
   enableSuite[GlutenDateExpressionsSuite]
     // Rewrite because Spark collect causes long overflow.
@@ -200,6 +206,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenNullExpressionsSuite]
   enableSuite[GlutenPredicateSuite]
   enableSuite[GlutenMathExpressionsSuite]
+    // Spark round UT for round(3.1415,3) is not correct.
+    .exclude("round/bround")
   enableSuite[GlutenMathFunctionsSuite]
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenBitwiseExpressionsSuite]

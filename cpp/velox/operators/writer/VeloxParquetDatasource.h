@@ -45,8 +45,11 @@ namespace gluten {
 
 class VeloxParquetDatasource final : public Datasource {
  public:
-  VeloxParquetDatasource(const std::string& filePath, std::shared_ptr<arrow::Schema> schema)
-      : Datasource(filePath, schema), filePath_(filePath), schema_(schema) {}
+  VeloxParquetDatasource(
+      const std::string& filePath,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+      std::shared_ptr<arrow::Schema> schema)
+      : Datasource(filePath, schema), filePath_(filePath), schema_(schema), pool_(std::move(veloxPool)) {}
 
   void init(const std::unordered_map<std::string, std::string>& sparkConfs) override;
   void inspectSchema(struct ArrowSchema* out) override;

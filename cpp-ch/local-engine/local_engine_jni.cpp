@@ -26,11 +26,15 @@
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/SparkRowToCHColumn.h>
+#include <Shuffle/CachedShuffleWriter.h>
 #include <Shuffle/NativeSplitter.h>
 #include <Shuffle/NativeWriterInMemory.h>
+#include <Shuffle/PartitionWriter.h>
 #include <Shuffle/ShuffleReader.h>
 #include <Shuffle/ShuffleSplitter.h>
 #include <Shuffle/ShuffleWriter.h>
+#include <Shuffle/ShuffleWriterBase.h>
+#include <Shuffle/WriteBufferFromJavaOutputStream.h>
 #include <Storages/Output/BlockStripeSplitter.h>
 #include <Storages/Output/FileWriterWrappers.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
@@ -120,8 +124,8 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     block_stripes_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
     block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", "(J[J[IIZ)V");
 
-    split_result_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/SplitResult;");
-    split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[J)V");
+    split_result_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/CHSplitResult;");
+    split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[JJJJ)V");
 
     local_engine::ShuffleReader::input_stream_class
         = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/ShuffleInputStream;");
@@ -637,7 +641,9 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jstring codec,
     jstring data_file,
     jstring local_dirs,
-    jint num_sub_dirs)
+    jint num_sub_dirs,
+    jboolean prefer_spill,
+    jlong spill_threshold)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -677,21 +683,39 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .partition_nums = static_cast<size_t>(num_partitions),
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
-        .compress_method = jstring2string(env, codec)};
-    local_engine::SplitterHolder * splitter
-        = new local_engine::SplitterHolder{.splitter = local_engine::ShuffleSplitter::create(jstring2string(env, short_name), options)};
+        .compress_method = jstring2string(env, codec),
+        .spill_threshold = static_cast<size_t>(spill_threshold)};
+    auto name = jstring2string(env, short_name);
+    local_engine::SplitterHolder * splitter;
+    if (prefer_spill)
+    {
+        splitter = new local_engine::SplitterHolder{.splitter = local_engine::ShuffleSplitter::create(name, options)};
+    }
+    else
+    {
+        splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options)};
+    }
     return reinterpret_cast<jlong>(splitter);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
-JNIEXPORT void
-Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env, jobject, jlong splitterId, jint, jlong block)
+JNIEXPORT void Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env, jobject, jlong splitterId, jlong block)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
     DB::Block * data = reinterpret_cast<DB::Block *>(block);
     splitter->splitter->split(*data);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
+}
+
+JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_evict(JNIEnv * env, jobject, jlong splitterId)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
+    auto size = splitter->splitter->evictPartitions();
+    std::cerr << "spill data: " << size << std::endl;
+    return size;
+    LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
 
 JNIEXPORT jobject Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_stop(JNIEnv * env, jobject, jlong splitterId)
@@ -715,11 +739,14 @@ JNIEXPORT jobject Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_s
         result.total_compute_pid_time,
         result.total_write_time,
         result.total_spill_time,
-        0,
+        result.total_compress_time,
         result.total_bytes_written,
-        result.total_bytes_written,
+        result.total_bytes_spilled,
         partition_length_arr,
-        raw_partition_length_arr);
+        raw_partition_length_arr,
+        result.total_split_time,
+        result.total_disk_time,
+        result.total_serialize_time);
 
     return split_result;
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
@@ -746,8 +773,8 @@ Java_io_glutenproject_vectorized_CHBlockConverterJniWrapper_convertColumnarToRow
     if (masks != nullptr)
     {
         jint size = env->GetArrayLength(masks);
-        jboolean isCp = JNI_FALSE;
-        jint * values = env->GetIntArrayElements(masks, &isCp);
+        jboolean is_cp = JNI_FALSE;
+        jint * values = env->GetIntArrayElements(masks, &is_cp);
         mask = std::make_unique<std::vector<size_t>>();
         for (int j = 0; j < size; j++)
         {
@@ -912,22 +939,22 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     auto * block = reinterpret_cast<DB::Block *>(blockAddress);
     int * pIndice = env->GetIntArrayElements(partitionColIndice, nullptr);
     int size = env->GetArrayLength(partitionColIndice);
-    std::vector<size_t> partitionColIndiceVec;
+
+    std::vector<size_t> partition_col_indice_vec;
     for (int i = 0; i < size; ++i)
-    {
-        partitionColIndiceVec.push_back(pIndice[i]);
-    }
+        partition_col_indice_vec.push_back(pIndice[i]);
+
     env->ReleaseIntArrayElements(partitionColIndice, pIndice, JNI_ABORT);
-    local_engine::BlockStripes bs = local_engine::BlockStripeSplitter::split(*block, partitionColIndiceVec, hasBucket);
+    local_engine::BlockStripes bs = local_engine::BlockStripeSplitter::split(*block, partition_col_indice_vec, hasBucket);
 
 
-    auto * addresses = env->NewLongArray(bs.blockAddresses.size());
-    env->SetLongArrayRegion(addresses, 0, bs.blockAddresses.size(), bs.blockAddresses.data());
-    auto * indices = env->NewIntArray(bs.headingRowIndice.size());
-    env->SetIntArrayRegion(indices, 0, bs.headingRowIndice.size(), bs.headingRowIndice.data());
+    auto * addresses = env->NewLongArray(bs.block_addresses.size());
+    env->SetLongArrayRegion(addresses, 0, bs.block_addresses.size(), bs.block_addresses.data());
+    auto * indices = env->NewIntArray(bs.heading_row_indice.size());
+    env->SetIntArrayRegion(indices, 0, bs.heading_row_indice.size(), bs.heading_row_indice.data());
 
     jobject block_stripes = env->NewObject(
-        block_stripes_class, block_stripes_constructor, bs.originalBlockAddress, addresses, indices, bs.originBlockColNum, bs.noNeedSplit);
+        block_stripes_class, block_stripes_constructor, bs.original_block_address, addresses, indices, bs.origin_block_col_num, bs.no_need_split);
     return block_stripes;
 
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)

@@ -18,14 +18,13 @@
 #include "compute/Backend.h"
 
 #include <gtest/gtest.h>
-#include "utils/TestUtils.h"
 
 namespace gluten {
 
 class DummyBackend final : public Backend {
  public:
   std::shared_ptr<ResultIterator> getResultIterator(
-      MemoryAllocator* allocator,
+      MemoryManager* memoryManager,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
       const std::unordered_map<std::string, std::string>& sessionConf) override {
@@ -44,10 +43,8 @@ class DummyBackend final : public Backend {
 
       auto fArrInt32 = arrow::field("f_int32", arrow::int32());
       auto rbSchema = arrow::schema({fArrInt32});
-      const std::vector<std::string> inputDataArr = {R"([1, 2,3])"};
-      std::shared_ptr<arrow::RecordBatch> inputBatchArr;
-      makeInputBatch(inputDataArr, rbSchema, &inputBatchArr);
-      return std::make_shared<ArrowColumnarBatch>(inputBatchArr);
+      auto rb = arrow::RecordBatch::Make(rbSchema, 1, std::vector<std::shared_ptr<arrow::Array>>{});
+      return std::make_shared<ArrowColumnarBatch>(rb);
     }
 
    private:
@@ -68,7 +65,7 @@ TEST(TestExecBackend, CreateBackend) {
 
 TEST(TestExecBackend, GetResultIterator) {
   auto backend = std::make_shared<DummyBackend>();
-  auto iter = backend->getResultIterator(defaultMemoryAllocator().get(), "/tmp/test-spill", {}, {});
+  auto iter = backend->getResultIterator(nullptr, "/tmp/test-spill", {}, {});
   ASSERT_TRUE(iter->hasNext());
   auto next = iter->next();
   ASSERT_NE(next, nullptr);

@@ -127,6 +127,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
 
+  def columnarShuffleCompressionMode: String =
+    conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_MODE)
+
   def columnarShuffleCodecBackend: Option[String] = conf
     .getConf(COLUMNAR_SHUFFLE_CODEC_BACKEND)
     .filter(Set(GLUTEN_QAT_BACKEND_NAME, GLUTEN_IAA_BACKEND_NAME).contains(_))
@@ -163,8 +166,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def wholeStageFallbackThreshold: Int = conf.getConf(COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD)
 
   def queryFallbackThreshold: Int = conf.getConf(COLUMNAR_QUERY_FALLBACK_THRESHOLD)
-
-  def fallbackPolicy: String = conf.getConf(COLUMNAR_FALLBACK_POLICY)
 
   def numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean = conf.getConf(COLUMNAR_NUMA_BINDING_ENABLED)
@@ -212,6 +213,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxSpillFileSystem: String = conf.getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
 
   def veloxOverAcquiredMemoryRatio: Double = conf.getConf(COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO)
+
+  def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
 
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
@@ -350,6 +353,10 @@ object GlutenConfig {
   val GLUTEN_EXTENDED_EXPRESSION_TRAN_CONF =
     "spark.gluten.sql.columnar.extended.expressions.transformer"
 
+  // This is an internal config property set by Gluten. It is used to hold default session timezone
+  // and will be really used by Gluten only if `spark.sql.session.timeZone` is not set.
+  val GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY = "spark.gluten.sql.session.timeZone.default"
+
   // Principal of current user
   val GLUTEN_UGI_USERNAME = "spark.gluten.ugi.username"
   // Tokens of current user, split by `\0`
@@ -359,12 +366,11 @@ object GlutenConfig {
   private var current_backend_prefix = ""
 
   def isCurrentBackendVelox: Boolean = {
-    return current_backend_prefix != null && current_backend_prefix.endsWith(GLUTEN_VELOX_BACKEND)
+    current_backend_prefix.endsWith(GLUTEN_VELOX_BACKEND)
   }
 
   def isCurrentBackendCH: Boolean = {
-    return current_backend_prefix != null && current_backend_prefix.endsWith(
-      GLUTEN_CLICKHOUSE_BACKEND)
+    current_backend_prefix.endsWith(GLUTEN_CLICKHOUSE_BACKEND)
   }
 
   def getConf: GlutenConfig = {
@@ -389,7 +395,8 @@ object GlutenConfig {
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
-      SQLConf.SESSION_LOCAL_TIMEZONE.key
+      SQLConf.SESSION_LOCAL_TIMEZONE.key,
+      GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
     )
     keys.forEach(
       k => {
@@ -763,6 +770,15 @@ object GlutenConfig {
       .transform(_.toLowerCase(Locale.ROOT))
       .createOptional
 
+  val COLUMNAR_SHUFFLE_COMPRESSION_MODE =
+    buildConf("spark.gluten.sql.columnar.shuffle.compressionMode")
+      .internal()
+      .doc("buffer means compress each buffer to pre allocated big buffer," +
+        "rowvector means to copy the buffers to a big buffer, and then compress the buffer")
+      .stringConf
+      .checkValues(Set("buffer", "rowvector"))
+      .createWithDefault("buffer")
+
   val COLUMNAR_SHUFFLE_BUFFER_COMPRESS_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.bufferCompressThreshold")
       .internal()
@@ -817,29 +833,13 @@ object GlutenConfig {
       .longConf
       .createWithDefault(100 * 1000 * 1000)
 
-  val COLUMNAR_FALLBACK_POLICY =
-    buildConf("spark.gluten.sql.columnar.fallback.policy")
-      .internal()
-      .doc(
-        "The fallback policy in gluten. 'operator' means fallback the " +
-          "operator if unsupported. 'stage' means fallback each stage if " +
-          "the number of unsupported operator/expressions >= " +
-          "${COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key}, note this only works with AQE enabled" +
-          " , 'query' means fallback the whole query " +
-          "if number of unsupported operator >= ${COLUMNAR_QUERY_FALLBACK_THRESHOLD.key}" +
-          ", note this only works with AQE disabled")
-      .stringConf
-      .transform(_.toLowerCase(Locale.ROOT))
-      .checkValues(Set("operator", "stage", "query"))
-      .createWithDefault("operator")
-
   val COLUMNAR_QUERY_FALLBACK_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.query.fallback.threshold")
       .internal()
       .doc("The threshold for whether query will fall back " +
         "by counting the number of ColumnarToRow & vanilla leaf node.")
       .intConf
-      .createWithDefault(1)
+      .createWithDefault(-1)
 
   val COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.wholeStage.fallback.threshold")
@@ -977,6 +977,13 @@ object GlutenConfig {
       .doubleConf
       .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
       .createWithDefault(0.3d)
+
+  val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.backend.ch.spillThreshold")
+      .internal()
+      .doc("Shuffle spill threshold on ch backend")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("0MB")
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")

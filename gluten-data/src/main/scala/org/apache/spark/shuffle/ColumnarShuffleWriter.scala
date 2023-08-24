@@ -18,8 +18,8 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.memtarget.spark.Spiller
+import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
 
 import org.apache.spark._
@@ -28,7 +28,7 @@ import org.apache.spark.internal.config.SHUFFLE_COMPRESS
 import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{SparkDirectoryUtil, SparkResourcesUtil, Utils}
+import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, Utils}
 
 import java.io.IOException
 
@@ -84,7 +84,7 @@ class ColumnarShuffleWriter[K, V](
 
   private var nativeShuffleWriter: Long = -1L
 
-  private var splitResult: SplitResult = _
+  private var splitResult: GlutenSplitResult = _
 
   private var partitionLengths: Array[Long] = _
 
@@ -94,7 +94,7 @@ class ColumnarShuffleWriter[K, V](
 
   private def availableOffHeapPerTask(): Long = {
     // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
+    val executorCores = SparkResourceUtil.getExecutorCores(conf)
     val taskCores = conf.getInt("spark.task.cpus", 1)
     val perTask =
       SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
@@ -122,6 +122,7 @@ class ColumnarShuffleWriter[K, V](
       if (cb.numRows == 0 || cb.numCols == 0) {
         logInfo(s"Skip ColumnarBatch of ${cb.numRows} rows, ${cb.numCols} cols")
       } else {
+        val rows = cb.numRows()
         val handle = ColumnarBatches.getNativeHandle(cb)
         if (nativeShuffleWriter == -1L) {
           nativeShuffleWriter = jniWrapper.make(
@@ -131,14 +132,14 @@ class ColumnarShuffleWriter[K, V](
             compressionCodec,
             compressionCodecBackend,
             bufferCompressThreshold,
+            GlutenConfig.getConf.columnarShuffleCompressionMode,
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
             preferSpill,
-            NativeMemoryAllocators
-              .getDefault()
+            NativeMemoryManagers
               .create(
-                0.0d,
+                "ShuffleWriter",
                 new Spiller() {
                   override def spill(size: Long, trigger: MemoryConsumer): Long = {
                     if (nativeShuffleWriter == -1L) {
@@ -163,19 +164,21 @@ class ColumnarShuffleWriter[K, V](
           )
         }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(nativeShuffleWriter, cb.numRows, handle)
+        val bytes = jniWrapper.split(nativeShuffleWriter, rows, handle)
         dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
-        dep.metrics("numInputRows").add(cb.numRows)
+        dep.metrics("numInputRows").add(rows)
         dep.metrics("inputBatches").add(1)
         // This metric is important, AQE use it to decide if EliminateLimit
-        writeMetrics.incRecordsWritten(cb.numRows())
+        writeMetrics.incRecordsWritten(rows)
       }
+      cb.close()
     }
 
     val startTime = System.nanoTime()
     if (nativeShuffleWriter != -1L) {
       splitResult = jniWrapper.stop(nativeShuffleWriter)
+      closeShuffleWriter
     }
 
     dep
@@ -187,6 +190,7 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("spillTime").add(splitResult.getTotalSpillTime)
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
+    dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
@@ -217,8 +221,9 @@ class ColumnarShuffleWriter[K, V](
     internalWrite(records)
   }
 
-  def closeShuffleWriter(): Unit = {
+  private def closeShuffleWriter(): Unit = {
     jniWrapper.close(nativeShuffleWriter)
+    nativeShuffleWriter = -1L
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {

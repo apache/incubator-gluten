@@ -1,7 +1,19 @@
-//
-// Created by hongbin on 6/28/23.
-//
-
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "BlockStripeSplitter.h"
 #include <Columns/ColumnNullable.h>
 
@@ -9,16 +21,16 @@
 using namespace local_engine;
 
 BlockStripes
-local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vector<size_t> partitionColIndice, const bool hasBucket)
+local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vector<size_t> & partition_col_indice, bool has_bucket)
 {
     BlockStripes ret;
-    ret.originalBlockAddress = reinterpret_cast<int64_t>(&block);
-    ret.originBlockColNum = static_cast<int>(block.columns());
+    ret.original_block_address = reinterpret_cast<int64_t>(&block);
+    ret.origin_block_col_num = static_cast<int>(block.columns());
 
     std::vector<size_t> splitPoints;
 
-    std::vector<size_t> columns = partitionColIndice;
-    if (hasBucket)
+    std::vector<size_t> columns = partition_col_indice;
+    if (has_bucket)
         columns.push_back(block.columns() - 1);
     for (size_t i = 0; i < columns.size(); i++)
     {
@@ -61,11 +73,11 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
     for (size_t colIndex = 0; colIndex < block.columns(); ++colIndex)
     {
         // partition columns will not be written to the file (they're written to folder name)
-        if (std::find(partitionColIndice.begin(), partitionColIndice.end(), colIndex) != partitionColIndice.end())
+        if (std::find(partition_col_indice.begin(), partition_col_indice.end(), colIndex) != partition_col_indice.end())
             continue;
 
         // the last column is a column representing bucketing hash value (__bucket_value__), which is not written to the file
-        if (hasBucket && colIndex == block.columns() - 1)
+        if (has_bucket && colIndex == block.columns() - 1)
             continue;
 
         outputColumns.push_back(block.getByPosition(colIndex));
@@ -89,8 +101,8 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
             p = new DB::Block(outputBlock);
         }
 
-        ret.headingRowIndice.push_back(static_cast<int32_t>(from));
-        ret.blockAddresses.push_back(reinterpret_cast<int64_t>(p));
+        ret.heading_row_indice.push_back(static_cast<int32_t>(from));
+        ret.block_addresses.push_back(reinterpret_cast<int64_t>(p));
     }
     return ret;
 }

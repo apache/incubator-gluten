@@ -562,8 +562,9 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         {
             settings.set(pair.first.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), pair.second);
         }
-        else if (pair.first.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX + "bucket"))
+        else if (pair.first.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
         {
+            // Apply general S3 configs, e.g. spark.hadoop.fs.s3a.access.key -> set in fs.s3a.access.key
             // deal with per bucket S3 configs, e.g. fs.s3a.bucket.bucket_name.assumed.role.arn
             // for gluten, we require first authenticate with AK/SK(or instance profile), then assume other roles with STS
             // so only the following per-bucket configs are supported:
@@ -571,21 +572,6 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
             // 2. fs.s3a.bucket.bucket_name.assumed.role.session.name
             // 3. fs.s3a.bucket.bucket_name.endpoint
             // 4. fs.s3a.bucket.bucket_name.assumed.role.externalId (non hadoop official)
-
-            // for spark.hadoop.fs.s3a.bucket.bucket_name.assumed.role.arn, put bucket_name.fs.s3a.assumed.role.arn into config
-            std::regex base_regex("bucket\\.([^\\.]+)\\.");
-            std::smatch base_match;
-            std::string new_key = pair.first.substr(SPARK_HADOOP_PREFIX.length());
-            if (std::regex_search(new_key, base_match, base_regex))
-            {
-                std::string bucket_name = base_match[1].str();
-                new_key.replace(base_match[0].first - new_key.begin(), base_match[0].second - base_match[0].first, "");
-                settings.set(bucket_name + "." + new_key, pair.second);
-            }
-        }
-        else if (pair.first.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
-        {
-            // Apply general S3 configs, e.g. spark.hadoop.fs.s3a.access.key -> set in fs.s3a.access.key
             settings.set(pair.first.substr(SPARK_HADOOP_PREFIX.length()), pair.second);
         }
     }

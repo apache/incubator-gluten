@@ -42,7 +42,7 @@ struct ShuffleWriterOptions {
   int32_t buffer_compress_threshold = kDefaultBufferCompressThreshold;
   arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
   CodecBackend codec_backend = CodecBackend::NONE;
-  std::shared_ptr<arrow::util::Codec> codec = createArrowIpcCodec(compression_type, codec_backend);
+  CompressionMode compression_mode = CompressionMode::BUFFER;
   bool prefer_evict = false;
   bool write_schema = false;
   bool buffered_write = false;
@@ -68,18 +68,15 @@ struct ShuffleWriterOptions {
 
 class ShuffleBufferPool {
  public:
-  explicit ShuffleBufferPool(std::shared_ptr<arrow::MemoryPool> pool) : pool_(pool) {}
+  explicit ShuffleBufferPool(std::shared_ptr<arrow::MemoryPool> pool);
 
-  arrow::Status init() {
-    // Allocate first buffer for split reducer
-    ARROW_ASSIGN_OR_RAISE(combineBuffer_, arrow::AllocateResizableBuffer(0, pool_.get()));
-    RETURN_NOT_OK(combineBuffer_->Resize(0, /*shrink_to_fit =*/false));
-    return arrow::Status::OK();
-  }
+  arrow::Status init();
 
   arrow::Status allocate(std::shared_ptr<arrow::Buffer>& buffer, int64_t size);
 
   arrow::Status allocateDirectly(std::shared_ptr<arrow::ResizableBuffer>& buffer, int64_t size);
+
+  int64_t bytesAllocated() const;
 
   void reset() {
     if (combineBuffer_ != nullptr) {
@@ -88,7 +85,9 @@ class ShuffleBufferPool {
   }
 
  private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
+  class MemoryPoolWrapper;
+
+  std::shared_ptr<MemoryPoolWrapper> pool_;
   // slice the buffer for each reducer's column, in this way we can combine into
   // large page
   std::shared_ptr<arrow::ResizableBuffer> combineBuffer_;
@@ -140,6 +139,10 @@ class ShuffleWriter {
 
   int64_t totalBytesEvicted() const {
     return totalBytesEvicted_;
+  }
+
+  int64_t splitBufferSize() const {
+    return splitBufferSize_;
   }
 
   int64_t totalWriteTime() const {
@@ -214,6 +217,10 @@ class ShuffleWriter {
     partitionCachedRecordbatchSize_[index] = size;
   }
 
+  void setSplitBufferSize(int64_t splitBufferSize) {
+    splitBufferSize_ = splitBufferSize;
+  }
+
   class PartitionWriter;
 
   class Partitioner;
@@ -228,6 +235,7 @@ class ShuffleWriter {
       : numPartitions_(numPartitions),
         partitionWriterCreator_(std::move(partitionWriterCreator)),
         options_(std::move(options)),
+        codec_(createArrowIpcCodec(options_.compression_type, options_.codec_backend)),
         pool_(std::make_shared<ShuffleBufferPool>(options_.memory_pool)) {}
   virtual ~ShuffleWriter() = default;
 
@@ -239,6 +247,7 @@ class ShuffleWriter {
 
   int64_t totalBytesWritten_ = 0;
   int64_t totalBytesEvicted_ = 0;
+  int64_t splitBufferSize_ = 0;
   int64_t totalWriteTime_ = 0;
   int64_t totalEvictTime_ = 0;
   int64_t totalCompressTime_ = 0;
@@ -246,6 +255,8 @@ class ShuffleWriter {
 
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_;
+
+  std::unique_ptr<arrow::util::Codec> codec_;
 
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::Schema> writeSchema_;

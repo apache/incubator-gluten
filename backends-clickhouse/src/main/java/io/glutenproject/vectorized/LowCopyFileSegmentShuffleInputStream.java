@@ -31,30 +31,24 @@ import java.nio.channels.FileChannel;
 public class LowCopyFileSegmentShuffleInputStream implements ShuffleInputStream {
 
   private final InputStream in;
-  private final LimitedInputStream limitedInputStream;
   private final FileChannel channel;
-  private final int bufferSize;
   private final boolean isCompressed;
 
   private long bytesRead = 0L;
   private long left;
 
   public LowCopyFileSegmentShuffleInputStream(
-      InputStream in, InputStream limitedInputStream, int bufferSize, boolean isCompressed) {
+      InputStream in, LimitedInputStream limitedInputStream, boolean isCompressed) {
     // to prevent underlying netty buffer from being collected by GC
     this.in = in;
-    this.limitedInputStream = (LimitedInputStream) limitedInputStream;
-    this.bufferSize = bufferSize;
     this.isCompressed = isCompressed;
     final FileInputStream fin;
     try {
       left =
-          ((long)
-              CHShuffleReadStreamFactory.FIELD_LimitedInputStream_left.get(
-                  this.limitedInputStream));
+          ((long) CHShuffleReadStreamFactory.FIELD_LimitedInputStream_left.get(limitedInputStream));
       fin =
           (FileInputStream)
-              CHShuffleReadStreamFactory.FIELD_FilterInputStream_in.get(this.limitedInputStream);
+              CHShuffleReadStreamFactory.FIELD_FilterInputStream_in.get(limitedInputStream);
     } catch (IllegalAccessException e) {
       throw new GlutenException(e);
     }
@@ -95,11 +89,11 @@ public class LowCopyFileSegmentShuffleInputStream implements ShuffleInputStream 
 
   @Override
   public void close() {
-    try {
-      channel.close();
-      in.close();
-    } catch (IOException e) {
-      throw new GlutenException(e);
-    }
+    GlutenException.wrap(
+        () -> {
+          channel.close();
+          in.close();
+          return null;
+        });
   }
 }

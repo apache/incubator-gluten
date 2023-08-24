@@ -19,9 +19,6 @@
 
 #include <arrow/array/array_base.h>
 #include <arrow/buffer.h>
-#include <arrow/type_traits.h>
-
-#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -29,13 +26,11 @@
 #include "compute/Backend.h"
 #include "compute/VeloxBackend.h"
 #include "config/GlutenConfig.h"
-#include "memory/MemoryAllocator.h"
-#include "memory/VeloxMemoryPool.h"
+
 #include "utils/ArrowTypeUtils.h"
 #include "velox/core/QueryConfig.h"
 #include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/Options.h"
-#include "velox/vector/arrow/Bridge.h"
 
 using namespace facebook;
 using namespace facebook::velox::dwio::common;
@@ -44,9 +39,6 @@ namespace gluten {
 
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
-
-  auto veloxPool = asAggregateVeloxMemoryPool(gluten::defaultMemoryAllocator().get());
-  pool_ = veloxPool->addAggregateChild("velox_parquet_write");
 
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(filePath_.substr(5));
@@ -62,14 +54,6 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     throw std::runtime_error(
         "The file path is not local or hdfs when writing data with parquet format in velox backend!");
   }
-
-  ArrowSchema cSchema{};
-  arrow::Status status = arrow::ExportSchema(*(schema_.get()), &cSchema);
-  if (!status.ok()) {
-    throw std::runtime_error("Failed to export arrow cSchema.");
-  }
-
-  type_ = velox::importFromArrow(cSchema);
 
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
     maxRowGroupBytes_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));

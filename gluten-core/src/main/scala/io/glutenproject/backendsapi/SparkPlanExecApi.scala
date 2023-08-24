@@ -67,7 +67,7 @@ trait SparkPlanExecApi {
    * @param condition
    *   : the filter condition
    * @param child
-   *   : the chid of FilterExec
+   *   : the child of FilterExec
    * @return
    *   the transformer of FilterExec
    */
@@ -108,23 +108,11 @@ trait SparkPlanExecApi {
       right: SparkPlan,
       isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformer
 
-  /**
-   * Generate Alias transformer.
-   *
-   * @param child
-   *   The computation being performed
-   * @param name
-   *   The name to be associated with the result of computing.
-   * @param exprId
-   * @param qualifier
-   * @param explicitMetadata
-   * @return
-   *   a transformer for alias
-   */
   def genAliasTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
-      original: Expression): AliasTransformerBase
+      original: Expression): ExpressionTransformer =
+    AliasTransformer(substraitExprName, child, original)
 
   /** Generate SplitTransformer. */
   def genStringSplitTransformer(
@@ -132,8 +120,8 @@ trait SparkPlanExecApi {
       srcExpr: ExpressionTransformer,
       regexExpr: ExpressionTransformer,
       limitExpr: ExpressionTransformer,
-      original: StringSplit): StringSplitTransformerBase = {
-    StringSplitTransformerBase(substraitExprName, srcExpr, regexExpr, limitExpr, original)
+      original: StringSplit): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
   }
 
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
@@ -142,6 +130,14 @@ trait SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: GetMapValue): ExpressionTransformer
+
+  /** Transform GetArrayItem to Substrait. */
+  def genGetArrayItemExpressionNode(
+      substraitExprName: String,
+      functionMap: java.util.HashMap[String, java.lang.Long],
+      leftNode: ExpressionNode,
+      rightNode: ExpressionNode,
+      original: GetArrayItem): ExpressionNode
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
@@ -224,28 +220,44 @@ trait SparkPlanExecApi {
    */
   def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
 
-  /** Generate an ExpressionTransformer to transform GetStructFiled expression. */
   def genGetStructFieldTransformer(
       substraitExprName: String,
       childTransformer: ExpressionTransformer,
       ordinal: Int,
       original: GetStructField): ExpressionTransformer = {
-    new GetStructFieldTransformerBase(substraitExprName, childTransformer, ordinal, original)
+    GetStructFieldTransformer(substraitExprName, childTransformer, ordinal, original)
   }
 
-  /** Generate an expression transformer to transform NamedStruct to Substrait. */
   def genNamedStructTransformer(
       substraitExprName: String,
+      children: Seq[ExpressionTransformer],
       original: CreateNamedStruct,
-      attributeSeq: Seq[Attribute]): ExpressionTransformer =
-    new NamedStructTransformerBase(substraitExprName, original, attributeSeq)
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, children, original)
+  }
 
   def genEqualNullSafeTransformer(
       substraitExprName: String,
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: EqualNullSafe): ExpressionTransformer = {
-    new BinaryExpressionTransformer(substraitExprName, left, right, original)
+    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
+  }
+
+  def genMd5Transformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Md5): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(child), original)
+  }
+
+  def genStringLocateTransformer(
+      substraitExprName: String,
+      first: ExpressionTransformer,
+      second: ExpressionTransformer,
+      third: ExpressionTransformer,
+      original: StringLocate): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(first, second, third), original)
   }
 
   /**
@@ -257,7 +269,7 @@ trait SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: Sha2): ExpressionTransformer = {
-    new Sha2Transformer(substraitExprName, left, right, original)
+    GenericExpressionTransformer(substraitExprName, Seq(left, right), original)
   }
 
   /**
@@ -268,14 +280,14 @@ trait SparkPlanExecApi {
       substraitExprName: String,
       child: ExpressionTransformer,
       original: Sha1): ExpressionTransformer = {
-    new Sha1Transformer(substraitExprName, child, original)
+    GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
 
   def genSizeExpressionTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,
       original: Size): ExpressionTransformer = {
-    new UnaryExpressionTransformer(substraitExprName, child, original)
+    GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
 
   /**
@@ -288,18 +300,16 @@ trait SparkPlanExecApi {
       timestamp: ExpressionTransformer,
       timeZoneId: Option[String] = None,
       original: TruncTimestamp): ExpressionTransformer = {
-    new TruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
+    TruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
   }
 
-  def genCastWithNewChild(c: Cast): Cast = {
-    c
-  }
+  def genCastWithNewChild(c: Cast): Cast = c
 
   def genHashExpressionTransformer(
       substraitExprName: String,
-      exps: Seq[ExpressionTransformer],
+      exprs: Seq[ExpressionTransformer],
       original: Expression): ExpressionTransformer = {
-    new HashExpressionTransformerBase(substraitExprName, exps, original)
+    HashExpressionTransformer(substraitExprName, exprs, original)
   }
 
   def genUnixTimestampTransformer(

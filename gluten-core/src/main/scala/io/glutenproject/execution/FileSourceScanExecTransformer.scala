@@ -90,10 +90,7 @@ class FileSourceScanExecTransformer(
 
   override def outputAttributes(): Seq[Attribute] = output
 
-  override def getPartitions: Seq[Seq[InputPartition]] =
-    getFlattenPartitions.map(Seq(_))
-
-  override def getFlattenPartitions: Seq[InputPartition] =
+  override def getPartitions: Seq[InputPartition] =
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
       relation,
       dynamicallySelectedPartitions,
@@ -280,9 +277,19 @@ class FileSourceScanExecTransformer(
     }
     transformCtx
   }
+
+  @transient override lazy val fileFormat: ReadFileFormat =
+    relation.fileFormat.getClass.getSimpleName match {
+      case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
+      case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
+      case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
+      case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
+      case "CSVFileFormat" => ReadFileFormat.TextReadFormat
+      case _ => ReadFileFormat.UnknownFormat
+    }
 }
 
 object FileSourceScanExecTransformer {
-  def isDynamicPruningFilter(e: Expression): Boolean =
+  private def isDynamicPruningFilter(e: Expression): Boolean =
     e.find(_.isInstanceOf[PlanExpression[_]]).isDefined
 }

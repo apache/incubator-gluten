@@ -239,8 +239,8 @@ set(VELOX_SRCS
     operators/serializer/VeloxRowToColumnarConverter.cc
     operators/writer/VeloxParquetDatasource.cc
     memory/LargeMemoryPool.cc
-    memory/VeloxMemoryPool.cc
     memory/VeloxColumnarBatch.cc
+    memory/VeloxMemoryManager.cc
     udf/UdfLoader.cc
     utils/VeloxArrowUtils.cc
     utils/ArrowTypeUtils.cc

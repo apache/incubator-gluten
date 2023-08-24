@@ -19,12 +19,12 @@
 #include <Disks/IO/ReadBufferFromAzureBlobStorage.h>
 #include <Disks/IO/ReadBufferFromRemoteFSGather.h>
 #include <Disks/ObjectStorages/AzureBlobStorage/AzureBlobStorageAuth.h>
+#include <IO/BoundedReadBuffer.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/ReadBufferFromS3.h>
 #include <IO/S3/getObjectInfo.h>
 #include <IO/S3Common.h>
 #include <IO/SeekableReadBuffer.h>
-#include <IO/BoundedReadBuffer.h>
 #include <Interpreters/Context_fwd.h>
 #include <Storages/HDFS/HDFSCommon.h>
 #include <Storages/HDFS/ReadBufferFromHDFS.h>
@@ -204,7 +204,7 @@ public:
     }
 
     std::pair<size_t, size_t>
-    adjustFileReadStartAndEndPos(size_t read_start_pos, size_t read_end_pos, std::string uri_path, std::string file_path)
+    adjustFileReadStartAndEndPos(size_t read_start_pos, size_t read_end_pos, const std::string & uri_path, const std::string & file_path)
     {
         std::string hdfs_file_path = uri_path + file_path;
         auto builder = DB::createHDFSBuilder(hdfs_file_path, context->getConfigRef());
@@ -227,12 +227,12 @@ public:
         size_t hdfs_file_size = hdfs_file_info->mSize;
 
         /// initial_pos maybe in the middle of a row, so we need to find the next row start position.
-        auto get_next_line_pos = [&](hdfsFS hdfsFs, hdfsFile file, size_t initial_pos, size_t file_size) -> size_t
+        auto get_next_line_pos = [&](hdfsFS hdfs_fs, hdfsFile file, size_t initial_pos, size_t file_size) -> size_t
         {
             if (initial_pos == 0 || initial_pos == file_size)
                 return initial_pos;
 
-            int seek_ret = hdfsSeek(hdfsFs, file, initial_pos);
+            int seek_ret = hdfsSeek(hdfs_fs, file, initial_pos);
             if (seek_ret < 0)
                 throw DB::Exception(
                     DB::ErrorCodes::CANNOT_SEEK_THROUGH_FILE,
@@ -245,7 +245,7 @@ public:
 
             auto do_read = [&]() -> int
             {
-                auto n = hdfsRead(hdfsFs, file, buf, buf_size);
+                auto n = hdfsRead(hdfs_fs, file, buf, buf_size);
                 if (n < 0)
                     throw DB::Exception(
                         DB::ErrorCodes::CANNOT_READ_FROM_FILE_DESCRIPTOR,
@@ -407,6 +407,18 @@ private:
         return s;
     }
 
+    std::string toBucketNameSetting(const std::string & bucket_name, const std::string & config_name)
+    {
+        if (!config_name.starts_with(BackendInitializerUtil::S3A_PREFIX))
+        {
+            // Currently per bucket only support fs.s3a.xxx
+            return config_name;
+        }
+        // like: fs.s3a.bucket.bucket_name.assumed.role.externalId
+        return BackendInitializerUtil::S3A_PREFIX + "bucket." + bucket_name + "."
+            + config_name.substr(BackendInitializerUtil::S3A_PREFIX.size());
+    }
+
     std::string getSetting(
         const DB::Settings & settings,
         const std::string & bucket_name,
@@ -415,36 +427,14 @@ private:
         const bool require_per_bucket = false)
     {
         std::string ret;
-        if (!require_per_bucket)
-        {
-            // if there's a bucket specific config, prefer it to non per bucket config
-            if (settings.tryGetString(bucket_name + "." + config_name, ret))
-            {
-                return stripQuote(ret);
-            }
-            else
-            {
-                if (settings.tryGetString(config_name, ret))
-                {
-                    return stripQuote(ret);
-                }
-                else
-                {
-                    return default_value;
-                }
-            }
-        }
-        else
-        {
-            if (settings.tryGetString(bucket_name + "." + config_name, ret))
-            {
-                return stripQuote(ret);
-            }
-            else
-            {
-                return default_value;
-            }
-        }
+        // if there's a bucket specific config, prefer it to non per bucket config
+        if (settings.tryGetString(toBucketNameSetting(bucket_name, config_name), ret))
+            return stripQuote(ret);
+
+        if (!require_per_bucket && settings.tryGetString(config_name, ret))
+            return stripQuote(ret);
+
+        return default_value;
     }
 
     void cacheClient(const std::string & bucket_name, const bool is_per_bucket, std::shared_ptr<DB::S3::Client> client)
@@ -459,7 +449,7 @@ private:
         }
     }
 
-    std::shared_ptr<DB::S3::Client> getClient(std::string bucket_name)
+    std::shared_ptr<DB::S3::Client> getClient(const std::string & bucket_name)
     {
         const auto & config = context->getConfigRef();
         const auto & settings = context->getSettingsRef();

@@ -45,11 +45,12 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
       String codec,
       String codecBackend,
       int bufferCompressThreshold,
+      String compressionMode,
       String dataFile,
       int subDirsPerLocalDir,
       String localDirs,
       boolean preferEvict,
-      long memoryPoolId,
+      long memoryManagerId,
       boolean writeSchema,
       boolean writeEOS,
       long handle,
@@ -62,11 +63,12 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
         codec,
         codecBackend,
         bufferCompressThreshold,
+        compressionMode,
         dataFile,
         subDirsPerLocalDir,
         localDirs,
         preferEvict,
-        memoryPoolId,
+        memoryManagerId,
         writeSchema,
         writeEOS,
         handle,
@@ -91,9 +93,10 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
       int bufferSize,
       String codec,
       int bufferCompressThreshold,
+      String compressionMode,
       int pushBufferMaxSize,
       Object pusher,
-      long memoryPoolId,
+      long memoryManagerId,
       long handle,
       long taskAttemptId,
       String partitionWriterType) {
@@ -105,11 +108,12 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
         codec,
         null,
         bufferCompressThreshold,
+        compressionMode,
         null,
         0,
         null,
         true,
-        memoryPoolId,
+        memoryManagerId,
         false,
         true,
         handle,
@@ -127,11 +131,12 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
       String codec,
       String codecBackend,
       int bufferCompressThreshold,
+      String compressionMode,
       String dataFile,
       int subDirsPerLocalDir,
       String localDirs,
       boolean preferEvict,
-      long memoryPoolId,
+      long memoryManagerId,
       boolean writeSchema,
       boolean writeEOS,
       long handle,
@@ -168,9 +173,9 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
    * temporary file. And stop processing splitting
    *
    * @param shuffleWriterId shuffle writer instance id
-   * @return SplitResult
+   * @return GlutenSplitResult
    */
-  public native SplitResult stop(long shuffleWriterId) throws IOException;
+  public native GlutenSplitResult stop(long shuffleWriterId) throws IOException;
 
   /**
    * Release resources associated with designated shuffle writer instance.

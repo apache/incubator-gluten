@@ -48,7 +48,7 @@ jmethodID SparkRowToCHColumn::spark_row_interator_hasNext = nullptr;
 jmethodID SparkRowToCHColumn::spark_row_interator_next = nullptr;
 jmethodID SparkRowToCHColumn::spark_row_iterator_nextBatch = nullptr;
 
-ALWAYS_INLINE static void writeRowToColumns(std::vector<MutableColumnPtr> & columns, const SparkRowReader & spark_row_reader)
+ALWAYS_INLINE static void writeRowToColumns(const std::vector<MutableColumnPtr> & columns, const SparkRowReader & spark_row_reader)
 {
     auto num_fields = columns.size();
 
@@ -84,8 +84,8 @@ std::unique_ptr<Block> SparkRowToCHColumn::convertSparkRowInfoToCHColumn(const S
         SparkRowReader row_reader(types);
         for (int64_t i = 0; i < num_rows; i++)
         {
-            row_reader.pointTo(spark_row_info.getBufferAddress() + spark_row_info.getOffsets()[i],
-                               static_cast<int32_t>(spark_row_info.getLengths()[i]));
+            row_reader.pointTo(
+                spark_row_info.getBufferAddress() + spark_row_info.getOffsets()[i], static_cast<int32_t>(spark_row_info.getLengths()[i]));
             writeRowToColumns(mutable_columns, row_reader);
         }
         block->setColumns(std::move(mutable_columns));

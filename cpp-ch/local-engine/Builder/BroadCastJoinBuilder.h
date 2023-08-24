@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 #pragma once
-#include <Shuffle/ShuffleReader.h>
-#include <Storages/StorageJoinFromReadBuffer.h>
+#include <memory>
+#include <jni.h>
 
 // Forward Declarations
 struct JNIEnv_;
@@ -24,6 +24,7 @@ using JNIEnv = JNIEnv_;
 
 namespace local_engine
 {
+class StorageJoinFromReadBuffer;
 namespace BroadCastJoinBuilder
 {
 

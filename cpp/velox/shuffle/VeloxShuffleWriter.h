@@ -44,7 +44,7 @@
 #include "arrow/array/util.h"
 #include "arrow/result.h"
 
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/Partitioner.h"
 #include "shuffle/ShuffleWriter.h"
@@ -196,8 +196,9 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options)
       : ShuffleWriter(numPartitions, partitionWriterCreator, std::move(options)),
-        veloxPool_(defaultLeafVeloxMemoryPool()),
-        arena_(std::make_unique<facebook::velox::StreamArena>(veloxPool_.get())) {}
+        veloxPool_(defaultLeafVeloxMemoryPool()) {
+    arenas_.resize(numPartitions);
+  }
 
   arrow::Status init();
 
@@ -344,7 +345,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   std::shared_ptr<const facebook::velox::RowType> complexWriteType_;
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
-  std::unique_ptr<facebook::velox::StreamArena> arena_;
+  std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
 
   std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_ =
       std::make_unique<facebook::velox::serializer::presto::PrestoVectorSerde>();

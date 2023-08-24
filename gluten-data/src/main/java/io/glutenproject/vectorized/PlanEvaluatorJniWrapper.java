@@ -40,11 +40,11 @@ public class PlanEvaluatorJniWrapper extends JniInitialized {
   /**
    * Create a native compute kernel and return a columnar result iterator.
    *
-   * @param allocatorId allocator id
+   * @param memoryManagerId NativeMemoryManager instance id
    * @return iterator instance id
    */
   public native long nativeCreateKernelWithIterator(
-      long allocatorId,
+      long memoryManagerId,
       byte[] wsPlan,
       GeneralInIterator[] batchItr,
       int stageId,

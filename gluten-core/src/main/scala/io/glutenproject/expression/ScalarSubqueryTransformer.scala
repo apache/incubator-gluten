@@ -22,7 +22,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.{BaseSubqueryExec, ScalarSubquery}
 import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
-class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId, query: ScalarSubquery)
+case class ScalarSubqueryTransformer(plan: BaseSubqueryExec, exprId: ExprId, query: ScalarSubquery)
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {

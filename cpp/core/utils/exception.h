@@ -21,6 +21,8 @@
 
 #include <stdexcept>
 
+#include "Likely.h"
+
 #define GLUTEN_THROW_NOT_OK(s)                                  \
   do {                                                          \
     ::arrow::Status _s = ::arrow::internal::GenericToStatus(s); \

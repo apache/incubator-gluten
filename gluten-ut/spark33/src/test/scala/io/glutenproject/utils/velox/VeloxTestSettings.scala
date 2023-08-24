@@ -18,7 +18,7 @@ package io.glutenproject.utils.velox
 
 import io.glutenproject.utils.BackendTestSettings
 
-import org.apache.spark.sql.{GlutenApproxCountDistinctForIntervalsQuerySuite, GlutenApproximatePercentileQuerySuite, GlutenBloomFilterAggregateQuerySuite, GlutenCachedTableSuite, GlutenColumnExpressionSuite, GlutenConfigBehaviorSuite, GlutenCountMinSketchAggQuerySuite, GlutenCsvFunctionsSuite, GlutenCTEHintSuite, GlutenCTEInlineSuiteAEOff, GlutenCTEInlineSuiteAEOn, GlutenDataFrameAggregateSuite, GlutenDataFrameAsOfJoinSuite, GlutenDataFrameComplexTypeSuite, GlutenDataFrameFunctionsSuite, GlutenDataFrameHintSuite, GlutenDataFrameImplicitsSuite, GlutenDataFrameJoinSuite, GlutenDataFrameNaFunctionsSuite, GlutenDataFramePivotSuite, GlutenDataFrameRangeSuite, GlutenDataFrameSelfJoinSuite, GlutenDataFrameSessionWindowingSuite, GlutenDataFrameSetOperationsSuite, GlutenDataFrameStatSuite, GlutenDataFrameSuite, GlutenDataFrameTimeWindowingSuite, GlutenDataFrameTungstenSuite, GlutenDataFrameWindowFramesSuite, GlutenDataFrameWriterV2Suite, GlutenDatasetAggregatorSuite, GlutenDatasetCacheSuite, GlutenDatasetOptimizationSuite, GlutenDatasetPrimitiveSuite, GlutenDatasetSerializerRegistratorSuite, GlutenDatasetSuite, GlutenDateFunctionsSuite, GlutenDeprecatedAPISuite, GlutenDSV2CharVarcharTestSuite, GlutenDSV2SQLInsertTestSuite, GlutenDynamicPartitionPruningV1SuiteAEOff, GlutenDynamicPartitionPruningV1SuiteAEOn, GlutenDynamicPartitionPruningV2SuiteAEOff, GlutenDynamicPartitionPruningV2SuiteAEOn, GlutenExpressionsSchemaSuite, GlutenExtraStrategiesSuite, GlutenFileBasedDataSourceSuite, GlutenFileScanSuite, GlutenFileSourceCharVarcharTestSuite, GlutenFileSourceSQLInsertTestSuite, GlutenGeneratorFunctionSuite, GlutenInjectRuntimeFilterSuite, GlutenIntervalFunctionsSuite, GlutenJoinSuite, GlutenJsonFunctionsSuite, GlutenMathFunctionsSuite, GlutenMetadataCacheSuite, GlutenMiscFunctionsSuite, GlutenNestedDataSourceV1Suite, GlutenNestedDataSourceV2Suite, GlutenProcessingTimeSuite, GlutenProductAggSuite, GlutenReplaceNullWithFalseInPredicateEndToEndSuite, GlutenScalaReflectionRelationSuite, GlutenSerializationSuite, GlutenSQLQuerySuite, GlutenSQLQueryTestSuite, GlutenStatisticsCollectionSuite, GlutenStringFunctionsSuite, GlutenSubquerySuite, GlutenTypedImperativeAggregateSuite, GlutenUnwrapCastInComparisonEndToEndSuite, GlutenXPathFunctionsSuite}
+import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions.{GlutenAnsiCastSuiteWithAnsiModeOff, GlutenAnsiCastSuiteWithAnsiModeOn, GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCastSuiteWithAnsiModeOn, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenHashExpressionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite, GlutenTryCastSuite}
 import org.apache.spark.sql.connector.{GlutenDataSourceV2DataFrameSessionCatalogSuite, GlutenDataSourceV2DataFrameSuite, GlutenDataSourceV2FunctionSuite, GlutenDataSourceV2SQLSessionCatalogSuite, GlutenDataSourceV2SQLSuite, GlutenDataSourceV2Suite, GlutenDeleteFromTableSuite, GlutenFileDataSourceV2FallBackSuite, GlutenKeyGroupedPartitioningSuite, GlutenLocalScanSuite, GlutenMetadataColumnSuite, GlutenSupportsCatalogOptionsSuite, GlutenTableCapabilityCheckSuite, GlutenWriteDistributionAndOrderingSuite}
 import org.apache.spark.sql.errors.{GlutenQueryCompilationErrorsDSv2Suite, GlutenQueryCompilationErrorsSuite, GlutenQueryExecutionErrorsSuite, GlutenQueryParsingErrorsSuite}
@@ -132,6 +132,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Shuffle")
     // TODO: ArrayDistinct should handle duplicated Double.NaN
     .excludeByPrefix("SPARK-36741")
+    // TODO: ArrayIntersect should handle duplicated Double.NaN
+    .excludeByPrefix("SPARK-36754")
     .exclude("Concat")
   enableSuite[GlutenConditionalExpressionSuite]
   enableSuite[GlutenDateExpressionsSuite]
@@ -154,6 +156,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // FIXME(yma11): ObjectType is not covered in RowEncoder/Serializer in vanilla spark
     .exclude("SPARK-37967: Literal.create support ObjectType")
   enableSuite[GlutenMathExpressionsSuite]
+    // Spark round UT for round(3.1415,3) is not correct.
+    .exclude("round/bround/floor/ceil")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
@@ -1035,8 +1039,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan]
   enableSuite[GlutenExpressionsSchemaSuite]
   enableSuite[GlutenExtraStrategiesSuite]
   enableSuite[GlutenFileBasedDataSourceSuite]

@@ -104,7 +104,7 @@ struct PositionSparkImpl
     }
 
     /// Search for substring in string.
-    static void constantConstantScalar(std::string data, std::string needle, UInt64 start_pos, UInt64 & res)
+    static void constantConstantScalar(std::string data, const std::string & needle, UInt64 start_pos, UInt64 & res)
     {
         size_t start_byte = Impl::advancePos(data.data(), data.data() + data.size(), start_pos - 1) - data.data();
         res = data.find(needle, start_byte);

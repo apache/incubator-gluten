@@ -21,7 +21,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
 import _root_.io.glutenproject.backendsapi.BackendsApiManager
-import _root_.io.glutenproject.memory.TaskMemoryMetrics
+import _root_.io.glutenproject.memory.MemoryUsage
 import _root_.io.glutenproject.utils.TaskListener
 
 import java.util
@@ -42,14 +42,6 @@ object TaskResources extends TaskListener with Logging {
   private val RESOURCE_REGISTRIES =
     new java.util.IdentityHashMap[TaskContext, TaskResourceRegistry]()
 
-  // The fallback registry handles the case that the caller is not in a Spark task.
-  private val FALLBACK_REGISTRY = new TaskResourceRegistry()
-
-  GlutenShutdownManager.addHook(
-    () => {
-      FALLBACK_REGISTRY.releaseAll()
-    })
-
   def getLocalTaskContext(): TaskContext = {
     TaskContext.get()
   }
@@ -60,17 +52,17 @@ object TaskResources extends TaskListener with Logging {
 
   private def getTaskResourceRegistry(): TaskResourceRegistry = {
     if (!inSparkTask()) {
-      logInfo(
+      logWarning(
         "Using the fallback instance of TaskResourceRegistry. " +
           "This should only happen when call is not from Spark task.")
-      return FALLBACK_REGISTRY
+      throw new IllegalStateException("Found a caller not in Spark task scope.")
     }
     val tc = getLocalTaskContext()
     RESOURCE_REGISTRIES.synchronized {
       if (!RESOURCE_REGISTRIES.containsKey(tc)) {
         throw new IllegalStateException(
           "" +
-            "TaskMemoryResourceRegistry is not initialized, please ensure TaskResources " +
+            "TaskResourceRegistry is not initialized, please ensure TaskResources " +
             "is added to GlutenExecutorPlugin's task listener list")
       }
       return RESOURCE_REGISTRIES.get(tc)
@@ -107,8 +99,8 @@ object TaskResources extends TaskListener with Logging {
     getTaskResourceRegistry().getResource(id)
   }
 
-  def getSharedMetrics(): TaskMemoryMetrics = {
-    getTaskResourceRegistry().getSharedMetrics()
+  def getSharedUsage(): MemoryUsage = {
+    getTaskResourceRegistry().getSharedUsage()
   }
 
   override def onTaskStart(): Unit = {
@@ -119,8 +111,7 @@ object TaskResources extends TaskListener with Logging {
     RESOURCE_REGISTRIES.synchronized {
       if (RESOURCE_REGISTRIES.containsKey(tc)) {
         throw new IllegalStateException(
-          "" +
-            "TaskMemoryResourceRegistry is already initialized, this should not happen")
+          "TaskResourceRegistry is already initialized, this should not happen")
       }
       val registry = new TaskResourceRegistry
       RESOURCE_REGISTRIES.put(tc, registry)
@@ -141,12 +132,11 @@ object TaskResources extends TaskListener with Logging {
           RESOURCE_REGISTRIES.synchronized {
             if (!RESOURCE_REGISTRIES.containsKey(tc)) {
               throw new IllegalStateException(
-                "" +
-                  "TaskMemoryResourceRegistry is not initialized, this should not happen")
+                "TaskResourceRegistry is not initialized, this should not happen")
             }
             val registry = RESOURCE_REGISTRIES.remove(context)
             registry.releaseAll()
-            context.taskMetrics().incPeakExecutionMemory(registry.getSharedMetrics().peak())
+            context.taskMetrics().incPeakExecutionMemory(registry.getSharedUsage().peak())
           }
         }
       })
@@ -173,7 +163,7 @@ object TaskResources extends TaskListener with Logging {
 
 // thread safe
 class TaskResourceRegistry extends Logging {
-  private val sharedMetrics = new TaskMemoryMetrics()
+  private val sharedUsage = new MemoryUsage()
   private val resources = new java.util.LinkedHashMap[String, TaskResource]()
   private val resourcesPriorityMapping =
     new java.util.HashMap[Long, java.util.List[TaskResource]]()
@@ -205,6 +195,7 @@ class TaskResourceRegistry extends Logging {
         e.getValue.asScala.reverse.foreach(
           m =>
             try { // LIFO
+              // logWarning(s"Prepare release ${m.resourceName()}")
               m.release()
             } catch {
               case e: Throwable =>
@@ -244,7 +235,7 @@ class TaskResourceRegistry extends Logging {
     resources.get(id).asInstanceOf[T]
   }
 
-  private[util] def getSharedMetrics(): TaskMemoryMetrics = synchronized {
-    sharedMetrics
+  private[util] def getSharedUsage(): MemoryUsage = synchronized {
+    sharedUsage
   }
 }

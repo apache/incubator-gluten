@@ -62,7 +62,7 @@ jobs:
           docker exec velox-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
-          ./build_arrow.sh --build_tests=ON --build_benchmarks=ON && \
+          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh --build_benchmarks=ON'
@@ -80,7 +80,7 @@ jobs:
       - name: Run CPP unit test
         run: |
           docker exec velox-ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
-          ctest -V -E OrcTest'
+          ctest -V'
       # Cpp micro benchmarks will use generated files from unit test in backends-velox module.
       - name: Run micro benchmarks
         run: |
@@ -116,7 +116,7 @@ jobs:
           docker exec velox-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
-          ./build_arrow.sh --build_tests=ON --build_benchmarks=ON && \
+          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'
@@ -168,7 +168,7 @@ jobs:
           docker exec velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c '
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
-          ./build_arrow.sh --build_tests=ON --build_benchmarks=ON && \
+          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'
@@ -219,7 +219,7 @@ jobs:
           docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-arrow/src && \
           ./get_arrow.sh  && \
-          ./build_arrow.sh --build_tests=ON --build_benchmarks=ON && \
+          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'

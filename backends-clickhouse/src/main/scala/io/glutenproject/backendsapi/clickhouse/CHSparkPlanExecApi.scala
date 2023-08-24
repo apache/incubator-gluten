@@ -19,9 +19,10 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression._
+import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.utils.CHJoinValidateUtil
-import io.glutenproject.vectorized.{CHBlockWriterJniWrapper, CHColumnarBatchSerializer}
+import io.glutenproject.vectorized.CHColumnarBatchSerializer
 
 import org.apache.spark.{ShuffleDependency, SparkException}
 import org.apache.spark.rdd.RDD
@@ -50,11 +51,31 @@ import org.apache.spark.sql.extension.ClickHouseAnalysis
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.common.collect.Lists
+
 import java.{lang, util}
 
 import scala.collection.mutable.ArrayBuffer
 
 class CHSparkPlanExecApi extends SparkPlanExecApi {
+
+  /** Transform GetArrayItem to Substrait. */
+  override def genGetArrayItemExpressionNode(
+      substraitExprName: String,
+      functionMap: java.util.HashMap[String, java.lang.Long],
+      leftNode: ExpressionNode,
+      rightNode: ExpressionNode,
+      original: GetArrayItem): ExpressionNode = {
+    val functionName = ConverterUtils.makeFuncName(
+      substraitExprName,
+      Seq(original.left.dataType, original.right.dataType),
+      FunctionConfig.OPT)
+    val exprNodes = Lists.newArrayList(leftNode, rightNode)
+    ExpressionBuilder.makeScalarFunction(
+      ExpressionBuilder.newScalarFunction(functionMap, functionName),
+      exprNodes,
+      ConverterUtils.getTypeNode(original.dataType, original.nullable))
+  }
 
   /**
    * Generate ColumnarToRowExecBase.
@@ -63,7 +84,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genColumnarToRowExec(child: SparkPlan): ColumnarToRowExecBase = {
-    CHColumnarToRowExec(child);
+    CHColumnarToRowExec(child)
   }
 
   /**
@@ -73,7 +94,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genRowToColumnarExec(child: SparkPlan): RowToColumnarExecBase = {
-    new RowToCHNativeColumnarExec(child)
+    RowToCHNativeColumnarExec(child)
   }
 
   /**
@@ -82,7 +103,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @param condition
    *   : the filter condition
    * @param child
-   *   : the chid of FilterExec
+   *   : the child of FilterExec
    * @return
    *   the transformer of FilterExec
    */
@@ -156,25 +177,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left,
       right,
       isNullAwareAntiJoin)
-
-  /**
-   * Generate Alias transformer.
-   *
-   * @param child
-   *   : The computation being performed
-   * @param name
-   *   : The name to be associated with the result of computing.
-   * @param exprId
-   * @param qualifier
-   * @param explicitMetadata
-   * @return
-   *   a transformer for alias
-   */
-  def genAliasTransformer(
-      substraitExprName: String,
-      child: ExpressionTransformer,
-      original: Expression): AliasTransformerBase =
-    AliasTransformerBase(substraitExprName, child, original)
 
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
   def genGetMapValueTransformer(
@@ -289,32 +291,17 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         }
         (newChild, (child.output ++ appendedProjections).map(_.toAttribute), preProjectionBuildKeys)
       }
-    val countsAndBytes = newChild
-      .executeColumnar()
-      .mapPartitions {
-        iter =>
-          var _numRows: Long = 0
-
-          // Use for reading bytes array from block
-          val blockNativeWriter = new CHBlockWriterJniWrapper()
-          while (iter.hasNext) {
-            val batch = iter.next
-            blockNativeWriter.write(batch)
-            _numRows += batch.numRows
-          }
-          Iterator((_numRows, blockNativeWriter.collectAsByteArray()))
-      }
-      .collect
+    val countsAndBytes =
+      CHExecUtil.buildSideRDD(dataSize, newChild).collect
 
     val batches = countsAndBytes.map(_._2)
-    val rawSize = batches.map(_.length).sum
+    val rawSize = dataSize.value
     if (rawSize >= BroadcastExchangeExec.MAX_BROADCAST_TABLE_BYTES) {
       throw new SparkException(
         s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
     }
     numOutputRows += countsAndBytes.map(_._1).sum
-    dataSize += rawSize
-    ClickHouseBuildSideRelation(mode, newOutput, batches, newBuildKeys)
+    ClickHouseBuildSideRelation(mode, newOutput, batches.flatten, newBuildKeys)
   }
 
   /**
@@ -375,6 +362,22 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHEqualNullSafeTransformer(substraitExprName, left, right, original)
   }
 
+  override def genStringLocateTransformer(
+      substraitExprName: String,
+      first: ExpressionTransformer,
+      second: ExpressionTransformer,
+      third: ExpressionTransformer,
+      original: StringLocate): ExpressionTransformer = {
+    CHStringLocateTransformer(substraitExprName, first, second, third, original)
+  }
+
+  override def genMd5Transformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: Md5): ExpressionTransformer = {
+    CHMd5Transformer(substraitExprName, child, original)
+  }
+
   /** Generate an ExpressionTransformer to transform Sha2 expression. */
   override def genSha2Transformer(
       substraitExprName: String,
@@ -406,7 +409,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       timestamp: ExpressionTransformer,
       timeZoneId: Option[String],
       original: TruncTimestamp): ExpressionTransformer = {
-    new CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
+    CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
   }
 
   override def genUnixTimestampTransformer(

@@ -179,8 +179,6 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         memory/ArrowMemoryPool.cc
         ${PROTO_SRCS}
         compute/ProtobufUtils.cc
-        operators/c2r/ArrowColumnarToRowConverter.cc
-        operators/c2r/ColumnarToRow.cc
         operators/writer/ArrowWriter.cc
         shuffle/reader.cc
         shuffle/ShuffleWriter.cc
@@ -195,7 +193,6 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/rss/CelebornPartitionWriter.cc
         memory/ColumnarBatch.cc
         utils/Compression.cc
-        utils/TaskContext.cc
         utils/StringUtil.cc)
 
 file(MAKE_DIRECTORY ${root_directory}/releases)

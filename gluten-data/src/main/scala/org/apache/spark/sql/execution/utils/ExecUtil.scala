@@ -17,8 +17,8 @@
 package org.apache.spark.sql.execution.utils
 
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.alloc.NativeMemoryAllocators
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
+import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
 
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
@@ -45,7 +45,9 @@ object ExecUtil {
     var info: NativeColumnarToRowInfo = null
     val batchHandle = ColumnarBatches.getNativeHandle(batch)
     val instanceId = jniWrapper.nativeColumnarToRowInit(
-      NativeMemoryAllocators.getDefault().contextInstance().getNativeInstanceId)
+      NativeMemoryManagers
+        .contextInstance("ExecUtil#ColumnarToRow")
+        .getNativeInstanceId)
     info = jniWrapper.nativeColumnarToRowConvert(batchHandle, instanceId)
 
     new Iterator[InternalRow] {

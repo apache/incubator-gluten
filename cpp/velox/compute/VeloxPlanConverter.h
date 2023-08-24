@@ -18,7 +18,7 @@
 #pragma once
 
 #include "compute/ResultIterator.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
 #include "velox/core/PlanNode.h"

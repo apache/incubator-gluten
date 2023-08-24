@@ -92,6 +92,7 @@ object ExpressionMappings {
     Sig[InitCap](INITCAP),
     Sig[Overlay](OVERLAY),
     Sig[Conv](CONV),
+    Sig[FindInSet](FIND_IN_SET),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
@@ -206,6 +207,7 @@ object ExpressionMappings {
     Sig[ArrayPosition](ARRAY_POSITION),
     Sig[ArrayDistinct](ARRAY_DISTINCT),
     Sig[ArrayUnion](ARRAY_UNION),
+    Sig[ArrayIntersect](ARRAY_INTERSECT),
     // Map functions
     Sig[CreateMap](CREATE_MAP),
     Sig[GetMapValue](GET_MAP_VALUE),

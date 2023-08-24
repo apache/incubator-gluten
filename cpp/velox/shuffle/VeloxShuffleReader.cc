@@ -20,6 +20,7 @@
 #include <arrow/array/array_binary.h>
 
 #include "memory/VeloxColumnarBatch.h"
+#include "utils/ArrowTypeUtils.h"
 #include "utils/compression.h"
 #include "utils/macros.h"
 #include "velox/serializers/PrestoSerializer.h"
@@ -61,15 +62,13 @@ BufferPtr convertToVeloxBuffer(std::shared_ptr<arrow::Buffer> buffer) {
 
 template <TypeKind kind>
 VectorPtr readFlatVector(
-    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    std::vector<BufferPtr>& buffers,
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
     memory::MemoryPool* pool) {
-  auto nulls = convertToVeloxBuffer(buffers[bufferIdx]);
-  bufferIdx++;
-  auto values = convertToVeloxBuffer(buffers[bufferIdx]);
-  bufferIdx++;
+  auto nulls = buffers[bufferIdx++];
+  auto values = buffers[bufferIdx++];
   std::vector<BufferPtr> stringBuffers;
   using T = typename TypeTraits<kind>::NativeType;
   if (nulls == nullptr || nulls->size() == 0) {
@@ -82,25 +81,23 @@ VectorPtr readFlatVector(
 
 template <>
 VectorPtr readFlatVector<TypeKind::HUGEINT>(
-    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    std::vector<BufferPtr>& buffers,
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
     memory::MemoryPool* pool) {
-  auto nulls = convertToVeloxBuffer(buffers[bufferIdx]);
-  bufferIdx++;
-  auto arrowValueBuffer = buffers[bufferIdx];
+  auto nulls = buffers[bufferIdx++];
+  auto valueBuffer = buffers[bufferIdx++];
   // Because if buffer does not compress, it will get from netty, the address maynot aligned 16B, which will cause
   // int128_t = xxx coredump by instruction movdqa
-  auto data = static_cast<const int128_t*>(reinterpret_cast<const void*>(arrowValueBuffer->data()));
+  auto data = valueBuffer->as<int128_t>();
   BufferPtr values;
   if ((reinterpret_cast<uintptr_t>(data) & 0xf) == 0) {
-    values = convertToVeloxBuffer(arrowValueBuffer);
+    values = valueBuffer;
   } else {
-    values = AlignedBuffer::allocate<char>(arrowValueBuffer->size(), pool);
-    memcpy(values->asMutable<char>(), arrowValueBuffer->data(), arrowValueBuffer->size());
+    values = AlignedBuffer::allocate<char>(valueBuffer->size(), pool);
+    memcpy(values->asMutable<char>(), valueBuffer->as<char>(), valueBuffer->size());
   }
-  bufferIdx++;
   std::vector<BufferPtr> stringBuffers;
   if (nulls == nullptr || nulls->size() == 0) {
     auto vp = std::make_shared<FlatVector<int128_t>>(
@@ -112,17 +109,14 @@ VectorPtr readFlatVector<TypeKind::HUGEINT>(
 }
 
 VectorPtr readFlatVectorStringView(
-    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    std::vector<BufferPtr>& buffers,
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
     memory::MemoryPool* pool) {
-  auto nulls = convertToVeloxBuffer(buffers[bufferIdx]);
-  bufferIdx++;
-  auto offsetBuffers = convertToVeloxBuffer(buffers[bufferIdx]);
-  bufferIdx++;
-  auto valueBuffers = convertToVeloxBuffer(buffers[bufferIdx]);
-  bufferIdx++;
+  auto nulls = buffers[bufferIdx++];
+  auto offsetBuffers = buffers[bufferIdx++];
+  auto valueBuffers = buffers[bufferIdx++];
   const int32_t* rawOffset = offsetBuffers->as<int32_t>();
 
   std::vector<BufferPtr> stringBuffers;
@@ -143,7 +137,7 @@ VectorPtr readFlatVectorStringView(
 
 template <>
 VectorPtr readFlatVector<TypeKind::VARCHAR>(
-    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    std::vector<BufferPtr>& buffers,
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
@@ -153,7 +147,7 @@ VectorPtr readFlatVector<TypeKind::VARCHAR>(
 
 template <>
 VectorPtr readFlatVector<TypeKind::VARBINARY>(
-    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    std::vector<BufferPtr>& buffers,
     int32_t& bufferIdx,
     uint32_t length,
     std::shared_ptr<const Type> type,
@@ -168,9 +162,9 @@ std::unique_ptr<ByteStream> toByteStream(uint8_t* data, int32_t size) {
   return byteStream;
 }
 
-RowVectorPtr readComplexType(std::shared_ptr<arrow::Buffer> buffer, RowTypePtr& rowType, memory::MemoryPool* pool) {
+RowVectorPtr readComplexType(BufferPtr buffer, RowTypePtr& rowType, memory::MemoryPool* pool) {
   RowVectorPtr result;
-  auto byteStream = toByteStream(const_cast<uint8_t*>(buffer->data()), buffer->size());
+  auto byteStream = toByteStream(const_cast<uint8_t*>(buffer->as<uint8_t>()), buffer->size());
   auto serde = std::make_unique<serializer::presto::PrestoVectorSerde>();
   serde->deserialize(byteStream.get(), pool, rowType, &result, /* serdeOptions */ nullptr);
   return result;
@@ -196,7 +190,7 @@ RowTypePtr getComplexWriteType(const std::vector<TypePtr>& types) {
 }
 
 void readColumns(
-    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    std::vector<BufferPtr>& buffers,
     memory::MemoryPool* pool,
     uint32_t numRows,
     const std::vector<TypePtr>& types,
@@ -227,11 +221,7 @@ void readColumns(
   }
 }
 
-RowVectorPtr deserialize(
-    RowTypePtr type,
-    uint32_t numRows,
-    std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    memory::MemoryPool* pool) {
+RowVectorPtr deserialize(RowTypePtr type, uint32_t numRows, std::vector<BufferPtr>& buffers, memory::MemoryPool* pool) {
   std::vector<VectorPtr> children;
   auto childTypes = type->as<TypeKind::ROW>().children();
   readColumns(buffers, pool, numRows, childTypes, children);
@@ -242,18 +232,14 @@ std::shared_ptr<arrow::Buffer> readColumnBuffer(const arrow::RecordBatch& batch,
   return std::dynamic_pointer_cast<arrow::LargeStringArray>(batch.column(fieldIdx))->value_data();
 }
 
-void getUncompressedBuffers(
-    const arrow::RecordBatch& batch,
+void getUncompressedBuffersOneByOne(
     arrow::MemoryPool* arrowPool,
-    const arrow::Compression::type compressType,
-    CodecBackend codecBackend,
-    std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
-  auto lengthBuffer = readColumnBuffer(batch, 1);
-  const int64_t* lengthPtr = reinterpret_cast<const int64_t*>(lengthBuffer->data());
-  auto valueBufferLength = lengthPtr[0];
-  auto valueBuffer = readColumnBuffer(batch, 2);
+    arrow::util::Codec* codec,
+    const int64_t* lengthPtr,
+    std::shared_ptr<arrow::Buffer> valueBuffer,
+    std::vector<BufferPtr>& buffers) {
   int64_t valueOffset = 0;
-  auto codec = createArrowIpcCodec(compressType, codecBackend);
+  auto valueBufferLength = lengthPtr[0];
   for (int64_t i = 0, j = 1; i < valueBufferLength; i++, j = j + 2) {
     int64_t uncompressLength = lengthPtr[j];
     int64_t compressLength = lengthPtr[j + 1];
@@ -261,7 +247,7 @@ void getUncompressedBuffers(
     valueOffset += compressLength;
     // Small buffer, not compressed
     if (uncompressLength == -1) {
-      buffers.emplace_back(compressBuffer);
+      buffers.emplace_back(convertToVeloxBuffer(compressBuffer));
     } else {
       std::shared_ptr<arrow::Buffer> uncompressBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
       if (uncompressLength != 0) {
@@ -272,8 +258,66 @@ void getUncompressedBuffers(
                 compressLength, compressBuffer->data(), uncompressLength, uncompressBuffer->mutable_data()));
         VELOX_DCHECK_EQ(actualDecompressLength, uncompressLength);
       }
-      buffers.emplace_back(uncompressBuffer);
+      buffers.emplace_back(convertToVeloxBuffer(uncompressBuffer));
     }
+  }
+}
+
+void getUncompressedBuffersStream(
+    arrow::MemoryPool* arrowPool,
+    arrow::util::Codec* codec,
+    const int64_t* lengthPtr,
+    std::shared_ptr<arrow::Buffer> compressBuffer,
+    std::vector<BufferPtr>& buffers) {
+  int64_t uncompressLength = lengthPtr[0];
+  int64_t compressLength = lengthPtr[1];
+  auto valueBufferLength = lengthPtr[2];
+  if (uncompressLength != -1) {
+    std::shared_ptr<arrow::Buffer> uncompressBuffer;
+    GLUTEN_ASSIGN_OR_THROW(uncompressBuffer, arrow::AllocateBuffer(uncompressLength, arrowPool));
+    GLUTEN_ASSIGN_OR_THROW(
+        auto actualDecompressLength,
+        codec->Decompress(compressLength, compressBuffer->data(), uncompressLength, uncompressBuffer->mutable_data()));
+    VELOX_DCHECK_EQ(actualDecompressLength, uncompressLength);
+    const std::shared_ptr<arrow::Buffer> kNullBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
+    int64_t bufferOffset = 0;
+    for (int64_t i = 3; i < valueBufferLength + 3; i++) {
+      if (lengthPtr[i] == 0) {
+        buffers.emplace_back(convertToVeloxBuffer(kNullBuffer));
+      } else {
+        auto uncompressBufferSlice = arrow::SliceBuffer(uncompressBuffer, bufferOffset, lengthPtr[i]);
+        buffers.emplace_back(convertToVeloxBuffer(uncompressBufferSlice));
+        bufferOffset += lengthPtr[i];
+      }
+    }
+  } else {
+    const std::shared_ptr<arrow::Buffer> kNullBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
+    int64_t bufferOffset = 0;
+    for (int64_t i = 3; i < valueBufferLength + 3; i++) {
+      if (lengthPtr[i] == 0) {
+        buffers.emplace_back(convertToVeloxBuffer(kNullBuffer));
+      } else {
+        auto uncompressBufferSlice = arrow::SliceBuffer(compressBuffer, bufferOffset, lengthPtr[i]);
+        buffers.emplace_back(convertToVeloxBuffer(uncompressBufferSlice));
+        bufferOffset += lengthPtr[i];
+      }
+    }
+  }
+}
+
+void getUncompressedBuffers(
+    const arrow::RecordBatch& batch,
+    arrow::MemoryPool* arrowPool,
+    arrow::util::Codec* codec,
+    CompressionMode compressionMode,
+    std::vector<BufferPtr>& buffers) {
+  auto lengthBuffer = readColumnBuffer(batch, 1);
+  const int64_t* lengthPtr = reinterpret_cast<const int64_t*>(lengthBuffer->data());
+  auto valueBuffer = readColumnBuffer(batch, 2);
+  if (compressionMode == CompressionMode::BUFFER) {
+    getUncompressedBuffersOneByOne(arrowPool, codec, lengthPtr, valueBuffer, buffers);
+  } else {
+    getUncompressedBuffersStream(arrowPool, codec, lengthPtr, valueBuffer, buffers);
   }
 }
 
@@ -281,6 +325,7 @@ RowVectorPtr readRowVectorInternal(
     const arrow::RecordBatch& batch,
     RowTypePtr rowType,
     CodecBackend codecBackend,
+    CompressionMode compressionMode,
     int64_t& decompressTime,
     arrow::MemoryPool* arrowPool,
     memory::MemoryPool* pool) {
@@ -291,53 +336,97 @@ RowVectorPtr readRowVectorInternal(
   memcpy(&compressTypeValue, header->data() + sizeof(uint32_t), sizeof(int32_t));
   arrow::Compression::type compressType = static_cast<arrow::Compression::type>(compressTypeValue);
 
-  std::vector<std::shared_ptr<arrow::Buffer>> buffers;
+  std::vector<BufferPtr> buffers;
   buffers.reserve(batch.num_columns() * 2);
   if (compressType == arrow::Compression::type::UNCOMPRESSED) {
     for (int32_t i = 0; i < batch.num_columns() - 1; i++) {
       auto buffer = readColumnBuffer(batch, i + 1);
-      buffers.emplace_back(buffer);
+      buffers.emplace_back(convertToVeloxBuffer(buffer));
     }
   } else {
     TIME_NANO_START(decompressTime);
-    getUncompressedBuffers(batch, arrowPool, compressType, codecBackend, buffers);
+    auto codec = createArrowIpcCodec(compressType, codecBackend);
+    getUncompressedBuffers(batch, arrowPool, codec.get(), compressionMode, buffers);
     TIME_NANO_END(decompressTime);
   }
   return deserialize(rowType, length, buffers, pool);
 }
+
+class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
+ public:
+  VeloxShuffleReaderOutStream(
+      const std::shared_ptr<arrow::MemoryPool>& pool,
+      const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
+      const ReaderOptions& options,
+      const RowTypePtr& rowType,
+      const std::function<void(int64_t&)> decompressionTimeAccumulator,
+      ResultIterator& in)
+      : pool_(pool),
+        veloxPool_(veloxPool),
+        options_(options),
+        rowType_(rowType),
+        decompressionTimeAccumulator_(decompressionTimeAccumulator),
+        in_(std::move(in)) {}
+
+  std::shared_ptr<ColumnarBatch> next() override {
+    if (!in_.hasNext()) {
+      return nullptr;
+    }
+    auto batch = in_.next();
+    auto rb = std::dynamic_pointer_cast<ArrowColumnarBatch>(batch)->getRecordBatch();
+    int64_t decompressTime = 0LL;
+    auto vp = readRowVectorInternal(
+        *rb,
+        rowType_,
+        options_.codec_backend,
+        options_.compression_mode,
+        decompressTime,
+        pool_.get(),
+        veloxPool_.get());
+    decompressionTimeAccumulator_(decompressTime);
+    return std::make_shared<VeloxColumnarBatch>(vp);
+  }
+
+ private:
+  std::shared_ptr<arrow::MemoryPool> pool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  ReaderOptions options_;
+  facebook::velox::RowTypePtr rowType_;
+  std::function<void(int64_t&)> decompressionTimeAccumulator_;
+  ResultIterator in_;
+};
+
 } // namespace
 
 VeloxShuffleReader::VeloxShuffleReader(
-    std::shared_ptr<arrow::io::InputStream> in,
     std::shared_ptr<arrow::Schema> schema,
     ReaderOptions options,
     std::shared_ptr<arrow::MemoryPool> pool,
     std::shared_ptr<memory::MemoryPool> veloxPool)
-    : Reader(in, schema, options, pool), veloxPool_(std::move(veloxPool)) {
-  ArrowSchema cSchema;
-  GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*schema, &cSchema));
-  rowType_ = asRowType(importFromArrow(cSchema));
+    : Reader(schema, options, pool), veloxPool_(std::move(veloxPool)) {
+  rowType_ = asRowType(gluten::fromArrowSchema(schema));
 }
 
-arrow::Result<std::shared_ptr<ColumnarBatch>> VeloxShuffleReader::next() {
-  ARROW_ASSIGN_OR_RAISE(auto batch, Reader::next());
-  if (batch == nullptr) {
-    return nullptr;
-  }
-  auto rb = std::dynamic_pointer_cast<ArrowColumnarBatch>(batch)->getRecordBatch();
-  auto vp =
-      readRowVectorInternal(*rb, rowType_, options_.codec_backend, decompressTime_, pool_.get(), veloxPool_.get());
-  return std::make_shared<VeloxColumnarBatch>(vp);
+std::shared_ptr<ResultIterator> VeloxShuffleReader::readStream(std::shared_ptr<arrow::io::InputStream> in) {
+  auto wrappedIn = Reader::readStream(in);
+  return std::make_shared<ResultIterator>(std::make_unique<VeloxShuffleReaderOutStream>(
+      pool_,
+      veloxPool_,
+      options_,
+      rowType_,
+      [this](int64_t decompressionTime) { this->decompressTime_ += decompressionTime; },
+      *wrappedIn));
 }
 
 RowVectorPtr VeloxShuffleReader::readRowVector(
-    const arrow::RecordBatch& rb,
+    const arrow::RecordBatch& batch,
     RowTypePtr rowType,
     CodecBackend codecBackend,
+    CompressionMode compressionMode,
+    int64_t& decompressTime,
     arrow::MemoryPool* arrowPool,
     memory::MemoryPool* pool) {
-  int64_t decompressTime = 0;
-  return readRowVectorInternal(rb, rowType, codecBackend, decompressTime, arrowPool, pool);
+  return readRowVectorInternal(batch, rowType, codecBackend, compressionMode, decompressTime, arrowPool, pool);
 }
 
 } // namespace gluten

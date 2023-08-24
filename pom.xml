@@ -679,6 +679,7 @@
           <version>${spotless.version}</version>
           <configuration>
             <java>
+              <toggleOffOn />
               <googleJavaFormat>
                 <version>1.7</version>
               </googleJavaFormat>
@@ -695,6 +696,8 @@
               </licenseHeader>
             </java>
             <scala>
+              <!--  make it works `// spotless:off `  -->
+              <toggleOffOn />
               <scalafmt>
                 <version>${spotless.scalafmt.version}</version>
                 <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>

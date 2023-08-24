@@ -15,9 +15,10 @@
  * limitations under the License.
  */
 #include "BroadCastJoinBuilder.h"
-#include <jni.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/TypeParser.h>
+#include <Shuffle/ShuffleReader.h>
+#include <Storages/StorageJoinFromReadBuffer.h>
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
 #include <Poco/StringTokenizer.h>
@@ -78,8 +79,10 @@ namespace BroadCastJoinBuilder
         {
             try
             {
+                std::unique_ptr<ReadBuffer> in = std::make_unique<ReadBufferFromJavaInputStream>(context.input, context.io_buffer_size);
+                std::unique_ptr<ReadBuffer> compressed_in = createCompressedReadBuffer(in);
                 result = std::make_shared<StorageJoinFromReadBuffer>(
-                    std::make_unique<ReadBufferFromJavaInputStream>(context.input, context.io_buffer_size),
+                    *compressed_in,
                     context.key_names,
                     true,
                     SizeLimits(),
@@ -94,10 +97,17 @@ namespace BroadCastJoinBuilder
             catch (DB::Exception & e)
             {
                 LOG_ERROR(&Poco::Logger::get("BroadCastJoinBuilder"), "storage join create failed, {}", e.displayText());
+                result.reset();
             }
         };
         ThreadFromGlobalPool build_thread(func);
         build_thread.join();
+
+        if (!result)
+        {
+            throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "create broadcast hash table {} failed.", key);
+        }
+
         return result;
     }
 

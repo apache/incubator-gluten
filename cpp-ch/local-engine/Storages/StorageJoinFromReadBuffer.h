@@ -32,7 +32,7 @@ class StorageJoinFromReadBuffer
 {
 public:
     StorageJoinFromReadBuffer(
-        std::unique_ptr<DB::ReadBuffer> in_,
+        DB::ReadBuffer & in_,
         const DB::Names & key_names_,
         bool use_nulls_,
         DB::SizeLimits limits_,
@@ -73,6 +73,6 @@ private:
     std::shared_ptr<DB::TableJoin> table_join;
     DB::HashJoinPtr join;
 
-    std::unique_ptr<DB::ReadBuffer> in;
+    DB::ReadBuffer & in;
 };
 }
