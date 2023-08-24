@@ -67,12 +67,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
         subDirsPerLocalDir,
         localDirs,
         preferEvict,
-<<<<<<< HEAD
         memoryManagerId,
-        writeSchema,
-=======
-        memoryPoolId,
->>>>>>> remove shuffle write_schema
         writeEOS,
         handle,
         taskAttemptId,
@@ -116,12 +111,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
         0,
         null,
         true,
-<<<<<<< HEAD
         memoryManagerId,
-        false,
-=======
-        memoryPoolId,
->>>>>>> remove shuffle write_schema
         true,
         handle,
         taskAttemptId,
@@ -143,12 +133,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
       int subDirsPerLocalDir,
       String localDirs,
       boolean preferEvict,
-<<<<<<< HEAD
       long memoryManagerId,
-      boolean writeSchema,
-=======
-      long memoryPoolId,
->>>>>>> remove shuffle write_schema
       boolean writeEOS,
       long handle,
       long taskAttemptId,
