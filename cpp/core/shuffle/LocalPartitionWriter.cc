@@ -315,9 +315,7 @@ arrow::Status PreferCachePartitionWriter::stop() {
       auto partitionSpillInfo = spills_[i].partitionSpillInfos[spillInfoOffsets[i]];
       // 5. read if partition exists in the spilled file and write to the final file
       if (partitionSpillInfo.partitionId == pid) { // A hit
-        if (firstWrite) {
-          firstWrite = false;
-        }
+        firstWrite = false;
         ARROW_ASSIGN_OR_RAISE(auto raw, spilledFiles[i]->ReadAt(partitionSpillInfo.start, partitionSpillInfo.length));
         RETURN_NOT_OK(dataFileOs_->Write(raw));
         // Goto next partition in this spillInfo
@@ -327,9 +325,7 @@ arrow::Status PreferCachePartitionWriter::stop() {
     // 6. Write cached batches
     auto cachedPayloadSize = shuffleWriter_->partitionCachedRecordbatchSize()[pid];
     if (cachedPayloadSize > 0) {
-      if (firstWrite) {
-        firstWrite = false;
-      }
+      firstWrite = false;
       RETURN_NOT_OK(flushCachedPayloads(dataFileOs_.get(), shuffleWriter_->partitionCachedRecordbatch()[pid]));
       // clearCache();
       shuffleWriter_->partitionCachedRecordbatch()[pid].clear();
@@ -338,9 +334,7 @@ arrow::Status PreferCachePartitionWriter::stop() {
     // 7. Write the last payload.
     ARROW_ASSIGN_OR_RAISE(auto rb, shuffleWriter_->createArrowRecordBatchFromBuffer(pid, true));
     if (rb) {
-      if (firstWrite) {
-        firstWrite = false;
-      }
+      firstWrite = false;
       // Record rawPartitionLength and flush the last payload.
       TIME_NANO_START(lastPayloadCompressTime)
       ARROW_ASSIGN_OR_RAISE(auto lastPayload, shuffleWriter_->createArrowIpcPayload(*rb, false));
