@@ -44,6 +44,8 @@ void NormalFileWriter::consume(DB::Block & block)
 
 void NormalFileWriter::close()
 {
+    /// When insert into a table with empty dataset, NormalFileWriter::consume would be never called.
+    /// So we need to skip when writer is nullptr.
     if (writer)
         writer->finish();
 }
