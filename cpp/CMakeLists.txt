@@ -90,6 +90,9 @@ add_compile_options(-Wno-error=unused-variable)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   add_compile_options(-Wno-error=unused-but-set-variable)
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+    add_compile_options(-Wno-error=maybe-uninitialized)
+  endif()
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   # Experimental
   add_compile_options(-Wno-implicit-int-float-conversion)
