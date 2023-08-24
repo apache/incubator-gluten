@@ -699,6 +699,8 @@ void BackendInitializerUtil::init(std::string * plan)
     applyGlobalConfigAndSettings(config, settings);
     LOG_INFO(logger, "Apply configuration and setting for global context.");
 
+    // clean static per_bucket_clients and shared_client before running local engine,
+    // in case of running the multiple gluten ut in one process
     ReadBufferBuilderFactory::instance().clean();
 
     std::call_once(
