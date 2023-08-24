@@ -194,7 +194,7 @@ void AggregateRelParser::addMergingAggregatedStep()
     AggregateDescriptions aggregate_descriptions;
     buildAggregateDescriptions(aggregate_descriptions);
     auto settings = getContext()->getSettingsRef();
-    Aggregator::Params params(grouping_keys, aggregate_descriptions, false, settings.max_threads, settings.max_block_size);
+    Aggregator::Params params(grouping_keys, aggregate_descriptions, false, settings.max_threads, settings.max_block_size, true);
     auto merging_step = std::make_unique<DB::MergingAggregatedStep>(
         plan->getCurrentDataStream(),
         params,
@@ -233,7 +233,8 @@ void AggregateRelParser::addAggregatingStep()
         3,
         settings.max_block_size,
         false,
-        false);
+        false,
+        true);
 
     auto aggregating_step = std::make_unique<AggregatingStep>(
         plan->getCurrentDataStream(),
