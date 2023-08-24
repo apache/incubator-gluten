@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized;
 
+import org.apache.spark.shuffle.rss.CelebornCHPartitionPusher;
+
 import java.io.IOException;
 
 public class CHShuffleSplitterJniWrapper {
@@ -48,6 +50,27 @@ public class CHShuffleSplitterJniWrapper {
         spillThreshold);
   }
 
+  public long makeForRSS(
+      NativePartitioning part,
+      int shuffleId,
+      long mapId,
+      int bufferSize,
+      String codec,
+      long spillThreshold,
+      CelebornCHPartitionPusher pusher) {
+    return nativeMakeForRSS(
+        part.getShortName(),
+        part.getNumPartitions(),
+        part.getExprList(),
+        part.getRequiredFields(),
+        shuffleId,
+        mapId,
+        bufferSize,
+        codec,
+        spillThreshold,
+        pusher);
+  }
+
   public native long nativeMake(
       String shortName,
       int numPartitions,
@@ -62,6 +85,18 @@ public class CHShuffleSplitterJniWrapper {
       int subDirsPerLocalDir,
       boolean preferSpill,
       long spillThreshold);
+
+  public native long nativeMakeForRSS(
+      String shortName,
+      int numPartitions,
+      byte[] exprList,
+      byte[] exprIndexList,
+      int shuffleId,
+      long mapId,
+      int bufferSize,
+      String codec,
+      long spillThreshold,
+      CelebornCHPartitionPusher pusher);
 
   public native void split(long splitterId, long block);
 

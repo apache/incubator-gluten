@@ -705,6 +705,60 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
+JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nativeMakeForRSS(
+    JNIEnv * env,
+    jobject,
+    jstring short_name,
+    jint num_partitions,
+    jbyteArray expr_list,
+    jbyteArray out_expr_list,
+    jint shuffle_id,
+    jlong map_id,
+    jint split_size,
+    jstring codec,
+    jlong spill_threshold,
+    jobject pusher)
+{
+    LOCAL_ENGINE_JNI_METHOD_START
+    std::string hash_exprs;
+    std::string out_exprs;
+    if (expr_list != nullptr)
+    {
+        int len = env->GetArrayLength(expr_list);
+        auto * str = reinterpret_cast<jbyte *>(new char[len]);
+        memset(str, 0, len);
+        env->GetByteArrayRegion(expr_list, 0, len, str);
+        hash_exprs = std::string(str, str + len);
+        delete[] str;
+    }
+
+    if (out_expr_list != nullptr)
+    {
+        int len = env->GetArrayLength(out_expr_list);
+        auto * str = reinterpret_cast<jbyte *>(new char[len]);
+        memset(str, 0, len);
+        env->GetByteArrayRegion(out_expr_list, 0, len, str);
+        out_exprs = std::string(str, str + len);
+        delete[] str;
+    }
+
+    local_engine::SplitOptions options{
+        .split_size = static_cast<size_t>(split_size),
+        .io_buffer_size = DBMS_DEFAULT_BUFFER_SIZE,
+        .shuffle_id = shuffle_id,
+        .map_id = static_cast<int>(map_id),
+        .partition_nums = static_cast<size_t>(num_partitions),
+        .hash_exprs = hash_exprs,
+        .out_exprs = out_exprs,
+        .compress_method = jstring2string(env, codec),
+        .spill_threshold = static_cast<size_t>(spill_threshold)};
+    auto name = jstring2string(env, short_name);
+    local_engine::SplitterHolder * splitter;
+    splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options, pusher)};
+    return reinterpret_cast<jlong>(splitter);
+    LOCAL_ENGINE_JNI_METHOD_END(env, -1)
+}
+
 JNIEXPORT void Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_split(JNIEnv * env, jobject, jlong splitterId, jlong block)
 {
     LOCAL_ENGINE_JNI_METHOD_START
@@ -719,7 +773,6 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_evi
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
     auto size = splitter->splitter->evictPartitions();
-    std::cerr << "spill data: " << size << std::endl;
     return size;
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
