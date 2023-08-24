@@ -214,6 +214,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxOverAcquiredMemoryRatio: Double = conf.getConf(COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO)
 
+  def veloxReservationBlockSize: Long = conf.getConf(COLUMNAR_VELOX_RESERVATION_BLOCK_SIZE)
+
   def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
 
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
@@ -977,6 +979,13 @@ object GlutenConfig {
       .doubleConf
       .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
       .createWithDefault(0.3d)
+
+  val COLUMNAR_VELOX_RESERVATION_BLOCK_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.reservationBlockSize")
+      .internal()
+      .doc("Block size of native reservation listener reserve memory from Spark.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8MB")
 
   val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillThreshold")
