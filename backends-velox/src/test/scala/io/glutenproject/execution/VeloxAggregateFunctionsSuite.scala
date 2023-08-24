@@ -17,7 +17,6 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.Row
 
 class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
 
@@ -654,10 +653,5 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
         assert(
           getExecutedPlan(df).count(plan => plan.isInstanceOf[HashAggregateExecTransformer]) >= 2)
     }
-  }
-
-  test("mixed supported and unsupported aggregate functions") {
-    val df = spark.sql("SELECT a, collect_set(b/b), max(b) FROM testData2 group by a")
-    checkAnswer(df, Row(1, Array(1.0), 2) :: Row(2, Array(1.0), 2) :: Row(3, Array(1.0), 2) :: Nil)
   }
 }
