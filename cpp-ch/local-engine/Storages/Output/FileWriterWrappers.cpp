@@ -44,7 +44,8 @@ void NormalFileWriter::consume(DB::Block & block)
 
 void NormalFileWriter::close()
 {
-    writer->finish();
+    if (writer)
+        writer->finish();
 }
 
 FileWriterWrapper *
