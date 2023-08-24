@@ -25,10 +25,7 @@ import org.apache.celeborn.common.identity.UserIdentifier;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.spark.*;
 import org.apache.spark.shuffle.*;
-import org.apache.spark.shuffle.celeborn.CelebornShuffleFallbackPolicyRunner;
-import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle;
-import org.apache.spark.shuffle.celeborn.CelebornShuffleReader;
-import org.apache.spark.shuffle.celeborn.SparkUtils;
+import org.apache.spark.shuffle.celeborn.*;
 import org.apache.spark.shuffle.sort.ColumnarShuffleManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +40,9 @@ public class CelebornShuffleManager implements ShuffleManager {
   private static final String GLUTEN_SHUFFLE_MANAGER_NAME =
       "org.apache.spark.shuffle.sort.ColumnarShuffleManager";
 
+  private static final String VANILLA_CELEBORN_SHUFFLE_MANAGER_NAME =
+      "org.apache.spark.shuffle.celeborn.SparkShuffleManager";
+
   private static final String LOCAL_SHUFFLE_READER_KEY =
       "spark.sql.adaptive.localShuffleReader.enabled";
 
@@ -54,6 +54,7 @@ public class CelebornShuffleManager implements ShuffleManager {
   private LifecycleManager lifecycleManager;
   private ShuffleClient shuffleClient;
   private volatile ColumnarShuffleManager _columnarShuffleManager;
+  private volatile SparkShuffleManager _vanillaCelenornShuffleManager;
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> columnarShuffleIds =
       ConcurrentHashMap.newKeySet();
   private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
@@ -84,6 +85,18 @@ public class CelebornShuffleManager implements ShuffleManager {
       }
     }
     return _columnarShuffleManager;
+  }
+
+  private SparkShuffleManager vanillaCelebornShuffleManager() {
+    if (_vanillaCelenornShuffleManager == null) {
+      synchronized (this) {
+        if (_vanillaCelenornShuffleManager == null) {
+          _vanillaCelenornShuffleManager =
+              SparkUtils.instantiateClass(VANILLA_CELEBORN_SHUFFLE_MANAGER_NAME, conf, isDriver());
+        }
+      }
+    }
+    return _vanillaCelenornShuffleManager;
   }
 
   private ShuffleClient getShuffleClient(
@@ -160,33 +173,40 @@ public class CelebornShuffleManager implements ShuffleManager {
     }
   }
 
+  private <K, V, C> ShuffleHandle registerCelebornShuffleHandle(
+      int shuffleId, ShuffleDependency<K, V, C> dependency) {
+    return new CelebornShuffleHandle<>(
+        appUniqueId,
+        lifecycleManager.getHost(),
+        lifecycleManager.getPort(),
+        lifecycleManager.getUserIdentifier(),
+        shuffleId,
+        dependency.rdd().getNumPartitions(),
+        dependency);
+  }
+
   @Override
   public <K, V, C> ShuffleHandle registerShuffle(
       int shuffleId, ShuffleDependency<K, V, C> dependency) {
+    appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
+    initializeLifecycleManager();
     // Note: generate app unique id at driver side, make sure dependency.rdd.context
     // is the same SparkContext among different shuffleIds.
     // This method may be called many times.
     if (dependency instanceof ColumnarShuffleDependency) {
-      appUniqueId = SparkUtils.appUniqueId(dependency.rdd().context());
-      initializeLifecycleManager();
-
       if (fallbackPolicyRunner.applyAllFallbackPolicy(
           lifecycleManager, dependency.partitioner().numPartitions())) {
         logger.warn("Fallback to ColumnarShuffleManager!");
         columnarShuffleIds.add(shuffleId);
         return columnarShuffleManager().registerShuffle(shuffleId, dependency);
       } else {
-        return new CelebornShuffleHandle<>(
-            appUniqueId,
-            lifecycleManager.getHost(),
-            lifecycleManager.getPort(),
-            lifecycleManager.getUserIdentifier(),
-            shuffleId,
-            dependency.rdd().getNumPartitions(),
-            dependency);
+        return registerCelebornShuffleHandle(shuffleId, dependency);
       }
     }
-    return columnarShuffleManager().registerShuffle(shuffleId, dependency);
+    // If the input shuffle dependency is not columnar, then it's a row-based shuffle.
+    // We should fallback to use vanilla celeborn shuffle manager, so that people can use
+    // dra normally.
+    return registerCelebornShuffleHandle(shuffleId, dependency);
   }
 
   @Override
@@ -240,12 +260,17 @@ public class CelebornShuffleManager implements ShuffleManager {
                 celebornConf,
                 h.userIdentifier(),
                 false);
-        if (ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
+        if (!ShuffleMode.HASH.equals(celebornConf.shuffleWriterMode())) {
+          throw new UnsupportedOperationException(
+              "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
+        }
+        if (h.dependency() instanceof ColumnarShuffleDependency) {
+          // columnar-based shuffle
           return new CelebornHashBasedColumnarShuffleWriter<>(
               h, context, celebornConf, client, metrics);
         } else {
-          throw new UnsupportedOperationException(
-              "Unrecognized shuffle write mode!" + celebornConf.shuffleWriterMode());
+          // row-based shuffle
+          return vanillaCelebornShuffleManager().getWriter(handle, mapId, context, metrics);
         }
       } else {
         columnarShuffleIds.add(handle.shuffleId());
