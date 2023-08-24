@@ -442,7 +442,7 @@ abstract class BroadcastHashJoinExecTransformer(
   override def isSkewJoin: Boolean = false
 
   // Unique ID for builded hash table
-  lazy val buildHashTableId = "BuildedHashTable-" + buildPlan.id
+  lazy val buildHashTableId = "BuiltHashTable-" + buildPlan.id
 
   override def genJoinParameters(): (Int, Int, String) = {
     (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)

@@ -17,9 +17,9 @@
 package io.glutenproject.memory.nmm;
 
 import io.glutenproject.GlutenConfig;
-import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.memory.MemoryUsage;
 import io.glutenproject.memory.memtarget.MemoryTarget;
-import io.glutenproject.memory.memtarget.OverAcquire;
+import io.glutenproject.memory.memtarget.MemoryTargets;
 import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
 
@@ -40,7 +40,7 @@ public final class NativeMemoryManagers {
             createNativeMemoryManager(
                 name,
                 createMemoryTarget(name, TaskContext.get().taskMemoryManager(), Spiller.NO_OP),
-                TaskResources.getSharedMetrics()));
+                TaskResources.getSharedUsage()));
   }
 
   /** Create a temporary memory manager, caller should call NativeMemoryManager#release manually. */
@@ -60,25 +60,21 @@ public final class NativeMemoryManagers {
         createNativeMemoryManager(
             name,
             createMemoryTarget(name, TaskContext.get().taskMemoryManager(), spiller),
-            TaskResources.getSharedMetrics());
+            TaskResources.getSharedUsage());
     return TaskResources.addAnonymousResource(manager);
   }
 
   public static MemoryTarget createMemoryTarget(
       String name, TaskMemoryManager taskMemoryManager, Spiller spiller) {
     double overAcquiredRatio = GlutenConfig.getConf().veloxOverAcquiredMemoryRatio();
-    MemoryTarget target = new GlutenMemoryConsumer(name, taskMemoryManager, spiller);
-    if (overAcquiredRatio != 0.0D) {
-      target =
-          new OverAcquire(
-              target, new OverAcquire.DummyTarget(taskMemoryManager), overAcquiredRatio);
-    }
-    return target;
+    return MemoryTargets.throwOnOom(
+        MemoryTargets.overAcquire(
+            new GlutenMemoryConsumer(name, taskMemoryManager, spiller), overAcquiredRatio));
   }
 
   private static NativeMemoryManager createNativeMemoryManager(
-      String name, MemoryTarget target, TaskMemoryMetrics taskMemoryMetrics) {
-    ManagedReservationListener rl = new ManagedReservationListener(target, taskMemoryMetrics);
+      String name, MemoryTarget target, MemoryUsage usage) {
+    ManagedReservationListener rl = new ManagedReservationListener(target, usage);
     return NativeMemoryManager.create(name, rl);
   }
 }

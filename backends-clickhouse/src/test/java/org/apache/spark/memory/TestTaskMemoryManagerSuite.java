@@ -16,7 +16,7 @@
  */
 package org.apache.spark.memory;
 
-import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.memory.MemoryUsage;
 import io.glutenproject.memory.alloc.CHManagedCHReservationListener;
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocator;
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocatorManagerImpl;
@@ -50,8 +50,7 @@ public class TestTaskMemoryManagerSuite {
 
     listener =
         new CHManagedCHReservationListener(
-            new GlutenMemoryConsumer("test", taskMemoryManager, Spiller.NO_OP),
-            new TaskMemoryMetrics());
+            new GlutenMemoryConsumer("test", taskMemoryManager, Spiller.NO_OP), new MemoryUsage());
 
     manager = new CHNativeMemoryAllocatorManagerImpl(new CHNativeMemoryAllocator(-1L, listener));
   }

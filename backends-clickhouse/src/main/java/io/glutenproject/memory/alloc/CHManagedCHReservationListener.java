@@ -16,7 +16,7 @@
  */
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.memory.MemoryUsage;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 
 import org.slf4j.Logger;
@@ -29,14 +29,14 @@ public class CHManagedCHReservationListener implements CHReservationListener {
   private static final Logger LOG = LoggerFactory.getLogger(CHManagedCHReservationListener.class);
 
   private MemoryTarget target;
-  private final TaskMemoryMetrics metrics;
+  private final MemoryUsage usage;
   private volatile boolean open = true;
 
   private final AtomicLong currentMemory = new AtomicLong(0L);
 
-  public CHManagedCHReservationListener(MemoryTarget target, TaskMemoryMetrics metrics) {
+  public CHManagedCHReservationListener(MemoryTarget target, MemoryUsage usage) {
     this.target = target;
-    this.metrics = metrics;
+    this.usage = usage;
   }
 
   @Override
@@ -62,7 +62,7 @@ public class CHManagedCHReservationListener implements CHReservationListener {
                 + "get larger space to run this application. ");
       }
       currentMemory.addAndGet(size);
-      metrics.inc(size);
+      usage.inc(size);
     }
   }
 
@@ -86,7 +86,7 @@ public class CHManagedCHReservationListener implements CHReservationListener {
                 size, granted));
       }
       currentMemory.addAndGet(granted);
-      metrics.inc(size);
+      usage.inc(size);
       return granted;
     }
   }
@@ -115,7 +115,7 @@ public class CHManagedCHReservationListener implements CHReservationListener {
       }
       target.repay(memoryToFree);
       currentMemory.addAndGet(-memoryToFree);
-      metrics.inc(-size);
+      usage.inc(-size);
       return memoryToFree;
     }
   }

@@ -16,6 +16,8 @@
  */
 package io.glutenproject.memory.memtarget;
 
+import io.glutenproject.memory.MemoryUsageStats;
+
 // The naming convention "borrow" and "repay" are for preventing collisions with
 //   other APIs.
 //
@@ -25,5 +27,7 @@ public interface MemoryTarget {
 
   long repay(long size);
 
-  long bytes();
+  String name();
+
+  MemoryUsageStats stats();
 }

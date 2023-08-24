@@ -43,7 +43,7 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
-import org.apache.spark.util.SparkUtil
+import org.apache.spark.util.SparkRuleUtil
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides(isAdaptiveContext: Boolean)
@@ -763,7 +763,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => EnsureLocalSortRequirements
       ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
-      SparkUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPreRules)
+      SparkRuleUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPreRules)
   }
 
   private def fallbackPolicy(): List[SparkSession => Rule[SparkPlan]] = {
@@ -776,7 +776,7 @@ case class ColumnarOverrideRules(session: SparkSession)
       (s: SparkSession) => VanillaColumnarPlanOverrides(s)) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
-      SparkUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPostRules)
+      SparkRuleUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPostRules)
 
   private def finallyRules(): List[SparkSession => Rule[SparkPlan]] = {
     List(

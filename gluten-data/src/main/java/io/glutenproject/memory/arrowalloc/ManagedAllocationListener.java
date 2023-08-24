@@ -16,7 +16,7 @@
  */
 package io.glutenproject.memory.arrowalloc;
 
-import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.memory.MemoryUsage;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 
 import org.apache.arrow.memory.AllocationListener;
@@ -31,16 +31,16 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
   public static long BLOCK_SIZE = 8L * 1024 * 1024; // 8MB per block
 
   private final MemoryTarget target;
-  private final TaskMemoryMetrics metrics;
+  private final MemoryUsage sharedUsage;
 
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
   private long bytesReserved = 0L;
   private long blocksReserved = 0L;
 
-  public ManagedAllocationListener(MemoryTarget target, TaskMemoryMetrics metrics) {
+  public ManagedAllocationListener(MemoryTarget target, MemoryUsage sharedUsage) {
     this.target = target;
-    this.metrics = metrics;
+    this.sharedUsage = sharedUsage;
   }
 
   @Override
@@ -58,21 +58,7 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
     }
     long toBeAcquired = requiredBlocks * BLOCK_SIZE;
     long granted = target.borrow(toBeAcquired);
-    if (granted < toBeAcquired) {
-      if (granted != 0L) {
-        target.repay(granted);
-      }
-      throw new UnsupportedOperationException(
-          "Not enough spark off-heap execution memory. "
-              + "Acquired: "
-              + size
-              + ", granted: "
-              + granted
-              + ". "
-              + "Try tweaking config option spark.memory.offHeap.size to "
-              + "get larger space to run this application. ");
-    }
-    metrics.inc(granted);
+    sharedUsage.inc(granted);
   }
 
   @Override
@@ -90,7 +76,7 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
     }
     long toBeReleased = -requiredBlocks * BLOCK_SIZE;
     target.repay(toBeReleased);
-    metrics.inc(-toBeReleased);
+    sharedUsage.inc(-toBeReleased);
   }
 
   public long updateReservation(long bytesToAdd) {

@@ -19,12 +19,12 @@ package io.glutenproject.memory;
 import java.util.concurrent.atomic.AtomicLong;
 
 // thread safe
-public class TaskMemoryMetrics {
+public class MemoryUsage {
   private final AtomicLong peak = new AtomicLong(0L);
-  private final AtomicLong total = new AtomicLong(0L);
+  private final AtomicLong current = new AtomicLong(0L);
 
   public void inc(long bytes) {
-    final long total = this.total.addAndGet(bytes);
+    final long total = this.current.addAndGet(bytes);
     long prev_peak;
     do {
       prev_peak = this.peak.get();
@@ -34,11 +34,17 @@ public class TaskMemoryMetrics {
     } while (!this.peak.compareAndSet(prev_peak, total));
   }
 
+  // peak used bytes
   public long peak() {
     return peak.get();
   }
 
-  public long total() {
-    return total.get();
+  // current used bytes
+  public long current() {
+    return current.get();
+  }
+
+  public MemoryUsageStats toStats() {
+    return new MemoryUsageStats(this);
   }
 }

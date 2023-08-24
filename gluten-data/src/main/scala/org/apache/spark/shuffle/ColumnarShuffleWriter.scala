@@ -28,7 +28,7 @@ import org.apache.spark.internal.config.SHUFFLE_COMPRESS
 import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{SparkDirectoryUtil, SparkResourcesUtil, Utils}
+import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, Utils}
 
 import java.io.IOException
 
@@ -94,7 +94,7 @@ class ColumnarShuffleWriter[K, V](
 
   private def availableOffHeapPerTask(): Long = {
     // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = SparkResourcesUtil.getExecutorCores(conf)
+    val executorCores = SparkResourceUtil.getExecutorCores(conf)
     val taskCores = conf.getInt("spark.task.cpus", 1)
     val perTask =
       SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
