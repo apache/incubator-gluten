@@ -66,6 +66,11 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT
   )
 
+  lazy val isUseCelebornShuffleManager: Boolean =
+    SparkEnv.get.conf
+        .get("spark.shuffle.manager", "sort")
+        .equals("org.apache.spark.shuffle.rss.CHCelebornShuffleManager")
+
   private val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
       ".customized.buffer.size"

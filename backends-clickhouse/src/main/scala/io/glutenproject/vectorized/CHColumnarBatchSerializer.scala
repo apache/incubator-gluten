@@ -60,7 +60,7 @@ private class CHColumnarBatchSerializerInstance(
     new DeserializationStream {
       private val reader: CHStreamReader = new CHStreamReader(
         in,
-        GlutenConfig.getConf.isUseColumnarShuffleManager || GlutenConfig.getConf.isUseCelebornShuffleManager,
+        GlutenConfig.getConf.isUseColumnarShuffleManager || CHBackendSettings.isUseCelebornShuffleManager,
         CHBackendSettings.useCustomizedShuffleCodec)
       private var cb: ColumnarBatch = _
       private val isEmptyStream: Boolean = in.equals(CelebornInputStream.empty())
