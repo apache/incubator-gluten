@@ -829,7 +829,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         remainingFunctions,
         singularOrLists,
         subfieldrOrLists,
-        remainingrOrLists);
+        remainingrOrLists,
+        veloxTypeList,
+        splitInfo->format);
 
     // Create subfield filters based on the constructed filter info map.
     auto subfieldFilters = createSubfieldFilters(colNameList, veloxTypeList, subfieldFunctions, subfieldrOrLists);
@@ -1321,7 +1323,9 @@ void SubstraitToVeloxPlanConverter::separateFilters(
     std::vector<::substrait::Expression_ScalarFunction>& remainingFunctions,
     const std::vector<::substrait::Expression_SingularOrList>& singularOrLists,
     std::vector<::substrait::Expression_SingularOrList>& subfieldOrLists,
-    std::vector<::substrait::Expression_SingularOrList>& remainingOrLists) {
+    std::vector<::substrait::Expression_SingularOrList>& remainingOrLists,
+    std::vector<TypePtr>& veloxTypeList,
+    dwio::common::FileFormat format) {
   for (const auto& singularOrList : singularOrLists) {
     if (!canPushdownSingularOrList(singularOrList)) {
       remainingOrLists.emplace_back(singularOrList);
@@ -1338,6 +1342,17 @@ void SubstraitToVeloxPlanConverter::separateFilters(
   for (const auto& scalarFunction : scalarFunctions) {
     auto filterNameSpec = SubstraitParser::findFunctionSpec(functionMap_, scalarFunction.function_reference());
     auto filterName = SubstraitParser::getSubFunctionName(filterNameSpec);
+    if (format == dwio::common::FileFormat::ORC && scalarFunction.arguments().size() > 0) {
+      auto value = scalarFunction.arguments().at(0).value();
+      if (value.has_selection()) {
+        uint32_t fieldIndex = SubstraitParser::parseReferenceSegment(value.selection().direct_reference());
+        auto type = value.selection().direct_reference().struct_field().field();
+        if (!veloxTypeList.empty() && veloxTypeList.at(fieldIndex)->isDecimal()) {
+          remainingFunctions.emplace_back(scalarFunction);
+          continue;
+        }
+      }
+    }
 
     // Check whether NOT and OR functions can be pushed down.
     // If yes, the scalar function will be added into the subfield functions.
