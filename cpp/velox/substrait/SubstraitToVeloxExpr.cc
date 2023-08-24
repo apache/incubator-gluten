@@ -316,15 +316,15 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::lite
   VELOX_CHECK_GE(literals.size(), 0, "List should have at least one item.");
   std::optional<TypePtr> literalType = std::nullopt;
   for (const auto& literal : literals) {
-    auto veloxVariant = toVeloxExpr(literal)->value();
+    auto veloxVariant = toVeloxExpr(literal);
     if (!literalType.has_value()) {
-      literalType = veloxVariant.inferType();
+      literalType = veloxVariant->type();
     }
-    variants.emplace_back(veloxVariant);
+    variants.emplace_back(veloxVariant->value());
   }
   VELOX_CHECK(literalType.has_value(), "Type expected.");
   auto varArray = variant::array(variants);
-  ArrayVectorPtr arrayVector = variantArrayToVector(varArray.inferType(), varArray.array(), pool_);
+  ArrayVectorPtr arrayVector = variantArrayToVector(ARRAY(literalType.value()), varArray.array(), pool_);
   // Wrap the array vector into constant vector.
   auto constantVector = BaseVector::wrapInConstant(1 /*length*/, 0 /*index*/, arrayVector);
   return std::make_shared<const core::ConstantTypedExpr>(constantVector);
