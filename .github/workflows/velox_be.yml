@@ -80,7 +80,7 @@ jobs:
       - name: Run CPP unit test
         run: |
           docker exec velox-ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
-          ctest -V -E OrcTest'
+          ctest -V'
       # Cpp micro benchmarks will use generated files from unit test in backends-velox module.
       - name: Run micro benchmarks
         run: |
