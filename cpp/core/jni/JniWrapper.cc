@@ -1078,7 +1078,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_vel
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_getAllocator( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_getAllocator( // NOLINT
     JNIEnv* env,
     jclass,
     jstring jTypeName) {
@@ -1096,7 +1096,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_g
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_releaseAllocator( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_releaseAllocator( // NOLINT
     JNIEnv* env,
     jclass,
     jlong allocatorId) {
@@ -1105,7 +1105,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_re
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_bytesAllocated( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_bytesAllocated( // NOLINT
     JNIEnv* env,
     jclass,
     jlong allocatorId) {
@@ -1144,7 +1144,23 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_cre
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_releaseManager( // NOLINT
+JNIEXPORT jbyteArray JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_collectMemoryUsage( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong memoryManagerId) {
+  MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
+  const MemoryUsageStats& stats = memoryManager->collectMemoryUsageStats();
+  auto size = stats.ByteSizeLong();
+  jbyteArray out = env->NewByteArray(size);
+  uint8_t buffer[size];
+  GLUTEN_CHECK(
+      stats.SerializeToArray(reinterpret_cast<void*>(buffer), size),
+      "Serialization failed when collecting memory usage stats");
+  env->SetByteArrayRegion(out, 0, size, reinterpret_cast<jbyte*>(buffer));
+  return out;
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_release( // NOLINT
     JNIEnv* env,
     jclass,
     jlong memoryManagerId) {

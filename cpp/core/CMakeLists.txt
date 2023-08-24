@@ -40,9 +40,11 @@ endif()
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake" ${CMAKE_MODULE_PATH})
 
-set(proto_directory ${GLUTEN_HOME}/gluten-core/src/main/resources/substrait/proto)
-set(substrait_proto_directory ${proto_directory}/substrait)
-message(STATUS "Set Proto Directory in ${proto_directory}")
+set(SUBSTRAIT_PROTO_SRC_DIR ${GLUTEN_HOME}/gluten-core/src/main/resources/substrait/proto)
+message(STATUS "Set Substrait Proto Directory in ${SUBSTRAIT_PROTO_SRC_DIR}")
+
+set(GLUTEN_PROTO_SRC_DIR ${GLUTEN_HOME}/gluten-core/src/main/resources/io/glutenproject/proto)
+message(STATUS "Set Gluten Proto Directory in ${GLUTEN_PROTO_SRC_DIR}")
 
 find_program(CCACHE_FOUND ccache)
 if(CCACHE_FOUND)
@@ -141,24 +143,33 @@ endif()
 # Set up Proto
 set(PROTO_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/proto")
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/proto)
-file(GLOB PROTO_FILES ${proto_directory}/*.proto
-                      ${substrait_proto_directory}/*.proto
-                      ${substrait_proto_directory}/extensions/*.proto)
-FOREACH(PROTO ${PROTO_FILES})
-  file(RELATIVE_PATH REL_PROTO ${proto_directory} ${PROTO})
+
+# List Substrait Proto compiled files
+file(GLOB SUBSTRAIT_PROTO_FILES ${SUBSTRAIT_PROTO_SRC_DIR}/substrait/*.proto
+        ${SUBSTRAIT_PROTO_SRC_DIR}/substrait/extensions/*.proto)
+FOREACH(PROTO ${SUBSTRAIT_PROTO_FILES})
+  file(RELATIVE_PATH REL_PROTO ${SUBSTRAIT_PROTO_SRC_DIR} ${PROTO})
   string(REGEX REPLACE "\\.proto" "" PROTO_NAME ${REL_PROTO})
-  LIST(APPEND PROTO_SRCS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.cc")
-  LIST(APPEND PROTO_HDRS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.h")
+  LIST(APPEND SUBSTRAIT_PROTO_SRCS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.cc")
+  LIST(APPEND SUBSTRAIT_PROTO_HDRS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.h")
 ENDFOREACH()
-set(PROTO_OUTPUT_FILES ${PROTO_HDRS} ${PROTO_SRCS})
-set_source_files_properties(${PROTO_OUTPUT_FILES} PROPERTIES GENERATED TRUE)
+set(SUBSTRAIT_PROTO_OUTPUT_FILES ${SUBSTRAIT_PROTO_HDRS} ${SUBSTRAIT_PROTO_SRCS})
+set_source_files_properties(${SUBSTRAIT_PROTO_OUTPUT_FILES} PROPERTIES GENERATED TRUE)
+get_filename_component(SUBSTRAIT_PROTO_DIR ${SUBSTRAIT_PROTO_SRC_DIR}/ DIRECTORY)
 
-get_filename_component(PROTO_DIR ${proto_directory}/,
-                       DIRECTORY)
+# List Gluten Proto compiled files
+file(GLOB GLUTEN_PROTO_FILES ${GLUTEN_PROTO_SRC_DIR}/*.proto)
+FOREACH(PROTO ${GLUTEN_PROTO_FILES})
+  file(RELATIVE_PATH REL_PROTO ${GLUTEN_PROTO_SRC_DIR} ${PROTO})
+  string(REGEX REPLACE "\\.proto" "" PROTO_NAME ${REL_PROTO})
+  LIST(APPEND GLUTEN_PROTO_SRCS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.cc")
+  LIST(APPEND GLUTEN_PROTO_HDRS "${PROTO_OUTPUT_DIR}/${PROTO_NAME}.pb.h")
+ENDFOREACH()
+set(GLUTEN_PROTO_OUTPUT_FILES ${GLUTEN_PROTO_HDRS} ${GLUTEN_PROTO_SRCS})
+set_source_files_properties(${GLUTEN_PROTO_OUTPUT_FILES} PROPERTIES GENERATED TRUE)
+get_filename_component(GLUTEN_PROTO_DIR ${GLUTEN_PROTO_SRC_DIR}/ DIRECTORY)
 
-set(CODEGEN_HEADERS
-    third_party/
-    )
+set(CODEGEN_HEADERS third_party/)
 set(THIRD_PARTY_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${THIRD_PARTY_INCLUDE})
 file(MAKE_DIRECTORY ${root_directory}/releases/include)
@@ -177,7 +188,8 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         config/GlutenConfig.cc
         memory/MemoryAllocator.cc
         memory/ArrowMemoryPool.cc
-        ${PROTO_SRCS}
+        ${SUBSTRAIT_PROTO_SRCS}
+        ${GLUTEN_PROTO_SRCS}
         compute/ProtobufUtils.cc
         operators/writer/ArrowWriter.cc
         shuffle/reader.cc
@@ -250,22 +262,34 @@ else()
                         LINK_PUBLIC ${PROTOBUF_LIBRARY})
 endif()
 
-add_custom_command(OUTPUT ${PROTO_OUTPUT_FILES}
-                   COMMAND ${PROTOC_BIN}
-                           --proto_path
-                           ${proto_directory}/
-                           --cpp_out
-                           ${PROTO_OUTPUT_DIR}
-                           ${PROTO_FILES}
-                   DEPENDS  ${PROTO_DIR}
-                   COMMENT "Running PROTO compiler"
-                   VERBATIM)
-add_custom_target(jni_proto ALL DEPENDS ${PROTO_OUTPUT_FILES})
+add_custom_command(OUTPUT ${SUBSTRAIT_PROTO_OUTPUT_FILES}
+        COMMAND ${PROTOC_BIN}
+        --proto_path
+        ${SUBSTRAIT_PROTO_SRC_DIR}/
+        --cpp_out
+        ${PROTO_OUTPUT_DIR}
+        ${SUBSTRAIT_PROTO_FILES}
+        DEPENDS  ${SUBSTRAIT_PROTO_DIR}
+        COMMENT "Running Substrait PROTO compiler"
+        VERBATIM)
+
+add_custom_command(OUTPUT ${GLUTEN_PROTO_OUTPUT_FILES}
+        COMMAND ${PROTOC_BIN}
+        --proto_path
+        ${GLUTEN_PROTO_SRC_DIR}/
+        --cpp_out
+        ${PROTO_OUTPUT_DIR}
+        ${GLUTEN_PROTO_FILES}
+        DEPENDS  ${GLUTEN_PROTO_DIR}
+        COMMENT "Running Gluten PROTO compiler"
+        VERBATIM)
+
+add_custom_target(jni_proto ALL DEPENDS ${SUBSTRAIT_PROTO_OUTPUT_FILES} ${GLUTEN_PROTO_OUTPUT_FILES})
 add_dependencies(jni_proto protobuf::libprotobuf)
+
 target_include_directories(gluten PUBLIC ${CMAKE_SYSTEM_INCLUDE_PATH} ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR} ${PROTO_OUTPUT_DIR} ${PROTOBUF_INCLUDE})
 set_target_properties(gluten PROPERTIES
-                      LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
-)
+        LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases)
 
 include(Findjemalloc_pic)
 # Build Jemalloc

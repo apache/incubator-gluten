@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+syntax = "proto3";
+
+package gluten;
+
+option java_package = "io.glutenproject.proto";
+option java_multiple_files = true;
+
+message MemoryUsageStats {
+  int64 peak = 1;
+  int64 current = 2;
+  map<string, MemoryUsageStats> children = 3;
+}

@@ -16,7 +16,7 @@
  */
 package io.glutenproject.memory.nmm;
 
-import io.glutenproject.memory.MemoryUsage;
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 
 import org.slf4j.Logger;
@@ -27,11 +27,10 @@ public class ManagedReservationListener implements ReservationListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(ManagedReservationListener.class);
 
-  private MemoryTarget target;
-  private final MemoryUsage sharedUsage; // shared task metrics
-  private volatile boolean open = true;
+  private final MemoryTarget target;
+  private final SimpleMemoryUsageRecorder sharedUsage; // shared task metrics
 
-  public ManagedReservationListener(MemoryTarget target, MemoryUsage sharedUsage) {
+  public ManagedReservationListener(MemoryTarget target, SimpleMemoryUsageRecorder sharedUsage) {
     this.target = target;
     this.sharedUsage = sharedUsage;
   }
@@ -40,7 +39,9 @@ public class ManagedReservationListener implements ReservationListener {
   public long reserve(long size) {
     synchronized (this) {
       try {
-        return target.borrow(size);
+        long granted = target.borrow(size);
+        sharedUsage.inc(granted);
+        return granted;
       } catch (Exception e) {
         LOG.error("Error reserving memory from target", e);
         throw e;
@@ -51,9 +52,6 @@ public class ManagedReservationListener implements ReservationListener {
   @Override
   public long unreserve(long size) {
     synchronized (this) {
-      if (!open) {
-        return 0L;
-      }
       target.repay(size);
       sharedUsage.inc(-size);
       return size;
@@ -62,15 +60,7 @@ public class ManagedReservationListener implements ReservationListener {
 
   @Override
   public long getUsedBytes() {
-    return target.stats().current;
-  }
-
-  @Override
-  public void inactivate() {
-    synchronized (this) {
-      target = null; // make it gc reachable
-      open = false;
-    }
+    return target.usedBytes();
   }
 
   public static class OutOfMemoryException extends RuntimeException {

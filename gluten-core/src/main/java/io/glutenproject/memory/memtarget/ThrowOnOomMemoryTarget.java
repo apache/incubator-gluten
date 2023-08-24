@@ -17,7 +17,7 @@
 package io.glutenproject.memory.memtarget;
 
 import io.glutenproject.GlutenConfig$;
-import io.glutenproject.memory.MemoryUsageStats;
+import io.glutenproject.proto.MemoryUsageStats;
 
 import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.sql.internal.SQLConf;
@@ -89,6 +89,11 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
   @Override
   public String name() {
     return target.name();
+  }
+
+  @Override
+  public long usedBytes() {
+    return target.usedBytes();
   }
 
   @Override

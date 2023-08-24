@@ -39,9 +39,11 @@ class VeloxMemoryManager final : public MemoryManager {
     return veloxLeafPool_;
   }
 
-  virtual MemoryAllocator* getMemoryAllocator() override {
+  MemoryAllocator* getMemoryAllocator() const override {
     return glutenAlloc_.get();
   }
+
+  const MemoryUsageStats collectMemoryUsageStats() const override;
 
  private:
   std::string name_;

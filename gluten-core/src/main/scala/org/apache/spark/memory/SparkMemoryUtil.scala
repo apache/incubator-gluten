@@ -17,9 +17,12 @@
 package org.apache.spark.memory
 
 import io.glutenproject.memory.memtarget.MemoryTarget
+import io.glutenproject.proto.MemoryUsageStats
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.util.Utils
+
+import org.apache.commons.lang3.StringUtils
 
 import java.util
 
@@ -44,60 +47,113 @@ object SparkMemoryUtil {
   }
 
   def dumpMemoryConsumerStats(tmm: TaskMemoryManager): String = {
-    def getName(consumer: MemoryConsumer): String = {
-      consumer match {
-        case mt: MemoryTarget =>
-          mt.name + "@" + Integer.toHexString(System.identityHashCode(mt));
-        case mc =>
-          mc.toString
-      }
+    def sortStats(stats: Seq[MemoryConsumerStats]) = {
+      stats.sortBy(_.used.getOrElse(Long.MinValue))(Ordering.Long.reverse)
     }
 
     val stats = tmm.synchronized {
       val consumers = consumersField.get(tmm).asInstanceOf[util.HashSet[MemoryConsumer]]
-      val sortedConsumers = consumers.asScala.toArray.sortBy(consumer => consumer.used)(
-        Ordering.Long.reverse
-      ) // ranked by used bytes
 
-      sortedConsumers.map {
-        consumer =>
-          val name = getName(consumer)
-          val used = Some(consumer.getUsed)
-          val peak = consumer match {
-            case mt: MemoryTarget =>
-              Some(mt.stats().peak)
-            case mc =>
-              None
-          }
-          MemoryConsumerStats(name, used, peak)
+      def toMemoryConsumerStats(name: String, mus: MemoryUsageStats): MemoryConsumerStats = {
+        MemoryConsumerStats(
+          name,
+          Some(mus.getCurrent),
+          Some(mus.getPeak),
+          sortStats(
+            mus.getChildrenMap
+              .entrySet()
+              .asScala
+              .toList
+              .map(entry => toMemoryConsumerStats(entry.getKey, entry.getValue)))
+        )
+      }
+
+      consumers.asScala.toSeq.map {
+        case mt: MemoryTarget =>
+          val name = mt.name + "@" + Integer.toHexString(System.identityHashCode(mt));
+          toMemoryConsumerStats(name, mt.stats())
+        case mc =>
+          val name = mc.toString
+          val used = Some(mc.getUsed)
+          val peak = None
+          MemoryConsumerStats(name, used, peak, Seq.empty)
       }
     }
 
-    prettyPrintToString(stats)
+    prettyPrintToString(sortStats(stats))
   }
 
-  private def prettyPrintToString(stats: Seq[MemoryConsumerStats]): String = {
+  private def prettyPrintToString(stats: Iterable[MemoryConsumerStats]): String = {
+
     def getBytes(bytes: Option[Long]): String = {
       bytes.map(Utils.bytesToString).getOrElse("N/A")
     }
+
+    def getFullName(name: String, prefix: String): String = {
+      "%s%s:".format(prefix, name)
+    }
+
     val sb = new StringBuilder()
     sb.append(s"Memory consumer stats:")
     sb.append(System.lineSeparator())
-    val nameWidth = stats.map(_.name.length).max
-    val usedWidth = stats.map(each => getBytes(each.used).length).max
-    val peakWidth = stats.map(each => getBytes(each.peak).length).max
-    for (i <- stats.indices) {
-      val each = stats(i)
-      sb.append("\tfrom ") // indent with a tab (align with exception stack trace)
-      sb.append(
-        s"%${nameWidth}s: Current used bytes: %${usedWidth}s, peak bytes: %${peakWidth}s"
-          .format(each.name, getBytes(each.used), getBytes(each.peak)))
-      if (i != stats.size - 1) {
-        sb.append(System.lineSeparator)
+
+    // determine padding widths
+    var nameWidth = 0
+    var usedWidth = 0
+    var peakWidth = 0
+    def addPaddingSingleLevel(stats: Iterable[MemoryConsumerStats], extraWidth: Integer): Unit = {
+      if (stats.isEmpty) {
+        return
+      }
+      stats.foreach {
+        stats =>
+          nameWidth = Math.max(nameWidth, getFullName(stats.name, "").length + extraWidth)
+          usedWidth = Math.max(usedWidth, getBytes(stats.used).length)
+          peakWidth = Math.max(peakWidth, getBytes(stats.peak).length)
+          addPaddingSingleLevel(stats.children, extraWidth + 3) // e.g. "\-
       }
     }
+    addPaddingSingleLevel(stats, 1) // take the leading '\t' into account
+
+    // print
+    def printSingleLevel(
+        stats: MemoryConsumerStats,
+        treePrefix: String,
+        treeChildrenPrefix: String): Unit = {
+      val name = getFullName(stats.name, treePrefix)
+      sb.append(
+        s"%s Current used bytes: %s, peak bytes: %s%n"
+          .format(
+            StringUtils.rightPad(name, nameWidth, ' '),
+            StringUtils.leftPad(String.valueOf(getBytes(stats.used)), usedWidth, ' '),
+            StringUtils.leftPad(String.valueOf(getBytes(stats.peak)), peakWidth, ' ')
+          ))
+
+      stats.children.zipWithIndex.foreach {
+        case (child, i) =>
+          if (i != stats.children.size - 1) {
+            printSingleLevel(child, treeChildrenPrefix + "+- ", treeChildrenPrefix + "|  ")
+          } else {
+            printSingleLevel(child, treeChildrenPrefix + "\\- ", treeChildrenPrefix + "   ")
+          }
+      }
+    }
+
+    for (each <- stats) {
+      printSingleLevel(
+        each,
+        "\t",
+        "\t"
+      ) // top level is indented with one tab (align with exception stack trace)
+    }
+
+    // return
     sb.toString()
   }
 
-  private case class MemoryConsumerStats(name: String, used: Option[Long], peak: Option[Long])
+  private case class MemoryConsumerStats(
+      name: String,
+      used: Option[Long],
+      peak: Option[Long],
+      children: Iterable[MemoryConsumerStats])
 }

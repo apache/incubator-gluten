@@ -18,6 +18,7 @@
 #pragma once
 
 #include "MemoryAllocator.h"
+#include "memory.pb.h"
 
 namespace gluten {
 
@@ -27,7 +28,9 @@ class MemoryManager {
 
   virtual ~MemoryManager() = default;
 
-  virtual MemoryAllocator* getMemoryAllocator() = 0;
+  virtual MemoryAllocator* getMemoryAllocator() const = 0;
+
+  virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
 };
 
 } // namespace gluten
