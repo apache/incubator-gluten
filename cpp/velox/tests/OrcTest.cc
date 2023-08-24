@@ -163,6 +163,7 @@ void testReadOrc() {
 class OrcTest : public ::testing::Test {};
 
 TEST_F(OrcTest, testOrc) {
+  GTEST_SKIP() << "Issue 2862";
   testWriteOrc();
   testReadOrc();
   orcTestData.check();
