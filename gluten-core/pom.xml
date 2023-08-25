@@ -25,6 +25,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>io.delta</groupId>
+      <artifactId>delta-core_${scala.binary.version}</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>io.glutenproject</groupId>
       <artifactId>gluten-ui</artifactId>
       <version>${project.version}</version>

@@ -23,7 +23,6 @@ import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
-
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
@@ -32,18 +31,112 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
+import org.apache.spark.sql.delta.DeltaParquetFileFormat
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.{GlutenWriterColumnarRules, MATERIALIZE_TAG}
+import org.apache.spark.sql.execution.datasources.{FileFormat, GlutenWriterColumnarRules, HadoopFsRelation, MATERIALIZE_TAG}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.util.SparkRuleUtil
+
+/**
+ * This Rule used for the necessary transformation for SparkPlan, like:
+ * 1) Lake format related transformation which can't be done in Spark, e.g. Delta lake
+ * 2) Needed to be applied before any other Rules, to avoid information lack like Plan Hint tag
+ *
+ */
+case class RewritePlanIfNeeded(session: SparkSession) extends Rule[SparkPlan] {
+  def apply(plan: SparkPlan): SparkPlan = {
+    val np = plan transformUp {
+      // If is Delta Column Mapping read(e.g. nameMapping and idMapping)
+      // change the metadata of Delta into Parquet one,
+      // so that gluten can read Delta File using Parquet Reader
+      // currently supports Delta 2.2
+      case p: FileSourceScanExec if isDeltaColumnMappingFileFormat(p.relation.fileFormat) =>
+        transformColumnMappingPlan(p)
+    }
+    np
+  }
+
+  /**
+   * check if is Delta ColumnMapping FileFormat(e.g. nameMapping and idMapping)
+   *
+   * @param fileFormat
+   * @return
+   */
+  private def isDeltaColumnMappingFileFormat(fileFormat: FileFormat): Boolean = fileFormat match {
+    case d: DeltaParquetFileFormat if d.columnMappingMode.name != "none" =>
+      true
+    case _ =>
+      false
+  }
+
+  /**
+   * This method only used for Delta ColumnMapping FileFormat(e.g. nameMapping and idMapping)
+   * transform the metadata of Delta into Parquet one, each plan should only be transformed once
+   * Only supports Delta 2.2 ver
+   *
+   * @param plan : FileSourceScanExec
+   * @return
+   */
+  private def transformColumnMappingPlan(splan: SparkPlan): SparkPlan = splan match {
+    case plan: FileSourceScanExec =>
+      val fmt = plan.relation.fileFormat.asInstanceOf[DeltaParquetFileFormat]
+      val p_names = scala.collection.mutable.Map[String, String]()
+      // get physicalName from file
+      fmt.referenceSchema.foreach { e =>
+        val p_name = e.metadata.getString("delta.columnMapping.physicalName")
+        val l_name = e.name
+        p_names += (l_name -> p_name)
+      }
+      val attr = plan.output.map { o =>
+        AttributeReference(p_names(o.name), o.dataType,
+          o.nullable, o.metadata)(o.exprId, o.qualifier)
+      }
+      // alias physicalName into tableName
+      val expr = (attr, plan.requiredSchema.names).zipped.map { (a, p) =>
+        Alias(a, p)(exprId = a.exprId)
+      }
+      // replace tableName in schema with physicalName
+      val new_req_field = plan.requiredSchema.map { e =>
+        StructField(p_names(e.name), e.dataType, e.nullable, e.metadata)
+      }
+      val new_data_field = plan.relation.dataSchema.map { e =>
+        StructField(p_names(e.name), e.dataType, e.nullable, e.metadata)
+      }
+      val new_partition_field = plan.relation.partitionSchema.map { e =>
+        StructField(p_names(e.name), e.dataType, e.nullable, e.metadata)
+      }
+      val rel = HadoopFsRelation(
+        plan.relation.location,
+        StructType(new_partition_field),
+        StructType(new_data_field),
+        plan.relation.bucketSpec,
+        plan.relation.fileFormat,
+        plan.relation.options
+      )(session)
+      val newPlan = FileSourceScanExec(
+        rel,
+        attr,
+        StructType(new_req_field),
+        plan.partitionFilters,
+        plan.optionalBucketSet,
+        plan.optionalNumCoalescedBuckets,
+        plan.dataFilters,
+        plan.tableIdentifier,
+        plan.disableBucketedScan
+      )
+      ProjectExec(expr, newPlan)
+    case _ => splan
+  }
+}
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides(isAdaptiveContext: Boolean)
@@ -756,6 +849,7 @@ case class ColumnarOverrideRules(session: SparkSession)
     }
     tagBeforeTransformHitsRules :::
       List(
+        (spark: SparkSession) => RewritePlanIfNeeded(spark),
         (spark: SparkSession) => PlanOneRowRelation(spark),
         (_: SparkSession) => FallbackEmptySchemaRelation(),
         (_: SparkSession) => AddTransformHintRule(),
