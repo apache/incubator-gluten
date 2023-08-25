@@ -1172,6 +1172,14 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
     VS_PRINTLF(preallocRowCnt);
 
+    std::cout << "[SHUFFLE WRITER LOG]: Task ID: " << options_.task_attempt_id
+              << ", options_.offheap_per_task: " << options_.offheap_per_task
+              << ", sizePerRow: " << sizePerRow
+              << ", preAllocRowCnt: " << preAllocRowCnt
+              << ", numPartitions_: " << numPartitions_
+              << ", options_.buffer_size: " << options_.buffer_size
+              << ", preAllocRowCnt: " << preAllocRowCnt
+              << std::endl;
     return preAllocRowCnt;
   }
 
