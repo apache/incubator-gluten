@@ -19,8 +19,10 @@ package io.glutenproject.expression
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
+
 import com.google.common.collect.Lists
 
 import scala.collection.JavaConverters._
