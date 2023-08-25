@@ -76,8 +76,6 @@ class ColumnarShuffleWriter[K, V](
 
   private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
 
-  private val writeSchema = GlutenConfig.getConf.columnarShuffleWriteSchema
-
   private val writeEOS = GlutenConfig.getConf.columnarShuffleWriteEOS
 
   private val jniWrapper = new ShuffleWriterJniWrapper
@@ -157,7 +155,6 @@ class ColumnarShuffleWriter[K, V](
                 }
               )
               .getNativeInstanceId,
-            writeSchema,
             writeEOS,
             handle,
             taskContext.taskAttemptId()

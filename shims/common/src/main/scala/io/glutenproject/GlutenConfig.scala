@@ -121,8 +121,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_SHUFFLE_PREFER_SPILL_ENABLED)
 
-  def columnarShuffleWriteSchema: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_SCHEMA_ENABLED)
-
   def columnarShuffleWriteEOS: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED)
 
   def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
@@ -737,12 +735,6 @@ object GlutenConfig {
         "Whether to spill the partition buffers when buffers are full. " +
           "If false, the partition buffers will be cached in memory first, " +
           "and the cached buffers will be spilled when reach maximum memory.")
-      .booleanConf
-      .createWithDefault(false)
-
-  val COLUMNAR_SHUFFLE_WRITE_SCHEMA_ENABLED =
-    buildConf("spark.gluten.sql.columnar.shuffle.writeSchema")
-      .internal()
       .booleanConf
       .createWithDefault(false)
 
