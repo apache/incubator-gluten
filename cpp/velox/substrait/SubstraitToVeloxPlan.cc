@@ -1342,7 +1342,7 @@ void SubstraitToVeloxPlanConverter::separateFilters(
   for (const auto& scalarFunction : scalarFunctions) {
     auto filterNameSpec = SubstraitParser::findFunctionSpec(functionMap_, scalarFunction.function_reference());
     auto filterName = SubstraitParser::getSubFunctionName(filterNameSpec);
-    // Add all decimal filters to remaining functions because their pushdown are not supported
+    // Add all decimal filters to remaining functions because their pushdown are not supported.
     if (format == dwio::common::FileFormat::ORC && scalarFunction.arguments().size() > 0) {
       auto value = scalarFunction.arguments().at(0).value();
       if (value.has_selection()) {
