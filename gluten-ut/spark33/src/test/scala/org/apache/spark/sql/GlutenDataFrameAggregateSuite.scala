@@ -19,7 +19,10 @@ package org.apache.spark.sql
 import io.glutenproject.execution.HashAggregateExecBaseTransformer
 
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
+import org.apache.spark.sql.expressions.Aggregator
 import org.apache.spark.sql.functions._
+
+import java.lang.{Long => JLong}
 
 class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenSQLTestsTrait {
 
@@ -202,17 +205,21 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   }
 
   test("mixed supported and unsupported aggregate functions") {
-    val df = spark.sql("SELECT a, collect_set(b), max(b) FROM testData2 group by a")
-    try {
-      checkAnswer(
-        df,
-        Row(1, Array(1, 2), 2) :: Row(2, Array(1, 2), 2) :: Row(3, Array(1, 2), 2) :: Nil)
-    } catch {
-      case _: Exception =>
-        // set is not determined
-        checkAnswer(
-          df,
-          Row(1, Array(2, 1), 2) :: Row(2, Array(2, 1), 2) :: Row(3, Array(2, 1), 2) :: Nil)
+    withUserDefinedFunction(("udaf_sum", true)) {
+      spark.udf.register(
+        "udaf_sum",
+        udaf(new Aggregator[JLong, JLong, JLong] {
+          override def zero: JLong = 0
+          override def reduce(b: JLong, a: JLong): JLong = a + b
+          override def merge(b1: JLong, b2: JLong): JLong = b1 + b2
+          override def finish(reduction: JLong): JLong = reduction
+          override def bufferEncoder: Encoder[JLong] = Encoders.LONG
+          override def outputEncoder: Encoder[JLong] = Encoders.LONG
+        })
+      )
+
+      val df = spark.sql("SELECT a, udaf_sum(b), max(b) FROM testData2 group by a")
+      checkAnswer(df, Row(1, 3, 2) :: Row(2, 3, 2) :: Row(3, 3, 2) :: Nil)
     }
   }
 }
