@@ -186,9 +186,6 @@ object GlutenWriterColumnarRules {
                       aqe.isSubquery,
                       supportsColumnar = true
                     ))))
-            case u: UnionExecTransformer =>
-              u.children.map(_.setTagValue(GlutenWriterColumnarRules.TAG, MATERIALIZE_TAG()))
-              rc.withNewChildren(Array(FakeRowAdaptor(u)))
             case other => rc.withNewChildren(Array(FakeRowAdaptor(other)))
           }
         } else {

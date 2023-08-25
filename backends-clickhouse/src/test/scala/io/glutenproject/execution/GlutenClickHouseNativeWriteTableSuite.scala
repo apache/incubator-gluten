@@ -932,4 +932,23 @@ class GlutenClickHouseNativeWriteTableSuite
       }
     }
   }
+
+  test("test native write with union") {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      for (format <- formats) {
+        val table_name = "t_" + format
+        spark.sql(s"drop table IF EXISTS $table_name")
+        spark.sql(s"create table $table_name (id int, str string) stored as $format")
+        spark.sql(
+          s"insert overwrite table $table_name " +
+            "select id, cast(id as string) from range(10) union all " +
+            "select 10, '10' from range(10)")
+        spark.sql(
+          s"insert overwrite table $table_name " +
+            "select id, cast(id as string) from range(10) union all " +
+            "select 10, cast(id as string) from range(10)")
+
+      }
+    }
+  }
 }
