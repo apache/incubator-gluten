@@ -571,6 +571,7 @@ object GlutenConfig {
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
       "spark.io.compression.codec",
+      "spark.sql.decimalOperations.allowPrecisionLoss",
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,

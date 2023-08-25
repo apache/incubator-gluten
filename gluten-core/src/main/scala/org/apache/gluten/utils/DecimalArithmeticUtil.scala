@@ -22,6 +22,7 @@ import org.apache.gluten.expression.{CheckOverflowTransformer, ChildTransformer,
 
 import org.apache.spark.sql.catalyst.analysis.DecimalPrecision
 import org.apache.spark.sql.catalyst.expressions.{Add, BinaryArithmetic, Cast, Divide, Expression, Literal, Multiply, Pmod, PromotePrecision, Remainder, Subtract}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{ByteType, Decimal, DecimalType, IntegerType, LongType, ShortType}
 
 object DecimalArithmeticUtil {
@@ -33,12 +34,14 @@ object DecimalArithmeticUtil {
 
   val MIN_ADJUSTED_SCALE = 6
   val MAX_PRECISION = 38
+  val MAX_SCALE = 38
 
   // Returns the result decimal type of a decimal arithmetic computing.
   def getResultTypeForOperation(
       operationType: OperationType.Config,
       type1: DecimalType,
       type2: DecimalType): DecimalType = {
+    val allowPrecisionLoss = SQLConf.get.decimalOperationsAllowPrecisionLoss
     var resultScale = 0
     var resultPrecision = 0
     operationType match {
@@ -54,8 +57,20 @@ object DecimalArithmeticUtil {
         resultScale = type1.scale + type2.scale
         resultPrecision = type1.precision + type2.precision + 1
       case OperationType.DIVIDE =>
-        resultScale = Math.max(MIN_ADJUSTED_SCALE, type1.scale + type2.precision + 1)
-        resultPrecision = type1.precision - type1.scale + type2.scale + resultScale
+        if (allowPrecisionLoss) {
+          resultScale = Math.max(MIN_ADJUSTED_SCALE, type1.scale + type2.precision + 1)
+          resultPrecision = type1.precision - type1.scale + type2.scale + resultScale
+        } else {
+          var intDig = Math.min(MAX_SCALE, type1.precision - type1.scale + type2.scale)
+          var decDig = Math.min(MAX_SCALE, Math.max(6, type1.scale + type2.precision + 1))
+          val diff = (intDig + decDig) - MAX_SCALE
+          if (diff > 0) {
+            decDig -= diff / 2 + 1
+            intDig = MAX_SCALE - decDig
+          }
+          resultScale = intDig + decDig
+          resultPrecision = decDig
+        }
       case OperationType.MOD =>
         resultScale = Math.max(type1.scale, type2.scale)
         resultPrecision =
@@ -63,7 +78,11 @@ object DecimalArithmeticUtil {
       case other =>
         throw new GlutenNotSupportException(s"$other is not supported.")
     }
-    adjustScaleIfNeeded(resultPrecision, resultScale)
+    if (allowPrecisionLoss) {
+      adjustScaleIfNeeded(resultPrecision, resultScale)
+    } else {
+      bounded(resultPrecision, resultScale)
+    }
   }
 
   // Returns the adjusted decimal type when the precision is larger the maximum.
@@ -77,6 +96,10 @@ object DecimalArithmeticUtil {
       typeScale = Math.max(scale - delta, minScale)
     }
     DecimalType(typePrecision, typeScale)
+  }
+
+  def bounded(precision: Int, scale: Int): DecimalType = {
+    DecimalType(Math.min(precision, MAX_PRECISION), Math.min(scale, MAX_SCALE))
   }
 
   // If casting between DecimalType, unnecessary cast is skipped to avoid data loss,
