@@ -97,7 +97,10 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
   private var planJson: String = ""
 
   def materializeAtLast(): Boolean = {
-    child.getTagValue(GlutenWriterColumnarRules.TAG).isDefined
+    // child.getTagValue(GlutenWriterColumnarRules.TAG).isDefined
+
+    // No need to materialize because writer in native engine will handle it.
+    false
   }
 
   def getPlanJson: String = {

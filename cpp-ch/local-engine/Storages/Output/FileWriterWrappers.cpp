@@ -39,7 +39,10 @@ void NormalFileWriter::consume(DB::Block & block)
         pipeline = std::make_unique<DB::QueryPipeline>(output_format->output);
         writer = std::make_unique<DB::PushingPipelineExecutor>(*pipeline);
     }
-    writer->push(std::move(block));
+
+    /// All blocks passed to native file writer must be materialized
+    /// Because almost all OutputFormats including ORC/Parquet expect materialized blocks, otherwise crash will happen
+    writer->push(materializeBlock(block));
 }
 
 void NormalFileWriter::close()
