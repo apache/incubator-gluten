@@ -18,17 +18,20 @@ package io.glutenproject.vectorized
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
+
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.shuffle.GlutenShuffleUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import org.apache.celeborn.client.read.CelebornInputStream
 
 import java.io._
 import java.nio.ByteBuffer
 import java.util.Locale
+
 import scala.reflect.ClassTag
 
 class CHColumnarBatchSerializer(
