@@ -726,7 +726,6 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     {
         int len = env->GetArrayLength(expr_list);
         auto * str = reinterpret_cast<jbyte *>(new char[len]);
-        memset(str, 0, len);
         env->GetByteArrayRegion(expr_list, 0, len, str);
         hash_exprs = std::string(str, str + len);
         delete[] str;
@@ -736,7 +735,6 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     {
         int len = env->GetArrayLength(out_expr_list);
         auto * str = reinterpret_cast<jbyte *>(new char[len]);
-        memset(str, 0, len);
         env->GetByteArrayRegion(out_expr_list, 0, len, str);
         out_exprs = std::string(str, str + len);
         delete[] str;
