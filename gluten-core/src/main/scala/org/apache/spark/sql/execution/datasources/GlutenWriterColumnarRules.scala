@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ColumnarToRowExecBase
+import io.glutenproject.execution.UnionExecTransformer
 import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.rdd.RDD
@@ -185,6 +186,9 @@ object GlutenWriterColumnarRules {
                       aqe.isSubquery,
                       supportsColumnar = true
                     ))))
+            case u: UnionExecTransformer =>
+              u.children.map(_.setTagValue(GlutenWriterColumnarRules.TAG, MATERIALIZE_TAG()))
+              rc.withNewChildren(Array(FakeRowAdaptor(u)))
             case other => rc.withNewChildren(Array(FakeRowAdaptor(other)))
           }
         } else {
