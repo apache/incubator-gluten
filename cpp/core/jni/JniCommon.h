@@ -254,6 +254,7 @@ class CelebornClient : public RssClient {
     }
 
     javaCelebornShuffleWriter_ = env->NewGlobalRef(javaCelebornShuffleWriter);
+    array_ = env->NewByteArray(1024 * 1024);
   }
 
   ~CelebornClient() {
@@ -264,6 +265,7 @@ class CelebornClient : public RssClient {
       return;
     }
     env->DeleteGlobalRef(javaCelebornShuffleWriter_);
+    env->DeleteGlobalRef(array_);
   }
 
   int32_t pushPartitonData(int32_t partitionId, char* bytes, int64_t size) {
@@ -271,10 +273,13 @@ class CelebornClient : public RssClient {
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
       throw gluten::GlutenException("JNIEnv was not attached to current thread");
     }
-    jbyteArray array = env->NewByteArray(size);
-    env->SetByteArrayRegion(array, 0, size, reinterpret_cast<jbyte*>(bytes));
+    jint length = env->GetArrayLength(array_);
+    if (size > length) {
+      array_ = env->NewByteArray(size);
+    }
+    env->SetByteArrayRegion(array_, 0, size, reinterpret_cast<jbyte*>(bytes));
     jint celebornBytesSize =
-        env->CallIntMethod(javaCelebornShuffleWriter_, javaCelebornPushPartitionData_, partitionId, array);
+        env->CallIntMethod(javaCelebornShuffleWriter_, javaCelebornPushPartitionData_, partitionId, array_, size);
     checkException(env);
     return static_cast<int32_t>(celebornBytesSize);
   }
@@ -282,4 +287,5 @@ class CelebornClient : public RssClient {
   JavaVM* vm_;
   jobject javaCelebornShuffleWriter_;
   jmethodID javaCelebornPushPartitionData_;
+  jbyteArray array_;
 };
