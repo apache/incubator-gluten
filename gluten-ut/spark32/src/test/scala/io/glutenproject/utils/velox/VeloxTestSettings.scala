@@ -1048,5 +1048,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenStatisticsCollectionSuite]
     .exclude("SPARK-33687: analyze all tables in a specific database")
   enableSuite[FallbackStrategiesSuite]
+  enableSuite[GlutenHiveSQLQuerySuite]
 }
 // scalastyle:on line.size.limit

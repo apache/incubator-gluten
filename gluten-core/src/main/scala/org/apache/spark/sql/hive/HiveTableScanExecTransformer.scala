@@ -38,6 +38,7 @@ import org.apache.spark.sql.types.{ArrayType, MapType, StructType}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
+import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
 import org.apache.hadoop.mapred.TextInputFormat
 
 import java.net.URI
@@ -122,6 +123,9 @@ class HiveTableScanExecTransformer(
             ReadFileFormat.JsonReadFormat
           case _ => ReadFileFormat.TextReadFormat
         }
+      case Some(inputFormat)
+          if ORC_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
+        ReadFileFormat.OrcReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
   }
@@ -147,6 +151,12 @@ class HiveTableScanExecTransformer(
     fileFormat match {
       case ReadFileFormat.JsonReadFormat => ValidationResult.ok
       case ReadFileFormat.TextReadFormat =>
+        if (!hasComplexType) {
+          ValidationResult.ok
+        } else {
+          ValidationResult.notOk("does not support complex type")
+        }
+      case ReadFileFormat.OrcReadFormat =>
         if (!hasComplexType) {
           ValidationResult.ok
         } else {
@@ -235,6 +245,8 @@ object HiveTableScanExecTransformer {
   val DEFAULT_FIELD_DELIMITER: Char = 0x01
   val TEXT_INPUT_FORMAT_CLASS: Class[TextInputFormat] =
     Utils.classForName("org.apache.hadoop.mapred.TextInputFormat")
+  val ORC_INPUT_FORMAT_CLASS: Class[OrcInputFormat] =
+    Utils.classForName("org.apache.hadoop.hive.ql.io.orc.OrcInputFormat")
 
   def isHiveTableScan(plan: SparkPlan): Boolean = {
     plan.isInstanceOf[HiveTableScanExec]
