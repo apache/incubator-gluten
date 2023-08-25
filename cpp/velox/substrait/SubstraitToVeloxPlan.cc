@@ -1725,7 +1725,7 @@ void SubstraitToVeloxPlanConverter::setInFilter<TypeKind::TINYINT>(
     int64_t value = variant.value<int8_t>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName, true)] = common::createBigintValues(values, nullAllowed);
+  filters[common::Subfield(inputName)] = common::createBigintValues(values, nullAllowed);
 }
 
 template <>
@@ -1786,7 +1786,7 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
   } else if constexpr (KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::MAP) {
     // Only IsNotNull filter is supported for the above two type kinds now.
     if (rangeSize == 0 && !nullAllowed) {
-      filters[common::Subfield(inputName, true)] = std::move(std::make_unique<common::IsNotNull>());
+      filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
     } else {
       VELOX_NYI("constructSubfieldFilters only support IsNotNull for input type '{}'", inputType);
     }
@@ -1817,14 +1817,14 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       // Currently, Not-equal cannot coexist with other filter conditions
       // due to multirange is in 'OR' relation but 'AND' is needed.
       VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after not-equal filter.");
-      filters[common::Subfield(inputName, true)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
+      filters[common::Subfield(inputName)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
       return;
     }
 
     // Handle null filtering.
     if (rangeSize == 0 && !nullAllowed) {
       std::unique_ptr<common::IsNotNull> filter = std::make_unique<common::IsNotNull>();
-      filters[common::Subfield(inputName, true)] = std::move(filter);
+      filters[common::Subfield(inputName)] = std::move(filter);
       return;
     }
 
@@ -1906,7 +1906,7 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
     auto inputType = inputTypeList[colIdx];
     if (inputType->isDate()) {
       constructSubfieldFilters<TypeKind::INTEGER, common::BigintRange>(
-          colIdx, inputNameList[colIdx], inputType, colInfoMap[colIdx], filters);
+          colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
       continue;
     }
     switch (inputType->kind()) {
