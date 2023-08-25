@@ -39,8 +39,7 @@ void NormalFileWriter::consume(DB::Block & block)
         pipeline = std::make_unique<DB::QueryPipeline>(output_format->output);
         writer = std::make_unique<DB::PushingPipelineExecutor>(*pipeline);
     }
-
-    writer->push(block);
+    writer->push(std::move(block));
 }
 
 void NormalFileWriter::close()
