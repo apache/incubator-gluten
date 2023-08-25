@@ -56,7 +56,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   ListenableArbitrator(const Config& config, AllocationListener* listener)
       : MemoryArbitrator(config), listener_(listener) {}
 
-  std::string kind() override {
+  std::string kind() const override {
     return kind_;
   }
 
@@ -147,6 +147,7 @@ VeloxMemoryManager::VeloxMemoryManager(
 #ifdef GLUTEN_ENABLE_HBM
   auto wrappedAlloc = std::make_shared<VeloxMemoryAllocator>(allocator.get());
 #endif
+  auto afr = std::make_shared<ArbitratorFactoryRegister>(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory,
@@ -158,7 +159,7 @@ VeloxMemoryManager::VeloxMemoryManager(
 #else
       veloxAlloc,
 #endif
-      "GLUTEN",
+      afr->getKind(),
       0,
       32 << 20,
       true
