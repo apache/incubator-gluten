@@ -22,7 +22,7 @@ import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveS
 
 import org.scalatest.Ignore
 
-@Ignore("need celeborn cluster")
+@Ignore
 class GlutenClickHouseRSSColumnarShuffleAQESuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
