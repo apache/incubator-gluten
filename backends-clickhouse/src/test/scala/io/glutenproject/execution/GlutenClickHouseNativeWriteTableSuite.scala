@@ -31,7 +31,7 @@ import org.scalatest.BeforeAndAfterAll
 import java.io.File
 import java.sql.{Date, Timestamp}
 
-class GlutenClickHouseWriteParquetTableSuite
+class GlutenClickHouseNativeWriteTableSuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper
   with SharedSparkSession
@@ -916,6 +916,19 @@ class GlutenClickHouseWriteParquetTableSuite
           .saveAsTable(table_name)
 
         val ret = spark.sql("select count(*) from " + table_name).collect().apply(0).apply(0)
+      }
+    }
+  }
+
+  test("test native write with empty dataset") {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      for (format <- formats) {
+        val table_name = "t_" + format
+        spark.sql(s"drop table IF EXISTS $table_name")
+        spark.sql(s"create table $table_name (id int, str string) stored as $format")
+        spark.sql(
+          s"insert into $table_name select id, cast(id as string) from range(10)" +
+            " where id > 100")
       }
     }
   }

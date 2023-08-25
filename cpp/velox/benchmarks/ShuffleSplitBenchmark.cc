@@ -119,7 +119,6 @@ class BenchmarkShuffleSplit {
     options.buffered_write = true;
     options.offheap_per_task = 128 * 1024 * 1024 * 1024L;
     options.prefer_evict = FLAGS_prefer_evict;
-    options.write_schema = false;
     options.memory_pool = pool;
     options.partitioning_name = "rr";
 

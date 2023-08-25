@@ -48,10 +48,8 @@ class ColumnarBatchSerializer(
   extends Serializer
   with Serializable {
 
-  // if don't write schema and EOS in shuffle writer, then the erializer supports relocation
-  private val supportsRelocation =
-    !GlutenConfig.getConf.columnarShuffleWriteSchema &&
-      !GlutenConfig.getConf.columnarShuffleWriteEOS
+  // if don't write EOS in shuffle writer, then the serializer supports relocation
+  private val supportsRelocation = !GlutenConfig.getConf.columnarShuffleWriteEOS
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {

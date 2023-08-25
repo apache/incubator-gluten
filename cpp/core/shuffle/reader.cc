@@ -34,31 +34,17 @@ class ShuffleReaderOutStream : public ColumnarBatchIterator {
       const std::shared_ptr<arrow::io::InputStream>& in,
       const ReaderOptions& options)
       : options_(options), in_(in) {
-    GLUTEN_ASSIGN_OR_THROW(firstMessage_, arrow::ipc::ReadMessage(in_.get()))
-    if (firstMessage_ == nullptr) {
-      throw GlutenException("Failed to read message from shuffle.");
-    }
-    if (firstMessage_->type() == arrow::ipc::MessageType::SCHEMA) {
-      GLUTEN_ASSIGN_OR_THROW(writeSchema_, arrow::ipc::ReadSchema(*firstMessage_, nullptr))
-      firstMessageConsumed_ = true;
+    if (options.compression_type != arrow::Compression::UNCOMPRESSED) {
+      writeSchema_ = toCompressWriteSchema(*schema);
     } else {
-      if (options.compression_type != arrow::Compression::UNCOMPRESSED) {
-        writeSchema_ = toCompressWriteSchema(*schema);
-      } else {
-        writeSchema_ = toWriteSchema(*schema);
-      }
+      writeSchema_ = toWriteSchema(*schema);
     }
   }
 
   std::shared_ptr<ColumnarBatch> next() override {
     std::shared_ptr<arrow::RecordBatch> arrowBatch;
     std::unique_ptr<arrow::ipc::Message> messageToRead;
-    if (!firstMessageConsumed_) {
-      messageToRead = std::move(firstMessage_);
-      firstMessageConsumed_ = true;
-    } else {
-      GLUTEN_ASSIGN_OR_THROW(messageToRead, arrow::ipc::ReadMessage(in_.get()))
-    }
+    GLUTEN_ASSIGN_OR_THROW(messageToRead, arrow::ipc::ReadMessage(in_.get()))
     if (messageToRead == nullptr) {
       return nullptr;
     }
@@ -73,9 +59,6 @@ class ShuffleReaderOutStream : public ColumnarBatchIterator {
   ReaderOptions options_;
   std::shared_ptr<arrow::io::InputStream> in_;
   std::shared_ptr<arrow::Schema> writeSchema_;
-  // TODO it's not reliable to infer schema from the first message, should finally drop this code
-  std::unique_ptr<arrow::ipc::Message> firstMessage_;
-  bool firstMessageConsumed_ = false;
 };
 } // namespace
 

@@ -121,8 +121,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_SHUFFLE_PREFER_SPILL_ENABLED)
 
-  def columnarShuffleWriteSchema: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_SCHEMA_ENABLED)
-
   def columnarShuffleWriteEOS: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED)
 
   def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
@@ -213,6 +211,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxSpillFileSystem: String = conf.getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
 
   def veloxOverAcquiredMemoryRatio: Double = conf.getConf(COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO)
+
+  def veloxReservationBlockSize: Long = conf.getConf(COLUMNAR_VELOX_RESERVATION_BLOCK_SIZE)
 
   def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
 
@@ -738,12 +738,6 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
-  val COLUMNAR_SHUFFLE_WRITE_SCHEMA_ENABLED =
-    buildConf("spark.gluten.sql.columnar.shuffle.writeSchema")
-      .internal()
-      .booleanConf
-      .createWithDefault(false)
-
   val COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED =
     buildConf("spark.gluten.sql.columnar.shuffle.writeEOS")
       .internal()
@@ -977,6 +971,13 @@ object GlutenConfig {
       .doubleConf
       .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
       .createWithDefault(0.3d)
+
+  val COLUMNAR_VELOX_RESERVATION_BLOCK_SIZE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.reservationBlockSize")
+      .internal()
+      .doc("Block size of native reservation listener reserve memory from Spark.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8MB")
 
   val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillThreshold")
