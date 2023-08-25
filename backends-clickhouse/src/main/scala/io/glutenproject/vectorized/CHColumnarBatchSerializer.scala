@@ -62,7 +62,8 @@ private class CHColumnarBatchSerializerInstance(
         in,
         GlutenConfig.getConf.isUseColumnarShuffleManager
           || CHBackendSettings.isUseCelebornShuffleManager,
-        CHBackendSettings.useCustomizedShuffleCodec)
+        CHBackendSettings.useCustomizedShuffleCodec
+      )
       private var cb: ColumnarBatch = _
       private val isEmptyStream: Boolean = in.equals(CelebornInputStream.empty())
 
