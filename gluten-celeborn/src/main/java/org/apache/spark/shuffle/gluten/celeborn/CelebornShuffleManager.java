@@ -54,7 +54,7 @@ public class CelebornShuffleManager implements ShuffleManager {
   private LifecycleManager lifecycleManager;
   private ShuffleClient shuffleClient;
   private volatile ColumnarShuffleManager _columnarShuffleManager;
-  private volatile SparkShuffleManager _vanillaCelenornShuffleManager;
+  private volatile SparkShuffleManager _vanillaCelebornShuffleManager;
   private final ConcurrentHashMap.KeySetView<Integer, Boolean> columnarShuffleIds =
       ConcurrentHashMap.newKeySet();
   private final CelebornShuffleFallbackPolicyRunner fallbackPolicyRunner;
@@ -88,15 +88,15 @@ public class CelebornShuffleManager implements ShuffleManager {
   }
 
   private SparkShuffleManager vanillaCelebornShuffleManager() {
-    if (_vanillaCelenornShuffleManager == null) {
+    if (_vanillaCelebornShuffleManager == null) {
       synchronized (this) {
-        if (_vanillaCelenornShuffleManager == null) {
-          _vanillaCelenornShuffleManager =
+        if (_vanillaCelebornShuffleManager == null) {
+          _vanillaCelebornShuffleManager =
               SparkUtils.instantiateClass(VANILLA_CELEBORN_SHUFFLE_MANAGER_NAME, conf, isDriver());
         }
       }
     }
-    return _vanillaCelenornShuffleManager;
+    return _vanillaCelebornShuffleManager;
   }
 
   private ShuffleClient getShuffleClient(
