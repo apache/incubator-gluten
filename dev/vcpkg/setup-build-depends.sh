@@ -106,6 +106,17 @@ install_alinux_3() {
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
 }
 
+install_tencentos_3.2() {
+    yum -y install \
+        wget curl tar zip unzip git which \
+        cmake ninja-build perl-IPC-Cmd autoconf automake libtool \
+        gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
+        flex bison python3 \
+        java-8-konajdk
+
+    install_centos_any_maven
+}
+
 ## Install function end
 
 ## Usage

@@ -225,6 +225,14 @@ function setup_linux {
       exit 1
       ;;
     esac
+  elif [[ "$LINUX_DISTRIBUTION" == "tencentos" ]]; then
+    case "$LINUX_VERSION_ID" in
+    3.2) scripts/setup-centos8.sh ;;
+    *)
+      echo "Unsupport tencentos version: $LINUX_VERSION_ID"
+      exit 1
+      ;;
+    esac
   else
     echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
     exit 1
