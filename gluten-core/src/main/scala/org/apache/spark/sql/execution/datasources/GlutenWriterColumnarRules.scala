@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution.datasources
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ColumnarToRowExecBase
-import io.glutenproject.execution.UnionExecTransformer
 import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.rdd.RDD
