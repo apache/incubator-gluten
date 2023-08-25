@@ -33,12 +33,13 @@ namespace ErrorCodes
 namespace local_engine
 {
 using namespace DB;
-thread_local std::weak_ptr<CurrentThread::QueryScope> query_scope;
-thread_local std::weak_ptr<ThreadStatus> thread_status;
+thread_local std::shared_ptr<CurrentThread::QueryScope> query_scope;
+thread_local std::shared_ptr<ThreadStatus> thread_status;
 ConcurrentMap<int64_t, NativeAllocatorContextPtr> allocator_map;
 
 int64_t initializeQuery(ReservationListenerWrapperPtr listener)
 {
+    if (thread_status) return -1;
     auto query_context = Context::createCopy(SerializedPlanParser::global_context);
     query_context->makeQueryContext();
 
@@ -51,13 +52,13 @@ int64_t initializeQuery(ReservationListenerWrapperPtr listener)
     query_context->setCurrentQueryId("");
 
     auto allocator_context = std::make_shared<NativeAllocatorContext>();
-    allocator_context->thread_status = std::make_shared<ThreadStatus>(false);
+    allocator_context->thread_status = std::make_shared<ThreadStatus>(true);
     allocator_context->query_scope = std::make_shared<CurrentThread::QueryScope>(query_context);
     allocator_context->group = std::make_shared<ThreadGroup>(query_context);
     allocator_context->query_context = query_context;
     allocator_context->listener = listener;
-    thread_status = std::weak_ptr<ThreadStatus>(allocator_context->thread_status);
-    query_scope = std::weak_ptr<CurrentThread::QueryScope>(allocator_context->query_scope);
+    thread_status = allocator_context->thread_status;
+    query_scope = allocator_context->query_scope;
     auto allocator_id = reinterpret_cast<int64_t>(allocator_context.get());
     CurrentMemoryTracker::before_alloc = [listener](Int64 size, bool throw_if_memory_exceed) -> void
     {
@@ -85,6 +86,8 @@ void releaseAllocator(int64_t allocator_id)
     else if (status->untracked_memory > 0)
         listener->reserve(status->untracked_memory);
     allocator_map.erase(allocator_id);
+    thread_status.reset();
+    query_scope.reset();
 }
 
 NativeAllocatorContextPtr getAllocator(int64_t allocator)
