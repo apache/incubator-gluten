@@ -19,7 +19,7 @@ package io.glutenproject.extension
 import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.expression.ExpressionConverter
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.columnar._
 import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
@@ -44,6 +44,8 @@ import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.util.SparkRuleUtil
+
+import java.lang.UnsupportedOperationException
 
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides(isAdaptiveContext: Boolean)
@@ -185,10 +187,20 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       exprs.foreach(
         expr => {
           if (!expr.isInstanceOf[AttributeReference]) {
-            val n = projectExpressions.size
-            val namedExpression = Alias(expr, s"projected_partitioning_value_$n")()
-            projectExpressions = projectExpressions :+ namedExpression
-            expressionPos = expressionPos :+ (attributes.size + n)
+            // some expr like KnownFloatingPointNormalized need skip
+            try {
+              val attr = ConverterUtils.getAttrFromExpr(expr)
+              expressionPos = expressionPos :+ BindReferences
+                .bindReference(attr, attributes)
+                .asInstanceOf[BoundReference]
+                .ordinal
+            } catch {
+              case e: Throwable =>
+                val n = projectExpressions.size
+                val namedExpression = Alias(expr, s"projected_partitioning_value_$n")()
+                projectExpressions = projectExpressions :+ namedExpression
+                expressionPos = expressionPos :+ (attributes.size + n)
+            }
           } else {
             // the new projected columns are appended at the end
             expressionPos = expressionPos :+ BindReferences
