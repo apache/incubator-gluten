@@ -17,11 +17,11 @@
 package org.apache.spark.sql.execution.utils
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.row.SparkRowInfo
 import io.glutenproject.vectorized._
 import io.glutenproject.vectorized.BlockSplitIterator.IteratorOptions
-
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -39,11 +39,9 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.MutablePair
-
 import io.substrait.proto.Type
 
 import java.io.ByteArrayOutputStream
-
 import scala.collection.JavaConverters._
 
 object CHExecUtil extends Logging {
@@ -299,7 +297,8 @@ object CHExecUtil extends Logging {
     val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
 
     val rddWithpartitionKey: RDD[Product2[Int, ColumnarBatch]] =
-      if (GlutenConfig.getConf.isUseColumnarShuffleManager) {
+      if (GlutenConfig.getConf.isUseColumnarShuffleManager
+        || CHBackendSettings.isUseCelebornShuffleManager) {
         newPartitioning match {
           case _ =>
             rdd.mapPartitionsWithIndexInternal(

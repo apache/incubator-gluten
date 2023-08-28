@@ -67,7 +67,7 @@ class GlutenClickHouseRSSColumnarShuffleAQESuite
     }
   }
 
-  ignore("TPCH Q2") {
+  test("TPCH Q2") {
     runTPCHQuery(2) { df => }
   }
 
