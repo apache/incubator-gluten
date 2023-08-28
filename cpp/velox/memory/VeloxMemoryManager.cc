@@ -89,7 +89,8 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     return true;
   }
 
-  uint64_t shrinkMemory(const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools, uint64_t targetBytes) override {
+  uint64_t shrinkMemory(const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools, uint64_t targetBytes)
+      override {
     GLUTEN_CHECK(false, "Not implemented");
   }
   Stats stats() const override {
@@ -162,8 +163,7 @@ VeloxMemoryManager::VeloxMemoryManager(
       afr->getKind(),
       0,
       32 << 20,
-      true
-  };
+      true};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
   veloxPool_ = veloxMemoryManager_->addRootPool(
       name_ + "_root",

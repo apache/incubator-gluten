@@ -60,9 +60,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           docker exec velox-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh  && \
-          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh --build_benchmarks=ON'
@@ -114,9 +111,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           docker exec velox-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh  && \
-          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'
@@ -166,9 +160,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           docker exec velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh  && \
-          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'
@@ -217,9 +208,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh  && \
-          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'
@@ -255,9 +243,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           docker exec velox-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh  && \
-          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --enable_hdfs=ON --enable_s3=ON && \
           ./build_velox.sh --enable_hdfs=ON --enable_s3=ON'
@@ -333,9 +318,6 @@ jobs:
         run: |
           docker exec velox-centos8-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh  && \
-          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'
@@ -382,9 +364,6 @@ jobs:
         run: |
           docker exec velox-centos7-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh  && \
-          ./build_arrow.sh && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh && \
           ./build_velox.sh'
