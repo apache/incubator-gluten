@@ -57,7 +57,7 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
         .append(System.lineSeparator())
         .append(
             String.format(
-                "%s=%s",
+                "\t%s=%s",
                 GlutenConfig$.MODULE$.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY(),
                 reformatBytes(
                     SQLConf.get()
@@ -65,7 +65,7 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
         .append(System.lineSeparator())
         .append(
             String.format(
-                "%s=%s",
+                "\t%s=%s",
                 GlutenConfig$.MODULE$.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY(),
                 reformatBytes(
                     SQLConf.get()
@@ -74,6 +74,7 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
         .append(System.lineSeparator());
     // Dump all consumer usages to exception body
     errorBuilder.append(SparkMemoryUtil.dumpMemoryConsumerStats(target.getTaskMemoryManager()));
+    errorBuilder.append(System.lineSeparator());
     throw new OutOfMemoryException(errorBuilder.toString());
   }
 

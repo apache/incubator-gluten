@@ -95,7 +95,6 @@ object SparkMemoryUtil {
 
     val sb = new StringBuilder()
     sb.append(s"Memory consumer stats:")
-    sb.append(System.lineSeparator())
 
     // determine padding widths
     var nameWidth = 0
@@ -120,9 +119,11 @@ object SparkMemoryUtil {
         stats: MemoryConsumerStats,
         treePrefix: String,
         treeChildrenPrefix: String): Unit = {
+      sb.append(System.lineSeparator())
+
       val name = getFullName(stats.name, treePrefix)
       sb.append(
-        s"%s Current used bytes: %s, peak bytes: %s%n"
+        s"%s Current used bytes: %s, peak bytes: %s"
           .format(
             StringUtils.rightPad(name, nameWidth, ' '),
             StringUtils.leftPad(String.valueOf(getBytes(stats.used)), usedWidth, ' '),
