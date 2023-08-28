@@ -19,7 +19,9 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
-import org.apache.spark.sql.types.{DecimalType, StructType}
+import org.apache.spark.sql.types.{DateType, DecimalType, StructType}
+
+import java.sql.Date
 
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
@@ -463,6 +465,27 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getString(1).equals("world1"))
     assert(result(0).getString(2).equals("[\"a\",\"b\"]"))
     assert(result(0).isNullAt(3))
+  }
+
+  test("ISSUE-2925 range partition with date32") {
+    val schema = new StructType()
+      .add("c1", DateType)
+
+    spark.createDataFrame(sparkContext.parallelize(
+      Seq(
+        Row(Date.valueOf("1950-01-01")),
+        Row(Date.valueOf("1950-01-02"))
+      )), schema).createTempView("t1")
+    spark.createDataFrame(sparkContext.parallelize(
+      Seq(
+        Row(Date.valueOf("1950-01-01"))
+      )), schema).createTempView("t2")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        | select count(*) from t1 inner join t2 on t1.c1 = t2.c1
+        |
+        |""".stripMargin, compareResult = true, _ => {}, noFallBack = false)
   }
 }
 // scalastyle:off line.size.limit
