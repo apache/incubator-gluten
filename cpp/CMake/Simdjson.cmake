@@ -62,3 +62,4 @@ FetchContent_Declare(
   URL_HASH ${VELOX_SIMDJSON_BUILD_SHA256_CHECKSUM})
 
 FetchContent_MakeAvailable(simdjson)
+target_compile_options(simdjson PUBLIC -fPIC)
