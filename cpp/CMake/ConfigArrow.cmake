@@ -45,6 +45,7 @@ function(FIND_ARROW_LIB LIB_NAME)
     else()
         message(STATUS "Found Arrow Library: ${ARROW_LIB_${LIB_NAME}}")
     endif()
+    file(COPY ${ARROW_LIB_${LIB_NAME}} DESTINATION ${root_directory}/releases/ FOLLOW_SYMLINK_CHAIN)
   endif()
 endfunction()
 
