@@ -100,7 +100,7 @@ case class LikeTransformer(
   }
 }
 
-class DecimalArithmeticExpressionTransformer(
+case class DecimalArithmeticExpressionTransformer(
     substraitExprName: String,
     left: ExpressionTransformer,
     right: ExpressionTransformer,
