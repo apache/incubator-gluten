@@ -63,7 +63,7 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(VeloxMemoryManager* memo
       std::make_shared<LocalPartitionWriterCreator>(false);
 
   auto options = ShuffleWriterOptions::defaults();
-  options.memory_pool = asArrowMemoryPool(memoryManager->getMemoryAllocator());
+  options.memory_pool = memoryManager->getArrowMemoryPool();
   options.ipc_memory_pool = options.memory_pool;
   options.partitioning_name = "rr"; // Round-Robin partitioning
   if (FLAGS_zstd) {
