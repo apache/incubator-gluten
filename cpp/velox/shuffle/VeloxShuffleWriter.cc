@@ -395,12 +395,10 @@ arrow::Status VeloxShuffleWriter::init() {
   partitionLengths_.resize(numPartitions_);
   rawPartitionLengths_.resize(numPartitions_);
 
-  LOG(INFO) << "hr";
   VELOX_CHECK_NOT_NULL(pool_);
   RETURN_NOT_OK(pool_->init());
-  LOG(INFO) << "hr1";
+
   RETURN_NOT_OK(initIpcWriteOptions());
-  LOG(INFO) << "hr2";
 
   return arrow::Status::OK();
 }
