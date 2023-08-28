@@ -275,6 +275,8 @@ class CelebornClient : public RssClient {
     }
     jint length = env->GetArrayLength(array_);
     if (size > length) {
+      jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
+      env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
       array_ = env->NewByteArray(size);
     }
     env->SetByteArrayRegion(array_, 0, size, reinterpret_cast<jbyte*>(bytes));
