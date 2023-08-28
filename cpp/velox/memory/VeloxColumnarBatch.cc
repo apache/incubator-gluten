@@ -71,7 +71,7 @@ std::shared_ptr<ArrowSchema> VeloxColumnarBatch::exportArrowSchema() {
 std::shared_ptr<ArrowArray> VeloxColumnarBatch::exportArrowArray() {
   auto out = std::make_shared<ArrowArray>();
   ensureFlattened();
-  velox::exportToArrow(flattened_, *out, defaultLeafVeloxMemoryPool().get());
+  velox::exportToArrow(flattened_, *out, flattened_->pool());
   return out;
 }
 

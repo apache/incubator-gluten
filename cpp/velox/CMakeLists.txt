@@ -226,26 +226,23 @@ endmacro()
 
 # Build Velox backend.
 set(VELOX_SRCS
-    jni/VeloxJniWrapper.cc
-    shuffle/VeloxShuffleReader.cc
-    shuffle/VeloxShuffleWriter.cc
     compute/VeloxBackend.cc
     compute/VeloxInitializer.cc
     compute/WholeStageResultIterator.cc
     compute/VeloxPlanConverter.cc
+    jni/VeloxJniWrapper.cc
+    jni/JniFileSystem.cc
+    jni/JniUdf.cc
+    memory/LargeMemoryPool.cc
+    memory/VeloxColumnarBatch.cc
+    memory/VeloxMemoryManager.cc
     operators/functions/RegistrationAllFunctions.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
     operators/writer/VeloxParquetDatasource.cc
-    memory/LargeMemoryPool.cc
-    memory/VeloxColumnarBatch.cc
-    memory/VeloxMemoryManager.cc
-    udf/UdfLoader.cc
-    utils/VeloxArrowUtils.cc
-    utils/ArrowTypeUtils.cc
-    jni/JniFileSystem.cc
-    jni/JniUdf.cc
+    shuffle/VeloxShuffleReader.cc
+    shuffle/VeloxShuffleWriter.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
     substrait/SubstraitToVeloxPlan.cc
@@ -257,8 +254,8 @@ set(VELOX_SRCS
     substrait/VeloxToSubstraitExpr.cc
     substrait/VeloxToSubstraitPlan.cc
     substrait/VeloxToSubstraitType.cc
+    udf/UdfLoader.cc
     utils/VeloxArrowUtils.cc
-    utils/ArrowTypeUtils.cc
     utils/ConfigExtractor.cc
     utils/Common.cc
     )

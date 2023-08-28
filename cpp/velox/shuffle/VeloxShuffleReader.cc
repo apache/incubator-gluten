@@ -20,7 +20,7 @@
 #include <arrow/array/array_binary.h>
 
 #include "memory/VeloxColumnarBatch.h"
-#include "utils/ArrowTypeUtils.h"
+#include "utils/VeloxArrowUtils.h"
 #include "utils/compression.h"
 #include "utils/macros.h"
 #include "velox/serializers/PrestoSerializer.h"

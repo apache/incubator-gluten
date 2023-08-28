@@ -54,7 +54,16 @@ class VeloxMemoryManager final : public MemoryManager {
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxLeafPool_;
 };
 
-/// This pool is not tracked by Spark, should only used in test or validation.
-/// TODO: Remove this pool with tracked pool.
-std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool();
+/// Not tracked by Spark and should only used in test or validation.
+inline std::shared_ptr<gluten::VeloxMemoryManager> getDefaultMemoryManager() {
+  static auto memoryManager = std::make_shared<gluten::VeloxMemoryManager>(
+      "test",
+      gluten::defaultMemoryAllocator(),
+      std::shared_ptr<gluten::AllocationListener>(gluten::AllocationListener::noop()));
+  return memoryManager;
+}
+
+inline std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
+  return getDefaultMemoryManager()->getLeafMemoryPool();
+}
 } // namespace gluten

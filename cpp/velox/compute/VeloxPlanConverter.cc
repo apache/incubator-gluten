@@ -24,14 +24,15 @@
 #include "operators/plannodes/RowVectorStream.h"
 #include "velox/common/file/FileSystems.h"
 
-using namespace facebook;
-
 namespace gluten {
+
+using namespace facebook;
 
 VeloxPlanConverter::VeloxPlanConverter(
     std::vector<std::shared_ptr<ResultIterator>>& inputIters,
+    velox::memory::MemoryPool* veloxPool,
     const std::unordered_map<std::string, std::string>& confMap)
-    : inputIters_(inputIters), substraitVeloxPlanConverter_(defaultLeafVeloxMemoryPool().get(), confMap) {}
+    : inputIters_(inputIters), substraitVeloxPlanConverter_(veloxPool, confMap) {}
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {

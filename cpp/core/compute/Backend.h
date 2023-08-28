@@ -94,7 +94,8 @@ class Backend : public std::enable_shared_from_this<Backend> {
   virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
-      const ShuffleWriterOptions& options) {
+      const ShuffleWriterOptions& options,
+      MemoryManager* memoryManager) {
     throw GlutenException("makeShuffleWriter not implemented.");
   }
 
