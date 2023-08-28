@@ -21,7 +21,8 @@ on:
 
 jobs:
   velox-trigger-benchmark-on-comment:
-    if: ${{ github.event.issue.pull_request }}
+    # check the comment if it contains the keywords
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/Benchmark Velox') }}
     runs-on: velox-self-hosted
     container: ubuntu:22.04
     steps:
@@ -31,7 +32,6 @@ jobs:
       - run: apt-get update
       - run: apt-get install -y curl
       - name: trigger_tpch_bench
-        if: contains(github.event.comment.body, '/Benchmark Velox')   # check the comment if it contains the keywords
         run: |
           branchname=origin/pr/${{ github.event.issue.number }}/head
           curl --noproxy 10.0.0.68 -L -X POST http://10.0.0.68:8080/job/Gluten_Perf_Github_Action_Check/build --user jenkins:11fd1b5a82bfd638bd9b3749c96b324ff2 --data-urlencode json='{"parameter": [{"name":"sha1", "value":"'$branchname'"}]}'
