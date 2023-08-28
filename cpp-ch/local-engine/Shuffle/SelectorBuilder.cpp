@@ -235,9 +235,9 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
                 {
                     col->insert(field_value.convert<std::string>());
                 }
-                else if (type_name == "Date32")
+                else if (type_name == "Date")
                 {
-                    int val = field_value.convert<DB::Int32>();
+                    int val = field_value.convert<DB::UInt16>();
                     col->insert(val);
                 }
                 else
