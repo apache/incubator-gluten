@@ -24,7 +24,7 @@
 
 #include "compute/ProtobufUtils.h"
 #include "config/GlutenConfig.h"
-#include "memory/ArrowMemoryPool.h"
+#include "memory/AllocationListener.h"
 #include "utils/compression.h"
 #include "utils/exception.h"
 
@@ -166,18 +166,20 @@ class SparkAllocationListener final : public gluten::AllocationListener {
  public:
   SparkAllocationListener(
       JavaVM* vm,
-      jobject javaListener,
-      jmethodID javaReserveMethod,
-      jmethodID javaUnreserveMethod,
+      jobject jListenerLocalRef,
+      jmethodID jReserveMethod,
+      jmethodID jUnreserveMethod,
       int64_t blockSize)
-      : vm_(vm),
-        javaReserveMethod_(javaReserveMethod),
-        javaUnreserveMethod_(javaUnreserveMethod),
-        blockSize_(blockSize) {
+      : vm_(vm), jReserveMethod_(jReserveMethod), jUnreserveMethod_(jUnreserveMethod), blockSize_(blockSize) {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    javaListener_ = env->NewGlobalRef(javaListener);
+    jListenerGlobalRef_ = env->NewGlobalRef(jListenerLocalRef);
   }
+
+  SparkAllocationListener(const SparkAllocationListener&) = delete;
+  SparkAllocationListener(SparkAllocationListener&&) = delete;
+  SparkAllocationListener& operator=(const SparkAllocationListener&) = delete;
+  SparkAllocationListener& operator=(SparkAllocationListener&&) = delete;
 
   ~SparkAllocationListener() override {
     JNIEnv* env;
@@ -186,7 +188,7 @@ class SparkAllocationListener final : public gluten::AllocationListener {
                 << "JNIEnv was not attached to current thread" << std::endl;
       return;
     }
-    env->DeleteGlobalRef(javaListener_);
+    env->DeleteGlobalRef(jListenerGlobalRef_);
   }
 
   void allocationChanged(int64_t size) override {
@@ -213,25 +215,25 @@ class SparkAllocationListener final : public gluten::AllocationListener {
   }
 
   void updateReservation(int64_t diff) {
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     int64_t granted = reserve(diff);
     if (granted == 0) {
       return;
     }
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     if (granted < 0) {
-      env->CallLongMethod(javaListener_, javaUnreserveMethod_, -granted);
+      env->CallLongMethod(jListenerGlobalRef_, jUnreserveMethod_, -granted);
       checkException(env);
       return;
     }
-    env->CallLongMethod(javaListener_, javaReserveMethod_, granted);
+    env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, granted);
     checkException(env);
   }
 
   JavaVM* vm_;
-  jobject javaListener_;
-  jmethodID javaReserveMethod_;
-  jmethodID javaUnreserveMethod_;
+  jobject jListenerGlobalRef_;
+  jmethodID jReserveMethod_;
+  jmethodID jUnreserveMethod_;
   int64_t blockSize_;
   int64_t blocksReserved_ = 0L;
   int64_t bytesReserved_ = 0L;

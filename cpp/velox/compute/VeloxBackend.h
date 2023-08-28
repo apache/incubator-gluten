@@ -59,8 +59,8 @@ class VeloxBackend final : public Backend {
   MemoryManager* getMemoryManager(
       const std::string& name,
       std::shared_ptr<MemoryAllocator> allocator,
-      std::shared_ptr<AllocationListener> listener) override {
-    return new VeloxMemoryManager(name, allocator, listener);
+      std::unique_ptr<AllocationListener> listener) override {
+    return new VeloxMemoryManager(name, allocator, std::move(listener));
   }
 
   // FIXME This is not thread-safe?

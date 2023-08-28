@@ -15,37 +15,19 @@
  * limitations under the License.
  */
 
-#pragma once
-
-#include "arrow/memory_pool.h"
-
-#include "MemoryAllocator.h"
+#include "AllocationListener.h"
 
 namespace gluten {
 
-/// This pool was not tracked by Spark, should only used in test.
-std::shared_ptr<arrow::MemoryPool> defaultArrowMemoryPool();
-
-class ArrowMemoryPool final : public arrow::MemoryPool {
+class NoopAllocationListener : public gluten::AllocationListener {
  public:
-  explicit ArrowMemoryPool(MemoryAllocator* allocator) : allocator_(allocator) {}
+  void allocationChanged(int64_t diff) override {
+    // no-op
+  }
+};
 
-  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
-
-  arrow::Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override;
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override;
-
-  int64_t bytes_allocated() const override;
-
-  int64_t total_bytes_allocated() const override;
-
-  int64_t num_allocations() const override;
-
-  std::string backend_name() const override;
-
- private:
-  MemoryAllocator* allocator_;
+std::unique_ptr<AllocationListener> AllocationListener::noop() {
+  return std::make_unique<NoopAllocationListener>();
 };
 
 } // namespace gluten

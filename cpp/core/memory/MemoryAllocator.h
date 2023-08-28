@@ -23,7 +23,7 @@
 #include <memory>
 #include <utility>
 
-#include "arrow/memory_pool.h"
+#include "memory/AllocationListener.h"
 
 namespace gluten {
 
@@ -43,23 +43,10 @@ class MemoryAllocator {
   virtual int64_t getBytes() const = 0;
 };
 
-class AllocationListener {
- public:
-  static AllocationListener* noop();
-
-  virtual ~AllocationListener() = default;
-
-  // Value of diff can be either positive or negative
-  virtual void allocationChanged(int64_t diff) = 0;
-
- protected:
-  AllocationListener() = default;
-};
-
 class ListenableMemoryAllocator final : public MemoryAllocator {
  public:
-  explicit ListenableMemoryAllocator(MemoryAllocator* delegated, std::shared_ptr<AllocationListener> listener)
-      : delegated_(delegated), listener_(std::move(listener)) {}
+  explicit ListenableMemoryAllocator(MemoryAllocator* delegated, AllocationListener* listener)
+      : delegated_(delegated), listener_(listener) {}
 
  public:
   bool allocate(int64_t size, void** out) override;
@@ -74,15 +61,11 @@ class ListenableMemoryAllocator final : public MemoryAllocator {
 
   bool free(void* p, int64_t size) override;
 
-  MemoryAllocator* delegatedAllocator();
-
-  std::shared_ptr<AllocationListener> listener();
-
   int64_t getBytes() const override;
 
  private:
   MemoryAllocator* delegated_;
-  std::shared_ptr<AllocationListener> listener_;
+  AllocationListener* listener_;
   std::atomic_int64_t bytes_{0};
 };
 
