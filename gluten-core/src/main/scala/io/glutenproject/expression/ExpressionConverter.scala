@@ -414,15 +414,22 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         val (left, right) = DecimalArithmeticUtil.rescaleCastForDecimal(
           DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.left),
           DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.right))
+        val leftChild = replaceWithExpressionTransformer(left, attributeSeq)
+        val rightChild = replaceWithExpressionTransformer(right, attributeSeq)
+
         val resultType = DecimalArithmeticUtil.getResultTypeForOperation(
           DecimalArithmeticUtil.getOperationType(b),
-          left.dataType.asInstanceOf[DecimalType],
-          right.dataType.asInstanceOf[DecimalType]
+          DecimalArithmeticUtil
+            .getResultType(leftChild)
+            .getOrElse(left.dataType.asInstanceOf[DecimalType]),
+          DecimalArithmeticUtil
+            .getResultType(rightChild)
+            .getOrElse(right.dataType.asInstanceOf[DecimalType])
         )
-        new DecimalArithmeticExpressionTransformer(
+        DecimalArithmeticExpressionTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(left, attributeSeq),
-          replaceWithExpressionTransformer(right, attributeSeq),
+          leftChild,
+          rightChild,
           resultType,
           b)
       case e: Transformable =>
