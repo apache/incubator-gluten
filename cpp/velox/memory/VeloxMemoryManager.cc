@@ -17,6 +17,7 @@
 
 #include "VeloxMemoryManager.h"
 
+#include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
 namespace gluten {
