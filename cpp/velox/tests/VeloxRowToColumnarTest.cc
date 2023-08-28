@@ -15,16 +15,12 @@
  * limitations under the License.
  */
 
-#include "jni/JniErrors.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "memory/VeloxMemoryManager.h"
 #include "operators/serializer//VeloxColumnarToRowConverter.h"
 #include "operators/serializer//VeloxRowToColumnarConverter.h"
-#include "utils/ArrowTypeUtils.h"
+#include "utils/VeloxArrowUtils.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
-
-#include <gtest/gtest.h>
 
 using namespace facebook;
 using namespace facebook::velox;
@@ -33,7 +29,7 @@ namespace gluten {
 class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBase {
  protected:
   void testRowVectorEqual(velox::RowVectorPtr vector) {
-    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(veloxPool_);
+    auto columnarToRowConverter = std::make_shared<VeloxColumnarToRowConverter>(pool_);
 
     auto columnarBatch = std::make_shared<VeloxColumnarBatch>(vector);
     columnarToRowConverter->convert(columnarBatch);
@@ -48,8 +44,8 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
     }
 
     ArrowSchema cSchema;
-    toArrowSchema(vector->type(), &cSchema);
-    auto rowToColumnarConverter = std::make_shared<VeloxRowToColumnarConverter>(&cSchema, veloxPool_);
+    toArrowSchema(vector->type(), pool(), &cSchema);
+    auto rowToColumnarConverter = std::make_shared<VeloxRowToColumnarConverter>(&cSchema, pool_);
 
     auto cb = rowToColumnarConverter->convert(numRows, lengthArr, address);
     auto vp = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb)->getRowVector();
@@ -57,7 +53,6 @@ class VeloxRowToColumnarTest : public ::testing::Test, public test::VectorTestBa
   }
 
  private:
-  std::shared_ptr<velox::memory::MemoryPool> veloxPool_ = defaultLeafVeloxMemoryPool();
   std::shared_ptr<arrow::MemoryPool> arrowPool_ = defaultArrowMemoryPool();
 };
 

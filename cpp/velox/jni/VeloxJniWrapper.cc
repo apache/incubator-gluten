@@ -28,7 +28,6 @@
 #include "jni/JniErrors.h"
 #include "jni/JniFileSystem.h"
 #include "memory/VeloxMemoryManager.h"
-#include "operators/writer/VeloxParquetDatasource.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
 
 #include <iostream>

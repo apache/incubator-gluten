@@ -19,14 +19,13 @@
 #include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
-#include "utils/ArrowTypeUtils.h"
+#include "utils/VeloxArrowUtils.h"
 #include "velox/vector/arrow/Bridge.h"
 
 #include "utils/compression.h"
 #include "utils/macros.h"
 
 #include "arrow/c/bridge.h"
-#include "utils/VeloxArrowUtils.h"
 
 #if defined(__x86_64__)
 #include <immintrin.h>
@@ -354,9 +353,10 @@ std::shared_ptr<arrow::RecordBatch> makeUncompressedRecordBatch(
 arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
     uint32_t numPartitions,
     std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
-    ShuffleWriterOptions options) {
+    ShuffleWriterOptions options,
+    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool) {
   std::shared_ptr<VeloxShuffleWriter> res(
-      new VeloxShuffleWriter(numPartitions, std::move(partitionWriterCreator), std::move(options)));
+      new VeloxShuffleWriter(numPartitions, std::move(partitionWriterCreator), std::move(options), veloxPool));
   RETURN_NOT_OK(res->init());
   return res;
 }
@@ -395,8 +395,12 @@ arrow::Status VeloxShuffleWriter::init() {
   partitionLengths_.resize(numPartitions_);
   rawPartitionLengths_.resize(numPartitions_);
 
+  LOG(INFO) << "hr";
+  VELOX_CHECK_NOT_NULL(pool_);
   RETURN_NOT_OK(pool_->init());
+  LOG(INFO) << "hr1";
   RETURN_NOT_OK(initIpcWriteOptions());
+  LOG(INFO) << "hr2";
 
   return arrow::Status::OK();
 }
@@ -567,7 +571,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
     VELOX_DCHECK_NOT_NULL(compositeBatch);
     auto batches = compositeBatch->getBatches();
     VELOX_DCHECK_EQ(batches.size(), 2);
-    auto pidBatch = VeloxColumnarBatch::from(defaultLeafVeloxMemoryPool().get(), batches[0]);
+    auto pidBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
     auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
     RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), row2Partition_, partition2RowCount_));
     auto rvBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(batches[1]);
@@ -1050,8 +1054,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         if (arenas_[partition] == nullptr) {
           arenas_[partition] = std::make_unique<facebook::velox::StreamArena>(veloxPool_.get());
         }
-        complexTypeData_[partition] = std::move(serde_->createSerializer(
-            complexWriteType_, partition2RowCount_[partition], arenas_[partition].get(), /* serdeOptions */ nullptr));
+        complexTypeData_[partition] = serde_->createSerializer(
+            complexWriteType_, partition2RowCount_[partition], arenas_[partition].get(), /* serdeOptions */ nullptr);
       }
       rowIndexs[partition].emplace_back(IndexRange{row, 1});
     }
@@ -1074,7 +1078,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   }
 
   arrow::Status VeloxShuffleWriter::initColumnTypes(const velox::RowVector& rv) {
-    schema_ = toArrowSchema(rv.type());
+    schema_ = toArrowSchema(rv.type(), veloxPool_.get());
 
     for (size_t i = 0; i < rv.childrenSize(); ++i) {
       veloxColumnTypes_.push_back(rv.childAt(i)->type());

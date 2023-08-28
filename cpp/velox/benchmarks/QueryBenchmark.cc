@@ -21,7 +21,7 @@
 #include "BenchmarkUtils.h"
 #include "compute/VeloxPlanConverter.h"
 #include "memory/VeloxMemoryManager.h"
-#include "utils/ArrowTypeUtils.h"
+#include "utils/VeloxArrowUtils.h"
 
 using namespace facebook;
 using namespace gluten;
@@ -43,7 +43,8 @@ std::shared_ptr<ResultIterator> getResultIterator(
 
   std::vector<std::shared_ptr<ResultIterator>> inputIter;
   std::unordered_map<std::string, std::string> sessionConf = {};
-  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, sessionConf);
+  auto veloxPlanConverter =
+      std::make_unique<VeloxPlanConverter>(inputIter, defaultLeafVeloxMemoryPool().get(), sessionConf);
   veloxPlan = veloxPlanConverter->toVeloxPlan(backend->getPlan());
 
   // In test, use setScanInfos to replace the one got from Substrait.
@@ -95,7 +96,7 @@ auto BM = [](::benchmark::State& state,
     backend->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
     std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan;
     auto resultIter = getResultIterator(veloxPool, backend, scanInfos, veloxPlan);
-    auto outputSchema = toArrowSchema(veloxPlan->outputType());
+    auto outputSchema = toArrowSchema(veloxPlan->outputType(), defaultLeafVeloxMemoryPool().get());
     while (resultIter->hasNext()) {
       auto array = resultIter->next()->exportArrowArray();
       auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
