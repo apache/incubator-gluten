@@ -31,25 +31,25 @@ endfunction()
 
 macro(resolve_dependency_url dependency_name)
   # Prepend prefix for default checksum.
-  string(PREPEND VELOX_${dependency_name}_BUILD_SHA256_CHECKSUM "SHA256=")
+  string(PREPEND GLUTEN_${dependency_name}_BUILD_SHA256_CHECKSUM "SHA256=")
 
   set_with_default(
-    VELOX_${dependency_name}_SOURCE_URL VELOX_${dependency_name}_URL
-    ${VELOX_${dependency_name}_SOURCE_URL})
-  if(DEFINED ENV{VELOX_${dependency_name}_URL})
-    set_with_default(VELOX_${dependency_name}_BUILD_SHA256_CHECKSUM
-                     VELOX_${dependency_name}_SHA256 "")
-    if(DEFINED ENV{VELOX_${dependency_name}_SHA256})
-      string(PREPEND VELOX_${dependency_name}_BUILD_SHA256_CHECKSUM "SHA256=")
+    GLUTEN_${dependency_name}_SOURCE_URL GLUTEN_${dependency_name}_URL
+    ${GLUTEN_${dependency_name}_SOURCE_URL})
+  if(DEFINED ENV{GLUTEN_${dependency_name}_URL})
+    set_with_default(GLUTEN_${dependency_name}_BUILD_SHA256_CHECKSUM
+                     GLUTEN_${dependency_name}_SHA256 "")
+    if(DEFINED ENV{GLUTEN_${dependency_name}_SHA256})
+      string(PREPEND GLUTEN_${dependency_name}_BUILD_SHA256_CHECKSUM "SHA256=")
     endif()
   endif()
 endmacro()
 
-set(VELOX_SIMDJSON_VERSION 3.1.5)
-set(VELOX_SIMDJSON_BUILD_SHA256_CHECKSUM
+set(GLUTEN_SIMDJSON_VERSION 3.1.5)
+set(GLUTEN_SIMDJSON_BUILD_SHA256_CHECKSUM
     5b916be17343324426fc467a4041a30151e481700d60790acfd89716ecc37076)
-set(VELOX_SIMDJSON_SOURCE_URL
-    "https://github.com/simdjson/simdjson/archive/refs/tags/v${VELOX_SIMDJSON_VERSION}.tar.gz"
+set(GLUTEN_SIMDJSON_SOURCE_URL
+    "https://github.com/simdjson/simdjson/archive/refs/tags/v${GLUTEN_SIMDJSON_VERSION}.tar.gz"
 )
 
 resolve_dependency_url(SIMDJSON)
@@ -58,8 +58,8 @@ message(STATUS "Building simdjson from source")
 
 FetchContent_Declare(
   simdjson
-  URL ${VELOX_SIMDJSON_SOURCE_URL}
-  URL_HASH ${VELOX_SIMDJSON_BUILD_SHA256_CHECKSUM})
+  URL ${GLUTEN_SIMDJSON_SOURCE_URL}
+  URL_HASH ${GLUTEN_SIMDJSON_BUILD_SHA256_CHECKSUM})
 
 FetchContent_MakeAvailable(simdjson)
 target_compile_options(simdjson PUBLIC -fPIC)
