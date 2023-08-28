@@ -397,7 +397,6 @@ arrow::Status VeloxShuffleWriter::init() {
 
   VELOX_CHECK_NOT_NULL(pool_);
   RETURN_NOT_OK(pool_->init());
-
   RETURN_NOT_OK(initIpcWriteOptions());
 
   return arrow::Status::OK();
