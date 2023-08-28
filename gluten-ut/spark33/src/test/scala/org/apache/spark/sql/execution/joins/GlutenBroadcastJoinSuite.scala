@@ -24,6 +24,13 @@ import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
 
+/**
+ * This test needs setting for spark test home (its source code), e.g., appending the following
+ * setting for `mvn test`: -DargLine="-Dspark.test.home=/home/sparkuser/spark/".
+ *
+ * In addition, you also need build spark source code before running this test, e.g., with
+ * `./build/mvn -DskipTests clean package`.
+ */
 class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommonTrait {
 
   /**
