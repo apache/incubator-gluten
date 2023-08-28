@@ -17,6 +17,7 @@
 package io.glutenproject.utils
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.expression.{CheckOverflowTransformer, ChildTransformer, DecimalArithmeticExpressionTransformer, ExpressionTransformer}
 
 import org.apache.spark.sql.catalyst.analysis.DecimalPrecision
 import org.apache.spark.sql.catalyst.expressions.{Add, BinaryArithmetic, Cast, Divide, Expression, Literal, Multiply, Pmod, PromotePrecision, Remainder, Subtract}
@@ -86,12 +87,7 @@ object DecimalArithmeticUtil {
       b.right.dataType.isInstanceOf[DecimalType]
     ) {
       b match {
-        case _: Divide => true
-        case _: Multiply => true
-        case _: Add => true
-        case _: Subtract => true
-        case _: Remainder => true
-        case _: Pmod => true
+        case _: Divide | _: Multiply | _: Add | _: Subtract | _: Remainder | _: Pmod => true
         case _ => false
       }
     } else false
@@ -235,6 +231,18 @@ object DecimalArithmeticUtil {
           case _ => arithmeticExpr
         }
       case _ => arithmeticExpr
+    }
+  }
+
+  def getResultType(transformer: ExpressionTransformer): Option[DecimalType] = {
+    transformer match {
+      case ChildTransformer(child) =>
+        getResultType(child)
+      case CheckOverflowTransformer(_, child, _) =>
+        getResultType(child)
+      case DecimalArithmeticExpressionTransformer(_, _, _, resultType, _) =>
+        Some(resultType)
+      case _ => None
     }
   }
 
