@@ -955,6 +955,22 @@ class GlutenClickHouseFileFormatSuite
     compareResultsAgainstVanillaSpark(sql, compareResult = true, df => {}, noFallBack = false)
   }
 
+  test("ISSUE-2925 range partition with date32") {
+    spark.createDataFrame(genTestData()).createOrReplaceTempView("t1")
+    spark.createDataFrame(genTestData()).createTempView("t2")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        | select t1.date_field from t1 inner join t2 on t1.date_field = t2.date_field
+        | group by t1.date_field
+        | order by t1.date_field
+        |
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
   def testFileFormatBase(
       filePath: String,
       fileFormat: String,
@@ -1022,7 +1038,7 @@ class GlutenClickHouseFileFormatSuite
             i.toByte,
             i % 2 == 0,
             new java.math.BigDecimal(i + ".56"),
-            new java.sql.Date(System.currentTimeMillis()))
+            Date.valueOf(1950 + i / 3 + "-0" + (i % 3 + 1) + "-01"))
         }
     }
   }
