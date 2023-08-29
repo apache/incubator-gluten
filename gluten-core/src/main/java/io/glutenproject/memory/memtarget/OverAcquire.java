@@ -27,7 +27,7 @@ import org.apache.spark.memory.TaskMemoryManager;
 import java.io.IOException;
 
 class OverAcquire implements TaskManagedMemoryTarget {
-  private final SimpleMemoryUsageRecorder usage = new SimpleMemoryUsageRecorder();
+  private final SimpleMemoryUsageRecorder rootUsage = new SimpleMemoryUsageRecorder();
 
   // The underlying target.
   private final TaskManagedMemoryTarget target;
@@ -63,7 +63,7 @@ class OverAcquire implements TaskManagedMemoryTarget {
   public long borrow(long size) {
     Preconditions.checkArgument(size != 0, "Size to borrow is zero");
     long granted = target.borrow(size);
-    usage.inc(granted);
+    rootUsage.inc(granted);
     long majorSize = target.usedBytes();
     long expectedOverAcquired = (long) (ratio * majorSize);
     long overAcquired = overTarget.usedBytes();
@@ -71,8 +71,9 @@ class OverAcquire implements TaskManagedMemoryTarget {
         expectedOverAcquired >= overAcquired,
         "Expected over acquired size smaller than its old value");
     long diff = expectedOverAcquired - overAcquired;
-    overTarget.borrow(diff); // we don't have to check the returned value
-    usage.inc(diff);
+    if (diff > 0) { // otherwise, there might be a spill happened during the last borrow() call
+      overTarget.borrow(diff); // we don't have to check the returned value
+    }
     return granted;
   }
 
@@ -80,7 +81,7 @@ class OverAcquire implements TaskManagedMemoryTarget {
   public long repay(long size) {
     Preconditions.checkArgument(size != 0, "Size to repay is zero");
     long freed = target.repay(size);
-    usage.inc(-freed);
+    rootUsage.inc(-freed);
     Preconditions.checkArgument(freed == size, "Repaid size is not equal to requested size");
     // clean up the over-acquired target
     long overAcquired = overTarget.usedBytes();
@@ -90,7 +91,6 @@ class OverAcquire implements TaskManagedMemoryTarget {
         "Freed over-acquired size is not equal to requested size");
     Preconditions.checkArgument(
         overTarget.usedBytes() == 0, "Over-acquired target was not cleaned up");
-    usage.inc(-freedOverAcquired);
     return size;
   }
 
@@ -101,12 +101,12 @@ class OverAcquire implements TaskManagedMemoryTarget {
 
   @Override
   public long usedBytes() {
-    return usage.current();
+    return rootUsage.current();
   }
 
   @Override
   public MemoryUsageStats stats() {
-    return usage.toStats();
+    return rootUsage.toStats();
   }
 
   @Override
@@ -114,7 +114,7 @@ class OverAcquire implements TaskManagedMemoryTarget {
     return target.getTaskMemoryManager();
   }
 
-  private static class DummyTarget extends MemoryConsumer implements MemoryTarget {
+  private class DummyTarget extends MemoryConsumer implements MemoryTarget {
     private final SimpleMemoryUsageRecorder usage = new SimpleMemoryUsageRecorder();
 
     private DummyTarget(TaskMemoryManager taskMemoryManager) {
@@ -134,6 +134,7 @@ class OverAcquire implements TaskManagedMemoryTarget {
       }
       long granted = acquireMemory(size);
       usage.inc(granted);
+      rootUsage.inc(granted);
       return granted;
     }
 
@@ -143,6 +144,7 @@ class OverAcquire implements TaskManagedMemoryTarget {
       freeMemory(toFree);
       Preconditions.checkArgument(getUsed() >= 0);
       usage.inc(-toFree);
+      rootUsage.inc(-toFree);
       return toFree;
     }
 
