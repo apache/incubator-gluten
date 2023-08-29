@@ -199,21 +199,4 @@ VeloxMemoryManager::VeloxMemoryManager(
   veloxLeafPool_ = veloxPool_->addLeafChild(name_ + "_default_leaf");
 }
 
-velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
-  return &(facebook::velox::memory::defaultMemoryManager());
-}
-
-static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
-  auto* mm = getDefaultVeloxMemoryManager();
-  static auto root = mm->addRootPool(
-      "gluten_root", mm->capacity(), facebook::velox::memory::MemoryReclaimer::create()); // the 3rd capacity
-  return root;
-}
-
-std::shared_ptr<velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
-  static auto leaf =
-      rootVeloxMemoryPool()->addLeafChild("default_leaf", true, facebook::velox::memory::MemoryReclaimer::create());
-  return leaf;
-}
-
 } // namespace gluten

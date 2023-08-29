@@ -964,7 +964,7 @@ void SubstraitToVeloxPlanConverter::constructFunctionMap(const ::substrait::Plan
     auto name = sFmap.name();
     functionMap_[id] = name;
   }
-  exprConverter_ = std::move(std::make_unique<SubstraitVeloxExprConverter>(pool_, functionMap_));
+  exprConverter_ = std::make_unique<SubstraitVeloxExprConverter>(pool_, functionMap_);
 }
 
 void SubstraitToVeloxPlanConverter::flattenConditions(
