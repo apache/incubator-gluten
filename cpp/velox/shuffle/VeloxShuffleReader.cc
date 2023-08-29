@@ -382,14 +382,14 @@ class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
         options_.compression_mode,
         decompressTime,
         pool_.get(),
-        veloxPool_.get());
+        veloxAggregatePool_.get());
     decompressionTimeAccumulator_(decompressTime);
     return std::make_shared<VeloxColumnarBatch>(vp);
   }
 
  private:
   std::shared_ptr<arrow::MemoryPool> pool_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxAggregatePool_;
   ReaderOptions options_;
   facebook::velox::RowTypePtr rowType_;
   std::function<void(int64_t&)> decompressionTimeAccumulator_;
