@@ -27,7 +27,6 @@ import org.apache.spark.memory.TaskMemoryManager;
 import java.io.IOException;
 
 class OverAcquire implements TaskManagedMemoryTarget {
-  private final SimpleMemoryUsageRecorder rootUsage = new SimpleMemoryUsageRecorder();
 
   // The underlying target.
   private final TaskManagedMemoryTarget target;
@@ -63,7 +62,6 @@ class OverAcquire implements TaskManagedMemoryTarget {
   public long borrow(long size) {
     Preconditions.checkArgument(size != 0, "Size to borrow is zero");
     long granted = target.borrow(size);
-    rootUsage.inc(granted);
     long majorSize = target.usedBytes();
     long expectedOverAcquired = (long) (ratio * majorSize);
     long overAcquired = overTarget.usedBytes();
@@ -81,7 +79,6 @@ class OverAcquire implements TaskManagedMemoryTarget {
   public long repay(long size) {
     Preconditions.checkArgument(size != 0, "Size to repay is zero");
     long freed = target.repay(size);
-    rootUsage.inc(-freed);
     Preconditions.checkArgument(freed == size, "Repaid size is not equal to requested size");
     // clean up the over-acquired target
     long overAcquired = overTarget.usedBytes();
@@ -101,12 +98,19 @@ class OverAcquire implements TaskManagedMemoryTarget {
 
   @Override
   public long usedBytes() {
-    return rootUsage.current();
+    return target.usedBytes() + overTarget.usedBytes();
   }
 
   @Override
   public MemoryUsageStats stats() {
-    return rootUsage.toStats();
+    MemoryUsageStats targetStats = target.stats();
+    MemoryUsageStats overTargetStats = overTarget.stats();
+    return MemoryUsageStats.newBuilder()
+        .setCurrent(targetStats.getCurrent() + overTargetStats.getCurrent())
+        .setPeak(-1L) // we don't know the peak
+        .putChildren(target.name(), targetStats)
+        .putChildren(overTarget.name(), overTargetStats)
+        .build();
   }
 
   @Override
@@ -134,7 +138,6 @@ class OverAcquire implements TaskManagedMemoryTarget {
       }
       long granted = acquireMemory(size);
       usage.inc(granted);
-      rootUsage.inc(granted);
       return granted;
     }
 
@@ -144,7 +147,6 @@ class OverAcquire implements TaskManagedMemoryTarget {
       freeMemory(toFree);
       Preconditions.checkArgument(getUsed() >= 0);
       usage.inc(-toFree);
-      rootUsage.inc(-toFree);
       return toFree;
     }
 
