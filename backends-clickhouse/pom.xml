@@ -17,6 +17,7 @@
       <groupId>org.apache.celeborn</groupId>
       <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
       <version>${celeborn.version}</version>
+      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>io.glutenproject</groupId>
