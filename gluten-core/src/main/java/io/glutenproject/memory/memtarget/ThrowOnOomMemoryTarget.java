@@ -17,7 +17,7 @@
 package io.glutenproject.memory.memtarget;
 
 import io.glutenproject.GlutenConfig$;
-import io.glutenproject.memory.MemoryUsageStats;
+import io.glutenproject.proto.MemoryUsageStats;
 
 import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.sql.internal.SQLConf;
@@ -57,7 +57,7 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
         .append(System.lineSeparator())
         .append(
             String.format(
-                "%s=%s",
+                "\t%s=%s",
                 GlutenConfig$.MODULE$.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY(),
                 reformatBytes(
                     SQLConf.get()
@@ -65,7 +65,7 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
         .append(System.lineSeparator())
         .append(
             String.format(
-                "%s=%s",
+                "\t%s=%s",
                 GlutenConfig$.MODULE$.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY(),
                 reformatBytes(
                     SQLConf.get()
@@ -74,6 +74,7 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
         .append(System.lineSeparator());
     // Dump all consumer usages to exception body
     errorBuilder.append(SparkMemoryUtil.dumpMemoryConsumerStats(target.getTaskMemoryManager()));
+    errorBuilder.append(System.lineSeparator());
     throw new OutOfMemoryException(errorBuilder.toString());
   }
 
@@ -89,6 +90,11 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
   @Override
   public String name() {
     return target.name();
+  }
+
+  @Override
+  public long usedBytes() {
+    return target.usedBytes();
   }
 
   @Override

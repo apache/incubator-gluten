@@ -210,4 +210,26 @@ VeloxMemoryManager::VeloxMemoryManager(
   veloxLeafPool_ = veloxAggregatePool_->addLeafChild(name_ + "_default_leaf");
 }
 
+namespace {
+MemoryUsageStats collectMemoryUsageStatsInternal(const velox::memory::MemoryPool* pool) {
+  MemoryUsageStats stats;
+  stats.set_current(pool->currentBytes());
+  stats.set_peak(pool->peakBytes());
+  // walk down root and all children
+  pool->visitChildren([&](velox::memory::MemoryPool* pool) -> bool {
+    stats.mutable_children()->emplace(pool->name(), collectMemoryUsageStatsInternal(pool));
+    return true;
+  });
+  return stats;
+}
+} // namespace
+
+const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
+  return collectMemoryUsageStatsInternal(veloxPool_.get());
+}
+
+velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
+  return &(facebook::velox::memory::defaultMemoryManager());
+}
+
 } // namespace gluten
