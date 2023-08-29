@@ -284,6 +284,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
         logValidateMsg("native validation failed due to: Casting from DATE to TIMESTAMP is not supported.");
         return false;
       }
+      break;
     }
     case TypeKind::TIMESTAMP: {
       logValidateMsg(
