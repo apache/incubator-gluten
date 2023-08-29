@@ -54,10 +54,8 @@ jobs:
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
-          docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
+
+          docker exec velox-ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON'
@@ -103,10 +101,7 @@ jobs:
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
-          docker exec ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
+          docker exec velox-ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON'
@@ -144,10 +139,7 @@ jobs:
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
-          docker exec ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
+          docker exec velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON'
@@ -184,10 +176,7 @@ jobs:
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
-          docker exec ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
+          docker exec velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON'
@@ -217,10 +206,7 @@ jobs:
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
-          docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
+          docker exec velox-ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON'
@@ -284,9 +270,6 @@ jobs:
         run: |
           docker exec centos8-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON'
@@ -335,9 +318,6 @@ jobs:
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
