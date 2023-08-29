@@ -131,22 +131,6 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1024MB")
   }
-  test("hive orc scan") {
-    withSQLConf("spark.sql.hive.convertMetastoreOrc" -> "false") {
-      sql("DROP TABLE IF EXISTS test_orc")
-      sql(
-        "CREATE TABLE test_orc (name STRING, favorite_color STRING)" +
-          " USING hive OPTIONS(fileFormat 'orc')")
-      sql("INSERT INTO test_orc VALUES('test_1', 'red')");
-      val df = spark.sql("select * from test_orc")
-      checkAnswer(df, Seq(Row("test_1", "red")))
-      checkOperatorMatch[HiveTableScanExecTransformer](df)
-    }
-    spark.sessionState.catalog.dropTable(
-      TableIdentifier("test_orc"),
-      ignoreIfNotExists = true,
-      purge = false)
-  }
 
   test("hive orc scan") {
     withSQLConf("spark.sql.hive.convertMetastoreOrc" -> "false") {

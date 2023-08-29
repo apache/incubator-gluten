@@ -150,17 +150,11 @@ class HiveTableScanExecTransformer(
 
     fileFormat match {
       case ReadFileFormat.JsonReadFormat => ValidationResult.ok
-      case ReadFileFormat.TextReadFormat =>
-        if (!hasComplexType) {
-          ValidationResult.ok
-        } else {
-          ValidationResult.notOk("does not support complex type")
-        }
       case ReadFileFormat.OrcReadFormat =>
         if (!hasComplexType) {
           ValidationResult.ok
         } else {
-          ValidationResult.notOk("does not support complex type")
+          ValidationResult.notOk("HiveTableScan does not support complex type")
         }
       case _ => ValidationResult.notOk("Unknown file format")
     }
