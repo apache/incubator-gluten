@@ -109,7 +109,7 @@ object SparkMemoryUtil {
           nameWidth = Math.max(nameWidth, getFullName(stats.name, "").length + extraWidth)
           usedWidth = Math.max(usedWidth, getBytes(stats.used).length)
           peakWidth = Math.max(peakWidth, getBytes(stats.peak).length)
-          addPaddingSingleLevel(stats.children, extraWidth + 3) // e.g. "\-
+          addPaddingSingleLevel(stats.children, extraWidth + 3) // e.g. "\- "
       }
     }
     addPaddingSingleLevel(stats, 1) // take the leading '\t' into account
