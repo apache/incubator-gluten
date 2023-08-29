@@ -46,6 +46,24 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
 
   override protected def spark: SparkSession = _spark
 
+  override def afterAll(): Unit = {
+    try {
+      super.afterAll()
+      if (_spark != null) {
+        try {
+          _spark.sessionState.catalog.reset()
+        } finally {
+          _spark.stop()
+          _spark = null
+        }
+      }
+    } finally {
+      SparkSession.clearActiveSession()
+      SparkSession.clearDefaultSession()
+      doThreadPostAudit()
+    }
+  }
+
   protected def defaultSparkConf: SparkConf = {
     val conf = new SparkConf()
       .set("spark.master", "local[1]")
