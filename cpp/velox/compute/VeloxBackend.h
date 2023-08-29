@@ -40,7 +40,7 @@ class VeloxBackend final : public Backend {
  public:
   explicit VeloxBackend(const std::unordered_map<std::string, std::string>& confMap);
 
-  inline std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
+  static std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
     if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {
       return veloxMemoryManager->getAggregateMemoryPool();
     } else {
@@ -48,7 +48,7 @@ class VeloxBackend final : public Backend {
     }
   }
 
-  inline std::shared_ptr<facebook::velox::memory::MemoryPool> getLeafVeloxPool(MemoryManager* memoryManager) {
+  static std::shared_ptr<facebook::velox::memory::MemoryPool> getLeafVeloxPool(MemoryManager* memoryManager) {
     if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {
       return veloxMemoryManager->getLeafMemoryPool();
     } else {
@@ -57,11 +57,10 @@ class VeloxBackend final : public Backend {
   }
 
   MemoryManager* getMemoryManager(
-      std::string name,
+      const std::string& name,
       std::shared_ptr<MemoryAllocator> allocator,
       std::shared_ptr<AllocationListener> listener) override {
-    auto veloxMemoryManager = new VeloxMemoryManager(name, allocator, listener);
-    return veloxMemoryManager;
+    return new VeloxMemoryManager(name, allocator, listener);
   }
 
   // FIXME This is not thread-safe?

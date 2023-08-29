@@ -162,41 +162,74 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   gluten::AllocationListener* listener_;
 };
 
-VeloxMemoryManager::VeloxMemoryManager(
-    std::string name,
+velox::memory::IMemoryManager::Options VeloxMemoryManager::getOptions(
     std::shared_ptr<MemoryAllocator> allocator,
-    std::shared_ptr<AllocationListener> listener)
-    : MemoryManager(), name_(name), listener_(std::move(listener)) {
+    std::shared_ptr<AllocationListener> listener) const {
   auto veloxAlloc = velox::memory::MemoryAllocator::getInstance();
-  glutenAlloc_ = std::make_shared<ListenableMemoryAllocator>(allocator.get(), listener_);
+
 #ifdef GLUTEN_ENABLE_HBM
-  auto wrappedAlloc = std::make_shared<VeloxMemoryAllocator>(allocator.get(), veloxAlloc);
+  wrappedAlloc_ = std::move(std::make_unique<VeloxMemoryAllocator>(allocator.get(), veloxAlloc));
+  veloxAlloc = wrappedAlloc_.get();
 #endif
+
   velox::memory::MemoryArbitrator::Config arbitratorConfig{
       velox::memory::MemoryArbitrator::Kind::kNoOp, // do not use shared arbitrator as it will mess up the thread
                                                     // contexts (one Spark task reclaims memory from another)
       velox::memory::kMaxMemory, // the 2nd capacity
-      0,
-      32 << 20,
+      0, // initMemoryPoolCapacity
+      32 << 20, // minMemoryPoolCapacityTransferSize
       true};
+
   velox::memory::IMemoryManager::Options mmOptions{
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
-      true,
-      false,
-#ifdef GLUTEN_ENABLE_HBM
-      wrappedAlloc.get(),
-#else
+      true, // leak check
+      false, // debug
       veloxAlloc,
-#endif
       [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener_.get()); },
   };
-  veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
-  veloxPool_ = veloxMemoryManager_->addRootPool(
+
+  return mmOptions;
+}
+
+VeloxMemoryManager::VeloxMemoryManager(
+    const std::string& name,
+    std::shared_ptr<MemoryAllocator> allocator,
+    std::shared_ptr<AllocationListener> listener)
+    : MemoryManager(), name_(name), listener_(listener) {
+  glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_);
+
+  auto options = getOptions(allocator, listener_);
+  veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(options);
+
+  veloxAggregatePool_ = veloxMemoryManager_->addRootPool(
       name_ + "_root",
       velox::memory::kMaxMemory, // the 3rd capacity
       facebook::velox::memory::MemoryReclaimer::create());
-  veloxLeafPool_ = veloxPool_->addLeafChild(name_ + "_default_leaf");
+
+  veloxLeafPool_ = veloxAggregatePool_->addLeafChild(name_ + "_default_leaf");
+}
+
+namespace {
+MemoryUsageStats collectMemoryUsageStatsInternal(const velox::memory::MemoryPool* pool) {
+  MemoryUsageStats stats;
+  stats.set_current(pool->currentBytes());
+  stats.set_peak(pool->peakBytes());
+  // walk down root and all children
+  pool->visitChildren([&](velox::memory::MemoryPool* pool) -> bool {
+    stats.mutable_children()->emplace(pool->name(), collectMemoryUsageStatsInternal(pool));
+    return true;
+  });
+  return stats;
+}
+} // namespace
+
+const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
+  return collectMemoryUsageStatsInternal(veloxAggregatePool_.get());
+}
+
+velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
+  return &(facebook::velox::memory::defaultMemoryManager());
 }
 
 } // namespace gluten
