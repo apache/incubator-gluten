@@ -961,7 +961,10 @@ class GlutenClickHouseNativeWriteTableSuite
         spark.sql(
           s"insert overwrite table $table_name " +
             "select id, cast(id as string), concat('aaa', cast(id as string)) from range(10)")
-        compareResultsAgainstVanillaSpark(s"select * from $table_name")
+        compareResultsAgainstVanillaSpark(
+          s"select * from $table_name",
+          compareResult = true,
+          _ => {})
       }
     }
   }
