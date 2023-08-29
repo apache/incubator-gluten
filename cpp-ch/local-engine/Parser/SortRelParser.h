@@ -32,6 +32,8 @@ public:
     static DB::SortDescription
     parseSortDescription(const google::protobuf::RepeatedPtrField<substrait::SortField> & sort_fields, const DB::Block & header);
 
+    const substrait::Rel & getSingleInput(const substrait::Rel & rel) override { return rel.sort().input(); }
+
 private:
     size_t parseLimit(std::list<const substrait::Rel *> & rel_stack_);
 };
