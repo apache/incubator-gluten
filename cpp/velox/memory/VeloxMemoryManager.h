@@ -46,9 +46,7 @@ class VeloxMemoryManager final : public MemoryManager {
   const MemoryUsageStats collectMemoryUsageStats() const override;
 
  private:
-  facebook::velox::memory::IMemoryManager::Options getOptions(
-      std::shared_ptr<MemoryAllocator> allocator,
-      std::shared_ptr<AllocationListener> listener) const;
+  facebook::velox::memory::IMemoryManager::Options getOptions(std::shared_ptr<MemoryAllocator> allocator) const;
 
   std::string name_;
 
@@ -59,7 +57,6 @@ class VeloxMemoryManager final : public MemoryManager {
   // This is a listenable allocator used for arrow.
   std::unique_ptr<MemoryAllocator> glutenAlloc_;
   std::shared_ptr<AllocationListener> listener_;
-
   std::shared_ptr<arrow::MemoryPool> arrowPool_;
 
   std::unique_ptr<facebook::velox::memory::MemoryManager> veloxMemoryManager_;
