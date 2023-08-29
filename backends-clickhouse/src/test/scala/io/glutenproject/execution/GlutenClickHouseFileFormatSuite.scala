@@ -949,9 +949,8 @@ class GlutenClickHouseFileFormatSuite
     compareResultsAgainstVanillaSpark(
       sql,
       compareResult = true,
-      df => {
-        println(df.queryExecution.executedPlan)
-      })
+      _ => {}
+    )
   }
 
   test("read data from orc file format") {
