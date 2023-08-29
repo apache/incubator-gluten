@@ -225,7 +225,7 @@ MemoryUsageStats collectMemoryUsageStatsInternal(const velox::memory::MemoryPool
 } // namespace
 
 const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
-  return collectMemoryUsageStatsInternal(veloxPool_.get());
+  return collectMemoryUsageStatsInternal(veloxAggregatePool_.get());
 }
 
 velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
