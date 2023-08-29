@@ -50,7 +50,7 @@ class VeloxMemoryManager final : public MemoryManager {
 
   std::string name_;
 
-#if GLUTEN_ENABLE_HBM
+#ifdef GLUTEN_ENABLE_HBM
   std::unique_ptr<VeloxMemoryAllocator> wrappedAlloc_;
 #endif
 
