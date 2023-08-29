@@ -65,11 +65,8 @@ class OverAcquire implements TaskManagedMemoryTarget {
     long majorSize = target.usedBytes();
     long expectedOverAcquired = (long) (ratio * majorSize);
     long overAcquired = overTarget.usedBytes();
-    Preconditions.checkArgument(
-        expectedOverAcquired >= overAcquired,
-        "Expected over acquired size smaller than its old value");
     long diff = expectedOverAcquired - overAcquired;
-    if (diff > 0) { // otherwise, there might be a spill happened during the last borrow() call
+    if (diff >= 0) { // otherwise, there might be a spill happened during the last borrow() call
       overTarget.borrow(diff); // we don't have to check the returned value
     }
     return granted;
