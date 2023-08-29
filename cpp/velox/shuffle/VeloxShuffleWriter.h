@@ -345,7 +345,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   std::vector<std::shared_ptr<arrow::ResizableBuffer>> complexTypeFlushBuffer_;
   std::shared_ptr<const facebook::velox::RowType> complexWriteType_;
 
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxAggregatePool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   std::vector<std::unique_ptr<facebook::velox::StreamArena>> arenas_;
 
   std::unique_ptr<facebook::velox::serializer::presto::PrestoVectorSerde> serde_ =
