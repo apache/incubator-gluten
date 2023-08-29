@@ -57,7 +57,7 @@ class ShuffleBufferPool::MemoryPoolWrapper : public arrow::MemoryPool {
     return status;
   }
 
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) {
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
     pool_->Free(buffer, size, alignment);
     bytesAllocated_ -= size;
   }

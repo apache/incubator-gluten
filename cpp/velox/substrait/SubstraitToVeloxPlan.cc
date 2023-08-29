@@ -579,40 +579,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     partitionKeys.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
   }
 
-  std::vector<core::FieldAccessTypedExprPtr> sortingKeys;
-  std::vector<core::SortOrder> sortingOrders;
-
-  const auto& sorts = windowRel.sorts();
-  sortingKeys.reserve(sorts.size());
-  sortingOrders.reserve(sorts.size());
-
-  for (const auto& sort : sorts) {
-    switch (sort.direction()) {
-      case ::substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_FIRST:
-        sortingOrders.emplace_back(core::kAscNullsFirst);
-        break;
-      case ::substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_LAST:
-        sortingOrders.emplace_back(core::kAscNullsLast);
-        break;
-      case ::substrait::SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_FIRST:
-        sortingOrders.emplace_back(core::kDescNullsFirst);
-        break;
-      case ::substrait::SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_LAST:
-        sortingOrders.emplace_back(core::kDescNullsLast);
-        break;
-      default:
-        VELOX_FAIL("Sort direction is not support in WindowRel");
-    }
-
-    if (sort.has_expr()) {
-      auto expression = exprConverter_->toVeloxExpr(sort.expr(), inputType);
-      auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-      VELOX_CHECK(expr_field != nullptr, " the sorting key in Window Operator only support field")
-
-      sortingKeys.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
-    }
-  }
-
+  auto [sortingKeys, sortingOrders] = processSortField(windowRel.sorts(), inputType);
   return std::make_shared<core::WindowNode>(
       nextPlanNodeId(), partitionKeys, sortingKeys, sortingOrders, windowColumnNames, windowNodeFunctions, childNode);
 }
@@ -938,10 +905,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return toVeloxPlan(rel.join());
   } else if (rel.has_read()) {
     return toVeloxPlan(rel.read());
-  } else if (rel.has_sort()) {
-    return toVeloxPlan(rel.sort());
-  } else if (rel.has_fetch()) {
-    return toVeloxPlan(rel.fetch());
   } else if (rel.has_sort()) {
     return toVeloxPlan(rel.sort());
   } else if (rel.has_expand()) {
