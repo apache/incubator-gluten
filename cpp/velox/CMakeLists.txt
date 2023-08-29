@@ -301,7 +301,7 @@ target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
 
-find_package(simdjson REQUIRED)
+include(Simdjson)
 if(TARGET simdjson::simdjson AND NOT TARGET simdjson)
   add_library(simdjson INTERFACE)
   target_link_libraries(simdjson INTERFACE simdjson::simdjson)

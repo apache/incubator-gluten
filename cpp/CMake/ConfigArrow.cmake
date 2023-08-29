@@ -33,9 +33,9 @@ function(FIND_ARROW_LIB LIB_NAME)
     set(ARROW_LIB_FULL_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
     add_library(Arrow::${LIB_NAME} SHARED IMPORTED)
     set_target_properties(Arrow::${LIB_NAME}
-        PROPERTIES IMPORTED_LOCATION "${root_directory}/releases/${ARROW_LIB_FULL_NAME}"
+        PROPERTIES IMPORTED_LOCATION "${ARROW_HOME}/install/lib/${ARROW_LIB_FULL_NAME}"
         INTERFACE_INCLUDE_DIRECTORIES
-        "${root_directory}/releases/include")
+        "${ARROW_HOME}/install/include")
     find_library(ARROW_LIB_${LIB_NAME}
         NAMES ${ARROW_LIB_FULL_NAME}
         PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR}
@@ -55,23 +55,3 @@ set(ARROW_INSTALL_DIR "${ARROW_HOME}/install")
 set(ARROW_LIB_DIR "${ARROW_INSTALL_DIR}/lib")
 set(ARROW_LIB64_DIR "${ARROW_INSTALL_DIR}/lib64")
 set(ARROW_INCLUDE_DIR "${ARROW_INSTALL_DIR}/include")
-
-message(STATUS "Set Arrow Library Directory in ${ARROW_LIB_DIR} or ${ARROW_LIB64_DIR}")
-message(STATUS "Set Arrow Include Directory in ${ARROW_INCLUDE_DIR}")
-
-if(EXISTS ${ARROW_INCLUDE_DIR}/arrow)
-  set(ARROW_INCLUDE_SRC_DIR ${ARROW_INCLUDE_DIR})
-else()
-  message(FATAL_ERROR "Arrow headers not found in ${ARROW_INCLUDE_DIR}/arrow.")
-endif()
-
-# Copy arrow headers
-set(ARROW_INCLUDE_DST_DIR ${root_directory}/releases/include)
-
-string(TOUPPER "${BUILD_BENCHMARKS}" LOWERCASE_BUILD_BENCHMARKS)
-set(ARROW_INCLUDE_SUB_DIR arrow parquet)
-message(STATUS "Copy Arrow headers from ${ARROW_INCLUDE_SRC_DIR} to ${ARROW_INCLUDE_DST_DIR}")
-file(MAKE_DIRECTORY ${ARROW_INCLUDE_DST_DIR})
-foreach(SUB_DIR ${ARROW_INCLUDE_SUB_DIR})
-  file(COPY ${ARROW_INCLUDE_SRC_DIR}/${SUB_DIR} DESTINATION ${ARROW_INCLUDE_DST_DIR})
-endforeach()
