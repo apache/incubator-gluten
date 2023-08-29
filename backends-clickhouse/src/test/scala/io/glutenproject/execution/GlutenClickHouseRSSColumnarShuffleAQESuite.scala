@@ -20,9 +20,6 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.CoalescedPartitionSpec
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec}
 
-import org.scalatest.Ignore
-
-@Ignore
 class GlutenClickHouseRSSColumnarShuffleAQESuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
@@ -42,7 +39,7 @@ class GlutenClickHouseRSSColumnarShuffleAQESuite
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.shuffle.service.enabled", "false")
       .set("spark.celeborn.client.spark.shuffle.writer", "hash")
-      .set("spark.celeborn.master.endpoints", "192.168.0.44:9097")
+      .set("spark.celeborn.master.endpoints", "127.0.0.1:9097")
   }
 
   test("TPCH Q1") {
