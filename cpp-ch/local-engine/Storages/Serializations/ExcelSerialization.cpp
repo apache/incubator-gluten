@@ -17,11 +17,13 @@
 #include "ExcelSerialization.h"
 #include <Columns/ColumnsNumber.h>
 #include <DataTypes/DataTypesDecimal.h>
+#include <DataTypes/Serializations/SerializationBool.h>
 #include <DataTypes/Serializations/SerializationDate32.h>
 #include <DataTypes/Serializations/SerializationDateTime64.h>
 #include <DataTypes/Serializations/SerializationDecimal.h>
 #include <DataTypes/Serializations/SerializationNumber.h>
 #include <DataTypes/Serializations/SerializationString.h>
+#include "ExcelBoolReader.h"
 #include "ExcelReadHelpers.h"
 #include "ExcelStringReader.h"
 
@@ -89,7 +91,11 @@ void ExcelSerialization::deserializeTextCSV(IColumn & column, ReadBuffer & istr,
     }
     else if (typeid_cast<const SerializationString *>(nested_ptr.get()))
     {
-        deserializeExcelTextCSV(column, istr, settings, escape);
+        deserializeExcelStringTextCSV(column, istr, settings, escape);
+    }
+    else if (typeid_cast<const SerializationBool *>(nested_ptr.get()))
+    {
+        deserializeExcelBoolTextCSV(column, istr, settings);
     }
     else
     {
