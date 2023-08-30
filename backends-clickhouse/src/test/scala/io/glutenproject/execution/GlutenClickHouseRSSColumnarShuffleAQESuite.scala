@@ -39,7 +39,6 @@ class GlutenClickHouseRSSColumnarShuffleAQESuite
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.shuffle.service.enabled", "false")
       .set("spark.celeborn.client.spark.shuffle.writer", "hash")
-      .set("spark.celeborn.master.endpoints", "127.0.0.1:9097")
   }
 
   test("TPCH Q1") {
