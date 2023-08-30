@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
+import org.apache.spark.sql.execution.ProjectExec
 import org.apache.spark.sql.types._
 
 import java.nio.file.Files
@@ -342,5 +343,49 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
           checkOperatorMatch[ProjectExecTransformer]
         }
     }
+  }
+
+  test("map literal - offload") {
+    def validateOffloadResult(sql: String): Unit = {
+      // allow constant folding
+      withSQLConf("spark.sql.optimizer.excludedRules" -> "") {
+        runQueryAndCompare(sql) {
+          df =>
+            val plan = df.queryExecution.executedPlan
+            assert(plan.find(_.isInstanceOf[ProjectExecTransformer]).isDefined, sql)
+            assert(plan.find(_.isInstanceOf[ProjectExec]).isEmpty, sql)
+        }
+      }
+    }
+
+    validateOffloadResult("SELECT map('b', 'a', 'e', 'e')")
+    validateOffloadResult("SELECT map(1, 'a', 2, 'e')")
+    validateOffloadResult("SELECT map(1, map(1,2,3,4))")
+    validateOffloadResult("SELECT array(map(1,2,3,4))")
+    validateOffloadResult("SELECT map(array(1,2,3), array(1))")
+    validateOffloadResult("SELECT array(map(array(1,2), map(1,2,3,4)))")
+    validateOffloadResult("SELECT map(array(1,2), map(1,2))")
+  }
+
+  test("map literal - fallback") {
+    def validateFallbackResult(sql: String): Unit = {
+      withSQLConf("spark.sql.optimizer.excludedRules" -> "") {
+        runQueryAndCompare(sql) {
+          df =>
+            val plan = df.queryExecution.executedPlan
+            assert(plan.find(_.isInstanceOf[ProjectExecTransformer]).isEmpty, sql)
+            assert(plan.find(_.isInstanceOf[ProjectExec]).isDefined, sql)
+        }
+      }
+    }
+
+    validateFallbackResult("SELECT array()")
+    validateFallbackResult("SELECT array(array())")
+    validateFallbackResult("SELECT array(null)")
+    validateFallbackResult("SELECT array(map())")
+    validateFallbackResult("SELECT map()")
+    validateFallbackResult("SELECT map(1, null)")
+    validateFallbackResult("SELECT map(1, array())")
+    validateFallbackResult("SELECT map(1, map())")
   }
 }
