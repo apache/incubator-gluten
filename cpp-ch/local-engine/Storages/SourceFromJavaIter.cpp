@@ -38,8 +38,8 @@ static DB::Block getRealHeader(const DB::Block & header)
         return header;
     return BlockUtil::buildRowCountHeader();
 }
-SourceFromJavaIter::SourceFromJavaIter(DB::Block header, jobject java_iter_)
-    : DB::ISource(getRealHeader(header)), java_iter(java_iter_), original_header(header)
+SourceFromJavaIter::SourceFromJavaIter(DB::Block header, jobject java_iter_, bool materialize_input_)
+    : DB::ISource(getRealHeader(header)), java_iter(java_iter_), materialize_input(materialize_input_), original_header(header)
 {
 }
 DB::Chunk SourceFromJavaIter::generate()
@@ -51,6 +51,8 @@ DB::Chunk SourceFromJavaIter::generate()
     {
         jbyteArray block = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
         DB::Block * data = reinterpret_cast<DB::Block *>(byteArrayToLong(env, block));
+        if(materialize_input)
+            materializeBlockInplace(*data);
         if (data->rows() > 0)
         {
             size_t rows = data->rows();

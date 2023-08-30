@@ -29,7 +29,7 @@ public:
 
     static Int64 byteArrayToLong(JNIEnv * env, jbyteArray arr);
 
-    SourceFromJavaIter(DB::Block header, jobject java_iter_);
+    SourceFromJavaIter(DB::Block header, jobject java_iter_, bool materialize_input_);
     ~SourceFromJavaIter() override;
 
     String getName() const override { return "SourceFromJavaIter"; }
@@ -39,6 +39,7 @@ private:
     void convertNullable(DB::Chunk & chunk);
 
     jobject java_iter;
+    bool materialize_input;
     DB::Block original_header;
 };
 

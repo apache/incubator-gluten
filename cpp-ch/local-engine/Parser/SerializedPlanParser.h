@@ -282,7 +282,10 @@ public:
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
 
-    void addInputIter(jobject iter) { input_iters.emplace_back(iter); }
+    void addInputIter(jobject iter, bool materialize_input) {
+        input_iters.emplace_back(iter);
+        materialize_inputs.emplace_back(materialize_input);
+    }
 
     void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
     std::shared_ptr<DB::ActionsDAG> expressionsToActionsDAG(
@@ -360,6 +363,7 @@ private:
     int name_no = 0;
     std::unordered_map<std::string, std::string> function_mapping;
     std::vector<jobject> input_iters;
+    std::vector<bool> materialize_inputs;
     ContextPtr context;
     // for parse rel node, collect steps from a rel node
     std::vector<IQueryPlanStep *> temp_step_collection;
@@ -377,7 +381,7 @@ class LocalExecutor : public BlockIterator
 {
 public:
     LocalExecutor() = default;
-    explicit LocalExecutor(QueryContext & _query_context, ContextPtr context, bool materialize);
+    explicit LocalExecutor(QueryContext & _query_context, ContextPtr context);
     void execute(QueryPlanPtr query_plan);
     SparkRowInfoPtr next();
     Block * nextColumnar();
@@ -397,7 +401,6 @@ private:
     std::unique_ptr<PullingPipelineExecutor> executor;
     Block header;
     ContextPtr context;
-    bool materialize;
     std::unique_ptr<CHColumnToSparkRow> ch_column_to_spark_row;
     std::unique_ptr<SparkBuffer> spark_buffer;
     DB::QueryPlanPtr current_query_plan;
