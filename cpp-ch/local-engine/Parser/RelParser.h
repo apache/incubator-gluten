@@ -40,16 +40,12 @@ public:
     virtual DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
         = 0;
-    const std::vector<IQueryPlanStep *>& getSteps() const
-    {
-        return steps;
-    }
+    virtual DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
+    virtual const substrait::Rel & getSingleInput(const substrait::Rel & rel) = 0;
+    const std::vector<IQueryPlanStep *> & getSteps() const { return steps; }
 
     static AggregateFunctionPtr getAggregateFunction(
-        const DB::String & name,
-        DB::DataTypes arg_types,
-        DB::AggregateFunctionProperties & properties,
-        const DB::Array & parameters = {});
+        const DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters = {});
 
 protected:
     inline SerializedPlanParser * getPlanParser() { return plan_parser; }
@@ -88,7 +84,6 @@ protected:
 
 private:
     SerializedPlanParser * plan_parser;
-
 };
 
 class RelParserFactory

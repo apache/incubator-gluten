@@ -21,8 +21,8 @@
 namespace DB
 {
 class TableJoin;
-class HashJoin;
-using HashJoinPtr = std::shared_ptr<HashJoin>;
+class IJoin;
+using JoinPtr = std::shared_ptr<IJoin>;
 }
 
 namespace local_engine
@@ -43,7 +43,7 @@ public:
         const String & comment,
         bool overwrite_);
 
-    DB::HashJoinPtr getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr context) const;
+    DB::JoinPtr getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr context) const;
     DB::Block getRightSampleBlock() const
     {
         DB::Block block = storage_metadata_.getSampleBlock();
@@ -71,7 +71,7 @@ private:
     bool overwrite;
 
     std::shared_ptr<DB::TableJoin> table_join;
-    DB::HashJoinPtr join;
+    DB::JoinPtr join;
 
     DB::ReadBuffer & in;
 };
