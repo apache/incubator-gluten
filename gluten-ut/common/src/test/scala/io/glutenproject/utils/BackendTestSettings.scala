@@ -77,6 +77,8 @@ abstract class BackendTestSettings {
     private[utils] val inclusion: util.List[IncludeBase] = new util.ArrayList()
     private[utils] val exclusion: util.List[ExcludeBase] = new util.ArrayList()
 
+    private val TEMP_DISABLE_ALL_TAG = "temp_disable_all"
+
     def include(testNames: String*): TestNameFilters = {
       inclusion.add(Include(testNames: _*))
       this
@@ -91,6 +93,13 @@ abstract class BackendTestSettings {
     }
     def excludeByPrefix(prefixes: String*): TestNameFilters = {
       exclusion.add(ExcludeByPrefix(prefixes: _*))
+      this
+    }
+
+    def excludeAll(reason: String): TestNameFilters = {
+      exclusion.clear()
+      inclusion.clear()
+      inclusion.add(Include(Seq(TEMP_DISABLE_ALL_TAG, reason).mkString(" ")))
       this
     }
   }
