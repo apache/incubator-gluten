@@ -16,12 +16,32 @@
 name: Velox backend Performance Tests on Merge
 
 on:
-  push:
+  pull_request:
+    types: [ closed ]
     branches:
       - main
+    paths:
+      - '.github/**'
+      - 'pom.xml'
+      - 'backends-velox/**'
+      - 'gluten-celeborn/**'
+      - 'gluten-core/**'
+      - 'gluten-data/**'
+      - 'gluten-ut/**'
+      - 'shims/**'
+      - 'tools/gluten-it/**'
+      - 'tools/gluten-te/**'
+      - 'ep/build-arrow/**'
+      - 'ep/build-velox/**'
+      - 'cpp/*'
+      - 'cpp/CMake/**'
+      - 'cpp/velox/**'
+      - 'cpp/core/**'
+      - 'dev**'
 
 jobs:
   velox-trigger-benchmark:
+    if: github.event.pull_request.merged == true
     runs-on: velox-self-hosted
     container: ubuntu:22.04
     steps:
@@ -32,5 +52,5 @@ jobs:
       - run: apt-get install -y curl
       - name: trigger_tpch_bench
         run: |
-          branchname=main
+          branchname=origin/pr/${{github.event.number}}/head
           curl --noproxy 10.0.0.68 -L -X POST http://10.0.0.68:8080/job/Gluten_Perf_Github_Action_Check/build --user jenkins:11fd1b5a82bfd638bd9b3749c96b324ff2 --data-urlencode json='{"parameter": [{"name":"sha1", "value":"'$branchname'"}]}'
