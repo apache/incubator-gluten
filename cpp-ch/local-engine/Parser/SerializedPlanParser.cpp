@@ -2136,22 +2136,24 @@ LocalExecutor::~LocalExecutor()
 
 void LocalExecutor::execute(QueryPlanPtr query_plan)
 {
-    current_query_plan = std::move(query_plan);
     Stopwatch stopwatch;
-    stopwatch.start();
-    QueryPlanOptimizationSettings optimization_settings{.optimize_plan = false};
-    DB::QueryPriorities priorities;
-    String query = "query";
+
     const Settings & settings = context->getSettingsRef();
+    current_query_plan = std::move(query_plan);
+    auto * logger = &Poco::Logger::get("LocalExecutor");
+
+    DB::QueryPriorities priorities;
     auto query_status = std::make_shared<DB::QueryStatus>(
         context,
-        query,
+        "",
         context->getClientInfo(),
-        priorities.insert(static_cast<int>(context->getSettingsRef().priority)),
+        priorities.insert(static_cast<int>(settings.priority)),
         DB::CurrentThread::getGroup(),
         DB::IAST::QueryKind::Select,
         settings,
         0);
+
+    QueryPlanOptimizationSettings optimization_settings{.optimize_plan = settings.query_plan_enable_optimizations};
     auto pipeline_builder = current_query_plan->buildQueryPipeline(
         optimization_settings,
         BuildQueryPipelineSettings{
@@ -2159,24 +2161,29 @@ void LocalExecutor::execute(QueryPlanPtr query_plan)
             = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3, .compile_expressions = CompileExpressions::yes},
             .process_list_element = query_status});
 
+    LOG_DEBUG(logger, "clickhouse plan after optimization:\n{}", PlanUtil::explainPlan(*current_query_plan));
     query_pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder));
-    LOG_DEBUG(&Poco::Logger::get("LocalExecutor"), "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(query_pipeline));
+    LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(query_pipeline));
     auto t_pipeline = stopwatch.elapsedMicroseconds();
+
     executor = std::make_unique<PullingPipelineExecutor>(query_pipeline);
     auto t_executor = stopwatch.elapsedMicroseconds() - t_pipeline;
     stopwatch.stop();
     LOG_INFO(
-        &Poco::Logger::get("SerializedPlanParser"),
+        logger,
         "build pipeline {} ms; create executor {} ms;",
         t_pipeline / 1000.0,
         t_executor / 1000.0);
+
     header = current_query_plan->getCurrentDataStream().header.cloneEmpty();
     ch_column_to_spark_row = std::make_unique<CHColumnToSparkRow>();
 }
+
 std::unique_ptr<SparkRowInfo> LocalExecutor::writeBlockToSparkRow(Block & block)
 {
     return ch_column_to_spark_row->convertCHColumnToSparkRow(block);
 }
+
 bool LocalExecutor::hasNext()
 {
     bool has_next;
@@ -2210,6 +2217,7 @@ bool LocalExecutor::hasNext()
     }
     return has_next;
 }
+
 SparkRowInfoPtr LocalExecutor::next()
 {
     checkNextValid();
@@ -2248,7 +2256,9 @@ Block & LocalExecutor::getHeader()
 {
     return header;
 }
-LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_) : query_context(_query_context), context(context_)
+
+LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_)
+    : query_context(_query_context), context(context_)
 {
 }
 
