@@ -60,7 +60,7 @@ FormatFile::FormatFile(
 }
 
 FormatFilePtr FormatFileUtil::createFile(
-    DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file)
+    DB::ContextPtr context, ReadBufferBuilderPtr read_buffer_builder, const substrait::ReadRel::LocalFiles::FileOrFiles & file, String optimization)
 {
 #if USE_PARQUET
     if (file.has_parquet())
@@ -81,7 +81,7 @@ FormatFilePtr FormatFileUtil::createFile(
     {
         if (context->getSettings().has(BackendInitializerUtil::USE_EXCEL_PARSER)
             && context->getSettings().getString(BackendInitializerUtil::USE_EXCEL_PARSER) == "'true'")
-            return std::make_shared<ExcelTextFormatFile>(context, file, read_buffer_builder);
+            return std::make_shared<ExcelTextFormatFile>(context, file, read_buffer_builder, optimization);
         else
             return std::make_shared<TextFormatFile>(context, file, read_buffer_builder);
     }

@@ -92,6 +92,11 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     std::string delimiter = file_info.text().field_delimiter();
     format_settings.csv.delimiter = *delimiter.data();
 
+    if (optimization == "1")
+        format_settings.try_infer_integers = true;
+    else
+        format_settings.try_infer_integers = false;
+
     if (file_info.start() == 0)
         format_settings.csv.skip_first_lines = file_info.text().header();
 

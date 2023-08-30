@@ -268,6 +268,9 @@ class FileSourceScanExecTransformer(
           options += ("header" -> cnt.toString)
         case ("escape", v) => options += ("escape" -> v)
         case ("nullvalue", v) => options += ("nullValue" -> v)
+        case ("number.force", v) =>
+          val nf = if (v == "true") 1 else 0
+          options += ("numberForce" -> nf.toString)
         case (_, _) =>
       }
 

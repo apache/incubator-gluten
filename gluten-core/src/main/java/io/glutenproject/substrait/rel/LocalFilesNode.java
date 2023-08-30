@@ -19,6 +19,8 @@ package io.glutenproject.substrait.rel;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.expression.ConverterUtils;
 
+import com.google.protobuf.Any;
+import com.google.protobuf.ByteString;
 import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Type;
@@ -169,6 +171,14 @@ public class LocalFilesNode implements Serializable {
                   .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
                   .build();
           fileBuilder.setText(textReadOptions);
+
+          io.substrait.proto.AdvancedExtension.Builder builderForValue =
+              ReadRel.LocalFiles.newBuilder().getAdvancedExtensionBuilder();
+          String numberForce = fileReadProperties.getOrDefault("numberForce", "0");
+          builderForValue
+              .setOptimization(Any.newBuilder().setValue(ByteString.copyFromUtf8(numberForce)))
+              .build();
+          localFilesBuilder.setAdvancedExtension(builderForValue);
           break;
         case JsonReadFormat:
           ReadRel.LocalFiles.FileOrFiles.JsonReadOptions jsonReadOptions =
