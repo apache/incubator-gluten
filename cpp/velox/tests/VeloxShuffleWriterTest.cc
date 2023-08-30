@@ -622,8 +622,8 @@ TEST_P(VeloxShuffleWriterTest, TestStopShrinkAndSpill) {
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
   }
 
+  auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
   auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
-  auto bufferSize = shuffleWriter_->pool()->bytesAllocated();
 
   int64_t evicted;
   shuffleWriter_->setSplitState(SplitState::STOP);

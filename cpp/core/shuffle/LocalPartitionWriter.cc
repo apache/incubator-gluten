@@ -58,7 +58,6 @@ arrow::Status LocalPartitionWriterBase::openDataFile() {
 arrow::Status LocalPartitionWriterBase::clearResource() {
   RETURN_NOT_OK(dataFileOs_->Close());
   schemaPayload_.reset();
-  shuffleWriter_->pool()->reset();
   shuffleWriter_->partitionBuffer().clear();
   return arrow::Status::OK();
 }

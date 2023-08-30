@@ -132,10 +132,9 @@ int64_t getBatchNbytes(const arrow::RecordBatch& rb) {
   return accumulated;
 }
 
-std::shared_ptr<arrow::Array> makeNullBinaryArray(std::shared_ptr<arrow::DataType> type, ShuffleBufferPool* pool) {
-  std::shared_ptr<arrow::ResizableBuffer> offsetBuffer;
+std::shared_ptr<arrow::Array> makeNullBinaryArray(std::shared_ptr<arrow::DataType> type, arrow::MemoryPool* pool) {
   size_t sizeofBinaryOffset = sizeof(arrow::LargeStringType::offset_type);
-  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(offsetBuffer, sizeofBinaryOffset * 2));
+  GLUTEN_ASSIGN_OR_THROW(auto offsetBuffer, arrow::AllocateResizableBuffer(sizeofBinaryOffset << 1, pool));
   // set the first offset to 0, and set the value offset
   uint8_t* offsetaddr = offsetBuffer->mutable_data();
   memset(offsetaddr, 0, sizeofBinaryOffset);
@@ -144,26 +143,25 @@ std::shared_ptr<arrow::Array> makeNullBinaryArray(std::shared_ptr<arrow::DataTyp
   // If it is not compressed array, null valueBuffer
   // worked, but if compress, will core dump at buffer::size(), so replace by kNullBuffer
   static std::shared_ptr<arrow::Buffer> kNullBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
-  return arrow::MakeArray(arrow::ArrayData::Make(type, 1, {nullptr, offsetBuffer, kNullBuffer}));
+  return arrow::MakeArray(arrow::ArrayData::Make(type, 1, {nullptr, std::move(offsetBuffer), kNullBuffer}));
 }
 
 std::shared_ptr<arrow::Array> makeBinaryArray(
     std::shared_ptr<arrow::DataType> type,
     std::shared_ptr<arrow::Buffer> valueBuffer,
-    ShuffleBufferPool* pool) {
+    arrow::MemoryPool* pool) {
   if (valueBuffer == nullptr) {
     return makeNullBinaryArray(type, pool);
   }
 
-  std::shared_ptr<arrow::ResizableBuffer> offsetBuffer;
   size_t sizeofBinaryOffset = sizeof(arrow::LargeStringType::offset_type);
-  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(offsetBuffer, sizeofBinaryOffset * 2));
+  GLUTEN_ASSIGN_OR_THROW(auto offsetBuffer, arrow::AllocateResizableBuffer(sizeofBinaryOffset << 1, pool));
   // set the first offset to 0, and set the value offset
   uint8_t* offsetaddr = offsetBuffer->mutable_data();
   memset(offsetaddr, 0, sizeofBinaryOffset);
   int64_t length = valueBuffer->size();
   memcpy(offsetaddr + sizeofBinaryOffset, reinterpret_cast<uint8_t*>(&length), sizeofBinaryOffset);
-  return arrow::MakeArray(arrow::ArrayData::Make(type, 1, {nullptr, offsetBuffer, valueBuffer}));
+  return arrow::MakeArray(arrow::ArrayData::Make(type, 1, {nullptr, std::move(offsetBuffer), valueBuffer}));
 }
 
 inline void writeInt64(std::shared_ptr<arrow::Buffer> buffer, int64_t& offset, int64_t value) {
@@ -186,17 +184,18 @@ int64_t getMaxCompressedBufferSize(
 // Length buffer layout |buffers.size()|buffer1 unCompressedLength|buffer1 compressedLength| buffer2...
 void getLengthBufferAndValueBufferOneByOne(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    ShuffleBufferPool* pool,
+    arrow::MemoryPool* pool,
     arrow::util::Codec* codec,
     int32_t bufferCompressThreshold,
     std::shared_ptr<arrow::ResizableBuffer>& lengthBuffer,
     std::shared_ptr<arrow::ResizableBuffer>& valueBuffer) {
-  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(lengthBuffer, (buffers.size() * 2 + 1) * sizeof(int64_t)));
+  GLUTEN_ASSIGN_OR_THROW(
+      lengthBuffer, arrow::AllocateResizableBuffer((buffers.size() * 2 + 1) * sizeof(int64_t), pool));
   int64_t offset = 0;
   writeInt64(lengthBuffer, offset, buffers.size());
 
   int64_t compressedBufferMaxSize = getMaxCompressedBufferSize(buffers, codec);
-  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(valueBuffer, compressedBufferMaxSize));
+  GLUTEN_ASSIGN_OR_THROW(valueBuffer, arrow::AllocateResizableBuffer(compressedBufferMaxSize, pool));
   int64_t compressValueOffset = 0;
   for (auto& buffer : buffers) {
     if (buffer != nullptr && buffer->size() != 0) {
@@ -237,12 +236,12 @@ int64_t getBuffersSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffer
 // Length buffer layout |buffer unCompressedLength|buffer compressedLength|buffers.size()| buffer1 size | buffer2 size
 void getLengthBufferAndValueBufferStream(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    ShuffleBufferPool* pool,
+    arrow::MemoryPool* pool,
     arrow::util::Codec* codec,
     int32_t bufferCompressThreshold,
     std::shared_ptr<arrow::ResizableBuffer>& lengthBuffer,
     std::shared_ptr<arrow::ResizableBuffer>& compressedBuffer) {
-  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(lengthBuffer, (buffers.size() + 3) * sizeof(int64_t)));
+  GLUTEN_ASSIGN_OR_THROW(lengthBuffer, arrow::AllocateResizableBuffer((buffers.size() + 3) * sizeof(int64_t), pool));
   int64_t offset = 0;
 
   auto originalBufferSize = getBuffersSize(buffers);
@@ -250,8 +249,7 @@ void getLengthBufferAndValueBufferStream(
   if (originalBufferSize >= bufferCompressThreshold) {
     // because 64B align, uncompressedBuffer size maybe bigger than unCompressedBufferSize which is
     // getBuffersSize(buffers), then cannot use this size
-    std::shared_ptr<arrow::ResizableBuffer> uncompressedBuffer;
-    GLUTEN_THROW_NOT_OK(pool->allocateDirectly(uncompressedBuffer, originalBufferSize));
+    GLUTEN_ASSIGN_OR_THROW(auto uncompressedBuffer, arrow::AllocateResizableBuffer(originalBufferSize, pool));
     int64_t uncompressedSize = uncompressedBuffer->size();
     writeInt64(lengthBuffer, offset, uncompressedSize); // unCompressedBufferSize
     int64_t compressLengthOffset = sizeof(int64_t);
@@ -268,7 +266,7 @@ void getLengthBufferAndValueBufferStream(
       }
     }
     int64_t maxLength = codec->MaxCompressedLen(uncompressedSize, nullptr);
-    GLUTEN_THROW_NOT_OK(pool->allocateDirectly(compressedBuffer, maxLength));
+    GLUTEN_ASSIGN_OR_THROW(compressedBuffer, arrow::AllocateResizableBuffer(maxLength, pool));
     GLUTEN_ASSIGN_OR_THROW(
         int64_t actualLength,
         codec->Compress(uncompressedSize, uncompressedBuffer->data(), maxLength, compressedBuffer->mutable_data()));
@@ -277,7 +275,7 @@ void getLengthBufferAndValueBufferStream(
   } else {
     // mark uncompress size as -1 to mark it is uncompressed buffer
     writeInt64(lengthBuffer, offset, -1); // unCompressedBufferSize
-    GLUTEN_THROW_NOT_OK(pool->allocateDirectly(compressedBuffer, originalBufferSize));
+    GLUTEN_ASSIGN_OR_THROW(compressedBuffer, arrow::AllocateResizableBuffer(originalBufferSize, pool));
     writeInt64(lengthBuffer, offset, compressedBuffer->size()); // 0 for compressLength
     writeInt64(lengthBuffer, offset, buffers.size());
     int64_t compressValueOffset = 0;
@@ -297,19 +295,18 @@ std::shared_ptr<arrow::RecordBatch> makeCompressedRecordBatch(
     uint32_t numRows,
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     const std::shared_ptr<arrow::Schema> compressWriteSchema,
-    ShuffleBufferPool* pool,
+    arrow::MemoryPool* pool,
     arrow::util::Codec* codec,
     int32_t bufferCompressThreshold,
     CompressionMode compressionMode) {
   std::vector<std::shared_ptr<arrow::Array>> arrays;
   // header col, numRows, compressionType
   {
-    std::shared_ptr<arrow::ResizableBuffer> headerBuffer;
-    GLUTEN_THROW_NOT_OK(pool->allocateDirectly(headerBuffer, sizeof(uint32_t)));
+    GLUTEN_ASSIGN_OR_THROW(auto headerBuffer, arrow::AllocateResizableBuffer(sizeof(uint32_t) + sizeof(int32_t), pool));
     memcpy(headerBuffer->mutable_data(), &numRows, sizeof(uint32_t));
     int32_t compressType = static_cast<int32_t>(codec->compression_type());
     memcpy(headerBuffer->mutable_data() + sizeof(uint32_t), &compressType, sizeof(int32_t));
-    arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(0)->type(), headerBuffer, pool));
+    arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(0)->type(), std::move(headerBuffer), pool));
   }
   std::shared_ptr<arrow::ResizableBuffer> lengthBuffer;
   std::shared_ptr<arrow::ResizableBuffer> valueBuffer;
@@ -329,16 +326,15 @@ std::shared_ptr<arrow::RecordBatch> makeUncompressedRecordBatch(
     uint32_t numRows,
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     const std::shared_ptr<arrow::Schema> writeSchema,
-    ShuffleBufferPool* pool) {
+    arrow::MemoryPool* pool) {
   std::vector<std::shared_ptr<arrow::Array>> arrays;
   // header col, numRows, compressionType
   {
-    std::shared_ptr<arrow::ResizableBuffer> headerBuffer;
-    GLUTEN_THROW_NOT_OK(pool->allocateDirectly(headerBuffer, sizeof(uint32_t) * 2));
+    GLUTEN_ASSIGN_OR_THROW(auto headerBuffer, arrow::AllocateResizableBuffer(sizeof(uint32_t) + sizeof(int32_t), pool));
     memcpy(headerBuffer->mutable_data(), &numRows, sizeof(uint32_t));
     int32_t compressType = static_cast<int32_t>(arrow::Compression::type::UNCOMPRESSED);
     memcpy(headerBuffer->mutable_data() + sizeof(uint32_t), &compressType, sizeof(int32_t));
-    arrays.emplace_back(makeBinaryArray(writeSchema->field(0)->type(), headerBuffer, pool));
+    arrays.emplace_back(makeBinaryArray(writeSchema->field(0)->type(), std::move(headerBuffer), pool));
   }
 
   int32_t bufferNum = writeSchema->num_fields() - 1;
@@ -396,7 +392,6 @@ arrow::Status VeloxShuffleWriter::init() {
   rawPartitionLengths_.resize(numPartitions_);
 
   VELOX_CHECK_NOT_NULL(pool_);
-  RETURN_NOT_OK(pool_->init());
   RETURN_NOT_OK(initIpcWriteOptions());
 
   return arrow::Status::OK();
@@ -447,13 +442,12 @@ arrow::Status VeloxShuffleWriter::initPartitions() {
 
 namespace {
 
-std::shared_ptr<arrow::Buffer> convertToArrowBuffer(velox::BufferPtr buffer, ShuffleBufferPool* pool) {
+std::shared_ptr<arrow::Buffer> convertToArrowBuffer(velox::BufferPtr buffer, arrow::MemoryPool* pool) {
   if (buffer == nullptr) {
     return nullptr;
   }
 
-  std::shared_ptr<arrow::ResizableBuffer> arrowBuffer;
-  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(arrowBuffer, buffer->size()));
+  GLUTEN_ASSIGN_OR_THROW(auto arrowBuffer, arrow::AllocateResizableBuffer(buffer->size(), pool));
   memcpy(arrowBuffer->mutable_data(), buffer->asMutable<void>(), buffer->size());
   return arrowBuffer;
 }
@@ -462,7 +456,7 @@ template <velox::TypeKind kind>
 void collectFlatVectorBuffer(
     BaseVector* vector,
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    ShuffleBufferPool* pool) {
+    arrow::MemoryPool* pool) {
   using T = typename velox::TypeTraits<kind>::NativeType;
   auto flatVector = dynamic_cast<const velox::FlatVector<T>*>(vector);
   buffers.emplace_back(convertToArrowBuffer(flatVector->nulls(), pool));
@@ -472,14 +466,14 @@ void collectFlatVectorBuffer(
 void collectFlatVectorBufferStringView(
     BaseVector* vector,
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    ShuffleBufferPool* pool) {
+    arrow::MemoryPool* pool) {
   auto flatVector = dynamic_cast<const velox::FlatVector<StringView>*>(vector);
   buffers.emplace_back(convertToArrowBuffer(flatVector->nulls(), pool));
 
   auto rawValues = flatVector->rawValues();
   // last offset is the totalStringSize
-  std::shared_ptr<arrow::ResizableBuffer> offsetBuffer;
-  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(offsetBuffer, sizeof(int32_t) * (flatVector->size() + 1)));
+  auto offsetBufferSize = sizeof(int32_t) * (flatVector->size() + 1);
+  GLUTEN_ASSIGN_OR_THROW(auto offsetBuffer, arrow::AllocateResizableBuffer(offsetBufferSize, pool));
   int32_t* rawOffset = reinterpret_cast<int32_t*>(offsetBuffer->mutable_data());
   // first offset is 0
   *rawOffset++ = 0;
@@ -488,22 +482,22 @@ void collectFlatVectorBufferStringView(
     offset += rawValues[i].size();
     *rawOffset++ = offset;
   }
-  buffers.emplace_back(offsetBuffer);
-  std::shared_ptr<arrow::ResizableBuffer> valueBuffer;
-  GLUTEN_THROW_NOT_OK(pool->allocateDirectly(valueBuffer, offset));
+  buffers.push_back(std::move(offsetBuffer));
+
+  GLUTEN_ASSIGN_OR_THROW(auto valueBuffer, arrow::AllocateResizableBuffer(offset, pool));
   auto raw = reinterpret_cast<char*>(valueBuffer->mutable_data());
   for (int32_t i = 0; i < flatVector->size(); i++) {
     memcpy(raw, rawValues[i].data(), rawValues[i].size());
     raw += rawValues[i].size();
   }
-  buffers.emplace_back(valueBuffer);
+  buffers.push_back(std::move(valueBuffer));
 }
 
 template <>
 void collectFlatVectorBuffer<velox::TypeKind::VARCHAR>(
     BaseVector* vector,
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    ShuffleBufferPool* pool) {
+    arrow::MemoryPool* pool) {
   collectFlatVectorBufferStringView(vector, buffers, pool);
 }
 
@@ -511,7 +505,7 @@ template <>
 void collectFlatVectorBuffer<velox::TypeKind::VARBINARY>(
     BaseVector* vector,
     std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    ShuffleBufferPool* pool) {
+    arrow::MemoryPool* pool) {
   collectFlatVectorBufferStringView(vector, buffers, pool);
 }
 
@@ -551,7 +545,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
     for (auto& child : rv.children()) {
       if (child->encoding() == VectorEncoding::Simple::FLAT) {
         VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH_ALL(
-            collectFlatVectorBuffer, child->typeKind(), child.get(), buffers, pool_.get());
+            collectFlatVectorBuffer, child->typeKind(), child.get(), buffers, options_.memory_pool.get());
       } else {
         complexChildren.emplace_back(child);
       }
@@ -597,7 +591,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
 
 arrow::Status VeloxShuffleWriter::stop() {
   splitState_ = STOP;
-  setSplitBufferSize(pool_->bytesAllocated());
+  setSplitBufferSize(pool_->bytes_allocated());
   EVAL_START("write", options_.thread_id)
   RETURN_NOT_OK(partitionWriter_->stop());
   if (options_.ipc_memory_pool != options_.memory_pool) {
@@ -944,9 +938,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           if (partition2RowCount_[pid] > 0 && dstAddrs[pid] == nullptr) {
             // init bitmap if it's null, initialize the buffer as true
             auto newSize = std::max(partition2RowCount_[pid], (uint32_t)options_.buffer_size);
-            std::shared_ptr<arrow::Buffer> validityBuffer;
-            auto status = pool_->allocate(validityBuffer, arrow::bit_util::BytesForBits(newSize));
-            ARROW_RETURN_NOT_OK(status);
+            GLUTEN_ASSIGN_OR_THROW(
+                auto validityBuffer, arrow::AllocateBuffer(arrow::bit_util::BytesForBits(newSize), pool_.get()));
             dstAddrs[pid] = const_cast<uint8_t*>(validityBuffer->data());
             memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
             partitionBuffers_[col][pid][kValidityBufferIndex] = std::move(validityBuffer);
@@ -1189,13 +1182,13 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       switch (arrowColumnTypes_[i]->id()) {
         case arrow::BinaryType::type_id:
         case arrow::StringType::type_id: {
-          std::shared_ptr<arrow::Buffer> offsetBuffer;
           std::shared_ptr<arrow::Buffer> validityBuffer = nullptr;
           auto valueBufSize = binaryArrayEmpiricalSize_[binaryIdx] * newSize + 1024;
           ARROW_ASSIGN_OR_RAISE(
-              std::shared_ptr<arrow::Buffer> valueBuffer,
-              arrow::AllocateResizableBuffer(valueBufSize, options_.memory_pool.get()));
-          ARROW_RETURN_NOT_OK(pool_->allocate(offsetBuffer, newSize * sizeof(arrow::StringType::offset_type) + 1));
+              std::shared_ptr<arrow::Buffer> valueBuffer, arrow::AllocateResizableBuffer(valueBufSize, pool_.get()));
+          ARROW_ASSIGN_OR_RAISE(
+              auto offsetBuffer,
+              arrow::AllocateBuffer(newSize * sizeof(arrow::StringType::offset_type) + 1, pool_.get()));
 
           // set the first offset to 0
           uint8_t* offsetaddr = offsetBuffer->mutable_data();
@@ -1206,7 +1199,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
           auto index = fixedWidthColumnCount_ + binaryIdx;
           if (inputHasNull_[index]) {
-            ARROW_RETURN_NOT_OK(pool_->allocate(validityBuffer, arrow::bit_util::BytesForBits(newSize)));
+            ARROW_ASSIGN_OR_RAISE(
+                validityBuffer, arrow::AllocateBuffer(arrow::bit_util::BytesForBits(newSize), pool_.get()));
             // initialize all true once allocated
             memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
             partitionValidityAddrs_[index][partitionId] = validityBuffer->mutable_data();
@@ -1226,20 +1220,25 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           std::shared_ptr<arrow::Buffer> valueBuffer;
           std::shared_ptr<arrow::Buffer> validityBuffer = nullptr;
           if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
-            ARROW_RETURN_NOT_OK(pool_->allocate(valueBuffer, arrow::bit_util::BytesForBits(newSize)));
+            ARROW_ASSIGN_OR_RAISE(
+                valueBuffer, arrow::AllocateBuffer(arrow::bit_util::BytesForBits(newSize), pool_.get()));
           } else if (veloxColumnTypes_[i]->isShortDecimal()) {
-            ARROW_RETURN_NOT_OK(
-                pool_->allocate(valueBuffer, newSize * (arrow::bit_width(arrow::Int64Type::type_id) >> 3)));
+            ARROW_ASSIGN_OR_RAISE(
+                valueBuffer,
+                arrow::AllocateBuffer(newSize * (arrow::bit_width(arrow::Int64Type::type_id) >> 3), pool_.get()));
           } else if (veloxColumnTypes_[i]->kind() == TypeKind::TIMESTAMP) {
-            ARROW_RETURN_NOT_OK(pool_->allocate(valueBuffer, BaseVector::byteSize<Timestamp>(newSize)));
+            ARROW_ASSIGN_OR_RAISE(
+                valueBuffer, arrow::AllocateBuffer(BaseVector::byteSize<Timestamp>(newSize), pool_.get()));
           } else {
-            ARROW_RETURN_NOT_OK(
-                pool_->allocate(valueBuffer, newSize * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3)));
+            ARROW_ASSIGN_OR_RAISE(
+                valueBuffer,
+                arrow::AllocateBuffer(newSize * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3), pool_.get()));
           }
           partitionFixedWidthValueAddrs_[fixedWidthIdx][partitionId] = valueBuffer->mutable_data();
 
           if (inputHasNull_[fixedWidthIdx]) {
-            ARROW_RETURN_NOT_OK(pool_->allocate(validityBuffer, arrow::bit_util::BytesForBits(newSize)));
+            ARROW_ASSIGN_OR_RAISE(
+                validityBuffer, arrow::AllocateBuffer(arrow::bit_util::BytesForBits(newSize), pool_.get()));
             // initialize all true once allocated
             memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
             partitionValidityAddrs_[fixedWidthIdx][partitionId] = validityBuffer->mutable_data();
@@ -1436,14 +1435,14 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   std::shared_ptr<arrow::RecordBatch> VeloxShuffleWriter::makeRecordBatch(
       uint32_t numRows, const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
     if (codec_ == nullptr) {
-      return makeUncompressedRecordBatch(numRows, buffers, writeSchema(), pool_.get());
+      return makeUncompressedRecordBatch(numRows, buffers, writeSchema(), options_.memory_pool.get());
     } else {
       TIME_NANO_START(totalCompressTime_);
       auto rb = makeCompressedRecordBatch(
           numRows,
           buffers,
           compressWriteSchema(),
-          pool_.get(),
+          options_.memory_pool.get(),
           codec_.get(),
           options_.buffer_compress_threshold,
           options_.compression_mode);
@@ -1539,12 +1538,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   }
 
   arrow::Result<int64_t> VeloxShuffleWriter::shrinkPartitionBuffers() {
-    if (splitState_ != STOP) {
-      return 0;
-    }
-
-    LOG(INFO) << "Shrinking...";
-    auto beforeShrink = pool_->bytesAllocated();
+    auto beforeShrink = pool_->bytes_allocated();
     for (auto i = 0; i < simpleColumnIndices_.size(); ++i) {
       auto columnType = schema_->field(simpleColumnIndices_[i])->type()->id();
       for (auto pid = 0; pid < numPartitions_; ++pid) {
@@ -1606,7 +1600,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         }
       }
     }
-    auto shrunken = pool_->bytesAllocated() - beforeShrink;
+    auto shrunken = pool_->bytes_allocated() - beforeShrink;
     LOG(INFO) << shrunken << " bytes released from shrinking.";
     return shrunken;
   }
