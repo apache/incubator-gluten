@@ -70,12 +70,14 @@ SubstraitFileSource::SubstraitFileSource(
     DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos)
     : DB::ISource(getRealHeader(header_), false), context(context_), output_header(header_)
 {
+    String optimization = file_infos.advanced_extension().optimization().value();
+
     if (file_infos.items_size())
     {
         Poco::URI file_uri(file_infos.items().Get(0).uri_file());
         read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
         for (const auto & item : file_infos.items())
-            files.emplace_back(FormatFileUtil::createFile(context, read_buffer_builder, item));
+            files.emplace_back(FormatFileUtil::createFile(context, read_buffer_builder, item, optimization));
 
         /// Decide which tuple type column in output_header should skip flatten.
         file_schema = files[0]->getSchema();

@@ -33,8 +33,11 @@ class ExcelTextFormatFile : public FormatFile
 {
 public:
     explicit ExcelTextFormatFile(
-        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
-        : FormatFile(context_, file_info_, read_buffer_builder_){}
+        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_, String optimization_)
+        : FormatFile(context_, file_info_, read_buffer_builder_)
+    {
+        this->optimization = optimization_;
+    }
 
     ~ExcelTextFormatFile() override = default;
 
@@ -44,6 +47,7 @@ public:
     DB::String getFileFormat() const override { return "exceltext"; }
 
 private:
+    String optimization;
     DB::FormatSettings createFormatSettings();
 };
 

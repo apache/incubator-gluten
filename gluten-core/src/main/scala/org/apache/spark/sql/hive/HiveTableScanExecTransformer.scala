@@ -181,6 +181,9 @@ class HiveTableScanExecTransformer(
         case ("escapeChar", v) => options += ("escape" -> v)
         case ("escape.delim", v) => options += ("escape" -> v)
         case ("serialization.null.format", v) => options += ("nullValue" -> v)
+        case ("number.force", v) =>
+          val nf = if (v == "true") 1 else 0
+          options += ("numberForce" -> nf.toString)
         case (_, _) =>
       }
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]

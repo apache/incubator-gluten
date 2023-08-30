@@ -391,7 +391,7 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
             else
                 break;
         }
-        else if (*buf.position() == '.')
+        else if (*buf.position() == '.' && settings.try_infer_integers == 1)
         {
             ++buf.position();
             if (has_number)
@@ -448,7 +448,7 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
         {
             continue;
         }
-        else if (has_number && !(*buf.position() >= '0' && *buf.position() <= '9')) // process suffix
+        else if (has_number && !(*buf.position() >= '0' && *buf.position() <= '9') && settings.try_infer_integers == 1) // process suffix
         {
             while (!buf.eof())
             {
@@ -467,7 +467,7 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
             }
             break;
         }
-        else if (!has_number && !(*buf.position() >= '0' && *buf.position() <= '9')) // process prefix
+        else if (!has_number && !(*buf.position() >= '0' && *buf.position() <= '9') && settings.try_infer_integers == 1) // process prefix
         {
             if (!((static_cast<UInt8>(*buf.position()) & 0b11000000u) == 0b10000000u)) // learn from UTF8Helpers.h
             {
