@@ -766,8 +766,10 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // Do not hard-code connector ID and allow for connectors other than Hive.
   static const std::string kHiveConnectorId = "test-hive";
 
-  // Velox requires Filter Pushdown must being enabled.
-  bool filterPushdownEnabled = true;
+  // If filter pushdown is enabled, Velox function 'extractFiltersFromRemainingFilter' will extract filters from
+  // remaining filter to subfield filters, which may bring trouble when the related filters are not supported to be
+  // pushed down. In Gluten, we need to make sure only the supported filters are added in subfield filters.
+  bool filterPushdownEnabled = false;
   std::shared_ptr<connector::hive::HiveTableHandle> tableHandle;
   if (!readRel.has_filter()) {
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
