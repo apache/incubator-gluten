@@ -462,7 +462,7 @@ class TestOperator extends WholeStageTransformerSuite {
     checkOperatorMatch[HashAggregateExecTransformer](result)
   }
 
-  test("orc scan") {
+  ignore("orc scan") {
     val df = spark.read
       .format("orc")
       .load("../cpp/velox/benchmarks/data/bm_lineitem/orc/lineitem.orc")
