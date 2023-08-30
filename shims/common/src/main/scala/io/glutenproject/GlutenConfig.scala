@@ -91,7 +91,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def isUseCelebornShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
-      .equals("org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager")
+      .equals("org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager") ||
+      conf
+        .getConfString("spark.shuffle.manager", "sort")
+        .equals("org.apache.spark.shuffle.rss.CHCelebornShuffleManager")
 
   def enableColumnarShuffle: Boolean = conf.getConf(COLUMNAR_SHUFFLE_ENABLED)
 

@@ -64,7 +64,7 @@ private class CHColumnarBatchSerializerInstance(
       private val reader: CHStreamReader = new CHStreamReader(
         in,
         GlutenConfig.getConf.isUseColumnarShuffleManager
-          || CHBackendSettings.isUseCelebornShuffleManager,
+          || GlutenConfig.getConf.isUseCelebornShuffleManager,
         CHBackendSettings.useCustomizedShuffleCodec
       )
       private var cb: ColumnarBatch = _

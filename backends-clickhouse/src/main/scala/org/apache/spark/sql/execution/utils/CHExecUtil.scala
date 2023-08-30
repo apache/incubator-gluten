@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.utils
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.row.SparkRowInfo
 import io.glutenproject.vectorized._
@@ -302,7 +301,7 @@ object CHExecUtil extends Logging {
     val rddWithpartitionKey: RDD[Product2[Int, ColumnarBatch]] =
       if (
         GlutenConfig.getConf.isUseColumnarShuffleManager
-        || CHBackendSettings.isUseCelebornShuffleManager
+        || GlutenConfig.getConf.isUseCelebornShuffleManager
       ) {
         newPartitioning match {
           case _ =>
