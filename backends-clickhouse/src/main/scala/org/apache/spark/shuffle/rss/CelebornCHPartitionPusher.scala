@@ -36,7 +36,7 @@ class CelebornCHPartitionPusher(
 
   @throws[IOException]
   def pushPartitionData(partitionId: Int, buffer: Array[Byte]): Int = {
-    logInfo(s"Push record, size ${buffer.length}.")
+    logDebug(s"Push record, size ${buffer.length}.")
     if (buffer.length > celebornConf.clientPushBufferMaxSize) {
       client.pushData(
         shuffleId,
