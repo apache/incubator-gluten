@@ -100,6 +100,7 @@ abstract class BackendTestSettings {
 
     def excludeAll(reason: String): TestNameFilters = {
       exclusion.clear()
+      inclusion.clear()
       inclusion.add(Include(Seq(TEMP_DISABLE_ALL_TAG, reason).mkString(" ")))
       this
     }
