@@ -109,7 +109,7 @@ install_alinux_3() {
 install_tencentos_3.2() {
     yum -y install \
         wget curl tar zip unzip git which \
-        cmake ninja-build perl-IPC-Cmd autoconf automake libtool \
+        cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
         gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
         flex bison python3 \
         java-8-konajdk
