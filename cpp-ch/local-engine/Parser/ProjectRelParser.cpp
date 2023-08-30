@@ -19,8 +19,7 @@
 #include <Processors/QueryPlan/ExpressionStep.h>
 namespace local_engine
 {
-ProjectRelParser::ProjectRelParser(SerializedPlanParser * plan_paser_)
-    : RelParser(plan_paser_)
+ProjectRelParser::ProjectRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
 {
 }
 DB::QueryPlanPtr
@@ -67,7 +66,7 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
 {
     const auto & generate_rel = rel.generate();
     std::vector<substrait::Expression> expressions;
-    for(int i = 0; i < generate_rel.child_output_size(); ++i)
+    for (int i = 0; i < generate_rel.child_output_size(); ++i)
     {
         expressions.emplace_back(generate_rel.child_output(i));
     }
@@ -83,9 +82,9 @@ ProjectRelParser::parseGenerate(DB::QueryPlanPtr query_plan, const substrait::Re
 
 void registerProjectRelParser(RelParserFactory & factory)
 {
-    auto builder = [](SerializedPlanParser * plan_parser) -> std::unique_ptr<RelParser> {
-        return std::make_unique<ProjectRelParser>(plan_parser);
-    };
+    auto builder
+        = [](SerializedPlanParser * plan_parser) -> std::unique_ptr<RelParser> { return std::make_unique<ProjectRelParser>(plan_parser); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kProject, builder);
+    factory.registerBuilder(substrait::Rel::RelTypeCase::kGenerate, builder);
 }
 }

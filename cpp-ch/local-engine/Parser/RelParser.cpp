@@ -60,6 +60,14 @@ std::optional<String> RelParser::parseFunctionName(UInt32 function_ref, const su
     }
     return plan_parser->getFunctionName(*sigature_name, function);
 }
+DB::QueryPlanPtr RelParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
+{
+    SerializedPlanParser & planParser = *getPlanParser();
+    rel_stack.push_back(&rel);
+    auto query_plan = planParser.parseOp(getSingleInput(rel), rel_stack);
+    rel_stack.pop_back();
+    return parse(std::move(query_plan), rel, rel_stack);
+}
 
 RelParserFactory & RelParserFactory::instance()
 {
@@ -92,6 +100,7 @@ void registerSortRelParser(RelParserFactory & factory);
 void registerExpandRelParser(RelParserFactory & factory);
 void registerAggregateParser(RelParserFactory & factory);
 void registerProjectRelParser(RelParserFactory & factory);
+void registerJoinRelParser(RelParserFactory & factory);
 
 void registerRelParsers()
 {
@@ -101,5 +110,6 @@ void registerRelParsers()
     registerExpandRelParser(factory);
     registerAggregateParser(factory);
     registerProjectRelParser(factory);
+    registerJoinRelParser(factory);
 }
 }

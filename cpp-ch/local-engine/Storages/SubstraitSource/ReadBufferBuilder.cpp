@@ -350,17 +350,19 @@ class S3FileReadBufferBuilder : public ReadBufferBuilder
 public:
     explicit S3FileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_)
     {
-        DB::FileCacheSettings file_cache_settings;
-        file_cache_settings.max_size = static_cast<size_t>(context->getConfigRef().getUInt64("s3.local_cache.max_size", 100L << 30));
-        auto cache_base_path = context->getConfigRef().getString("s3.local_cache.cache_path", "/tmp/gluten/local_cache");
-        if (!fs::exists(cache_base_path))
-            fs::create_directories(cache_base_path);
-        file_cache_settings.base_path = cache_base_path;
-        new_settings = DB::ReadSettings();
+        new_settings = context->getReadSettings();
         new_settings.enable_filesystem_cache = context->getConfigRef().getBool("s3.local_cache.enabled", false);
 
         if (new_settings.enable_filesystem_cache)
         {
+            DB::FileCacheSettings file_cache_settings;
+            file_cache_settings.max_size = static_cast<size_t>(context->getConfigRef().getUInt64("s3.local_cache.max_size", 100L << 30));
+            auto cache_base_path = context->getConfigRef().getString("s3.local_cache.cache_path", "/tmp/gluten/local_cache");
+
+            if (!fs::exists(cache_base_path))
+                fs::create_directories(cache_base_path);
+
+            file_cache_settings.base_path = cache_base_path;
             file_cache = DB::FileCacheFactory::instance().getOrCreate("s3_local_cache", file_cache_settings);
             file_cache->initialize();
 
@@ -428,7 +430,7 @@ public:
 
         DB::StoredObjects stored_objects{DB::StoredObject{key, object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-            std::move(read_buffer_creator), stored_objects, new_settings, /* cache_log */ nullptr, /* use_external_buffer */ false);
+            std::move(read_buffer_creator), stored_objects, new_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
 
         auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
         auto async_reader

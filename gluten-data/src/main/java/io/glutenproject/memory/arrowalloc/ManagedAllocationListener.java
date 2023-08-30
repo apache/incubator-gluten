@@ -16,7 +16,7 @@
  */
 package io.glutenproject.memory.arrowalloc;
 
-import io.glutenproject.memory.MemoryUsage;
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 
 import org.apache.arrow.memory.AllocationListener;
@@ -31,14 +31,14 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
   public static long BLOCK_SIZE = 8L * 1024 * 1024; // 8MB per block
 
   private final MemoryTarget target;
-  private final MemoryUsage sharedUsage;
+  private final SimpleMemoryUsageRecorder sharedUsage;
 
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
   private long bytesReserved = 0L;
   private long blocksReserved = 0L;
 
-  public ManagedAllocationListener(MemoryTarget target, MemoryUsage sharedUsage) {
+  public ManagedAllocationListener(MemoryTarget target, SimpleMemoryUsageRecorder sharedUsage) {
     this.target = target;
     this.sharedUsage = sharedUsage;
   }

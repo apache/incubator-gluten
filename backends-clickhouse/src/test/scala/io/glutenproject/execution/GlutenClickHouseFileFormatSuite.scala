@@ -930,6 +930,29 @@ class GlutenClickHouseFileFormatSuite
       })
   }
 
+  test("knownfloatingpointnormalized") {
+    val sql =
+      s"""
+         |select coalesce(t1.`i1`, 0) + coalesce(t2.`l1`, 0) `c1`,
+         |       coalesce(t1.`d1`, t2.`d2`)                  sf
+         |from (select double_field   d1,
+         |             sum(int_field) i1
+         |      from tt
+         |      group by double_field) t1
+         |         full join (select double_field    d2,
+         |                           avg(long_field) l1
+         |                    from tt
+         |                    group by double_field) t2
+         |                   on t1.d1 = t2.d2
+         |""".stripMargin
+    spark.createDataFrame(genTestData()).createOrReplaceTempView("tt")
+    compareResultsAgainstVanillaSpark(
+      sql,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
   test("read data from orc file format") {
     val filePath = basePath + "/orc_test.orc"
     // val filePath = "/data2/case_insensitive_column_matching.orc"
@@ -953,6 +976,22 @@ class GlutenClickHouseFileFormatSuite
          | from $orcFileFormat.`$filePath`
          |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, compareResult = true, df => {}, noFallBack = false)
+  }
+
+  test("ISSUE-2925 range partition with date32") {
+    spark.createDataFrame(genTestData()).createOrReplaceTempView("t1")
+    spark.createDataFrame(genTestData()).createTempView("t2")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        | select t1.date_field from t1 inner join t2 on t1.date_field = t2.date_field
+        | group by t1.date_field
+        | order by t1.date_field
+        |
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
   }
 
   def testFileFormatBase(
@@ -1022,7 +1061,7 @@ class GlutenClickHouseFileFormatSuite
             i.toByte,
             i % 2 == 0,
             new java.math.BigDecimal(i + ".56"),
-            new java.sql.Date(System.currentTimeMillis()))
+            Date.valueOf(1950 + i / 3 + "-0" + (i % 3 + 1) + "-01"))
         }
     }
   }

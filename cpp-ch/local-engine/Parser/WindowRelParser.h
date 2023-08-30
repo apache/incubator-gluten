@@ -35,6 +35,7 @@ public:
     ~WindowRelParser() override = default;
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
+    const substrait::Rel & getSingleInput(const substrait::Rel & rel) override { return rel.window().input(); }
 
 private:
     struct WindowInfo
@@ -54,7 +55,6 @@ private:
 
         google::protobuf::RepeatedPtrField<substrait::Expression> partition_exprs;
         google::protobuf::RepeatedPtrField<substrait::SortField> sort_fields;
-
     };
     DB::QueryPlanPtr current_plan;
     DB::Block input_header;
@@ -68,8 +68,7 @@ private:
 
     // Build a window description in CH with respect to a window function, since the same
     // function may have different window frame in CH and spark.
-    DB::WindowDescription
-    parseWindowDescription(const WindowInfo & win_info);
+    DB::WindowDescription parseWindowDescription(const WindowInfo & win_info);
     DB::WindowFrame parseWindowFrame(const WindowInfo & win_info);
     DB::WindowFrame::FrameType
     parseWindowFrameType(const std::string & function_name, const substrait::Expression::WindowFunction & window_function);

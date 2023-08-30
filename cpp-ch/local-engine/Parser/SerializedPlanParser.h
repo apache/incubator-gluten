@@ -266,6 +266,7 @@ private:
     friend class AggregateFunctionParser;
     friend class FunctionExecutor;
     friend class NonNullableColumnsResolver;
+    friend class JoinRelParser;
 
 public:
     explicit SerializedPlanParser(const ContextPtr & context);
@@ -301,18 +302,7 @@ private:
     DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
     void
     collectJoinKeys(const substrait::Expression & condition, std::vector<std::pair<int32_t, int32_t>> & join_keys, int32_t right_key_start);
-    DB::QueryPlanPtr
-    parseJoin(substrait::JoinRel join, DB::QueryPlanPtr left, DB::QueryPlanPtr right, std::vector<IQueryPlanStep *> & steps);
-    void parseJoinKeysAndCondition(
-        std::shared_ptr<TableJoin> table_join,
-        substrait::JoinRel & join,
-        DB::QueryPlanPtr & left,
-        DB::QueryPlanPtr & right,
-        const NamesAndTypesList & alias_right,
-        Names & names,
-        std::vector<IQueryPlanStep *> & steps);
 
-    static void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols);
     DB::ActionsDAGPtr parseFunction(
         const Block & header,
         const substrait::Expression & rel,

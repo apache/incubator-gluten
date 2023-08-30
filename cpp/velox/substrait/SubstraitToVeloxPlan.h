@@ -350,7 +350,9 @@ class SubstraitToVeloxPlanConverter {
       std::vector<::substrait::Expression_ScalarFunction>& remainingFunctions,
       const std::vector<::substrait::Expression_SingularOrList>& singularOrLists,
       std::vector<::substrait::Expression_SingularOrList>& subfieldrOrLists,
-      std::vector<::substrait::Expression_SingularOrList>& remainingrOrLists);
+      std::vector<::substrait::Expression_SingularOrList>& remainingrOrLists,
+      const std::vector<TypePtr>& veloxTypeList,
+      const dwio::common::FileFormat& format);
 
   /// Returns whether a function can be pushed down.
   static bool canPushdownCommonFunction(

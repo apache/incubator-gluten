@@ -21,7 +21,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
 import _root_.io.glutenproject.backendsapi.BackendsApiManager
-import _root_.io.glutenproject.memory.MemoryUsage
+import _root_.io.glutenproject.memory.SimpleMemoryUsageRecorder
 import _root_.io.glutenproject.utils.TaskListener
 
 import java.util
@@ -99,7 +99,7 @@ object TaskResources extends TaskListener with Logging {
     getTaskResourceRegistry().getResource(id)
   }
 
-  def getSharedUsage(): MemoryUsage = {
+  def getSharedUsage(): SimpleMemoryUsageRecorder = {
     getTaskResourceRegistry().getSharedUsage()
   }
 
@@ -163,7 +163,7 @@ object TaskResources extends TaskListener with Logging {
 
 // thread safe
 class TaskResourceRegistry extends Logging {
-  private val sharedUsage = new MemoryUsage()
+  private val sharedUsage = new SimpleMemoryUsageRecorder()
   private val resources = new java.util.LinkedHashMap[String, TaskResource]()
   private val resourcesPriorityMapping =
     new java.util.HashMap[Long, java.util.List[TaskResource]]()
@@ -235,7 +235,7 @@ class TaskResourceRegistry extends Logging {
     resources.get(id).asInstanceOf[T]
   }
 
-  private[util] def getSharedUsage(): MemoryUsage = synchronized {
+  private[util] def getSharedUsage(): SimpleMemoryUsageRecorder = synchronized {
     sharedUsage
   }
 }
