@@ -930,6 +930,29 @@ class GlutenClickHouseFileFormatSuite
       })
   }
 
+  test("knownfloatingpointnormalized") {
+    val sql =
+      s"""
+         |select coalesce(t1.`i1`, 0) + coalesce(t2.`l1`, 0) `c1`,
+         |       coalesce(t1.`d1`, t2.`d2`)                  sf
+         |from (select double_field   d1,
+         |             sum(int_field) i1
+         |      from tt
+         |      group by double_field) t1
+         |         full join (select double_field    d2,
+         |                           avg(long_field) l1
+         |                    from tt
+         |                    group by double_field) t2
+         |                   on t1.d1 = t2.d2
+         |""".stripMargin
+    spark.createDataFrame(genTestData()).createOrReplaceTempView("tt")
+    compareResultsAgainstVanillaSpark(
+      sql,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
   test("read data from orc file format") {
     val filePath = basePath + "/orc_test.orc"
     // val filePath = "/data2/case_insensitive_column_matching.orc"

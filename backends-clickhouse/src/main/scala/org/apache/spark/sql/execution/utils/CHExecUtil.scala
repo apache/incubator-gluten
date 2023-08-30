@@ -177,13 +177,13 @@ object CHExecUtil extends Logging {
       partitoining: HashPartitioning,
       childOutput: Seq[Attribute],
       output: Seq[Attribute]): NativePartitioning = {
-    val hashFields = partitoining.expressions.map {
-      case a: Attribute =>
-        BindReferences
-          .bindReference(a, childOutput)
-          .asInstanceOf[BoundReference]
-          .ordinal
-    }
+    val hashFields =
+      partitoining.expressions.map(
+        a =>
+          BindReferences
+            .bindReference(ConverterUtils.getAttrFromExpr(a).toAttribute, childOutput)
+            .asInstanceOf[BoundReference]
+            .ordinal)
     val outputFields = if (output != null) {
       output.map {
         a: Attribute =>
