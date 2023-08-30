@@ -593,8 +593,10 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("output_format_parquet_fixed_string_as_fixed_byte_array", false);
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
+
     /// TODO: set default to true when metrics could be collected while ch query plan optimization is enabled.
-    settings.set("query_plan_enable_optimizations", false);
+    if (!settings.has("query_plan_enable_optimizations"))
+        settings.set("query_plan_enable_optimizations", false);
 }
 
 void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
