@@ -99,7 +99,9 @@ function process_setup_centos8 {
   git checkout scripts/setup-centos8.sh
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos8.sh
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
-
+  sed -i '/^function cmake_install_deps.*/i FB_OS_VERSION=v2022.11.14.00\n function install_folly {\n  github_checkout facebook/folly "${FB_OS_VERSION}"\n  cmake_install -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON\n}\n'     scripts/setup-centos8.sh
+  sed -i '/^cmake_install_deps fmt/a \install_folly' scripts/setup-centos8.sh
+  
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos8.sh
     sed -i '/^cmake_install_deps fmt/a \ \ install_libhdfs3' scripts/setup-centos8.sh
