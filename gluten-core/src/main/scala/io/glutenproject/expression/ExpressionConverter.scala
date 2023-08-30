@@ -282,10 +282,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
 
     TestStats.addExpressionClassName(expr.getClass.getName)
     // Check whether Gluten supports this expression
-    val substraitExprName = ExpressionMappings.expressionsMap.getOrElse(expr.getClass, "")
-    if (substraitExprName.isEmpty) {
-      throw new UnsupportedOperationException(s"Not supported: $expr. ${expr.getClass}")
-    }
+    val substraitExprName = ExpressionMappings.expressionsMap
+      .get(expr.getClass)
+      .getOrElse(
+        throw new UnsupportedOperationException(s"Not found the mapped name for ${expr.getClass}"))
 
     // Check whether each backend supports this expression
     if (
