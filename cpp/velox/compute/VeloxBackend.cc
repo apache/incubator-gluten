@@ -81,7 +81,6 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   }
 
   auto veloxPool = getAggregateVeloxPool(memoryManager);
-  auto ctxPool = veloxPool->addAggregateChild("result_iterator", facebook::velox::memory::MemoryReclaimer::create());
 
   VeloxPlanConverter veloxPlanConverter(inputIters_, getLeafVeloxPool(memoryManager).get(), sessionConf);
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
@@ -97,11 +96,11 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter = std::make_unique<WholeStageResultIteratorMiddleStage>(
-        ctxPool, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
+        veloxPool, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   } else {
     auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        ctxPool, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
+        veloxPool, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
     return std::make_shared<ResultIterator>(std::move(wholestageIter), shared_from_this());
   }
 }
