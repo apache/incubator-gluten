@@ -242,6 +242,18 @@ bool ExcelTextFormatReader::readField(
         || (format_settings.csv.allow_double_quotes && maybe_quote == '\"'))
         has_quote = true;
 
+    auto column_back_func = [&column_size](DB::IColumn & column_back) -> void
+    {
+        if (column_back.isNullable())
+        {
+            ColumnNullable & col = assert_cast<ColumnNullable &>(column_back);
+            if (col.getNullMapData().size() == column_size + 1)
+                col.getNullMapData().pop_back();
+            if (col.getNestedColumn().size() == column_size + 1)
+                col.getNestedColumn().popBack(1);
+        }
+    };
+
     try
     {
         /// Read the column normally.
@@ -254,9 +266,7 @@ bool ExcelTextFormatReader::readField(
             throw;
 
         skipErrorChars(*buf, has_quote, maybe_quote, format_settings);
-
-        if (column.size() == column_size + 1)
-            column.popBack(1);
+        column_back_func(column);
         column.insertDefault();
 
         return false;
@@ -265,13 +275,7 @@ bool ExcelTextFormatReader::readField(
     if (column_size == column.size())
     {
         skipErrorChars(*buf, has_quote, maybe_quote, format_settings);
-        if (column.isNullable())
-        {
-            ColumnNullable & col = assert_cast<ColumnNullable &>(column);
-            if (col.getNullMapData().size() == column_size + 1)
-                col.getNullMapData().pop_back();
-        }
-
+        column_back_func(column);
         column.insertDefault();
         return false;
     }
