@@ -331,13 +331,12 @@ JNIEXPORT jobject Java_io_glutenproject_vectorized_BatchIterator_nativeFetchMetr
     LOCAL_ENGINE_JNI_METHOD_START
     String metrics_json;
     const auto & settings = local_engine::SerializedPlanParser::global_context->getSettingsRef();
+    /// Collect metrics only if optimizations are disabled, otherwise coredump would happen.
     if (!settings.query_plan_enable_optimizations)
     {
         local_engine::LocalExecutor * executor = reinterpret_cast<local_engine::LocalExecutor *>(executor_address);
         metrics_json = local_engine::RelMetricSerializer::serializeRelMetric(executor->getMetric());
     }
-    else
-        metrics_json = "{}";
 
     LOG_DEBUG(&Poco::Logger::get("jni"), "{}", metrics_json);
     jobject native_metrics = env->NewObject(native_metrics_class, native_metrics_constructor, stringTojstring(env, metrics_json.c_str()));
@@ -727,7 +726,6 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_evi
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
     auto size = splitter->splitter->evictPartitions();
-    std::cerr << "spill data: " << size << std::endl;
     return size;
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
