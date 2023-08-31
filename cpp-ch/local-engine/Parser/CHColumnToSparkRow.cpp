@@ -95,7 +95,14 @@ static void writeFixedLengthNonNullableValue(
     for (size_t i = 0; i < num_rows; i++)
     {
         size_t row_idx = masks == nullptr ? i : masks->at(i);
-        writer.unsafeWrite(col.column->getDataAt(row_idx), buffer_address + offsets[i] + field_offset);
+
+        if (writer.getWhichDataType().isDecimal32())
+        {
+            auto field = (*col.column)[row_idx];
+            writer.write(field, buffer_address + offsets[i] + field_offset);
+        }
+        else
+            writer.unsafeWrite(col.column->getDataAt(row_idx), buffer_address + offsets[i] + field_offset);
     }
 }
 
@@ -127,7 +134,6 @@ static void writeFixedLengthNullableValue(
             else
                 writer.unsafeWrite(nested_column.getDataAt(row_idx), buffer_address + offsets[i] + field_offset);
         }
-
     }
 }
 
