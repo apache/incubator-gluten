@@ -432,6 +432,25 @@ class TestOperator extends WholeStageTransformerSuite {
     }
   }
 
+  test("nested decimal arithmetics") {
+    runQueryAndCompare("""
+                         |SELECT
+                         |  l_orderkey,
+                         |  SUM(
+                         |    (l_extendedprice * (1 - l_discount)) +
+                         |    (l_extendedprice * (1 - l_discount) * 0.05)
+                         |  ) AS total_revenue_with_tax
+                         |FROM
+                         |  lineitem
+                         |GROUP BY
+                         |  l_orderkey
+                         |ORDER BY
+                         |  l_orderkey
+                         |""".stripMargin) {
+      checkOperatorMatch[HashAggregateExecTransformer]
+    }
+  }
+
   test("Cast double to decimal") {
     val d = 0.034567890
     val df = Seq(d, d, d, d, d, d, d, d, d, d).toDF("DecimalCol")
