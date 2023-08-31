@@ -212,21 +212,34 @@ VeloxMemoryManager::VeloxMemoryManager(
 }
 
 namespace {
-MemoryUsageStats collectMemoryUsageStatsInternal(const velox::memory::MemoryPool* pool) {
+MemoryUsageStats collectVeloxMemoryPoolUsageStats(const velox::memory::MemoryPool* pool) {
   MemoryUsageStats stats;
   stats.set_current(pool->currentBytes());
   stats.set_peak(pool->peakBytes());
   // walk down root and all children
   pool->visitChildren([&](velox::memory::MemoryPool* pool) -> bool {
-    stats.mutable_children()->emplace(pool->name(), collectMemoryUsageStatsInternal(pool));
+    stats.mutable_children()->emplace(pool->name(), collectVeloxMemoryPoolUsageStats(pool));
     return true;
   });
+  return stats;
+}
+
+MemoryUsageStats collectArrowMemoryPoolUsageStats(const arrow::MemoryPool* pool) {
+  MemoryUsageStats stats;
+  stats.set_current(pool->bytes_allocated());
   return stats;
 }
 } // namespace
 
 const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
-  return collectMemoryUsageStatsInternal(veloxAggregatePool_.get());
+  const MemoryUsageStats& veloxPoolStats = collectVeloxMemoryPoolUsageStats(veloxAggregatePool_.get());
+  const MemoryUsageStats& arrowPoolStats = collectArrowMemoryPoolUsageStats(arrowPool_.get());
+  MemoryUsageStats stats;
+  stats.set_current(veloxPoolStats.current() + arrowPoolStats.current());
+  stats.set_peak(-1L); // we don't know about peak
+  stats.mutable_children()->emplace("velox", std::move(veloxPoolStats));
+  stats.mutable_children()->emplace("arrow", std::move(arrowPoolStats));
+  return stats;
 }
 
 velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
