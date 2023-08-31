@@ -37,7 +37,7 @@ public class CHBlockStripes extends BlockStripes {
 
     public CHBlockStripes(BlockStripes bs) {
         super(bs.originBlockAddress,
-                bs.blockAddresses, bs.headingRowIndice, bs.originBlockNumColumns, bs.noNeedSplit);
+                bs.blockAddresses, bs.headingRowIndice, bs.originBlockNumColumns);
         sparkRowInfo = CHBlockConverterJniWrapper.convertColumnarToRow(
                 originBlockAddress, headingRowIndice);
         headingRowIter = CHExecUtil.getRowIterFromSparkRowInfo(
@@ -76,10 +76,8 @@ public class CHBlockStripes extends BlockStripes {
 
     @Override
     public void release() {
-        if (!noNeedSplit) {
-            for (long address : blockAddresses) {
-                CHBlockConverterJniWrapper.freeBlock(address);
-            }
+        for (long address : blockAddresses) {
+            CHBlockConverterJniWrapper.freeBlock(address);
         }
     }
 }
