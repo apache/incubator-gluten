@@ -32,10 +32,18 @@ function(FIND_ARROW_LIB LIB_NAME)
   if(NOT TARGET Arrow::${LIB_NAME})
     set(ARROW_LIB_FULL_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${LIB_NAME}${ARROW_SHARED_LIBRARY_SUFFIX})
     add_library(Arrow::${LIB_NAME} SHARED IMPORTED)
-    set_target_properties(Arrow::${LIB_NAME}
-        PROPERTIES IMPORTED_LOCATION "${ARROW_HOME}/install/lib/${ARROW_LIB_FULL_NAME}"
-        INTERFACE_INCLUDE_DIRECTORIES
-        "${ARROW_HOME}/install/include")
+    if(EXISTS ${ARROW_LIB_DIR})
+      set_target_properties(Arrow::${LIB_NAME}
+          PROPERTIES IMPORTED_LOCATION "${ARROW_LIB_DIR}/${ARROW_LIB_FULL_NAME}"
+          INTERFACE_INCLUDE_DIRECTORIES
+          "${ARROW_HOME}/install/include")
+    else()
+      # arrow was installed in lib64 at centos.
+      set_target_properties(Arrow::${LIB_NAME}
+          PROPERTIES IMPORTED_LOCATION "${ARROW_LIB64_DIR}/${ARROW_LIB_FULL_NAME}"
+          INTERFACE_INCLUDE_DIRECTORIES
+          "${ARROW_HOME}/install/include")
+    endif()
     find_library(ARROW_LIB_${LIB_NAME}
         NAMES ${ARROW_LIB_FULL_NAME}
         PATHS ${ARROW_LIB_DIR} ${ARROW_LIB64_DIR}
