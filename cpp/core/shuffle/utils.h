@@ -25,8 +25,11 @@
 #include <arrow/type.h>
 #include <arrow/util/io_util.h>
 
+#include <bits/fcntl.h>
+#include <boost/thread.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <fcntl.h>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -106,8 +109,14 @@ static inline arrow::Result<std::string> createTempShuffleFile(const std::string
     ARROW_ASSIGN_OR_RAISE(auto file_info, fs->GetFileInfo(filePath));
     if (file_info.type() == arrow::fs::FileType::NotFound) {
       exist = false;
-      ARROW_ASSIGN_OR_RAISE(auto s, fs->OpenOutputStream(filePath));
-      RETURN_NOT_OK(s->Close());
+      int fd = open(filePath.c_str(), O_CREAT | O_EXCL | O_RDWR, 0666);
+      if (fd < 0) {
+        if (errno == EEXIST) {
+          exist = true;
+        } else {
+          return arrow::Status::IOError("Failed to open local file " + filePath + ", Reason: " + strerror(errno));
+        }
+      }
     }
   }
   return filePath;
