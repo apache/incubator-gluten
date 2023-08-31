@@ -21,9 +21,6 @@
 
 namespace gluten {
 
-/// This pool was tracked by Spark.
-std::shared_ptr<arrow::MemoryPool> asArrowMemoryPool(MemoryAllocator* allocator);
-
 /// This pool was not tracked by Spark, should only used in test.
 std::shared_ptr<arrow::MemoryPool> defaultArrowMemoryPool();
 

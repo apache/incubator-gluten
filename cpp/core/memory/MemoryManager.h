@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "MemoryAllocator.h"
+#include "arrow/memory_pool.h"
 #include "memory.pb.h"
 
 namespace gluten {
@@ -28,7 +28,8 @@ class MemoryManager {
 
   virtual ~MemoryManager() = default;
 
-  virtual MemoryAllocator* getMemoryAllocator() const = 0;
+  // TODO: return raw pointer, caller should not care its lifecycle.
+  virtual std::shared_ptr<arrow::MemoryPool> getArrowMemoryPool() = 0;
 
   virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
 };

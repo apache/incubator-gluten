@@ -769,7 +769,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
 
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
   GLUTEN_CHECK(memoryManager != nullptr, "MemoryManager should not be null.");
-  shuffleWriterOptions.memory_pool = asArrowMemoryPool(memoryManager->getMemoryAllocator());
+  shuffleWriterOptions.memory_pool = memoryManager->getArrowMemoryPool();
   shuffleWriterOptions.ipc_memory_pool = shuffleWriterOptions.memory_pool;
 
   jclass cls = env->FindClass("java/lang/Thread");
@@ -952,7 +952,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
   JNI_METHOD_START
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
   GLUTEN_CHECK(memoryManager != nullptr, "MemoryManager should not be null.");
-  auto pool = asArrowMemoryPool(memoryManager->getMemoryAllocator());
+  auto pool = memoryManager->getArrowMemoryPool();
   ReaderOptions options = ReaderOptions::defaults();
   options.ipc_read_options.memory_pool = pool.get();
   options.ipc_read_options.use_threads = false;
@@ -1191,7 +1191,7 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializ
   env->ReleaseLongArrayElements(handles, batchhandles, JNI_ABORT);
 
   auto backend = createBackend();
-  auto arrowPool = asArrowMemoryPool(memoryManager->getMemoryAllocator());
+  auto arrowPool = memoryManager->getArrowMemoryPool();
   auto serializer = backend->getColumnarBatchSerializer(memoryManager, arrowPool, nullptr);
   auto buffer = serializer->serializeColumnarBatches(batches);
   auto bufferArr = env->NewByteArray(buffer->size());
@@ -1212,7 +1212,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializer
   JNI_METHOD_START
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
   GLUTEN_DCHECK(memoryManager != nullptr, "Memory manager does not exist or has been closed");
-  auto arrowPool = asArrowMemoryPool(memoryManager->getMemoryAllocator());
+  auto arrowPool = memoryManager->getArrowMemoryPool();
   auto backend = createBackend();
   auto serializer =
       backend->getColumnarBatchSerializer(memoryManager, arrowPool, reinterpret_cast<struct ArrowSchema*>(cSchema));

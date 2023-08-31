@@ -17,6 +17,7 @@
 
 #include "VeloxMemoryManager.h"
 
+#include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
 namespace gluten {
@@ -163,12 +164,11 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
 };
 
 velox::memory::IMemoryManager::Options VeloxMemoryManager::getOptions(
-    std::shared_ptr<MemoryAllocator> allocator,
-    std::shared_ptr<AllocationListener> listener) const {
+    std::shared_ptr<MemoryAllocator> allocator) const {
   auto veloxAlloc = velox::memory::MemoryAllocator::getInstance();
 
 #ifdef GLUTEN_ENABLE_HBM
-  wrappedAlloc_ = std::move(std::make_unique<VeloxMemoryAllocator>(allocator.get(), veloxAlloc));
+  wrappedAlloc_ = std::make_unique<VeloxMemoryAllocator>(allocator.get(), veloxAlloc);
   veloxAlloc = wrappedAlloc_.get();
 #endif
 
@@ -193,13 +193,14 @@ velox::memory::IMemoryManager::Options VeloxMemoryManager::getOptions(
 }
 
 VeloxMemoryManager::VeloxMemoryManager(
-    const std::string& name,
+    std::string name,
     std::shared_ptr<MemoryAllocator> allocator,
     std::shared_ptr<AllocationListener> listener)
     : MemoryManager(), name_(name), listener_(listener) {
   glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_);
+  arrowPool_ = std::make_shared<ArrowMemoryPool>(glutenAlloc_.get());
 
-  auto options = getOptions(allocator, listener_);
+  auto options = getOptions(allocator);
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(options);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(
