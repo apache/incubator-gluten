@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.shuffle.rss
+package org.apache.spark.shuffle.gluten.celeborn
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging

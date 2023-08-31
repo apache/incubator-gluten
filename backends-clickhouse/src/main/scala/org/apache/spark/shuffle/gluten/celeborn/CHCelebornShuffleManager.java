@@ -14,13 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.shuffle.rss;
+package org.apache.spark.shuffle.gluten.celeborn;
 
 import io.glutenproject.exception.GlutenException;
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
 import org.apache.celeborn.common.identity.UserIdentifier;
+import org.apache.celeborn.common.protocol.CompressionCodec;
 import org.apache.celeborn.common.protocol.ShuffleMode;
 import org.apache.spark.ShuffleDependency;
 import org.apache.spark.SparkConf;
@@ -69,6 +70,8 @@ public class CHCelebornShuffleManager implements ShuffleManager {
     }
     this.conf = conf;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
+    // disable celeborn compress
+    this.celebornConf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(), CompressionCodec.NONE.name());
     this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
   }
 

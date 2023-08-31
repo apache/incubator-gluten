@@ -16,7 +16,7 @@
  */
 package io.glutenproject.vectorized;
 
-import org.apache.spark.shuffle.rss.CelebornCHPartitionPusher;
+import org.apache.spark.shuffle.gluten.celeborn.CelebornCHPartitionPusher;
 
 import java.io.IOException;
 

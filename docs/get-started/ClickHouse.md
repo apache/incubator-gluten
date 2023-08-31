@@ -676,7 +676,7 @@ spark.dynamicAllocation.enabled false
 #### Celeborn Columnar Shuffle Support
 The native Celeborn support can be enabled by the following configuration
 ```
-spark.shuffle.manager=org.apache.spark.shuffle.rss.CHCelebornShuffleManager
+spark.shuffle.manager=org.apache.spark.shuffle.gluten.celeborn.CHCelebornShuffleManager
 ```
 
 quickly start a celeborn cluster

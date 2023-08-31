@@ -31,7 +31,9 @@ class GlutenClickHouseRSSColumnarShuffleAQESuite
   /** Run Gluten + ClickHouse Backend with ColumnarShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.shuffle.manager", "org.apache.spark.shuffle.rss.CHCelebornShuffleManager")
+      .set(
+        "spark.shuffle.manager",
+        "org.apache.spark.shuffle.gluten.celeborn.CHCelebornShuffleManager")
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
