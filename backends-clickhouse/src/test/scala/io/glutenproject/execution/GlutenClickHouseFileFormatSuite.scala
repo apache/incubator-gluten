@@ -267,7 +267,11 @@ class GlutenClickHouseFileFormatSuite
         StructField.apply("long_field", LongType, nullable = true),
         StructField.apply("float_field", FloatType, nullable = true),
         StructField.apply("double_field", DoubleType, nullable = true),
-        StructField.apply("short_field", ShortType, nullable = true)
+        StructField.apply("short_field", ShortType, nullable = true),
+        StructField.apply("bool_field", BooleanType, nullable = true),
+        StructField.apply("timestamp_field", TimestampType, nullable = true),
+        StructField.apply("date_field", DateType, nullable = true),
+        StructField.apply("string_field", StringType, nullable = true)
       ))
 
     val options = new util.HashMap[String, String]()
@@ -280,8 +284,11 @@ class GlutenClickHouseFileFormatSuite
       .csv(file_path)
       .toDF()
 
+    val tm1 = Timestamp.valueOf("2023-08-30 18:00:01")
+    val dt1 = Date.valueOf("2023-08-30")
     val dataCorrect = new util.ArrayList[Row]()
-    dataCorrect.add(Row(1, 1.toLong, 1.toFloat, 1.toDouble, 1.toShort))
+    dataCorrect.add(Row(1, 1.toLong, 1.toFloat, 1.toDouble, 1.toShort, true, tm1, dt1, null))
+    dataCorrect.add(Row(2, 2.toLong, 2.toFloat, 2.toDouble, 2.toShort, false, tm1, dt1, null))
 
     var expectedAnswer: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
