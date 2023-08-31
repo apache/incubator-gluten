@@ -60,12 +60,9 @@ int64_t initializeQuery(ReservationListenerWrapperPtr listener)
     thread_status = allocator_context->thread_status;
     query_scope = allocator_context->query_scope;
     auto allocator_id = reinterpret_cast<int64_t>(allocator_context.get());
-    CurrentMemoryTracker::before_alloc = [listener](Int64 size, bool throw_if_memory_exceed) -> void
+    CurrentMemoryTracker::before_alloc = [listener](Int64 size, bool /*throw_if_memory_exceed*/) -> void
     {
-        if (throw_if_memory_exceed)
-            listener->reserveOrThrow(size);
-        else
-            listener->reserve(size);
+        listener->reserve(size);
     };
     CurrentMemoryTracker::before_free = [listener](Int64 size) -> void { listener->free(size); };
     allocator_map.insert(allocator_id, allocator_context);
