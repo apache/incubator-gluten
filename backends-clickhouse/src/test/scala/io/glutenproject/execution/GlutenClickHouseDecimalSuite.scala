@@ -17,9 +17,9 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{DataFrame, Row}
 
 import java.util
 case class DataTypesWithNonPrimitiveType(
