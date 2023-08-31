@@ -30,7 +30,7 @@ import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 object ExpressionMappings {
 
   /** Mapping Spark scalar expression to Substrait function name */
-  private val SCALAR_SIGS: Seq[Sig] = Seq(
+  private lazy val SCALAR_SIGS: Seq[Sig] = Seq(
     Sig[Add](ADD),
     Sig[Asinh](ASINH),
     Sig[Acosh](ACOSH),
