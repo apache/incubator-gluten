@@ -29,6 +29,7 @@ import org.apache.spark.sql.types.StructType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -174,9 +175,13 @@ public class LocalFilesNode implements Serializable {
 
           io.substrait.proto.AdvancedExtension.Builder builderForValue =
               ReadRel.LocalFiles.newBuilder().getAdvancedExtensionBuilder();
-          String numberForce = fileReadProperties.getOrDefault("numberForce", "0");
+
+          Map<String, String> optimizationMap = new HashMap<>();
+          optimizationMap.put("numberForce", fileReadProperties.getOrDefault("numberForce", "0"));
+          String optimizationContent = optimizationMap.toString();
           builderForValue
-              .setOptimization(Any.newBuilder().setValue(ByteString.copyFromUtf8(numberForce)))
+              .setOptimization(
+                  Any.newBuilder().setValue(ByteString.copyFromUtf8(optimizationContent)))
               .build();
           localFilesBuilder.setAdvancedExtension(builderForValue);
           break;

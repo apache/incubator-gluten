@@ -28,5 +28,6 @@ class StringUtils
 public:
     static PartitionValues parsePartitionTablePath(const std::string & file);
     static bool isNullPartitionValue(const std::string & value);
+    static std::string getValueFromMapString(const std::string & map, const std::string key);
 };
 }

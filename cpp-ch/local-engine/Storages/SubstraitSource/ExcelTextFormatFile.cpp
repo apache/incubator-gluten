@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #include "ExcelTextFormatFile.h"
-
+#include <Common/StringUtils.h>
 
 #include <memory>
 #include <string>
@@ -92,7 +92,7 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     std::string delimiter = file_info.text().field_delimiter();
     format_settings.csv.delimiter = *delimiter.data();
 
-    if (optimization == "1")
+    if (StringUtils::getValueFromMapString(optimization, "numberForce") == "1")
         format_settings.try_infer_integers = true;
     else
         format_settings.try_infer_integers = false;
