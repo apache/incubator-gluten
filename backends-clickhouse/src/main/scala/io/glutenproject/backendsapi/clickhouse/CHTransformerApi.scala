@@ -136,15 +136,17 @@ class CHTransformerApi extends TransformerApi with Logging {
           nativeConfMap.put(groupBySpillKey, groupBySpillValue.toLong.toString)
         }
 
+        // Only set default max_bytes_before_external_join for CH when join_algorithm is grace_hash
         val joinAlgorithmKey = settingPrefix + "join_algorithm";
-        if (!nativeConfMap.containsKey(joinAlgorithmKey)) {
-          nativeConfMap.put(joinAlgorithmKey, "grace_hash")
-        }
-
-        val joinSpillKey = settingPrefix + "max_bytes_in_join";
-        if (!nativeConfMap.containsKey(joinSpillKey)) {
-          val joinSpillValue = offHeapSize * 0.7
-          nativeConfMap.put(joinSpillKey, joinSpillValue.toLong.toString)
+        if (
+          nativeConfMap.containsKey(joinAlgorithmKey) &&
+          nativeConfMap.get(joinAlgorithmKey) == "grace_hash"
+        ) {
+          val joinSpillKey = settingPrefix + "max_bytes_in_join";
+          if (!nativeConfMap.containsKey(joinSpillKey)) {
+            val joinSpillValue = offHeapSize * 0.7
+            nativeConfMap.put(joinSpillKey, joinSpillValue.toLong.toString)
+          }
         }
       }
     }
