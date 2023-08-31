@@ -99,9 +99,7 @@ function process_setup_centos8 {
   git checkout scripts/setup-centos8.sh
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos8.sh
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
-
-  # install gtest
-  sed -i '/^cmake_install_deps fmt/a \ \ install_gtest' scripts/setup-centos8.sh
+  sed -i '/^function cmake_install_deps.*/i FB_OS_VERSION=v2022.11.14.00\n function install_folly {\n  github_checkout facebook/folly "${FB_OS_VERSION}"\n  cmake_install -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON\n}\n'     scripts/setup-centos8.sh
   sed -i '/^cmake_install_deps fmt/a \install_folly' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
@@ -110,7 +108,8 @@ function process_setup_centos8 {
     sed -i '/^dnf_install ninja-build/a\ \ yasm \\' scripts/setup-centos8.sh
   fi
   if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
-    sed -i '/^cmake_install_deps fmt/a \ \ install_protobuf' scripts/setup-centos8.sh
+    sed -i '/^function cmake_install_deps.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-centos8.sh
+    sed -i '/^cmake_install_deps fmt/a \\install_protobuf' scripts/setup-centos8.sh
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^cmake_install_deps fmt/a \ \ install_awssdk' scripts/setup-centos8.sh

@@ -33,5 +33,5 @@ dnf install -y --setopt=install_weak_deps=False ccache gcc-toolset-9 git wget wh
   openssl-devel re2-devel libzstd-devel lz4-devel double-conversion-devel \
   curl-devel cmake libicu-devel
 
-yum -y update && yum clean all && yum install -y java-1.8.0-openjdk-devel
+yum -y update && yum clean all && yum install -y java-1.8.0-openjdk-devel patch
 dnf -y install gcc-toolset-9-gcc gcc-toolset-9-gcc-c++
