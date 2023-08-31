@@ -71,7 +71,8 @@ public class CHCelebornShuffleManager implements ShuffleManager {
     this.conf = conf;
     this.celebornConf = SparkUtils.fromSparkConf(conf);
     // disable celeborn compress
-    this.celebornConf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(), CompressionCodec.NONE.name());
+    this.celebornConf.set(CelebornConf.SHUFFLE_COMPRESSION_CODEC().key(),
+            CompressionCodec.NONE.name());
     this.fallbackPolicyRunner = new CelebornShuffleFallbackPolicyRunner(celebornConf);
   }
 
