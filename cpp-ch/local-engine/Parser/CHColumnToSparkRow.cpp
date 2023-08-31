@@ -92,17 +92,23 @@ static void writeFixedLengthNonNullableValue(
     const MaskVector & masks = nullptr)
 {
     FixedLengthDataWriter writer(col.type);
-    for (size_t i = 0; i < num_rows; i++)
-    {
-        size_t row_idx = masks == nullptr ? i : masks->at(i);
 
-        if (writer.getWhichDataType().isDecimal32())
+    if (writer.getWhichDataType().isDecimal32())
+    {
+        for (size_t i = 0; i < num_rows; i++)
         {
+            size_t row_idx = masks == nullptr ? i : masks->at(i);
             auto field = (*col.column)[row_idx];
             writer.write(field, buffer_address + offsets[i] + field_offset);
         }
-        else
+    }
+    else
+    {
+        for (size_t i = 0; i < num_rows; i++)
+        {
+            size_t row_idx = masks == nullptr ? i : masks->at(i);
             writer.unsafeWrite(col.column->getDataAt(row_idx), buffer_address + offsets[i] + field_offset);
+        }
     }
 }
 
@@ -119,18 +125,28 @@ static void writeFixedLengthNullableValue(
     const auto & null_map = nullable_column->getNullMapData();
     const auto & nested_column = nullable_column->getNestedColumn();
     FixedLengthDataWriter writer(col.type);
-    for (size_t i = 0; i < num_rows; i++)
+
+    if (writer.getWhichDataType().isDecimal32())
     {
-        size_t row_idx = masks == nullptr ? i : masks->at(i);
-        if (null_map[row_idx])
-            bitSet(buffer_address + offsets[i], col_index);
-        else
+        for (size_t i = 0; i < num_rows; i++)
         {
-            if (writer.getWhichDataType().isDecimal32())
+            size_t row_idx = masks == nullptr ? i : masks->at(i);
+            if (null_map[row_idx])
+                bitSet(buffer_address + offsets[i], col_index);
+            else
             {
                 auto field = (*col.column)[row_idx];
                 writer.write(field, buffer_address + offsets[i] + field_offset);
             }
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < num_rows; i++)
+        {
+            size_t row_idx = masks == nullptr ? i : masks->at(i);
+            if (null_map[row_idx])
+                bitSet(buffer_address + offsets[i], col_index);
             else
                 writer.unsafeWrite(nested_column.getDataAt(row_idx), buffer_address + offsets[i] + field_offset);
         }
