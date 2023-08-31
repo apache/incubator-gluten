@@ -79,10 +79,9 @@ trait TransformSupport extends GlutenPlan {
   }
 }
 
-case class WholeStageTransformer(child: SparkPlan)(
-    val transformStageId: Int,
-    val materializeInput: Boolean = false)
-  extends UnaryExecNode
+case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = false)(
+    val transformStageId: Int
+) extends UnaryExecNode
   with TransformSupport {
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
@@ -375,5 +374,5 @@ case class WholeStageTransformer(child: SparkPlan)(
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformer =
-    copy(child = newChild)(transformStageId, materializeInput)
+    copy(child = newChild, materializeInput = materializeInput)(transformStageId)
 }
