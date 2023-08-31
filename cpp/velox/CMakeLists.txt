@@ -319,7 +319,7 @@ endif()
 if(Thrift_FOUND)
   target_link_libraries(velox PUBLIC thrift::thrift)
 else()
-  add_velox_dependency(thrift "${ARROW_HOME}/arrow_ep/cpp/build/thrift_ep-install/lib/libthrift.a")
+  add_velox_dependency(thrift "${ARROW_HOME}/src/arrow_ep-build/thrift_ep-install/lib/libthrift.a")
 endif()
 
 if(BUILD_TESTS)
