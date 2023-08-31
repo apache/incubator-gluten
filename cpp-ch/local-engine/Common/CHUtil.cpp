@@ -594,9 +594,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
 
-    /// TODO: set default to true when metrics could be collected while ch query plan optimization is enabled.
-    if (!settings.has("query_plan_enable_optimizations"))
-        settings.set("query_plan_enable_optimizations", false);
+
 }
 
 void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
