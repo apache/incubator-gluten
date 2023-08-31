@@ -46,8 +46,6 @@ class VeloxMemoryManager final : public MemoryManager {
   const MemoryUsageStats collectMemoryUsageStats() const override;
 
  private:
-  facebook::velox::memory::IMemoryManager::Options getOptions(std::shared_ptr<MemoryAllocator> allocator) const;
-
   std::string name_;
 
 #ifdef GLUTEN_ENABLE_HBM
