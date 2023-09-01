@@ -339,6 +339,14 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("select last_day(day) from date_table") { _ => }
   }
 
+  test("test issue: https://github.com/oap-project/gluten/issues/2340") {
+    val sql =
+      """
+        |select array(null, array(id,2))  from range(10)
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test str2map") {
     val sql1 =
       """
