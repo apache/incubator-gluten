@@ -164,6 +164,9 @@ class TaskResourceRegistry extends Logging {
   private val sharedUsage = new SimpleMemoryUsageRecorder()
   private val resources = new util.HashMap[String, TaskResource]()
   type TaskResourceWithOrdering = (TaskResource, Int)
+  // A monotonically increasing accumulator to specify the task resource ordering
+  // when inserting into queue
+  private var resourceOrdering = 0
   // 0 is lowest, Int.MaxValue is highest
   private val resourcesPriorityQueue =
     new PriorityQueue[TaskResourceWithOrdering](new Comparator[TaskResourceWithOrdering]() {
@@ -180,7 +183,8 @@ class TaskResourceRegistry extends Logging {
 
   private def addResource0(id: String, resource: TaskResource): Unit = synchronized {
     resources.put(id, resource)
-    resourcesPriorityQueue.add((resource, resourcesPriorityQueue.size()))
+    resourcesPriorityQueue.add((resource, resourceOrdering))
+    resourceOrdering += 1
   }
 
   /** Release all managed resources according to priority and reversed order */
@@ -195,6 +199,7 @@ class TaskResourceRegistry extends Logging {
       }
     }
     resources.clear()
+    resourceOrdering = 0
   }
 
   private[util] def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T =
