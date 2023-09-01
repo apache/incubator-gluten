@@ -106,15 +106,13 @@ static inline arrow::Result<std::string> createTempShuffleFile(const std::string
     filePath = arrow::fs::internal::ConcatAbstractPath(dir, "temp_shuffle_" + generateUuid());
     ARROW_ASSIGN_OR_RAISE(auto file_info, fs->GetFileInfo(filePath));
     if (file_info.type() == arrow::fs::FileType::NotFound) {
-      exist = false;
       int fd = open(filePath.c_str(), O_CREAT | O_EXCL | O_RDWR, 0666);
       if (fd < 0) {
-        if (errno == EEXIST) {
-          exist = true;
-        } else {
+        if (errno != EEXIST) {
           return arrow::Status::IOError("Failed to open local file " + filePath + ", Reason: " + strerror(errno));
         }
       } else {
+        exist = false;
         close(fd);
       }
     }
