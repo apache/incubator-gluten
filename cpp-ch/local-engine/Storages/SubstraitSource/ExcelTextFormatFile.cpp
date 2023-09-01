@@ -98,12 +98,10 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     if (delimiter == "\t" || delimiter == " ")
         format_settings.csv.allow_whitespace_or_tab_as_delimiter = true;
 
-    format_settings.csv.null_representation = file_info.text().null_value();
+    if (!file_info.text().null_value().empty())
+        format_settings.csv.null_representation = file_info.text().null_value();
 
-    if (format_settings.csv.null_representation.empty())
-        format_settings.csv.empty_as_default = true;
-    else
-        format_settings.csv.empty_as_default = false;
+    format_settings.csv.empty_as_default = true;
 
     char quote = *file_info.text().quote().data();
     if (quote == '\'')
@@ -286,8 +284,7 @@ bool ExcelTextFormatReader::readField(
 void ExcelTextFormatReader::preSkipNullValue()
 {
     /// null_representation is empty and value is "" or '' in spark return null
-    if (format_settings.csv.null_representation.empty()
-        && ((format_settings.csv.allow_single_quotes && *buf->position() == '\'')
+    if(((format_settings.csv.allow_single_quotes && *buf->position() == '\'')
             || (format_settings.csv.allow_double_quotes && *buf->position() == '\"')))
     {
         PeekableReadBufferCheckpoint checkpoint{*buf, false};
