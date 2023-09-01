@@ -98,12 +98,10 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     if (delimiter == "\t" || delimiter == " ")
         format_settings.csv.allow_whitespace_or_tab_as_delimiter = true;
 
-    format_settings.csv.null_representation = file_info.text().null_value();
+    if (!file_info.text().null_value().empty())
+        format_settings.csv.null_representation = file_info.text().null_value();
 
-    if (format_settings.csv.null_representation.empty())
-        format_settings.csv.empty_as_default = true;
-    else
-        format_settings.csv.empty_as_default = false;
+    format_settings.csv.empty_as_default = true;
 
     char quote = *file_info.text().quote().data();
     if (quote == '\'')
@@ -242,6 +240,18 @@ bool ExcelTextFormatReader::readField(
         || (format_settings.csv.allow_double_quotes && maybe_quote == '\"'))
         has_quote = true;
 
+    auto column_back_func = [&column_size](DB::IColumn & column_back) -> void
+    {
+        if (column_back.isNullable())
+        {
+            ColumnNullable & col = assert_cast<ColumnNullable &>(column_back);
+            if (col.getNullMapData().size() == column_size + 1)
+                col.getNullMapData().pop_back();
+            if (col.getNestedColumn().size() == column_size + 1)
+                col.getNestedColumn().popBack(1);
+        }
+    };
+
     try
     {
         /// Read the column normally.
@@ -254,9 +264,7 @@ bool ExcelTextFormatReader::readField(
             throw;
 
         skipErrorChars(*buf, has_quote, maybe_quote, format_settings);
-
-        if (column.size() == column_size + 1)
-            column.popBack(1);
+        column_back_func(column);
         column.insertDefault();
 
         return false;
@@ -265,13 +273,7 @@ bool ExcelTextFormatReader::readField(
     if (column_size == column.size())
     {
         skipErrorChars(*buf, has_quote, maybe_quote, format_settings);
-        if (column.isNullable())
-        {
-            ColumnNullable & col = assert_cast<ColumnNullable &>(column);
-            if (col.getNullMapData().size() == column_size + 1)
-                col.getNullMapData().pop_back();
-        }
-
+        column_back_func(column);
         column.insertDefault();
         return false;
     }
@@ -282,8 +284,7 @@ bool ExcelTextFormatReader::readField(
 void ExcelTextFormatReader::preSkipNullValue()
 {
     /// null_representation is empty and value is "" or '' in spark return null
-    if (format_settings.csv.null_representation.empty()
-        && ((format_settings.csv.allow_single_quotes && *buf->position() == '\'')
+    if(((format_settings.csv.allow_single_quotes && *buf->position() == '\'')
             || (format_settings.csv.allow_double_quotes && *buf->position() == '\"')))
     {
         PeekableReadBufferCheckpoint checkpoint{*buf, false};

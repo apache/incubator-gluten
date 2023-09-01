@@ -227,7 +227,7 @@ void readExcelCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::
     }
 }
 
-void deserializeExcelTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings, const String & escape_value)
+void deserializeExcelStringTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings, const String & escape_value)
 {
     excelRead(column, [&](ColumnString::Chars & data) { readExcelCSVStringInto(data, istr, settings.csv, escape_value); });
 }

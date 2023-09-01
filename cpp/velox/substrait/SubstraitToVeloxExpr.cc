@@ -85,6 +85,22 @@ ArrayVectorPtr makeArrayVector(const VectorPtr& elements) {
   return std::make_shared<ArrayVector>(elements->pool(), ARRAY(elements->type()), nullptr, 1, offsets, sizes, elements);
 }
 
+MapVectorPtr makeMapVector(const VectorPtr& keyVector, const VectorPtr& valueVector) {
+  BufferPtr offsets = allocateOffsets(1, keyVector->pool());
+  BufferPtr sizes = allocateOffsets(1, keyVector->pool());
+  sizes->asMutable<vector_size_t>()[0] = keyVector->size();
+
+  return std::make_shared<MapVector>(
+      keyVector->pool(),
+      MAP(keyVector->type(), valueVector->type()),
+      nullptr,
+      1,
+      offsets,
+      sizes,
+      keyVector,
+      valueVector);
+}
+
 RowVectorPtr makeRowVector(const std::vector<VectorPtr>& children) {
   std::vector<std::shared_ptr<const Type>> types;
   types.resize(children.size());
@@ -100,6 +116,12 @@ ArrayVectorPtr makeEmptyArrayVector(memory::MemoryPool* pool) {
   BufferPtr offsets = allocateOffsets(1, pool);
   BufferPtr sizes = allocateOffsets(1, pool);
   return std::make_shared<ArrayVector>(pool, ARRAY(UNKNOWN()), nullptr, 1, offsets, sizes, nullptr);
+}
+
+MapVectorPtr makeEmptyMapVector(memory::MemoryPool* pool) {
+  BufferPtr offsets = allocateOffsets(1, pool);
+  BufferPtr sizes = allocateOffsets(1, pool);
+  return std::make_shared<MapVector>(pool, MAP(UNKNOWN(), UNKNOWN()), nullptr, 1, offsets, sizes, nullptr, nullptr);
 }
 
 RowVectorPtr makeEmptyRowVector(memory::MemoryPool* pool) {
@@ -127,7 +149,7 @@ void setLiteralValue(const ::substrait::Expression::Literal& literal, FlatVector
 
 template <TypeKind kind>
 VectorPtr constructFlatVector(
-    const ::substrait::Expression::Literal& listLiteral,
+    std::function<::substrait::Expression::Literal(vector_size_t /* idx */)> elementAt,
     const vector_size_t size,
     const TypePtr& type,
     memory::MemoryPool* pool) {
@@ -136,9 +158,9 @@ VectorPtr constructFlatVector(
   using T = typename TypeTraits<kind>::NativeType;
   auto flatVector = vector->as<FlatVector<T>>();
 
-  vector_size_t index = 0;
-  for (auto child : listLiteral.list().values()) {
-    setLiteralValue(child, flatVector, index++);
+  for (int i = 0; i < size; i++) {
+    auto element = elementAt(i);
+    setLiteralValue(element, flatVector, i);
   }
   return vector;
 }
@@ -363,6 +385,10 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
       auto constantVector = BaseVector::wrapInConstant(1, 0, literalsToArrayVector(substraitLit));
       return std::make_shared<const core::ConstantTypedExpr>(constantVector);
     }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kMap: {
+      auto constantVector = BaseVector::wrapInConstant(1, 0, literalsToMapVector(substraitLit));
+      return std::make_shared<const core::ConstantTypedExpr>(constantVector);
+    }
     case ::substrait::Expression_Literal::LiteralTypeCase::kBinary:
       return std::make_shared<core::ConstantTypedExpr>(VARBINARY(), variant::binary(substraitLit.binary()));
     case ::substrait::Expression_Literal::LiteralTypeCase::kStruct: {
@@ -400,56 +426,93 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
   }
 }
 
-ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substrait::Expression::Literal& listLiteral) {
-  auto childSize = listLiteral.list().values().size();
+ArrayVectorPtr SubstraitVeloxExprConverter::literalsToArrayVector(const ::substrait::Expression::Literal& literal) {
+  auto childSize = literal.list().values().size();
   if (childSize == 0) {
     return makeEmptyArrayVector(pool_);
   }
-  auto typeCase = listLiteral.list().values(0).literal_type_case();
-  switch (typeCase) {
+  auto childTypeCase = literal.list().values(0).literal_type_case();
+  auto elementAtFunc = [&](vector_size_t idx) { return literal.list().values(idx); };
+  auto childVector = literalsToVector(childTypeCase, childSize, literal, elementAtFunc);
+  return makeArrayVector(childVector);
+}
+
+MapVectorPtr SubstraitVeloxExprConverter::literalsToMapVector(const ::substrait::Expression::Literal& literal) {
+  auto childSize = literal.map().key_values().size();
+  if (childSize == 0) {
+    return makeEmptyMapVector(pool_);
+  }
+  auto keyTypeCase = literal.map().key_values(0).key().literal_type_case();
+  auto valueTypeCase = literal.map().key_values(0).value().literal_type_case();
+  auto keyAtFunc = [&](vector_size_t idx) { return literal.map().key_values(idx).key(); };
+  auto valueAtFunc = [&](vector_size_t idx) { return literal.map().key_values(idx).value(); };
+  auto keyVector = literalsToVector(keyTypeCase, childSize, literal, keyAtFunc);
+  auto valueVector = literalsToVector(valueTypeCase, childSize, literal, valueAtFunc);
+  return makeMapVector(keyVector, valueVector);
+}
+
+VectorPtr SubstraitVeloxExprConverter::literalsToVector(
+    ::substrait::Expression_Literal::LiteralTypeCase childTypeCase,
+    vector_size_t childSize,
+    const ::substrait::Expression::Literal& literal,
+    std::function<::substrait::Expression::Literal(vector_size_t /* idx */)> elementAtFunc) {
+  switch (childTypeCase) {
     case ::substrait::Expression_Literal::LiteralTypeCase::kBoolean:
-      return makeArrayVector(constructFlatVector<TypeKind::BOOLEAN>(listLiteral, childSize, BOOLEAN(), pool_));
+      return constructFlatVector<TypeKind::BOOLEAN>(elementAtFunc, childSize, BOOLEAN(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kI8:
-      return makeArrayVector(constructFlatVector<TypeKind::TINYINT>(listLiteral, childSize, TINYINT(), pool_));
+      return constructFlatVector<TypeKind::TINYINT>(elementAtFunc, childSize, TINYINT(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kI16:
-      return makeArrayVector(constructFlatVector<TypeKind::SMALLINT>(listLiteral, childSize, SMALLINT(), pool_));
+      return constructFlatVector<TypeKind::SMALLINT>(elementAtFunc, childSize, SMALLINT(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kI32:
-      return makeArrayVector(constructFlatVector<TypeKind::INTEGER>(listLiteral, childSize, INTEGER(), pool_));
+      return constructFlatVector<TypeKind::INTEGER>(elementAtFunc, childSize, INTEGER(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kFp32:
-      return makeArrayVector(constructFlatVector<TypeKind::REAL>(listLiteral, childSize, REAL(), pool_));
+      return constructFlatVector<TypeKind::REAL>(elementAtFunc, childSize, REAL(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kI64:
-      return makeArrayVector(constructFlatVector<TypeKind::BIGINT>(listLiteral, childSize, BIGINT(), pool_));
+      return constructFlatVector<TypeKind::BIGINT>(elementAtFunc, childSize, BIGINT(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kFp64:
-      return makeArrayVector(constructFlatVector<TypeKind::DOUBLE>(listLiteral, childSize, DOUBLE(), pool_));
+      return constructFlatVector<TypeKind::DOUBLE>(elementAtFunc, childSize, DOUBLE(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kString:
     case ::substrait::Expression_Literal::LiteralTypeCase::kVarChar:
-      return makeArrayVector(constructFlatVector<TypeKind::VARCHAR>(listLiteral, childSize, VARCHAR(), pool_));
+      return constructFlatVector<TypeKind::VARCHAR>(elementAtFunc, childSize, VARCHAR(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
-      auto veloxType = toVeloxType(SubstraitParser::parseType(listLiteral.null())->type);
+      auto veloxType = toVeloxType(SubstraitParser::parseType(literal.null())->type);
       auto kind = veloxType->kind();
-      return makeArrayVector(
-          VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVector, kind, listLiteral, childSize, veloxType, pool_));
+      return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kDate:
-      return makeArrayVector(constructFlatVector<TypeKind::DATE>(listLiteral, childSize, DATE(), pool_));
+      return constructFlatVector<TypeKind::DATE>(elementAtFunc, childSize, DATE(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
-      return makeArrayVector(constructFlatVector<TypeKind::TIMESTAMP>(listLiteral, childSize, TIMESTAMP(), pool_));
+      return constructFlatVector<TypeKind::TIMESTAMP>(elementAtFunc, childSize, TIMESTAMP(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond:
-      return makeArrayVector(constructFlatVector<TypeKind::BIGINT>(listLiteral, childSize, INTERVAL_DAY_TIME(), pool_));
+      return constructFlatVector<TypeKind::BIGINT>(elementAtFunc, childSize, INTERVAL_DAY_TIME(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kList: {
-      VectorPtr elements;
-      for (auto it : listLiteral.list().values()) {
-        auto v = literalsToArrayVector(it);
+      ArrayVectorPtr elements;
+      for (int i = 0; i < childSize; i++) {
+        auto element = elementAtFunc(i);
+        ArrayVectorPtr grandVector = literalsToArrayVector(element);
         if (!elements) {
-          elements = v;
+          elements = grandVector;
         } else {
-          elements->append(v.get());
+          elements->append(grandVector.get());
         }
       }
-      return makeArrayVector(elements);
+      return elements;
+    }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kMap: {
+      MapVectorPtr mapVector;
+      for (int i = 0; i < childSize; i++) {
+        auto element = elementAtFunc(i);
+        MapVectorPtr grandVector = literalsToMapVector(element);
+        if (!mapVector) {
+          mapVector = grandVector;
+        } else {
+          mapVector->append(grandVector.get());
+        }
+      }
+      return mapVector;
     }
     default:
-      VELOX_NYI("literalsToArrayVector not supported for type case '{}'", typeCase);
+      VELOX_NYI("literals not supported for type case '{}'", childTypeCase);
   }
 }
 

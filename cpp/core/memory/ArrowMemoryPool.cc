@@ -20,12 +20,8 @@
 
 namespace gluten {
 
-std::shared_ptr<arrow::MemoryPool> asArrowMemoryPool(MemoryAllocator* allocator) {
-  return std::make_shared<ArrowMemoryPool>(allocator);
-}
-
 std::shared_ptr<arrow::MemoryPool> defaultArrowMemoryPool() {
-  static auto staticPool = asArrowMemoryPool(defaultMemoryAllocator().get());
+  static auto staticPool = std::make_shared<ArrowMemoryPool>(defaultMemoryAllocator().get());
   return staticPool;
 }
 

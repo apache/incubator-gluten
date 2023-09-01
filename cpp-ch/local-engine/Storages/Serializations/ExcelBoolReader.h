@@ -14,24 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #pragma once
 
-#include "arrow/memory_pool.h"
-#include "memory.pb.h"
+#include <Columns/IColumn.h>
+#include <Formats/FormatSettings.h>
+#include <IO/ReadBuffer.h>
 
-namespace gluten {
 
-class MemoryManager {
- public:
-  MemoryManager() = default;
+namespace local_engine
+{
+using namespace DB;
 
-  virtual ~MemoryManager() = default;
 
-  // TODO: return raw pointer, caller should not care its lifecycle.
-  virtual std::shared_ptr<arrow::MemoryPool> getArrowMemoryPool() = 0;
 
-  virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
-};
+void deserializeExcelBoolTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings);
 
-} // namespace gluten
+}

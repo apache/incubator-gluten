@@ -249,9 +249,30 @@ bool SubstraitToVeloxPlanValidator::validateScalarFunction(
 bool SubstraitToVeloxPlanValidator::validateLiteral(
     const ::substrait::Expression_Literal& literal,
     const RowTypePtr& inputType) {
-  if (literal.has_list() && literal.list().values_size() == 0) {
-    logValidateMsg("native validation failed due to: literal is a list but has no value.");
-    return false;
+  if (literal.has_list()) {
+    if (literal.list().values_size() == 0) {
+      logValidateMsg("native validation failed due to: literal is a list but has no value.");
+      return false;
+    } else {
+      for (auto child : literal.list().values()) {
+        if (!validateLiteral(child, inputType)) {
+          // the error msg has been set, so do not need to set it again.
+          return false;
+        }
+      }
+    }
+  } else if (literal.has_map()) {
+    if (literal.map().key_values().empty()) {
+      logValidateMsg("native validation failed due to: literal is a map but has no value.");
+      return false;
+    } else {
+      for (auto child : literal.map().key_values()) {
+        if (!validateLiteral(child.key(), inputType) || !validateLiteral(child.value(), inputType)) {
+          // the error msg has been set, so do not need to set it again.
+          return false;
+        }
+      }
+    }
   }
   return true;
 }
@@ -284,6 +305,12 @@ bool SubstraitToVeloxPlanValidator::validateCast(
         logValidateMsg("native validation failed due to: Casting from DATE to TIMESTAMP is not supported.");
         return false;
       }
+      if (toType->kind() != TypeKind::VARCHAR) {
+        logValidateMsg(fmt::format(
+            "native validation failed due to: Casting from DATE to {} is not supported.", toType->toString()));
+        return false;
+      }
+      break;
     }
     case TypeKind::TIMESTAMP: {
       logValidateMsg(

@@ -17,9 +17,11 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.types._
 
+import java.util
 case class DataTypesWithNonPrimitiveType(
     string_field: String,
     int_field: java.lang.Integer,
@@ -38,9 +40,6 @@ class GlutenClickHouseDecimalSuite
     rootPath + "../../../../gluten-core/src/test/resources/tpch-queries"
   override protected val queriesResults: String = rootPath + "queries-output"
 
-  protected val orcDataPath: String = rootPath + "orc-data"
-  protected val csvDataPath: String = rootPath + "csv-data"
-
   override protected def createTPCHNullableTables(): Unit = {}
 
   override protected def createTPCHNotNullTables(): Unit = {}
@@ -56,7 +55,7 @@ class GlutenClickHouseDecimalSuite
 
   private val decimalTable: String = "decimal_table"
 
-  test("read data from csv file format") {
+  test("fix decimal precision overflow") {
     val sql =
       s"""
          | select
@@ -71,11 +70,39 @@ class GlutenClickHouseDecimalSuite
     }
     testFromRandomBase(
       sql,
-      df => {
-        val a = df.collect()
-        print(a)
-      }
+      _ => {}
     )
+  }
+
+  test("fix decimal32 with negative value") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("decimal32_field", DecimalType.apply(8, 4), nullable = true)
+      ))
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(new java.math.BigDecimal(1.123)))
+    dataCorrect.add(Row(new java.math.BigDecimal(-2.123)))
+    dataCorrect.add(Row(new java.math.BigDecimal(-3.123)))
+    dataCorrect.add(Row(null))
+    spark.createDataFrame(dataCorrect, schema).createTempView("decimal32_table")
+
+    val sql_nullable =
+      s"""
+         | select
+         |     *
+         | from decimal32_table
+         |""".stripMargin
+
+    val sql_not_null =
+      s"""
+         | select
+         |     *
+         | from decimal32_table
+         | where decimal32_field < 0
+         |""".stripMargin
+
+    compareResultsAgainstVanillaSpark(sql_nullable, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(sql_not_null, compareResult = true, _ => {})
   }
 
   def testFromRandomBase(
