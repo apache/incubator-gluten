@@ -27,7 +27,7 @@
 #include "compute/VeloxBackend.h"
 #include "config/GlutenConfig.h"
 
-#include "utils/ArrowTypeUtils.h"
+#include "utils/VeloxArrowUtils.h"
 #include "velox/common/compression/Compression.h"
 #include "velox/core/QueryConfig.h"
 #include "velox/core/QueryCtx.h"
@@ -124,7 +124,7 @@ void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
               std::make_unique<velox::dwio::common::BufferedInput>(
                   std::make_shared<velox::dwio::common::ReadFileInputStream>(readFile), *pool_.get()),
               readerOptions);
-  toArrowSchema(reader->rowType(), out);
+  toArrowSchema(reader->rowType(), pool_.get(), out);
 }
 
 void VeloxParquetDatasource::close() {
