@@ -300,6 +300,11 @@ bool SubstraitToVeloxPlanValidator::validateCast(
       logValidateMsg("native validation failed due to: Casting from DATE to TIMESTAMP is not supported.");
       return false;
     }
+    if (toType->kind() != TypeKind::VARCHAR) {
+      logValidateMsg(fmt::format(
+          "native validation failed due to: Casting from DATE to {} is not supported.", toType->toString()));
+      return false;
+    }
   }
   switch (input->type()->kind()) {
     case TypeKind::ARRAY:
@@ -308,18 +313,6 @@ bool SubstraitToVeloxPlanValidator::validateCast(
     case TypeKind::VARBINARY:
       logValidateMsg("native validation failed due to: Invalid input type in casting: ARRAY/MAP/ROW/VARBINARY");
       return false;
-    case TypeKind::DATE: {
-      if (toType->kind() == TypeKind::TIMESTAMP) {
-        logValidateMsg("native validation failed due to: Casting from DATE to TIMESTAMP is not supported.");
-        return false;
-      }
-      if (toType->kind() != TypeKind::VARCHAR) {
-        logValidateMsg(fmt::format(
-            "native validation failed due to: Casting from DATE to {} is not supported.", toType->toString()));
-        return false;
-      }
-      break;
-    }
     case TypeKind::TIMESTAMP: {
       logValidateMsg(
           "native validation failed due to: Casting from TIMESTAMP is not supported or has incorrect result.");
