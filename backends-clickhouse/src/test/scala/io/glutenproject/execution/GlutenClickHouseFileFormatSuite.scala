@@ -215,7 +215,7 @@ class GlutenClickHouseFileFormatSuite
         }
         assert(csvFileScan.size == 1)
       },
-      noFallBack = false
+      noFallBack = true
     )
   }
 

@@ -182,4 +182,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   override def shuffleSupportedCodec(): Set[String] = GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
   override def needOutputSchemaForPlan(): Boolean = true
+
+  override def replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
 }
