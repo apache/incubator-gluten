@@ -134,6 +134,7 @@ macro(ADD_VELOX_DEPENDENCIES)
 
   add_velox_dependency(dwio::common "${VELOX_COMPONENTS_PATH}/dwio/common/libvelox_dwio_common.a")
   add_velox_dependency(functions::prestosql::types "${VELOX_COMPONENTS_PATH}/functions/prestosql/types/libvelox_presto_types.a")
+  add_velox_dependency(functions::spark::specialforms "${VELOX_COMPONENTS_PATH}/functions/sparksql/specialforms/libvelox_functions_spark_specialforms.a")
   add_velox_dependency(expression "${VELOX_COMPONENTS_PATH}/expression/libvelox_expression.a")
   add_velox_dependency(core "${VELOX_COMPONENTS_PATH}/core/libvelox_core.a")
 
