@@ -28,8 +28,7 @@ class NativeReader;
 
 namespace local_engine
 {
-std::unique_ptr<DB::ReadBuffer> createCompressedReadBuffer(std::unique_ptr<DB::ReadBuffer> & in);
-
+void configureCompressedReadBuffer(DB::CompressedReadBuffer & compressedReadBuffer);
 class ReadBufferFromJavaInputStream;
 class ShuffleReader : BlockIterator
 {

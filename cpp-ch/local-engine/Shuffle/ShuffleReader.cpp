@@ -26,18 +26,17 @@ using namespace DB;
 
 namespace local_engine
 {
-std::unique_ptr<ReadBuffer> createCompressedReadBuffer(std::unique_ptr<ReadBuffer> & in)
-{
-    auto compressed_in = std::make_unique<CompressedReadBuffer>(*in);
-    compressed_in->disableChecksumming();
-    return compressed_in;
-}
 
+void configureCompressedReadBuffer(DB::CompressedReadBuffer & compressedReadBuffer)
+{
+    compressedReadBuffer.disableChecksumming();
+}
 local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed) : in(std::move(in_))
 {
     if (compressed)
     {
-        compressed_in = createCompressedReadBuffer(in);
+        compressed_in = std::make_unique<CompressedReadBuffer>(*in);
+        configureCompressedReadBuffer(static_cast<DB::CompressedReadBuffer &>(*compressed_in));
         input_stream = std::make_unique<NativeReader>(*compressed_in, 0);
     }
     else

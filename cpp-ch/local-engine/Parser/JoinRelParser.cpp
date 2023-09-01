@@ -15,19 +15,19 @@
  * limitations under the License.
  */
 #include "JoinRelParser.h"
-#include <Builder/BroadCastJoinBuilder.h>
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
 #include <Interpreters/GraceHashJoin.h>
 #include <Interpreters/HashJoin.h>
 #include <Interpreters/TableJoin.h>
+#include <Join/BroadCastJoinBuilder.h>
+#include <Join/StorageJoinFromReadBuffer.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/JoinStep.h>
-#include <Storages/StorageJoinFromReadBuffer.h>
 #include <google/protobuf/wrappers.pb.h>
 
 namespace DB
@@ -89,36 +89,32 @@ void reorderJoinOutput(DB::QueryPlan & plan, DB::Names cols)
 namespace local_engine
 {
 
+std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type)
+{
+    switch (join_type)
+    {
+        case substrait::JoinRel_JoinType_JOIN_TYPE_INNER:
+            return {DB::JoinKind::Inner, DB::JoinStrictness::All};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI:
+            return {DB::JoinKind::Left, DB::JoinStrictness::Semi};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
+            return {DB::JoinKind::Left, DB::JoinStrictness::Anti};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
+            return {DB::JoinKind::Left, DB::JoinStrictness::All};
+        case substrait::JoinRel_JoinType_JOIN_TYPE_OUTER:
+            return {DB::JoinKind::Full, DB::JoinStrictness::All};
+        default:
+            throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", magic_enum::enum_name(join_type));
+    }
+}
 std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type)
 {
     auto & global_context = SerializedPlanParser::global_context;
     auto table_join = std::make_shared<TableJoin>(global_context->getSettings(), global_context->getGlobalTemporaryVolume());
 
-    switch (join_type)
-    {
-        case substrait::JoinRel_JoinType_JOIN_TYPE_INNER:
-            table_join->setKind(DB::JoinKind::Inner);
-            table_join->setStrictness(DB::JoinStrictness::All);
-            break;
-        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT_SEMI:
-            table_join->setKind(DB::JoinKind::Left);
-            table_join->setStrictness(DB::JoinStrictness::Semi);
-            break;
-        case substrait::JoinRel_JoinType_JOIN_TYPE_ANTI:
-            table_join->setKind(DB::JoinKind::Left);
-            table_join->setStrictness(DB::JoinStrictness::Anti);
-            break;
-        case substrait::JoinRel_JoinType_JOIN_TYPE_LEFT:
-            table_join->setKind(DB::JoinKind::Left);
-            table_join->setStrictness(DB::JoinStrictness::All);
-            break;
-        case substrait::JoinRel_JoinType_JOIN_TYPE_OUTER:
-            table_join->setKind(DB::JoinKind::Full);
-            table_join->setStrictness(DB::JoinStrictness::All);
-            break;
-        default:
-            throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", magic_enum::enum_name(join_type));
-    }
+    std::pair<DB::JoinKind, DB::JoinStrictness> kind_and_strictness = getJoinKindAndStrictness(join_type);
+    table_join->setKind(kind_and_strictness.first);
+    table_join->setStrictness(kind_and_strictness.second);
     return table_join;
 }
 

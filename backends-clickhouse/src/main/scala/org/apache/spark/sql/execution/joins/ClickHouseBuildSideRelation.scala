@@ -52,16 +52,9 @@ case class ClickHouseBuildSideRelation(
         logDebug(
           s"BHJ value size: " +
             s"${broadCastContext.buildHashTableId} = ${batches.length}")
-        val storageJoinBuilder = new StorageJoinBuilder(
-          CHShuffleReadStreamFactory.create(batches, true, CHBackendSettings.customizeBufferSize),
-          broadCastContext,
-          CHBackendSettings.customizeBufferSize,
-          output.asJava,
-          newBuildKeys.asJava
-        )
         // Build the hash table
-        hashTableData = storageJoinBuilder.build()
-        storageJoinBuilder.close()
+        hashTableData =
+          StorageJoinBuilder.build(batches, broadCastContext, newBuildKeys.asJava, output.asJava)
         (hashTableData, this)
       } else {
         (StorageJoinBuilder.nativeCloneBuildHashTable(hashTableData), null)

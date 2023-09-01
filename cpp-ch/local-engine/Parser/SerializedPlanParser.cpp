@@ -50,6 +50,7 @@
 #include <Interpreters/Context.h>
 #include <Interpreters/ProcessList.h>
 #include <Interpreters/QueryPriorities.h>
+#include <Join/StorageJoinFromReadBuffer.h>
 #include <Operator/BlocksBufferPoolTransform.h>
 #include <Parser/FunctionParser.h>
 #include <Parser/JoinRelParser.h>
@@ -72,7 +73,6 @@
 #include <Storages/CustomStorageMergeTree.h>
 #include <Storages/IStorage.h>
 #include <Storages/MergeTree/MergeTreeData.h>
-#include <Storages/StorageJoinFromReadBuffer.h>
 #include <Storages/StorageMergeTreeFactory.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
@@ -267,7 +267,8 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithJavaIter(const substrait
     auto pos = iter.find(':');
     auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
 
-    auto source = std::make_shared<SourceFromJavaIter>(TypeParser::buildBlockFromNamedStruct(rel.base_schema()), input_iters[iter_index], materialize_inputs[iter_index]);
+    auto source = std::make_shared<SourceFromJavaIter>(
+        TypeParser::buildBlockFromNamedStruct(rel.base_schema()), input_iters[iter_index], materialize_inputs[iter_index]);
     QueryPlanStepPtr source_step = std::make_unique<ReadFromPreparedSource>(Pipe(source));
     source_step->setStepDescription("Read From Java Iter");
     return source_step;
@@ -2247,8 +2248,7 @@ Block & LocalExecutor::getHeader()
 {
     return header;
 }
-LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_)
-    : query_context(_query_context), context(context_)
+LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_) : query_context(_query_context), context(context_)
 {
 }
 

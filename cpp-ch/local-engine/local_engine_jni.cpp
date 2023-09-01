@@ -18,9 +18,9 @@
 #include <regex>
 #include <string>
 #include <jni.h>
-#include <Builder/BroadCastJoinBuilder.h>
 #include <Builder/SerializedPlanBuilder.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <Join/BroadCastJoinBuilder.h>
 #include <Operator/BlockCoalesceOperator.h>
 #include <Parser/CHColumnToSparkRow.h>
 #include <Parser/RelParser.h>
@@ -221,7 +221,13 @@ JNIEXPORT void Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_na
 }
 
 JNIEXPORT jlong Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
-    JNIEnv * env, jobject /*obj*/, jlong allocator_id, jbyteArray plan, jobjectArray iter_arr, jbyteArray conf_plan, jboolean materialize_input)
+    JNIEnv * env,
+    jobject /*obj*/,
+    jlong allocator_id,
+    jbyteArray plan,
+    jobjectArray iter_arr,
+    jbyteArray conf_plan,
+    jboolean materialize_input)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto query_context = local_engine::getAllocator(allocator_id)->query_context;
@@ -954,7 +960,13 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     env->SetIntArrayRegion(indices, 0, bs.heading_row_indice.size(), bs.heading_row_indice.data());
 
     jobject block_stripes = env->NewObject(
-        block_stripes_class, block_stripes_constructor, bs.original_block_address, addresses, indices, bs.origin_block_col_num, bs.no_need_split);
+        block_stripes_class,
+        block_stripes_constructor,
+        bs.original_block_address,
+        addresses,
+        indices,
+        bs.origin_block_col_num,
+        bs.no_need_split);
     return block_stripes;
 
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)
@@ -962,23 +974,23 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 
 JNIEXPORT jlong Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeBuild(
     JNIEnv * env,
-    jobject,
+    jclass,
     jstring hash_table_id_,
     jobject in,
     jint io_buffer_size,
     jstring join_key_,
-    jstring join_type_,
+    jint join_type_,
     jbyteArray named_struct)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * input = env->NewGlobalRef(in);
     auto hash_table_id = jstring2string(env, hash_table_id_);
     auto join_key = jstring2string(env, join_key_);
-    auto join_type = jstring2string(env, join_type_);
     jsize struct_size = env->GetArrayLength(named_struct);
     jbyte * struct_address = env->GetByteArrayElements(named_struct, nullptr);
     std::string struct_string;
     struct_string.assign(reinterpret_cast<const char *>(struct_address), struct_size);
+    substrait::JoinRel_JoinType join_type = static_cast<substrait::JoinRel_JoinType>(join_type_);
     auto * obj = local_engine::make_wrapper(
         local_engine::BroadCastJoinBuilder::buildJoin(hash_table_id, input, io_buffer_size, join_key, join_type, struct_string));
     env->ReleaseByteArrayElements(named_struct, struct_address, JNI_ABORT);
