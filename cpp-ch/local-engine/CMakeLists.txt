@@ -51,6 +51,7 @@ add_headers_and_sources(shuffle Shuffle)
 add_headers_and_sources(operator Operator)
 add_headers_and_sources(jni jni)
 add_headers_and_sources(aggregate_functions AggregateFunctions)
+add_headers_and_sources(local_columns Columns)
 
 include_directories(
         ${JNI_INCLUDE_DIRS}
