@@ -83,6 +83,8 @@ TypePtr SubstraitParser::parseType(const ::substrait::Type& substraitType, bool 
       auto scale = substraitType.decimal().scale();
       return DECIMAL(precision, scale);
     }
+    case ::substrait::Type::KindCase::kNothing:
+      return UNKNOWN();
     default:
       VELOX_NYI("Parsing for Substrait type not supported: {}", substraitType.DebugString());
   }
