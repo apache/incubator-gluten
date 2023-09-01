@@ -117,7 +117,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       pipelineTime: SQLMetric,
       updateInputMetrics: InputMetricsWrapper => Unit,
       updateNativeMetrics: IMetrics => Unit,
-      materializeAtLast: Boolean,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
   ): Iterator[ColumnarBatch] = {
     val resIter: GeneralOutIterator = GlutenTimeMetric.millis(pipelineTime) {
@@ -126,10 +125,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         val inBatchIters = new util.ArrayList[GeneralInIterator](inputIterators.map {
           iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
         }.asJava)
-        transKernel.createKernelWithBatchIterator(
-          inputPartition.plan,
-          inBatchIters,
-          materializeAtLast)
+        transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters, false)
     }
     TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
@@ -174,7 +170,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       pipelineTime: SQLMetric,
       updateNativeMetrics: IMetrics => Unit,
       buildRelationBatchHolder: Seq[ColumnarBatch],
-      materializeAtLast: Boolean): Iterator[ColumnarBatch] = {
+      materializeInput: Boolean): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenConfig.getConf
     val nativeIterator = GlutenTimeMetric.millis(pipelineTime) {
@@ -188,7 +184,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
         transKernel.createKernelWithBatchIterator(
           rootNode.toProtobuf,
           columnarNativeIterator,
-          materializeAtLast)
+          materializeInput)
     }
 
     val resIter = new Iterator[ColumnarBatch] {

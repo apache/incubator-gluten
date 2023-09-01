@@ -267,7 +267,7 @@ QueryPlanStepPtr SerializedPlanParser::parseReadRealWithJavaIter(const substrait
     auto pos = iter.find(':');
     auto iter_index = std::stoi(iter.substr(pos + 1, iter.size()));
 
-    auto source = std::make_shared<SourceFromJavaIter>(TypeParser::buildBlockFromNamedStruct(rel.base_schema()), input_iters[iter_index]);
+    auto source = std::make_shared<SourceFromJavaIter>(TypeParser::buildBlockFromNamedStruct(rel.base_schema()), input_iters[iter_index], materialize_inputs[iter_index]);
     QueryPlanStepPtr source_step = std::make_unique<ReadFromPreparedSource>(Pipe(source));
     source_step->setStepDescription("Read From Java Iter");
     return source_step;
@@ -2158,14 +2158,6 @@ void LocalExecutor::execute(QueryPlanPtr query_plan)
             = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3, .compile_expressions = CompileExpressions::yes},
             .process_list_element = query_status});
 
-    if (materialize)
-    {
-        /// We need to convert Sparse columns to full, because it's destination storage
-        /// may not support it or may have different settings for applying Sparse serialization.
-        pipeline_builder->addSimpleTransform(
-            [&](const Block & in_header) -> ProcessorPtr { return std::make_shared<DB::MaterializingTransform>(in_header); });
-    }
-
     query_pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder));
     LOG_DEBUG(&Poco::Logger::get("LocalExecutor"), "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(query_pipeline));
     auto t_pipeline = stopwatch.elapsedMicroseconds();
@@ -2255,8 +2247,8 @@ Block & LocalExecutor::getHeader()
 {
     return header;
 }
-LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_, bool materialize_)
-    : query_context(_query_context), context(context_), materialize(materialize_)
+LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_)
+    : query_context(_query_context), context(context_)
 {
 }
 
