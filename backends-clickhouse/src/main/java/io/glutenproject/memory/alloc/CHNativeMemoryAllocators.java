@@ -16,7 +16,7 @@
  */
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.memory.MemoryUsage;
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
 
@@ -40,11 +40,16 @@ public abstract class CHNativeMemoryAllocators {
   private static final CHNativeMemoryAllocator GLOBAL = CHNativeMemoryAllocator.getDefault();
 
   private static CHNativeMemoryAllocatorManager createNativeMemoryAllocatorManager(
-      String name, TaskMemoryManager taskMemoryManager, Spiller spiller, MemoryUsage usage) {
+      String name,
+      TaskMemoryManager taskMemoryManager,
+      Spiller spiller,
+      SimpleMemoryUsageRecorder usage) {
 
     CHManagedCHReservationListener rl =
         new CHManagedCHReservationListener(
-            new GlutenMemoryConsumer(name, taskMemoryManager, spiller), usage);
+            new GlutenMemoryConsumer(
+                name, taskMemoryManager, spiller, GlutenMemoryConsumer.newDefaultStatsBuilder()),
+            usage);
     return new CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator.createListenable(rl));
   }
 

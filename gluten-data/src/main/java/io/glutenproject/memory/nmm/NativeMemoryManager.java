@@ -17,6 +17,7 @@
 package io.glutenproject.memory.nmm;
 
 import io.glutenproject.GlutenConfig;
+import io.glutenproject.memory.alloc.NativeMemoryAllocators;
 
 import org.apache.spark.util.TaskResource;
 import org.apache.spark.util.Utils;
@@ -25,7 +26,7 @@ import org.slf4j.LoggerFactory;
 
 public class NativeMemoryManager implements TaskResource {
 
-  private static Logger LOGGER = LoggerFactory.getLogger(NativeMemoryManager.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(NativeMemoryManager.class);
 
   private final long nativeInstanceId;
   private final String name;
@@ -48,18 +49,25 @@ public class NativeMemoryManager implements TaskResource {
     return this.nativeInstanceId;
   }
 
+  public byte[] collectMemoryUsage() {
+    return collectMemoryUsage(nativeInstanceId);
+  }
+
   private static native long create(
       String name, long allocatorId, long reservationBlockSize, ReservationListener listener);
 
-  private static native void releaseManager(long allocatorId);
+  private static native void release(long memoryManagerId);
+
+  private static native byte[] collectMemoryUsage(long memoryManagerId);
 
   @Override
   public void release() throws Exception {
-    releaseManager(nativeInstanceId);
+    release(nativeInstanceId);
     if (listener.getUsedBytes() != 0) {
       LOGGER.warn(
           name
-              + " Reservation listener still has unreserved bytes, may has memory leak, size "
+              + " Reservation listener still reserved non-zero bytes, which may cause "
+              + "memory leak, size: "
               + Utils.bytesToString(listener.getUsedBytes()));
     }
   }

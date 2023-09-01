@@ -746,11 +746,6 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
   def apply(plan: SparkPlan): SparkPlan = {
     val newPlan = replaceWithTransformerPlan(plan)
 
-    // propagate the tag to the new plan. WholeStageCodegenExec will check the flag
-    if (plan.getTagValue(GlutenWriterColumnarRules.TAG).isDefined) {
-      newPlan.setTagValue(GlutenWriterColumnarRules.TAG, MATERIALIZE_TAG())
-    }
-
     planChangeLogger.logRule(ruleName, plan, newPlan)
     newPlan
   }

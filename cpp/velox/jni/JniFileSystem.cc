@@ -75,13 +75,13 @@ class JniReadFile : public facebook::velox::ReadFile {
   ~JniReadFile() override {
     try {
       close0();
+      JNIEnv* env;
+      attachCurrentThreadAsDaemonOrThrow(vm, &env);
+      env->DeleteGlobalRef(obj_);
+      checkException(env);
     } catch (const std::exception& e) {
       LOG(WARNING) << "Error closing jni read file " << e.what();
     }
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm, &env);
-    env->DeleteGlobalRef(obj_);
-    checkException(env);
   }
 
   std::string_view pread(uint64_t offset, uint64_t length, void* buf) const override {
@@ -152,13 +152,13 @@ class JniWriteFile : public facebook::velox::WriteFile {
   ~JniWriteFile() override {
     try {
       close0();
+      JNIEnv* env;
+      attachCurrentThreadAsDaemonOrThrow(vm, &env);
+      env->DeleteGlobalRef(obj_);
+      checkException(env);
     } catch (const std::exception& e) {
       LOG(WARNING) << "Error closing jni write file " << e.what();
     }
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm, &env);
-    env->DeleteGlobalRef(obj_);
-    checkException(env);
   }
 
   void append(std::string_view data) override {
@@ -269,10 +269,14 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
   }
 
   ~JniFileSystem() override {
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm, &env);
-    env->DeleteGlobalRef(obj_);
-    checkException(env);
+    try {
+      JNIEnv* env;
+      attachCurrentThreadAsDaemonOrThrow(vm, &env);
+      env->DeleteGlobalRef(obj_);
+      checkException(env);
+    } catch (const std::exception& e) {
+      LOG(WARNING) << "Error releasing jni file system " << e.what();
+    }
   }
 
   std::string name() const override {

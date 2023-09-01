@@ -14,20 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <string>
+package io.glutenproject.memory;
 
-namespace local_engine
-{
-struct JoinOptimizationInfo
-{
-    bool is_broadcast;
-    bool is_null_aware_anti_join;
-    std::string storage_join_key;
-};
+import io.glutenproject.proto.MemoryUsageStats;
 
-
-JoinOptimizationInfo parseJoinOptimizationInfo(const std::string & optimization);
-
-
+public interface MemoryUsageStatsBuilder {
+  // Implementation should be idempotent
+  MemoryUsageStats toStats();
 }

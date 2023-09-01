@@ -260,7 +260,9 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
       std::cout << localSchema->ToString() << std::endl;
 
     auto* pool = options.memory_pool.get();
-    GLUTEN_ASSIGN_OR_THROW(shuffleWriter, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator, options));
+    GLUTEN_ASSIGN_OR_THROW(
+        shuffleWriter,
+        VeloxShuffleWriter::create(numPartitions, partitionWriterCreator, options, defaultLeafVeloxMemoryPool()));
 
     std::shared_ptr<arrow::RecordBatch> recordBatch;
 
@@ -323,7 +325,8 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
     options.ipc_write_options.memory_pool = ipcMemoryPool.get();
     GLUTEN_ASSIGN_OR_THROW(
         shuffleWriter,
-        VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
+        VeloxShuffleWriter::create(
+            numPartitions, std::move(partitionWriterCreator), std::move(options), defaultLeafVeloxMemoryPool()));
 
     std::shared_ptr<arrow::RecordBatch> recordBatch;
 

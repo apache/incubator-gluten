@@ -30,6 +30,7 @@ class VeloxPlanConverter {
  public:
   explicit VeloxPlanConverter(
       std::vector<std::shared_ptr<ResultIterator>>& inputIters,
+      facebook::velox::memory::MemoryPool* veloxPool,
       const std::unordered_map<std::string, std::string>& confMap);
 
   std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(::substrait::Plan& substraitPlan);

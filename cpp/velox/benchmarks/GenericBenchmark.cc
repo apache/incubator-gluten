@@ -32,7 +32,7 @@
 #include "config/GlutenConfig.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
-#include "utils/ArrowTypeUtils.h"
+#include "utils/VeloxArrowUtils.h"
 #include "utils/exception.h"
 #include "velox/exec/PlanNodeStats.h"
 
@@ -58,11 +58,13 @@ struct WriterMetrics {
   int64_t compressTime;
 };
 
-std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() {
+std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(VeloxMemoryManager* memoryManager) {
   std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
       std::make_shared<LocalPartitionWriterCreator>(false);
 
   auto options = ShuffleWriterOptions::defaults();
+  options.memory_pool = memoryManager->getArrowMemoryPool();
+  options.ipc_memory_pool = options.memory_pool;
   options.partitioning_name = "rr"; // Round-Robin partitioning
   if (FLAGS_zstd) {
     options.codec_backend = CodecBackend::NONE;
@@ -80,7 +82,11 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() {
 
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter,
-      VeloxShuffleWriter::create(FLAGS_shuffle_partitions, std::move(partitionWriterCreator), std::move(options)));
+      VeloxShuffleWriter::create(
+          FLAGS_shuffle_partitions,
+          std::move(partitionWriterCreator),
+          std::move(options),
+          memoryManager->getLeafMemoryPool()));
 
   return shuffleWriter;
 }
@@ -147,7 +153,7 @@ auto BM_Generic = [](::benchmark::State& state,
     if (FLAGS_with_shuffle) {
       int64_t shuffleWriteTime;
       TIME_NANO_START(shuffleWriteTime);
-      const auto& shuffleWriter = createShuffleWriter();
+      const auto& shuffleWriter = createShuffleWriter(memoryManager.get());
       while (resultIter->hasNext()) {
         GLUTEN_THROW_NOT_OK(shuffleWriter->split(resultIter->next()));
       }
@@ -159,7 +165,7 @@ auto BM_Generic = [](::benchmark::State& state,
     } else {
       // May write the output into file.
       ArrowSchema cSchema;
-      toArrowSchema(veloxPlan->outputType(), &cSchema);
+      toArrowSchema(veloxPlan->outputType(), memoryManager->getLeafMemoryPool().get(), &cSchema);
       GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
       ArrowWriter writer{FLAGS_write_file};
       state.PauseTiming();

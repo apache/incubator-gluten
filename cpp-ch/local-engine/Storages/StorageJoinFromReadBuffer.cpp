@@ -25,6 +25,8 @@
 
 namespace DB
 {
+class HashJoin;
+using HashJoinPtr = std::shared_ptr<HashJoin>;
 namespace ErrorCodes
 {
     extern const int NOT_IMPLEMENTED;
@@ -83,7 +85,7 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     restore();
 }
 
-DB::HashJoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr /*context*/) const
+DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr /*context*/) const
 {
     if (!analyzed_join->sameStrictnessAndKind(strictness, kind))
         throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN, "Table {} has incompatible type of JOIN.", storage_metadata_.comment);
@@ -103,7 +105,7 @@ DB::HashJoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::Tab
     analyzed_join->setRightKeys(key_names);
 
     HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, getRightSampleBlock());
-    join_clone->reuseJoinedData(*join);
+    join_clone->reuseJoinedData(static_cast<const HashJoin &>(*join));
 
     return join_clone;
 }

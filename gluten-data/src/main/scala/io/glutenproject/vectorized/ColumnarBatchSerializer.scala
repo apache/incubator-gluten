@@ -96,6 +96,11 @@ private class ColumnarBatchSerializerInstance(
     // was used to create all buffers read from shuffle reader. The pool
     // should keep alive before all buffers finish consuming.
     TaskResources.addRecycler(s"ShuffleReaderHandle_$handle", 50) {
+      // Collect Metrics
+      val readerMetrics = new ShuffleReaderMetrics()
+      ShuffleReaderJniWrapper.INSTANCE.populateMetrics(handle, readerMetrics)
+      decompressTime += readerMetrics.getDecompressTime
+
       cSchema.close()
       ShuffleReaderJniWrapper.INSTANCE.close(handle)
       allocator.close()
@@ -108,8 +113,6 @@ private class ColumnarBatchSerializerInstance(
       private lazy val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
       private lazy val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
         ShuffleReaderJniWrapper.INSTANCE.readStream(shuffleReaderHandle, byteIn))
-
-      private val readerMetrics = new ShuffleReaderMetrics()
 
       private var cb: ColumnarBatch = _
 
@@ -177,9 +180,6 @@ private class ColumnarBatchSerializerInstance(
 
       override def close(): Unit = {
         if (!isClosed) {
-          // Collect Metrics
-          ShuffleReaderJniWrapper.INSTANCE.populateMetrics(shuffleReaderHandle, readerMetrics)
-          decompressTime += readerMetrics.getDecompressTime
           if (numBatchesTotal > 0) {
             readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
           }

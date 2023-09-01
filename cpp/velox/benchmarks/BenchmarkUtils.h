@@ -39,10 +39,10 @@ DECLARE_int32(cpu);
 DECLARE_int32(threads);
 DECLARE_int32(iterations);
 
-/// Initilize the Velox backend with default value.
+/// Initialize the Velox backend with default value.
 void initVeloxBackend();
 
-/// Initilize the Velox backend.
+/// Initialize the Velox backend.
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf);
 
 /// Get the location of a file in this project.
@@ -104,12 +104,3 @@ inline std::shared_ptr<gluten::ColumnarBatch> convertBatch(std::shared_ptr<glute
 bool endsWith(const std::string& data, const std::string& suffix);
 
 void setCpu(uint32_t cpuindex);
-
-/// Test only.
-inline std::shared_ptr<gluten::VeloxMemoryManager> getDefaultMemoryManager() {
-  static auto memoryManager = std::make_shared<gluten::VeloxMemoryManager>(
-      "benchmark",
-      gluten::defaultMemoryAllocator(),
-      std::shared_ptr<gluten::AllocationListener>(gluten::AllocationListener::noop()));
-  return memoryManager;
-}

@@ -39,7 +39,12 @@ void NormalFileWriter::consume(DB::Block & block)
         pipeline = std::make_unique<DB::QueryPipeline>(output_format->output);
         writer = std::make_unique<DB::PushingPipelineExecutor>(*pipeline);
     }
-    writer->push(std::move(block));
+
+    /// Although gluten will append MaterializingTransform to the end of the pipeline before native insert in most cases, there are some cases in which MaterializingTransform won't be appended.
+    /// e.g. https://github.com/oap-project/gluten/issues/2900
+    /// So we need to do materialize here again to make sure all blocks passed to native writer are all materialized.
+    /// Note: duplicate materialization on block doesn't has any side affect.
+    writer->push(materializeBlock(block));
 }
 
 void NormalFileWriter::close()

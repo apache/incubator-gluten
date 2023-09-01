@@ -75,7 +75,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
   }
 
   virtual MemoryManager*
-  getMemoryManager(std::string name, std::shared_ptr<MemoryAllocator> allocator, std::shared_ptr<AllocationListener>) {
+  getMemoryManager(const std::string& name, std::shared_ptr<MemoryAllocator>, std::shared_ptr<AllocationListener>) {
     throw GlutenException("getMemoryManager not implemented.");
   }
 
@@ -94,7 +94,8 @@ class Backend : public std::enable_shared_from_this<Backend> {
   virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
-      const ShuffleWriterOptions& options) {
+      const ShuffleWriterOptions& options,
+      MemoryManager* memoryManager) {
     throw GlutenException("makeShuffleWriter not implemented.");
   }
 

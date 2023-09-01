@@ -221,7 +221,7 @@ JNIEXPORT void Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_na
 }
 
 JNIEXPORT jlong Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeCreateKernelWithIterator(
-    JNIEnv * env, jobject /*obj*/, jlong allocator_id, jbyteArray plan, jobjectArray iter_arr, jbyteArray conf_plan, jboolean materialize)
+    JNIEnv * env, jobject /*obj*/, jlong allocator_id, jbyteArray plan, jobjectArray iter_arr, jbyteArray conf_plan, jboolean materialize_input)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto query_context = local_engine::getAllocator(allocator_id)->query_context;
@@ -239,14 +239,14 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_n
     {
         jobject iter = env->GetObjectArrayElement(iter_arr, i);
         iter = env->NewGlobalRef(iter);
-        parser.addInputIter(iter);
+        parser.addInputIter(iter, materialize_input);
     }
     jsize plan_size = env->GetArrayLength(plan);
     jbyte * plan_address = env->GetByteArrayElements(plan, nullptr);
     std::string plan_string;
     plan_string.assign(reinterpret_cast<const char *>(plan_address), plan_size);
     auto query_plan = parser.parse(plan_string);
-    local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(parser.query_context, query_context, materialize);
+    local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(parser.query_context, query_context);
     executor->setMetric(parser.getMetric());
     executor->setExtraPlanHolder(parser.extra_plan_holder);
     executor->execute(std::move(query_plan));
@@ -1101,13 +1101,13 @@ Java_io_glutenproject_vectorized_SimpleExpressionEval_createNativeInstance(JNIEn
     auto context = DB::Context::createCopy(local_engine::SerializedPlanParser::global_context);
     local_engine::SerializedPlanParser parser(context);
     jobject iter = env->NewGlobalRef(input);
-    parser.addInputIter(iter);
+    parser.addInputIter(iter, false);
     jsize plan_size = env->GetArrayLength(plan);
     jbyte * plan_address = env->GetByteArrayElements(plan, nullptr);
     std::string plan_string;
     plan_string.assign(reinterpret_cast<const char *>(plan_address), plan_size);
     auto query_plan = parser.parse(plan_string);
-    local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(parser.query_context, context, false);
+    local_engine::LocalExecutor * executor = new local_engine::LocalExecutor(parser.query_context, context);
     executor->execute(std::move(query_plan));
     env->ReleaseByteArrayElements(plan, plan_address, JNI_ABORT);
     return reinterpret_cast<jlong>(executor);

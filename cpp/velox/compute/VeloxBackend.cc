@@ -83,7 +83,7 @@ std::shared_ptr<ResultIterator> VeloxBackend::getResultIterator(
   auto veloxPool = getAggregateVeloxPool(memoryManager);
   auto ctxPool = veloxPool->addAggregateChild("result_iterator", facebook::velox::memory::MemoryReclaimer::create());
 
-  VeloxPlanConverter veloxPlanConverter(inputIters_, sessionConf);
+  VeloxPlanConverter veloxPlanConverter(inputIters_, getLeafVeloxPool(memoryManager).get(), sessionConf);
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
 
   // Scan node can be required.
@@ -121,10 +121,12 @@ std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
 std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
     int numPartitions,
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
-    const ShuffleWriterOptions& options) {
+    const ShuffleWriterOptions& options,
+    MemoryManager* memoryManager) {
+  auto ctxPool = getLeafVeloxPool(memoryManager);
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffle_writer,
-      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options)));
+      VeloxShuffleWriter::create(numPartitions, std::move(partitionWriterCreator), std::move(options), ctxPool));
   return shuffle_writer;
 }
 

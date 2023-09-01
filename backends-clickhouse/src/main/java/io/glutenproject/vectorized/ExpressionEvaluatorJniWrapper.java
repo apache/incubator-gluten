@@ -48,7 +48,7 @@ public class ExpressionEvaluatorJniWrapper {
       byte[] wsPlan,
       GeneralInIterator[] batchItr,
       byte[] confArray,
-      boolean materializeAtLast);
+      boolean materializeInput);
 
   /**
    * Closes the projector referenced by nativeHandler.

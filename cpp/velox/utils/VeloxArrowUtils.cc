@@ -23,13 +23,35 @@
 
 namespace gluten {
 
+using namespace facebook;
+
+void toArrowSchema(const velox::TypePtr& rowType, facebook::velox::memory::MemoryPool* pool, struct ArrowSchema* out) {
+  exportToArrow(velox::BaseVector::create(rowType, 0, pool), *out);
+}
+
+std::shared_ptr<arrow::Schema> toArrowSchema(const velox::TypePtr& rowType, facebook::velox::memory::MemoryPool* pool) {
+  ArrowSchema arrowSchema;
+  toArrowSchema(rowType, pool, &arrowSchema);
+  GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&arrowSchema));
+  return outputSchema;
+}
+
+velox::TypePtr fromArrowSchema(const std::shared_ptr<arrow::Schema>& schema) {
+  ArrowSchema cSchema;
+  GLUTEN_THROW_NOT_OK(arrow::ExportSchema(*schema, &cSchema));
+  velox::TypePtr typePtr = velox::importFromArrow(cSchema);
+  // It should be velox::importFromArrow's duty to release the imported arrow c schema.
+  // Since exported Velox type prt doesn't hold memory from the c schema.
+  ArrowSchemaRelease(&cSchema); // otherwise the c schema leaks memory
+  return typePtr;
+}
+
 arrow::Result<std::shared_ptr<ColumnarBatch>> recordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb) {
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
   RETURN_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  auto vp =
-      facebook::velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::defaultLeafVeloxMemoryPool().get());
-  return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<facebook::velox::RowVector>(vp));
+  auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::defaultLeafVeloxMemoryPool().get());
+  return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 
 arrow::Status MyMemoryPool::Allocate(int64_t size, int64_t alignment, uint8_t** out) {

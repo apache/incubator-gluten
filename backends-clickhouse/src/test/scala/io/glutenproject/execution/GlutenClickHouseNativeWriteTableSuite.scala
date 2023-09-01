@@ -55,13 +55,12 @@ class GlutenClickHouseNativeWriteTableSuite
     new SparkConf()
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.memory.offHeap.enabled", "true")
-      .set("spark.memory.offHeap.size", "536870912")
+      .set("spark.memory.offHeap.size", "1073741824")
       .set("spark.sql.catalogImplementation", "hive")
-      .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
       .set("spark.sql.shuffle.partitions", "5")
-      .set("spark.sql.adaptive.enabled", "false")
+      .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.minPartitionNum", "1")
       .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
       .set("spark.databricks.delta.snapshotPartitions", "1")
@@ -76,7 +75,7 @@ class GlutenClickHouseNativeWriteTableSuite
       .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
       // TODO: support default ANSI policy
       .set("spark.sql.storeAssignmentPolicy", "legacy")
-      // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
+//       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
       .setMaster("local[1]")
   }
@@ -932,4 +931,41 @@ class GlutenClickHouseNativeWriteTableSuite
       }
     }
   }
+
+  test("test native write with union") {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      for (format <- formats) {
+        val table_name = "t_" + format
+        spark.sql(s"drop table IF EXISTS $table_name")
+        spark.sql(s"create table $table_name (id int, str string) stored as $format")
+        spark.sql(
+          s"insert overwrite table $table_name " +
+            "select id, cast(id as string) from range(10) union all " +
+            "select 10, '10' from range(10)")
+        spark.sql(
+          s"insert overwrite table $table_name " +
+            "select id, cast(id as string) from range(10) union all " +
+            "select 10, cast(id as string) from range(10)")
+
+      }
+    }
+  }
+
+  test("test native write and non-native read consistency") {
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      for (format <- formats) {
+        val table_name = "t_" + format
+        spark.sql(s"drop table IF EXISTS $table_name")
+        spark.sql(s"create table $table_name (id int, name string, info char(4)) stored as $format")
+        spark.sql(
+          s"insert overwrite table $table_name " +
+            "select id, cast(id as string), concat('aaa', cast(id as string)) from range(10)")
+        compareResultsAgainstVanillaSpark(
+          s"select * from $table_name",
+          compareResult = true,
+          _ => {})
+      }
+    }
+  }
+
 }

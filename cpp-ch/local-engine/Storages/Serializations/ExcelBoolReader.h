@@ -14,37 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory;
+#pragma once
 
-import java.util.concurrent.atomic.AtomicLong;
+#include <Columns/IColumn.h>
+#include <Formats/FormatSettings.h>
+#include <IO/ReadBuffer.h>
 
-// thread safe
-public class MemoryUsage {
-  private final AtomicLong peak = new AtomicLong(0L);
-  private final AtomicLong current = new AtomicLong(0L);
 
-  public void inc(long bytes) {
-    final long total = this.current.addAndGet(bytes);
-    long prev_peak;
-    do {
-      prev_peak = this.peak.get();
-      if (total <= prev_peak) {
-        break;
-      }
-    } while (!this.peak.compareAndSet(prev_peak, total));
-  }
+namespace local_engine
+{
+using namespace DB;
 
-  // peak used bytes
-  public long peak() {
-    return peak.get();
-  }
 
-  // current used bytes
-  public long current() {
-    return current.get();
-  }
 
-  public MemoryUsageStats toStats() {
-    return new MemoryUsageStats(this);
-  }
+void deserializeExcelBoolTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings);
+
 }

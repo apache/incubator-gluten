@@ -16,9 +16,10 @@
  */
 package io.glutenproject.memory.memtarget.spark;
 
-import io.glutenproject.memory.MemoryUsage;
-import io.glutenproject.memory.MemoryUsageStats;
+import io.glutenproject.memory.MemoryUsageStatsBuilder;
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.TaskManagedMemoryTarget;
+import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.common.base.Preconditions;
 import org.apache.spark.memory.MemoryConsumer;
@@ -30,13 +31,18 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements TaskManagedM
   private final TaskMemoryManager taskMemoryManager;
   private final Spiller spiller;
   private final String name;
-  private final MemoryUsage usage = new MemoryUsage();
+  private final StatsBuilder statsBuilder;
 
-  public GlutenMemoryConsumer(String name, TaskMemoryManager taskMemoryManager, Spiller spiller) {
+  public GlutenMemoryConsumer(
+      String name,
+      TaskMemoryManager taskMemoryManager,
+      Spiller spiller,
+      StatsBuilder statsBuilder) {
     super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
     this.taskMemoryManager = taskMemoryManager;
     this.spiller = spiller;
     this.name = name;
+    this.statsBuilder = statsBuilder;
   }
 
   @Override
@@ -59,7 +65,7 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements TaskManagedM
     if (acquired < size) {
       this.taskMemoryManager.showMemoryUsage();
     }
-    usage.inc(acquired);
+    statsBuilder.onAcquire(acquired);
     return acquired;
   }
 
@@ -67,7 +73,7 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements TaskManagedM
     assert size > 0;
     freeMemory(size);
     Preconditions.checkArgument(getUsed() >= 0);
-    usage.inc(-size);
+    statsBuilder.onFree(size);
     return size;
   }
 
@@ -77,10 +83,15 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements TaskManagedM
   }
 
   @Override
+  public long usedBytes() {
+    return getUsed();
+  }
+
+  @Override
   public MemoryUsageStats stats() {
-    MemoryUsageStats stats = this.usage.toStats();
+    MemoryUsageStats stats = this.statsBuilder.toStats();
     Preconditions.checkState(
-        stats.current == getUsed(),
+        stats.getCurrent() == getUsed(),
         "Used bytes mismatch between gluten memory consumer and Spark task memory manager");
     return stats;
   }
@@ -98,5 +109,32 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements TaskManagedM
   @Override
   public String toString() {
     return name();
+  }
+
+  public static StatsBuilder newDefaultStatsBuilder() {
+    return new StatsBuilder() {
+      private final SimpleMemoryUsageRecorder usage = new SimpleMemoryUsageRecorder();
+
+      @Override
+      public void onAcquire(long size) {
+        usage.inc(size);
+      }
+
+      @Override
+      public void onFree(long size) {
+        usage.inc(-size);
+      }
+
+      @Override
+      public MemoryUsageStats toStats() {
+        return usage.toStats();
+      }
+    };
+  }
+
+  public interface StatsBuilder extends MemoryUsageStatsBuilder {
+    void onAcquire(long size);
+
+    void onFree(long size);
   }
 }

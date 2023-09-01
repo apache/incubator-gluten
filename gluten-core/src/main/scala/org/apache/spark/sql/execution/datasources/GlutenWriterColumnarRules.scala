@@ -27,7 +27,6 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OrderPreservingUnaryNode}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.command.{CreateDataSourceTableAsSelectCommand, DataWritingCommand, DataWritingCommandExec}
@@ -82,15 +81,6 @@ case class FakeRowAdaptor(child: SparkPlan)
 case class MATERIALIZE_TAG()
 
 object GlutenWriterColumnarRules {
-  // some output formats does not recognize const and sparse columns (e.g. ColumnConst in CH)
-  // So when the following two conditions are met
-  // 1. a SparkPlan is columnar output(or it may be converted to another SparkPlan which is)
-  // 2. this SparkPlan is the last plan before FakeRowAdapter (ignore AQE)
-  // We tag the SparkPlan, so that its wrapping WholeStageTransform can add
-  // an additional MaterializeTransform to materialize the columnar output before write
-  val TAG: TreeNodeTag[MATERIALIZE_TAG] =
-    TreeNodeTag[MATERIALIZE_TAG]("io.glutenproject.materialize")
-
   // TODO: support ctas in Spark3.4, see https://github.com/apache/spark/pull/39220
   // TODO: support dynamic partition and bucket write
   //  1. pull out `Empty2Null` and required ordering to `WriteFilesExec`, see Spark3.4 `V1Writes`
@@ -167,14 +157,12 @@ object GlutenWriterColumnarRules {
           child match {
             // if the child is columnar, we can just wrap&transfer the columnar data
             case c2r: ColumnarToRowExecBase =>
-              c2r.child.setTagValue(GlutenWriterColumnarRules.TAG, MATERIALIZE_TAG())
               rc.withNewChildren(Array(FakeRowAdaptor(c2r.child)))
             // If the child is aqe, we make aqe "support columnar",
             // then aqe itself will guarantee to generate columnar outputs.
             // So FakeRowAdaptor will always consumes columnar data,
             // thus avoiding the case of c2r->aqe->r2c->writer
             case aqe: AdaptiveSparkPlanExec =>
-              aqe.inputPlan.setTagValue(GlutenWriterColumnarRules.TAG, MATERIALIZE_TAG())
               rc.withNewChildren(
                 Array(
                   FakeRowAdaptor(

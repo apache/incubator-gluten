@@ -33,16 +33,11 @@ public interface ReservationListener {
         public long getUsedBytes() {
           return 0;
         }
-
-        @Override
-        public void inactivate() {}
       };
 
   long reserve(long size);
 
   long unreserve(long size);
-
-  void inactivate();
 
   long getUsedBytes();
 }

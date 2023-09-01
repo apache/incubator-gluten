@@ -769,7 +769,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
 
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
   GLUTEN_CHECK(memoryManager != nullptr, "MemoryManager should not be null.");
-  shuffleWriterOptions.memory_pool = asArrowMemoryPool(memoryManager->getMemoryAllocator());
+  shuffleWriterOptions.memory_pool = memoryManager->getArrowMemoryPool();
   shuffleWriterOptions.ipc_memory_pool = shuffleWriterOptions.memory_pool;
 
   jclass cls = env->FindClass("java/lang/Thread");
@@ -821,7 +821,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jclass celebornPartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
     jmethodID celebornPushPartitionDataMethod =
-        getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", "(I[B)I");
+        getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", "(I[BI)I");
     if (pushBufferMaxSize > 0) {
       shuffleWriterOptions.push_buffer_max_size = pushBufferMaxSize;
     }
@@ -837,8 +837,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   }
 
   auto backend = gluten::createBackend();
-  auto shuffleWriter =
-      backend->makeShuffleWriter(numPartitions, std::move(partitionWriterCreator), std::move(shuffleWriterOptions));
+  auto shuffleWriter = backend->makeShuffleWriter(
+      numPartitions, std::move(partitionWriterCreator), std::move(shuffleWriterOptions), memoryManager);
   return shuffleWriterHolder.insert(shuffleWriter);
   JNI_METHOD_END(-1L)
 }
@@ -952,7 +952,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
   JNI_METHOD_START
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
   GLUTEN_CHECK(memoryManager != nullptr, "MemoryManager should not be null.");
-  auto pool = asArrowMemoryPool(memoryManager->getMemoryAllocator());
+  auto pool = memoryManager->getArrowMemoryPool();
   ReaderOptions options = ReaderOptions::defaults();
   options.ipc_read_options.memory_pool = pool.get();
   options.ipc_read_options.use_threads = false;
@@ -1078,7 +1078,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_vel
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_getAllocator( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_getAllocator( // NOLINT
     JNIEnv* env,
     jclass,
     jstring jTypeName) {
@@ -1096,7 +1096,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_g
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_releaseAllocator( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_releaseAllocator( // NOLINT
     JNIEnv* env,
     jclass,
     jlong allocatorId) {
@@ -1105,7 +1105,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_re
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryAllocator_bytesAllocated( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_bytesAllocated( // NOLINT
     JNIEnv* env,
     jclass,
     jlong allocatorId) {
@@ -1130,7 +1130,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_cre
   if (env->GetJavaVM(&vm) != JNI_OK) {
     throw gluten::GlutenException("Unable to get JavaVM instance");
   }
-  auto* allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocatorId);
+  auto allocator = reinterpret_cast<std::shared_ptr<MemoryAllocator>*>(allocatorId);
   if (allocator == nullptr) {
     throw gluten::GlutenException("Allocator does not exist or has been closed");
   }
@@ -1144,7 +1144,23 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_cre
   JNI_METHOD_END(-1L)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_releaseManager( // NOLINT
+JNIEXPORT jbyteArray JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_collectMemoryUsage( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong memoryManagerId) {
+  MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
+  const MemoryUsageStats& stats = memoryManager->collectMemoryUsageStats();
+  auto size = stats.ByteSizeLong();
+  jbyteArray out = env->NewByteArray(size);
+  uint8_t buffer[size];
+  GLUTEN_CHECK(
+      stats.SerializeToArray(reinterpret_cast<void*>(buffer), size),
+      "Serialization failed when collecting memory usage stats");
+  env->SetByteArrayRegion(out, 0, size, reinterpret_cast<jbyte*>(buffer));
+  return out;
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_release( // NOLINT
     JNIEnv* env,
     jclass,
     jlong memoryManagerId) {
@@ -1175,7 +1191,7 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializ
   env->ReleaseLongArrayElements(handles, batchhandles, JNI_ABORT);
 
   auto backend = createBackend();
-  auto arrowPool = asArrowMemoryPool(memoryManager->getMemoryAllocator());
+  auto arrowPool = memoryManager->getArrowMemoryPool();
   auto serializer = backend->getColumnarBatchSerializer(memoryManager, arrowPool, nullptr);
   auto buffer = serializer->serializeColumnarBatches(batches);
   auto bufferArr = env->NewByteArray(buffer->size());
@@ -1196,7 +1212,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializer
   JNI_METHOD_START
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
   GLUTEN_DCHECK(memoryManager != nullptr, "Memory manager does not exist or has been closed");
-  auto arrowPool = asArrowMemoryPool(memoryManager->getMemoryAllocator());
+  auto arrowPool = memoryManager->getArrowMemoryPool();
   auto backend = createBackend();
   auto serializer =
       backend->getColumnarBatchSerializer(memoryManager, arrowPool, reinterpret_cast<struct ArrowSchema*>(cSchema));

@@ -55,7 +55,7 @@ template <typename Vector, bool include_quotes = false>
 void readExcelCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::CSV & settings, const String & escape_value);
 
 
-void deserializeExcelTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings, const String & escape_value);
+void deserializeExcelStringTextCSV(IColumn & column, ReadBuffer & istr, const FormatSettings & settings, const String & escape_value);
 
 
 }
