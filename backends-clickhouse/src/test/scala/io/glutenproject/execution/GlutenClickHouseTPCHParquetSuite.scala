@@ -1300,7 +1300,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       queriesResults: String = queriesResults,
       compareResult: Boolean = true,
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
+    val confName = "spark.gluten.sql.columnar.backend.ch." +
+      "runtime_settings.query_plan_enable_optimizations"
+
+    withSQLConf((confName, "false")) {
+      compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
+    }
+
+    withSQLConf((confName, "true")) {
+      compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
+    }
   }
 
   test("test 'ColumnarToRowExec should not be used'") {
