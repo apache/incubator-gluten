@@ -32,7 +32,6 @@ namespace BroadCastJoinBuilder
     std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
         const std::string & key,
         jobject input,
-        size_t io_buffer_size,
         const std::string & join_keys,
         substrait::JoinRel_JoinType join_type,
         const std::string & named_struct);

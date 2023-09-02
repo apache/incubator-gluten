@@ -16,7 +16,6 @@
  */
 package io.glutenproject.vectorized;
 
-import io.glutenproject.backendsapi.clickhouse.CHBackendSettings;
 import io.glutenproject.execution.BroadCastHashJoinContext;
 import io.glutenproject.expression.ConverterUtils;
 import io.glutenproject.expression.ConverterUtils$;
@@ -44,7 +43,6 @@ public class StorageJoinBuilder {
   private static native long nativeBuild(
       String buildHashTableId,
       ShuffleInputStream in,
-      int customizeBufferSize,
       String joinKeys,
       int joinType,
       byte[] namedStruct);
@@ -57,8 +55,7 @@ public class StorageJoinBuilder {
       BroadCastHashJoinContext broadCastContext,
       List<Expression> newBuildKeys,
       List<Attribute> newOutput) {
-    int customizeBufferSize = CHBackendSettings.customizeBufferSize();
-    ShuffleInputStream in = CHShuffleReadStreamFactory.create(batches, true, customizeBufferSize);
+    ShuffleInputStream in = CHShuffleReadStreamFactory.create(batches, true);
     try {
       ConverterUtils$ converter = ConverterUtils$.MODULE$;
       List<Expression> keys;
@@ -81,7 +78,6 @@ public class StorageJoinBuilder {
       return nativeBuild(
           broadCastContext.buildHashTableId(),
           in,
-          customizeBufferSize,
           joinKey,
           SubstraitUtil.toSubstrait(broadCastContext.joinType()).ordinal(),
           toNameStruct(output).toByteArray());

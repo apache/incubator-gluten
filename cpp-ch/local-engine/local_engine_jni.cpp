@@ -560,11 +560,11 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHNativeBlock_nativeTotalBytes(
 }
 
 JNIEXPORT jlong Java_io_glutenproject_vectorized_CHStreamReader_createNativeShuffleReader(
-    JNIEnv * env, jclass /*clazz*/, jobject input_stream, jboolean compressed, size_t customize_buffer_size)
+    JNIEnv * env, jclass /*clazz*/, jobject input_stream, jboolean compressed)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * input = env->NewGlobalRef(input_stream);
-    auto read_buffer = std::make_unique<local_engine::ReadBufferFromJavaInputStream>(input, customize_buffer_size);
+    auto read_buffer = std::make_unique<local_engine::ReadBufferFromJavaInputStream>(input);
     auto * shuffle_reader = new local_engine::ShuffleReader(std::move(read_buffer), compressed);
     return reinterpret_cast<jlong>(shuffle_reader);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
@@ -973,14 +973,7 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 }
 
 JNIEXPORT jlong Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeBuild(
-    JNIEnv * env,
-    jclass,
-    jstring hash_table_id_,
-    jobject in,
-    jint io_buffer_size,
-    jstring join_key_,
-    jint join_type_,
-    jbyteArray named_struct)
+    JNIEnv * env, jclass, jstring hash_table_id_, jobject in, jstring join_key_, jint join_type_, jbyteArray named_struct)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * input = env->NewGlobalRef(in);
@@ -992,7 +985,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeBuild(
     struct_string.assign(reinterpret_cast<const char *>(struct_address), struct_size);
     substrait::JoinRel_JoinType join_type = static_cast<substrait::JoinRel_JoinType>(join_type_);
     auto * obj = local_engine::make_wrapper(
-        local_engine::BroadCastJoinBuilder::buildJoin(hash_table_id, input, io_buffer_size, join_key, join_type, struct_string));
+        local_engine::BroadCastJoinBuilder::buildJoin(hash_table_id, input, join_key, join_type, struct_string));
     env->ReleaseByteArrayElements(named_struct, struct_address, JNI_ABORT);
     return obj->instance();
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)

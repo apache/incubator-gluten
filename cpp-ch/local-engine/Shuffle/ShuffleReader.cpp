@@ -74,13 +74,12 @@ bool ReadBufferFromJavaInputStream::nextImpl()
 int ReadBufferFromJavaInputStream::readFromJava()
 {
     GET_JNIENV(env)
-    jint count
-        = safeCallIntMethod(env, java_in, ShuffleReader::input_stream_read, reinterpret_cast<jlong>(working_buffer.begin()), buffer_size);
+    jint count = safeCallIntMethod(
+        env, java_in, ShuffleReader::input_stream_read, reinterpret_cast<jlong>(working_buffer.begin()), memory.m_capacity);
     CLEAN_JNIENV
     return count;
 }
-ReadBufferFromJavaInputStream::ReadBufferFromJavaInputStream(jobject input_stream, size_t customize_buffer_size)
-    : java_in(input_stream), buffer_size(customize_buffer_size)
+ReadBufferFromJavaInputStream::ReadBufferFromJavaInputStream(jobject input_stream) : java_in(input_stream)
 {
 }
 ReadBufferFromJavaInputStream::~ReadBufferFromJavaInputStream()

@@ -83,18 +83,17 @@ public final class CHShuffleReadStreamFactory {
 
   private CHShuffleReadStreamFactory() {}
 
-  public static ShuffleInputStream create(byte[] allBatches, boolean compressed, int bufferSize) {
-    return new OnHeapCopyShuffleInputStream(
-        new ByteArrayInputStream(allBatches), bufferSize, compressed);
+  public static ShuffleInputStream create(byte[] allBatches, boolean compressed) {
+    return new OnHeapCopyShuffleInputStream(new ByteArrayInputStream(allBatches), compressed);
   }
 
   public static ShuffleInputStream create(
-      InputStream in, boolean forceCompress, boolean isCustomizedShuffleCodec, int bufferSize) {
+      InputStream in, boolean forceCompress, boolean isCustomizedShuffleCodec) {
     final InputStream unwrapped = unwrapInputStream(in, forceCompress, isCustomizedShuffleCodec);
     if (unwrapped != null) {
-      return createCompressedShuffleInputStream(in, bufferSize, unwrapped);
+      return createCompressedShuffleInputStream(in, unwrapped);
     }
-    return new OnHeapCopyShuffleInputStream(in, bufferSize, false);
+    return new OnHeapCopyShuffleInputStream(in, false);
   }
 
   private static InputStream unwrapInputStream(
@@ -108,7 +107,7 @@ public final class CHShuffleReadStreamFactory {
   }
 
   private static ShuffleInputStream createCompressedShuffleInputStream(
-      InputStream in, int bufferSize, InputStream unwrapped) {
+      InputStream in, InputStream unwrapped) {
     LimitedInputStream limitedInputStream = isReadFromFileSegment(unwrapped);
     if (limitedInputStream != null) {
       return new LowCopyFileSegmentShuffleInputStream(in, limitedInputStream, true);
@@ -119,7 +118,7 @@ public final class CHShuffleReadStreamFactory {
       return new LowCopyNettyShuffleInputStream(in, byteBuf, true);
     }
     // Unwrap failed, use on heap copy method
-    return new OnHeapCopyShuffleInputStream(in, bufferSize, true);
+    return new OnHeapCopyShuffleInputStream(in, true);
   }
 
   /** Unwrap BufferReleasingInputStream and CheckedInputStream */

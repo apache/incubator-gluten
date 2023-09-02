@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.execution.joins
 
-import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.execution.{BroadCastHashJoinContext, ColumnarNativeIterator}
 import io.glutenproject.utils.{IteratorUtil, PlanNodesUtil}
 import io.glutenproject.vectorized._
@@ -72,10 +71,7 @@ case class ClickHouseBuildSideRelation(
    */
   override def transform(key: Expression): Array[InternalRow] = {
     // native block reader
-    val blockReader =
-      new CHStreamReader(
-        CHShuffleReadStreamFactory.create(batches, true, CHBackendSettings.customizeBufferSize),
-        CHBackendSettings.customizeBufferSize)
+    val blockReader = new CHStreamReader(CHShuffleReadStreamFactory.create(batches, true))
     val broadCastIter: Iterator[ColumnarBatch] = IteratorUtil.createBatchIterator(blockReader)
     // Expression compute, return block iterator
     val expressionEval = new SimpleExpressionEval(

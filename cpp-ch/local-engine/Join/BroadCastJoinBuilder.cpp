@@ -83,7 +83,6 @@ namespace BroadCastJoinBuilder
     std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
         const std::string & key,
         jobject input,
-        size_t io_buffer_size,
         const std::string & join_keys,
         substrait::JoinRel_JoinType join_type,
         const std::string & named_struct)
@@ -104,7 +103,7 @@ namespace BroadCastJoinBuilder
         Block header = TypeParser::buildBlockFromNamedStruct(substrait_struct);
         ColumnsDescription columns_description(header.getNamesAndTypesList());
 
-        ReadBufferFromJavaInputStream in(input, io_buffer_size);
+        ReadBufferFromJavaInputStream in(input);
         CompressedReadBuffer compressed_in(in);
         configureCompressedReadBuffer(compressed_in);
 

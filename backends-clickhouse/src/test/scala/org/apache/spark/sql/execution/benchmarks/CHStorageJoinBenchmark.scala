@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
-import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.utils.IteratorUtil
 import io.glutenproject.vectorized.{BlockOutputStream, CHBlockWriterJniWrapper, CHStreamReader}
 
@@ -210,10 +209,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
   }
 
   def iterateBatch(array: Array[Byte], compressed: Boolean): Int = {
-    val blockReader =
-      new CHStreamReader(
-        CHShuffleReadStreamFactory.create(array, compressed, CHBackendSettings.customizeBufferSize),
-        CHBackendSettings.customizeBufferSize)
+    val blockReader = new CHStreamReader(CHShuffleReadStreamFactory.create(array, compressed))
     val broadCastIter: Iterator[ColumnarBatch] = IteratorUtil.createBatchIterator(blockReader)
     broadCastIter.foldLeft(0) {
       case (acc, batch) =>
