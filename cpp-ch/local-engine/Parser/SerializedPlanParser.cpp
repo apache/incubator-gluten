@@ -626,15 +626,17 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             throw Exception(ErrorCodes::UNKNOWN_TYPE, "doesn't support relation type: {}.\n{}", rel.rel_type_case(), rel.DebugString());
     }
 
-    if (rel.rel_type_case() == substrait::Rel::RelTypeCase::kRead)
+    if (!context->getSettingsRef().query_plan_enable_optimizations)
     {
-        size_t id = metrics.empty() ? 0 : metrics.back()->getId() + 1;
-        metrics.emplace_back(std::make_shared<RelMetric>(id, String(magic_enum::enum_name(rel.rel_type_case())), steps));
+        if (rel.rel_type_case() == substrait::Rel::RelTypeCase::kRead)
+        {
+            size_t id = metrics.empty() ? 0 : metrics.back()->getId() + 1;
+            metrics.emplace_back(std::make_shared<RelMetric>(id, String(magic_enum::enum_name(rel.rel_type_case())), steps));
+        }
+        else
+            metrics = {std::make_shared<RelMetric>(String(magic_enum::enum_name(rel.rel_type_case())), metrics, steps)};
     }
-    else
-    {
-        metrics = {std::make_shared<RelMetric>(String(magic_enum::enum_name(rel.rel_type_case())), metrics, steps)};
-    }
+
     return query_plan;
 }
 

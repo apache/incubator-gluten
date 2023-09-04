@@ -1302,12 +1302,10 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
     val confName = "spark.gluten.sql.columnar.backend.ch." +
       "runtime_settings.query_plan_enable_optimizations"
-
-    withSQLConf((confName, "false")) {
+    withSQLConf((confName, "true")) {
       compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
     }
-
-    withSQLConf((confName, "true")) {
+    withSQLConf((confName, "false")) {
       compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
     }
   }
