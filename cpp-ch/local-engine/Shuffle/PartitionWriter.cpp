@@ -230,7 +230,7 @@ void CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
     auto spill_to_celeborn = [this]() -> void {
         Stopwatch serialization_time_watch;
         serialization_time_watch.start();
-        for (size_t partition_id = 0; partition_id < shuffle_writer->options.partition_nums; ++partition_id)
+        for (size_t partition_id = 0; partition_id < partition_buffer.size(); ++partition_id)
         {
             const auto & partition = partition_buffer[partition_id];
             size_t raw_size = 0;
