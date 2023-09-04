@@ -73,8 +73,8 @@ public class NativeMemoryManager implements TaskResource {
   }
 
   @Override
-  public long priority() {
-    return 0L; // lowest release priority
+  public int priority() {
+    return 0; // lowest release priority
   }
 
   @Override
