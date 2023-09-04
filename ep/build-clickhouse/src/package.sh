@@ -99,6 +99,8 @@ cp "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/resources/conf/* "${GLUTEN_SOURCE}
 # download 3rd party jars
 protobuf_version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${protobuf.version}' --non-recursive exec:exec)
 wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/${protobuf_version}/protobuf-java-${protobuf_version}.jar -P "${PACKAGE_DIR_PATH}"/jars
+celeborn_version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${celeborn.version}' --non-recursive exec:exec)
+wget https://repo1.maven.org/maven2/org/apache/celeborn/celeborn-client-spark-3-shaded_2.12/${celeborn_version}/celeborn-client-spark-3-shaded_2.12-${celeborn_version}.jar -P "${PACKAGE_DIR_PATH}"/jars
 delta_version_32=$(mvn -q -Dexec.executable="echo" -Dexec.args='${delta.version}' -Pspark-3.2 --non-recursive exec:exec)
 wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/${delta_version_32}/delta-core_2.12-${delta_version_32}.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
 wget https://repo1.maven.org/maven2/io/delta/delta-storage/${delta_version_32}/delta-storage-${delta_version_32}.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
