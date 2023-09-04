@@ -87,6 +87,8 @@ public abstract class CHNativeMemoryAllocators {
             spiller,
             TaskResources.getSharedUsage());
     TaskResources.addAnonymousResource(manager);
+    // force add memory consumer to task memory manager, will release by inactivate
+    manager.getManaged().listener().reserve(1);
     return manager.getManaged();
   }
 
