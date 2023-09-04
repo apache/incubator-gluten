@@ -15,17 +15,17 @@
  * limitations under the License.
  */
 #include "BroadCastJoinBuilder.h"
-#include <Parser/SerializedPlanParser.h>
+#include <Compression/CompressedReadBuffer.h>
+#include <Interpreters/TableJoin.h>
+#include <Join/StorageJoinFromReadBuffer.h>
+#include <Parser/JoinRelParser.h>
 #include <Parser/TypeParser.h>
 #include <Shuffle/ShuffleReader.h>
-#include <Storages/StorageJoinFromReadBuffer.h>
 #include <jni/SharedPointerWrapper.h>
 #include <jni/jni_common.h>
 #include <Poco/StringTokenizer.h>
 #include <Common/CurrentThread.h>
 #include <Common/JNIUtils.h>
-#include <Common/MemoryTracker.h>
-#include <Common/ThreadPool.h>
 #include <Common/logger_useful.h>
 
 namespace DB
@@ -48,65 +48,6 @@ namespace BroadCastJoinBuilder
         jstring s = charTojstring(env, id.c_str());
         auto result = safeCallStaticLongMethod(env, Java_CHBroadcastBuildSideCache, Java_get, s);
         CLEAN_JNIENV
-
-        return result;
-    }
-
-    struct StorageJoinContext
-    {
-        std::string key;
-        jobject input;
-        size_t io_buffer_size;
-        DB::Names key_names;
-        DB::JoinKind kind;
-        DB::JoinStrictness strictness;
-        DB::ColumnsDescription columns;
-    };
-
-    std::shared_ptr<StorageJoinFromReadBuffer> buildInBackground(
-        const std::string & key,
-        jobject input,
-        size_t io_buffer_size,
-        const DB::Names & key_names_,
-        DB::JoinKind kind_,
-        DB::JoinStrictness strictness_,
-        const DB::ColumnsDescription & columns_)
-    {
-        std::shared_ptr<StorageJoinFromReadBuffer> result;
-        StorageJoinContext context{key, input, io_buffer_size, key_names_, kind_, strictness_, columns_};
-        // use another thread, exclude broadcast memory allocation from current memory tracker
-        auto func = [&context, &result]() -> void
-        {
-            try
-            {
-                std::unique_ptr<ReadBuffer> in = std::make_unique<ReadBufferFromJavaInputStream>(context.input, context.io_buffer_size);
-                std::unique_ptr<ReadBuffer> compressed_in = createCompressedReadBuffer(in);
-                result = std::make_shared<StorageJoinFromReadBuffer>(
-                    *compressed_in,
-                    context.key_names,
-                    true,
-                    SizeLimits(),
-                    context.kind,
-                    context.strictness,
-                    context.columns,
-                    ConstraintsDescription(),
-                    context.key,
-                    true);
-                LOG_DEBUG(&Poco::Logger::get("BroadCastJoinBuilder"), "Create broadcast storage join {}.", context.key);
-            }
-            catch (DB::Exception & e)
-            {
-                LOG_ERROR(&Poco::Logger::get("BroadCastJoinBuilder"), "storage join create failed, {}", e.displayText());
-                result.reset();
-            }
-        };
-        ThreadFromGlobalPool build_thread(func);
-        build_thread.join();
-
-        if (!result)
-        {
-            throw DB::Exception(ErrorCodes::LOGICAL_ERROR, "create broadcast hash table {} failed.", key);
-        }
 
         return result;
     }
@@ -142,9 +83,8 @@ namespace BroadCastJoinBuilder
     std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
         const std::string & key,
         jobject input,
-        size_t io_buffer_size,
         const std::string & join_keys,
-        const std::string & join_type,
+        substrait::JoinRel_JoinType join_type,
         const std::string & named_struct)
     {
         auto join_key_list = Poco::StringTokenizer(join_keys, ",");
@@ -155,37 +95,27 @@ namespace BroadCastJoinBuilder
         }
         DB::JoinKind kind;
         DB::JoinStrictness strictness;
-        if (join_type == "Inner")
-        {
-            kind = DB::JoinKind::Inner;
-            strictness = DB::JoinStrictness::All;
-        }
-        else if (join_type == "Semi")
-        {
-            kind = DB::JoinKind::Left;
-            strictness = DB::JoinStrictness::Semi;
-        }
-        else if (join_type == "Anti")
-        {
-            kind = DB::JoinKind::Left;
-            strictness = DB::JoinStrictness::Anti;
-        }
-        else if (join_type == "Left")
-        {
-            kind = DB::JoinKind::Left;
-            strictness = DB::JoinStrictness::All;
-        }
-        else
-        {
-            throw Exception(ErrorCodes::UNKNOWN_TYPE, "unsupported join type {}.", join_type);
-        }
 
-        auto substrait_struct = std::make_unique<substrait::NamedStruct>();
-        substrait_struct->ParseFromString(named_struct);
+        std::tie(kind, strictness) = getJoinKindAndStrictness(join_type);
 
-        Block header = TypeParser::buildBlockFromNamedStruct(*substrait_struct);
+        substrait::NamedStruct substrait_struct;
+        substrait_struct.ParseFromString(named_struct);
+        Block header = TypeParser::buildBlockFromNamedStruct(substrait_struct);
         ColumnsDescription columns_description(header.getNamesAndTypesList());
-        return buildInBackground(key, input, io_buffer_size, key_names, kind, strictness, columns_description);
+
+        ReadBufferFromJavaInputStream in(input);
+        CompressedReadBuffer compressed_in(in);
+        configureCompressedReadBuffer(compressed_in);
+
+        return make_shared<StorageJoinFromReadBuffer>(
+            compressed_in,
+            key_names,
+            true,
+            std::make_shared<DB::TableJoin>(SizeLimits(), true, kind, strictness, key_names),
+            columns_description,
+            ConstraintsDescription(),
+            key,
+            true);
     }
 
     void init(JNIEnv * env)

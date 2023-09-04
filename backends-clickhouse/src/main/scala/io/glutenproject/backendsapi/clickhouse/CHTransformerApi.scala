@@ -122,20 +122,37 @@ class CHTransformerApi extends TransformerApi with Logging {
       val offHeapSize =
         nativeConfMap.getOrDefault("spark.gluten.memory.offHeap.size.in.bytes", "0").toLong
       if (offHeapSize > 0) {
-        val maxBytesBeforeExteralSort = offHeapSize * 0.5
-        nativeConfMap.put(
-          settingPrefix + "max_bytes_before_external_sort",
-          maxBytesBeforeExteralSort.toLong.toString)
+        // Only set default max_bytes_before_external_sort for CH when it is not set explicitly.
+        val sortSpillKey = settingPrefix + "max_bytes_before_external_sort";
+        if (!nativeConfMap.containsKey(sortSpillKey)) {
+          val sortSpillValue = offHeapSize * 0.5
+          nativeConfMap.put(sortSpillKey, sortSpillValue.toLong.toString)
+        }
 
-        val maxBytesBeforeExternalGroupBy = offHeapSize * 0.5
-        nativeConfMap.put(
-          settingPrefix + "max_bytes_before_external_group_by",
-          maxBytesBeforeExternalGroupBy.toLong.toString)
+        // Only set default max_bytes_before_external_group_by for CH when it is not set explicitly.
+        val groupBySpillKey = settingPrefix + "max_bytes_before_external_group_by";
+        if (!nativeConfMap.containsKey(groupBySpillKey)) {
+          val groupBySpillValue = offHeapSize * 0.5
+          nativeConfMap.put(groupBySpillKey, groupBySpillValue.toLong.toString)
+        }
+
+        // Only set default max_bytes_before_external_join for CH when join_algorithm is grace_hash
+        val joinAlgorithmKey = settingPrefix + "join_algorithm";
+        if (
+          nativeConfMap.containsKey(joinAlgorithmKey) &&
+          nativeConfMap.get(joinAlgorithmKey) == "grace_hash"
+        ) {
+          val joinSpillKey = settingPrefix + "max_bytes_in_join";
+          if (!nativeConfMap.containsKey(joinSpillKey)) {
+            val joinSpillValue = offHeapSize * 0.7
+            nativeConfMap.put(joinSpillKey, joinSpillValue.toLong.toString)
+          }
+        }
       }
     }
 
     val injectConfig: (String, String) => Unit = (srcKey, dstKey) => {
-      if (nativeConfMap.containsKey(srcKey)) {
+      if (nativeConfMap.containsKey(srcKey) && !nativeConfMap.containsKey(dstKey)) {
         nativeConfMap.put(dstKey, nativeConfMap.get(srcKey))
       }
     }

@@ -40,6 +40,7 @@ set (ENABLE_CURL_BUILD OFF)
 add_subdirectory(proto)
 
 add_headers_and_sources(builder Builder)
+add_headers_and_sources(join Join)
 add_headers_and_sources(parser Parser)
 add_headers_and_sources(storages Storages)
 add_headers_and_sources(storages Storages/Output)
@@ -51,6 +52,7 @@ add_headers_and_sources(shuffle Shuffle)
 add_headers_and_sources(operator Operator)
 add_headers_and_sources(jni jni)
 add_headers_and_sources(aggregate_functions AggregateFunctions)
+add_headers_and_sources(local_columns Columns)
 
 include_directories(
         ${JNI_INCLUDE_DIRS}
@@ -76,6 +78,7 @@ add_subdirectory(Functions)
 
 add_library(gluten_clickhouse_backend_libs
         ${builder_sources}
+        ${join_sources}
         ${parser_sources}
         ${storages_sources}
         ${common_sources}

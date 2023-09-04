@@ -557,10 +557,12 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         if (pair.first.starts_with(CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + "."))
         {
             settings.set(pair.first.substr((CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + ".").size()), pair.second);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings from config key:{} value:{}", pair.first, pair.second);
         }
         else if (pair.first.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
         {
             settings.set(pair.first.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), pair.second);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", pair.first, pair.second);
         }
         else if (pair.first.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
         {
