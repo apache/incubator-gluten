@@ -156,13 +156,12 @@ class CelebornHashBasedCHColumnarShuffleWriter[K, V](
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
     partitionLengths = splitResult.getPartitionLengths
-
     val pushMergedDataTime = System.nanoTime
     client.prepareForMergeData(shuffleId, mapId, context.attemptNumber())
     client.pushMergedData(shuffleId, mapId, context.attemptNumber)
     client.mapperEnd(shuffleId, mapId, context.attemptNumber, numMappers)
     writeMetrics.incWriteTime(System.nanoTime - pushMergedDataTime)
-    mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+    mapStatus = MapStatus(blockManager.shuffleServerId, splitResult.getRawPartitionLengths, mapId)
   }
 
   override def stop(success: Boolean): Option[MapStatus] = {
