@@ -347,6 +347,14 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
     runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("test issue: https://github.com/oap-project/gluten/issues/2947") {
+    val sql =
+      """
+        |select if(id % 2 = 0, null, array(id, 2, null)) from range(10)
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test str2map") {
     val sql1 =
       """
