@@ -578,10 +578,6 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
                 val exchange = maybeHiddenExchange.get
                 // to conform to the underlying exchange's type, columnar or vanilla
                 exchange match {
-                  case BroadcastExchangeExec(mode, child) =>
-                    TransformHints.tagNotTransformable(
-                      bhj,
-                      "it's a materialized broadcast exchange or reused broadcast exchange")
                   case ColumnarBroadcastExchangeExec(mode, child) =>
                     if (!isBhjTransformable.isValid) {
                       throw new IllegalStateException(
