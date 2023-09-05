@@ -78,6 +78,23 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
 
   arrow::Status evictPartition(int32_t partitionId) override;
 
+  /// The stop function performs several tasks:
+  /// 1. Opens the final data file.
+  /// 2. Iterates over each partition ID (pid) to:
+  ///    a. Record the offset for each partition in the final file.
+  ///    b. Merge data from spilled files and write to the final file.
+  ///    c. Write cached payloads to the final file.
+  ///    d. Create the last payload from split buffer, and write to the final file.
+  ///    e. Optionally, write End of Stream (EOS) if any payload has been written.
+  /// 3. Closes and deletes all the spilled files.
+  /// 4. Records various metrics such as total write time, bytes evicted, and bytes written.
+  /// 5. Clears any buffered resources and closes the final file.
+  ///
+  /// Spill handling:
+  /// Spill is allowed during stop().
+  /// Among above steps, 1. and 2.d requires memory allocation and may trigger spill.
+  /// If spill is triggered by 1., cached payloads of all partitions will be spilled.
+  /// If spill is triggered by 2.d, cached payloads of the remaining unmerged partitions will be spilled.
   arrow::Status stop() override;
 
  private:
@@ -116,18 +133,19 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
   }
 
   struct PartitionSpillInfo {
-    int32_t partitionId;
-    int64_t start;
-    int64_t length; // in Bytes
+    int32_t partitionId = -1;
+    int64_t length = 0; // in Bytes
   };
 
   struct SpillInfo {
-    std::string spilledFile;
-    std::vector<PartitionSpillInfo> partitionSpillInfos;
+    std::string spilledFile{};
+    std::vector<PartitionSpillInfo> partitionSpillInfos{};
+    std::shared_ptr<arrow::io::MemoryMappedFile> inputStream{};
+
+    int32_t mergePos = 0;
   };
 
   std::vector<SpillInfo> spills_;
-  bool inStop_{false};
 };
 
 class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {

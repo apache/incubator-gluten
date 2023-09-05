@@ -1505,7 +1505,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       } else {
         RETURN_NOT_OK(evictPartition(-1));
 #ifdef GLUTEN_PRINT_DEBUG
-        std::cout << "Evicted all partition. " << std::to_string(totalCachedSize) << " bytes released" << std::endl;
+        std::cout << "Evicted all partitions. " << std::to_string(totalCachedSize) << " bytes released" << std::endl;
 #endif
         *size = totalCachedSize;
       }
