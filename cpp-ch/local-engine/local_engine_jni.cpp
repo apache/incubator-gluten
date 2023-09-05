@@ -122,7 +122,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     spark_row_info_constructor = env->GetMethodID(spark_row_info_class, "<init>", "([J[JJJJ)V");
 
     block_stripes_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
-    block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", "(J[J[IIZ)V");
+    block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", "(J[J[II)V");
 
     split_result_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/CHSplitResult;");
     split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[JJJJ)V");
@@ -1011,13 +1011,7 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
     env->SetIntArrayRegion(indices, 0, bs.heading_row_indice.size(), bs.heading_row_indice.data());
 
     jobject block_stripes = env->NewObject(
-        block_stripes_class,
-        block_stripes_constructor,
-        bs.original_block_address,
-        addresses,
-        indices,
-        bs.origin_block_col_num,
-        bs.no_need_split);
+        block_stripes_class, block_stripes_constructor, bs.origin_block_address, addresses, indices, bs.origin_block_num_columns);
     return block_stripes;
 
     LOCAL_ENGINE_JNI_METHOD_END(env, nullptr)

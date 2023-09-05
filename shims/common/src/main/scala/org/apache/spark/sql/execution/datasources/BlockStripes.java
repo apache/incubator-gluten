@@ -25,22 +25,17 @@ public class BlockStripes implements Iterable<BlockStripe> {
     public long originBlockAddress;
     public long[] blockAddresses;
     public int[] headingRowIndice;
-
     public int originBlockNumColumns;
-
-    public boolean noNeedSplit;
 
     public BlockStripes(
             long originBlockAddress,
             long[] blockAddresses,
             int[] headingRowIndice,
-            int originBlockNumColumns,
-            boolean noNeedSplit) {
+            int originBlockNumColumns) {
         this.originBlockAddress = originBlockAddress;
         this.blockAddresses = blockAddresses;
         this.headingRowIndice = headingRowIndice;
         this.originBlockNumColumns = originBlockNumColumns;
-        this.noNeedSplit = noNeedSplit;
     }
 
     public void release() {
