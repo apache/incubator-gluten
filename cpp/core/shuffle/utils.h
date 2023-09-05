@@ -27,6 +27,7 @@
 
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+#include <fcntl.h>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -105,9 +106,15 @@ static inline arrow::Result<std::string> createTempShuffleFile(const std::string
     filePath = arrow::fs::internal::ConcatAbstractPath(dir, "temp_shuffle_" + generateUuid());
     ARROW_ASSIGN_OR_RAISE(auto file_info, fs->GetFileInfo(filePath));
     if (file_info.type() == arrow::fs::FileType::NotFound) {
-      exist = false;
-      ARROW_ASSIGN_OR_RAISE(auto s, fs->OpenOutputStream(filePath));
-      RETURN_NOT_OK(s->Close());
+      int fd = open(filePath.c_str(), O_CREAT | O_EXCL | O_RDWR, 0666);
+      if (fd < 0) {
+        if (errno != EEXIST) {
+          return arrow::Status::IOError("Failed to open local file " + filePath + ", Reason: " + strerror(errno));
+        }
+      } else {
+        exist = false;
+        close(fd);
+      }
     }
   }
   return filePath;
