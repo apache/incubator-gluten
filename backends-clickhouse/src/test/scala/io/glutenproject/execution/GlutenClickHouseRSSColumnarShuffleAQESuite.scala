@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.CoalescedPartitionSpec
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec}
+import org.apache.spark.sql.internal.SQLConf
 
 class GlutenClickHouseRSSColumnarShuffleAQESuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -175,24 +176,31 @@ class GlutenClickHouseRSSColumnarShuffleAQESuite
 
   test("fix partiton_id when spill_to_celeborn") {
     import testImplicits._
-    val df = spark.sparkContext
-      .parallelize(
-        TestData(0) ::
+    withSQLConf(
+      SQLConf.COALESCE_PARTITIONS_INITIAL_PARTITION_NUM.key -> "5",
+      SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key -> "10B",
+      SQLConf.COALESCE_PARTITIONS_MIN_PARTITION_NUM.key -> "2",
+      SQLConf.COALESCE_PARTITIONS_MIN_PARTITION_SIZE.key -> "1B"
+    ) {
+      val df = spark.sparkContext
+        .parallelize(
           TestData(0) ::
-          TestData(1) ::
-          TestData(1) ::
-          TestData(2) ::
-          TestData(2) :: Nil,
-        3)
-      .toDF()
-    df.createOrReplaceTempView("t")
-    val res = spark.sql("select spark_partition_id(), id from t group by id").collect()
-    assert(res.length == 3)
-    assert(res(0).getInt(0) == 0)
-    assert(res(0).getInt(1) == 0)
-    assert(res(1).getInt(0) == 1)
-    assert(res(1).getInt(1) == 1)
-    assert(res(2).getInt(0) == 2)
-    assert(res(2).getInt(1) == 2)
+            TestData(0) ::
+            TestData(1) ::
+            TestData(1) ::
+            TestData(2) ::
+            TestData(2) :: Nil,
+          3)
+        .toDF()
+      df.createOrReplaceTempView("t")
+      val res = spark.sql("select spark_partition_id(), id from t group by id").collect()
+      assert(res.length == 3)
+      assert(res(0).getInt(0) == 0)
+      assert(res(0).getInt(1) == 0)
+      assert(res(1).getInt(0) == 1)
+      assert(res(1).getInt(1) == 1)
+      assert(res(2).getInt(0) == 2)
+      assert(res(2).getInt(1) == 2)
+    }
   }
 }
