@@ -187,7 +187,7 @@ class JniColumnarBatchIterator : public ColumnarBatchIterator {
     jColumnarBatchItr_ = env->NewGlobalRef(jColumnarBatchItr);
   }
 
-  // singleton, avoid stack instantiation
+  // singleton
   JniColumnarBatchIterator(const JniColumnarBatchIterator&) = delete;
   JniColumnarBatchIterator(JniColumnarBatchIterator&&) = delete;
   JniColumnarBatchIterator& operator=(const JniColumnarBatchIterator&) = delete;

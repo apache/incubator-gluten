@@ -242,9 +242,22 @@ const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
   return stats;
 }
 
-const int64_t VeloxMemoryManager::shrink(int64_t size) {
-  int64_t shrunken = veloxAggregatePool_->shrinkManaged(veloxAggregatePool_.get(), size);
+namespace {
+int64_t shrinkVeloxMemoryPool(velox::memory::MemoryPool* pool, int64_t size) {
+  std::string poolName{pool->root()->name() + "/" + pool->name()};
+  std::string logPrefix{"Shrink[" + poolName + "]: "};
+  DLOG(INFO) << logPrefix << "Trying to shrink " << size << " bytes of data...";
+  DLOG(INFO) << logPrefix << "Pool has reserved " << pool->currentBytes() << "/" << pool->root()->reservedBytes() << "/"
+             << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
+  DLOG(INFO) << logPrefix << "Shrinking...";
+  int64_t shrunken = pool->shrinkManaged(pool, size);
+  DLOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
   return shrunken;
+}
+} // namespace
+
+const int64_t VeloxMemoryManager::shrink(int64_t size) {
+  return shrinkVeloxMemoryPool(veloxAggregatePool_.get(), size);
 }
 
 velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
