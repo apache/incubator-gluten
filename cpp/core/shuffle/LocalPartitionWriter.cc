@@ -312,14 +312,16 @@ arrow::Status PreferCachePartitionWriter::stop() {
     ARROW_ASSIGN_OR_RAISE(auto startInFinalFile, dataFileOs_->Tell());
     // 4. Iterator over all spilled files
     for (auto i = 0; i < spills_.size(); ++i) {
-      auto partitionSpillInfo = spills_[i].partitionSpillInfos[spillInfoOffsets[i]];
-      // 5. read if partition exists in the spilled file and write to the final file
-      if (partitionSpillInfo.partitionId == pid) { // A hit
-        firstWrite = false;
-        ARROW_ASSIGN_OR_RAISE(auto raw, spilledFiles[i]->ReadAt(partitionSpillInfo.start, partitionSpillInfo.length));
-        RETURN_NOT_OK(dataFileOs_->Write(raw));
-        // Goto next partition in this spillInfo
-        spillInfoOffsets[i]++;
+      if (spillInfoOffsets[i] < spills_[i].partitionSpillInfos.size()) {
+        auto partitionSpillInfo = spills_[i].partitionSpillInfos[spillInfoOffsets[i]];
+        // 5. read if partition exists in the spilled file and write to the final file
+        if (partitionSpillInfo.partitionId == pid) { // A hit
+          firstWrite = false;
+          ARROW_ASSIGN_OR_RAISE(auto raw, spilledFiles[i]->ReadAt(partitionSpillInfo.start, partitionSpillInfo.length));
+          RETURN_NOT_OK(dataFileOs_->Write(raw));
+          // Goto next partition in this spillInfo
+          spillInfoOffsets[i]++;
+        }
       }
     }
     // 6. Write cached batches
