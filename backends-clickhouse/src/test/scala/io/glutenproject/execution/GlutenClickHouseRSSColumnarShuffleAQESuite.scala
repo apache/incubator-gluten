@@ -28,6 +28,8 @@ class GlutenClickHouseRSSColumnarShuffleAQESuite
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "queries-output"
 
+  case class TestData(id: Int)
+
   /** Run Gluten + ClickHouse Backend with ColumnarShuffleManager */
   override protected def sparkConf: SparkConf = {
     super.sparkConf
@@ -169,5 +171,28 @@ class GlutenClickHouseRSSColumnarShuffleAQESuite
         assert(adaptiveSparkPlanExec.size == 3)
         assert(adaptiveSparkPlanExec(1) == adaptiveSparkPlanExec(2))
     }
+  }
+
+  test("fix partiton_id when spill_to_celeborn") {
+    import testImplicits._
+    val df = spark.sparkContext
+      .parallelize(
+        TestData(0) ::
+          TestData(0) ::
+          TestData(1) ::
+          TestData(1) ::
+          TestData(2) ::
+          TestData(2) :: Nil,
+        3)
+      .toDF()
+    df.createOrReplaceTempView("t")
+    val res = spark.sql("select spark_partition_id(), id from t group by id").collect()
+    assert(res.length == 3)
+    assert(res(0).getInt(0) == 0)
+    assert(res(0).getInt(1) == 0)
+    assert(res(1).getInt(0) == 1)
+    assert(res(1).getInt(1) == 1)
+    assert(res(2).getInt(0) == 2)
+    assert(res(2).getInt(1) == 2)
   }
 }
