@@ -6,11 +6,11 @@ The contribution is not limited to contributing code. It also includes reviewing
 
 ### GitHub Pull Request
 
-If necessary, please file a GitHub issue for your PR and refer to that issue in your PR title.
+If necessary, please file a GitHub issue beforehand and refer to that issue in your PR title.
 
 By convention, `CH` & `VL` represent ClickHouse & Velox backend respectively. Please add `[CH]` or `[VL]` in your PR title
-accordingly if your proposed code change is just for one specific backend. Please do NOT do this if it is for common module,
-independent of any backend.
+accordingly if your proposed code change is just for one specific backend. Please do NOT add such tag if common code is changed,
+but add `[CORE]` instead.
 
 Examples:
 * PR just for CH backend:
@@ -21,9 +21,9 @@ Examples:
 
   `[GLUTEN-<issue ID>][VL] xxxx`
 
-* PR for common module:
+* PR with common code changed:
 
-  `[GLUTEN-<issue ID>] xxxx`
+  `[GLUTEN-<issue ID>][CORE] xxxx`
 
 Please add a description for your PR, if necessary, to help reviewer understand it.
 
@@ -32,6 +32,8 @@ Please add a description for your PR, if necessary, to help reviewer understand 
 To avoid redundancy, please firstly do a search before going to file a new GitHub issue.
 
 If the new issue is just relevant to a specific backend, please add `[CH]` or `[VL]` in your issue title accordingly.
+
+We encourage developer to firstly file a GitHub issue before drafting a patch, which can avoid possible repeated work.
 
 ### Unit Test
 
