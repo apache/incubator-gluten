@@ -586,6 +586,8 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("input_format_parquet_allow_missing_columns", true);
     settings.set("input_format_parquet_case_insensitive_column_matching", true);
     settings.set("input_format_parquet_import_nested", true);
+    settings.set("input_format_json_read_numbers_as_strings", true);
+    settings.set("input_format_json_read_bools_as_numbers", false);
     settings.set("output_format_orc_string_as_string", true);
     settings.set("output_format_parquet_version", "1.0");
     settings.set("output_format_parquet_compression_method", "snappy");
