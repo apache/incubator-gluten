@@ -26,29 +26,38 @@ public:
         : java_celeborn_push_partition_data_method(java_celeborn_push_partition_data_method_) {
         GET_JNIENV(env)
         java_celeborn_pusher = env->NewGlobalRef(java_celeborn_pusher_);
+        array_ = env->NewByteArray(1024 * 1024);
+        array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
         CLEAN_JNIENV
     }
 
     ~CelebornClient() {
         GET_JNIENV(env)
         env->DeleteGlobalRef(java_celeborn_pusher);
+        env->DeleteGlobalRef(array_);
         CLEAN_JNIENV
     }
 
-    size_t pushPartitionData(size_t partitionId, char* bytes, size_t size) const {
+    size_t pushPartitionData(size_t partitionId, char* bytes, size_t size) {
         GET_JNIENV(env)
-        // TODO should reuse jbyteArray
+        size_t length = env->GetArrayLength(array_);
         auto int_size = static_cast<jint>(size);
-        jbyteArray array = env->NewByteArray(int_size);
-        env->SetByteArrayRegion(array, 0, int_size, reinterpret_cast<jbyte*>(bytes));
+        if (size > length)
+        {
+            env->DeleteGlobalRef(array_);
+            array_ = env->NewByteArray(int_size);
+            array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
+        }
+        env->SetByteArrayRegion(array_, 0, int_size, reinterpret_cast<jbyte*>(bytes));
         jint celeborn_bytes =
-            env->CallIntMethod(java_celeborn_pusher, java_celeborn_push_partition_data_method, partitionId, array);
+            env->CallIntMethod(java_celeborn_pusher, java_celeborn_push_partition_data_method, partitionId, array_, int_size);
         CLEAN_JNIENV
         return celeborn_bytes;
     }
 
     jobject java_celeborn_pusher;
     jmethodID java_celeborn_push_partition_data_method;
+    jbyteArray array_;
 };
 }
 
