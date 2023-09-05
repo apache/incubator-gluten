@@ -21,6 +21,8 @@ import org.apache.spark.sql.execution.CoalescedPartitionSpec
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec}
 import org.apache.spark.sql.internal.SQLConf
 
+case class TestData(id: Int)
+
 class GlutenClickHouseRSSColumnarShuffleAQESuite
   extends GlutenClickHouseTPCHAbstractSuite
   with AdaptiveSparkPlanHelper {
@@ -28,8 +30,6 @@ class GlutenClickHouseRSSColumnarShuffleAQESuite
   override protected val tablesPath: String = basePath + "/tpch-data-ch"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
   override protected val queriesResults: String = rootPath + "queries-output"
-
-  case class TestData(id: Int)
 
   /** Run Gluten + ClickHouse Backend with ColumnarShuffleManager */
   override protected def sparkConf: SparkConf = {
