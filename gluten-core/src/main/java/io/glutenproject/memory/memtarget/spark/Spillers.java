@@ -14,26 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.memory.memtarget.spark;
 
-#pragma once
+public final class Spillers {
+  private Spillers() {
+    // enclose factory ctor
+  }
 
-#include "arrow/memory_pool.h"
-#include "memory.pb.h"
-
-namespace gluten {
-
-class MemoryManager {
- public:
-  MemoryManager() = default;
-
-  virtual ~MemoryManager() = default;
-
-  // TODO: return raw pointer, caller should not care its lifecycle.
-  virtual std::shared_ptr<arrow::MemoryPool> getArrowMemoryPool() = 0;
-
-  virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
-
-  virtual const int64_t shrink(int64_t size) = 0;
-};
-
-} // namespace gluten
+  // calls the spillers one by one within the order
+  public static Spiller withOrder(Spiller... spillers) {
+    return (size, trigger) -> {
+      long remaining = size;
+      for (int i = 0; i < spillers.length && remaining > 0; i++) {
+        Spiller spiller = spillers[i];
+        remaining -= spiller.spill(remaining, trigger);
+      }
+      return size - remaining;
+    };
+  }
+}

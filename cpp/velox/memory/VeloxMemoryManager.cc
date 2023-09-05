@@ -116,7 +116,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       //
       // We are likely in destructor, do not throw. INFO log is fine since we have leak checks from Spark's memory
       //   manager
-      LOG(INFO) << "Memory pool " << pool->name() << " not completely shrunk when Memory::dropPool() is called";
+      LOG(INFO) << "Memory pool " << pool->name() << " not completely shrunken when Memory::dropPool() is called";
     }
     return freeBytes;
   }
@@ -240,6 +240,11 @@ const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
   stats.mutable_children()->emplace("velox", std::move(veloxPoolStats));
   stats.mutable_children()->emplace("arrow", std::move(arrowPoolStats));
   return stats;
+}
+
+const int64_t VeloxMemoryManager::shrink(int64_t size) {
+  int64_t shrunken = veloxAggregatePool_->shrinkManaged(veloxAggregatePool_.get(), size);
+  return shrunken;
 }
 
 velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {

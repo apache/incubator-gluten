@@ -22,6 +22,7 @@ import io.glutenproject.memory.memtarget.MemoryTarget;
 import io.glutenproject.memory.memtarget.MemoryTargets;
 import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
+import io.glutenproject.memory.memtarget.spark.Spillers;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -71,7 +72,21 @@ public final class NativeMemoryManagers {
                 new GlutenMemoryConsumer(
                     name,
                     taskMemoryManager,
-                    spiller,
+                    // call memory manager's shrink API, if no good then call the spiller
+                    Spillers.withOrder(
+                        (size, trigger) ->
+                            Optional.of(out.get())
+                                .map(nmm -> nmm.shrink(size))
+                                .orElseThrow(
+                                    () ->
+                                        new IllegalStateException(
+                                            ""
+                                                + "Shrink is requested before native "
+                                                + "memory manager is created. Try moving any "
+                                                + "actions about memory allocation out "
+                                                + "from the memory manager constructor.")),
+                        spiller // the input spiller, called after nmm.shrink was called
+                        ),
                     new GlutenMemoryConsumer.StatsBuilder() {
                       private final SimpleMemoryUsageRecorder rootRecorder =
                           new SimpleMemoryUsageRecorder();

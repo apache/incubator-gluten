@@ -125,12 +125,12 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
   LOG(INFO) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes()
             << "/" << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
   LOG(INFO) << logPrefix << "Shrinking...";
-  int64_t shrunk = pool_->shrinkManaged(pool_.get(), size);
-  LOG(INFO) << logPrefix << shrunk << " bytes released from shrinking.";
+  int64_t shrunken = pool_->shrinkManaged(pool_.get(), size);
+  LOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
 
   // todo return the actual spilled size?
   if (spillStrategy_ == "auto") {
-    int64_t remaining = size - shrunk;
+    int64_t remaining = size - shrunken;
     LOG(INFO) << logPrefix << "Trying to request spilling for remaining " << remaining << " bytes...";
     // if we are on one of the driver of the spilled task, suspend it
     velox::exec::Driver* thisDriver = nullptr;
@@ -143,21 +143,21 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
       // not the driver, no need to suspend
       uint64_t spilledOut = pool_->reclaim(remaining);
       LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
-      uint64_t total = shrunk + spilledOut;
+      uint64_t total = shrunken + spilledOut;
       LOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
-      return shrunk + spilledOut;
+      return shrunken + spilledOut;
     }
     // suspend since we are on driver
     velox::exec::SuspendedSection noCancel(thisDriver);
     uint64_t spilledOut = pool_->reclaim(remaining);
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
-    uint64_t total = shrunk + spilledOut;
+    uint64_t total = shrunken + spilledOut;
     LOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
-    return shrunk + spilledOut;
+    return shrunken + spilledOut;
   }
 
-  LOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunk << " bytes.";
-  return shrunk;
+  LOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
+  return shrunken;
 }
 
 void WholeStageResultIterator::getOrderedNodeIds(
