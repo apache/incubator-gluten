@@ -66,13 +66,13 @@ You can execute a script to fix license header issue, as the following shows.
 ### Gluten CI
 
 ##### ClickHouse Backend CI
-To check the CI failure for CH backend, please login with public account/password specified [here](https://github.com/oap-project/gluten/blob/main/docs/get-started/ClickHouse.md#new-ci-system).
+To check CI failure for CH backend, please log in with the public account/password provided [here](https://github.com/oap-project/gluten/blob/main/docs/get-started/ClickHouse.md#new-ci-system).
 To re-trigger CH CI, please post the below comment on PR page:
 
 `Run Gluten Clickhouse CI`
 
 ##### Velox Backend CI
-To check the CI failure for Velox backend, please go into the GitHub action page from your PR page.
+To check CI failure for Velox backend, please go into the GitHub action page from your PR page.
 
 To see the perf. impact on Velox backend, you can comment `/Benchmark Velox` on PR page to trigger a pretest. The benchmark
 (currently TPC-H) result will be posted after completed.
