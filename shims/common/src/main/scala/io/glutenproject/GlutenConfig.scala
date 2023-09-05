@@ -963,6 +963,21 @@ object GlutenConfig {
       .checkValues(Set("local", "heap-over-local"))
       .createWithDefaultString("local")
 
+  val COLUMNAR_VELOX_MAX_SPILL_LEVEL =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxSpillLevel")
+      .internal()
+      .doc("The maximum allowed spilling level with zero being the initial spilling level.")
+      .intConf
+      .createWithDefault(4)
+
+  val COLUMNAR_VELOX_SPILL_PARTITION_BITS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.spillPartitionBits")
+      .internal()
+      .doc("The number of bits used to calculate the spilling partition number." +
+        " At the moment the maximum value is 3.")
+      .intConf
+      .createWithDefault(2)
+
   val COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO =
     buildConf("spark.gluten.sql.columnar.backend.velox.overAcquiredMemoryRatio")
       .internal()
