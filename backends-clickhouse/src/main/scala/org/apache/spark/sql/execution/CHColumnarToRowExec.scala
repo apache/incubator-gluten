@@ -20,6 +20,7 @@ import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.vectorized.CHNativeBlock
+
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
