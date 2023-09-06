@@ -39,7 +39,6 @@ import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.ArrowBuf
 
 import scala.collection.mutable.ListBuffer
-import scala.util.Try
 
 case class RowToVeloxColumnarExec(child: SparkPlan)
   extends RowToColumnarExecBase(child = child)
@@ -113,7 +112,6 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
               val rowLength = new ListBuffer[Long]()
               var rowCount = 0
               var offset = 0L
-              var stopEarly = false
               val sizeInBytes = row.getSizeInBytes
               // allocate buffer based on 1st row, but if first row is very big, this will cause OOM
               // maybe we should optimize to list ArrayBuf to native to avoid buf close and allocate
@@ -122,6 +120,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
               val estimatedBufSize = Math.max(
                 Math.min(sizeInBytes.toDouble * numRows * 1.2, 31760L * numRows),
                 sizeInBytes.toDouble * 10)
+              val estimatedNumRow = Math.min(Int.MaxValue / estimatedBufSize, numRows)
               arrowBuf = allocator.buffer(estimatedBufSize.toLong)
               Platform.copyMemory(
                 row.getBaseObject,
@@ -133,31 +132,25 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
               rowLength += sizeInBytes.toLong
               rowCount += 1
 
-              while (rowCount < numRows && rowIterator.hasNext && !stopEarly) {
-                Try(rowIterator.next())
-                  .map {
-                    row =>
-                      val unsafeRow = convertToUnsafeRow(row)
-                      val sizeInBytes = unsafeRow.getSizeInBytes
-                      if ((offset + sizeInBytes) > arrowBuf.capacity()) {
-                        val tmpBuf = allocator.buffer((offset + sizeInBytes) * 2)
-                        tmpBuf.setBytes(0, arrowBuf, 0, offset)
-                        arrowBuf.close()
-                        arrowBuf = tmpBuf
-                      }
-                      Platform.copyMemory(
-                        unsafeRow.getBaseObject,
-                        unsafeRow.getBaseOffset,
-                        null,
-                        arrowBuf.memoryAddress() + offset,
-                        sizeInBytes)
-                      offset += sizeInBytes
-                      rowLength += sizeInBytes.toLong
-                      rowCount += 1
-                  }
-                  .getOrElse {
-                    stopEarly = true
-                  }
+              while (rowCount < estimatedNumRow && rowIterator.hasNext) {
+                val row = rowIterator.next()
+                val unsafeRow = convertToUnsafeRow(row)
+                val sizeInBytes = unsafeRow.getSizeInBytes
+                if ((offset + sizeInBytes) > arrowBuf.capacity()) {
+                  val tmpBuf = allocator.buffer((offset + sizeInBytes) * 2)
+                  tmpBuf.setBytes(0, arrowBuf, 0, offset)
+                  arrowBuf.close()
+                  arrowBuf = tmpBuf
+                }
+                Platform.copyMemory(
+                  unsafeRow.getBaseObject,
+                  unsafeRow.getBaseOffset,
+                  null,
+                  arrowBuf.memoryAddress() + offset,
+                  sizeInBytes)
+                offset += sizeInBytes
+                rowLength += sizeInBytes.toLong
+                rowCount += 1
               }
               numInputRows += rowCount
               try {
