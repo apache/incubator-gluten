@@ -127,7 +127,6 @@ class ColumnarShuffleWriter[K, V](
         if (nativeShuffleWriter == -1L) {
           nativeShuffleWriter = jniWrapper.make(
             dep.nativePartitioning,
-            availableOffHeapPerTask(),
             nativeBufferSize,
             compressionCodec,
             compressionCodecBackend,
@@ -166,7 +165,7 @@ class ColumnarShuffleWriter[K, V](
           )
         }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(executionCtxHandle, nativeShuffleWriter, rows, handle)
+        val bytes = jniWrapper.split(executionCtxHandle, nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
         dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)

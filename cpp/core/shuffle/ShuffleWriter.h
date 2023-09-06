@@ -36,7 +36,6 @@ static constexpr double kDefaultBufferReallocThreshold = 0.25;
 } // namespace
 
 struct ShuffleWriterOptions {
-  int64_t offheap_per_task = 0;
   int32_t buffer_size = kDefaultShuffleWriterBufferSize;
   int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
   int32_t num_sub_dirs = kDefaultNumSubDirs;
@@ -153,7 +152,7 @@ class ShuffleWriter {
    */
   virtual arrow::Status evictFixedSize(int64_t size, int64_t* actual) = 0;
 
-  virtual arrow::Status split(std::shared_ptr<ColumnarBatch> cb) = 0;
+  virtual arrow::Status split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 
   // Cache the partition buffer/builder as compressed record batch. If reset
   // buffers, the partition buffer/builder will be set to nullptr. Two cases for

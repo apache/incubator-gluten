@@ -117,7 +117,6 @@ class BenchmarkShuffleSplit {
     auto options = ShuffleWriterOptions::defaults();
     options.buffer_size = kSplitBufferSize;
     options.buffered_write = true;
-    options.offheap_per_task = 128 * 1024 * 1024 * 1024L;
     options.prefer_evict = FLAGS_prefer_evict;
     options.memory_pool = pool;
     options.partitioning_name = "rr";
@@ -292,7 +291,7 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
           [&shuffleWriter, &splitTime](const std::shared_ptr<arrow::RecordBatch>& recordBatch) {
             std::shared_ptr<ColumnarBatch> cb;
             ARROW_ASSIGN_OR_THROW(cb, recordBatch2VeloxColumnarBatch(*recordBatch));
-            TIME_NANO_OR_THROW(splitTime, shuffleWriter->split(cb));
+            TIME_NANO_OR_THROW(splitTime, shuffleWriter->split(cb, 128 * 1024 * 1024 * 1024LL));
           });
       // std::cout << " split done memory allocated = " <<
       // options.memory_pool->bytes_allocated() << std::endl;
