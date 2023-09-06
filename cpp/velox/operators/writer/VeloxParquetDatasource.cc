@@ -42,13 +42,15 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
 
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
-    // sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(filePath_.substr(5));
+    auto path = filePath_.substr(5);
+    auto localWriteFile = std::make_unique<LocalWriteFile>(path, true, false);
+    sink_ = std::make_unique<WriteFileSink>(std::move(localWriteFile), path);
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
 #ifdef ENABLE_HDFS
     std::string pathSuffix = getHdfsPath(filePath_, HdfsFileSystem::kScheme);
     auto fileSystem = getFileSystem(filePath_, nullptr);
     auto* hdfsFileSystem = dynamic_cast<filesystems::HdfsFileSystem*>(fileSystem.get());
-    // sink_ = std::make_unique<WriteFileSink>(hdfsFileSystem->openFileForWrite(pathSuffix), filePath_);
+    sink_ = std::make_unique<WriteFileSink>(hdfsFileSystem->openFileForWrite(pathSuffix), filePath_);
 #else
     throw std::runtime_error(
         "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox backend!");
@@ -103,6 +105,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     return std::make_unique<velox::parquet::LambdaFlushPolicy>(
         maxRowGroupRows_, maxRowGroupRows_, [&]() { return false; });
   };
+  writeOption.schema = schema_;
 
   parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_);
 }
