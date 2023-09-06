@@ -116,7 +116,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       //
       // We are likely in destructor, do not throw. INFO log is fine since we have leak checks from Spark's memory
       //   manager
-      LOG(INFO) << "Memory pool " << pool->name() << " not completely shrunk when Memory::dropPool() is called";
+      LOG(INFO) << "Memory pool " << pool->name() << " not completely shrunken when Memory::dropPool() is called";
     }
     return freeBytes;
   }
@@ -240,6 +240,24 @@ const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
   stats.mutable_children()->emplace("velox", std::move(veloxPoolStats));
   stats.mutable_children()->emplace("arrow", std::move(arrowPoolStats));
   return stats;
+}
+
+namespace {
+int64_t shrinkVeloxMemoryPool(velox::memory::MemoryPool* pool, int64_t size) {
+  std::string poolName{pool->root()->name() + "/" + pool->name()};
+  std::string logPrefix{"Shrink[" + poolName + "]: "};
+  DLOG(INFO) << logPrefix << "Trying to shrink " << size << " bytes of data...";
+  DLOG(INFO) << logPrefix << "Pool has reserved " << pool->currentBytes() << "/" << pool->root()->reservedBytes() << "/"
+             << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
+  DLOG(INFO) << logPrefix << "Shrinking...";
+  int64_t shrunken = pool->shrinkManaged(pool, size);
+  DLOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
+  return shrunken;
+}
+} // namespace
+
+const int64_t VeloxMemoryManager::shrink(int64_t size) {
+  return shrinkVeloxMemoryPool(veloxAggregatePool_.get(), size);
 }
 
 velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {

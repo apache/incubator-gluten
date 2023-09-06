@@ -187,7 +187,7 @@ class JniColumnarBatchIterator : public ColumnarBatchIterator {
     jColumnarBatchItr_ = env->NewGlobalRef(jColumnarBatchItr);
   }
 
-  // singleton, avoid stack instantiation
+  // singleton
   JniColumnarBatchIterator(const JniColumnarBatchIterator&) = delete;
   JniColumnarBatchIterator(JniColumnarBatchIterator&&) = delete;
   JniColumnarBatchIterator& operator=(const JniColumnarBatchIterator&) = delete;
@@ -1158,6 +1158,15 @@ JNIEXPORT jbyteArray JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManage
       "Serialization failed when collecting memory usage stats");
   env->SetByteArrayRegion(out, 0, size, reinterpret_cast<jbyte*>(buffer));
   return out;
+}
+
+JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_shrink( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong memoryManagerId,
+    jlong size) {
+  MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
+  return memoryManager->shrink(static_cast<int64_t>(size));
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_release( // NOLINT
