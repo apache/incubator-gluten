@@ -228,11 +228,11 @@ CelebornPartitionWriter::CelebornPartitionWriter(CachedShuffleWriter * shuffleWr
 void CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
 {
     auto spill_to_celeborn = [this]() -> void {
-        size_t partition_id = 0;
         Stopwatch serialization_time_watch;
         serialization_time_watch.start();
-        for (auto & partition : partition_buffer)
+        for (size_t partition_id = 0; partition_id < partition_buffer.size(); ++partition_id)
         {
+            const auto & partition = partition_buffer[partition_id];
             size_t raw_size = 0;
             if (partition.empty()) continue;
             WriteBufferFromOwnString output;
@@ -249,7 +249,6 @@ void CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
             celeborn_client->pushPartitionData(partition_id, output.str().data(), output.str().size());
             shuffle_writer->split_result.partition_length[partition_id] += output.str().size();
             shuffle_writer->split_result.raw_partition_length[partition_id] += raw_size;
-            partition_id++;
             shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
             shuffle_writer->split_result.total_write_time += compressed_output.getWriteTime();
             shuffle_writer->split_result.total_write_time += push_time_watch.elapsedNanoseconds();
