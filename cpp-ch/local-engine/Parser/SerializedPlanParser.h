@@ -290,7 +290,7 @@ public:
     void parseExtensions(const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions);
     std::shared_ptr<DB::ActionsDAG> expressionsToActionsDAG(
         const std::vector<substrait::Expression> & expressions, const DB::Block & header, const DB::Block & read_schema);
-    RelMetricPtr getMetric() { return metrics.at(0); }
+    RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
 
@@ -389,8 +389,10 @@ public:
     ~LocalExecutor();
 
     Block & getHeader();
-    const RelMetricPtr getMetric() const { return metric; }
+
+    RelMetricPtr getMetric() const { return metric; }
     void setMetric(RelMetricPtr metric_) { metric = metric_; }
+
     void setExtraPlanHolder(std::vector<QueryPlanPtr> & extra_plan_holder_) { extra_plan_holder = std::move(extra_plan_holder_); }
 
 private:

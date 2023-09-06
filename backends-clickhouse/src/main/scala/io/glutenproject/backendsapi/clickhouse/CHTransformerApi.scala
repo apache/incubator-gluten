@@ -164,6 +164,13 @@ class CHTransformerApi extends TransformerApi with Logging {
     injectConfig(
       "spark.hadoop.dfs.client.log.severity",
       hdfsConfigPrefix + "dfs_client_log_severity")
+
+    // TODO: set default to true when metrics could be collected
+    // while ch query plan optimization is enabled.
+    val planOptKey = settingPrefix + "query_plan_enable_optimizations"
+    if (!nativeConfMap.containsKey(planOptKey)) {
+      nativeConfMap.put(planOptKey, "false")
+    }
   }
 
   override def getSupportExpressionClassName: util.Set[String] = {

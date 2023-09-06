@@ -53,6 +53,12 @@ public class NativeMemoryManager implements TaskResource {
     return collectMemoryUsage(nativeInstanceId);
   }
 
+  public long shrink(long size) {
+    return shrink(nativeInstanceId, size);
+  }
+
+  private static native long shrink(long nativeInstanceId, long size);
+
   private static native long create(
       String name, long allocatorId, long reservationBlockSize, ReservationListener listener);
 
