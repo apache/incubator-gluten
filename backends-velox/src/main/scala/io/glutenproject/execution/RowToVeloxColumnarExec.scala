@@ -120,6 +120,8 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
               val estimatedBufSize = Math.max(
                 Math.min(sizeInBytes.toDouble * numRows * 1.2, 31760L * numRows),
                 sizeInBytes.toDouble * 10)
+              // Here we limit the max buffer size to Int.MaxValue, which is the memory limit for
+              // UnsafeProject.
               val estimatedNumRow = Math.min(Int.MaxValue / estimatedBufSize, numRows)
               arrowBuf = allocator.buffer(estimatedBufSize.toLong)
               Platform.copyMemory(
