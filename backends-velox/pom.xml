@@ -85,6 +85,12 @@
       <artifactId>iceberg-spark-3.3_2.12</artifactId>
       <version>${iceberg.version}</version>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.orc</groupId>
+          <artifactId>orc-core</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.glutenproject</groupId>
