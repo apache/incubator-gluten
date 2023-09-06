@@ -143,7 +143,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
-  def shuffleWriterBufferSize: Int = conf.getConf(SHUFFLE_WRITER_BUFFER_SIZE)
+  def shuffleWriterBufferSize: Int = conf
+    .getConf(SHUFFLE_WRITER_BUFFER_SIZE)
+    .getOrElse(maxBatchSize)
 
   def enableColumnarLimit: Boolean = conf.getConf(COLUMNAR_LIMIT_ENABLED)
 
@@ -791,11 +793,12 @@ object GlutenConfig {
       .intConf
       .createWithDefault(4096)
 
+  // if not set, use COLUMNAR_MAX_BATCH_SIZE instead
   val SHUFFLE_WRITER_BUFFER_SIZE =
     buildConf(GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE)
       .internal()
       .intConf
-      .createWithDefault(4096)
+      .createOptional
 
   val COLUMNAR_LIMIT_ENABLED =
     buildConf("spark.gluten.sql.columnar.limit")
