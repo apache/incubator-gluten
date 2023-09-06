@@ -275,8 +275,14 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   std::shared_ptr<arrow::Buffer> generateComplexTypeBuffers(facebook::velox::RowVectorPtr vector);
 
- protected:
   arrow::Status resetValidityBuffers(uint32_t partitionId);
+
+  arrow::Result<int64_t> shrinkPartitionBuffers();
+
+ protected:
+  enum SplitState { kInit, kSplit, kStop };
+
+  SplitState splitState_{kInit};
 
   bool supportAvx512_ = false;
 
