@@ -23,26 +23,29 @@ import io.glutenproject.utils.LogLevelUtil
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.ExecutorCacheTaskLocation
-import org.apache.spark.sql.execution.datasources.FilePartition
+import org.apache.spark.sql.connector.read.InputPartition
+import org.apache.spark.sql.execution.datasources.PartitionedFile
 
 object SoftAffinityUtil extends LogLevelUtil with Logging {
 
   private lazy val softAffinityLogLevel = GlutenConfig.getConf.softAffinityLogLevel
 
   /** Get the locations by SoftAffinityManager */
-  def getFilePartitionLocations(filePartition: FilePartition): Array[String] = {
+  def getFilePartitionLocations(
+      filePartition: InputPartition,
+      files: Array[PartitionedFile]): Array[String] = {
     // Get the original preferred locations
     val expectedTargets = filePartition.preferredLocations()
 
     if (
-      !filePartition.files.isEmpty && SoftAffinityManager.usingSoftAffinity
+      !files.isEmpty && SoftAffinityManager.usingSoftAffinity
       && !SoftAffinityManager.checkTargetHosts(expectedTargets)
     ) {
       // if there is no host in the node list which are executors running on,
       // using SoftAffinityManager to generate target executors.
       // Only using the first file to calculate the target executors
       // Only get one file to calculate the target host
-      val file = filePartition.files.sortBy(_.filePath).head
+      val file = files.minBy(_.filePath)
       val locations = SoftAffinityManager.askExecutors(file.filePath)
       if (!locations.isEmpty) {
         logOnLevel(

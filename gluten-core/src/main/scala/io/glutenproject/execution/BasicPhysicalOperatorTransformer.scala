@@ -523,6 +523,12 @@ object FilterHandler {
             val newPartitionFilters =
               ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters, reuseSubquery)
             new BatchScanExecTransformer(batchScan.output, scan, leftFilters ++ newPartitionFilters)
+          case scan if scan.getClass.getSimpleName == "SparkBatchQueryScan" =>
+            val newPartitionFilters =
+              ExpressionConverter.transformDynamicPruningExpr(
+                batchScan.runtimeFilters,
+                reuseSubquery)
+            new BatchScanExecTransformer(batchScan.output, scan, newPartitionFilters)
           case _ =>
             if (batchScan.runtimeFilters.isEmpty) {
               throw new UnsupportedOperationException(

@@ -41,6 +41,8 @@ import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{ExecutorManager, TaskResources}
 
+import org.apache.iceberg.spark.source.GlutenSparkInputPartition
+
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
@@ -116,7 +118,24 @@ class IteratorHandler extends IteratorApi with Logging {
                 lengths.asJava,
                 partitionColumns.map(_.asJava).asJava,
                 fileFormat),
-              SoftAffinityUtil.getFilePartitionLocations(f))
+              SoftAffinityUtil.getFilePartitionLocations(f, f.files))
+
+          case icebergPartition
+              if icebergPartition.getClass.getSimpleName == "SparkInputPartition" =>
+            val fileFormat = fileFormats(i)
+            val partitionSchema = partitionSchemas(i)
+            val files = GlutenSparkInputPartition.getPartitionedFileArray(icebergPartition)
+            val (paths, starts, lengths, partitionColumns) =
+              constructSplitInfo(partitionSchema, files)
+            (
+              LocalFilesBuilder.makeLocalFiles(
+                i,
+                paths.asJava,
+                starts.asJava,
+                lengths.asJava,
+                partitionColumns.map(_.asJava).asJava,
+                fileFormat),
+              SoftAffinityUtil.getFilePartitionLocations(icebergPartition, files))
         })
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))

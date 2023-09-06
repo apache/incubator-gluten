@@ -25,11 +25,13 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{InSubqueryExec, ScalarSubquery, SparkPlan}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
+
+import org.apache.iceberg.spark.source.GlutenSparkBatchQueryScan
 
 import java.util.Objects
 
@@ -48,6 +50,8 @@ class BatchScanExecTransformer(
   override def filterExprs(): Seq[Expression] = scan match {
     case fileScan: FileScan =>
       fileScan.dataFilters ++ pushdownFilters
+    case scan if scan.getClass.getSimpleName == "SparkBatchQueryScan" =>
+      Seq.empty
     case _ =>
       throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }
@@ -116,8 +120,19 @@ class BatchScanExecTransformer(
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetricsUpdater(metrics)
 
-  @transient protected lazy val filteredFlattenPartitions: Seq[InputPartition] =
+  @transient protected lazy val filteredFlattenPartitions: Seq[InputPartition] = {
+    runtimeFilters.foreach {
+      case DynamicPruningExpression(inSubquery: InSubqueryExec) =>
+        executeInSubqueryForDynamicPruningExpression(inSubquery)
+      case e: Expression =>
+        e.foreach {
+          case s: ScalarSubquery => s.updateResult()
+          case _ =>
+        }
+      case _ =>
+    }
     filteredPartitions.flatten
+  }
 
   private def getPushdownFilters: Seq[Expression] = {
     pushdownFilters
@@ -128,6 +143,7 @@ class BatchScanExecTransformer(
     case "ParquetScan" => ReadFileFormat.ParquetReadFormat
     case "DwrfScan" => ReadFileFormat.DwrfReadFormat
     case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
+    case "SparkBatchQueryScan" => GlutenSparkBatchQueryScan.getFileFormat(scan)
     case _ => ReadFileFormat.UnknownFormat
   }
 }

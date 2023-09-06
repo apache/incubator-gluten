@@ -47,7 +47,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
+    val locations = SoftAffinityUtil.getFilePartitionLocations(partition, partition.files)
 
     val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
     assertResult(Set("host-1", "host-2", "host-3")) {
@@ -64,7 +64,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
+    val locations = SoftAffinityUtil.getFilePartitionLocations(partition, partition.files)
 
     val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
 
@@ -82,7 +82,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
+    val locations = SoftAffinityUtil.getFilePartitionLocations(partition, partition.files)
 
     val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
 
@@ -112,7 +112,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
+    val locations = SoftAffinityUtil.getFilePartitionLocations(partition, partition.files)
 
     val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
 
