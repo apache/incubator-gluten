@@ -28,13 +28,13 @@ import io.glutenproject.substrait.rel.ReadRelNode
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer._
 import org.apache.spark.sql.hive.execution.HiveTableScanExec
-import org.apache.spark.sql.types.{ArrayType, MapType, StructType}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
@@ -132,26 +132,10 @@ class HiveTableScanExecTransformer(
       return validationResult
     }
 
-    val tableMeta = relation.tableMeta
-    val planOutput = output.asInstanceOf[Seq[AttributeReference]]
-    var hasComplexType = false
-    planOutput.foreach(
-      x => {
-        hasComplexType = if (!hasComplexType) {
-          x.dataType.isInstanceOf[StructType] ||
-          x.dataType.isInstanceOf[MapType] ||
-          x.dataType.isInstanceOf[ArrayType]
-        } else hasComplexType
-      })
-
     fileFormat match {
       case ReadFileFormat.JsonReadFormat => ValidationResult.ok
       case ReadFileFormat.TextReadFormat =>
-        if (!hasComplexType) {
-          ValidationResult.ok
-        } else {
-          ValidationResult.notOk("does not support complex type")
-        }
+        ValidationResult.notOk("Text file format is not supported")
       case _ => ValidationResult.notOk("Unknown file format")
     }
   }
