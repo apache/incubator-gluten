@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, StructType, TimestampType}
 
-class Validator extends ValidatorApi {
+class VeloxValidator extends ValidatorApi {
 
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean =
     doExprValidate(Map(), substraitExprName, expr)

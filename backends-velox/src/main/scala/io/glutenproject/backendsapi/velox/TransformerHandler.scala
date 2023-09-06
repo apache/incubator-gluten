@@ -41,7 +41,7 @@ class TransformerHandler extends TransformerApi with Logging {
   override def validateColumnarShuffleExchangeExec(
       outputPartitioning: Partitioning,
       child: SparkPlan): Boolean = {
-    new Validator().doSchemaValidate(child.schema)
+    new VeloxValidator().doSchemaValidate(child.schema)
   }
 
   /**

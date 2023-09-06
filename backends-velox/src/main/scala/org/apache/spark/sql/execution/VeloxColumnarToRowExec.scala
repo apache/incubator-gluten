@@ -18,15 +18,14 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution.ColumnarToRowExecBase
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -38,7 +37,7 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
 
   override def nodeName: String = "VeloxColumnarToRowExec"
 
-  override def buildCheck(): Unit = {
+  override protected def doValidateInternal(): ValidationResult = {
     val schema = child.schema
     // Depending on the input type, VeloxColumnarToRowConverter.
     for (field <- schema.fields) {
@@ -64,10 +63,7 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
               s"VeloxColumnarToRowExec.")
       }
     }
-  }
-
-  override def doExecuteBroadcast[T](): Broadcast[T] = {
-    child.doExecuteBroadcast()
+    ValidationResult.ok
   }
 
   override def doExecuteInternal(): RDD[InternalRow] = {
@@ -83,12 +79,6 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
       numInputBatches,
       convertTime)
   }
-
-  override def output: Seq[Attribute] = child.output
-
-  override def outputPartitioning: Partitioning = child.outputPartitioning
-
-  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
   protected def withNewChildInternal(newChild: SparkPlan): VeloxColumnarToRowExec =
     copy(child = newChild)
