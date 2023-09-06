@@ -56,7 +56,7 @@ class VeloxBackend final : public Backend {
     }
   }
 
-  MemoryManager* getMemoryManager(
+  MemoryManager* createMemoryManager(
       const std::string& name,
       std::shared_ptr<MemoryAllocator> allocator,
       std::unique_ptr<AllocationListener> listener) override {
@@ -76,7 +76,7 @@ class VeloxBackend final : public Backend {
       MemoryManager* memoryManager,
       struct ArrowSchema* cSchema) override;
 
-  std::shared_ptr<ShuffleWriter> makeShuffleWriter(
+  std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
@@ -95,7 +95,7 @@ class VeloxBackend final : public Backend {
     return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, schema);
   }
 
-  std::shared_ptr<Reader> getShuffleReader(
+  std::shared_ptr<Reader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,

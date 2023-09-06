@@ -75,8 +75,8 @@ class Backend : public std::enable_shared_from_this<Backend> {
   }
 
   virtual MemoryManager*
-  getMemoryManager(const std::string& name, std::shared_ptr<MemoryAllocator>, std::unique_ptr<AllocationListener>) {
-    throw GlutenException("getMemoryManager not implemented.");
+  createMemoryManager(const std::string& name, std::shared_ptr<MemoryAllocator>, std::unique_ptr<AllocationListener>) {
+    throw GlutenException("createMemoryManager not implemented.");
   }
 
   /// This function is used to create certain converter from the format used by
@@ -91,12 +91,12 @@ class Backend : public std::enable_shared_from_this<Backend> {
     throw GlutenException("getRowToColumnarConverter not implemented.");
   }
 
-  virtual std::shared_ptr<ShuffleWriter> makeShuffleWriter(
+  virtual std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
       MemoryManager* memoryManager) {
-    throw GlutenException("makeShuffleWriter not implemented.");
+    throw GlutenException("createShuffleWriter not implemented.");
   }
 
   virtual std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) {
@@ -108,7 +108,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
     throw GlutenException("getDatasource not implemented.");
   }
 
-  virtual std::shared_ptr<Reader> getShuffleReader(
+  virtual std::shared_ptr<Reader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,

@@ -117,7 +117,7 @@ std::shared_ptr<RowToColumnarConverter> VeloxBackend::getRowToColumnarConverter(
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, ctxVeloxPool);
 }
 
-std::shared_ptr<ShuffleWriter> VeloxBackend::makeShuffleWriter(
+std::shared_ptr<ShuffleWriter> VeloxBackend::createShuffleWriter(
     int numPartitions,
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
     const ShuffleWriterOptions& options,
