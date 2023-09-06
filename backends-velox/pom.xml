@@ -28,7 +28,7 @@
       <dependencies>
         <dependency>
           <groupId>io.glutenproject</groupId>
-          <artifactId>gluten-celeborn</artifactId>
+          <artifactId>gluten-celeborn-velox</artifactId>
           <version>${project.version}</version>
           <scope>compile</scope>
         </dependency>
