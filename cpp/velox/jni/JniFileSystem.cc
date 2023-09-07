@@ -292,8 +292,8 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     jobject obj = env->CallObjectMethod(obj_, jniFileSystemOpenFileForRead, createJString(env, path));
-    auto out = std::make_unique<JniReadFile>(obj);
     checkException(env);
+    auto out = std::make_unique<JniReadFile>(obj);
     return out;
   }
 
@@ -306,8 +306,8 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     jobject obj = env->CallObjectMethod(obj_, jniFileSystemOpenFileForWrite, createJString(env, path));
-    auto out = std::make_unique<JniWriteFile>(obj);
     checkException(env);
+    auto out = std::make_unique<JniWriteFile>(obj);
     return out;
   }
 
@@ -338,13 +338,13 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
     attachCurrentThreadAsDaemonOrThrow(vm, &env);
     std::vector<std::string> out;
     jobjectArray jarray = (jobjectArray)env->CallObjectMethod(obj_, jniFileSystemList, createJString(env, path));
+    checkException(env);
     jsize length = env->GetArrayLength(jarray);
     for (jsize i = 0; i < length; ++i) {
       jstring element = (jstring)env->GetObjectArrayElement(jarray, i);
       std::string cElement = jStringToCString(env, element);
       out.push_back(cElement);
     }
-    checkException(env);
     return out;
   }
 
@@ -380,9 +380,9 @@ class JniFileSystem : public facebook::velox::filesystems::FileSystem {
       JNIEnv* env;
       attachCurrentThreadAsDaemonOrThrow(vm, &env);
       jobject obj = env->CallStaticObjectMethod(jniFileSystemClass, jniGetFileSystem);
+      checkException(env);
       // remove "jni:" or "jol:" prefix.
       std::shared_ptr<FileSystem> lfs = FileSystemWrapper::wrap(std::make_shared<JniFileSystem>(obj, properties));
-      checkException(env);
       return lfs;
     };
   }
