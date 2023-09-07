@@ -252,6 +252,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableParquetRowGroupMaxMinIndex: Boolean =
     conf.getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
 
+  def maxPartialAggregationMemoryRatio: Option[Double] =
+    conf.getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
+  def maxExtendedPartialAggregationMemoryRatio: Option[Double] =
+    conf.getConf(MAX_EXTENDED_PARTIAL_AGGREGATION_MEMORY_RATIO)
+  def abandonPartialAggregationMinPct: Option[Int] =
+    conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_PCT)
+  def abandonPartialAggregationMinRows: Option[Int] =
+    conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
   def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
 }
 
@@ -1128,4 +1136,40 @@ object GlutenConfig {
       .doc("Enable row group max min index for parquet file scan")
       .booleanConf
       .createWithDefault(false)
+
+  val MAX_PARTIAL_AGGREGATION_MEMORY_RATIO =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio")
+      .internal()
+      .doc(
+        "Set the max memory of partial aggregation as "
+          + "maxPartialAggregationMemoryRatio of offheap size."
+      )
+      .doubleConf
+      .createOptional
+
+  val MAX_EXTENDED_PARTIAL_AGGREGATION_MEMORY_RATIO =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio")
+      .internal()
+      .doc(
+        "Set the max extended memory of partial aggregation as "
+          + "maxExtendedPartialAggregationMemoryRatio of offheap size."
+      )
+      .doubleConf
+      .createOptional
+
+  val ABANDON_PARTIAL_AGGREGATION_MIN_PCT =
+    buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct")
+      .internal()
+      .doc("If partial aggregation input rows number greater than this value, "
+        + " partial aggregation may be early abandoned.")
+      .intConf
+      .createOptional
+
+  val ABANDON_PARTIAL_AGGREGATION_MIN_ROWS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows")
+      .internal()
+      .doc("If partial aggregation aggregationPct greater than this value, "
+        + "partial aggregation may be early abandoned.")
+      .intConf
+      .createOptional
 }
