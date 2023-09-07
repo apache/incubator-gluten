@@ -104,7 +104,7 @@ class CelebornHashBasedCHColumnarShuffleWriter[K, V](
         mapId,
         nativeBufferSize,
         customizedCompressCodec,
-        0,
+        GlutenConfig.getConf.chColumnarShuffleSpillThreshold,
         celebornPartitionPusher
       )
       CHNativeMemoryAllocators.createSpillable(
