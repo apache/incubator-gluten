@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.FileChannel;
 
 /**
@@ -106,6 +107,9 @@ public class LowCopyFileSegmentJniByteInputStream implements JniByteInputStream 
       bytesRead += bytes;
       left -= bytes;
       return bytes;
+    } catch (ClosedByInterruptException ce) {
+      System.out.printf("Failed to create input stream from local block, " + ce.getMessage());
+      return 0;
     } catch (IOException e) {
       throw new GlutenException(e);
     }
