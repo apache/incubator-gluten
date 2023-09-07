@@ -92,8 +92,7 @@ class VeloxBackend final : public Backend {
       MemoryManager* memoryManager,
       std::shared_ptr<arrow::Schema> schema) override {
     auto veloxPool = getAggregateVeloxPool(memoryManager);
-    auto ctxVeloxPool = veloxPool->addAggregateChild("velox_parquet_writer");
-    return std::make_shared<VeloxParquetDatasource>(filePath, ctxVeloxPool, schema);
+    return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, schema);
   }
 
   std::shared_ptr<Reader> getShuffleReader(
