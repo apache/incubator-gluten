@@ -115,10 +115,7 @@ public class NativeMemoryManager implements TaskResource {
       return this;
     }
 
-    public NativeMemoryManager build() {
-      if (!TaskResources.inSparkTask()) {
-        throw new IllegalStateException("This method must be called in a Spark task.");
-      }
+    private NativeMemoryManager createNativeMemoryManager() {
       final AtomicReference<NativeMemoryManager> out = new AtomicReference<>();
       // memory target
       TaskMemoryManager taskMemoryManager = TaskContext.get().taskMemoryManager();
@@ -143,7 +140,7 @@ public class NativeMemoryManager implements TaskResource {
                                                   + "actions about memory allocation out "
                                                   + "from the memory manager constructor.")),
                           this.spiller // the input spiller, called after nmm.shrink was called
-                          ),
+                      ),
                       new GlutenMemoryConsumer.StatsBuilder() {
                         private final SimpleMemoryUsageRecorder rootRecorder =
                             new SimpleMemoryUsageRecorder();
@@ -195,10 +192,15 @@ public class NativeMemoryManager implements TaskResource {
       ManagedReservationListener rl =
           new ManagedReservationListener(target, TaskResources.getSharedUsage());
       // native memory manager
-      out.set(
-          TaskResources.addResourceIfNotRegistered(
-              this.name, () -> NativeMemoryManager.create(this.name, rl)));
+      out.set(NativeMemoryManager.create(this.name, rl));
       return out.get();
+    }
+
+    public NativeMemoryManager build() {
+      if (!TaskResources.inSparkTask()) {
+        throw new IllegalStateException("This method must be called in a Spark task.");
+      }
+      return TaskResources.addResourceIfNotRegistered(this.name, this::createNativeMemoryManager);
     }
 
     /**
@@ -208,7 +210,7 @@ public class NativeMemoryManager implements TaskResource {
       if (TaskResources.inSparkTask()) {
         throw new IllegalStateException("This method should not used here.");
       }
-      return NativeMemoryManager.create(name, ReservationListener.NOOP);
+      return NativeMemoryManager.create(this.name, ReservationListener.NOOP);
     }
   }
 }
