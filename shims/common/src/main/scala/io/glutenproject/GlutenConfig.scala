@@ -220,6 +220,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
 
+  def chColumnarThrowIfMemoryExceed: Boolean = conf.getConf(COLUMNAR_CH_THROW_IF_MEMORY_EXCEED)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -1000,6 +1002,13 @@ object GlutenConfig {
       .doc("Shuffle spill threshold on ch backend")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0MB")
+    
+  val COLUMNAR_CH_THROW_IF_MEMORY_EXCEED =
+    buildConf("spark.gluten.sql.columnar.backend.ch.throwIfMemoryExceed")
+      .internal()
+      .doc("Throw exception if memory exceeds threshold on ch backend.")
+      .booleanConf
+      .createWithDefault(true)
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")
