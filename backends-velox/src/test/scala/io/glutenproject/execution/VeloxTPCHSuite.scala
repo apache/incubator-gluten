@@ -19,6 +19,8 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 
+import java.io.File
+
 abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
@@ -178,5 +180,29 @@ class VeloxTPCHV2BhjSuite extends VeloxTPCHSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "")
       .set("spark.sql.autoBroadcastJoinThreshold", "30M")
+  }
+}
+
+class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
+  override protected def sparkConf: SparkConf = {
+    val targetPath = getClass.getProtectionDomain.getCodeSource.getLocation.toURI.getPath
+    super.sparkConf
+      .set(
+        "spark.sql.extensions",
+        "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions")
+      .set("spark.sql.catalog.spark_catalog", "org.apache.iceberg.spark.SparkSessionCatalog")
+      .set("spark.sql.catalog.spark_catalog.type", "hadoop")
+      .set("spark.sql.catalog.spark_catalog.warehouse", s"file://$rootPath/tpch-data-iceberg-velox")
+  }
+
+  override protected def createTPCHNotNullTables(): Unit = {
+    TPCHTables = TPCHTableNames.map {
+      table =>
+        val tableDir = getClass.getResource(resourcePath).getFile
+        val tablePath = new File(tableDir, table).getAbsolutePath
+        val tableDF = spark.read.format(fileFormat).load(tablePath)
+        tableDF.write.format("iceberg").mode("append").saveAsTable(table)
+        (table, tableDF)
+    }.toMap
   }
 }

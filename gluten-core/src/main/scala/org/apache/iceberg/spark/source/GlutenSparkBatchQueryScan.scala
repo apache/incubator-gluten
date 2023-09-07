@@ -38,7 +38,7 @@ object GlutenSparkBatchQueryScan {
               case _ =>
             }
         }
-        throw new UnsupportedOperationException("iceberg Only support parquet and orc file format.")
+        throw new UnsupportedOperationException("Iceberg Only support parquet and orc file format.")
       case _ =>
         throw new UnsupportedOperationException("Only support iceberg SparkBatchQueryScan.")
     }
