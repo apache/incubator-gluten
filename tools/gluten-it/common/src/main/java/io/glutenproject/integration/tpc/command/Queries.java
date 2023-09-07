@@ -41,10 +41,13 @@ public class Queries implements Callable<Integer> {
   @CommandLine.Option(names = {"--iterations"}, description = "How many iterations to run", defaultValue = "1")
   private int iterations;
 
+  @CommandLine.Option(names = {"--random-kill-tasks"}, description = "Each task get 20% chance to be killed and retried after running for seconds", defaultValue = "false")
+  private boolean randomKillTasks;
+
   @Override
   public Integer call() throws Exception {
     io.glutenproject.integration.tpc.action.Queries queries =
-        new io.glutenproject.integration.tpc.action.Queries(dataGenMixin.getScale(), this.queries, explain, iterations);
+        new io.glutenproject.integration.tpc.action.Queries(dataGenMixin.getScale(), this.queries, explain, iterations, randomKillTasks);
     return mixin.runActions(ArrayUtils.addAll(dataGenMixin.makeActions(), queries));
   }
 }

@@ -33,9 +33,10 @@ class TpcRunner(val queryResourceFolder: String, val dataPath: String) {
       desc: String,
       caseId: String,
       explain: Boolean = false,
-      metrics: Array[String] = Array()): RunResult = {
+      metrics: Array[String] = Array(),
+      randomKillTasks: Boolean = false): RunResult = {
     val path = "%s/%s.sql".format(queryResourceFolder, caseId)
-    QueryRunner.runTpcQuery(spark, desc, path, explain, metrics)
+    QueryRunner.runTpcQuery(spark, desc, path, explain, metrics, randomKillTasks)
   }
 }
 

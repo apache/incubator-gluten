@@ -17,9 +17,10 @@
 package org.apache.spark.sql
 
 import org.apache.spark.executor.ExecutorMetrics
-import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate}
+import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate, SparkListenerTaskStart}
 
 import com.google.common.base.Preconditions
+import org.apache.commons.lang3.RandomUtils
 
 import java.io.ByteArrayOutputStream
 import java.nio.charset.StandardCharsets
@@ -49,7 +50,8 @@ object QueryRunner {
       desc: String,
       queryPath: String,
       explain: Boolean,
-      metrics: Array[String]): RunResult = {
+      metrics: Array[String],
+      randomKillTasks: Boolean): RunResult = {
     val unrecognizableMetrics = metrics.filter(!availableExecutorMetrics.contains(_))
     if (unrecognizableMetrics.nonEmpty) {
       throw new IllegalArgumentException(
@@ -69,6 +71,30 @@ object QueryRunner {
       }
     }
     sc.addSparkListener(metricsListener)
+    if (randomKillTasks) {
+      sc.addSparkListener(new SparkListener {
+        override def onTaskStart(taskStart: SparkListenerTaskStart): Unit = {
+          val killer = new Thread {
+            override def run(): Unit = {
+              // TODO make this configurable
+              // After 1s - 10s, kill the task
+              val waitMs = RandomUtils.nextLong(1000L, 10000L)
+              Thread.sleep(waitMs)
+              // We have 20% chance to kill the task. Otherwise let the task run
+              if (RandomUtils.nextFloat(0.0f, 1.0f) < 0.2f) {
+                if (sc.isStopped) {
+                  return
+                }
+                println(s"Killing task attempt after $waitMs ms: ${taskStart.taskInfo.taskId}")
+                sc.killTaskAttempt(taskStart.taskInfo.taskId, interruptThread = true)
+              }
+            }
+          }
+          killer.setDaemon(true)
+          killer.start()
+        }
+      })
+    }
     println(s"Executing SQL query from resource path $queryPath...")
     try {
       val sql = resourceToString(queryPath)
