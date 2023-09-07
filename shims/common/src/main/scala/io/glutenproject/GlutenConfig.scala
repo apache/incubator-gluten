@@ -1002,7 +1002,7 @@ object GlutenConfig {
       .doc("Shuffle spill threshold on ch backend")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0MB")
-    
+
   val COLUMNAR_CH_THROW_IF_MEMORY_EXCEED =
     buildConf("spark.gluten.sql.columnar.backend.ch.throwIfMemoryExceed")
       .internal()
