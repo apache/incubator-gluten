@@ -17,12 +17,26 @@
 package io.glutenproject.memory.nmm;
 
 import io.glutenproject.GlutenConfig;
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
+import io.glutenproject.memory.memtarget.MemoryTarget;
+import io.glutenproject.memory.memtarget.MemoryTargets;
+import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
+import io.glutenproject.memory.memtarget.spark.Spiller;
+import io.glutenproject.memory.memtarget.spark.Spillers;
+import io.glutenproject.proto.MemoryUsageStats;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.spark.TaskContext;
+import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResource;
+import org.apache.spark.util.TaskResources;
 import org.apache.spark.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class NativeMemoryManager implements TaskResource {
 
@@ -86,5 +100,115 @@ public class NativeMemoryManager implements TaskResource {
   @Override
   public String resourceName() {
     return name + "_mem";
+  }
+
+  public static class Builder {
+    private final String name;
+    private Spiller spiller = Spiller.NO_OP;
+
+    public Builder(String name) {
+      this.name = name;
+    }
+
+    public Builder setSpiller(Spiller spiller) {
+      this.spiller = spiller;
+      return this;
+    }
+
+    public NativeMemoryManager build() {
+      if (!TaskResources.inSparkTask()) {
+        throw new IllegalStateException("This method must be called in a Spark task.");
+      }
+      final AtomicReference<NativeMemoryManager> out = new AtomicReference<>();
+      // memory target
+      TaskMemoryManager taskMemoryManager = TaskContext.get().taskMemoryManager();
+      double overAcquiredRatio = GlutenConfig.getConf().veloxOverAcquiredMemoryRatio();
+      MemoryTarget target =
+          MemoryTargets.throwOnOom(
+              MemoryTargets.overAcquire(
+                  new GlutenMemoryConsumer(
+                      this.name,
+                      taskMemoryManager,
+                      // call memory manager's shrink API, if no good then call the spiller
+                      Spillers.withOrder(
+                          (size, trigger) ->
+                              Optional.of(out.get())
+                                  .map(nmm -> nmm.shrink(size))
+                                  .orElseThrow(
+                                      () ->
+                                          new IllegalStateException(
+                                              ""
+                                                  + "Shrink is requested before native "
+                                                  + "memory manager is created. Try moving any "
+                                                  + "actions about memory allocation out "
+                                                  + "from the memory manager constructor.")),
+                          this.spiller // the input spiller, called after nmm.shrink was called
+                          ),
+                      new GlutenMemoryConsumer.StatsBuilder() {
+                        private final SimpleMemoryUsageRecorder rootRecorder =
+                            new SimpleMemoryUsageRecorder();
+
+                        @Override
+                        public void onAcquire(long size) {
+                          rootRecorder.inc(size);
+                        }
+
+                        @Override
+                        public void onFree(long size) {
+                          rootRecorder.inc(-size);
+                        }
+
+                        @Override
+                        public MemoryUsageStats toStats() {
+                          final NativeMemoryManager nmm = getNativeMemoryManager();
+                          final byte[] usageProto = nmm.collectMemoryUsage();
+                          try {
+                            final MemoryUsageStats stats = MemoryUsageStats.parseFrom(usageProto);
+                            // Replace the root stats with the one recorded from Java side.
+                            //
+                            // Root stats returned from C++ (currently) may not include all
+                            // allocations
+                            // according to the way collectMemoryUsage() is implemented.
+                            return MemoryUsageStats.newBuilder()
+                                .setCurrent(rootRecorder.current())
+                                .setPeak(rootRecorder.peak())
+                                .putAllChildren(stats.getChildrenMap())
+                                .build();
+                          } catch (InvalidProtocolBufferException e) {
+                            throw new RuntimeException(e);
+                          }
+                        }
+
+                        private NativeMemoryManager getNativeMemoryManager() {
+                          return Optional.of(out.get())
+                              .orElseThrow(
+                                  () ->
+                                      new IllegalStateException(
+                                          "Memory usage stats are requested"
+                                              + " before native memory manager is created. "
+                                              + "Try moving any actions about memory allocation"
+                                              + " out from the memory manager constructor."));
+                        }
+                      }),
+                  overAcquiredRatio));
+      // listener
+      ManagedReservationListener rl =
+          new ManagedReservationListener(target, TaskResources.getSharedUsage());
+      // native memory manager
+      out.set(
+          TaskResources.addResourceIfNotRegistered(
+              this.name, () -> NativeMemoryManager.create(this.name, rl)));
+      return out.get();
+    }
+
+    /**
+     * Build a temporary memory manager, caller should call NativeMemoryManager#release manually.
+     */
+    public NativeMemoryManager buildTempInstance() {
+      if (TaskResources.inSparkTask()) {
+        throw new IllegalStateException("This method should not used here.");
+      }
+      return NativeMemoryManager.create(name, ReservationListener.NOOP);
+    }
   }
 }

@@ -19,7 +19,7 @@ package org.apache.spark.shuffle
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.memtarget.spark.Spiller
-import io.glutenproject.memory.nmm.NativeMemoryManagers
+import io.glutenproject.memory.nmm.NativeMemoryManager
 import io.glutenproject.vectorized._
 
 import org.apache.spark._
@@ -123,26 +123,24 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
             GlutenConfig.getConf.columnarShuffleCompressionMode,
             celebornConf.clientPushBufferMaxSize,
             celebornPartitionPusher,
-            NativeMemoryManagers
-              .create(
-                "CelebornShuffleWriter",
-                new Spiller() {
-                  override def spill(size: Long, trigger: MemoryConsumer): Long = {
-                    if (nativeShuffleWriter == -1L) {
-                      throw new IllegalStateException(
-                        "Fatal: spill() called before a celeborn shuffle writer " +
-                          "is created. This behavior should be" +
-                          "optimized by moving memory " +
-                          "allocations from make() to split()")
-                    }
-                    logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
-                    // fixme pass true when being called by self
-                    val pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
-                    logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
-                    pushed
+            new NativeMemoryManager.Builder("CelebornShuffleWriter")
+              .setSpiller(new Spiller() {
+                override def spill(size: Long, trigger: MemoryConsumer): Long = {
+                  if (nativeShuffleWriter == -1L) {
+                    throw new IllegalStateException(
+                      "Fatal: spill() called before a celeborn shuffle writer " +
+                        "is created. This behavior should be" +
+                        "optimized by moving memory " +
+                        "allocations from make() to split()")
                   }
+                  logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
+                  // fixme pass true when being called by self
+                  val pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+                  logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
+                  pushed
                 }
-              )
+              })
+              .build()
               .getNativeInstanceId,
             handle,
             context.taskAttemptId(),

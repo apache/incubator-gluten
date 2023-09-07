@@ -18,7 +18,7 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.memory.nmm.NativeMemoryManagers
+import io.glutenproject.memory.nmm.NativeMemoryManager
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized.{ColumnarBatchOutIterator, GeneralOutIterator, JniByteInputStream, JniByteInputStreams, ShuffleReaderJniWrapper}
 
@@ -80,7 +80,7 @@ private class CelebornColumnarBatchSerializerInstance(
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
     val handle = ShuffleReaderJniWrapper.INSTANCE.make(
       cSchema.memoryAddress(),
-      NativeMemoryManagers.contextInstance("ShuffleReader").getNativeInstanceId,
+      new NativeMemoryManager.Builder("ShuffleReader").build().getNativeInstanceId,
       compressionCodec,
       compressionCodecBackend,
       GlutenConfig.getConf.columnarShuffleCompressionMode

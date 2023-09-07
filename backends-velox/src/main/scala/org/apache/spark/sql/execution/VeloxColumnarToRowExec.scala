@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution.ColumnarToRowExecBase
-import io.glutenproject.memory.nmm.NativeMemoryManagers
+import io.glutenproject.memory.nmm.NativeMemoryManager
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
@@ -118,7 +118,8 @@ class ColumnarToRowRDD(
         val jniWrapper = new NativeColumnarToRowJniWrapper()
         var closed = false
         val c2rId = jniWrapper.nativeColumnarToRowInit(
-          NativeMemoryManagers.contextInstance("ColumnarToRow").getNativeInstanceId)
+          new NativeMemoryManager.Builder("ColumnarToRow").build().getNativeInstanceId
+        )
 
         TaskResources.addRecycler(s"ColumnarToRow_$c2rId", 100) {
           if (!closed) {

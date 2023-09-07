@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.memory.nmm.NativeMemoryManagers
+import io.glutenproject.memory.nmm.NativeMemoryManager
 import io.glutenproject.utils.ArrowAbiUtil
 import io.glutenproject.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
 
@@ -57,9 +57,10 @@ case class ColumnarBuildSideRelation(
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.init(
           cSchema.memoryAddress(),
-          NativeMemoryManagers
-            .contextInstance("BuildSideRelation#BatchSerializer")
-            .getNativeInstanceId)
+          new NativeMemoryManager.Builder("BuildSideRelation#BatchSerializer")
+            .build()
+            .getNativeInstanceId
+        )
         cSchema.close()
         handle
       }
@@ -98,7 +99,8 @@ case class ColumnarBuildSideRelation(
    */
   override def transform(key: Expression): Array[InternalRow] = {
     // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
-    val nativeMemoryManager = NativeMemoryManagers.tmpInstance("BuildSideRelation#transform")
+    val nativeMemoryManager =
+      new NativeMemoryManager.Builder("BuildSideRelation#transform").buildTempInstance()
     val serializeHandle = {
       val allocator = ArrowBufferAllocators.globalInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)

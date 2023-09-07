@@ -18,7 +18,7 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.memory.nmm.NativeMemoryManagers;
+import io.glutenproject.memory.nmm.NativeMemoryManager;
 import io.glutenproject.substrait.expression.ExpressionBuilder;
 import io.glutenproject.substrait.expression.StringMapNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
@@ -66,8 +66,8 @@ public class NativePlanEvaluator {
       Plan wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
     final long memoryManagerId =
-        NativeMemoryManagers.create(
-                "WholeStageIterator",
+        new NativeMemoryManager.Builder("WholeStageIterator")
+            .setSpiller(
                 (size, trigger) -> {
                   ColumnarBatchOutIterator instance =
                       Optional.of(outIterator.get())
@@ -80,6 +80,7 @@ public class NativePlanEvaluator {
                                           + "hasNext()/next()"));
                   return instance.spill(size);
                 })
+            .build()
             .getNativeInstanceId();
 
     final String spillDirPath =
