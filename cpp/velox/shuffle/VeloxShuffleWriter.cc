@@ -1547,6 +1547,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       return 0;
     }
 
+    LOG(INFO) << "Shrinking...";
     auto beforeShrink = pool_->bytesAllocated();
     for (auto i = 0; i < simpleColumnIndices_.size(); ++i) {
       auto columnType = schema_->field(simpleColumnIndices_[i])->type()->id();
@@ -1566,7 +1567,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           case arrow::BinaryType::type_id:
           case arrow::StringType::type_id: {
             const auto& offsetBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kOffsetBufferIndex]);
-            RETURN_NOT_OK(offsetBuffer->Resize(currentRowCnt * sizeof(arrow::BinaryType::offset_type)));
+            RETURN_NOT_OK(offsetBuffer->Resize((currentRowCnt + 1) * sizeof(arrow::BinaryType::offset_type)));
 
             auto binaryBufferSize =
                 reinterpret_cast<arrow::StringType::offset_type*>(offsetBuffer->mutable_data())[currentRowCnt];
@@ -1597,7 +1598,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         }
       }
     }
-    return pool_->bytesAllocated() - beforeShrink;
+    auto shrunken = pool_->bytesAllocated() - beforeShrink;
+    LOG(INFO) << shrunken << " bytes released from shrinking.";
+    return shrunken;
   }
 
 } // namespace gluten
