@@ -850,7 +850,7 @@ TypePtr SubstraitToVeloxPlanValidator::getRowType(const std::string& structType)
   // TODO: nested struct is not supported.
   auto structStart = structType.find_first_of('<');
   auto structEnd = structType.find_last_of('>');
-  if (structEnd - structStart > 1) {
+  if (structEnd - structStart <= 1) {
     logValidateMsg("native validation failed due to: More information is needed to create RowType");
   }
   VELOX_CHECK(
