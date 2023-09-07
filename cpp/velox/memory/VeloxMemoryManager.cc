@@ -195,9 +195,9 @@ velox::memory::IMemoryManager::Options VeloxMemoryManager::getOptions(
 VeloxMemoryManager::VeloxMemoryManager(
     std::string name,
     std::shared_ptr<MemoryAllocator> allocator,
-    std::shared_ptr<AllocationListener> listener)
-    : MemoryManager(), name_(name), listener_(listener) {
-  glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_);
+    std::unique_ptr<AllocationListener> listener)
+    : MemoryManager(), name_(name), listener_(std::move(listener)) {
+  glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_.get());
   arrowPool_ = std::make_shared<ArrowMemoryPool>(glutenAlloc_.get());
 
   auto options = getOptions(allocator);

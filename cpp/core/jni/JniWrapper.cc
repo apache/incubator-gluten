@@ -29,6 +29,7 @@
 #include "operators/writer/Datasource.h"
 
 #include <arrow/c/bridge.h>
+#include "memory/AllocationListener.h"
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/PartitionWriterCreator.h"
@@ -1135,11 +1136,11 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_cre
     throw gluten::GlutenException("Allocator does not exist or has been closed");
   }
 
+  auto listener = std::make_unique<SparkAllocationListener>(
+      vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, reservationBlockSize);
   auto name = jStringToCString(env, jname);
   auto backend = createBackend();
-  auto listener = std::make_shared<SparkAllocationListener>(
-      vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, reservationBlockSize);
-  auto manager = backend->getMemoryManager(name, *allocator, listener);
+  auto manager = backend->getMemoryManager(name, *allocator, std::move(listener));
   return reinterpret_cast<jlong>(manager);
   JNI_METHOD_END(-1L)
 }
