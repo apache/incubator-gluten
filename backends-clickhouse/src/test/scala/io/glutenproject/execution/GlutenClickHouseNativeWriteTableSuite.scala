@@ -57,11 +57,10 @@ class GlutenClickHouseNativeWriteTableSuite
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "1073741824")
       .set("spark.sql.catalogImplementation", "hive")
-      .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
       .set("spark.sql.shuffle.partitions", "5")
-      .set("spark.sql.adaptive.enabled", "false")
+      .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.files.minPartitionNum", "1")
       .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
       .set("spark.databricks.delta.snapshotPartitions", "1")
@@ -76,7 +75,7 @@ class GlutenClickHouseNativeWriteTableSuite
       .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
       // TODO: support default ANSI policy
       .set("spark.sql.storeAssignmentPolicy", "legacy")
-      // .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
+//       .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
       .set("spark.sql.warehouse.dir", getWarehouseDir)
       .setMaster("local[1]")
   }

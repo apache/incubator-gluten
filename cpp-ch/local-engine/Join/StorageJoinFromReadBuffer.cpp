@@ -40,10 +40,7 @@ namespace ErrorCodes
 
 using namespace DB;
 
-namespace local_engine
-{
-
-void StorageJoinFromReadBuffer::restore()
+void restore(DB::ReadBuffer & in, IJoin & join, const Block & sample_block)
 {
     NativeReader block_stream(in, 0);
 
@@ -53,45 +50,57 @@ void StorageJoinFromReadBuffer::restore()
         {
             auto final_block = sample_block.cloneWithColumns(block.mutateColumns());
             info.update(final_block);
-            join->addBlockToJoin(final_block, true);
+            join.addBlockToJoin(final_block, true);
         }
     }
 }
 
-StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
-    DB::ReadBuffer & in_,
-    const Names & key_names_,
-    bool use_nulls_,
-    DB::SizeLimits limits_,
-    DB::JoinKind kind_,
-    DB::JoinStrictness strictness_,
-    const ColumnsDescription & columns_,
-    const ConstraintsDescription & constraints_,
-    const String & comment,
-    const bool overwrite_)
-    : key_names(key_names_), use_nulls(use_nulls_), limits(limits_), kind(kind_), strictness(strictness_), overwrite(overwrite_), in(in_)
+DB::Block rightSampleBlock(bool use_nulls, const StorageInMemoryMetadata & storage_metadata_, JoinKind kind)
 {
-    storage_metadata_.setColumns(columns_);
-    storage_metadata_.setConstraints(constraints_);
+    DB::Block block = storage_metadata_.getSampleBlock();
+    if (use_nulls && isLeftOrFull(kind))
+    {
+        for (auto & col : block)
+        {
+            DB::JoinCommon::convertColumnToNullable(col);
+        }
+    }
+    return block;
+}
+
+namespace local_engine
+{
+
+StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
+    DB::ReadBuffer & in,
+    const Names & key_names,
+    bool use_nulls,
+    std::shared_ptr<DB::TableJoin> table_join,
+    const ColumnsDescription & columns,
+    const ConstraintsDescription & constraints,
+    const String & comment,
+    const bool overwrite)
+    : key_names_(key_names), use_nulls_(use_nulls)
+{
+    storage_metadata_.setColumns(columns);
+    storage_metadata_.setConstraints(constraints);
     storage_metadata_.setComment(comment);
 
-    sample_block = storage_metadata_.getSampleBlock();
     for (const auto & key : key_names)
         if (!storage_metadata_.getColumns().hasPhysical(key))
             throw Exception(ErrorCodes::NO_SUCH_COLUMN_IN_TABLE, "Key column ({}) does not exist in table declaration.", key);
-
-    table_join = std::make_shared<TableJoin>(limits, use_nulls, kind, strictness, key_names);
-    join = std::make_shared<HashJoin>(table_join, getRightSampleBlock(), overwrite);
-    restore();
+    right_sample_block_ = rightSampleBlock(use_nulls, storage_metadata_, table_join->kind());
+    join_ = std::make_shared<HashJoin>(table_join, right_sample_block_, overwrite);
+    restore(in, *join_, storage_metadata_.getSampleBlock());
 }
 
 DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJoin> analyzed_join, DB::ContextPtr /*context*/) const
 {
-    if (!analyzed_join->sameStrictnessAndKind(strictness, kind))
+    if (!analyzed_join->sameStrictnessAndKind(join_->getTableJoin().strictness(), join_->getTableJoin().kind()))
         throw Exception(ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN, "Table {} has incompatible type of JOIN.", storage_metadata_.comment);
 
-    if ((analyzed_join->forceNullableRight() && !use_nulls)
-        || (!analyzed_join->forceNullableRight() && isLeftOrFull(analyzed_join->kind()) && use_nulls))
+    if ((analyzed_join->forceNullableRight() && !use_nulls_)
+        || (!analyzed_join->forceNullableRight() && isLeftOrFull(analyzed_join->kind()) && use_nulls_))
         throw Exception(
             ErrorCodes::INCOMPATIBLE_TYPE_OF_JOIN,
             "Table {} needs the same join_use_nulls setting as present in LEFT or FULL JOIN",
@@ -102,10 +111,10 @@ DB::JoinPtr StorageJoinFromReadBuffer::getJoinLocked(std::shared_ptr<DB::TableJo
     /// Set names qualifiers: table.column -> column
     /// It's required because storage join stores non-qualified names
     /// Qualifies will be added by join implementation (HashJoin)
-    analyzed_join->setRightKeys(key_names);
+    analyzed_join->setRightKeys(key_names_);
 
-    HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, getRightSampleBlock());
-    join_clone->reuseJoinedData(static_cast<const HashJoin &>(*join));
+    HashJoinPtr join_clone = std::make_shared<HashJoin>(analyzed_join, right_sample_block_);
+    join_clone->reuseJoinedData(static_cast<const HashJoin &>(*join_));
 
     return join_clone;
 }

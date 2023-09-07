@@ -255,6 +255,7 @@ class CelebornClient : public RssClient {
 
     javaCelebornShuffleWriter_ = env->NewGlobalRef(javaCelebornShuffleWriter);
     array_ = env->NewByteArray(1024 * 1024);
+    array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
   }
 
   ~CelebornClient() {
@@ -265,6 +266,8 @@ class CelebornClient : public RssClient {
       return;
     }
     env->DeleteGlobalRef(javaCelebornShuffleWriter_);
+    jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
+    env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
     env->DeleteGlobalRef(array_);
   }
 
@@ -277,7 +280,9 @@ class CelebornClient : public RssClient {
     if (size > length) {
       jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
       env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
+      env->DeleteGlobalRef(array_);
       array_ = env->NewByteArray(size);
+      array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
     }
     env->SetByteArrayRegion(array_, 0, size, reinterpret_cast<jbyte*>(bytes));
     jint celebornBytesSize =

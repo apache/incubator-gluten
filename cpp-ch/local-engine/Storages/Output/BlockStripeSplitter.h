@@ -20,14 +20,12 @@
 
 namespace local_engine
 {
-class BlockStripes
+struct BlockStripes
 {
-public:
-    int64_t original_block_address;
+    int64_t origin_block_address = 0;
     std::vector<int64_t> block_addresses;
     std::vector<int32_t> heading_row_indice;
-    int origin_block_col_num;
-    bool no_need_split;
+    int origin_block_num_columns = 0;
 };
 
 class BlockStripeSplitter

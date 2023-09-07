@@ -105,7 +105,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan)
               var arrowBuf: ArrowBuf = null
               TaskResources.addRecycler("RowToColumnar_arrowBuf", 100) {
                 // Remind, remove isOpen here
-                if (arrowBuf != null && arrowBuf.refCnt() == 0) {
+                if (arrowBuf != null && arrowBuf.refCnt() != 0) {
                   arrowBuf.close()
                 }
               }

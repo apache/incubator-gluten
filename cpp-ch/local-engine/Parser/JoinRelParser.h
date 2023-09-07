@@ -28,8 +28,7 @@ class TableJoin;
 namespace local_engine
 {
 
-std::shared_ptr<DB::TableJoin> createDefaultTableJoin(substrait::JoinRel_JoinType join_type);
-
+std::pair<DB::JoinKind, DB::JoinStrictness> getJoinKindAndStrictness(substrait::JoinRel_JoinType join_type);
 
 class JoinRelParser : public RelParser
 {

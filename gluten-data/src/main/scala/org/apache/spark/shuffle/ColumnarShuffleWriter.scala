@@ -59,7 +59,7 @@ class ColumnarShuffleWriter[K, V](
     .map(_.getAbsolutePath)
     .mkString(",")
 
-  private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
+  private val nativeBufferSize = GlutenConfig.getConf.shuffleWriterBufferSize
 
   private val compressionCodec =
     if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {

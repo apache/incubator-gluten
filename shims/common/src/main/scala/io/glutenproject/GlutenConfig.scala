@@ -91,7 +91,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def isUseCelebornShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
-      .equals("org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager")
+      .contains("celeborn")
 
   def enableColumnarShuffle: Boolean = conf.getConf(COLUMNAR_SHUFFLE_ENABLED)
 
@@ -142,6 +142,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(COLUMNAR_SHUFFLE_BUFFER_COMPRESS_THRESHOLD)
 
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
+
+  def shuffleWriterBufferSize: Int = conf
+    .getConf(SHUFFLE_WRITER_BUFFER_SIZE)
+    .getOrElse(maxBatchSize)
 
   def enableColumnarLimit: Boolean = conf.getConf(COLUMNAR_LIMIT_ENABLED)
 
@@ -333,6 +337,9 @@ object GlutenConfig {
   // Batch size.
   val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
 
+  // Shuffle Writer buffer size.
+  val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shufflewriter.bufferSize"
+
   // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
   // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
   // at runtime. This config is just for velox backend. And it is NOT applicable to the situation
@@ -395,6 +402,7 @@ object GlutenConfig {
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
+      GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
     )
@@ -784,6 +792,13 @@ object GlutenConfig {
       .internal()
       .intConf
       .createWithDefault(4096)
+
+  // if not set, use COLUMNAR_MAX_BATCH_SIZE instead
+  val SHUFFLE_WRITER_BUFFER_SIZE =
+    buildConf(GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE)
+      .internal()
+      .intConf
+      .createOptional
 
   val COLUMNAR_LIMIT_ENABLED =
     buildConf("spark.gluten.sql.columnar.limit")

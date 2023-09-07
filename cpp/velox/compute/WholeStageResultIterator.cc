@@ -118,20 +118,46 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
   return std::make_shared<VeloxColumnarBatch>(vector);
 }
 
+namespace {
+class ConditionalSuspendedSection {
+ public:
+  ConditionalSuspendedSection(velox::exec::Driver* driver, bool condition) {
+    if (condition) {
+      section_ = new velox::exec::SuspendedSection(driver);
+    }
+  }
+
+  virtual ~ConditionalSuspendedSection() {
+    if (section_) {
+      delete section_;
+    }
+  }
+
+  // singleton
+  ConditionalSuspendedSection(const ConditionalSuspendedSection&) = delete;
+  ConditionalSuspendedSection(ConditionalSuspendedSection&&) = delete;
+  ConditionalSuspendedSection& operator=(const ConditionalSuspendedSection&) = delete;
+  ConditionalSuspendedSection& operator=(ConditionalSuspendedSection&&) = delete;
+
+ private:
+  velox::exec::SuspendedSection* section_ = nullptr;
+};
+} // namespace
+
 int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
   std::string poolName{pool_->root()->name() + "/" + pool_->name()};
   std::string logPrefix{"Spill[" + poolName + "]: "};
-  LOG(INFO) << logPrefix << "Trying to reclaim " << size << " bytes of data...";
-  LOG(INFO) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes()
-            << "/" << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
-  LOG(INFO) << logPrefix << "Shrinking...";
-  int64_t shrunk = pool_->shrinkManaged(pool_.get(), size);
-  LOG(INFO) << logPrefix << shrunk << " bytes released from shrinking.";
+  DLOG(INFO) << logPrefix << "Trying to reclaim " << size << " bytes of data...";
+  DLOG(INFO) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes()
+             << "/" << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
+  DLOG(INFO) << logPrefix << "Shrinking...";
+  int64_t shrunken = pool_->shrinkManaged(pool_.get(), size);
+  DLOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
 
   // todo return the actual spilled size?
   if (spillStrategy_ == "auto") {
-    int64_t remaining = size - shrunk;
-    LOG(INFO) << logPrefix << "Trying to request spilling for remaining " << remaining << " bytes...";
+    int64_t remaining = size - shrunken;
+    LOG(INFO) << logPrefix << "Trying to request spilling for " << remaining << " bytes...";
     // if we are on one of the driver of the spilled task, suspend it
     velox::exec::Driver* thisDriver = nullptr;
     task_->testingVisitDrivers([&](velox::exec::Driver* driver) {
@@ -139,25 +165,17 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
         thisDriver = driver;
       }
     });
-    if (thisDriver == nullptr) {
-      // not the driver, no need to suspend
-      uint64_t spilledOut = pool_->reclaim(remaining);
-      LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
-      uint64_t total = shrunk + spilledOut;
-      LOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
-      return shrunk + spilledOut;
-    }
-    // suspend since we are on driver
-    velox::exec::SuspendedSection noCancel(thisDriver);
+    // suspend the driver when we are on it
+    ConditionalSuspendedSection noCancel(thisDriver, thisDriver != nullptr);
     uint64_t spilledOut = pool_->reclaim(remaining);
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
-    uint64_t total = shrunk + spilledOut;
-    LOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
-    return shrunk + spilledOut;
+    uint64_t total = shrunken + spilledOut;
+    DLOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
+    return shrunken + spilledOut;
   }
 
-  LOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunk << " bytes.";
-  return shrunk;
+  DLOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
+  return shrunken;
 }
 
 void WholeStageResultIterator::getOrderedNodeIds(

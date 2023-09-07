@@ -94,8 +94,8 @@ public class ArrowBufferAllocators {
     }
 
     @Override
-    public long priority() {
-      return 0L; // lowest priority
+    public int priority() {
+      return 0; // lowest priority
     }
 
     @Override

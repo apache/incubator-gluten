@@ -80,7 +80,7 @@ public class CHNativeExpressionEvaluator {
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
-      Plan wsPlan, List<GeneralInIterator> iterList, boolean materializeAtLast) {
+      Plan wsPlan, List<GeneralInIterator> iterList, boolean materializeInput) {
     long allocId = CHNativeMemoryAllocators.contextInstance().getNativeInstanceId();
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(
@@ -93,7 +93,7 @@ public class CHNativeExpressionEvaluator {
                         SQLConf.get().getAllConfs()))
                 .toProtobuf()
                 .toByteArray(),
-            materializeAtLast);
+            materializeInput);
     return createOutIterator(handle);
   }
 

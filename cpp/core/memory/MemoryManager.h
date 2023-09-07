@@ -32,6 +32,8 @@ class MemoryManager {
   virtual std::shared_ptr<arrow::MemoryPool> getArrowMemoryPool() = 0;
 
   virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
+
+  virtual const int64_t shrink(int64_t size) = 0;
 };
 
 } // namespace gluten

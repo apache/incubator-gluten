@@ -36,7 +36,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.{GlutenWriterColumnarRules, MATERIALIZE_TAG}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
@@ -618,11 +617,6 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
 
   def apply(plan: SparkPlan): SparkPlan = {
     val newPlan = replaceWithTransformerPlan(plan)
-
-    // propagate the tag to the new plan. WholeStageCodegenExec will check the flag
-    if (plan.getTagValue(GlutenWriterColumnarRules.TAG).isDefined) {
-      newPlan.setTagValue(GlutenWriterColumnarRules.TAG, MATERIALIZE_TAG())
-    }
 
     planChangeLogger.logRule(ruleName, plan, newPlan)
     newPlan
