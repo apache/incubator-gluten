@@ -56,9 +56,9 @@ const std::string kSpillPartitionBits = "spark.gluten.sql.columnar.backend.velox
 const std::string kSpillableReservationGrowthPct =
     "spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct";
 const std::string kMaxPartialAggregationMemoryRatio =
-    "spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio";
-const std::string kMaxExtendedPartialAggregationMemoryRatio =
     "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio";
+const std::string kMaxExtendedPartialAggregationMemoryRatio =
+    "spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio";
 const std::string kAbandonPartialAggregationMinPct =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct";
 const std::string kAbandonPartialAggregationMinRows =
