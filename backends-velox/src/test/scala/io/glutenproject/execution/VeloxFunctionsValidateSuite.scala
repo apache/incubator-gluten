@@ -404,8 +404,7 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
 
         spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
 
-        runQueryAndCompare(
-          "select i[\"1\"] from map_tbl") {
+        runQueryAndCompare("select i[\"1\"] from map_tbl") {
           checkOperatorMatch[ProjectExecTransformer]
         }
     }
