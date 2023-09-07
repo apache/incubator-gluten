@@ -29,6 +29,9 @@ class RoundRobinPartitioner final : public ShuffleWriter::Partitioner {
       const int64_t numRows,
       std::vector<uint16_t>& row2Partition,
       std::vector<uint32_t>& partition2RowCount) override;
+
+ private:
+  int32_t pidSelection_ = 0;
 };
 
 } // namespace gluten

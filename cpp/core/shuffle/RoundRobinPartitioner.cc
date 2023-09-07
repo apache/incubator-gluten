@@ -27,16 +27,21 @@ arrow::Status gluten::RoundRobinPartitioner::compute(
   std::fill(std::begin(partition2RowCount), std::end(partition2RowCount), 0);
   row2Partition.resize(numRows);
 
-  int32_t pidSelection = 0;
+  int32_t pidSelection = pidSelection_;
   for (int32_t i = 0; i < numRows;) {
     int32_t low = i;
-    int32_t up = std::min((int64_t)(i + numPartitions_), numRows);
-    for (; low != up; ) {
+    int32_t up = std::min((int64_t)(i + (numPartitions_ - pidSelection)), numRows);
+    for (; low != up;) {
       row2Partition[low++] = pidSelection++;
     }
 
+    pidSelection_ = pidSelection;
     pidSelection = 0;
     i = up;
+  }
+
+  if (pidSelection_ >= numPartitions_) {
+    pidSelection_ -= numPartitions_;
   }
 
   for (auto& pid : row2Partition) {
