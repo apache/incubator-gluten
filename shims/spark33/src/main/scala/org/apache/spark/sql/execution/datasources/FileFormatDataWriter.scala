@@ -363,7 +363,12 @@ class DynamicPartitionDataSingleWriter(
   private var currentBucketId: Option[Int] = None
 
   private val partitionColIndice: Array[Int] =
-    description.partitionColumns.map(a => description.allColumns.indexOf(a)).toArray
+    description.partitionColumns.flatMap {
+      pcol =>
+        description.allColumns.zipWithIndex.collect {
+          case (acol, index) if acol.name == pcol.name && acol.exprId == pcol.exprId => index
+        }
+    }.toArray
 
   private def beforeWrite(record: InternalRow): Unit = {
     val nextPartitionValues = if (isPartitioned) Some(getPartitionValues(record)) else None
