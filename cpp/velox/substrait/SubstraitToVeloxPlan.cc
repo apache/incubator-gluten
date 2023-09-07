@@ -478,6 +478,45 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   return std::make_shared<core::ExpandNode>(nextPlanNodeId(), projectSetExprs, std::move(names), childNode);
 }
 
+core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::GenerateRel& generateRel) {
+  core::PlanNodePtr childNode;
+  if (generateRel.has_input()) {
+    childNode = toVeloxPlan(generateRel.input());
+  } else {
+    VELOX_FAIL("Child Rel is expected in GenerateRel.");
+  }
+  const auto& inputType = childNode->outputType();
+
+  std::vector<core::FieldAccessTypedExprPtr> replicated;
+  std::vector<core::FieldAccessTypedExprPtr> unnest;
+  // TODO(yuan): get from generator output
+  std::vector<std::string> unnestNames = {"C0"};
+
+  const auto& generator = generateRel.generator();
+  const auto& requiredChildOutput = generateRel.child_output();
+  const bool& outer = generateRel.outer();
+
+  replicated.reserve(requiredChildOutput.size());
+  for (const auto& output : requiredChildOutput) {
+    auto expression = exprConverter_->toVeloxExpr(output, inputType);
+    auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+    VELOX_CHECK(expr_field != nullptr, " the output in Generate Operator only support field")
+
+    replicated.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
+  }
+
+  // generator should be a scalarfunction node -> explode(col#0)
+  auto explodeFunc = generator.scalar_function();
+  auto unnestExpr = exprConverter_->toVeloxExpr(explodeFunc.arguments(0).value(), inputType);
+  auto unnestFieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(unnestExpr);
+  VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
+  unnest.emplace_back(unnestFieldExpr);
+
+  auto node = std::make_shared<core::UnnestNode>(
+      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), std::nullopt, childNode);
+  return node;
+}
+
 const core::WindowNode::Frame createWindowFrame(
     const ::substrait::Expression_WindowFunction_Bound& lower_bound,
     const ::substrait::Expression_WindowFunction_Bound& upper_bound,
@@ -911,6 +950,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return toVeloxPlan(rel.sort());
   } else if (rel.has_expand()) {
     return toVeloxPlan(rel.expand());
+  } else if (rel.has_generate()) {
+    return toVeloxPlan(rel.generate());
   } else if (rel.has_fetch()) {
     return toVeloxPlan(rel.fetch());
   } else if (rel.has_window()) {

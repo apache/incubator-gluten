@@ -16,7 +16,6 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.exception.GlutenException
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.expression.ExpressionConverter
@@ -88,10 +87,6 @@ case class GenerateExecTransformer(
   override def supportsColumnar: Boolean = true
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (BackendsApiManager.isVeloxBackend) {
-      return ValidationResult.notOk(s"Velox backend does not support this operator: $nodeName")
-    }
-
     val context = new SubstraitContext
     val args = context.registeredFunction
 

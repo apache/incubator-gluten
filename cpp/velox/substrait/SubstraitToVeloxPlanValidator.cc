@@ -354,6 +354,11 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchR
   return true;
 }
 
+bool SubstraitToVeloxPlanValidator::validate(const ::substrait::GenerateRel& generateRel) {
+  // TODO(yuan): add check
+  return true;
+}
+
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ExpandRel& expandRel) {
   if (expandRel.has_input() && !validate(expandRel.input())) {
     logValidateMsg("native validation failed due to: input validation fails in ExpandRel.");

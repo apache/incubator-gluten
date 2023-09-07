@@ -50,6 +50,14 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ExpandRel& sexpand)
   }
 }
 
+void VeloxPlanConverter::setInputPlanNode(const ::substrait::GenerateRel& sGenerate) {
+  if (sGenerate.has_input()) {
+    setInputPlanNode(sGenerate.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
+}
+
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::SortRel& ssort) {
   if (ssort.has_input()) {
     setInputPlanNode(ssort.input());
@@ -160,6 +168,8 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.fetch());
   } else if (srel.has_window()) {
     setInputPlanNode(srel.window());
+  } else if (srel.has_generate()) {
+    setInputPlanNode(srel.generate());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }
