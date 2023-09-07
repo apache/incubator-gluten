@@ -292,11 +292,13 @@ class ShuffleWriter {
         options_(std::move(options)),
         pool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)),
         codec_(createArrowIpcCodec(options_.compression_type, options_.codec_backend)) {}
+
   virtual ~ShuffleWriter() = default;
 
   int32_t numPartitions_;
 
   std::shared_ptr<PartitionWriterCreator> partitionWriterCreator_;
+
   // options
   ShuffleWriterOptions options_;
   // split buffer pool

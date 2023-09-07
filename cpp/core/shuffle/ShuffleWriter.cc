@@ -22,6 +22,8 @@
 #include "ShuffleSchema.h"
 #include "utils/macros.h"
 
+#include "PartitionWriterCreator.h"
+
 namespace gluten {
 
 #ifndef SPLIT_BUFFER_SIZE
@@ -91,4 +93,5 @@ void ShuffleWriter::clearCachedPayloads(uint32_t partitionId) {
   partitionCachedRecordbatch()[partitionId].clear();
   setPartitionCachedRecordbatchSize(partitionId, 0);
 }
+
 } // namespace gluten

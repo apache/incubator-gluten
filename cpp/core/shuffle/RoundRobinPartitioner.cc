@@ -50,4 +50,5 @@ arrow::Status gluten::RoundRobinPartitioner::compute(
 
   return arrow::Status::OK();
 }
+
 } // namespace gluten
