@@ -55,6 +55,14 @@ const std::string kSpillStartPartitionBit = "spark.gluten.sql.columnar.backend.v
 const std::string kSpillPartitionBits = "spark.gluten.sql.columnar.backend.velox.spillPartitionBits";
 const std::string kSpillableReservationGrowthPct =
     "spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct";
+const std::string kMaxPartialAggregationMemoryRatio =
+    "spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio";
+const std::string kMaxExtendedPartialAggregationMemoryRatio =
+    "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio";
+const std::string kAbandonPartialAggregationMinPct =
+    "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct";
+const std::string kAbandonPartialAggregationMinRows =
+    "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows";
 
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
@@ -311,11 +319,22 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = std::to_string(true);
 
-    // Set the max memory of partial aggregation as 3/4 of offheap size.
-    auto maxMemory =
-        (long)(0.75 * (double)std::stol(getConfigValue(confMap_, kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory))));
-    configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
-    configs[velox::core::QueryConfig::kAbandonPartialAggregationMinPct] = std::to_string(90);
+    {
+      // partial aggregation memory config
+      auto offHeapMemory = std::stol(
+          getConfigValue(confMap_, kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory)));
+      auto maxPartialAggregationMemory =
+          (long)(std::stod(getConfigValue(confMap_, kMaxPartialAggregationMemoryRatio, "0.1")) * offHeapMemory);
+      auto maxExtendedPartialAggregationMemory =
+          (long)(std::stod(getConfigValue(confMap_, kMaxExtendedPartialAggregationMemoryRatio, "0.5")) * offHeapMemory);
+      configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxPartialAggregationMemory);
+      configs[velox::core::QueryConfig::kMaxExtendedPartialAggregationMemory] =
+          std::to_string(maxExtendedPartialAggregationMemory);
+      configs[velox::core::QueryConfig::kAbandonPartialAggregationMinPct] =
+          getConfigValue(confMap_, kAbandonPartialAggregationMinPct, "90");
+      configs[velox::core::QueryConfig::kAbandonPartialAggregationMinRows] =
+          getConfigValue(confMap_, kAbandonPartialAggregationMinRows, "10000");
+    }
     // Spill configs
     if (spillStrategy_ == "none") {
       configs[velox::core::QueryConfig::kSpillEnabled] = "false";
