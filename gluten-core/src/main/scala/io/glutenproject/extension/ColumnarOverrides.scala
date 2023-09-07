@@ -23,6 +23,7 @@ import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
+
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
@@ -31,12 +32,12 @@ import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
-import org.apache.spark.sql.delta.DeltaParquetFileFormat
+import org.apache.spark.sql.delta.{DeltaParquetFileFormat, NoMapping}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.{FileFormat, GlutenWriterColumnarRules, HadoopFsRelation, MATERIALIZE_TAG}
+import org.apache.spark.sql.execution.datasources.{FileFormat, GlutenWriterColumnarRules, MATERIALIZE_TAG}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
@@ -49,117 +50,103 @@ import org.apache.spark.util.SparkRuleUtil
 import scala.collection._
 
 /**
- * This Rule used for the necessary transformation for SparkPlan, like: 1) Lake format related
+ * This Rule is used for the necessary transformation for SparkPlan, like: 1) Lake format related
  * transformation which can't be done in Spark, e.g. Delta lake; 2) Needed to be applied before any
- * other Rules, to avoid information lack like Plan Hint tag
+ * other Rules, to avoid information lack like Plan Hint tag;
  */
 case class RewritePlanIfNeeded(session: SparkSession) extends Rule[SparkPlan] {
   def apply(plan: SparkPlan): SparkPlan = {
-    val newPlan = plan.transformUpWithSubqueries {
-      // If is Delta Column Mapping read(e.g. nameMapping and idMapping)
-      // change the metadata of Delta into Parquet one,
-      // so that gluten can read Delta File using Parquet Reader
-      // currently supports Delta 2.2
+    plan.transformUpWithSubqueries {
+      // If it enables Delta Column Mapping(e.g. nameMapping and idMapping),
+      // transform the metadata of Delta into Parquet's,
+      // so that gluten can read Delta File using Parquet Reader.
       case p: FileSourceScanExec if isDeltaColumnMappingFileFormat(p.relation.fileFormat) =>
         transformColumnMappingPlan(p)
     }
-    newPlan
   }
 
-  /**
-   * check if is Delta ColumnMapping FileFormat(e.g. nameMapping and idMapping)
-   *
-   * @param fileFormat
-   * @return
-   */
+  /** Check if `FileFormat` is in Delta ColumnMapping Mode(e.g. nameMapping and idMapping). */
   private def isDeltaColumnMappingFileFormat(fileFormat: FileFormat): Boolean = fileFormat match {
-    case d: DeltaParquetFileFormat if d.columnMappingMode.name != "none" =>
+    case d: DeltaParquetFileFormat if d.columnMappingMode != NoMapping =>
       true
     case _ =>
       false
   }
 
   /**
-   * This method only used for Delta ColumnMapping FileFormat(e.g. nameMapping and idMapping)
-   * transform the metadata of Delta into Parquet one, each plan should only be transformed once
-   * Only supports Delta 2.2 ver
-   *
-   * @param plan
-   *   FileSourceScanExec
-   * @return
+   * This method is only used for Delta ColumnMapping FileFormat(e.g. nameMapping and idMapping)
+   * transform the metadata of Delta into Parquet's, each plan should only be transformed once.
    */
   private def transformColumnMappingPlan(sPlan: SparkPlan): SparkPlan = sPlan match {
     case plan: FileSourceScanExec =>
       val fmt = plan.relation.fileFormat.asInstanceOf[DeltaParquetFileFormat]
-      val pNames: mutable.Map[String, String] = mutable.Map.empty
-      var aliasNames: Seq[String] = Seq.empty
-      var aliasAttr: Seq[Attribute] = Seq.empty
-      // get physicalName from file
-      fmt.referenceSchema.foreach { e =>
-        val pName = e.metadata.getString("delta.columnMapping.physicalName")
-        val lName = e.name
-        pNames += (lName -> pName)
+      // a mapping between the table schemas name to parquet schemas.
+      val columnNameMapping = mutable.Map.empty[String, String]
+      fmt.referenceSchema.foreach {
+        f =>
+          val pName = f.metadata.getString("delta.columnMapping.physicalName")
+          val lName = f.name
+          columnNameMapping += (lName -> pName)
       }
+
+      // transform HadoopFsRelation
+      val relation = plan.relation
+      val newDataFields = relation.dataSchema.map(e => e.copy(columnNameMapping(e.name)))
+      val newPartitionFields = relation.partitionSchema.map {
+        e => e.copy(columnNameMapping(e.name))
+      }
+      val newFsRelation = relation.copy(
+        partitionSchema = StructType(newPartitionFields),
+        dataSchema = StructType(newDataFields)
+      )(session)
+
       // transform output's name into physical name so Reader can read data correctly
       // should keep the columns order the same as the origin output
-      val attr = plan.output.map { o =>
-        val new_attr = o.withName(pNames(o.name))
-        if (!aliasNames.contains(o.name)) {
-          aliasAttr = aliasAttr :+ new_attr
-          aliasNames = aliasNames :+ o.name
-        }
-        new_attr
+      val originColumnNames = mutable.ListBuffer.empty[String]
+      val transformedAttrs = mutable.ListBuffer.empty[Attribute]
+      val newOutput = plan.output.map {
+        o =>
+          val newAttr = o.withName(columnNameMapping(o.name))
+          if (!originColumnNames.contains(o.name)) {
+            transformedAttrs += newAttr
+            originColumnNames += o.name
+          }
+          newAttr
       }
-      // transform dataFilter's name into physical name
-      val newDataFilters = plan.dataFilters.map { e =>
-        e.transformDown {
-          case attr: AttributeReference =>
-            val new_attr = attr.withName(pNames(attr.name)).toAttribute
-            if (!aliasNames.contains(attr.name)) {
-              aliasAttr = aliasAttr :+ new_attr
-              aliasNames = aliasNames :+ attr.name
-            }
-            new_attr
-        }
+      // transform dataFilters
+      val newDataFilters = plan.dataFilters.map {
+        e =>
+          e.transformDown {
+            case attr: AttributeReference =>
+              val newAttr = attr.withName(columnNameMapping(attr.name)).toAttribute
+              if (!originColumnNames.contains(attr.name)) {
+                transformedAttrs += newAttr
+                originColumnNames += attr.name
+              }
+              newAttr
+          }
       }
-      val newPartitionFilters = plan.partitionFilters.map { e =>
-        e.transformDown {
-          case attr: AttributeReference =>
-            val new_attr = attr.withName(pNames(attr.name)).toAttribute
-            if (!aliasNames.contains(attr.name)) {
-              aliasAttr = aliasAttr :+ new_attr
-              aliasNames = aliasNames :+ attr.name
-            }
-            new_attr
-        }
-      }
-      // alias physicalName into tableName
-      // should keep the columns order the same as the origin output
-      val expr = (aliasAttr, aliasNames).zipped.map { (a, p) =>
-        Alias(a, p)(exprId = a.exprId)
+      // transform partitionFilters
+      val newPartitionFilters = plan.partitionFilters.map {
+        e =>
+          e.transformDown {
+            case attr: AttributeReference =>
+              val newAttr = attr.withName(columnNameMapping(attr.name)).toAttribute
+              if (!originColumnNames.contains(attr.name)) {
+                transformedAttrs += newAttr
+                originColumnNames += attr.name
+              }
+              newAttr
+          }
       }
       // replace tableName in schema with physicalName
-      val newReqField = plan.requiredSchema.map { e =>
-        StructField(pNames(e.name), e.dataType, e.nullable, e.metadata)
+      val newRequiredFields = plan.requiredSchema.map {
+        e => StructField(columnNameMapping(e.name), e.dataType, e.nullable, e.metadata)
       }
-      val newDataField = plan.relation.dataSchema.map { e =>
-        StructField(pNames(e.name), e.dataType, e.nullable, e.metadata)
-      }
-      val newPartitionField = plan.relation.partitionSchema.map { e =>
-        StructField(pNames(e.name), e.dataType, e.nullable, e.metadata)
-      }
-      val rel = HadoopFsRelation(
-        plan.relation.location,
-        StructType(newPartitionField),
-        StructType(newDataField),
-        plan.relation.bucketSpec,
-        plan.relation.fileFormat,
-        plan.relation.options
-      )(session)
       val newPlan = FileSourceScanExec(
-        rel,
-        attr,
-        StructType(newReqField),
+        newFsRelation,
+        newOutput,
+        StructType(newRequiredFields),
         newPartitionFilters,
         plan.optionalBucketSet,
         plan.optionalNumCoalescedBuckets,
@@ -167,6 +154,11 @@ case class RewritePlanIfNeeded(session: SparkSession) extends Rule[SparkPlan] {
         plan.tableIdentifier,
         plan.disableBucketedScan
       )
+
+      // alias physicalName into tableName
+      val expr = (transformedAttrs, originColumnNames).zipped.map {
+        (attr, columnName) => Alias(attr, columnName)(exprId = attr.exprId)
+      }
       ProjectExec(expr, newPlan)
     case _ => sPlan
   }
