@@ -416,8 +416,7 @@ class DynamicPartitionDataSingleWriter(
 
   protected def writeStripe(record: InternalRow): Unit = {
     currentWriter.write(record)
-    // TODO: stats
-    //    statsTrackers.foreach(_.newRow(currentWriter.path, outputRow))
+    statsTrackers.foreach(_.newRow(currentWriter.path, record))
     recordsInFile += 1
   }
 }
