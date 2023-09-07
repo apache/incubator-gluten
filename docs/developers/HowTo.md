@@ -154,3 +154,9 @@ Here will explain how to run TPC-H on Velox backend with the Parquet file format
 
 # How to run TPC-DS
 wait to add
+
+# How to track the memory exhaust problem
+
+You can track the memory allocation's call stack by configuring `spark.gluten.backtrace.allocation = true`.
+
+the call stack of memory allocation will be printed if this allocation bytes exceeds 256M or the total bytes statified condition.
