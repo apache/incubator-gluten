@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.backendsapi.velox.VeloxValidator
+import io.glutenproject.backendsapi.velox.Validator
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
@@ -41,7 +41,7 @@ import scala.collection.mutable.ListBuffer
 case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBase(child = child) {
 
   override def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
-    if (!new VeloxValidator().doSchemaValidate(schema)) {
+    if (!new Validator().doSchemaValidate(schema)) {
       throw new UnsupportedOperationException(
         s"Input schema contains unsupported type when convert row to columnar, " +
           s"${schema.toString()}")
