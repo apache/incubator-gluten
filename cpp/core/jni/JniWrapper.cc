@@ -838,7 +838,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   }
 
   auto backend = gluten::createBackend();
-  auto shuffleWriter = backend->makeShuffleWriter(
+  auto shuffleWriter = backend->createShuffleWriter(
       numPartitions, std::move(partitionWriterCreator), std::move(shuffleWriterOptions), memoryManager);
   return shuffleWriterHolder.insert(shuffleWriter);
   JNI_METHOD_END(-1L)
@@ -966,7 +966,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
       gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
 
   auto backend = gluten::createBackend();
-  auto reader = backend->getShuffleReader(schema, options, pool, memoryManager);
+  auto reader = backend->createShuffleReader(schema, options, pool, memoryManager);
   return shuffleReaderHolder.insert(reader);
   JNI_METHOD_END(-1L)
 }
@@ -1136,11 +1136,11 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_cre
     throw gluten::GlutenException("Allocator does not exist or has been closed");
   }
 
-  auto listener = std::make_unique<SparkAllocationListener>(
-      vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, reservationBlockSize);
   auto name = jStringToCString(env, jname);
   auto backend = createBackend();
-  auto manager = backend->getMemoryManager(name, *allocator, std::move(listener));
+  auto listener = std::make_unique<SparkAllocationListener>(
+      vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, reservationBlockSize);
+  auto manager = backend->createMemoryManager(name, *allocator, std::move(listener));
   return reinterpret_cast<jlong>(manager);
   JNI_METHOD_END(-1L)
 }

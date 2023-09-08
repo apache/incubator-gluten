@@ -17,6 +17,7 @@
 
 #include "VeloxMemoryManager.h"
 
+#include <execinfo.h>
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
@@ -193,7 +194,7 @@ velox::memory::IMemoryManager::Options VeloxMemoryManager::getOptions(
 }
 
 VeloxMemoryManager::VeloxMemoryManager(
-    std::string name,
+    const std::string& name,
     std::shared_ptr<MemoryAllocator> allocator,
     std::unique_ptr<AllocationListener> listener)
     : MemoryManager(), name_(name), listener_(std::move(listener)) {
@@ -258,10 +259,6 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryPool* pool, int64_t size) {
 
 const int64_t VeloxMemoryManager::shrink(int64_t size) {
   return shrinkVeloxMemoryPool(veloxAggregatePool_.get(), size);
-}
-
-velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
-  return &(facebook::velox::memory::defaultMemoryManager());
 }
 
 } // namespace gluten

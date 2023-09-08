@@ -28,7 +28,7 @@ namespace gluten {
 class VeloxMemoryManager final : public MemoryManager {
  public:
   explicit VeloxMemoryManager(
-      std::string name,
+      const std::string& name,
       std::shared_ptr<MemoryAllocator> allocator,
       std::unique_ptr<AllocationListener> listener);
 
