@@ -41,7 +41,7 @@ public class Queries implements Callable<Integer> {
   @CommandLine.Option(names = {"--iterations"}, description = "How many iterations to run", defaultValue = "1")
   private int iterations;
 
-  @CommandLine.Option(names = {"--random-kill-tasks"}, description = "Each task get 20% chance to be killed and retried after running for seconds", defaultValue = "false")
+  @CommandLine.Option(names = {"--random-kill-tasks"}, description = "Each task gets 20% chance to be killed and retried after running for seconds", defaultValue = "false")
   private boolean randomKillTasks;
 
   @Override
