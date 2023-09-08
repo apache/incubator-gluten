@@ -17,13 +17,15 @@
 
 #pragma once
 
-#include <jni.h>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <utility>
 
 namespace gluten {
+
+using ResourceHandle = int64_t;
+constexpr static ResourceHandle kInvalidResourceHandle = -1;
 
 /**
  * An utility class that map module id to module pointers.
@@ -34,19 +36,19 @@ class ConcurrentMap {
  public:
   ConcurrentMap() : moduleId_(kInitModuleId) {}
 
-  jlong insert(Holder holder) {
+  ResourceHandle insert(Holder holder) {
     std::lock_guard<std::mutex> lock(mtx_);
-    jlong result = moduleId_++;
-    map_.insert(std::pair<jlong, Holder>(result, holder));
+    ResourceHandle result = moduleId_++;
+    map_.insert(std::pair<ResourceHandle, Holder>(result, holder));
     return result;
   }
 
-  void erase(jlong moduleId) {
+  void erase(ResourceHandle moduleId) {
     std::lock_guard<std::mutex> lock(mtx_);
     map_.erase(moduleId);
   }
 
-  Holder lookup(jlong moduleId) {
+  Holder lookup(ResourceHandle moduleId) {
     std::lock_guard<std::mutex> lock(mtx_);
     auto it = map_.find(moduleId);
     if (it != map_.end()) {
@@ -70,11 +72,11 @@ class ConcurrentMap {
   // to allow for easier debugging of uninitialized java variables.
   static constexpr int kInitModuleId = 4;
 
-  int64_t moduleId_;
+  ResourceHandle moduleId_;
   std::mutex mtx_;
 
   // map from module ids returned to Java and module pointers
-  std::unordered_map<jlong, Holder> map_;
+  std::unordered_map<ResourceHandle, Holder> map_;
 };
 
 } // namespace gluten

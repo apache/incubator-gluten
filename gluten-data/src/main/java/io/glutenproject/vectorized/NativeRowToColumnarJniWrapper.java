@@ -21,9 +21,10 @@ import io.glutenproject.init.JniInitialized;
 public class NativeRowToColumnarJniWrapper extends JniInitialized {
   public NativeRowToColumnarJniWrapper() {}
 
-  public native long init(long cSchema, long memoryManagerId);
+  public native long init(long cSchema, long executionCtxHandle, long memoryManagerHandle);
 
-  public native long nativeConvertRowToColumnar(long r2CId, long[] rowLength, long bufferAddress);
+  public native long nativeConvertRowToColumnar(
+      long executionCtxHandle, long r2cHandle, long[] rowLength, long bufferAddress);
 
-  public native void close(long r2cId);
+  public native void close(long executionCtxHandle, long r2cHandle);
 }

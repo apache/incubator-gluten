@@ -16,7 +16,6 @@
  */
 
 #include <jni.h>
-#include "arrow/c/bridge.h"
 
 #include <glog/logging.h>
 #include <jni/JniCommon.h>
@@ -36,9 +35,8 @@ using namespace facebook;
 
 namespace {
 
-std::shared_ptr<gluten::ExecutionCtx> veloxExecutionCtxFactory(
-    const std::unordered_map<std::string, std::string>& sparkConfs) {
-  return std::make_shared<gluten::VeloxExecutionCtx>(sparkConfs);
+gluten::ExecutionCtx* veloxExecutionCtxFactory(const std::unordered_map<std::string, std::string>& sparkConfs) {
+  return new gluten::VeloxExecutionCtx(sparkConfs);
 }
 
 } // namespace
@@ -81,6 +79,27 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_BackendJniWrapper_initializeBa
   auto sparkConfs = gluten::getConfMap(env, planArray);
   gluten::setExecutionCtxFactory(veloxExecutionCtxFactory, sparkConfs);
   gluten::VeloxBackend::create(sparkConfs);
+  JNI_METHOD_END()
+}
+
+JNIEXPORT jlong JNICALL Java_io_glutenproject_init_BackendJniWrapper_createExecutionCtx( // NOLINT
+    JNIEnv* env,
+    jclass) {
+  JNI_METHOD_START
+  auto executionCtx = gluten::createExecutionCtx();
+  return reinterpret_cast<jlong>(executionCtx);
+  JNI_METHOD_END(-1)
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_init_BackendJniWrapper_releaseExecutionCtx( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong ctxHandle) {
+  JNI_METHOD_START
+  auto executionCtx = reinterpret_cast<gluten::ExecutionCtx*>(ctxHandle);
+  GLUTEN_CHECK(executionCtx != nullptr, "ExecutionCtx should not be null.");
+
+  gluten::releaseExecutionCtx(executionCtx);
   JNI_METHOD_END()
 }
 

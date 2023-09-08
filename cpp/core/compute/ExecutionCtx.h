@@ -29,6 +29,7 @@
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
+#include "utils/ConcurrentMap.h"
 
 namespace gluten {
 
@@ -47,11 +48,18 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
   ExecutionCtx(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
   virtual ~ExecutionCtx() = default;
 
-  virtual std::shared_ptr<ResultIterator> getResultIterator(
+  virtual ResourceHandle createResultIterator(
       MemoryManager* memoryManager,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
       const std::unordered_map<std::string, std::string>& sessionConf) = 0;
+  virtual ResourceHandle addResultIterator(std::shared_ptr<ResultIterator>) = 0;
+  virtual std::shared_ptr<ResultIterator> getResultIterator(ResourceHandle) = 0;
+  virtual void releaseResultIterator(ResourceHandle) = 0;
+
+  virtual ResourceHandle addBatch(std::shared_ptr<ColumnarBatch>) = 0;
+  virtual std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle) = 0;
+  virtual void releaseBatch(ResourceHandle) = 0;
 
   void parsePlan(const uint8_t* data, int32_t size) {
     parsePlan(data, size, {-1, -1, -1});
@@ -86,33 +94,50 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
 
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row.
-  virtual std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryManager* memoryManager) = 0;
+  virtual ResourceHandle createColumnar2RowConverter(MemoryManager* memoryManager) = 0;
+  virtual std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(ResourceHandle) = 0;
+  virtual void releaseColumnar2RowConverter(ResourceHandle) = 0;
 
-  virtual std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
-      MemoryManager* memoryManager,
-      struct ArrowSchema* cSchema) = 0;
+  virtual ResourceHandle createRow2ColumnarConverter(MemoryManager* memoryManager, struct ArrowSchema* cSchema) = 0;
+  virtual std::shared_ptr<RowToColumnarConverter> getRow2ColumnarConverter(ResourceHandle) = 0;
+  virtual void releaseRow2ColumnarConverter(ResourceHandle) = 0;
 
-  virtual std::shared_ptr<ShuffleWriter> createShuffleWriter(
+  virtual ResourceHandle createShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
       MemoryManager* memoryManager) = 0;
+  virtual std::shared_ptr<ShuffleWriter> getShuffleWriter(ResourceHandle) = 0;
+  virtual void releaseShuffleWriter(ResourceHandle) = 0;
 
   virtual std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;
 
-  virtual std::shared_ptr<Datasource>
-  getDatasource(const std::string& filePath, MemoryManager* memoryManager, std::shared_ptr<arrow::Schema> schema) = 0;
+  virtual ResourceHandle createDatasource(
+      const std::string& filePath,
+      MemoryManager* memoryManager,
+      std::shared_ptr<arrow::Schema> schema) = 0;
+  virtual std::shared_ptr<Datasource> getDatasource(ResourceHandle) = 0;
+  virtual void releaseDatasource(ResourceHandle) = 0;
 
-  virtual std::shared_ptr<ShuffleReader> createShuffleReader(
+  virtual ResourceHandle createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,
       MemoryManager* memoryManager) = 0;
+  virtual std::shared_ptr<ShuffleReader> getShuffleReader(ResourceHandle) = 0;
+  virtual void releaseShuffleReader(ResourceHandle) = 0;
 
-  virtual std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
+  virtual ResourceHandle createColumnarBatchSerializer(
       MemoryManager* memoryManager,
       std::shared_ptr<arrow::MemoryPool> arrowPool,
       struct ArrowSchema* cSchema) = 0;
+  // TODO: separate serializer and deserializer then remove this method.
+  virtual std::unique_ptr<ColumnarBatchSerializer> createTempColumnarBatchSerializer(
+      MemoryManager* memoryManager,
+      std::shared_ptr<arrow::MemoryPool> arrowPool,
+      struct ArrowSchema* cSchema) = 0;
+  virtual std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(ResourceHandle) = 0;
+  virtual void releaseColumnarBatchSerializer(ResourceHandle) = 0;
 
   std::unordered_map<std::string, std::string> getConfMap() {
     return confMap_;
@@ -129,9 +154,8 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
   std::unordered_map<std::string, std::string> confMap_;
 };
 
-using ExecutionCtxFactoryWithConf =
-    std::shared_ptr<ExecutionCtx> (*)(const std::unordered_map<std::string, std::string>&);
-using ExecutionCtxFactory = std::shared_ptr<ExecutionCtx> (*)();
+using ExecutionCtxFactoryWithConf = ExecutionCtx* (*)(const std::unordered_map<std::string, std::string>&);
+using ExecutionCtxFactory = ExecutionCtx* (*)();
 
 struct ExecutionCtxFactoryContext {
   std::mutex mutex;
@@ -178,7 +202,7 @@ struct ExecutionCtxFactoryContext {
     backendFactory = factory;
   }
 
-  std::shared_ptr<ExecutionCtx> create() {
+  ExecutionCtx* create() {
     std::lock_guard<std::mutex> lockGuard(mutex);
     if (type == kExecutionCtxFactoryInvalid) {
       assert(false);
@@ -198,6 +222,8 @@ void setExecutionCtxFactory(
 
 void setExecutionCtxFactory(ExecutionCtxFactory factory);
 
-std::shared_ptr<ExecutionCtx> createExecutionCtx();
+ExecutionCtx* createExecutionCtx();
+
+void releaseExecutionCtx(ExecutionCtx*);
 
 } // namespace gluten

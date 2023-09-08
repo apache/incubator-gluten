@@ -23,19 +23,20 @@ public class ColumnarBatchJniWrapper extends JniInitialized {
 
   private ColumnarBatchJniWrapper() {}
 
-  public native String getType(long handle);
+  public native String getType(long executionCtxHandle, long batchHandle);
 
-  public native long numColumns(long handle);
+  public native long numColumns(long executionCtxHandle, long batchHandle);
 
-  public native long numRows(long handle);
+  public native long numRows(long executionCtxHandle, long batchHandle);
 
-  public native long numBytes(long handle);
+  public native long numBytes(long executionCtxHandle, long batchHandle);
 
-  public native long compose(long[] handles);
+  public native long compose(long executionCtxHandle, long[] batchHandles);
 
-  public native long createWithArrowArray(long cSchema, long cArray);
+  public native long createWithArrowArray(long executionCtxHandle, long cSchema, long cArray);
 
-  public native void exportToArrow(long handle, long cSchema, long cArray);
+  public native void exportToArrow(
+      long executionCtxHandle, long batchHandle, long cSchema, long cArray);
 
-  public native void close(long handle);
+  public native void close(long executionCtxHandle, long batchHandle);
 }

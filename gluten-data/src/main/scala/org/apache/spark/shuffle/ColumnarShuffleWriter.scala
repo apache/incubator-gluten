@@ -18,6 +18,7 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.memory.memtarget.spark.Spiller
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
@@ -78,6 +79,8 @@ class ColumnarShuffleWriter[K, V](
 
   private val writeEOS = GlutenConfig.getConf.columnarShuffleWriteEOS
 
+  private lazy val executionCtxHandle: Long = ExecutionCtxs.contextInstance().getHandle
+
   private val jniWrapper = new ShuffleWriterJniWrapper
 
   private var nativeShuffleWriter: Long = -1L
@@ -132,6 +135,7 @@ class ColumnarShuffleWriter[K, V](
             blockManager.subDirsPerLocalDir,
             localDirs,
             preferSpill,
+            executionCtxHandle,
             NativeMemoryManagers
               .create(
                 "ShuffleWriter",
@@ -145,20 +149,21 @@ class ColumnarShuffleWriter[K, V](
                     }
                     logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
                     // fixme pass true when being called by self
-                    val spilled = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+                    val spilled =
+                      jniWrapper.nativeEvict(executionCtxHandle, nativeShuffleWriter, size, false)
                     logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
                     spilled
                   }
                 }
               )
-              .getNativeInstanceId,
+              .getNativeInstanceHandle,
             writeEOS,
             handle,
             taskContext.taskAttemptId()
           )
         }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(nativeShuffleWriter, rows, handle)
+        val bytes = jniWrapper.split(executionCtxHandle, nativeShuffleWriter, rows, handle)
         dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
@@ -171,7 +176,7 @@ class ColumnarShuffleWriter[K, V](
 
     val startTime = System.nanoTime()
     if (nativeShuffleWriter != -1L) {
-      splitResult = jniWrapper.stop(nativeShuffleWriter)
+      splitResult = jniWrapper.stop(executionCtxHandle, nativeShuffleWriter)
       closeShuffleWriter
     }
 
@@ -216,7 +221,7 @@ class ColumnarShuffleWriter[K, V](
   }
 
   private def closeShuffleWriter(): Unit = {
-    jniWrapper.close(nativeShuffleWriter)
+    jniWrapper.close(executionCtxHandle, nativeShuffleWriter)
     nativeShuffleWriter = -1L
   }
 
