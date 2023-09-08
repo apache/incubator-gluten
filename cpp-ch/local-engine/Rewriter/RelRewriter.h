@@ -14,19 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "SparkFunctionGetJsonObject.h"
-#include <Functions/FunctionFactory.h>
 
+#pragma once
+#include <Parser/SerializedPlanParser.h>
+#include <substrait/algebra.pb.h>
+#include <substrait/type.pb.h>
+#include <Interpreters/Context_fwd.h>
+#include <Interpreters/Context.h>
+#include <unordered_map>
+#include <Common/Exception.h>
+#include <set>
+#include <Functions/SparkFunctionGetJsonObject.h>
+
+#include <Poco/Logger.h>
+#include <Common/logger_useful.h>
 
 namespace local_engine
 {
+class RelRewriter
+{
+public:
+    RelRewriter(SerializedPlanParser *parser_) : parser(parser_) {}
+    virtual ~RelRewriter() = default;
+    virtual void rewrite(substrait::Rel & rel) = 0;
+protected:
+    SerializedPlanParser *parser;
 
-REGISTER_FUNCTION(GetJsonObject)
-{
-    factory.registerFunction<DB::FunctionSQLJSON<GetJsonObject, GetJsonObjectImpl>>();
-}
-REGISTER_FUNCTION(FlattenJSONStringOnRequiredFunction)
-{
-    factory.registerFunction<FlattenJSONStringOnRequiredFunction>();
-}
+    inline DB::ContextPtr getContext() { return parser->context; }
+    inline std::unordered_map<std::string, std::string> & getFunctionMapping() { return parser->function_mapping; }
+};
+
 }

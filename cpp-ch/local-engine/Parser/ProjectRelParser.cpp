@@ -17,6 +17,7 @@
 #include "ProjectRelParser.h"
 #include <Operator/EmptyProjectStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
+#include <Rewriter/ExpressionRewriter.h>
 namespace local_engine
 {
 ProjectRelParser::ProjectRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
@@ -35,7 +36,10 @@ ProjectRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel,
 DB::QueryPlanPtr
 ProjectRelParser::parseProject(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & /*rel_stack_*/)
 {
-    const auto & project_rel = rel.project();
+    ExpressionsRewriter rewriter(getPlanParser());
+    substrait::Rel final_rel = rel;
+    rewriter.rewrite(final_rel);
+    const auto & project_rel = final_rel.project();
     if (project_rel.expressions_size())
     {
         std::vector<substrait::Expression> expressions;
