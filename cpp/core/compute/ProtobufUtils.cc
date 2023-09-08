@@ -17,9 +17,9 @@
 
 #include "ProtobufUtils.h"
 
+#include <glog/logging.h>
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/util/type_resolver_util.h>
-#include <glog/logging.h>
 
 #include "utils/exception.h"
 
