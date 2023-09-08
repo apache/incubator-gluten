@@ -412,6 +412,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
   }
 
+  /*
   override def genUnixTimestampTransformer(
       substraitExprName: String,
       timeExp: ExpressionTransformer,
@@ -425,6 +426,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       original.failOnError,
       original)
   }
+  */
 
   /**
    * Define whether the join operator is fallback because of the join operator is not supported by

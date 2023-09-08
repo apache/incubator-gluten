@@ -335,6 +335,7 @@ case class CHTruncTimestampTransformer(
   }
 }
 
+/*
 case class CHToUnixTimestampTransformer(
     substraitExprName: String,
     timeExp: ExpressionTransformer,
@@ -377,6 +378,7 @@ case class CHToUnixTimestampTransformer(
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }
+*/
 
 case class CHStringLocateTransformer(
     substraitExprName: String,
