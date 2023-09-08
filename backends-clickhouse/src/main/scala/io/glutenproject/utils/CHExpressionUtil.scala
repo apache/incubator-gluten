@@ -50,8 +50,8 @@ case class UnixTimeStampValidator() extends FunctionValidator {
   override def doValidate(expr: Expression): Boolean = {
     // CH backend does not support non-const format
     expr match {
-      case t: ToUnixTimestamp => t.format.asInstanceOf[Literal]
-      case u: UnixTimestamp => u.format.asInstanceOf[Literal]
+      case t: ToUnixTimestamp => t.format.isInstanceOf[Literal]
+      case u: UnixTimestamp => u.format.isInstanceOf[Literal]
       case _ => true
     }
   }
