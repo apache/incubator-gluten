@@ -156,7 +156,11 @@ Here will explain how to run TPC-H on Velox backend with the Parquet file format
 wait to add
 
 # How to track the memory exhaust problem
+When your gluten spark jobs failed because of OOM, you can track the memory allocation's call stack by configuring `spark.gluten.backtrace.allocation = true`.
+The above configuration will use `BacktraceAllocationListener` wrapping from `SparkAllocationListener` to create `VeloxMemoryManager`.
 
-You can track the memory allocation's call stack by configuring `spark.gluten.backtrace.allocation = true`.
+`BacktraceAllocationListener` will check every allocation, if a single allocation bytes exceeds a fixed value or the accumulative allocation bytes exceeds 1/2/3...G,
+the call stack of memory allocation will be outputted to standard output, you can check the backtrace and get some valuable information about tracking the memory exhaust issues.
 
-the call stack of memory allocation will be printed if this allocation bytes exceeds 256M or the total bytes statified condition.
+You can also adjust the policy to decide when to backtrace, such as the fixed value.
+
