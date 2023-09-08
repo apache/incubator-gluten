@@ -1136,10 +1136,15 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_cre
     throw gluten::GlutenException("Allocator does not exist or has been closed");
   }
 
+  std::unique_ptr<AllocationListener> listener = std::make_unique<SparkAllocationListener>(
+      vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, reservationBlockSize);
+
+  if (gluten::backtrace_allocation) {
+    listener = std::move(std::make_unique<BacktraceAllocationListener>(std::move(listener)));
+  }
+
   auto name = jStringToCString(env, jname);
   auto backend = createBackend();
-  auto listener = std::make_unique<SparkAllocationListener>(
-      vm, jlistener, reserveMemoryMethod, unreserveMemoryMethod, reservationBlockSize);
   auto manager = backend->createMemoryManager(name, *allocator, std::move(listener));
   return reinterpret_cast<jlong>(manager);
   JNI_METHOD_END(-1L)

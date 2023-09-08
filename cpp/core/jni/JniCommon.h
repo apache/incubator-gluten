@@ -20,6 +20,7 @@
 #include <arrow/ipc/reader.h>
 #include <arrow/ipc/writer.h>
 #include <arrow/util/parallel.h>
+#include <execinfo.h>
 #include <jni.h>
 
 #include "compute/ProtobufUtils.h"
@@ -27,6 +28,16 @@
 #include "memory/AllocationListener.h"
 #include "utils/compression.h"
 #include "utils/exception.h"
+
+static inline void backtrace() {
+  void* array[1024];
+  auto size = backtrace(array, 1024);
+  char** strings = backtrace_symbols(array, size);
+  for (size_t i = 0; i < size; ++i) {
+    std::cout << strings[i] << std::endl;
+  }
+  free(strings);
+}
 
 static jint jniVersion = JNI_VERSION_1_8;
 
@@ -193,7 +204,7 @@ class SparkAllocationListener final : public gluten::AllocationListener {
 
   void allocationChanged(int64_t size) override {
     updateReservation(size);
-  };
+  }
 
  private:
   int64_t reserve(int64_t diff) {
@@ -239,6 +250,32 @@ class SparkAllocationListener final : public gluten::AllocationListener {
   int64_t bytesReserved_ = 0L;
   int64_t maxBytesReserved_ = 0L;
   std::mutex mutex_;
+};
+
+class BacktraceAllocationListener final : public gluten::AllocationListener {
+ public:
+  BacktraceAllocationListener(std::unique_ptr<gluten::AllocationListener> delegator)
+      : delegator_(std::move(delegator)) {}
+
+  void allocationChanged(int64_t bytes) override {
+    allocationBacktrace(bytes);
+    delegator_->allocationChanged(bytes);
+  }
+
+ private:
+  void allocationBacktrace(int64_t bytes) {
+    allocatedBytes_ += bytes;
+    if (bytes > (64L << 20)) {
+      backtrace();
+    } else if (allocatedBytes_ >= backtraceBytes_) {
+      backtrace();
+      backtraceBytes_ += (1L << 30);
+    }
+  }
+
+  std::unique_ptr<gluten::AllocationListener> delegator_;
+  std::atomic_int64_t allocatedBytes_{};
+  std::atomic_int64_t backtraceBytes_{1L << 30};
 };
 
 class RssClient {
