@@ -346,7 +346,7 @@ object GlutenConfig {
   val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
 
   // Shuffle Writer buffer size.
-  val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shufflewriter.bufferSize"
+  val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shuffleWriter.bufferSize"
 
   // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
   // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
