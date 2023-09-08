@@ -604,6 +604,35 @@ TEST_P(VeloxShuffleWriterTest, TestSpillLargestPartition) {
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
+TEST_P(VeloxShuffleWriterTest, TestStopShrinkAndSpill) {
+  std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(9 * 1024 * 1024);
+  //  pool = std::make_shared<arrow::LoggingMemoryPool>(pool.get());
+
+  int32_t numPartitions = 2;
+  shuffleWriterOptions_.buffer_size = 4;
+  // shuffleWriterOptions_.memory_pool = pool.get();
+  shuffleWriterOptions_.compression_type = arrow::Compression::UNCOMPRESSED;
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_, pool_));
+
+  for (int i = 0; i < 100; ++i) {
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector2_));
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+  }
+
+  auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
+  auto bufferSize = shuffleWriter_->pool()->bytesAllocated();
+
+  int64_t evicted;
+  shuffleWriter_->setSplitState(SplitState::STOP);
+  ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
+  ASSERT_GE(evicted, payloadSize);
+
+  ASSERT_NOT_OK(shuffleWriter_->stop());
+}
+
 INSTANTIATE_TEST_SUITE_P(
     VeloxShuffleWriteParam,
     VeloxShuffleWriterTest,

@@ -128,6 +128,8 @@ class ShuffleWriter {
     return schema_;
   }
 
+  void clearCachedPayloads(uint32_t partitionId);
+
   int32_t numPartitions() const {
     return numPartitions_;
   }

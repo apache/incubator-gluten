@@ -540,6 +540,7 @@ std::shared_ptr<arrow::Buffer> VeloxShuffleWriter::generateComplexTypeBuffers(ve
 }
 
 arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
+  splitState_ = SPLIT;
   if (options_.partitioning_name == "single") {
     auto veloxColumnBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
     VELOX_DCHECK_NOT_NULL(veloxColumnBatch);
@@ -595,6 +596,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
 }
 
 arrow::Status VeloxShuffleWriter::stop() {
+  splitState_ = STOP;
   setSplitBufferSize(pool_->bytesAllocated());
   EVAL_START("write", options_.thread_id)
   RETURN_NOT_OK(partitionWriter_->stop());
@@ -1461,7 +1463,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   }
 
   arrow::Status VeloxShuffleWriter::evictFixedSize(int64_t size, int64_t * actual) {
-    int64_t currentEvicted = 0L;
+    ARROW_ASSIGN_OR_RAISE(auto currentEvicted, shrinkPartitionBuffers());
     auto tryCount = 0;
     while (currentEvicted < size && tryCount < 5) {
       tryCount++;
@@ -1489,10 +1491,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       }
       if (partitionToEvict != -1) {
         RETURN_NOT_OK(evictPartition(partitionToEvict));
-#ifdef GLUTEN_PRINT_DEBUG
-        std::cout << "Evicted partition " << std::to_string(partitionToEvict) << ", " << std::to_string(maxSize)
-                  << " bytes released" << std::endl;
-#endif
+        DLOG(INFO) << "Evicted partition " << std::to_string(partitionToEvict) << ", " << std::to_string(maxSize)
+                   << " bytes released" << std::endl;
         *size = maxSize;
       } else {
         *size = 0;
@@ -1504,9 +1504,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         *size = 0;
       } else {
         RETURN_NOT_OK(evictPartition(-1));
-#ifdef GLUTEN_PRINT_DEBUG
-        std::cout << "Evicted all partition. " << std::to_string(totalCachedSize) << " bytes released" << std::endl;
-#endif
+        DLOG(INFO) << "Evicted all partitions. " << std::to_string(totalCachedSize) << " bytes released" << std::endl;
         *size = totalCachedSize;
       }
     }
@@ -1538,6 +1536,79 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       RETURN_NOT_OK(resetValidityBuffers(partitionId));
     }
     return arrow::Status::OK();
+  }
+
+  arrow::Result<int64_t> VeloxShuffleWriter::shrinkPartitionBuffers() {
+    if (splitState_ != STOP) {
+      return 0;
+    }
+
+    LOG(INFO) << "Shrinking...";
+    auto beforeShrink = pool_->bytesAllocated();
+    for (auto i = 0; i < simpleColumnIndices_.size(); ++i) {
+      auto columnType = schema_->field(simpleColumnIndices_[i])->type()->id();
+      for (auto pid = 0; pid < numPartitions_; ++pid) {
+        auto currentRowCnt = partitionBufferIdxBase_[pid];
+        std::vector<std::shared_ptr<arrow::Buffer>>& buffers = partitionBuffers_[i][pid];
+
+        // shrink validity
+        if (buffers[kValidityBufferIndex]) {
+          const auto& validityBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kValidityBufferIndex]);
+          // TODO: Invalid status if cast buffer failed. All split buffers should be allocated using
+          // AllocateResizableBuffer
+          if (validityBuffer) {
+            RETURN_NOT_OK(validityBuffer->Resize(arrow::bit_util::BytesForBits(currentRowCnt)));
+          }
+        }
+
+        // shrink value buffer if fixed-width / offset, value buffers if binary
+        switch (columnType) {
+          // binary types
+          case arrow::BinaryType::type_id:
+          case arrow::StringType::type_id: {
+            const auto& offsetBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kOffsetBufferIndex]);
+            // TODO: Invalid status
+            if (offsetBuffer) {
+              RETURN_NOT_OK(offsetBuffer->Resize((currentRowCnt + 1) * sizeof(arrow::BinaryType::offset_type)));
+              auto binaryBufferSize =
+                  reinterpret_cast<arrow::StringType::offset_type*>(offsetBuffer->mutable_data())[currentRowCnt];
+              const auto& valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kValueBufferIndex]);
+              // TODO: Invalid status
+              if (valueBuffer) {
+                RETURN_NOT_OK(valueBuffer->Resize(binaryBufferSize));
+              }
+            }
+            break;
+          }
+          case arrow::StructType::type_id:
+          case arrow::MapType::type_id:
+          case arrow::ListType::type_id:
+            break;
+          // fixed-width types
+          default: {
+            uint64_t valueBufferSize = 0;
+            if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
+              valueBufferSize = arrow::bit_util::BytesForBits(currentRowCnt);
+            } else if (veloxColumnTypes_[i]->isShortDecimal()) {
+              valueBufferSize = currentRowCnt * (arrow::bit_width(arrow::Int64Type::type_id) >> 3);
+            } else if (veloxColumnTypes_[i]->kind() == TypeKind::TIMESTAMP) {
+              valueBufferSize = BaseVector::byteSize<Timestamp>(currentRowCnt);
+            } else {
+              valueBufferSize = currentRowCnt * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3);
+            }
+            const auto& valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[1]);
+            // TODO: Invalid status
+            if (valueBuffer) {
+              RETURN_NOT_OK(valueBuffer->Resize(valueBufferSize));
+            }
+            break;
+          }
+        }
+      }
+    }
+    auto shrunken = pool_->bytesAllocated() - beforeShrink;
+    LOG(INFO) << shrunken << " bytes released from shrinking.";
+    return shrunken;
   }
 
 } // namespace gluten
