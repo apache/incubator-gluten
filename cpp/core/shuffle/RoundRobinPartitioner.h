@@ -27,8 +27,8 @@ class RoundRobinPartitioner final : public ShuffleWriter::Partitioner {
   arrow::Status compute(
       const int32_t* pidArr,
       const int64_t numRows,
-      std::vector<uint16_t>& partitionId,
-      std::vector<uint32_t>& partitionIdCnt) override;
+      std::vector<uint16_t>& row2Partition,
+      std::vector<uint32_t>& partition2RowCount) override;
 
  private:
   int32_t pidSelection_ = 0;

@@ -22,15 +22,32 @@ namespace gluten {
 arrow::Status gluten::RoundRobinPartitioner::compute(
     const int32_t* pidArr,
     const int64_t numRows,
-    std::vector<uint16_t>& partitionId,
-    std::vector<uint32_t>& partitionIdCnt) {
-  std::fill(std::begin(partitionIdCnt), std::end(partitionIdCnt), 0);
-  partitionId.resize(numRows);
-  for (auto& pid : partitionId) {
-    pid = pidSelection_;
-    partitionIdCnt[pidSelection_]++;
-    pidSelection_ = (pidSelection_ + 1) == numPartitions_ ? 0 : (pidSelection_ + 1);
+    std::vector<uint16_t>& row2Partition,
+    std::vector<uint32_t>& partition2RowCount) {
+  std::fill(std::begin(partition2RowCount), std::end(partition2RowCount), 0);
+  row2Partition.resize(numRows);
+
+  int32_t pidSelection = pidSelection_;
+  for (int32_t i = 0; i < numRows;) {
+    int32_t low = i;
+    int32_t up = std::min((int64_t)(i + (numPartitions_ - pidSelection)), numRows);
+    for (; low != up;) {
+      row2Partition[low++] = pidSelection++;
+    }
+
+    pidSelection_ = pidSelection;
+    pidSelection = 0;
+    i = up;
   }
+
+  if (pidSelection_ >= numPartitions_) {
+    pidSelection_ -= numPartitions_;
+  }
+
+  for (auto& pid : row2Partition) {
+    partition2RowCount[pid]++;
+  }
+
   return arrow::Status::OK();
 }
 } // namespace gluten
