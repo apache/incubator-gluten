@@ -368,7 +368,7 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"bit_and", "bitwise_and_agg"},
     {"bit_and_merge", "bitwise_and_agg_merge"},
     {"collect_set", "array_distinct"},
-    {"murmur3hash", "hash"},
+    {"murmur3hash", "hash_with_seed"},
     {"make_decimal", "make_decimal_by_unscaled_value"},
     {"modulus", "mod"} /*Presto functions.*/
 };
