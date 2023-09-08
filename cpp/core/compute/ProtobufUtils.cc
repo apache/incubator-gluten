@@ -19,7 +19,6 @@
 
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/util/type_resolver_util.h>
-#include <fstream>
 #include <glog/logging.h>
 
 #include "utils/exception.h"
@@ -73,16 +72,7 @@ std::string substraitFromPbToJson(std::string_view typeName, const uint8_t* data
 
   auto status = google::protobuf::util::BinaryToJsonStream(getGeneratedTypeResolver(), typeUrl, &bufStream, &outStream);
   if (!status.ok()) {
-    throw GlutenException("BinaryToJsonStream returned " + status.ToString());
-  }
-  return out;
-}
-
-std::string substraitFromPlanToJson(const ::substrait::Plan& plan) {
-  std::string out;
-  auto status = google::protobuf::util::MessageToJsonString(plan, &out);
-  if (!status.ok()) {
-    LOG(WARNING) << "MessageToJsonString returned " + status.ToString();
+    LOG(WARNING) << "BinaryToJsonStream returned " + status.ToString();
   }
   return out;
 }
