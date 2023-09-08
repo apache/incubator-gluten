@@ -15,16 +15,33 @@
  * limitations under the License.
  */
 
-#include "ResultIterator.h"
 #include "ExecutionCtx.h"
 
 namespace gluten {
 
-std::shared_ptr<Metrics> ResultIterator::getMetrics() {
-  if (executionCtx_) {
-    return executionCtx_->getMetrics(getInputIter(), exportNanos_);
-  }
-  return nullptr;
+static ExecutionCtxFactoryContext* getExecutionCtxFactoryContext() {
+  static ExecutionCtxFactoryContext* executionCtxFactoryCtx = new ExecutionCtxFactoryContext;
+  return executionCtxFactoryCtx;
+}
+
+void setExecutionCtxFactory(
+    ExecutionCtxFactoryWithConf factory,
+    const std::unordered_map<std::string, std::string>& sparkConfs) {
+  getExecutionCtxFactoryContext()->set(factory, sparkConfs);
+#ifdef GLUTEN_PRINT_DEBUG
+  std::cout << "Set execution context factory with conf." << std::endl;
+#endif
+}
+
+void setExecutionCtxFactory(ExecutionCtxFactory factory) {
+  getExecutionCtxFactoryContext()->set(factory);
+#ifdef GLUTEN_PRINT_DEBUG
+  std::cout << "Set execution context factory." << std::endl;
+#endif
+}
+
+std::shared_ptr<ExecutionCtx> createExecutionCtx() {
+  return getExecutionCtxFactoryContext()->create();
 }
 
 } // namespace gluten

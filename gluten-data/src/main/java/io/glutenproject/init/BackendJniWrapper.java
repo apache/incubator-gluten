@@ -14,32 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.init;
 
-#include "Backend.h"
+public class BackendJniWrapper {
 
-namespace gluten {
+  private BackendJniWrapper() {}
 
-static BackendFactoryContext* getBackendFactoryContext() {
-  static BackendFactoryContext* backendFactoryCtx = new BackendFactoryContext;
-  return backendFactoryCtx;
+  public static native void initializeBackend(byte[] configPlan);
+
+  public static native long createExecutionCtx();
+
+  public static native void releaseExecutionCtx(long handle);
 }
-
-void setBackendFactory(BackendFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConfs) {
-  getBackendFactoryContext()->set(factory, sparkConfs);
-#ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Set backend factory with conf." << std::endl;
-#endif
-}
-
-void setBackendFactory(BackendFactory factory) {
-  getBackendFactoryContext()->set(factory);
-#ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Set backend factory." << std::endl;
-#endif
-}
-
-std::shared_ptr<Backend> createBackend() {
-  return getBackendFactoryContext()->create();
-}
-
-} // namespace gluten

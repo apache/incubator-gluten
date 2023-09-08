@@ -14,17 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.exec
 
-#include "ResultIterator.h"
-#include "ExecutionCtx.h"
+import org.apache.spark.util.TaskResources
 
-namespace gluten {
+object ExecutionCtxs {
+  private val EXECUTION_CTX_NAME = "ExecutionCtx"
 
-std::shared_ptr<Metrics> ResultIterator::getMetrics() {
-  if (executionCtx_) {
-    return executionCtx_->getMetrics(getInputIter(), exportNanos_);
+  def contextInstance(): ExecutionCtx = {
+    if (!TaskResources.inSparkTask()) {
+      throw new IllegalStateException("This method must be called in a Spark task.")
+    }
+
+    TaskResources.addResourceIfNotRegistered(EXECUTION_CTX_NAME, () => createExecutionCtx())
   }
-  return nullptr;
-}
 
-} // namespace gluten
+  /** Create a temporary execution ctx, caller must invoke ExecutionCtx#release manually. */
+  def tmpInstance(): ExecutionCtx = {
+    createExecutionCtx()
+  }
+
+  private def createExecutionCtx(): ExecutionCtx = {
+    new ExecutionCtx
+  }
+}

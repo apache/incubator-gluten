@@ -19,7 +19,7 @@
 #include <filesystem>
 
 #include <glog/logging.h>
-#include "compute/Backend.h"
+#include "compute/ExecutionCtx.h"
 #include "compute/ProtobufUtils.h"
 #include "config/GlutenConfig.h"
 #include "jni/ConcurrentMap.h"
@@ -94,7 +94,7 @@ static ConcurrentMap<std::shared_ptr<Datasource>> glutenDatasourceHolder;
 
 static ConcurrentMap<std::shared_ptr<ColumnarBatchSerializer>> columnarBatchSerializerHolder;
 
-std::shared_ptr<ResultIterator> getArrayIterator(JNIEnv* env, jlong id) {
+std::shared_ptr<ResultIterator> getArrayIterator(JNIEnv*, jlong id) {
   auto handler = resultIteratorHolder.lookup(id);
   if (!handler) {
     std::string errorMessage = "invalid handler id " + std::to_string(id);
@@ -349,8 +349,8 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArr, nullptr));
   auto planSize = env->GetArrayLength(planArr);
 
-  auto backend = gluten::createBackend();
-  backend->parsePlan(planData, planSize, {stageId, partitionId, taskId});
+  auto executionCtx = gluten::createExecutionCtx();
+  executionCtx->parsePlan(planData, planSize, {stageId, partitionId, taskId});
 
   auto confs = getConfMap(env, confArr);
 
@@ -377,7 +377,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
 
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
   GLUTEN_CHECK(memoryManager != nullptr, "MemoryManager should not be null.");
-  auto resIter = backend->getResultIterator(memoryManager, spillDirStr, inputIters, confs);
+  auto resIter = executionCtx->getResultIterator(memoryManager, spillDirStr, inputIters, confs);
   return resultIteratorHolder.insert(std::move(resIter));
   JNI_METHOD_END(-1)
 }
@@ -541,10 +541,10 @@ Java_io_glutenproject_vectorized_NativeColumnarToRowJniWrapper_nativeColumnarToR
     jlong memoryManagerId) {
   JNI_METHOD_START
   // Convert the native batch to Spark unsafe row.
-  auto backend = gluten::createBackend();
+  auto executionCtx = gluten::createExecutionCtx();
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
   GLUTEN_CHECK(memoryManager != nullptr, "MemoryManager should not be null.");
-  auto columnarToRowConverter = backend->getColumnar2RowConverter(memoryManager);
+  auto columnarToRowConverter = executionCtx->getColumnar2RowConverter(memoryManager);
   int64_t instanceID = columnarToRowConverterHolder.insert(columnarToRowConverter);
   return instanceID;
   JNI_METHOD_END(-1)
@@ -595,10 +595,11 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniW
     jlong cSchema,
     jlong memoryManagerId) {
   JNI_METHOD_START
-  auto backend = gluten::createBackend();
+  auto executionCtx = gluten::createExecutionCtx();
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
   GLUTEN_CHECK(memoryManager != nullptr, "MemoryManager should not be null.");
-  auto converter = backend->getRowToColumnarConverter(memoryManager, reinterpret_cast<struct ArrowSchema*>(cSchema));
+  auto converter =
+      executionCtx->getRowToColumnarConverter(memoryManager, reinterpret_cast<struct ArrowSchema*>(cSchema));
   return rowToColumnarConverterHolder.insert(converter);
   JNI_METHOD_END(-1)
 }
@@ -843,8 +844,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     throw gluten::GlutenException("Unrecognizable partition writer type: " + partitionWriterType);
   }
 
-  auto backend = gluten::createBackend();
-  auto shuffleWriter = backend->createShuffleWriter(
+  auto executionCtx = gluten::createExecutionCtx();
+  auto shuffleWriter = executionCtx->createShuffleWriter(
       numPartitions, std::move(partitionWriterCreator), std::move(shuffleWriterOptions), memoryManager);
   return shuffleWriterHolder.insert(shuffleWriter);
   JNI_METHOD_END(-1L)
@@ -971,8 +972,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
   std::shared_ptr<arrow::Schema> schema =
       gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
 
-  auto backend = gluten::createBackend();
-  auto reader = backend->createShuffleReader(schema, options, pool, memoryManager);
+  auto executionCtx = gluten::createExecutionCtx();
+  auto reader = executionCtx->createShuffleReader(schema, options, pool, memoryManager);
   return shuffleReaderHolder.insert(reader);
   JNI_METHOD_END(-1L)
 }
@@ -1021,7 +1022,7 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
     jlong cSchema,
     jlong memoryManagerId,
     jbyteArray options) {
-  auto backend = gluten::createBackend();
+  auto executionCtx = gluten::createExecutionCtx();
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
   GLUTEN_CHECK(memoryManager != nullptr, "MemoryManager should not be null.");
 
@@ -1029,13 +1030,13 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
 
   if (cSchema == -1) {
     // Only inspect the schema and not write
-    datasource = backend->getDatasource(jStringToCString(env, filePath), memoryManager, nullptr);
+    datasource = executionCtx->getDatasource(jStringToCString(env, filePath), memoryManager, nullptr);
   } else {
     auto sparkOptions = gluten::getConfMap(env, options);
-    auto sparkConf = backend->getConfMap();
+    auto sparkConf = executionCtx->getConfMap();
     sparkOptions.insert(sparkConf.begin(), sparkConf.end());
     auto schema = gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
-    datasource = backend->getDatasource(jStringToCString(env, filePath), memoryManager, schema);
+    datasource = executionCtx->getDatasource(jStringToCString(env, filePath), memoryManager, schema);
     datasource->init(sparkOptions);
   }
 
@@ -1152,8 +1153,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_cre
   }
 
   auto name = jStringToCString(env, jname);
-  auto backend = createBackend();
-  auto manager = backend->createMemoryManager(name, *allocator, std::move(listener));
+  auto executionCtx = gluten::createExecutionCtx();
+  auto manager = executionCtx->createMemoryManager(name, *allocator, std::move(listener));
   return reinterpret_cast<jlong>(manager);
   JNI_METHOD_END(-1L)
 }
@@ -1213,9 +1214,9 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializ
   }
   env->ReleaseLongArrayElements(handles, batchhandles, JNI_ABORT);
 
-  auto backend = createBackend();
+  auto executionCtx = gluten::createExecutionCtx();
   auto arrowPool = memoryManager->getArrowMemoryPool();
-  auto serializer = backend->getColumnarBatchSerializer(memoryManager, arrowPool, nullptr);
+  auto serializer = executionCtx->getColumnarBatchSerializer(memoryManager, arrowPool, nullptr);
   auto buffer = serializer->serializeColumnarBatches(batches);
   auto bufferArr = env->NewByteArray(buffer->size());
   env->SetByteArrayRegion(bufferArr, 0, buffer->size(), reinterpret_cast<const jbyte*>(buffer->data()));
@@ -1236,9 +1237,9 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializer
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
   GLUTEN_DCHECK(memoryManager != nullptr, "Memory manager does not exist or has been closed");
   auto arrowPool = memoryManager->getArrowMemoryPool();
-  auto backend = createBackend();
-  auto serializer =
-      backend->getColumnarBatchSerializer(memoryManager, arrowPool, reinterpret_cast<struct ArrowSchema*>(cSchema));
+  auto executionCtx = gluten::createExecutionCtx();
+  auto serializer = executionCtx->getColumnarBatchSerializer(
+      memoryManager, arrowPool, reinterpret_cast<struct ArrowSchema*>(cSchema));
   return columnarBatchSerializerHolder.insert(serializer);
   JNI_METHOD_END(-1L)
 }

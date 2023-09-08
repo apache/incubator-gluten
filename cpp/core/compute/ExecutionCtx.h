@@ -40,11 +40,11 @@ struct SparkTaskInfo {
   int64_t taskId;
 };
 
-class Backend : public std::enable_shared_from_this<Backend> {
+class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
  public:
-  Backend() {}
-  Backend(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
-  virtual ~Backend() = default;
+  ExecutionCtx() = default;
+  ExecutionCtx(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
+  virtual ~ExecutionCtx() = default;
 
   virtual std::shared_ptr<ResultIterator> getResultIterator(
       MemoryManager* memoryManager,
@@ -78,54 +78,40 @@ class Backend : public std::enable_shared_from_this<Backend> {
     return substraitPlan_;
   }
 
-  virtual MemoryManager*
-  createMemoryManager(const std::string& name, std::shared_ptr<MemoryAllocator>, std::unique_ptr<AllocationListener>) {
-    throw GlutenException("createMemoryManager not implemented.");
-  }
+  virtual MemoryManager* createMemoryManager(
+      const std::string& name,
+      std::shared_ptr<MemoryAllocator>,
+      std::unique_ptr<AllocationListener>) = 0;
 
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row.
-  virtual std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryManager* memoryManager) {
-    throw GlutenException("getColumnar2RowConverter not implemented.");
-  }
+  virtual std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryManager* memoryManager) = 0;
 
   virtual std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
       MemoryManager* memoryManager,
-      struct ArrowSchema* cSchema) {
-    throw GlutenException("getRowToColumnarConverter not implemented.");
-  }
+      struct ArrowSchema* cSchema) = 0;
 
   virtual std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
-      MemoryManager* memoryManager) {
-    throw GlutenException("createShuffleWriter not implemented.");
-  }
+      MemoryManager* memoryManager) = 0;
 
-  virtual std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) {
-    return nullptr;
-  }
+  virtual std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;
 
   virtual std::shared_ptr<Datasource>
-  getDatasource(const std::string& filePath, MemoryManager* memoryManager, std::shared_ptr<arrow::Schema> schema) {
-    throw GlutenException("getDatasource not implemented.");
-  }
+  getDatasource(const std::string& filePath, MemoryManager* memoryManager, std::shared_ptr<arrow::Schema> schema) = 0;
 
   virtual std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,
-      MemoryManager* memoryManager) {
-    return std::make_shared<ShuffleReader>(schema, options, pool);
-  }
+      MemoryManager* memoryManager) = 0;
 
   virtual std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
       MemoryManager* memoryManager,
       std::shared_ptr<arrow::MemoryPool> arrowPool,
-      struct ArrowSchema* cSchema) {
-    throw GlutenException("getColumnarBatchSerializer not implemented.");
-  }
+      struct ArrowSchema* cSchema) = 0;
 
   std::unordered_map<std::string, std::string> getConfMap() {
     return confMap_;
@@ -142,68 +128,75 @@ class Backend : public std::enable_shared_from_this<Backend> {
   std::unordered_map<std::string, std::string> confMap_;
 };
 
-using BackendFactoryWithConf = std::shared_ptr<Backend> (*)(const std::unordered_map<std::string, std::string>&);
-using BackendFactory = std::shared_ptr<Backend> (*)();
+using ExecutionCtxFactoryWithConf =
+    std::shared_ptr<ExecutionCtx> (*)(const std::unordered_map<std::string, std::string>&);
+using ExecutionCtxFactory = std::shared_ptr<ExecutionCtx> (*)();
 
-struct BackendFactoryContext {
+struct ExecutionCtxFactoryContext {
   std::mutex mutex;
 
-  enum { kBackendFactoryInvalid, kBackendFactoryDefault, kBackendFactoryWithConf } type = kBackendFactoryInvalid;
+  enum {
+    kExecutionCtxFactoryInvalid,
+    kExecutionCtxFactoryDefault,
+    kExecutionCtxFactoryWithConf
+  } type = kExecutionCtxFactoryInvalid;
 
   union {
-    BackendFactoryWithConf backendFactoryWithConf;
-    BackendFactory backendFactory;
+    ExecutionCtxFactoryWithConf backendFactoryWithConf;
+    ExecutionCtxFactory backendFactory;
   };
 
-  std::unordered_map<std::string, std::string> sparkConfs;
+  std::unordered_map<std::string, std::string> sparkConf_;
 
-  void set(BackendFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConfs = {}) {
+  void set(ExecutionCtxFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConf) {
     std::lock_guard<std::mutex> lockGuard(mutex);
 
-    if (type != kBackendFactoryInvalid) {
+    if (type != kExecutionCtxFactoryInvalid) {
       assert(false);
       abort();
       return;
     }
 
-    type = kBackendFactoryWithConf;
+    type = kExecutionCtxFactoryWithConf;
     backendFactoryWithConf = factory;
-    this->sparkConfs.clear();
-    for (auto& x : sparkConfs) {
-      this->sparkConfs[x.first] = x.second;
+    this->sparkConf_.clear();
+    for (auto& x : sparkConf) {
+      this->sparkConf_[x.first] = x.second;
     }
   }
 
-  void set(BackendFactory factory) {
+  void set(ExecutionCtxFactory factory) {
     std::lock_guard<std::mutex> lockGuard(mutex);
-    if (type != kBackendFactoryInvalid) {
+    if (type != kExecutionCtxFactoryInvalid) {
       assert(false);
       abort();
       return;
     }
 
-    type = kBackendFactoryDefault;
+    type = kExecutionCtxFactoryDefault;
     backendFactory = factory;
   }
 
-  std::shared_ptr<Backend> create() {
+  std::shared_ptr<ExecutionCtx> create() {
     std::lock_guard<std::mutex> lockGuard(mutex);
-    if (type == kBackendFactoryInvalid) {
+    if (type == kExecutionCtxFactoryInvalid) {
       assert(false);
       abort();
       return nullptr;
-    } else if (type == kBackendFactoryWithConf) {
-      return backendFactoryWithConf(sparkConfs);
+    } else if (type == kExecutionCtxFactoryWithConf) {
+      return backendFactoryWithConf(sparkConf_);
     } else {
       return backendFactory();
     }
   }
 };
 
-void setBackendFactory(BackendFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConfs);
+void setExecutionCtxFactory(
+    ExecutionCtxFactoryWithConf factory,
+    const std::unordered_map<std::string, std::string>& sparkConf);
 
-void setBackendFactory(BackendFactory factory);
+void setExecutionCtxFactory(ExecutionCtxFactory factory);
 
-std::shared_ptr<Backend> createBackend();
+std::shared_ptr<ExecutionCtx> createExecutionCtx();
 
 } // namespace gluten

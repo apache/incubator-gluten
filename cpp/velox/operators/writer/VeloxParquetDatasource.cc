@@ -23,8 +23,8 @@
 #include <string>
 
 #include "arrow/c/bridge.h"
-#include "compute/Backend.h"
-#include "compute/VeloxBackend.h"
+#include "compute/ExecutionCtx.h"
+#include "compute/VeloxExecutionCtx.h"
 #include "config/GlutenConfig.h"
 
 #include "utils/VeloxArrowUtils.h"
@@ -38,7 +38,7 @@ using namespace facebook::velox::dwio::common;
 namespace gluten {
 
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
-  auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
+  auto executionCtx = std::dynamic_pointer_cast<gluten::VeloxExecutionCtx>(gluten::createExecutionCtx());
 
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(filePath_.substr(5));
@@ -47,12 +47,12 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     sink_ = std::make_unique<velox::HdfsFileSink>(filePath_);
 #else
     throw std::runtime_error(
-        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox backend!");
+        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox executionCtx!");
 #endif
 
   } else {
     throw std::runtime_error(
-        "The file path is not local or hdfs when writing data with parquet format in velox backend!");
+        "The file path is not local or hdfs when writing data with parquet format in velox executionCtx!");
   }
 
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
