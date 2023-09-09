@@ -67,7 +67,7 @@ class Backend : public std::enable_shared_from_this<Backend> {
       std::cout << "Task stageId: " << taskInfo_.stageId << ", partitionId: " << taskInfo_.partitionId
                 << ", taskId: " << taskInfo_.taskId << "; " << jsonPlan << std::endl;
     } catch (const std::exception& e) {
-      std::cerr << e.what() << std::endl;
+      std::cerr << "Error converting Substrait plan to JSON: " << e.what() << std::endl;
     }
 #endif
     GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
