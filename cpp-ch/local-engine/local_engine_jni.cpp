@@ -210,6 +210,7 @@ JNIEXPORT void Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_na
     std::string plan_str;
     plan_str.assign(reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size);
     local_engine::BackendInitializerUtil::init(&plan_str);
+    env->ReleaseByteArrayElements(conf_plan, plan_buf_addr, JNI_ABORT);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
@@ -257,6 +258,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_n
     executor->setExtraPlanHolder(parser.extra_plan_holder);
     executor->execute(std::move(query_plan));
     env->ReleaseByteArrayElements(plan, plan_address, JNI_ABORT);
+    env->ReleaseByteArrayElements(conf_plan, plan_buf_addr, JNI_ABORT);
     return reinterpret_cast<jlong>(executor);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
