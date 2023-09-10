@@ -119,10 +119,10 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::JniErrorsGlobalState::instance().initialize(env);
 
     spark_row_info_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/row/SparkRowInfo;");
-    spark_row_info_constructor = env->GetMethodID(spark_row_info_class, "<init>", "([J[JJJJ)V");
+    spark_row_info_constructor = local_engine::GetMethodID(env, spark_row_info_class, "<init>", "([J[JJJJ)V");
 
     block_stripes_class = local_engine::CreateGlobalClassReference(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
-    block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", "(J[J[II)V");
+    block_stripes_constructor = local_engine::GetMethodID(env, block_stripes_class, "<init>", "(J[J[II)V");
 
     split_result_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/vectorized/CHSplitResult;");
     split_result_constructor = local_engine::GetMethodID(env, split_result_class, "<init>", "(JJJJJJ[J[JJJJ)V");
@@ -140,7 +140,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::SourceFromJavaIter::serialized_record_batch_iterator_next
         = local_engine::GetMethodID(env, local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class, "next", "()[B");
 
-    local_engine::ShuffleReader::input_stream_read = env->GetMethodID(local_engine::ShuffleReader::input_stream_class, "read", "(JJ)J");
+    local_engine::ShuffleReader::input_stream_read = local_engine::GetMethodID(env, local_engine::ShuffleReader::input_stream_class, "read", "(JJ)J");
 
     local_engine::NativeSplitter::iterator_has_next
         = local_engine::GetMethodID(env, local_engine::NativeSplitter::iterator_class, "hasNext", "()Z");
@@ -210,6 +210,7 @@ JNIEXPORT void Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_na
     std::string plan_str;
     plan_str.assign(reinterpret_cast<const char *>(plan_buf_addr), plan_buf_size);
     local_engine::BackendInitializerUtil::init(&plan_str);
+    env->ReleaseByteArrayElements(conf_plan, plan_buf_addr, JNI_ABORT);
     LOCAL_ENGINE_JNI_METHOD_END(env, )
 }
 
@@ -257,6 +258,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_n
     executor->setExtraPlanHolder(parser.extra_plan_holder);
     executor->execute(std::move(query_plan));
     env->ReleaseByteArrayElements(plan, plan_address, JNI_ABORT);
+    env->ReleaseByteArrayElements(conf_plan, plan_buf_addr, JNI_ABORT);
     return reinterpret_cast<jlong>(executor);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
