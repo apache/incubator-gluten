@@ -913,7 +913,6 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
             /// col = arrayJoin(arg_not_null).2 or (key, value) = arrayJoin(arg_not_null).2
             const auto * item_node = add_tuple_element(array_join_node, 2);
 
-            /// Get type of y from node: cast(mapFromArrays(x, y), 'Map(K, V)')
             DataTypePtr raw_child_type;
             if (args[0]->type == ActionsDAG::ActionType::FUNCTION && args[0]->function_base->getName() == "mapFromArrays")
             {
@@ -930,7 +929,6 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
             }
             else
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Invalid argument type of arrayJoin: {}", actions_dag->dumpDAG());
-
 
             if (isMap(raw_child_type))
             {
@@ -1279,6 +1277,7 @@ void SerializedPlanParser::parseFunctionArguments(
         parsed_args.emplace_back(space_str_node);
         parsed_args.emplace_back(repeat_times_node);
     }
+    /*
     else if (function_name == "mapFromArrays")
     {
         /// Remove nullable for first arg
@@ -1288,12 +1287,15 @@ void SerializedPlanParser::parseFunctionArguments(
         const auto * first_arg_not_null
             = &actions_dag->addFunction(assume_not_null_builder, {first_arg}, "assumeNotNull(" + first_arg->result_name + ")");
         parsed_args.back() = first_arg_not_null;
+
+        /// Remove nullable for second arg
         parseFunctionArgument(actions_dag, parsed_args, function_name, args[1]);
-        auto second_arg = parsed_args.back();
+        const auto * second_arg = parsed_args.back();
         const auto * second_arg_not_null
             = &actions_dag->addFunction(assume_not_null_builder, {second_arg}, "assumeNotNull(" + second_arg->result_name + ")");
         parsed_args.back() = second_arg_not_null;
     }
+    */
     else if (function_name == "trimBothSpark" || function_name == "trimLeftSpark" || function_name == "trimRightSpark")
     {
         /// In substrait, the first arg is srcStr, the second arg is trimStr
