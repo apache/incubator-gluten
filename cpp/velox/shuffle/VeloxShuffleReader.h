@@ -17,12 +17,12 @@
 
 #pragma once
 
-#include "shuffle/reader.h"
+#include "shuffle/ShuffleReader.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
 
 namespace gluten {
-class VeloxShuffleReader final : public Reader {
+class VeloxShuffleReader final : public ShuffleReader {
  public:
   VeloxShuffleReader(
       std::shared_ptr<arrow::Schema> schema,

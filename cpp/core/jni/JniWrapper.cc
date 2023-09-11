@@ -33,8 +33,8 @@
 #include "operators/serializer/ColumnarBatchSerializer.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/PartitionWriterCreator.h"
+#include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
-#include "shuffle/reader.h"
 #include "shuffle/rss/CelebornPartitionWriter.h"
 #include "shuffle/utils.h"
 #include "utils/ArrowStatus.h"
@@ -86,7 +86,7 @@ static ConcurrentMap<std::shared_ptr<ResultIterator>> resultIteratorHolder;
 
 static ConcurrentMap<std::shared_ptr<ShuffleWriter>> shuffleWriterHolder;
 
-static ConcurrentMap<std::shared_ptr<Reader>> shuffleReaderHolder;
+static ConcurrentMap<std::shared_ptr<ShuffleReader>> shuffleReaderHolder;
 
 static ConcurrentMap<std::shared_ptr<ColumnarBatch>> columnarBatchHolder;
 

@@ -36,11 +36,11 @@ struct ReaderOptions {
   static ReaderOptions defaults();
 };
 
-class Reader {
+class ShuffleReader {
  public:
-  Reader(std::shared_ptr<arrow::Schema> schema, ReaderOptions options, std::shared_ptr<arrow::MemoryPool> pool);
+  ShuffleReader(std::shared_ptr<arrow::Schema> schema, ReaderOptions options, std::shared_ptr<arrow::MemoryPool> pool);
 
-  virtual ~Reader() = default;
+  virtual ~ShuffleReader() = default;
 
   // FIXME iterator should be unique_ptr or un-copyable singleton
   virtual std::shared_ptr<ResultIterator> readStream(std::shared_ptr<arrow::io::InputStream> in);

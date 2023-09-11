@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "reader.h"
+#include "ShuffleReader.h"
 #include "arrow/ipc/reader.h"
 #include "arrow/record_batch.h"
 #include "utils/macros.h"
@@ -68,21 +68,24 @@ ReaderOptions ReaderOptions::defaults() {
   return {};
 }
 
-Reader::Reader(std::shared_ptr<arrow::Schema> schema, ReaderOptions options, std::shared_ptr<arrow::MemoryPool> pool)
+ShuffleReader::ShuffleReader(
+    std::shared_ptr<arrow::Schema> schema,
+    ReaderOptions options,
+    std::shared_ptr<arrow::MemoryPool> pool)
     : pool_(pool), options_(std::move(options)), schema_(schema) {}
 
-std::shared_ptr<ResultIterator> Reader::readStream(std::shared_ptr<arrow::io::InputStream> in) {
+std::shared_ptr<ResultIterator> ShuffleReader::readStream(std::shared_ptr<arrow::io::InputStream> in) {
   return std::make_shared<ResultIterator>(std::make_unique<ShuffleReaderOutStream>(schema_, in, options_));
 }
 
-arrow::Status Reader::close() {
+arrow::Status ShuffleReader::close() {
   return arrow::Status::OK();
 }
 
-int64_t Reader::getDecompressTime() {
+int64_t ShuffleReader::getDecompressTime() {
   return decompressTime_;
 }
-const std::shared_ptr<arrow::MemoryPool>& Reader::getPool() const {
+const std::shared_ptr<arrow::MemoryPool>& ShuffleReader::getPool() const {
   return pool_;
 }
 
