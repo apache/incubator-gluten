@@ -81,7 +81,7 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements TaskMemoryTa
 
   @Override
   public String name() {
-    return "GlutenMemoryConsumer/" + name;
+    return "GlutenMemoryConsumer." + name;
   }
 
   @Override

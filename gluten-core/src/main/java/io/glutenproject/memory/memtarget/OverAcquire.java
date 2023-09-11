@@ -56,6 +56,7 @@ class OverAcquire implements TaskMemoryTarget {
     Preconditions.checkArgument(ratio >= 0.0D);
     this.overTarget =
         MemoryTargets.newConsumer(
+            target.getTaskMemoryManager(),
             String.format("OverAcquire.DummyTarget[%s]", target.name()),
             Spiller.NO_OP, new SimpleMemoryUsageRecorder());
     this.target = target;

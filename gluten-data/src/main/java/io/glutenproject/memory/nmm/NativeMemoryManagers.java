@@ -70,6 +70,7 @@ public final class NativeMemoryManagers {
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
                 MemoryTargets.newConsumer(
+                    TaskResources.getLocalTaskContext().taskMemoryManager(),
                     name,
                     // call memory manager's shrink API, if no good then call the spiller
                     Spillers.withOrder(

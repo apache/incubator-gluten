@@ -28,6 +28,10 @@ public final class MemoryTargets {
     // enclose factory ctor
   }
 
+  public static MemoryTarget throwOnOom(TaskMemoryTarget target) {
+    return new ThrowOnOomMemoryTarget(target);
+  }
+
   public static TaskMemoryTarget overAcquire(
       TaskMemoryTarget target, double overAcquiredRatio) {
     if (overAcquiredRatio == 0.0D) {
@@ -36,18 +40,12 @@ public final class MemoryTargets {
     return new OverAcquire(target, overAcquiredRatio);
   }
 
-  public static MemoryTarget throwOnOom(TaskMemoryTarget target) {
-    return new ThrowOnOomMemoryTarget(target);
-  }
-
   public static TaskMemoryTarget newConsumer(
+      TaskMemoryManager tmm,
       String name,
       Spiller spiller,
       MemoryUsageStatsBuilder statsBuilder) {
-    if (!TaskResources.inSparkTask()) {
-      throw new IllegalStateException("#newConsumer() should only be called in Spark task");
-    }
-    final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
-    return new GlutenMemoryConsumer(tmm, name, spiller, statsBuilder);
+    final GlutenMemoryConsumer gmc = new GlutenMemoryConsumer(tmm, name, spiller, statsBuilder);
+    return gmc;
   }
 }

@@ -57,6 +57,7 @@ public class ArrowBufferAllocators {
         new ManagedAllocationListener(
             MemoryTargets.throwOnOom(
                 MemoryTargets.newConsumer(
+                    TaskResources.getLocalTaskContext().taskMemoryManager(),
                     "ArrowContextInstance",
                     Spiller.NO_OP,
                     new SimpleMemoryUsageRecorder())),
