@@ -81,6 +81,8 @@ class ColumnarShuffleWriter[K, V](
 
   private lazy val executionCtxHandle: Long = ExecutionCtxs.contextInstance().getHandle
 
+  private val reallocThreshold = GlutenConfig.getConf.columnarShuffleReallocThreshold
+
   private val jniWrapper = new ShuffleWriterJniWrapper
 
   private var nativeShuffleWriter: Long = -1L
@@ -158,6 +160,7 @@ class ColumnarShuffleWriter[K, V](
               )
               .getNativeInstanceHandle,
             writeEOS,
+            reallocThreshold,
             handle,
             taskContext.taskAttemptId()
           )

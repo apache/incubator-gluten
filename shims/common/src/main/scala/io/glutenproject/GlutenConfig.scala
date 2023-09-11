@@ -123,6 +123,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarShuffleWriteEOS: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED)
 
+  def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
+
   def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
 
   def columnarShuffleCompressionMode: String =
@@ -773,6 +775,12 @@ object GlutenConfig {
       .internal()
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_SHUFFLE_REALLOC_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.realloc.threshold")
+      .internal()
+      .doubleConf
+      .createWithDefault(0.25)
 
   val COLUMNAR_SHUFFLE_CODEC =
     buildConf("spark.gluten.sql.columnar.shuffle.codec")

@@ -800,6 +800,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jlong ctxHandle,
     jlong memoryManagerHandle,
     jboolean writeEOS,
+    jdouble reallocThreshold,
     jlong firstBatchHandle,
     jlong taskAttemptId,
     jint pushBufferMaxSize,
@@ -867,6 +868,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
 
     shuffleWriterOptions.write_eos = writeEOS;
     shuffleWriterOptions.prefer_evict = preferEvict;
+    shuffleWriterOptions.buffer_realloc_threshold = reallocThreshold;
 
     if (numSubDirs > 0) {
       shuffleWriterOptions.num_sub_dirs = numSubDirs;

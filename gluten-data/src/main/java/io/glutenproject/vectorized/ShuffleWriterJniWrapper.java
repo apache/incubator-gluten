@@ -52,6 +52,8 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
       long executionCtxHandle,
       long memoryManagerHandle,
       boolean writeEOS,
+      double reallocThreshold,
+      long memoryManagerId,
       long handle,
       long taskAttemptId) {
     return nativeMake(
@@ -70,6 +72,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
         executionCtxHandle,
         memoryManagerHandle,
         writeEOS,
+        reallocThreshold,
         handle,
         taskAttemptId,
         0,
@@ -98,7 +101,8 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
       long memoryManagerHandle,
       long handle,
       long taskAttemptId,
-      String partitionWriterType) {
+      String partitionWriterType,
+      double reallocThreshold) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
@@ -115,6 +119,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
         executionCtxHandle,
         memoryManagerHandle,
         true,
+        reallocThreshold,
         handle,
         taskAttemptId,
         pushBufferMaxSize,
@@ -138,6 +143,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
       long executionCtxHandle,
       long memoryManagerHandle,
       boolean writeEOS,
+      double reallocThreshold,
       long handle,
       long taskAttemptId,
       int pushBufferMaxSize,

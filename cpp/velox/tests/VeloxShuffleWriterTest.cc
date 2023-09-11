@@ -609,7 +609,7 @@ TEST_P(VeloxShuffleWriterTest, TestStopShrinkAndSpill) {
   //  pool = std::make_shared<arrow::LoggingMemoryPool>(pool.get());
 
   int32_t numPartitions = 2;
-  shuffleWriterOptions_.buffer_size = 4;
+  shuffleWriterOptions_.buffer_size = 100; // Set a large buffer size to make sure there are spaces to shrink.
   // shuffleWriterOptions_.memory_pool = pool.get();
   shuffleWriterOptions_.compression_type = arrow::Compression::UNCOMPRESSED;
   shuffleWriterOptions_.partitioning_name = "rr";
@@ -624,11 +624,15 @@ TEST_P(VeloxShuffleWriterTest, TestStopShrinkAndSpill) {
 
   auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
   auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
+  if (!shuffleWriterOptions_.prefer_evict) {
+    ASSERT_GT(payloadSize, 0);
+  }
 
   int64_t evicted;
   shuffleWriter_->setSplitState(SplitState::STOP);
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
-  ASSERT_GE(evicted, payloadSize);
+  // Total evicted should be greater than payloadSize, to test shrinking is triggered.
+  ASSERT_GT(evicted, payloadSize);
 
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
