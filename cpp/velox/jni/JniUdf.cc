@@ -61,5 +61,6 @@ void gluten::jniLoadUdf(JNIEnv* env, const std::string& libPaths) {
     jobject instance = env->GetStaticObjectField(
         udfResolverClass, env->GetStaticFieldID(udfResolverClass, "MODULE$", kUdfResolverClassPath.c_str()));
     env->CallVoidMethod(instance, registerUDFMethod, name, returnType);
+    checkException(env);
   }
 }

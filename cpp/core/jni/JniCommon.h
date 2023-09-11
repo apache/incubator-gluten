@@ -151,6 +151,9 @@ static inline void checkException(JNIEnv* env) {
         env->GetStaticMethodID(describerClass, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
     std::string description =
         jStringToCString(env, (jstring)env->CallStaticObjectMethod(describerClass, describeMethod, t));
+    if (env->ExceptionCheck()) {
+      std::cerr << "Fatal: Uncaught Java exception during calling the Java exception describer method! " << std::endl;
+    }
     throw gluten::GlutenException("Error during calling Java code from native code: " + description);
   }
 }

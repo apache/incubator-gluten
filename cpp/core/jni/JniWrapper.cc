@@ -148,7 +148,9 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
   arrow::Result<int64_t> Tell() const override {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    return env->CallLongMethod(jniIn_, jniByteInputStreamTell);
+    jlong told = env->CallLongMethod(jniIn_, jniByteInputStreamTell);
+    checkException(env);
+    return told;
   }
 
   bool closed() const override {
@@ -158,7 +160,9 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
   arrow::Result<int64_t> Read(int64_t nbytes, void* out) override {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    return env->CallLongMethod(jniIn_, jniByteInputStreamRead, reinterpret_cast<jlong>(out), nbytes);
+    jlong read = env->CallLongMethod(jniIn_, jniByteInputStreamRead, reinterpret_cast<jlong>(out), nbytes);
+    checkException(env);
+    return read;
   }
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> Read(int64_t nbytes) override {
@@ -776,11 +780,13 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
   jobject thread = env->CallStaticObjectMethod(cls, mid);
+  checkException(env);
   if (thread == NULL) {
     std::cerr << "Thread.currentThread() return NULL" << std::endl;
   } else {
     jmethodID midGetid = getMethodIdOrError(env, cls, "getId", "()J");
     jlong sid = env->CallLongMethod(thread, midGetid);
+    checkException(env);
     shuffleWriterOptions.thread_id = (int64_t)sid;
   }
 
@@ -1069,13 +1075,15 @@ JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_vel
   auto datasource = glutenDatasourceHolder.lookup(instanceId);
 
   while (env->CallBooleanMethod(iter, veloxColumnarbatchScannerHasNext)) {
+    checkException(env);
     jlong handler = env->CallLongMethod(iter, veloxColumnarbatchScannerNext);
+    checkException(env);
     auto batch = columnarBatchHolder.lookup(handler);
     datasource->write(batch);
     // fixme this skips the general Java side batch-closing routine
     columnarBatchHolder.erase(handler);
   }
-
+  checkException(env);
   JNI_METHOD_END()
 }
 
