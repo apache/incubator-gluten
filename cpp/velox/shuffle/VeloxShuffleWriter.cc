@@ -1600,7 +1600,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         }
       }
     }
-    auto shrunken = pool_->bytes_allocated() - beforeShrink;
+    auto shrunken = beforeShrink - pool_->bytes_allocated();
     LOG(INFO) << shrunken << " bytes released from shrinking.";
     return shrunken;
   }
