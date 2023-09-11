@@ -53,8 +53,10 @@ class OverAcquire implements TaskManagedMemoryTarget {
 
   OverAcquire(TaskManagedMemoryTarget target, double ratio) {
     Preconditions.checkArgument(ratio >= 0.0D);
-    this.overTarget = new OverAcquire.DummyTarget(
-        String.format("OverAcquire.DummyTarget[%s]", target.name()), target.getTaskMemoryManager());
+    this.overTarget =
+        new OverAcquire.DummyTarget(
+            String.format("OverAcquire.DummyTarget[%s]", target.name()),
+            target.getTaskMemoryManager());
     this.target = target;
     this.ratio = ratio;
   }
