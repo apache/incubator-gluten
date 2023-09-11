@@ -1,0 +1,6 @@
+columns format version: 1
+4 columns:
+`n_nationkey` Int64
+`n_name` String
+`n_regionkey` Int64
+`n_comment` String

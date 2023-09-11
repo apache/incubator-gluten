@@ -75,7 +75,7 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions
     {
         GET_JNIENV(env)
         jclass celeborn_partition_pusher_class =
-            CreateGlobalClassReference(env, "Lorg/apache/spark/shuffle/gluten/celeborn/CelebornCHPartitionPusher;");
+            CreateGlobalClassReference(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
         jmethodID celeborn_push_partition_data_method =
             GetMethodID(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[BI)I");
         CLEAN_JNIENV
