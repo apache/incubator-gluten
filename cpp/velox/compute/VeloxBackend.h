@@ -29,9 +29,9 @@
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
 #include "operators/writer/VeloxParquetDatasource.h"
+#include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
-#include "shuffle/reader.h"
 
 namespace gluten {
 
@@ -95,7 +95,7 @@ class VeloxBackend final : public Backend {
     return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, schema);
   }
 
-  std::shared_ptr<Reader> createShuffleReader(
+  std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,

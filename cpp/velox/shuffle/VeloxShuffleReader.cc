@@ -403,12 +403,12 @@ VeloxShuffleReader::VeloxShuffleReader(
     ReaderOptions options,
     std::shared_ptr<arrow::MemoryPool> pool,
     std::shared_ptr<memory::MemoryPool> veloxPool)
-    : Reader(schema, options, pool), veloxPool_(std::move(veloxPool)) {
+    : ShuffleReader(schema, options, pool), veloxPool_(std::move(veloxPool)) {
   rowType_ = asRowType(gluten::fromArrowSchema(schema));
 }
 
 std::shared_ptr<ResultIterator> VeloxShuffleReader::readStream(std::shared_ptr<arrow::io::InputStream> in) {
-  auto wrappedIn = Reader::readStream(in);
+  auto wrappedIn = ShuffleReader::readStream(in);
   return std::make_shared<ResultIterator>(std::make_unique<VeloxShuffleReaderOutStream>(
       pool_,
       veloxPool_,
