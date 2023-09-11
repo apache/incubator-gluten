@@ -76,8 +76,8 @@ case class DateDiffTransformer(
       // In CH backend, datediff params are ('day', startDate, endDate).
       Lists.newArrayList(ExpressionBuilder.makeStringLiteral("day"), startDateNode, endDateNode)
     } else {
-      // In the others, datediff params are (startDate, endDate).
-      Lists.newArrayList(startDateNode, endDateNode)
+      // In the others, datediff params are (endDate, startDate).
+      Lists.newArrayList(endDateNode, startDateNode)
     }
     ExpressionBuilder.makeScalarFunction(
       functionId,
