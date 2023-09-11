@@ -14,59 +14,60 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.memtarget;
+package io.glutenproject.memory.memtarget.spark;
 
+import io.glutenproject.memory.memtarget.TaskMemoryTarget;
 import io.glutenproject.proto.MemoryUsageStats;
-
+import org.apache.spark.memory.MemoryConsumer;
+import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 
+import java.io.IOException;
 
 /**
- * A decorator to a task memory target, to restrict memory usage of the delegated
- * memory target to X, X = free executor memory / task slots.
+ * This is a Spark memory consumer and at the same time a factory to create sub-targets that
+ * share one fixed memory capacity.
  * <p>
- * Using this to prevent OOMs if the delegated memory target could possibly
- * hold large memory blocks that are not spillable.
- * <p>
- * See <a href="https://github.com/oap-project/gluten/issues/3030">GLUTEN-3030</a>
+ * Typically used by memory target {@link io.glutenproject.memory.memtarget.IsolatedByTaskSlot}
  */
-public class IsolatedByTaskSlot implements TaskMemoryTarget {
-
-  private final TaskMemoryTarget delegated;
-
-  public IsolatedByTaskSlot(TaskMemoryTarget delegated) {
-    this.delegated = delegated;
+public class IsolatedMemoryConsumer extends MemoryConsumer implements TaskMemoryTarget {
+  private IsolatedMemoryConsumer(TaskMemoryManager taskMemoryManager, long capacity) {
+    super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
+    // todo
   }
 
   @Override
   public long borrow(long size) {
-    // limit within the minimum execution pool cap: (max offheap - max storage) / task slot
-    // todo
-    return delegated.borrow(size);
+    return 0;
   }
 
   @Override
   public long repay(long size) {
-    return delegated.repay(size);
+    return 0;
   }
 
   @Override
   public String name() {
-    return "Isolated." + delegated.name();
+    return null;
   }
 
   @Override
   public long usedBytes() {
-    return delegated.usedBytes();
+    return 0;
   }
 
   @Override
   public MemoryUsageStats stats() {
-    return delegated.stats();
+    return null;
   }
 
   @Override
   public TaskMemoryManager getTaskMemoryManager() {
-    return delegated.getTaskMemoryManager();
+    return null;
+  }
+
+  @Override
+  public long spill(long size, MemoryConsumer trigger) throws IOException {
+    return 0;
   }
 }

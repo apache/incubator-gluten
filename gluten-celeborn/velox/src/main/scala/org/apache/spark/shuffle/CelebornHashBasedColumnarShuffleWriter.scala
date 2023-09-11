@@ -90,11 +90,8 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
   }
 
   private def availableOffHeapPerTask(): Long = {
-    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = SparkResourceUtil.getExecutorCores(conf)
-    val taskCores = conf.getInt("spark.task.cpus", 1)
     val perTask =
-      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
+      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
     perTask
   }
 

@@ -155,10 +155,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     conf.set(GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
     val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
     conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
-    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = SparkResourceUtil.getExecutorCores(conf)
-    val taskCores = conf.getInt("spark.task.cpus", 1)
-    val offHeapPerTask = offHeapSize / (executorCores / taskCores)
+    val offHeapPerTask = offHeapSize / SparkResourceUtil.getTaskSlots(conf)
     conf.set(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapPerTask.toString)
 
     // disable vanilla columnar readers, to prevent columnar-to-columnar conversions

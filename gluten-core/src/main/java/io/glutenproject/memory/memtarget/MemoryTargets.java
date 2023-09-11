@@ -17,7 +17,7 @@
 package io.glutenproject.memory.memtarget;
 
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
-import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
+import io.glutenproject.memory.memtarget.spark.RegularMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
 
 import org.apache.spark.memory.TaskMemoryManager;
@@ -41,7 +41,7 @@ public final class MemoryTargets {
 
   public static TaskMemoryTarget newConsumer(
       TaskMemoryManager tmm, String name, Spiller spiller, MemoryUsageStatsBuilder statsBuilder) {
-    final GlutenMemoryConsumer gmc = new GlutenMemoryConsumer(tmm, name, spiller, statsBuilder);
+    final RegularMemoryConsumer gmc = new RegularMemoryConsumer(tmm, name, spiller, statsBuilder);
     return gmc;
   }
 }

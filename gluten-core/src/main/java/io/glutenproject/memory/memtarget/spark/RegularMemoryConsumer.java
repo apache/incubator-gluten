@@ -26,13 +26,16 @@ import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
 
-public class GlutenMemoryConsumer extends MemoryConsumer implements TaskMemoryTarget {
+/**
+ * A trivial memory consumer implementation used by Gluten.
+ */
+public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryTarget {
   private final TaskMemoryManager taskMemoryManager;
   private final Spiller spiller;
   private final String name;
   private final MemoryUsageStatsBuilder statsBuilder;
 
-  public GlutenMemoryConsumer(
+  public RegularMemoryConsumer(
       TaskMemoryManager taskMemoryManager,
       String name,
       Spiller spiller,
@@ -81,7 +84,7 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements TaskMemoryTa
   @Override
   public String name() {
     return String.format(
-        "Gluten.%s@%s", name, Integer.toHexString(System.identityHashCode(this)));
+        "Gluten.Regular.%s@%s", name, Integer.toHexString(System.identityHashCode(this)));
   }
 
   @Override
