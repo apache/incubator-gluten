@@ -21,7 +21,7 @@
 
 namespace gluten {
 
-std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(const ::substrait::Type& substraitType) {
+SubstraitParser::SubstraitType SubstraitParser::parseType(const ::substrait::Type& substraitType) {
   // The used type names should be aligned with those in Velox.
   std::string typeName;
   ::substrait::Type_Nullability nullability;
@@ -83,7 +83,7 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(const
         if (i > 0) {
           typeName += ',';
         }
-        typeName += parseType(structTypes[i])->type;
+        typeName += parseType(structTypes[i]).type;
         // Struct names could be empty.
         if (nameProvided) {
           typeName += (':' + structNames[i]);
@@ -97,7 +97,7 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(const
       // The type name of list is in the format of: ARRAY<T>.
       const auto& sList = substraitType.list();
       const auto& sType = sList.type();
-      typeName = "ARRAY<" + parseType(sType)->type + ">";
+      typeName = "ARRAY<" + parseType(sType).type + ">";
       nullability = substraitType.list().nullability();
       break;
     }
@@ -106,7 +106,7 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(const
       const auto& sMap = substraitType.map();
       const auto& keyType = sMap.key();
       const auto& valueType = sMap.value();
-      typeName = "MAP<" + parseType(keyType)->type + "," + parseType(valueType)->type + ">";
+      typeName = "MAP<" + parseType(keyType).type + "," + parseType(valueType).type + ">";
       nullability = substraitType.map().nullability();
       break;
     }
@@ -158,8 +158,7 @@ std::shared_ptr<SubstraitParser::SubstraitType> SubstraitParser::parseType(const
     default:
       VELOX_NYI("Substrait parsing for nullability {} not supported.", nullability);
   }
-  SubstraitType type = {typeName, nullable};
-  return std::make_shared<SubstraitType>(type);
+  return SubstraitType{typeName, nullable};
 }
 
 std::string SubstraitParser::parseType(const std::string& substraitType) {
@@ -180,7 +179,7 @@ std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> SubstraitParser::pa
   std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> substraitTypeList;
   substraitTypeList.reserve(substraitTypes.size());
   for (const auto& type : substraitTypes) {
-    substraitTypeList.emplace_back(parseType(type));
+    substraitTypeList.emplace_back(std::make_shared<SubstraitParser::SubstraitType>(parseType(type)));
   }
   return substraitTypeList;
 }

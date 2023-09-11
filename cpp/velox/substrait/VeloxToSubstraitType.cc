@@ -30,7 +30,6 @@ const ::substrait::Type& VeloxToSubstraitTypeConvertor::toSubstraitType(
       auto substraitBool = google::protobuf::Arena::CreateMessage<::substrait::Type_Boolean>(&arena);
       substraitBool->set_nullability(::substrait::Type_Nullability_NULLABILITY_NULLABLE);
       substraitType->set_allocated_bool_(substraitBool);
-
       break;
     }
     case velox::TypeKind::TINYINT: {
@@ -89,25 +88,17 @@ const ::substrait::Type& VeloxToSubstraitTypeConvertor::toSubstraitType(
     }
     case velox::TypeKind::ARRAY: {
       ::substrait::Type_List* substraitList = google::protobuf::Arena::CreateMessage<::substrait::Type_List>(&arena);
-
       substraitList->mutable_type()->MergeFrom(toSubstraitType(arena, type->asArray().elementType()));
-
       substraitList->set_nullability(::substrait::Type_Nullability_NULLABILITY_NULLABLE);
-
       substraitType->set_allocated_list(substraitList);
-
       break;
     }
     case velox::TypeKind::MAP: {
       ::substrait::Type_Map* substraitMap = google::protobuf::Arena::CreateMessage<::substrait::Type_Map>(&arena);
-
       substraitMap->mutable_key()->MergeFrom(toSubstraitType(arena, type->asMap().keyType()));
       substraitMap->mutable_value()->MergeFrom(toSubstraitType(arena, type->asMap().valueType()));
-
       substraitMap->set_nullability(::substrait::Type_Nullability_NULLABILITY_NULLABLE);
-
       substraitType->set_allocated_map(substraitMap);
-
       break;
     }
     case velox::TypeKind::ROW: {

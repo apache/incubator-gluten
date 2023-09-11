@@ -29,6 +29,12 @@ namespace gluten {
 /// Return the Velox type according to the typename.
 TypePtr toVeloxType(const std::string& typeName, bool asLowerCase = false);
 
+/// Return the Velox type according to substrait type string.
+TypePtr substraitTypeToVeloxType(const std::string& substraitType);
+
+/// Return the Velox type according to substrait type.
+TypePtr substraitTypeToVeloxType(const ::substrait::Type& substraitType);
+
 #endif /* TOVELOXTYPE_H */
 
 std::string_view getNameBeforeDelimiter(const std::string& compoundName, const std::string& delimiter);
