@@ -21,8 +21,6 @@
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
-DECLARE_int32(velox_memory_num_shared_leaf_pools);
-
 namespace gluten {
 
 using namespace facebook;
@@ -202,8 +200,6 @@ VeloxMemoryManager::VeloxMemoryManager(
     : MemoryManager(), name_(name), listener_(std::move(listener)) {
   glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_.get());
   arrowPool_ = std::make_shared<ArrowMemoryPool>(glutenAlloc_.get());
-
-  FLAGS_velox_memory_num_shared_leaf_pools = 0;
 
   auto options = getOptions(allocator);
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(options);
