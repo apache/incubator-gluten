@@ -88,6 +88,9 @@ const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.vel
 const std::string kMaxSpillFileSize = "spark.gluten.sql.columnar.backend.velox.maxSpillFileSize";
 const std::string kMaxSpillFileSizeDefault = std::to_string(20L * 1024 * 1024);
 
+// backtrace allocation
+const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";
+
 } // namespace
 
 namespace gluten {
@@ -114,6 +117,14 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
       enableUserExceptionStacktrace = got->second;
     }
     FLAGS_velox_exception_user_stacktrace_enabled = (enableUserExceptionStacktrace == "true");
+  }
+
+  // Set backtrace_allocation
+  {
+    auto got = conf.find(kBacktraceAllocation);
+    if (got != conf.end()) {
+      gluten::backtrace_allocation = (got->second == "true");
+    }
   }
 
   // Setup and register.
