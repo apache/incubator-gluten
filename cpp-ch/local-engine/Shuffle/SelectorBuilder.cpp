@@ -104,6 +104,8 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
 
     if (isNothing(removeNullable(result_type)))
     {
+        /// TODO: implement new hash function sparkCityHash64 like sparkXxHash64 to process null literal as column more gracefully.
+        /// Current implementation may cause partition skew.
         for (size_t i = 0; i < rows; i++)
             partition_ids.emplace_back(0);
     }
