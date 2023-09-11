@@ -20,15 +20,14 @@ import io.glutenproject.proto.MemoryUsageStats;
 
 import org.apache.spark.memory.TaskMemoryManager;
 
-
 /**
- * A decorator to a task memory target, to restrict memory usage of the delegated
- * memory target to X, X = free executor memory / task slots.
- * <p>
- * Using this to prevent OOMs if the delegated memory target could possibly
- * hold large memory blocks that are not spillable.
- * <p>
- * See <a href="https://github.com/oap-project/gluten/issues/3030">GLUTEN-3030</a>
+ * A decorator to a task memory target, to restrict memory usage of the delegated memory target to
+ * X, X = free executor memory / task slots.
+ *
+ * <p>Using this to prevent OOMs if the delegated memory target could possibly hold large memory
+ * blocks that are not spillable.
+ *
+ * <p>See <a href="https://github.com/oap-project/gluten/issues/3030">GLUTEN-3030</a>
  */
 public class IsolatedByTaskSlot implements TaskMemoryTarget {
 

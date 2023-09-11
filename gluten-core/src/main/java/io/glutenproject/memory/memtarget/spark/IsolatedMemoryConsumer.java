@@ -18,6 +18,7 @@ package io.glutenproject.memory.memtarget.spark;
 
 import io.glutenproject.memory.memtarget.TaskMemoryTarget;
 import io.glutenproject.proto.MemoryUsageStats;
+
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
@@ -25,10 +26,10 @@ import org.apache.spark.memory.TaskMemoryManager;
 import java.io.IOException;
 
 /**
- * This is a Spark memory consumer and at the same time a factory to create sub-targets that
- * share one fixed memory capacity.
- * <p>
- * Typically used by memory target {@link io.glutenproject.memory.memtarget.IsolatedByTaskSlot}
+ * This is a Spark memory consumer and at the same time a factory to create sub-targets that share
+ * one fixed memory capacity.
+ *
+ * <p>Typically used by memory target {@link io.glutenproject.memory.memtarget.IsolatedByTaskSlot}
  */
 public class IsolatedMemoryConsumer extends MemoryConsumer implements TaskMemoryTarget {
   private IsolatedMemoryConsumer(TaskMemoryManager taskMemoryManager, long capacity) {

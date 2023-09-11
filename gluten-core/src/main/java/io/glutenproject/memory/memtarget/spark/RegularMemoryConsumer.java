@@ -26,9 +26,7 @@ import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
 
-/**
- * A trivial memory consumer implementation used by Gluten.
- */
+/** A trivial memory consumer implementation used by Gluten. */
 public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryTarget {
   private final TaskMemoryManager taskMemoryManager;
   private final Spiller spiller;
