@@ -95,9 +95,14 @@ public:
         const auto * step_not_null_node = toFunctionNode(actions_dag, "assumeNotNull", {step_arg});
         const auto * end_plus_step_node = toFunctionNode(actions_dag, "plus", {end_not_null_node, step_not_null_node});
         /// range(assumeNotNull(start), assumeNotNull(end) + assumeNotNull(step), assumeNotNull(step))
-        const auto * range_1_node = toFunctionNode(actions_dag, "range", {start_not_null_node, end_plus_step_node, step_not_null_node});
+
+        // tricky: if step is null, range(, , assumeNotNull(step)) will throw exception: the 3rd argument step can't be less or equal to zero
+        // so wrap it to if(isNull(step), 1, assumeNotNull(step)), which has no effect on the result
+        const auto * tricky_step_node = toFunctionNode(actions_dag, "if", {step_is_null_node, one_const_node, step_not_null_node});
+
+        const auto * range_1_node = toFunctionNode(actions_dag, "range", {start_not_null_node, end_plus_step_node, tricky_step_node});
         /// range(assumeNotNull(start), assumeNotNull(end), assumeNotNull(step))
-        const auto * range_2_node = toFunctionNode(actions_dag, "range", {start_not_null_node, end_not_null_node, step_not_null_node});
+        const auto * range_2_node = toFunctionNode(actions_dag, "range", {start_not_null_node, end_not_null_node, tricky_step_node});
 
         DataTypePtr result_type = makeNullable(range_1_node->result_type);
         const auto * null_const_node = addColumnToActionsDAG(actions_dag, result_type, {});
