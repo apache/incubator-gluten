@@ -47,6 +47,7 @@
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 
 DECLARE_int32(split_preload_per_driver);
+DECLARE_int32(velox_memory_num_shared_leaf_pools);
 DECLARE_bool(SkipRowSortInWindowOp);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 
@@ -110,6 +111,10 @@ void VeloxInitializer::init(const std::unordered_map<std::string, std::string>& 
   // In spark, planner takes care the parititioning and sorting, so the rows are sorted.
   // There is no need to sort the rows in window op again.
   FLAGS_SkipRowSortInWindowOp = true;
+
+  // Avoid creating too many shared leaf pools.
+  FLAGS_velox_memory_num_shared_leaf_pools = 0;
+
   // Set velox_exception_user_stacktrace_enabled.
   {
     auto got = conf.find(kEnableUserExceptionStacktrace);
