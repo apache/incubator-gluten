@@ -17,6 +17,7 @@
 package io.glutenproject.memory.nmm;
 
 import io.glutenproject.GlutenConfig;
+import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 import io.glutenproject.memory.memtarget.MemoryTargets;
@@ -64,14 +65,12 @@ public final class NativeMemoryManagers {
   private static NativeMemoryManager createNativeMemoryManager(String name, Spiller spiller) {
     final AtomicReference<NativeMemoryManager> out = new AtomicReference<>();
     // memory target
-    TaskMemoryManager taskMemoryManager = TaskContext.get().taskMemoryManager();
     double overAcquiredRatio = GlutenConfig.getConf().veloxOverAcquiredMemoryRatio();
     MemoryTarget target =
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
-                new GlutenMemoryConsumer(
+                MemoryTargets.newConsumer(
                     name,
-                    taskMemoryManager,
                     // call memory manager's shrink API, if no good then call the spiller
                     Spillers.withOrder(
                         (size, trigger) ->
@@ -87,18 +86,13 @@ public final class NativeMemoryManagers {
                                                 + "from the memory manager constructor.")),
                         spiller // the input spiller, called after nmm.shrink was called
                         ),
-                    new GlutenMemoryConsumer.StatsBuilder() {
+                    new MemoryUsageStatsBuilder() {
                       private final SimpleMemoryUsageRecorder rootRecorder =
                           new SimpleMemoryUsageRecorder();
 
                       @Override
-                      public void onAcquire(long size) {
-                        rootRecorder.inc(size);
-                      }
-
-                      @Override
-                      public void onFree(long size) {
-                        rootRecorder.inc(-size);
+                      public void inc(long bytes) {
+                        rootRecorder.inc(bytes);
                       }
 
                       @Override

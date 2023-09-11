@@ -16,21 +16,38 @@
  */
 package io.glutenproject.memory.memtarget;
 
+import io.glutenproject.memory.MemoryUsageStatsBuilder;
+import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
+import io.glutenproject.memory.memtarget.spark.Spiller;
+import org.apache.spark.memory.TaskMemoryManager;
+import org.apache.spark.util.TaskResources;
+
 public final class MemoryTargets {
 
   private MemoryTargets() {
     // enclose factory ctor
   }
 
-  public static TaskManagedMemoryTarget overAcquire(
-      TaskManagedMemoryTarget target, double overAcquiredRatio) {
+  public static TaskMemoryTarget overAcquire(
+      TaskMemoryTarget target, double overAcquiredRatio) {
     if (overAcquiredRatio == 0.0D) {
       return target;
     }
     return new OverAcquire(target, overAcquiredRatio);
   }
 
-  public static MemoryTarget throwOnOom(TaskManagedMemoryTarget target) {
+  public static MemoryTarget throwOnOom(TaskMemoryTarget target) {
     return new ThrowOnOomMemoryTarget(target);
+  }
+
+  public static TaskMemoryTarget newConsumer(
+      String name,
+      Spiller spiller,
+      MemoryUsageStatsBuilder statsBuilder) {
+    if (!TaskResources.inSparkTask()) {
+      throw new IllegalStateException("#newConsumer() should only be called in Spark task");
+    }
+    final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
+    return new GlutenMemoryConsumer(tmm, name, spiller, statsBuilder);
   }
 }

@@ -24,9 +24,9 @@ import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.util.Utils;
 
 public class ThrowOnOomMemoryTarget implements MemoryTarget {
-  private final TaskManagedMemoryTarget target;
+  private final TaskMemoryTarget target;
 
-  public ThrowOnOomMemoryTarget(TaskManagedMemoryTarget target) {
+  public ThrowOnOomMemoryTarget(TaskMemoryTarget target) {
     this.target = target;
   }
 

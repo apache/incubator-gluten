@@ -16,6 +16,7 @@
  */
 package io.glutenproject.memory.arrowalloc;
 
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTargets;
 import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
@@ -55,11 +56,10 @@ public class ArrowBufferAllocators {
     private final AllocationListener listener =
         new ManagedAllocationListener(
             MemoryTargets.throwOnOom(
-                new GlutenMemoryConsumer(
+                MemoryTargets.newConsumer(
                     "ArrowContextInstance",
-                    TaskResources.getLocalTaskContext().taskMemoryManager(),
                     Spiller.NO_OP,
-                    GlutenMemoryConsumer.newDefaultStatsBuilder())),
+                    new SimpleMemoryUsageRecorder())),
             TaskResources.getSharedUsage());
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);
 

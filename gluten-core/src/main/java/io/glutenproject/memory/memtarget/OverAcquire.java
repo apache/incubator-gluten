@@ -17,6 +17,7 @@
 package io.glutenproject.memory.memtarget;
 
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.memory.memtarget.spark.Spiller;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.common.base.Preconditions;
@@ -26,10 +27,10 @@ import org.apache.spark.memory.TaskMemoryManager;
 
 import java.io.IOException;
 
-class OverAcquire implements TaskManagedMemoryTarget {
+class OverAcquire implements TaskMemoryTarget {
 
   // The underlying target.
-  private final TaskManagedMemoryTarget target;
+  private final TaskMemoryTarget target;
 
   // This consumer holds the over-acquired memory.
   private final MemoryTarget overTarget;
@@ -51,12 +52,12 @@ class OverAcquire implements TaskManagedMemoryTarget {
   //   over-acquired memory will be used in step B.
   private final double ratio;
 
-  OverAcquire(TaskManagedMemoryTarget target, double ratio) {
+  OverAcquire(TaskMemoryTarget target, double ratio) {
     Preconditions.checkArgument(ratio >= 0.0D);
     this.overTarget =
-        new OverAcquire.DummyTarget(
+        MemoryTargets.newConsumer(
             String.format("OverAcquire.DummyTarget[%s]", target.name()),
-            target.getTaskMemoryManager());
+            Spiller.NO_OP, new SimpleMemoryUsageRecorder());
     this.target = target;
     this.ratio = ratio;
   }
@@ -116,55 +117,5 @@ class OverAcquire implements TaskManagedMemoryTarget {
   @Override
   public TaskMemoryManager getTaskMemoryManager() {
     return target.getTaskMemoryManager();
-  }
-
-  private class DummyTarget extends MemoryConsumer implements MemoryTarget {
-    private final SimpleMemoryUsageRecorder usage = new SimpleMemoryUsageRecorder();
-    private final String name;
-
-    private DummyTarget(String name, TaskMemoryManager taskMemoryManager) {
-      super(taskMemoryManager, MemoryMode.OFF_HEAP);
-      this.name = name;
-    }
-
-    @Override
-    public long spill(long size, MemoryConsumer trigger) throws IOException {
-      return repay(size);
-    }
-
-    @Override
-    public long borrow(long size) {
-      if (size == 0) {
-        // or Spark complains the zero size by throwing an error
-        return 0;
-      }
-      long granted = acquireMemory(size);
-      usage.inc(granted);
-      return granted;
-    }
-
-    @Override
-    public long repay(long size) {
-      long toFree = Math.min(size, getUsed());
-      freeMemory(toFree);
-      Preconditions.checkArgument(getUsed() >= 0);
-      usage.inc(-toFree);
-      return toFree;
-    }
-
-    @Override
-    public String name() {
-      return name;
-    }
-
-    @Override
-    public long usedBytes() {
-      return getUsed();
-    }
-
-    @Override
-    public MemoryUsageStats stats() {
-      return usage.toStats();
-    }
   }
 }

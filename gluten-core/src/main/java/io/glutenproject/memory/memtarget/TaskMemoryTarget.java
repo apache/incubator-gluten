@@ -20,6 +20,6 @@ import org.apache.spark.memory.TaskMemoryManager;
 
 // Memory target that is bind to Spark TMM (task memory manager). This is typically a Spark
 // consumer.
-public interface TaskManagedMemoryTarget extends MemoryTarget {
+public interface TaskMemoryTarget extends MemoryTarget {
   TaskMemoryManager getTaskMemoryManager();
 }

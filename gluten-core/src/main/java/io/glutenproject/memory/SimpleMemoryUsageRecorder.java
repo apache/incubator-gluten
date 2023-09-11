@@ -26,6 +26,7 @@ public class SimpleMemoryUsageRecorder implements MemoryUsageStatsBuilder {
   private final AtomicLong peak = new AtomicLong(0L);
   private final AtomicLong current = new AtomicLong(0L);
 
+  @Override
   public void inc(long bytes) {
     final long total = this.current.addAndGet(bytes);
     long prev_peak;
