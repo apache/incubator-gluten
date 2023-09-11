@@ -47,7 +47,7 @@ class SubstraitParser {
   static std::vector<bool> parsePartitionColumns(const ::substrait::NamedStruct& namedStruct);
 
   /// Parse Substrait Type.
-  static std::shared_ptr<SubstraitType> parseType(const ::substrait::Type& substraitType);
+  static SubstraitType parseType(const ::substrait::Type& substraitType);
 
   // Parse substraitType type such as i32.
   static std::string parseType(const std::string& substraitType);

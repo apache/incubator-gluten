@@ -32,7 +32,7 @@ class VeloxToSubstraitTypeTest : public ::testing::Test {
 
     google::protobuf::Arena arena;
     auto substraitType = typeConvertor_->toSubstraitType(arena, type);
-    auto sameType = toVeloxType(SubstraitParser::parseType(substraitType)->type);
+    auto sameType = substraitTypeToVeloxType(substraitType);
     ASSERT_TRUE(sameType->kindEquals(type))
         << "Expected: " << type->toString() << ", but got: " << sameType->toString();
   }

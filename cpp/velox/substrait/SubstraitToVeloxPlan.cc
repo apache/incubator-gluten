@@ -355,7 +355,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     for (const auto& arg : aggFunction.arguments()) {
       aggParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
     }
-    auto aggVeloxType = toVeloxType(SubstraitParser::parseType(aggFunction.output_type())->type);
+    auto aggVeloxType = substraitTypeToVeloxType(aggFunction.output_type());
     auto aggExpr = std::make_shared<const core::CallTypedExpr>(aggVeloxType, std::move(aggParams), funcName);
     aggregates.emplace_back(core::AggregationNode::Aggregate{aggExpr, mask, {}, {}});
   }
@@ -555,7 +555,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     for (const auto& arg : windowFunction.arguments()) {
       windowParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
     }
-    auto windowVeloxType = toVeloxType(SubstraitParser::parseType(windowFunction.output_type())->type);
+    auto windowVeloxType = substraitTypeToVeloxType(windowFunction.output_type());
     auto windowCall = std::make_shared<const core::CallTypedExpr>(windowVeloxType, std::move(windowParams), funcName);
     auto upperBound = windowFunction.upper_bound();
     auto lowerBound = windowFunction.lower_bound();
