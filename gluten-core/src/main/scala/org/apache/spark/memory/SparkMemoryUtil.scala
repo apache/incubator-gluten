@@ -71,7 +71,7 @@ object SparkMemoryUtil {
 
       consumers.asScala.toSeq.map {
         case mt: MemoryTarget =>
-          val name = mt.name + "@" + Integer.toHexString(System.identityHashCode(mt));
+          val name = mt.name
           toMemoryConsumerStats(name, mt.stats())
         case mc =>
           val name = mc.toString

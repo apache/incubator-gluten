@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.memory.memtarget;
 
 import io.glutenproject.proto.MemoryUsageStats;
+
 import org.apache.spark.memory.TaskMemoryManager;
 
 // A decorator to a task memory target, to restrict memory usage of the delegated

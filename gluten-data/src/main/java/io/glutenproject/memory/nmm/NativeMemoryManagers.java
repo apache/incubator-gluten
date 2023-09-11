@@ -21,14 +21,11 @@ import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 import io.glutenproject.memory.memtarget.MemoryTargets;
-import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
 import io.glutenproject.memory.memtarget.spark.Spillers;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.spark.TaskContext;
-import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
 
 import java.util.Optional;

@@ -19,8 +19,8 @@ package io.glutenproject.memory.memtarget;
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
+
 import org.apache.spark.memory.TaskMemoryManager;
-import org.apache.spark.util.TaskResources;
 
 public final class MemoryTargets {
 
@@ -32,8 +32,7 @@ public final class MemoryTargets {
     return new ThrowOnOomMemoryTarget(target);
   }
 
-  public static TaskMemoryTarget overAcquire(
-      TaskMemoryTarget target, double overAcquiredRatio) {
+  public static TaskMemoryTarget overAcquire(TaskMemoryTarget target, double overAcquiredRatio) {
     if (overAcquiredRatio == 0.0D) {
       return target;
     }
@@ -41,10 +40,7 @@ public final class MemoryTargets {
   }
 
   public static TaskMemoryTarget newConsumer(
-      TaskMemoryManager tmm,
-      String name,
-      Spiller spiller,
-      MemoryUsageStatsBuilder statsBuilder) {
+      TaskMemoryManager tmm, String name, Spiller spiller, MemoryUsageStatsBuilder statsBuilder) {
     final GlutenMemoryConsumer gmc = new GlutenMemoryConsumer(tmm, name, spiller, statsBuilder);
     return gmc;
   }

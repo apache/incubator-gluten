@@ -18,7 +18,6 @@ package io.glutenproject.memory.arrowalloc;
 
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTargets;
-import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
 
 import org.apache.arrow.memory.AllocationListener;

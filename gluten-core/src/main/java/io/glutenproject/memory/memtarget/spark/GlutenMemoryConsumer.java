@@ -17,7 +17,6 @@
 package io.glutenproject.memory.memtarget.spark;
 
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
-import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.TaskMemoryTarget;
 import io.glutenproject.proto.MemoryUsageStats;
 
@@ -81,7 +80,8 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements TaskMemoryTa
 
   @Override
   public String name() {
-    return "GlutenMemoryConsumer." + name;
+    return String.format(
+        "GlutenMemoryConsumer.%s@%s", name, Integer.toHexString(System.identityHashCode(this)));
   }
 
   @Override
