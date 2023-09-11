@@ -32,6 +32,8 @@ namespace ErrorCodes
 namespace local_engine
 {
 
+/// map_from_arrays_unaligned is a inner substrait function, which is not exposed to users.
+/// It is only used insides posexplode to avoid issue: https://github.com/oap-project/gluten/issues/2492
 class FunctionMapFromArraysUnaligned : public FunctionParser
 {
 public:
@@ -39,6 +41,9 @@ public:
     ~FunctionMapFromArraysUnaligned() override = default;
 
     static constexpr auto name = "map_from_arrays_unaligned";
+
+    static constexpr auto type_hint_map = "type_hint:map";
+    static constexpr auto type_hint_array= "type_hint:array";
 
     String getName() const override { return name; }
 
@@ -62,6 +67,7 @@ public:
         const auto * values_not_null_node = toFunctionNode(actions_dag, "assumeNotNull", {values_arg});
 
         const auto * array_values_node = values_not_null_node;
+        String type_hint = type_hint_array;
         if (isMap(values_not_null_node->result_type))
         {
             const auto * map_type = static_cast<const DataTypeMap *>(values_not_null_node->result_type.get());
@@ -72,12 +78,15 @@ public:
                 values_not_null_node,
                 nested_type->getName(),
                 result_name);
+            type_hint = type_hint_map;
         }
 
         const auto * length_keys_node = toFunctionNode(actions_dag, "length", {keys_not_null_node});
         const auto * array_resize_node = toFunctionNode(actions_dag, "arrayResize", {array_values_node, length_keys_node});
-        const auto * result_node = toFunctionNode(actions_dag, "mapFromArrays", {keys_not_null_node, array_resize_node});
-        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
+        const auto * map_from_arrays_node = toFunctionNode(actions_dag, "mapFromArrays", {keys_not_null_node, array_resize_node});
+        auto * result_node = const_cast<DB::ActionsDAG::Node *>(convertNodeTypeIfNeeded(substrait_func, map_from_arrays_node, actions_dag));
+        result_node->result_name += " " + type_hint;
+        return result_node;
     }
 };
 
