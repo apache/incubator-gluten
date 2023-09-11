@@ -47,6 +47,7 @@ struct SplitOptions
     std::string compress_method = "zstd";
     int compress_level;
     size_t spill_threshold = 300 * 1024 * 1024;
+
 };
 
 class ColumnsBuffer

@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
-import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.utils.IteratorUtil
 import io.glutenproject.vectorized.{BlockOutputStream, CHBlockWriterJniWrapper, CHStreamReader}
 
@@ -50,11 +49,12 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
   }
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
 
-    val (parquetDir, readFileCnt, scanSchema, executedCnt, executedVanilla) =
+    // /home/chang/test/tpch/parquet/s100/supplier 3 * 20 false
+    val (parquetDir, scanSchema, executedCnt) =
       if (mainArgs.isEmpty) {
-        ("/data/tpch-data/parquet/lineitem", 3, "l_orderkey,l_receiptdate", 5, true)
+        ("/data/tpch-data/parquet/lineitem", "l_orderkey,l_receiptdate", 5)
       } else {
-        (mainArgs(0), mainArgs(1).toInt, mainArgs(2), mainArgs(3).toInt, mainArgs(4).toBoolean)
+        (mainArgs(0), mainArgs(1), mainArgs(2).toInt)
       }
 
     val chParquet = spark.sql(s"""
@@ -209,10 +209,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
   }
 
   def iterateBatch(array: Array[Byte], compressed: Boolean): Int = {
-    val blockReader =
-      new CHStreamReader(
-        CHShuffleReadStreamFactory.create(array, compressed, CHBackendSettings.customizeBufferSize),
-        CHBackendSettings.customizeBufferSize)
+    val blockReader = new CHStreamReader(CHShuffleReadStreamFactory.create(array, compressed))
     val broadCastIter: Iterator[ColumnarBatch] = IteratorUtil.createBatchIterator(blockReader)
     broadCastIter.foldLeft(0) {
       case (acc, batch) =>

@@ -39,21 +39,21 @@ abstract class RowToColumnarExecBase(child: SparkPlan)
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genRowToColumnarMetrics(sparkContext)
 
-  override def output: Seq[Attribute] = child.output
+  final override def output: Seq[Attribute] = child.output
 
-  override def outputPartitioning: Partitioning = child.outputPartitioning
+  final override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
+  final override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
-  override def doExecute(): RDD[InternalRow] = {
+  final override def doExecute(): RDD[InternalRow] = {
     child.execute()
   }
 
-  override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
+  final override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
     child.executeBroadcast()
   }
 
-  override def supportsColumnar: Boolean = true
+  final override def supportsColumnar: Boolean = true
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch]
 

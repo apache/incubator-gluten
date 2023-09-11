@@ -17,6 +17,7 @@
 
 #include "VeloxMemoryManager.h"
 
+#include <execinfo.h>
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
@@ -116,7 +117,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       //
       // We are likely in destructor, do not throw. INFO log is fine since we have leak checks from Spark's memory
       //   manager
-      LOG(INFO) << "Memory pool " << pool->name() << " not completely shrunk when Memory::dropPool() is called";
+      LOG(INFO) << "Memory pool " << pool->name() << " not completely shrunken when Memory::dropPool() is called";
     }
     return freeBytes;
   }
@@ -193,11 +194,11 @@ velox::memory::IMemoryManager::Options VeloxMemoryManager::getOptions(
 }
 
 VeloxMemoryManager::VeloxMemoryManager(
-    std::string name,
+    const std::string& name,
     std::shared_ptr<MemoryAllocator> allocator,
-    std::shared_ptr<AllocationListener> listener)
-    : MemoryManager(), name_(name), listener_(listener) {
-  glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_);
+    std::unique_ptr<AllocationListener> listener)
+    : MemoryManager(), name_(name), listener_(std::move(listener)) {
+  glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_.get());
   arrowPool_ = std::make_shared<ArrowMemoryPool>(glutenAlloc_.get());
 
   auto options = getOptions(allocator);
@@ -242,8 +243,22 @@ const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
   return stats;
 }
 
-velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
-  return &(facebook::velox::memory::defaultMemoryManager());
+namespace {
+int64_t shrinkVeloxMemoryPool(velox::memory::MemoryPool* pool, int64_t size) {
+  std::string poolName{pool->root()->name() + "/" + pool->name()};
+  std::string logPrefix{"Shrink[" + poolName + "]: "};
+  DLOG(INFO) << logPrefix << "Trying to shrink " << size << " bytes of data...";
+  DLOG(INFO) << logPrefix << "Pool has reserved " << pool->currentBytes() << "/" << pool->root()->reservedBytes() << "/"
+             << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
+  DLOG(INFO) << logPrefix << "Shrinking...";
+  int64_t shrunken = pool->shrinkManaged(pool, size);
+  DLOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
+  return shrunken;
+}
+} // namespace
+
+const int64_t VeloxMemoryManager::shrink(int64_t size) {
+  return shrinkVeloxMemoryPool(veloxAggregatePool_.get(), size);
 }
 
 } // namespace gluten

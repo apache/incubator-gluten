@@ -22,8 +22,8 @@ namespace gluten {
 arrow::Status gluten::SinglePartPartitioner::compute(
     const int32_t* pidArr,
     const int64_t numRows,
-    std::vector<uint16_t>& partitionId,
-    std::vector<uint32_t>& partitionIdCnt) {
+    std::vector<uint16_t>& row2partition,
+    std::vector<uint32_t>& partition2RowCount) {
   // nothing is need do here
   return arrow::Status::OK();
 }

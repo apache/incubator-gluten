@@ -16,6 +16,7 @@
  */
 package io.glutenproject.memory.alloc;
 
+import io.glutenproject.GlutenConfig;
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 
@@ -30,6 +31,8 @@ public class CHManagedCHReservationListener implements CHReservationListener {
 
   private MemoryTarget target;
   private final SimpleMemoryUsageRecorder usage;
+  private final boolean throwIfMemoryExceed =
+      GlutenConfig.getConf().chColumnarThrowIfMemoryExceed();
   private volatile boolean open = true;
 
   private final AtomicLong currentMemory = new AtomicLong(0L);
@@ -41,6 +44,11 @@ public class CHManagedCHReservationListener implements CHReservationListener {
 
   @Override
   public void reserveOrThrow(long size) {
+    if (!throwIfMemoryExceed) {
+      reserve(size);
+      return;
+    }
+
     synchronized (this) {
       if (!open) {
         return;

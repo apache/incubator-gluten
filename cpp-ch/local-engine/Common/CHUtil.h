@@ -16,7 +16,6 @@
  */
 #pragma once
 #include <filesystem>
-#include <Builder/BroadCastJoinBuilder.h>
 #include <Columns/IColumn.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>

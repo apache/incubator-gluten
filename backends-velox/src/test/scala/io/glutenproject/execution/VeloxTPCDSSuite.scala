@@ -57,6 +57,7 @@ class VeloxTPCDSSuite extends WholeStageTransformerSuite {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("park.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.maxBatchSize", "4096")
+      .set("spark.gluten.shuffleWriter.bufferSize", "4096")
       .set("spark.executor.memory", "4g")
       .set("spark.executor.instances", "16")
       .set("spark.executor.cores", "8")

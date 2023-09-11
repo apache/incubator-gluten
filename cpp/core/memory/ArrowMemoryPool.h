@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "arrow/memory_pool.h"
+
 #include "MemoryAllocator.h"
 
 namespace gluten {

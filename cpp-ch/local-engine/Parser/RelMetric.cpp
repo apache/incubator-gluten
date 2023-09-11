@@ -22,27 +22,33 @@ using namespace rapidjson;
 
 namespace local_engine
 {
+
 RelMetric::RelMetric(size_t id_, const String & name_, std::vector<DB::IQueryPlanStep *> & steps_) : id(id_), name(name_), steps(steps_)
 {
 }
+
 RelMetric::RelMetric(const String & name_, const std::vector<RelMetricPtr> & inputs_, std::vector<DB::IQueryPlanStep *> & steps_)
     : name(name_), steps(steps_), inputs(inputs_)
 {
     auto rel = std::max_element(inputs.begin(), inputs.end(), [](RelMetricPtr a, RelMetricPtr b) { return a->id < b->id; });
     id = rel->get()->id + 1;
 }
+
 size_t RelMetric::getId() const
 {
     return id;
 }
+
 const std::vector<DB::IQueryPlanStep *> & RelMetric::getSteps() const
 {
     return steps;
 }
+
 const std::vector<RelMetricPtr> & RelMetric::getInputs() const
 {
     return inputs;
 }
+
 RelMetricTimes RelMetric::getTotalTime() const
 {
     RelMetricTimes timeMetrics{0, 0, 0};
@@ -115,6 +121,7 @@ void RelMetric::serialize(Writer<StringBuffer> & writer, bool) const
     }
     writer.EndObject();
 }
+
 const String & RelMetric::getName() const
 {
     return name;
@@ -143,4 +150,5 @@ std::string RelMetricSerializer::serializeRelMetric(RelMetricPtr rel_metric, boo
     }
     return result.GetString();
 }
+
 }

@@ -56,11 +56,11 @@ class VeloxBackend final : public Backend {
     }
   }
 
-  MemoryManager* getMemoryManager(
+  MemoryManager* createMemoryManager(
       const std::string& name,
       std::shared_ptr<MemoryAllocator> allocator,
-      std::shared_ptr<AllocationListener> listener) override {
-    return new VeloxMemoryManager(name, allocator, listener);
+      std::unique_ptr<AllocationListener> listener) override {
+    return new VeloxMemoryManager(name, allocator, std::move(listener));
   }
 
   // FIXME This is not thread-safe?
@@ -76,7 +76,7 @@ class VeloxBackend final : public Backend {
       MemoryManager* memoryManager,
       struct ArrowSchema* cSchema) override;
 
-  std::shared_ptr<ShuffleWriter> makeShuffleWriter(
+  std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
@@ -92,11 +92,10 @@ class VeloxBackend final : public Backend {
       MemoryManager* memoryManager,
       std::shared_ptr<arrow::Schema> schema) override {
     auto veloxPool = getAggregateVeloxPool(memoryManager);
-    auto ctxVeloxPool = veloxPool->addAggregateChild("velox_parquet_writer");
-    return std::make_shared<VeloxParquetDatasource>(filePath, ctxVeloxPool, schema);
+    return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, schema);
   }
 
-  std::shared_ptr<Reader> getShuffleReader(
+  std::shared_ptr<Reader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,

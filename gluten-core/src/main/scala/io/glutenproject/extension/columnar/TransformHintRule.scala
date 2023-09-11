@@ -313,9 +313,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   private def addTransformableTag(plan: SparkPlan): Unit = {
     if (TransformHints.isAlreadyTagged(plan)) {
       logDebug(
-        s"Skipping executing" +
-          s"io.glutenproject.extension.columnar.CheckTransformableRule.addTransformableTag " +
-          s"since plan already tagged as " +
+        s"Skip adding transformable tag, since plan already tagged as " +
           s"${TransformHints.getHint(plan)}: ${plan.toString()}")
       return
     }

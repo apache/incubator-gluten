@@ -53,6 +53,12 @@ public class NativeMemoryManager implements TaskResource {
     return collectMemoryUsage(nativeInstanceId);
   }
 
+  public long shrink(long size) {
+    return shrink(nativeInstanceId, size);
+  }
+
+  private static native long shrink(long nativeInstanceId, long size);
+
   private static native long create(
       String name, long allocatorId, long reservationBlockSize, ReservationListener listener);
 
@@ -73,8 +79,8 @@ public class NativeMemoryManager implements TaskResource {
   }
 
   @Override
-  public long priority() {
-    return 0L; // lowest release priority
+  public int priority() {
+    return 0; // lowest release priority
   }
 
   @Override

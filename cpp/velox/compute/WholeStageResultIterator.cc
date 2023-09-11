@@ -55,6 +55,14 @@ const std::string kSpillStartPartitionBit = "spark.gluten.sql.columnar.backend.v
 const std::string kSpillPartitionBits = "spark.gluten.sql.columnar.backend.velox.spillPartitionBits";
 const std::string kSpillableReservationGrowthPct =
     "spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct";
+const std::string kMaxPartialAggregationMemoryRatio =
+    "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio";
+const std::string kMaxExtendedPartialAggregationMemoryRatio =
+    "spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio";
+const std::string kAbandonPartialAggregationMinPct =
+    "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct";
+const std::string kAbandonPartialAggregationMinRows =
+    "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows";
 
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
@@ -118,20 +126,46 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
   return std::make_shared<VeloxColumnarBatch>(vector);
 }
 
+namespace {
+class ConditionalSuspendedSection {
+ public:
+  ConditionalSuspendedSection(velox::exec::Driver* driver, bool condition) {
+    if (condition) {
+      section_ = new velox::exec::SuspendedSection(driver);
+    }
+  }
+
+  virtual ~ConditionalSuspendedSection() {
+    if (section_) {
+      delete section_;
+    }
+  }
+
+  // singleton
+  ConditionalSuspendedSection(const ConditionalSuspendedSection&) = delete;
+  ConditionalSuspendedSection(ConditionalSuspendedSection&&) = delete;
+  ConditionalSuspendedSection& operator=(const ConditionalSuspendedSection&) = delete;
+  ConditionalSuspendedSection& operator=(ConditionalSuspendedSection&&) = delete;
+
+ private:
+  velox::exec::SuspendedSection* section_ = nullptr;
+};
+} // namespace
+
 int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
   std::string poolName{pool_->root()->name() + "/" + pool_->name()};
   std::string logPrefix{"Spill[" + poolName + "]: "};
-  LOG(INFO) << logPrefix << "Trying to reclaim " << size << " bytes of data...";
-  LOG(INFO) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes()
-            << "/" << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
-  LOG(INFO) << logPrefix << "Shrinking...";
-  int64_t shrunk = pool_->shrinkManaged(pool_.get(), size);
-  LOG(INFO) << logPrefix << shrunk << " bytes released from shrinking.";
+  DLOG(INFO) << logPrefix << "Trying to reclaim " << size << " bytes of data...";
+  DLOG(INFO) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes()
+             << "/" << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
+  DLOG(INFO) << logPrefix << "Shrinking...";
+  int64_t shrunken = pool_->shrinkManaged(pool_.get(), size);
+  DLOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
 
   // todo return the actual spilled size?
   if (spillStrategy_ == "auto") {
-    int64_t remaining = size - shrunk;
-    LOG(INFO) << logPrefix << "Trying to request spilling for remaining " << remaining << " bytes...";
+    int64_t remaining = size - shrunken;
+    LOG(INFO) << logPrefix << "Trying to request spilling for " << remaining << " bytes...";
     // if we are on one of the driver of the spilled task, suspend it
     velox::exec::Driver* thisDriver = nullptr;
     task_->testingVisitDrivers([&](velox::exec::Driver* driver) {
@@ -139,25 +173,17 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
         thisDriver = driver;
       }
     });
-    if (thisDriver == nullptr) {
-      // not the driver, no need to suspend
-      uint64_t spilledOut = pool_->reclaim(remaining);
-      LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
-      uint64_t total = shrunk + spilledOut;
-      LOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
-      return shrunk + spilledOut;
-    }
-    // suspend since we are on driver
-    velox::exec::SuspendedSection noCancel(thisDriver);
+    // suspend the driver when we are on it
+    ConditionalSuspendedSection noCancel(thisDriver, thisDriver != nullptr);
     uint64_t spilledOut = pool_->reclaim(remaining);
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
-    uint64_t total = shrunk + spilledOut;
-    LOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
-    return shrunk + spilledOut;
+    uint64_t total = shrunken + spilledOut;
+    DLOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
+    return shrunken + spilledOut;
   }
 
-  LOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunk << " bytes.";
-  return shrunk;
+  DLOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
+  return shrunken;
 }
 
 void WholeStageResultIterator::getOrderedNodeIds(
@@ -293,11 +319,22 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = std::to_string(true);
 
-    // Set the max memory of partial aggregation as 3/4 of offheap size.
-    auto maxMemory =
-        (long)(0.75 * (double)std::stol(getConfigValue(confMap_, kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory))));
-    configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
-    configs[velox::core::QueryConfig::kAbandonPartialAggregationMinPct] = std::to_string(90);
+    {
+      // partial aggregation memory config
+      auto offHeapMemory = std::stol(
+          getConfigValue(confMap_, kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory)));
+      auto maxPartialAggregationMemory =
+          (long)(std::stod(getConfigValue(confMap_, kMaxPartialAggregationMemoryRatio, "0.1")) * offHeapMemory);
+      auto maxExtendedPartialAggregationMemory =
+          (long)(std::stod(getConfigValue(confMap_, kMaxExtendedPartialAggregationMemoryRatio, "0.5")) * offHeapMemory);
+      configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxPartialAggregationMemory);
+      configs[velox::core::QueryConfig::kMaxExtendedPartialAggregationMemory] =
+          std::to_string(maxExtendedPartialAggregationMemory);
+      configs[velox::core::QueryConfig::kAbandonPartialAggregationMinPct] =
+          getConfigValue(confMap_, kAbandonPartialAggregationMinPct, "90");
+      configs[velox::core::QueryConfig::kAbandonPartialAggregationMinRows] =
+          getConfigValue(confMap_, kAbandonPartialAggregationMinRows, "10000");
+    }
     // Spill configs
     if (spillStrategy_ == "none") {
       configs[velox::core::QueryConfig::kSpillEnabled] = "false";

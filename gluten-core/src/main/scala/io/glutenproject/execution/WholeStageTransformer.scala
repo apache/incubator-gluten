@@ -34,7 +34,6 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -80,8 +79,9 @@ trait TransformSupport extends GlutenPlan {
   }
 }
 
-case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
-  extends UnaryExecNode
+case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = false)(
+    val transformStageId: Int
+) extends UnaryExecNode
   with TransformSupport {
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
@@ -95,10 +95,6 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
   val substraitPlanLogLevel: String = GlutenConfig.getConf.substraitPlanLogLevel
 
   private var planJson: String = ""
-
-  def materializeAtLast(): Boolean = {
-    child.getTagValue(GlutenWriterColumnarRules.TAG).isDefined
-  }
 
   def getPlanJson: String = {
     if (log.isDebugEnabled() && planJson.isEmpty) {
@@ -282,8 +278,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
           wsCxt.substraitContext.registeredRelMap,
           wsCxt.substraitContext.registeredJoinParams,
           wsCxt.substraitContext.registeredAggregationParams
-        ),
-        materializeAtLast()
+        )
       )
     } else {
 
@@ -311,7 +306,7 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
           resCtx.substraitContext.registeredJoinParams,
           resCtx.substraitContext.registeredAggregationParams
         ),
-        materializeAtLast()
+        materializeInput
       )
     }
   }
@@ -379,5 +374,5 @@ case class WholeStageTransformer(child: SparkPlan)(val transformStageId: Int)
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformer =
-    copy(child = newChild)(transformStageId)
+    copy(child = newChild, materializeInput = materializeInput)(transformStageId)
 }

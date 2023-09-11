@@ -892,4 +892,22 @@ class GlutenClickHouseHiveTableSuite()
     compareResultsAgainstVanillaSpark(select_sql_1, compareResult = true, _ => {})
   }
 
+  test("fix bug: https://github.com/oap-project/gluten/issues/3023") {
+    val data_path = rootPath + "/text-data/json-settings"
+    spark.sql(s"""
+                 |CREATE TABLE json_settings (
+                 |  a string,
+                 |  b string,
+                 |  c int,
+                 |  t struct<ta:string, tb:int, tc:float>)
+                 |ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe'
+                 |STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat'
+                 |OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+                 |LOCATION '$data_path'
+      """.stripMargin)
+
+    val select_sql = "select * from json_settings"
+    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    spark.sql("DROP TABLE json_settings")
+  }
 }

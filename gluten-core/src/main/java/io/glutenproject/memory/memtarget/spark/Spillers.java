@@ -14,32 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <memory>
-#include <jni.h>
+package io.glutenproject.memory.memtarget.spark;
 
-// Forward Declarations
-struct JNIEnv_;
-using JNIEnv = JNIEnv_;
+public final class Spillers {
+  private Spillers() {
+    // enclose factory ctor
+  }
 
-namespace local_engine
-{
-class StorageJoinFromReadBuffer;
-namespace BroadCastJoinBuilder
-{
-
-    std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
-        const std::string & key,
-        jobject input,
-        size_t io_buffer_size,
-        const std::string & join_keys,
-        const std::string & join_type,
-        const std::string & named_struct);
-    void cleanBuildHashTable(const std::string & hash_table_id, jlong instance);
-    std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & hash_table_id);
-
-
-    void init(JNIEnv *);
-    void destroy(JNIEnv *);
-}
+  // calls the spillers one by one within the order
+  public static Spiller withOrder(Spiller... spillers) {
+    return (size, trigger) -> {
+      long remaining = size;
+      for (int i = 0; i < spillers.length && remaining > 0; i++) {
+        Spiller spiller = spillers[i];
+        remaining -= spiller.spill(remaining, trigger);
+      }
+      return size - remaining;
+    };
+  }
 }

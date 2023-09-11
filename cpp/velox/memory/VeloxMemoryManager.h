@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "memory/AllocationListener.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/MemoryManager.h"
 #include "velox/common/memory/Memory.h"
@@ -27,9 +28,14 @@ namespace gluten {
 class VeloxMemoryManager final : public MemoryManager {
  public:
   explicit VeloxMemoryManager(
-      std::string name,
+      const std::string& name,
       std::shared_ptr<MemoryAllocator> allocator,
-      std::shared_ptr<AllocationListener> listener);
+      std::unique_ptr<AllocationListener> listener);
+
+  VeloxMemoryManager(const VeloxMemoryManager&) = delete;
+  VeloxMemoryManager(VeloxMemoryManager&&) = delete;
+  VeloxMemoryManager& operator=(const VeloxMemoryManager&) = delete;
+  VeloxMemoryManager& operator=(VeloxMemoryManager&&) = delete;
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateMemoryPool() const {
     return veloxAggregatePool_;
@@ -45,6 +51,8 @@ class VeloxMemoryManager final : public MemoryManager {
 
   const MemoryUsageStats collectMemoryUsageStats() const override;
 
+  const int64_t shrink(int64_t size) override;
+
  private:
   facebook::velox::memory::IMemoryManager::Options getOptions(std::shared_ptr<MemoryAllocator> allocator) const;
 
@@ -56,7 +64,7 @@ class VeloxMemoryManager final : public MemoryManager {
 
   // This is a listenable allocator used for arrow.
   std::unique_ptr<MemoryAllocator> glutenAlloc_;
-  std::shared_ptr<AllocationListener> listener_;
+  std::unique_ptr<AllocationListener> listener_;
   std::shared_ptr<arrow::MemoryPool> arrowPool_;
 
   std::unique_ptr<facebook::velox::memory::MemoryManager> veloxMemoryManager_;
@@ -67,9 +75,7 @@ class VeloxMemoryManager final : public MemoryManager {
 /// Not tracked by Spark and should only used in test or validation.
 inline std::shared_ptr<gluten::VeloxMemoryManager> getDefaultMemoryManager() {
   static auto memoryManager = std::make_shared<gluten::VeloxMemoryManager>(
-      "test",
-      gluten::defaultMemoryAllocator(),
-      std::shared_ptr<gluten::AllocationListener>(gluten::AllocationListener::noop()));
+      "test", gluten::defaultMemoryAllocator(), gluten::AllocationListener::noop());
   return memoryManager;
 }
 

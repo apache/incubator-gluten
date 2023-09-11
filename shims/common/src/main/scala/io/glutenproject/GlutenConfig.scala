@@ -91,7 +91,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def isUseCelebornShuffleManager: Boolean =
     conf
       .getConfString("spark.shuffle.manager", "sort")
-      .equals("org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager")
+      .contains("celeborn")
 
   def enableColumnarShuffle: Boolean = conf.getConf(COLUMNAR_SHUFFLE_ENABLED)
 
@@ -142,6 +142,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(COLUMNAR_SHUFFLE_BUFFER_COMPRESS_THRESHOLD)
 
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
+
+  def shuffleWriterBufferSize: Int = conf
+    .getConf(SHUFFLE_WRITER_BUFFER_SIZE)
+    .getOrElse(maxBatchSize)
 
   def enableColumnarLimit: Boolean = conf.getConf(COLUMNAR_LIMIT_ENABLED)
 
@@ -216,6 +220,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
 
+  def chColumnarThrowIfMemoryExceed: Boolean = conf.getConf(COLUMNAR_CH_THROW_IF_MEMORY_EXCEED)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -248,6 +254,14 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableParquetRowGroupMaxMinIndex: Boolean =
     conf.getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
 
+  def maxPartialAggregationMemoryRatio: Option[Double] =
+    conf.getConf(MAX_PARTIAL_AGGREGATION_MEMORY_RATIO)
+  def maxExtendedPartialAggregationMemoryRatio: Option[Double] =
+    conf.getConf(MAX_EXTENDED_PARTIAL_AGGREGATION_MEMORY_RATIO)
+  def abandonPartialAggregationMinPct: Option[Int] =
+    conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_PCT)
+  def abandonPartialAggregationMinRows: Option[Int] =
+    conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
   def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
 }
 
@@ -333,6 +347,9 @@ object GlutenConfig {
   // Batch size.
   val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
 
+  // Shuffle Writer buffer size.
+  val GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE = "spark.gluten.shuffleWriter.bufferSize"
+
   // Controls whether to load DLL from jars. User can get dependent native libs packed into a jar
   // by executing dev/package.sh. Then, with that jar configured, Gluten can load the native libs
   // at runtime. This config is just for velox backend. And it is NOT applicable to the situation
@@ -395,6 +412,7 @@ object GlutenConfig {
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
+      GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
     )
@@ -785,6 +803,13 @@ object GlutenConfig {
       .intConf
       .createWithDefault(4096)
 
+  // if not set, use COLUMNAR_MAX_BATCH_SIZE instead
+  val SHUFFLE_WRITER_BUFFER_SIZE =
+    buildConf(GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE)
+      .internal()
+      .intConf
+      .createOptional
+
   val COLUMNAR_LIMIT_ENABLED =
     buildConf("spark.gluten.sql.columnar.limit")
       .internal()
@@ -986,6 +1011,13 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0MB")
 
+  val COLUMNAR_CH_THROW_IF_MEMORY_EXCEED =
+    buildConf("spark.gluten.sql.columnar.backend.ch.throwIfMemoryExceed")
+      .internal()
+      .doc("Throw exception if memory exceeds threshold on ch backend.")
+      .booleanConf
+      .createWithDefault(true)
+
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")
       .internal()
@@ -1113,4 +1145,40 @@ object GlutenConfig {
       .doc("Enable row group max min index for parquet file scan")
       .booleanConf
       .createWithDefault(false)
+
+  val MAX_PARTIAL_AGGREGATION_MEMORY_RATIO =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio")
+      .internal()
+      .doc(
+        "Set the max memory of partial aggregation as "
+          + "maxPartialAggregationMemoryRatio of offheap size."
+      )
+      .doubleConf
+      .createOptional
+
+  val MAX_EXTENDED_PARTIAL_AGGREGATION_MEMORY_RATIO =
+    buildConf("spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio")
+      .internal()
+      .doc(
+        "Set the max extended memory of partial aggregation as "
+          + "maxExtendedPartialAggregationMemoryRatio of offheap size."
+      )
+      .doubleConf
+      .createOptional
+
+  val ABANDON_PARTIAL_AGGREGATION_MIN_PCT =
+    buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct")
+      .internal()
+      .doc("If partial aggregation input rows number greater than this value, "
+        + " partial aggregation may be early abandoned.")
+      .intConf
+      .createOptional
+
+  val ABANDON_PARTIAL_AGGREGATION_MIN_ROWS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows")
+      .internal()
+      .doc("If partial aggregation aggregationPct greater than this value, "
+        + "partial aggregation may be early abandoned.")
+      .intConf
+      .createOptional
 }

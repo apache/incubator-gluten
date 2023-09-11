@@ -122,10 +122,10 @@ abstract class TpcSuite(
   sessionSwitcher.registerSession("baseline", baselineConf)
 
   def startHistoryServer(): Unit = {
-    val conf = new SparkConf(false)
-    conf.setWarningOnOverriding("spark.history.ui.port", s"$hsUiPort")
-    conf.setWarningOnOverriding("spark.history.fs.logDirectory", historyWritePath())
-    HistoryServerHelper.startHistoryServer(conf)
+    val hsConf = new SparkConf(false)
+    hsConf.setWarningOnOverriding("spark.history.ui.port", s"$hsUiPort")
+    hsConf.setWarningOnOverriding("spark.history.fs.logDirectory", historyWritePath())
+    HistoryServerHelper.startHistoryServer(hsConf)
   }
 
   // boot up history server

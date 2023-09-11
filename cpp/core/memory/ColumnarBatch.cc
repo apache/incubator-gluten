@@ -118,7 +118,7 @@ std::shared_ptr<ColumnarBatch> CompositeColumnarBatch::create(std::vector<std::s
     }
     numColumns += batch->numColumns();
   }
-  return std::shared_ptr<ColumnarBatch>(new CompositeColumnarBatch(numColumns, numRows, batches));
+  return std::shared_ptr<ColumnarBatch>(new CompositeColumnarBatch(numColumns, numRows, std::move(batches)));
 }
 
 std::string CompositeColumnarBatch::getType() const {
@@ -126,11 +126,15 @@ std::string CompositeColumnarBatch::getType() const {
 }
 
 int64_t CompositeColumnarBatch::numBytes() {
-  int64_t numBytes = 0L;
-  for (const auto& batch : batches_) {
-    numBytes += batch->numBytes();
+  if (compositeBatch_) {
+    return compositeBatch_->numBytes();
+  } else {
+    int64_t numBytes = 0L;
+    for (const auto& batch : batches_) {
+      numBytes += batch->numBytes();
+    }
+    return numBytes;
   }
-  return numBytes;
 }
 
 std::shared_ptr<ArrowArray> CompositeColumnarBatch::exportArrowArray() {
@@ -148,8 +152,8 @@ const std::vector<std::shared_ptr<ColumnarBatch>>& CompositeColumnarBatch::getBa
 }
 
 CompositeColumnarBatch::CompositeColumnarBatch(
-    long numColumns,
-    long numRows,
+    int32_t numColumns,
+    int32_t numRows,
     std::vector<std::shared_ptr<ColumnarBatch>> batches)
     : ColumnarBatch(numColumns, numRows) {
   this->batches_ = std::move(batches);

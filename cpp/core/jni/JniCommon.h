@@ -20,13 +20,24 @@
 #include <arrow/ipc/reader.h>
 #include <arrow/ipc/writer.h>
 #include <arrow/util/parallel.h>
+#include <execinfo.h>
 #include <jni.h>
 
 #include "compute/ProtobufUtils.h"
 #include "config/GlutenConfig.h"
-#include "memory/ArrowMemoryPool.h"
+#include "memory/AllocationListener.h"
 #include "utils/compression.h"
 #include "utils/exception.h"
+
+static inline void backtrace() {
+  void* array[1024];
+  auto size = backtrace(array, 1024);
+  char** strings = backtrace_symbols(array, size);
+  for (size_t i = 0; i < size; ++i) {
+    std::cout << strings[i] << std::endl;
+  }
+  free(strings);
+}
 
 static jint jniVersion = JNI_VERSION_1_8;
 
@@ -140,6 +151,9 @@ static inline void checkException(JNIEnv* env) {
         env->GetStaticMethodID(describerClass, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
     std::string description =
         jStringToCString(env, (jstring)env->CallStaticObjectMethod(describerClass, describeMethod, t));
+    if (env->ExceptionCheck()) {
+      std::cerr << "Fatal: Uncaught Java exception during calling the Java exception describer method! " << std::endl;
+    }
     throw gluten::GlutenException("Error during calling Java code from native code: " + description);
   }
 }
@@ -166,18 +180,20 @@ class SparkAllocationListener final : public gluten::AllocationListener {
  public:
   SparkAllocationListener(
       JavaVM* vm,
-      jobject javaListener,
-      jmethodID javaReserveMethod,
-      jmethodID javaUnreserveMethod,
+      jobject jListenerLocalRef,
+      jmethodID jReserveMethod,
+      jmethodID jUnreserveMethod,
       int64_t blockSize)
-      : vm_(vm),
-        javaReserveMethod_(javaReserveMethod),
-        javaUnreserveMethod_(javaUnreserveMethod),
-        blockSize_(blockSize) {
+      : vm_(vm), jReserveMethod_(jReserveMethod), jUnreserveMethod_(jUnreserveMethod), blockSize_(blockSize) {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    javaListener_ = env->NewGlobalRef(javaListener);
+    jListenerGlobalRef_ = env->NewGlobalRef(jListenerLocalRef);
   }
+
+  SparkAllocationListener(const SparkAllocationListener&) = delete;
+  SparkAllocationListener(SparkAllocationListener&&) = delete;
+  SparkAllocationListener& operator=(const SparkAllocationListener&) = delete;
+  SparkAllocationListener& operator=(SparkAllocationListener&&) = delete;
 
   ~SparkAllocationListener() override {
     JNIEnv* env;
@@ -186,12 +202,12 @@ class SparkAllocationListener final : public gluten::AllocationListener {
                 << "JNIEnv was not attached to current thread" << std::endl;
       return;
     }
-    env->DeleteGlobalRef(javaListener_);
+    env->DeleteGlobalRef(jListenerGlobalRef_);
   }
 
   void allocationChanged(int64_t size) override {
     updateReservation(size);
-  };
+  }
 
  private:
   int64_t reserve(int64_t diff) {
@@ -213,30 +229,56 @@ class SparkAllocationListener final : public gluten::AllocationListener {
   }
 
   void updateReservation(int64_t diff) {
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     int64_t granted = reserve(diff);
     if (granted == 0) {
       return;
     }
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     if (granted < 0) {
-      env->CallLongMethod(javaListener_, javaUnreserveMethod_, -granted);
+      env->CallLongMethod(jListenerGlobalRef_, jUnreserveMethod_, -granted);
       checkException(env);
       return;
     }
-    env->CallLongMethod(javaListener_, javaReserveMethod_, granted);
+    env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, granted);
     checkException(env);
   }
 
   JavaVM* vm_;
-  jobject javaListener_;
-  jmethodID javaReserveMethod_;
-  jmethodID javaUnreserveMethod_;
+  jobject jListenerGlobalRef_;
+  jmethodID jReserveMethod_;
+  jmethodID jUnreserveMethod_;
   int64_t blockSize_;
   int64_t blocksReserved_ = 0L;
   int64_t bytesReserved_ = 0L;
   int64_t maxBytesReserved_ = 0L;
   std::mutex mutex_;
+};
+
+class BacktraceAllocationListener final : public gluten::AllocationListener {
+ public:
+  BacktraceAllocationListener(std::unique_ptr<gluten::AllocationListener> delegator)
+      : delegator_(std::move(delegator)) {}
+
+  void allocationChanged(int64_t bytes) override {
+    allocationBacktrace(bytes);
+    delegator_->allocationChanged(bytes);
+  }
+
+ private:
+  void allocationBacktrace(int64_t bytes) {
+    allocatedBytes_ += bytes;
+    if (bytes > (64L << 20)) {
+      backtrace();
+    } else if (allocatedBytes_ >= backtraceBytes_) {
+      backtrace();
+      backtraceBytes_ += (1L << 30);
+    }
+  }
+
+  std::unique_ptr<gluten::AllocationListener> delegator_;
+  std::atomic_int64_t allocatedBytes_{};
+  std::atomic_int64_t backtraceBytes_{1L << 30};
 };
 
 class RssClient {
@@ -255,6 +297,7 @@ class CelebornClient : public RssClient {
 
     javaCelebornShuffleWriter_ = env->NewGlobalRef(javaCelebornShuffleWriter);
     array_ = env->NewByteArray(1024 * 1024);
+    array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
   }
 
   ~CelebornClient() {
@@ -265,6 +308,8 @@ class CelebornClient : public RssClient {
       return;
     }
     env->DeleteGlobalRef(javaCelebornShuffleWriter_);
+    jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
+    env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
     env->DeleteGlobalRef(array_);
   }
 
@@ -277,7 +322,9 @@ class CelebornClient : public RssClient {
     if (size > length) {
       jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
       env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
+      env->DeleteGlobalRef(array_);
       array_ = env->NewByteArray(size);
+      array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
     }
     env->SetByteArrayRegion(array_, 0, size, reinterpret_cast<jbyte*>(bytes));
     jint celebornBytesSize =

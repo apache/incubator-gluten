@@ -26,16 +26,13 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
 
   private InputStream in;
   private final boolean isCompressed;
-  private int bufferSize;
   private long bytesRead = 0L;
 
   private byte[] buffer;
 
-  public OnHeapCopyShuffleInputStream(InputStream in, int bufferSize, boolean isCompressed) {
+  public OnHeapCopyShuffleInputStream(InputStream in, boolean isCompressed) {
     this.in = in;
-    this.bufferSize = bufferSize;
     this.isCompressed = isCompressed;
-    this.buffer = new byte[this.bufferSize];
   }
 
   @Override
@@ -43,9 +40,8 @@ public class OnHeapCopyShuffleInputStream implements ShuffleInputStream {
     return GlutenException.wrap(
         () -> {
           int maxReadSize32 = Math.toIntExact(maxReadSize);
-          if (maxReadSize32 > this.bufferSize) {
-            this.bufferSize = maxReadSize32;
-            this.buffer = new byte[this.bufferSize];
+          if (buffer == null || maxReadSize32 > buffer.length) {
+            this.buffer = new byte[maxReadSize32];
           }
           // The code conducts copy as long as 'in' wraps off-heap data,
           // which is about to be moved to heap

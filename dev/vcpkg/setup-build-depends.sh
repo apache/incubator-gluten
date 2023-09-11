@@ -18,7 +18,7 @@ install_centos_any_maven() {
         fi
 
         cd /tmp
-        wget https://downloads.apache.org/maven/maven-3/$maven_version/binaries/apache-maven-$maven_version-bin.tar.gz
+        wget https://archive.apache.org/dist/maven/maven-3/$maven_version/binaries/apache-maven-$maven_version-bin.tar.gz
         tar -xvf apache-maven-$maven_version-bin.tar.gz
         rm apache-maven-$maven_version-bin.tar.gz
         mv apache-maven-$maven_version "${maven_install_dir}"
@@ -109,7 +109,7 @@ install_alinux_3() {
 install_tencentos_3.2() {
     yum -y install \
         wget curl tar zip unzip git which \
-        cmake ninja-build perl-IPC-Cmd autoconf automake libtool \
+        cmake ninja-build perl-IPC-Cmd autoconf autoconf-archive automake libtool \
         gcc-toolset-9-gcc gcc-toolset-9-gcc-c++ \
         flex bison python3 \
         java-8-konajdk
