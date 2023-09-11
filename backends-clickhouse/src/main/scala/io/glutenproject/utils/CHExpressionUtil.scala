@@ -48,7 +48,12 @@ case class UnixTimeStampValidator() extends FunctionValidator {
   final val DATE_TYPE = "date"
 
   override def doValidate(expr: Expression): Boolean = {
-    !expr.children.map(_.dataType.typeName).exists(DATE_TYPE.contains)
+    // CH backend does not support non-const format
+    expr match {
+      case t: ToUnixTimestamp => t.format.isInstanceOf[Literal]
+      case u: UnixTimestamp => u.format.isInstanceOf[Literal]
+      case _ => true
+    }
   }
 }
 
