@@ -1278,6 +1278,11 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("test posexplode issue: https://github.com/oap-project/gluten/issues/2492") {
+    val sql = "select posexplode(split(n_comment, ' ')) from nation where n_comment is null"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("test 'scala udf'") {
     spark.udf.register("my_add", (x: Long, y: Long) => x + y)
     runQueryAndCompare("select my_add(id, id+1) from range(10)")(
