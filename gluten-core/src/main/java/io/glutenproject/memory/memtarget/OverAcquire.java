@@ -53,7 +53,8 @@ class OverAcquire implements TaskManagedMemoryTarget {
 
   OverAcquire(TaskManagedMemoryTarget target, double ratio) {
     Preconditions.checkArgument(ratio >= 0.0D);
-    this.overTarget = new OverAcquire.DummyTarget(target.getTaskMemoryManager());
+    this.overTarget = new OverAcquire.DummyTarget(
+        String.format("OverAcquire.DummyTarget[%s]", target.name()), target.getTaskMemoryManager());
     this.target = target;
     this.ratio = ratio;
   }
@@ -90,7 +91,7 @@ class OverAcquire implements TaskManagedMemoryTarget {
 
   @Override
   public String name() {
-    return String.format("OverAcquire-[%s][%s]", target.name(), overTarget.name());
+    return String.format("OverAcquire.Root[%s]", target.name());
   }
 
   @Override
@@ -117,9 +118,11 @@ class OverAcquire implements TaskManagedMemoryTarget {
 
   private class DummyTarget extends MemoryConsumer implements MemoryTarget {
     private final SimpleMemoryUsageRecorder usage = new SimpleMemoryUsageRecorder();
+    private final String name;
 
-    private DummyTarget(TaskMemoryManager taskMemoryManager) {
+    private DummyTarget(String name, TaskMemoryManager taskMemoryManager) {
       super(taskMemoryManager, MemoryMode.OFF_HEAP);
+      this.name = name;
     }
 
     @Override
@@ -149,7 +152,7 @@ class OverAcquire implements TaskManagedMemoryTarget {
 
     @Override
     public String name() {
-      return "OverAcquire.DummyTarget";
+      return name;
     }
 
     @Override
