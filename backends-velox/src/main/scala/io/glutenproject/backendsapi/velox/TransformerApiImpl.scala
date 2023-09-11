@@ -100,7 +100,7 @@ class TransformerApiImpl extends TransformerApi with Logging {
   override def createDateDiffParamList(
       start: ExpressionNode,
       end: ExpressionNode): Iterable[ExpressionNode] = {
-    List(start, end)
+    List(end, start)
   }
 
   override def createLikeParamList(
