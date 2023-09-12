@@ -47,7 +47,7 @@ public class IsolatedMemoryConsumers {
           m -> {
             TreeMemoryConsumerNode tmc = new TreeMemoryConsumer(m);
             return tmc.newChild(
-                "ROOT",
+                "root",
                 GlutenConfig.getConf().conservativeTaskOffHeapMemorySize(),
                 Spiller.NO_OP,
                 Collections.emptyMap());
