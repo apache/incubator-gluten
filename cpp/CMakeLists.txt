@@ -164,7 +164,7 @@ function(ADD_TEST_CASE TEST_NAME)
   gtest_discover_tests(${TEST_NAME})
 endfunction()
 
-if(BUILD_BENCHMARKS)
+if(BUILD_TESTS OR BUILD_BENCHMARKS)
   set(GLUTEN_GBENCHMARKS_MIN_VERSION "1.6.0")
   find_package(benchmark ${GLUTEN_GBENCHMARK_MIN_VERSION} CONFIG)
   if(NOT benchmark_FOUND)
