@@ -60,7 +60,8 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     val conf = pluginContext.conf()
     if (!conf.getBoolean(GLUTEN_ENABLE_KEY, defaultValue = true)) {
       logWarning(
-        "Configured to not enabled Gluten, but gluten added in `spark.plugins`! " +
+        "Configured not to enable Gluten plugin in driver, " +
+          "but gluten plugin added in `spark.plugins`! " +
           "This may cause unexpected behavior as Gluten is not enabled.")
       return Collections.emptyMap()
     }
@@ -192,7 +193,8 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin with Lo
     val conf = ctx.conf()
     if (!conf.getBoolean(GLUTEN_ENABLE_KEY, defaultValue = true)) {
       logWarning(
-        "Configured to not enabled Gluten, but gluten added in `spark.plugins`! " +
+        "Configured to not enabled Gluten in executor, " +
+          "but gluten plugin added in `spark.plugins`! " +
           "This may cause unexpected behavior as Gluten is not enabled.")
       return
     }
