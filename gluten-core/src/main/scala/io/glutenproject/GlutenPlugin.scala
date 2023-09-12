@@ -57,11 +57,18 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
   private var _sc: Option[SparkContext] = None
 
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
+    val conf = pluginContext.conf()
+    if (!conf.getBoolean(GLUTEN_ENABLE_KEY, defaultValue = true)) {
+      logWarning(
+        "Configured to not enabled Gluten, but gluten added in `spark.plugins`! " +
+          "This may cause unexpected behavior as Gluten is not enabled.")
+      return Collections.emptyMap()
+    }
+
     _sc = Some(sc)
     GlutenEventUtils.registerListener(sc)
     postBuildInfoEvent(sc)
 
-    val conf = pluginContext.conf()
     if (conf.getBoolean(GlutenConfig.UT_STATISTIC.key, defaultValue = false)) {
       // Only statistic in UT, not thread safe
       TestStats.beginStatistic()
