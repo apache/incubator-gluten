@@ -167,7 +167,7 @@ trait HashJoinLikeExecTransformer
     }
   }
 
-  protected val substraitJoinType: JoinRel.JoinType = SubstraitUtil.toSubstrait(joinType)
+  protected lazy val substraitJoinType: JoinRel.JoinType = SubstraitUtil.toSubstrait(joinType)
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetricsUpdater(metrics)
 
