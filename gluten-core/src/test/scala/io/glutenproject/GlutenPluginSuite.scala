@@ -34,15 +34,13 @@ class GlutenPluginSuite extends SparkFunSuite {
     assertThrows[IllegalArgumentException] {
       glutenPlugin
         .executorPlugin()
-        .init(
-          new MockPluginContext(conf = conf, execId = "1", hostName = "localhost"),
-          util.Map.of())
+        .init(new MockPluginContext(conf = conf, execId = "1", hostName = "localhost"), null)
     }
     // [GLUTEN-3114] Check whether enabled gluten when init GlutenExecutorPlugin
     conf.set(GlutenConfig.GLUTEN_ENABLED.key, "false")
     glutenPlugin
       .executorPlugin()
-      .init(new MockPluginContext(conf = conf, execId = "1", hostName = "localhost"), util.Map.of())
+      .init(new MockPluginContext(conf = conf, execId = "1", hostName = "localhost"), null)
   }
 }
 
