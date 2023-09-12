@@ -16,7 +16,7 @@
  */
 package io.glutenproject
 
-import io.glutenproject.GlutenConfig.GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
+import io.glutenproject.GlutenConfig.{GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY, GLUTEN_ENABLE_KEY}
 import io.glutenproject.GlutenPlugin.{GLUTEN_SESSION_EXTENSION_NAME, SPARK_SESSION_EXTS_KEY}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.events.GlutenBuildInfoEvent
@@ -24,7 +24,6 @@ import io.glutenproject.expression.ExpressionMappings
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.TaskListener
-
 import org.apache.spark.{SparkConf, SparkContext, TaskFailedReason}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
@@ -39,7 +38,6 @@ import org.apache.spark.util.{SparkResourceUtil, TaskResources}
 
 import java.util
 import java.util.{Collections, Objects}
-
 import scala.collection.mutable
 import scala.language.implicitConversions
 
@@ -176,14 +174,19 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
   }
 }
 
-private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
+private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin with Logging {
   private var executorEndpoint: GlutenExecutorEndpoint = _
   private val taskListeners: Seq[TaskListener] = Array(TaskResources)
 
   /** Initialize the executor plugin. */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     val conf = ctx.conf()
-
+    if (!conf.getBoolean(GLUTEN_ENABLE_KEY, defaultValue = true)) {
+      logWarning(
+        "Configured to not enabled Gluten, but gluten added in `spark.plugins`! " +
+          "This may cause unexpected behavior as Gluten is not enabled.")
+      return
+    }
     // Must set the 'spark.memory.offHeap.size' value to native memory malloc
     if (
       !conf.getBoolean("spark.memory.offHeap.enabled", false) ||
