@@ -607,11 +607,11 @@ std::unordered_map<std::string, std::string> SubstraitVeloxExprConverter::extrac
     {"MINUTE", "minute"},
     {"HOUR", "hour"},
     {"DAY", "day"},
-    {"DAY_OF_WEEK", "day_of_week"},
-    {"DAY_OF_YEAR", "day_of_year"},
+    {"DAY_OF_WEEK", "dayofweek"},
+    {"DAY_OF_YEAR", "dayofyear"},
     {"MONTH", "month"},
     {"QUARTER", "quarter"},
     {"YEAR", "year"},
-    {"YEAR_OF_WEEK", "year_of_week"}};
+    {"YEAR_OF_WEEK", "week_of_year"}};
 
 } // namespace gluten
