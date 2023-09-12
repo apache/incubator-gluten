@@ -1292,7 +1292,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     )
 
     for (sql <- sqls) {
-      runQueryAndCompare(sql)(checkOperatorMatch[CHHashAggregateExecTransformer])
+      runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
     }
   }
 
