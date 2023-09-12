@@ -27,7 +27,7 @@ import java.util.WeakHashMap;
 
 /**
  * A hub to provide memory target instances whose shared size (in the same task) is limited to X, X
- * = free executor memory / task slots.
+ * = executor memory / task slots.
  *
  * <p>Using this to prevent OOMs if the delegated memory target could possibly hold large memory
  * blocks that are not spillable.
