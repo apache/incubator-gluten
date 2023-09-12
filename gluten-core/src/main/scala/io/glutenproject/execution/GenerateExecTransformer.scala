@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.exception.GlutenException
+import io.glutenproject.expression.{AttributeReferenceTransformer, ExplodeTransformer}
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.expression.ExpressionTransformer
@@ -41,6 +42,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import com.google.protobuf.Any
 
 import java.util
+
+import scala.collection.JavaConverters._
 
 // Transformer for GeneratorExec, which Applies a [[Generator]] to a stream of input rows.
 // For clickhouse backend, it will transform Spark explode lateral view to CH array join.
@@ -141,28 +144,100 @@ case class GenerateExecTransformer(
     }
 
     val relNode = if (childCtx != null) {
-      getRelNode(
-        context,
-        operatorId,
-        child.output,
-        childCtx.root,
-        generatorNode,
-        childOutputNodes,
-        validation = false)
-    } else {
-      val attrList = new java.util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
+      // TODO(yuan): remove duplicated code
+      if (
+        generatorExpr
+          .asInstanceOf[ExplodeTransformer]
+          .child
+          .isInstanceOf[AttributeReferenceTransformer]
+      ) {
+
+        getRelNode(
+          context,
+          operatorId,
+          child.output,
+          childCtx.root,
+          generatorNode,
+          childOutputNodes,
+          validation = false)
+      } else {
+        // needs to do projection
+        val selectOrigins = requiredChildOutput.indices.map(ExpressionBuilder.makeSelection(_))
+        val projectExpressions = new util.ArrayList[ExpressionNode]()
+        projectExpressions.addAll(selectOrigins.asJava)
+        val projectExprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(
+            generator.asInstanceOf[Explode].child,
+            requiredChildOutput)
+          .doTransform(args)
+
+        projectExpressions.add(projectExprNode)
+        val projRel =
+          RelBuilder.makeProjectRel(
+            childCtx.root,
+            projectExpressions,
+            context,
+            operatorId,
+            requiredChildOutput.size)
+        logWarning(s"AAA proj rel: $projRel")
+        getRelNode(
+          context,
+          operatorId,
+          child.output,
+          projRel,
+          generatorNode,
+          childOutputNodes,
+          validation = false)
       }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
-      getRelNode(
-        context,
-        operatorId,
-        child.output,
-        readRel,
-        generatorNode,
-        childOutputNodes,
-        validation = false)
+
+    } else {
+      if (
+        generatorExpr
+          .asInstanceOf[ExplodeTransformer]
+          .child
+          .isInstanceOf[AttributeReferenceTransformer]
+      ) {
+        val attrList = new java.util.ArrayList[Attribute]()
+        for (attr <- child.output) {
+          attrList.add(attr)
+        }
+        val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+
+        getRelNode(
+          context,
+          operatorId,
+          child.output,
+          readRel,
+          generatorNode,
+          childOutputNodes,
+          validation = false)
+      } else {
+        // needs to do projection
+        val attrList = new java.util.ArrayList[Attribute]()
+        for (attr <- child.output) {
+          attrList.add(attr)
+        }
+        val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+
+        val projectExpressions = new util.ArrayList[ExpressionNode]()
+        val projectExprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(
+            generator.asInstanceOf[Explode].child,
+            requiredChildOutput)
+          .doTransform(args)
+        projectExpressions.add(projectExprNode)
+        val projRel =
+          RelBuilder.makeProjectRel(readRel, projectExpressions, context, operatorId, 0)
+        getRelNode(
+          context,
+          operatorId,
+          child.output,
+          projRel,
+          generatorNode,
+          childOutputNodes,
+          validation = false)
+      }
+
     }
     TransformContext(child.output, output, relNode)
   }
