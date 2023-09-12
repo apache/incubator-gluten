@@ -43,7 +43,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  velox-ubuntu2004-test-spark32:
+  ubuntu2004-test-spark32:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
@@ -92,7 +92,7 @@ jobs:
         run: |
           docker stop velox-ubuntu2004-test-$GITHUB_RUN_ID || true
 
-  velox-ubuntu2004-test-slow-spark32:
+  ubuntu2004-test-slow-spark32:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
@@ -133,7 +133,7 @@ jobs:
         run: |
           docker stop velox-ubuntu2004-test-slow-$GITHUB_RUN_ID || true
 
-  velox-ubuntu2004-test-spark33-slow:
+  ubuntu2004-test-spark33-slow:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
@@ -173,7 +173,7 @@ jobs:
         run: |
           docker stop velox-ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID || true
 
-  velox-ubuntu2004-test-spark33:
+  ubuntu2004-test-spark33:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
@@ -206,7 +206,7 @@ jobs:
         run: |
           docker stop velox-ubuntu2004-test-spark33-$GITHUB_RUN_ID || true
 
-  velox-ubuntu2204-test:
+  ubuntu2204-test:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
@@ -271,7 +271,7 @@ jobs:
         run: |
           docker stop velox-ubuntu2204-test-$GITHUB_RUN_ID || true
 
-  velox-centos8-test:
+  centos8-test:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
@@ -314,7 +314,7 @@ jobs:
         run: |
           docker stop velox-centos8-test-$GITHUB_RUN_ID || true
 
-  velox-centos7-test:
+  centos7-test:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
@@ -357,7 +357,7 @@ jobs:
         run: |
           docker stop velox-centos7-test-$GITHUB_RUN_ID || true
 
-  velox-static-build-test:
+  static-build-test:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v2
