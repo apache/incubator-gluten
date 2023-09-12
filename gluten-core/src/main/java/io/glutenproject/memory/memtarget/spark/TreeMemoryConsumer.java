@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
  * <p>Spark's memory manager could either trigger spilling on the children spillers since this was
  * registered as a Spark memory consumer.
  *
- * <p>Typically used by memory target {@link
+ * <p>Typically used by utility class {@link
  * io.glutenproject.memory.memtarget.spark.IsolatedMemoryConsumers}.
  */
 public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryConsumerNode {
