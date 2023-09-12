@@ -174,7 +174,11 @@ class HiveTableScanExecTransformer(
       // property key string read from org.apache.hadoop.hive.serde.serdeConstants
       properties.foreach {
         case ("separatorChar", v) => options += ("field_delimiter" -> v)
-        case ("field.delim", v) => options += ("field_delimiter" -> v)
+        case ("field.delim", v) =>
+          // If field.delim is empty, we should use default field delimiter.
+          // It fixed issue: https://github.com/oap-project/gluten/issues/3108
+          var nv = if (v.isEmpty) DEFAULT_FIELD_DELIMITER.toString else v
+          options += ("field_delimiter" -> nv)
         case ("quoteChar", v) => options += ("quote" -> v)
         case ("quote.delim", v) => options += ("quote" -> v)
         case ("skip.header.line.count", v) => options += ("header" -> v)
