@@ -91,10 +91,11 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
   @Override
   public MemoryUsageStats stats() {
     Set<Map.Entry<String, TreeMemoryConsumerNode>> entries = children.entrySet();
-    MemoryUsageStats stats =
-        recorder.toStats(
-            entries.stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stats())));
+    Map<String, MemoryUsageStats> childrenStats = entries.stream()
+        .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stats()));
+
+    Preconditions.checkState(childrenStats.size() == children.size());
+    MemoryUsageStats stats = recorder.toStats(childrenStats);
     Preconditions.checkState(
         stats.getCurrent() == getUsed(),
         "Used bytes mismatch between gluten memory consumer and Spark task memory manager");
@@ -258,19 +259,21 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
     @Override
     public MemoryUsageStats stats() {
-      final Map<String, MemoryUsageStats> allChildren =
+      final Map<String, MemoryUsageStats> childrenStats =
           new HashMap<>(
               children.entrySet().stream()
-                  .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().stats())));
+                  .collect(Collectors.toMap(e -> e.getValue().name(), e -> e.getValue().stats())));
+
+      Preconditions.checkState(childrenStats.size() == children.size());
 
       // add virtual children
       for (Map.Entry<String, MemoryUsageStatsBuilder> entry : virtualChildren.entrySet()) {
-        if (allChildren.containsKey(entry.getKey())) {
+        if (childrenStats.containsKey(entry.getKey())) {
           throw new IllegalArgumentException("Child stats already exists: " + entry.getKey());
         }
-        allChildren.put(entry.getKey(), entry.getValue().toStats());
+        childrenStats.put(entry.getKey(), entry.getValue().toStats());
       }
-      return selfRecorder.toStats(allChildren);
+      return selfRecorder.toStats(childrenStats);
     }
 
     @Override
