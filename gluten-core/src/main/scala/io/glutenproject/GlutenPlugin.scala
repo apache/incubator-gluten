@@ -24,6 +24,7 @@ import io.glutenproject.expression.ExpressionMappings
 import io.glutenproject.extension.{ColumnarOverrides, ColumnarQueryStagePrepOverrides, OthersExtensionOverrides, StrategyOverrides}
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.TaskListener
+
 import org.apache.spark.{SparkConf, SparkContext, TaskFailedReason}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
@@ -38,6 +39,7 @@ import org.apache.spark.util.{SparkResourceUtil, TaskResources}
 
 import java.util
 import java.util.{Collections, Objects}
+
 import scala.collection.mutable
 import scala.language.implicitConversions
 
