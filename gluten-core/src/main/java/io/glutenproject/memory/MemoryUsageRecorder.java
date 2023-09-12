@@ -14,22 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.memtarget.spark;
+package io.glutenproject.memory;
 
-public final class Spillers {
-  private Spillers() {
-    // enclose factory ctor
-  }
-
-  // calls the spillers one by one within the order
-  public static Spiller withOrder(Spiller... spillers) {
-    return (size) -> {
-      long remaining = size;
-      for (int i = 0; i < spillers.length && remaining > 0; i++) {
-        Spiller spiller = spillers[i];
-        remaining -= spiller.spill(remaining);
-      }
-      return size - remaining;
-    };
-  }
+public interface MemoryUsageRecorder extends MemoryUsageStatsBuilder {
+  void inc(long bytes);
+  // peak used bytes
+  long peak();
+  // current used bytes
+  long current();
 }

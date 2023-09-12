@@ -19,9 +19,6 @@ package io.glutenproject.memory;
 import io.glutenproject.proto.MemoryUsageStats;
 
 public interface MemoryUsageStatsBuilder {
-
-  void inc(long bytes);
-
   // Implementation should be idempotent
   MemoryUsageStats toStats();
 }

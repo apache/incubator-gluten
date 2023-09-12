@@ -14,12 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.memtarget;
+package io.glutenproject.memory.memtarget.spark;
+
+import io.glutenproject.memory.memtarget.MemoryTarget;
+import io.glutenproject.proto.MemoryUsageStats;
 
 import org.apache.spark.memory.TaskMemoryManager;
 
-// Memory target that is bind to Spark TMM (task memory manager). This is typically a Spark
+// Memory target that is bound to Spark TMM (task memory manager). This is typically a Spark
 // consumer.
 public interface TaskMemoryTarget extends MemoryTarget {
   TaskMemoryManager getTaskMemoryManager();
+
+  String name();
+
+  MemoryUsageStats stats();
 }

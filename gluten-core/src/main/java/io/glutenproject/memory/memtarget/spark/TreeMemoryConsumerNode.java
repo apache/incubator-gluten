@@ -16,20 +16,21 @@
  */
 package io.glutenproject.memory.memtarget.spark;
 
-public final class Spillers {
-  private Spillers() {
-    // enclose factory ctor
-  }
+import io.glutenproject.memory.MemoryUsageStatsBuilder;
 
-  // calls the spillers one by one within the order
-  public static Spiller withOrder(Spiller... spillers) {
-    return (size) -> {
-      long remaining = size;
-      for (int i = 0; i < spillers.length && remaining > 0; i++) {
-        Spiller spiller = spillers[i];
-        remaining -= spiller.spill(remaining);
-      }
-      return size - remaining;
-    };
-  }
+import java.util.Map;
+
+/** An abstract for both {@link TreeMemoryConsumer} and it's non-consumer children nodes. */
+public interface TreeMemoryConsumerNode extends TaskMemoryTarget {
+  TreeMemoryConsumerNode newChild(
+      String name,
+      long capacity,
+      Spiller spiller,
+      Map<String, MemoryUsageStatsBuilder> virtualChildren);
+
+  Map<String, TreeMemoryConsumerNode> children();
+
+  TreeMemoryConsumerNode parent();
+
+  Spiller getNodeSpiller();
 }

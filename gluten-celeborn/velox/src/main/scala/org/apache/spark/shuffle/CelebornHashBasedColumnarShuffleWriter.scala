@@ -124,7 +124,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
               .create(
                 "CelebornShuffleWriter",
                 new Spiller() {
-                  override def spill(size: Long, trigger: MemoryConsumer): Long = {
+                  override def spill(size: Long): Long = {
                     if (nativeShuffleWriter == -1L) {
                       throw new IllegalStateException(
                         "Fatal: spill() called before a celeborn shuffle writer " +

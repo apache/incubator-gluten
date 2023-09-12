@@ -19,8 +19,11 @@ package io.glutenproject.memory.memtarget;
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.memtarget.spark.RegularMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
+import io.glutenproject.memory.memtarget.spark.TaskMemoryTarget;
 
 import org.apache.spark.memory.TaskMemoryManager;
+
+import java.util.Map;
 
 public final class MemoryTargets {
 
@@ -40,8 +43,12 @@ public final class MemoryTargets {
   }
 
   public static TaskMemoryTarget newConsumer(
-      TaskMemoryManager tmm, String name, Spiller spiller, MemoryUsageStatsBuilder statsBuilder) {
-    final RegularMemoryConsumer gmc = new RegularMemoryConsumer(tmm, name, spiller, statsBuilder);
+      TaskMemoryManager tmm,
+      String name,
+      Spiller spiller,
+      Map<String, MemoryUsageStatsBuilder> virtualChildren) {
+    final RegularMemoryConsumer gmc =
+        new RegularMemoryConsumer(tmm, name, spiller, virtualChildren);
     return gmc;
   }
 }

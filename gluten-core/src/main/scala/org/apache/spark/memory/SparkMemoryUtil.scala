@@ -16,7 +16,7 @@
  */
 package org.apache.spark.memory
 
-import io.glutenproject.memory.memtarget.MemoryTarget
+import io.glutenproject.memory.memtarget.spark.TaskMemoryTarget
 import io.glutenproject.proto.MemoryUsageStats
 
 import org.apache.spark.SparkEnv
@@ -70,7 +70,7 @@ object SparkMemoryUtil {
       }
 
       consumers.asScala.toSeq.map {
-        case mt: MemoryTarget =>
+        case mt: TaskMemoryTarget =>
           val name = mt.name
           toMemoryConsumerStats(name, mt.stats())
         case mc =>

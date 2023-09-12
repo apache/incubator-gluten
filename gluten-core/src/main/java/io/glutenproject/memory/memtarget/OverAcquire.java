@@ -18,10 +18,13 @@ package io.glutenproject.memory.memtarget;
 
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.spark.Spiller;
+import io.glutenproject.memory.memtarget.spark.TaskMemoryTarget;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.common.base.Preconditions;
 import org.apache.spark.memory.TaskMemoryManager;
+
+import java.util.Collections;
 
 class OverAcquire implements TaskMemoryTarget {
 
@@ -29,7 +32,7 @@ class OverAcquire implements TaskMemoryTarget {
   private final TaskMemoryTarget target;
 
   // This consumer holds the over-acquired memory.
-  private final MemoryTarget overTarget;
+  private final TaskMemoryTarget overTarget;
 
   // The ratio is normally 0.
   //
@@ -55,7 +58,7 @@ class OverAcquire implements TaskMemoryTarget {
             target.getTaskMemoryManager(),
             String.format("OverAcquire.DummyTarget[%s]", target.name()),
             Spiller.NO_OP,
-            new SimpleMemoryUsageRecorder());
+            Collections.emptyMap());
     this.target = target;
     this.ratio = ratio;
   }
