@@ -238,8 +238,8 @@ object DecimalArithmeticUtil {
     transformer match {
       case ChildTransformer(child) =>
         getResultType(child)
-      case CheckOverflowTransformer(_, child, _) =>
-        getResultType(child)
+      case CheckOverflowTransformer(_, _, original) =>
+        Some(original.dataType)
       case DecimalArithmeticExpressionTransformer(_, _, _, resultType, _) =>
         Some(resultType)
       case _ => None
