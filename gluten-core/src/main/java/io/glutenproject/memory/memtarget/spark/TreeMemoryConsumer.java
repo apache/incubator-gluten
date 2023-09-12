@@ -254,7 +254,7 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
     @Override
     public String name() {
-      return String.format("%s.%s", name, Utils.bytesToString(capacity));
+      return String.format("%s,%s", name, Utils.bytesToString(capacity));
     }
 
     @Override
