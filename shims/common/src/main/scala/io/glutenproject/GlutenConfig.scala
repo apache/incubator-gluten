@@ -933,7 +933,7 @@ object GlutenConfig {
       .createWithDefaultString("0")
 
   val COLUMNAR_MEMORY_ISOLATE =
-    buildConf("spark.gluten.memory.isolate")
+    buildConf("spark.gluten.memory.isolation")
       .internal()
       .doc("Enable isolate memory mode. If true, Gluten controls the maximum off-heap memory " +
         "can be used by each task to X, X = executor memory / max task slots. It's recommended " +
