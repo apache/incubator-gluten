@@ -40,7 +40,7 @@ public class IsolatedMemoryConsumers {
 
   private IsolatedMemoryConsumers() {}
 
-  private TreeMemoryConsumerNode getSharedAccount(TaskMemoryManager tmm) {
+  private static TreeMemoryConsumerNode getSharedAccount(TaskMemoryManager tmm) {
     synchronized (MAP) {
       return MAP.computeIfAbsent(
           tmm,
@@ -55,7 +55,7 @@ public class IsolatedMemoryConsumers {
     }
   }
 
-  public TreeMemoryConsumerNode newConsumer(
+  public static TreeMemoryConsumerNode newConsumer(
       TaskMemoryManager tmm,
       String name,
       Spiller spiller,

@@ -186,6 +186,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
+  def memoryIsolate: Boolean = conf.getConf(COLUMNAR_MEMORY_ISOLATE)
+
   def offHeapMemorySize: Long = conf.getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
 
   def taskOffHeapMemorySize: Long = conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES)
