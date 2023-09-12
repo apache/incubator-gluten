@@ -17,25 +17,5 @@
 package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.sql.GlutenTestsTrait
-import org.apache.spark.sql.types.{Decimal, DecimalType}
 
-class GlutenDecimalExpressionSuite extends DecimalExpressionSuite with GlutenTestsTrait {
-  // Replace CheckOverflow with Cast to test the decimal precision change.
-  // nullOnOverflow is true because ANSI mode is not supported in expressions.
-  test("change decimal precision by cast") {
-    val d1 = Decimal("10.1")
-    checkEvaluation(Cast(Literal(d1), DecimalType(4, 0)), Decimal("10"))
-    checkEvaluation(Cast(Literal(d1), DecimalType(4, 1)), d1)
-    checkEvaluation(Cast(Literal(d1), DecimalType(4, 2)), d1)
-    checkEvaluation(Cast(Literal(d1), DecimalType(4, 3)), null)
-
-    val d2 = Decimal(101, 3, 1)
-    checkEvaluation(Cast(Literal(d2), DecimalType(4, 0)), Decimal("10"))
-    checkEvaluation(Cast(Literal(d2), DecimalType(4, 1)), d2)
-    checkEvaluation(Cast(Literal(d2), DecimalType(4, 2)), d2)
-    checkEvaluation(Cast(Literal(d2), DecimalType(4, 3)), null)
-
-    checkEvaluation(Cast(Literal.create(null, DecimalType(2, 1)), DecimalType(3, 2)), null)
-    checkEvaluation(Cast(Literal.create(null, DecimalType(2, 1)), DecimalType(3, 2)), null)
-  }
-}
+class GlutenDecimalExpressionSuite extends DecimalExpressionSuite with GlutenTestsTrait {}

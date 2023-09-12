@@ -201,9 +201,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Unsupported format: yyyy-MM-dd HH:mm:ss.SSS
     .exclude("SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError")
   enableSuite[GlutenDecimalExpressionSuite]
-    // CheckOverflow is removed to avoid precision loss caused by rescaling.
-    // Replaced by "change decimal precision by cast"
-    .exclude("CheckOverflow")
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]
   enableSuite[GlutenNullExpressionsSuite]
