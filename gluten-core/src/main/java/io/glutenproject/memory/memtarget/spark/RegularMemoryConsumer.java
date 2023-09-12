@@ -81,9 +81,9 @@ public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryT
     Preconditions.checkState(
         stats.getCurrent() == getUsed(),
         "Used bytes mismatch between gluten memory consumer and Spark task memory manager");
-    // Stats returned from C++ (as the singleton virtual children, currently) may not include all
-    // allocations according to the way collectMemoryUsage() is implemented.
-    // So we add them as children of this consumer's stats
+    // In the case of Velox backend, stats returned from C++ (as the singleton virtual children,
+    // currently) may not include all allocations according to the way collectMemoryUsage()
+    // is implemented. So we add them as children of this consumer's stats
     return MemoryUsageStats.newBuilder()
         .setCurrent(stats.getCurrent())
         .setPeak(stats.getPeak())
