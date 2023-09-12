@@ -120,8 +120,8 @@ function compile {
 
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
-  elif [ $ARCH == 'arm64' ]; then
-    CPU_TARGET="arm64" make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
+  elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
+    CPU_TARGET=$ARCH make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   else
     echo "Unsupport arch: $ARCH"
     exit 1
