@@ -22,6 +22,7 @@
 #    include <Formats/FormatFactory.h>
 #    include <IO/SeekableReadBuffer.h>
 #    include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#    include <Processors/Formats/Impl/NativeORCBlockInputFormat.h>
 #    include <Storages/SubstraitSource/OrcUtil.h>
 
 #    if USE_LOCAL_FORMATS
@@ -208,7 +209,7 @@ FormatFile::InputFormatPtr ORCFormatFile::createInputFormat(const DB::Block & he
         std::back_inserter(skip_stripe_indices));
 
     format_settings.orc.skip_stripes = std::unordered_set<int>(skip_stripe_indices.begin(), skip_stripe_indices.end());
-    auto input_format = std::make_shared<DB::ORCBlockInputFormat>(*file_format->read_buffer, header, format_settings);
+    auto input_format = std::make_shared<DB::NativeORCBlockInputFormat>(*file_format->read_buffer, header, format_settings);
 #    endif
     file_format->input = input_format;
     return file_format;
