@@ -228,6 +228,7 @@ MemoryUsageStats collectVeloxMemoryPoolUsageStats(const velox::memory::MemoryPoo
 MemoryUsageStats collectArrowMemoryPoolUsageStats(const arrow::MemoryPool* pool) {
   MemoryUsageStats stats;
   stats.set_current(pool->bytes_allocated());
+  stats.set_peak(-1L);
   return stats;
 }
 } // namespace
