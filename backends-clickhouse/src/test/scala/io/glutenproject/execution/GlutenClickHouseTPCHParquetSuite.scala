@@ -1264,7 +1264,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  test("test 'Bug fix posexplode function: https://github.com/oap-project/gluten/issues/1767'") {
+  test("test posexplode issue: https://github.com/oap-project/gluten/issues/1767") {
     spark.sql(
       """
         | create table test_tbl(id bigint, data map<string, string>) using parquet;
@@ -1281,6 +1281,19 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   test("test posexplode issue: https://github.com/oap-project/gluten/issues/2492") {
     val sql = "select posexplode(split(n_comment, ' ')) from nation where n_comment is null"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test posexplode issue: https://github.com/oap-project/gluten/issues/2454") {
+    val sqls = Seq(
+      "select explode(array(id, id+1)) from range(10)",
+      "select explode(map(id, id+1, id+2, id+3)) from range(10)",
+      "select posexplode(array(id, id+1)) from range(10)",
+      "select posexplode(map(id, id+1, id+2, id+3)) from range(10)"
+    )
+
+    for (sql <- sqls) {
+      runQueryAndCompare(sql)(checkOperatorMatch[CHHashAggregateExecTransformer])
+    }
   }
 
   test("test 'scala udf'") {
