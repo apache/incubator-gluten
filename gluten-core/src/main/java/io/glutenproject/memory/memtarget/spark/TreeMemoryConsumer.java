@@ -147,7 +147,9 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
     if (children.containsKey(name)) {
       throw new IllegalArgumentException("Child already registered: " + name);
     }
-    return children.put(name, new Node(this, name, capacity, spiller, virtualChildren));
+    Node child = new Node(this, name, capacity, spiller, virtualChildren);
+    children.put(name, child);
+    return child;
   }
 
   @Override
@@ -280,7 +282,9 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
       if (children.containsKey(name)) {
         throw new IllegalArgumentException("Child already registered: " + name);
       }
-      return children.put(name, new Node(this, name, capacity, spiller, virtualChildren));
+      Node child = new Node(this, name, capacity, spiller, virtualChildren);
+      children.put(name, child);
+      return child;
     }
 
     @Override
