@@ -34,7 +34,7 @@
 #include <chrono>
 
 #include "BenchmarkUtils.h"
-#include "compute/VeloxBackend.h"
+#include "compute/VeloxExecutionCtx.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
@@ -163,7 +163,7 @@ class GoogleBenchmarkArrowParquetWriteCacheScanBenchmark : public GoogleBenchmar
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "arrow_parquet_write.parquet";
 
-    auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
+    auto executionCtx = std::dynamic_pointer_cast<gluten::VeloxExecutionCtx>(gluten::createExecutionCtx());
 
     for (auto _ : state) {
       // Choose compression
@@ -258,7 +258,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "velox_parquet_write.parquet";
 
-    auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
+    auto executionCtx = std::dynamic_pointer_cast<gluten::VeloxExecutionCtx>(gluten::createExecutionCtx());
     auto memoryManager = getDefaultMemoryManager();
     auto veloxPool = memoryManager->getAggregateMemoryPool();
 
@@ -267,7 +267,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
       auto veloxParquetDatasource = std::make_unique<gluten::VeloxParquetDatasource>(
           outputPath_ + "/" + fileName, veloxPool->addAggregateChild("writer_benchmark"), localSchema);
 
-      veloxParquetDatasource->init(backend->getConfMap());
+      veloxParquetDatasource->init(executionCtx->getConfMap());
       auto start = std::chrono::steady_clock::now();
       for (const auto& vector : vectors) {
         veloxParquetDatasource->write(vector);
