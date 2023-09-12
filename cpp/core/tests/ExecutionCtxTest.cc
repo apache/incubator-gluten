@@ -61,12 +61,12 @@ class DummyExecutionCtx final : public ExecutionCtx {
       std::shared_ptr<arrow::Schema> schema) override {
     return std::shared_ptr<Datasource>();
   }
-  std::shared_ptr<Reader> createShuffleReader(
+  std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,
       MemoryManager* memoryManager) override {
-    return std::shared_ptr<Reader>();
+    return std::shared_ptr<ShuffleReader>();
   }
   std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
       MemoryManager* memoryManager,

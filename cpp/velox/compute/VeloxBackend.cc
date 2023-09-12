@@ -48,6 +48,7 @@
 DECLARE_int32(split_preload_per_driver);
 DECLARE_bool(SkipRowSortInWindowOp);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
+DECLARE_int32(velox_memory_num_shared_leaf_pools);
 
 using namespace facebook;
 
@@ -118,6 +119,9 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     }
     FLAGS_velox_exception_user_stacktrace_enabled = (enableUserExceptionStacktrace == "true");
   }
+
+  // Avoid creating too many shared leaf pools.
+  FLAGS_velox_memory_num_shared_leaf_pools = 0;
 
   // Set backtrace_allocation
   {
