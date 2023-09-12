@@ -313,9 +313,11 @@ bool SubstraitToVeloxPlanValidator::validateCast(
       break;
     }
     case TypeKind::TIMESTAMP: {
-      logValidateMsg(
-          "native validation failed due to: Casting from TIMESTAMP is not supported or has incorrect result.");
-      return false;
+      if (toType->kind() != TypeKind::VARCHAR) {
+        logValidateMsg(fmt::format(
+            "native validation failed due to: Casting from TIMESTAMP to {} is not supported.", toType->toString()));
+        return false;
+      }
     }
     default: {
     }
