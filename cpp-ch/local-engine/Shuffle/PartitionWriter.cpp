@@ -267,6 +267,7 @@ void CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
     }
     else
     {
+        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
         spill_to_celeborn();
     }
     shuffle_writer->split_result.total_spill_time += spill_time_watch.elapsedNanoseconds();
