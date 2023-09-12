@@ -935,4 +935,27 @@ class GlutenClickHouseHiveTableSuite()
     compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
     spark.sql("DROP TABLE a")
   }
+
+  test("fallback when row format is org.apache.hadoop.hive.serde2.OpenCSVSerde") {
+    spark.sql(s"""
+                 |CREATE TABLE b (
+                 |  uid bigint,
+                 |  appid int,
+                 |  type int,
+                 |  account string)
+                 |ROW FORMAT SERDE
+                 |  'org.apache.hadoop.hive.serde2.OpenCSVSerde'
+                 |STORED AS INPUTFORMAT
+                 |  'org.apache.hadoop.mapred.TextInputFormat'
+                 |OUTPUTFORMAT
+                 |  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+      """.stripMargin)
+    spark.sql("insert into b select id, id, id, cast(id as string) from range(10)")
+
+    val sql = "select * from b"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+
+    spark.sql("DROP TABLE b")
+  }
+
 }

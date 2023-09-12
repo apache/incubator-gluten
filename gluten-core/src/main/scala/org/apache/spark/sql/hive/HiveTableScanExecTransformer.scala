@@ -120,6 +120,8 @@ class HiveTableScanExecTransformer(
           case Some("org.openx.data.jsonserde.JsonSerDe") | Some(
                 "org.apache.hive.hcatalog.data.JsonSerDe") =>
             ReadFileFormat.JsonReadFormat
+          case Some("org.apache.hadoop.hive.serde2.OpenCSVSerde") =>
+            ReadFileFormat.UnknownFormat
           case _ => ReadFileFormat.TextReadFormat
         }
       case _ => ReadFileFormat.UnknownFormat
