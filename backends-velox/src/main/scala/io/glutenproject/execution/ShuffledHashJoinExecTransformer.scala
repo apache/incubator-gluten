@@ -117,55 +117,28 @@ case class ShuffledHashJoinExecTransformer(
       }
   }
 
-  override protected val substraitJoinType: JoinRel.JoinType = joinType match {
+  override protected lazy val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
       JoinRel.JoinType.JOIN_TYPE_OUTER
     case LeftOuter =>
-      joinBuildSide match {
-        case BuildLeft =>
-          if (preferredBuildSide == PreferredBuildSide.RIGHT) {
-            JoinRel.JoinType.JOIN_TYPE_LEFT
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT
-          }
-        case _ =>
-          if (preferredBuildSide == PreferredBuildSide.LEFT) {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_LEFT
-          }
+      if (exchangeTable) {
+        JoinRel.JoinType.JOIN_TYPE_RIGHT
+      } else {
+        JoinRel.JoinType.JOIN_TYPE_LEFT
       }
     case RightOuter =>
-      joinBuildSide match {
-        case BuildRight =>
-          if (preferredBuildSide == PreferredBuildSide.LEFT) {
-            JoinRel.JoinType.JOIN_TYPE_LEFT
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT
-          }
-        case _ =>
-          if (preferredBuildSide == PreferredBuildSide.RIGHT) {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_LEFT
-          }
+      if (exchangeTable) {
+        JoinRel.JoinType.JOIN_TYPE_LEFT
+      } else {
+        JoinRel.JoinType.JOIN_TYPE_RIGHT
       }
     case LeftSemi | ExistenceJoin(_) =>
-      joinBuildSide match {
-        case BuildLeft =>
-          if (preferredBuildSide == PreferredBuildSide.RIGHT) {
-            JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
-          }
-        case _ =>
-          if (preferredBuildSide == PreferredBuildSide.LEFT) {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
-          }
+      if (exchangeTable) {
+        JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
+      } else {
+        JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
       }
     case LeftAnti =>
       JoinRel.JoinType.JOIN_TYPE_ANTI
