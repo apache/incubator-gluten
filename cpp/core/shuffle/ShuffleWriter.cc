@@ -33,62 +33,7 @@ ShuffleWriterOptions ShuffleWriterOptions::defaults() {
   return {};
 }
 
-class ShuffleBufferPool::MemoryPoolWrapper : public arrow::MemoryPool {
- public:
-  MemoryPoolWrapper(std::shared_ptr<arrow::MemoryPool> pool) : pool_(pool) {}
-
-  arrow::MemoryPool* delegated() {
-    return pool_.get();
-  }
-
-  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
-    auto status = pool_->Allocate(size, alignment, out);
-    if (status.ok()) {
-      bytesAllocated_ += size;
-    }
-    return status;
-  }
-
-  arrow::Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
-    auto status = pool_->Reallocate(old_size, new_size, alignment, ptr);
-    if (status.ok()) {
-      bytesAllocated_ += (new_size - old_size);
-    }
-    return status;
-  }
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
-    pool_->Free(buffer, size, alignment);
-    bytesAllocated_ -= size;
-  }
-
-  int64_t bytes_allocated() const override {
-    return bytesAllocated_;
-  }
-
-  int64_t max_memory() const override {
-    return pool_->max_memory();
-  }
-
-  std::string backend_name() const override {
-    return pool_->backend_name();
-  }
-
-  int64_t total_bytes_allocated() const override {
-    return pool_->total_bytes_allocated();
-  }
-
-  int64_t num_allocations() const override {
-    throw pool_->num_allocations();
-  }
-
- private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
-  uint64_t bytesAllocated_ = 0;
-};
-
-ShuffleBufferPool::ShuffleBufferPool(std::shared_ptr<arrow::MemoryPool> pool)
-    : pool_(std::make_shared<MemoryPoolWrapper>(pool)) {}
+ShuffleBufferPool::ShuffleBufferPool(std::shared_ptr<arrow::MemoryPool> pool) : pool_(pool) {}
 
 arrow::Status ShuffleBufferPool::init() {
   // Allocate first buffer for split reducer
@@ -116,7 +61,7 @@ arrow::Status ShuffleBufferPool::allocate(std::shared_ptr<arrow::Buffer>& buffer
 
 arrow::Status ShuffleBufferPool::allocateDirectly(std::shared_ptr<arrow::ResizableBuffer>& buffer, int64_t size) {
   size = ROUND_TO_LINE(size, kDefaultBufferAlignment);
-  ARROW_ASSIGN_OR_RAISE(buffer, arrow::AllocateResizableBuffer(size, pool_->delegated()));
+  ARROW_ASSIGN_OR_RAISE(buffer, arrow::AllocateResizableBuffer(size, pool_.get()));
   return arrow::Status::OK();
 }
 

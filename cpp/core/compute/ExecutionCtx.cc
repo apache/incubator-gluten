@@ -15,31 +15,33 @@
  * limitations under the License.
  */
 
-#include "Backend.h"
+#include "ExecutionCtx.h"
 
 namespace gluten {
 
-static BackendFactoryContext* getBackendFactoryContext() {
-  static BackendFactoryContext* backendFactoryCtx = new BackendFactoryContext;
-  return backendFactoryCtx;
+static ExecutionCtxFactoryContext* getExecutionCtxFactoryContext() {
+  static ExecutionCtxFactoryContext* executionCtxFactoryCtx = new ExecutionCtxFactoryContext;
+  return executionCtxFactoryCtx;
 }
 
-void setBackendFactory(BackendFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConfs) {
-  getBackendFactoryContext()->set(factory, sparkConfs);
+void setExecutionCtxFactory(
+    ExecutionCtxFactoryWithConf factory,
+    const std::unordered_map<std::string, std::string>& sparkConfs) {
+  getExecutionCtxFactoryContext()->set(factory, sparkConfs);
 #ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Set backend factory with conf." << std::endl;
+  std::cout << "Set execution context factory with conf." << std::endl;
 #endif
 }
 
-void setBackendFactory(BackendFactory factory) {
-  getBackendFactoryContext()->set(factory);
+void setExecutionCtxFactory(ExecutionCtxFactory factory) {
+  getExecutionCtxFactoryContext()->set(factory);
 #ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Set backend factory." << std::endl;
+  std::cout << "Set execution context factory." << std::endl;
 #endif
 }
 
-std::shared_ptr<Backend> createBackend() {
-  return getBackendFactoryContext()->create();
+std::shared_ptr<ExecutionCtx> createExecutionCtx() {
+  return getExecutionCtxFactoryContext()->create();
 }
 
 } // namespace gluten

@@ -913,26 +913,8 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
             /// col = arrayJoin(arg_not_null).2 or (key, value) = arrayJoin(arg_not_null).2
             const auto * item_node = add_tuple_element(array_join_node, 2);
 
-            /// Get type of y from node: cast(mapFromArrays(x, y), 'Map(K, V)')
-            DataTypePtr raw_child_type;
-            if (args[0]->type == ActionsDAG::ActionType::FUNCTION && args[0]->function_base->getName() == "mapFromArrays")
-            {
-                /// Get Type of y from node: mapFromArrays(x, y)
-                raw_child_type = DB::removeNullable(args[0]->children[1]->result_type);
-            }
-            else if (
-                args[0]->type == ActionsDAG::ActionType::FUNCTION && args[0]->function_base->getName() == "_CAST"
-                && args[0]->children[0]->type == ActionsDAG::ActionType::FUNCTION
-                && args[0]->children[0]->function_base->getName() == "mapFromArrays")
-            {
-                /// Get Type of y from node: cast(mapFromArrays(x, y), 'Map(K, V)')
-                raw_child_type = DB::removeNullable(args[0]->children[0]->children[1]->result_type);
-            }
-            else
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "Invalid argument type of arrayJoin: {}", actions_dag->dumpDAG());
-
-
-            if (isMap(raw_child_type))
+            /// It is a tricky but efficient way to get the original type of argument type in posexplode
+            if (endsWith(args[0]->result_name, "type_hint:map"))
             {
                 /// key = arrayJoin(arg_not_null).2.1
                 const auto * item_key_node = add_tuple_element(item_node, 1);
@@ -952,7 +934,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
 
                 return {pos_node, item_key_node, item_value_node};
             }
-            else if (isArray(raw_child_type))
+            else if (endsWith(args[0]->result_name, "type_hint:array"))
             {
                 /// col = arrayJoin(arg_not_null).2
                 result_names.push_back(pos_node->result_name);
@@ -966,9 +948,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
             }
             else
                 throw Exception(
-                    ErrorCodes::BAD_ARGUMENTS,
-                    "The raw input of arrayJoin converted from posexplode should be Array or Map type but is {}",
-                    raw_child_type->getName());
+                    ErrorCodes::BAD_ARGUMENTS, "The raw input of arrayJoin converted from posexplode should be Array or Map type");
         }
         else
             throw Exception(
@@ -1278,21 +1258,6 @@ void SerializedPlanParser::parseFunctionArguments(
         function_name = "repeat";
         parsed_args.emplace_back(space_str_node);
         parsed_args.emplace_back(repeat_times_node);
-    }
-    else if (function_name == "mapFromArrays")
-    {
-        /// Remove nullable for first arg
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
-        const auto * first_arg = parsed_args.back();
-        auto assume_not_null_builder = FunctionFactory::instance().get("assumeNotNull", context);
-        const auto * first_arg_not_null
-            = &actions_dag->addFunction(assume_not_null_builder, {first_arg}, "assumeNotNull(" + first_arg->result_name + ")");
-        parsed_args.back() = first_arg_not_null;
-        parseFunctionArgument(actions_dag, parsed_args, function_name, args[1]);
-        auto second_arg = parsed_args.back();
-        const auto * second_arg_not_null
-            = &actions_dag->addFunction(assume_not_null_builder, {second_arg}, "assumeNotNull(" + second_arg->result_name + ")");
-        parsed_args.back() = second_arg_not_null;
     }
     else if (function_name == "trimBothSpark" || function_name == "trimLeftSpark" || function_name == "trimRightSpark")
     {
