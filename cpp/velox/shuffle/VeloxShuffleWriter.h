@@ -95,7 +95,7 @@ namespace gluten {
 
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
-enum SplitState { INIT, PREALLOC, SPLIT, STOP };
+enum SplitState { kInit, kPreAlloc, kSplit, kStop };
 
 class VeloxShuffleWriter final : public ShuffleWriter {
   enum { kValidityBufferIndex = 0, kOffsetBufferIndex = 1, kValueBufferIndex = 2 };
@@ -289,7 +289,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   arrow::Result<int64_t> shrinkPartitionBuffers();
 
  protected:
-  SplitState splitState_{INIT};
+  SplitState splitState_{kInit};
 
   bool supportAvx512_ = false;
 
