@@ -186,7 +186,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
-  def memoryIsolate: Boolean = conf.getConf(COLUMNAR_MEMORY_ISOLATE)
+  def memoryIsolation: Boolean = conf.getConf(COLUMNAR_MEMORY_ISOLATION)
 
   def offHeapMemorySize: Long = conf.getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
 
@@ -932,7 +932,7 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0")
 
-  val COLUMNAR_MEMORY_ISOLATE =
+  val COLUMNAR_MEMORY_ISOLATION =
     buildConf("spark.gluten.memory.isolation")
       .internal()
       .doc("Enable isolate memory mode. If true, Gluten controls the maximum off-heap memory " +

@@ -49,7 +49,7 @@ public final class MemoryTargets {
       String name,
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-    if (GlutenConfig.getConf().memoryIsolate()) {
+    if (GlutenConfig.getConf().memoryIsolation()) {
       return IsolatedMemoryConsumers.newConsumer(tmm, name, spiller, virtualChildren);
     }
     return new RegularMemoryConsumer(tmm, name, spiller, virtualChildren);
