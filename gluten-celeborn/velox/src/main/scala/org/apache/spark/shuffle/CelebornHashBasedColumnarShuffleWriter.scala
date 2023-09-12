@@ -21,8 +21,7 @@ import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.memtarget.spark.Spiller
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
-import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.CelebornConf
+
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.SparkMemoryUtil
@@ -30,6 +29,9 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkResourceUtil
+
+import org.apache.celeborn.client.ShuffleClient
+import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
 
