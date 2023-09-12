@@ -21,6 +21,7 @@ import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.memtarget.spark.Spiller
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
+
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_COMPRESS
