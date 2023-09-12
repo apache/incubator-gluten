@@ -35,7 +35,6 @@
 
 namespace gluten {
 
-// This class is used to convert the Substrait plan into Velox plan.
 class VeloxExecutionCtx final : public ExecutionCtx {
  public:
   explicit VeloxExecutionCtx(const std::unordered_map<std::string, std::string>& confMap);

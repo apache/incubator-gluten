@@ -40,6 +40,7 @@ struct SparkTaskInfo {
   int64_t taskId;
 };
 
+/// ExecutionCtx is stateful and manager all kinds of native resources' lifecycle during execute a computation fragment.
 class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
  public:
   ExecutionCtx() = default;
