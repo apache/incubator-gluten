@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
+import org.apache.spark.util.Utils;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -250,7 +251,7 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
     @Override
     public String name() {
-      return name;
+      return String.format("%s.%s", name, Utils.bytesToString(capacity));
     }
 
     @Override
