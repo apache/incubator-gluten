@@ -172,7 +172,7 @@ case class GlutenBroadcastHashJoinExecTransformer(
     right,
     isNullAwareAntiJoin) {
 
-  override protected val substraitJoinType: JoinRel.JoinType = joinType match {
+  override protected lazy val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
