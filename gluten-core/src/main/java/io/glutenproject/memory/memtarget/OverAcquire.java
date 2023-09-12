@@ -16,7 +16,6 @@
  */
 package io.glutenproject.memory.memtarget;
 
-import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.spark.Spiller;
 import io.glutenproject.memory.memtarget.spark.TaskMemoryTarget;
 import io.glutenproject.proto.MemoryUsageStats;
