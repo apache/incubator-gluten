@@ -91,8 +91,9 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
   @Override
   public MemoryUsageStats stats() {
     Set<Map.Entry<String, TreeMemoryConsumerNode>> entries = children.entrySet();
-    Map<String, MemoryUsageStats> childrenStats = entries.stream()
-        .collect(Collectors.toMap(e -> e.getValue().name(), e -> e.getValue().stats()));
+    Map<String, MemoryUsageStats> childrenStats =
+        entries.stream()
+            .collect(Collectors.toMap(e -> e.getValue().name(), e -> e.getValue().stats()));
 
     Preconditions.checkState(childrenStats.size() == children.size());
     MemoryUsageStats stats = recorder.toStats(childrenStats);
