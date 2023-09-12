@@ -52,11 +52,23 @@ FormatFile::FormatFile(
     : context(context_), file_info(file_info_), read_buffer_builder(read_buffer_builder_)
 {
     PartitionValues part_vals = StringUtils::parsePartitionTablePath(file_info.uri_file());
-    for (const auto & part : part_vals)
+    String partition_values_str = "[";
+    for (size_t i = 0; i < part_vals.size(); ++i)
     {
+        const auto & part = part_vals[i];
         partition_keys.push_back(part.first);
         partition_values[part.first] = part.second;
+        if (i > 0)
+            partition_values_str += ", ";
+        partition_values_str += part.first + "=" + part.second;
     }
+    partition_values_str += "]";
+    LOG_INFO(&Poco::Logger::get("FormatFile"), "Reading File path: {}, format: {}, range: {}, partition_index: {}, partition_values: {}",
+        file_info.uri_file(),
+        file_info.file_format_case(),
+        std::to_string(file_info.start()) + "-" + std::to_string(file_info.start() + file_info.length()),
+        file_info.partition_index(),
+        partition_values_str);
 }
 
 FormatFilePtr FormatFileUtil::createFile(
