@@ -79,7 +79,7 @@ To check CI failure for Velox backend, please go into the GitHub action page fro
 To see the perf. impact on Velox backend, you can comment `/Benchmark Velox` on PR page to trigger a pretest. The benchmark
 (currently TPC-H) result will be posted after completed.
 
-If some new dependency is required to be installed, you may need do some change for CI docker at [this folder](https://github.com/oap-project/gluten/tree/main/tools/gluten-te).
+If some new dependency is required to be installed, you may need to do some change for CI docker at [this folder](https://github.com/oap-project/gluten/tree/main/tools/gluten-te).
 
 ### Code Review
 
@@ -91,10 +91,11 @@ For critical code change, merging the PR requires at least two committers' appro
 
 ### Code Merging
 
-"**Squash and merge**" should be used to merge PR. If commit title doesn't align with PR title, please revise it.
+**Squash and merge** should be selected to merge PR. If commit message title doesn't align with its PR title, please revise it.
 
-Example for commit title:
-  `[GLUTEN-<issue ID>][VL] xxxx (#<pr ID>)`
+Example for commit message title:
 
-If necessary, please add some brief description in the text box when merging the new commit. Please do NOT leave any meaningless historical
-commit message in the text box, such as "Initial commit", "Fix", "Fix code style", etc.
+  `[GLUTEN-<issue ID>][CORE] xxxx (#<PR ID>)`
+
+Please add some brief description, if helpful, in the text box when merging PR. Please do NOT leave any meaningless
+historical commit message, such as "Initial commit", "Fix", "Fix code style", etc.
