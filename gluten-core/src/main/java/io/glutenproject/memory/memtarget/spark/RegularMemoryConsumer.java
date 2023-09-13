@@ -19,6 +19,7 @@ package io.glutenproject.memory.memtarget.spark;
 import io.glutenproject.memory.MemoryUsageRecorder;
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.memory.memtarget.MemoryTargetUtil;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.common.base.Preconditions;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 
 /** A trivial memory consumer implementation used by Gluten. */
 public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryTarget {
+
   private final TaskMemoryManager taskMemoryManager;
   private final Spiller spiller;
   private final String name;
@@ -46,7 +48,7 @@ public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryT
     super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
     this.taskMemoryManager = taskMemoryManager;
     this.spiller = spiller;
-    this.name = name;
+    this.name = MemoryTargetUtil.toUniqueName("Gluten.Regular." + name);
     this.virtualChildren = virtualChildren;
   }
 
@@ -66,8 +68,7 @@ public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryT
 
   @Override
   public String name() {
-    return String.format(
-        "Gluten.Regular.%s@%s", name, Integer.toHexString(System.identityHashCode(this)));
+    return this.name;
   }
 
   @Override

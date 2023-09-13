@@ -18,6 +18,7 @@ package io.glutenproject.memory.memtarget.spark;
 
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.memory.memtarget.MemoryTargetUtil;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.common.base.Preconditions;
@@ -49,8 +50,10 @@ import java.util.stream.Collectors;
  * io.glutenproject.memory.memtarget.spark.IsolatedMemoryConsumers}.
  */
 public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryConsumerNode {
+
   private final SimpleMemoryUsageRecorder recorder = new SimpleMemoryUsageRecorder();
   private final Map<String, TreeMemoryConsumerNode> children = new HashMap<>();
+  private final String name = MemoryTargetUtil.toUniqueName("Gluten.Tree");
 
   TreeMemoryConsumer(TaskMemoryManager taskMemoryManager) {
     super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
@@ -80,7 +83,7 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
   @Override
   public String name() {
-    return "Gluten.Tree@" + Integer.toHexString(System.identityHashCode(this));
+    return name;
   }
 
   @Override
@@ -188,7 +191,7 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
         Spiller spiller,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
       this.parent = parent;
-      this.name = name;
+      this.name = MemoryTargetUtil.toUniqueName(name);
       this.capacity = capacity;
       this.spiller = spiller;
       this.virtualChildren = virtualChildren;
