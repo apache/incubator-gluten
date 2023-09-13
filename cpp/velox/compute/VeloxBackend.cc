@@ -113,7 +113,7 @@ void VeloxBackend::printConf(const std::unordered_map<std::string, std::string>&
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
   // In spark, planner takes care the parititioning and sorting, so the rows are sorted.
   // There is no need to sort the rows in window op again.
-  FLAGS_SkipRowSortInWindowOp = true;
+  // FLAGS_SkipRowSortInWindowOp = true;
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;
 
@@ -240,7 +240,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   initUdf(conf);
 }
 
-velox::memory::MemoryAllocator* VeloxBackend::getAsyncDataCache() const {
+facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
   return asyncDataCache_.get();
 }
 

@@ -71,24 +71,24 @@ class ShuffleMemoryPool : public arrow::MemoryPool {
     return pool_.get();
   }
 
-  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
-    auto status = pool_->Allocate(size, alignment, out);
+  arrow::Status Allocate(int64_t size, uint8_t** out) override {
+    auto status = pool_->Allocate(size, out);
     if (status.ok()) {
       bytesAllocated_ += size;
     }
     return status;
   }
 
-  arrow::Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
-    auto status = pool_->Reallocate(old_size, new_size, alignment, ptr);
+  arrow::Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
+    auto status = pool_->Reallocate(old_size, new_size, ptr);
     if (status.ok()) {
       bytesAllocated_ += (new_size - old_size);
     }
     return status;
   }
 
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
-    pool_->Free(buffer, size, alignment);
+  void Free(uint8_t* buffer, int64_t size) override {
+    pool_->Free(buffer, size);
     bytesAllocated_ -= size;
   }
 
@@ -102,14 +102,6 @@ class ShuffleMemoryPool : public arrow::MemoryPool {
 
   std::string backend_name() const override {
     return pool_->backend_name();
-  }
-
-  int64_t total_bytes_allocated() const override {
-    return pool_->total_bytes_allocated();
-  }
-
-  int64_t num_allocations() const override {
-    throw pool_->num_allocations();
   }
 
  private:
