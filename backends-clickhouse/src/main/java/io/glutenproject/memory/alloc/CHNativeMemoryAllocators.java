@@ -49,8 +49,7 @@ public abstract class CHNativeMemoryAllocators {
 
     CHManagedCHReservationListener rl =
         new CHManagedCHReservationListener(
-            MemoryTargets.newConsumer(
-                taskMemoryManager, name, spiller, Collections.emptyMap()),
+            MemoryTargets.newConsumer(taskMemoryManager, name, spiller, Collections.emptyMap()),
             usage);
     return new CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator.createListenable(rl));
   }

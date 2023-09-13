@@ -53,10 +53,7 @@ public class TestTaskMemoryManagerSuite {
     listener =
         new CHManagedCHReservationListener(
             MemoryTargets.newConsumer(
-                taskMemoryManager,
-                "test",
-                Spiller.NO_OP,
-                Collections.emptyMap()),
+                taskMemoryManager, "test", Spiller.NO_OP, Collections.emptyMap()),
             new SimpleMemoryUsageRecorder());
 
     manager = new CHNativeMemoryAllocatorManagerImpl(new CHNativeMemoryAllocator(-1L, listener));
