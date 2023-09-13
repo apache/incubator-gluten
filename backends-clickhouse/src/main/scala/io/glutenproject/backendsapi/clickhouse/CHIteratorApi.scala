@@ -89,7 +89,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 lengths,
                 partitionColumns.map(_.asJava).asJava,
                 fileFormats(i)),
-              SoftAffinityUtil.getFilePartitionLocations(f))
+              SoftAffinityUtil.getFilePartitionLocations(f, f.files))
           case _ =>
             throw new UnsupportedOperationException(s"Unsupport operators.")
         })
