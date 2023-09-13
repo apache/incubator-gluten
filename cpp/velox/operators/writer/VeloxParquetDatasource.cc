@@ -39,7 +39,7 @@ using namespace facebook::velox::filesystems;
 namespace gluten {
 
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
-  auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
+  auto executionCtx = std::dynamic_pointer_cast<gluten::VeloxExecutionCtx>(gluten::createExecutionCtx());
 
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     auto path = filePath_.substr(5);
@@ -53,12 +53,12 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     sink_ = std::make_unique<WriteFileSink>(hdfsFileSystem->openFileForWrite(pathSuffix), filePath_);
 #else
     throw std::runtime_error(
-        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox backend!");
+        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox executionCtx!");
 #endif
 
   } else {
     throw std::runtime_error(
-        "The file path is not local or hdfs when writing data with parquet format in velox backend!");
+        "The file path is not local or hdfs when writing data with parquet format in velox executionCtx!");
   }
 
   ArrowSchema cSchema{};
