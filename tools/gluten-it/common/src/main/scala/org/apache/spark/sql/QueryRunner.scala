@@ -137,22 +137,44 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
   private val killCount = new AtomicInteger(0)
   private val successCount = new AtomicInteger(0)
 
+  private val stageKillWaitTimeLookup =
+    new java.util.concurrent.ConcurrentHashMap[Int, java.lang.Long]
+  private val taskKilledLookup =
+    new java.util.concurrent.ConcurrentHashMap[Int, java.lang.Boolean]
+
   override def onTaskStart(taskStart: SparkListenerTaskStart): Unit = {
     val killer = new Thread {
       override def run(): Unit = {
-        // TODO make this configurable
-        // After 1s - 10s, kill the task
-        val waitMs = RandomUtils.nextLong(1000L, 10000L)
+         // TODO, the logic is not finished, thread-safety!
+        if (taskKilledLookup.put(taskStart.taskInfo.attemptNumber, true) != null) {
+          // the task was already killed once, skip
+          return
+        }
+
+        // get wait time
+        val waitMs = stageKillWaitTimeLookup.computeIfAbsent(
+          taskStart.stageId,
+          _ => KillTaskListener.INIT_WAIT_TIME_MS)
         Thread.sleep(waitMs)
-        // We have 20% chance to kill the task. Otherwise let the task run
-        if (RandomUtils.nextFloat(0.0f, 1.0f) < 0.2f) {
+
+        // We have 100% chance to kill the task. FIXME make it configurable?
+        if (RandomUtils.nextFloat(0.0f, 1.0f) < 1.0f) {
           if (sc.isStopped) {
             return
           }
-          println(s"Killing task attempt after $waitMs ms: ${taskStart.taskInfo.taskId}")
+          println(
+            s"Killing task after $waitMs ms [task ID:  ${taskStart.taskInfo.taskId}, stage ID: ${taskStart.stageId}, attempt number: ${taskStart.taskInfo.attemptNumber}]...")
           val succeeded = sc.killTaskAttempt(taskStart.taskInfo.taskId, interruptThread = true)
           if (succeeded) {
+            // enlarge kill wait time for next task of the same stage
+            stageKillWaitTimeLookup.compute(taskStart.stageId, (_, time) => time * 2)
             successCount.getAndIncrement()
+          } else {
+            // reduce kill wait time a little bit
+            stageKillWaitTimeLookup.compute(
+              taskStart.stageId,
+              (_, time) =>
+                Math.max((time * 0.8d).asInstanceOf[Long], KillTaskListener.INIT_WAIT_TIME_MS))
           }
           killCount.getAndIncrement()
         }
@@ -165,4 +187,8 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
   def successRate(): Float = {
     successCount.get().asInstanceOf[Float] / killCount.get()
   }
+}
+
+object KillTaskListener {
+  private val INIT_WAIT_TIME_MS: Long = 1000L
 }
