@@ -48,12 +48,12 @@ TEST_F(VeloxColumnarBatchSerializerTest, serialize) {
   };
   auto vector = makeRowVector(children);
   auto batch = std::make_shared<VeloxColumnarBatch>(vector);
-  auto serializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_, veloxPool_, nullptr);
+  auto serializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_.get(), veloxPool_, nullptr);
   auto buffer = serializer->serializeColumnarBatches({batch});
 
   ArrowSchema cSchema;
   exportToArrow(vector, cSchema);
-  auto deserializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_, veloxPool_, &cSchema);
+  auto deserializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_.get(), veloxPool_, &cSchema);
   auto deserialized = deserializer->deserialize(const_cast<uint8_t*>(buffer->data()), buffer->size());
   auto deserializedVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(deserialized)->getRowVector();
   test::assertEqualVectors(vector, deserializedVector);

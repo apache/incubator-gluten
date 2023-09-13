@@ -54,7 +54,7 @@ struct ShuffleWriterOptions {
   int64_t thread_id = -1;
   int64_t task_attempt_id = -1;
 
-  std::shared_ptr<arrow::MemoryPool> memory_pool;
+  arrow::MemoryPool* memory_pool;
 
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 
@@ -65,10 +65,10 @@ struct ShuffleWriterOptions {
 
 class ShuffleMemoryPool : public arrow::MemoryPool {
  public:
-  ShuffleMemoryPool(std::shared_ptr<arrow::MemoryPool> pool) : pool_(pool) {}
+  ShuffleMemoryPool(arrow::MemoryPool* pool) : pool_(pool) {}
 
   arrow::MemoryPool* delegated() {
-    return pool_.get();
+    return pool_;
   }
 
   arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
@@ -113,7 +113,7 @@ class ShuffleMemoryPool : public arrow::MemoryPool {
   }
 
  private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
+  arrow::MemoryPool* pool_;
   uint64_t bytesAllocated_ = 0;
 };
 
