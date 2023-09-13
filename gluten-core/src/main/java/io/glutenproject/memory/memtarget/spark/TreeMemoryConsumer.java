@@ -149,11 +149,12 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
       long capacity,
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-    if (children.containsKey(name)) {
-      throw new IllegalArgumentException("Child already registered: " + name);
+    final Node child = new Node(this, name, capacity, spiller, virtualChildren);
+    if (children.containsKey(child.name())) {
+      throw new IllegalArgumentException("Child already registered: " + child.name());
     }
-    Node child = new Node(this, name, capacity, spiller, virtualChildren);
-    children.put(name, child);
+
+    children.put(child.name(), child);
     return child;
   }
 
@@ -289,11 +290,11 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
         long capacity,
         Spiller spiller,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-      if (children.containsKey(name)) {
-        throw new IllegalArgumentException("Child already registered: " + name);
+      final Node child = new Node(this, name, capacity, spiller, virtualChildren);
+      if (children.containsKey(child.name())) {
+        throw new IllegalArgumentException("Child already registered: " + child.name());
       }
-      Node child = new Node(this, name, capacity, spiller, virtualChildren);
-      children.put(name, child);
+      children.put(child.name(), child);
       return child;
     }
 
