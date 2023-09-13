@@ -242,7 +242,8 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
     @Override
     public long repay(long size) {
-      long freed = parent.repay(size);
+      long toFree = Math.min(usedBytes(), size);
+      long freed = parent.repay(toFree);
       selfRecorder.inc(-freed);
       return freed;
     }
