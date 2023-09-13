@@ -16,8 +16,8 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.exception.GlutenException
-import io.glutenproject.expression.{AttributeReferenceTransformer, ExplodeTransformer}
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.expression.ExpressionTransformer
@@ -90,6 +90,18 @@ case class GenerateExecTransformer(
   override def supportsColumnar: Boolean = true
 
   override protected def doValidateInternal(): ValidationResult = {
+    // TODO(yuan): support posexplode and remove this check
+    if (BackendsApiManager.isVeloxBackend) {
+      if (generator.isInstanceOf[PosExplode]) {
+        return ValidationResult.notOk(s"Velox backend does not support this posexplode")
+      }
+      if (generator.isInstanceOf[Explode]) {
+        if (generator.asInstanceOf[Explode].child.isInstanceOf[CreateMap]) {
+          return ValidationResult.notOk(s"Velox backend does not support this posexplode")
+        }
+      }
+    }
+
     val context = new SubstraitContext
     val args = context.registeredFunction
 
@@ -143,103 +155,55 @@ case class GenerateExecTransformer(
       }
     }
 
-    val relNode = if (childCtx != null) {
-      // TODO(yuan): remove duplicated code
-      if (
-        generatorExpr
-          .asInstanceOf[ExplodeTransformer]
-          .child
-          .isInstanceOf[AttributeReferenceTransformer]
-      ) {
-
-        getRelNode(
-          context,
-          operatorId,
-          child.output,
-          childCtx.root,
-          generatorNode,
-          childOutputNodes,
-          validation = false)
-      } else {
-        // needs to do projection
-        val selectOrigins = requiredChildOutput.indices.map(ExpressionBuilder.makeSelection(_))
-        val projectExpressions = new util.ArrayList[ExpressionNode]()
-        projectExpressions.addAll(selectOrigins.asJava)
-        val projectExprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(
-            generator.asInstanceOf[Explode].child,
-            requiredChildOutput)
-          .doTransform(args)
-
-        projectExpressions.add(projectExprNode)
-        val projRel =
-          RelBuilder.makeProjectRel(
-            childCtx.root,
-            projectExpressions,
-            context,
-            operatorId,
-            requiredChildOutput.size)
-        logWarning(s"AAA proj rel: $projRel")
-        getRelNode(
-          context,
-          operatorId,
-          child.output,
-          projRel,
-          generatorNode,
-          childOutputNodes,
-          validation = false)
-      }
-
+    val inputRel = if (childCtx != null) {
+      childCtx.root
     } else {
-      if (
-        generatorExpr
-          .asInstanceOf[ExplodeTransformer]
-          .child
-          .isInstanceOf[AttributeReferenceTransformer]
-      ) {
-        val attrList = new java.util.ArrayList[Attribute]()
-        for (attr <- child.output) {
-          attrList.add(attr)
-        }
-        val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
-
-        getRelNode(
-          context,
-          operatorId,
-          child.output,
-          readRel,
-          generatorNode,
-          childOutputNodes,
-          validation = false)
-      } else {
-        // needs to do projection
-        val attrList = new java.util.ArrayList[Attribute]()
-        for (attr <- child.output) {
-          attrList.add(attr)
-        }
-        val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
-
-        val projectExpressions = new util.ArrayList[ExpressionNode]()
-        val projectExprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(
-            generator.asInstanceOf[Explode].child,
-            requiredChildOutput)
-          .doTransform(args)
-        projectExpressions.add(projectExprNode)
-        val projRel =
-          RelBuilder.makeProjectRel(readRel, projectExpressions, context, operatorId, 0)
-        getRelNode(
-          context,
-          operatorId,
-          child.output,
-          projRel,
-          generatorNode,
-          childOutputNodes,
-          validation = false)
+      val attrList = new java.util.ArrayList[Attribute]()
+      for (attr <- child.output) {
+        attrList.add(attr)
       }
-
+      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      readRel
     }
+
+    val projRel = if (BackendsApiManager.isVeloxBackend && needsProjection(generator)) {
+      // need to insert one projection node for velox backend
+      val selectOrigins = requiredChildOutput.indices.map(ExpressionBuilder.makeSelection(_))
+      val projectExpressions = new util.ArrayList[ExpressionNode]()
+      projectExpressions.addAll(selectOrigins.asJava)
+      val projectExprNode = ExpressionConverter
+        .replaceWithExpressionTransformer(
+          generator.asInstanceOf[Explode].child,
+          requiredChildOutput)
+        .doTransform(args)
+
+      projectExpressions.add(projectExprNode)
+      val projRel =
+        RelBuilder.makeProjectRel(
+          inputRel,
+          projectExpressions,
+          context,
+          operatorId,
+          requiredChildOutput.size)
+      projRel
+    } else {
+      inputRel
+    }
+
+    val relNode = getRelNode(
+      context,
+      operatorId,
+      child.output,
+      projRel,
+      generatorNode,
+      childOutputNodes,
+      validation = false)
+
     TransformContext(child.output, output, relNode)
+  }
+
+  def needsProjection(generator: Generator): Boolean = {
+    !generator.asInstanceOf[Explode].child.isInstanceOf[AttributeReference]
   }
 
   def getRelNode(
