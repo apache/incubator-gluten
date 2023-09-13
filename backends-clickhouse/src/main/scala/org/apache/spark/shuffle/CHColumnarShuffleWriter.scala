@@ -23,7 +23,6 @@ import io.glutenproject.vectorized._
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.MemoryConsumer
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, Utils}
@@ -106,7 +105,7 @@ class CHColumnarShuffleWriter[K, V](
       CHNativeMemoryAllocators.createSpillable(
         "ShuffleWriter",
         new Spiller() {
-          override def spill(size: Long, trigger: MemoryConsumer): Long = {
+          override def spill(size: Long): Long = {
             if (nativeSplitter == 0) {
               throw new IllegalStateException(
                 "Fatal: spill() called before a shuffle writer " +

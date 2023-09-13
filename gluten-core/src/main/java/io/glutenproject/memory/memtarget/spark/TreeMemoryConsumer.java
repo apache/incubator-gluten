@@ -255,7 +255,10 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
     @Override
     public String name() {
-      return String.format("%s,%s", name, Utils.bytesToString(capacity));
+      if (capacity == CAPACITY_UNLIMITED) {
+        return name;
+      }
+      return String.format("%s, %s", name, Utils.bytesToString(capacity));
     }
 
     @Override

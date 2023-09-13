@@ -17,11 +17,13 @@
 package io.glutenproject.memory.alloc;
 
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
-import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
+import io.glutenproject.memory.memtarget.MemoryTargets;
 import io.glutenproject.memory.memtarget.spark.Spiller;
 
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
+
+import java.util.Collections;
 
 /**
  * Built-in toolkit for managing native memory allocations. To use the facility, one should import
@@ -47,8 +49,8 @@ public abstract class CHNativeMemoryAllocators {
 
     CHManagedCHReservationListener rl =
         new CHManagedCHReservationListener(
-            new GlutenMemoryConsumer(
-                name, taskMemoryManager, spiller, GlutenMemoryConsumer.newDefaultStatsBuilder()),
+            MemoryTargets.newConsumer(
+                taskMemoryManager, name, spiller, Collections.emptyMap()),
             usage);
     return new CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator.createListenable(rl));
   }

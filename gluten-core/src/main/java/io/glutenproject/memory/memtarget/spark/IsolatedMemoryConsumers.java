@@ -61,6 +61,6 @@ public class IsolatedMemoryConsumers {
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
     TreeMemoryConsumerNode account = getSharedAccount(tmm);
-    return account.newChild(name, Long.MAX_VALUE, spiller, virtualChildren);
+    return account.newChild(name, TreeMemoryConsumer.CAPACITY_UNLIMITED, spiller, virtualChildren);
   }
 }

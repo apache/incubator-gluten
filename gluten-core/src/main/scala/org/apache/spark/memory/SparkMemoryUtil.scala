@@ -59,7 +59,10 @@ object SparkMemoryUtil {
         MemoryConsumerStats(
           name,
           Some(mus.getCurrent),
-          Some(mus.getPeak),
+          mus.getPeak match {
+            case -1L => None
+            case v => Some(v)
+          },
           sortStats(
             mus.getChildrenMap
               .entrySet()

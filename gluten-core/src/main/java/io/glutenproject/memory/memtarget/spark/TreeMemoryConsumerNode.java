@@ -22,6 +22,8 @@ import java.util.Map;
 
 /** An abstract for both {@link TreeMemoryConsumer} and it's non-consumer children nodes. */
 public interface TreeMemoryConsumerNode extends TaskMemoryTarget {
+  long CAPACITY_UNLIMITED = Long.MAX_VALUE;
+
   TreeMemoryConsumerNode newChild(
       String name,
       long capacity,
