@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql
 
-import org.apache.spark.{SparkContext, TaskKilled}
+import org.apache.spark.{SparkContext, Success, TaskKilled}
 import org.apache.spark.executor.ExecutorMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerExecutorMetricsUpdate, SparkListenerTaskEnd, SparkListenerTaskStart}
 import org.apache.spark.sql.KillTaskListener.INIT_WAIT_TIME_MS
@@ -191,7 +191,7 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
     taskEnd.reason match {
       case TaskKilled(_, _, _, _) =>
         killCount.getAndIncrement()
-      case _ =>
+      case Success =>
         // once one task from the stage ends, kill all the others immediately
         stageKillWaitTimeLookup.synchronized {
           stageKillMaxWaitTimeLookup.put(
@@ -199,6 +199,7 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
             (taskEnd.taskInfo.duration * 0.8d).asInstanceOf[Long])
           stageKillWaitTimeLookup.notifyAll()
         }
+      case _ =>
     }
 
   }
