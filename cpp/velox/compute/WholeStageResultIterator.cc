@@ -316,6 +316,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSessionTimezone] = getConfigValue(confMap_, kSessionTimezone, defaultTimezone);
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = std::to_string(true);
+    // Align Velox size function with Spark.
+    configs[velox::core::QueryConfig::kSparkLegacySizeOfNull] = getConfigValue(confMap_, kLegacySize, "true");
 
     {
       // partial aggregation memory config
