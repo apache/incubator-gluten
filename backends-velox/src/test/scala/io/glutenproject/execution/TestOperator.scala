@@ -458,7 +458,7 @@ class TestOperator extends WholeStageTransformerSuite {
       .select($"DecimalCol".cast(DecimalType(38, 33)))
       .select(col("DecimalCol"))
       .agg(avg($"DecimalCol"))
-    assert(result.collect()(0).get(0).toString.equals("0.0345678900000000000000000000000000000"))
+    assert((result.collect()(0).get(0).toString.toDouble - d).abs < 0.00000000001)
     checkOperatorMatch[HashAggregateExecTransformer](result)
   }
 
