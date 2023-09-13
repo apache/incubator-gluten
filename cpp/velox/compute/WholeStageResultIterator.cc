@@ -310,7 +310,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   try {
     // To align with Spark's behavior, set casting to int to be truncating.
     configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
-    // To align with Spark's behavior, allow decimal in casting string to int.
+    // To align with Spark's behavior, unset to support non-ISO8601 standard strings.
+    configs[velox::core::QueryConfig::kCastStringToDateIsIso8601] = std::to_string(false);
     // configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
     auto defaultTimezone = getConfigValue(confMap_, kDefaultSessionTimezone, "");
     configs[velox::core::QueryConfig::kSessionTimezone] = getConfigValue(confMap_, kSessionTimezone, defaultTimezone);
