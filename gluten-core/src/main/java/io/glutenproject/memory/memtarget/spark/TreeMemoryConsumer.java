@@ -75,10 +75,11 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
     if (size == 0) {
       return 0;
     }
-    freeMemory(size);
+    long toFree = Math.min(getUsed(), size);
+    freeMemory(toFree);
     Preconditions.checkArgument(getUsed() >= 0);
-    recorder.inc(-size);
-    return size;
+    recorder.inc(-toFree);
+    return toFree;
   }
 
   @Override
@@ -241,10 +242,9 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
     @Override
     public long repay(long size) {
-      selfRecorder.inc(-size);
       long freed = parent.repay(size);
-      Preconditions.checkState(freed == size, "Freed size is not equal to requested size");
-      return size;
+      selfRecorder.inc(-freed);
+      return freed;
     }
 
     @Override

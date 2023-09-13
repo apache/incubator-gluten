@@ -110,10 +110,11 @@ public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryT
     if (size == 0) {
       return 0;
     }
-    freeMemory(size);
+    long toFree = Math.min(getUsed(), size);
+    freeMemory(toFree);
     Preconditions.checkArgument(getUsed() >= 0);
-    selfRecorder.inc(-size);
-    return size;
+    selfRecorder.inc(-toFree);
+    return toFree;
   }
 
   @Override

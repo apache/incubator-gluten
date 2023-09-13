@@ -86,7 +86,6 @@ class OverAcquire implements TaskMemoryTarget {
   public long repay(long size) {
     Preconditions.checkArgument(size != 0, "Size to repay is zero");
     long freed = target.repay(size);
-    Preconditions.checkArgument(freed == size, "Repaid size is not equal to requested size");
     // clean up the over-acquired target
     long overAcquired = overTarget.usedBytes();
     long freedOverAcquired = overTarget.repay(overAcquired);
@@ -95,7 +94,7 @@ class OverAcquire implements TaskMemoryTarget {
         "Freed over-acquired size is not equal to requested size");
     Preconditions.checkArgument(
         overTarget.usedBytes() == 0, "Over-acquired target was not cleaned up");
-    return size;
+    return freed;
   }
 
   @Override
