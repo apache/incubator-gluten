@@ -210,5 +210,5 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
 }
 
 object KillTaskListener {
-  private val INIT_WAIT_TIME_MS: Long = 500L
+  private val INIT_WAIT_TIME_MS: Long = 50L
 }
