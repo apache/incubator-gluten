@@ -175,7 +175,6 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
         // We have 50% chance to kill the task. FIXME make it configurable?
         if (RandomUtils.nextFloat(0.0f, 0.5f) < 1.0f) {
           if (sc.isStopped) {
-            println("WARN: context was stopped when preparing to kill task")
             return
           }
           println(
