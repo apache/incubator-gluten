@@ -190,6 +190,8 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
   override def onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit = {
     taskEnd.reason match {
       case TaskKilled(_, _, _, _) =>
+        killCount.getAndIncrement()
+      case _ =>
         // once one task from the stage ends, kill all the others immediately
         stageKillWaitTimeLookup.synchronized {
           stageKillMaxWaitTimeLookup.put(
@@ -197,8 +199,6 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
             (taskEnd.taskInfo.duration * 0.8d).asInstanceOf[Long])
           stageKillWaitTimeLookup.notifyAll()
         }
-        killCount.getAndIncrement()
-      case _ =>
     }
 
   }
@@ -209,5 +209,5 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
 }
 
 object KillTaskListener {
-  private val INIT_WAIT_TIME_MS: Long = 50L
+  private val INIT_WAIT_TIME_MS: Long = 500L
 }
