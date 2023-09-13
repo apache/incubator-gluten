@@ -120,8 +120,6 @@ class HiveTableScanExecTransformer(
           case Some("org.openx.data.jsonserde.JsonSerDe") | Some(
                 "org.apache.hive.hcatalog.data.JsonSerDe") =>
             ReadFileFormat.JsonReadFormat
-          case Some("org.apache.hadoop.hive.serde2.OpenCSVSerde") =>
-            ReadFileFormat.UnknownFormat
           case _ => ReadFileFormat.TextReadFormat
         }
       case _ => ReadFileFormat.UnknownFormat
@@ -160,8 +158,16 @@ class HiveTableScanExecTransformer(
 
   private def createDefaultTextOption(): Map[String, String] = {
     var options: Map[String, String] = Map()
-    options += ("field_delimiter" -> DEFAULT_FIELD_DELIMITER.toString)
-    options += ("nullValue" -> NULL_VALUE.toString)
+    relation.tableMeta.storage.serde match {
+      case Some("org.apache.hadoop.hive.serde2.OpenCSVSerde") =>
+        options += ("field_delimiter" -> ",")
+        options += ("quote" -> "\"")
+        options += ("escape" -> "\\")
+      case _ =>
+        options += ("field_delimiter" -> DEFAULT_FIELD_DELIMITER.toString)
+        options += ("nullValue" -> NULL_VALUE.toString)
+    }
+
     options
   }
 
@@ -175,9 +181,15 @@ class HiveTableScanExecTransformer(
       var options: Map[String, String] = createDefaultTextOption()
       // property key string read from org.apache.hadoop.hive.serde.serdeConstants
       properties.foreach {
-        case ("separatorChar", v) => options += ("field_delimiter" -> v)
+        case ("separatorChar", v) =>
+          // If separatorChar, we should use default separatorChar
+          // for org.apache.hadoop.hive.serde2.OpenCSVSerde
+          // It ifx issue: https://github.com/oap-project/gluten/issues/3108
+          var nv = if (v.isEmpty()) "," else v
+          options += ("field_delimiter" -> nv)
         case ("field.delim", v) =>
-          // If field.delim is empty, we should use default field delimiter.
+          // If field.delim is empty, we should use default field delimiter
+          // for org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
           // It fixed issue: https://github.com/oap-project/gluten/issues/3108
           var nv = if (v.isEmpty) DEFAULT_FIELD_DELIMITER.toString else v
           options += ("field_delimiter" -> nv)

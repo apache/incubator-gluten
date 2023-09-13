@@ -936,7 +936,7 @@ class GlutenClickHouseHiveTableSuite()
     spark.sql("DROP TABLE a")
   }
 
-  test("fallback when row format is org.apache.hadoop.hive.serde2.OpenCSVSerde") {
+  test("fix csv serde bug: https://github.com/oap-project/gluten/issues/3108") {
     spark.sql(s"""
                  |CREATE TABLE b (
                  |  uid bigint,
@@ -953,7 +953,7 @@ class GlutenClickHouseHiveTableSuite()
     spark.sql("insert into b select id, id, id, cast(id as string) from range(10)")
 
     val sql = "select * from b"
-    compareResultsAgainstVanillaSpark(sql, true, { _ => }, false)
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, _ => {})
 
     spark.sql("DROP TABLE b")
   }
