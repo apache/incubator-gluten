@@ -138,6 +138,7 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
   private val taskCount = new AtomicInteger(0)
   private val killCount = new AtomicInteger(0)
 
+  private val sync = new Object()
   private val stageKillWaitTimeLookup =
     new java.util.concurrent.ConcurrentHashMap[Int, Long]
   private val stageKillMaxWaitTimeLookup =
@@ -152,7 +153,7 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
         def wait(): Long = {
           val startMs = System.currentTimeMillis()
           while (true) {
-            stageKillWaitTimeLookup.synchronized {
+            sync.synchronized {
               val total = Math.min(
                 stageKillMaxWaitTimeLookup.computeIfAbsent(taskStart.stageId, _ => Long.MaxValue),
                 stageKillWaitTimeLookup.computeIfAbsent(taskStart.stageId, _ => INIT_WAIT_TIME_MS)
@@ -162,7 +163,7 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
               if (remaining <= 0L) {
                 // 50ms, 100ms, 200ms, 400ms...
                 stageKillWaitTimeLookup.put(taskStart.stageId, total * 2)
-                stageKillWaitTimeLookup.notifyAll()
+                sync.notifyAll()
                 return elapsed
               }
               stageKillWaitTimeLookup.wait(remaining)
@@ -178,7 +179,7 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
             return
           }
           println(
-            s"Killing task after $elapsed ms [task ID:  ${taskStart.taskInfo.taskId}, stage ID: ${taskStart.stageId}, attempt number: ${taskStart.taskInfo.attemptNumber}]...")
+            s"Killing task after $elapsed ms: [task ID:  ${taskStart.taskInfo.taskId}, stage ID: ${taskStart.stageId}, attempt number: ${taskStart.taskInfo.attemptNumber}]...")
           sc.killTaskAttempt(taskStart.taskInfo.taskId, interruptThread = true)
         }
       }
@@ -191,14 +192,18 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
     taskEnd.reason match {
       case TaskKilled(_, _, _, _) =>
         killCount.getAndIncrement()
+        println(
+          s"Task successfully killed: ${taskEnd.taskInfo.taskId}, stage ID: ${taskEnd.stageId}, attempt number: ${taskEnd.taskInfo.attemptNumber}]")
       case Success =>
         // once one task from the stage ends, kill all the others immediately
-        stageKillWaitTimeLookup.synchronized {
+        sync.synchronized {
           stageKillMaxWaitTimeLookup.put(
             taskEnd.stageId,
             (taskEnd.taskInfo.duration * 0.8d).asInstanceOf[Long])
-          stageKillWaitTimeLookup.notifyAll()
+          sync.notifyAll()
         }
+        println(
+          s"Task ended normally: ${taskEnd.taskInfo.taskId}, stage ID: ${taskEnd.stageId}, attempt number: ${taskEnd.taskInfo.attemptNumber}]")
       case _ =>
     }
 
