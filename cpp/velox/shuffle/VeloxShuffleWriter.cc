@@ -244,7 +244,6 @@ void getLengthBufferAndValueBufferStream(
     std::shared_ptr<arrow::ResizableBuffer>& lengthBuffer,
     std::shared_ptr<arrow::ResizableBuffer>& compressedBuffer) {
   GLUTEN_ASSIGN_OR_THROW(lengthBuffer, arrow::AllocateResizableBuffer((buffers.size() + 3) * sizeof(int64_t), pool));
-  int64_t offset = 0;
 
   auto originalBufferSize = getBuffersSize(buffers);
 
@@ -253,28 +252,38 @@ void getLengthBufferAndValueBufferStream(
     // getBuffersSize(buffers), then cannot use this size
     GLUTEN_ASSIGN_OR_THROW(auto uncompressedBuffer, arrow::AllocateResizableBuffer(originalBufferSize, pool));
     int64_t uncompressedSize = uncompressedBuffer->size();
-    writeInt64(lengthBuffer, offset, uncompressedSize); // unCompressedBufferSize
-    int64_t compressLengthOffset = sizeof(int64_t);
-    writeInt64(lengthBuffer, offset, 0); // 0 for compressLength
-    writeInt64(lengthBuffer, offset, buffers.size());
+
+    // Write metadata.
+    auto lengthBufferPtr = (int64_t*)lengthBuffer->mutable_data();
+    int64_t pos = 0;
+    lengthBufferPtr[pos++] = uncompressedSize; // uncompressedLength
+    lengthBufferPtr[pos++] = 0; // 0 for compressedLength
+    lengthBufferPtr[pos++] = buffers.size();
+
     int64_t compressValueOffset = 0;
     for (auto& buffer : buffers) {
+      // Copy all buffers into one big buffer.
       if (buffer != nullptr && buffer->size() != 0) {
-        writeInt64(lengthBuffer, offset, buffer->size());
+        lengthBufferPtr[pos++] = buffer->size();
         memcpy(uncompressedBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
         compressValueOffset += buffer->size();
       } else {
-        writeInt64(lengthBuffer, offset, 0);
+        lengthBufferPtr[pos++] = 0;
       }
     }
+
+    // Compress the big buffer.
     int64_t maxLength = codec->MaxCompressedLen(uncompressedSize, nullptr);
     GLUTEN_ASSIGN_OR_THROW(compressedBuffer, arrow::AllocateResizableBuffer(maxLength, pool));
     GLUTEN_ASSIGN_OR_THROW(
         int64_t actualLength,
         codec->Compress(uncompressedSize, uncompressedBuffer->data(), maxLength, compressedBuffer->mutable_data()));
     GLUTEN_THROW_NOT_OK(compressedBuffer->Resize(actualLength, /*shrink*/ true));
-    memcpy(lengthBuffer->mutable_data() + compressLengthOffset, &actualLength, sizeof(int64_t));
+
+    // Update compressedLength.
+    lengthBufferPtr[1] = actualLength;
   } else {
+    int64_t offset = 0;
     // mark uncompress size as -1 to mark it is uncompressed buffer
     writeInt64(lengthBuffer, offset, -1); // unCompressedBufferSize
     GLUTEN_ASSIGN_OR_THROW(compressedBuffer, arrow::AllocateResizableBuffer(originalBufferSize, pool));
