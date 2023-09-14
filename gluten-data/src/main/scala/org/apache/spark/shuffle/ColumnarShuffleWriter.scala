@@ -25,7 +25,7 @@ import io.glutenproject.vectorized._
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_COMPRESS
-import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
+import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, Utils}
@@ -91,11 +91,8 @@ class ColumnarShuffleWriter[K, V](
   private val taskContext: TaskContext = TaskContext.get()
 
   private def availableOffHeapPerTask(): Long = {
-    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = SparkResourceUtil.getExecutorCores(conf)
-    val taskCores = conf.getInt("spark.task.cpus", 1)
     val perTask =
-      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
+      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
     perTask
   }
 
@@ -139,7 +136,7 @@ class ColumnarShuffleWriter[K, V](
               .create(
                 "ShuffleWriter",
                 new Spiller() {
-                  override def spill(size: Long, trigger: MemoryConsumer): Long = {
+                  override def spill(size: Long): Long = {
                     if (nativeShuffleWriter == -1L) {
                       throw new IllegalStateException(
                         "Fatal: spill() called before a shuffle writer " +

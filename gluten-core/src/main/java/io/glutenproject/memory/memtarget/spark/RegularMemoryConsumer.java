@@ -16,9 +16,10 @@
  */
 package io.glutenproject.memory.memtarget.spark;
 
+import io.glutenproject.memory.MemoryUsageRecorder;
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
-import io.glutenproject.memory.memtarget.TaskManagedMemoryTarget;
+import io.glutenproject.memory.memtarget.MemoryTargetUtil;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.common.base.Preconditions;
@@ -27,27 +28,33 @@ import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
 
-public class GlutenMemoryConsumer extends MemoryConsumer implements TaskManagedMemoryTarget {
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/** A trivial memory consumer implementation used by Gluten. */
+public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryTarget {
+
   private final TaskMemoryManager taskMemoryManager;
   private final Spiller spiller;
   private final String name;
-  private final StatsBuilder statsBuilder;
+  private final Map<String, MemoryUsageStatsBuilder> virtualChildren;
+  private final MemoryUsageRecorder selfRecorder = new SimpleMemoryUsageRecorder();
 
-  public GlutenMemoryConsumer(
-      String name,
+  public RegularMemoryConsumer(
       TaskMemoryManager taskMemoryManager,
+      String name,
       Spiller spiller,
-      StatsBuilder statsBuilder) {
+      Map<String, MemoryUsageStatsBuilder> virtualChildren) {
     super(taskMemoryManager, taskMemoryManager.pageSizeBytes(), MemoryMode.OFF_HEAP);
     this.taskMemoryManager = taskMemoryManager;
     this.spiller = spiller;
-    this.name = name;
-    this.statsBuilder = statsBuilder;
+    this.name = MemoryTargetUtil.toUniqueName("Gluten.Regular." + name);
+    this.virtualChildren = virtualChildren;
   }
 
   @Override
   public long spill(long size, MemoryConsumer trigger) {
-    long spilledOut = spiller.spill(size, trigger);
+    long spilledOut = spiller.spill(size);
     if (TaskResources.inSparkTask()) {
       TaskResources.getLocalTaskContext().taskMetrics().incMemoryBytesSpilled(spilledOut);
     }
@@ -59,27 +66,9 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements TaskManagedM
     return taskMemoryManager;
   }
 
-  public long acquire(long size) {
-    assert size > 0;
-    long acquired = acquireMemory(size);
-    if (acquired < size) {
-      this.taskMemoryManager.showMemoryUsage();
-    }
-    statsBuilder.onAcquire(acquired);
-    return acquired;
-  }
-
-  public long free(long size) {
-    assert size > 0;
-    freeMemory(size);
-    Preconditions.checkArgument(getUsed() >= 0);
-    statsBuilder.onFree(size);
-    return size;
-  }
-
   @Override
   public String name() {
-    return "GlutenMemoryConsumer/" + name;
+    return this.name;
   }
 
   @Override
@@ -89,52 +78,47 @@ public class GlutenMemoryConsumer extends MemoryConsumer implements TaskManagedM
 
   @Override
   public MemoryUsageStats stats() {
-    MemoryUsageStats stats = this.statsBuilder.toStats();
+    MemoryUsageStats stats = this.selfRecorder.toStats();
     Preconditions.checkState(
         stats.getCurrent() == getUsed(),
         "Used bytes mismatch between gluten memory consumer and Spark task memory manager");
-    return stats;
+    // In the case of Velox backend, stats returned from C++ (as the singleton virtual children,
+    // currently) may not include all allocations according to the way collectMemoryUsage()
+    // is implemented. So we add them as children of this consumer's stats
+    return MemoryUsageStats.newBuilder()
+        .setCurrent(stats.getCurrent())
+        .setPeak(stats.getPeak())
+        .putAllChildren(
+            virtualChildren.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().toStats())))
+        .build();
   }
 
   @Override
   public long borrow(long size) {
-    return acquire(size);
+    if (size == 0) {
+      // or Spark complains about the zero size by throwing an error
+      return 0;
+    }
+    long acquired = acquireMemory(size);
+    selfRecorder.inc(acquired);
+    return acquired;
   }
 
   @Override
   public long repay(long size) {
-    return free(size);
+    if (size == 0) {
+      return 0;
+    }
+    long toFree = Math.min(getUsed(), size);
+    freeMemory(toFree);
+    Preconditions.checkArgument(getUsed() >= 0);
+    selfRecorder.inc(-toFree);
+    return toFree;
   }
 
   @Override
   public String toString() {
     return name();
-  }
-
-  public static StatsBuilder newDefaultStatsBuilder() {
-    return new StatsBuilder() {
-      private final SimpleMemoryUsageRecorder usage = new SimpleMemoryUsageRecorder();
-
-      @Override
-      public void onAcquire(long size) {
-        usage.inc(size);
-      }
-
-      @Override
-      public void onFree(long size) {
-        usage.inc(-size);
-      }
-
-      @Override
-      public MemoryUsageStats toStats() {
-        return usage.toStats();
-      }
-    };
-  }
-
-  public interface StatsBuilder extends MemoryUsageStatsBuilder {
-    void onAcquire(long size);
-
-    void onFree(long size);
   }
 }

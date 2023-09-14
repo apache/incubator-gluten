@@ -75,8 +75,8 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
       return;
     }
     long toBeReleased = -requiredBlocks * BLOCK_SIZE;
-    target.repay(toBeReleased);
-    sharedUsage.inc(-toBeReleased);
+    long freed = target.repay(toBeReleased);
+    sharedUsage.inc(-freed);
   }
 
   public long updateReservation(long bytesToAdd) {

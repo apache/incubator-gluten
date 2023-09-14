@@ -68,7 +68,7 @@ public class NativePlanEvaluator {
     final long memoryManagerId =
         NativeMemoryManagers.create(
                 "WholeStageIterator",
-                (size, trigger) -> {
+                (size) -> {
                   ColumnarBatchOutIterator instance =
                       Optional.of(outIterator.get())
                           .orElseThrow(

@@ -16,10 +16,19 @@
  */
 package io.glutenproject.memory.memtarget;
 
-import org.apache.spark.memory.TaskMemoryManager;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
-// Memory target that is bind to Spark TMM (task memory manager). This is typically a Spark
-// consumer.
-public interface TaskManagedMemoryTarget extends MemoryTarget {
-  TaskMemoryManager getTaskMemoryManager();
+public final class MemoryTargetUtil {
+  private MemoryTargetUtil() {}
+
+  private static final Map<String, Integer> UNIQUE_NAME_LOOKUP = new ConcurrentHashMap<>();
+
+  public static String toUniqueName(String name) {
+    int nextId =
+        UNIQUE_NAME_LOOKUP.compute(
+            name, (s, integer) -> Optional.ofNullable(integer).map(id -> id + 1).orElse(0));
+    return String.format("%s.%d", name, nextId);
+  }
 }

@@ -16,21 +16,42 @@
  */
 package io.glutenproject.memory.memtarget;
 
+import io.glutenproject.GlutenConfig;
+import io.glutenproject.memory.MemoryUsageStatsBuilder;
+import io.glutenproject.memory.memtarget.spark.IsolatedMemoryConsumers;
+import io.glutenproject.memory.memtarget.spark.RegularMemoryConsumer;
+import io.glutenproject.memory.memtarget.spark.Spiller;
+import io.glutenproject.memory.memtarget.spark.TaskMemoryTarget;
+
+import org.apache.spark.memory.TaskMemoryManager;
+
+import java.util.Map;
+
 public final class MemoryTargets {
 
   private MemoryTargets() {
     // enclose factory ctor
   }
 
-  public static TaskManagedMemoryTarget overAcquire(
-      TaskManagedMemoryTarget target, double overAcquiredRatio) {
+  public static MemoryTarget throwOnOom(TaskMemoryTarget target) {
+    return new ThrowOnOomMemoryTarget(target);
+  }
+
+  public static TaskMemoryTarget overAcquire(TaskMemoryTarget target, double overAcquiredRatio) {
     if (overAcquiredRatio == 0.0D) {
       return target;
     }
     return new OverAcquire(target, overAcquiredRatio);
   }
 
-  public static MemoryTarget throwOnOom(TaskManagedMemoryTarget target) {
-    return new ThrowOnOomMemoryTarget(target);
+  public static TaskMemoryTarget newConsumer(
+      TaskMemoryManager tmm,
+      String name,
+      Spiller spiller,
+      Map<String, MemoryUsageStatsBuilder> virtualChildren) {
+    if (GlutenConfig.getConf().memoryIsolation()) {
+      return IsolatedMemoryConsumers.newConsumer(tmm, name, spiller, virtualChildren);
+    }
+    return new RegularMemoryConsumer(tmm, name, spiller, virtualChildren);
   }
 }

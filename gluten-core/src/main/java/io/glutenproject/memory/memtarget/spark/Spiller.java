@@ -16,16 +16,14 @@
  */
 package io.glutenproject.memory.memtarget.spark;
 
-import org.apache.spark.memory.MemoryConsumer;
-
 public interface Spiller {
   Spiller NO_OP =
       new Spiller() {
         @Override
-        public long spill(long size, MemoryConsumer trigger) {
+        public long spill(long size) {
           return 0L;
         }
       };
 
-  long spill(long size, MemoryConsumer trigger);
+  long spill(long size);
 }

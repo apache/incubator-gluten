@@ -52,8 +52,8 @@ public class ManagedReservationListener implements ReservationListener {
   @Override
   public long unreserve(long size) {
     synchronized (this) {
-      target.repay(size);
-      sharedUsage.inc(-size);
+      long freed = target.repay(size);
+      sharedUsage.inc(-freed);
       return size;
     }
   }

@@ -186,9 +186,17 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
+  def memoryIsolation: Boolean = conf.getConf(COLUMNAR_MEMORY_ISOLATION)
+
   def offHeapMemorySize: Long = conf.getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
 
   def taskOffHeapMemorySize: Long = conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES)
+
+  def conservativeOffHeapMemorySize: Long =
+    conf.getConf(COLUMNAR_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES)
+
+  def conservativeTaskOffHeapMemorySize: Long =
+    conf.getConf(COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES)
 
   def enableVeloxCache: Boolean = conf.getConf(COLUMNAR_VELOX_CACHE_ENABLED)
 
@@ -342,7 +350,11 @@ object GlutenConfig {
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
+  val GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY =
+    "spark.gluten.memory.conservative.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
+  val GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY =
+    "spark.gluten.memory.conservative.task.offHeap.size.in.bytes"
 
   // Batch size.
   val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
@@ -890,11 +902,46 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0")
 
+  val COLUMNAR_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES =
+    buildConf(GlutenConfig.GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY)
+      .internal()
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("0")
+
   val COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY)
       .internal()
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0")
+
+  val COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES =
+    buildConf(GlutenConfig.GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY)
+      .internal()
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("0")
+
+  val COLUMNAR_MEMORY_ISOLATION =
+    buildConf("spark.gluten.memory.isolation")
+      .internal()
+      .doc("Enable isolate memory mode. If true, Gluten controls the maximum off-heap memory " +
+        "can be used by each task to X, X = executor memory / max task slots. It's recommended " +
+        "to set true if Gluten serves concurrent queries within a single session, since not all " +
+        "memory Gluten allocated is guaranteed to be spillable. In the case, the feature should " +
+        "be enabled to avoid OOM.")
+      .booleanConf
+      .createWithDefault(false)
 
   // velox caching options
   val COLUMNAR_VELOX_CACHE_ENABLED =

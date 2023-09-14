@@ -16,20 +16,17 @@
  */
 package io.glutenproject.memory.memtarget.spark;
 
-public final class Spillers {
-  private Spillers() {
-    // enclose factory ctor
-  }
+import io.glutenproject.memory.memtarget.MemoryTarget;
+import io.glutenproject.proto.MemoryUsageStats;
 
-  // calls the spillers one by one within the order
-  public static Spiller withOrder(Spiller... spillers) {
-    return (size) -> {
-      long remaining = size;
-      for (int i = 0; i < spillers.length && remaining > 0; i++) {
-        Spiller spiller = spillers[i];
-        remaining -= spiller.spill(remaining);
-      }
-      return size - remaining;
-    };
-  }
+import org.apache.spark.memory.TaskMemoryManager;
+
+// Memory target that is bound to Spark TMM (task memory manager). This is typically a Spark
+// consumer.
+public interface TaskMemoryTarget extends MemoryTarget {
+  TaskMemoryManager getTaskMemoryManager();
+
+  String name();
+
+  MemoryUsageStats stats();
 }

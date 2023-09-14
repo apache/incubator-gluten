@@ -16,23 +16,22 @@
  */
 package io.glutenproject.memory.memtarget;
 
-import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.memory.memtarget.spark.Spiller;
+import io.glutenproject.memory.memtarget.spark.TaskMemoryTarget;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.common.base.Preconditions;
-import org.apache.spark.memory.MemoryConsumer;
-import org.apache.spark.memory.MemoryMode;
 import org.apache.spark.memory.TaskMemoryManager;
 
-import java.io.IOException;
+import java.util.Collections;
 
-class OverAcquire implements TaskManagedMemoryTarget {
+class OverAcquire implements TaskMemoryTarget {
 
   // The underlying target.
-  private final TaskManagedMemoryTarget target;
+  private final TaskMemoryTarget target;
 
   // This consumer holds the over-acquired memory.
-  private final MemoryTarget overTarget;
+  private final TaskMemoryTarget overTarget;
 
   // The ratio is normally 0.
   //
@@ -51,9 +50,20 @@ class OverAcquire implements TaskManagedMemoryTarget {
   //   over-acquired memory will be used in step B.
   private final double ratio;
 
-  OverAcquire(TaskManagedMemoryTarget target, double ratio) {
+  OverAcquire(TaskMemoryTarget target, double ratio) {
     Preconditions.checkArgument(ratio >= 0.0D);
-    this.overTarget = new OverAcquire.DummyTarget(target.getTaskMemoryManager());
+    this.overTarget =
+        MemoryTargets.newConsumer(
+            target.getTaskMemoryManager(),
+            "OverAcquire.DummyTarget",
+            new Spiller() {
+              @Override
+              public long spill(long size) {
+                Preconditions.checkState(overTarget != null);
+                return overTarget.repay(size);
+              }
+            },
+            Collections.emptyMap());
     this.target = target;
     this.ratio = ratio;
   }
@@ -76,7 +86,6 @@ class OverAcquire implements TaskManagedMemoryTarget {
   public long repay(long size) {
     Preconditions.checkArgument(size != 0, "Size to repay is zero");
     long freed = target.repay(size);
-    Preconditions.checkArgument(freed == size, "Repaid size is not equal to requested size");
     // clean up the over-acquired target
     long overAcquired = overTarget.usedBytes();
     long freedOverAcquired = overTarget.repay(overAcquired);
@@ -85,12 +94,12 @@ class OverAcquire implements TaskManagedMemoryTarget {
         "Freed over-acquired size is not equal to requested size");
     Preconditions.checkArgument(
         overTarget.usedBytes() == 0, "Over-acquired target was not cleaned up");
-    return size;
+    return freed;
   }
 
   @Override
   public String name() {
-    return String.format("OverAcquire-[%s][%s]", target.name(), overTarget.name());
+    return String.format("OverAcquire.Root[%s]", target.name());
   }
 
   @Override
@@ -113,53 +122,5 @@ class OverAcquire implements TaskManagedMemoryTarget {
   @Override
   public TaskMemoryManager getTaskMemoryManager() {
     return target.getTaskMemoryManager();
-  }
-
-  private class DummyTarget extends MemoryConsumer implements MemoryTarget {
-    private final SimpleMemoryUsageRecorder usage = new SimpleMemoryUsageRecorder();
-
-    private DummyTarget(TaskMemoryManager taskMemoryManager) {
-      super(taskMemoryManager, MemoryMode.OFF_HEAP);
-    }
-
-    @Override
-    public long spill(long size, MemoryConsumer trigger) throws IOException {
-      return repay(size);
-    }
-
-    @Override
-    public long borrow(long size) {
-      if (size == 0) {
-        // or Spark complains the zero size by throwing an error
-        return 0;
-      }
-      long granted = acquireMemory(size);
-      usage.inc(granted);
-      return granted;
-    }
-
-    @Override
-    public long repay(long size) {
-      long toFree = Math.min(size, getUsed());
-      freeMemory(toFree);
-      Preconditions.checkArgument(getUsed() >= 0);
-      usage.inc(-toFree);
-      return toFree;
-    }
-
-    @Override
-    public String name() {
-      return "OverAcquire.DummyTarget";
-    }
-
-    @Override
-    public long usedBytes() {
-      return getUsed();
-    }
-
-    @Override
-    public MemoryUsageStats stats() {
-      return usage.toStats();
-    }
   }
 }

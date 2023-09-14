@@ -17,19 +17,17 @@
 package io.glutenproject.memory.nmm;
 
 import io.glutenproject.GlutenConfig;
-import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.memory.MemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 import io.glutenproject.memory.memtarget.MemoryTargets;
-import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
 import io.glutenproject.memory.memtarget.spark.Spillers;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.spark.TaskContext;
-import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
 
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -64,17 +62,16 @@ public final class NativeMemoryManagers {
   private static NativeMemoryManager createNativeMemoryManager(String name, Spiller spiller) {
     final AtomicReference<NativeMemoryManager> out = new AtomicReference<>();
     // memory target
-    TaskMemoryManager taskMemoryManager = TaskContext.get().taskMemoryManager();
     double overAcquiredRatio = GlutenConfig.getConf().veloxOverAcquiredMemoryRatio();
     MemoryTarget target =
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
-                new GlutenMemoryConsumer(
+                MemoryTargets.newConsumer(
+                    TaskResources.getLocalTaskContext().taskMemoryManager(),
                     name,
-                    taskMemoryManager,
                     // call memory manager's shrink API, if no good then call the spiller
                     Spillers.withOrder(
-                        (size, trigger) ->
+                        (size) ->
                             Optional.of(out.get())
                                 .map(nmm -> nmm.shrink(size))
                                 .orElseThrow(
@@ -87,53 +84,47 @@ public final class NativeMemoryManagers {
                                                 + "from the memory manager constructor.")),
                         spiller // the input spiller, called after nmm.shrink was called
                         ),
-                    new GlutenMemoryConsumer.StatsBuilder() {
-                      private final SimpleMemoryUsageRecorder rootRecorder =
-                          new SimpleMemoryUsageRecorder();
+                    Collections.singletonMap(
+                        "single",
+                        new MemoryUsageRecorder() {
+                          @Override
+                          public void inc(long bytes) {
+                            // no-op
+                          }
 
-                      @Override
-                      public void onAcquire(long size) {
-                        rootRecorder.inc(size);
-                      }
+                          @Override
+                          public long peak() {
+                            throw new UnsupportedOperationException("Not implemented");
+                          }
 
-                      @Override
-                      public void onFree(long size) {
-                        rootRecorder.inc(-size);
-                      }
+                          @Override
+                          public long current() {
+                            throw new UnsupportedOperationException("Not implemented");
+                          }
 
-                      @Override
-                      public MemoryUsageStats toStats() {
-                        final NativeMemoryManager nmm = getNativeMemoryManager();
-                        final byte[] usageProto = nmm.collectMemoryUsage();
-                        try {
-                          final MemoryUsageStats stats = MemoryUsageStats.parseFrom(usageProto);
-                          // Replace the root stats with the one recorded from Java side.
-                          //
-                          // Root stats returned from C++ (currently) may not include all
-                          // allocations
-                          // according to the way collectMemoryUsage() is implemented.
-                          return MemoryUsageStats.newBuilder()
-                              .setCurrent(rootRecorder.current())
-                              .setPeak(rootRecorder.peak())
-                              .putAllChildren(stats.getChildrenMap())
-                              .build();
-                        } catch (InvalidProtocolBufferException e) {
-                          throw new RuntimeException(e);
-                        }
-                      }
+                          @Override
+                          public MemoryUsageStats toStats() {
+                            final NativeMemoryManager nmm = getNativeMemoryManager();
+                            final byte[] usageProto = nmm.collectMemoryUsage();
+                            try {
+                              return MemoryUsageStats.parseFrom(usageProto);
+                            } catch (InvalidProtocolBufferException e) {
+                              throw new RuntimeException(e);
+                            }
+                          }
 
-                      private NativeMemoryManager getNativeMemoryManager() {
-                        return Optional.of(out.get())
-                            .orElseThrow(
-                                () ->
-                                    new IllegalStateException(
-                                        ""
-                                            + "Memory usage stats are requested before native "
-                                            + "memory manager is created. Try moving any actions "
-                                            + "about memory allocation out from the memory manager "
-                                            + "constructor."));
-                      }
-                    }),
+                          private NativeMemoryManager getNativeMemoryManager() {
+                            return Optional.of(out.get())
+                                .orElseThrow(
+                                    () ->
+                                        new IllegalStateException(
+                                            ""
+                                                + "Memory usage stats are requested before native "
+                                                + "memory manager is created. Try moving any "
+                                                + "actions about memory allocation out from the "
+                                                + "memory manager constructor."));
+                          }
+                        })),
                 overAcquiredRatio));
     // listener
     ManagedReservationListener rl =
