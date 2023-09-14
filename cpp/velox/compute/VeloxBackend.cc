@@ -58,6 +58,10 @@ const std::string kEnableUserExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace";
 const std::string kEnableUserExceptionStacktraceDefault = "true";
 
+const std::string kEnableSystemExceptionStacktrace =
+    "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace";
+const std::string kEnableSystemExceptionStacktraceDefault = "true";
+
 const std::string kHiveConnectorId = "test-hive";
 const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
 
@@ -110,6 +114,9 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   // In spark, planner takes care the parititioning and sorting, so the rows are sorted.
   // There is no need to sort the rows in window op again.
   FLAGS_SkipRowSortInWindowOp = true;
+  // Avoid creating too many shared leaf pools.
+  FLAGS_velox_memory_num_shared_leaf_pools = 0;
+
   // Set velox_exception_user_stacktrace_enabled.
   {
     auto got = conf.find(kEnableUserExceptionStacktrace);
@@ -120,8 +127,15 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     FLAGS_velox_exception_user_stacktrace_enabled = (enableUserExceptionStacktrace == "true");
   }
 
-  // Avoid creating too many shared leaf pools.
-  FLAGS_velox_memory_num_shared_leaf_pools = 0;
+  // Set velox_exception_system_stacktrace_enabled.
+  {
+    auto got = conf.find(kEnableSystemExceptionStacktrace);
+    std::string enableSystemExceptionStacktrace = kEnableSystemExceptionStacktraceDefault;
+    if (got != conf.end()) {
+      enableSystemExceptionStacktrace = got->second;
+    }
+    FLAGS_velox_exception_system_stacktrace_enabled = (enableSystemExceptionStacktrace == "true");
+  }
 
   // Set backtrace_allocation
   {

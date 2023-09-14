@@ -1976,6 +1976,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-3105: test json output format") {
+    val sql =
+      """
+        |select to_json(struct(cast(id as string), id, 1.1, 1.1f, 1.1d)) from range(3)
+        |""".stripMargin
+    // cast('nan' as double) output 'NaN' in Spark, 'nan' in CH
+    // cast('inf' as double) output 'Infinity' in Spark, 'inf' in CH
+    // ignore them temporarily
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("Test plan json non-empty") {
     spark.sparkContext.setLogLevel("WARN")
     val df1 = spark

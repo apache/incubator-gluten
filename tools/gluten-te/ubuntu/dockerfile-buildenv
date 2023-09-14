@@ -102,9 +102,13 @@ RUN set-login-env "LANG=en_US.UTF-8"
 RUN set-login-env "LANGUAGE=en_US:en"
 RUN set-login-env "LC_ALL=en_US.UTF-8"
 
-# Install Spark 3.2.2
+# Build & install Spark 3.2.2
 RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
 RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
+
+# Build & install Spark 3.3.1
+RUN cd /opt && git clone --depth 1 --branch v3.3.1 https://github.com/apache/spark.git spark331
+RUN cd /opt/spark331 && ./build/mvn -Pyarn -DskipTests clean install
 
 # Prepare entry command
 COPY scripts/cmd.sh /root/.cmd.sh

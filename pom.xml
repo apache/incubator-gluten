@@ -189,7 +189,6 @@
       </activation>
       <modules>
         <module>backends-clickhouse</module>
-        <module>gluten-celeborn</module>
       </modules>
       <properties>
         <backend_type>clickhouse</backend_type>
