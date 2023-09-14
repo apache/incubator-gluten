@@ -166,7 +166,7 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
                 sync.notifyAll()
                 return elapsed
               }
-              stageKillWaitTimeLookup.wait(remaining)
+              sync.wait(remaining)
             }
           }
           throw new IllegalStateException()
