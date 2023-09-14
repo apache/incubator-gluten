@@ -101,6 +101,7 @@ void registerExpandRelParser(RelParserFactory & factory);
 void registerAggregateParser(RelParserFactory & factory);
 void registerProjectRelParser(RelParserFactory & factory);
 void registerJoinRelParser(RelParserFactory & factory);
+void registerFilterRelParser(RelParserFactory & factory);
 
 void registerRelParsers()
 {
@@ -111,5 +112,6 @@ void registerRelParsers()
     registerAggregateParser(factory);
     registerProjectRelParser(factory);
     registerJoinRelParser(factory);
+    registerFilterRelParser(factory);
 }
 }
