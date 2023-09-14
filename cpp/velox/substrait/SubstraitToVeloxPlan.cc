@@ -1310,7 +1310,6 @@ void SubstraitToVeloxPlanConverter::separateFilters(
       auto value = scalarFunction.arguments().at(0).value();
       if (value.has_selection()) {
         uint32_t fieldIndex = SubstraitParser::parseReferenceSegment(value.selection().direct_reference());
-        auto type = value.selection().direct_reference().struct_field().field();
         if (!veloxTypeList.empty() && veloxTypeList.at(fieldIndex)->isDecimal()) {
           remainingFunctions.emplace_back(scalarFunction);
           continue;

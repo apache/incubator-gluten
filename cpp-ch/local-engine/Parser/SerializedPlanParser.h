@@ -208,6 +208,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"posexplode", "arrayJoin"},
 
        // json functions
+       {"flattenJSONStringOnRequired", "flattenJSONStringOnRequired"},
        {"get_json_object", "get_json_object"},
        {"to_json", "toJSONString"},
        {"from_json", "JSONExtract"},
@@ -261,6 +262,7 @@ class SerializedPlanParser
 {
 private:
     friend class RelParser;
+    friend class RelRewriter;
     friend class ASTParser;
     friend class FunctionParser;
     friend class AggregateFunctionParser;

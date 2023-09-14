@@ -18,6 +18,7 @@
 #include <Poco/Logger.h>
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
+#include <Rewriter/ExpressionRewriter.h>
 
 namespace DB
 {
@@ -30,6 +31,7 @@ namespace ErrorCodes
 namespace local_engine
 {
 
+
 class GetJSONObjectParser : public FunctionParser
 {
 public:
@@ -40,11 +42,18 @@ public:
 
     String getName() const override { return name; }
 protected:
-    String getCHFunctionName(const substrait::Expression_ScalarFunction &) const override
+    String getCHFunctionName(const substrait::Expression_ScalarFunction & scalar_function) const override
     {
+        const auto & args = scalar_function.arguments();
+        if (args[0].value().has_scalar_function()
+            && args[0].value().scalar_function().function_reference() == SelfDefinedFunctionReference::GET_JSON_OBJECT)
+        {
+            return "tupleElement";
+        }
         return name;
     }
 
+    /// Force to reuse the same flatten json column node
     DB::ActionsDAG::NodeRawConstPtrs parseFunctionArguments(
         const substrait::Expression_ScalarFunction & substrait_func,
         const String & ch_func_name,
@@ -55,25 +64,31 @@ protected:
         {
             throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {} requires 2 arguments", ch_func_name);
         }
-
-        const auto * json_column_node = parseExpression(actions_dag, args[0].value());
-        auto decoded_json_col_name = getDecodedJSONColumnName(json_column_node->result_name);
-        const auto * decoded_json_column_node = actions_dag->tryFindInOutputs(decoded_json_col_name);
-        if (!decoded_json_column_node)
+        if (args[0].value().has_scalar_function()
+            && args[0].value().scalar_function().function_reference() == SelfDefinedFunctionReference::GET_JSON_OBJECT)
         {
-            // This extra-column should be removed later.
-            decoded_json_column_node = toFunctionNode(actions_dag, "decodeJSONString", decoded_json_col_name, {json_column_node});
-            actions_dag->addOrReplaceInOutputs(*decoded_json_column_node);
-            assert(decoded_json_column_node);
+            auto flatten_json_column_name = getFlatterJsonColumnName(args[0].value());
+            const auto * flatten_json_column_node = actions_dag->tryFindInOutputs(flatten_json_column_name);
+            if (!flatten_json_column_node)
+            {
+                const auto flatten_function_pb = args[0].value().scalar_function();
+                const auto * flatten_arg0 = parseExpression(actions_dag, flatten_function_pb.arguments(0).value());
+                const auto * flatten_arg1 = parseExpression(actions_dag, flatten_function_pb.arguments(1).value());
+                flatten_json_column_node = toFunctionNode(actions_dag, FlattenJSONStringOnRequiredFunction::name, flatten_json_column_name, {flatten_arg0, flatten_arg1});
+                actions_dag->addOrReplaceInOutputs(*flatten_json_column_node);
+            }
+            return {flatten_json_column_node, parseExpression(actions_dag, args[1].value())};
         }
-        const auto * json_path_node = parseExpression(actions_dag, args[1].value());
-        return {decoded_json_column_node, json_path_node};
+        else
+        {
+            return {parseExpression(actions_dag, args[0].value()), parseExpression(actions_dag, args[1].value())};
+        }
     }
 
 private:
-    String getDecodedJSONColumnName(const String & json_column_name) const
+    static String getFlatterJsonColumnName(const substrait::Expression & arg)
     {
-        return "Decode(" + json_column_name + ")";
+        return arg.ShortDebugString();
     }
 };
 

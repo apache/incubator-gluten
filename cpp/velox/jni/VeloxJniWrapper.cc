@@ -23,7 +23,7 @@
 #include <exception>
 #include "JniUdf.h"
 #include "compute/VeloxBackend.h"
-#include "compute/VeloxInitializer.h"
+#include "compute/VeloxExecutionCtx.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniErrors.h"
 #include "jni/JniFileSystem.h"
@@ -36,8 +36,9 @@ using namespace facebook;
 
 namespace {
 
-std::shared_ptr<gluten::Backend> veloxBackendFactory(const std::unordered_map<std::string, std::string>& sparkConfs) {
-  return std::make_shared<gluten::VeloxBackend>(sparkConfs);
+std::shared_ptr<gluten::ExecutionCtx> veloxExecutionCtxFactory(
+    const std::unordered_map<std::string, std::string>& sparkConfs) {
+  return std::make_shared<gluten::VeloxExecutionCtx>(sparkConfs);
 }
 
 } // namespace
@@ -46,7 +47,7 @@ std::shared_ptr<gluten::Backend> veloxBackendFactory(const std::unordered_map<st
 extern "C" {
 #endif
 
-jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+jint JNI_OnLoad(JavaVM* vm, void*) {
   JNIEnv* env;
   if (vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
     return JNI_ERR;
@@ -64,7 +65,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   return jniVersion;
 }
 
-void JNI_OnUnload(JavaVM* vm, void* reserved) {
+void JNI_OnUnload(JavaVM* vm, void*) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
   gluten::finalizeVeloxJniFileSystem(env);
@@ -72,20 +73,20 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   google::ShutdownGoogleLogging();
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_init_InitializerJniWrapper_initialize( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_init_BackendJniWrapper_initializeBackend( // NOLINT
     JNIEnv* env,
-    jclass clazz,
+    jclass,
     jbyteArray planArray) {
   JNI_METHOD_START
   auto sparkConfs = gluten::getConfMap(env, planArray);
-  gluten::setBackendFactory(veloxBackendFactory, sparkConfs);
-  gluten::VeloxInitializer::create(sparkConfs);
+  gluten::setExecutionCtxFactory(veloxExecutionCtxFactory, sparkConfs);
+  gluten::VeloxBackend::create(sparkConfs);
   JNI_METHOD_END()
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_udf_UdfJniWrapper_nativeLoadUdfLibraries( // NOLINT
     JNIEnv* env,
-    jclass clazz,
+    jclass,
     jstring libPaths) {
   JNI_METHOD_START
   gluten::jniLoadUdf(env, jStringToCString(env, libPaths));
@@ -95,7 +96,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_udf_UdfJniWrapper_nativeLoadUdfLibr
 JNIEXPORT jobject JNICALL
 Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailureReason( // NOLINT
     JNIEnv* env,
-    jobject obj,
+    jobject,
     jbyteArray planArray) {
   JNI_METHOD_START
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));

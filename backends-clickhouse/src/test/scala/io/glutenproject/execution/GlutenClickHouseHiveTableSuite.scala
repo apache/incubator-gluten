@@ -892,7 +892,7 @@ class GlutenClickHouseHiveTableSuite()
     compareResultsAgainstVanillaSpark(select_sql_1, compareResult = true, _ => {})
   }
 
-  test("fix bug: https://github.com/oap-project/gluten/issues/3023") {
+  test("fix reading string from number bug: https://github.com/oap-project/gluten/issues/3023") {
     val data_path = rootPath + "/text-data/json-settings"
     spark.sql(s"""
                  |CREATE TABLE json_settings (
@@ -910,4 +910,52 @@ class GlutenClickHouseHiveTableSuite()
     compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
     spark.sql("DROP TABLE json_settings")
   }
+
+  test("fix empty field delim bug: https://github.com/oap-project/gluten/issues/3098") {
+    spark.sql(s"""
+                 |CREATE TABLE a (
+                 |  uid bigint,
+                 |  appid int,
+                 |  type int,
+                 |  account string)
+                 |ROW FORMAT SERDE
+                 |  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
+                 |WITH SERDEPROPERTIES (
+                 |  'field.delim'='',
+                 |  'line.delim'='\n',
+                 |  'serialization.format'='')
+                 |STORED AS INPUTFORMAT
+                 |  'org.apache.hadoop.mapred.TextInputFormat'
+                 |OUTPUTFORMAT
+                 |  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+      """.stripMargin)
+    spark.sql("insert into a select id, id, id, cast(id as string) from range(10)")
+
+    val select_sql = "select * from a"
+    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    spark.sql("DROP TABLE a")
+  }
+
+  test("fix csv serde bug: https://github.com/oap-project/gluten/issues/3108") {
+    spark.sql(s"""
+                 |CREATE TABLE b (
+                 |  uid bigint,
+                 |  appid int,
+                 |  type int,
+                 |  account string)
+                 |ROW FORMAT SERDE
+                 |  'org.apache.hadoop.hive.serde2.OpenCSVSerde'
+                 |STORED AS INPUTFORMAT
+                 |  'org.apache.hadoop.mapred.TextInputFormat'
+                 |OUTPUTFORMAT
+                 |  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+      """.stripMargin)
+    spark.sql("insert into b select id, id, id, cast(id as string) from range(10)")
+
+    val sql = "select * from b"
+    compareResultsAgainstVanillaSpark(sql, compareResult = true, _ => {})
+
+    spark.sql("DROP TABLE b")
+  }
+
 }

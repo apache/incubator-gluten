@@ -227,7 +227,7 @@ endmacro()
 # Build Velox backend.
 set(VELOX_SRCS
     compute/VeloxBackend.cc
-    compute/VeloxInitializer.cc
+    compute/VeloxExecutionCtx.cc
     compute/WholeStageResultIterator.cc
     compute/VeloxPlanConverter.cc
     jni/VeloxJniWrapper.cc

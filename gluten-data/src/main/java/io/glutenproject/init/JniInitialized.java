@@ -36,7 +36,7 @@ public abstract class JniInitialized {
       Map<String, String> nativeConfMap =
           GlutenConfig.getNativeBackendConf(prefix, SQLConf.get().getAllConfs());
       BackendsApiManager.getSettings().resolveNativeConf(nativeConfMap);
-      InitializerJniWrapper.initialize(JniUtils.toNativeConf(nativeConfMap));
+      BackendJniWrapper.initializeBackend(JniUtils.toNativeConf(nativeConfMap));
     } catch (Exception e) {
       LOG.error("Error calling InitializerJniWrapper.initialize(...)", e);
       throw e;

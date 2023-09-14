@@ -1132,6 +1132,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_VELOX_ENABLE_SYSTEM_EXCEPTION_STACKTRACE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace")
+      .internal()
+      .doc("Enable the stacktrace for system type of VeloxException")
+      .booleanConf
+      .createWithDefault(true)
+
   val TEXT_INPUT_ROW_MAX_BLOCK_SIZE =
     buildConf("spark.gluten.sql.text.input.max.block.size")
       .internal()

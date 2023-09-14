@@ -16,11 +16,9 @@
  */
 #include "WholeStageResultIterator.h"
 #include "VeloxBackend.h"
-#include "VeloxInitializer.h"
+#include "VeloxExecutionCtx.h"
 #include "config/GlutenConfig.h"
-#include "velox/connectors/hive/FileHandle.h"
 #include "velox/connectors/hive/HiveConfig.h"
-#include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
 
@@ -99,7 +97,7 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
       nullptr,
       getQueryContextConf(),
       connectorConfigs,
-      gluten::VeloxInitializer::get()->getAsyncDataCache(),
+      gluten::VeloxBackend::get()->getAsyncDataCache(),
       pool_,
       nullptr,
       "");
