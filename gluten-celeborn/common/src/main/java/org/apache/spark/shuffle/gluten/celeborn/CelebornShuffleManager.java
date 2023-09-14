@@ -270,7 +270,7 @@ public class CelebornShuffleManager implements ShuffleManager {
           // columnar-based shuffle
           if (BackendsApiManager.isVeloxBackend()) {
             return createShuffleWriterInstance(
-                "org.apache.spark.shuffle.CelebornHashBasedColumnarShuffleWriter",
+                "org.apache.spark.shuffle.CelebornHashBasedVeloxColumnarShuffleWriter",
                 h,
                 context,
                 celebornConf,
