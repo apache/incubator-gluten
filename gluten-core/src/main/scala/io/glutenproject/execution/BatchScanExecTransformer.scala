@@ -24,6 +24,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
@@ -129,5 +130,17 @@ class BatchScanExecTransformer(
     case "DwrfScan" => ReadFileFormat.DwrfReadFormat
     case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
     case _ => ReadFileFormat.UnknownFormat
+  }
+
+  override def doCanonicalize(): BatchScanExecTransformer = {
+    val canonicalized = super.doCanonicalize()
+    new BatchScanExecTransformer(
+      canonicalized.output,
+      canonicalized.scan,
+      canonicalized.runtimeFilters,
+      QueryPlan.normalizePredicates(
+        pushdownFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
+        output)
+    )
   }
 }
