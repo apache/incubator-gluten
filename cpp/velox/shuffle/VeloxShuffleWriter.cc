@@ -680,16 +680,39 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
         // allocate buffer if it's not yet allocated
         RETURN_NOT_OK(allocatePartitionBuffersWithRetry(pid, newSize));
       } else if (beyondThreshold(pid, newSize)) {
-        bool reuseBuffers = true;
-        ARROW_ASSIGN_OR_RAISE(auto rb, createArrowRecordBatchFromBuffer(pid, /*resetBuffers = */ !reuseBuffers));
-        if (rb) {
-          RETURN_NOT_OK(cacheRecordBatch(pid, *rb, reuseBuffers));
+        if (newSize <= partitionBufferIdxBase_[pid]) {
+          // If the newSize is smaller, cache the buffered data and reuse (shrink) the buffer.
+          bool reuseBuffers = true;
+          ARROW_ASSIGN_OR_RAISE(auto rb, createArrowRecordBatchFromBuffer(pid, /*resetBuffers = */ !reuseBuffers));
+          if (rb) {
+            RETURN_NOT_OK(cacheRecordBatch(pid, *rb, reuseBuffers));
+          }
+          if (options_.prefer_evict) {
+            // if prefer_evict is set, evict current RowVector
+            RETURN_NOT_OK(evictPartition(pid));
+          }
+          RETURN_NOT_OK(allocatePartitionBuffersWithRetry(pid, newSize, reuseBuffers)); // resize
+        } else {
+          // If the newSize is larger, check if alreadyFilled + toBeFilled <= newSize
+          if (partitionBufferIdxBase_[pid] + partition2RowCount_[pid] <= newSize) {
+            // If so, keep the data in buffers and resize buffers.
+            RETURN_NOT_OK(resizePartitionBuffer(pid, newSize)); // resize
+          } else {
+            // Otherwise cache the buffered data.
+            // If newSize <= allocated buffer size, reuse (shrink) the buffer.
+            // Else free and allocate new buffers.
+            bool reuseBuffers = newSize <= partition2BufferSize_[pid];
+            ARROW_ASSIGN_OR_RAISE(auto rb, createArrowRecordBatchFromBuffer(pid, /*resetBuffers = */ !reuseBuffers));
+            if (rb) {
+              RETURN_NOT_OK(cacheRecordBatch(pid, *rb, reuseBuffers));
+            }
+            if (options_.prefer_evict) {
+              // if prefer_evict is set, evict current RowVector
+              RETURN_NOT_OK(evictPartition(pid));
+            }
+            RETURN_NOT_OK(allocatePartitionBuffersWithRetry(pid, newSize, reuseBuffers));
+          }
         }
-        if (options_.prefer_evict) {
-          // if prefer_evict is set, evict current RowVector
-          RETURN_NOT_OK(evictPartition(pid));
-        }
-        RETURN_NOT_OK(allocatePartitionBuffersWithRetry(pid, newSize, reuseBuffers));
       } else if (partitionBufferIdxBase_[pid] + partition2RowCount_[pid] > partition2BufferSize_[pid]) {
         // if the size to be filled + allready filled > the buffer size, need to free current buffers and allocate new
         // buffer
@@ -1607,75 +1630,75 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     return arrow::Status::OK();
   }
 
-  arrow::Result<int64_t> VeloxShuffleWriter::shrinkPartitionBuffers() {
-    auto beforeShrink = pool_->bytes_allocated();
+  arrow::Status VeloxShuffleWriter::resizePartitionBuffer(uint32_t pid, int64_t newSize) {
     for (auto i = 0; i < simpleColumnIndices_.size(); ++i) {
       auto columnType = schema_->field(simpleColumnIndices_[i])->type()->id();
-      for (auto pid = 0; pid < numPartitions_; ++pid) {
-        auto currentRowCnt = partitionBufferIdxBase_[pid];
-        std::vector<std::shared_ptr<arrow::Buffer>>& buffers = partitionBuffers_[i][pid];
+      std::vector<std::shared_ptr<arrow::Buffer>>& buffers = partitionBuffers_[i][pid];
 
-        // shrink validity
-        if (buffers[kValidityBufferIndex]) {
-          auto validityBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kValidityBufferIndex]);
-          // Invalid status if cast buffer failed. All split buffers should be allocated using AllocateResizableBuffer
-          ARROW_RETURN_IF(!validityBuffer, arrow::Status::Invalid("Validity buffer is not resizable."));
-          RETURN_NOT_OK(validityBuffer->Resize(arrow::bit_util::BytesForBits(currentRowCnt)));
-          partitionValidityAddrs_[i][pid] = validityBuffer->mutable_data();
+      // shrink validity
+      if (buffers[kValidityBufferIndex]) {
+        auto validityBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kValidityBufferIndex]);
+        // Invalid status if cast buffer failed. All split buffers should be allocated using AllocateResizableBuffer
+        ARROW_RETURN_IF(!validityBuffer, arrow::Status::Invalid("Validity buffer is not resizable."));
+        RETURN_NOT_OK(validityBuffer->Resize(arrow::bit_util::BytesForBits(newSize)));
+        partitionValidityAddrs_[i][pid] = validityBuffer->mutable_data();
+      }
+
+      // shrink value buffer if fixed-width, offset & value buffers if binary
+      switch (columnType) {
+        // binary types
+        case arrow::BinaryType::type_id:
+        case arrow::StringType::type_id: {
+          auto offsetBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kOffsetBufferIndex]);
+          ARROW_RETURN_IF(!offsetBuffer, arrow::Status::Invalid("Offset buffer of binary array is not resizable."));
+          RETURN_NOT_OK(offsetBuffer->Resize((newSize + 1) * sizeof(arrow::BinaryType::offset_type)));
+
+          auto& binaryBuf = partitionBinaryAddrs_[i - fixedWidthColumnCount_][pid];
+          auto valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kValueBufferIndex]);
+          ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of binary array is not resizable."));
+          RETURN_NOT_OK(valueBuffer->Resize(binaryBuf.valueOffset));
+
+          binaryBuf = BinaryBuf(
+              valueBuffer->mutable_data(), offsetBuffer->mutable_data(), binaryBuf.valueOffset, binaryBuf.valueOffset);
+          break;
         }
-
-        // shrink value buffer if fixed-width, offset & value buffers if binary
-        switch (columnType) {
-          // binary types
-          case arrow::BinaryType::type_id:
-          case arrow::StringType::type_id: {
-            auto offsetBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kOffsetBufferIndex]);
-            ARROW_RETURN_IF(!offsetBuffer, arrow::Status::Invalid("Offset buffer of binary array is not resizable."));
-            RETURN_NOT_OK(offsetBuffer->Resize((currentRowCnt + 1) * sizeof(arrow::BinaryType::offset_type)));
-
-            auto& binaryBuf = partitionBinaryAddrs_[i - fixedWidthColumnCount_][pid];
-            auto valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kValueBufferIndex]);
-            ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of binary array is not resizable."));
-            RETURN_NOT_OK(valueBuffer->Resize(binaryBuf.valueOffset));
-
-            binaryBuf = BinaryBuf(
-                valueBuffer->mutable_data(),
-                offsetBuffer->mutable_data(),
-                binaryBuf.valueOffset,
-                binaryBuf.valueOffset);
-            break;
-          }
-          case arrow::StructType::type_id:
-          case arrow::MapType::type_id:
-          case arrow::ListType::type_id:
-            break;
+        case arrow::StructType::type_id:
+        case arrow::MapType::type_id:
+        case arrow::ListType::type_id:
+          break;
           // fixed-width types
-          default: {
-            uint64_t valueBufferSize = 0;
-            if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
-              valueBufferSize = arrow::bit_util::BytesForBits(currentRowCnt);
-            } else if (veloxColumnTypes_[i]->isShortDecimal()) {
-              valueBufferSize = currentRowCnt * (arrow::bit_width(arrow::Int64Type::type_id) >> 3);
-            } else if (veloxColumnTypes_[i]->kind() == TypeKind::TIMESTAMP) {
-              valueBufferSize = BaseVector::byteSize<Timestamp>(currentRowCnt);
-            } else {
-              valueBufferSize = currentRowCnt * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3);
-            }
-            auto valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[1]);
-            ARROW_RETURN_IF(
-                !valueBuffer, arrow::Status::Invalid("Value buffer of fixed-width array is not resizable."));
-            RETURN_NOT_OK(valueBuffer->Resize(valueBufferSize));
-            partitionFixedWidthValueAddrs_[i][pid] = valueBuffer->mutable_data();
-
-            break;
+        default: {
+          uint64_t valueBufferSize = 0;
+          if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
+            valueBufferSize = arrow::bit_util::BytesForBits(newSize);
+          } else if (veloxColumnTypes_[i]->isShortDecimal()) {
+            valueBufferSize = newSize * (arrow::bit_width(arrow::Int64Type::type_id) >> 3);
+          } else if (veloxColumnTypes_[i]->kind() == TypeKind::TIMESTAMP) {
+            valueBufferSize = BaseVector::byteSize<Timestamp>(newSize);
+          } else {
+            valueBufferSize = newSize * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3);
           }
+          auto valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[1]);
+          ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of fixed-width array is not resizable."));
+          RETURN_NOT_OK(valueBuffer->Resize(valueBufferSize));
+          partitionFixedWidthValueAddrs_[i][pid] = valueBuffer->mutable_data();
+
+          break;
         }
       }
     }
+    partition2BufferSize_[pid] = newSize;
+    return arrow::Status::OK();
+  }
 
-    // Update partition2BufferSize_ to the current size.
+  arrow::Status VeloxShuffleWriter::shrinkPartitionBuffer(uint32_t pid) {
+    return resizePartitionBuffer(pid, partitionBufferIdxBase_[pid]);
+  }
+
+  arrow::Result<int64_t> VeloxShuffleWriter::shrinkPartitionBuffers() {
+    auto beforeShrink = pool_->bytes_allocated();
     for (auto pid = 0; pid < numPartitions_; ++pid) {
-      partition2BufferSize_[pid] = partitionBufferIdxBase_[pid];
+      RETURN_NOT_OK(shrinkPartitionBuffer(pid));
     }
 
     auto shrunken = beforeShrink - pool_->bytes_allocated();

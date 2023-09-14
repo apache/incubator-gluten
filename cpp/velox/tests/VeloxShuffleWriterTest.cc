@@ -673,23 +673,19 @@ TEST_P(VeloxShuffleWriterTest, TestSpill) {
   int64_t evicted;
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
   ASSERT_GT(evicted, 0);
+  ASSERT_EQ(shuffleWriter_->totalCachedPayloadSize(), 0);
 
-  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
-  if (!shuffleWriterOptions_.prefer_evict) {
-    // Cached payload should not be empty, because the first evict makes
-    // all buffers shrunken to current size and there are no spaces left for next splits.
-    payloadSize = shuffleWriter_->totalCachedPayloadSize();
-    ASSERT_GT(payloadSize, 0);
+  for (int i = 0; i < 100; ++i) {
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector2_));
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
   }
 
-  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector2_));
-  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
-
   if (!shuffleWriterOptions_.prefer_evict) {
-    // The cached payload should not be empty because no spill triggered.
-    payloadSize = shuffleWriter_->totalCachedPayloadSize();
-    ASSERT_GT(payloadSize, 0);
+    // No evict triggered, the cached payload should not be empty.
+    ASSERT_GT(shuffleWriter_->totalCachedPayloadSize(), 0);
   }
+
   payloadSize = shuffleWriter_->totalCachedPayloadSize();
   bufferSize = shuffleWriter_->pool()->bytes_allocated();
   shuffleWriter_->setSplitState(SplitState::kStop);

@@ -288,6 +288,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Result<int64_t> shrinkPartitionBuffers();
 
+  arrow::Status shrinkPartitionBuffer(uint32_t partitionId);
+
+  arrow::Status resizePartitionBuffer(uint32_t pid, int64_t newSize);
+
  protected:
   SplitState splitState_{kInit};
 
