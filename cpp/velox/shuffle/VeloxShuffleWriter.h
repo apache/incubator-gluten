@@ -230,6 +230,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   uint32_t calculatePartitionBufferSize(const facebook::velox::RowVector& rv);
 
+  arrow::Status updateValidityBuffers(uint32_t partitionId, uint32_t newSize);
+
+  arrow::Result<std::shared_ptr<arrow::ResizableBuffer>>
+  allocateValidityBuffer(uint32_t col, uint32_t partitionId, uint32_t newSize);
+
   arrow::Status allocatePartitionBuffers(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
 
   arrow::Status allocatePartitionBuffersWithRetry(uint32_t partitionId, uint32_t newSize);
@@ -356,6 +361,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   std::vector<std::vector<BinaryBuf>> partitionBinaryAddrs_;
 
+  // Input column has null, in the order of fixed-width columns + binary columns.
   std::vector<bool> inputHasNull_;
 
   // pid
