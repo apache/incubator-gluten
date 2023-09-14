@@ -174,7 +174,7 @@ class KillTaskListener(val sc: SparkContext) extends SparkListener {
         val elapsed = wait()
 
         // We have 50% chance to kill the task. FIXME make it configurable?
-        if (RandomUtils.nextFloat(0.0f, 0.5f) < 1.0f) {
+        if (RandomUtils.nextFloat(0.0f, 1.0f) < 0.5f) {
           if (sc.isStopped) {
             return
           }
