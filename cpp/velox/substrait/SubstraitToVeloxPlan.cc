@@ -507,7 +507,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(childNode);
 
-  if (projNode->names().size() > 1) {
+  if (projNode != nullptr && projNode->names().size() > 1) {
     // generator is a scalarfunction node -> explode(array(col, 'all'))
     // use the last one, this is ensure by scala code
     auto innerName = projNode->names().back();
@@ -520,8 +520,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   } else {
     // generator should be a array column -> explode(col)
     auto explodeFunc = generator.scalar_function();
-    auto innerfunc = explodeFunc.arguments(0).value().scalar_function();
-    auto unnestExpr = exprConverter_->toVeloxExpr(innerfunc.arguments(0).value(), inputType);
+    auto unnestExpr = exprConverter_->toVeloxExpr(explodeFunc.arguments(0).value(), inputType);
     auto unnestFieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(unnestExpr);
     VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
     unnest.emplace_back(unnestFieldExpr);

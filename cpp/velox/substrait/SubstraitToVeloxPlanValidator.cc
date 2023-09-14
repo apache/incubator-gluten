@@ -1170,6 +1170,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
     return validate(rel.sort());
   } else if (rel.has_expand()) {
     return validate(rel.expand());
+  } else if (rel.has_generate()) {
+    return validate(rel.generate());
   } else if (rel.has_fetch()) {
     return validate(rel.fetch());
   } else if (rel.has_window()) {

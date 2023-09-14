@@ -37,6 +37,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.UnaryExecNode
+import org.apache.spark.sql.types.MapType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.Any
@@ -97,7 +98,14 @@ case class GenerateExecTransformer(
       }
       if (generator.isInstanceOf[Explode]) {
         if (generator.asInstanceOf[Explode].child.isInstanceOf[CreateMap]) {
-          return ValidationResult.notOk(s"Velox backend does not support this posexplode")
+          return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
+        }
+        generator.asInstanceOf[Explode].child.dataType match {
+          case _: MapType =>
+            return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
+        }
+        if (outer) {
+          return ValidationResult.notOk(s"Velox backend does not support outer")
         }
       }
     }
