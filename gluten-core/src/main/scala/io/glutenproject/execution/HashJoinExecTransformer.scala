@@ -111,12 +111,12 @@ trait HashJoinLikeExecTransformer
     BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetrics(sparkContext)
 
   // Whether the left and right side should be switched.
-  protected lazy val switchTable: Boolean = joinBuildSide match {
+  protected lazy val needSwitchChildren: Boolean = joinBuildSide match {
     case BuildLeft => true
     case BuildRight => false
   }
 
-  lazy val (buildPlan, streamedPlan) = if (switchTable) {
+  lazy val (buildPlan, streamedPlan) = if (needSwitchChildren) {
     (left, right)
   } else {
     (right, left)
@@ -160,7 +160,7 @@ trait HashJoinLikeExecTransformer
     } else {
       (leftKeys, rightKeys)
     }
-    if (switchTable) {
+    if (needSwitchChildren) {
       (lkeys, rkeys)
     } else {
       (rkeys, lkeys)
@@ -220,7 +220,7 @@ trait HashJoinLikeExecTransformer
       buildKeyExprs,
       condition,
       substraitJoinType,
-      switchTable,
+      needSwitchChildren,
       joinType,
       genJoinParametersBuilder(),
       null,
@@ -292,7 +292,7 @@ trait HashJoinLikeExecTransformer
       buildKeyExprs,
       condition,
       substraitJoinType,
-      switchTable,
+      needSwitchChildren,
       joinType,
       genJoinParametersBuilder(),
       inputStreamedRelNode,
@@ -306,7 +306,7 @@ trait HashJoinLikeExecTransformer
     substraitContext.registerJoinParam(operatorId, joinParams)
 
     JoinUtils.createTransformContext(
-      switchTable,
+      needSwitchChildren,
       output,
       joinRel,
       inputStreamedOutput,
