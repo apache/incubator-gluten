@@ -93,6 +93,9 @@ case class GenerateExecTransformer(
   override protected def doValidateInternal(): ValidationResult = {
     // TODO(yuan): support posexplode and remove this check
     if (BackendsApiManager.isVeloxBackend) {
+      if (generator.isInstanceOf[JsonTuple]) {
+        return ValidationResult.notOk(s"Velox backend does not support this json_tuple")
+      }
       if (generator.isInstanceOf[PosExplode]) {
         return ValidationResult.notOk(s"Velox backend does not support this posexplode")
       }
