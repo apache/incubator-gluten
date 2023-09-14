@@ -193,8 +193,13 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
         Spiller spiller,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
       this.parent = parent;
-      this.name = MemoryTargetUtil.toUniqueName(name);
       this.capacity = capacity;
+      final String uniqueName = MemoryTargetUtil.toUniqueName(name);
+      if (capacity == CAPACITY_UNLIMITED) {
+        this.name = uniqueName;
+      } else {
+        this.name = String.format("%s, %s", uniqueName, Utils.bytesToString(capacity));
+      }
       this.spiller = spiller;
       this.virtualChildren = virtualChildren;
     }
@@ -260,10 +265,7 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
     @Override
     public String name() {
-      if (capacity == CAPACITY_UNLIMITED) {
-        return name;
-      }
-      return String.format("%s, %s", name, Utils.bytesToString(capacity));
+      return name;
     }
 
     @Override
