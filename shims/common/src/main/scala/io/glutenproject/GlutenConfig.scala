@@ -754,7 +754,7 @@ object GlutenConfig {
           "If false, the partition buffers will be cached in memory first, " +
           "and the cached buffers will be spilled when reach maximum memory.")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED =
     buildConf("spark.gluten.sql.columnar.shuffle.writeEOS")
