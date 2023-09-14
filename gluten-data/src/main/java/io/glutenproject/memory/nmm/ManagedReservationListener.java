@@ -16,6 +16,7 @@
  */
 package io.glutenproject.memory.nmm;
 
+import com.google.common.base.Preconditions;
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 
@@ -54,7 +55,8 @@ public class ManagedReservationListener implements ReservationListener {
     synchronized (this) {
       long freed = target.repay(size);
       sharedUsage.inc(-freed);
-      return size;
+      Preconditions.checkState(freed == size);
+      return freed;
     }
   }
 
