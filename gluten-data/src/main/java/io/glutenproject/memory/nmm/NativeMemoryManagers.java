@@ -62,8 +62,8 @@ public final class NativeMemoryManagers {
   private static NativeMemoryManager createNativeMemoryManager(String name, Spiller spiller) {
     final AtomicReference<NativeMemoryManager> out = new AtomicReference<>();
     // memory target
-    double overAcquiredRatio = GlutenConfig.getConf().veloxOverAcquiredMemoryRatio();
-    MemoryTarget target =
+    double overAcquiredRatio = GlutenConfig.getConf().memoryOverAcquiredRatio();
+    final MemoryTarget target =
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
                 MemoryTargets.newConsumer(
@@ -71,19 +71,22 @@ public final class NativeMemoryManagers {
                     name,
                     // call memory manager's shrink API, if no good then call the spiller
                     Spillers.withOrder(
-                        (size) ->
-                            Optional.of(out.get())
-                                .map(nmm -> nmm.shrink(size))
-                                .orElseThrow(
-                                    () ->
-                                        new IllegalStateException(
-                                            ""
-                                                + "Shrink is requested before native "
-                                                + "memory manager is created. Try moving any "
-                                                + "actions about memory allocation out "
-                                                + "from the memory manager constructor.")),
-                        spiller // the input spiller, called after nmm.shrink was called
-                        ),
+                        Spillers.withMinSpillSize(
+                            (size) ->
+                                Optional.of(out.get())
+                                    .map(nmm -> nmm.shrink(size))
+                                    .orElseThrow(
+                                        () ->
+                                            new IllegalStateException(
+                                                ""
+                                                    + "Shrink is requested before native "
+                                                    + "memory manager is created. Try moving any "
+                                                    + "actions about memory allocation out "
+                                                    + "from the memory manager constructor.")),
+                            GlutenConfig.getConf().memoryReservationBlockSize()),
+                        // the input spiller, called after nmm.shrink was called
+                        Spillers.withMinSpillSize(
+                            spiller, GlutenConfig.getConf().memoryReservationBlockSize())),
                     Collections.singletonMap(
                         "single",
                         new MemoryUsageRecorder() {

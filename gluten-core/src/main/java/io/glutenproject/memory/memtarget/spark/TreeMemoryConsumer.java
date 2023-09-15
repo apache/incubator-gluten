@@ -137,7 +137,9 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
     if (remainingBytes > 0) {
       // if still doesn't fit, spill self
-      long spilled = node.getNodeSpiller().spill(remainingBytes);
+      final long prev = node.usedBytes();
+      node.getNodeSpiller().spill(remainingBytes);
+      final long spilled = node.usedBytes() - prev;
       remainingBytes -= spilled;
     }
 

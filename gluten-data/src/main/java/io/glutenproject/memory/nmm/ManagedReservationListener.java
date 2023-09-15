@@ -16,10 +16,10 @@
  */
 package io.glutenproject.memory.nmm;
 
-import com.google.common.base.Preconditions;
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 
+import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
