@@ -1651,11 +1651,30 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 /// FIXME. Now we treet '1900-01-01' as null value. Not realy good.
                 /// Updating `toDate32OrNull` to return null if the string is invalid is not acceptable by
                 /// ClickHouse (https://github.com/ClickHouse/ClickHouse/issues/47120).
-                String function_name = "toDate32OrNull";
-                const auto * date_node = toFunctionNode(actions_dag, function_name, args);
+                String to_date_function_name = "toDate32OrNull";
+                const auto * date_node = toFunctionNode(actions_dag, to_date_function_name, args);
+                const auto * date_is_not_null_node = toFunctionNode(actions_dag, "isNotNull", {date_node});
+
+                const auto * substr_offset_node = add_column(std::make_shared<DataTypeInt32>(), 1);
+                const auto * substr_length_node = add_column(std::make_shared<DataTypeInt32>(), 10);
+                const auto * substr_node = toFunctionNode(actions_dag, "substring", {args[0], substr_offset_node, substr_length_node});
+                const auto * parse_date_node = toFunctionNode(actions_dag, "parseDateTimeBestEffortOrNull", {substr_node});
+                const auto * date_node_from_parse = toFunctionNode(actions_dag, "toDate32", {parse_date_node});
+                const auto * parse_date_is_not_null_node = toFunctionNode(actions_dag, "isNotNull", {parse_date_node});
+
+                const auto * null_const_node = add_column(makeNullable(std::make_shared<DataTypeDate32>()), Field{});
+                
+                const auto * to_date_multi_if_node = toFunctionNode(actions_dag, "multiIf", {
+                    date_is_not_null_node,
+                    date_node,
+                    parse_date_is_not_null_node,
+                    date_node_from_parse,
+                    null_const_node
+                });
+                
                 const auto * zero_date_col_node = add_column(std::make_shared<DataTypeString>(), "1900-01-01");
-                const auto * zero_date_node = toFunctionNode(actions_dag, function_name, {zero_date_col_node});
-                DB::ActionsDAG::NodeRawConstPtrs nullif_args = {date_node, zero_date_node};
+                const auto * zero_date_node = toFunctionNode(actions_dag, to_date_function_name, {zero_date_col_node});
+                DB::ActionsDAG::NodeRawConstPtrs nullif_args = {to_date_multi_if_node, zero_date_node};
                 function_node = toFunctionNode(actions_dag, "nullIf", nullif_args);
             }
             else if (substrait_type.has_binary())
