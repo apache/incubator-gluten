@@ -536,49 +536,6 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             query_plan->addStep(std::move(limit_step));
             break;
         }
-        case substrait::Rel::RelTypeCase::kFilter: {
-            rel_stack.push_back(&rel);
-            const auto & filter = rel.filter();
-            query_plan = parseOp(filter.input(), rel_stack);
-            rel_stack.pop_back();
-            std::string filter_name;
-
-            ActionsDAGPtr actions_dag = nullptr;
-            if (filter.condition().has_scalar_function())
-            {
-                actions_dag = parseFunction(query_plan->getCurrentDataStream().header, filter.condition(), filter_name, nullptr, true);
-            }
-            else
-            {
-                actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(query_plan->getCurrentDataStream().header));
-                const auto * node = parseExpression(actions_dag, filter.condition());
-                filter_name = node->result_name;
-            }
-
-            bool remove_filter_column = true;
-            auto input = query_plan->getCurrentDataStream().header.getNames();
-            NameSet input_with_condition(input.begin(), input.end());
-            if (input_with_condition.contains(filter_name))
-                remove_filter_column = false;
-            else
-                input_with_condition.emplace(filter_name);
-
-            actions_dag->removeUnusedActions(input_with_condition);
-            NonNullableColumnsResolver non_nullable_columns_resolver(query_plan->getCurrentDataStream().header, *this, filter.condition());
-            auto non_nullable_columns = non_nullable_columns_resolver.resolve();
-            auto filter_step
-                = std::make_unique<FilterStep>(query_plan->getCurrentDataStream(), actions_dag, filter_name, remove_filter_column);
-            filter_step->setStepDescription("WHERE");
-            steps.emplace_back(filter_step.get());
-            query_plan->addStep(std::move(filter_step));
-            // remove nullable
-            auto * remove_null_step = addRemoveNullableStep(*query_plan, non_nullable_columns);
-            if (remove_null_step)
-            {
-                steps.emplace_back(remove_null_step);
-            }
-            break;
-        }
         case substrait::Rel::RelTypeCase::kRead: {
             const auto & read = rel.read();
             assert(read.has_local_files() || read.has_extension_table() && "Only support local parquet files or merge tree read rel");
@@ -609,6 +566,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             }
             break;
         }
+        case substrait::Rel::RelTypeCase::kFilter:
         case substrait::Rel::RelTypeCase::kGenerate:
         case substrait::Rel::RelTypeCase::kProject:
         case substrait::Rel::RelTypeCase::kAggregate:

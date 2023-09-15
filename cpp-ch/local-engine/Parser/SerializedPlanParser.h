@@ -296,6 +296,8 @@ public:
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
 
+    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
+
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
     static SharedContextHolder shared_context;
@@ -359,7 +361,6 @@ private:
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(
         const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
-    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
 
     int name_no = 0;
