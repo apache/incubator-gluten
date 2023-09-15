@@ -1643,13 +1643,20 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       auto columnType = schema_->field(simpleColumnIndices_[i])->type()->id();
       std::vector<std::shared_ptr<arrow::Buffer>>& buffers = partitionBuffers_[i][pid];
 
-      // shrink validity
+      // resize validity
       if (buffers[kValidityBufferIndex]) {
         auto validityBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kValidityBufferIndex]);
         // Invalid status if cast buffer failed. All split buffers should be allocated using AllocateResizableBuffer
         ARROW_RETURN_IF(!validityBuffer, arrow::Status::Invalid("Validity buffer is not resizable."));
+
+        auto filled = validityBuffer->capacity();
         RETURN_NOT_OK(validityBuffer->Resize(arrow::bit_util::BytesForBits(newSize)));
         partitionValidityAddrs_[i][pid] = validityBuffer->mutable_data();
+
+        // If newSize is larger, fill 1 to the newly allocated bytes.
+        if (validityBuffer->capacity() > filled) {
+          memset(validityBuffer->mutable_data() + filled, 0xff, validityBuffer->capacity() - filled);
+        }
       }
 
       // shrink value buffer if fixed-width, offset & value buffers if binary
