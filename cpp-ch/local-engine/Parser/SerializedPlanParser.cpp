@@ -1656,6 +1656,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 String to_date_function_name = "toDate32OrNull";
                 const auto * date_node = toFunctionNode(actions_dag, to_date_function_name, args);
                 const auto * date_is_not_null_node = toFunctionNode(actions_dag, "isNotNull", {date_node});
+
                 /// isNotNull(toDate32(parseDateTimeOrNull(substring(trimLeft(date), 1, 10), '%Y-%m-%d'))
                 const auto * substr_offset_node = add_column(std::make_shared<DataTypeInt32>(), 1);
                 const auto * substr_length_node = add_column(std::make_shared<DataTypeInt32>(), 10);
