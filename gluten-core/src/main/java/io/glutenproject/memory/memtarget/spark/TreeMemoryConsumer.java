@@ -137,9 +137,7 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
     if (remainingBytes > 0) {
       // if still doesn't fit, spill self
-      final long prev = node.usedBytes();
-      node.getNodeSpiller().spill(remainingBytes);
-      final long spilled = node.usedBytes() - prev;
+      final long spilled = node.getNodeSpiller().spill(remainingBytes);
       remainingBytes -= spilled;
     }
 
@@ -227,7 +225,6 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
     }
 
     private boolean ensureFreeCapacity(long bytesNeeded) {
-      long prevFreeBytes = -1L;
       while (true) { // FIXME should we add retry limit?
         long freeBytes = freeBytes();
         Preconditions.checkState(freeBytes >= 0);
@@ -235,15 +232,14 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
           // free bytes fit requirement
           return true;
         }
-        // we are about to OOM
-        if (freeBytes == prevFreeBytes) {
+        // spill
+        long bytesToSpill = bytesNeeded - freeBytes;
+        long spilledBytes = spillTree(this, bytesToSpill);
+        Preconditions.checkState(spilledBytes >= 0);
+        if (spilledBytes == 0) {
           // OOM
           return false;
         }
-        prevFreeBytes = freeBytes;
-        // spill
-        long bytesToSpill = bytesNeeded - freeBytes;
-        spillTree(this, bytesToSpill);
       }
     }
 
