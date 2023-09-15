@@ -37,8 +37,8 @@ public final class Spillers {
     return new WithMinSpillSize(spiller, minSize);
   }
 
-  // Minimum spill target size should be larger than spark.gluten.memory.reservationBlockSize
-  // Since any release action within size smaller than the block size may not have chance to
+  // Minimum spill target size should be larger than spark.gluten.memory.reservationBlockSize,
+  // since any release action within size smaller than the block size may not have chance to
   // report back to the Java-side reservation listener.
   private static class WithMinSpillSize implements Spiller {
     private final Spiller delegated;
