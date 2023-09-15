@@ -1657,13 +1657,14 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
 
                 const auto * substr_offset_node = add_column(std::make_shared<DataTypeInt32>(), 1);
                 const auto * substr_length_node = add_column(std::make_shared<DataTypeInt32>(), 10);
-                const auto * substr_node = toFunctionNode(actions_dag, "substring", {args[0], substr_offset_node, substr_length_node});
-                const auto * parse_date_node = toFunctionNode(actions_dag, "parseDateTimeBestEffortOrNull", {substr_node});
+                const auto * trim_string_node = toFunctionNode(actions_dag, "trimLeft", {args[0]});
+                const auto * substr_node = toFunctionNode(actions_dag, "substring", {trim_string_node, substr_offset_node, substr_length_node});
+                const auto * date_format_node = add_column(std::make_shared<DataTypeString>(), "%Y-%m-%d");
+                const auto * parse_date_node = toFunctionNode(actions_dag, "parseDateTimeOrNull", {substr_node, date_format_node});
                 const auto * date_node_from_parse = toFunctionNode(actions_dag, "toDate32", {parse_date_node});
                 const auto * parse_date_is_not_null_node = toFunctionNode(actions_dag, "isNotNull", {parse_date_node});
 
                 const auto * null_const_node = add_column(makeNullable(std::make_shared<DataTypeDate32>()), Field{});
-                
                 const auto * to_date_multi_if_node = toFunctionNode(actions_dag, "multiIf", {
                     date_is_not_null_node,
                     date_node,
