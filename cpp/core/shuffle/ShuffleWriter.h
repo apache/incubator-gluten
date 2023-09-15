@@ -121,31 +121,6 @@ class ShuffleMemoryPool : public arrow::MemoryPool {
   uint64_t bytesAllocated_ = 0;
 };
 
-class ShuffleBufferPool {
- public:
-  explicit ShuffleBufferPool(std::shared_ptr<arrow::MemoryPool> pool);
-
-  arrow::Status init();
-
-  arrow::Status allocate(std::shared_ptr<arrow::Buffer>& buffer, int64_t size);
-
-  arrow::Status allocateDirectly(std::shared_ptr<arrow::ResizableBuffer>& buffer, int64_t size);
-
-  int64_t bytesAllocated() const;
-
-  void reset() {
-    if (combineBuffer_ != nullptr) {
-      combineBuffer_.reset();
-    }
-  }
-
- private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
-  // slice the buffer for each reducer's column, in this way we can combine into
-  // large page
-  std::shared_ptr<arrow::ResizableBuffer> combineBuffer_;
-};
-
 class ShuffleWriter {
  public:
   /**
@@ -199,7 +174,7 @@ class ShuffleWriter {
   }
 
   int64_t splitBufferSize() const {
-    return splitBufferSize_;
+    return splitBufferPool_->bytes_allocated();
   }
 
   int64_t totalWriteTime() const {
@@ -226,7 +201,7 @@ class ShuffleWriter {
     return partitionCachedRecordbatchSize_;
   }
 
-  const int64_t totalCachedPayloadSize() const {
+  virtual const uint64_t totalCachedPayloadSize() const {
     return std::accumulate(partitionCachedRecordbatchSize_.begin(), partitionCachedRecordbatchSize_.end(), 0);
   }
 
@@ -236,10 +211,6 @@ class ShuffleWriter {
 
   std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>>& partitionBuffer() {
     return partitionBuffers_;
-  }
-
-  std::shared_ptr<ShuffleMemoryPool>& pool() {
-    return pool_;
   }
 
   ShuffleWriterOptions& options() {
@@ -274,10 +245,6 @@ class ShuffleWriter {
     partitionCachedRecordbatchSize_[index] = size;
   }
 
-  void setSplitBufferSize(int64_t splitBufferSize) {
-    splitBufferSize_ = splitBufferSize;
-  }
-
   class PartitionWriter;
 
   class Partitioner;
@@ -292,7 +259,7 @@ class ShuffleWriter {
       : numPartitions_(numPartitions),
         partitionWriterCreator_(std::move(partitionWriterCreator)),
         options_(std::move(options)),
-        pool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)),
+        splitBufferPool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)),
         codec_(createArrowIpcCodec(options_.compression_type, options_.codec_backend)) {}
 
   virtual ~ShuffleWriter() = default;
@@ -301,10 +268,10 @@ class ShuffleWriter {
 
   std::shared_ptr<PartitionWriterCreator> partitionWriterCreator_;
 
-  // options
   ShuffleWriterOptions options_;
-  // split buffer pool
-  std::shared_ptr<ShuffleMemoryPool> pool_;
+  // Memory Pool used to track memory usage of split buffers.
+  // The actual allocation is delegated to options_.memory_pool.
+  std::shared_ptr<ShuffleMemoryPool> splitBufferPool_;
 
   int64_t totalBytesWritten_ = 0;
   int64_t totalBytesEvicted_ = 0;

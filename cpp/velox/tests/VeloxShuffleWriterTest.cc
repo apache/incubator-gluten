@@ -267,7 +267,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
 
     auto targetEvicted = shuffleWriter_->totalCachedPayloadSize();
     if (shrink) {
-      targetEvicted += shuffleWriter_->pool()->bytes_allocated();
+      targetEvicted += shuffleWriter_->splitBufferSize();
     }
     int64_t evicted;
     ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(targetEvicted, &evicted));
@@ -639,7 +639,7 @@ TEST_P(VeloxShuffleWriterTest, TestSplitSpillAndShrink) {
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector2_));
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
 
-    auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
+    auto bufferSize = shuffleWriter_->splitBufferSize();
     auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
     int64_t evicted;
     ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
@@ -662,7 +662,7 @@ TEST_P(VeloxShuffleWriterTest, TestStopShrinkAndSpill) {
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
   }
 
-  auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
+  auto bufferSize = shuffleWriter_->splitBufferSize();
   auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
   if (!shuffleWriterOptions_.prefer_evict) {
     ASSERT_GT(payloadSize, 0);
@@ -704,7 +704,7 @@ TEST_P(VeloxShuffleWriterTest, TestSpillOnStop) {
   shuffleWriter_->setSplitState(SplitState::kStop);
 
   auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
-  auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
+  auto bufferSize = shuffleWriter_->splitBufferSize();
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
   // Total evicted should be greater than payloadSize, to test shrinking has been triggered.
   ASSERT_GT(evicted, payloadSize);
@@ -764,13 +764,13 @@ TEST_P(VeloxShuffleWriterTest, TestShrinkZeroSizeBuffer) {
     ASSERT_NOT_OK(shuffleWriter_->cacheRecordBatch(pid, *rb, true));
   }
 
-  auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
+  auto bufferSize = shuffleWriter_->splitBufferSize();
   auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
   // All cached payloads and partition buffer memory should be evicted.
   ASSERT_EQ(evicted, payloadSize + bufferSize);
   // All buffers should be released.
-  ASSERT_EQ(shuffleWriter_->pool()->bytes_allocated(), 0);
+  ASSERT_EQ(shuffleWriter_->splitBufferSize(), 0);
 
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
@@ -785,7 +785,7 @@ TEST_P(VeloxShuffleWriterTest, SmallBufferSizeNoShrink) {
   ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, hashInputVector1_));
 
   int64_t evicted = 0;
-  auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
+  auto bufferSize = shuffleWriter_->splitBufferSize();
   auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
   ASSERT_EQ(evicted, 0);
