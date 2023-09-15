@@ -205,6 +205,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/LocalPartitionWriter.cc
         shuffle/rss/RemotePartitionWriter.cc
         shuffle/rss/CelebornPartitionWriter.cc
+        shuffle/Utils.cc
         utils/Compression.cc
         utils/DebugOut.cc
         utils/StringUtil.cc
@@ -321,7 +322,7 @@ else()
 endif()
 
 target_link_libraries(gluten
-    PUBLIC Arrow::arrow Arrow::parquet)
+    PUBLIC Arrow::arrow Arrow::parquet glog::glog)
 
 install(TARGETS gluten
         DESTINATION ${CMAKE_INSTALL_LIBDIR})

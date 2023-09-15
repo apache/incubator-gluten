@@ -112,7 +112,7 @@ class BenchmarkShuffleSplit {
     std::shared_ptr<arrow::MemoryPool> pool = defaultArrowMemoryPool();
 
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
-        std::make_shared<LocalPartitionWriterCreator>(FLAGS_prefer_evict);
+        std::make_shared<LocalPartitionWriterCreator>();
 
     auto options = ShuffleWriterOptions::defaults();
     options.buffer_size = kPartitionBufferSize;

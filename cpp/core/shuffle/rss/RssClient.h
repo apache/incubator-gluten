@@ -17,24 +17,11 @@
 
 #pragma once
 
-#include "shuffle/ShuffleWriter.h"
-
-namespace gluten {
-
-class ShuffleWriter::PartitionWriter {
+class RssClient {
  public:
-  PartitionWriter(ShuffleWriter* shuffleWriter) : shuffleWriter_(shuffleWriter) {}
-  virtual ~PartitionWriter() = default;
+  virtual ~RssClient() = default;
 
-  virtual arrow::Status init() = 0;
+  virtual int32_t pushPartitionData(int32_t partitionId, char* bytes, int64_t size) = 0;
 
-  virtual arrow::Status processPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
-
-  virtual arrow::Status spill() = 0;
-
-  virtual arrow::Status stop() = 0;
-
-  ShuffleWriter* shuffleWriter_;
+  virtual void stop() = 0;
 };
-
-} // namespace gluten

@@ -34,8 +34,8 @@
 #include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
+#include "shuffle/Utils.h"
 #include "shuffle/rss/CelebornPartitionWriter.h"
-#include "shuffle/utils.h"
 #include "utils/ArrowStatus.h"
 
 using namespace gluten;
@@ -834,7 +834,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     auto localDirs = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
     setenv(gluten::kGlutenSparkLocalDirs.c_str(), localDirs, 1);
     env->ReleaseStringUTFChars(localDirsJstr, localDirs);
-    partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>(preferEvict);
+    partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>();
   } else if (partitionWriterType == "celeborn") {
     shuffleWriterOptions.partition_writer_type = "celeborn";
     jclass celebornPartitionPusherClass =
