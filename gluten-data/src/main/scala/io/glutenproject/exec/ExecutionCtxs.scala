@@ -14,15 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.init;
+package io.glutenproject.exec
 
-public class BackendJniWrapper {
+import org.apache.spark.util.TaskResources
 
-  private BackendJniWrapper() {}
+object ExecutionCtxs {
+  private val EXECUTION_CTX_NAME = "ExecutionCtx"
 
-  public static native void initializeBackend(byte[] configPlan);
+  /** Get or create the execution ctx which bound with Spark TaskContext. */
+  def contextInstance(): ExecutionCtx = {
+    if (!TaskResources.inSparkTask()) {
+      throw new IllegalStateException("This method must be called in a Spark task.")
+    }
 
-  public static native long createExecutionCtx();
+    TaskResources.addResourceIfNotRegistered(EXECUTION_CTX_NAME, () => createExecutionCtx())
+  }
 
-  public static native void releaseExecutionCtx(long handle);
+  /** Create a temporary execution ctx, caller must invoke ExecutionCtx#release manually. */
+  def tmpInstance(): ExecutionCtx = {
+    createExecutionCtx()
+  }
+
+  private def createExecutionCtx(): ExecutionCtx = {
+    new ExecutionCtx
+  }
 }

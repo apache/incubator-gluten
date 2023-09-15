@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.nmm.NativeMemoryManagers
@@ -104,15 +105,17 @@ class ColumnarToRowRDD(
       if (batches.isEmpty) {
         Iterator.empty
       } else {
+        val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
         // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
         val jniWrapper = new NativeColumnarToRowJniWrapper()
         var closed = false
         val c2rId = jniWrapper.nativeColumnarToRowInit(
-          NativeMemoryManagers.contextInstance("ColumnarToRow").getNativeInstanceId)
+          executionCtxHandle,
+          NativeMemoryManagers.contextInstance("ColumnarToRow").getNativeInstanceHandle)
 
         TaskResources.addRecycler(s"ColumnarToRow_$c2rId", 100) {
           if (!closed) {
-            jniWrapper.nativeClose(c2rId)
+            jniWrapper.nativeClose(executionCtxHandle, c2rId)
             closed = true
           }
         }
@@ -122,7 +125,7 @@ class ColumnarToRowRDD(
           override def hasNext: Boolean = {
             val hasNext = batches.hasNext
             if (!hasNext && !closed) {
-              jniWrapper.nativeClose(c2rId)
+              jniWrapper.nativeClose(executionCtxHandle, c2rId)
               closed = true
             }
             hasNext
@@ -156,7 +159,8 @@ class ColumnarToRowRDD(
               val rows = batch.numRows()
               val beforeConvert = System.currentTimeMillis()
               val batchHandle = ColumnarBatches.getNativeHandle(batch)
-              val info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId)
+              val info =
+                jniWrapper.nativeColumnarToRowConvert(executionCtxHandle, batchHandle, c2rId)
 
               convertTime += (System.currentTimeMillis() - beforeConvert)
               // batch.close()

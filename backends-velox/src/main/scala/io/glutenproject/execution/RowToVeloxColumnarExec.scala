@@ -18,6 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.velox.Validator
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.ArrowAbiUtil
@@ -63,25 +64,27 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
         } else {
           val arrowSchema =
             SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
+          val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
           val jniWrapper = new NativeRowToColumnarJniWrapper()
           val allocator = ArrowBufferAllocators.contextInstance()
           val cSchema = ArrowSchema.allocateNew(allocator)
           var closed = false
-          val r2cId =
+          val r2cHandle =
             try {
               ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
               jniWrapper.init(
                 cSchema.memoryAddress(),
+                executionCtxHandle,
                 NativeMemoryManagers
                   .contextInstance("RowToColumnar")
-                  .getNativeInstanceId)
+                  .getNativeInstanceHandle)
             } finally {
               cSchema.close()
             }
 
-          TaskResources.addRecycler(s"RowToColumnar_$r2cId", 100) {
+          TaskResources.addRecycler(s"RowToColumnar_$r2cHandle", 100) {
             if (!closed) {
-              jniWrapper.close(r2cId)
+              jniWrapper.close(executionCtxHandle, r2cHandle)
               closed = true
             }
           }
@@ -91,7 +94,7 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
             override def hasNext: Boolean = {
               val itHasNext = rowIterator.hasNext
               if (!itHasNext && !closed) {
-                jniWrapper.close(r2cId)
+                jniWrapper.close(executionCtxHandle, r2cHandle)
                 closed = true
               }
               itHasNext
@@ -150,8 +153,12 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
               numInputRows += rowCount
               try {
                 val handle = jniWrapper
-                  .nativeConvertRowToColumnar(r2cId, rowLength.toArray, arrowBuf.memoryAddress())
-                ColumnarBatches.create(handle)
+                  .nativeConvertRowToColumnar(
+                    executionCtxHandle,
+                    r2cHandle,
+                    rowLength.toArray,
+                    arrowBuf.memoryAddress())
+                ColumnarBatches.create(executionCtxHandle, handle)
               } finally {
                 arrowBuf.close()
                 arrowBuf = null

@@ -29,7 +29,8 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
 
 class VeloxWriteQueue(
-    instanceId: Long,
+    executionCtxHandle: Long,
+    dsHandle: Long,
     schema: Schema,
     allocator: BufferAllocator,
     datasourceJniWrapper: DatasourceJniWrapper,
@@ -41,7 +42,7 @@ class VeloxWriteQueue(
   private val writeThread = new Thread(
     () => {
       try {
-        datasourceJniWrapper.write(instanceId, scanner)
+        datasourceJniWrapper.write(executionCtxHandle, dsHandle, scanner)
       } catch {
         case e: Throwable =>
           writeException.set(e)

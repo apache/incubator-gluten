@@ -23,13 +23,14 @@ namespace gluten {
 
 class DummyExecutionCtx final : public ExecutionCtx {
  public:
-  std::shared_ptr<ResultIterator> getResultIterator(
+  ResourceHandle createResultIterator(
       MemoryManager* memoryManager,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
       const std::unordered_map<std::string, std::string>& sessionConf) override {
     auto resIter = std::make_unique<DummyResultIterator>();
-    return std::make_shared<ResultIterator>(std::move(resIter));
+    auto iter = std::make_shared<ResultIterator>(std::move(resIter));
+    return resultIteratorHolder_.insert(iter);
   }
   MemoryManager* createMemoryManager(
       const std::string& name,
@@ -37,45 +38,89 @@ class DummyExecutionCtx final : public ExecutionCtx {
       std::unique_ptr<AllocationListener> uniquePtr) override {
     return nullptr;
   }
-  std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryManager* memoryManager) override {
+  ResourceHandle addResultIterator(std::shared_ptr<ResultIterator> ptr) override {
+    return kInvalidResourceHandle;
+  }
+  std::shared_ptr<ResultIterator> getResultIterator(ResourceHandle handle) override {
+    return resultIteratorHolder_.lookup(handle);
+  }
+  void releaseResultIterator(ResourceHandle handle) override {}
+  ResourceHandle addBatch(std::shared_ptr<ColumnarBatch> ptr) override {
+    return kInvalidResourceHandle;
+  }
+  std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle handle) override {
+    return std::shared_ptr<ColumnarBatch>();
+  }
+  void releaseBatch(ResourceHandle handle) override {}
+  ResourceHandle createColumnar2RowConverter(MemoryManager* memoryManager) override {
+    return kInvalidResourceHandle;
+  }
+  std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(ResourceHandle handle) override {
     return std::shared_ptr<ColumnarToRowConverter>();
   }
-  std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
-      MemoryManager* memoryManager,
-      struct ArrowSchema* cSchema) override {
+  void releaseColumnar2RowConverter(ResourceHandle handle) override {}
+  ResourceHandle createRow2ColumnarConverter(MemoryManager* memoryManager, struct ArrowSchema* cSchema) override {
+    return kInvalidResourceHandle;
+  }
+  std::shared_ptr<RowToColumnarConverter> getRow2ColumnarConverter(ResourceHandle handle) override {
     return std::shared_ptr<RowToColumnarConverter>();
   }
-  std::shared_ptr<ShuffleWriter> createShuffleWriter(
+  void releaseRow2ColumnarConverter(ResourceHandle handle) override {}
+  ResourceHandle createShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
       MemoryManager* memoryManager) override {
+    return kInvalidResourceHandle;
+  }
+  std::shared_ptr<ShuffleWriter> getShuffleWriter(ResourceHandle handle) override {
     return std::shared_ptr<ShuffleWriter>();
   }
+  void releaseShuffleWriter(ResourceHandle handle) override {}
   std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {
     return std::shared_ptr<Metrics>();
   }
-  std::shared_ptr<Datasource> getDatasource(
+  ResourceHandle createDatasource(
       const std::string& filePath,
       MemoryManager* memoryManager,
       std::shared_ptr<arrow::Schema> schema) override {
+    return kInvalidResourceHandle;
+  }
+  std::shared_ptr<Datasource> getDatasource(ResourceHandle handle) override {
     return std::shared_ptr<Datasource>();
   }
-  std::shared_ptr<ShuffleReader> createShuffleReader(
+  void releaseDatasource(ResourceHandle handle) override {}
+  ResourceHandle createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
       std::shared_ptr<arrow::MemoryPool> pool,
       MemoryManager* memoryManager) override {
+    return kInvalidResourceHandle;
+  }
+  std::shared_ptr<ShuffleReader> getShuffleReader(ResourceHandle handle) override {
     return std::shared_ptr<ShuffleReader>();
   }
-  std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
+  void releaseShuffleReader(ResourceHandle handle) override {}
+  ResourceHandle createColumnarBatchSerializer(
       MemoryManager* memoryManager,
       std::shared_ptr<arrow::MemoryPool> arrowPool,
       struct ArrowSchema* cSchema) override {
+    return kInvalidResourceHandle;
+  }
+  std::unique_ptr<ColumnarBatchSerializer> createTempColumnarBatchSerializer(
+      MemoryManager* memoryManager,
+      std::shared_ptr<arrow::MemoryPool> arrowPool,
+      struct ArrowSchema* cSchema) override {
+    return std::unique_ptr<ColumnarBatchSerializer>();
+  }
+  std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(ResourceHandle handle) override {
     return std::shared_ptr<ColumnarBatchSerializer>();
   }
+  void releaseColumnarBatchSerializer(ResourceHandle handle) override {}
 
  private:
+  ConcurrentMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
+
   class DummyResultIterator : public ColumnarBatchIterator {
    public:
     std::shared_ptr<ColumnarBatch> next() override {
@@ -95,20 +140,21 @@ class DummyExecutionCtx final : public ExecutionCtx {
   };
 };
 
-static std::shared_ptr<ExecutionCtx> DummyExecutionCtxFactory() {
-  return std::make_shared<DummyExecutionCtx>();
+static ExecutionCtx* DummyExecutionCtxFactory() {
+  return new DummyExecutionCtx();
 }
 
 TEST(TestExecutionCtx, CreateExecutionCtx) {
   setExecutionCtxFactory(DummyExecutionCtxFactory);
-  auto executionCtxP = createExecutionCtx();
-  auto& executionCtx = *executionCtxP.get();
-  ASSERT_EQ(typeid(executionCtx), typeid(DummyExecutionCtx));
+  auto executionCtx = createExecutionCtx();
+  ASSERT_EQ(typeid(*executionCtx), typeid(DummyExecutionCtx));
+  releaseExecutionCtx(executionCtx);
 }
 
 TEST(TestExecutionCtx, GetResultIterator) {
   auto executionCtx = std::make_shared<DummyExecutionCtx>();
-  auto iter = executionCtx->getResultIterator(nullptr, "/tmp/test-spill", {}, {});
+  auto handle = executionCtx->createResultIterator(nullptr, "/tmp/test-spill", {}, {});
+  auto iter = executionCtx->getResultIterator(handle);
   ASSERT_TRUE(iter->hasNext());
   auto next = iter->next();
   ASSERT_NE(next, nullptr);

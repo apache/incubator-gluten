@@ -40,8 +40,12 @@ void setExecutionCtxFactory(ExecutionCtxFactory factory) {
 #endif
 }
 
-std::shared_ptr<ExecutionCtx> createExecutionCtx() {
+ExecutionCtx* createExecutionCtx() {
   return getExecutionCtxFactoryContext()->create();
+}
+
+void releaseExecutionCtx(ExecutionCtx* executionCtx) {
+  delete executionCtx;
 }
 
 } // namespace gluten

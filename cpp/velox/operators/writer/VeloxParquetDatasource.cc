@@ -17,13 +17,11 @@
 
 #include "VeloxParquetDatasource.h"
 
-#include <arrow/array/array_base.h>
 #include <arrow/buffer.h>
 #include <cstring>
 #include <string>
 
 #include "arrow/c/bridge.h"
-#include "compute/ExecutionCtx.h"
 #include "compute/VeloxExecutionCtx.h"
 #include "config/GlutenConfig.h"
 
@@ -38,8 +36,6 @@ using namespace facebook::velox::dwio::common;
 namespace gluten {
 
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
-  auto executionCtx = std::dynamic_pointer_cast<gluten::VeloxExecutionCtx>(gluten::createExecutionCtx());
-
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(filePath_.substr(5));
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {

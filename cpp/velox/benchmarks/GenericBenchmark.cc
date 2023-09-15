@@ -126,6 +126,7 @@ auto BM_Generic = [](::benchmark::State& state,
     setCpu(state.thread_index());
   }
   auto memoryManager = getDefaultMemoryManager();
+  auto executionCtx = gluten::createExecutionCtx();
   const auto& filePath = getExampleFilePath(substraitJsonFile);
   auto plan = getPlanFromFile(filePath);
   auto startTime = std::chrono::steady_clock::now();
@@ -133,7 +134,6 @@ auto BM_Generic = [](::benchmark::State& state,
   WriterMetrics writerMetrics{};
 
   for (auto _ : state) {
-    auto executionCtx = gluten::createExecutionCtx();
     std::vector<std::shared_ptr<gluten::ResultIterator>> inputIters;
     std::vector<BatchIterator*> inputItersRaw;
     if (!inputFiles.empty()) {
@@ -148,9 +148,10 @@ auto BM_Generic = [](::benchmark::State& state,
     }
 
     executionCtx->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
-    auto resultIter =
-        executionCtx->getResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
-    auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxExecutionCtx>(executionCtx)->getVeloxPlan();
+    auto iterHandle =
+        executionCtx->createResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
+    auto resultIter = executionCtx->getResultIterator(iterHandle);
+    auto veloxPlan = dynamic_cast<gluten::VeloxExecutionCtx*>(executionCtx)->getVeloxPlan();
     if (FLAGS_with_shuffle) {
       int64_t shuffleWriteTime;
       TIME_NANO_START(shuffleWriteTime);
@@ -206,6 +207,7 @@ auto BM_Generic = [](::benchmark::State& state,
     auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
     std::cout << statsStr << std::endl;
   }
+  gluten::releaseExecutionCtx(executionCtx);
 
   auto endTime = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();

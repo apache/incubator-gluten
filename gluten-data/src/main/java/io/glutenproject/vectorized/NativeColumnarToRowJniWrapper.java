@@ -24,10 +24,11 @@ public class NativeColumnarToRowJniWrapper extends JniInitialized {
 
   public NativeColumnarToRowJniWrapper() throws IOException {}
 
-  public native long nativeColumnarToRowInit(long memoryManagerId) throws RuntimeException;
+  public native long nativeColumnarToRowInit(long executionCtxHandle, long memoryManagerHandle)
+      throws RuntimeException;
 
   public native NativeColumnarToRowInfo nativeColumnarToRowConvert(
-      long batchHandle, long instanceId) throws RuntimeException;
+      long executionCtxHandle, long batchHandle, long c2rHandle) throws RuntimeException;
 
-  public native void nativeClose(long instanceID);
+  public native void nativeClose(long executionCtxHandle, long c2rHandle);
 }
