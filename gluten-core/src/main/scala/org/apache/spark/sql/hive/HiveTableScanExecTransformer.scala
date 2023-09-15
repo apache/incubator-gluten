@@ -219,6 +219,14 @@ class HiveTableScanExecTransformer(
   }
 
   override def hashCode(): Int = super.hashCode()
+
+  override def doCanonicalize(): HiveTableScanExecTransformer = {
+    val canonicalized = super.doCanonicalize()
+    new HiveTableScanExecTransformer(
+      canonicalized.requestedAttributes,
+      canonicalized.relation,
+      canonicalized.partitionPruningPred)(canonicalized.session)
+  }
 }
 
 object HiveTableScanExecTransformer {

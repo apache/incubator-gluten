@@ -287,6 +287,21 @@ class FileSourceScanExecTransformer(
       case "CSVFileFormat" => ReadFileFormat.TextReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
+
+  override def doCanonicalize(): FileSourceScanExecTransformer = {
+    val canonicalized = super.doCanonicalize()
+    new FileSourceScanExecTransformer(
+      canonicalized.relation,
+      canonicalized.output,
+      canonicalized.requiredSchema,
+      canonicalized.partitionFilters,
+      canonicalized.optionalBucketSet,
+      canonicalized.optionalNumCoalescedBuckets,
+      canonicalized.dataFilters,
+      canonicalized.tableIdentifier,
+      canonicalized.disableBucketedScan
+    )
+  }
 }
 
 object FileSourceScanExecTransformer {
