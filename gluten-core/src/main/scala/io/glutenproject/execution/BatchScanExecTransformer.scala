@@ -24,7 +24,6 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
@@ -37,8 +36,7 @@ import java.util.Objects
 class BatchScanExecTransformer(
     output: Seq[AttributeReference],
     @transient scan: Scan,
-    runtimeFilters: Seq[Expression],
-    pushdownFilters: Seq[Expression] = Seq())
+    runtimeFilters: Seq[Expression])
   extends BatchScanExecShim(output, scan, runtimeFilters)
   with BasicScanExecTransformer {
 
@@ -48,7 +46,7 @@ class BatchScanExecTransformer(
 
   override def filterExprs(): Seq[Expression] = scan match {
     case fileScan: FileScan =>
-      fileScan.dataFilters ++ pushdownFilters
+      fileScan.dataFilters
     case _ =>
       throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }
@@ -93,12 +91,11 @@ class BatchScanExecTransformer(
 
   override def equals(other: Any): Boolean = other match {
     case that: BatchScanExecTransformer =>
-      that.canEqual(this) && super.equals(that) &&
-      this.pushdownFilters == that.getPushdownFilters
+      that.canEqual(this) && super.equals(that)
     case _ => false
   }
 
-  override def hashCode(): Int = Objects.hash(batch, runtimeFilters, pushdownFilters)
+  override def hashCode(): Int = Objects.hash(batch, runtimeFilters)
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[BatchScanExecTransformer]
 
@@ -120,10 +117,6 @@ class BatchScanExecTransformer(
   @transient protected lazy val filteredFlattenPartitions: Seq[InputPartition] =
     filteredPartitions.flatten
 
-  private def getPushdownFilters: Seq[Expression] = {
-    pushdownFilters
-  }
-
   @transient override lazy val fileFormat: ReadFileFormat = scan.getClass.getSimpleName match {
     case "OrcScan" => ReadFileFormat.OrcReadFormat
     case "ParquetScan" => ReadFileFormat.ParquetReadFormat
@@ -137,10 +130,7 @@ class BatchScanExecTransformer(
     new BatchScanExecTransformer(
       canonicalized.output,
       canonicalized.scan,
-      canonicalized.runtimeFilters,
-      QueryPlan.normalizePredicates(
-        pushdownFilters.filterNot(_ == DynamicPruningExpression(Literal.TrueLiteral)),
-        output)
+      canonicalized.runtimeFilters
     )
   }
 }
