@@ -48,7 +48,7 @@
 #include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/Partitioner.h"
 #include "shuffle/ShuffleWriter.h"
-#include "shuffle/utils.h"
+#include "shuffle/Utils.h"
 
 #include "utils/Print.h"
 
@@ -127,17 +127,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status evictFixedSize(int64_t size, int64_t* actual) override;
 
-  arrow::Status createRecordBatchFromBuffer(uint32_t partitionId, bool resetBuffers) override;
-
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> createArrowRecordBatchFromBuffer(
+  arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createPayloadFromBuffer(
       uint32_t partitionId,
-      bool resetBuffers) override;
-
-  arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> createArrowIpcPayload(
-      const arrow::RecordBatch& rb,
       bool reuseBuffers) override;
 
-  arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers) override;
+  arrow::Status evictPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override;
 
   const uint64_t cachedPayloadSize() const override;
 
@@ -257,6 +251,18 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status splitComplexType(const facebook::velox::RowVector& rv);
 
+  arrow::Status preparePartitionBuffer(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
+
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> createArrowRecordBatchFromBuffer(
+      uint32_t partitionId,
+      bool reuseBuffers);
+
+  arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createArrowIpcPayload(
+      const arrow::RecordBatch& rb,
+      bool reuseBuffers);
+
+  arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers);
+
   template <typename T>
   arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
     assert(numPartitions_ == dstAddrs.size());
@@ -284,8 +290,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       std::vector<BinaryBuf>& dst);
 
   arrow::Status evictPartitionsOnDemand(int64_t* size);
-
-  arrow::Status evictPartition(int32_t partitionId);
 
   std::shared_ptr<arrow::RecordBatch> makeRecordBatch(
       uint32_t numRows,

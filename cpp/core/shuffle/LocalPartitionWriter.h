@@ -23,7 +23,6 @@
 #include "shuffle/ShuffleWriter.h"
 
 #include "PartitionWriterCreator.h"
-#include "utils.h"
 #include "utils/macros.h"
 
 namespace gluten {
@@ -36,8 +35,6 @@ class LocalPartitionWriterBase : public ShuffleWriter::PartitionWriter {
 
   std::string nextSpilledFileDir();
 
-  arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> getSchemaPayload(std::shared_ptr<arrow::Schema> schema);
-
   arrow::Status openDataFile();
 
   virtual arrow::Status clearResource();
@@ -47,27 +44,7 @@ class LocalPartitionWriterBase : public ShuffleWriter::PartitionWriter {
   std::vector<int32_t> subDirSelection_;
   std::vector<std::string> configuredDirs_;
 
-  // shared among all partitions
-  std::shared_ptr<arrow::ipc::IpcPayload> schemaPayload_;
   std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
-};
-
-class PreferEvictPartitionWriter : public LocalPartitionWriterBase {
- public:
-  explicit PreferEvictPartitionWriter(ShuffleWriter* shuffleWriter) : LocalPartitionWriterBase(shuffleWriter) {}
-
-  arrow::Status init() override;
-
-  arrow::Status evictPartition(int32_t partitionId) override;
-
-  arrow::Status stop() override;
-
-  class LocalPartitionWriterInstance;
-
-  std::vector<std::shared_ptr<LocalPartitionWriterInstance>> partitionWriterInstances_;
-
- private:
-  arrow::Status clearResource() override;
 };
 
 class PreferCachePartitionWriter : public LocalPartitionWriterBase {
@@ -76,7 +53,9 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
 
   arrow::Status init() override;
 
-  arrow::Status evictPartition(int32_t partitionId) override;
+  arrow::Status processPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override;
+
+  arrow::Status spill() override;
 
   /// The stop function performs several tasks:
   /// 1. Opens the final data file.
@@ -104,33 +83,24 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
 
   arrow::Status flushCachedPayload(
       arrow::io::OutputStream* os,
-      std::shared_ptr<arrow::ipc::IpcPayload>& payload,
+      std::unique_ptr<arrow::ipc::IpcPayload> payload,
       int32_t* metadataLength) {
 #ifndef SKIPWRITE
     RETURN_NOT_OK(
         arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, metadataLength));
-    // Dismiss payload immediately
-    payload = nullptr;
 #endif
     return arrow::Status::OK();
   }
 
-  arrow::Status flushCachedPayloads(
-      arrow::io::OutputStream* os,
-      std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>& payloads) {
+  arrow::Status flushCachedPayloads(uint32_t partitionId, arrow::io::OutputStream* os) {
     int32_t metadataLength = 0; // unused
-    for (auto& payload : payloads) {
-      RETURN_NOT_OK(flushCachedPayload(os, payload, &metadataLength));
-    }
-    return arrow::Status::OK();
-  }
 
-  arrow::Status writeEos(arrow::io::OutputStream* os) {
-    // write EOS
-    constexpr int32_t kIpcContinuationToken = -1;
-    constexpr int32_t kZeroLength = 0;
-    RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(int32_t)));
-    RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(int32_t)));
+    auto payloads = std::move(partitionCachedPayload_[partitionId]);
+    // Clear cached batches before creating the payloads, to avoid spilling this partition.
+    partitionCachedPayload_[partitionId].clear();
+    for (auto& payload : payloads) {
+      RETURN_NOT_OK(flushCachedPayload(os, std::move(payload), &metadataLength));
+    }
     return arrow::Status::OK();
   }
 
@@ -148,15 +118,14 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
   };
 
   std::vector<SpillInfo> spills_;
+
+  std::vector<std::vector<std::unique_ptr<arrow::ipc::IpcPayload>>> partitionCachedPayload_;
 };
 
 class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {
  public:
-  LocalPartitionWriterCreator(bool preferEvict);
+  LocalPartitionWriterCreator();
 
   arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(ShuffleWriter* shuffleWriter) override;
-
- private:
-  bool preferEvict_;
 };
 } // namespace gluten

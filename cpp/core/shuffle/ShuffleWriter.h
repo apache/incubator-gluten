@@ -127,24 +127,11 @@ class ShuffleWriter {
 
   virtual arrow::Status split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 
-  // Cache the partition buffer/builder as compressed record batch. If reset
-  // buffers, the partition buffer/builder will be set to nullptr. Two cases for
-  // caching the partition buffers as record batch:
-  // 1. Split record batch. It first calculates whether the partition
-  // buffer can hold all data according to partition id. If not, call this
-  // method and allocate new buffers. Spill will happen if OOM.
-  // 2. Stop the shuffle writer. The record batch will be written to disk immediately.
-  virtual arrow::Status createRecordBatchFromBuffer(uint32_t partitionId, bool resetBuffers) = 0;
-
-  virtual arrow::Result<std::shared_ptr<arrow::RecordBatch>> createArrowRecordBatchFromBuffer(
+  virtual arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createPayloadFromBuffer(
       uint32_t partitionId,
-      bool resetBuffers) = 0;
-
-  virtual arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> createArrowIpcPayload(
-      const arrow::RecordBatch& rb,
       bool reuseBuffers) = 0;
 
-  virtual arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers) = 0;
+  virtual arrow::Status evictPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
 
   virtual arrow::Status stop() = 0;
 
@@ -155,8 +142,6 @@ class ShuffleWriter {
   virtual std::shared_ptr<arrow::Schema>& schema() {
     return schema_;
   }
-
-  void clearCachedPayloads(uint32_t partitionId);
 
   int32_t numPartitions() const {
     return numPartitions_;

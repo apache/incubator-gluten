@@ -28,8 +28,11 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/LocalPartitionWriter.h"
+#include "shuffle/Utils.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/VeloxShuffleWriter.h"
+#include "shuffle/rss/CelebornPartitionWriter.h"
+#include "shuffle/rss/RssClient.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
@@ -60,6 +63,56 @@ struct ShuffleTestParams {
   }
 };
 
+namespace {
+class LocalRssClient : public RssClient {
+ public:
+  LocalRssClient(std::string dataFile) : dataFile_(dataFile) {}
+
+  int32_t pushPartitionData(int32_t partitionId, char* bytes, int64_t size) {
+    auto idx = -1;
+    auto maybeIdx = partitionIdx_.find(partitionId);
+    auto returnSize = size;
+    if (maybeIdx == partitionIdx_.end()) {
+      idx = partitionIdx_.size();
+      partitionIdx_[partitionId] = idx;
+      auto buffer = arrow::AllocateResizableBuffer(0).ValueOrDie();
+      partitionBuffers_.push_back(std::move(buffer));
+      // Add EOS length.
+      returnSize += sizeof(int32_t) * 2;
+    } else {
+      idx = maybeIdx->second;
+    }
+
+    auto& buffer = partitionBuffers_[idx];
+    auto newSize = buffer->size() + size;
+    if (buffer->capacity() < newSize) {
+      ASSERT_NOT_OK(buffer->Reserve(newSize));
+    }
+    memcpy(buffer->mutable_data() + buffer->size(), bytes, size);
+    ASSERT_NOT_OK(buffer->Resize(newSize));
+    return returnSize;
+  }
+
+  void stop() {
+    std::shared_ptr<arrow::io::FileOutputStream> fout;
+    ARROW_ASSIGN_OR_THROW(fout, arrow::io::FileOutputStream::Open(dataFile_, true));
+
+    for (auto item : partitionIdx_) {
+      auto idx = item.second;
+      ASSERT_NOT_OK(fout->Write(partitionBuffers_[idx]->data(), partitionBuffers_[idx]->size()));
+      ASSERT_NOT_OK(writeEos(fout.get()));
+      ASSERT_NOT_OK(fout->Flush());
+    }
+    ASSERT_NOT_OK(fout->Close());
+  }
+
+ private:
+  std::string dataFile_;
+  std::vector<std::unique_ptr<arrow::ResizableBuffer>> partitionBuffers_;
+  std::map<uint32_t, uint32_t> partitionIdx_;
+};
+} // namespace
+
 class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams>, public velox::test::VectorTestBase {
  protected:
   void SetUp() override {
@@ -75,11 +128,19 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     shuffleWriterOptions_.memory_pool = arrowPool_;
 
     ShuffleTestParams params = GetParam();
+    if (params.prefer_evict) {
+      auto configuredDirs = getConfiguredLocalDirs().ValueOrDie();
+      auto dataFile = createTempShuffleFile(configuredDirs[0]).ValueOrDie();
+      shuffleWriterOptions_.data_file = dataFile;
+      partitionWriterCreator_ =
+          std::make_shared<CelebornPartitionWriterCreator>(std::make_shared<LocalRssClient>(dataFile));
+    } else {
+      partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>();
+    }
     shuffleWriterOptions_.prefer_evict = params.prefer_evict;
     shuffleWriterOptions_.compression_type = params.compression_type;
     shuffleWriterOptions_.compression_mode = params.compression_mode;
 
-    partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>(shuffleWriterOptions_.prefer_evict);
     std::vector<VectorPtr> children1 = {
         makeNullableFlatVector<int8_t>({1, 2, 3, std::nullopt, 4, std::nullopt, 5, 6, std::nullopt, 7}),
         makeNullableFlatVector<int8_t>({1, -1, std::nullopt, std::nullopt, -2, 2, std::nullopt, std::nullopt, 3, -3}),
@@ -722,11 +783,14 @@ TEST_P(VeloxShuffleWriterTest, TestSpill) {
       shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_, pool_));
 
   ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, hashInputVector1_));
-  // Clear buffers and cache payloads.
+
+  // Clear buffers and evict payloads.
   for (auto pid : hashPartitionIds_) {
-    std::shared_ptr<arrow::RecordBatch> rb;
-    ARROW_ASSIGN_OR_THROW(rb /* unused */, shuffleWriter_->createArrowRecordBatchFromBuffer(pid, false));
-    ASSERT_NOT_OK(shuffleWriter_->cacheRecordBatch(pid, *rb, true));
+    std::unique_ptr<arrow::ipc::IpcPayload> payload;
+    ARROW_ASSIGN_OR_THROW(payload, shuffleWriter_->createPayloadFromBuffer(pid, true));
+    if (payload) {
+      ASSERT_NOT_OK(shuffleWriter_->evictPayload(pid, std::move(payload)));
+    }
   }
 
   // Evict all payloads, and shrink the buffers so the next split will clear current buffers and cache.
@@ -748,10 +812,6 @@ TEST_P(VeloxShuffleWriterTest, TestSpill) {
 }
 
 TEST_P(VeloxShuffleWriterTest, TestShrinkZeroSizeBuffer) {
-  if (shuffleWriterOptions_.prefer_evict) { // TODO: remove prefer_evict
-    return;
-  }
-
   // Test 2 cases:
   // 1. partition buffer size before shrink is 0.
   // 2. partition buffer size after shrink is 0.
@@ -765,9 +825,11 @@ TEST_P(VeloxShuffleWriterTest, TestShrinkZeroSizeBuffer) {
 
   // Clear buffers then the size after shrink will be 0.
   for (auto pid : hashPartitionIds_) {
-    std::shared_ptr<arrow::RecordBatch> rb;
-    ARROW_ASSIGN_OR_THROW(rb /* unused */, shuffleWriter_->createArrowRecordBatchFromBuffer(pid, false));
-    ASSERT_NOT_OK(shuffleWriter_->cacheRecordBatch(pid, *rb, true));
+    std::unique_ptr<arrow::ipc::IpcPayload> payload;
+    ARROW_ASSIGN_OR_THROW(payload, shuffleWriter_->createPayloadFromBuffer(pid, true));
+    if (payload) {
+      ASSERT_NOT_OK(shuffleWriter_->evictPayload(pid, std::move(payload)));
+    }
   }
 
   auto bufferSize = shuffleWriter_->partitionBufferSize();
