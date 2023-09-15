@@ -53,7 +53,6 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
       long memoryManagerHandle,
       boolean writeEOS,
       double reallocThreshold,
-      long memoryManagerId,
       long handle,
       long taskAttemptId) {
     return nativeMake(
