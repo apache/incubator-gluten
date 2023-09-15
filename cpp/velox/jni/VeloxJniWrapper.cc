@@ -82,27 +82,6 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_BackendJniWrapper_initializeBa
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_init_BackendJniWrapper_createExecutionCtx( // NOLINT
-    JNIEnv* env,
-    jclass) {
-  JNI_METHOD_START
-  auto executionCtx = gluten::createExecutionCtx();
-  return reinterpret_cast<jlong>(executionCtx);
-  JNI_METHOD_END(-1)
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_init_BackendJniWrapper_releaseExecutionCtx( // NOLINT
-    JNIEnv* env,
-    jclass,
-    jlong ctxHandle) {
-  JNI_METHOD_START
-  auto executionCtx = reinterpret_cast<gluten::ExecutionCtx*>(ctxHandle);
-  GLUTEN_CHECK(executionCtx != nullptr, "ExecutionCtx should not be null.");
-
-  gluten::releaseExecutionCtx(executionCtx);
-  JNI_METHOD_END()
-}
-
 JNIEXPORT void JNICALL Java_io_glutenproject_udf_UdfJniWrapper_nativeLoadUdfLibraries( // NOLINT
     JNIEnv* env,
     jclass,

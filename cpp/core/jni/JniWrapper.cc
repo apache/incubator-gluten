@@ -308,6 +308,26 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
 }
 
+JNIEXPORT jlong JNICALL Java_io_glutenproject_init_BackendJniWrapper_createExecutionCtx( // NOLINT
+    JNIEnv* env,
+    jclass) {
+  JNI_METHOD_START
+  auto executionCtx = gluten::createExecutionCtx();
+  return reinterpret_cast<jlong>(executionCtx);
+  JNI_METHOD_END(kInvalidResourceHandle)
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_init_BackendJniWrapper_releaseExecutionCtx( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong ctxHandle) {
+  JNI_METHOD_START
+  GLUTEN_JNI_CAST(executionCtx, ctxHandle, ExecutionCtx)
+
+  gluten::releaseExecutionCtx(executionCtx);
+  JNI_METHOD_END()
+}
+
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithIterator( // NOLINT
     JNIEnv* env,
