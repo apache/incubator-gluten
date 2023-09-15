@@ -1273,8 +1273,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           auto columnIdx = fixedWidthColumnCount_ + binaryIdx;
           ARROW_ASSIGN_OR_RAISE(validityBuffer, allocateValidityBuffer(columnIdx, partitionId, newSize));
 
-          auto valueBufSize =
-              (binaryArrayTotalSizeBytes_[binaryIdx] + totalInputNumRows_ - 1) / totalInputNumRows_ * newSize + 1024;
+          auto valueBufSize = calculateValueBufferSizeForBinaryArray(binaryIdx, partitionId);
           auto offsetBufSize = newSize * sizeof(BinaryArrayOffsetType) + 1;
 
           auto& buffers = partitionBuffers_[columnIdx][partitionId];
@@ -1662,13 +1661,16 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           ARROW_RETURN_IF(!offsetBuffer, arrow::Status::Invalid("Offset buffer of binary array is not resizable."));
           RETURN_NOT_OK(offsetBuffer->Resize((newSize + 1) * sizeof(arrow::BinaryType::offset_type)));
 
-          auto& binaryBuf = partitionBinaryAddrs_[i - fixedWidthColumnCount_][pid];
+          auto binaryIdx = i - fixedWidthColumnCount_;
+          auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][pid];
           auto valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kValueBufferIndex]);
           ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of binary array is not resizable."));
-          RETURN_NOT_OK(valueBuffer->Resize(binaryBuf.valueOffset));
+          auto valueBufferSize =
+              std::max(binaryBuf.valueOffset, calculateValueBufferSizeForBinaryArray(binaryIdx, newSize));
+          RETURN_NOT_OK(valueBuffer->Resize(valueBufferSize));
 
           binaryBuf = BinaryBuf(
-              valueBuffer->mutable_data(), offsetBuffer->mutable_data(), binaryBuf.valueOffset, binaryBuf.valueOffset);
+              valueBuffer->mutable_data(), offsetBuffer->mutable_data(), valueBufferSize, binaryBuf.valueOffset);
           break;
         }
         default: { // fixed-width types
@@ -1706,5 +1708,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     auto shrunken = beforeShrink - pool_->bytes_allocated();
     LOG(INFO) << shrunken << " bytes released from shrinking.";
     return shrunken;
+  }
+
+  inline uint64_t VeloxShuffleWriter::calculateValueBufferSizeForBinaryArray(uint32_t binaryIdx, int64_t newSize) {
+    return (binaryArrayTotalSizeBytes_[binaryIdx] + totalInputNumRows_ - 1) / totalInputNumRows_ * newSize + 1024;
   }
 } // namespace gluten

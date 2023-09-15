@@ -297,6 +297,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status resizePartitionBuffer(uint32_t pid, int64_t newSize);
 
+  uint64_t calculateValueBufferSizeForBinaryArray(uint32_t binaryIdx, int64_t newSize);
+
  protected:
   SplitState splitState_{kInit};
 
