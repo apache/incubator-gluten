@@ -62,7 +62,8 @@ public final class NativeMemoryManagers {
   private static NativeMemoryManager createNativeMemoryManager(String name, Spiller spiller) {
     final AtomicReference<NativeMemoryManager> out = new AtomicReference<>();
     // memory target
-    double overAcquiredRatio = GlutenConfig.getConf().memoryOverAcquiredRatio();
+    final double overAcquiredRatio = GlutenConfig.getConf().memoryOverAcquiredRatio();
+    final long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
     final MemoryTarget target =
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
@@ -83,10 +84,9 @@ public final class NativeMemoryManagers {
                                                     + "memory manager is created. Try moving any "
                                                     + "actions about memory allocation out "
                                                     + "from the memory manager constructor.")),
-                            GlutenConfig.getConf().memoryReservationBlockSize()),
+                            reservationBlockSize),
                         // the input spiller, called after nmm.shrink was called
-                        Spillers.withMinSpillSize(
-                            spiller, GlutenConfig.getConf().memoryReservationBlockSize())),
+                        Spillers.withMinSpillSize(spiller, reservationBlockSize)),
                     Collections.singletonMap(
                         "single",
                         new MemoryUsageRecorder() {
