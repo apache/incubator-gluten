@@ -110,13 +110,13 @@ trait HashJoinLikeExecTransformer
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetrics(sparkContext)
 
-  // Whether the left and right side should be exchanged.
-  protected lazy val exchangeTable: Boolean = joinBuildSide match {
+  // Whether the left and right side should be switched.
+  protected lazy val needSwitchChildren: Boolean = joinBuildSide match {
     case BuildLeft => true
     case BuildRight => false
   }
 
-  lazy val (buildPlan, streamedPlan) = if (exchangeTable) {
+  lazy val (buildPlan, streamedPlan) = if (needSwitchChildren) {
     (left, right)
   } else {
     (right, left)
@@ -160,14 +160,14 @@ trait HashJoinLikeExecTransformer
     } else {
       (leftKeys, rightKeys)
     }
-    if (exchangeTable) {
+    if (needSwitchChildren) {
       (lkeys, rkeys)
     } else {
       (rkeys, lkeys)
     }
   }
 
-  protected val substraitJoinType: JoinRel.JoinType = SubstraitUtil.toSubstrait(joinType)
+  protected lazy val substraitJoinType: JoinRel.JoinType = SubstraitUtil.toSubstrait(joinType)
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetricsUpdater(metrics)
 
@@ -220,7 +220,7 @@ trait HashJoinLikeExecTransformer
       buildKeyExprs,
       condition,
       substraitJoinType,
-      exchangeTable,
+      needSwitchChildren,
       joinType,
       genJoinParametersBuilder(),
       null,
@@ -292,7 +292,7 @@ trait HashJoinLikeExecTransformer
       buildKeyExprs,
       condition,
       substraitJoinType,
-      exchangeTable,
+      needSwitchChildren,
       joinType,
       genJoinParametersBuilder(),
       inputStreamedRelNode,
@@ -306,7 +306,7 @@ trait HashJoinLikeExecTransformer
     substraitContext.registerJoinParam(operatorId, joinParams)
 
     JoinUtils.createTransformContext(
-      exchangeTable,
+      needSwitchChildren,
       output,
       joinRel,
       inputStreamedOutput,
