@@ -60,13 +60,14 @@ namespace local_engine
 //   but `get_json_object`'s result is '1'
 //
 
+class EmptyJSONStringSerializer{};
 
 struct GetJsonObject
 {
     static constexpr auto name{"get_json_object"};
 };
 
-template <typename JSONParser>
+template <typename JSONParser, typename JSONStringSerializer>
 class GetJsonObjectImpl
 {
 public:
@@ -191,10 +192,10 @@ public:
 #if USE_SIMDJSON
         if (context->getSettingsRef().allow_simdjson)
         {
-            return innerExecuteImpl<DB::SimdJSONParser, GetJsonObjectImpl<DB::SimdJSONParser>>(arguments);
+            return innerExecuteImpl<DB::SimdJSONParser, GetJsonObjectImpl<DB::SimdJSONParser, EmptyJSONStringSerializer>>(arguments);
         }
 #endif
-        return innerExecuteImpl<DB::DummyJSONParser, GetJsonObjectImpl<DB::DummyJSONParser>>(arguments);
+        return innerExecuteImpl<DB::DummyJSONParser, GetJsonObjectImpl<DB::DummyJSONParser, EmptyJSONStringSerializer>>(arguments);
     }
 private:
     DB::ContextPtr context;
