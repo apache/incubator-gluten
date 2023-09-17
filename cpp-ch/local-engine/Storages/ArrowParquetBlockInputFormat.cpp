@@ -16,13 +16,12 @@
  */
 #include "ArrowParquetBlockInputFormat.h"
 
-#if USE_PARQUET && USE_LOCAL_FORMATS
-#    include <DataTypes/NestedUtils.h>
-#    include <arrow/record_batch.h>
-#    include <arrow/table.h>
-#    include <boost/range/irange.hpp>
-#    include <Common/Stopwatch.h>
-#    include "ch_parquet/OptimizedArrowColumnToCHColumn.h"
+#if USE_PARQUET
+#include <DataTypes/NestedUtils.h>
+#include <arrow/record_batch.h>
+#include <arrow/table.h>
+#include <boost/range/irange.hpp>
+#include <Common/Stopwatch.h>
 
 using namespace DB;
 
@@ -91,9 +90,7 @@ DB::Chunk ArrowParquetBlockInputFormat::generate()
     {
         auto tmp_table = arrow::Table::FromRecordBatches({*batch});
         if (format_settings.use_lowercase_column_name)
-        {
             tmp_table = (*tmp_table)->RenameColumns(column_names);
-        }
         non_convert_time += watch.elapsedNanoseconds();
         watch.restart();
         arrow_column_to_ch_column->arrowTableToCHChunk(res, *tmp_table);

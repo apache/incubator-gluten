@@ -17,19 +17,19 @@
 #include "config.h"
 
 #if USE_PARQUET && USE_ARROW
-#    include <iostream>
-#    include <Core/Block.h>
-#    include <Core/ColumnWithTypeAndName.h>
-#    include <Core/Field.h>
-#    include <DataTypes/DataTypeArray.h>
-#    include <DataTypes/DataTypeFactory.h>
-#    include <DataTypes/DataTypeMap.h>
-#    include <DataTypes/DataTypeNullable.h>
-#    include <DataTypes/DataTypeString.h>
-#    include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
-#    include <Processors/Formats/Impl/CHColumnToArrowColumn.h>
-#    include <arrow/table.h>
-#    include <gtest/gtest.h>
+#include <iostream>
+#include <Core/Block.h>
+#include <Core/ColumnWithTypeAndName.h>
+#include <Core/Field.h>
+#include <DataTypes/DataTypeArray.h>
+#include <DataTypes/DataTypeFactory.h>
+#include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeString.h>
+#include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+#include <Processors/Formats/Impl/CHColumnToArrowColumn.h>
+#include <arrow/table.h>
+#include <gtest/gtest.h>
 
 using namespace DB;
 
@@ -49,10 +49,8 @@ static bool haveEqualColumns(const Column & lhs, const Column & rhs)
         return false;
 
     for (size_t row_i = 0; row_i < lhs->size(); ++row_i)
-    {
         if ((*lhs)[row_i] != (*rhs)[row_i])
             return false;
-    }
     return true;
 }
 

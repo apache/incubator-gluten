@@ -19,13 +19,6 @@ else()
     set (CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --ld-path=${LLD_PATH}")
 endif ()
 
-option(ENABLE_LOCAL_FORMATS "Use ORC/Parquet input formats defined in utils/local-engine/, notice that it is not stable and has some known issues. We suggest setting it to OFF in production environment." OFF)
-if (ENABLE_LOCAL_FORMATS)
-    add_definitions(-DENABLE_LOCAL_FORMATS=1)
-else()
-    add_definitions(-DENABLE_LOCAL_FORMATS=0)
-endif()
-
 set(THRIFT_INCLUDE_DIR "${ClickHouse_SOURCE_DIR}/contrib/thrift/lib/cpp/src")
 
 # Find java/jni
@@ -69,10 +62,7 @@ include_directories(
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-common/inc
 )
 
-if (ENABLE_LOCAL_FORMATS)
-    add_subdirectory(Storages/ch_parquet)
-endif()
-
+add_subdirectory(Storages/ch_parquet)
 add_subdirectory(Storages/SubstraitSource)
 add_subdirectory(Functions)
 
@@ -136,9 +126,7 @@ PRIVATE
         substrait
 )
 
-if (ENABLE_LOCAL_FORMATS)
-    target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
-endif ()
+target_link_libraries(${LOCALENGINE_SHARED_LIB} PUBLIC ch_parquet)
 
 if (ENABLE_JEMALLOC)
     target_link_options(${LOCALENGINE_SHARED_LIB} PRIVATE

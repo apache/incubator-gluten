@@ -62,7 +62,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"get_timestamp", "parseDateTimeInJodaSyntaxOrNull"}, // for spark function: to_date/to_timestamp
        {"quarter", "toQuarter"},
        {"to_unix_timestamp", "parseDateTimeInJodaSyntaxOrNull"},
-    //    {"unix_timestamp", "toUnixTimestamp"},
+       //    {"unix_timestamp", "toUnixTimestamp"},
        {"date_format", "formatDateTimeInJodaSyntax"},
 
        /// arithmetic functions
@@ -286,7 +286,8 @@ public:
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
 
-    void addInputIter(jobject iter, bool materialize_input) {
+    void addInputIter(jobject iter, bool materialize_input)
+    {
         input_iters.emplace_back(iter);
         materialize_inputs.emplace_back(materialize_input);
     }
@@ -374,7 +375,6 @@ private:
     // for parse rel node, collect steps from a rel node
     std::vector<IQueryPlanStep *> temp_step_collection;
     std::vector<RelMetricPtr> metrics;
-    ContextPtr contextPtr;
 };
 
 struct SparkBuffer

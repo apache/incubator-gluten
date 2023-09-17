@@ -19,14 +19,14 @@
 #include "config.h"
 
 #if USE_PARQUET
-#    include <memory>
-#    include <IO/ReadBuffer.h>
-#    include <Storages/SubstraitSource/FormatFile.h>
-#    include <parquet/metadata.h>
-#    include <parquet/statistics.h>
-#    include <DataTypes/DataTypesNumber.h>
-#    include <DataTypes/DataTypeString.h>
-#    include <DataTypes/DataTypeFixedString.h>
+#include <memory>
+#include <DataTypes/DataTypeFixedString.h>
+#include <DataTypes/DataTypeString.h>
+#include <DataTypes/DataTypesNumber.h>
+#include <IO/ReadBuffer.h>
+#include <Storages/SubstraitSource/FormatFile.h>
+#include <parquet/metadata.h>
+#include <parquet/statistics.h>
 
 namespace local_engine
 {
@@ -42,27 +42,31 @@ class ParquetFormatFile : public FormatFile
 {
 public:
     explicit ParquetFormatFile(
-        DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
+        DB::ContextPtr context_,
+        const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
+        ReadBufferBuilderPtr read_buffer_builder_,
+        bool enable_local_parquet_format);
     ~ParquetFormatFile() override = default;
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
-
     std::optional<size_t> getTotalRows() override;
 
     bool supportSplit() const override { return true; }
     DB::String getFileFormat() const override { return "parquet"; }
 
 private:
+    bool enable_local_format;
     std::mutex mutex;
     std::optional<size_t> total_rows;
     bool enable_row_group_maxmin_index;
     std::vector<RowGroupInfomation> collectRequiredRowGroups(int & total_row_groups);
     std::vector<RowGroupInfomation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups);
     bool checkRowGroupIfRequired(parquet::RowGroupMetaData & meta);
-    DB::Range getColumnMaxMin(std::shared_ptr<parquet::Statistics> statistics,
-                    parquet::Type::type parquet_data_type,
-                    DB::DataTypePtr data_type,
-                    Int32 column_type_length);
+    DB::Range getColumnMaxMin(
+        std::shared_ptr<parquet::Statistics> statistics,
+        parquet::Type::type parquet_data_type,
+        DB::DataTypePtr data_type,
+        Int32 column_type_length);
 };
 
 }

@@ -16,68 +16,67 @@
  */
 #include "OptimizedArrowColumnToCHColumn.h"
 
-#if USE_LOCAL_FORMATS
-#    if USE_ARROW || USE_ORC || USE_PARQUET
+#if USE_ARROW || USE_ORC || USE_PARQUET
 
-#        include <algorithm>
-#        include <Columns/ColumnArray.h>
-#        include <Columns/ColumnLowCardinality.h>
-#        include <Columns/ColumnMap.h>
-#        include <Columns/ColumnNullable.h>
-#        include <Columns/ColumnString.h>
-#        include <Columns/ColumnTuple.h>
-#        include <Columns/ColumnUnique.h>
-#        include <Columns/ColumnsNumber.h>
-#        include <Core/Block.h>
-#        include <DataTypes/DataTypeArray.h>
-#        include <DataTypes/DataTypeDate.h>
-#        include <DataTypes/DataTypeDate32.h>
-#        include <DataTypes/DataTypeDateTime64.h>
-#        include <DataTypes/DataTypeFactory.h>
-#        include <DataTypes/DataTypeLowCardinality.h>
-#        include <DataTypes/DataTypeMap.h>
-#        include <DataTypes/DataTypeNullable.h>
-#        include <DataTypes/DataTypeString.h>
-#        include <DataTypes/DataTypeTuple.h>
-#        include <DataTypes/DataTypesDecimal.h>
-#        include <DataTypes/DataTypesNumber.h>
-#        include <DataTypes/NestedUtils.h>
-#        include <Interpreters/castColumn.h>
-#        include <Processors/Chunk.h>
-#        include <arrow/array.h>
-#        include <arrow/builder.h>
-#        include <base/types.h>
-#        include <Common/CHUtil.h>
-#        include <Common/DateLUTImpl.h>
-#        include <Common/Stopwatch.h>
-#        include <Common/quoteString.h>
+#    include <algorithm>
+#    include <Columns/ColumnArray.h>
+#    include <Columns/ColumnLowCardinality.h>
+#    include <Columns/ColumnMap.h>
+#    include <Columns/ColumnNullable.h>
+#    include <Columns/ColumnString.h>
+#    include <Columns/ColumnTuple.h>
+#    include <Columns/ColumnUnique.h>
+#    include <Columns/ColumnsNumber.h>
+#    include <Core/Block.h>
+#    include <DataTypes/DataTypeArray.h>
+#    include <DataTypes/DataTypeDate.h>
+#    include <DataTypes/DataTypeDate32.h>
+#    include <DataTypes/DataTypeDateTime64.h>
+#    include <DataTypes/DataTypeFactory.h>
+#    include <DataTypes/DataTypeLowCardinality.h>
+#    include <DataTypes/DataTypeMap.h>
+#    include <DataTypes/DataTypeNullable.h>
+#    include <DataTypes/DataTypeString.h>
+#    include <DataTypes/DataTypeTuple.h>
+#    include <DataTypes/DataTypesDecimal.h>
+#    include <DataTypes/DataTypesNumber.h>
+#    include <DataTypes/NestedUtils.h>
+#    include <Interpreters/castColumn.h>
+#    include <Processors/Chunk.h>
+#    include <arrow/array.h>
+#    include <arrow/builder.h>
+#    include <base/types.h>
+#    include <Common/CHUtil.h>
+#    include <Common/DateLUTImpl.h>
+#    include <Common/Stopwatch.h>
+#    include <Common/quoteString.h>
 
-#        include <arrow/column_reader.h>
+#    include "arrow/column_reader.h"
 
-#        include <Poco/Logger.h>
-#        include <Common/logger_useful.h>
+#    include <Poco/Logger.h>
+#    include <Common/logger_useful.h>
 
 /// UINT16 and UINT32 are processed separately, see comments in readColumnFromArrowColumn.
-#        define FOR_ARROW_NUMERIC_TYPES(M) \
-            M(arrow::Type::UINT8, DB::UInt8) \
-            M(arrow::Type::INT8, DB::Int8) \
-            M(arrow::Type::INT16, DB::Int16) \
-            M(arrow::Type::INT32, DB::Int32) \
-            M(arrow::Type::UINT64, DB::UInt64) \
-            M(arrow::Type::INT64, DB::Int64) \
-            M(arrow::Type::HALF_FLOAT, DB::Float32) \
-            M(arrow::Type::FLOAT, DB::Float32) \
-            M(arrow::Type::DOUBLE, DB::Float64)
+#    define FOR_ARROW_NUMERIC_TYPES(M) \
+        M(arrow::Type::UINT8, DB::UInt8) \
+        M(arrow::Type::INT8, DB::Int8) \
+        M(arrow::Type::INT16, DB::Int16) \
+        M(arrow::Type::INT32, DB::Int32) \
+        M(arrow::Type::UINT64, DB::UInt64) \
+        M(arrow::Type::INT64, DB::Int64) \
+        M(arrow::Type::HALF_FLOAT, DB::Float32) \
+        M(arrow::Type::FLOAT, DB::Float32) \
+        M(arrow::Type::DOUBLE, DB::Float64)
 
-#        define FOR_ARROW_INDEXES_TYPES(M) \
-            M(arrow::Type::UINT8, DB::UInt8) \
-            M(arrow::Type::INT8, DB::UInt8) \
-            M(arrow::Type::UINT16, DB::UInt16) \
-            M(arrow::Type::INT16, DB::UInt16) \
-            M(arrow::Type::UINT32, DB::UInt32) \
-            M(arrow::Type::INT32, DB::UInt32) \
-            M(arrow::Type::UINT64, DB::UInt64) \
-            M(arrow::Type::INT64, DB::UInt64)
+#    define FOR_ARROW_INDEXES_TYPES(M) \
+        M(arrow::Type::UINT8, DB::UInt8) \
+        M(arrow::Type::INT8, DB::UInt8) \
+        M(arrow::Type::UINT16, DB::UInt16) \
+        M(arrow::Type::INT16, DB::UInt16) \
+        M(arrow::Type::UINT32, DB::UInt32) \
+        M(arrow::Type::INT32, DB::UInt32) \
+        M(arrow::Type::UINT64, DB::UInt64) \
+        M(arrow::Type::INT64, DB::UInt64)
 
 namespace DB
 {
@@ -330,12 +329,12 @@ static ColumnPtr readColumnWithIndexesData(std::shared_ptr<arrow::ChunkedArray> 
 {
     switch (arrow_column->type()->id())
     {
-#        define DISPATCH(ARROW_NUMERIC_TYPE, CPP_NUMERIC_TYPE) \
-            case ARROW_NUMERIC_TYPE: { \
-                return readColumnWithNumericData<CPP_NUMERIC_TYPE>(arrow_column, "").column; \
-            }
+#    define DISPATCH(ARROW_NUMERIC_TYPE, CPP_NUMERIC_TYPE) \
+        case ARROW_NUMERIC_TYPE: { \
+            return readColumnWithNumericData<CPP_NUMERIC_TYPE>(arrow_column, "").column; \
+        }
         FOR_ARROW_INDEXES_TYPES(DISPATCH)
-#        undef DISPATCH
+#    undef DISPATCH
         default:
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "Unsupported type for indexes in LowCardinality: {}.", arrow_column->type()->name());
     }
@@ -507,11 +506,11 @@ static ColumnWithTypeAndName readColumnFromArrowColumn(
             auto lc_type = std::make_shared<DataTypeLowCardinality>(dict_values->type);
             return {std::move(lc_column), std::move(lc_type), column_name};
         }
-#        define DISPATCH(ARROW_NUMERIC_TYPE, CPP_NUMERIC_TYPE) \
-            case ARROW_NUMERIC_TYPE: \
-                return readColumnWithNumericData<CPP_NUMERIC_TYPE>(arrow_column, column_name);
+#    define DISPATCH(ARROW_NUMERIC_TYPE, CPP_NUMERIC_TYPE) \
+        case ARROW_NUMERIC_TYPE: \
+            return readColumnWithNumericData<CPP_NUMERIC_TYPE>(arrow_column, column_name);
             FOR_ARROW_NUMERIC_TYPES(DISPATCH)
-#        undef DISPATCH
+#    undef DISPATCH
             // TODO: read JSON as a string?
             // TODO: read UUID as a string?
         default:
@@ -704,5 +703,4 @@ std::vector<size_t> OptimizedArrowColumnToCHColumn::getMissingColumns(const arro
 
 }
 
-#    endif
 #endif
