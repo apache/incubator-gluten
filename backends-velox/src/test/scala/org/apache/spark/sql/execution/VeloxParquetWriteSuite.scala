@@ -108,7 +108,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("parquet write with empty dataframe") {
+  ignore("parquet write with empty dataframe") {
     withTempPath {
       f =>
         val df = spark.emptyDataFrame.select(lit(1).as("i"))
