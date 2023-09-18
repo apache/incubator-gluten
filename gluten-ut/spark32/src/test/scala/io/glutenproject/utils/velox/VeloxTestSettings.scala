@@ -260,6 +260,12 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.
     )
   enableSuite[GlutenDataFrameWindowFramesSuite]
+    // Local window fixes are not added.
+    .exclude("range between should accept int/long values as boundary")
+    .exclude("unbounded preceding/following range between with aggregation")
+    .exclude("sliding range between with aggregation")
+    .exclude("store and retrieve column stats in different time zones")
+    .exclude("rows between should accept int/long values as boundary")
   enableSuite[GlutenColumnExpressionSuite]
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
@@ -313,6 +319,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not useful and time consuming.
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
+    // ReaderFactory is not registered for format orc.
+    .exclude("SPARK-33593: Vector reader got incorrect data with binary partition value")
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]

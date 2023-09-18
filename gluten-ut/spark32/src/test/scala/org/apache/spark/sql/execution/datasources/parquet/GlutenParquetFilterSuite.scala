@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.catalyst.expressions._
@@ -249,14 +249,8 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
            """.stripMargin)
 
           withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
-            val e = intercept[SparkException] {
-              sql(s"select a from $tableName where b > 0").collect()
-            }
-            assert(
-              e.getCause.isInstanceOf[RuntimeException] && e.getCause.getMessage.contains(
-                """Found duplicate field(s) b in read lowercase mode"""))
+            checkAnswer(sql(s"select a from $tableName where b > 0"), (1 until count).map(Row(_)))
           }
-
           withSQLConf(SQLConf.CASE_SENSITIVE.key -> "true") {
             checkAnswer(sql(s"select A from $tableName where B > 0"), (1 until count).map(Row(_)))
           }
