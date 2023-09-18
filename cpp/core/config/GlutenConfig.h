@@ -31,6 +31,8 @@ const std::string kCaseSensitive = "spark.sql.caseSensitive";
 
 const std::string kSessionTimezone = "spark.sql.session.timeZone";
 
+const std::string kLegacySizeOfNull = "spark.sql.legacy.sizeOfNull";
+
 const std::string kDefaultSessionTimezone = "spark.gluten.sql.session.timeZone.default";
 
 const std::string kSparkOffHeapMemory = "spark.gluten.memory.offHeap.size.in.bytes";

@@ -308,6 +308,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
   try {
+    // To align with Spark's behavior, size of null.
+    configs[velox::core::QueryConfig::kSparkLegacySizeOfNull] =
+        getConfigValue(confMap_, kLegacySizeOfNull, std::to_string(true));
     // To align with Spark's behavior, set casting to int to be truncating.
     configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
     // To align with Spark's behavior, allow decimal in casting string to int.
