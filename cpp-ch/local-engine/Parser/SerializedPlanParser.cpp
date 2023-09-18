@@ -1652,29 +1652,34 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 /// Updating `toDate32OrNull` to return null if the string is invalid is not acceptable by
                 /// ClickHouse (https://github.com/ClickHouse/ClickHouse/issues/47120).
 
+                /// isNotNull(toDate32OrNull(date))
                 String to_date_function_name = "toDate32OrNull";
                 const auto * date_node = toFunctionNode(actions_dag, to_date_function_name, args);
                 const auto * date_is_not_null_node = toFunctionNode(actions_dag, "isNotNull", {date_node});
 
-                /**
-                 * Parse toDate(s) as
-                 * if (isNotNull(toDate32OrNull))
-                 *  toDate32OrNull(s)
-                 * else if (isNotNull(parseDateTimeOrNull(substring(trimLeft(s)), 1, 10), '%Y-%m-%d'))
-                 *  parseDateTimeOrNull(substring(trimLeft(s)), 1, 10), '%Y-%m-%d')
-                 * else
-                 *  null
-                */
+                /// isNotNull(toDate32(parseDateTimeOrNull(substring(trimLeft(date), 1, 10), '%Y-%m-%d'))
                 const auto * substr_offset_node = add_column(std::make_shared<DataTypeInt32>(), 1);
                 const auto * substr_length_node = add_column(std::make_shared<DataTypeInt32>(), 10);
                 const auto * trim_string_node = toFunctionNode(actions_dag, "trimLeft", {args[0]});
                 const auto * substr_node = toFunctionNode(actions_dag, "substring", {trim_string_node, substr_offset_node, substr_length_node});
                 const auto * date_format_node = add_column(std::make_shared<DataTypeString>(), "%Y-%m-%d");
                 const auto * parse_date_node = toFunctionNode(actions_dag, "parseDateTimeOrNull", {substr_node, date_format_node});
-                const auto * date_node_from_parse = toFunctionNode(actions_dag, "toDate32", {parse_date_node});
                 const auto * parse_date_is_not_null_node = toFunctionNode(actions_dag, "isNotNull", {parse_date_node});
 
+                /// toDate32(parseDateTimeOrNull(substring(trimLeft(date), 1, 10), '%Y-%m-%d'))
+                const auto * date_node_from_parse = toFunctionNode(actions_dag, "toDate32", {parse_date_node});
+                /// const null node
                 const auto * null_const_node = add_column(makeNullable(std::make_shared<DataTypeDate32>()), Field{});
+
+                /**
+                 * Parse toDate(s) as
+                 * if (isNotNull(toDate32OrNull))
+                 *  toDate32OrNull(s)
+                 * else if (isNotNull(parseDateTimeOrNull(substring(trimLeft(s)), 1, 10), '%Y-%m-%d'))
+                 *  toDate32(parseDateTimeOrNull(substring(trimLeft(s)), 1, 10), '%Y-%m-%d'))
+                 * else
+                 *  null
+                */
                 const auto * to_date_multi_if_node = toFunctionNode(actions_dag, "multiIf", {
                     date_is_not_null_node,
                     date_node,
