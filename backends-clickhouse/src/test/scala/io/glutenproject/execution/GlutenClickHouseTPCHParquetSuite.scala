@@ -2077,7 +2077,9 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |(1, '2023-09-02 23:59:59.299+11'),
         |(2, '2023-09-02 23:59:59.299-11'),
         |(3, '2023-09-02 00:00:01.333+11'),
-        |(4, '2023-09-02 00:00:01.333-11')
+        |(4, '2023-09-02 00:00:01.333-11'),
+        |(5, '  2023-09-02 agdfegfew'),
+        |(6, 'afe2023-09-02 11:22:33')
         |""".stripMargin
     spark.sql(create_table_sql)
     spark.sql(insert_data_sql)
