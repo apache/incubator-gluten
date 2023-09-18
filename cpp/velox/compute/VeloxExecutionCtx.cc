@@ -78,13 +78,10 @@ ResourceHandle VeloxExecutionCtx::createResultIterator(
 #ifdef GLUTEN_PRINT_DEBUG
   printSessionConf(sessionConf);
 #endif
-  if (inputs.size() > 0) {
-    inputIters_ = std::move(inputs);
-  }
 
   auto veloxPool = getAggregateVeloxPool(memoryManager);
 
-  VeloxPlanConverter veloxPlanConverter(inputIters_, getLeafVeloxPool(memoryManager).get(), sessionConf);
+  VeloxPlanConverter veloxPlanConverter(inputs, getLeafVeloxPool(memoryManager).get(), sessionConf);
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
 
   // Scan node can be required.

@@ -29,7 +29,7 @@ namespace gluten {
 class VeloxPlanConverter {
  public:
   explicit VeloxPlanConverter(
-      std::vector<std::shared_ptr<ResultIterator>>& inputIters,
+      const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
       facebook::velox::memory::MemoryPool* veloxPool,
       const std::unordered_map<std::string, std::string>& confMap);
 
