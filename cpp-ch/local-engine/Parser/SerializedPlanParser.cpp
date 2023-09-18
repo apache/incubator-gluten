@@ -1686,8 +1686,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                     parse_date_is_not_null_node,
                     date_node_from_parse,
                     null_const_node
-                });
-                
+                }); 
                 const auto * zero_date_col_node = add_column(std::make_shared<DataTypeString>(), "1900-01-01");
                 const auto * zero_date_node = toFunctionNode(actions_dag, to_date_function_name, {zero_date_col_node});
                 DB::ActionsDAG::NodeRawConstPtrs nullif_args = {to_date_multi_if_node, zero_date_node};
