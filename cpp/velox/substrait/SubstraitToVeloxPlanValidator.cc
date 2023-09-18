@@ -38,8 +38,6 @@ static const std::unordered_set<std::string> kRegexFunctions = {
 static const std::unordered_set<std::string> kBlackList = {
     "split_part",
     "factorial",
-    "concat_ws",
-    "rand",
     "json_array_length",
     "from_unixtime",
     "repeat",

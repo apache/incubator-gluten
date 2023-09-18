@@ -105,3 +105,16 @@ case class RegExpReplaceTransformer(
       .doTransform(args)
   }
 }
+
+case class ConcatWsTransformer(
+    substraitExprName: String,
+    children: Seq[ExpressionTransformer],
+    original: ConcatWs)
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+
+    GenericExpressionTransformer(substraitExprName, children, original)
+      .doTransform(args)
+  }
+}
