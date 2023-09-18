@@ -26,6 +26,7 @@
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
+#include "utils/ResourceMap.h"
 
 namespace gluten {
 
@@ -129,14 +130,14 @@ class VeloxExecutionCtx final : public ExecutionCtx {
       std::vector<facebook::velox::core::PlanNodeId>& streamIds);
 
  private:
-  ConcurrentMap<std::shared_ptr<ColumnarBatch>> columnarBatchHolder_;
-  ConcurrentMap<std::shared_ptr<Datasource>> datasourceHolder_;
-  ConcurrentMap<std::shared_ptr<ColumnarToRowConverter>> columnarToRowConverterHolder_;
-  ConcurrentMap<std::shared_ptr<ShuffleReader>> shuffleReaderHolder_;
-  ConcurrentMap<std::shared_ptr<ShuffleWriter>> shuffleWriterHolder_;
-  ConcurrentMap<std::shared_ptr<ColumnarBatchSerializer>> columnarBatchSerializerHolder_;
-  ConcurrentMap<std::shared_ptr<RowToColumnarConverter>> rowToColumnarConverterHolder_;
-  ConcurrentMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
+  ResourceMap<std::shared_ptr<ColumnarBatch>> columnarBatchHolder_;
+  ResourceMap<std::shared_ptr<Datasource>> datasourceHolder_;
+  ResourceMap<std::shared_ptr<ColumnarToRowConverter>> columnarToRowConverterHolder_;
+  ResourceMap<std::shared_ptr<ShuffleReader>> shuffleReaderHolder_;
+  ResourceMap<std::shared_ptr<ShuffleWriter>> shuffleWriterHolder_;
+  ResourceMap<std::shared_ptr<ColumnarBatchSerializer>> columnarBatchSerializerHolder_;
+  ResourceMap<std::shared_ptr<RowToColumnarConverter>> rowToColumnarConverterHolder_;
+  ResourceMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
 
   std::vector<std::shared_ptr<ResultIterator>> inputIters_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;

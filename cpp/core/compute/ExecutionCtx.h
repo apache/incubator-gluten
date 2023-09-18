@@ -29,9 +29,11 @@
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
-#include "utils/ConcurrentMap.h"
 
 namespace gluten {
+
+using ResourceHandle = int64_t;
+constexpr static ResourceHandle kInvalidResourceHandle = -1;
 
 class ResultIterator;
 
