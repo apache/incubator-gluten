@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 #include "RelMetric.h"
+
 #include <Processors/IProcessor.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
+#include <Storages/SubstraitSource/SubstraitFileSource.h>
 
 using namespace rapidjson;
 
@@ -51,7 +53,7 @@ const std::vector<RelMetricPtr> & RelMetric::getInputs() const
 
 RelMetricTimes RelMetric::getTotalTime() const
 {
-    RelMetricTimes timeMetrics{0, 0, 0};
+    RelMetricTimes timeMetrics{0, 0, 0, 0};
     if (!steps.empty())
     {
         for (const auto * step : steps)
@@ -63,6 +65,10 @@ RelMetricTimes RelMetric::getTotalTime() const
                     timeMetrics.time += processor->getElapsedUs();
                     timeMetrics.input_wait_elapsed_us += processor->getInputWaitElapsedUs();
                     timeMetrics.output_wait_elapsed_us += processor->getOutputWaitElapsedUs();
+                    if (const auto * sfs = dynamic_cast<const SubstraitFileSource *>(processor.get()))
+                    {
+                        timeMetrics.arrow_to_chunks_elapsed_us += sfs->arrow_to_ch_us;
+                    }
                 }
             }
         }
@@ -84,6 +90,11 @@ void RelMetric::serialize(Writer<StringBuffer> & writer, bool) const
     writer.Uint64(timeMetrics.input_wait_elapsed_us);
     writer.Key("output_wait_time");
     writer.Uint64(timeMetrics.output_wait_elapsed_us);
+    if (timeMetrics.arrow_to_chunks_elapsed_us > 0)
+    {
+        writer.Key("arrow_to_chunks_time");
+        writer.Uint64(timeMetrics.arrow_to_chunks_elapsed_us);
+    }
     if (!steps.empty())
     {
         writer.Key("steps");
