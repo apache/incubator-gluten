@@ -304,6 +304,7 @@ class BenchmarkCompression {
           GLUTEN_ASSIGN_OR_THROW(
               auto len,
               codec->Decompress(buffers[j]->size() - 8, buffers[j]->data() + 8, outputSize, out->mutable_data()));
+          (void)len;
         }
       }
     }
