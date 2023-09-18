@@ -32,6 +32,9 @@ public class MetricsData {
   @JsonProperty("output_wait_time")
   protected long outputWaitTime;
 
+  @JsonProperty("arrow_to_chunks_time")
+  protected long convertArrowTime;
+
   protected long inputRows = 0;
   protected long inputVectors = 0;
   protected long inputBytes = 0;
@@ -134,5 +137,14 @@ public class MetricsData {
 
   public void setOutputWaitTime(long outputWaitTime) {
     this.outputWaitTime = outputWaitTime;
+  }
+
+  public long getConvertArrowTime() {
+    return convertArrowTime;
+  }
+
+  public MetricsData setConvertArrowTime(long convertArrowTime) {
+    this.convertArrowTime = convertArrowTime;
+    return this;
   }
 }

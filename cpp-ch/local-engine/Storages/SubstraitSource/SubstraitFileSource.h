@@ -53,13 +53,14 @@ public:
     NormalFileReader(FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & to_read_header_, const DB::Block & output_header_);
     ~NormalFileReader() override = default;
     bool pull(DB::Chunk & chunk) override;
+    FormatFile::InputFormatPtr input_format;
 
 private:
     DB::ContextPtr context;
     DB::Block to_read_header;
     DB::Block output_header;
 
-    FormatFile::InputFormatPtr input_format;
+
     std::unique_ptr<DB::QueryPipeline> pipeline;
     std::unique_ptr<DB::PullingPipelineExecutor> reader;
 };
@@ -98,6 +99,7 @@ public:
     void applyFilters(std::vector<SourceFilter> filters) const;
     std::vector<String> getPartitionKeys() const;
     DB::String getFileFormat() const;
+    uint64_t arrow_to_ch_us = 0;
 
 protected:
     DB::Chunk generate() override;

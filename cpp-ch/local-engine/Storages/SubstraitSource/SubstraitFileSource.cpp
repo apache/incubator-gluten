@@ -33,6 +33,7 @@
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <Interpreters/castColumn.h>
+#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <QueryPipeline/Pipe.h>
 #include <Storages/SubstraitSource/FormatFile.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
@@ -42,8 +43,6 @@
 #include <Common/StringUtils.h>
 #include <Common/typeid_cast.h>
 #include "DataTypes/DataTypesDecimal.h"
-#include "IO/readDecimalText.h"
-#include <boost/stacktrace.hpp>
 
 namespace DB
 {
@@ -93,7 +92,8 @@ SubstraitFileSource::SubstraitFileSource(
 
                     const auto * tuple_type_in_file = typeid_cast<const DB::DataTypeTuple *>(type_in_file.get());
                     const auto * tuple_type_in_header = typeid_cast<const DB::DataTypeTuple *>(type_in_header.get());
-                    if (tuple_type_in_file && tuple_type_in_header && tuple_type_in_file->haveExplicitNames() && tuple_type_in_header->haveExplicitNames()
+                    if (tuple_type_in_file && tuple_type_in_header && tuple_type_in_file->haveExplicitNames()
+                        && tuple_type_in_header->haveExplicitNames()
                         && tuple_type_in_file->getElements().size() == tuple_type_in_header->getElements().size())
                         columns_to_skip_flatten.insert(i);
                 }
@@ -169,6 +169,14 @@ DB::Chunk SubstraitFileSource::generate()
         }
 
         /// try to read from next file
+        if (NormalFileReader * pNormalFileReader = dynamic_cast<NormalFileReader *>(file_reader.get()))
+        {
+            if (const auto * parquet_input
+                = dynamic_cast<const DB::ParquetBlockInputFormat *>(pNormalFileReader->input_format->input.get()))
+            {
+                arrow_to_ch_us += parquet_input->arrow_to_ch_us;
+            }
+        }
         file_reader.reset();
     }
 }

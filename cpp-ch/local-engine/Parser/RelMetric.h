@@ -32,6 +32,8 @@ struct RelMetricTimes
     size_t input_wait_elapsed_us;
     // Number of time this processor was waiting because output port was full.
     size_t output_wait_elapsed_us;
+
+    size_t arrow_to_chunks_elapsed_us;
 };
 
 class RelMetric
