@@ -41,7 +41,6 @@ static const std::unordered_set<std::string> kBlackList = {
     "concat_ws",
     "rand",
     "json_array_length",
-    "from_unixtime",
     "repeat",
     "translate",
     "add_months",
