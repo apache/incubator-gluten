@@ -664,7 +664,6 @@ arrow::Status VeloxShuffleWriter::updateInputHasNull(const velox::RowVector& rv)
 }
 
 arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
-  setSplitState(SplitState::kSplit);
   auto rowNum = rv.size();
   RETURN_NOT_OK(createPartition2Row(rowNum));
   RETURN_NOT_OK(updateInputHasNull(rv));
@@ -769,6 +768,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
 }
 
 arrow::Status VeloxShuffleWriter::splitRowVector(const velox::RowVector& rv) {
+  setSplitState(SplitState::kSplit);
   // now start to split the RowVector
   RETURN_NOT_OK(splitFixedWidthValueBuffer(rv));
   RETURN_NOT_OK(splitValidityBuffer(rv));
