@@ -1274,7 +1274,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           ARROW_ASSIGN_OR_RAISE(validityBuffer, allocateValidityBuffer(columnIdx, partitionId, newSize));
 
           auto valueBufSize = calculateValueBufferSizeForBinaryArray(binaryIdx, partitionId);
-          auto offsetBufSize = newSize * sizeof(BinaryArrayOffsetType) + 1;
+          auto offsetBufSize = (newSize + 1) * sizeof(BinaryArrayOffsetType);
 
           auto& buffers = partitionBuffers_[columnIdx][partitionId];
           if (reuseBuffers) {
@@ -1666,7 +1666,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         case arrow::StringType::type_id: {
           auto offsetBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kOffsetBufferIndex]);
           ARROW_RETURN_IF(!offsetBuffer, arrow::Status::Invalid("Offset buffer of binary array is not resizable."));
-          RETURN_NOT_OK(offsetBuffer->Resize((newSize + 1) * sizeof(arrow::BinaryType::offset_type)));
+          RETURN_NOT_OK(offsetBuffer->Resize((newSize + 1) * sizeof(BinaryArrayOffsetType)));
 
           auto binaryIdx = i - fixedWidthColumnCount_;
           auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][pid];
@@ -1682,14 +1682,15 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         }
         default: { // fixed-width types
           uint64_t valueBufferSize = 0;
-          if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
+          auto columnIndex = simpleColumnIndices_[i];
+          if (arrowColumnTypes_[columnIndex]->id() == arrow::BooleanType::type_id) {
             valueBufferSize = arrow::bit_util::BytesForBits(newSize);
-          } else if (veloxColumnTypes_[i]->isShortDecimal()) {
+          } else if (veloxColumnTypes_[columnIndex]->isShortDecimal()) {
             valueBufferSize = newSize * (arrow::bit_width(arrow::Int64Type::type_id) >> 3);
-          } else if (veloxColumnTypes_[i]->kind() == TypeKind::TIMESTAMP) {
+          } else if (veloxColumnTypes_[columnIndex]->kind() == TypeKind::TIMESTAMP) {
             valueBufferSize = BaseVector::byteSize<Timestamp>(newSize);
           } else {
-            valueBufferSize = newSize * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3);
+            valueBufferSize = newSize * (arrow::bit_width(arrowColumnTypes_[columnIndex]->id()) >> 3);
           }
           auto valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[1]);
           ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of fixed-width array is not resizable."));
