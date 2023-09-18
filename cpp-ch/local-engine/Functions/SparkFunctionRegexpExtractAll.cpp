@@ -18,7 +18,6 @@
 #include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeString.h>
-#include <DataTypes/DataTypesNumber.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
 #include <Functions/IFunction.h>
@@ -40,6 +39,7 @@ using namespace DB;
 
 namespace local_engine
 {
+using SparkRegexp = OptimizedRegularExpression;
 namespace
 {
     class FunctionRegexpExtractAllSpark : public IFunction
@@ -148,7 +148,7 @@ namespace
         static void saveMatchs(
             Pos start,
             Pos end,
-            const Regexps::Regexp & regexp,
+            const SparkRegexp & regexp,
             OptimizedRegularExpression::MatchVec & matches,
             size_t match_index,
             ColumnArray::Offsets & res_offsets,
@@ -199,7 +199,7 @@ namespace
             ColumnString::Chars & res_strings_chars,
             ColumnString::Offsets & res_strings_offsets)
         {
-            const Regexps::Regexp regexp = Regexps::createRegexp<false, false, false>(pattern);
+            const SparkRegexp regexp = Regexps::createRegexp<false, false, false>(pattern);
             unsigned capture = regexp.getNumberOfSubpatterns();
             if (index < 0 || index >= capture + 1)
                 throw Exception(
@@ -247,7 +247,7 @@ namespace
             ColumnString::Chars & res_strings_chars,
             ColumnString::Offsets & res_strings_offsets)
         {
-            const Regexps::Regexp regexp = Regexps::createRegexp<false, false, false>(pattern);
+            const SparkRegexp regexp = Regexps::createRegexp<false, false, false>(pattern);
             unsigned capture = regexp.getNumberOfSubpatterns();
 
             OptimizedRegularExpression::MatchVec matches;
@@ -297,7 +297,7 @@ namespace
             ColumnString::Chars & res_strings_chars,
             ColumnString::Offsets & res_strings_offsets)
         {
-            const Regexps::Regexp regexp = Regexps::createRegexp<false, false, false>(pattern);
+            const SparkRegexp regexp = Regexps::createRegexp<false, false, false>(pattern);
             unsigned capture = regexp.getNumberOfSubpatterns();
 
             /// Copy data into padded array to be able to use memcpySmallAllowReadWriteOverflow15.
