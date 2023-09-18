@@ -98,11 +98,7 @@ case class FromUnixTimeTransformer(
     val secNode = sec.doTransform(args)
     val formatNode = format.doTransform(args)
 
-    val dataTypes = if (timeZoneId != None) {
-      Seq(original.sec.dataType, original.format.dataType, StringType)
-    } else {
-      Seq(original.sec.dataType, original.format.dataType)
-    }
+    val dataTypes = Seq(original.sec.dataType, original.format.dataType)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
@@ -111,10 +107,6 @@ case class FromUnixTimeTransformer(
     val expressionNodes = new java.util.ArrayList[ExpressionNode]()
     expressionNodes.add(secNode)
     expressionNodes.add(formatNode)
-    if (timeZoneId != None) {
-      expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
-    }
-
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
