@@ -50,6 +50,8 @@ class OverAcquire implements TaskMemoryTarget {
   //   over-acquired memory will be used in step B.
   private final double ratio;
 
+  private final String name;
+
   OverAcquire(TaskMemoryTarget target, double ratio) {
     Preconditions.checkArgument(ratio >= 0.0D);
     this.overTarget =
@@ -66,6 +68,7 @@ class OverAcquire implements TaskMemoryTarget {
             Collections.emptyMap());
     this.target = target;
     this.ratio = ratio;
+    this.name = String.format("OverAcquire.Root[%s]", target.name());
   }
 
   @Override
@@ -99,7 +102,7 @@ class OverAcquire implements TaskMemoryTarget {
 
   @Override
   public String name() {
-    return String.format("OverAcquire.Root[%s]", target.name());
+    return name;
   }
 
   @Override

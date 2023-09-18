@@ -16,6 +16,7 @@
  */
 package io.glutenproject.memory.arrowalloc;
 
+import io.glutenproject.GlutenConfig;
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 
@@ -28,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ManagedAllocationListener implements AllocationListener, AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(ManagedAllocationListener.class);
 
-  public static long BLOCK_SIZE = 8L * 1024 * 1024; // 8MB per block
+  public static long BLOCK_SIZE = GlutenConfig.getConf().memoryReservationBlockSize();
 
   private final MemoryTarget target;
   private final SimpleMemoryUsageRecorder sharedUsage;

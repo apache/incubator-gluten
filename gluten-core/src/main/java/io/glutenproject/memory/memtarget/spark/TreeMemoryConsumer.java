@@ -137,7 +137,7 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
     if (remainingBytes > 0) {
       // if still doesn't fit, spill self
-      long spilled = node.getNodeSpiller().spill(remainingBytes);
+      final long spilled = node.getNodeSpiller().spill(remainingBytes);
       remainingBytes -= spilled;
     }
 
@@ -193,8 +193,13 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
         Spiller spiller,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
       this.parent = parent;
-      this.name = MemoryTargetUtil.toUniqueName(name);
       this.capacity = capacity;
+      final String uniqueName = MemoryTargetUtil.toUniqueName(name);
+      if (capacity == CAPACITY_UNLIMITED) {
+        this.name = uniqueName;
+      } else {
+        this.name = String.format("%s, %s", uniqueName, Utils.bytesToString(capacity));
+      }
       this.spiller = spiller;
       this.virtualChildren = virtualChildren;
     }
@@ -220,7 +225,6 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
     }
 
     private boolean ensureFreeCapacity(long bytesNeeded) {
-      long prevFreeBytes = -1L;
       while (true) { // FIXME should we add retry limit?
         long freeBytes = freeBytes();
         Preconditions.checkState(freeBytes >= 0);
@@ -228,15 +232,14 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
           // free bytes fit requirement
           return true;
         }
-        // we are about to OOM
-        if (freeBytes == prevFreeBytes) {
+        // spill
+        long bytesToSpill = bytesNeeded - freeBytes;
+        long spilledBytes = spillTree(this, bytesToSpill);
+        Preconditions.checkState(spilledBytes >= 0);
+        if (spilledBytes == 0) {
           // OOM
           return false;
         }
-        prevFreeBytes = freeBytes;
-        // spill
-        long bytesToSpill = bytesNeeded - freeBytes;
-        spillTree(this, bytesToSpill);
       }
     }
 
@@ -260,10 +263,7 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryCons
 
     @Override
     public String name() {
-      if (capacity == CAPACITY_UNLIMITED) {
-        return name;
-      }
-      return String.format("%s, %s", name, Utils.bytesToString(capacity));
+      return name;
     }
 
     @Override

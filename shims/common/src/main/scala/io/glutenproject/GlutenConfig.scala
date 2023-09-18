@@ -192,6 +192,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def taskOffHeapMemorySize: Long = conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES)
 
+  def memoryOverAcquiredRatio: Double = conf.getConf(COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO)
+
+  def memoryReservationBlockSize: Long = conf.getConf(COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE)
+
   def conservativeOffHeapMemorySize: Long =
     conf.getConf(COLUMNAR_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES)
 
@@ -221,10 +225,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxMaxSpillFileSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE)
 
   def veloxSpillFileSystem: String = conf.getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
-
-  def veloxOverAcquiredMemoryRatio: Double = conf.getConf(COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO)
-
-  def veloxReservationBlockSize: Long = conf.getConf(COLUMNAR_VELOX_RESERVATION_BLOCK_SIZE)
 
   def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
 
@@ -935,13 +935,29 @@ object GlutenConfig {
   val COLUMNAR_MEMORY_ISOLATION =
     buildConf("spark.gluten.memory.isolation")
       .internal()
-      .doc("Enable isolate memory mode. If true, Gluten controls the maximum off-heap memory " +
+      .doc("Enable isolated memory mode. If true, Gluten controls the maximum off-heap memory " +
         "can be used by each task to X, X = executor memory / max task slots. It's recommended " +
         "to set true if Gluten serves concurrent queries within a single session, since not all " +
         "memory Gluten allocated is guaranteed to be spillable. In the case, the feature should " +
         "be enabled to avoid OOM.")
       .booleanConf
       .createWithDefault(false)
+
+  val COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO =
+    buildConf("spark.gluten.memory.overAcquiredMemoryRatio")
+      .internal()
+      .doc("If larger than 0, Velox backend will try over-acquire this ratio of the total " +
+        "allocated memory as backup to avoid OOM.")
+      .doubleConf
+      .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
+      .createWithDefault(0.3d)
+
+  val COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE =
+    buildConf("spark.gluten.memory.reservationBlockSize")
+      .internal()
+      .doc("Block size of native reservation listener reserve memory from Spark.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8MB")
 
   // velox caching options
   val COLUMNAR_VELOX_CACHE_ENABLED =
@@ -1034,22 +1050,6 @@ object GlutenConfig {
       .stringConf
       .checkValues(Set("local", "heap-over-local"))
       .createWithDefaultString("local")
-
-  val COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO =
-    buildConf("spark.gluten.sql.columnar.backend.velox.overAcquiredMemoryRatio")
-      .internal()
-      .doc("If larger than 0, Velox backend will try over-acquire this ratio of the total " +
-        "allocated memory as backup to avoid OOM")
-      .doubleConf
-      .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
-      .createWithDefault(0.3d)
-
-  val COLUMNAR_VELOX_RESERVATION_BLOCK_SIZE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.reservationBlockSize")
-      .internal()
-      .doc("Block size of native reservation listener reserve memory from Spark.")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("8MB")
 
   val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillThreshold")
