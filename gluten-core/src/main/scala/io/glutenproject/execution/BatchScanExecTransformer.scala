@@ -33,10 +33,17 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.Objects
 
+/**
+ * Columnar Based BatchScanExec. Although keyGroupedPartitioning is not used, it cannot be deleted,
+ * it can make BatchScanExecTransformer contain a constructor with the same parameters as
+ * Spark-3.3's BatchScanExec. Otherwise, the corresponding constructor will not be found when
+ * calling TreeNode.makeCopy and will fail to copy this node during transformation.
+ */
 class BatchScanExecTransformer(
     output: Seq[AttributeReference],
     @transient scan: Scan,
-    runtimeFilters: Seq[Expression])
+    runtimeFilters: Seq[Expression],
+    keyGroupedPartitioning: Option[Seq[Expression]] = None)
   extends BatchScanExecShim(output, scan, runtimeFilters)
   with BasicScanExecTransformer {
 
