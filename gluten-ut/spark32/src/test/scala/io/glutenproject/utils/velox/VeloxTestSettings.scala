@@ -195,6 +195,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite because Spark collect causes long overflow.
     .exclude("TIMESTAMP_MICROS")
     // Replaced by a gluten test to pass timezone through config.
+    .exclude("from_unixtime")
+    // Replaced by a gluten test to pass timezone through config.
     .exclude("unix_timestamp")
     // Replaced by a gluten test to pass timezone through config.
     .exclude("to_unix_timestamp")

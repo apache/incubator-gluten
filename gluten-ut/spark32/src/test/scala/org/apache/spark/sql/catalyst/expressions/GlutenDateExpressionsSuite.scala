@@ -16,14 +16,15 @@
  */
 package org.apache.spark.sql.catalyst.expressions
 
-import org.apache.spark.sql.{GlutenTestConstants, GlutenTestsTrait}
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+import org.apache.spark.sql.GlutenTestsTrait
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.{getZoneId, TimeZoneUTC}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DateType, IntegerType, StringType}
+import org.apache.spark.sql.types.{DateType, IntegerType, LongType, StringType}
 import org.apache.spark.unsafe.types.UTF8String
 
 import java.sql.{Date, Timestamp}
@@ -60,7 +61,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     // checkResult(Int.MinValue.toLong - 100)
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "TIMESTAMP_MICROS") {
+  test(GLUTEN_TEST + "TIMESTAMP_MICROS") {
     def testIntegralFunc(value: Number): Unit = {
       checkEvaluation(MicrosToTimestamp(Literal(value)), value.longValue())
     }
@@ -88,7 +89,78 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     "Europe/Brussels")
   val outstandingZoneIds: Seq[ZoneId] = outstandingTimezonesIds.map(getZoneId)
 
-  test(GlutenTestConstants.GLUTEN_TEST + "unix_timestamp") {
+  val outstandingTimezonesIdsCityNameOnly: Seq[String] = Seq(
+    // Velox doesn't support timezones like UTC.
+    // "UTC",
+    "Africa/Dakar",
+    LA.getId,
+    "Asia/Urumqi",
+    "Asia/Hong_Kong",
+    "Europe/Brussels")
+  val outstandingZoneIdsCityNameOnly: Seq[ZoneId] =
+    outstandingTimezonesIdsCityNameOnly.map(getZoneId)
+
+  test(GLUTEN_TEST + "from_unixtime") {
+    withDefaultTimeZone(UTC) {
+      // Unlike original Spark test, we moved the below statement here to make timezone
+      // set in config.
+      // Velox's corresponding function doesn't support timezone form like "-08:00", so
+      // we only test outstandingZoneIdsCityNameOnly.
+      for (zid <- outstandingZoneIdsCityNameOnly) {
+        Seq("legacy", "corrected").foreach {
+          legacyParserPolicy =>
+            withSQLConf(
+              SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy,
+              SQLConf.SESSION_LOCAL_TIMEZONE.key -> zid.getId) {
+              val fmt1 = "yyyy-MM-dd HH:mm:ss"
+              val sdf1 = new SimpleDateFormat(fmt1, Locale.US)
+              val fmt2 = "yyyy-MM-dd HH:mm:ss.SSS"
+              val sdf2 = new SimpleDateFormat(fmt2, Locale.US)
+              val timeZoneId = Option(zid.getId)
+              val tz = TimeZone.getTimeZone(zid)
+              sdf1.setTimeZone(tz)
+              sdf2.setTimeZone(tz)
+
+              checkEvaluation(
+                FromUnixTime(Literal(0L), Literal(fmt1), timeZoneId),
+                sdf1.format(new Timestamp(0)))
+              checkEvaluation(
+                FromUnixTime(Literal(1000L), Literal(fmt1), timeZoneId),
+                sdf1.format(new Timestamp(1000000)))
+              checkEvaluation(
+                FromUnixTime(Literal(-1000L), Literal(fmt2), timeZoneId),
+                sdf2.format(new Timestamp(-1000000)))
+              checkEvaluation(
+                FromUnixTime(
+                  Literal.create(null, LongType),
+                  Literal.create(null, StringType),
+                  timeZoneId),
+                null)
+              checkEvaluation(
+                FromUnixTime(Literal.create(null, LongType), Literal(fmt1), timeZoneId),
+                null)
+              checkEvaluation(
+                FromUnixTime(Literal(1000L), Literal.create(null, StringType), timeZoneId),
+                null)
+
+              // SPARK-28072 The codegen path for non-literal input should also work
+              checkEvaluation(
+                expression = FromUnixTime(
+                  BoundReference(ordinal = 0, dataType = LongType, nullable = true),
+                  BoundReference(ordinal = 1, dataType = StringType, nullable = true),
+                  timeZoneId),
+                expected = UTF8String.fromString(sdf1.format(new Timestamp(0))),
+                inputRow = InternalRow(0L, UTF8String.fromString(fmt1))
+              )
+            }
+        }
+        // Test escaping of format
+        GenerateUnsafeProjection.generate(FromUnixTime(Literal(0L), Literal("\""), UTC_OPT) :: Nil)
+      }
+    }
+  }
+
+  test(GLUTEN_TEST + "unix_timestamp") {
     withDefaultTimeZone(UTC) {
       for (zid <- outstandingZoneIds) {
         Seq("legacy", "corrected").foreach {
@@ -189,7 +261,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
       UnixTimestamp(Literal("2015-07-24"), Literal("\""), UTC_OPT) :: Nil)
   }
 
-  test(GlutenTestConstants.GLUTEN_TEST + "to_unix_timestamp") {
+  test(GLUTEN_TEST + "to_unix_timestamp") {
     withDefaultTimeZone(UTC) {
       for (zid <- outstandingZoneIds) {
         Seq("legacy", "corrected").foreach {

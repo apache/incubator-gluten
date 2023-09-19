@@ -140,6 +140,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Has exception in fallback execution when we use resultDF.collect in evaluation.
     .exclude("TIMESTAMP_MICROS")
     // Replaced by a gluten test to pass timezone through config.
+    .exclude("from_unixtime")
+    // Replaced by a gluten test to pass timezone through config.
     .exclude("unix_timestamp")
     // Replaced by a gluten test to pass timezone through config.
     .exclude("to_unix_timestamp")

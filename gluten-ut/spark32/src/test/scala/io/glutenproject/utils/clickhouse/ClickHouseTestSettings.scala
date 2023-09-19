@@ -705,6 +705,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34739,SPARK-35889: add a year-month interval to a timestamp")
     .exclude("SPARK-34761,SPARK-35889: add a day-time interval to a timestamp")
     .exclude("Gluten - TIMESTAMP_MICROS")
+    .exclude("Gluten - from_unixtime")
     .exclude("Gluten - unix_timestamp")
     .exclude("Gluten - to_unix_timestamp")
   enableSuite[GlutenDecimalExpressionSuite].exclude("MakeDecimal")
