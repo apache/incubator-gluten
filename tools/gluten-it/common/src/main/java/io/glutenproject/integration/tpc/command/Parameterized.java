@@ -61,8 +61,8 @@ public class Parameterized implements Callable<Integer> {
   @CommandLine.Option(names = {"-d", "--dim"}, description = "Set a series of dimensions consisting of possible config options, example: -d=offheap:1g,spark.memory.offHeap.enabled=true,spark.memory.offHeap.size=1g")
   private String[] dims = new String[0];
 
-  private static final Pattern dimPattern1 = Pattern.compile("([\\w-]+):([\\w-]+)((?:,[^=,]+=[^=,]+)+)");
-  private static final Pattern dimPattern2 = Pattern.compile("([\\w-]+)((?:,[^=,]+=[^=,]+)+)");
+  private static final Pattern dimPattern1 = Pattern.compile("([\\w-]+):([^,:]+)((?:,[^=,]+=[^=,]+)+)");
+  private static final Pattern dimPattern2 = Pattern.compile("([^,:]+)((?:,[^=,]+=[^=,]+)+)");
 
   @Override
   public Integer call() throws Exception {

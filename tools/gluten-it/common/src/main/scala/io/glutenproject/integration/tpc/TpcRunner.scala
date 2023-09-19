@@ -18,11 +18,16 @@ package io.glutenproject.integration.tpc
 
 import org.apache.spark.sql.{QueryRunner, RunResult, SparkSession}
 
+import com.google.common.base.Preconditions
 import org.apache.commons.io.FileUtils
 
 import java.io.File
 
 class TpcRunner(val queryResourceFolder: String, val dataPath: String) {
+  Preconditions.checkState(
+    new File(dataPath).exists(),
+    s"Data not found at $dataPath, try using command `<gluten-it> data-gen-only <options>` to generate it first.",
+    Array(): _*)
 
   def createTables(spark: SparkSession): Unit = {
     TpcRunner.createTables(spark, dataPath)
