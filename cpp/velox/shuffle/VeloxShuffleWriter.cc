@@ -1218,17 +1218,17 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
     VS_PRINTLF(bytesPerRow);
 
-    //remove the cache memory size since it can be spilled.
-    //we can't use pool_->bytes_allocated() here because it's arrow::default_pool(). we should define a
+    // remove the cache memory size since it can be spilled.
+    // we can't use pool_->bytes_allocated() here because it's arrow::default_pool(). we should define a
     // pool for spill buffer, just like the pool for split buffer
     // memLimit+=pool_->bytes_allocated();
     memLimit += totalCachedPayloadSize();
-    //make sure split buffer uses 128M memory at least, let's hardcode it here for now
-    if (memLimit<128*1024*1024) memLimit=128*1024*1024;
+    // make sure split buffer uses 128M memory at least, let's hardcode it here for now
+    if (memLimit < 128 * 1024 * 1024)
+      memLimit = 128 * 1024 * 1024;
 
-    uint64_t preAllocRowCnt = memLimit > 0 && bytesPerRow > 0
-        ? memLimit / bytesPerRow / numPartitions_ >> 2
-        : options_.buffer_size;
+    uint64_t preAllocRowCnt =
+        memLimit > 0 && bytesPerRow > 0 ? memLimit / bytesPerRow / numPartitions_ >> 2 : options_.buffer_size;
     preAllocRowCnt = std::min(preAllocRowCnt, (uint64_t)options_.buffer_size);
 
     VS_PRINTLF(preAllocRowCnt);
