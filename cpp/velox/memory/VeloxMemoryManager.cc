@@ -161,6 +161,7 @@ VeloxMemoryManager::VeloxMemoryManager(
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory,
       velox::memory::kMaxMemory,
+      true, // memory usage tracking
       true, // leak check
       false, // debug
 #ifdef GLUTEN_ENABLE_HBM
@@ -170,8 +171,7 @@ VeloxMemoryManager::VeloxMemoryManager(
 #endif
       afr.getKind(),
       0,
-      32 << 20,
-      true};
+      32 << 20};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(

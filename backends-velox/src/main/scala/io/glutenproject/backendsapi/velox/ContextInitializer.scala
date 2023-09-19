@@ -86,8 +86,8 @@ class ContextInitializer extends ContextApi {
     }
     loader
       .newTransaction()
-      .loadAndCreateLink("libarrow.so.800.0.0", "libarrow.so.800", false)
-      .loadAndCreateLink("libparquet.so.800.0.0", "libparquet.so.800", false)
+      .loadAndCreateLink("libarrow.so.1300.0.0", "libarrow.so.1300", false)
+      .loadAndCreateLink("libparquet.so.1300.0.0", "libparquet.so.1300", false)
       .commit()
   }
 
