@@ -1462,7 +1462,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   }
 
   arrow::Status VeloxShuffleWriter::evictFixedSize(int64_t size, int64_t * actual) {
-    ARROW_ASSIGN_OR_RAISE(auto currentEvicted, shrinkPartitionBuffers());
+    int64_t currentEvicted = 0;
     auto tryCount = 0;
     while (currentEvicted < size && tryCount < 5) {
       tryCount++;
