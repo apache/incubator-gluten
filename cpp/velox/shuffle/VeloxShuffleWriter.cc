@@ -1098,7 +1098,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           binaryBuf.valueCapacity = capacity;
           dstValuePtr = binaryBuf.valuePtr + valueOffset - stringLen;
 
-          std::cout << "Split value buffer resized colIdx" << binaryIdx << std::endl;
+          DLOG(INFO) << "Split value buffer resized. Column index: " << binaryColumnIndices_[binaryIdx] << std::endl;
           VsPrintSplit(" dst_start", dstOffsetBase[x]);
           VsPrintSplit(" dst_end", dstOffsetBase[x + 1]);
           VsPrintSplit(" old size", oldCapacity);
@@ -1776,7 +1776,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       RETURN_NOT_OK(shrinkPartitionBuffer(pid));
     }
     auto shrunken = beforeShrink - pool_->bytes_allocated();
-    LOG(INFO) << shrunken << " bytes released from shrinking.";
+    DLOG(INFO) << shrunken << " bytes released from shrinking.";
     return shrunken;
   }
 
