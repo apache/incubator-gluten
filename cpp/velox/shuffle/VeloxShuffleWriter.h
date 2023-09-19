@@ -300,6 +300,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   uint64_t calculateValueBufferSizeForBinaryArray(uint32_t binaryIdx, int64_t newSize);
 
+  void calculateSimpleColumnBytes();
+
   void stat() const;
 
  protected:
@@ -355,6 +357,9 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   uint64_t totalInputNumRows_ = 0;
   std::vector<uint64_t> binaryArrayTotalSizeBytes_;
+
+  // used for calculating bufferSize, calculate once.
+  uint32_t simpleColumnBytes_ = 0;
 
   std::vector<std::vector<BinaryBuf>> partitionBinaryAddrs_;
 
