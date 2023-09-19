@@ -1225,6 +1225,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     if (veloxColumnTypes_.empty()) {
       RETURN_NOT_OK(initColumnTypes(rv));
       RETURN_NOT_OK(initPartitions());
+      calculateSimpleColumnBytes();
     }
     return arrow::Status::OK();
   }
@@ -1235,8 +1236,17 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         newSize < (1 - options_.buffer_realloc_threshold) * currentBufferSize;
   }
 
+  void VeloxShuffleWriter::calculateSimpleColumnBytes() {
+    simpleColumnBytes_ = 0;
+    for (size_t col = 0; col < simpleColumnIndices_.size(); ++col) {
+      auto colIdx = simpleColumnIndices_[col];
+      // `bool(1) >> 3` gets 0, so +7
+      simpleColumnBytes_ += ((arrow::bit_width(arrowColumnTypes_[colIdx]->id()) + 7) >> 3);
+    }
+  }
+
   uint32_t VeloxShuffleWriter::calculatePartitionBufferSize(const velox::RowVector& rv) {
-    uint32_t bytesPerRow = 0;
+    uint32_t bytesPerRow = simpleColumnBytes_;
 
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingCalculateBufferSize]);
     auto numRows = rv.size();
@@ -1258,12 +1268,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     }
 
     VS_PRINT_VECTOR_MAPPING(binaryArrayAvgBytesPerRow);
-
-    for (size_t col = 0; col < simpleColumnIndices_.size(); ++col) {
-      auto colIdx = simpleColumnIndices_[col];
-      // `bool(1) >> 3` gets 0, so +7
-      bytesPerRow += ((arrow::bit_width(arrowColumnTypes_[colIdx]->id()) + 7) >> 3);
-    }
 
     VS_PRINTLF(bytesPerRow);
 
