@@ -39,8 +39,6 @@ using namespace facebook::velox::filesystems;
 namespace gluten {
 
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
-  auto executionCtx = std::dynamic_pointer_cast<gluten::VeloxExecutionCtx>(gluten::createExecutionCtx());
-
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     auto path = filePath_.substr(5);
     auto localWriteFile = std::make_unique<LocalWriteFile>(path, true, false);
