@@ -95,7 +95,7 @@ namespace gluten {
 
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
-enum SplitState { INIT, SPLIT, STOP };
+enum SplitState { kInit, kPreAlloc, kSplit, kStop };
 
 class VeloxShuffleWriter final : public ShuffleWriter {
   enum { kValidityBufferIndex = 0, kOffsetBufferIndex = 1, kValueBufferIndex = 2 };
@@ -226,13 +226,20 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status doSplit(const facebook::velox::RowVector& rv);
 
+  bool beyondThreshold(uint32_t partitionId, uint64_t newSize);
+
   uint32_t calculatePartitionBufferSize(const facebook::velox::RowVector& rv);
 
-  arrow::Status allocatePartitionBuffers(uint32_t partitionId, uint32_t newSize);
+  arrow::Status updateValidityBuffers(uint32_t partitionId, uint32_t newSize);
 
-  arrow::Status allocateBufferFromPool(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size);
+  arrow::Result<std::shared_ptr<arrow::ResizableBuffer>>
+  allocateValidityBuffer(uint32_t col, uint32_t partitionId, uint32_t newSize);
+
+  arrow::Status allocatePartitionBuffers(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
 
   arrow::Status allocatePartitionBuffersWithRetry(uint32_t partitionId, uint32_t newSize);
+
+  arrow::Status allocatePartitionBuffersWithRetry(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
 
   arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers);
 
@@ -286,8 +293,14 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Result<int64_t> shrinkPartitionBuffers();
 
+  arrow::Status shrinkPartitionBuffer(uint32_t partitionId);
+
+  arrow::Status resizePartitionBuffer(uint32_t pid, int64_t newSize);
+
+  uint64_t calculateValueBufferSizeForBinaryArray(uint32_t binaryIdx, int64_t newSize);
+
  protected:
-  SplitState splitState_{INIT};
+  SplitState splitState_{kInit};
 
   bool supportAvx512_ = false;
 
@@ -328,7 +341,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   //  binary columns
   std::vector<uint32_t> binaryColumnIndices_;
 
-  // fixed columns
+  // fixed-width and binary columns
   std::vector<uint32_t> simpleColumnIndices_;
 
   // struct、map、list columns
@@ -345,10 +358,12 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   std::vector<std::vector<uint8_t*>> partitionValidityAddrs_;
   std::vector<std::vector<uint8_t*>> partitionFixedWidthValueAddrs_;
 
-  std::vector<uint64_t> binaryArrayEmpiricalSize_;
+  uint64_t totalInputNumRows_ = 0;
+  std::vector<uint64_t> binaryArrayTotalSizeBytes_;
 
   std::vector<std::vector<BinaryBuf>> partitionBinaryAddrs_;
 
+  // Input column has null, in the order of fixed-width columns + binary columns.
   std::vector<bool> inputHasNull_;
 
   // pid

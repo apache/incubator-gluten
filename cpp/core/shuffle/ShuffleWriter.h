@@ -32,6 +32,7 @@ static constexpr int32_t kDefaultShuffleWriterBufferSize = 4096;
 static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultBufferCompressThreshold = 1024;
 static constexpr int32_t kDefaultBufferAlignment = 64;
+static constexpr double kDefaultBufferReallocThreshold = 0.25;
 } // namespace
 
 struct ShuffleWriterOptions {
@@ -40,6 +41,7 @@ struct ShuffleWriterOptions {
   int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
   int32_t num_sub_dirs = kDefaultNumSubDirs;
   int32_t buffer_compress_threshold = kDefaultBufferCompressThreshold;
+  double buffer_realloc_threshold = kDefaultBufferReallocThreshold;
   arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
   CodecBackend codec_backend = CodecBackend::NONE;
   CompressionMode compression_mode = CompressionMode::BUFFER;
