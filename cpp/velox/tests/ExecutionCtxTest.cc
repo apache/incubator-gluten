@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "compute/ExecutionCtx.h"
+#include "compute/VeloxExecutionCtx.h"
 
 #include <gtest/gtest.h>
 
@@ -119,7 +119,7 @@ class DummyExecutionCtx final : public ExecutionCtx {
   void releaseColumnarBatchSerializer(ResourceHandle handle) override {}
 
  private:
-  ConcurrentMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
+  ResourceMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
 
   class DummyResultIterator : public ColumnarBatchIterator {
    public:

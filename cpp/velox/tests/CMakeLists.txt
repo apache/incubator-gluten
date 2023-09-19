@@ -54,3 +54,4 @@ add_velox_test(
   JsonToProtoConverter.cc
   FilePathGenerator.cc)
 add_velox_test(spark_functions_test SOURCES SparkFunctionTest.cc)
+add_velox_test(execution_ctx_test SOURCES ExecutionCtxTest.cc)
