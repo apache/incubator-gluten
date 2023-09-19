@@ -2009,5 +2009,21 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     assert(lastStageTransformer2.get.asInstanceOf[WholeStageTransformer].getPlanJson.nonEmpty)
     spark.sparkContext.setLogLevel(logLevel)
   }
+
+  test("GLUTEN-3140: Bug fix array_contains return null") {
+    val create_table_sql =
+      """
+        | create table test_tbl_3140(id bigint, name string) using parquet;
+        |""".stripMargin
+    val insert_data_sql =
+      """
+        | insert into test_tbl_3140 values(1, "");
+        |""".stripMargin
+    spark.sql(create_table_sql)
+    spark.sql(insert_data_sql)
+    val select_sql =
+      "select id, array_contains(split(name, ','), '2899') from test_tbl_3140 where id = 1"
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+  }
 }
 // scalastyle:on line.size.limit
