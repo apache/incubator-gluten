@@ -172,6 +172,8 @@ class ShuffleWriter {
       const arrow::RecordBatch& rb,
       bool reuseBuffers) = 0;
 
+  virtual arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers) = 0;
+
   virtual arrow::Status stop() = 0;
 
   virtual std::shared_ptr<arrow::Schema> writeSchema();

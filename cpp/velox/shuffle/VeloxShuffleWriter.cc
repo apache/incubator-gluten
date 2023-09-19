@@ -1325,7 +1325,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           auto columnIdx = fixedWidthColumnCount_ + binaryIdx;
           ARROW_ASSIGN_OR_RAISE(validityBuffer, allocateValidityBuffer(columnIdx, partitionId, newSize));
 
-          auto valueBufSize = calculateValueBufferSizeForBinaryArray(binaryIdx, partitionId);
+          auto valueBufSize = calculateValueBufferSizeForBinaryArray(binaryIdx, newSize);
           auto offsetBufSize = (newSize + 1) * sizeof(BinaryArrayOffsetType);
 
           auto& buffers = partitionBuffers_[columnIdx][partitionId];
@@ -1685,12 +1685,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   arrow::Status VeloxShuffleWriter::evictPartition(int32_t partitionId) {
     RETURN_NOT_OK(partitionWriter_->evictPartition(partitionId));
     // reset validity buffer after evict
-    if (partitionId == -1) {
-      // Reset for all partitions
-      for (auto i = 0; i < numPartitions_; ++i) {
-        RETURN_NOT_OK(resetValidityBuffers(i));
-      }
-    } else {
+    if (partitionId != -1) {
       RETURN_NOT_OK(resetValidityBuffers(partitionId));
     }
     return arrow::Status::OK();
@@ -1730,8 +1725,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][partitionId];
           auto valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kValueBufferIndex]);
           ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of binary array is not resizable."));
-          auto valueBufferSize =
-              std::max(binaryBuf.valueOffset, calculateValueBufferSizeForBinaryArray(binaryIdx, newSize));
+          auto binaryNewSize = calculateValueBufferSizeForBinaryArray(binaryIdx, newSize);
+          auto valueBufferSize = std::max(binaryBuf.valueOffset, binaryNewSize);
           RETURN_NOT_OK(valueBuffer->Resize(valueBufferSize));
 
           binaryBuf = BinaryBuf(
@@ -1763,7 +1758,15 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   }
 
   arrow::Status VeloxShuffleWriter::shrinkPartitionBuffer(uint32_t partitionId) {
+    auto bufferSize = partition2BufferSize_[partitionId];
+    if (bufferSize == 0) {
+      return arrow::Status::OK();
+    }
+
     auto newSize = partitionBufferIdxBase_[partitionId];
+    if (newSize == bufferSize) {
+      return arrow::Status::OK();
+    }
     if (newSize == 0) {
       return resetPartitionBuffer(partitionId);
     }
