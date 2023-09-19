@@ -27,4 +27,5 @@ arrow::Status gluten::SinglePartPartitioner::compute(
   // nothing is need do here
   return arrow::Status::OK();
 }
+
 } // namespace gluten
