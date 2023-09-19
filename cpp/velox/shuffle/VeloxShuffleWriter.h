@@ -230,13 +230,14 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   uint32_t calculatePartitionBufferSize(const facebook::velox::RowVector& rv);
 
-  // Allocate validity buffer and fill with 0xff.
+  arrow::Status updateValidityBuffers(uint32_t partitionId, uint32_t newSize);
+
   arrow::Result<std::shared_ptr<arrow::ResizableBuffer>>
   allocateValidityBuffer(uint32_t col, uint32_t partitionId, uint32_t newSize);
 
-  arrow::Status allocateValidityBuffers(uint32_t partitionId);
+  arrow::Status allocatePartitionBuffers(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
 
-  arrow::Status allocatePartitionBuffers(uint32_t partitionId, uint32_t newSize);
+  arrow::Status allocatePartitionBuffersWithRetry(uint32_t partitionId, uint32_t newSize);
 
   arrow::Status allocatePartitionBuffersWithRetry(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
 
@@ -294,11 +295,9 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status shrinkPartitionBuffer(uint32_t partitionId);
 
-  arrow::Status resizePartitionBuffers(uint32_t pid, int64_t newSize, bool preserveData);
+  arrow::Status resizePartitionBuffer(uint32_t pid, int64_t newSize);
 
-  uint64_t valueBufferSizeForFixedWidthArray(uint32_t fixedWidthIdx, int64_t newSize);
-
-  uint64_t valueBufferSizeForBinaryArray(uint32_t binaryIdx, int64_t newSize);
+  uint64_t calculateValueBufferSizeForBinaryArray(uint32_t binaryIdx, int64_t newSize);
 
  protected:
   SplitState splitState_{kInit};
