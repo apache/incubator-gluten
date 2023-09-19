@@ -294,9 +294,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Result<int64_t> shrinkPartitionBuffers();
 
+  arrow::Status resetPartitionBuffer(uint32_t partitionId);
+
   arrow::Status shrinkPartitionBuffer(uint32_t partitionId);
 
-  arrow::Status resizePartitionBuffer(uint32_t pid, int64_t newSize);
+  arrow::Status resizePartitionBuffer(uint32_t partitionId, int64_t newSize);
 
   uint64_t calculateValueBufferSizeForBinaryArray(uint32_t binaryIdx, int64_t newSize);
 
