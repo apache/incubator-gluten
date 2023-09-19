@@ -54,7 +54,7 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> recordBatch2VeloxColumnarBatch(con
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 
-arrow::Status MyMemoryPool::Allocate(int64_t size, uint8_t** out) {
+arrow::Status MyMemoryPool::Allocate(int64_t size, int64_t alignment, uint8_t** out) {
   if (bytes_allocated() + size > capacity_) {
     return arrow::Status::OutOfMemory("malloc of size ", size, " failed");
   }
@@ -63,7 +63,7 @@ arrow::Status MyMemoryPool::Allocate(int64_t size, uint8_t** out) {
   return arrow::Status::OK();
 }
 
-arrow::Status MyMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, uint8_t** ptr) {
+arrow::Status MyMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) {
   if (newSize > capacity_) {
     return arrow::Status::OutOfMemory("malloc of size ", newSize, " failed");
   }
@@ -73,7 +73,7 @@ arrow::Status MyMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, uint8_t
   return arrow::Status::OK();
 }
 
-void MyMemoryPool::Free(uint8_t* buffer, int64_t size) {
+void MyMemoryPool::Free(uint8_t* buffer, int64_t size, int64_t alignment) {
   pool_->Free(buffer, size);
   stats_.UpdateAllocatedBytes(-size);
 }
@@ -88,6 +88,14 @@ int64_t MyMemoryPool::max_memory() const {
 
 std::string MyMemoryPool::backend_name() const {
   return pool_->backend_name();
+}
+
+int64_t MyMemoryPool::total_bytes_allocated() const {
+  return pool_->total_bytes_allocated();
+}
+
+int64_t MyMemoryPool::num_allocations() const {
+  throw pool_->num_allocations();
 }
 
 } // namespace gluten
