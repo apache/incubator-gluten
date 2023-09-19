@@ -744,6 +744,15 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("issue-3195 window row_number") {
+    val sql =
+      """
+        |select row_number() over (order by 1) as num, n_nationkey from nation
+        |order by num, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("window sum 1") {
     val sql =
       """
