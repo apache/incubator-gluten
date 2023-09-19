@@ -139,7 +139,6 @@ class VeloxExecutionCtx final : public ExecutionCtx {
   ResourceMap<std::shared_ptr<RowToColumnarConverter>> rowToColumnarConverterHolder_;
   ResourceMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
 
-  std::vector<std::shared_ptr<ResultIterator>> inputIters_;
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
 };
 

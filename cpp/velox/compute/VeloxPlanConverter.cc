@@ -29,7 +29,7 @@ namespace gluten {
 using namespace facebook;
 
 VeloxPlanConverter::VeloxPlanConverter(
-    std::vector<std::shared_ptr<ResultIterator>>& inputIters,
+    const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
     velox::memory::MemoryPool* veloxPool,
     const std::unordered_map<std::string, std::string>& confMap)
     : inputIters_(inputIters), substraitVeloxPlanConverter_(veloxPool, confMap) {}
