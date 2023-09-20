@@ -730,6 +730,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
           if (options_.prefer_evict) {
             // if prefer_evict is set, evict current RowVector
             RETURN_NOT_OK(evictPartition(pid));
+            RETURN_NOT_OK(resetValidityBuffers(pid));
           }
           RETURN_NOT_OK(allocatePartitionBuffersWithRetry(pid, newSize, reuseBuffers)); // resize
         } else {
@@ -751,6 +752,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
             if (options_.prefer_evict) {
               // if prefer_evict is set, evict current RowVector
               RETURN_NOT_OK(evictPartition(pid));
+              RETURN_NOT_OK(resetValidityBuffers(pid));
             }
             RETURN_NOT_OK(allocatePartitionBuffersWithRetry(pid, newSize, reuseBuffers));
           }
@@ -771,6 +773,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
           if (options_.prefer_evict) {
             // if prefer_evict is set, evict current RowVector
             RETURN_NOT_OK(evictPartition(pid));
+            RETURN_NOT_OK(resetValidityBuffers(pid));
           }
           RETURN_NOT_OK(allocatePartitionBuffersWithRetry(pid, newSize));
         } else {
@@ -786,9 +789,9 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
           if (options_.prefer_evict) {
             // if prefer_evict is set, evict current RowVector
             RETURN_NOT_OK(evictPartition(pid));
-          } else {
-            RETURN_NOT_OK(resetValidityBuffers(pid));
           }
+          // Reset validity buffer for reuse.
+          RETURN_NOT_OK(resetValidityBuffers(pid));
         }
       }
     }
@@ -1684,10 +1687,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   // TODO: Move into PartitionWriter
   arrow::Status VeloxShuffleWriter::evictPartition(int32_t partitionId) {
     RETURN_NOT_OK(partitionWriter_->evictPartition(partitionId));
-    // reset validity buffer after evict
-    if (partitionId != -1) {
-      RETURN_NOT_OK(resetValidityBuffers(partitionId));
-    }
     return arrow::Status::OK();
   }
 
