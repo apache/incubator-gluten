@@ -1613,6 +1613,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
   arrow::Status VeloxShuffleWriter::evictPartitionsOnDemand(int64_t * size) {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingEvictPartition]);
+    if (options_.prefer_evict) {
+      return arrow::Status::OK();
+    }
     // Evict all cached partitions
     int64_t totalCachedSize = totalCachedPayloadSize();
     if (totalCachedSize <= 0) {

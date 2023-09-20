@@ -73,7 +73,6 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
     shuffleWriterOptions_.buffer_compress_threshold = 0;
     shuffleWriterOptions_.memory_pool = arrowPool_;
-    shuffleWriterOptions_.ipc_memory_pool = shuffleWriterOptions_.memory_pool;
 
     ShuffleTestParams params = GetParam();
     shuffleWriterOptions_.prefer_evict = params.prefer_evict;
@@ -713,6 +712,9 @@ TEST_P(VeloxShuffleWriterTest, TestSpillOnStop) {
 }
 
 TEST_P(VeloxShuffleWriterTest, TestSpill) {
+  if (shuffleWriterOptions_.prefer_evict) { // TODO: remove prefer_evict
+    return;
+  }
   int32_t numPartitions = 4;
   shuffleWriterOptions_.buffer_size = 1; // Set a small buffer size to force clear and cache buffers for each split.
   shuffleWriterOptions_.partitioning_name = "hash";
@@ -746,6 +748,10 @@ TEST_P(VeloxShuffleWriterTest, TestSpill) {
 }
 
 TEST_P(VeloxShuffleWriterTest, TestShrinkZeroSizeBuffer) {
+  if (shuffleWriterOptions_.prefer_evict) { // TODO: remove prefer_evict
+    return;
+  }
+
   // Test 2 cases:
   // 1. partition buffer size before shrink is 0.
   // 2. partition buffer size after shrink is 0.

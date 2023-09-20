@@ -64,7 +64,6 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(VeloxMemoryManager* memo
 
   auto options = ShuffleWriterOptions::defaults();
   options.memory_pool = memoryManager->getArrowMemoryPool();
-  options.ipc_memory_pool = options.memory_pool;
   options.partitioning_name = "rr"; // Round-Robin partitioning
   if (FLAGS_zstd) {
     options.codec_backend = CodecBackend::NONE;

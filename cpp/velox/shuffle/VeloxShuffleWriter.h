@@ -22,7 +22,6 @@
 #include <string>
 #include <vector>
 
-#include "memory/LargeMemoryPool.h"
 #include "velox/common/time/CpuWallTimer.h"
 #include "velox/serializers/PrestoSerializer.h"
 #include "velox/type/Type.h"
@@ -210,7 +209,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       const ShuffleWriterOptions& options,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool)
       : ShuffleWriter(numPartitions, partitionWriterCreator, options),
-        payloadPool_(std::make_shared<ShuffleMemoryPool>(options_.ipc_memory_pool)),
+        payloadPool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)),
         veloxPool_(std::move(veloxPool)) {
     arenas_.resize(numPartitions);
   }

@@ -320,9 +320,6 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       std::cout << schema_->ToString() << std::endl;
 
-    auto* pool = options.memory_pool.get();
-    auto ipcMemoryPool = std::make_shared<LargeMemoryPool>(pool);
-    options.ipc_write_options.memory_pool = ipcMemoryPool.get();
     GLUTEN_ASSIGN_OR_THROW(
         shuffleWriter,
         VeloxShuffleWriter::create(
@@ -333,7 +330,7 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
     std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
     std::shared_ptr<RecordBatchReader> recordBatchReader;
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-        pool, ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
+        options.memory_pool.get(), ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
 
     for (auto _ : state) {
       std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
