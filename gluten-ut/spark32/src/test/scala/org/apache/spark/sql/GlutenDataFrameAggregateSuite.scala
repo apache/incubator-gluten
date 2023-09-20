@@ -200,4 +200,22 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
           _.isInstanceOf[HashAggregateExecBaseTransformer]).isDefined)
     }
   }
+
+  test("gluten 3213") {
+      Seq(
+        ("c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", null)
+      )
+        .toDF("c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17")
+        .createOrReplaceTempView("view")
+
+      val df = spark.sql("select min(c1),max(c1),min(c2),max(c2),min(c3),max(c3),min(c4),max(c4)," +
+        "min(c5),max(c5),min(c6),max(c6),min(c7),max(c7),min(c8),max(c8)," +
+        "min(c9),max(c9),min(c10),max(c10),min(c11),max(c11),min(c12),max(c12)," +
+        "min(c13),max(c13),min(c14),max(c14),min(c15),max(c15),min(c16),max(c16),min(c17) from view")
+      checkAnswer(df, Row("c1", "c1", "c2", "c2", "c3", "c3", "c4", "c4",
+                          "c5", "c5", "c6", "c6", "c7", "c7", "c8", "c8",
+                          "c9", "c9", "c10", "c10", "c11", "c11", "c12", "c12",
+                          "c13", "c13", "c14", "c14", "c15", "c15", "c16", "c16", null) :: Nil)
+    }
+
 }

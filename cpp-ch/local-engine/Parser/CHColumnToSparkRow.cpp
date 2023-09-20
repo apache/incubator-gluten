@@ -77,7 +77,7 @@ void bitSet(char * bitmap, size_t index)
 ALWAYS_INLINE bool isBitSet(const char * bitmap, size_t index)
 {
     assert(index >= 0);
-    int64_t mask = 1 << (index & 63);
+    int64_t mask = 1L << (index & 63);
     int64_t word_offset = static_cast<int64_t>(index >> 6) * 8L;
     int64_t word = *reinterpret_cast<const int64_t *>(bitmap + word_offset);
     return word & mask;
