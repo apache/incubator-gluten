@@ -17,9 +17,9 @@
 package org.apache.spark.sql
 
 import io.glutenproject.execution.HashAggregateExecBaseTransformer
-
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.test.SQLTestData.DecimalData
 
 class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenSQLTestsTrait {
 
@@ -200,4 +200,17 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
           _.isInstanceOf[HashAggregateExecBaseTransformer]).isDefined)
     }
   }
+
+  test("gluten issues 3221") {
+    val df = spark.sparkContext.parallelize(
+      DecimalData(-32.82, 1)
+         :: Nil).toDF()
+    df.createOrReplaceTempView("decimal_negative")
+
+    checkAnswer(
+      df.agg(
+        sum($"a".cast("double"))),
+      Row(-32.82))
+  }
+
 }
