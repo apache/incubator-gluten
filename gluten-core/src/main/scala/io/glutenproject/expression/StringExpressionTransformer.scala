@@ -81,6 +81,29 @@ case class StringTranslateTransformer(
   }
 }
 
+case class StringToMapTransformer(
+    substraitExprName: String,
+    text: ExpressionTransformer,
+    pairDelim: ExpressionTransformer,
+    keyValueDelim: ExpressionTransformer,
+    original: StringToMap)
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+
+    val pairDelimNode = pairDelim.doTransform(args)
+    val keyValueDelimNode = keyValueDelim.doTransform(args)
+    if (
+      !pairDelimNode.isInstanceOf[StringLiteralNode] ||
+      !keyValueDelimNode.isInstanceOf[StringLiteralNode]
+    ) {
+      throw new UnsupportedOperationException(s"$original not supported yet.")
+    }
+
+    GenericExpressionTransformer(substraitExprName, Seq(text, pairDelim, keyValueDelim), original)
+      .doTransform(args)
+  }
+}
 case class RegExpReplaceTransformer(
     substraitExprName: String,
     subject: ExpressionTransformer,
@@ -113,7 +136,9 @@ case class ConcatWsTransformer(
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-
+    if (!children.head.isInstanceOf[StringLiteralNode]) {
+      throw new UnsupportedOperationException(s"$original not supported yet.")
+    }
     GenericExpressionTransformer(substraitExprName, children, original)
       .doTransform(args)
   }
