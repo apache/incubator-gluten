@@ -141,6 +141,50 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
     }
   }
 
+  test(
+    "when the Final SortAggregate fallback, the Partial SortAggregate should also fallback " +
+      "to ensure data accuracy") {
+    val table = "table"
+    withTable(table) {
+      spark.sql(s"""
+                   |CREATE  TABLE $table (l_partkey BIGINT, p_comment STRING)
+                   |USING   PARQUET
+                   |        PARTITIONED BY (p_comment)
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |INSERT OVERWRITE TABLE $table select l_quantity, l_partkey from lineitem
+                   |""".stripMargin)
+      runQueryAndCompare(s"""
+                            |SELECT  T1.l_partkey,
+                            |        T2.p_comment,
+                            |        COALESCE(T2.active_label, T1.l_partkey) AS active_label
+                            |FROM    $table T1
+                            |LEFT JOIN
+                            |        (
+                            |            SELECT  t1.l_partkey l_partkey,
+                            |                    NULL active_label,
+                            |                    MAX(t1.p_comment) AS p_comment
+                            |            FROM    $table t1
+                            |            LEFT JOIN
+                            |                    $table t2
+                            |            ON      t1.l_partkey = t2.l_partkey
+                            |            GROUP BY
+                            |                    t1.l_partkey
+                            |        ) T2
+                            |ON      T1.l_partkey = T2.l_partkey
+                            |""".stripMargin) {
+        df =>
+          {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[HashAggregateExecTransformer]
+                }) == 0)
+          }
+      }
+    }
+  }
+
   test("min and max") {
     runQueryAndCompare(
       "select min(l_partkey), max(l_partkey) from lineitem where l_partkey < 2000") {

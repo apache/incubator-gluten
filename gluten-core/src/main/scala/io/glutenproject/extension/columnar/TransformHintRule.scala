@@ -26,6 +26,7 @@ import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.aggregate.{Partial, PartialMerge}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -423,7 +424,21 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.resultExpressions,
               plan.child
             )
-          TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          val transformHint = transformer.doValidate().toTransformHint
+          TransformHints.tag(plan, transformHint)
+          if (TransformHints.isNotTransformable(plan)) {
+            plan.children.foreach {
+              case sortAgg: SortAggregateExec if sortAgg.aggregateExpressions.exists {
+                    expr =>
+                      expr.mode match {
+                        case Partial | PartialMerge => true
+                        case _ => false
+                      }
+                  } =>
+                TransformHints.tag(sortAgg, transformHint)
+              case _ => // do nothing
+            }
+          }
         case plan: ObjectHashAggregateExec =>
           if (!enableColumnarHashAgg) {
             TransformHints.tagNotTransformable(
