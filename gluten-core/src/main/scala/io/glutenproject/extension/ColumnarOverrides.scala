@@ -27,7 +27,7 @@ import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSe
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
-import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BindReferences, BoundReference, Expression, Murmur3Hash, NamedExpression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BindReferences, BoundReference, CreateNamedStruct, Expression, Literal, Murmur3Hash, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
@@ -287,6 +287,43 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
   }
 
+  private def processProjectExecTransformer(
+      project: ProjectExecTransformer): ProjectExecTransformer = {
+    // special treatment for Project containing all bloom filters:
+    // if more than one bloom filter, Spark will merge them into a named_struct
+    // and then broadcast. The named_struct looks like {'bloomFilter',BF1,'bloomFilter',BF2},
+    // with two bloom filters sharing same nam. This will cause problem for some backends,
+    // e.g. ClickHouse, which cannot tolerate duplicate type names in struct type
+    // So we need to rename 'bloomFilter' to make them unique.
+    if (project.projectList.size == 1) {
+      val newProjectListHead = project.projectList.head match {
+        case alias @ Alias(cns @ CreateNamedStruct(children: Seq[Expression]), "mergedValue") =>
+          if (
+            !cns.nameExprs.forall(
+              e =>
+                e.isInstanceOf[Literal] && "bloomFilter".equals(e.asInstanceOf[Literal].toString()))
+          ) {
+            null
+          } else {
+            val newChildren = children.zipWithIndex.map {
+              case _ @(_: Literal, index) =>
+                val newLiteral = Literal("bloomFilter" + index / 2)
+                newLiteral
+              case other @ (_, _) => other._1
+            }
+            Alias.apply(CreateNamedStruct(newChildren), "mergedValue")(alias.exprId)
+          }
+        case _ => null
+      }
+      if (newProjectListHead == null) {
+        project
+      } else {
+        ProjectExecTransformer(Seq(newProjectListHead), project.child)
+      }
+    } else {
+      project
+    }
+  }
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
     TransformHints.getHint(plan) match {
       case _: TRANSFORM_SUPPORTED =>
@@ -335,7 +372,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case plan: ProjectExec =>
         val columnarChild = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        ProjectExecTransformer(plan.projectList, columnarChild)
+        processProjectExecTransformer(ProjectExecTransformer(plan.projectList, columnarChild))
       case plan: FilterExec =>
         genFilterExec(plan)
       case plan: HashAggregateExec =>

@@ -153,7 +153,6 @@ case class EncodeDecodeValidator() extends FunctionValidator {
 object CHExpressionUtil {
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
-    BLOOM_FILTER_AGG -> DefaultValidator()
   )
 
   final val CH_BLACKLIST_SCALAR_FUNCTION: Map[String, FunctionValidator] = Map(
@@ -162,7 +161,6 @@ object CHExpressionUtil {
     TO_UNIX_TIMESTAMP -> UnixTimeStampValidator(),
     UNIX_TIMESTAMP -> UnixTimeStampValidator(),
     SEQUENCE -> SequenceValidator(),
-    MIGHT_CONTAIN -> DefaultValidator(),
     GET_JSON_OBJECT -> GetJsonObjectValidator(),
     ARRAYS_OVERLAP -> DefaultValidator(),
     SPLIT -> StringSplitValidator(),

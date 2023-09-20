@@ -47,6 +47,8 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
       .set("spark.memory.offHeap.size", "4g")
       .set("spark.gluten.sql.validation.logLevel", "ERROR")
       .set("spark.gluten.sql.validation.printStackOnFailure", "true")
+//      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
+//      .setMaster("local[1]")
   }
 
   executeTPCDSTest(false)
@@ -398,5 +400,6 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql5, true, _ => {})
   }
+
 }
 // scalastyle:on line.size.limit

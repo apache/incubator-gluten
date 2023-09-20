@@ -33,7 +33,7 @@ namespace local_engine
 class AggregateFunctionParser
 {
 public:
-    /// CommonFunctionInfo is commmon representation for different function types, 
+    /// CommonFunctionInfo is commmon representation for different function types,
     struct CommonFunctionInfo
     {
         /// basic common function informations
@@ -42,7 +42,7 @@ public:
         DB::Int32 function_ref;
         Arguments arguments;
         substrait::Type output_type;
-    
+
         /// Following is for aggregate and window functions.
         substrait::AggregationPhase phase;
         SortFields sort_fields;
@@ -52,10 +52,7 @@ public:
         bool is_aggregate_function = false;
         bool has_filter = false;
 
-        CommonFunctionInfo()
-        {
-            function_ref = -1;
-        }
+        CommonFunctionInfo() { function_ref = -1; }
 
         CommonFunctionInfo(const substrait::WindowRel::Measure & win_measure)
             : function_ref(win_measure.measure().function_reference())
@@ -81,9 +78,9 @@ public:
         }
     };
 
-    AggregateFunctionParser(SerializedPlanParser * plan_parser_) : plan_parser(plan_parser_) {}
+    AggregateFunctionParser(SerializedPlanParser * plan_parser_) : plan_parser(plan_parser_) { }
     virtual ~AggregateFunctionParser() = default;
-    
+
     virtual String getName() const = 0;
 
     /// In some special cases, different arguments size or different arguments types may refer to different
@@ -109,27 +106,26 @@ public:
 
     /// Make a postprojection for the function result.
     virtual const DB::ActionsDAG::Node * convertNodeTypeIfNeeded(
-        const CommonFunctionInfo & func_info,
-        const DB::ActionsDAG::Node * func_node,
-        DB::ActionsDAGPtr & actions_dag) const;
-    
+        const CommonFunctionInfo & func_info, const DB::ActionsDAG::Node * func_node, DB::ActionsDAGPtr & actions_dag) const;
+
     /// Parameters are only used in aggregate functions at present. e.g. percentiles(0.5)(x).
     /// 0.5 is the parameter of percentiles function.
-    virtual DB::Array parseFunctionParameters(const CommonFunctionInfo & /*func_info*/) const
+    virtual DB::Array
+    parseFunctionParameters(const CommonFunctionInfo & /*func_info*/, DB::ActionsDAG::NodeRawConstPtrs & /*arg_nodes*/) const
     {
         return DB::Array();
     }
+
     /// Return the default parameters of the function. It's useful for creating a default function instance.
-    virtual DB::Array getDefaultFunctionParameters() const
-    {
-        return DB::Array();
-    }
+    virtual DB::Array getDefaultFunctionParameters() const { return DB::Array(); }
+
 protected:
     DB::ContextPtr getContext() const { return plan_parser->context; }
 
     String getUniqueName(const String & name) const { return plan_parser->getUniqueName(name); }
 
-    const DB::ActionsDAG::Node * addColumnToActionsDAG(DB::ActionsDAGPtr & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
+    const DB::ActionsDAG::Node *
+    addColumnToActionsDAG(DB::ActionsDAGPtr & actions_dag, const DB::DataTypePtr & type, const DB::Field & field) const
     {
         return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
     }
@@ -139,9 +135,12 @@ protected:
     {
         return plan_parser->toFunctionNode(action_dag, func_name, args);
     }
-    
-    const DB::ActionsDAG::Node *
-    toFunctionNode(DB::ActionsDAGPtr & action_dag, const String & func_name, const String & result_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+
+    const DB::ActionsDAG::Node * toFunctionNode(
+        DB::ActionsDAGPtr & action_dag,
+        const String & func_name,
+        const String & result_name,
+        const DB::ActionsDAG::NodeRawConstPtrs & args) const
     {
         auto function_builder = DB::FunctionFactory::instance().get(func_name, getContext());
         return &action_dag->addFunction(function_builder, args, result_name);
@@ -152,7 +151,10 @@ protected:
         return plan_parser->parseExpression(actions_dag, rel);
     }
 
-    std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const { return plan_parser->parseLiteral(literal); }
+    std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const
+    {
+        return plan_parser->parseLiteral(literal);
+    }
 
     SerializedPlanParser * plan_parser;
     Poco::Logger * logger = &Poco::Logger::get("AggregateFunctionParserFactory");
@@ -169,37 +171,34 @@ public:
 
     void registerAggregateFunctionParser(const String & name, Value value);
 
-    template<typename Parser>
+    template <typename Parser>
     void registerAggregateFunctionParser(const String & name)
     {
-        auto creator = [](SerializedPlanParser * plan_parser) -> AggregateFunctionParserPtr {
-            return std::make_shared<Parser>(plan_parser);
-        };
+        auto creator
+            = [](SerializedPlanParser * plan_parser) -> AggregateFunctionParserPtr { return std::make_shared<Parser>(plan_parser); };
         registerAggregateFunctionParser(name, creator);
     }
 
     AggregateFunctionParserPtr get(const String & name, SerializedPlanParser * plan_parser) const;
     AggregateFunctionParserPtr tryGet(const String & name, SerializedPlanParser * plan_parser) const;
 
-    const Parsers & getMap() const override {return parsers;}
+    const Parsers & getMap() const override { return parsers; }
+
 private:
     Parsers parsers;
 
     /// Always empty
     Parsers case_insensitive_parsers;
-    
+
     const Parsers & getCaseInsensitiveMap() const override { return case_insensitive_parsers; }
 
     String getFactoryName() const override { return "AggregateFunctionParserFactory"; }
 };
 
-template<typename Parser>
+template <typename Parser>
 struct AggregateFunctionParserRegister
 {
-    AggregateFunctionParserRegister()
-    {
-        AggregateFunctionParserFactory::instance().registerAggregateFunctionParser<Parser>(Parser::name);
-    }
+    AggregateFunctionParserRegister() { AggregateFunctionParserFactory::instance().registerAggregateFunctionParser<Parser>(Parser::name); }
 };
 
 }

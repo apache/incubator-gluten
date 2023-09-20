@@ -89,7 +89,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
         })
 
   // FIXME "q17", stddev_samp inconsistent results, CH return NaN, Spark return null
-  protected val excludedTpcdsQueries: Set[String] = Set(
+  protected def excludedTpcdsQueries: Set[String] = Set(
     "q18", // inconsistent results
     "q61", // inconsistent results
     "q67" // inconsistent results
@@ -128,7 +128,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       _spark = SparkSession
         .builder()
         .appName("Gluten-UT-TPC_DS")
-        .master(s"local[8]")
         .config(sparkConf)
         .getOrCreate()
     }
@@ -154,6 +153,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
+      .setMaster("local[8]")
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
       .set("spark.sql.shuffle.partitions", "5")
@@ -235,8 +235,14 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           .collect()
       }
       checkAnswer(df, expectedAnswer)
+      // using WARN to guarantee printed
+      log.warn(s"query: $queryNum, finish comparing with saved result")
     } else {
-      df.collect()
+      val start = System.currentTimeMillis();
+      val ret = df.collect()
+      // using WARN to guarantee printed
+      log.warn(s"query: $queryNum skipped comparing, time cost to collect: ${System
+          .currentTimeMillis() - start} ms, ret size: ${ret.length}")
     }
     WholeStageTransformerSuite.checkFallBack(df, noFallBack, skipFallBackAssert)
     customCheck(df)
