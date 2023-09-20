@@ -47,6 +47,9 @@ public:
 
     static constexpr UInt64 FLAT_STRUCT = 1;
     static constexpr UInt64 FLAT_NESTED_TABLE = 2;
+    /// If it's a struct without named fields, also force to flatten it.
+    static constexpr UInt64 FLAT_STRUCT_FORCE = 4;
+
     // flatten the struct and array(struct) columns.
     // It's different from Nested::flattend()
     static DB::Block flattenBlock(
