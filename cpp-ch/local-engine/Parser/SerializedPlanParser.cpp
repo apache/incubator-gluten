@@ -794,15 +794,14 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     parseFunctionArguments(actions_dag, args, function_name, scalar_function);
 
     /// Remove Nullable from Nullable(Array(xx)) or Nullable(Map(xx, xx)) if needed
-    const auto * arg_not_null = args[0];
-    if (arg_not_null->result_type->isNullable())
-    {
-        auto assume_not_null_builder = FunctionFactory::instance().get("assumeNotNull", context);
-        arg_not_null = &actions_dag->addFunction(assume_not_null_builder, {args[0]}, "assumeNotNull(" + args[0]->result_name + ")");
-    }
+    auto assume_not_null_builder = FunctionFactory::instance().get("assumeNotNull", context);
+    const auto * arg_not_null = &actions_dag->addFunction(assume_not_null_builder, {args[0]}, "assumeNotNull(" + args[0]->result_name + ")");
+    arg_not_null = &actions_dag->materializeNode(*arg_not_null);
 
     /// arrayJoin(arg_not_null)
-    auto array_join_name = "arrayJoin(" + arg_not_null->result_name + ")";
+    /// Note: Make sure result_name keep the same after applying arrayJoin function, which makes it much easier to transform arrayJoin function to ARRAY JOIN STEP
+    /// Otherwise an alias node must be appended after ARRAY JOIN STEP, which is not a graceful implementation.
+    auto array_join_name = arg_not_null->result_name;
     const auto * array_join_node = &actions_dag->addArrayJoin(*arg_not_null, array_join_name);
 
     auto arg_type = arg_not_null->result_type;
