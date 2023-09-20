@@ -1285,10 +1285,10 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("test posexplode issue: https://github.com/oap-project/gluten/issues/2454") {
     val sqls = Seq(
-      "select explode(array(id, id+1)) from range(10)",
-      "select explode(map(id, id+1, id+2, id+3)) from range(10)",
-      "select posexplode(array(id, id+1)) from range(10)",
-      "select posexplode(map(id, id+1, id+2, id+3)) from range(10)"
+      "select id, explode(array(id, id+1)) from range(10)",
+      "select id, explode(map(id, id+1, id+2, id+3)) from range(10)",
+      "select id, posexplode(array(id, id+1)) from range(10)",
+      "select id, posexplode(map(id, id+1, id+2, id+3)) from range(10)"
     )
 
     for (sql <- sqls) {
