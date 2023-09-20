@@ -285,19 +285,18 @@ int64_t WholeStageResultIterator::runtimeMetric(
   if (runtimeStats.size() == 0 || runtimeStats.find(metricId) == runtimeStats.end()) {
     return 0;
   }
+
   if (metricType == "sum") {
     return runtimeStats.at(metricId).sum;
-  }
-  if (metricType == "count") {
+  } else if (metricType == "count") {
     return runtimeStats.at(metricId).count;
-  }
-  if (metricType == "min") {
+  } else if (metricType == "min") {
     return runtimeStats.at(metricId).min;
-  }
-  if (metricType == "max") {
+  } else if (metricType == "max") {
     return runtimeStats.at(metricId).max;
+  } else {
+    return 0;
   }
-  return 0;
 }
 
 std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryContextConf() {

@@ -171,6 +171,8 @@ class ShuffleWriter {
       const arrow::RecordBatch& rb,
       bool reuseBuffers) = 0;
 
+  virtual arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers) = 0;
+
   virtual arrow::Status stop() = 0;
 
   virtual std::shared_ptr<arrow::Schema> writeSchema();
@@ -291,11 +293,13 @@ class ShuffleWriter {
         options_(std::move(options)),
         pool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)),
         codec_(createArrowIpcCodec(options_.compression_type, options_.codec_backend)) {}
+
   virtual ~ShuffleWriter() = default;
 
   int32_t numPartitions_;
 
   std::shared_ptr<PartitionWriterCreator> partitionWriterCreator_;
+
   // options
   ShuffleWriterOptions options_;
   // split buffer pool

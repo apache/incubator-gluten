@@ -20,6 +20,7 @@
 #include "shuffle/Partitioner.h"
 
 namespace gluten {
+
 class RoundRobinPartitioner final : public ShuffleWriter::Partitioner {
  public:
   RoundRobinPartitioner(int32_t numPartitions, bool hasPid) : Partitioner(numPartitions, hasPid) {}
