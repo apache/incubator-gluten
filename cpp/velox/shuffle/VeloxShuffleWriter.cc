@@ -1275,6 +1275,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     VS_PRINTLF(bytesPerRow);
 
     // remove the cache memory size since it can be spilled.
+    // The logic here is to keep the split buffer as large as possible, to get max batch size for reducer
+    // The risk is the cached buffer must be spilled once we evict a batch from split buffer
     // we can't use pool_->bytes_allocated() here because it's arrow::default_pool(). we should define a
     // pool for spill buffer, just like the pool for split buffer
     // memLimit+=pool_->bytes_allocated();
