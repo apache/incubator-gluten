@@ -1656,9 +1656,19 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             else
             {
                 DataTypePtr ch_type = TypeParser::parseType(substrait_type);
-                args.emplace_back(add_column(std::make_shared<DataTypeString>(), ch_type->getName()));
-
-                function_node = toFunctionNode(actions_dag, "CAST", args);
+                if(ch_type->getName().contains("String") && args[0]->result_type->getName().contains("Decimal"))
+                {   //eg, Nullable(Decimal(16, 6)) to Nullable(String)
+                    size_t scale_pos_start = args[0]->result_type->getName().find(", ") + 2;
+                    size_t scale_pos_end = args[0]->result_type->getName().find(")",scale_pos_start);
+                    auto scale = args[0]->result_type->getName().substr(scale_pos_start, scale_pos_end-scale_pos_start);
+                    args.emplace_back(add_column(std::make_shared<DataTypeUInt8>(), Field(std::stoi(scale))));
+                    function_node = toFunctionNode(actions_dag, "toDecimalString", args);
+                }
+                else
+                {
+                    args.emplace_back(add_column(std::make_shared<DataTypeString>(), ch_type->getName()));
+                    function_node = toFunctionNode(actions_dag, "CAST", args);
+                }
             }
 
             actions_dag->addOrReplaceInOutputs(*function_node);
