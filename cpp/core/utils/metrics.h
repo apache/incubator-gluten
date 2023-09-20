@@ -17,71 +17,61 @@
 
 #pragma once
 
+#include <memory>
+
 namespace gluten {
 
 struct Metrics {
-  int numMetrics = 0;
+  unsigned int numMetrics = 0;
+  long veloxToArrow = 0;
 
-  long* inputRows;
-  long* inputVectors;
-  long* inputBytes;
-  long* rawInputRows;
-  long* rawInputBytes;
-  long* outputRows;
-  long* outputVectors;
-  long* outputBytes;
+  std::unique_ptr<long[]> array; // underlying memory buffer
+  long* arrayRawPtr = nullptr; // point to array.get() after array created
 
-  // CpuWallTiming.
-  long* cpuCount;
-  long* wallNanos;
-  long veloxToArrow;
+  enum TYPE {
+    kBegin = 0, // begin from 0
 
-  long* peakMemoryBytes;
-  long* numMemoryAllocations;
+    kInputRows = kBegin,
+    kInputVectors,
+    kInputBytes,
 
-  // Spill
-  long* spilledBytes;
-  long* spilledRows;
-  long* spilledPartitions;
-  long* spilledFiles;
+    kRawInputRows,
+    kRawInputBytes,
 
-  // Runtime metrics.
-  long* numDynamicFiltersProduced;
-  long* numDynamicFiltersAccepted;
-  long* numReplacedWithDynamicFilterRows;
-  long* flushRowCount;
-  long* scanTime;
-  long* skippedSplits;
-  long* processedSplits;
-  long* skippedStrides;
-  long* processedStrides;
+    kOutputRows,
+    kOutputVectors,
+    kOutputBytes,
 
-  Metrics(int size) : numMetrics(size) {
-    inputRows = new long[numMetrics]();
-    inputVectors = new long[numMetrics]();
-    inputBytes = new long[numMetrics]();
-    rawInputRows = new long[numMetrics]();
-    rawInputBytes = new long[numMetrics]();
-    outputRows = new long[numMetrics]();
-    outputVectors = new long[numMetrics]();
-    outputBytes = new long[numMetrics]();
-    cpuCount = new long[numMetrics]();
-    wallNanos = new long[numMetrics]();
-    peakMemoryBytes = new long[numMetrics]();
-    numMemoryAllocations = new long[numMetrics]();
-    spilledBytes = new long[numMetrics]();
-    spilledRows = new long[numMetrics]();
-    spilledFiles = new long[numMetrics]();
-    spilledPartitions = new long[numMetrics]();
-    numDynamicFiltersProduced = new long[numMetrics]();
-    numDynamicFiltersAccepted = new long[numMetrics]();
-    numReplacedWithDynamicFilterRows = new long[numMetrics]();
-    flushRowCount = new long[numMetrics]();
-    scanTime = new long[numMetrics]();
-    skippedSplits = new long[numMetrics]();
-    processedSplits = new long[numMetrics]();
-    skippedStrides = new long[numMetrics]();
-    processedStrides = new long[numMetrics]();
+    // CpuWallTiming.
+    kCpuCount,
+    kWallNanos,
+
+    kPeakMemoryBytes,
+    kNumMemoryAllocations,
+
+    // Spill
+    kSpilledBytes,
+    kSpilledRows,
+    kSpilledPartitions,
+    kSpilledFiles,
+
+    // Runtime metrics.
+    kNumDynamicFiltersProduced,
+    kNumDynamicFiltersAccepted,
+    kNumReplacedWithDynamicFilterRows,
+    kFlushRowCount,
+    kScanTime,
+    kSkippedSplits,
+    kProcessedSplits,
+    kSkippedStrides,
+    kProcessedStrides,
+
+    kEnd,
+    kNum = kEnd - kBegin
+  };
+
+  Metrics(unsigned int numMetrics) : numMetrics(numMetrics), array(new long[numMetrics * kNum]) {
+    arrayRawPtr = array.get();
   }
 
   Metrics(const Metrics&) = delete;
@@ -89,32 +79,10 @@ struct Metrics {
   Metrics& operator=(const Metrics&) = delete;
   Metrics& operator=(Metrics&&) = delete;
 
-  ~Metrics() {
-    delete[] inputRows;
-    delete[] inputVectors;
-    delete[] inputBytes;
-    delete[] rawInputRows;
-    delete[] rawInputBytes;
-    delete[] outputRows;
-    delete[] outputVectors;
-    delete[] outputBytes;
-    delete[] cpuCount;
-    delete[] wallNanos;
-    delete[] peakMemoryBytes;
-    delete[] numMemoryAllocations;
-    delete[] spilledBytes;
-    delete[] spilledRows;
-    delete[] spilledFiles;
-    delete[] spilledPartitions;
-    delete[] numDynamicFiltersProduced;
-    delete[] numDynamicFiltersAccepted;
-    delete[] numReplacedWithDynamicFilterRows;
-    delete[] flushRowCount;
-    delete[] scanTime;
-    delete[] skippedSplits;
-    delete[] processedSplits;
-    delete[] skippedStrides;
-    delete[] processedStrides;
+  long* get(TYPE type) {
+    assert((int)type >= (int)kBegin && (int)type < (int)kEnd);
+    auto offset = ((int)type - (int)kBegin) * numMetrics;
+    return &arrayRawPtr[offset];
   }
 };
 

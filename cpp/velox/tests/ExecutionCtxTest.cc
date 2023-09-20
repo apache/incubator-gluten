@@ -77,8 +77,9 @@ class DummyExecutionCtx final : public ExecutionCtx {
     return std::shared_ptr<ShuffleWriter>();
   }
   void releaseShuffleWriter(ResourceHandle handle) override {}
-  std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {
-    return std::shared_ptr<Metrics>();
+  Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {
+    static Metrics m(1);
+    return &m;
   }
   ResourceHandle createDatasource(
       const std::string& filePath,

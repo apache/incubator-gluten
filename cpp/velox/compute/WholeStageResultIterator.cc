@@ -187,11 +187,7 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
 void WholeStageResultIterator::getOrderedNodeIds(
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     std::vector<velox::core::PlanNodeId>& nodeIds) {
-  bool isProjectNode = false;
-  if (std::dynamic_pointer_cast<const velox::core::ProjectNode>(planNode)) {
-    isProjectNode = true;
-  }
-
+  bool isProjectNode = (std::dynamic_pointer_cast<const velox::core::ProjectNode>(planNode) != nullptr);
   const auto& sourceNodes = planNode->sources();
   for (const auto& sourceNode : sourceNodes) {
     // Filter over Project are mapped into FilterProject operator in Velox.
@@ -213,7 +209,7 @@ void WholeStageResultIterator::collectMetrics() {
 
   auto planStats = velox::exec::toPlanStats(task_->taskStats());
   // Calculate the total number of metrics.
-  int numOfStats = 0;
+  int statsNum = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
@@ -226,73 +222,76 @@ void WholeStageResultIterator::collectMetrics() {
       }
       // Special handing for Filter over Project case. Filter metrics are
       // omitted.
-      numOfStats += 1;
+      statsNum += 1;
       continue;
     }
-    numOfStats += planStats.at(nodeId).operatorStats.size();
+    statsNum += planStats.at(nodeId).operatorStats.size();
   }
 
-  metrics_ = std::make_shared<Metrics>(numOfStats);
-  int metricsIdx = 0;
+  metrics_ = std::make_unique<Metrics>(statsNum);
+
+  int i = 0; // stands for Metric Index
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
       // Special handing for Filter over Project case. Filter metrics are
       // omitted.
-      metricsIdx += 1;
+      i += 1;
       continue;
     }
+
     const auto& status = planStats.at(nodeId);
     // Add each operator status into metrics.
     for (const auto& entry : status.operatorStats) {
-      metrics_->inputRows[metricsIdx] = entry.second->inputRows;
-      metrics_->inputVectors[metricsIdx] = entry.second->inputVectors;
-      metrics_->inputBytes[metricsIdx] = entry.second->inputBytes;
-      metrics_->rawInputRows[metricsIdx] = entry.second->rawInputRows;
-      metrics_->rawInputBytes[metricsIdx] = entry.second->rawInputBytes;
-      metrics_->outputRows[metricsIdx] = entry.second->outputRows;
-      metrics_->outputVectors[metricsIdx] = entry.second->outputVectors;
-      metrics_->outputBytes[metricsIdx] = entry.second->outputBytes;
-      metrics_->cpuCount[metricsIdx] = entry.second->cpuWallTiming.count;
-      metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
-      metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
-      metrics_->numMemoryAllocations[metricsIdx] = entry.second->numMemoryAllocations;
-      metrics_->spilledBytes[metricsIdx] = entry.second->spilledBytes;
-      metrics_->spilledRows[metricsIdx] = entry.second->spilledRows;
-      metrics_->spilledPartitions[metricsIdx] = entry.second->spilledPartitions;
-      metrics_->spilledFiles[metricsIdx] = entry.second->spilledFiles;
-      metrics_->numDynamicFiltersProduced[metricsIdx] =
-          runtimeMetric("sum", entry.second->customStats, kDynamicFiltersProduced);
-      metrics_->numDynamicFiltersAccepted[metricsIdx] =
-          runtimeMetric("sum", entry.second->customStats, kDynamicFiltersAccepted);
-      metrics_->numReplacedWithDynamicFilterRows[metricsIdx] =
-          runtimeMetric("sum", entry.second->customStats, kReplacedWithDynamicFilterRows);
-      metrics_->flushRowCount[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kFlushRowCount);
-      metrics_->scanTime[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kTotalScanTime);
-      metrics_->skippedSplits[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kSkippedSplits);
-      metrics_->processedSplits[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kProcessedSplits);
-      metrics_->skippedStrides[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kSkippedStrides);
-      metrics_->processedStrides[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kProcessedStrides);
-      metricsIdx += 1;
+      const auto& second = entry.second;
+      metrics_->get(Metrics::kInputRows)[i] = second->inputRows;
+      metrics_->get(Metrics::kInputVectors)[i] = second->inputVectors;
+      metrics_->get(Metrics::kInputBytes)[i] = second->inputBytes;
+      metrics_->get(Metrics::kRawInputRows)[i] = second->rawInputRows;
+      metrics_->get(Metrics::kRawInputBytes)[i] = second->rawInputBytes;
+      metrics_->get(Metrics::kOutputRows)[i] = second->outputRows;
+      metrics_->get(Metrics::kOutputVectors)[i] = second->outputVectors;
+      metrics_->get(Metrics::kOutputBytes)[i] = second->outputBytes;
+      metrics_->get(Metrics::kCpuCount)[i] = second->cpuWallTiming.count;
+      metrics_->get(Metrics::kWallNanos)[i] = second->cpuWallTiming.wallNanos;
+      metrics_->get(Metrics::kPeakMemoryBytes)[i] = second->peakMemoryBytes;
+      metrics_->get(Metrics::kNumMemoryAllocations)[i] = second->numMemoryAllocations;
+      metrics_->get(Metrics::kSpilledBytes)[i] = second->spilledBytes;
+      metrics_->get(Metrics::kSpilledRows)[i] = second->spilledRows;
+      metrics_->get(Metrics::kSpilledPartitions)[i] = second->spilledPartitions;
+      metrics_->get(Metrics::kSpilledFiles)[i] = second->spilledFiles;
+      metrics_->get(Metrics::kNumDynamicFiltersProduced)[i] =
+          runtimeMetric("sum", second->customStats, kDynamicFiltersProduced);
+      metrics_->get(Metrics::kNumDynamicFiltersAccepted)[i] =
+          runtimeMetric("sum", second->customStats, kDynamicFiltersAccepted);
+      metrics_->get(Metrics::kNumReplacedWithDynamicFilterRows)[i] =
+          runtimeMetric("sum", second->customStats, kReplacedWithDynamicFilterRows);
+      metrics_->get(Metrics::kFlushRowCount)[i] = runtimeMetric("sum", second->customStats, kFlushRowCount);
+      metrics_->get(Metrics::kScanTime)[i] = runtimeMetric("sum", second->customStats, kTotalScanTime);
+      metrics_->get(Metrics::kSkippedSplits)[i] = runtimeMetric("sum", second->customStats, kSkippedSplits);
+      metrics_->get(Metrics::kProcessedSplits)[i] = runtimeMetric("sum", second->customStats, kProcessedSplits);
+      metrics_->get(Metrics::kSkippedStrides)[i] = runtimeMetric("sum", second->customStats, kSkippedStrides);
+      metrics_->get(Metrics::kProcessedStrides)[i] = runtimeMetric("sum", second->customStats, kProcessedStrides);
+      i += 1;
     }
   }
 }
 
 int64_t WholeStageResultIterator::runtimeMetric(
-    const std::string& metricType,
+    const std::string& type,
     const std::unordered_map<std::string, velox::RuntimeMetric>& runtimeStats,
-    const std::string& metricId) const {
-  if (runtimeStats.size() == 0 || runtimeStats.find(metricId) == runtimeStats.end()) {
+    const std::string& metricId) {
+  if (runtimeStats.find(metricId) == runtimeStats.end()) {
     return 0;
   }
 
-  if (metricType == "sum") {
+  if (type == "sum") {
     return runtimeStats.at(metricId).sum;
-  } else if (metricType == "count") {
+  } else if (type == "count") {
     return runtimeStats.at(metricId).count;
-  } else if (metricType == "min") {
+  } else if (type == "min") {
     return runtimeStats.at(metricId).min;
-  } else if (metricType == "max") {
+  } else if (type == "max") {
     return runtimeStats.at(metricId).max;
   } else {
     return 0;

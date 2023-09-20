@@ -87,7 +87,7 @@ class VeloxExecutionCtx final : public ExecutionCtx {
   std::shared_ptr<ShuffleWriter> getShuffleWriter(ResourceHandle handle) override;
   void releaseShuffleWriter(ResourceHandle handle) override;
 
-  std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {
+  Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {
     auto iter = static_cast<WholeStageResultIterator*>(rawIter);
     return iter->getMetrics(exportNanos);
   }
