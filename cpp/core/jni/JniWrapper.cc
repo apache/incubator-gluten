@@ -990,7 +990,7 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapp
       shuffleWriter->totalCompressTime(),
       shuffleWriter->totalBytesWritten(),
       shuffleWriter->totalBytesEvicted(),
-      shuffleWriter->splitBufferSize(),
+      shuffleWriter->partitionBufferSize(),
       partitionLengthArr,
       rawPartitionLengthArr);
 

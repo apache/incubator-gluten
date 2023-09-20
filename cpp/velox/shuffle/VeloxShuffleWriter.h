@@ -139,7 +139,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers) override;
 
-  const uint64_t totalCachedPayloadSize() const override;
+  const uint64_t cachedPayloadSize() const override;
 
   int64_t rawPartitionBytes() const {
     return std::accumulate(rawPartitionLengths_.begin(), rawPartitionLengths_.end(), 0LL);

@@ -63,7 +63,7 @@ DEFINE_string(file, "", "Input file to split");
 namespace gluten {
 
 const int kBatchBufferSize = 4096;
-const int kSplitBufferSize = 4096;
+const int kPartitionBufferSize = 4096;
 
 class BenchmarkShuffleSplit {
  public:
@@ -115,7 +115,7 @@ class BenchmarkShuffleSplit {
         std::make_shared<LocalPartitionWriterCreator>(FLAGS_prefer_evict);
 
     auto options = ShuffleWriterOptions::defaults();
-    options.buffer_size = kSplitBufferSize;
+    options.buffer_size = kPartitionBufferSize;
     options.buffered_write = true;
     options.offheap_per_task = 128 * 1024 * 1024 * 1024L;
     options.prefer_evict = FLAGS_prefer_evict;
@@ -160,7 +160,7 @@ class BenchmarkShuffleSplit {
     state.counters["batch_buffer_size"] =
         benchmark::Counter(kBatchBufferSize, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
     state.counters["split_buffer_size"] =
-        benchmark::Counter(kSplitBufferSize, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        benchmark::Counter(kPartitionBufferSize, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
     state.counters["bytes_spilled"] = benchmark::Counter(
         shuffleWriter->totalBytesEvicted(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);

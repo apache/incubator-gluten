@@ -1013,7 +1013,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
             auto newSize = std::max(partition2RowCount_[pid], (uint32_t)options_.buffer_size);
             GLUTEN_ASSIGN_OR_THROW(
                 auto validityBuffer,
-                arrow::AllocateResizableBuffer(arrow::bit_util::BytesForBits(newSize), splitBufferPool_.get()));
+                arrow::AllocateResizableBuffer(arrow::bit_util::BytesForBits(newSize), partitionBufferPool_.get()));
             dstAddrs[pid] = const_cast<uint8_t*>(validityBuffer->data());
             memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
             partitionBuffers_[col][pid][kValidityBufferIndex] = std::move(validityBuffer);
@@ -1261,7 +1261,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     if (inputHasNull_[col]) {
       ARROW_ASSIGN_OR_RAISE(
           auto validityBuffer,
-          arrow::AllocateResizableBuffer(arrow::bit_util::BytesForBits(newSize), splitBufferPool_.get()));
+          arrow::AllocateResizableBuffer(arrow::bit_util::BytesForBits(newSize), partitionBufferPool_.get()));
       // initialize all true once allocated
       memset(validityBuffer->mutable_data(), 0xff, validityBuffer->capacity());
       partitionValidityAddrs_[col][partitionId] = validityBuffer->mutable_data();
@@ -1312,8 +1312,10 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
             offsetBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kOffsetBufferIndex]);
             RETURN_NOT_OK(offsetBuffer->Resize(offsetBufSize, /*shrink_to_fit=*/true));
           } else {
-            ARROW_ASSIGN_OR_RAISE(valueBuffer, arrow::AllocateResizableBuffer(valueBufSize, splitBufferPool_.get()));
-            ARROW_ASSIGN_OR_RAISE(offsetBuffer, arrow::AllocateResizableBuffer(offsetBufSize, splitBufferPool_.get()));
+            ARROW_ASSIGN_OR_RAISE(
+                valueBuffer, arrow::AllocateResizableBuffer(valueBufSize, partitionBufferPool_.get()));
+            ARROW_ASSIGN_OR_RAISE(
+                offsetBuffer, arrow::AllocateResizableBuffer(offsetBufSize, partitionBufferPool_.get()));
           }
           // Set the first offset to 0.
           memset(offsetBuffer->mutable_data(), 0, sizeof(BinaryArrayOffsetType));
@@ -1350,7 +1352,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
             valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[1]);
             RETURN_NOT_OK(valueBuffer->Resize(valueBufSize, /*shrink_to_fit=*/true));
           } else {
-            ARROW_ASSIGN_OR_RAISE(valueBuffer, arrow::AllocateResizableBuffer(valueBufSize, splitBufferPool_.get()));
+            ARROW_ASSIGN_OR_RAISE(
+                valueBuffer, arrow::AllocateResizableBuffer(valueBufSize, partitionBufferPool_.get()));
           }
           partitionFixedWidthValueAddrs_[fixedWidthIdx][partitionId] = valueBuffer->mutable_data();
           buffers = {std::move(validityBuffer), std::move(valueBuffer)};
@@ -1583,7 +1586,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     int64_t currentEvicted = 0;
 
     // If OOM happens during stop(), the reclaim order is shrink->spill,
-    // because the split buffers will be freed soon.
+    // because the partition buffers will be freed soon.
     if (currentEvicted < size && shrinkBeforeSpill(splitState_)) {
       ARROW_ASSIGN_OR_RAISE(auto shrunken, shrinkPartitionBuffers());
       currentEvicted += shrunken;
@@ -1601,7 +1604,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     }
 
     // If OOM happens during binary buffers resize, the reclaim order is spill->shrink,
-    // because the split buffers can be reused.
+    // because the partition buffers can be reused.
     if (currentEvicted < size && shrinkAfterSpill(splitState_)) {
       ARROW_ASSIGN_OR_RAISE(auto shrunken, shrinkPartitionBuffers());
       currentEvicted += shrunken;
@@ -1617,7 +1620,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       return arrow::Status::OK();
     }
     // Evict all cached partitions
-    int64_t totalCachedSize = totalCachedPayloadSize();
+    int64_t totalCachedSize = cachedPayloadSize();
     if (totalCachedSize <= 0) {
       *size = 0;
     } else {
@@ -1654,7 +1657,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       // resize validity
       if (buffers[kValidityBufferIndex]) {
         auto validityBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kValidityBufferIndex]);
-        // Invalid status if cast buffer failed. All split buffers should be allocated using AllocateResizableBuffer
+        // Invalid status if cast buffer failed. All partition buffers should be allocated using
+        // AllocateResizableBuffer.
         ARROW_RETURN_IF(!validityBuffer, arrow::Status::Invalid("Validity buffer is not resizable."));
 
         auto filled = validityBuffer->capacity();
@@ -1729,11 +1733,11 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   }
 
   arrow::Result<int64_t> VeloxShuffleWriter::shrinkPartitionBuffers() {
-    auto beforeShrink = splitBufferPool_->bytes_allocated();
+    auto beforeShrink = partitionBufferPool_->bytes_allocated();
     for (auto pid = 0; pid < numPartitions_; ++pid) {
       RETURN_NOT_OK(shrinkPartitionBuffer(pid));
     }
-    auto shrunken = beforeShrink - splitBufferPool_->bytes_allocated();
+    auto shrunken = beforeShrink - partitionBufferPool_->bytes_allocated();
     DLOG(INFO) << shrunken << " bytes released from shrinking.";
     return shrunken;
   }
@@ -1778,7 +1782,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     return arrow::Status::OK();
   }
 
-  const uint64_t VeloxShuffleWriter::totalCachedPayloadSize() const {
+  const uint64_t VeloxShuffleWriter::cachedPayloadSize() const {
     return payloadPool_->bytes_allocated();
   }
 } // namespace gluten
