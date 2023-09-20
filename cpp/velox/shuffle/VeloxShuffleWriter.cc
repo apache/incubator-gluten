@@ -1101,7 +1101,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           binaryBuf.valueCapacity = capacity;
           dstValuePtr = binaryBuf.valuePtr + valueOffset - stringLen;
 
-          DLOG(INFO) << "Split value buffer resized. Column index: " << binaryColumnIndices_[binaryIdx] << std::endl;
           VsPrintSplit(" dst_start", dstOffsetBase[x]);
           VsPrintSplit(" dst_end", dstOffsetBase[x + 1]);
           VsPrintSplit(" old size", oldCapacity);
