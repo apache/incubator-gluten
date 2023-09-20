@@ -157,7 +157,7 @@ auto BM_Generic = [](::benchmark::State& state,
       TIME_NANO_START(shuffleWriteTime);
       const auto& shuffleWriter = createShuffleWriter(memoryManager.get());
       while (resultIter->hasNext()) {
-        GLUTEN_THROW_NOT_OK(shuffleWriter->split(resultIter->next(), 128 * 1024 * 1024));
+        GLUTEN_THROW_NOT_OK(shuffleWriter->split(resultIter->next(), ShuffleWriter::kMinMemLimit));
       }
       GLUTEN_THROW_NOT_OK(shuffleWriter->stop());
       TIME_NANO_END(shuffleWriteTime);

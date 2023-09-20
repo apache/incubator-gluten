@@ -291,7 +291,7 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
           [&shuffleWriter, &splitTime](const std::shared_ptr<arrow::RecordBatch>& recordBatch) {
             std::shared_ptr<ColumnarBatch> cb;
             ARROW_ASSIGN_OR_THROW(cb, recordBatch2VeloxColumnarBatch(*recordBatch));
-            TIME_NANO_OR_THROW(splitTime, shuffleWriter->split(cb, 128 * 1024 * 1024 * 1024LL));
+            TIME_NANO_OR_THROW(splitTime, shuffleWriter->split(cb, ShuffleWriter::kMinMemLimit));
           });
       // std::cout << " split done memory allocated = " <<
       // options.memory_pool->bytes_allocated() << std::endl;
@@ -343,7 +343,7 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
         numRows += recordBatch->num_rows();
         std::shared_ptr<ColumnarBatch> cb;
         ARROW_ASSIGN_OR_THROW(cb, recordBatch2VeloxColumnarBatch(*recordBatch));
-        TIME_NANO_OR_THROW(splitTime, shuffleWriter->split(cb, 128 * 1024 * 1024));
+        TIME_NANO_OR_THROW(splitTime, shuffleWriter->split(cb, ShuffleWriter::kMinMemLimit));
         TIME_NANO_OR_THROW(elapseRead, recordBatchReader->ReadNext(&recordBatch));
       }
     }

@@ -147,6 +147,7 @@ class ShuffleBufferPool {
 
 class ShuffleWriter {
  public:
+  static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;
   /**
    * Evict fixed size of partition data from memory
    */
