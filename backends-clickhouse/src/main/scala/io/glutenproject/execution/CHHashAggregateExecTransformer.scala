@@ -355,12 +355,10 @@ case class CHHashAggregateExecTransformer(
       aggregateExpression.get match {
         case aggExpr: AggregateExpression =>
           aggExpr.aggregateFunction match {
-            case bf: BloomFilterAggregate =>
+            case avg: Average =>
               // why using attr.nullable instead of child.nullable?
               // because some aggregate operator's input's nullability is force changed
               // in AggregateFunctionParser::parseFunctionArguments
-              (makeStructTypeSingleOne(bf.child.dataType, attr.nullable), attr.nullable)
-            case avg: Average =>
               (makeStructTypeSingleOne(avg.child.dataType, attr.nullable), attr.nullable)
             case collect @ (_: CollectList | _: CollectSet) =>
               // Be careful with the nullable. We must keep the nullable the same as the column
@@ -377,10 +375,12 @@ case class CHHashAggregateExecTransformer(
               fields = fields :+ (corr.left.dataType, corr.left.nullable)
               fields = fields :+ (corr.right.dataType, corr.right.nullable)
               (makeStructType(fields), attr.nullable)
-            case expr =>
+            case expr if "bloom_filter_agg".equals(expr.prettyName) =>
+              (makeStructTypeSingleOne(expr.children.head.dataType, attr.nullable), attr.nullable)
+            case _ =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)
           }
-        case expr =>
+        case _ =>
           (attr.dataType, attr.nullable)
       }
     }

@@ -45,4 +45,36 @@ class GlutenBloomFilterAggregateQuerySuite
       }
     }
   }
+
+//  override def sparkConf: SparkConf = {
+//    super.sparkConf
+//      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level", "debug")
+//      .setMaster("local[1]")
+//  }
+//
+  test("Test that might_contain on bloom_filter_agg with empty input") {
+    checkAnswer(
+      spark.sql("""SELECT might_contain((select bloom_filter_agg(cast(id as long))
+                  | from range(1, 1)), cast(123 as long))""".stripMargin),
+      Row(null)
+    )
+
+    checkAnswer(
+      spark.sql("""SELECT might_contain((select bloom_filter_agg(cast(id as long))
+                  | from range(1, 1)), null)""".stripMargin),
+      Row(null))
+  }
+
+  test("Test that might_contain on bloom_filter_agg with non-empty input") {
+    checkAnswer(
+      spark.sql("""SELECT might_contain((select bloom_filter_agg(cast(id as long))
+                  | from range(1, 10)), cast(1 as long))""".stripMargin),
+      Row(true)
+    )
+
+    checkAnswer(
+      spark.sql("""SELECT might_contain((select bloom_filter_agg(cast(id as long))
+                  | from range(1, 10)), null)""".stripMargin),
+      Row(null))
+  }
 }

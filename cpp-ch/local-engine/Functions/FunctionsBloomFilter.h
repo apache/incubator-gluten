@@ -51,8 +51,8 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
-    extern const int BAD_ARGUMENTS;
+extern const int ILLEGAL_TYPE_OF_ARGUMENT;
+extern const int BAD_ARGUMENTS;
 }
 }
 
@@ -178,16 +178,17 @@ private:
             if (allocated_bytes_for_bloom_filter_state == nullptr)
             {
                 if (isColumnConst(*first_column_ptr))
-                {
                     first_column_ptr = &typeid_cast<const ColumnConst &>(*first_column_ptr).getDataColumn();
-                }
                 StringRef sr = typeid_cast<const ColumnString &>(*first_column_ptr).getDataAt(0);
 
                 size_t size_of_state = agg_func->sizeOfData();
                 allocated_bytes_for_bloom_filter_state = new char[size_of_state];
                 agg_func->create(allocated_bytes_for_bloom_filter_state);
-                ReadBufferFromMemory read_buffer(sr.data, sr.size);
-                agg_func->deserialize((allocated_bytes_for_bloom_filter_state), read_buffer);
+                if (!sr.empty())
+                {
+                    ReadBufferFromMemory read_buffer(sr.data, sr.size);
+                    agg_func->deserialize((allocated_bytes_for_bloom_filter_state), read_buffer);
+                }
             }
 
             // in Gluten , argument of groupBloomFilter is always nullable, so always add prefix
