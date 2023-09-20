@@ -138,6 +138,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       const arrow::RecordBatch& rb,
       bool reuseBuffers) override;
 
+  arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers) override;
+
   int64_t rawPartitionBytes() const {
     return std::accumulate(rawPartitionLengths_.begin(), rawPartitionLengths_.end(), 0LL);
   }
@@ -242,8 +244,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status allocatePartitionBuffersWithRetry(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
 
-  arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers);
-
   arrow::Status splitFixedWidthValueBuffer(const facebook::velox::RowVector& rv);
 
   arrow::Status splitBoolType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs);
@@ -294,9 +294,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Result<int64_t> shrinkPartitionBuffers();
 
+  arrow::Status resetPartitionBuffer(uint32_t partitionId);
+
   arrow::Status shrinkPartitionBuffer(uint32_t partitionId);
 
-  arrow::Status resizePartitionBuffer(uint32_t pid, int64_t newSize);
+  arrow::Status resizePartitionBuffer(uint32_t partitionId, int64_t newSize);
 
   uint64_t calculateValueBufferSizeForBinaryArray(uint32_t binaryIdx, int64_t newSize);
 
