@@ -771,6 +771,8 @@ TEST_P(VeloxShuffleWriterTest, TestShrinkZeroSizeBuffer) {
   ASSERT_EQ(evicted, payloadSize + bufferSize);
   // All buffers should be released.
   ASSERT_EQ(shuffleWriter_->pool()->bytes_allocated(), 0);
+
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
 TEST_P(VeloxShuffleWriterTest, SmallBufferSizeNoShrink) {
@@ -787,6 +789,8 @@ TEST_P(VeloxShuffleWriterTest, SmallBufferSizeNoShrink) {
   auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
   ASSERT_EQ(evicted, 0);
+
+  ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
 INSTANTIATE_TEST_SUITE_P(
