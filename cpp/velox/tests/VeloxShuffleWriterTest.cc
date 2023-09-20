@@ -228,10 +228,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
         if (i != 0) {
           ASSERT_NOT_OK(file_->Advance(lengths[i - 1]));
         }
-        if (expectedVectors[i].size() != deserializedVectors.size()) {
-          std::cout << i << " " << expectedVectors[i].size() << " " << deserializedVectors.size() << std::endl;
-        }
-        //      ASSERT_EQ(expectedVectors[i].size(), deserializedVectors.size());
+        ASSERT_EQ(expectedVectors[i].size(), deserializedVectors.size());
         for (int32_t j = 0; j < expectedVectors[i].size(); j++) {
           velox::test::assertEqualVectors(expectedVectors[i][j], deserializedVectors[j]);
         }
