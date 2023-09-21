@@ -269,6 +269,10 @@ private:
         }
 
         size_t tuple_size = tuple_columns.size();
+        std::vector<std::shared_ptr<DB::GeneratorJSONPath<JSONParser>>> generator_json_paths;
+        std::transform(json_path_asts.begin(),json_path_asts.end(), std::back_inserter(generator_json_paths),
+                       [](const auto & ast){return std::make_shared<DB::GeneratorJSONPath<JSONParser>>(ast);});
+
         for (const auto i : collections::range(0, arguments[0].column->size()))
         {
             if (!col_json_const)
@@ -280,8 +284,8 @@ private:
             {
                 for (size_t j = 0; j < tuple_size; ++j)
                 {
-                    DB::GeneratorJSONPath<JSONParser> generator_json_path(json_path_asts[j]);
-                    if(!impl.insertResultToColumn(*tuple_columns[j], document, generator_json_path, context))
+                    generator_json_paths[j]->reinitialize();
+                    if(!impl.insertResultToColumn(*tuple_columns[j], document, *generator_json_paths[j], context))
                     {
                         tuple_columns[j]->insertDefault();
                     }
