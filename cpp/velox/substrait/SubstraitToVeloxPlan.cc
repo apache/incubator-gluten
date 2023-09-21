@@ -1671,7 +1671,7 @@ void SubstraitToVeloxPlanConverter::setInFilter<TypeKind::BIGINT>(
     int64_t value = variant.value<int64_t>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName)] = common::createBigintValues(values, nullAllowed);
+  filters[common::Subfield(inputName, getSeparators())] = common::createBigintValues(values, nullAllowed);
 }
 
 template <>
@@ -1688,7 +1688,7 @@ void SubstraitToVeloxPlanConverter::setInFilter<TypeKind::INTEGER>(
     int64_t value = variant.value<int32_t>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName)] = common::createBigintValues(values, nullAllowed);
+  filters[common::Subfield(inputName, getSeparators())] = common::createBigintValues(values, nullAllowed);
 }
 
 template <>
@@ -1705,7 +1705,7 @@ void SubstraitToVeloxPlanConverter::setInFilter<TypeKind::SMALLINT>(
     int64_t value = variant.value<int16_t>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName)] = common::createBigintValues(values, nullAllowed);
+  filters[common::Subfield(inputName, getSeparators())] = common::createBigintValues(values, nullAllowed);
 }
 
 template <>
@@ -1722,7 +1722,7 @@ void SubstraitToVeloxPlanConverter::setInFilter<TypeKind::TINYINT>(
     int64_t value = variant.value<int8_t>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName)] = common::createBigintValues(values, nullAllowed);
+  filters[common::Subfield(inputName, getSeparators())] = common::createBigintValues(values, nullAllowed);
 }
 
 template <>
@@ -1737,7 +1737,7 @@ void SubstraitToVeloxPlanConverter::setInFilter<TypeKind::VARCHAR>(
     std::string value = variant.value<std::string>();
     values.emplace_back(value);
   }
-  filters[common::Subfield(inputName)] = std::make_unique<common::BytesValues>(values, nullAllowed);
+  filters[common::Subfield(inputName, getSeparators())] = std::make_unique<common::BytesValues>(values, nullAllowed);
 }
 
 template <TypeKind KIND, typename FilterType>
@@ -1749,7 +1749,7 @@ void SubstraitToVeloxPlanConverter::setSubfieldFilter(
   using MultiRangeType = typename RangeTraits<KIND>::MultiRangeType;
 
   if (colFilters.size() == 1) {
-    filters[common::Subfield(inputName)] = std::move(colFilters[0]);
+    filters[common::Subfield(inputName, getSeparators())] = std::move(colFilters[0]);
   } else if (colFilters.size() > 1) {
     // BigintMultiRange should have been sorted
     if (colFilters[0]->kind() == common::FilterKind::kBigintRange) {
@@ -1759,7 +1759,8 @@ void SubstraitToVeloxPlanConverter::setSubfieldFilter(
       });
     }
 
-    filters[common::Subfield(inputName)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
+    filters[common::Subfield(inputName, getSeparators())] =
+        std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
   }
 }
 
@@ -1783,7 +1784,7 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
   } else if constexpr (KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::MAP) {
     // Only IsNotNull filter is supported for the above two type kinds now.
     if (rangeSize == 0 && !nullAllowed) {
-      filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
+      filters[common::Subfield(inputName, getSeparators())] = std::move(std::make_unique<common::IsNotNull>());
     } else {
       VELOX_NYI("constructSubfieldFilters only support IsNotNull for input type '{}'", inputType);
     }
@@ -1814,14 +1815,15 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
       // Currently, Not-equal cannot coexist with other filter conditions
       // due to multirange is in 'OR' relation but 'AND' is needed.
       VELOX_CHECK(rangeSize == 0, "LowerBounds or upperBounds conditons cannot be supported after not-equal filter.");
-      filters[common::Subfield(inputName)] = std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
+      filters[common::Subfield(inputName, getSeparators())] =
+          std::make_unique<MultiRangeType>(std::move(colFilters), nullAllowed);
       return;
     }
 
     // Handle null filtering.
     if (rangeSize == 0 && !nullAllowed) {
       std::unique_ptr<common::IsNotNull> filter = std::make_unique<common::IsNotNull>();
-      filters[common::Subfield(inputName)] = std::move(filter);
+      filters[common::Subfield(inputName, getSeparators())] = std::move(filter);
       return;
     }
 
