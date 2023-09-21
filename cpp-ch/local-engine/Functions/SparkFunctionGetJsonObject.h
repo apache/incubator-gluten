@@ -60,7 +60,9 @@ namespace local_engine
 //   but `get_json_object`'s result is '1'
 //
 
-class EmptyJSONStringSerializer{};
+class EmptyJSONStringSerializer
+{
+};
 
 struct GetJsonObject
 {
@@ -81,7 +83,8 @@ public:
 
     static size_t getNumberOfIndexArguments(const DB::ColumnsWithTypeAndName & arguments) { return arguments.size() - 1; }
 
-    bool insertResultToColumn(DB::IColumn & dest, const Element & root, DB::GeneratorJSONPath<JSONParser> & generator_json_path, const DB::ContextPtr &)
+    bool insertResultToColumn(
+        DB::IColumn & dest, const Element & root, DB::GeneratorJSONPath<JSONParser> & generator_json_path, const DB::ContextPtr &)
     {
         Element current_element = root;
         DB::VisitorStatus status;
@@ -136,6 +139,7 @@ public:
         col_str.insertData(final_out_str.data(), final_out_str.size());
         return true;
     }
+
 private:
 };
 
@@ -146,13 +150,8 @@ class FlattenJSONStringOnRequiredFunction : public DB::IFunction
 public:
     static constexpr auto name = "flattenJSONStringOnRequired";
 
-    static DB::FunctionPtr create(const DB::ContextPtr & context)
-    {
-        return std::make_shared<FlattenJSONStringOnRequiredFunction>(context);
-    }
-    explicit FlattenJSONStringOnRequiredFunction(DB::ContextPtr context_) : context(context_)
-    {
-    }
+    static DB::FunctionPtr create(const DB::ContextPtr & context) { return std::make_shared<FlattenJSONStringOnRequiredFunction>(context); }
+    explicit FlattenJSONStringOnRequiredFunction(DB::ContextPtr context_) : context(context_) { }
     ~FlattenJSONStringOnRequiredFunction() override = default;
     DB::String getName() const override { return name; }
     size_t getNumberOfArguments() const override { return 2; }
@@ -168,7 +167,8 @@ public:
         }
         else
         {
-            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The second argument of function {} must be a non-constant column", getName());
+            throw DB::Exception(
+                DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The second argument of function {} must be a non-constant column", getName());
         }
 
         Poco::StringTokenizer tokenizer(json_fields, "|");
@@ -196,10 +196,11 @@ public:
 #endif
         return innerExecuteImpl<DB::DummyJSONParser, GetJsonObjectImpl<DB::DummyJSONParser, EmptyJSONStringSerializer>>(arguments);
     }
+
 private:
     DB::ContextPtr context;
 
-    template<typename JSONParser, typename Impl>
+    template <typename JSONParser, typename Impl>
     DB::ColumnPtr innerExecuteImpl(const DB::ColumnsWithTypeAndName & arguments) const
     {
         DB::DataTypePtr str_type = std::make_shared<DB::DataTypeString>();
@@ -234,7 +235,8 @@ private:
         }
         else
         {
-            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The second argument of function {} must be a non-constant column", getName());    
+            throw DB::Exception(
+                DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The second argument of function {} must be a non-constant column", getName());
         }
 
 
@@ -270,8 +272,11 @@ private:
 
         size_t tuple_size = tuple_columns.size();
         std::vector<std::shared_ptr<DB::GeneratorJSONPath<JSONParser>>> generator_json_paths;
-        std::transform(json_path_asts.begin(),json_path_asts.end(), std::back_inserter(generator_json_paths),
-                       [](const auto & ast){return std::make_shared<DB::GeneratorJSONPath<JSONParser>>(ast);});
+        std::transform(
+            json_path_asts.begin(),
+            json_path_asts.end(),
+            std::back_inserter(generator_json_paths),
+            [](const auto & ast) { return std::make_shared<DB::GeneratorJSONPath<JSONParser>>(ast); });
 
         for (const auto i : collections::range(0, arguments[0].column->size()))
         {
@@ -285,7 +290,7 @@ private:
                 for (size_t j = 0; j < tuple_size; ++j)
                 {
                     generator_json_paths[j]->reinitialize();
-                    if(!impl.insertResultToColumn(*tuple_columns[j], document, *generator_json_paths[j], context))
+                    if (!impl.insertResultToColumn(*tuple_columns[j], document, *generator_json_paths[j], context))
                     {
                         tuple_columns[j]->insertDefault();
                     }
