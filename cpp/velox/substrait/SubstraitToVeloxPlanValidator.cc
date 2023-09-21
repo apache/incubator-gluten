@@ -58,7 +58,7 @@ static const std::unordered_set<std::string> kBlackList = {
 
 bool validateColNames(const ::substrait::NamedStruct& schema) {
   for (auto& name : schema.names()) {
-    common::Tokenizer token(name);
+    common::Tokenizer token(name, common::Separators::get());
     for (auto i = 0; i < name.size(); i++) {
       auto c = name[i];
       if (!token.isUnquotedPathCharacter(c)) {
