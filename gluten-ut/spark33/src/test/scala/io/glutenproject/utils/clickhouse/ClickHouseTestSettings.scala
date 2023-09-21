@@ -749,6 +749,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-38195: add a quantity of interval units to a timestamp")
     .exclude("SPARK-38284: difference between two timestamps in units")
     .exclude("Gluten - TIMESTAMP_MICROS")
+    .exclude("Gluten - from_unixtime")
     .exclude("Gluten - unix_timestamp")
     .exclude("Gluten - to_unix_timestamp")
   enableSuite[GlutenDecimalExpressionSuite].exclude("MakeDecimal")
