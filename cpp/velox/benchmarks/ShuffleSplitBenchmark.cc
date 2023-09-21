@@ -56,7 +56,6 @@ using gluten::GlutenException;
 using gluten::ShuffleWriterOptions;
 using gluten::VeloxShuffleWriter;
 
-DEFINE_bool(prefer_evict, true, "SplitOptions prefer_evict=true");
 DEFINE_int32(partitions, -1, "Shuffle partitions");
 DEFINE_string(file, "", "Input file to split");
 
@@ -117,7 +116,6 @@ class BenchmarkShuffleSplit {
     auto options = ShuffleWriterOptions::defaults();
     options.buffer_size = kPartitionBufferSize;
     options.buffered_write = true;
-    options.prefer_evict = FLAGS_prefer_evict;
     options.memory_pool = pool;
     options.partitioning_name = "rr";
 
@@ -365,9 +363,6 @@ int main(int argc, char** argv) {
   gluten::BenchmarkShuffleSplitIterateScanBenchmark iterateScanBenchmark(FLAGS_file);
 
   auto bm = benchmark::RegisterBenchmark("BenchmarkShuffleSplit::IterateScan", iterateScanBenchmark)
-                ->Args({
-                    FLAGS_prefer_evict,
-                })
                 ->ReportAggregatesOnly(false)
                 ->MeasureProcessCPUTime()
                 ->Unit(benchmark::kSecond);

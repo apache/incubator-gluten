@@ -811,7 +811,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator;
 
   if (partitionWriterType == "local") {
-    shuffleWriterOptions.partition_writer_type = "local";
+    shuffleWriterOptions.partition_writer_type = kLocal;
     if (dataFileJstr == NULL) {
       throw gluten::GlutenException(std::string("Shuffle DataFile can't be null"));
     }
@@ -820,7 +820,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     }
 
     shuffleWriterOptions.write_eos = writeEOS;
-    shuffleWriterOptions.prefer_evict = preferEvict;
     shuffleWriterOptions.buffer_realloc_threshold = reallocThreshold;
 
     if (numSubDirs > 0) {
@@ -836,7 +835,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     env->ReleaseStringUTFChars(localDirsJstr, localDirs);
     partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>();
   } else if (partitionWriterType == "celeborn") {
-    shuffleWriterOptions.partition_writer_type = "celeborn";
+    shuffleWriterOptions.partition_writer_type = PartitionWriterType::kCeleborn;
     jclass celebornPartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
     jmethodID celebornPushPartitionDataMethod =

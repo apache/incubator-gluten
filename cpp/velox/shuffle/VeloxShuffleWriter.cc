@@ -366,7 +366,6 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
   oss << " compression_type:" << (int)options.compression_type;
   oss << " codec_backend:" << (int)options.codec_backend;
   oss << " compression_mode:" << (int)options.compression_mode;
-  oss << " prefer_evict:" << options.prefer_evict;
   oss << " buffered_write:" << options.buffered_write;
   oss << " write_eos:" << options.write_eos;
   oss << " partition_writer_type:" << options.partition_writer_type;
@@ -405,9 +404,6 @@ arrow::Status VeloxShuffleWriter::init() {
   }
 
   partitionBufferIdxBase_.resize(numPartitions_);
-
-  partitionCachedRecordbatch_.resize(numPartitions_);
-  partitionCachedRecordbatchSize_.resize(numPartitions_);
 
   partitionLengths_.resize(numPartitions_);
   rawPartitionLengths_.resize(numPartitions_);
@@ -570,7 +566,6 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64
     auto rb = makeRecordBatch(rv.size(), buffers);
     ARROW_ASSIGN_OR_RAISE(auto payload, createArrowIpcPayload(*rb, false));
     rawPartitionLengths_[0] += payload->raw_body_length;
-    // if prefer_evict is set, evict current RowVector
     RETURN_NOT_OK(partitionWriter_->processPayload(0, std::move(payload)));
   } else if (options_.partitioning_name == "range") {
     auto compositeBatch = std::dynamic_pointer_cast<CompositeColumnarBatch>(cb);
@@ -1505,18 +1500,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     }
   }
 
-  arrow::Status VeloxShuffleWriter::cacheRecordBatch(
-      uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers) {
-    SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingCacheRB]);
-
-    ARROW_ASSIGN_OR_RAISE(auto payload, createArrowIpcPayload(rb, reuseBuffers));
-    rawPartitionLengths_[partitionId] += payload->raw_body_length;
-    partitionCachedRecordbatchSize_[partitionId] += payload->body_length;
-    partitionCachedRecordbatch_[partitionId].push_back(std::move(payload));
-    partitionBufferIdxBase_[partitionId] = 0;
-    return arrow::Status::OK();
-  }
-
   arrow::Status VeloxShuffleWriter::evictFixedSize(int64_t size, int64_t * actual) {
     int64_t currentEvicted = 0;
 
@@ -1551,9 +1534,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
   arrow::Status VeloxShuffleWriter::evictPartitionsOnDemand(int64_t * size) {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingEvictPartition]);
-    if (options_.prefer_evict) {
-      return arrow::Status::OK();
-    }
     // Evict all cached partitions
     int64_t beforeEvict = cachedPayloadSize();
     if (beforeEvict <= 0) {
@@ -1724,15 +1704,12 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       uint32_t partitionId, uint32_t newSize, bool reuseBuffers) {
     ARROW_ASSIGN_OR_RAISE(auto payload, createPayloadFromBuffer(partitionId, reuseBuffers));
     if (payload) {
-      RETURN_NOT_OK(evictPayload(partitionId, std::move(payload)));
-      if (options_.prefer_evict) {
-        RETURN_NOT_OK(resetValidityBuffers(partitionId));
-      }
+      RETURN_NOT_OK(transferPayload(partitionId, std::move(payload)));
     }
     return arrow::Status::OK();
   }
 
-  arrow::Status VeloxShuffleWriter::evictPayload(
+  arrow::Status VeloxShuffleWriter::transferPayload(
       uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) {
     return partitionWriter_->processPayload(partitionId, std::move(payload));
   }

@@ -35,6 +35,8 @@ static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
 } // namespace
 
+enum PartitionWriterType { kLocal, kCeleborn };
+
 struct ShuffleWriterOptions {
   int32_t buffer_size = kDefaultShuffleWriterBufferSize;
   int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
@@ -44,12 +46,11 @@ struct ShuffleWriterOptions {
   arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
   CodecBackend codec_backend = CodecBackend::NONE;
   CompressionMode compression_mode = CompressionMode::BUFFER;
-  bool prefer_evict = false;
   bool buffered_write = false;
   bool write_eos = true;
 
   std::string data_file;
-  std::string partition_writer_type = "local";
+  PartitionWriterType partition_writer_type = kLocal;
 
   int64_t thread_id = -1;
   int64_t task_attempt_id = -1;
@@ -131,7 +132,7 @@ class ShuffleWriter {
       uint32_t partitionId,
       bool reuseBuffers) = 0;
 
-  virtual arrow::Status evictPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
+  virtual arrow::Status transferPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
 
   virtual arrow::Status stop() = 0;
 
@@ -179,22 +180,6 @@ class ShuffleWriter {
     return rawPartitionLengths_;
   }
 
-  const std::vector<int64_t>& partitionCachedRecordbatchSize() const {
-    return partitionCachedRecordbatchSize_;
-  }
-
-  virtual const uint64_t cachedPayloadSize() const {
-    return std::accumulate(partitionCachedRecordbatchSize_.begin(), partitionCachedRecordbatchSize_.end(), 0);
-  }
-
-  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>>& partitionCachedRecordbatch() {
-    return partitionCachedRecordbatch_;
-  }
-
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>>& partitionBuffer() {
-    return partitionBuffers_;
-  }
-
   ShuffleWriterOptions& options() {
     return options_;
   }
@@ -223,9 +208,7 @@ class ShuffleWriter {
     totalBytesEvicted_ = totalBytesEvicted;
   }
 
-  void setPartitionCachedRecordbatchSize(int32_t index, int64_t size) {
-    partitionCachedRecordbatchSize_[index] = size;
-  }
+  virtual const uint64_t cachedPayloadSize() const = 0;
 
   class PartitionWriter;
 
@@ -270,9 +253,6 @@ class ShuffleWriter {
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::Schema> writeSchema_;
   std::shared_ptr<arrow::Schema> compressWriteSchema_;
-
-  std::vector<int64_t> partitionCachedRecordbatchSize_; // in bytes
-  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>> partitionCachedRecordbatch_;
 
   // col partid
   std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>> partitionBuffers_;

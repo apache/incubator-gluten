@@ -131,7 +131,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       uint32_t partitionId,
       bool reuseBuffers) override;
 
-  arrow::Status evictPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override;
+  arrow::Status transferPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override;
 
   const uint64_t cachedPayloadSize() const override;
 
@@ -256,8 +256,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createArrowIpcPayload(
       const arrow::RecordBatch& rb,
       bool reuseBuffers);
-
-  arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers);
 
   template <typename T>
   arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {

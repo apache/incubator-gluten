@@ -23,13 +23,8 @@ arrow::Status CelebornPartitionWriter::init() {
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornPartitionWriter::pushPartition(int32_t partitionId) {
-  auto buffer = celebornBufferOs_->Finish();
-  int32_t size = buffer->get()->size();
-  char* dst = reinterpret_cast<char*>(buffer->get()->mutable_data());
-  int32_t celebornBytesSize = celebornClient_->pushPartitionData(partitionId, dst, size);
-  shuffleWriter_->partitionCachedRecordbatch()[partitionId].clear();
-  shuffleWriter_->setPartitionCachedRecordbatchSize(partitionId, 0);
+arrow::Status CelebornPartitionWriter::pushPartition(int32_t partitionId, char* data, int64_t size) {
+  int32_t celebornBytesSize = celebornClient_->pushPartitionData(partitionId, data, size);
   shuffleWriter_->setPartitionLengths(partitionId, shuffleWriter_->partitionLengths()[partitionId] + celebornBytesSize);
   return arrow::Status::OK();
 }
@@ -54,13 +49,13 @@ arrow::Status CelebornPartitionWriter::processPayload(
   int64_t writeTime = 0;
   TIME_NANO_START(writeTime)
   ARROW_ASSIGN_OR_RAISE(
-      celebornBufferOs_,
+      auto celebornBufferOs,
       arrow::io::BufferOutputStream::Create(
           shuffleWriter_->options().buffer_size, shuffleWriter_->options().memory_pool.get()));
   int32_t metadataLength = 0; // unused
 #ifndef SKIPWRITE
   RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(
-      *payload, shuffleWriter_->options().ipc_write_options, celebornBufferOs_.get(), &metadataLength));
+      *payload, shuffleWriter_->options().ipc_write_options, celebornBufferOs.get(), &metadataLength));
 #endif
   payload = nullptr; // Invalidate payload immediately.
   TIME_NANO_END(writeTime)
@@ -68,7 +63,10 @@ arrow::Status CelebornPartitionWriter::processPayload(
 
   // Push.
   int64_t evictTime = 0;
-  TIME_NANO_OR_RAISE(evictTime, pushPartition(partitionId));
+  ARROW_ASSIGN_OR_RAISE(auto buffer, celebornBufferOs->Finish());
+  TIME_NANO_OR_RAISE(
+      evictTime,
+      pushPartition(partitionId, reinterpret_cast<char*>(const_cast<uint8_t*>(buffer->data())), buffer->size()));
   shuffleWriter_->setTotalEvictTime(shuffleWriter_->totalEvictTime() + evictTime);
   return arrow::Status::OK();
 }

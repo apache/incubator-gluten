@@ -42,9 +42,7 @@ class CelebornPartitionWriter : public RemotePartitionWriter {
 
   arrow::Status stop() override;
 
-  arrow::Status pushPartition(int32_t partitionId);
-
-  std::shared_ptr<arrow::io::BufferOutputStream> celebornBufferOs_;
+  arrow::Status pushPartition(int32_t partitionId, char* data, int64_t size);
 
   std::shared_ptr<RssClient> celebornClient_;
 };
