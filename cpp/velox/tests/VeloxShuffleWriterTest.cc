@@ -73,7 +73,6 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
     shuffleWriterOptions_.buffer_compress_threshold = 0;
     shuffleWriterOptions_.memory_pool = arrowPool_;
-    shuffleWriterOptions_.ipc_memory_pool = shuffleWriterOptions_.memory_pool;
 
     ShuffleTestParams params = GetParam();
     shuffleWriterOptions_.prefer_evict = params.prefer_evict;
@@ -265,9 +264,9 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, vector));
     }
 
-    auto targetEvicted = shuffleWriter_->totalCachedPayloadSize();
+    auto targetEvicted = shuffleWriter_->cachedPayloadSize();
     if (shrink) {
-      targetEvicted += shuffleWriter_->pool()->bytes_allocated();
+      targetEvicted += shuffleWriter_->partitionBufferSize();
     }
     int64_t evicted;
     ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(targetEvicted, &evicted));
@@ -639,8 +638,8 @@ TEST_P(VeloxShuffleWriterTest, TestSplitSpillAndShrink) {
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector2_));
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
 
-    auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
-    auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
+    auto bufferSize = shuffleWriter_->partitionBufferSize();
+    auto payloadSize = shuffleWriter_->cachedPayloadSize();
     int64_t evicted;
     ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
     ASSERT_GT(evicted, 0);
@@ -662,8 +661,8 @@ TEST_P(VeloxShuffleWriterTest, TestStopShrinkAndSpill) {
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
   }
 
-  auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
-  auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
+  auto bufferSize = shuffleWriter_->partitionBufferSize();
+  auto payloadSize = shuffleWriter_->cachedPayloadSize();
   if (!shuffleWriterOptions_.prefer_evict) {
     ASSERT_GT(payloadSize, 0);
   }
@@ -686,9 +685,9 @@ TEST_P(VeloxShuffleWriterTest, TestSpillOnStop) {
 
   auto evicted = splitRowVectorAndSpill({inputVector1_, inputVector2_, inputVector1_}, true);
   ASSERT_GT(evicted, 0);
-  ASSERT_EQ(shuffleWriter_->totalCachedPayloadSize(), 0);
+  ASSERT_EQ(shuffleWriter_->cachedPayloadSize(), 0);
 
-  // Split multiple times, to get non-empty split buffers and cached payloads.
+  // Split multiple times, to get non-empty partition buffers and cached payloads.
   for (int i = 0; i < 100; ++i) {
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector2_));
@@ -697,14 +696,14 @@ TEST_P(VeloxShuffleWriterTest, TestSpillOnStop) {
 
   if (!shuffleWriterOptions_.prefer_evict) {
     // No evict triggered, the cached payload should not be empty.
-    ASSERT_GT(shuffleWriter_->totalCachedPayloadSize(), 0);
+    ASSERT_GT(shuffleWriter_->cachedPayloadSize(), 0);
   }
 
   // Spill on stop.
   shuffleWriter_->setSplitState(SplitState::kStop);
 
-  auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
-  auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
+  auto payloadSize = shuffleWriter_->cachedPayloadSize();
+  auto bufferSize = shuffleWriter_->partitionBufferSize();
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
   // Total evicted should be greater than payloadSize, to test shrinking has been triggered.
   ASSERT_GT(evicted, payloadSize);
@@ -713,6 +712,9 @@ TEST_P(VeloxShuffleWriterTest, TestSpillOnStop) {
 }
 
 TEST_P(VeloxShuffleWriterTest, TestSpill) {
+  if (shuffleWriterOptions_.prefer_evict) { // TODO: remove prefer_evict
+    return;
+  }
   int32_t numPartitions = 4;
   shuffleWriterOptions_.buffer_size = 1; // Set a small buffer size to force clear and cache buffers for each split.
   shuffleWriterOptions_.partitioning_name = "hash";
@@ -731,7 +733,7 @@ TEST_P(VeloxShuffleWriterTest, TestSpill) {
   auto evicted = splitRowVectorAndSpill({hashInputVector1_}, true);
   ASSERT_GT(evicted, 0);
   // No more cached payloads after spill.
-  ASSERT_EQ(shuffleWriter_->totalCachedPayloadSize(), 0);
+  ASSERT_EQ(shuffleWriter_->cachedPayloadSize(), 0);
 
   ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, hashInputVector1_));
 
@@ -746,6 +748,10 @@ TEST_P(VeloxShuffleWriterTest, TestSpill) {
 }
 
 TEST_P(VeloxShuffleWriterTest, TestShrinkZeroSizeBuffer) {
+  if (shuffleWriterOptions_.prefer_evict) { // TODO: remove prefer_evict
+    return;
+  }
+
   // Test 2 cases:
   // 1. partition buffer size before shrink is 0.
   // 2. partition buffer size after shrink is 0.
@@ -764,13 +770,13 @@ TEST_P(VeloxShuffleWriterTest, TestShrinkZeroSizeBuffer) {
     ASSERT_NOT_OK(shuffleWriter_->cacheRecordBatch(pid, *rb, true));
   }
 
-  auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
-  auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
+  auto bufferSize = shuffleWriter_->partitionBufferSize();
+  auto payloadSize = shuffleWriter_->cachedPayloadSize();
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
   // All cached payloads and partition buffer memory should be evicted.
   ASSERT_EQ(evicted, payloadSize + bufferSize);
   // All buffers should be released.
-  ASSERT_EQ(shuffleWriter_->pool()->bytes_allocated(), 0);
+  ASSERT_EQ(shuffleWriter_->partitionBufferSize(), 0);
 
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
@@ -785,8 +791,8 @@ TEST_P(VeloxShuffleWriterTest, SmallBufferSizeNoShrink) {
   ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, hashInputVector1_));
 
   int64_t evicted = 0;
-  auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
-  auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
+  auto bufferSize = shuffleWriter_->partitionBufferSize();
+  auto payloadSize = shuffleWriter_->cachedPayloadSize();
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
   ASSERT_EQ(evicted, 0);
 

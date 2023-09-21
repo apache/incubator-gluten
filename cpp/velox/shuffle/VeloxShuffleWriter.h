@@ -22,7 +22,6 @@
 #include <string>
 #include <vector>
 
-#include "memory/LargeMemoryPool.h"
 #include "velox/common/time/CpuWallTimer.h"
 #include "velox/serializers/PrestoSerializer.h"
 #include "velox/type/Type.h"
@@ -140,6 +139,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status cacheRecordBatch(uint32_t partitionId, const arrow::RecordBatch& rb, bool reuseBuffers) override;
 
+  const uint64_t cachedPayloadSize() const override;
+
   int64_t rawPartitionBytes() const {
     return std::accumulate(rawPartitionLengths_.begin(), rawPartitionLengths_.end(), 0LL);
   }
@@ -207,7 +208,9 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool)
-      : ShuffleWriter(numPartitions, partitionWriterCreator, options), veloxPool_(veloxPool) {
+      : ShuffleWriter(numPartitions, partitionWriterCreator, options),
+        payloadPool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)),
+        veloxPool_(std::move(veloxPool)) {
     arenas_.resize(numPartitions);
   }
 
@@ -307,6 +310,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   void stat() const;
 
  protected:
+  // Memory Pool used to track memory allocation of Arrow IPC payloads.
+  // The actual allocation is delegated to options_.memory_pool.
+  std::shared_ptr<ShuffleMemoryPool> payloadPool_;
+
   SplitState splitState_{kInit};
 
   bool supportAvx512_ = false;

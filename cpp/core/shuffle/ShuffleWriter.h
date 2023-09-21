@@ -56,9 +56,6 @@ struct ShuffleWriterOptions {
 
   std::shared_ptr<arrow::MemoryPool> memory_pool;
 
-  // For tests.
-  std::shared_ptr<arrow::MemoryPool> ipc_memory_pool;
-
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 
   std::string partitioning_name;
@@ -120,31 +117,6 @@ class ShuffleMemoryPool : public arrow::MemoryPool {
   uint64_t bytesAllocated_ = 0;
 };
 
-class ShuffleBufferPool {
- public:
-  explicit ShuffleBufferPool(std::shared_ptr<arrow::MemoryPool> pool);
-
-  arrow::Status init();
-
-  arrow::Status allocate(std::shared_ptr<arrow::Buffer>& buffer, int64_t size);
-
-  arrow::Status allocateDirectly(std::shared_ptr<arrow::ResizableBuffer>& buffer, int64_t size);
-
-  int64_t bytesAllocated() const;
-
-  void reset() {
-    if (combineBuffer_ != nullptr) {
-      combineBuffer_.reset();
-    }
-  }
-
- private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
-  // slice the buffer for each reducer's column, in this way we can combine into
-  // large page
-  std::shared_ptr<arrow::ResizableBuffer> combineBuffer_;
-};
-
 class ShuffleWriter {
  public:
   static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;
@@ -198,8 +170,8 @@ class ShuffleWriter {
     return totalBytesEvicted_;
   }
 
-  int64_t splitBufferSize() const {
-    return splitBufferSize_;
+  int64_t partitionBufferSize() const {
+    return partitionBufferPool_->bytes_allocated();
   }
 
   int64_t totalWriteTime() const {
@@ -226,7 +198,7 @@ class ShuffleWriter {
     return partitionCachedRecordbatchSize_;
   }
 
-  const int64_t totalCachedPayloadSize() const {
+  virtual const uint64_t cachedPayloadSize() const {
     return std::accumulate(partitionCachedRecordbatchSize_.begin(), partitionCachedRecordbatchSize_.end(), 0);
   }
 
@@ -236,10 +208,6 @@ class ShuffleWriter {
 
   std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>>& partitionBuffer() {
     return partitionBuffers_;
-  }
-
-  std::shared_ptr<ShuffleMemoryPool>& pool() {
-    return pool_;
   }
 
   ShuffleWriterOptions& options() {
@@ -274,10 +242,6 @@ class ShuffleWriter {
     partitionCachedRecordbatchSize_[index] = size;
   }
 
-  void setSplitBufferSize(int64_t splitBufferSize) {
-    splitBufferSize_ = splitBufferSize;
-  }
-
   class PartitionWriter;
 
   class Partitioner;
@@ -292,7 +256,7 @@ class ShuffleWriter {
       : numPartitions_(numPartitions),
         partitionWriterCreator_(std::move(partitionWriterCreator)),
         options_(std::move(options)),
-        pool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)),
+        partitionBufferPool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)),
         codec_(createArrowIpcCodec(options_.compression_type, options_.codec_backend)) {}
 
   virtual ~ShuffleWriter() = default;
@@ -301,14 +265,13 @@ class ShuffleWriter {
 
   std::shared_ptr<PartitionWriterCreator> partitionWriterCreator_;
 
-  // options
   ShuffleWriterOptions options_;
-  // split buffer pool
-  std::shared_ptr<ShuffleMemoryPool> pool_;
+  // Memory Pool used to track memory usage of partition buffers.
+  // The actual allocation is delegated to options_.memory_pool.
+  std::shared_ptr<ShuffleMemoryPool> partitionBufferPool_;
 
   int64_t totalBytesWritten_ = 0;
   int64_t totalBytesEvicted_ = 0;
-  int64_t splitBufferSize_ = 0;
   int64_t totalWriteTime_ = 0;
   int64_t totalEvictTime_ = 0;
   int64_t totalCompressTime_ = 0;
