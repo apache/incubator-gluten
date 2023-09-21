@@ -203,7 +203,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   }
 
   test("gluten issues 3221") {
-    val df =spark.sparkContext
+    val df = spark.sparkContext
       .parallelize(DecimalData(-32.82, 1)
         :: Nil)
       .toDF()
