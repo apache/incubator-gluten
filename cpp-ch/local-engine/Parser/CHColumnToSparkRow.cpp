@@ -625,6 +625,8 @@ bool BackingDataLengthCalculator::isBigEndianInSparkRow(const DB::DataTypePtr & 
 
 void BackingDataLengthCalculator::swapDecimalEndianBytes(String & buf)
 {
+    assert(buf.size() == 16);
+
     using base_type = Decimal128::NativeType::base_type;
     auto * decimal128 = reinterpret_cast<Decimal128 *>(buf.data());
     for (size_t i = 0; i != std::size(decimal128->value.items); ++i)
