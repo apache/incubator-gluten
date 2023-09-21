@@ -774,6 +774,29 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrap
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
+JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_select( // NOLINT
+    JNIEnv* env,
+    jobject,
+    jlong ctxHandle,
+    jlong memoryManagerHandle,
+    jlong batchHandle,
+    jintArray jcolumnIndices) {
+  JNI_METHOD_START
+  auto executionCtx = jniCastOrThrow<ExecutionCtx>(ctxHandle);
+  auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
+
+  int * tmp = env->GetIntArrayElements(jcolumnIndices, nullptr);
+  int size = env->GetArrayLength(jcolumnIndices);
+  std::vector<int32_t> columnIndices;
+  for (int32_t i = 0; i < size; i++) {
+    columnIndices.push_back(tmp[i]);
+  }
+  env->ReleaseIntArrayElements(jcolumnIndices, tmp, JNI_ABORT);
+
+  return executionCtx->select(memoryManager, batchHandle, std::move(columnIndices));
+  JNI_METHOD_END(kInvalidResourceHandle)
+}
+
 JNIEXPORT void JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_close(
     JNIEnv* env,
     jobject,

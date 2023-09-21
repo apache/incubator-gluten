@@ -41,7 +41,7 @@ class VeloxColumnarBatch final : public ColumnarBatch {
 
   std::shared_ptr<ArrowSchema> exportArrowSchema() override;
   std::shared_ptr<ArrowArray> exportArrowArray() override;
-
+  std::shared_ptr<ColumnarBatch> select(facebook::velox::memory::MemoryPool* pool, std::vector<int32_t> columnIndices);
   facebook::velox::RowVectorPtr getRowVector() const;
   facebook::velox::RowVectorPtr getFlattenedRowVector();
 

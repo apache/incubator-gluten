@@ -81,6 +81,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarCoalesce: Boolean = conf.getConf(COLUMNAR_COALESCE_ENABLED)
 
+  def columnarTableCacheEnabled: Boolean = conf.getConf(COLUMNAR_TABLE_CACHE_ENABLED)
+
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
     conf
@@ -700,6 +702,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.oneRowRelation")
       .internal()
       .doc("Enable or disable columnar `OneRowRelation`.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_TABLE_CACHE_ENABLED =
+    buildConf("spark.gluten.sql.columnar.tableCache")
+      .internal()
+      .doc("Enable or disable columnar table cache.")
       .booleanConf
       .createWithDefault(true)
 

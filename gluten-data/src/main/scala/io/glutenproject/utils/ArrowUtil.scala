@@ -16,6 +16,7 @@
  */
 package io.glutenproject.utils
 
+import io.glutenproject.exception.GlutenException
 import io.glutenproject.vectorized.ArrowWritableColumnVector
 
 import org.apache.spark.internal.Logging
@@ -25,7 +26,7 @@ import org.apache.spark.sql.utils.{SparkArrowUtil, SparkSchemaUtil}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 import org.apache.arrow.c.{ArrowSchema, CDataDictionaryProvider, Data}
-import org.apache.arrow.memory.BufferAllocator
+import org.apache.arrow.memory.{ArrowBuf, BufferAllocator}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, Schema}
 
 import java.util
@@ -85,5 +86,24 @@ object ArrowUtil extends Logging {
       })
     }
     new Schema(fields)
+  }
+
+  /** Convert `ArrowBuf` to `Array[Byte]`, the input `ArrowBuf` is not closed */
+  def toByteArray(buffer: ArrowBuf): Array[Byte] = {
+    val readableBytes = buffer.readableBytes()
+    if (readableBytes > Integer.MAX_VALUE) {
+      throw new GlutenException(
+        s"arrow buf readableBytes: $readableBytes is bigger than Integer.MAX_VALUE")
+    }
+    val buf = buffer.nioBuffer
+    val bytes: Array[Byte] = new Array[Byte](buf.remaining())
+    buf.get(bytes)
+    bytes
+  }
+
+  def toArrowBuf(allocator: BufferAllocator, bytes: Array[Byte]): ArrowBuf = {
+    val arrowBuf = allocator.buffer(bytes.length)
+    arrowBuf.writeBytes(bytes)
+    arrowBuf
   }
 }

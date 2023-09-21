@@ -23,7 +23,6 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
 
-import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
@@ -71,121 +70,109 @@ case class VeloxColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBas
     val numOutputRows = longMetric("numOutputRows")
     val numInputBatches = longMetric("numInputBatches")
     val convertTime = longMetric("convertTime")
-
-    new ColumnarToRowRDD(
-      sparkContext,
-      child.executeColumnar(),
-      this.output,
-      numOutputRows,
-      numInputBatches,
-      convertTime)
+    child.executeColumnar().mapPartitions {
+      it =>
+        VeloxColumnarToRowExec.toRowIterator(
+          it,
+          output,
+          numOutputRows,
+          numInputBatches,
+          convertTime
+        )
+    }
   }
 
   protected def withNewChildInternal(newChild: SparkPlan): VeloxColumnarToRowExec =
     copy(child = newChild)
 }
 
-class ColumnarToRowRDD(
-    @transient sc: SparkContext,
-    rdd: RDD[ColumnarBatch],
-    output: Seq[Attribute],
-    numOutputRows: SQLMetric,
-    numInputBatches: SQLMetric,
-    convertTime: SQLMetric)
-  extends RDD[InternalRow](sc, Seq(new OneToOneDependency(rdd))) {
+object VeloxColumnarToRowExec {
+  def toRowIterator(
+      batches: Iterator[ColumnarBatch],
+      output: Seq[Attribute],
+      numOutputRows: SQLMetric,
+      numInputBatches: SQLMetric,
+      convertTime: SQLMetric): Iterator[InternalRow] = {
+    if (batches.isEmpty) {
+      return Iterator.empty
+    }
 
-  private val cleanedF = sc.clean(f)
+    val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
+    // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
+    val jniWrapper = new NativeColumnarToRowJniWrapper()
+    var closed = false
+    val c2rId = jniWrapper.nativeColumnarToRowInit(
+      executionCtxHandle,
+      NativeMemoryManagers.contextInstance("ColumnarToRow").getNativeInstanceHandle)
 
-  override def compute(split: Partition, context: TaskContext): Iterator[InternalRow] = {
-    cleanedF(firstParent[ColumnarBatch].iterator(split, context))
-  }
-
-  private def f: Iterator[ColumnarBatch] => Iterator[InternalRow] = {
-    batches =>
-      if (batches.isEmpty) {
-        Iterator.empty
-      } else {
-        val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
-        // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
-        val jniWrapper = new NativeColumnarToRowJniWrapper()
-        var closed = false
-        val c2rId = jniWrapper.nativeColumnarToRowInit(
-          executionCtxHandle,
-          NativeMemoryManagers.contextInstance("ColumnarToRow").getNativeInstanceHandle)
-
-        TaskResources.addRecycler(s"ColumnarToRow_$c2rId", 100) {
-          if (!closed) {
-            jniWrapper.nativeClose(executionCtxHandle, c2rId)
-            closed = true
-          }
-        }
-
-        val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
-
-          override def hasNext: Boolean = {
-            val hasNext = batches.hasNext
-            if (!hasNext && !closed) {
-              jniWrapper.nativeClose(executionCtxHandle, c2rId)
-              closed = true
-            }
-            hasNext
-          }
-
-          override def next(): Iterator[InternalRow] = {
-            val batch = batches.next()
-            numInputBatches += 1
-            numOutputRows += batch.numRows()
-
-            if (batch.numRows == 0) {
-              batch.close()
-              logInfo(s"Skip ColumnarBatch of ${batch.numRows} rows, ${batch.numCols} cols")
-              Iterator.empty
-            } else if (
-              batch.numCols() > 0 &&
-              !ColumnarBatches.isLightBatch(batch)
-            ) {
-              // Fallback to ColumnarToRow of vanilla Spark.
-              val localOutput = output
-              val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
-              batch.rowIterator().asScala.map(toUnsafe)
-            } else if (output.isEmpty) {
-              numInputBatches += 1
-              numOutputRows += batch.numRows()
-              val rows = ColumnarBatches.emptyRowIterator(batch.numRows()).asScala
-              batch.close()
-              rows
-            } else {
-              val cols = batch.numCols()
-              val rows = batch.numRows()
-              val beforeConvert = System.currentTimeMillis()
-              val batchHandle = ColumnarBatches.getNativeHandle(batch)
-              val info =
-                jniWrapper.nativeColumnarToRowConvert(executionCtxHandle, batchHandle, c2rId)
-
-              convertTime += (System.currentTimeMillis() - beforeConvert)
-              // batch.close()
-
-              new Iterator[InternalRow] {
-                var rowId = 0
-                val row = new UnsafeRow(cols)
-
-                override def hasNext: Boolean = {
-                  rowId < rows
-                }
-
-                override def next: UnsafeRow = {
-                  val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
-                  row.pointTo(null, info.memoryAddress + offset, length)
-                  rowId += 1
-                  row
-                }
-              }
-            }
-          }
-        }
-        res.flatten
+    TaskResources.addRecycler(s"ColumnarToRow_$c2rId", 100) {
+      if (!closed) {
+        jniWrapper.nativeClose(executionCtxHandle, c2rId)
+        closed = true
       }
-  }
+    }
 
-  override def getPartitions: Array[Partition] = firstParent[ColumnarBatch].partitions
+    val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
+
+      override def hasNext: Boolean = {
+        val hasNext = batches.hasNext
+        if (!hasNext && !closed) {
+          jniWrapper.nativeClose(executionCtxHandle, c2rId)
+          closed = true
+        }
+        hasNext
+      }
+
+      override def next(): Iterator[InternalRow] = {
+        val batch = batches.next()
+        numInputBatches += 1
+        numOutputRows += batch.numRows()
+
+        if (batch.numRows == 0) {
+          batch.close()
+          Iterator.empty
+        } else if (
+          batch.numCols() > 0 &&
+          !ColumnarBatches.isLightBatch(batch)
+        ) {
+          // Fallback to ColumnarToRow of vanilla Spark.
+          val localOutput = output
+          val toUnsafe = UnsafeProjection.create(localOutput, localOutput)
+          batch.rowIterator().asScala.map(toUnsafe)
+        } else if (output.isEmpty) {
+          numInputBatches += 1
+          numOutputRows += batch.numRows()
+          val rows = ColumnarBatches.emptyRowIterator(batch.numRows()).asScala
+          batch.close()
+          rows
+        } else {
+          val cols = batch.numCols()
+          val rows = batch.numRows()
+          val beforeConvert = System.currentTimeMillis()
+          val batchHandle = ColumnarBatches.getNativeHandle(batch)
+          val info =
+            jniWrapper.nativeColumnarToRowConvert(executionCtxHandle, batchHandle, c2rId)
+
+          convertTime += (System.currentTimeMillis() - beforeConvert)
+
+          new Iterator[InternalRow] {
+            var rowId = 0
+            val row = new UnsafeRow(cols)
+
+            override def hasNext: Boolean = {
+              rowId < rows
+            }
+
+            override def next: UnsafeRow = {
+              val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
+              row.pointTo(null, info.memoryAddress + offset, length)
+              rowId += 1
+              row
+            }
+          }
+        }
+      }
+    }
+    res.flatten
+  }
 }

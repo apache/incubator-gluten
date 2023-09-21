@@ -16,7 +16,7 @@
  */
 package io.glutenproject.init;
 
-public class BackendJniWrapper {
+public class BackendJniWrapper extends JniInitialized {
 
   private BackendJniWrapper() {}
 
