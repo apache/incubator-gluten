@@ -64,7 +64,6 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(VeloxMemoryManager* memo
 
   auto options = ShuffleWriterOptions::defaults();
   options.memory_pool = memoryManager->getArrowMemoryPool();
-  options.ipc_memory_pool = options.memory_pool;
   options.partitioning_name = "rr"; // Round-Robin partitioning
   if (FLAGS_zstd) {
     options.codec_backend = CodecBackend::NONE;
@@ -157,7 +156,7 @@ auto BM_Generic = [](::benchmark::State& state,
       TIME_NANO_START(shuffleWriteTime);
       const auto& shuffleWriter = createShuffleWriter(memoryManager.get());
       while (resultIter->hasNext()) {
-        GLUTEN_THROW_NOT_OK(shuffleWriter->split(resultIter->next()));
+        GLUTEN_THROW_NOT_OK(shuffleWriter->split(resultIter->next(), ShuffleWriter::kMinMemLimit));
       }
       GLUTEN_THROW_NOT_OK(shuffleWriter->stop());
       TIME_NANO_END(shuffleWriteTime);

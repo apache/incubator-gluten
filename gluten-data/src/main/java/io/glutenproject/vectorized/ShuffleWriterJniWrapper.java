@@ -39,7 +39,6 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
    */
   public long make(
       NativePartitioning part,
-      long offheapPerTask,
       int bufferSize,
       String codec,
       String codecBackend,
@@ -58,7 +57,6 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
-        offheapPerTask,
         bufferSize,
         codec,
         codecBackend,
@@ -89,7 +87,6 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
    */
   public long makeForRSS(
       NativePartitioning part,
-      long offheapPerTask,
       int bufferSize,
       String codec,
       int bufferCompressThreshold,
@@ -105,7 +102,6 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
-        offheapPerTask,
         bufferSize,
         codec,
         null,
@@ -129,7 +125,6 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
   public native long nativeMake(
       String shortName,
       int numPartitions,
-      long offheapPerTask,
       int bufferSize,
       String codec,
       String codecBackend,
@@ -169,11 +164,12 @@ public class ShuffleWriterJniWrapper extends JniInitialized {
    * @param shuffleWriterHandle shuffle writer instance handle
    * @param numRows Rows per batch
    * @param handler handler of Velox Vector
+   * @param memLimit memory usage limit for the split operation FIXME setting a cap to pool /
+   *     allocator instead
    * @return batch bytes.
    */
   public native long split(
-      long executionCtxHandle, long shuffleWriterHandle, int numRows, long handler)
-      throws IOException;
+      long executionCtxHandle, long shuffleWriterHandle, int numRows, long handler, long memLimit);
 
   /**
    * Write the data remained in the buffers hold by native shuffle writer to each partition's
