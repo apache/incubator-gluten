@@ -1329,8 +1329,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         case arrow::ListType::type_id:
           break;
         case arrow::NullType::type_id: {
-          std::shared_ptr<arrow::Buffer> validityBuffer = nullptr;
-          ARROW_RETURN_NOT_OK(pool_->allocate(validityBuffer, arrow::bit_util::BytesForBits(newSize)));
+          std::shared_ptr<arrow::ResizableBuffer> validityBuffer{};
+          ARROW_ASSIGN_OR_RAISE(validityBuffer, arrow::AllocateResizableBuffer(newSize, partitionBufferPool_.get()));
           // initialize all as false.
           memset(validityBuffer->mutable_data(), 0, validityBuffer->capacity());
           partitionValidityAddrs_[fixedWidthIdx][partitionId] = validityBuffer->mutable_data();
