@@ -230,13 +230,13 @@ void WholeStageResultIterator::collectMetrics() {
 
   metrics_ = std::make_unique<Metrics>(statsNum);
 
-  int i = 0; // stands for Metric Index
+  int metricIndex = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
       // Special handing for Filter over Project case. Filter metrics are
       // omitted.
-      i += 1;
+      metricIndex += 1;
       continue;
     }
 
@@ -244,35 +244,35 @@ void WholeStageResultIterator::collectMetrics() {
     // Add each operator status into metrics.
     for (const auto& entry : status.operatorStats) {
       const auto& second = entry.second;
-      metrics_->get(Metrics::kInputRows)[i] = second->inputRows;
-      metrics_->get(Metrics::kInputVectors)[i] = second->inputVectors;
-      metrics_->get(Metrics::kInputBytes)[i] = second->inputBytes;
-      metrics_->get(Metrics::kRawInputRows)[i] = second->rawInputRows;
-      metrics_->get(Metrics::kRawInputBytes)[i] = second->rawInputBytes;
-      metrics_->get(Metrics::kOutputRows)[i] = second->outputRows;
-      metrics_->get(Metrics::kOutputVectors)[i] = second->outputVectors;
-      metrics_->get(Metrics::kOutputBytes)[i] = second->outputBytes;
-      metrics_->get(Metrics::kCpuCount)[i] = second->cpuWallTiming.count;
-      metrics_->get(Metrics::kWallNanos)[i] = second->cpuWallTiming.wallNanos;
-      metrics_->get(Metrics::kPeakMemoryBytes)[i] = second->peakMemoryBytes;
-      metrics_->get(Metrics::kNumMemoryAllocations)[i] = second->numMemoryAllocations;
-      metrics_->get(Metrics::kSpilledBytes)[i] = second->spilledBytes;
-      metrics_->get(Metrics::kSpilledRows)[i] = second->spilledRows;
-      metrics_->get(Metrics::kSpilledPartitions)[i] = second->spilledPartitions;
-      metrics_->get(Metrics::kSpilledFiles)[i] = second->spilledFiles;
-      metrics_->get(Metrics::kNumDynamicFiltersProduced)[i] =
+      metrics_->get(Metrics::kInputRows)[metricIndex] = second->inputRows;
+      metrics_->get(Metrics::kInputVectors)[metricIndex] = second->inputVectors;
+      metrics_->get(Metrics::kInputBytes)[metricIndex] = second->inputBytes;
+      metrics_->get(Metrics::kRawInputRows)[metricIndex] = second->rawInputRows;
+      metrics_->get(Metrics::kRawInputBytes)[metricIndex] = second->rawInputBytes;
+      metrics_->get(Metrics::kOutputRows)[metricIndex] = second->outputRows;
+      metrics_->get(Metrics::kOutputVectors)[metricIndex] = second->outputVectors;
+      metrics_->get(Metrics::kOutputBytes)[metricIndex] = second->outputBytes;
+      metrics_->get(Metrics::kCpuCount)[metricIndex] = second->cpuWallTiming.count;
+      metrics_->get(Metrics::kWallNanos)[metricIndex] = second->cpuWallTiming.wallNanos;
+      metrics_->get(Metrics::kPeakMemoryBytes)[metricIndex] = second->peakMemoryBytes;
+      metrics_->get(Metrics::kNumMemoryAllocations)[metricIndex] = second->numMemoryAllocations;
+      metrics_->get(Metrics::kSpilledBytes)[metricIndex] = second->spilledBytes;
+      metrics_->get(Metrics::kSpilledRows)[metricIndex] = second->spilledRows;
+      metrics_->get(Metrics::kSpilledPartitions)[metricIndex] = second->spilledPartitions;
+      metrics_->get(Metrics::kSpilledFiles)[metricIndex] = second->spilledFiles;
+      metrics_->get(Metrics::kNumDynamicFiltersProduced)[metricIndex] =
           runtimeMetric("sum", second->customStats, kDynamicFiltersProduced);
-      metrics_->get(Metrics::kNumDynamicFiltersAccepted)[i] =
+      metrics_->get(Metrics::kNumDynamicFiltersAccepted)[metricIndex] =
           runtimeMetric("sum", second->customStats, kDynamicFiltersAccepted);
-      metrics_->get(Metrics::kNumReplacedWithDynamicFilterRows)[i] =
+      metrics_->get(Metrics::kNumReplacedWithDynamicFilterRows)[metricIndex] =
           runtimeMetric("sum", second->customStats, kReplacedWithDynamicFilterRows);
-      metrics_->get(Metrics::kFlushRowCount)[i] = runtimeMetric("sum", second->customStats, kFlushRowCount);
-      metrics_->get(Metrics::kScanTime)[i] = runtimeMetric("sum", second->customStats, kTotalScanTime);
-      metrics_->get(Metrics::kSkippedSplits)[i] = runtimeMetric("sum", second->customStats, kSkippedSplits);
-      metrics_->get(Metrics::kProcessedSplits)[i] = runtimeMetric("sum", second->customStats, kProcessedSplits);
-      metrics_->get(Metrics::kSkippedStrides)[i] = runtimeMetric("sum", second->customStats, kSkippedStrides);
-      metrics_->get(Metrics::kProcessedStrides)[i] = runtimeMetric("sum", second->customStats, kProcessedStrides);
-      i += 1;
+      metrics_->get(Metrics::kFlushRowCount)[metricIndex] = runtimeMetric("sum", second->customStats, kFlushRowCount);
+      metrics_->get(Metrics::kScanTime)[metricIndex] = runtimeMetric("sum", second->customStats, kTotalScanTime);
+      metrics_->get(Metrics::kSkippedSplits)[metricIndex] = runtimeMetric("sum", second->customStats, kSkippedSplits);
+      metrics_->get(Metrics::kProcessedSplits)[metricIndex] = runtimeMetric("sum", second->customStats, kProcessedSplits);
+      metrics_->get(Metrics::kSkippedStrides)[metricIndex] = runtimeMetric("sum", second->customStats, kSkippedStrides);
+      metrics_->get(Metrics::kProcessedStrides)[metricIndex] = runtimeMetric("sum", second->customStats, kProcessedStrides);
+      metricIndex += 1;
     }
   }
 }

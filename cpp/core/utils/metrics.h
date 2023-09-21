@@ -25,11 +25,15 @@ struct Metrics {
   unsigned int numMetrics = 0;
   long veloxToArrow = 0;
 
-  std::unique_ptr<long[]> array; // underlying memory buffer
-  long* arrayRawPtr = nullptr; // point to array.get() after array created
+  // The underlying memory buffer.
+  std::unique_ptr<long[]> array; 
+
+  // Point to array.get() after the above unique_ptr created.
+  long* arrayRawPtr = nullptr; 
 
   enum TYPE {
-    kBegin = 0, // begin from 0
+    // Begin from 0.
+    kBegin = 0, 
 
     kInputRows = kBegin,
     kInputVectors,
@@ -49,7 +53,7 @@ struct Metrics {
     kPeakMemoryBytes,
     kNumMemoryAllocations,
 
-    // Spill
+    // Spill.
     kSpilledBytes,
     kSpilledRows,
     kSpilledPartitions,
@@ -66,6 +70,7 @@ struct Metrics {
     kSkippedStrides,
     kProcessedStrides,
 
+    // The end of enum items.
     kEnd,
     kNum = kEnd - kBegin
   };

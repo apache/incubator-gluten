@@ -432,12 +432,17 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
 
   auto iter = executionCtx->getResultIterator(iterHandle);
   auto metrics = iter->getMetrics();
-  unsigned int numMetrics = metrics->numMetrics;
+  unsigned int numMetrics = 0;
+  if (metrics) {
+    numMetrics = metrics->numMetrics;
+  }
 
   jlongArray longArray[Metrics::kNum];
   for (auto i = (int)Metrics::kBegin; i != (int)Metrics::kEnd; ++i) {
     longArray[i] = env->NewLongArray(numMetrics);
-    env->SetLongArrayRegion(longArray[i], 0, numMetrics, metrics->get((Metrics::TYPE)i));
+    if (metrics) {
+      env->SetLongArrayRegion(longArray[i], 0, numMetrics, metrics->get((Metrics::TYPE)i));
+    }
   }
 
   return env->NewObject(
