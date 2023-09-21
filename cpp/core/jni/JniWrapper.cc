@@ -431,95 +431,50 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
   auto executionCtx = jniCastOrThrow<ExecutionCtx>(ctxHandle);
 
   auto iter = executionCtx->getResultIterator(iterHandle);
-  std::shared_ptr<Metrics> metrics = iter->getMetrics();
-
-  int numMetrics = 0;
+  auto metrics = iter->getMetrics();
+  unsigned int numMetrics = 0;
   if (metrics) {
     numMetrics = metrics->numMetrics;
   }
-  auto inputRows = env->NewLongArray(numMetrics);
-  auto inputVectors = env->NewLongArray(numMetrics);
-  auto inputBytes = env->NewLongArray(numMetrics);
-  auto rawInputRows = env->NewLongArray(numMetrics);
-  auto rawInputBytes = env->NewLongArray(numMetrics);
-  auto outputRows = env->NewLongArray(numMetrics);
-  auto outputVectors = env->NewLongArray(numMetrics);
-  auto outputBytes = env->NewLongArray(numMetrics);
-  auto cpuCount = env->NewLongArray(numMetrics);
-  auto wallNanos = env->NewLongArray(numMetrics);
-  auto peakMemoryBytes = env->NewLongArray(numMetrics);
-  auto numMemoryAllocations = env->NewLongArray(numMetrics);
-  auto spilledBytes = env->NewLongArray(numMetrics);
-  auto spilledRows = env->NewLongArray(numMetrics);
-  auto spilledPartitions = env->NewLongArray(numMetrics);
-  auto spilledFiles = env->NewLongArray(numMetrics);
-  auto numDynamicFiltersProduced = env->NewLongArray(numMetrics);
-  auto numDynamicFiltersAccepted = env->NewLongArray(numMetrics);
-  auto numReplacedWithDynamicFilterRows = env->NewLongArray(numMetrics);
-  auto flushRowCount = env->NewLongArray(numMetrics);
-  auto scanTime = env->NewLongArray(numMetrics);
-  auto skippedSplits = env->NewLongArray(numMetrics);
-  auto processedSplits = env->NewLongArray(numMetrics);
-  auto skippedStrides = env->NewLongArray(numMetrics);
-  auto processedStrides = env->NewLongArray(numMetrics);
 
-  if (metrics) {
-    env->SetLongArrayRegion(inputRows, 0, numMetrics, metrics->inputRows);
-    env->SetLongArrayRegion(inputVectors, 0, numMetrics, metrics->inputVectors);
-    env->SetLongArrayRegion(inputBytes, 0, numMetrics, metrics->inputBytes);
-    env->SetLongArrayRegion(rawInputRows, 0, numMetrics, metrics->rawInputRows);
-    env->SetLongArrayRegion(rawInputBytes, 0, numMetrics, metrics->rawInputBytes);
-    env->SetLongArrayRegion(outputRows, 0, numMetrics, metrics->outputRows);
-    env->SetLongArrayRegion(outputVectors, 0, numMetrics, metrics->outputVectors);
-    env->SetLongArrayRegion(outputBytes, 0, numMetrics, metrics->outputBytes);
-    env->SetLongArrayRegion(cpuCount, 0, numMetrics, metrics->cpuCount);
-    env->SetLongArrayRegion(wallNanos, 0, numMetrics, metrics->wallNanos);
-    env->SetLongArrayRegion(peakMemoryBytes, 0, numMetrics, metrics->peakMemoryBytes);
-    env->SetLongArrayRegion(numMemoryAllocations, 0, numMetrics, metrics->numMemoryAllocations);
-    env->SetLongArrayRegion(spilledBytes, 0, numMetrics, metrics->spilledBytes);
-    env->SetLongArrayRegion(spilledRows, 0, numMetrics, metrics->spilledRows);
-    env->SetLongArrayRegion(spilledPartitions, 0, numMetrics, metrics->spilledPartitions);
-    env->SetLongArrayRegion(spilledFiles, 0, numMetrics, metrics->spilledFiles);
-    env->SetLongArrayRegion(numDynamicFiltersProduced, 0, numMetrics, metrics->numDynamicFiltersProduced);
-    env->SetLongArrayRegion(numDynamicFiltersAccepted, 0, numMetrics, metrics->numDynamicFiltersAccepted);
-    env->SetLongArrayRegion(numReplacedWithDynamicFilterRows, 0, numMetrics, metrics->numReplacedWithDynamicFilterRows);
-    env->SetLongArrayRegion(flushRowCount, 0, numMetrics, metrics->flushRowCount);
-    env->SetLongArrayRegion(scanTime, 0, numMetrics, metrics->scanTime);
-    env->SetLongArrayRegion(skippedSplits, 0, numMetrics, metrics->skippedSplits);
-    env->SetLongArrayRegion(processedSplits, 0, numMetrics, metrics->processedSplits);
-    env->SetLongArrayRegion(skippedStrides, 0, numMetrics, metrics->skippedStrides);
-    env->SetLongArrayRegion(processedStrides, 0, numMetrics, metrics->processedStrides);
+  jlongArray longArray[Metrics::kNum];
+  for (auto i = (int)Metrics::kBegin; i != (int)Metrics::kEnd; ++i) {
+    longArray[i] = env->NewLongArray(numMetrics);
+    if (metrics) {
+      env->SetLongArrayRegion(longArray[i], 0, numMetrics, metrics->get((Metrics::TYPE)i));
+    }
   }
 
   return env->NewObject(
       metricsBuilderClass,
       metricsBuilderConstructor,
-      inputRows,
-      inputVectors,
-      inputBytes,
-      rawInputRows,
-      rawInputBytes,
-      outputRows,
-      outputVectors,
-      outputBytes,
-      cpuCount,
-      wallNanos,
+      longArray[Metrics::kInputRows],
+      longArray[Metrics::kInputVectors],
+      longArray[Metrics::kInputBytes],
+      longArray[Metrics::kRawInputRows],
+      longArray[Metrics::kRawInputBytes],
+      longArray[Metrics::kOutputRows],
+      longArray[Metrics::kOutputVectors],
+      longArray[Metrics::kOutputBytes],
+      longArray[Metrics::kCpuCount],
+      longArray[Metrics::kWallNanos],
       metrics ? metrics->veloxToArrow : -1,
-      peakMemoryBytes,
-      numMemoryAllocations,
-      spilledBytes,
-      spilledRows,
-      spilledPartitions,
-      spilledFiles,
-      numDynamicFiltersProduced,
-      numDynamicFiltersAccepted,
-      numReplacedWithDynamicFilterRows,
-      flushRowCount,
-      scanTime,
-      skippedSplits,
-      processedSplits,
-      skippedStrides,
-      processedStrides);
+      longArray[Metrics::kPeakMemoryBytes],
+      longArray[Metrics::kNumMemoryAllocations],
+      longArray[Metrics::kSpilledBytes],
+      longArray[Metrics::kSpilledRows],
+      longArray[Metrics::kSpilledPartitions],
+      longArray[Metrics::kSpilledFiles],
+      longArray[Metrics::kNumDynamicFiltersProduced],
+      longArray[Metrics::kNumDynamicFiltersAccepted],
+      longArray[Metrics::kNumReplacedWithDynamicFilterRows],
+      longArray[Metrics::kFlushRowCount],
+      longArray[Metrics::kScanTime],
+      longArray[Metrics::kSkippedSplits],
+      longArray[Metrics::kProcessedSplits],
+      longArray[Metrics::kSkippedStrides],
+      longArray[Metrics::kProcessedStrides]);
+
   JNI_METHOD_END(nullptr)
 }
 

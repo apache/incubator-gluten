@@ -112,7 +112,7 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
   virtual std::shared_ptr<ShuffleWriter> getShuffleWriter(ResourceHandle) = 0;
   virtual void releaseShuffleWriter(ResourceHandle) = 0;
 
-  virtual std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;
+  virtual Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;
 
   virtual ResourceHandle createDatasource(
       const std::string& filePath,
