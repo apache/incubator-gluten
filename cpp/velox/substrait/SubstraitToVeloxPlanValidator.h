@@ -34,6 +34,9 @@ class SubstraitToVeloxPlanValidator {
   /// Used to validate whether the computing of this Expand is supported.
   bool validate(const ::substrait::ExpandRel& expandRel);
 
+  /// Used to validate whether the computing of this Generate is supported.
+  bool validate(const ::substrait::GenerateRel& generateRel);
+
   /// Used to validate whether the computing of this Sort is supported.
   bool validate(const ::substrait::SortRel& sortRel);
 

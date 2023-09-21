@@ -115,7 +115,6 @@ class CelebornHashBasedVeloxColumnarShuffleWriter[K, V](
         if (nativeShuffleWriter == -1L) {
           nativeShuffleWriter = jniWrapper.makeForRSS(
             dep.nativePartitioning,
-            availableOffHeapPerTask(),
             nativeBufferSize,
             customizedCompressionCodec,
             bufferCompressThreshold,
@@ -152,7 +151,13 @@ class CelebornHashBasedVeloxColumnarShuffleWriter[K, V](
           )
         }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(executionCtxHandle, nativeShuffleWriter, cb.numRows, handle)
+        val bytes =
+          jniWrapper.split(
+            executionCtxHandle,
+            nativeShuffleWriter,
+            cb.numRows,
+            handle,
+            availableOffHeapPerTask())
         dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
