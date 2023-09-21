@@ -269,9 +269,11 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kFlushRowCount)[metricIndex] = runtimeMetric("sum", second->customStats, kFlushRowCount);
       metrics_->get(Metrics::kScanTime)[metricIndex] = runtimeMetric("sum", second->customStats, kTotalScanTime);
       metrics_->get(Metrics::kSkippedSplits)[metricIndex] = runtimeMetric("sum", second->customStats, kSkippedSplits);
-      metrics_->get(Metrics::kProcessedSplits)[metricIndex] = runtimeMetric("sum", second->customStats, kProcessedSplits);
+      metrics_->get(Metrics::kProcessedSplits)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kProcessedSplits);
       metrics_->get(Metrics::kSkippedStrides)[metricIndex] = runtimeMetric("sum", second->customStats, kSkippedStrides);
-      metrics_->get(Metrics::kProcessedStrides)[metricIndex] = runtimeMetric("sum", second->customStats, kProcessedStrides);
+      metrics_->get(Metrics::kProcessedStrides)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kProcessedStrides);
       metricIndex += 1;
     }
   }

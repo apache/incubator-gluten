@@ -26,14 +26,14 @@ struct Metrics {
   long veloxToArrow = 0;
 
   // The underlying memory buffer.
-  std::unique_ptr<long[]> array; 
+  std::unique_ptr<long[]> array;
 
   // Point to array.get() after the above unique_ptr created.
-  long* arrayRawPtr = nullptr; 
+  long* arrayRawPtr = nullptr;
 
   enum TYPE {
     // Begin from 0.
-    kBegin = 0, 
+    kBegin = 0,
 
     kInputRows = kBegin,
     kInputVectors,
