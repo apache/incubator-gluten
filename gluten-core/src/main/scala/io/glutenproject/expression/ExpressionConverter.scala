@@ -587,6 +587,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           replaceWithExpressionTransformer(m.child, attributeSeq),
           m)
+      case rand: Rand =>
+        RandTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer(rand.child, attributeSeq),
+          rand)
       case _: KnownFloatingPointNormalized | _: NormalizeNaNAndZero | _: PromotePrecision =>
         ChildTransformer(
           replaceWithExpressionTransformer(expr.children.head, attributeSeq)

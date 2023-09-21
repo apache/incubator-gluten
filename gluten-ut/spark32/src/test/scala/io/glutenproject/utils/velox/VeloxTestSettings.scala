@@ -50,7 +50,10 @@ class VeloxTestSettings extends BackendTestSettings {
       "zero moments", // [velox does not return NaN]
       "SPARK-26021: NaN and -0.0 in grouping expressions", // NaN case
       // incorrect result, distinct NaN case
-      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate"
+      "SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate",
+      // Replaced with another test.
+      "SPARK-19471: AggregationIterator does not initialize the generated result projection" +
+        " before using it"
     )
 
   enableSuite[GlutenCastSuite]
@@ -122,7 +125,10 @@ class VeloxTestSettings extends BackendTestSettings {
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
       // Not supported for approx_count_distinct
-      "SPARK-34165: Add count_distinct to summary"
+      "SPARK-34165: Add count_distinct to summary",
+      // Result depends on the implementation for nondeterministic expression rand.
+      // Not really an issue.
+      "SPARK-9083: sort with non-deterministic expressions"
     )
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]
@@ -249,6 +255,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("aggregate function - array for non-primitive type")
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]
+    // Result depends on the implementation for nondeterministic expression rand.
+    // Not really an issue.
+    .exclude("SPARK-10740: handle nondeterministic expressions correctly for set operations")
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenComplexTypesSuite]
     // Incorrect result for array and length.

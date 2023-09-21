@@ -21,6 +21,7 @@ import io.glutenproject.substrait.`type`.ListNode
 import io.glutenproject.substrait.`type`.MapNode
 import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
 
+import org.apache.spark.TaskContext
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
@@ -206,5 +207,33 @@ case class MakeDecimalTransformer(
       Lists.newArrayList(childNode, toTypeNodes, new BooleanLiteralNode(original.nullOnOverflow))
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
+}
+
+/**
+ * User can specify a seed for this function. If lacked, spark will generate a random number as
+ * seed. We also need to pass a unique partitionIndex provided by framework to native library for
+ * each thread. Then, seed plus partitionIndex will be the actual seed for generator, similar to
+ * vanilla spark. This is based on the fact that partitioning is deterministic and one partition is
+ * corresponding to one task thread.
+ */
+case class RandTransformer(
+    substraitExprName: String,
+    explicitSeed: ExpressionTransformer,
+    original: Rand)
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(substraitExprName, Seq(original.child.dataType)))
+    val inputNodes = Lists.newArrayList[ExpressionNode]()
+    inputNodes.add(explicitSeed.doTransform(args))
+    val partitionIndex = TaskContext.getPartitionId()
+    val partitionIndexNode = ExpressionBuilder.makeLiteral(partitionIndex, IntegerType, false)
+    inputNodes.add(partitionIndexNode)
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, inputNodes, typeNode)
   }
 }

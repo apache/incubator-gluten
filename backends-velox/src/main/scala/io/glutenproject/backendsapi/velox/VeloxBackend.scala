@@ -22,10 +22,10 @@ import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
-import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
+import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.JoinType
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.types._
@@ -223,48 +223,35 @@ object BackendSettings extends BackendSettingsApi {
   }
 
   /**
-   * Check whether plan is Count(1).
+   * Check whether a plan needs to be offloaded even though they have empty input schema, e.g,
+   * Sum(1), Count(1), rand(), etc.
    * @param plan:
    *   The Spark plan to check.
-   * @return
-   *   Whether plan is an Aggregation of Count(1).
    */
-  private def isCount1(plan: SparkPlan): Boolean = {
-    plan match {
-      case exec: HashAggregateExec
-          if exec.aggregateExpressions.nonEmpty &&
-            exec.aggregateExpressions.forall(
-              expression => {
-                expression.aggregateFunction match {
-                  case c: Count => c.children.size == 1 && c.children.head.equals(Literal(1))
-                  case _ => false
-                }
-              }) =>
-        true
-      case _ =>
-        false
+  private def mayNeedOffload(plan: SparkPlan): Boolean = {
+    def checkExpr(expr: Expression): Boolean = {
+      expr match {
+        // Block directly falling back the below functions by FallbackEmptySchemaRelation.
+        case alias: Alias => checkExpr(alias.child)
+        case _: Rand => true
+        case _ => false
+      }
     }
-  }
 
-  /**
-   * Check whether plan is Sum(1).
-   * @param plan:
-   *   The Spark plan to check.
-   * @return
-   *   Whether plan is an Aggregation of Sum(1).
-   */
-  private def isSum1(plan: SparkPlan): Boolean = {
     plan match {
-      case exec: HashAggregateExec
-          if exec.aggregateExpressions.nonEmpty &&
-            exec.aggregateExpressions.forall(
-              expression => {
-                expression.aggregateFunction match {
-                  case s: Sum => s.children.size == 1 && s.children.head.equals(Literal(1))
-                  case _ => false
-                }
-              }) =>
-        true
+      case exec: HashAggregateExec if exec.aggregateExpressions.nonEmpty =>
+        // Check Sum(1) or Count(1).
+        exec.aggregateExpressions.forall(
+          expression => {
+            val aggFunction = expression.aggregateFunction
+            aggFunction match {
+              case _: Sum | _: Count =>
+                aggFunction.children.size == 1 && aggFunction.children.head.equals(Literal(1))
+              case _ => false
+            }
+          })
+      case p: ProjectExec if p.projectList.nonEmpty =>
+        p.projectList.forall(checkExpr(_))
       case _ =>
         false
     }
@@ -273,7 +260,7 @@ object BackendSettings extends BackendSettingsApi {
   override def fallbackOnEmptySchema(plan: SparkPlan): Boolean = {
     // Count(1) and Sum(1) are special cases that Velox backend can handle.
     // Do not fallback it and its children in the first place.
-    !(isCount1(plan) || isSum1(plan))
+    !mayNeedOffload(plan)
   }
 
   override def fallbackAggregateWithChild(): Boolean = true
