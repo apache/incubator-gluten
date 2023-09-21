@@ -1298,8 +1298,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     spark.sql("create table test_3124 (id bigint, name string, sex string)")
     spark.sql("insert into test_3124  values (31, null, 'm'), (32, 'a,b,c', 'f')")
 
-    val sql = "select id,name_flag from test_3124 "
-    +"lateral view explode(split(name, ',')) as name_flag"
+    val sql = "select id, flag from test_3124 lateral view explode(split(name, ',')) as flag"
     runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
 
     spark.sql("drop table test_3124")
