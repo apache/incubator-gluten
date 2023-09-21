@@ -25,6 +25,10 @@
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
 
+#ifdef ENABLE_HDFS
+#include <mutex>
+#endif
+
 namespace gluten {
 
 class WholeStageResultIterator : public ColumnarBatchIterator {
@@ -71,6 +75,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
 
 #ifdef ENABLE_HDFS
   /// Set latest tokens to global HiveConnector
+  inline static std::mutex mutex;
   void updateHdfsTokens();
 #endif
 
