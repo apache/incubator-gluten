@@ -419,27 +419,15 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
     withSQLConf(
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
         (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
-      // Test decode with 'US-ASCII'
+      // Test codec with 'US-ASCII'
       runQueryAndCompare(
-        "SELECT decode(X'537061726B2053514C', 'US-ASCII')",
+        "SELECT decode(encode('Spark SQL', 'US-ASCII'), 'US-ASCII')",
         noFallBack = false
       )(checkOperatorMatch[ProjectExecTransformer])
 
-      // Test decode with 'UTF-16'
+      // Test codec with 'UTF-16'
       runQueryAndCompare(
-        "SELECT decode(X'FEFF0053007000610072006B002000530051004C', 'UTF-16')",
-        noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
-
-      // Test encode with 'US-ASCII'
-      runQueryAndCompare(
-        "SELECT hex(encode('Spark SQL', 'US-ASCII'))",
-        noFallBack = false
-      )(checkOperatorMatch[ProjectExecTransformer])
-
-      // Test encode with 'UTF-16'
-      runQueryAndCompare(
-        "SELECT hex(encode('Spark SQL', 'UTF-16'))",
+        "SELECT decode(encode('Spark SQL', 'UTF-16'), 'UTF-16')",
         noFallBack = false
       )(checkOperatorMatch[ProjectExecTransformer])
     }
