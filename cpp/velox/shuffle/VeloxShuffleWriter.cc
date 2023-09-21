@@ -802,6 +802,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     const auto& dstAddrs = partitionFixedWidthValueAddrs_[col];
 
     switch (arrow::bit_width(arrowColumnTypes_[colIdx]->id())) {
+      case 0: // arrow::NullType::type_id:
+        // No value buffer created for NullType.
+        break;
       case 1: // arrow::BooleanType::type_id:
         RETURN_NOT_OK(splitBoolType(srcAddr, dstAddrs));
         break;
@@ -1325,6 +1328,17 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         case arrow::MapType::type_id:
         case arrow::ListType::type_id:
           break;
+        case arrow::NullType::type_id: {
+          std::shared_ptr<arrow::Buffer> validityBuffer = nullptr;
+          ARROW_RETURN_NOT_OK(pool_->allocate(validityBuffer, arrow::bit_util::BytesForBits(newSize)));
+          // initialize all as false.
+          memset(validityBuffer->mutable_data(), 0, validityBuffer->capacity());
+          partitionValidityAddrs_[fixedWidthIdx][partitionId] = validityBuffer->mutable_data();
+          // No need to create valueBuffer for NullType.
+          partitionBuffers_[fixedWidthIdx][partitionId] = {std::move(validityBuffer), nullptr};
+          fixedWidthIdx++;
+          break;
+        }
         default: {
           std::shared_ptr<arrow::ResizableBuffer> validityBuffer{};
           std::shared_ptr<arrow::ResizableBuffer> valueBuffer{};
