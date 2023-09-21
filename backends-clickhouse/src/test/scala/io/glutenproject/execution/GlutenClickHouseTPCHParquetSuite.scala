@@ -2111,6 +2111,11 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     val join_select_sql_2 = "select a.id, b.cnt from" +
       "(select id from test_tbl_left_3134) as a " +
       "left join (select id, count(1) as cnt from test_tbl_right_3134 group by id) as b on a.id = b.id"
+    val join_select_sql_3 = "select a.id, b.cnt1, b.cnt2 from" +
+      "(select id as id from test_tbl_left_3134) as a " +
+      "left join (select id as id, 12 as cnt1, count(1) as cnt2 from test_tbl_right_3134 group by id) as b on a.id = b.id"
+    val agg_select_sql_4 =
+      "select id, 12 as cnt1, count(1) as cnt2 from test_tbl_left_3134 group by id"
 
     spark.sql(left_tbl_create_sql)
     spark.sql(right_tbl_create_sql)
@@ -2118,6 +2123,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     spark.sql(right_data_insert_sql)
     compareResultsAgainstVanillaSpark(join_select_sql_1, true, { _ => })
     compareResultsAgainstVanillaSpark(join_select_sql_2, true, { _ => })
+    compareResultsAgainstVanillaSpark(join_select_sql_3, true, { _ => })
+    compareResultsAgainstVanillaSpark(agg_select_sql_4, true, { _ => })
     spark.sql("drop table test_tbl_left_3134")
     spark.sql("drop table test_tbl_right_3134")
   }

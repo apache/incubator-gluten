@@ -140,20 +140,20 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       case hash: HashAggregateExec =>
         if (hash.aggregateExpressions.isEmpty) {
           true
-        } else
+        } else {
           outputPartitioning match {
             case hashPartitioning: HashPartitioning =>
               hashPartitioning.expressions.foreach(
                 x => {
                   if (!x.isInstanceOf[Cast]) {
-                    false
+                    return false
                   }
                 })
               true
             case _ =>
               false
           }
-
+        }
       case _ =>
         true
     }
