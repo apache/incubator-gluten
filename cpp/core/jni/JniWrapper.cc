@@ -785,7 +785,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrap
   auto executionCtx = jniCastOrThrow<ExecutionCtx>(ctxHandle);
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
 
-  int * tmp = env->GetIntArrayElements(jcolumnIndices, nullptr);
+  int* tmp = env->GetIntArrayElements(jcolumnIndices, nullptr);
   int size = env->GetArrayLength(jcolumnIndices);
   std::vector<int32_t> columnIndices;
   for (int32_t i = 0; i < size; i++) {

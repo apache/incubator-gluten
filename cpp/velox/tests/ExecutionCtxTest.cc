@@ -117,6 +117,9 @@ class DummyExecutionCtx final : public ExecutionCtx {
     return std::shared_ptr<ColumnarBatchSerializer>();
   }
   void releaseColumnarBatchSerializer(ResourceHandle handle) override {}
+  ResourceHandle select(MemoryManager*, ResourceHandle, std::vector<int32_t>) override {
+    return kInvalidResourceHandle;
+  }
 
  private:
   ResourceMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
