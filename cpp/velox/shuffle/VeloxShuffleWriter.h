@@ -122,7 +122,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       const ShuffleWriterOptions& options,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool);
 
-  arrow::Status split(std::shared_ptr<ColumnarBatch> cb) override;
+  arrow::Status split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) override;
 
   arrow::Status stop() override;
 
@@ -227,11 +227,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status updateInputHasNull(const facebook::velox::RowVector& rv);
 
-  arrow::Status doSplit(const facebook::velox::RowVector& rv);
+  arrow::Status doSplit(const facebook::velox::RowVector& rv, int64_t memLimit);
 
   bool beyondThreshold(uint32_t partitionId, uint64_t newSize);
 
-  uint32_t calculatePartitionBufferSize(const facebook::velox::RowVector& rv);
+  uint32_t calculatePartitionBufferSize(const facebook::velox::RowVector& rv, int64_t memLimit);
 
   arrow::Status updateValidityBuffers(uint32_t partitionId, uint32_t newSize);
 

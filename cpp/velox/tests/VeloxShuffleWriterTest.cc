@@ -44,7 +44,7 @@ namespace gluten {
 namespace {
 arrow::Status splitRowVectorStatus(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {
   std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
-  return shuffleWriter.split(cb);
+  return shuffleWriter.split(cb, ShuffleWriter::kMinMemLimit);
 }
 } // namespace
 
@@ -147,7 +147,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
 
   void splitRowVector(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {
     std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
-    GLUTEN_THROW_NOT_OK(shuffleWriter.split(cb));
+    GLUTEN_THROW_NOT_OK(shuffleWriter.split(cb, ShuffleWriter::kMinMemLimit));
   }
 
   RowVectorPtr takeRows(const RowVectorPtr& source, const std::vector<int32_t>& idxs) const {
@@ -243,7 +243,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       TypePtr dataType,
       std::vector<std::vector<velox::RowVectorPtr>> expectedVectors) { /* blockId = pid, rowVector in block */
     for (auto& batch : batches) {
-      GLUTEN_THROW_NOT_OK(shuffleWriter.split(batch));
+      GLUTEN_THROW_NOT_OK(shuffleWriter.split(batch, ShuffleWriter::kMinMemLimit));
     }
     shuffleWriteReadMultiBlocks(shuffleWriter, expectPartitionLength, dataType, expectedVectors);
   }

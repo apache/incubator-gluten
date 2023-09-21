@@ -569,8 +569,7 @@ std::shared_ptr<arrow::Buffer> VeloxShuffleWriter::generateComplexTypeBuffers(ve
   return valueBuffer;
 }
 
-arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
-  setSplitState(SplitState::kPreAlloc);
+arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) {
   if (options_.partitioning_name == "single") {
     auto veloxColumnBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
     VELOX_DCHECK_NOT_NULL(veloxColumnBatch);
@@ -607,7 +606,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
     auto rvBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(batches[1]);
     auto& rv = *rvBatch->getFlattenedRowVector();
     RETURN_NOT_OK(initFromRowVector(rv));
-    RETURN_NOT_OK(doSplit(rv));
+    RETURN_NOT_OK(doSplit(rv, memLimit));
   } else {
     auto veloxColumnBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
     VELOX_DCHECK_NOT_NULL(veloxColumnBatch);
@@ -622,13 +621,13 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb) {
       END_TIMING();
       auto strippedRv = getStrippedRowVector(*rv);
       RETURN_NOT_OK(initFromRowVector(*strippedRv));
-      RETURN_NOT_OK(doSplit(*strippedRv));
+      RETURN_NOT_OK(doSplit(*strippedRv, memLimit));
     } else {
       RETURN_NOT_OK(initFromRowVector(*rv));
       START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
       RETURN_NOT_OK(partitioner_->compute(nullptr, rv->size(), row2Partition_, partition2RowCount_));
       END_TIMING();
-      RETURN_NOT_OK(doSplit(*rv));
+      RETURN_NOT_OK(doSplit(*rv, memLimit));
     }
   }
   return arrow::Status::OK();
@@ -703,12 +702,12 @@ arrow::Status VeloxShuffleWriter::updateInputHasNull(const velox::RowVector& rv)
   return arrow::Status::OK();
 }
 
-arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv) {
+arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv, int64_t memLimit) {
   auto rowNum = rv.size();
   RETURN_NOT_OK(buildPartition2Row(rowNum));
   RETURN_NOT_OK(updateInputHasNull(rv));
   // buffer size based on offheap memory
-  auto empiricalBufferSize = calculatePartitionBufferSize(rv);
+  auto empiricalBufferSize = calculatePartitionBufferSize(rv, memLimit);
 
   START_TIMING(cpuWallTimingList_[CpuWallTimingIteratePartitions]);
   for (auto pid = 0; pid < numPartitions_; ++pid) {
@@ -1241,7 +1240,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     }
   }
 
-  uint32_t VeloxShuffleWriter::calculatePartitionBufferSize(const velox::RowVector& rv) {
+  uint32_t VeloxShuffleWriter::calculatePartitionBufferSize(const velox::RowVector& rv, int64_t memLimit) {
     uint32_t bytesPerRow = simpleColumnBytes_;
 
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingCalculateBufferSize]);
@@ -1267,9 +1266,19 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
     VS_PRINTLF(bytesPerRow);
 
-    uint64_t preAllocRowCnt = options_.offheap_per_task > 0 && bytesPerRow > 0
-        ? options_.offheap_per_task / bytesPerRow / numPartitions_ >> 2
-        : options_.buffer_size;
+    // remove the cache memory size since it can be spilled.
+    // The logic here is to keep the split buffer as large as possible, to get max batch size for reducer
+    // The risk is the cached buffer must be spilled once we evict a batch from split buffer
+    // we can't use pool_->bytes_allocated() here because it's arrow::default_pool(). we should define a
+    // pool for spill buffer, just like the pool for split buffer
+    // memLimit+=pool_->bytes_allocated();
+    memLimit += totalCachedPayloadSize();
+    // make sure split buffer uses 128M memory at least, let's hardcode it here for now
+    if (memLimit < kMinMemLimit)
+      memLimit = kMinMemLimit;
+
+    uint64_t preAllocRowCnt =
+        memLimit > 0 && bytesPerRow > 0 ? memLimit / bytesPerRow / numPartitions_ >> 2 : options_.buffer_size;
     preAllocRowCnt = std::min(preAllocRowCnt, (uint64_t)options_.buffer_size);
 
     VS_PRINTLF(preAllocRowCnt);
