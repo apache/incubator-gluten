@@ -184,7 +184,7 @@ velox::memory::IMemoryManager::Options VeloxMemoryManager::getOptions(
   velox::memory::IMemoryManager::Options mmOptions{
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
-      true, // leak check
+      false, // leak check
       false, // debug
       veloxAlloc,
       [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener_.get()); },
