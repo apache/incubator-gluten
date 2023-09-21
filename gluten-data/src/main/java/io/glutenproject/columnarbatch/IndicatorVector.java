@@ -16,6 +16,9 @@
  */
 package io.glutenproject.columnarbatch;
 
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionResource;
+
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.vectorized.ColumnVector;
@@ -25,35 +28,31 @@ import org.apache.spark.unsafe.types.UTF8String;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class IndicatorVector extends ColumnVector {
-  private final long executionCtxHandle;
+public class IndicatorVector extends ColumnVector implements ExecutionResource {
+  private final ExecutionCtx ctx;
   private final long batchHandle;
   private final AtomicLong refCnt = new AtomicLong(1L);
 
-  protected IndicatorVector(long executionCtxHandle, long batchHandle) {
+  protected IndicatorVector(ExecutionCtx ctx, long batchHandle) {
     super(DataTypes.NullType);
-    this.executionCtxHandle = executionCtxHandle;
+    this.ctx = ctx;
     this.batchHandle = batchHandle;
   }
 
-  public long getNativeHandle() {
-    return batchHandle;
-  }
-
-  public long getExecutionCtxHandle() {
-    return executionCtxHandle;
+  public ExecutionCtx ctx() {
+    return ctx;
   }
 
   public String getType() {
-    return ColumnarBatchJniWrapper.INSTANCE.getType(executionCtxHandle, batchHandle);
+    return ColumnarBatchJniWrapper.INSTANCE.getType(this);
   }
 
   public long getNumColumns() {
-    return ColumnarBatchJniWrapper.INSTANCE.numColumns(executionCtxHandle, batchHandle);
+    return ColumnarBatchJniWrapper.INSTANCE.numColumns(this);
   }
 
   public long getNumRows() {
-    return ColumnarBatchJniWrapper.INSTANCE.numRows(executionCtxHandle, batchHandle);
+    return ColumnarBatchJniWrapper.INSTANCE.numRows(this);
   }
 
   public long refCnt() {
@@ -71,7 +70,7 @@ public class IndicatorVector extends ColumnVector {
       return;
     }
     if (refCnt.decrementAndGet() == 0) {
-      ColumnarBatchJniWrapper.INSTANCE.close(executionCtxHandle, batchHandle);
+      ColumnarBatchJniWrapper.INSTANCE.close(this);
     }
   }
 
@@ -157,5 +156,15 @@ public class IndicatorVector extends ColumnVector {
   @Override
   public ColumnVector getChild(int ordinal) {
     throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
+  }
+
+  @Override
+  public long handle() {
+    return batchHandle;
   }
 }

@@ -148,8 +148,8 @@ object ExecUtil {
                 new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows))
               val newHandle = ColumnarBatches.compose(pidBatch, cb)
               // Composed batch already hold pidBatch's shared ref, so close is safe.
-              ColumnarBatches.close(pidBatch)
-              (0, ColumnarBatches.create(ColumnarBatches.getExecutionCtxHandle(cb), newHandle))
+              ColumnarBatches.forceClose(pidBatch)
+              (0, ColumnarBatches.create(ColumnarBatches.getExecutionCtx(cb), newHandle))
           }
       }
     }
@@ -239,7 +239,7 @@ case class CloseablePairedColumnarBatchIterator(iter: Iterator[(Int, ColumnarBat
     if (cur != null) {
       logDebug("Close appended partition id vector")
       cur match {
-        case (_, cb: ColumnarBatch) => ColumnarBatches.close(cb)
+        case (_, cb: ColumnarBatch) => ColumnarBatches.forceClose(cb)
       }
       cur = null
     }

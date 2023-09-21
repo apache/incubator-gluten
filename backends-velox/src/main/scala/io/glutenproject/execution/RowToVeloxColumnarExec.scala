@@ -91,7 +91,7 @@ object RowToVeloxColumnarExec {
     val arrowSchema =
       SparkArrowUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
     val jniWrapper = new NativeRowToColumnarJniWrapper()
-    val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
+    val ctx = ExecutionCtxs.contextInstance()
     val allocator = ArrowBufferAllocators.contextInstance()
     val cSchema = ArrowSchema.allocateNew(allocator)
     var closed = false
@@ -100,7 +100,7 @@ object RowToVeloxColumnarExec {
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         jniWrapper.init(
           cSchema.memoryAddress(),
-          executionCtxHandle,
+          ctx.getHandle,
           NativeMemoryManagers
             .contextInstance("RowToColumnar")
             .getNativeInstanceHandle)
@@ -110,7 +110,7 @@ object RowToVeloxColumnarExec {
 
     TaskResources.addRecycler(s"RowToColumnar_$r2cHandle", 100) {
       if (!closed) {
-        jniWrapper.close(executionCtxHandle, r2cHandle)
+        jniWrapper.close(ctx.getHandle, r2cHandle)
         closed = true
       }
     }
@@ -120,7 +120,7 @@ object RowToVeloxColumnarExec {
       override def hasNext: Boolean = {
         val itHasNext = it.hasNext
         if (!itHasNext && !closed) {
-          jniWrapper.close(executionCtxHandle, r2cHandle)
+          jniWrapper.close(ctx.getHandle, r2cHandle)
           closed = true
         }
         itHasNext
@@ -180,11 +180,11 @@ object RowToVeloxColumnarExec {
         try {
           val handle = jniWrapper
             .nativeConvertRowToColumnar(
-              executionCtxHandle,
+              ctx.getHandle,
               r2cHandle,
               rowLength.toArray,
               arrowBuf.memoryAddress())
-          ColumnarBatches.create(executionCtxHandle, handle)
+          ColumnarBatches.create(ctx, handle)
         } finally {
           arrowBuf.close()
           arrowBuf = null

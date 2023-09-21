@@ -18,6 +18,7 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
+import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.memory.nmm.NativeMemoryManagers;
 import io.glutenproject.substrait.expression.ExpressionBuilder;
@@ -65,7 +66,7 @@ public class NativePlanEvaluator {
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
       Plan wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
-    final long executionCtxHandle = ExecutionCtxs.contextInstance().getHandle();
+    final ExecutionCtx ctx = ExecutionCtxs.contextInstance();
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
     final long memoryManagerHandle =
         NativeMemoryManagers.create(
@@ -91,7 +92,7 @@ public class NativePlanEvaluator {
 
     long iterHandle =
         jniWrapper.nativeCreateKernelWithIterator(
-            executionCtxHandle,
+            ctx.getHandle(),
             memoryManagerHandle,
             getPlanBytesBuf(wsPlan),
             iterList.toArray(new GeneralInIterator[0]),
@@ -106,13 +107,13 @@ public class NativePlanEvaluator {
                         SQLConf.get().getAllConfs()))
                 .toProtobuf()
                 .toByteArray());
-    outIterator.set(createOutIterator(executionCtxHandle, iterHandle));
+    outIterator.set(createOutIterator(ctx, iterHandle));
     return outIterator.get();
   }
 
-  private ColumnarBatchOutIterator createOutIterator(long executionCtxHandle, long iterHandle)
+  private ColumnarBatchOutIterator createOutIterator(ExecutionCtx ctx, long iterHandle)
       throws IOException {
-    return new ColumnarBatchOutIterator(executionCtxHandle, iterHandle);
+    return new ColumnarBatchOutIterator(ctx, iterHandle);
   }
 
   private byte[] getPlanBytesBuf(Plan planNode) {

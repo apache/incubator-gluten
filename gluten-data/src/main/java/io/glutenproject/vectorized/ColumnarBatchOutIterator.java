@@ -17,6 +17,7 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.columnarbatch.ColumnarBatches;
+import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.metrics.IMetrics;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -24,12 +25,12 @@ import org.apache.spark.sql.vectorized.ColumnarBatch;
 import java.io.IOException;
 
 public class ColumnarBatchOutIterator extends GeneralOutIterator {
-  private final long executionCtxHandle;
+  private final ExecutionCtx ctx;
   private final long iterHandle;
 
-  public ColumnarBatchOutIterator(long executionCtxHandle, long iterHandle) throws IOException {
+  public ColumnarBatchOutIterator(ExecutionCtx ctx, long iterHandle) throws IOException {
     super();
-    this.executionCtxHandle = executionCtxHandle;
+    this.ctx = ctx;
     this.iterHandle = iterHandle;
   }
 
@@ -51,29 +52,29 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator {
 
   @Override
   public boolean hasNextInternal() throws IOException {
-    return nativeHasNext(executionCtxHandle, iterHandle);
+    return nativeHasNext(ctx.getHandle(), iterHandle);
   }
 
   @Override
   public ColumnarBatch nextInternal() throws IOException {
-    long batchHandle = nativeNext(executionCtxHandle, iterHandle);
+    long batchHandle = nativeNext(ctx.getHandle(), iterHandle);
     if (batchHandle == -1L) {
       return null; // stream ended
     }
-    return ColumnarBatches.create(executionCtxHandle, batchHandle);
+    return ColumnarBatches.create(ctx, batchHandle);
   }
 
   @Override
   public IMetrics getMetricsInternal() throws IOException, ClassNotFoundException {
-    return nativeFetchMetrics(executionCtxHandle, iterHandle);
+    return nativeFetchMetrics(ctx.getHandle(), iterHandle);
   }
 
   public long spill(long size) {
-    return nativeSpill(executionCtxHandle, iterHandle, size);
+    return nativeSpill(ctx.getHandle(), iterHandle, size);
   }
 
   @Override
   public void closeInternal() {
-    nativeClose(executionCtxHandle, iterHandle);
+    nativeClose(ctx.getHandle(), iterHandle);
   }
 }

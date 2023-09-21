@@ -48,8 +48,8 @@ case class ColumnarBuildSideRelation(
     new Iterator[ColumnarBatch] {
       var batchId = 0
       var closed = false
-      private var finalBatch = -1L
-      val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
+      private var finalBatch: ColumnarBatch = null
+      val ctx = ExecutionCtxs.contextInstance()
       val serializeHandle: Long = {
         val allocator = ArrowBufferAllocators.contextInstance()
         val cSchema = ArrowSchema.allocateNew(allocator)
@@ -59,7 +59,7 @@ case class ColumnarBuildSideRelation(
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ColumnarBatchSerializerJniWrapper.INSTANCE.init(
           cSchema.memoryAddress(),
-          executionCtxHandle,
+          ctx.getHandle,
           NativeMemoryManagers
             .contextInstance("BuildSideRelation#BatchSerializer")
             .getNativeInstanceHandle)
@@ -68,13 +68,15 @@ case class ColumnarBuildSideRelation(
       }
 
       TaskResources.addRecycler(s"BuildSideRelation_deserialized_$serializeHandle", 50) {
-        ColumnarBatchSerializerJniWrapper.INSTANCE.close(executionCtxHandle, serializeHandle)
+        ColumnarBatchSerializerJniWrapper.INSTANCE.close(ctx.getHandle, serializeHandle)
       }
 
       override def hasNext: Boolean = {
         val has = batchId < batches.length
         if (!has && !closed) {
-          ColumnarBatches.close(executionCtxHandle, finalBatch)
+          if (finalBatch != null) {
+            ColumnarBatches.forceClose(finalBatch)
+          }
           closed = true
         }
         has
@@ -83,14 +85,15 @@ case class ColumnarBuildSideRelation(
       override def next: ColumnarBatch = {
         val handle =
           ColumnarBatchSerializerJniWrapper.INSTANCE.deserialize(
-            executionCtxHandle,
+            ctx.getHandle,
             serializeHandle,
             batches(batchId))
-        if (batchId == batches.length - 1) {
-          finalBatch = handle
-        }
         batchId += 1
-        ColumnarBatches.create(executionCtxHandle, handle)
+        val batch = ColumnarBatches.create(ctx, handle)
+        if (batchId == batches.length) {
+          finalBatch = batch
+        }
+        batch
       }
     }
   }
@@ -153,7 +156,7 @@ case class ColumnarBuildSideRelation(
               executionCtx.getHandle,
               serializeHandle,
               batchBytes)
-          val batch = ColumnarBatches.create(executionCtx.getHandle, batchHandle)
+          val batch = ColumnarBatches.create(executionCtx, batchHandle)
           if (batch.numRows == 0) {
             batch.close()
             Iterator.empty
