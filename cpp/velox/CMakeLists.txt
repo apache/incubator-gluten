@@ -132,6 +132,10 @@ macro(ADD_VELOX_DEPENDENCIES)
 
   add_velox_dependency(parquet::reader::thrift "${VELOX_COMPONENTS_PATH}/dwio/parquet/thrift/libvelox_dwio_parquet_thrift.a")
 
+  add_velox_dependency(velox::arrow::parquet::writer "${VELOX_COMPONENTS_PATH}/dwio/parquet/writer/libvelox_dwio_arrow_parquet_writer.a")
+  add_velox_dependency(dwio::arrow::parquet::writer "${VELOX_COMPONENTS_PATH}/dwio/parquet/writer/arrow/libvelox_dwio_arrow_parquet_writer_lib.a")
+  add_velox_dependency(dwio::arrow::parquet::writer::util "${VELOX_COMPONENTS_PATH}/dwio/parquet/writer/arrow/util/libvelox_dwio_arrow_parquet_writer_util_lib.a")
+  add_velox_dependency(dwio::arrow::parquet::writer::thrift::lib "${VELOX_COMPONENTS_PATH}/dwio/parquet/writer/arrow/generated/libvelox_dwio_arrow_parquet_writer_thrift_lib.a")
   add_velox_dependency(dwio::common::compression "${VELOX_COMPONENTS_PATH}/dwio/common/compression/libvelox_dwio_common_compression.a")
   add_velox_dependency(dwio::common "${VELOX_COMPONENTS_PATH}/dwio/common/libvelox_dwio_common.a")
   add_velox_dependency(functions::prestosql::types "${VELOX_COMPONENTS_PATH}/functions/prestosql/types/libvelox_presto_types.a")
@@ -171,7 +175,6 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
   add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
   add_velox_dependency(velox::parquet::writer "${VELOX_COMPONENTS_PATH}/dwio/parquet/libvelox_dwio_parquet_writer.a")
-  add_velox_dependency(velox::arrow::parquet::writer "${VELOX_COMPONENTS_PATH}/dwio/parquet/writer/libvelox_dwio_arrow_parquet_writer.a")
   
   if(BUILD_TESTS)
     add_velox_dependency(vector::test::util "${VELOX_COMPONENTS_PATH}/vector/tests/utils/libvelox_vector_test_lib.a")
