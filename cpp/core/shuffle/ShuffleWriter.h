@@ -24,8 +24,10 @@
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/Evictable.h"
-#include "shuffle/options.h"
-#include "utils/compression.h"
+#include "shuffle/Options.h"
+#include "shuffle/Partitioner.h"
+#include "shuffle/Partitioning.h"
+#include "utils/Compression.h"
 
 namespace gluten {
 
@@ -168,8 +170,6 @@ class ShuffleWriter : public Evictable {
   virtual const uint64_t cachedPayloadSize() const = 0;
 
   class PartitionWriter;
-
-  class Partitioner;
 
   class PartitionWriterCreator;
 

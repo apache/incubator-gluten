@@ -17,19 +17,11 @@
 
 #pragma once
 
-#include "shuffle/Partitioner.h"
+#include <string>
 
 namespace gluten {
+enum Partitioning { kSingle, kRoundRobin, kHash, kRange };
 
-class HashPartitioner final : public Partitioner {
- public:
-  HashPartitioner(int32_t numPartitions) : Partitioner(numPartitions, true) {}
-
-  arrow::Status compute(
-      const int32_t* pidArr,
-      const int64_t numRows,
-      std::vector<uint16_t>& row2partition,
-      std::vector<uint32_t>& partition2RowCount) override;
-};
+Partitioning toPartitioning(std::string name);
 
 } // namespace gluten

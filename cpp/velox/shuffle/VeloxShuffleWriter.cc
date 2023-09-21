@@ -20,10 +20,11 @@
 #include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
+#include "shuffle/Partitioner.h"
 #include "utils/Common.h"
+#include "utils/Compression.h"
 #include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
-#include "utils/compression.h"
 #include "utils/macros.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/type/HugeInt.h"
@@ -374,7 +375,7 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
   oss << "Velox shuffle writer created,";
   oss << " partitionNum:" << numPartitions;
   oss << " partitionWriterCreator:" << typeid(*partitionWriterCreator.get()).name();
-  oss << " partitioning_name:" << options.partitioning_name;
+  oss << " partitioning:" << options.partitioning;
   oss << " buffer_size:" << options.buffer_size;
   oss << " compression_type:" << (int)options.compression_type;
   oss << " codec_backend:" << (int)options.codec_backend;
@@ -410,11 +411,11 @@ arrow::Status VeloxShuffleWriter::init() {
   VELOX_CHECK_NOT_NULL(options_.memory_pool);
 
   ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->make(this));
-  ARROW_ASSIGN_OR_RAISE(partitioner_, Partitioner::make(options_.partitioning_name, numPartitions_));
+  ARROW_ASSIGN_OR_RAISE(partitioner_, Partitioner::make(options_.partitioning, numPartitions_));
 
   // pre-allocated buffer size for each partition, unit is row count
   // when partitioner is SinglePart, partial variables don`t need init
-  if (options_.partitioning_name != "single") {
+  if (options_.partitioning != Partitioning::kSingle) {
     partition2RowCount_.resize(numPartitions_);
     partition2BufferSize_.resize(numPartitions_);
     partition2RowOffset_.resize(numPartitions_ + 1);
@@ -483,7 +484,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> VeloxShuffleWriter::generateComple
 }
 
 arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) {
-  if (options_.partitioning_name == "single") {
+  if (options_.partitioning == Partitioning::kSingle) {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_CHECK_NOT_NULL(veloxColumnBatch);
     auto& rv = *veloxColumnBatch->getFlattenedRowVector();
@@ -514,7 +515,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64
     ARROW_ASSIGN_OR_RAISE(auto rb, makeRecordBatch(rv.size(), buffers));
     ARROW_ASSIGN_OR_RAISE(auto payload, createPayload(*rb, false));
     RETURN_NOT_OK(evictPayload(0, std::move(payload)));
-  } else if (options_.partitioning_name == "range") {
+  } else if (options_.partitioning == Partitioning::kRange) {
     auto compositeBatch = std::dynamic_pointer_cast<CompositeColumnarBatch>(cb);
     VELOX_CHECK_NOT_NULL(compositeBatch);
     auto batches = compositeBatch->getBatches();
@@ -1707,7 +1708,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     // If OOM happens during stop(), the reclaim order is shrink->spill,
     // because the partition buffers will be freed soon.
     // SinglePartitioning doesn't maintain partition buffers.
-    return options_.partitioning_name != "single" && splitState_ == SplitState::kStop;
+    return options_.partitioning != Partitioning::kSingle && splitState_ == SplitState::kStop;
   }
 
   bool VeloxShuffleWriter::shrinkPartitionBuffersAfterSpill() const {
@@ -1715,14 +1716,14 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     // Or during SplitState::kInit, it is triggered by other operators.
     // The reclaim order is spill->shrink, because the partition buffers can be reused.
     // SinglePartitioning doesn't maintain partition buffers.
-    return options_.partitioning_name != "single" &&
+    return options_.partitioning != Partitioning::kSingle &&
         (splitState_ == SplitState::kSplit || splitState_ == SplitState::kInit);
   }
 
   bool VeloxShuffleWriter::evictPartitionBuffersAfterSpill() const {
     // If OOM triggered by other operators, the splitState_ is SplitState::kInit.
     // The last resort is to evict the partition buffers to reclaim more space.
-    return options_.partitioning_name != "single" && splitState_ == SplitState::kInit;
+    return options_.partitioning != Partitioning::kSingle && splitState_ == SplitState::kInit;
   }
 
   arrow::Result<uint32_t> VeloxShuffleWriter::partitionBufferSizeAfterShrink(uint32_t partitionId) const {

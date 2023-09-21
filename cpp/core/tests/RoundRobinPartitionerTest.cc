@@ -16,13 +16,13 @@
  */
 #include "shuffle/RoundRobinPartitioner.h"
 #include <gtest/gtest.h>
-#include <cstdlib>
 #include <numeric>
+
 namespace gluten {
 class RoundRobinPartitionerTest : public ::testing::Test {
  protected:
   void prepareData(int numPart) {
-    partitioner_ = ShuffleWriter::Partitioner::create<RoundRobinPartitioner>(numPart, false);
+    partitioner_ = std::make_shared<RoundRobinPartitioner>(numPart);
     row2Partition_.clear();
     partition2RowCount_.clear();
     partition2RowCount_.resize(numPart);

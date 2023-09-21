@@ -21,9 +21,9 @@
 
 namespace gluten {
 
-class RoundRobinPartitioner final : public ShuffleWriter::Partitioner {
+class RoundRobinPartitioner final : public Partitioner {
  public:
-  RoundRobinPartitioner(int32_t numPartitions, bool hasPid) : Partitioner(numPartitions, hasPid) {}
+  RoundRobinPartitioner(int32_t numPartitions) : Partitioner(numPartitions, false) {}
 
   arrow::Status compute(
       const int32_t* pidArr,

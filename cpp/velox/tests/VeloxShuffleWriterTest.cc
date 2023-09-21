@@ -408,7 +408,6 @@ TEST_F(VeloxShuffleWriterMemoryTest, memoryLeak) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LimitedMemoryPool>();
   shuffleWriterOptions_.memory_pool = pool.get();
   shuffleWriterOptions_.buffer_size = 4;
-  shuffleWriterOptions_.partitioning_name = "rr";
 
   auto shuffleWriter = createShuffleWriter();
 
@@ -427,7 +426,6 @@ TEST_F(VeloxShuffleWriterMemoryTest, spillFailWithOutOfMemory) {
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LimitedMemoryPool>(0);
   shuffleWriterOptions_.memory_pool = pool.get();
   shuffleWriterOptions_.buffer_size = 4;
-  shuffleWriterOptions_.partitioning_name = "rr";
 
   auto shuffleWriter = createShuffleWriter();
 
@@ -438,7 +436,6 @@ TEST_F(VeloxShuffleWriterMemoryTest, spillFailWithOutOfMemory) {
 }
 
 TEST_F(VeloxShuffleWriterMemoryTest, kInit) {
-  shuffleWriterOptions_.partitioning_name = "rr";
   shuffleWriterOptions_.buffer_size = 4;
   auto shuffleWriter = createShuffleWriter();
 
@@ -511,7 +508,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInit) {
 }
 
 TEST_F(VeloxShuffleWriterMemoryTest, kInitSingle) {
-  shuffleWriterOptions_.partitioning_name = "single";
+  shuffleWriterOptions_.partitioning = Partitioning::kSingle;
   shuffleWriterOptions_.buffer_size = 4;
   auto shuffleWriter = createShuffleWriter();
 
@@ -532,7 +529,6 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInitSingle) {
 }
 
 TEST_F(VeloxShuffleWriterMemoryTest, kSplit) {
-  shuffleWriterOptions_.partitioning_name = "rr";
   shuffleWriterOptions_.buffer_size = 4;
   auto pool = SelfEvictedMemoryPool(shuffleWriterOptions_.memory_pool);
   shuffleWriterOptions_.memory_pool = &pool;
@@ -555,7 +551,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kSplit) {
 }
 
 TEST_F(VeloxShuffleWriterMemoryTest, kSplitSingle) {
-  shuffleWriterOptions_.partitioning_name = "single";
+  shuffleWriterOptions_.partitioning = Partitioning::kSingle;
   auto pool = SelfEvictedMemoryPool(shuffleWriterOptions_.memory_pool);
   shuffleWriterOptions_.memory_pool = &pool;
   auto shuffleWriter = createShuffleWriter();
@@ -573,8 +569,8 @@ TEST_F(VeloxShuffleWriterMemoryTest, kSplitSingle) {
 
 TEST_F(VeloxShuffleWriterMemoryTest, kStop) {
   auto delegated = shuffleWriterOptions_.memory_pool;
-  for (const auto partitioning : {"single", "rr"}) {
-    shuffleWriterOptions_.partitioning_name = partitioning;
+  for (const auto partitioning : {Partitioning::kSingle, Partitioning::kRoundRobin}) {
+    shuffleWriterOptions_.partitioning = partitioning;
     shuffleWriterOptions_.buffer_size = 4;
     auto pool = SelfEvictedMemoryPool(delegated);
     shuffleWriterOptions_.memory_pool = &pool;
@@ -596,7 +592,6 @@ TEST_F(VeloxShuffleWriterMemoryTest, kStop) {
 
 TEST_F(VeloxShuffleWriterMemoryTest, kUnevictable) {
   auto delegated = shuffleWriterOptions_.memory_pool;
-  shuffleWriterOptions_.partitioning_name = "rr";
   shuffleWriterOptions_.buffer_size = 4;
   auto pool = SelfEvictedMemoryPool(delegated);
   shuffleWriterOptions_.memory_pool = &pool;
@@ -621,7 +616,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kUnevictable) {
 
 TEST_F(VeloxShuffleWriterMemoryTest, kUnevictableSingle) {
   auto delegated = shuffleWriterOptions_.memory_pool;
-  shuffleWriterOptions_.partitioning_name = "single";
+  shuffleWriterOptions_.partitioning = Partitioning::kSingle;
   auto pool = SelfEvictedMemoryPool(delegated);
   shuffleWriterOptions_.memory_pool = &pool;
   auto shuffleWriter = createShuffleWriter();

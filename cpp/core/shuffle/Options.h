@@ -18,7 +18,8 @@
 #pragma once
 
 #include <arrow/ipc/options.h>
-#include "utils/compression.h"
+#include "shuffle/Partitioning.h"
+#include "utils/Compression.h"
 
 namespace gluten {
 
@@ -52,14 +53,14 @@ struct ShuffleWriterOptions {
   bool buffered_write = kEnableBufferedWrite;
   bool write_eos = kWriteEos;
 
-  PartitionWriterType partition_writer_type = kLocal;
+  PartitionWriterType partition_writer_type = PartitionWriterType::kLocal;
+  Partitioning partitioning = Partitioning::kRoundRobin;
 
   int64_t thread_id = -1;
   int64_t task_attempt_id = -1;
 
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 
-  std::string partitioning_name{};
   std::string data_file{};
   std::string local_dirs{};
   arrow::MemoryPool* memory_pool{};

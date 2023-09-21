@@ -21,9 +21,9 @@
 
 namespace gluten {
 
-class FallbackRangePartitioner final : public ShuffleWriter::Partitioner {
+class FallbackRangePartitioner final : public Partitioner {
  public:
-  FallbackRangePartitioner(int32_t numPartitions, bool hasPid) : Partitioner(numPartitions, hasPid) {}
+  FallbackRangePartitioner(int32_t numPartitions) : Partitioner(numPartitions, true) {}
 
   arrow::Status compute(
       const int32_t* pidArr,

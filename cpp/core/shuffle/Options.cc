@@ -15,20 +15,12 @@
  * limitations under the License.
  */
 
-#pragma once
+#include "shuffle/Options.h"
 
-#include "shuffle/Partitioner.h"
+gluten::ShuffleReaderOptions gluten::ShuffleReaderOptions::defaults() {
+  return {};
+}
 
-namespace gluten {
-class SinglePartPartitioner final : public ShuffleWriter::Partitioner {
- public:
-  SinglePartPartitioner(int32_t numPartitions, bool hasPid) : Partitioner(numPartitions, hasPid) {}
-
-  arrow::Status compute(
-      const int32_t* pidArr,
-      const int64_t numRows,
-      std::vector<uint16_t>& row2partition,
-      std::vector<uint32_t>& partition2RowCount) override;
-};
-
-} // namespace gluten
+gluten::ShuffleWriterOptions gluten::ShuffleWriterOptions::defaults() {
+  return {};
+}

@@ -15,17 +15,31 @@
  * limitations under the License.
  */
 
-#include "shuffle/SinglePartPartitioner.h"
+#include "shuffle/Partitioning.h"
+#include "utils/exception.h"
+
+namespace {
+static const std::string kSinglePartitioningName = "single";
+static const std::string kRoundRobinPartitioningName = "rr";
+static const std::string kHashPartitioningName = "hash";
+static const std::string kRangePartitioningName = "range";
+} // namespace
 
 namespace gluten {
-
-arrow::Status gluten::SinglePartPartitioner::compute(
-    const int32_t* pidArr,
-    const int64_t numRows,
-    std::vector<uint16_t>& row2partition,
-    std::vector<uint32_t>& partition2RowCount) {
-  // nothing is need do here
-  return arrow::Status::OK();
+Partitioning toPartitioning(std::string name) {
+  if (name == kSinglePartitioningName) {
+    return Partitioning::kSingle;
+  }
+  if (name == kRoundRobinPartitioningName) {
+    return Partitioning::kRoundRobin;
+  }
+  if (name == kHashPartitioningName) {
+    return Partitioning::kHash;
+  }
+  if (name == kRangePartitioningName) {
+    return Partitioning::kRange;
+  }
+  throw GlutenException("Invalid partition name: " + name);
 }
 
 } // namespace gluten
