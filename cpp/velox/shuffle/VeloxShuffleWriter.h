@@ -235,7 +235,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   arrow::Result<std::shared_ptr<arrow::ResizableBuffer>>
   allocateValidityBuffer(uint32_t col, uint32_t partitionId, uint32_t newSize);
 
-  arrow::Status allocatePartitionBuffers(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
+  arrow::Status allocatePartitionBuffer(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
 
   arrow::Status allocatePartitionBuffersWithRetry(uint32_t partitionId, uint32_t newSize);
 
@@ -251,7 +251,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status splitComplexType(const facebook::velox::RowVector& rv);
 
-  arrow::Status preparePartitionBuffer(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
+  arrow::Status transferDataFromPartitionBuffer(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
 
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> createArrowRecordBatchFromBuffer(
       uint32_t partitionId,
