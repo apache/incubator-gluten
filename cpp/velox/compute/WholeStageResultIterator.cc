@@ -367,6 +367,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 
 #ifdef ENABLE_HDFS
 void WholeStageResultIterator::updateHdfsTokens() {
+  std::lock_guard lock{mutex};
   const auto& username = confMap_[kUGIUserName];
   const auto& allTokens = confMap_[kUGITokens];
 
