@@ -1720,7 +1720,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     return payloadPool_->bytes_allocated();
   }
 
-  arrow::Status VeloxShuffleWriter::transferDataFromPartitionBuffer(uint32_t partitionId, uint32_t newSize, bool reuseBuffers) {
+  arrow::Status VeloxShuffleWriter::transferDataFromPartitionBuffer(
+      uint32_t partitionId, uint32_t newSize, bool reuseBuffers) {
     ARROW_ASSIGN_OR_RAISE(auto payload, createPayloadFromBuffer(partitionId, reuseBuffers));
     if (payload) {
       RETURN_NOT_OK(evictPayload(partitionId, std::move(payload)));
