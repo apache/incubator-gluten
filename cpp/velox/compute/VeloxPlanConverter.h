@@ -44,6 +44,8 @@ class VeloxPlanConverter {
 
   void setInputPlanNode(const ::substrait::ExpandRel& sExpand);
 
+  void setInputPlanNode(const ::substrait::GenerateRel& sGenerate);
+
   void setInputPlanNode(const ::substrait::SortRel& sSort);
 
   void setInputPlanNode(const ::substrait::WindowRel& s);
