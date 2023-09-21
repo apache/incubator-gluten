@@ -81,9 +81,8 @@ public:
 
     static size_t getNumberOfIndexArguments(const DB::ColumnsWithTypeAndName & arguments) { return arguments.size() - 1; }
 
-    bool insertResultToColumn(DB::IColumn & dest, const Element & root, DB::ASTPtr & query_ptr, const DB::ContextPtr &)
+    bool insertResultToColumn(DB::IColumn & dest, const Element & root, DB::GeneratorJSONPath<JSONParser> & generator_json_path, const DB::ContextPtr &)
     {
-        DB::GeneratorJSONPath<JSONParser> generator_json_path(query_ptr);
         Element current_element = root;
         DB::VisitorStatus status;
         std::stringstream out; // STYLE_CHECK_ALLOW_STD_STRING_STREAM
@@ -281,7 +280,8 @@ private:
             {
                 for (size_t j = 0; j < tuple_size; ++j)
                 {
-                    if(!impl.insertResultToColumn(*tuple_columns[j], document, json_path_asts[j], context))
+                    DB::GeneratorJSONPath<JSONParser> generator_json_path(json_path_asts[j]);
+                    if(!impl.insertResultToColumn(*tuple_columns[j], document, generator_json_path, context))
                     {
                         tuple_columns[j]->insertDefault();
                     }
