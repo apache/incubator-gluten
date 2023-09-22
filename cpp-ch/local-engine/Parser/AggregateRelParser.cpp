@@ -232,8 +232,9 @@ void AggregateRelParser::addAggregatingStep()
         true,
         3,
         settings.max_block_size,
-        false,
-        false);
+        /*enable_prefetch*/ false,
+        /*only_merge*/ false,
+        settings.optimize_group_by_constant_keys);
 
     auto aggregating_step = std::make_unique<AggregatingStep>(
         plan->getCurrentDataStream(),

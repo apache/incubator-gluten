@@ -28,4 +28,15 @@ inline std::unique_ptr<re2::RE2> compilePattern(const std::string& pattern);
 
 bool validatePattern(const std::string& pattern, std::string& error);
 
+#define START_TIMING(timing) \
+  {                          \
+    auto ptiming = &timing;  \
+    facebook::velox::DeltaCpuWallTimer timer{[ptiming](const CpuWallTiming& delta) { ptiming->add(delta); }};
+
+#define END_TIMING() }
+
+#define SCOPED_TIMER(timing) \
+  auto ptiming = &timing;    \
+  facebook::velox::DeltaCpuWallTimer timer{[ptiming](const CpuWallTiming& delta) { ptiming->add(delta); }};
+
 } // namespace gluten

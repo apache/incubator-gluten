@@ -20,6 +20,7 @@
 #include "shuffle/Partitioner.h"
 
 namespace gluten {
+
 class FallbackRangePartitioner final : public ShuffleWriter::Partitioner {
  public:
   FallbackRangePartitioner(int32_t numPartitions, bool hasPid) : Partitioner(numPartitions, hasPid) {}

@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.datasources.velox
 
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.exception.GlutenException
+import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
@@ -50,15 +51,17 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     val arrowSchema =
       SparkArrowUtil.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
     val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
-    var instanceId = -1L
+    var dsHandle = -1L
     val datasourceJniWrapper = new DatasourceJniWrapper()
     val allocator = ArrowBufferAllocators.contextInstance()
+    val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
     try {
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-      instanceId = datasourceJniWrapper.nativeInitDatasource(
+      dsHandle = datasourceJniWrapper.nativeInitDatasource(
         originPath,
         cSchema.memoryAddress(),
-        NativeMemoryManagers.contextInstance("VeloxWriter").getNativeInstanceId,
+        executionCtxHandle,
+        NativeMemoryManagers.contextInstance("VeloxWriter").getNativeInstanceHandle,
         nativeConf)
     } catch {
       case e: IOException =>
@@ -68,7 +71,13 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     }
 
     val writeQueue =
-      new VeloxWriteQueue(instanceId, arrowSchema, allocator, datasourceJniWrapper, originPath)
+      new VeloxWriteQueue(
+        executionCtxHandle,
+        dsHandle,
+        arrowSchema,
+        allocator,
+        datasourceJniWrapper,
+        originPath)
 
     new OutputWriter {
       override def write(row: InternalRow): Unit = {
@@ -80,7 +89,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
       override def close(): Unit = {
         writeQueue.close()
-        datasourceJniWrapper.close(instanceId)
+        datasourceJniWrapper.close(executionCtxHandle, dsHandle)
       }
 
       // Do NOT add override keyword for compatibility on spark 3.1.

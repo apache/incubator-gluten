@@ -208,6 +208,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"posexplode", "arrayJoin"},
 
        // json functions
+       {"flattenJSONStringOnRequired", "flattenJSONStringOnRequired"},
        {"get_json_object", "get_json_object"},
        {"to_json", "toJSONString"},
        {"from_json", "JSONExtract"},
@@ -261,6 +262,7 @@ class SerializedPlanParser
 {
 private:
     friend class RelParser;
+    friend class RelRewriter;
     friend class ASTParser;
     friend class FunctionParser;
     friend class AggregateFunctionParser;
@@ -293,6 +295,8 @@ public:
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
+
+    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
 
     static ContextMutablePtr global_context;
     static Context::ConfigurationPtr config;
@@ -357,7 +361,6 @@ private:
     static std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal);
     void wrapNullable(
         const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
-    IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
 
     int name_no = 0;

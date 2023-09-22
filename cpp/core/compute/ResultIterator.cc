@@ -20,7 +20,7 @@
 
 namespace gluten {
 
-std::shared_ptr<Metrics> ResultIterator::getMetrics() {
+Metrics* ResultIterator::getMetrics() {
   if (executionCtx_) {
     return executionCtx_->getMetrics(getInputIter(), exportNanos_);
   }

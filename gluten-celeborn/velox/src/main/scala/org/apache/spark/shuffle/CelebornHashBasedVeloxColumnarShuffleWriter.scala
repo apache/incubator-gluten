@@ -18,13 +18,14 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.memory.memtarget.spark.Spiller
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
+import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -35,7 +36,7 @@ import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
 
-class CelebornHashBasedColumnarShuffleWriter[K, V](
+class CelebornHashBasedVeloxColumnarShuffleWriter[K, V](
     handle: CelebornShuffleHandle[K, V, V],
     context: TaskContext,
     celebornConf: CelebornConf,
@@ -79,6 +80,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
   private var stopping = false
   private var mapStatus: MapStatus = _
   private var nativeShuffleWriter: Long = -1L
+  private lazy val executionCtxHandle: Long = ExecutionCtxs.contextInstance().getHandle
 
   private var splitResult: SplitResult = _
 
@@ -90,11 +92,8 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
   }
 
   private def availableOffHeapPerTask(): Long = {
-    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = SparkResourceUtil.getExecutorCores(conf)
-    val taskCores = conf.getInt("spark.task.cpus", 1)
     val perTask =
-      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
+      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
     perTask
   }
 
@@ -116,18 +115,18 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
         if (nativeShuffleWriter == -1L) {
           nativeShuffleWriter = jniWrapper.makeForRSS(
             dep.nativePartitioning,
-            availableOffHeapPerTask(),
             nativeBufferSize,
             customizedCompressionCodec,
             bufferCompressThreshold,
             GlutenConfig.getConf.columnarShuffleCompressionMode,
             celebornConf.clientPushBufferMaxSize,
             celebornPartitionPusher,
+            executionCtxHandle,
             NativeMemoryManagers
               .create(
                 "CelebornShuffleWriter",
                 new Spiller() {
-                  override def spill(size: Long, trigger: MemoryConsumer): Long = {
+                  override def spill(size: Long): Long = {
                     if (nativeShuffleWriter == -1L) {
                       throw new IllegalStateException(
                         "Fatal: spill() called before a celeborn shuffle writer " +
@@ -137,20 +136,28 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
                     }
                     logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
                     // fixme pass true when being called by self
-                    val pushed = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+                    val pushed =
+                      jniWrapper.nativeEvict(executionCtxHandle, nativeShuffleWriter, size, false)
                     logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
                     pushed
                   }
                 }
               )
-              .getNativeInstanceId,
+              .getNativeInstanceHandle,
             handle,
             context.taskAttemptId(),
-            "celeborn"
+            "celeborn",
+            GlutenConfig.getConf.columnarShuffleReallocThreshold
           )
         }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(nativeShuffleWriter, cb.numRows, handle)
+        val bytes =
+          jniWrapper.split(
+            executionCtxHandle,
+            nativeShuffleWriter,
+            cb.numRows,
+            handle,
+            availableOffHeapPerTask())
         dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
@@ -162,7 +169,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
 
     val startTime = System.nanoTime()
     if (nativeShuffleWriter != -1L) {
-      splitResult = jniWrapper.stop(nativeShuffleWriter)
+      splitResult = jniWrapper.stop(executionCtxHandle, nativeShuffleWriter)
     }
 
     dep
@@ -205,7 +212,7 @@ class CelebornHashBasedColumnarShuffleWriter[K, V](
   }
 
   def closeShuffleWriter(): Unit = {
-    jniWrapper.close(nativeShuffleWriter)
+    jniWrapper.close(executionCtxHandle, nativeShuffleWriter)
   }
 
   def getPartitionLengths: Array[Long] = partitionLengths

@@ -26,28 +26,34 @@ import org.apache.spark.unsafe.types.UTF8String;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class IndicatorVector extends ColumnVector {
-  private final long nativeHandle;
+  private final long executionCtxHandle;
+  private final long batchHandle;
   private final AtomicLong refCnt = new AtomicLong(1L);
 
-  protected IndicatorVector(long nativeHandle) {
+  protected IndicatorVector(long executionCtxHandle, long batchHandle) {
     super(DataTypes.NullType);
-    this.nativeHandle = nativeHandle;
+    this.executionCtxHandle = executionCtxHandle;
+    this.batchHandle = batchHandle;
   }
 
   public long getNativeHandle() {
-    return nativeHandle;
+    return batchHandle;
+  }
+
+  public long getExecutionCtxHandle() {
+    return executionCtxHandle;
   }
 
   public String getType() {
-    return ColumnarBatchJniWrapper.INSTANCE.getType(nativeHandle);
+    return ColumnarBatchJniWrapper.INSTANCE.getType(executionCtxHandle, batchHandle);
   }
 
   public long getNumColumns() {
-    return ColumnarBatchJniWrapper.INSTANCE.numColumns(nativeHandle);
+    return ColumnarBatchJniWrapper.INSTANCE.numColumns(executionCtxHandle, batchHandle);
   }
 
   public long getNumRows() {
-    return ColumnarBatchJniWrapper.INSTANCE.numRows(nativeHandle);
+    return ColumnarBatchJniWrapper.INSTANCE.numRows(executionCtxHandle, batchHandle);
   }
 
   public long refCnt() {
@@ -65,7 +71,7 @@ public class IndicatorVector extends ColumnVector {
       return;
     }
     if (refCnt.decrementAndGet() == 0) {
-      ColumnarBatchJniWrapper.INSTANCE.close(nativeHandle);
+      ColumnarBatchJniWrapper.INSTANCE.close(executionCtxHandle, batchHandle);
     }
   }
 

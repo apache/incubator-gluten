@@ -16,7 +16,6 @@
  */
 
 #include <jni.h>
-#include "arrow/c/bridge.h"
 
 #include <glog/logging.h>
 #include <jni/JniCommon.h>
@@ -36,9 +35,8 @@ using namespace facebook;
 
 namespace {
 
-std::shared_ptr<gluten::ExecutionCtx> veloxExecutionCtxFactory(
-    const std::unordered_map<std::string, std::string>& sparkConfs) {
-  return std::make_shared<gluten::VeloxExecutionCtx>(sparkConfs);
+gluten::ExecutionCtx* veloxExecutionCtxFactory(const std::unordered_map<std::string, std::string>& sparkConfs) {
+  return new gluten::VeloxExecutionCtx(sparkConfs);
 }
 
 } // namespace

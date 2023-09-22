@@ -572,6 +572,7 @@ private:
             region_name,
             context->getRemoteHostFilter(),
             static_cast<unsigned>(context->getSettingsRef().s3_max_redirects),
+            static_cast<unsigned>(context->getSettingsRef().s3_retry_attempts),
             false,
             false,
             nullptr,

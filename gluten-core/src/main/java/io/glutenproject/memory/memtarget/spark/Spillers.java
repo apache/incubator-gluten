@@ -23,13 +23,35 @@ public final class Spillers {
 
   // calls the spillers one by one within the order
   public static Spiller withOrder(Spiller... spillers) {
-    return (size, trigger) -> {
+    return (size) -> {
       long remaining = size;
       for (int i = 0; i < spillers.length && remaining > 0; i++) {
         Spiller spiller = spillers[i];
-        remaining -= spiller.spill(remaining, trigger);
+        remaining -= spiller.spill(remaining);
       }
       return size - remaining;
     };
+  }
+
+  public static Spiller withMinSpillSize(Spiller spiller, long minSize) {
+    return new WithMinSpillSize(spiller, minSize);
+  }
+
+  // Minimum spill target size should be larger than spark.gluten.memory.reservationBlockSize,
+  // since any release action within size smaller than the block size may not have chance to
+  // report back to the Java-side reservation listener.
+  private static class WithMinSpillSize implements Spiller {
+    private final Spiller delegated;
+    private final long minSize;
+
+    private WithMinSpillSize(Spiller delegated, long minSize) {
+      this.delegated = delegated;
+      this.minSize = minSize;
+    }
+
+    @Override
+    public long spill(long size) {
+      return delegated.spill(Math.max(size, minSize));
+    }
   }
 }

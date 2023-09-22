@@ -35,7 +35,7 @@ const std::string getFilePath(const std::string& fileName) {
 // Used by unit test and benchmark.
 std::shared_ptr<ResultIterator> getResultIterator(
     std::shared_ptr<velox::memory::MemoryPool> veloxPool,
-    std::shared_ptr<ExecutionCtx> executionCtx,
+    ExecutionCtx* executionCtx,
     const std::vector<std::shared_ptr<SplitInfo>>& setScanInfos,
     std::shared_ptr<const facebook::velox::core::PlanNode>& veloxPlan) {
   auto ctxPool = veloxPool->addAggregateChild(
@@ -65,7 +65,9 @@ std::shared_ptr<ResultIterator> getResultIterator(
       "/tmp/test-spill",
       executionCtx->getConfMap(),
       executionCtx->getSparkTaskInfo());
-  return std::make_shared<ResultIterator>(std::move(wholestageIter), executionCtx);
+  auto iter = std::make_shared<ResultIterator>(std::move(wholestageIter), executionCtx);
+  auto handle = executionCtx->addResultIterator(iter);
+  return executionCtx->getResultIterator(handle);
 }
 
 auto BM = [](::benchmark::State& state,
@@ -76,6 +78,7 @@ auto BM = [](::benchmark::State& state,
   auto plan = getPlanFromFile(filePath);
 
   auto memoryManager = getDefaultMemoryManager();
+  auto executionCtx = gluten::createExecutionCtx();
   auto veloxPool = memoryManager->getAggregateMemoryPool();
 
   std::vector<std::shared_ptr<SplitInfo>> scanInfos;
@@ -90,7 +93,6 @@ auto BM = [](::benchmark::State& state,
 
   for (auto _ : state) {
     state.PauseTiming();
-    auto executionCtx = std::dynamic_pointer_cast<gluten::VeloxExecutionCtx>(gluten::createExecutionCtx());
     state.ResumeTiming();
 
     executionCtx->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
@@ -107,6 +109,7 @@ auto BM = [](::benchmark::State& state,
       std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
     }
   }
+  gluten::releaseExecutionCtx(executionCtx);
 };
 
 #define orc_reader_decimal 1

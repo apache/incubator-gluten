@@ -16,12 +16,13 @@
  */
 package org.apache.spark.memory
 
-import io.glutenproject.memory.memtarget.MemoryTarget
+import io.glutenproject.memory.memtarget.spark.TaskMemoryTarget
 import io.glutenproject.proto.MemoryUsageStats
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.util.Utils
 
+import com.google.common.base.Preconditions
 import org.apache.commons.lang3.StringUtils
 
 import java.util
@@ -37,8 +38,11 @@ object SparkMemoryUtil {
 
   private val tmmClazz = classOf[TaskMemoryManager]
   private val consumersField = tmmClazz.getDeclaredField("consumers")
+  private val taskIdField = tmmClazz.getDeclaredField("taskAttemptId")
   consumersField.setAccessible(true)
+  taskIdField.setAccessible(true)
 
+  // We assume storage memory can be fully transferred to execution memory so far
   def getCurrentAvailableOffHeapMemory: Long = {
     val mm = SparkEnv.get.memoryManager
     val smp = smpField.get(mm).asInstanceOf[StorageMemoryPool]
@@ -54,36 +58,52 @@ object SparkMemoryUtil {
     val stats = tmm.synchronized {
       val consumers = consumersField.get(tmm).asInstanceOf[util.HashSet[MemoryConsumer]]
 
-      def toMemoryConsumerStats(name: String, mus: MemoryUsageStats): MemoryConsumerStats = {
-        MemoryConsumerStats(
-          name,
-          Some(mus.getCurrent),
-          Some(mus.getPeak),
-          sortStats(
-            mus.getChildrenMap
-              .entrySet()
-              .asScala
-              .toList
-              .map(entry => toMemoryConsumerStats(entry.getKey, entry.getValue)))
-        )
-      }
-
-      consumers.asScala.toSeq.map {
-        case mt: MemoryTarget =>
-          val name = mt.name + "@" + Integer.toHexString(System.identityHashCode(mt));
-          toMemoryConsumerStats(name, mt.stats())
+      // create stats map
+      val statsMap = new util.HashMap[String, MemoryUsageStats]()
+      consumers.asScala.foreach {
+        case mt: TaskMemoryTarget =>
+          statsMap.put(mt.name(), mt.stats())
         case mc =>
-          val name = mc.toString
-          val used = Some(mc.getUsed)
-          val peak = None
-          MemoryConsumerStats(name, used, peak, Seq.empty)
+          statsMap.put(
+            mc.toString,
+            MemoryUsageStats
+              .newBuilder()
+              .setCurrent(mc.getUsed)
+              .setPeak(-1L)
+              .build())
       }
+      Preconditions.checkState(statsMap.size() == consumers.size())
+
+      // add root
+      MemoryUsageStats
+        .newBuilder()
+        .setCurrent(tmm.getMemoryConsumptionForThisTask)
+        .setPeak(-1L)
+        .putAllChildren(statsMap)
+        .build()
     }
 
-    prettyPrintToString(sortStats(stats))
+    def toMemoryConsumerStats(name: String, mus: MemoryUsageStats): MemoryConsumerStats = {
+      MemoryConsumerStats(
+        name,
+        Some(mus.getCurrent),
+        mus.getPeak match {
+          case -1L => None
+          case v => Some(v)
+        },
+        sortStats(
+          mus.getChildrenMap
+            .entrySet()
+            .asScala
+            .toList
+            .map(entry => toMemoryConsumerStats(entry.getKey, entry.getValue)))
+      )
+    }
+
+    prettyPrintToString(toMemoryConsumerStats(s"Task.${taskIdField.get(tmm)}", stats))
   }
 
-  private def prettyPrintToString(stats: Iterable[MemoryConsumerStats]): String = {
+  private def prettyPrintToString(stats: MemoryConsumerStats): String = {
 
     def getBytes(bytes: Option[Long]): String = {
       bytes.map(Utils.bytesToString).getOrElse("N/A")
@@ -100,17 +120,11 @@ object SparkMemoryUtil {
     var nameWidth = 0
     var usedWidth = 0
     var peakWidth = 0
-    def addPaddingSingleLevel(stats: Iterable[MemoryConsumerStats], extraWidth: Integer): Unit = {
-      if (stats.isEmpty) {
-        return
-      }
-      stats.foreach {
-        stats =>
-          nameWidth = Math.max(nameWidth, getFullName(stats.name, "").length + extraWidth)
-          usedWidth = Math.max(usedWidth, getBytes(stats.used).length)
-          peakWidth = Math.max(peakWidth, getBytes(stats.peak).length)
-          addPaddingSingleLevel(stats.children, extraWidth + 3) // e.g. "\- "
-      }
+    def addPaddingSingleLevel(stats: MemoryConsumerStats, extraWidth: Integer): Unit = {
+      nameWidth = Math.max(nameWidth, getFullName(stats.name, "").length + extraWidth)
+      usedWidth = Math.max(usedWidth, getBytes(stats.used).length)
+      peakWidth = Math.max(peakWidth, getBytes(stats.peak).length)
+      stats.children.foreach(addPaddingSingleLevel(_, extraWidth + 3)) // e.g. "\- "
     }
     addPaddingSingleLevel(stats, 1) // take the leading '\t' into account
 
@@ -140,13 +154,11 @@ object SparkMemoryUtil {
       }
     }
 
-    for (each <- stats) {
-      printSingleLevel(
-        each,
-        "\t",
-        "\t"
-      ) // top level is indented with one tab (align with exception stack trace)
-    }
+    printSingleLevel(
+      stats,
+      "\t",
+      "\t"
+    ) // top level is indented with one tab (align with exception stack trace)
 
     // return
     sb.toString()

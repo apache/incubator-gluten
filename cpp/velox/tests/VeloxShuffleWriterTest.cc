@@ -40,6 +40,14 @@ using namespace arrow;
 using namespace arrow::ipc;
 
 namespace gluten {
+
+namespace {
+arrow::Status splitRowVectorStatus(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {
+  std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
+  return shuffleWriter.split(cb, ShuffleWriter::kMinMemLimit);
+}
+} // namespace
+
 struct ShuffleTestParams {
   bool prefer_evict;
   arrow::Compression::type compression_type;
@@ -65,7 +73,6 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
     shuffleWriterOptions_.buffer_compress_threshold = 0;
     shuffleWriterOptions_.memory_pool = arrowPool_;
-    shuffleWriterOptions_.ipc_memory_pool = shuffleWriterOptions_.memory_pool;
 
     ShuffleTestParams params = GetParam();
     shuffleWriterOptions_.prefer_evict = params.prefer_evict;
@@ -139,7 +146,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
 
   void splitRowVector(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {
     std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
-    GLUTEN_THROW_NOT_OK(shuffleWriter.split(cb));
+    GLUTEN_THROW_NOT_OK(shuffleWriter.split(cb, ShuffleWriter::kMinMemLimit));
   }
 
   RowVectorPtr takeRows(const RowVectorPtr& source, const std::vector<int32_t>& idxs) const {
@@ -208,18 +215,22 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     const auto& lengths = shuffleWriter.partitionLengths();
     ASSERT_EQ(lengths.size(), expectPartitionLength);
     int64_t lengthSum = std::accumulate(lengths.begin(), lengths.end(), 0);
-    auto schema = getArrowSchema(expectedVectors[0][0]);
+    auto schema = toArrowSchema(dataType, pool());
     setReadableFile(shuffleWriter.dataFile());
     ASSERT_EQ(*file_->GetSize(), lengthSum);
     for (int32_t i = 0; i < expectPartitionLength; i++) {
-      std::vector<velox::RowVectorPtr> deserializedVectors;
-      getRowVectors(schema, deserializedVectors);
-      if (i != 0) {
-        ASSERT_NOT_OK(file_->Advance(lengths[i - 1]));
-      }
-      ASSERT_EQ(expectedVectors[i].size(), deserializedVectors.size());
-      for (int32_t j = 0; j < expectedVectors[i].size(); j++) {
-        velox::test::assertEqualVectors(expectedVectors[i][j], deserializedVectors[j]);
+      if (expectedVectors[i].size() == 0) {
+        ASSERT_EQ(lengths[i], 0);
+      } else {
+        std::vector<velox::RowVectorPtr> deserializedVectors;
+        getRowVectors(schema, deserializedVectors);
+        if (i != 0) {
+          ASSERT_NOT_OK(file_->Advance(lengths[i - 1]));
+        }
+        ASSERT_EQ(expectedVectors[i].size(), deserializedVectors.size());
+        for (int32_t j = 0; j < expectedVectors[i].size(); j++) {
+          velox::test::assertEqualVectors(expectedVectors[i][j], deserializedVectors[j]);
+        }
       }
     }
   }
@@ -231,7 +242,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       TypePtr dataType,
       std::vector<std::vector<velox::RowVectorPtr>> expectedVectors) { /* blockId = pid, rowVector in block */
     for (auto& batch : batches) {
-      GLUTEN_THROW_NOT_OK(shuffleWriter.split(batch));
+      GLUTEN_THROW_NOT_OK(shuffleWriter.split(batch, ShuffleWriter::kMinMemLimit));
     }
     shuffleWriteReadMultiBlocks(shuffleWriter, expectPartitionLength, dataType, expectedVectors);
   }
@@ -248,6 +259,21 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     shuffleWriteReadMultiBlocks(shuffleWriter, expectPartitionLength, dataType, expectedVectors);
   }
 
+  int64_t splitRowVectorAndSpill(std::vector<velox::RowVectorPtr> vectors, bool shrink) {
+    for (auto vector : vectors) {
+      ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, vector));
+    }
+
+    auto targetEvicted = shuffleWriter_->cachedPayloadSize();
+    if (shrink) {
+      targetEvicted += shuffleWriter_->partitionBufferSize();
+    }
+    int64_t evicted;
+    ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(targetEvicted, &evicted));
+
+    return evicted;
+  };
+
   std::shared_ptr<arrow::internal::TemporaryDir> tmpDir1_;
   std::shared_ptr<arrow::internal::TemporaryDir> tmpDir2_;
 
@@ -262,14 +288,10 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
   velox::RowVectorPtr inputVector2_;
   velox::RowVectorPtr hashInputVector1_;
   velox::RowVectorPtr hashInputVector2_;
+  std::vector<uint32_t> hashPartitionIds_{1, 2};
 
   std::shared_ptr<arrow::MemoryPool> arrowPool_ = defaultArrowMemoryPool();
 };
-
-arrow::Status splitRowVectorStatus(VeloxShuffleWriter& shuffleWriter, velox::RowVectorPtr vector) {
-  std::shared_ptr<ColumnarBatch> cb = std::make_shared<VeloxColumnarBatch>(vector);
-  return shuffleWriter.split(cb);
-}
 
 TEST_P(VeloxShuffleWriterTest, singlePart1Vector) {
   shuffleWriterOptions_.buffer_size = 10;
@@ -604,14 +626,31 @@ TEST_P(VeloxShuffleWriterTest, TestSpillLargestPartition) {
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
-TEST_P(VeloxShuffleWriterTest, TestStopShrinkAndSpill) {
-  std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>(9 * 1024 * 1024);
-  //  pool = std::make_shared<arrow::LoggingMemoryPool>(pool.get());
-
+TEST_P(VeloxShuffleWriterTest, TestSplitSpillAndShrink) {
   int32_t numPartitions = 2;
-  shuffleWriterOptions_.buffer_size = 4;
-  // shuffleWriterOptions_.memory_pool = pool.get();
-  shuffleWriterOptions_.compression_type = arrow::Compression::UNCOMPRESSED;
+  shuffleWriterOptions_.buffer_size = 100; // Set a large buffer size to make sure there are spaces to shrink.
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_, pool_));
+
+  for (int i = 0; i < 100; ++i) {
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector2_));
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+
+    auto bufferSize = shuffleWriter_->partitionBufferSize();
+    auto payloadSize = shuffleWriter_->cachedPayloadSize();
+    int64_t evicted;
+    ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
+    ASSERT_GT(evicted, 0);
+  }
+
+  ASSERT_NOT_OK(shuffleWriter_->stop());
+}
+
+TEST_P(VeloxShuffleWriterTest, TestStopShrinkAndSpill) {
+  int32_t numPartitions = 2;
+  shuffleWriterOptions_.buffer_size = 100; // Set a large buffer size to make sure there are spaces to shrink.
   shuffleWriterOptions_.partitioning_name = "rr";
   ARROW_ASSIGN_OR_THROW(
       shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_, pool_));
@@ -622,13 +661,140 @@ TEST_P(VeloxShuffleWriterTest, TestStopShrinkAndSpill) {
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
   }
 
-  auto bufferSize = shuffleWriter_->pool()->bytes_allocated();
-  auto payloadSize = shuffleWriter_->totalCachedPayloadSize();
+  auto bufferSize = shuffleWriter_->partitionBufferSize();
+  auto payloadSize = shuffleWriter_->cachedPayloadSize();
+  if (!shuffleWriterOptions_.prefer_evict) {
+    ASSERT_GT(payloadSize, 0);
+  }
 
   int64_t evicted;
-  shuffleWriter_->setSplitState(SplitState::STOP);
+  shuffleWriter_->setSplitState(SplitState::kStop);
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
-  ASSERT_GE(evicted, payloadSize);
+  // Total evicted should be greater than payloadSize, to test shrinking has been triggered.
+  ASSERT_GT(evicted, payloadSize);
+
+  ASSERT_NOT_OK(shuffleWriter_->stop());
+}
+
+TEST_P(VeloxShuffleWriterTest, TestSpillOnStop) {
+  int32_t numPartitions = 2;
+  shuffleWriterOptions_.buffer_size = 100; // Set a large buffer size to make sure there are spaces to shrink.
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_, pool_));
+
+  auto evicted = splitRowVectorAndSpill({inputVector1_, inputVector2_, inputVector1_}, true);
+  ASSERT_GT(evicted, 0);
+  ASSERT_EQ(shuffleWriter_->cachedPayloadSize(), 0);
+
+  // Split multiple times, to get non-empty partition buffers and cached payloads.
+  for (int i = 0; i < 100; ++i) {
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector2_));
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+  }
+
+  if (!shuffleWriterOptions_.prefer_evict) {
+    // No evict triggered, the cached payload should not be empty.
+    ASSERT_GT(shuffleWriter_->cachedPayloadSize(), 0);
+  }
+
+  // Spill on stop.
+  shuffleWriter_->setSplitState(SplitState::kStop);
+
+  auto payloadSize = shuffleWriter_->cachedPayloadSize();
+  auto bufferSize = shuffleWriter_->partitionBufferSize();
+  ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
+  // Total evicted should be greater than payloadSize, to test shrinking has been triggered.
+  ASSERT_GT(evicted, payloadSize);
+
+  ASSERT_NOT_OK(shuffleWriter_->stop());
+}
+
+TEST_P(VeloxShuffleWriterTest, TestSpill) {
+  if (shuffleWriterOptions_.prefer_evict) { // TODO: remove prefer_evict
+    return;
+  }
+  int32_t numPartitions = 4;
+  shuffleWriterOptions_.buffer_size = 1; // Set a small buffer size to force clear and cache buffers for each split.
+  shuffleWriterOptions_.partitioning_name = "hash";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_, pool_));
+
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, hashInputVector1_));
+  // Clear buffers and cache payloads.
+  for (auto pid : hashPartitionIds_) {
+    std::shared_ptr<arrow::RecordBatch> rb;
+    ARROW_ASSIGN_OR_THROW(rb /* unused */, shuffleWriter_->createArrowRecordBatchFromBuffer(pid, false));
+    ASSERT_NOT_OK(shuffleWriter_->cacheRecordBatch(pid, *rb, true));
+  }
+
+  // Evict all payloads, and shrink the buffers so the next split will clear current buffers and cache.
+  auto evicted = splitRowVectorAndSpill({hashInputVector1_}, true);
+  ASSERT_GT(evicted, 0);
+  // No more cached payloads after spill.
+  ASSERT_EQ(shuffleWriter_->cachedPayloadSize(), 0);
+
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, hashInputVector1_));
+
+  auto block1Pid1 = takeRows(inputVector1_, {0, 5, 6, 7, 9});
+  auto block1Pid2 = takeRows(inputVector1_, {1, 2, 3, 4, 8});
+
+  shuffleWriteReadMultiBlocks(
+      *shuffleWriter_,
+      numPartitions,
+      inputVector1_->type(),
+      {{}, {block1Pid1, block1Pid1, block1Pid1}, {block1Pid2, block1Pid2, block1Pid2}, {}});
+}
+
+TEST_P(VeloxShuffleWriterTest, TestShrinkZeroSizeBuffer) {
+  if (shuffleWriterOptions_.prefer_evict) { // TODO: remove prefer_evict
+    return;
+  }
+
+  // Test 2 cases:
+  // 1. partition buffer size before shrink is 0.
+  // 2. partition buffer size after shrink is 0.
+  int32_t numPartitions = 200; // Set a large number of partitions to create empty partition buffers.
+  shuffleWriterOptions_.buffer_size = 100; // Set a large buffer size to make sure there are spaces to shrink.
+  shuffleWriterOptions_.partitioning_name = "hash";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_, pool_));
+  auto evicted = splitRowVectorAndSpill({hashInputVector1_, hashInputVector2_, hashInputVector1_}, true);
+  ASSERT_GT(evicted, 0);
+
+  // Clear buffers then the size after shrink will be 0.
+  for (auto pid : hashPartitionIds_) {
+    std::shared_ptr<arrow::RecordBatch> rb;
+    ARROW_ASSIGN_OR_THROW(rb /* unused */, shuffleWriter_->createArrowRecordBatchFromBuffer(pid, false));
+    ASSERT_NOT_OK(shuffleWriter_->cacheRecordBatch(pid, *rb, true));
+  }
+
+  auto bufferSize = shuffleWriter_->partitionBufferSize();
+  auto payloadSize = shuffleWriter_->cachedPayloadSize();
+  ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
+  // All cached payloads and partition buffer memory should be evicted.
+  ASSERT_EQ(evicted, payloadSize + bufferSize);
+  // All buffers should be released.
+  ASSERT_EQ(shuffleWriter_->partitionBufferSize(), 0);
+
+  ASSERT_NOT_OK(shuffleWriter_->stop());
+}
+
+TEST_P(VeloxShuffleWriterTest, SmallBufferSizeNoShrink) {
+  int32_t numPartitions = 4; // Set a large number of partitions to create empty partition buffers.
+  shuffleWriterOptions_.buffer_size = 1; // Set a small buffer size to test no space to shrink.
+  shuffleWriterOptions_.partitioning_name = "hash";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_, pool_));
+
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, hashInputVector1_));
+
+  int64_t evicted = 0;
+  auto bufferSize = shuffleWriter_->partitionBufferSize();
+  auto payloadSize = shuffleWriter_->cachedPayloadSize();
+  ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
+  ASSERT_EQ(evicted, 0);
 
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }

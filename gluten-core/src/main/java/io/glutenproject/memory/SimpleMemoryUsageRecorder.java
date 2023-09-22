@@ -19,13 +19,15 @@ package io.glutenproject.memory;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 // thread safe
-public class SimpleMemoryUsageRecorder implements MemoryUsageStatsBuilder {
+public class SimpleMemoryUsageRecorder implements MemoryUsageRecorder {
   private final AtomicLong peak = new AtomicLong(0L);
   private final AtomicLong current = new AtomicLong(0L);
 
+  @Override
   public void inc(long bytes) {
     final long total = this.current.addAndGet(bytes);
     long prev_peak;
@@ -38,20 +40,27 @@ public class SimpleMemoryUsageRecorder implements MemoryUsageStatsBuilder {
   }
 
   // peak used bytes
+  @Override
   public long peak() {
     return peak.get();
   }
 
   // current used bytes
+  @Override
   public long current() {
     return current.get();
   }
 
-  public MemoryUsageStats toStats() {
+  public MemoryUsageStats toStats(Map<String, MemoryUsageStats> children) {
     return MemoryUsageStats.newBuilder()
         .setPeak(peak.get())
         .setCurrent(current.get())
-        .putAllChildren(Collections.emptyMap())
+        .putAllChildren(children)
         .build();
+  }
+
+  @Override
+  public MemoryUsageStats toStats() {
+    return toStats(Collections.emptyMap());
   }
 }

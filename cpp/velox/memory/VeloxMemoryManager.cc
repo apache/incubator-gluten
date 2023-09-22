@@ -184,7 +184,7 @@ velox::memory::IMemoryManager::Options VeloxMemoryManager::getOptions(
   velox::memory::IMemoryManager::Options mmOptions{
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
-      true, // leak check
+      false, // leak check
       false, // debug
       veloxAlloc,
       [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener_.get()); },
@@ -228,6 +228,7 @@ MemoryUsageStats collectVeloxMemoryPoolUsageStats(const velox::memory::MemoryPoo
 MemoryUsageStats collectArrowMemoryPoolUsageStats(const arrow::MemoryPool* pool) {
   MemoryUsageStats stats;
   stats.set_current(pool->bytes_allocated());
+  stats.set_peak(-1LL); // we don't know about peak
   return stats;
 }
 } // namespace
@@ -237,7 +238,7 @@ const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
   const MemoryUsageStats& arrowPoolStats = collectArrowMemoryPoolUsageStats(arrowPool_.get());
   MemoryUsageStats stats;
   stats.set_current(veloxPoolStats.current() + arrowPoolStats.current());
-  stats.set_peak(-1L); // we don't know about peak
+  stats.set_peak(-1LL); // we don't know about peak
   stats.mutable_children()->emplace("velox", std::move(veloxPoolStats));
   stats.mutable_children()->emplace("arrow", std::move(arrowPoolStats));
   return stats;

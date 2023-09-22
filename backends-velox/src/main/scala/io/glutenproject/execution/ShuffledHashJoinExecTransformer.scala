@@ -87,7 +87,7 @@ case class ShuffledHashJoinExecTransformer(
    * Returns whether the build and stream table should be exchanged with consideration of build
    * type, planned build side and the preferred build side.
    */
-  override lazy val exchangeTable: Boolean = hashJoinType match {
+  override lazy val needSwitchChildren: Boolean = hashJoinType match {
     case LeftOuter | LeftSemi | ExistenceJoin(_) =>
       joinBuildSide match {
         case BuildLeft =>
@@ -117,55 +117,28 @@ case class ShuffledHashJoinExecTransformer(
       }
   }
 
-  override protected val substraitJoinType: JoinRel.JoinType = joinType match {
+  override protected lazy val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
       JoinRel.JoinType.JOIN_TYPE_OUTER
     case LeftOuter =>
-      joinBuildSide match {
-        case BuildLeft =>
-          if (preferredBuildSide == PreferredBuildSide.RIGHT) {
-            JoinRel.JoinType.JOIN_TYPE_LEFT
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT
-          }
-        case _ =>
-          if (preferredBuildSide == PreferredBuildSide.LEFT) {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_LEFT
-          }
+      if (needSwitchChildren) {
+        JoinRel.JoinType.JOIN_TYPE_RIGHT
+      } else {
+        JoinRel.JoinType.JOIN_TYPE_LEFT
       }
     case RightOuter =>
-      joinBuildSide match {
-        case BuildRight =>
-          if (preferredBuildSide == PreferredBuildSide.LEFT) {
-            JoinRel.JoinType.JOIN_TYPE_LEFT
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT
-          }
-        case _ =>
-          if (preferredBuildSide == PreferredBuildSide.RIGHT) {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_LEFT
-          }
+      if (needSwitchChildren) {
+        JoinRel.JoinType.JOIN_TYPE_LEFT
+      } else {
+        JoinRel.JoinType.JOIN_TYPE_RIGHT
       }
     case LeftSemi | ExistenceJoin(_) =>
-      joinBuildSide match {
-        case BuildLeft =>
-          if (preferredBuildSide == PreferredBuildSide.RIGHT) {
-            JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
-          }
-        case _ =>
-          if (preferredBuildSide == PreferredBuildSide.LEFT) {
-            JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
-          } else {
-            JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
-          }
+      if (needSwitchChildren) {
+        JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
+      } else {
+        JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
       }
     case LeftAnti =>
       JoinRel.JoinType.JOIN_TYPE_ANTI
@@ -199,7 +172,7 @@ case class GlutenBroadcastHashJoinExecTransformer(
     right,
     isNullAwareAntiJoin) {
 
-  override protected val substraitJoinType: JoinRel.JoinType = joinType match {
+  override protected lazy val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>

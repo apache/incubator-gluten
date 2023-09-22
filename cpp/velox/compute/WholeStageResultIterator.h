@@ -25,6 +25,10 @@
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
 
+#ifdef ENABLE_HDFS
+#include <mutex>
+#endif
+
 namespace gluten {
 
 class WholeStageResultIterator : public ColumnarBatchIterator {
@@ -39,16 +43,16 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
       // calling .wait() may take no effect in single thread execution mode
       task_->requestCancel().wait();
     }
-  };
+  }
 
   std::shared_ptr<ColumnarBatch> next() override;
 
   int64_t spillFixedSize(int64_t size) override;
 
-  std::shared_ptr<Metrics> getMetrics(int64_t exportNanos) {
+  Metrics* getMetrics(int64_t exportNanos) {
     collectMetrics();
     metrics_->veloxToArrow = exportNanos;
-    return metrics_;
+    return metrics_.get();
   }
 
   std::shared_ptr<facebook::velox::Config> createConnectorConfig();
@@ -71,6 +75,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
 
 #ifdef ENABLE_HDFS
   /// Set latest tokens to global HiveConnector
+  inline static std::mutex mutex;
   void updateHdfsTokens();
 #endif
 
@@ -83,17 +88,17 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   void collectMetrics();
 
   /// Return a certain type of runtime metric. Supported metric types are: sum, count, min, max.
-  int64_t runtimeMetric(
-      const std::string& metricType,
+  static int64_t runtimeMetric(
+      const std::string& type,
       const std::unordered_map<std::string, facebook::velox::RuntimeMetric>& runtimeStats,
-      const std::string& metricId) const;
+      const std::string& metricId);
 
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
 
   // spill
   std::string spillStrategy_;
 
-  std::shared_ptr<Metrics> metrics_ = nullptr;
+  std::unique_ptr<Metrics> metrics_{};
 
   /// All the children plan node ids with postorder traversal.
   std::vector<facebook::velox::core::PlanNodeId> orderedNodeIds_;

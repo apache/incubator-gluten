@@ -16,15 +16,13 @@
  */
 package io.glutenproject.init;
 
-class BackendJniWrapper {
+public class BackendJniWrapper extends JniInitialized {
 
   private BackendJniWrapper() {}
 
-  // For global context
-  static native void initializeBackend(byte[] configPlan);
+  public static native void initializeBackend(byte[] configPlan);
 
-  // For local context
-  static native long makeTaskContext();
+  public static native long createExecutionCtx();
 
-  static native void closeTaskContext(long handle);
+  public static native void releaseExecutionCtx(long handle);
 }

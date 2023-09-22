@@ -332,9 +332,6 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case plan: CoalesceExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         CoalesceExecTransformer(plan.numPartitions, replaceWithTransformerPlan(plan.child))
-      case plan: InMemoryTableScanExec =>
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        ColumnarInMemoryTableScanExec(plan.attributes, plan.predicates, plan.relation)
       case plan: ProjectExec =>
         val columnarChild = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -704,8 +701,15 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
   }
 
   private def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
-    case _: BatchScanExec | _: FileSourceScanExec | _: InMemoryTableScanExec =>
+    case _: BatchScanExec | _: FileSourceScanExec =>
       !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
+    case _: InMemoryTableScanExec =>
+      if (BackendsApiManager.isVeloxBackend && GlutenConfig.getConf.columnarTableCacheEnabled) {
+        // `InMemoryTableScanExec` do not need extra RowToColumnar or ColumnarToRow
+        false
+      } else {
+        !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
+      }
     case _ => false
   }
 

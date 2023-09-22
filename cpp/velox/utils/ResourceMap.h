@@ -17,37 +17,31 @@
 
 #pragma once
 
-#include <jni.h>
-#include <memory>
-#include <mutex>
-#include <unordered_map>
-#include <utility>
+#include "folly/container/F14Map.h"
 
 namespace gluten {
 
 /**
- * An utility class that map module id to module pointers.
- * @tparam Holder class of the object to hold.
+ * An utility class that map resource handle to its shared pointers.
+ * Not thread-safe.
+ * @tparam TResource class of the object to hold.
  */
-template <typename Holder>
-class ConcurrentMap {
+template <typename TResource>
+class ResourceMap {
  public:
-  ConcurrentMap() : moduleId_(kInitModuleId) {}
+  ResourceMap() : resourceId_(kInitResourceId) {}
 
-  jlong insert(Holder holder) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    jlong result = moduleId_++;
-    map_.insert(std::pair<jlong, Holder>(result, holder));
+  ResourceHandle insert(TResource holder) {
+    ResourceHandle result = resourceId_++;
+    map_.insert(std::pair<ResourceHandle, TResource>(result, holder));
     return result;
   }
 
-  void erase(jlong moduleId) {
-    std::lock_guard<std::mutex> lock(mtx_);
+  void erase(ResourceHandle moduleId) {
     map_.erase(moduleId);
   }
 
-  Holder lookup(jlong moduleId) {
-    std::lock_guard<std::mutex> lock(mtx_);
+  TResource lookup(ResourceHandle moduleId) {
     auto it = map_.find(moduleId);
     if (it != map_.end()) {
       return it->second;
@@ -56,25 +50,22 @@ class ConcurrentMap {
   }
 
   void clear() {
-    std::lock_guard<std::mutex> lock(mtx_);
     map_.clear();
   }
 
   size_t size() {
-    std::lock_guard<std::mutex> lock(mtx_);
     return map_.size();
   }
 
  private:
-  // Initialize the module id starting value to a number greater than zero
+  // Initialize the resource id starting value to a number greater than zero
   // to allow for easier debugging of uninitialized java variables.
-  static constexpr int kInitModuleId = 4;
+  static constexpr int kInitResourceId = 4;
 
-  int64_t moduleId_;
-  std::mutex mtx_;
+  ResourceHandle resourceId_;
 
-  // map from module ids returned to Java and module pointers
-  std::unordered_map<jlong, Holder> map_;
+  // map from resource ids returned to Java and resource pointers
+  folly::F14FastMap<ResourceHandle, TResource> map_;
 };
 
 } // namespace gluten

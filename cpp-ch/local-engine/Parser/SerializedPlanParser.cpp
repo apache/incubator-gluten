@@ -536,49 +536,6 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             query_plan->addStep(std::move(limit_step));
             break;
         }
-        case substrait::Rel::RelTypeCase::kFilter: {
-            rel_stack.push_back(&rel);
-            const auto & filter = rel.filter();
-            query_plan = parseOp(filter.input(), rel_stack);
-            rel_stack.pop_back();
-            std::string filter_name;
-
-            ActionsDAGPtr actions_dag = nullptr;
-            if (filter.condition().has_scalar_function())
-            {
-                actions_dag = parseFunction(query_plan->getCurrentDataStream().header, filter.condition(), filter_name, nullptr, true);
-            }
-            else
-            {
-                actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(query_plan->getCurrentDataStream().header));
-                const auto * node = parseExpression(actions_dag, filter.condition());
-                filter_name = node->result_name;
-            }
-
-            bool remove_filter_column = true;
-            auto input = query_plan->getCurrentDataStream().header.getNames();
-            NameSet input_with_condition(input.begin(), input.end());
-            if (input_with_condition.contains(filter_name))
-                remove_filter_column = false;
-            else
-                input_with_condition.emplace(filter_name);
-
-            actions_dag->removeUnusedActions(input_with_condition);
-            NonNullableColumnsResolver non_nullable_columns_resolver(query_plan->getCurrentDataStream().header, *this, filter.condition());
-            auto non_nullable_columns = non_nullable_columns_resolver.resolve();
-            auto filter_step
-                = std::make_unique<FilterStep>(query_plan->getCurrentDataStream(), actions_dag, filter_name, remove_filter_column);
-            filter_step->setStepDescription("WHERE");
-            steps.emplace_back(filter_step.get());
-            query_plan->addStep(std::move(filter_step));
-            // remove nullable
-            auto * remove_null_step = addRemoveNullableStep(*query_plan, non_nullable_columns);
-            if (remove_null_step)
-            {
-                steps.emplace_back(remove_null_step);
-            }
-            break;
-        }
         case substrait::Rel::RelTypeCase::kRead: {
             const auto & read = rel.read();
             assert(read.has_local_files() || read.has_extension_table() && "Only support local parquet files or merge tree read rel");
@@ -609,6 +566,7 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             }
             break;
         }
+        case substrait::Rel::RelTypeCase::kFilter:
         case substrait::Rel::RelTypeCase::kGenerate:
         case substrait::Rel::RelTypeCase::kProject:
         case substrait::Rel::RelTypeCase::kAggregate:
@@ -836,15 +794,14 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     parseFunctionArguments(actions_dag, args, function_name, scalar_function);
 
     /// Remove Nullable from Nullable(Array(xx)) or Nullable(Map(xx, xx)) if needed
-    const auto * arg_not_null = args[0];
-    if (arg_not_null->result_type->isNullable())
-    {
-        auto assume_not_null_builder = FunctionFactory::instance().get("assumeNotNull", context);
-        arg_not_null = &actions_dag->addFunction(assume_not_null_builder, {args[0]}, "assumeNotNull(" + args[0]->result_name + ")");
-    }
+    auto assume_not_null_builder = FunctionFactory::instance().get("assumeNotNull", context);
+    const auto * arg_not_null = &actions_dag->addFunction(assume_not_null_builder, {args[0]}, "assumeNotNull(" + args[0]->result_name + ")");
+    arg_not_null = &actions_dag->materializeNode(*arg_not_null);
 
     /// arrayJoin(arg_not_null)
-    auto array_join_name = "arrayJoin(" + arg_not_null->result_name + ")";
+    /// Note: Make sure result_name keep the same after applying arrayJoin function, which makes it much easier to transform arrayJoin function to ARRAY JOIN STEP
+    /// Otherwise an alias node must be appended after ARRAY JOIN STEP, which is not a graceful implementation.
+    auto array_join_name = arg_not_null->result_name;
     const auto * array_join_node = &actions_dag->addArrayJoin(*arg_not_null, array_join_name);
 
     auto arg_type = arg_not_null->result_type;

@@ -163,8 +163,6 @@ class GoogleBenchmarkArrowParquetWriteCacheScanBenchmark : public GoogleBenchmar
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "arrow_parquet_write.parquet";
 
-    auto executionCtx = std::dynamic_pointer_cast<gluten::VeloxExecutionCtx>(gluten::createExecutionCtx());
-
     for (auto _ : state) {
       // Choose compression
       std::shared_ptr<::parquet::WriterProperties> props =
@@ -258,7 +256,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "velox_parquet_write.parquet";
 
-    auto executionCtx = std::dynamic_pointer_cast<gluten::VeloxExecutionCtx>(gluten::createExecutionCtx());
+    auto executionCtx = gluten::createExecutionCtx();
     auto memoryManager = getDefaultMemoryManager();
     auto veloxPool = memoryManager->getAggregateMemoryPool();
 
@@ -294,6 +292,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
         benchmark::Counter(initTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["write_time"] =
         benchmark::Counter(writeTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+    gluten::releaseExecutionCtx(executionCtx);
   }
 };
 

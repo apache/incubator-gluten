@@ -28,36 +28,37 @@ public class NativeMemoryManager implements TaskResource {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NativeMemoryManager.class);
 
-  private final long nativeInstanceId;
+  private final long nativeInstanceHandle;
   private final String name;
   private final ReservationListener listener;
 
-  private NativeMemoryManager(String name, long nativeInstanceId, ReservationListener listener) {
+  private NativeMemoryManager(
+      String name, long nativeInstanceHandle, ReservationListener listener) {
     this.name = name;
-    this.nativeInstanceId = nativeInstanceId;
+    this.nativeInstanceHandle = nativeInstanceHandle;
     this.listener = listener;
   }
 
   public static NativeMemoryManager create(String name, ReservationListener listener) {
     long allocatorId = NativeMemoryAllocators.getDefault().globalInstance().getNativeInstanceId();
-    long reservationBlockSize = GlutenConfig.getConf().veloxReservationBlockSize();
+    long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
     return new NativeMemoryManager(
         name, create(name, allocatorId, reservationBlockSize, listener), listener);
   }
 
-  public long getNativeInstanceId() {
-    return this.nativeInstanceId;
+  public long getNativeInstanceHandle() {
+    return this.nativeInstanceHandle;
   }
 
   public byte[] collectMemoryUsage() {
-    return collectMemoryUsage(nativeInstanceId);
+    return collectMemoryUsage(nativeInstanceHandle);
   }
 
   public long shrink(long size) {
-    return shrink(nativeInstanceId, size);
+    return shrink(nativeInstanceHandle, size);
   }
 
-  private static native long shrink(long nativeInstanceId, long size);
+  private static native long shrink(long nativeInstanceHandle, long size);
 
   private static native long create(
       String name, long allocatorId, long reservationBlockSize, ReservationListener listener);
@@ -68,7 +69,7 @@ public class NativeMemoryManager implements TaskResource {
 
   @Override
   public void release() throws Exception {
-    release(nativeInstanceId);
+    release(nativeInstanceHandle);
     if (listener.getUsedBytes() != 0) {
       LOGGER.warn(
           name

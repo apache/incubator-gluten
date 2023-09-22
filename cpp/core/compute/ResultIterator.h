@@ -29,10 +29,8 @@ class ExecutionCtx;
 //  other places.
 class ResultIterator {
  public:
-  explicit ResultIterator(
-      std::unique_ptr<ColumnarBatchIterator> iter,
-      std::shared_ptr<ExecutionCtx> executionCtx = nullptr)
-      : iter_(std::move(iter)), next_(nullptr), executionCtx_(std::move(executionCtx)) {}
+  explicit ResultIterator(std::unique_ptr<ColumnarBatchIterator> iter, ExecutionCtx* executionCtx = nullptr)
+      : iter_(std::move(iter)), next_(nullptr), executionCtx_(executionCtx) {}
 
   // copy constructor and copy assignment (deleted)
   ResultIterator(const ResultIterator& in) = delete;
@@ -59,7 +57,7 @@ class ResultIterator {
     return iter_.get();
   }
 
-  std::shared_ptr<Metrics> getMetrics();
+  Metrics* getMetrics();
 
   void setExportNanos(int64_t exportNanos) {
     exportNanos_ = exportNanos;
@@ -88,7 +86,7 @@ class ResultIterator {
 
   std::unique_ptr<ColumnarBatchIterator> iter_;
   std::shared_ptr<ColumnarBatch> next_;
-  std::shared_ptr<ExecutionCtx> executionCtx_;
+  ExecutionCtx* executionCtx_;
   int64_t exportNanos_;
 };
 

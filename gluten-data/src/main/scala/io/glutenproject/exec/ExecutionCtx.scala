@@ -14,12 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.memtarget;
+package io.glutenproject.exec
 
-import org.apache.spark.memory.TaskMemoryManager;
+import io.glutenproject.init.BackendJniWrapper
 
-// Memory target that is bind to Spark TMM (task memory manager). This is typically a Spark
-// consumer.
-public interface TaskManagedMemoryTarget extends MemoryTarget {
-  TaskMemoryManager getTaskMemoryManager();
+import org.apache.spark.util.TaskResource
+
+class ExecutionCtx extends TaskResource {
+  private val handle = BackendJniWrapper.createExecutionCtx()
+
+  def getHandle: Long = handle
+
+  override def release(): Unit = BackendJniWrapper.releaseExecutionCtx(handle)
+
+  override def priority(): Int = 10
+
+  override def resourceName(): String = s"ExecutionCtx_" + handle
 }

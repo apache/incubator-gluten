@@ -31,7 +31,6 @@ list (APPEND PRIVATE_LIBS
         ch_contrib::double_conversion
         ch_contrib::dragonbox_to_chars
         ch_contrib::re2
-        ch_contrib::re2_st
         ch_contrib::abseil_swiss_tables
         ch_contrib::sparsehash
         ch_contrib::metrohash

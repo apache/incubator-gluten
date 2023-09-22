@@ -110,13 +110,14 @@ trait HashJoinLikeExecTransformer
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetrics(sparkContext)
 
-  // Whether the left and right side should be exchanged.
-  protected lazy val exchangeTable: Boolean = joinBuildSide match {
+  // Hint substrait to switch the left and right,
+  // since we assume always build right side in substrait.
+  protected lazy val needSwitchChildren: Boolean = joinBuildSide match {
     case BuildLeft => true
     case BuildRight => false
   }
 
-  lazy val (buildPlan, streamedPlan) = if (exchangeTable) {
+  lazy val (buildPlan, streamedPlan) = if (needSwitchChildren) {
     (left, right)
   } else {
     (right, left)
@@ -153,21 +154,21 @@ trait HashJoinLikeExecTransformer
       "Join keys from two sides should have same length and types"
     )
     // Spark has an improvement which would patch integer joins keys to a Long value.
-    // But this improvement would cause extra projet before hash join in velox, disabling
-    // this improvement as below would help reduce the project.
+    // But this improvement would cause add extra project before hash join in velox,
+    // disabling this improvement as below would help reduce the project.
     val (lkeys, rkeys) = if (BackendsApiManager.getSettings.enableJoinKeysRewrite()) {
       (HashJoin.rewriteKeyExpr(leftKeys), HashJoin.rewriteKeyExpr(rightKeys))
     } else {
       (leftKeys, rightKeys)
     }
-    if (exchangeTable) {
+    if (needSwitchChildren) {
       (lkeys, rkeys)
     } else {
       (rkeys, lkeys)
     }
   }
 
-  protected val substraitJoinType: JoinRel.JoinType = SubstraitUtil.toSubstrait(joinType)
+  protected lazy val substraitJoinType: JoinRel.JoinType = SubstraitUtil.toSubstrait(joinType)
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetricsUpdater(metrics)
 
@@ -220,7 +221,7 @@ trait HashJoinLikeExecTransformer
       buildKeyExprs,
       condition,
       substraitJoinType,
-      exchangeTable,
+      needSwitchChildren,
       joinType,
       genJoinParametersBuilder(),
       null,
@@ -292,7 +293,7 @@ trait HashJoinLikeExecTransformer
       buildKeyExprs,
       condition,
       substraitJoinType,
-      exchangeTable,
+      needSwitchChildren,
       joinType,
       genJoinParametersBuilder(),
       inputStreamedRelNode,
@@ -306,7 +307,7 @@ trait HashJoinLikeExecTransformer
     substraitContext.registerJoinParam(operatorId, joinParams)
 
     JoinUtils.createTransformContext(
-      exchangeTable,
+      needSwitchChildren,
       output,
       joinRel,
       inputStreamedOutput,
@@ -433,12 +434,7 @@ abstract class BroadcastHashJoinExecTransformer(
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     val streamedRDD = getColumnarInputRDDs(streamedPlan)
-    val broadcast = buildSide match {
-      case BuildLeft =>
-        left.executeBroadcast[BuildSideRelation]()
-      case BuildRight =>
-        right.executeBroadcast[BuildSideRelation]()
-    }
+    val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
 
     val context =
       BroadCastHashJoinContext(buildKeyExprs, joinType, buildPlan.output, buildHashTableId)

@@ -81,6 +81,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarCoalesce: Boolean = conf.getConf(COLUMNAR_COALESCE_ENABLED)
 
+  def columnarTableCacheEnabled: Boolean = conf.getConf(COLUMNAR_TABLE_CACHE_ENABLED)
+
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
     conf
@@ -122,6 +124,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_SHUFFLE_PREFER_SPILL_ENABLED)
 
   def columnarShuffleWriteEOS: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED)
+
+  def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
 
   def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
 
@@ -186,9 +190,21 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     }
   }
 
+  def memoryIsolation: Boolean = conf.getConf(COLUMNAR_MEMORY_ISOLATION)
+
   def offHeapMemorySize: Long = conf.getConf(COLUMNAR_OFFHEAP_SIZE_IN_BYTES)
 
   def taskOffHeapMemorySize: Long = conf.getConf(COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES)
+
+  def memoryOverAcquiredRatio: Double = conf.getConf(COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO)
+
+  def memoryReservationBlockSize: Long = conf.getConf(COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE)
+
+  def conservativeOffHeapMemorySize: Long =
+    conf.getConf(COLUMNAR_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES)
+
+  def conservativeTaskOffHeapMemorySize: Long =
+    conf.getConf(COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES)
 
   def enableVeloxCache: Boolean = conf.getConf(COLUMNAR_VELOX_CACHE_ENABLED)
 
@@ -213,10 +229,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxMaxSpillFileSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE)
 
   def veloxSpillFileSystem: String = conf.getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
-
-  def veloxOverAcquiredMemoryRatio: Double = conf.getConf(COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO)
-
-  def veloxReservationBlockSize: Long = conf.getConf(COLUMNAR_VELOX_RESERVATION_BLOCK_SIZE)
 
   def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
 
@@ -342,7 +354,11 @@ object GlutenConfig {
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
+  val GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY =
+    "spark.gluten.memory.conservative.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
+  val GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY =
+    "spark.gluten.memory.conservative.task.offHeap.size.in.bytes"
 
   // Batch size.
   val GLUTEN_MAX_BATCH_SIZE_KEY = "spark.gluten.sql.columnar.maxBatchSize"
@@ -689,6 +705,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_TABLE_CACHE_ENABLED =
+    buildConf("spark.gluten.sql.columnar.tableCache")
+      .internal()
+      .doc("Enable or disable columnar table cache.")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_ITERATOR_ENABLED =
     buildConf("spark.gluten.sql.columnar.iterator")
       .internal()
@@ -761,6 +784,12 @@ object GlutenConfig {
       .internal()
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_SHUFFLE_REALLOC_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.realloc.threshold")
+      .internal()
+      .doubleConf
+      .createWithDefault(0.25)
 
   val COLUMNAR_SHUFFLE_CODEC =
     buildConf("spark.gluten.sql.columnar.shuffle.codec")
@@ -890,11 +919,62 @@ object GlutenConfig {
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0")
 
+  val COLUMNAR_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES =
+    buildConf(GlutenConfig.GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY)
+      .internal()
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("0")
+
   val COLUMNAR_TASK_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY)
       .internal()
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("0")
+
+  val COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES =
+    buildConf(GlutenConfig.GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY)
+      .internal()
+      .doc(
+        "Must provide default value since non-execution operations " +
+          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
+          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("0")
+
+  val COLUMNAR_MEMORY_ISOLATION =
+    buildConf("spark.gluten.memory.isolation")
+      .internal()
+      .doc("Enable isolated memory mode. If true, Gluten controls the maximum off-heap memory " +
+        "can be used by each task to X, X = executor memory / max task slots. It's recommended " +
+        "to set true if Gluten serves concurrent queries within a single session, since not all " +
+        "memory Gluten allocated is guaranteed to be spillable. In the case, the feature should " +
+        "be enabled to avoid OOM.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO =
+    buildConf("spark.gluten.memory.overAcquiredMemoryRatio")
+      .internal()
+      .doc("If larger than 0, Velox backend will try over-acquire this ratio of the total " +
+        "allocated memory as backup to avoid OOM.")
+      .doubleConf
+      .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
+      .createWithDefault(0.3d)
+
+  val COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE =
+    buildConf("spark.gluten.memory.reservationBlockSize")
+      .internal()
+      .doc("Block size of native reservation listener reserve memory from Spark.")
+      .bytesConf(ByteUnit.BYTE)
+      .createWithDefaultString("8MB")
 
   // velox caching options
   val COLUMNAR_VELOX_CACHE_ENABLED =
@@ -987,22 +1067,6 @@ object GlutenConfig {
       .stringConf
       .checkValues(Set("local", "heap-over-local"))
       .createWithDefaultString("local")
-
-  val COLUMNAR_VELOX_OVER_ACQUIRED_MEMORY_RATIO =
-    buildConf("spark.gluten.sql.columnar.backend.velox.overAcquiredMemoryRatio")
-      .internal()
-      .doc("If larger than 0, Velox backend will try over-acquire this ratio of the total " +
-        "allocated memory as backup to avoid OOM")
-      .doubleConf
-      .checkValue(d => d >= 0.0d, "Over-acquired ratio should be larger than or equals 0")
-      .createWithDefault(0.3d)
-
-  val COLUMNAR_VELOX_RESERVATION_BLOCK_SIZE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.reservationBlockSize")
-      .internal()
-      .doc("Block size of native reservation listener reserve memory from Spark.")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("8MB")
 
   val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillThreshold")
@@ -1129,6 +1193,13 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace")
       .internal()
       .doc("Enable the stacktrace for user type of VeloxException")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_VELOX_ENABLE_SYSTEM_EXCEPTION_STACKTRACE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace")
+      .internal()
+      .doc("Enable the stacktrace for system type of VeloxException")
       .booleanConf
       .createWithDefault(true)
 

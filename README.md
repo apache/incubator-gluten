@@ -143,7 +143,7 @@ Gluten is under Apache 2.0 license (https://www.apache.org/licenses/LICENSE-2.0)
 
 # 7 Contact
 
-Gluten was initiated by Intel and Kyligence in 2022. Several companies such as Intel, Kyligence, BIGO, Meituan and others, are actively participating in the development of Gluten. If you are interested in Gluten project, please contact below email address for further discussion.
+Gluten was initiated by Intel and Kyligence in 2022. Several companies such as Intel, Kyligence, BIGO, Meituan, Alibaba Cloud, NetEase, Baidu and others, are actively participating in the development of Gluten. If you are interested in Gluten project, please contact below email address for further discussion.
 
 rui.mo@intel.com; binwei.yang@intel.com; weiting.chen@intel.com;
 chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io;

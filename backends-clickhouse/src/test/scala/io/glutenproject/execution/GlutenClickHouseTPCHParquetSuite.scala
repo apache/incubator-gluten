@@ -1285,10 +1285,10 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
 
   test("test posexplode issue: https://github.com/oap-project/gluten/issues/2454") {
     val sqls = Seq(
-      "select explode(array(id, id+1)) from range(10)",
-      "select explode(map(id, id+1, id+2, id+3)) from range(10)",
-      "select posexplode(array(id, id+1)) from range(10)",
-      "select posexplode(map(id, id+1, id+2, id+3)) from range(10)"
+      "select id, explode(array(id, id+1)) from range(10)",
+      "select id, explode(map(id, id+1, id+2, id+3)) from range(10)",
+      "select id, posexplode(array(id, id+1)) from range(10)",
+      "select id, posexplode(map(id, id+1, id+2, id+3)) from range(10)"
     )
 
     for (sql <- sqls) {
@@ -1976,6 +1976,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-3105: test json output format") {
+    val sql =
+      """
+        |select to_json(struct(cast(id as string), id, 1.1, 1.1f, 1.1d)) from range(3)
+        |""".stripMargin
+    // cast('nan' as double) output 'NaN' in Spark, 'nan' in CH
+    // cast('inf' as double) output 'Infinity' in Spark, 'inf' in CH
+    // ignore them temporarily
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("Test plan json non-empty") {
     spark.sparkContext.setLogLevel("WARN")
     val df1 = spark
@@ -1997,6 +2008,22 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     executedPlan2.execute()
     assert(lastStageTransformer2.get.asInstanceOf[WholeStageTransformer].getPlanJson.nonEmpty)
     spark.sparkContext.setLogLevel(logLevel)
+  }
+
+  test("GLUTEN-3140: Bug fix array_contains return null") {
+    val create_table_sql =
+      """
+        | create table test_tbl_3140(id bigint, name string) using parquet;
+        |""".stripMargin
+    val insert_data_sql =
+      """
+        | insert into test_tbl_3140 values(1, "");
+        |""".stripMargin
+    spark.sql(create_table_sql)
+    spark.sql(insert_data_sql)
+    val select_sql =
+      "select id, array_contains(split(name, ','), '2899') from test_tbl_3140 where id = 1"
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
   }
 }
 // scalastyle:on line.size.limit

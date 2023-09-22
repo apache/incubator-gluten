@@ -17,7 +17,6 @@
 package io.glutenproject.memory.arrowalloc;
 
 import io.glutenproject.memory.memtarget.MemoryTargets;
-import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
 import io.glutenproject.memory.memtarget.spark.Spiller;
 
 import org.apache.arrow.memory.AllocationListener;
@@ -28,6 +27,7 @@ import org.apache.spark.util.TaskResources;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Vector;
 
@@ -55,11 +55,11 @@ public class ArrowBufferAllocators {
     private final AllocationListener listener =
         new ManagedAllocationListener(
             MemoryTargets.throwOnOom(
-                new GlutenMemoryConsumer(
-                    "ArrowContextInstance",
+                MemoryTargets.newConsumer(
                     TaskResources.getLocalTaskContext().taskMemoryManager(),
+                    "ArrowContextInstance",
                     Spiller.NO_OP,
-                    GlutenMemoryConsumer.newDefaultStatsBuilder())),
+                    Collections.emptyMap())),
             TaskResources.getSharedUsage());
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);
 

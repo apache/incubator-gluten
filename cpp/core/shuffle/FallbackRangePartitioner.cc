@@ -19,6 +19,7 @@
 #include "shuffle/FallbackRangePartitioner.h"
 
 namespace gluten {
+
 arrow::Status gluten::FallbackRangePartitioner::compute(
     const int32_t* pidArr,
     const int64_t numRows,

@@ -47,6 +47,7 @@ arrow::Status LocalPartitionWriterBase::openDataFile() {
   std::shared_ptr<arrow::io::FileOutputStream> fout;
   ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(shuffleWriter_->options().data_file, true));
   if (shuffleWriter_->options().buffered_write) {
+    // Output stream buffer is neither partition buffer memory nor ipc memory.
     ARROW_ASSIGN_OR_RAISE(
         dataFileOs_, arrow::io::BufferedOutputStream::Create(16384, shuffleWriter_->options().memory_pool.get(), fout));
   } else {

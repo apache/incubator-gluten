@@ -140,8 +140,8 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     GlutenEventUtils.post(sc, event)
   }
 
-  def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
-    // extensions
+  private def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
+    // sql extensions
     val extensions = if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
       s"${conf.get(SPARK_SESSION_EXTS_KEY)},$GLUTEN_SESSION_EXTENSION_NAME"
     } else {
@@ -149,20 +149,47 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     }
     conf.set(SPARK_SESSION_EXTS_KEY, String.format("%s", extensions))
 
+    // sql table cache serializer
+    if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, true)) {
+      if (BackendsApiManager.isVeloxBackend) {
+        conf.set(
+          StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
+          "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
+      } else {
+        // TODO, support CH backend
+      }
+    }
+
     // off-heap bytes
     if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
       throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
     }
     // Session's local time zone must be set. If not explicitly set by user, its default
     // value (detected for the platform) is used, consistent with spark.
+
+    // task slots
+    val taskSlots = SparkResourceUtil.getTaskSlots(conf)
+
+    // Optimistic off-heap sizes, assuming all storage memory can be borrowed into execution memory
+    // pool, regardless of Spark option spark.memory.storageFraction.
     conf.set(GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
     val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
     conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
-    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = SparkResourceUtil.getExecutorCores(conf)
-    val taskCores = conf.getInt("spark.task.cpus", 1)
-    val offHeapPerTask = offHeapSize / (executorCores / taskCores)
+    val offHeapPerTask = offHeapSize / taskSlots
     conf.set(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapPerTask.toString)
+
+    // Pessimistic off-heap sizes, with the assumption that all non-borrowable storage memory
+    // determined by spark.memory.storageFraction was used.
+    val fraction = 1.0d - conf.getDouble("spark.memory.storageFraction", 0.5d)
+    val conservativeOffHeapSize = (offHeapSize
+      * fraction).toLong
+    conf.set(
+      GlutenConfig.GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY,
+      conservativeOffHeapSize.toString)
+    val conservativeOffHeapPerTask = conservativeOffHeapSize / taskSlots
+    conf.set(
+      GlutenConfig.GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
+      conservativeOffHeapPerTask.toString)
 
     // disable vanilla columnar readers, to prevent columnar-to-columnar conversions
     if (BackendsApiManager.getSettings.disableVanillaColumnarReaders(conf)) {

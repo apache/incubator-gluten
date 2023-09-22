@@ -25,14 +25,17 @@ public class ShuffleReaderJniWrapper extends JniInitialized {
 
   public native long make(
       long cSchema,
-      long memoryManagerId,
+      long executionCtxHandle,
+      long memoryManagerHandle,
       String compressionType,
       String compressionCodecBackend,
       String compressionMode);
 
-  public native long readStream(long handle, JniByteInputStream jniIn);
+  public native long readStream(
+      long executionCtxHandle, long shuffleReaderHandle, JniByteInputStream jniIn);
 
-  public native void populateMetrics(long handle, ShuffleReaderMetrics metrics);
+  public native void populateMetrics(
+      long executionCtxHandle, long shuffleReaderHandle, ShuffleReaderMetrics metrics);
 
-  public native void close(long handle);
+  public native void close(long executionCtxHandle, long shuffleReaderHandle);
 }
