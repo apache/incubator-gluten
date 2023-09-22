@@ -147,6 +147,8 @@ object ExecUtil {
                 ArrowBufferAllocators.contextInstance(),
                 new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows))
               val newHandle = ColumnarBatches.compose(pidBatch, cb)
+              // Composed batch already hold pidBatch's shared ref, so close is safe.
+              ColumnarBatches.close(pidBatch)
               (0, ColumnarBatches.create(ColumnarBatches.getExecutionCtxHandle(cb), newHandle))
           }
       }
@@ -227,7 +229,10 @@ case class CloseablePairedColumnarBatchIterator(iter: Iterator[(Int, ColumnarBat
     if (iter.hasNext) {
       cur = iter.next()
       cur
-    } else Iterator.empty.next()
+    } else {
+      closeColumnBatch()
+      Iterator.empty.next()
+    }
   }
 
   def closeColumnBatch(): Unit = {

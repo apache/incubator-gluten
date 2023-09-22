@@ -38,5 +38,11 @@ public class ColumnarBatchJniWrapper extends JniInitialized {
   public native void exportToArrow(
       long executionCtxHandle, long batchHandle, long cSchema, long cArray);
 
+  public native long select(
+      long executionCtxHandle,
+      long nativeMemoryManagerHandle,
+      long batchHandle,
+      int[] columnIndices);
+
   public native void close(long executionCtxHandle, long batchHandle);
 }

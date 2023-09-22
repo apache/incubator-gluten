@@ -17,9 +17,23 @@
 package org.apache.spark.sql
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.columnar.InMemoryRelation
 
-class GlutenCachedTableSuite extends CachedTableSuite with GlutenSQLTestsTrait {
+class GlutenCachedTableSuite
+  extends CachedTableSuite
+  with GlutenSQLTestsTrait
+  with AdaptiveSparkPlanHelper {
+
   override def sparkConf: SparkConf = {
     super.sparkConf.set("spark.sql.shuffle.partitions", "5")
+  }
+
+  test("GLUTEN - InMemoryRelation statistics") {
+    sql("CACHE TABLE testData")
+    spark.table("testData").queryExecution.withCachedData.collect {
+      case cached: InMemoryRelation =>
+        assert(cached.stats.sizeInBytes === 1132)
+    }
   }
 }

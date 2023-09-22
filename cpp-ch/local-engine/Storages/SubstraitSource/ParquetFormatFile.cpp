@@ -31,6 +31,7 @@
 #    include <Storages/ArrowParquetBlockInputFormat.h>
 #    include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #    include <parquet/arrow/reader.h>
+#    include <parquet/metadata.h>
 #    include <Common/Config.h>
 #    include <Common/Exception.h>
 #    include <DataTypes/DataTypesNumber.h>
@@ -147,18 +148,37 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
 
     std::vector<RowGroupInfomation> row_group_metadatas;
     row_group_metadatas.reserve(total_row_groups);
-    for (int i = 0; i < total_row_groups; ++i)
-    {   
-        if (enable_row_group_maxmin_index && !checkRowGroupIfRequired(file_meta->RowGroup(i)))
-            continue;
-        
-        auto row_group_meta = file_meta->RowGroup(i);
-        auto offset = static_cast<UInt64>(row_group_meta->file_offset());
-        if (!offset)
-            offset = static_cast<UInt64>(row_group_meta->ColumnChunk(0)->file_offset());
 
+    auto get_column_start_offset = [&](parquet::ColumnChunkMetaData & metadata_) {
+        Int64 offset = metadata_.data_page_offset();
+        if (metadata_.has_dictionary_page() && offset > metadata_.dictionary_page_offset())
+        {
+            offset = metadata_.dictionary_page_offset();
+        }
+        return offset;
+    };
+
+    for (int i = 0; i < total_row_groups; ++i)
+    {
+        auto row_group_meta = file_meta->RowGroup(i);
+        Int64 start_offset = 0;
+        Int64 total_bytes = 0;
+        start_offset = get_column_start_offset(*row_group_meta->ColumnChunk(0));
+        total_bytes = row_group_meta->total_compressed_size();
+        if (!total_bytes)
+        {
+            for (int j = 0; j < row_group_meta->num_columns(); ++j)
+            {
+                total_bytes += row_group_meta->ColumnChunk(j)->total_compressed_size();
+            }
+        }
+
+        if (enable_row_group_maxmin_index && !checkRowGroupIfRequired(*row_group_meta))
+            continue;
+
+        UInt64 midpoint_offset = static_cast<UInt64>(start_offset + total_bytes / 2);        
         /// Current row group has intersection with the required range.
-        if (file_info.start() <= offset && offset < file_info.start() + file_info.length())
+        if (file_info.start() <= midpoint_offset && midpoint_offset < file_info.start() + file_info.length())
         {
             RowGroupInfomation info;
             info.index = i;
@@ -172,11 +192,11 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
     return row_group_metadatas;
 }
 
-bool ParquetFormatFile::checkRowGroupIfRequired(std::unique_ptr<parquet::RowGroupMetaData> meta)
+bool ParquetFormatFile::checkRowGroupIfRequired(parquet::RowGroupMetaData & meta)
 {
     std::vector<DB::Range> column_max_mins;
     DB::DataTypes column_types;
-    const parquet::SchemaDescriptor* schema_desc = meta->schema();
+    const parquet::SchemaDescriptor* schema_desc = meta.schema();
     bool row_group_required = true;
     for (size_t i = 0; i < filters.size(); ++i)
     {
@@ -195,7 +215,7 @@ bool ParquetFormatFile::checkRowGroupIfRequired(std::unique_ptr<parquet::RowGrou
             {
                 const parquet::ColumnDescriptor * desc = schema_desc->Column(column_index);
                 Int32 column_type_length = desc->type_length();
-                auto column_chunk_meta = meta->ColumnChunk(column_index);
+                auto column_chunk_meta = meta.ColumnChunk(column_index);
                 if (column_chunk_meta->is_stats_set())
                     range = getColumnMaxMin(column_chunk_meta->statistics(), column_chunk_meta->type(), filter_col_type, column_type_length);
                 
