@@ -249,12 +249,43 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
         "min(c13),max(c13),min(c14),max(c14),min(c15),max(c15),min(c16),max(c16)," +
         "min(c17) from view"
     )
-    checkAnswer(df,
+    checkAnswer(
+      df,
       Row(
-        "c1", "c1", "c2", "c2", "c3", "c3", "c4", "c4",
-        "c5", "c5", "c6", "c6", "c7", "c7", "c8", "c8",
-        "c9", "c9", "c10", "c10", "c11", "c11", "c12", "c12",
-        "c13", "c13", "c14", "c14", "c15", "c15", "c16", "c16", null) :: Nil
+        "c1",
+        "c1",
+        "c2",
+        "c2",
+        "c3",
+        "c3",
+        "c4",
+        "c4",
+        "c5",
+        "c5",
+        "c6",
+        "c6",
+        "c7",
+        "c7",
+        "c8",
+        "c8",
+        "c9",
+        "c9",
+        "c10",
+        "c10",
+        "c11",
+        "c11",
+        "c12",
+        "c12",
+        "c13",
+        "c13",
+        "c14",
+        "c14",
+        "c15",
+        "c15",
+        "c16",
+        "c16",
+        null
+      ) :: Nil
     )
   }
 
