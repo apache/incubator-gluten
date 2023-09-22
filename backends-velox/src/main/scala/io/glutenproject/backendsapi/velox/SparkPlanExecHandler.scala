@@ -16,7 +16,7 @@
  */
 package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.GlutenConfig
+import io.glutenproject.{execution, GlutenConfig}
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.exec.ExecutionCtxs
@@ -42,7 +42,7 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan, VeloxColumnarToRowExec}
+import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation

@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.backendsapi.velox.Validator
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.exec.ExecutionCtxs
-import io.glutenproject.execution.RowToVeloxColumnarExec
+import io.glutenproject.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.ArrowAbiUtil
