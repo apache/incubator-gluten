@@ -67,8 +67,10 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
 void JNI_OnUnload(JavaVM* vm, void*) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
-  gluten::finalizeVeloxJniFileSystem(env);
   gluten::finalizeVeloxJniUDF(env);
+  gluten::finalizeVeloxJniFileSystem(env);
+  gluten::getJniErrorState()->close();
+  gluten::getJniCommonState()->close();
   google::ShutdownGoogleLogging();
 }
 

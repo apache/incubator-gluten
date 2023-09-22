@@ -37,11 +37,13 @@ namespace gluten {
 
 class JniErrorState {
  public:
-  virtual ~JniErrorState();
+  virtual ~JniErrorState() = default;
 
   void ensureInitialized(JNIEnv* env);
 
   void assertInitialized();
+
+  void close();
 
   jclass runtimeExceptionClass();
 
@@ -57,6 +59,7 @@ class JniErrorState {
   jclass illegalArgumentExceptionClass_ = nullptr;
   JavaVM* vm_;
   bool initialized_{false};
+  bool closed_{false};
   std::mutex mtx_;
 };
 

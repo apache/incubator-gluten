@@ -310,6 +310,8 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(byteArrayClass);
   env->DeleteGlobalRef(veloxColumnarBatchScannerClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
+  gluten::getJniErrorState()->close();
+  gluten::getJniCommonState()->close();
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_init_BackendJniWrapper_createExecutionCtx( // NOLINT

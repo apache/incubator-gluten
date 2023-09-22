@@ -17,12 +17,6 @@
 
 #include "JniCommon.h"
 
-gluten::JniCommonState::~JniCommonState() {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-  env->DeleteGlobalRef(executionCtxAwareClass_);
-}
-
 void gluten::JniCommonState::ensureInitialized(JNIEnv* env) {
   std::lock_guard<std::mutex> lockGuard(mtx_);
   if (initialized_) {
@@ -51,6 +45,17 @@ void gluten::JniCommonState::initialize(JNIEnv* env) {
     throw gluten::GlutenException("Unable to get JavaVM instance");
   }
   vm_ = vm;
+}
+
+void gluten::JniCommonState::close() {
+  std::lock_guard<std::mutex> lockGuard(mtx_);
+  if (closed_) {
+    return;
+  }
+  JNIEnv* env;
+  attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+  env->DeleteGlobalRef(executionCtxAwareClass_);
+  closed_ = true;
 }
 
 gluten::ExecutionCtx* gluten::getExecutionCtx(JNIEnv* env, jobject executionCtxAware) {

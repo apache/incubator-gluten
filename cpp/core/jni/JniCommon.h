@@ -127,11 +127,13 @@ namespace gluten {
 
 class JniCommonState {
  public:
-  virtual ~JniCommonState();
+  virtual ~JniCommonState() = default;
 
   void ensureInitialized(JNIEnv* env);
 
   void assertInitialized();
+
+  void close();
 
   jmethodID executionCtxAwareCtxHandle();
 
@@ -143,6 +145,7 @@ class JniCommonState {
 
   JavaVM* vm_;
   bool initialized_{false};
+  bool closed_{false};
   std::mutex mtx_;
 };
 

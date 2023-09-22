@@ -16,16 +16,6 @@
  */
 #include "JniError.h"
 
-gluten::JniErrorState::~JniErrorState() {
-  JNIEnv* env;
-  attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-  env->DeleteGlobalRef(ioExceptionClass_);
-  env->DeleteGlobalRef(runtimeExceptionClass_);
-  env->DeleteGlobalRef(unsupportedOperationExceptionClass_);
-  env->DeleteGlobalRef(illegalAccessExceptionClass_);
-  env->DeleteGlobalRef(illegalArgumentExceptionClass_);
-}
-
 void gluten::JniErrorState::ensureInitialized(JNIEnv* env) {
   std::lock_guard<std::mutex> lockGuard(mtx_);
   if (initialized_) {
@@ -62,4 +52,19 @@ void gluten::JniErrorState::initialize(JNIEnv* env) {
     throw gluten::GlutenException("Unable to get JavaVM instance");
   }
   vm_ = vm;
+}
+
+void gluten::JniErrorState::close() {
+  std::lock_guard<std::mutex> lockGuard(mtx_);
+  if (closed_) {
+    return;
+  }
+  JNIEnv* env;
+  attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+  env->DeleteGlobalRef(ioExceptionClass_);
+  env->DeleteGlobalRef(runtimeExceptionClass_);
+  env->DeleteGlobalRef(unsupportedOperationExceptionClass_);
+  env->DeleteGlobalRef(illegalAccessExceptionClass_);
+  env->DeleteGlobalRef(illegalArgumentExceptionClass_);
+  closed_ = true;
 }
