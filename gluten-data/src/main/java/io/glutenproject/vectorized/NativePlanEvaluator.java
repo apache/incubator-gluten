@@ -47,8 +47,17 @@ public class NativePlanEvaluator {
 
   private final PlanEvaluatorJniWrapper jniWrapper;
 
-  public NativePlanEvaluator() {
-    jniWrapper = PlanEvaluatorJniWrapper.create();
+  private NativePlanEvaluator(ExecutionCtx ctx) {
+    jniWrapper = PlanEvaluatorJniWrapper.forCtx(ctx);
+  }
+
+  public static NativePlanEvaluator create() {
+    return new NativePlanEvaluator(ExecutionCtxs.contextInstance());
+  }
+
+  public static NativePlanEvaluator createForValidation() {
+    // Driver side doesn't have context instance of ExecutionCtx
+    return new NativePlanEvaluator(ExecutionCtxs.tmpInstance());
   }
 
   public NativePlanValidationInfo doNativeValidateWithFailureReason(byte[] subPlan) {

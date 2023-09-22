@@ -38,6 +38,10 @@ public class PlanEvaluatorJniWrapper extends JniInitialized implements Execution
     return new PlanEvaluatorJniWrapper(ExecutionCtxs.contextInstance());
   }
 
+  public static PlanEvaluatorJniWrapper forCtx(ExecutionCtx ctx) {
+    return new PlanEvaluatorJniWrapper(ctx);
+  }
+
   @Override
   public long ctxHandle() {
     return ctx.getHandle();
