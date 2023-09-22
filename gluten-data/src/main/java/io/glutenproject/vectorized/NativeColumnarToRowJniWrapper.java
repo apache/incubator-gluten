@@ -16,19 +16,35 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionCtxAware;
+import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 
-import java.io.IOException;
+public class NativeColumnarToRowJniWrapper extends JniInitialized implements ExecutionCtxAware {
+  private final ExecutionCtx ctx;
 
-public class NativeColumnarToRowJniWrapper extends JniInitialized {
+  private NativeColumnarToRowJniWrapper(ExecutionCtx ctx) {
+    this.ctx = ctx;
+  }
 
-  public NativeColumnarToRowJniWrapper() throws IOException {}
+  public static NativeColumnarToRowJniWrapper create() {
+    return new NativeColumnarToRowJniWrapper(ExecutionCtxs.contextInstance());
+  }
 
-  public native long nativeColumnarToRowInit(long executionCtxHandle, long memoryManagerHandle)
+  public static NativeColumnarToRowJniWrapper forCtx(ExecutionCtx ctx) {
+    return new NativeColumnarToRowJniWrapper(ctx);
+  }
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
+  }
+
+  public native long nativeColumnarToRowInit(long memoryManagerHandle) throws RuntimeException;
+
+  public native NativeColumnarToRowInfo nativeColumnarToRowConvert(long batchHandle, long c2rHandle)
       throws RuntimeException;
 
-  public native NativeColumnarToRowInfo nativeColumnarToRowConvert(
-      long executionCtxHandle, long batchHandle, long c2rHandle) throws RuntimeException;
-
-  public native void nativeClose(long executionCtxHandle, long c2rHandle);
+  public native void nativeClose(long c2rHandle);
 }

@@ -17,7 +17,6 @@
 package org.apache.spark.sql.execution.utils
 
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
@@ -42,16 +41,14 @@ import org.apache.spark.util.{MutablePair, TaskResources}
 object ExecUtil {
 
   def convertColumnarToRow(batch: ColumnarBatch): Iterator[InternalRow] = {
-    val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
-    val jniWrapper = new NativeColumnarToRowJniWrapper()
+    val jniWrapper = NativeColumnarToRowJniWrapper.create()
     var info: NativeColumnarToRowInfo = null
     val batchHandle = ColumnarBatches.getNativeHandle(batch)
     val c2rHandle = jniWrapper.nativeColumnarToRowInit(
-      executionCtxHandle,
       NativeMemoryManagers
         .contextInstance("ExecUtil#ColumnarToRow")
         .getNativeInstanceHandle)
-    info = jniWrapper.nativeColumnarToRowConvert(executionCtxHandle, batchHandle, c2rHandle)
+    info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rHandle)
 
     new Iterator[InternalRow] {
       var rowId = 0
@@ -60,7 +57,7 @@ object ExecUtil {
 
       TaskResources.addRecycler(s"ColumnarToRow_$c2rHandle", 100) {
         if (!closed) {
-          jniWrapper.nativeClose(executionCtxHandle, c2rHandle)
+          jniWrapper.nativeClose(c2rHandle)
           closed = true
         }
       }
@@ -68,7 +65,7 @@ object ExecUtil {
       override def hasNext: Boolean = {
         val result = rowId < batch.numRows()
         if (!result && !closed) {
-          jniWrapper.nativeClose(executionCtxHandle, c2rHandle)
+          jniWrapper.nativeClose(c2rHandle)
           closed = true
         }
         result

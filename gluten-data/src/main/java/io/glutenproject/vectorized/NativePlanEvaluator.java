@@ -48,7 +48,7 @@ public class NativePlanEvaluator {
   private final PlanEvaluatorJniWrapper jniWrapper;
 
   public NativePlanEvaluator() {
-    jniWrapper = new PlanEvaluatorJniWrapper();
+    jniWrapper = PlanEvaluatorJniWrapper.create();
   }
 
   public NativePlanValidationInfo doNativeValidateWithFailureReason(byte[] subPlan) {
@@ -66,7 +66,6 @@ public class NativePlanEvaluator {
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
       Plan wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
-    final ExecutionCtx ctx = ExecutionCtxs.contextInstance();
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
     final long memoryManagerHandle =
         NativeMemoryManagers.create(
@@ -92,7 +91,6 @@ public class NativePlanEvaluator {
 
     long iterHandle =
         jniWrapper.nativeCreateKernelWithIterator(
-            ctx.getHandle(),
             memoryManagerHandle,
             getPlanBytesBuf(wsPlan),
             iterList.toArray(new GeneralInIterator[0]),
@@ -107,7 +105,7 @@ public class NativePlanEvaluator {
                         SQLConf.get().getAllConfs()))
                 .toProtobuf()
                 .toByteArray());
-    outIterator.set(createOutIterator(ctx, iterHandle));
+    outIterator.set(createOutIterator(ExecutionCtxs.contextInstance(), iterHandle));
     return outIterator.get();
   }
 

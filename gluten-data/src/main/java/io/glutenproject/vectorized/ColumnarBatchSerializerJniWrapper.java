@@ -16,7 +16,6 @@
  */
 package io.glutenproject.vectorized;
 
-import io.glutenproject.columnarbatch.ColumnarBatchJniWrapper;
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
 import io.glutenproject.exec.ExecutionCtxs;
@@ -33,6 +32,11 @@ public class ColumnarBatchSerializerJniWrapper extends JniInitialized implements
     return new ColumnarBatchSerializerJniWrapper(ExecutionCtxs.contextInstance());
   }
 
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
+  }
+
   public native ColumnarBatchSerializeResult serialize(long[] handles, long memoryManagerHandle);
 
   // Return the native ColumnarBatchSerializer handle
@@ -41,9 +45,4 @@ public class ColumnarBatchSerializerJniWrapper extends JniInitialized implements
   public native long deserialize(long serializerHandle, byte[] data);
 
   public native void close(long serializerHandle);
-
-  @Override
-  public long ctxHandle() {
-    return 0;
-  }
 }
