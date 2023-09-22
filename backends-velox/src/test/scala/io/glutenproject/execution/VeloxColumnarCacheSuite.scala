@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 
-import org.apache.spark.sql.execution.{SparkPlan, VeloxColumnarToRowExec}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.storage.StorageLevel
