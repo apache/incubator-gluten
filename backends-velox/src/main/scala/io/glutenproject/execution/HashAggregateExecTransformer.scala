@@ -453,10 +453,11 @@ case class HashAggregateExecTransformer(
   private def getRowConstructNode(
       args: java.lang.Object,
       childNodes: util.ArrayList[ExpressionNode],
-      rowConstructAttributes: Seq[Attribute]): ScalarFunctionNode = {
+      rowConstructAttributes: Seq[Attribute],
+      withNull: Boolean = true): ScalarFunctionNode = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
-      "row_constructor_with_null",
+      if (withNull) "row_constructor_with_null" else "row_constructor",
       rowConstructAttributes.map(attr => attr.dataType))
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
 
@@ -507,7 +508,7 @@ case class HashAggregateExecTransformer(
                 })
               .asJava)
           exprNodes.addAll(childNodes)
-        case Average(_, _) =>
+        case avg: Average =>
           aggregateExpression.mode match {
             case PartialMerge | Final =>
               assert(
@@ -523,7 +524,12 @@ case class HashAggregateExecTransformer(
                         .doTransform(args)
                     })
                   .asJava)
-              exprNodes.add(getRowConstructNode(args, childNodes, functionInputAttributes))
+              exprNodes.add(
+                getRowConstructNode(
+                  args,
+                  childNodes,
+                  functionInputAttributes,
+                  withNull = !avg.dataType.isInstanceOf[DecimalType]))
             case other =>
               throw new UnsupportedOperationException(s"$other is not supported.")
           }
@@ -688,7 +694,8 @@ case class HashAggregateExecTransformer(
                         .doTransform(args)
                     })
                   .asJava)
-              exprNodes.add(getRowConstructNode(args, childNodes, functionInputAttributes))
+              exprNodes.add(
+                getRowConstructNode(args, childNodes, functionInputAttributes, withNull = false))
             case other =>
               throw new UnsupportedOperationException(s"$other is not supported.")
           }
