@@ -20,7 +20,7 @@
 gluten::JniCommonState::~JniCommonState() {
   JNIEnv* env;
   attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-  env->DeleteGlobalRef(executionResourceClass_);
+  env->DeleteGlobalRef(executionCtxAwareClass_);
 }
 
 void gluten::JniCommonState::ensureInitialized(JNIEnv* env) {
@@ -38,25 +38,14 @@ void gluten::JniCommonState::assertInitialized() {
   }
 }
 
-jclass gluten::JniCommonState::executionResourceClass() {
+jmethodID gluten::JniCommonState::executionCtxAwareCtxHandle() {
   assertInitialized();
-  return executionResourceClass_;
-}
-
-jmethodID gluten::JniCommonState::executionResourceCtxHandle() {
-  assertInitialized();
-  return executionResourceCtxHandle_;
-}
-
-jmethodID gluten::JniCommonState::executionResourceHandle() {
-  assertInitialized();
-  return executionResourceHandle_;
+  return executionCtxAwareCtxHandle_;
 }
 
 void gluten::JniCommonState::initialize(JNIEnv* env) {
-  executionResourceClass_ = createGlobalClassReference(env, "Lio/glutenproject/exec/ExecutionResource;");
-  executionResourceCtxHandle_ = getMethodIdOrError(env, executionResourceClass_, "ctxHandle", "()J");
-  executionResourceHandle_ = getMethodIdOrError(env, executionResourceClass_, "handle", "()J");
+  executionCtxAwareClass_ = createGlobalClassReference(env, "Lio/glutenproject/exec/ExecutionCtxAware;");
+  executionCtxAwareCtxHandle_ = getMethodIdOrError(env, executionCtxAwareClass_, "ctxHandle", "()J");
   JavaVM* vm;
   if (env->GetJavaVM(&vm) != JNI_OK) {
     throw gluten::GlutenException("Unable to get JavaVM instance");
@@ -64,22 +53,10 @@ void gluten::JniCommonState::initialize(JNIEnv* env) {
   vm_ = vm;
 }
 
-gluten::ExecutionResource gluten::getExecutionResource(JNIEnv* env, jobject resourceObj) {
-  int64_t ctxHandle = env->CallLongMethod(resourceObj, getJniCommonState()->executionResourceCtxHandle());
+gluten::ExecutionCtx* gluten::getExecutionCtx(JNIEnv* env, jobject executionCtxAware) {
+  int64_t ctxHandle = env->CallLongMethod(executionCtxAware, getJniCommonState()->executionCtxAwareCtxHandle());
   checkException(env);
   auto ctx = reinterpret_cast<ExecutionCtx*>(ctxHandle);
   GLUTEN_CHECK(ctx != nullptr, "FATAL: resource instance should not be null.");
-  int64_t handle = env->CallLongMethod(resourceObj, getJniCommonState()->executionResourceHandle());
-  checkException(env);
-  return ExecutionResource{ctx, handle};
-}
-
-std::vector<gluten::ExecutionResource> gluten::getExecutionResources(JNIEnv* env, jobjectArray resourceObjs) {
-  std::vector<ExecutionResource> resources;
-  jsize count = env->GetArrayLength(resourceObjs);
-  for (jsize i = 0; i < count; i++) {
-    jobject resource = env->GetObjectArrayElement(resourceObjs, i);
-    resources.push_back(getExecutionResource(env, resource));
-  }
-  return resources;
+  return ctx;
 }

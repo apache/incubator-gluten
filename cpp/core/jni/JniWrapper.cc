@@ -617,76 +617,79 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniWr
 
 JNIEXPORT jstring JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getType( // NOLINT
     JNIEnv* env,
-    jobject,
-    jobject jBatch) {
+    jobject wrapper,
+    jlong batchHandle) {
   JNI_METHOD_START
-  auto resource = gluten::getExecutionResource(env, jBatch);
-  auto batch = resource.ctx->getBatch(resource.resource);
+  auto ctx = gluten::getExecutionCtx(env, wrapper);
+  auto batch = ctx->getBatch(batchHandle);
   return env->NewStringUTF(batch->getType().c_str());
   JNI_METHOD_END(nullptr)
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_numBytes( // NOLINT
     JNIEnv* env,
-    jobject,
-    jobject jBatch) {
+    jobject wrapper,
+    jlong batchHandle) {
   JNI_METHOD_START
-  auto resource = gluten::getExecutionResource(env, jBatch);
-  auto batch = resource.ctx->getBatch(resource.resource);
+  auto ctx = gluten::getExecutionCtx(env, wrapper);
+  auto batch = ctx->getBatch(batchHandle);
   return batch->numBytes();
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_numColumns( // NOLINT
     JNIEnv* env,
-    jobject,
-    jobject jBatch) {
+    jobject wrapper,
+    jlong batchHandle) {
   JNI_METHOD_START
-  auto resource = gluten::getExecutionResource(env, jBatch);
-  auto batch = resource.ctx->getBatch(resource.resource);
+  auto ctx = gluten::getExecutionCtx(env, wrapper);
+  auto batch = ctx->getBatch(batchHandle);
   return batch->numColumns();
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_numRows( // NOLINT
     JNIEnv* env,
-    jobject,
-    jobject jBatch) {
+    jobject wrapper,
+    jlong batchHandle) {
   JNI_METHOD_START
-  auto resource = gluten::getExecutionResource(env, jBatch);
-  auto batch = resource.ctx->getBatch(resource.resource);
+  auto ctx = gluten::getExecutionCtx(env, wrapper);
+  auto batch = ctx->getBatch(batchHandle);
   return batch->numRows();
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_compose( // NOLINT
     JNIEnv* env,
-    jobject,
-    jlong ctxHandle,
-    jobjectArray jBatches) {
+    jobject wrapper,
+    jlongArray batchHandles) {
   JNI_METHOD_START
-  auto executionCtx = jniCastOrThrow<ExecutionCtx>(ctxHandle);
-  auto resources = gluten::getExecutionResources(env, jBatches);
+  auto ctx = gluten::getExecutionCtx(env, wrapper);
+
+  int handleCount = env->GetArrayLength(batchHandles);
+  jlong* handleArray = env->GetLongArrayElements(batchHandles, nullptr);
+
   std::vector<std::shared_ptr<ColumnarBatch>> batches;
-  for (int i = 0; i < resources.size(); ++i) {
-    ExecutionResource& resource = resources.at(i);
-    auto batch = resource.ctx->getBatch(resource.resource);
+  for (int i = 0; i < handleCount; ++i) {
+    jlong handle = handleArray[i];
+    auto batch = ctx->getBatch(handle);
     batches.push_back(batch);
   }
   auto newBatch = CompositeColumnarBatch::create(std::move(batches));
-  return executionCtx->addBatch(newBatch);
+  env->ReleaseLongArrayElements(batchHandles, handleArray, JNI_ABORT);
+  return ctx->addBatch(newBatch);
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_exportToArrow( // NOLINT
     JNIEnv* env,
-    jobject,
-    jobject jBatch,
+    jobject wrapper,
+    jlong batchHandle,
     jlong cSchema,
     jlong cArray) {
   JNI_METHOD_START
-  auto resource = gluten::getExecutionResource(env, jBatch);
-  auto batch = resource.ctx->getBatch(resource.resource);
+  auto ctx = gluten::getExecutionCtx(env, wrapper);
+  auto batch = ctx->getBatch(batchHandle);
   std::shared_ptr<ArrowSchema> exportedSchema = batch->exportArrowSchema();
   std::shared_ptr<ArrowArray> exportedArray = batch->exportArrowArray();
   ArrowSchemaMove(exportedSchema.get(), reinterpret_cast<struct ArrowSchema*>(cSchema));
@@ -696,12 +699,11 @@ JNIEXPORT void JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapp
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_createWithArrowArray( // NOLINT
     JNIEnv* env,
-    jobject,
-    jlong ctxHandle,
+    jobject wrapper,
     jlong cSchema,
     jlong cArray) {
   JNI_METHOD_START
-  auto executionCtx = jniCastOrThrow<ExecutionCtx>(ctxHandle);
+  auto ctx = gluten::getExecutionCtx(env, wrapper);
 
   std::unique_ptr<ArrowSchema> targetSchema = std::make_unique<ArrowSchema>();
   std::unique_ptr<ArrowArray> targetArray = std::make_unique<ArrowArray>();
@@ -711,18 +713,18 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrap
   ArrowSchemaMove(arrowSchema, targetSchema.get());
   std::shared_ptr<ColumnarBatch> batch =
       std::make_shared<ArrowCStructColumnarBatch>(std::move(targetSchema), std::move(targetArray));
-  return executionCtx->addBatch(batch);
+  return ctx->addBatch(batch);
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_select( // NOLINT
     JNIEnv* env,
-    jobject,
+    jobject wrapper,
     jlong memoryManagerHandle,
-    jobject jBatch,
+    jlong batchHandle,
     jintArray jcolumnIndices) {
   JNI_METHOD_START
-  auto resource = gluten::getExecutionResource(env, jBatch);
+  auto ctx = gluten::getExecutionCtx(env, wrapper);
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
 
   int* tmp = env->GetIntArrayElements(jcolumnIndices, nullptr);
@@ -733,17 +735,17 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrap
   }
   env->ReleaseIntArrayElements(jcolumnIndices, tmp, JNI_ABORT);
 
-  return resource.ctx->select(memoryManager, resource.resource, std::move(columnIndices));
+  return ctx->select(memoryManager, batchHandle, std::move(columnIndices));
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_close( // NOLINT
     JNIEnv* env,
-    jobject,
-    jobject jBatch) {
+    jobject wrapper,
+    jlong batchHandle) {
   JNI_METHOD_START
-  auto resource = gluten::getExecutionResource(env, jBatch);
-  resource.ctx->releaseBatch(resource.resource);
+  auto ctx = gluten::getExecutionCtx(env, wrapper);
+  ctx->releaseBatch(batchHandle);
   JNI_METHOD_END()
 }
 

@@ -14,16 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.glutenproject.exec;
 
 /**
- * The implementation of this API is considered contextual in the scope of a specific {@link
- * ExecutionCtx}.
+ * This defines the base abstraction for the contextual objects that
+ * can be transmitted to C++ side for further native processing.
  */
-public interface ExecutionResource {
-  /** The handle to corresponding {@link ExecutionCtx}. */
+public interface ExecutionCtxAware {
   long ctxHandle();
-
-  /** The handle of this resource. */
-  long handle();
 }

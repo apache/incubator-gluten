@@ -133,18 +133,13 @@ class JniCommonState {
 
   void assertInitialized();
 
-  jclass executionResourceClass();
-
-  jmethodID executionResourceCtxHandle();
-
-  jmethodID executionResourceHandle();
+  jmethodID executionCtxAwareCtxHandle();
 
  private:
   void initialize(JNIEnv* env);
 
-  jclass executionResourceClass_;
-  jmethodID executionResourceCtxHandle_;
-  jmethodID executionResourceHandle_;
+  jclass executionCtxAwareClass_;
+  jmethodID executionCtxAwareCtxHandle_;
 
   JavaVM* vm_;
   bool initialized_{false};
@@ -156,14 +151,7 @@ inline JniCommonState* getJniCommonState() {
   return &jniCommonState;
 }
 
-struct ExecutionResource {
-  gluten::ExecutionCtx* const ctx;
-  ResourceHandle resource;
-};
-
-ExecutionResource getExecutionResource(JNIEnv* env, jobject resourceObj);
-
-std::vector<ExecutionResource> getExecutionResources(JNIEnv* env, jobjectArray resourceObjs);
+ExecutionCtx* getExecutionCtx(JNIEnv* env, jobject executionCtxAware);
 } // namespace gluten
 
 // TODO: Move the static functions to namespace gluten

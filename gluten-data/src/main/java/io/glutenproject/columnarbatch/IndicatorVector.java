@@ -17,8 +17,6 @@
 package io.glutenproject.columnarbatch;
 
 import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionResource;
-
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.vectorized.ColumnVector;
@@ -28,15 +26,15 @@ import org.apache.spark.unsafe.types.UTF8String;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class IndicatorVector extends ColumnVector implements ExecutionResource {
+public class IndicatorVector extends ColumnVector {
   private final ExecutionCtx ctx;
-  private final long batchHandle;
+  private final long handle;
   private final AtomicLong refCnt = new AtomicLong(1L);
 
-  protected IndicatorVector(ExecutionCtx ctx, long batchHandle) {
+  protected IndicatorVector(ExecutionCtx ctx, long handle) {
     super(DataTypes.NullType);
     this.ctx = ctx;
-    this.batchHandle = batchHandle;
+    this.handle = handle;
   }
 
   public ExecutionCtx ctx() {
@@ -44,15 +42,15 @@ public class IndicatorVector extends ColumnVector implements ExecutionResource {
   }
 
   public String getType() {
-    return ColumnarBatchJniWrapper.INSTANCE.getType(this);
+    return ColumnarBatchJniWrapper.forCtx(ctx).getType(handle);
   }
 
   public long getNumColumns() {
-    return ColumnarBatchJniWrapper.INSTANCE.numColumns(this);
+    return ColumnarBatchJniWrapper.forCtx(ctx).numColumns(handle);
   }
 
   public long getNumRows() {
-    return ColumnarBatchJniWrapper.INSTANCE.numRows(this);
+    return ColumnarBatchJniWrapper.forCtx(ctx).numRows(handle);
   }
 
   public long refCnt() {
@@ -70,7 +68,7 @@ public class IndicatorVector extends ColumnVector implements ExecutionResource {
       return;
     }
     if (refCnt.decrementAndGet() == 0) {
-      ColumnarBatchJniWrapper.INSTANCE.close(this);
+      ColumnarBatchJniWrapper.forCtx(ctx).close(handle);
     }
   }
 
@@ -158,13 +156,7 @@ public class IndicatorVector extends ColumnVector implements ExecutionResource {
     throw new UnsupportedOperationException();
   }
 
-  @Override
-  public long ctxHandle() {
-    return ctx.getHandle();
-  }
-
-  @Override
   public long handle() {
-    return batchHandle;
+    return handle;
   }
 }
