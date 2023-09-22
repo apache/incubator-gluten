@@ -106,7 +106,7 @@ private class CelebornColumnarBatchSerializerInstance(
       private lazy val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
         executionCtx,
         ShuffleReaderJniWrapper.INSTANCE
-          .readStream(executionCtx, shuffleReaderHandle, byteIn))
+          .readStream(executionCtx.getHandle, shuffleReaderHandle, byteIn))
 
       private var cb: ColumnarBatch = _
 
