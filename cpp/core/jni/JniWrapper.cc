@@ -386,10 +386,10 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
-JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIterator_nativeHasNext(
+JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIterator_nativeHasNext( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlong iterHandle) { // NOLINT
+    jlong iterHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getExecutionCtx(env, wrapper);
 
@@ -402,10 +402,10 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIter
   JNI_METHOD_END(false)
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIterator_nativeNext(
+JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIterator_nativeNext( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlong iterHandle) { // NOLINT
+    jlong iterHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getExecutionCtx(env, wrapper);
 
@@ -904,10 +904,10 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
-JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_stop(
+JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_stop( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlong shuffleWriterHandle) { // NOLINT
+    jlong shuffleWriterHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getExecutionCtx(env, wrapper);
 
@@ -946,10 +946,10 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapp
   JNI_METHOD_END(nullptr)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_close(
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper_close( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlong shuffleWriterHandle) { // NOLINT
+    jlong shuffleWriterHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getExecutionCtx(env, wrapper);
 
@@ -1301,10 +1301,10 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializer
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_close(
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializerJniWrapper_close( // NOLINT
     JNIEnv* env,
     jobject wrapper,
-    jlong serializerHandle) { // NOLINT
+    jlong serializerHandle) {
   JNI_METHOD_START
   auto ctx = gluten::getExecutionCtx(env, wrapper);
 
