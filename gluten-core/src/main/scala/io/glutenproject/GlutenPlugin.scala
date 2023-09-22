@@ -104,6 +104,9 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
         throw new IllegalStateException("Unknown backend")
       }
 
+    // export gluten version to property to spark
+    System.setProperty("gluten.version", VERSION)
+
     val glutenBuildInfo = new mutable.HashMap[String, String]()
     glutenBuildInfo.put("Gluten Version", VERSION)
     glutenBuildInfo.put("GCC Version", GCC_VERSION)
