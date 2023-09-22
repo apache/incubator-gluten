@@ -754,7 +754,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jstring dataFileJstr,
     jint numSubDirs,
     jstring localDirsJstr,
-    jboolean preferEvict,
     jlong memoryManagerHandle,
     jboolean writeEOS,
     jdouble reallocThreshold,
