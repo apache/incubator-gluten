@@ -485,14 +485,6 @@ class SubstraitToVeloxPlanConverter {
     return toVeloxPlan(rel.input());
   }
 
-  /// Get customized field name separators.
-  static const std::shared_ptr<common::Separators>& getSeparators() {
-    static std::shared_ptr<common::Separators> separator = std::make_shared<common::Separators>();
-    // Treat dot as regular character.
-    separator->dot = '\0';
-    return separator;
-  }
-
   /// The unique identification for each PlanNode.
   int planNodeId_ = 0;
 
