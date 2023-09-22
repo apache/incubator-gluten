@@ -112,11 +112,11 @@ public class ColumnarBatches {
    * This method will always return a velox based ColumnarBatch. This method will close the input
    * column batch.
    */
-  public static ColumnarBatch select(NativeMemoryManager nmm, ColumnarBatch batch, int[] columnIndices) {
+  public static ColumnarBatch select(
+      NativeMemoryManager nmm, ColumnarBatch batch, int[] columnIndices) {
     final IndicatorVector iv = getIndicatorVector(batch);
     long outputBatchHandle =
-        ColumnarBatchJniWrapper.INSTANCE.select(
-            nmm.getNativeInstanceHandle(), iv, columnIndices);
+        ColumnarBatchJniWrapper.INSTANCE.select(nmm.getNativeInstanceHandle(), iv, columnIndices);
     return create(iv.ctx(), outputBatchHandle);
   }
 
