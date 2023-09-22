@@ -299,5 +299,4 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       ) :: Nil
     )
   }
-
 }
