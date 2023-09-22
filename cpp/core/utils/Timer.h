@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
+#pragma once
+
 #include <chrono>
 
-using namespace std::chrono;
-using TimePoint = time_point<steady_clock, nanoseconds>;
+using TimePoint = std::chrono::time_point<std::chrono::steady_clock, std::chrono::nanoseconds>;
 
 namespace gluten {
 class Timer {
@@ -35,7 +36,8 @@ class Timer {
       return;
     }
     running_ = false;
-    realTimeUsed_ += duration_cast<nanoseconds>(std::chrono::steady_clock::now() - startTime_).count();
+    realTimeUsed_ +=
+        std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime_).count();
   }
 
   bool running() const {
