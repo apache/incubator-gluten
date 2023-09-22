@@ -14,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.exec;
 
 /**
- * This defines the base abstraction for the contextual objects that
- * can be transmitted to C++ side for further native processing.
+ * This defines the base abstraction for the contextual objects that can be transmitted to C++ side
+ * for further native processing.
  */
 public interface ExecutionCtxAware {
   long ctxHandle();

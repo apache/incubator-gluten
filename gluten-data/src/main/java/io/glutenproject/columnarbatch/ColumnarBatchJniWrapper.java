@@ -36,7 +36,6 @@ public class ColumnarBatchJniWrapper extends JniInitialized implements Execution
     return new ColumnarBatchJniWrapper(ctx);
   }
 
-
   public native long createWithArrowArray(long cSchema, long cArray);
 
   public native String getType(long batchHandle);

@@ -55,8 +55,7 @@ public class ColumnarBatches {
     }
   }
 
-  private ColumnarBatches() {
-  }
+  private ColumnarBatches() {}
 
   private static void transferVectors(ColumnarBatch from, ColumnarBatch target) {
     try {
@@ -72,9 +71,7 @@ public class ColumnarBatches {
     }
   }
 
-  /**
-   * Heavy batch: Data is readable from JVM and formatted as Arrow data.
-   */
+  /** Heavy batch: Data is readable from JVM and formatted as Arrow data. */
   public static boolean isHeavyBatch(ColumnarBatch batch) {
     if (batch.numCols() == 0) {
       throw new IllegalArgumentException(
@@ -119,7 +116,8 @@ public class ColumnarBatches {
       NativeMemoryManager nmm, ColumnarBatch batch, int[] columnIndices) {
     final IndicatorVector iv = getIndicatorVector(batch);
     long outputBatchHandle =
-        ColumnarBatchJniWrapper.create().select(nmm.getNativeInstanceHandle(), iv.handle(), columnIndices);
+        ColumnarBatchJniWrapper.create()
+            .select(nmm.getNativeInstanceHandle(), iv.handle(), columnIndices);
     return create(iv.ctx(), outputBatchHandle);
   }
 
@@ -165,8 +163,8 @@ public class ColumnarBatches {
         ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
         CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
-      ColumnarBatchJniWrapper.forCtx(iv.ctx()).exportToArrow(
-          iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
+      ColumnarBatchJniWrapper.forCtx(iv.ctx())
+          .exportToArrow(iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
 
       Data.exportSchema(
           allocator, ArrowUtil.toArrowSchema(cSchema, allocator, provider), provider, arrowSchema);
@@ -204,8 +202,8 @@ public class ColumnarBatches {
       ArrowAbiUtil.exportFromSparkColumnarBatch(
           ArrowBufferAllocators.contextInstance(), input, cSchema, cArray);
       long handle =
-          ColumnarBatchJniWrapper.forCtx(ctx).createWithArrowArray(
-              cSchema.memoryAddress(), cArray.memoryAddress());
+          ColumnarBatchJniWrapper.forCtx(ctx)
+              .createWithArrowArray(cSchema.memoryAddress(), cArray.memoryAddress());
       ColumnarBatch output = ColumnarBatches.create(ctx, handle);
 
       // Follow input's reference count. This might be optimized using
@@ -315,10 +313,8 @@ public class ColumnarBatches {
     final ExecutionCtx[] ctxs =
         Arrays.stream(ivs).map(IndicatorVector::ctx).distinct().toArray(ExecutionCtx[]::new);
     Preconditions.checkState(
-        ctxs.length == 1,
-        "All input batches should be managed by same ExecutionCtx.");
-    final long[] handles =
-        Arrays.stream(ivs).mapToLong(IndicatorVector::handle).toArray();
+        ctxs.length == 1, "All input batches should be managed by same ExecutionCtx.");
+    final long[] handles = Arrays.stream(ivs).mapToLong(IndicatorVector::handle).toArray();
     return ColumnarBatchJniWrapper.forCtx(ctxs[0]).compose(handles);
   }
 
