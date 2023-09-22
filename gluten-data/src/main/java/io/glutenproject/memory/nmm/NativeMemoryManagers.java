@@ -44,9 +44,6 @@ public final class NativeMemoryManagers {
 
   /** Create a temporary memory manager, caller should call NativeMemoryManager#release manually. */
   public static NativeMemoryManager tmpInstance(String name) {
-    if (TaskResources.inSparkTask()) {
-      throw new IllegalStateException("This method should not used here.");
-    }
     return NativeMemoryManager.create(name, ReservationListener.NOOP);
   }
 

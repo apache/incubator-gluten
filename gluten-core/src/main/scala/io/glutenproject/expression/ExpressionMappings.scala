@@ -93,6 +93,8 @@ object ExpressionMappings {
     Sig[Overlay](OVERLAY),
     Sig[Conv](CONV),
     Sig[FindInSet](FIND_IN_SET),
+    Sig[StringDecode](DECODE),
+    Sig[Encode](ENCODE),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),

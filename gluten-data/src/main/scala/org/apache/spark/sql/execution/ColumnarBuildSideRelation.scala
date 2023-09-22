@@ -103,7 +103,7 @@ case class ColumnarBuildSideRelation(
    * was called in Spark Driver, should manage resources carefully.
    */
   override def transform(key: Expression): Array[InternalRow] = {
-    // convert batches: Array[Array[Byte]] to Array[InternalRow] by key and distinct.
+    // This transformation happens in Spark driver, thus resources can not be managed automatically.
     val executionCtx = ExecutionCtxs.tmpInstance()
     val nativeMemoryManager = NativeMemoryManagers.tmpInstance("BuildSideRelation#transform")
     val serializeHandle = {
