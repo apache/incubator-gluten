@@ -204,11 +204,42 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   test("gluten 3213") {
     Seq(
       (
-        "c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8",
-        "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", null)
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5",
+        "c6",
+        "c7",
+        "c8",
+        "c9",
+        "c10",
+        "c11",
+        "c12",
+        "c13",
+        "c14",
+        "c15",
+        "c16",
+        null)
     )
-      .toDF("c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8",
-        "c9", "c10", "c11", "c12", "c13", "c14", "c15", "c16", "c17")
+      .toDF(
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5",
+        "c6",
+        "c7",
+        "c8",
+        "c9",
+        "c10",
+        "c11",
+        "c12",
+        "c13",
+        "c14",
+        "c15",
+        "c16",
+        "c17")
       .createOrReplaceTempView("view")
 
     val df = spark.sql(
@@ -219,7 +250,8 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
         "min(c17) from view"
     )
     checkAnswer(df,
-      Row("c1", "c1", "c2", "c2", "c3", "c3", "c4", "c4",
+      Row(
+        "c1", "c1", "c2", "c2", "c3", "c3", "c4", "c4",
         "c5", "c5", "c6", "c6", "c7", "c7", "c8", "c8",
         "c9", "c9", "c10", "c10", "c11", "c11", "c12", "c12",
         "c13", "c13", "c14", "c14", "c15", "c15", "c16", "c16", null) :: Nil
