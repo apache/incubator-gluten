@@ -211,5 +211,4 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
 
     checkAnswer(df.agg(sum($"a".cast("double"))), Row(-32.82))
   }
-
 }
