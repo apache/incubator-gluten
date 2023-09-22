@@ -1265,22 +1265,20 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("test posexplode issue: https://github.com/oap-project/gluten/issues/1767") {
-    spark.sql(
-      """
-        | create table test_tbl(id bigint, data map<string, string>) using parquet;
-        |""".stripMargin
-    )
+    spark.sql("create table test_1767 (id bigint, data map<string, string>) using parquet")
+    spark.sql("INSERT INTO test_1767 values(1, map('k', 'v'))")
 
-    spark.sql("INSERT INTO test_tbl values(1, map('k', 'v'))")
     val sql = """
-                | select id from test_tbl lateral view
+                | select id from test_1767 lateral view
                 | posexplode(split(data['k'], ',')) tx as a, b""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+
+    spark.sql("drop table test_1767")
   }
 
   test("test posexplode issue: https://github.com/oap-project/gluten/issues/2492") {
     val sql = "select posexplode(split(n_comment, ' ')) from nation where n_comment is null"
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
   }
 
   test("test posexplode issue: https://github.com/oap-project/gluten/issues/2454") {
@@ -1294,6 +1292,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     for (sql <- sqls) {
       runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
     }
+  }
+
+  test("test explode issue: https://github.com/oap-project/gluten/issues/3124") {
+    spark.sql("create table test_3124 (id bigint, name string, sex string) using parquet")
+    spark.sql("insert into test_3124  values (31, null, 'm'), (32, 'a,b,c', 'f')")
+
+    val sql = "select id, flag from test_3124 lateral view explode(split(name, ',')) as flag"
+    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+
+    spark.sql("drop table test_3124")
   }
 
   test("test 'scala udf'") {
