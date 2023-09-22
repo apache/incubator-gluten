@@ -95,7 +95,7 @@ object BackendSettings extends BackendSettingsApi {
               s" due to: data type $unsupportedDataType. in file schema. ")
           // scalastyle:on println
         }
-        unsupportedDataTypes.isEmpty
+        unsupportedDataTypes.isEmpty && validateTypes
       case _ => false
     }
   }
