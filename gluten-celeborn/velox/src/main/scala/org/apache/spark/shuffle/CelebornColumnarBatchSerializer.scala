@@ -62,8 +62,8 @@ private class CelebornColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private lazy val (executionCtxHandle, shuffleReaderHandle) = {
-    val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
+  private lazy val (executionCtx, shuffleReaderHandle) = {
+    val ctx = ExecutionCtxs.contextInstance()
     val allocator: BufferAllocator = ArrowBufferAllocators
       .contextInstance()
       .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
@@ -82,7 +82,7 @@ private class CelebornColumnarBatchSerializerInstance(
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
     val handle = ShuffleReaderJniWrapper.INSTANCE.make(
       cSchema.memoryAddress(),
-      executionCtxHandle,
+      ctx.getHandle,
       NativeMemoryManagers.contextInstance("ShuffleReader").getNativeInstanceHandle,
       compressionCodec,
       compressionCodecBackend,
@@ -94,19 +94,19 @@ private class CelebornColumnarBatchSerializerInstance(
     // should keep alive before all buffers to finish consuming.
     TaskResources.addRecycler(s"CelebornShuffleReaderHandle_$handle", 50) {
       cSchema.close()
-      ShuffleReaderJniWrapper.INSTANCE.close(executionCtxHandle, handle)
+      ShuffleReaderJniWrapper.INSTANCE.close(ctx.getHandle, handle)
       allocator.close()
     }
-    (executionCtxHandle, handle)
+    (ctx, handle)
   }
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
       private lazy val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
       private lazy val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
-        executionCtxHandle,
+        executionCtx,
         ShuffleReaderJniWrapper.INSTANCE
-          .readStream(executionCtxHandle, shuffleReaderHandle, byteIn))
+          .readStream(executionCtx, shuffleReaderHandle, byteIn))
 
       private var cb: ColumnarBatch = _
 
