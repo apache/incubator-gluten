@@ -62,6 +62,7 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
   virtual ResourceHandle addBatch(std::shared_ptr<ColumnarBatch>) = 0;
   virtual std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle) = 0;
   virtual void releaseBatch(ResourceHandle) = 0;
+  virtual ResourceHandle select(MemoryManager*, ResourceHandle, std::vector<int32_t>) = 0;
 
   void parsePlan(const uint8_t* data, int32_t size) {
     parsePlan(data, size, {-1, -1, -1});
@@ -112,7 +113,7 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
   virtual std::shared_ptr<ShuffleWriter> getShuffleWriter(ResourceHandle) = 0;
   virtual void releaseShuffleWriter(ResourceHandle) = 0;
 
-  virtual std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;
+  virtual Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;
 
   virtual ResourceHandle createDatasource(
       const std::string& filePath,
