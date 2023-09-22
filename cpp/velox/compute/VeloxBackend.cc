@@ -31,6 +31,9 @@
 #ifdef GLUTEN_ENABLE_IAA
 #include "utils/qpl/qpl_codec.h"
 #endif
+#ifdef ENABLE_GCS
+#include <fstream>
+#endif
 #include "jni/JniFileSystem.h"
 #include "udf/UdfLoader.h"
 #include "utils/ConfigExtractor.h"
@@ -199,6 +202,56 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   }
   veloxmemcfg->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
   veloxmemcfg->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
+#endif
+#ifdef ENABLE_GCS
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
+  std::string gsStorageRootUrl;
+  if (auto got = conf.find("spark.hadoop.fs.gs.storage.root.url"); got != conf.end()) {
+    gsStorageRootUrl = got->second;
+  }
+  if (!gsStorageRootUrl.empty()) {
+    std::string gcsScheme;
+    std::string gcsEndpoint;
+
+    const auto sep = std::string("://");
+    const auto pos = gsStorageRootUrl.find_first_of(sep);
+    if (pos != std::string::npos) {
+      gcsScheme = gsStorageRootUrl.substr(0, pos);
+      gcsEndpoint = gsStorageRootUrl.substr(pos + sep.length());
+    }
+
+    if (!gcsEndpoint.empty() && !gcsScheme.empty()) {
+      veloxmemcfg->setValue("hive.gcs.scheme", gcsScheme);
+      veloxmemcfg->setValue("hive.gcs.endpoint", gcsEndpoint);
+    }
+  }
+
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
+  std::string gsAuthType;
+  if (auto got = conf.find("spark.hadoop.fs.gs.auth.type"); got != conf.end()) {
+    gsAuthType = got->second;
+  }
+  if (gsAuthType == "SERVICE_ACCOUNT_JSON_KEYFILE") {
+    std::string gsAuthServiceAccountJsonKeyfile;
+    if (auto got = conf.find("spark.hadoop.fs.gs.auth.service.account.json.keyfile"); got != conf.end()) {
+      gsAuthServiceAccountJsonKeyfile = got->second;
+    }
+
+    std::string gsAuthServiceAccountJson;
+    if (!gsAuthServiceAccountJsonKeyfile.empty()) {
+      auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile);
+      stream.exceptions(std::ios::badbit);
+      gsAuthServiceAccountJson = std::string(std::istreambuf_iterator<char>(stream.rdbuf()), {});
+    } else {
+      LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
+                      "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
+      throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
+    }
+
+    if (!gsAuthServiceAccountJson.empty()) {
+      veloxmemcfg->setValue("hive.gcs.credentials", gsAuthServiceAccountJson);
+    }
+  }
 #endif
 
   initCache(veloxcfg);
