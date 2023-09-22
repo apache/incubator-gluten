@@ -121,8 +121,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   @deprecated def broadcastCacheTimeout: Int = conf.getConf(COLUMNAR_BROADCAST_CACHE_TIMEOUT)
 
-  def columnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_SHUFFLE_PREFER_SPILL_ENABLED)
-
   def columnarShuffleWriteEOS: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED)
 
   def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
@@ -229,6 +227,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def veloxMaxSpillFileSize: Long = conf.getConf(COLUMNAR_VELOX_MAX_SPILL_FILE_SIZE)
 
   def veloxSpillFileSystem: String = conf.getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
+
+  def chColumnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED)
 
   def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
 
@@ -769,16 +769,6 @@ object GlutenConfig {
       .intConf
       .createWithDefault(-1)
 
-  val COLUMNAR_SHUFFLE_PREFER_SPILL_ENABLED =
-    buildConf("spark.gluten.sql.columnar.shuffle.preferSpill")
-      .internal()
-      .doc(
-        "Whether to spill the partition buffers when buffers are full. " +
-          "If false, the partition buffers will be cached in memory first, " +
-          "and the cached buffers will be spilled when reach maximum memory.")
-      .booleanConf
-      .createWithDefault(false)
-
   val COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED =
     buildConf("spark.gluten.sql.columnar.shuffle.writeEOS")
       .internal()
@@ -1067,6 +1057,16 @@ object GlutenConfig {
       .stringConf
       .checkValues(Set("local", "heap-over-local"))
       .createWithDefaultString("local")
+
+  val COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.ch.shuffle.preferSpill")
+      .internal()
+      .doc(
+        "Whether to spill the partition buffers when buffers are full. " +
+          "If false, the partition buffers will be cached in memory first, " +
+          "and the cached buffers will be spilled when reach maximum memory.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.backend.ch.spillThreshold")

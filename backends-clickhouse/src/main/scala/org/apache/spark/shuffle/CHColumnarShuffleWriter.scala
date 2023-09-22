@@ -52,7 +52,7 @@ class CHColumnarShuffleWriter[K, V](
   private val splitSize = GlutenConfig.getConf.maxBatchSize
   private val customizedCompressCodec =
     GlutenShuffleUtils.getCompressionCodec(conf).toUpperCase(Locale.ROOT)
-  private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
+  private val preferSpill = GlutenConfig.getConf.chColumnarShufflePreferSpill
   private val spillThreshold = GlutenConfig.getConf.chColumnarShuffleSpillThreshold
   private val jniWrapper = new CHShuffleSplitterJniWrapper
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
