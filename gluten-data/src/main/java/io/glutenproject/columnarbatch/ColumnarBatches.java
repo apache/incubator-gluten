@@ -107,8 +107,20 @@ public class ColumnarBatches {
   }
 
   /**
+   * This method will always return a velox based ColumnarBatch. This method will close the input
+   * column batch.
+   */
+  public static ColumnarBatch select(
+      long executionCtxHandle, long nativeMemoryManagerHandle, long handle, int[] columnIndices) {
+    long outputBatchHandle =
+        ColumnarBatchJniWrapper.INSTANCE.select(
+            executionCtxHandle, nativeMemoryManagerHandle, handle, columnIndices);
+    return create(executionCtxHandle, outputBatchHandle);
+  }
+
+  /**
    * Ensure the input batch is offloaded as native-based columnar batch (See {@link IndicatorVector}
-   * and {@link PlaceholderVector}).
+   * and {@link PlaceholderVector}). This method will close the input column batch after offloaded.
    */
   public static ColumnarBatch ensureOffloaded(BufferAllocator allocator, ColumnarBatch batch) {
     if (ColumnarBatches.isLightBatch(batch)) {
@@ -119,7 +131,8 @@ public class ColumnarBatches {
 
   /**
    * Ensure the input batch is loaded as Arrow-based Java columnar batch. ABI-based sharing will
-   * take place if loading is required, which means when the input batch is not loaded yet.
+   * take place if loading is required, which means when the input batch is not loaded yet. This
+   * method will close the input column batch after loaded.
    */
   public static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
     if (batch.numCols() == 0) {

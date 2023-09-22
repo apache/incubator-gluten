@@ -74,6 +74,8 @@ class VeloxExecutionCtx final : public ExecutionCtx {
   ResourceHandle addBatch(std::shared_ptr<ColumnarBatch> ptr) override;
   std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle handle) override;
   void releaseBatch(ResourceHandle handle) override;
+  ResourceHandle select(MemoryManager* memoryManager, ResourceHandle batch, std::vector<int32_t> columnIndices)
+      override;
 
   ResourceHandle createRow2ColumnarConverter(MemoryManager* memoryManager, struct ArrowSchema* cSchema) override;
   std::shared_ptr<RowToColumnarConverter> getRow2ColumnarConverter(ResourceHandle handle) override;

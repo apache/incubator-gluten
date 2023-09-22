@@ -148,6 +148,16 @@ void VeloxExecutionCtx::releaseBatch(ResourceHandle handle) {
   columnarBatchHolder_.erase(handle);
 }
 
+ResourceHandle
+VeloxExecutionCtx::select(MemoryManager* memoryManager, ResourceHandle handle, std::vector<int32_t> columnIndices) {
+  auto batch = columnarBatchHolder_.lookup(handle);
+  auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
+  auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch);
+  auto outputBatch = veloxBatch->select(ctxVeloxPool.get(), std::move(columnIndices));
+  releaseBatch(handle);
+  return columnarBatchHolder_.insert(outputBatch);
+}
+
 ResourceHandle VeloxExecutionCtx::createRow2ColumnarConverter(
     MemoryManager* memoryManager,
     struct ArrowSchema* cSchema) {
