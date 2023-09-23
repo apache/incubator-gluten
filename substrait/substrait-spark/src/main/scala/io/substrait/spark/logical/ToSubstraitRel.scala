@@ -251,6 +251,10 @@ class ToSubstraitRel extends AbstractLogicalPlanVisitor with Logging {
     relation.Sort.builder.addAllSortFields(fields).input(input).build
   }
 
+  override def visitOffset(plan: Offset): relation.Rel = {
+    throw new UnsupportedOperationException(
+      s"Unable to convert the plan to a substrait plan: $plan")
+  }
   private def toExpression(output: Seq[Attribute])(e: Expression): SExpression = {
     toSubstraitExp(e, output)
   }
@@ -331,7 +335,7 @@ private[logical] class WithLogicalSubQuery(toSubstraitRel: ToSubstraitRel)
 
   override protected def translateSubQuery(expr: PlanExpression[_]): Option[SExpression] = {
     expr match {
-      case s @ ScalarSubquery(childPlan, outerAttrs, _, joinCond)
+      case s @ ScalarSubquery(childPlan, outerAttrs, _, joinCond, _, _)
           if outerAttrs.isEmpty && joinCond.isEmpty =>
         val rel = toSubstraitRel.visit(childPlan)
         Some(

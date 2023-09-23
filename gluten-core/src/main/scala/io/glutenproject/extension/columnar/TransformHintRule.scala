@@ -327,7 +327,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               TransformHints.tagTransformable(plan)
             } else {
               val transformer =
-                new BatchScanExecTransformer(plan.output, plan.scan, plan.runtimeFilters)
+                new BatchScanExecTransformer(
+                  plan.output,
+                  plan.scan,
+                  plan.runtimeFilters,
+                  plan.table)
               TransformHints.tag(plan, transformer.doValidate().toTransformHint)
             }
           }

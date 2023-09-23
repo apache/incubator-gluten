@@ -17,8 +17,8 @@
 package org.apache.spark.sql.utils
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.execution.datasources.DataSourceStrategy
-import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.connector.expressions.filter.Predicate
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Strategy
 
 object DataSourceStrategyUtil {
 
@@ -28,6 +28,6 @@ object DataSourceStrategyUtil {
    * Runtime filters usually contain a subquery that must be evaluated before the translation. If
    * the underlying subquery hasn't completed yet, this method will throw an exception.
    */
-  def translateRuntimeFilter(expr: Expression): Option[Filter] =
-    DataSourceStrategy.translateRuntimeFilter(expr)
+  def translateRuntimeFilter(expr: Expression): Option[Predicate] =
+    DataSourceV2Strategy.translateRuntimeFilterV2(expr)
 }

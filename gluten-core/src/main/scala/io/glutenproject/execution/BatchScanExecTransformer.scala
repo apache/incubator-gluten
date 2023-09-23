@@ -23,7 +23,9 @@ import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
@@ -43,8 +45,22 @@ class BatchScanExecTransformer(
     output: Seq[AttributeReference],
     @transient scan: Scan,
     runtimeFilters: Seq[Expression],
-    keyGroupedPartitioning: Option[Seq[Expression]] = None)
-  extends BatchScanExecShim(output, scan, runtimeFilters)
+    @transient table: Table,
+    keyGroupedPartitioning: Option[Seq[Expression]] = None,
+    ordering: Option[Seq[SortOrder]] = None,
+    commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
+    applyPartialClustering: Boolean = false,
+    replicatePartitions: Boolean = false)
+  extends BatchScanExecShim(
+    output,
+    scan,
+    runtimeFilters,
+    keyGroupedPartitioning,
+    ordering,
+    table,
+    commonPartitionValues,
+    applyPartialClustering,
+    replicatePartitions)
   with BasicScanExecTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -137,7 +153,8 @@ class BatchScanExecTransformer(
     new BatchScanExecTransformer(
       canonicalized.output,
       canonicalized.scan,
-      canonicalized.runtimeFilters
+      canonicalized.runtimeFilters,
+      canonicalized.table
     )
   }
 }

@@ -84,5 +84,12 @@
         <module>spark33</module>
       </modules>
     </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <modules>
+        <module>common</module>
+        <module>spark34</module>
+      </modules>
+    </profile>
   </profiles>
 </project>

@@ -47,7 +47,6 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   extends UnaryExecNode
   with TransformSupport
   with PredicateHelper
-  with AliasAwareOutputPartitioning
   with Logging {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -128,8 +127,6 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       RelBuilder.makeFilterRel(input, condExprNode, extensionNode, context, operatorId)
     }
   }
-
-  override protected def outputExpressions: Seq[NamedExpression] = output
 
   override def output: Seq[Attribute] = {
     child.output.map {
@@ -219,7 +216,6 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
   extends UnaryExecNode
   with TransformSupport
   with PredicateHelper
-  with AliasAwareOutputPartitioning
   with Logging {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -357,8 +353,6 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
-
-  override protected def outputExpressions: Seq[NamedExpression] = projectList
 
   override protected def doExecute()
       : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
@@ -564,7 +558,11 @@ object FilterHandler {
               getLeftFilters(scan.dataFilters, flattenCondition(plan.condition))
             val newPartitionFilters =
               ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters, reuseSubquery)
-            new BatchScanExecTransformer(batchScan.output, scan, leftFilters ++ newPartitionFilters)
+            new BatchScanExecTransformer(
+              batchScan.output,
+              scan,
+              leftFilters ++ newPartitionFilters,
+              batchScan.table)
           case _ =>
             if (batchScan.runtimeFilters.isEmpty) {
               throw new UnsupportedOperationException(
