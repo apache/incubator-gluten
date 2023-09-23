@@ -23,6 +23,7 @@ import io.glutenproject.softaffinity.scheduler.SoftAffinityListener
 import io.glutenproject.substrait.plan.PlanBuilder
 
 import org.apache.spark.SparkConf
+import org.apache.spark.paths.SparkPath
 import org.apache.spark.scheduler.{SparkListenerExecutorAdded, SparkListenerExecutorRemoved}
 import org.apache.spark.scheduler.cluster.ExecutorInfo
 import org.apache.spark.sql.QueryTest
@@ -42,8 +43,18 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
     val partition = FilePartition(
       0,
       Seq(
-        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-2", "host-3"))
+        PartitionedFile(
+          InternalRow.empty,
+          SparkPath.fromPathString("fakePath0"),
+          0,
+          100,
+          Array("host-1", "host-2")),
+        PartitionedFile(
+          InternalRow.empty,
+          SparkPath.fromPathString("fakePath1"),
+          0,
+          200,
+          Array("host-2", "host-3"))
       ).toArray
     )
 
@@ -59,8 +70,18 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
     val partition = FilePartition(
       0,
       Seq(
-        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-4", "host-5"))
+        PartitionedFile(
+          InternalRow.empty,
+          SparkPath.fromPathString("fakePath0"),
+          0,
+          100,
+          Array("host-1", "host-2")),
+        PartitionedFile(
+          InternalRow.empty,
+          SparkPath.fromPathString("fakePath1"),
+          0,
+          200,
+          Array("host-4", "host-5"))
       ).toArray
     )
 
@@ -77,8 +98,18 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
     val partition = FilePartition(
       0,
       Seq(
-        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-5", "host-6"))
+        PartitionedFile(
+          InternalRow.empty,
+          SparkPath.fromPathString("fakePath0"),
+          0,
+          100,
+          Array("host-1", "host-2")),
+        PartitionedFile(
+          InternalRow.empty,
+          SparkPath.fromPathString("fakePath1"),
+          0,
+          200,
+          Array("host-5", "host-6"))
       ).toArray
     )
 
@@ -107,8 +138,18 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
     val partition = FilePartition(
       0,
       Seq(
-        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-5", "host-6"))
+        PartitionedFile(
+          InternalRow.empty,
+          SparkPath.fromPathString("fakePath0"),
+          0,
+          100,
+          Array("host-1", "host-2")),
+        PartitionedFile(
+          InternalRow.empty,
+          SparkPath.fromPathString("fakePath1"),
+          0,
+          200,
+          Array("host-5", "host-6"))
       ).toArray
     )
 

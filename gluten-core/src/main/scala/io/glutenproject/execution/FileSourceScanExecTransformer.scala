@@ -37,7 +37,7 @@ import org.apache.spark.util.collection.BitSet
 
 import java.util.concurrent.TimeUnit.NANOSECONDS
 
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.JavaConverters
 
 class FileSourceScanExecTransformer(
     @transient relation: HadoopFsRelation,
@@ -67,7 +67,7 @@ class FileSourceScanExecTransformer(
       .genFileSourceScanTransformerMetrics(sparkContext) ++ staticMetrics
 
   /** SQL metrics generated only for scans using dynamic partition pruning. */
-  private lazy val staticMetrics =
+  override protected lazy val staticMetrics =
     if (partitionFilters.exists(FileSourceScanExecTransformer.isDynamicPruningFilter)) {
       Map(
         "staticFilesNum" -> SQLMetrics.createMetric(sparkContext, "static number of files read"),
@@ -137,19 +137,14 @@ class FileSourceScanExecTransformer(
 
   // The codes below are copied from FileSourceScanExec in Spark,
   // all of them are private.
-  protected lazy val driverMetrics: mutable.HashMap[String, Long] = mutable.HashMap.empty
 
   /**
    * Send the driver-side metrics. Before calling this function, selectedPartitions has been
    * initialized. See SPARK-26327 for more details.
    */
-  protected def sendDriverMetrics(): Unit = {
-    driverMetrics.foreach(e => metrics(e._1).add(e._2))
+  override protected def sendDriverMetrics(): Unit = {
     val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-    SQLMetrics.postDriverMetricUpdates(
-      sparkContext,
-      executionId,
-      metrics.filter(e => driverMetrics.contains(e._1)).values.toSeq)
+    SQLMetrics.postDriverMetricUpdates(sparkContext, executionId, driverMetrics.values.toSeq)
   }
 
   protected def setFilesNumAndSizeMetric(
@@ -158,14 +153,14 @@ class FileSourceScanExecTransformer(
     val filesNum = partitions.map(_.files.size.toLong).sum
     val filesSize = partitions.map(_.files.map(_.getLen).sum).sum
     if (!static || !partitionFilters.exists(FileSourceScanExecTransformer.isDynamicPruningFilter)) {
-      driverMetrics("numFiles") = filesNum
-      driverMetrics("filesSize") = filesSize
+      driverMetrics("numFiles").set(filesNum)
+      driverMetrics("filesSize").set(filesSize)
     } else {
-      driverMetrics("staticFilesNum") = filesNum
-      driverMetrics("staticFilesSize") = filesSize
+      driverMetrics("staticFilesNum").set(filesNum)
+      driverMetrics("staticFilesSize").set(filesSize)
     }
     if (relation.partitionSchema.nonEmpty) {
-      driverMetrics("numPartitions") = partitions.length
+      driverMetrics("numPartitions").set(partitions.length)
     }
   }
 
@@ -178,13 +173,13 @@ class FileSourceScanExecTransformer(
           dataFilters)
       setFilesNumAndSizeMetric(ret, static = true)
       ret
-    }(t => driverMetrics("metadataTime") = NANOSECONDS.toMillis(t + optimizerMetadataTimeNs))
+    }(t => driverMetrics("metadataTime").set(NANOSECONDS.toMillis(t + optimizerMetadataTimeNs)))
   }.toArray
 
   // We can only determine the actual partitions at runtime when a dynamic partition filter is
   // present. This is because such a filter relies on information that is only available at run
   // time (for instance the keys used in the other side of a join).
-  @transient lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
+  @transient override lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
     val dynamicPartitionFilters =
       partitionFilters.filter(FileSourceScanExecTransformer.isDynamicPruningFilter)
     val selected = if (dynamicPartitionFilters.nonEmpty) {
@@ -217,7 +212,7 @@ class FileSourceScanExecTransformer(
         val ret = selectedPartitions.filter(p => boundPredicate.eval(p.values))
         setFilesNumAndSizeMetric(ret, static = false)
         ret
-      }(t => driverMetrics("pruningTime") = t)
+      }(t => driverMetrics("pruningTime").set(t))
     } else {
       selectedPartitions
     }

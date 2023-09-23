@@ -71,7 +71,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
       val partitionColumns = mutable.ArrayBuffer.empty[Map[String, String]]
       files.foreach {
         file =>
-          paths.append(URLDecoder.decode(file.filePath, StandardCharsets.UTF_8.name()))
+          paths.append(URLDecoder.decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
           starts.append(java.lang.Long.valueOf(file.start))
           lengths.append(java.lang.Long.valueOf(file.length))
 

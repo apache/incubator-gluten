@@ -43,8 +43,10 @@
     <spark32.scala>2.12.15</spark32.scala>
     <spark32bundle.version>3.2</spark32bundle.version>
     <spark33.version>3.3.1</spark33.version>
+    <spark34.version>3.4.1</spark34.version>
     <spark33.scala>2.12.15</spark33.scala>
     <spark33bundle.version>3.3</spark33bundle.version>
+    <spark34bundle.version>3.4</spark34bundle.version>
     <delta20.version>2.0.1</delta20.version>
     <delta22.version>2.2.0</delta22.version>
     <delta.version>${delta20.version}</delta.version>
@@ -106,6 +108,7 @@
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
     <spark32.shim.version>spark-sql-columnar-shims-spark32</spark32.shim.version>
     <spark33.shim.version>spark-sql-columnar-shims-spark33</spark33.shim.version>
+    <spark34.shim.version>spark-sql-columnar-shims-spark34</spark34.shim.version>
   </properties>
 
   <profiles>
@@ -134,6 +137,18 @@
         <delta.binary.version>22</delta.binary.version>
         <sparkbundle.version>${spark33bundle.version}</sparkbundle.version>
         <sparkshim.artifactId>${spark33.shim.version}</sparkshim.artifactId>
+      </properties>
+    </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <properties>
+        <scala.version>${spark33.scala}</scala.version>
+        <spark.major.version>3</spark.major.version>
+        <spark.version>${spark34.version}</spark.version>
+        <delta.version>${delta22.version}</delta.version>
+        <delta.binary.version>22</delta.binary.version>
+        <sparkbundle.version>${spark34bundle.version}</sparkbundle.version>
+        <sparkshim.artifactId>${spark34.shim.version}</sparkshim.artifactId>
       </properties>
     </profile>
     <profile>

@@ -578,7 +578,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         case _ =>
           ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery)
       }
-      val transformer = new BatchScanExecTransformer(plan.output, plan.scan, newPartitionFilters)
+      val transformer =
+        new BatchScanExecTransformer(plan.output, plan.scan, newPartitionFilters, plan.table)
       val validationResult = transformer.doValidate()
       if (validationResult.isValid) {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")

@@ -42,8 +42,8 @@ object SoftAffinityUtil extends LogLevelUtil with Logging {
       // using SoftAffinityManager to generate target executors.
       // Only using the first file to calculate the target executors
       // Only get one file to calculate the target host
-      val file = filePartition.files.sortBy(_.filePath).head
-      val locations = SoftAffinityManager.askExecutors(file.filePath)
+      val file = filePartition.files.sortBy(_.filePath.toString).head
+      val locations = SoftAffinityManager.askExecutors(file.filePath.toString)
       if (!locations.isEmpty) {
         logOnLevel(
           softAffinityLogLevel,
