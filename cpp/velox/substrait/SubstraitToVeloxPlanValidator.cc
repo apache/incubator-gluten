@@ -312,7 +312,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
       }
       break;
     }
-    case TypeKind::TIMESTAMP: {
+    case TypeKind::TIMESTAMP:
     default: {
     }
   }
