@@ -33,7 +33,7 @@ class ShuffleReaderOutStream : public ColumnarBatchIterator {
       const ReaderOptions& options,
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::io::InputStream>& in,
-      const std::function<void(int64_t&)> ipcTimeAccumulator)
+      const std::function<void(int64_t)> ipcTimeAccumulator)
       : options_(options), in_(in), ipcTimeAccumulator_(ipcTimeAccumulator) {
     if (options.compression_type != arrow::Compression::UNCOMPRESSED) {
       writeSchema_ = toCompressWriteSchema(*schema);
@@ -67,7 +67,7 @@ class ShuffleReaderOutStream : public ColumnarBatchIterator {
  private:
   ReaderOptions options_;
   std::shared_ptr<arrow::io::InputStream> in_;
-  std::function<void(int64_t&)> ipcTimeAccumulator_;
+  std::function<void(int64_t)> ipcTimeAccumulator_;
   std::shared_ptr<arrow::Schema> writeSchema_;
 };
 } // namespace

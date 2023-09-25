@@ -367,14 +367,15 @@ class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
       const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
       const ReaderOptions& options,
       const RowTypePtr& rowType,
-      const std::function<void(int64_t&)> decompressionTimeAccumulator,
-      const std::function<void(int64_t&)> deserializeTimeAccumulator,
+      const std::function<void(int64_t)> decompressionTimeAccumulator,
+      const std::function<void(int64_t)> deserializeTimeAccumulator,
       ResultIterator& in)
       : pool_(pool),
         veloxPool_(veloxPool),
         options_(options),
         rowType_(rowType),
         decompressionTimeAccumulator_(decompressionTimeAccumulator),
+        deserializeTimeAccumulator_(deserializeTimeAccumulator),
         in_(std::move(in)) {}
 
   std::shared_ptr<ColumnarBatch> next() override {
@@ -408,8 +409,8 @@ class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
   ReaderOptions options_;
   facebook::velox::RowTypePtr rowType_;
 
-  std::function<void(int64_t&)> decompressionTimeAccumulator_;
-  std::function<void(int64_t&)> deserializeTimeAccumulator_;
+  std::function<void(int64_t)> decompressionTimeAccumulator_;
+  std::function<void(int64_t)> deserializeTimeAccumulator_;
 
   ResultIterator in_;
 };
