@@ -53,7 +53,7 @@ struct FakeOut {
     return *this;
   }
 
-  FakeOut& operator<<(FakeOut& fc, std::ostream& (*endl)(std::ostream& os)) {
+  FakeOut& operator<<(std::ostream& (*endl)(std::ostream& os)) {
     return *this;
   }
 };
