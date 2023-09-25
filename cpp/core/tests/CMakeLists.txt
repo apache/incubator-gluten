@@ -16,3 +16,5 @@
 if(ENABLE_HBM)
   add_test_case(hbw_allocator_test SOURCES HbwAllocatorTest.cc)
 endif()
+
+add_test_case(round_robin_partitioner_test SOURCES RoundRobinPartitionerTest.cc)
