@@ -261,7 +261,13 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
         clazz.getConstructor(classOf[StructType], classOf[SQLMetric], classOf[SQLMetric])
       constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
     } else {
-      new ColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows, decompressTime, ipcTime, deserializeTime)
+      new ColumnarBatchSerializer(
+        schema,
+        readBatchNumRows,
+        numOutputRows,
+        decompressTime,
+        ipcTime,
+        deserializeTime)
     }
   }
 

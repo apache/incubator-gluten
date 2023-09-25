@@ -56,8 +56,13 @@ class ColumnarBatchSerializer(
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
-    new ColumnarBatchSerializerInstance(schema, readBatchNumRows, numOutputRows, decompressTime,
-      ipcTime, deserializeTime)
+    new ColumnarBatchSerializerInstance(
+      schema,
+      readBatchNumRows,
+      numOutputRows,
+      decompressTime,
+      ipcTime,
+      deserializeTime)
   }
 
   override def supportsRelocationOfSerializedObjects: Boolean = supportsRelocation
