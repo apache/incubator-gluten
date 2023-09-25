@@ -44,7 +44,7 @@ struct ShuffleWriterOptions {
   arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
   CodecBackend codec_backend = CodecBackend::NONE;
   CompressionMode compression_mode = CompressionMode::BUFFER;
-  bool prefer_evict = false;
+  bool prefer_spill = false;
   bool buffered_write = false;
   bool write_eos = true;
 

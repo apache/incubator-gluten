@@ -52,9 +52,9 @@ class LocalPartitionWriterBase : public ShuffleWriter::PartitionWriter {
   std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
 };
 
-class PreferEvictPartitionWriter : public LocalPartitionWriterBase {
+class PreferSpillPartitionWriter : public LocalPartitionWriterBase {
  public:
-  explicit PreferEvictPartitionWriter(ShuffleWriter* shuffleWriter) : LocalPartitionWriterBase(shuffleWriter) {}
+  explicit PreferSpillPartitionWriter(ShuffleWriter* shuffleWriter) : LocalPartitionWriterBase(shuffleWriter) {}
 
   arrow::Status init() override;
 
@@ -152,11 +152,11 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
 
 class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {
  public:
-  LocalPartitionWriterCreator(bool preferEvict);
+  LocalPartitionWriterCreator(bool preferSpill);
 
   arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(ShuffleWriter* shuffleWriter) override;
 
  private:
-  bool preferEvict_;
+  bool preferSpill;
 };
 } // namespace gluten

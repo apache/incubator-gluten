@@ -63,10 +63,10 @@ arrow::Status LocalPartitionWriterBase::clearResource() {
   return arrow::Status::OK();
 }
 
-class PreferEvictPartitionWriter::LocalPartitionWriterInstance {
+class PreferSpillPartitionWriter::LocalPartitionWriterInstance {
  public:
   LocalPartitionWriterInstance(
-      PreferEvictPartitionWriter* partitionWriter,
+      PreferSpillPartitionWriter* partitionWriter,
       ShuffleWriter* shuffleWriter,
       uint32_t partitionId)
       : partitionWriter_(partitionWriter), shuffleWriter_(shuffleWriter), partitionId_(partitionId) {}
@@ -157,7 +157,7 @@ class PreferEvictPartitionWriter::LocalPartitionWriterInstance {
     return arrow::Status::OK();
   }
 
-  PreferEvictPartitionWriter* partitionWriter_;
+  PreferSpillPartitionWriter* partitionWriter_;
   ShuffleWriter* shuffleWriter_;
   uint32_t partitionId_;
   std::string spilledFile_;
@@ -166,7 +166,7 @@ class PreferEvictPartitionWriter::LocalPartitionWriterInstance {
   bool spilledFileOpened_ = false;
 };
 
-arrow::Status PreferEvictPartitionWriter::init() {
+arrow::Status PreferSpillPartitionWriter::init() {
   partitionWriterInstances_.resize(shuffleWriter_->numPartitions());
   RETURN_NOT_OK(setLocalDirs());
   return arrow::Status::OK();
@@ -184,7 +184,7 @@ arrow::Result<std::shared_ptr<arrow::ipc::IpcPayload>> LocalPartitionWriterBase:
   return schemaPayload_;
 }
 
-arrow::Status PreferEvictPartitionWriter::evictPartition(int32_t partitionId) {
+arrow::Status PreferSpillPartitionWriter::evictPartition(int32_t partitionId) {
   if (partitionWriterInstances_[partitionId] == nullptr) {
     partitionWriterInstances_[partitionId] =
         std::make_shared<LocalPartitionWriterInstance>(this, shuffleWriter_, partitionId);
@@ -196,7 +196,7 @@ arrow::Status PreferEvictPartitionWriter::evictPartition(int32_t partitionId) {
   return arrow::Status::OK();
 }
 
-arrow::Status PreferEvictPartitionWriter::stop() {
+arrow::Status PreferSpillPartitionWriter::stop() {
   RETURN_NOT_OK(openDataFile());
   // stop PartitionWriter and collect metrics
   for (auto pid = 0; pid < shuffleWriter_->numPartitions(); ++pid) {
@@ -222,7 +222,7 @@ arrow::Status PreferEvictPartitionWriter::stop() {
   return arrow::Status::OK();
 }
 
-arrow::Status PreferEvictPartitionWriter::clearResource() {
+arrow::Status PreferSpillPartitionWriter::clearResource() {
   RETURN_NOT_OK(LocalPartitionWriterBase::clearResource());
   partitionWriterInstances_.clear();
   return arrow::Status::OK();
@@ -376,14 +376,14 @@ arrow::Status PreferCachePartitionWriter::clearResource() {
   return arrow::Status::OK();
 }
 
-LocalPartitionWriterCreator::LocalPartitionWriterCreator(bool preferEvict)
-    : PartitionWriterCreator(), preferEvict_(preferEvict) {}
+LocalPartitionWriterCreator::LocalPartitionWriterCreator(bool preferSpill)
+    : PartitionWriterCreator(), preferSpill(preferSpill) {}
 
 arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> LocalPartitionWriterCreator::make(
     ShuffleWriter* shuffleWriter) {
   std::shared_ptr<ShuffleWriter::PartitionWriter> res;
-  if (preferEvict_) {
-    res = std::make_shared<PreferEvictPartitionWriter>(shuffleWriter);
+  if (preferSpill) {
+    res = std::make_shared<PreferSpillPartitionWriter>(shuffleWriter);
   } else {
     res = std::make_shared<PreferCachePartitionWriter>(shuffleWriter);
   }

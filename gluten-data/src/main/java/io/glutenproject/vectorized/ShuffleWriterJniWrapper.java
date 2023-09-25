@@ -49,7 +49,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized implements Execution
    * @param dataFile acquired from spark IndexShuffleBlockResolver
    * @param subDirsPerLocalDir SparkConf spark.diskStore.subDirectories
    * @param localDirs configured local directories where Spark can write files
-   * @param preferEvict if true, write the partition buffer to disk once it is full
+   * @param preferSpill if true, write the partition buffer to disk once it is full
    * @return native shuffle writer instance handle if created successfully.
    */
   public long make(
@@ -62,7 +62,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized implements Execution
       String dataFile,
       int subDirsPerLocalDir,
       String localDirs,
-      boolean preferEvict,
+      boolean preferSpill,
       long memoryManagerHandle,
       boolean writeEOS,
       double reallocThreshold,
@@ -79,7 +79,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized implements Execution
         dataFile,
         subDirsPerLocalDir,
         localDirs,
-        preferEvict,
+        preferSpill,
         memoryManagerHandle,
         writeEOS,
         reallocThreshold,
@@ -144,7 +144,7 @@ public class ShuffleWriterJniWrapper extends JniInitialized implements Execution
       String dataFile,
       int subDirsPerLocalDir,
       String localDirs,
-      boolean preferEvict,
+      boolean preferSpill,
       long memoryManagerHandle,
       boolean writeEOS,
       double reallocThreshold,

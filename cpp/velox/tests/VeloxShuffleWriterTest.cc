@@ -49,13 +49,13 @@ arrow::Status splitRowVectorStatus(VeloxShuffleWriter& shuffleWriter, velox::Row
 } // namespace
 
 struct ShuffleTestParams {
-  bool prefer_evict;
+  bool prefer_spill;
   arrow::Compression::type compression_type;
   CompressionMode compression_mode;
 
   std::string toString() const {
     std::ostringstream out;
-    out << "prefer_evict = " << prefer_evict << " ; compression_type = " << compression_type;
+    out << "prefer_spill = " << prefer_spill << " ; compression_type = " << compression_type;
     return out.str();
   }
 };
@@ -75,11 +75,11 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     shuffleWriterOptions_.memory_pool = arrowPool_;
 
     ShuffleTestParams params = GetParam();
-    shuffleWriterOptions_.prefer_evict = params.prefer_evict;
+    shuffleWriterOptions_.prefer_spill = params.prefer_spill;
     shuffleWriterOptions_.compression_type = params.compression_type;
     shuffleWriterOptions_.compression_mode = params.compression_mode;
 
-    partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>(shuffleWriterOptions_.prefer_evict);
+    partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>(shuffleWriterOptions_.prefer_spill);
     std::vector<VectorPtr> children1 = {
         makeNullableFlatVector<int8_t>({1, 2, 3, std::nullopt, 4, std::nullopt, 5, 6, std::nullopt, 7}),
         makeNullableFlatVector<int8_t>({1, -1, std::nullopt, std::nullopt, -2, 2, std::nullopt, std::nullopt, 3, -3}),
@@ -663,7 +663,7 @@ TEST_P(VeloxShuffleWriterTest, TestStopShrinkAndSpill) {
 
   auto bufferSize = shuffleWriter_->partitionBufferSize();
   auto payloadSize = shuffleWriter_->cachedPayloadSize();
-  if (!shuffleWriterOptions_.prefer_evict) {
+  if (!shuffleWriterOptions_.prefer_spill) {
     ASSERT_GT(payloadSize, 0);
   }
 
@@ -694,7 +694,7 @@ TEST_P(VeloxShuffleWriterTest, TestSpillOnStop) {
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
   }
 
-  if (!shuffleWriterOptions_.prefer_evict) {
+  if (!shuffleWriterOptions_.prefer_spill) {
     // No evict triggered, the cached payload should not be empty.
     ASSERT_GT(shuffleWriter_->cachedPayloadSize(), 0);
   }
@@ -712,7 +712,7 @@ TEST_P(VeloxShuffleWriterTest, TestSpillOnStop) {
 }
 
 TEST_P(VeloxShuffleWriterTest, TestSpill) {
-  if (shuffleWriterOptions_.prefer_evict) { // TODO: remove prefer_evict
+  if (shuffleWriterOptions_.prefer_spill) { // TODO: remove prefer_spill
     return;
   }
   int32_t numPartitions = 4;
@@ -748,7 +748,7 @@ TEST_P(VeloxShuffleWriterTest, TestSpill) {
 }
 
 TEST_P(VeloxShuffleWriterTest, TestShrinkZeroSizeBuffer) {
-  if (shuffleWriterOptions_.prefer_evict) { // TODO: remove prefer_evict
+  if (shuffleWriterOptions_.prefer_spill) { // TODO: remove prefer_spill
     return;
   }
 

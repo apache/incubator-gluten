@@ -366,7 +366,7 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
   oss << " compression_type:" << (int)options.compression_type;
   oss << " codec_backend:" << (int)options.codec_backend;
   oss << " compression_mode:" << (int)options.compression_mode;
-  oss << " prefer_evict:" << options.prefer_evict;
+  oss << " prefer_spill:" << options.prefer_spill;
   oss << " buffered_write:" << options.buffered_write;
   oss << " write_eos:" << options.write_eos;
   oss << " partition_writer_type:" << options.partition_writer_type;
@@ -695,8 +695,8 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv, int64_t me
           if (rb) {
             RETURN_NOT_OK(cacheRecordBatch(pid, *rb, reuseBuffers));
           }
-          if (options_.prefer_evict) {
-            // if prefer_evict is set, evict current RowVector
+          if (options_.prefer_spill) {
+            // if prefer_spill is set, evict current RowVector
             RETURN_NOT_OK(evictPartition(pid));
             RETURN_NOT_OK(resetValidityBuffers(pid));
           }
@@ -717,8 +717,8 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv, int64_t me
             if (rb) {
               RETURN_NOT_OK(cacheRecordBatch(pid, *rb, reuseBuffers));
             }
-            if (options_.prefer_evict) {
-              // if prefer_evict is set, evict current RowVector
+            if (options_.prefer_spill) {
+              // if prefer_spill is set, evict current RowVector
               RETURN_NOT_OK(evictPartition(pid));
               RETURN_NOT_OK(resetValidityBuffers(pid));
             }
@@ -738,8 +738,8 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv, int64_t me
               RETURN_NOT_OK(cacheRecordBatch(pid, *rb, reuseBuffers));
             }
           } // rb destructed
-          if (options_.prefer_evict) {
-            // if prefer_evict is set, evict current RowVector
+          if (options_.prefer_spill) {
+            // if prefer_spill is set, evict current RowVector
             RETURN_NOT_OK(evictPartition(pid));
             RETURN_NOT_OK(resetValidityBuffers(pid));
           }
@@ -754,8 +754,8 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv, int64_t me
               RETURN_NOT_OK(cacheRecordBatch(pid, *rb, reuseBuffers));
             }
           } // rb destructed
-          if (options_.prefer_evict) {
-            // if prefer_evict is set, evict current RowVector
+          if (options_.prefer_spill) {
+            // if prefer_spill is set, evict current RowVector
             RETURN_NOT_OK(evictPartition(pid));
           }
           // Reset validity buffer for reuse.
@@ -1611,7 +1611,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
   arrow::Status VeloxShuffleWriter::evictPartitionsOnDemand(int64_t * size) {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingEvictPartition]);
-    if (options_.prefer_evict) {
+    if (options_.prefer_spill) {
       return arrow::Status::OK();
     }
     // Evict all cached partitions

@@ -758,7 +758,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jstring dataFileJstr,
     jint numSubDirs,
     jstring localDirsJstr,
-    jboolean preferEvict,
+    jboolean preferSpill,
     jlong memoryManagerHandle,
     jboolean writeEOS,
     jdouble reallocThreshold,
@@ -824,7 +824,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     }
 
     shuffleWriterOptions.write_eos = writeEOS;
-    shuffleWriterOptions.prefer_evict = preferEvict;
+    shuffleWriterOptions.prefer_spill = preferSpill;
     shuffleWriterOptions.buffer_realloc_threshold = reallocThreshold;
 
     if (numSubDirs > 0) {
@@ -838,7 +838,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     auto localDirs = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
     setenv(gluten::kGlutenSparkLocalDirs.c_str(), localDirs, 1);
     env->ReleaseStringUTFChars(localDirsJstr, localDirs);
-    partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>(preferEvict);
+    partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>(preferSpill);
   } else if (partitionWriterType == "celeborn") {
     shuffleWriterOptions.partition_writer_type = "celeborn";
     jclass celebornPartitionPusherClass =
