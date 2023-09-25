@@ -22,7 +22,7 @@
 #include "compute/ResultIterator.h"
 #include "config/GlutenConfig.h"
 #include "operators/plannodes/RowVectorStream.h"
-#include "utils/Cout.h"
+#include "utils/DebugCouts.h"
 #include "velox/common/file/FileSystems.h"
 
 namespace gluten {
@@ -197,7 +197,7 @@ std::shared_ptr<const facebook::velox::core::PlanNode> VeloxPlanConverter::toVel
     }
   }
   auto veloxPlan = substraitVeloxPlanConverter_.toVeloxPlan(substraitPlan);
-  COUT << "Plan Node: " << std::endl << veloxPlan->toString(true, true) << std::endl;
+  DEBUG_OUT << "Plan Node: " << std::endl << veloxPlan->toString(true, true) << std::endl;
   return veloxPlan;
 }
 

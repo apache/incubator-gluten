@@ -59,7 +59,7 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   gluten::initVeloxJniFileSystem(env);
   gluten::initVeloxJniUDF(env);
 
-  COUT << "Loaded Velox backend." << std::endl;
+  DEBUG_OUT << "Loaded Velox backend." << std::endl;
 
   return jniVersion;
 }

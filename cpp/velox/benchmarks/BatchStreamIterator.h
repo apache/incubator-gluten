@@ -24,13 +24,13 @@ class ParquetBatchStreamIterator final : public ParquetBatchIterator {
  public:
   explicit ParquetBatchStreamIterator(const std::string& path) : ParquetBatchIterator(path) {
     createReader();
-    COUT << "ParquetBatchStreamIterator open file: " << path << std::endl;
+    DEBUG_OUT << "ParquetBatchStreamIterator open file: " << path << std::endl;
   }
 
   std::shared_ptr<gluten::ColumnarBatch> next() override {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
-    COUT << "ParquetBatchStreamIterator get a batch, num rows: " << (batch ? batch->num_rows() : 0) << std::endl;
+    DEBUG_OUT << "ParquetBatchStreamIterator get a batch, num rows: " << (batch ? batch->num_rows() : 0) << std::endl;
     collectBatchTime_ +=
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime).count();
     if (batch == nullptr) {
@@ -53,7 +53,7 @@ class OrcBatchStreamIterator final : public OrcBatchIterator {
   std::shared_ptr<gluten::ColumnarBatch> next() override {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
-    COUT << "OrcBatchStreamIterator get a batch, num rows: " << (batch ? batch->num_rows() : 0) << std::endl;
+    DEBUG_OUT << "OrcBatchStreamIterator get a batch, num rows: " << (batch ? batch->num_rows() : 0) << std::endl;
     collectBatchTime_ +=
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime).count();
     if (batch == nullptr) {

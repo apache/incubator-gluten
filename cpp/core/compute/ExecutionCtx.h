@@ -29,7 +29,7 @@
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
-#include "utils/Cout.h"
+#include "utils/DebugCout.h"
 
 namespace gluten {
 
@@ -76,9 +76,9 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
 #ifdef GLUTEN_PRINT_DEBUG
     try {
       auto jsonPlan = substraitFromPbToJson("Plan", data, size);
-      COUT << std::string(50, '#') << " received substrait::Plan:" << std::endl;
-      COUT << "Task stageId: " << taskInfo_.stageId << ", partitionId: " << taskInfo_.partitionId
-           << ", taskId: " << taskInfo_.taskId << "; " << jsonPlan << std::endl;
+      DEBUG_OUT << std::string(50, '#') << " received substrait::Plan:" << std::endl;
+      DEBUG_OUT << "Task stageId: " << taskInfo_.stageId << ", partitionId: " << taskInfo_.partitionId
+                << ", taskId: " << taskInfo_.taskId << "; " << jsonPlan << std::endl;
     } catch (const std::exception& e) {
       std::cerr << "Error converting Substrait plan to JSON: " << e.what() << std::endl;
     }

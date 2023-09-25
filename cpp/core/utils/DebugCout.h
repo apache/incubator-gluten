@@ -21,7 +21,7 @@ namespace gluten {
 
 #ifdef GLUTEN_PRINT_DEBUG
 
-#define COUT std::cout
+#define DEBUG_OUT std::cout
 
 #else
 
@@ -44,7 +44,7 @@ struct FakeCout {
 
 extern FakeCout fakeCout;
 
-#define COUT fakeCout
+#define DEBUG_OUT fakeCout
 
 #endif
 

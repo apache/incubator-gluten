@@ -29,12 +29,12 @@ void setExecutionCtxFactory(
     ExecutionCtxFactoryWithConf factory,
     const std::unordered_map<std::string, std::string>& sparkConfs) {
   getExecutionCtxFactoryContext()->set(factory, sparkConfs);
-  COUT << "Set execution context factory with conf." << std::endl;
+  DEBUG_OUT << "Set execution context factory with conf." << std::endl;
 }
 
 void setExecutionCtxFactory(ExecutionCtxFactory factory) {
   getExecutionCtxFactoryContext()->set(factory);
-  COUT << "Set execution context factory." << std::endl;
+  DEBUG_OUT << "Set execution context factory." << std::endl;
 }
 
 ExecutionCtx* createExecutionCtx() {
