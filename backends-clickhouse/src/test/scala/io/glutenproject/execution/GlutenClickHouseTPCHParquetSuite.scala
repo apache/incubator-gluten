@@ -2033,5 +2033,14 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       "select id, array_contains(split(name, ','), '2899') from test_tbl_3140 where id = 1"
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
   }
+
+  test("GLUTEN-3149 convert Nan to int") {
+    val sql = """
+                | select cast(a as Int) as n from(
+                |   select cast(s as Float) as a from(
+                |     select if(n_name='ALGERIA', 'nan', '1.0') as s from nation
+                |   ))""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 }
 // scalastyle:on line.size.limit
