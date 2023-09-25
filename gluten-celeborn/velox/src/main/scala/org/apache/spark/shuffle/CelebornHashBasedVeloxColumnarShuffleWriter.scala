@@ -18,7 +18,6 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.memory.memtarget.spark.Spiller
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
@@ -73,14 +72,13 @@ class CelebornHashBasedVeloxColumnarShuffleWriter[K, V](
 
   private val bufferCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBufferCompressThreshold
-  private val jniWrapper = new ShuffleWriterJniWrapper
+  private val jniWrapper = ShuffleWriterJniWrapper.create()
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
   // and then call stop() with success = false if they get an exception, we want to make sure
   // we don't try deleting files, etc twice.
   private var stopping = false
   private var mapStatus: MapStatus = _
   private var nativeShuffleWriter: Long = -1L
-  private lazy val executionCtxHandle: Long = ExecutionCtxs.contextInstance().getHandle
 
   private var splitResult: SplitResult = _
 
@@ -121,7 +119,6 @@ class CelebornHashBasedVeloxColumnarShuffleWriter[K, V](
             GlutenConfig.getConf.columnarShuffleCompressionMode,
             celebornConf.clientPushBufferMaxSize,
             celebornPartitionPusher,
-            executionCtxHandle,
             NativeMemoryManagers
               .create(
                 "CelebornShuffleWriter",
@@ -137,7 +134,7 @@ class CelebornHashBasedVeloxColumnarShuffleWriter[K, V](
                     logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
                     // fixme pass true when being called by self
                     val pushed =
-                      jniWrapper.nativeEvict(executionCtxHandle, nativeShuffleWriter, size, false)
+                      jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
                     logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
                     pushed
                   }
@@ -152,12 +149,7 @@ class CelebornHashBasedVeloxColumnarShuffleWriter[K, V](
         }
         val startTime = System.nanoTime()
         val bytes =
-          jniWrapper.split(
-            executionCtxHandle,
-            nativeShuffleWriter,
-            cb.numRows,
-            handle,
-            availableOffHeapPerTask())
+          jniWrapper.split(nativeShuffleWriter, cb.numRows, handle, availableOffHeapPerTask())
         dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(cb.numRows)
@@ -169,7 +161,7 @@ class CelebornHashBasedVeloxColumnarShuffleWriter[K, V](
 
     val startTime = System.nanoTime()
     if (nativeShuffleWriter != -1L) {
-      splitResult = jniWrapper.stop(executionCtxHandle, nativeShuffleWriter)
+      splitResult = jniWrapper.stop(nativeShuffleWriter)
     }
 
     dep
@@ -212,7 +204,7 @@ class CelebornHashBasedVeloxColumnarShuffleWriter[K, V](
   }
 
   def closeShuffleWriter(): Unit = {
-    jniWrapper.close(executionCtxHandle, nativeShuffleWriter)
+    jniWrapper.close(nativeShuffleWriter)
   }
 
   def getPartitionLengths: Array[Long] = partitionLengths

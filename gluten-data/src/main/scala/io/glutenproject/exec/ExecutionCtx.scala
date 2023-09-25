@@ -20,7 +20,8 @@ import io.glutenproject.init.BackendJniWrapper
 
 import org.apache.spark.util.TaskResource
 
-class ExecutionCtx extends TaskResource {
+class ExecutionCtx private[exec] () extends TaskResource {
+
   private val handle = BackendJniWrapper.createExecutionCtx()
 
   def getHandle: Long = handle

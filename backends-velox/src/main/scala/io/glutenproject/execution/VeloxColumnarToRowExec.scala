@@ -17,7 +17,6 @@
 package io.glutenproject.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
@@ -97,17 +96,15 @@ object VeloxColumnarToRowExec {
       return Iterator.empty
     }
 
-    val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
     // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
-    val jniWrapper = new NativeColumnarToRowJniWrapper()
+    val jniWrapper = NativeColumnarToRowJniWrapper.create()
     var closed = false
     val c2rId = jniWrapper.nativeColumnarToRowInit(
-      executionCtxHandle,
       NativeMemoryManagers.contextInstance("ColumnarToRow").getNativeInstanceHandle)
 
     TaskResources.addRecycler(s"ColumnarToRow_$c2rId", 100) {
       if (!closed) {
-        jniWrapper.nativeClose(executionCtxHandle, c2rId)
+        jniWrapper.nativeClose(c2rId)
         closed = true
       }
     }
@@ -117,7 +114,7 @@ object VeloxColumnarToRowExec {
       override def hasNext: Boolean = {
         val hasNext = batches.hasNext
         if (!hasNext && !closed) {
-          jniWrapper.nativeClose(executionCtxHandle, c2rId)
+          jniWrapper.nativeClose(c2rId)
           closed = true
         }
         hasNext
@@ -151,7 +148,7 @@ object VeloxColumnarToRowExec {
           val beforeConvert = System.currentTimeMillis()
           val batchHandle = ColumnarBatches.getNativeHandle(batch)
           val info =
-            jniWrapper.nativeColumnarToRowConvert(executionCtxHandle, batchHandle, c2rId)
+            jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rId)
 
           convertTime += (System.currentTimeMillis() - beforeConvert)
 

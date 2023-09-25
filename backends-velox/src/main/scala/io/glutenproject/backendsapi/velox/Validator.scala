@@ -31,7 +31,7 @@ class Validator extends ValidatorApi {
     doExprValidate(Map(), substraitExprName, expr)
 
   override def doNativeValidateWithFailureReason(plan: PlanNode): NativePlanValidationInfo = {
-    val validator = new NativePlanEvaluator()
+    val validator = NativePlanEvaluator.createForValidation()
     validator.doNativeValidateWithFailureReason(plan.toProtobuf.toByteArray)
   }
 

@@ -78,8 +78,7 @@ private class ColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private lazy val (executionCtxHandle, shuffleReaderHandle) = {
-    val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
+  private lazy val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
       .contextInstance()
       .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
@@ -96,9 +95,9 @@ private class ColumnarBatchSerializerInstance(
       }
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
-    val shuffleReaderHandle = ShuffleReaderJniWrapper.INSTANCE.make(
+    val jniWrapper = ShuffleReaderJniWrapper.create()
+    val shuffleReaderHandle = jniWrapper.make(
       cSchema.memoryAddress(),
-      executionCtxHandle,
       NativeMemoryManagers.contextInstance("ShuffleReader").getNativeInstanceHandle,
       compressionCodec,
       compressionCodecBackend,
@@ -111,28 +110,26 @@ private class ColumnarBatchSerializerInstance(
     TaskResources.addRecycler(s"ShuffleReaderHandle_$shuffleReaderHandle", 50) {
       // Collect Metrics
       val readerMetrics = new ShuffleReaderMetrics()
-      ShuffleReaderJniWrapper.INSTANCE.populateMetrics(
-        executionCtxHandle,
-        shuffleReaderHandle,
-        readerMetrics)
+      jniWrapper.populateMetrics(shuffleReaderHandle, readerMetrics)
       decompressTime += readerMetrics.getDecompressTime
       ipcTime += readerMetrics.getIpcTime
       deserializeTime += readerMetrics.getDeserializeTime
 
       cSchema.close()
-      ShuffleReaderJniWrapper.INSTANCE.close(executionCtxHandle, shuffleReaderHandle)
+      jniWrapper.close(shuffleReaderHandle)
       allocator.close()
     }
-    (executionCtxHandle, shuffleReaderHandle)
+    shuffleReaderHandle
   }
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
       private lazy val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
       private lazy val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
-        executionCtxHandle,
-        ShuffleReaderJniWrapper.INSTANCE
-          .readStream(executionCtxHandle, shuffleReaderHandle, byteIn))
+        ExecutionCtxs.contextInstance(),
+        ShuffleReaderJniWrapper
+          .create()
+          .readStream(shuffleReaderHandle, byteIn))
 
       private var cb: ColumnarBatch = _
 
