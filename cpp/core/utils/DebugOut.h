@@ -19,13 +19,13 @@
 
 #include <ostream>
 
-namespace gluten {
-
 #ifdef GLUTEN_PRINT_DEBUG
 
 #define DEBUG_OUT std::cout
 
 #else
+
+namespace gluten {
 
 struct FakeOut {
   template <typename T>
@@ -60,8 +60,9 @@ struct FakeOut {
 
 extern FakeOut fakeOut;
 
-#define DEBUG_OUT fakeOut
+} // namespace gluten
+
+#define DEBUG_OUT gluten::fakeOut
 
 #endif
 
-} // namespace gluten
