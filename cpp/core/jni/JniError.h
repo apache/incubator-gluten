@@ -22,9 +22,12 @@
 #include "JniCommon.h"
 #include "utils/exception.h"
 
+#ifndef JNI_METHOD_START
 #define JNI_METHOD_START try {
 // macro ended
+#endif
 
+#ifndef JNI_METHOD_END
 #define JNI_METHOD_END(fallback_expr)                                             \
   }                                                                               \
   catch (std::exception & e) {                                                    \
@@ -32,6 +35,7 @@
     return fallback_expr;                                                         \
   }
 // macro ended
+#endif
 
 namespace gluten {
 
