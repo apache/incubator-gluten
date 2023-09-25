@@ -17,6 +17,7 @@
 
 #include "shuffle/LocalPartitionWriter.h"
 #include <thread>
+#include "utils/Cout.h"
 
 namespace gluten {
 
@@ -254,10 +255,8 @@ arrow::Status PreferCachePartitionWriter::evictPartition(int32_t partitionId /* 
       RETURN_NOT_OK(flushCachedPayloads(spilledFileOs.get(), shuffleWriter_->partitionCachedRecordbatch()[pid]));
       ARROW_ASSIGN_OR_RAISE(auto end, spilledFileOs->Tell());
       spillInfo.partitionSpillInfos.push_back({pid, end - start});
-#ifdef GLUTEN_PRINT_DEBUG
-      std::cout << "Spilled partition " << pid << " file start: " << start << ", file end: " << end
-                << ", cachedPayloadSize: " << cachedPayloadSize << std::endl;
-#endif
+      COUT << "Spilled partition " << pid << " file start: " << start << ", file end: " << end
+           << ", cachedPayloadSize: " << cachedPayloadSize << std::endl;
       shuffleWriter_->clearCachedPayloads(pid);
     }
   }

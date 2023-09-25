@@ -94,15 +94,10 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
     try {
       auto status = JavaInputStreamAdaptor::Close();
       if (!status.ok()) {
-#ifdef GLUTEN_PRINT_DEBUG
-        std::cout << __func__ << " call JavaInputStreamAdaptor::Close() failed, status:" << status.ToString()
-                  << std::endl;
-#endif
+        COUT << __func__ << " call JavaInputStreamAdaptor::Close() failed, status:" << status.ToString() << std::endl;
       }
     } catch (std::exception& e) {
-#ifdef GLUTEN_PRINT_DEBUG
-      std::cout << __func__ << " call JavaInputStreamAdaptor::Close() got exception:" << e.what() << std::endl;
-#endif
+      COUT << __func__ << " call JavaInputStreamAdaptor::Close() got exception:" << e.what() << std::endl;
     }
   }
 

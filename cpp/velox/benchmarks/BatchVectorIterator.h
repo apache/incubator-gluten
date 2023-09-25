@@ -28,11 +28,11 @@ class ParquetBatchVectorIterator final : public ParquetBatchIterator {
 
     iter_ = batches_.begin();
 #ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "ParquetBatchVectorIterator open file: " << path << std::endl;
-    std::cout << "Number of input batches: " << std::to_string(batches_.size()) << std::endl;
+    COUT << "ParquetBatchVectorIterator open file: " << path << std::endl;
+    COUT << "Number of input batches: " << std::to_string(batches_.size()) << std::endl;
     if (iter_ != batches_.cend()) {
-      std::cout << "columns: " << (*iter_)->num_columns() << std::endl;
-      std::cout << "rows: " << (*iter_)->num_rows() << std::endl;
+      COUT << "columns: " << (*iter_)->num_columns() << std::endl;
+      COUT << "rows: " << (*iter_)->num_rows() << std::endl;
     }
 #endif
   }
@@ -68,11 +68,11 @@ class OrcBatchVectorIterator final : public OrcBatchIterator {
 
     iter_ = batches_.begin();
 #ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "OrcBatchVectorIterator open file: " << path << std::endl;
-    std::cout << "Number of input batches: " << std::to_string(batches_.size()) << std::endl;
+    COUT << "OrcBatchVectorIterator open file: " << path << std::endl;
+    COUT << "Number of input batches: " << std::to_string(batches_.size()) << std::endl;
     if (iter_ != batches_.cend()) {
-      std::cout << "columns: " << (*iter_)->num_columns() << std::endl;
-      std::cout << "rows: " << (*iter_)->num_rows() << std::endl;
+      COUT << "columns: " << (*iter_)->num_columns() << std::endl;
+      COUT << "rows: " << (*iter_)->num_rows() << std::endl;
     }
 #endif
   }
