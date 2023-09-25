@@ -27,40 +27,40 @@ namespace gluten {
 
 #else
 
-struct FakeCout {
+struct FakeOut {
   template <typename T>
-  FakeCout& operator<<(T t) {
+  FakeOut& operator<<(T t) {
     return *this;
   }
 
   template <typename T>
-  FakeCout& operator<<(const T& t) {
+  FakeOut& operator<<(const T& t) {
     return *this;
   }
 
   template <typename T>
-  FakeCout& operator<<(T&& t) {
+  FakeOut& operator<<(T&& t) {
     return *this;
   }
 
   template <typename T>
-  FakeCout& operator<<(T* t) {
+  FakeOut& operator<<(T* t) {
     return *this;
   }
 
   template <typename T>
-  FakeCout& operator<<(const T* t) {
+  FakeOut& operator<<(const T* t) {
     return *this;
   }
 
-  FakeCout& operator<<(FakeCout& fc, std::ostream& (*endl)(std::ostream& os)) {
+  FakeOut& operator<<(FakeOut& fc, std::ostream& (*endl)(std::ostream& os)) {
     return *this;
   }
 };
 
-extern FakeCout fakeCout;
+extern FakeOut fakeOut;
 
-#define DEBUG_OUT fakeCout
+#define DEBUG_OUT fakeOut
 
 #endif
 

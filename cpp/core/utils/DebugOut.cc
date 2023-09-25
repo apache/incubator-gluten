@@ -21,7 +21,7 @@ namespace gluten {
 
 #ifndef GLUTEN_PRINT_DEBUG
 
-FakeCout fakeCout;
+FakeOut fakeOut;
 
 #endif
 
