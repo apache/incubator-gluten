@@ -33,11 +33,6 @@ struct FakeOut {
     return *this;
   }
 
-  template <typename T>
-  FakeOut& operator<<(const T& t) {
-    return *this;
-  }
-
   FakeOut& operator<<(std::ostream& (*endl)(std::ostream& os)) {
     return *this;
   }
