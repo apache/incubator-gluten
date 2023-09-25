@@ -76,6 +76,8 @@ static jmethodID veloxColumnarBatchScannerNext;
 
 static jclass shuffleReaderMetricsClass;
 static jmethodID shuffleReaderMetricsSetDecompressTime;
+static jmethodID shuffleReaderMetricsSetIpcTime;
+static jmethodID shuffleReaderMetricsSetDeserializeTime;
 
 class JavaInputStreamAdaptor final : public arrow::io::InputStream {
  public:
@@ -293,6 +295,9 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ShuffleReaderMetrics;");
   shuffleReaderMetricsSetDecompressTime =
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", "(J)V");
+  shuffleReaderMetricsSetIpcTime = getMethodIdOrError(env, shuffleReaderMetricsClass, "setIpcTime", "(J)V");
+  shuffleReaderMetricsSetDeserializeTime =
+      getMethodIdOrError(env, shuffleReaderMetricsClass, "SetDeserializeTime", "(J)V");
 
   return jniVersion;
 }
@@ -1056,10 +1061,8 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_
 
   auto reader = executionCtx->getShuffleReader(shuffleReaderHandle);
   env->CallVoidMethod(metrics, shuffleReaderMetricsSetDecompressTime, reader->getDecompressTime());
-
-  // TODO zhaokuo
-  // env->CallVoidMethod(metrics, shuffleReaderMetricsSetIpcTime, reader->getIpcTime());
-  // env->CallVoidMethod(metrics, shuffleReaderMetricsSetDeserializeTime, reader->getDeserializeTime());
+  env->CallVoidMethod(metrics, shuffleReaderMetricsSetIpcTime, reader->getIpcTime());
+  env->CallVoidMethod(metrics, shuffleReaderMetricsSetDeserializeTime, reader->getDeserializeTime());
 
   checkException(env);
   JNI_METHOD_END()

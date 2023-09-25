@@ -246,6 +246,8 @@ class MetricsHandler extends MetricsApi with Logging {
       "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
       "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to prepare"),
       "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_decompress"),
+      "ipcTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_ipc"),
+      "deserializeTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_deserialize"),
       "avgReadBatchNumRows" -> SQLMetrics
         .createAverageMetric(sparkContext, "avg read batch num rows"),
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),

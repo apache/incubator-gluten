@@ -45,7 +45,9 @@ class ColumnarBatchSerializer(
     schema: StructType,
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
-    decompressTime: SQLMetric)
+    decompressTime: SQLMetric,
+    ipcTime: SQLMetric,
+    deserializeTime: SQLMetric)
   extends Serializer
   with Serializable {
 
@@ -54,7 +56,8 @@ class ColumnarBatchSerializer(
 
   /** Creates a new [[SerializerInstance]]. */
   override def newInstance(): SerializerInstance = {
-    new ColumnarBatchSerializerInstance(schema, readBatchNumRows, numOutputRows, decompressTime)
+    new ColumnarBatchSerializerInstance(schema, readBatchNumRows, numOutputRows, decompressTime,
+      ipcTime, deserializeTime)
   }
 
   override def supportsRelocationOfSerializedObjects: Boolean = supportsRelocation
@@ -64,7 +67,9 @@ private class ColumnarBatchSerializerInstance(
     schema: StructType,
     readBatchNumRows: SQLMetric,
     numOutputRows: SQLMetric,
-    decompressTime: SQLMetric)
+    decompressTime: SQLMetric,
+    ipcTime: SQLMetric,
+    deserializeTime: SQLMetric)
   extends SerializerInstance
   with Logging {
 
@@ -106,6 +111,8 @@ private class ColumnarBatchSerializerInstance(
         shuffleReaderHandle,
         readerMetrics)
       decompressTime += readerMetrics.getDecompressTime
+      ipcTime += readerMetrics.getIpcTime
+      deserializeTime += readerMetrics.getDeserializeTime
 
       cSchema.close()
       ShuffleReaderJniWrapper.INSTANCE.close(executionCtxHandle, shuffleReaderHandle)
