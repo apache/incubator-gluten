@@ -26,7 +26,7 @@
 #include "compute/ProtobufUtils.h"
 #include "config/GlutenConfig.h"
 #include "memory/AllocationListener.h"
-#include "utils/DebugCout.h"
+#include "utils/DebugOut.h"
 #include "utils/compression.h"
 #include "utils/exception.h"
 

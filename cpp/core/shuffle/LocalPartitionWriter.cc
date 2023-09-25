@@ -17,7 +17,7 @@
 
 #include "shuffle/LocalPartitionWriter.h"
 #include <thread>
-#include "utils/DebugCout.h"
+#include "utils/DebugOut.h"
 
 namespace gluten {
 

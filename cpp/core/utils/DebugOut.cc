@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "DebugCout.h"
+#include "DebugOut.h"
 
 namespace gluten {
 

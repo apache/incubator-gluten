@@ -22,7 +22,7 @@
 #include "compute/ResultIterator.h"
 #include "config/GlutenConfig.h"
 #include "operators/plannodes/RowVectorStream.h"
-#include "utils/DebugCouts.h"
+#include "utils/DebugOut.h"
 #include "velox/common/file/FileSystems.h"
 
 namespace gluten {

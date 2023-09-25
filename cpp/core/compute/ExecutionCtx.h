@@ -29,7 +29,7 @@
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
-#include "utils/DebugCout.h"
+#include "utils/DebugOut.h"
 
 namespace gluten {
 

@@ -19,7 +19,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "DebugCout.h"
+#include "DebugOut.h"
 
 namespace gluten {
 
