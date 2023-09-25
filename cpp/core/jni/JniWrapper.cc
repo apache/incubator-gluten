@@ -297,7 +297,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", "(J)V");
   shuffleReaderMetricsSetIpcTime = getMethodIdOrError(env, shuffleReaderMetricsClass, "setIpcTime", "(J)V");
   shuffleReaderMetricsSetDeserializeTime =
-      getMethodIdOrError(env, shuffleReaderMetricsClass, "SetDeserializeTime", "(J)V");
+      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", "(J)V");
 
   return jniVersion;
 }
