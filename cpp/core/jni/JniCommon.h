@@ -19,7 +19,6 @@
 
 #include <arrow/ipc/reader.h>
 #include <arrow/ipc/writer.h>
-#include <arrow/util/parallel.h>
 #include <execinfo.h>
 #include <jni.h>
 
