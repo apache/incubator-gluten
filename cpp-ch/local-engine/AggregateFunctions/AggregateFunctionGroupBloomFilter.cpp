@@ -74,7 +74,7 @@ createAggregateFunctionBloomFilter(const std::string & name, const DataTypes & a
     }
     else if (parameters.empty())
     {
-        // no parameter is specified, this is the case in INTERMEDIATE_TO_RESULT phase
+        // No parameter is specified, this is the case in INTERMEDIATE_TO_RESULT phase.
     }
     else
     {

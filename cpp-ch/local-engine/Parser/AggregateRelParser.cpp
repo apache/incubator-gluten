@@ -150,7 +150,7 @@ void AggregateRelParser::addPreProjection()
     for (auto & agg_info : aggregates)
     {
         auto arg_nodes = agg_info.function_parser->parseFunctionArguments(agg_info.parser_func_info, projection_action);
-        // this may remove elements from arg_nodes, because some of them are converted to CH func parameters
+        // This may remove elements from arg_nodes, because some of them are converted to CH func parameters.
         agg_info.params = agg_info.function_parser->parseFunctionParameters(agg_info.parser_func_info, arg_nodes);
         for (auto & arg_node : arg_nodes)
         {
@@ -198,9 +198,9 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         }
         else
         {
-            // if the function is a state function, we don't need to apply `PartialMerge`.
-            // In INITIAL_TO_INTERMEDIATE phase, we do arguments -> xxState
-            // In INTERMEDIATE_TO_RESULT phase, we do xxState -> xxState
+            // If the function is a state function, we don't need to apply `PartialMerge`.
+            // In INITIAL_TO_INTERMEDIATE phase, we do arguments -> xxState.
+            // In INTERMEDIATE_TO_RESULT phase, we do xxState -> xxState.
             if (agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
             {
                 description.function = getAggregateFunction(agg_info.function_name, agg_info.arg_column_types, properties, agg_info.params);

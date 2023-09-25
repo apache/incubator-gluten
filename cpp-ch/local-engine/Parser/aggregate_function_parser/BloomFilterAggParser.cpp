@@ -34,8 +34,8 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-// this is copied from Spark, org.apache.spark.util.sketch.BloomFilter#optimalNumOfHashFunctions
-// which in return learned from https://en.wikipedia.org/wiki/Bloom_filter#Optimal_number_of_hash_functions
+// This is copied from Spark, org.apache.spark.util.sketch.BloomFilter#optimalNumOfHashFunctions,
+// which in return learned from https://en.wikipedia.org/wiki/Bloom_filter#Optimal_number_of_hash_functions.
 Int64 optimalNumOfHashFunctions(Int64 n, Int64 m)
 {
     // (m / n) * log(2), but avoid truncation due to division!
@@ -48,7 +48,7 @@ DB::Array get_parameters(Int64 insert_num, Int64 bits_num)
     Int64 hash_num = optimalNumOfHashFunctions(insert_num, bits_num);
     parameters.push_back(Field((bits_num + 7) / 8));
     parameters.push_back(Field(hash_num));
-    parameters.push_back(Field(0)); // using 0 as seed
+    parameters.push_back(Field(0)); // Using 0 as seed.
     return parameters;
 }
 
@@ -66,7 +66,7 @@ DB::Array AggregateFunctionParserBloomFilterAgg::parseFunctionParameters(
         Int64 insert_num = get_parameter_field(arg_nodes[1], 1).get<Int64>();
         Int64 bits_num = get_parameter_field(arg_nodes[2], 2).get<Int64>();
 
-        // delete all args except the first arg
+        // Delete all args except the first arg.
         arg_nodes.resize(1);
 
         return get_parameters(insert_num, bits_num);

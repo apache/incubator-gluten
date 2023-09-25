@@ -18,7 +18,7 @@
 #include <Parser/AggregateFunctionParser.h>
 
 // In CH, BloomFilterAgg has parameters, e.g. groupBloomFilterState(param1, param2, param3)(input1)
-// so cannot use common aggregate parser
+// so cannot use common aggregate parser.
 namespace local_engine
 {
 class AggregateFunctionParserBloomFilterAgg : public AggregateFunctionParser

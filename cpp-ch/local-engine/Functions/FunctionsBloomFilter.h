@@ -120,9 +120,9 @@ public:
     }
 
 private:
-    // for Gluten use
+    // For Gluten use.
     mutable char * allocated_bytes_for_bloom_filter_state = nullptr;
-    // for Gluten use
+    // For Gluten use.
     // Why not make it a static member? Because functions are registered prior to aggregate functions (groupBloomFilter), so static initialization of static agg_func will fail.
     mutable AggregateFunctionPtr agg_func;
 
@@ -161,7 +161,7 @@ private:
         if (arguments[0].type->getTypeId() == TypeIndex::AggregateFunction)
         {
             const auto & column_agg_function = typeid_cast<const ColumnAggregateFunction &>(*first_column_ptr);
-            // when arument is nullable, AggregateFunctionNull is inserted in front of AggregateFunctionState
+            // When argument is nullable, AggregateFunctionNull is inserted in front of AggregateFunctionState.
             bool has_null_prefix = column_agg_function.getAggregateFunction()->getArgumentTypes().at(0)->isNullable();
             bloom_filter_state
                 = column_agg_function.getData()[0] + (has_null_prefix ? column_agg_function.getAggregateFunction()->alignOfData() : 0);
@@ -174,7 +174,7 @@ private:
                 agg_func = AggregateFunctionFactory::instance().get(
                     "groupBloomFilter", DataTypes{std::make_shared<DataTypeNullable>(std::make_shared<DataTypeInt64>())}, {}, properties);
             }
-            // Gluten serialized the AggregateFunction into a String
+            // Gluten serialized the AggregateFunction into a String.
             if (allocated_bytes_for_bloom_filter_state == nullptr)
             {
                 if (isColumnConst(*first_column_ptr))
@@ -191,7 +191,7 @@ private:
                 }
             }
 
-            // in Gluten , argument of groupBloomFilter is always nullable, so always add prefix
+            // In Gluten , argument of groupBloomFilter is always nullable, so always add prefix.
             bloom_filter_state = allocated_bytes_for_bloom_filter_state + agg_func->alignOfData();
         }
         else

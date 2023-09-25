@@ -81,9 +81,9 @@ struct AggregateFunctionGroupBloomFilterData
     }
 };
 
-// Aggreate Int64 values into a bloom filter
-// For groupFunctionFilter, we don't actually care about the final Int result(currently always return BF byte size)
-// We just need its intermediate state, ,i.e. groupFunctionFilterState
+// Aggreate Int64 values into a bloom filter.
+// For groupFunctionBloomFilter, we don't actually care about the final Int result(currently always return BF byte size).
+// We just need its intermediate state, ,i.e. groupFunctionFilterState.
 template <typename T, typename Data>
 class AggregateFunctionGroupBloomFilter final : public IAggregateFunctionDataHelper<Data, AggregateFunctionGroupBloomFilter<T, Data>>
 {
@@ -130,7 +130,7 @@ public:
         const auto & filter_other = bloom_other.getFilter();
         if (!this->data(place).initted)
         {
-            // we use filter_other's size/hashes/seed to avoid passing these parameters around to construct AggregateFunctionGroupBloomFilter
+            // We use filter_other's size/hashes/seed to avoid passing these parameters around to construct AggregateFunctionGroupBloomFilter.
             checkFilterSize(bloom_other.getSize());
             this->data(place).bloom_filter = BloomFilter(BloomFilterParameters(bloom_other.getSize(), bloom_other.getHashes(), bloom_other.getSeed()));
             this->data(place).initted = true;

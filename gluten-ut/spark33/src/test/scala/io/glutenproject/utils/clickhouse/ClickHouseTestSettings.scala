@@ -97,7 +97,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   )
 
   private val bloomFilterCases: Seq[String] = Seq(
-    // currently return a empty set, both behaviors are acceptable
+    // Currently return a empty set(same reason as sum(empty set),
+    // both behaviors are acceptable.
     "Test that bloom_filter_agg produces a NULL with empty input"
   )
 
