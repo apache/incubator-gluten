@@ -32,6 +32,10 @@ public class ColumnarBatchSerializerJniWrapper extends JniInitialized implements
     return new ColumnarBatchSerializerJniWrapper(ExecutionCtxs.contextInstance());
   }
 
+  public static ColumnarBatchSerializerJniWrapper forCtx(ExecutionCtx ctx) {
+    return new ColumnarBatchSerializerJniWrapper(ctx);
+  }
+
   @Override
   public long ctxHandle() {
     return ctx.getHandle();

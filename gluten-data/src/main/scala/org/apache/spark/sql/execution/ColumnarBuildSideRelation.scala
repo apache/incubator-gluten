@@ -106,6 +106,7 @@ case class ColumnarBuildSideRelation(
     // This transformation happens in Spark driver, thus resources can not be managed automatically.
     val executionCtx = ExecutionCtxs.tmpInstance()
     val nativeMemoryManager = NativeMemoryManagers.tmpInstance("BuildSideRelation#transform")
+    val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.forCtx(executionCtx)
     val serializeHandle = {
       val allocator = ArrowBufferAllocators.globalInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
@@ -113,8 +114,7 @@ case class ColumnarBuildSideRelation(
         StructType.fromAttributes(output),
         SQLConf.get.sessionLocalTimeZone)
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-      val handle = ColumnarBatchSerializerJniWrapper
-        .create()
+      val handle = serializerJniWrapper
         .init(cSchema.memoryAddress(), nativeMemoryManager.getNativeInstanceHandle)
       cSchema.close()
       handle
@@ -132,7 +132,7 @@ case class ColumnarBuildSideRelation(
           val itHasNext = batchId < batches.length
           if (!itHasNext && !closed) {
             jniWrapper.nativeClose(c2rId)
-            ColumnarBatchSerializerJniWrapper.create().close(serializeHandle)
+            serializerJniWrapper.close(serializeHandle)
             executionCtx.release()
             nativeMemoryManager.release()
             closed = true
@@ -144,7 +144,7 @@ case class ColumnarBuildSideRelation(
           val batchBytes = batches(batchId)
           batchId += 1
           val batchHandle =
-            ColumnarBatchSerializerJniWrapper.create().deserialize(serializeHandle, batchBytes)
+            serializerJniWrapper.deserialize(serializeHandle, batchBytes)
           val batch = ColumnarBatches.create(executionCtx, batchHandle)
           if (batch.numRows == 0) {
             batch.close()
