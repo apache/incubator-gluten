@@ -17,11 +17,9 @@
 package io.glutenproject.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.execution.ColumnarToRowExecBase
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, UnsafeProjection, UnsafeRow}
