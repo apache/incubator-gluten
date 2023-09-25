@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <ostream>
+
 namespace gluten {
 
 #ifdef GLUTEN_PRINT_DEBUG
@@ -32,12 +34,26 @@ struct FakeCout {
   }
 
   template <typename T>
-  FakeCout& operator<<(T& t) {
+  FakeCout& operator<<(const T& t) {
+    return *this;
+  }
+
+  template <typename T>
+  FakeCout& operator<<(T&& t) {
     return *this;
   }
 
   template <typename T>
   FakeCout& operator<<(T* t) {
+    return *this;
+  }
+
+  template <typename T>
+  FakeCout& operator<<(const T* t) {
+    return *this;
+  }
+
+  FakeCout& operator<<(FakeCout& fc, std::ostream& (*endl)(std::ostream& os)) {
     return *this;
   }
 };
