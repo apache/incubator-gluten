@@ -1018,6 +1018,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("partitioning reporting")
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
   enableSuite[GlutenCachedTableSuite]
+    .exclude("InMemoryRelation statistics")
   enableSuite[GlutenConfigBehaviorSuite]
     // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
     .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
@@ -1045,6 +1046,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
   enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
+    .exclude("SPARK-33687: analyze all tables in a specific database")
   enableSuite[FallbackStrategiesSuite]
 }
 // scalastyle:on line.size.limit

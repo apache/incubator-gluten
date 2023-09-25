@@ -27,13 +27,14 @@
 #include <Common/Stopwatch.h>
 #include <Common/ThreadPool.h>
 #include <Common/CHUtil.h>
+#include <IO/WriteBufferFromString.h>
 #include <format>
 
 using namespace DB;
 
 namespace local_engine
 {
-void local_engine::LocalPartitionWriter::write(const PartitionInfo& partition_info, DB::Block & data)
+void local_engine::PartitionWriter::write(const PartitionInfo& partition_info, DB::Block & data)
 {
     Stopwatch time;
     time.start();
@@ -80,14 +81,16 @@ void LocalPartitionWriter::evictPartitions(bool for_memory_spill)
         serialization_time_watch.start();
         for (auto & partition : partition_buffer)
         {
+            size_t raw_size = 0;
             PartitionSpillInfo partition_spill_info;
             partition_spill_info.start = output.count();
             for (const auto & block : partition)
             {
-                writer.write(block);
+                raw_size += writer.write(block);
             }
             compressed_output.sync();
             partition_spill_info.length = output.count() - partition_spill_info.start;
+            shuffle_writer->split_result.raw_partition_length[partition_id] += raw_size;
             partition_spill_info.partition_id = partition_id;
             partition_id++;
             info.partition_spill_infos.emplace_back(partition_spill_info);
@@ -159,14 +162,16 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
         }
         Stopwatch serialization_time_watch;
         serialization_time_watch.start();
+        size_t raw_size = 0;
         for (const auto & block : partition_buffer[partition_id])
         {
-            writer.write(block);
+            raw_size += writer.write(block);
         }
         compressed_output.sync();
         partition_length[partition_id] = data_file.count() - size_before;
         shuffle_writer->split_result.total_serialize_time += serialization_time_watch.elapsedNanoseconds();
         shuffle_writer->split_result.total_bytes_written += partition_length[partition_id];
+        shuffle_writer->split_result.raw_partition_length[partition_id] += raw_size;
     }
     shuffle_writer->split_result.total_write_time += write_time_watch.elapsedNanoseconds();
     shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
@@ -183,7 +188,6 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
 LocalPartitionWriter::LocalPartitionWriter(CachedShuffleWriter * shuffle_writer)
     : PartitionWriter(shuffle_writer)
 {
-    partition_buffer.resize(options->partition_nums);
 }
 String LocalPartitionWriter::getNextSpillFile()
 {
@@ -204,10 +208,7 @@ void LocalPartitionWriter::stop()
     auto offsets = mergeSpills(output);
     shuffle_writer->split_result.partition_length = offsets;
 }
-size_t LocalPartitionWriter::totalCacheSize()
-{
-    return total_partition_buffer_size;
-}
+
 PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
 {
     shuffle_writer = shuffle_writer_;
@@ -215,6 +216,84 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
     for (size_t i = 0; i < options->partition_nums; ++i)
     {
         partition_block_buffer.emplace_back(ColumnsBuffer(options->split_size));
+    }
+    partition_buffer.resize(options->partition_nums);
+}
+CelebornPartitionWriter::CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client_)
+    : PartitionWriter(shuffleWriter), celeborn_client(std::move(celeborn_client_))
+{
+
+}
+
+void CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
+{
+    auto spill_to_celeborn = [this]() -> void {
+        Stopwatch serialization_time_watch;
+        serialization_time_watch.start();
+        for (size_t partition_id = 0; partition_id < partition_buffer.size(); ++partition_id)
+        {
+            const auto & partition = partition_buffer[partition_id];
+            size_t raw_size = 0;
+            if (partition.empty()) continue;
+            WriteBufferFromOwnString output;
+            auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
+            CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
+            NativeWriter writer(compressed_output, 0, shuffle_writer->output_header);
+            for (const auto & block : partition)
+            {
+                raw_size += writer.write(block);
+            }
+            compressed_output.sync();
+            Stopwatch push_time_watch;
+            push_time_watch.start();
+            celeborn_client->pushPartitionData(partition_id, output.str().data(), output.str().size());
+            shuffle_writer->split_result.partition_length[partition_id] += output.str().size();
+            shuffle_writer->split_result.raw_partition_length[partition_id] += raw_size;
+            shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
+            shuffle_writer->split_result.total_write_time += compressed_output.getWriteTime();
+            shuffle_writer->split_result.total_write_time += push_time_watch.elapsedNanoseconds();
+            shuffle_writer->split_result.total_disk_time += push_time_watch.elapsedNanoseconds();
+        }
+        shuffle_writer->split_result.total_serialize_time += serialization_time_watch.elapsedNanoseconds();
+    };
+    Stopwatch spill_time_watch;
+    spill_time_watch.start();
+    if (for_memory_spill)
+    {
+        // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
+        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
+        ThreadFromGlobalPool thread(spill_to_celeborn);
+        thread.join();
+    }
+    else
+    {
+        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
+        spill_to_celeborn();
+    }
+    shuffle_writer->split_result.total_spill_time += spill_time_watch.elapsedNanoseconds();
+
+    for (auto & partition : partition_buffer)
+    {
+        partition.clear();
+    }
+    shuffle_writer->split_result.total_bytes_spilled += total_partition_buffer_size;
+    total_partition_buffer_size = 0;
+}
+
+void CelebornPartitionWriter::stop()
+{
+    for (size_t partition_id = 0; partition_id < shuffle_writer->options.partition_nums; ++partition_id)
+    {
+        if (partition_block_buffer[partition_id].size() > 0)
+        {
+            Block block = partition_block_buffer[partition_id].releaseColumns();
+            partition_buffer[partition_id].emplace_back(std::move(block));
+        }
+    }
+    evictPartitions(false);
+    for (const auto & item : shuffle_writer->split_result.partition_length)
+    {
+        shuffle_writer->split_result.total_bytes_written += item;
     }
 }
 }

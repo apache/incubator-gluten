@@ -20,7 +20,7 @@
 #include <arrow/array/array_binary.h>
 
 #include "memory/VeloxColumnarBatch.h"
-#include "utils/ArrowTypeUtils.h"
+#include "utils/VeloxArrowUtils.h"
 #include "utils/compression.h"
 #include "utils/macros.h"
 #include "velox/serializers/PrestoSerializer.h"
@@ -321,7 +321,7 @@ void getUncompressedBuffers(
   }
 }
 
-RowVectorPtr readRowVectorInternal(
+RowVectorPtr readRowVector(
     const arrow::RecordBatch& batch,
     RowTypePtr rowType,
     CodecBackend codecBackend,
@@ -375,7 +375,7 @@ class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
     auto batch = in_.next();
     auto rb = std::dynamic_pointer_cast<ArrowColumnarBatch>(batch)->getRecordBatch();
     int64_t decompressTime = 0LL;
-    auto vp = readRowVectorInternal(
+    auto vp = readRowVector(
         *rb,
         rowType_,
         options_.codec_backend,
@@ -403,12 +403,12 @@ VeloxShuffleReader::VeloxShuffleReader(
     ReaderOptions options,
     std::shared_ptr<arrow::MemoryPool> pool,
     std::shared_ptr<memory::MemoryPool> veloxPool)
-    : Reader(schema, options, pool), veloxPool_(std::move(veloxPool)) {
+    : ShuffleReader(schema, options, pool), veloxPool_(std::move(veloxPool)) {
   rowType_ = asRowType(gluten::fromArrowSchema(schema));
 }
 
 std::shared_ptr<ResultIterator> VeloxShuffleReader::readStream(std::shared_ptr<arrow::io::InputStream> in) {
-  auto wrappedIn = Reader::readStream(in);
+  auto wrappedIn = ShuffleReader::readStream(in);
   return std::make_shared<ResultIterator>(std::make_unique<VeloxShuffleReaderOutStream>(
       pool_,
       veloxPool_,
@@ -416,17 +416,6 @@ std::shared_ptr<ResultIterator> VeloxShuffleReader::readStream(std::shared_ptr<a
       rowType_,
       [this](int64_t decompressionTime) { this->decompressTime_ += decompressionTime; },
       *wrappedIn));
-}
-
-RowVectorPtr VeloxShuffleReader::readRowVector(
-    const arrow::RecordBatch& batch,
-    RowTypePtr rowType,
-    CodecBackend codecBackend,
-    CompressionMode compressionMode,
-    int64_t& decompressTime,
-    arrow::MemoryPool* arrowPool,
-    memory::MemoryPool* pool) {
-  return readRowVectorInternal(batch, rowType, codecBackend, compressionMode, decompressTime, arrowPool, pool);
 }
 
 } // namespace gluten

@@ -17,15 +17,13 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.execution.ColumnarToRowExecBase
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.vectorized.CHNativeBlock
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.types._
@@ -34,7 +32,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 case class CHColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBase(child = child) {
   override def nodeName: String = "CHNativeColumnarToRow"
 
-  override def buildCheck(): Unit = {
+  override protected def doValidateInternal(): ValidationResult = {
     val schema = child.schema
     for (field <- schema.fields) {
       field.dataType match {
@@ -59,10 +57,7 @@ case class CHColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBase(c
             s"${field.dataType} is not supported in ColumnarToRowExecBase.")
       }
     }
-  }
-
-  override def doExecuteBroadcast[T](): Broadcast[T] = {
-    child.doExecuteBroadcast()
+    ValidationResult.ok
   }
 
   override def doExecuteInternal(): RDD[InternalRow] = {
@@ -73,12 +68,6 @@ case class CHColumnarToRowExec(child: SparkPlan) extends ColumnarToRowExecBase(c
       longMetric("numInputBatches"),
       longMetric("convertTime"))
   }
-
-  override def outputPartitioning: Partitioning = child.outputPartitioning
-
-  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
-
-  override def output: Seq[Attribute] = child.output
 
   protected def withNewChildInternal(newChild: SparkPlan): CHColumnarToRowExec =
     copy(child = newChild)

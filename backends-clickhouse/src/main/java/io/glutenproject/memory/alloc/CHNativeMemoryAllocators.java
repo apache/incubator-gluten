@@ -16,12 +16,14 @@
  */
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.memory.MemoryUsage;
-import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.memory.memtarget.MemoryTargets;
 import io.glutenproject.memory.memtarget.spark.Spiller;
 
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
+
+import java.util.Collections;
 
 /**
  * Built-in toolkit for managing native memory allocations. To use the facility, one should import
@@ -40,11 +42,15 @@ public abstract class CHNativeMemoryAllocators {
   private static final CHNativeMemoryAllocator GLOBAL = CHNativeMemoryAllocator.getDefault();
 
   private static CHNativeMemoryAllocatorManager createNativeMemoryAllocatorManager(
-      String name, TaskMemoryManager taskMemoryManager, Spiller spiller, MemoryUsage usage) {
+      String name,
+      TaskMemoryManager taskMemoryManager,
+      Spiller spiller,
+      SimpleMemoryUsageRecorder usage) {
 
     CHManagedCHReservationListener rl =
         new CHManagedCHReservationListener(
-            new GlutenMemoryConsumer(name, taskMemoryManager, spiller), usage);
+            MemoryTargets.newConsumer(taskMemoryManager, name, spiller, Collections.emptyMap()),
+            usage);
     return new CHNativeMemoryAllocatorManagerImpl(CHNativeMemoryAllocator.createListenable(rl));
   }
 
@@ -82,6 +88,8 @@ public abstract class CHNativeMemoryAllocators {
             spiller,
             TaskResources.getSharedUsage());
     TaskResources.addAnonymousResource(manager);
+    // force add memory consumer to task memory manager, will release by inactivate
+    manager.getManaged().listener().reserve(1);
     return manager.getManaged();
   }
 

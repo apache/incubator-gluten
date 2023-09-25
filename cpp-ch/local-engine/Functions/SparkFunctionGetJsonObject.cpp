@@ -20,8 +20,13 @@
 
 namespace local_engine
 {
+
 REGISTER_FUNCTION(GetJsonObject)
 {
     factory.registerFunction<DB::FunctionSQLJSON<GetJsonObject, GetJsonObjectImpl>>();
+}
+REGISTER_FUNCTION(FlattenJSONStringOnRequiredFunction)
+{
+    factory.registerFunction<FlattenJSONStringOnRequiredFunction>();
 }
 }

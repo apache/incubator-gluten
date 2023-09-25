@@ -177,13 +177,13 @@ object CHExecUtil extends Logging {
       partitoining: HashPartitioning,
       childOutput: Seq[Attribute],
       output: Seq[Attribute]): NativePartitioning = {
-    val hashFields = partitoining.expressions.map {
-      case a: Attribute =>
-        BindReferences
-          .bindReference(a, childOutput)
-          .asInstanceOf[BoundReference]
-          .ordinal
-    }
+    val hashFields =
+      partitoining.expressions.map(
+        a =>
+          BindReferences
+            .bindReference(ConverterUtils.getAttrFromExpr(a).toAttribute, childOutput)
+            .asInstanceOf[BoundReference]
+            .ordinal)
     val outputFields = if (output != null) {
       output.map {
         a: Attribute =>
@@ -299,7 +299,10 @@ object CHExecUtil extends Logging {
     val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
 
     val rddWithpartitionKey: RDD[Product2[Int, ColumnarBatch]] =
-      if (GlutenConfig.getConf.isUseColumnarShuffleManager) {
+      if (
+        GlutenConfig.getConf.isUseColumnarShuffleManager
+        || GlutenConfig.getConf.isUseCelebornShuffleManager
+      ) {
         newPartitioning match {
           case _ =>
             rdd.mapPartitionsWithIndexInternal(

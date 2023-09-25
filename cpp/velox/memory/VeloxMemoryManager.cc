@@ -17,6 +17,8 @@
 
 #include "VeloxMemoryManager.h"
 
+#include <execinfo.h>
+#include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
 namespace gluten {
@@ -115,7 +117,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       //
       // We are likely in destructor, do not throw. INFO log is fine since we have leak checks from Spark's memory
       //   manager
-      LOG(INFO) << "Memory pool " << pool->name() << " not completely shrunk when Memory::dropPool() is called";
+      LOG(INFO) << "Memory pool " << pool->name() << " not completely shrunken when Memory::dropPool() is called";
     }
     return freeBytes;
   }
@@ -162,58 +164,102 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   gluten::AllocationListener* listener_;
 };
 
-VeloxMemoryManager::VeloxMemoryManager(
-    std::string name,
-    std::shared_ptr<MemoryAllocator> allocator,
-    std::shared_ptr<AllocationListener> listener)
-    : MemoryManager(), name_(name), listener_(std::move(listener)) {
+velox::memory::IMemoryManager::Options VeloxMemoryManager::getOptions(
+    std::shared_ptr<MemoryAllocator> allocator) const {
   auto veloxAlloc = velox::memory::MemoryAllocator::getInstance();
-  glutenAlloc_ = std::make_shared<ListenableMemoryAllocator>(allocator.get(), listener_);
+
 #ifdef GLUTEN_ENABLE_HBM
-  auto wrappedAlloc = std::make_shared<VeloxMemoryAllocator>(allocator.get(), veloxAlloc);
+  wrappedAlloc_ = std::make_unique<VeloxMemoryAllocator>(allocator.get(), veloxAlloc);
+  veloxAlloc = wrappedAlloc_.get();
 #endif
+
   velox::memory::MemoryArbitrator::Config arbitratorConfig{
       velox::memory::MemoryArbitrator::Kind::kNoOp, // do not use shared arbitrator as it will mess up the thread
                                                     // contexts (one Spark task reclaims memory from another)
       velox::memory::kMaxMemory, // the 2nd capacity
-      0,
-      32 << 20,
+      0, // initMemoryPoolCapacity
+      32 << 20, // minMemoryPoolCapacityTransferSize
       true};
+
   velox::memory::IMemoryManager::Options mmOptions{
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
-      true,
-      false,
-#ifdef GLUTEN_ENABLE_HBM
-      wrappedAlloc.get(),
-#else
+      false, // leak check
+      false, // debug
       veloxAlloc,
-#endif
       [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener_.get()); },
   };
-  veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
-  veloxPool_ = veloxMemoryManager_->addRootPool(
+
+  return mmOptions;
+}
+
+VeloxMemoryManager::VeloxMemoryManager(
+    const std::string& name,
+    std::shared_ptr<MemoryAllocator> allocator,
+    std::unique_ptr<AllocationListener> listener)
+    : MemoryManager(), name_(name), listener_(std::move(listener)) {
+  glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_.get());
+  arrowPool_ = std::make_shared<ArrowMemoryPool>(glutenAlloc_.get());
+
+  auto options = getOptions(allocator);
+  veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(options);
+
+  veloxAggregatePool_ = veloxMemoryManager_->addRootPool(
       name_ + "_root",
       velox::memory::kMaxMemory, // the 3rd capacity
       facebook::velox::memory::MemoryReclaimer::create());
-  veloxLeafPool_ = veloxPool_->addLeafChild(name_ + "_default_leaf");
+
+  veloxLeafPool_ = veloxAggregatePool_->addLeafChild(name_ + "_default_leaf");
 }
 
-velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
-  return &(facebook::velox::memory::defaultMemoryManager());
+namespace {
+MemoryUsageStats collectVeloxMemoryPoolUsageStats(const velox::memory::MemoryPool* pool) {
+  MemoryUsageStats stats;
+  stats.set_current(pool->currentBytes());
+  stats.set_peak(pool->peakBytes());
+  // walk down root and all children
+  pool->visitChildren([&](velox::memory::MemoryPool* pool) -> bool {
+    stats.mutable_children()->emplace(pool->name(), collectVeloxMemoryPoolUsageStats(pool));
+    return true;
+  });
+  return stats;
 }
 
-static std::shared_ptr<velox::memory::MemoryPool> rootVeloxMemoryPool() {
-  auto* mm = getDefaultVeloxMemoryManager();
-  static auto root = mm->addRootPool(
-      "gluten_root", mm->capacity(), facebook::velox::memory::MemoryReclaimer::create()); // the 3rd capacity
-  return root;
+MemoryUsageStats collectArrowMemoryPoolUsageStats(const arrow::MemoryPool* pool) {
+  MemoryUsageStats stats;
+  stats.set_current(pool->bytes_allocated());
+  stats.set_peak(-1LL); // we don't know about peak
+  return stats;
+}
+} // namespace
+
+const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
+  const MemoryUsageStats& veloxPoolStats = collectVeloxMemoryPoolUsageStats(veloxAggregatePool_.get());
+  const MemoryUsageStats& arrowPoolStats = collectArrowMemoryPoolUsageStats(arrowPool_.get());
+  MemoryUsageStats stats;
+  stats.set_current(veloxPoolStats.current() + arrowPoolStats.current());
+  stats.set_peak(-1LL); // we don't know about peak
+  stats.mutable_children()->emplace("velox", std::move(veloxPoolStats));
+  stats.mutable_children()->emplace("arrow", std::move(arrowPoolStats));
+  return stats;
 }
 
-std::shared_ptr<velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
-  static auto leaf =
-      rootVeloxMemoryPool()->addLeafChild("default_leaf", true, facebook::velox::memory::MemoryReclaimer::create());
-  return leaf;
+namespace {
+int64_t shrinkVeloxMemoryPool(velox::memory::MemoryPool* pool, int64_t size) {
+  std::string poolName{pool->root()->name() + "/" + pool->name()};
+  std::string logPrefix{"Shrink[" + poolName + "]: "};
+  DLOG(INFO) << logPrefix << "Trying to shrink " << size << " bytes of data...";
+  DLOG(INFO) << logPrefix << "Pool has reserved " << pool->currentBytes() << "/" << pool->root()->reservedBytes() << "/"
+             << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
+  DLOG(INFO) << logPrefix << "Shrinking...";
+  int64_t shrunken = pool->shrinkManaged(pool, size);
+  DLOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
+  return shrunken;
+}
+} // namespace
+
+const int64_t VeloxMemoryManager::shrink(int64_t size) {
+  return shrinkVeloxMemoryPool(veloxAggregatePool_.get(), size);
 }
 
 } // namespace gluten

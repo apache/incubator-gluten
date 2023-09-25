@@ -107,6 +107,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCachedTableSuite]
     .exclude("SPARK-37369: Avoid redundant ColumnarToRow transition on InMemoryTableScan")
     .exclude("analyzes column statistics in cached query")
+    .exclude("GLUTEN - InMemoryRelation statistics")
   enableSuite[GlutenColumnExpressionSuite]
     .exclude("input_file_name, input_file_block_start, input_file_block_length - FileScanRDD")
     .exclude("withField should add field with no name")

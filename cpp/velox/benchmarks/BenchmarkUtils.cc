@@ -17,7 +17,7 @@
 
 #include "BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
-#include "compute/VeloxInitializer.h"
+#include "compute/VeloxExecutionCtx.h"
 #include "config/GlutenConfig.h"
 #include "velox/dwio/common/Options.h"
 
@@ -35,15 +35,15 @@ namespace {
 
 std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, FLAGS_batch_size}};
 
-std::shared_ptr<gluten::Backend> veloxBackendFactory(const std::unordered_map<std::string, std::string>& sparkConfs) {
-  return std::make_shared<gluten::VeloxBackend>(sparkConfs);
+gluten::ExecutionCtx* veloxExecutionCtxFactory(const std::unordered_map<std::string, std::string>& sparkConfs) {
+  return new gluten::VeloxExecutionCtx(sparkConfs);
 }
 
 } // anonymous namespace
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
-  gluten::setBackendFactory(veloxBackendFactory, conf);
-  gluten::VeloxInitializer::create(conf);
+  gluten::setExecutionCtxFactory(veloxExecutionCtxFactory, conf);
+  gluten::VeloxBackend::create(conf);
 }
 
 void initVeloxBackend() {
@@ -58,7 +58,6 @@ std::string getPlanFromFile(const std::string& filePath) {
   std::string msgData = buffer.str();
 
   return gluten::substraitFromJsonToPb("Plan", msgData);
-  ;
 }
 
 velox::dwio::common::FileFormat getFileFormat(const std::string& fileFormat) {

@@ -47,8 +47,11 @@ case class SequenceValidator() extends FunctionValidator {
 case class UnixTimeStampValidator() extends FunctionValidator {
   final val DATE_TYPE = "date"
 
-  override def doValidate(expr: Expression): Boolean = {
-    !expr.children.map(_.dataType.typeName).exists(DATE_TYPE.contains)
+  override def doValidate(expr: Expression): Boolean = expr match {
+    // CH backend does not support non-const format
+    case t: ToUnixTimestamp => t.format.isInstanceOf[Literal]
+    case u: UnixTimestamp => u.format.isInstanceOf[Literal]
+    case _ => true
   }
 }
 
@@ -139,6 +142,14 @@ case class DateFormatClassValidator() extends FunctionValidator {
   }
 }
 
+case class EncodeDecodeValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = expr match {
+    case d: StringDecode => d.charset.isInstanceOf[Literal]
+    case e: Encode => e.charset.isInstanceOf[Literal]
+    case _ => true
+  }
+}
+
 object CHExpressionUtil {
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
@@ -158,6 +169,8 @@ object CHExpressionUtil {
     SUBSTRING_INDEX -> SubstringIndexValidator(),
     LPAD -> StringLPadValidator(),
     RPAD -> StringRPadValidator(),
-    DATE_FORMAT -> DateFormatClassValidator()
+    DATE_FORMAT -> DateFormatClassValidator(),
+    DECODE -> EncodeDecodeValidator(),
+    ENCODE -> EncodeDecodeValidator()
   )
 }

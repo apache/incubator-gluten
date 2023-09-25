@@ -25,24 +25,17 @@ public class CHStreamReader implements AutoCloseable {
   private long nativeShuffleReader;
 
   public CHStreamReader(
-      InputStream inputStream,
-      boolean forceCompress,
-      boolean isCustomizedShuffleCodec,
-      int bufferSize) {
-    this(
-        CHShuffleReadStreamFactory.create(
-            inputStream, forceCompress, isCustomizedShuffleCodec, bufferSize),
-        bufferSize);
+      InputStream inputStream, boolean forceCompress, boolean isCustomizedShuffleCodec) {
+    this(CHShuffleReadStreamFactory.create(inputStream, forceCompress, isCustomizedShuffleCodec));
   }
 
-  public CHStreamReader(ShuffleInputStream shuffleInputStream, int bufferSize) {
+  public CHStreamReader(ShuffleInputStream shuffleInputStream) {
     inputStream = shuffleInputStream;
-    nativeShuffleReader =
-        createNativeShuffleReader(this.inputStream, inputStream.isCompressed(), bufferSize);
+    nativeShuffleReader = createNativeShuffleReader(this.inputStream, inputStream.isCompressed());
   }
 
   private static native long createNativeShuffleReader(
-      ShuffleInputStream inputStream, boolean compressed, int bufferSize);
+      ShuffleInputStream inputStream, boolean compressed);
 
   private native long nativeNext(long nativeShuffleReader);
 

@@ -18,6 +18,7 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
+import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.memory.nmm.NativeMemoryManagers;
 import io.glutenproject.substrait.expression.ExpressionBuilder;
 import io.glutenproject.substrait.expression.StringMapNode;
@@ -64,11 +65,12 @@ public class NativePlanEvaluator {
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
       Plan wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
+    final long executionCtxHandle = ExecutionCtxs.contextInstance().getHandle();
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
-    final long memoryManagerId =
+    final long memoryManagerHandle =
         NativeMemoryManagers.create(
                 "WholeStageIterator",
-                (size, trigger) -> {
+                (size) -> {
                   ColumnarBatchOutIterator instance =
                       Optional.of(outIterator.get())
                           .orElseThrow(
@@ -80,16 +82,17 @@ public class NativePlanEvaluator {
                                           + "hasNext()/next()"));
                   return instance.spill(size);
                 })
-            .getNativeInstanceId();
+            .getNativeInstanceHandle();
 
     final String spillDirPath =
         SparkDirectoryUtil.namespace("gluten-spill")
             .mkChildDirRoundRobin(UUID.randomUUID().toString())
             .getAbsolutePath();
 
-    long handle =
+    long iterHandle =
         jniWrapper.nativeCreateKernelWithIterator(
-            memoryManagerId,
+            executionCtxHandle,
+            memoryManagerHandle,
             getPlanBytesBuf(wsPlan),
             iterList.toArray(new GeneralInIterator[0]),
             TaskContext.get().stageId(),
@@ -103,12 +106,13 @@ public class NativePlanEvaluator {
                         SQLConf.get().getAllConfs()))
                 .toProtobuf()
                 .toByteArray());
-    outIterator.set(createOutIterator(handle));
+    outIterator.set(createOutIterator(executionCtxHandle, iterHandle));
     return outIterator.get();
   }
 
-  private ColumnarBatchOutIterator createOutIterator(long nativeHandle) throws IOException {
-    return new ColumnarBatchOutIterator(nativeHandle);
+  private ColumnarBatchOutIterator createOutIterator(long executionCtxHandle, long iterHandle)
+      throws IOException {
+    return new ColumnarBatchOutIterator(executionCtxHandle, iterHandle);
   }
 
   private byte[] getPlanBytesBuf(Plan planNode) {

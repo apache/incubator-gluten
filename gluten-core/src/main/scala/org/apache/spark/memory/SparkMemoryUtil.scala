@@ -16,10 +16,14 @@
  */
 package org.apache.spark.memory
 
-import io.glutenproject.memory.memtarget.MemoryTarget
+import io.glutenproject.memory.memtarget.spark.TaskMemoryTarget
+import io.glutenproject.proto.MemoryUsageStats
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.util.Utils
+
+import com.google.common.base.Preconditions
+import org.apache.commons.lang3.StringUtils
 
 import java.util
 
@@ -34,8 +38,11 @@ object SparkMemoryUtil {
 
   private val tmmClazz = classOf[TaskMemoryManager]
   private val consumersField = tmmClazz.getDeclaredField("consumers")
+  private val taskIdField = tmmClazz.getDeclaredField("taskAttemptId")
   consumersField.setAccessible(true)
+  taskIdField.setAccessible(true)
 
+  // We assume storage memory can be fully transferred to execution memory so far
   def getCurrentAvailableOffHeapMemory: Long = {
     val mm = SparkEnv.get.memoryManager
     val smp = smpField.get(mm).asInstanceOf[StorageMemoryPool]
@@ -44,60 +51,122 @@ object SparkMemoryUtil {
   }
 
   def dumpMemoryConsumerStats(tmm: TaskMemoryManager): String = {
-    def getName(consumer: MemoryConsumer): String = {
-      consumer match {
-        case mt: MemoryTarget =>
-          mt.name + "@" + Integer.toHexString(System.identityHashCode(mt));
-        case mc =>
-          mc.toString
-      }
+    def sortStats(stats: Seq[MemoryConsumerStats]) = {
+      stats.sortBy(_.used.getOrElse(Long.MinValue))(Ordering.Long.reverse)
     }
 
     val stats = tmm.synchronized {
       val consumers = consumersField.get(tmm).asInstanceOf[util.HashSet[MemoryConsumer]]
-      val sortedConsumers = consumers.asScala.toArray.sortBy(consumer => consumer.used)(
-        Ordering.Long.reverse
-      ) // ranked by used bytes
 
-      sortedConsumers.map {
-        consumer =>
-          val name = getName(consumer)
-          val used = Some(consumer.getUsed)
-          val peak = consumer match {
-            case mt: MemoryTarget =>
-              Some(mt.stats().peak)
-            case mc =>
-              None
-          }
-          MemoryConsumerStats(name, used, peak)
+      // create stats map
+      val statsMap = new util.HashMap[String, MemoryUsageStats]()
+      consumers.asScala.foreach {
+        case mt: TaskMemoryTarget =>
+          statsMap.put(mt.name(), mt.stats())
+        case mc =>
+          statsMap.put(
+            mc.toString,
+            MemoryUsageStats
+              .newBuilder()
+              .setCurrent(mc.getUsed)
+              .setPeak(-1L)
+              .build())
       }
+      Preconditions.checkState(statsMap.size() == consumers.size())
+
+      // add root
+      MemoryUsageStats
+        .newBuilder()
+        .setCurrent(tmm.getMemoryConsumptionForThisTask)
+        .setPeak(-1L)
+        .putAllChildren(statsMap)
+        .build()
     }
 
-    prettyPrintToString(stats)
+    def toMemoryConsumerStats(name: String, mus: MemoryUsageStats): MemoryConsumerStats = {
+      MemoryConsumerStats(
+        name,
+        Some(mus.getCurrent),
+        mus.getPeak match {
+          case -1L => None
+          case v => Some(v)
+        },
+        sortStats(
+          mus.getChildrenMap
+            .entrySet()
+            .asScala
+            .toList
+            .map(entry => toMemoryConsumerStats(entry.getKey, entry.getValue)))
+      )
+    }
+
+    prettyPrintToString(toMemoryConsumerStats(s"Task.${taskIdField.get(tmm)}", stats))
   }
 
-  private def prettyPrintToString(stats: Seq[MemoryConsumerStats]): String = {
+  private def prettyPrintToString(stats: MemoryConsumerStats): String = {
+
     def getBytes(bytes: Option[Long]): String = {
       bytes.map(Utils.bytesToString).getOrElse("N/A")
     }
+
+    def getFullName(name: String, prefix: String): String = {
+      "%s%s:".format(prefix, name)
+    }
+
     val sb = new StringBuilder()
     sb.append(s"Memory consumer stats:")
-    sb.append(System.lineSeparator())
-    val nameWidth = stats.map(_.name.length).max
-    val usedWidth = stats.map(each => getBytes(each.used).length).max
-    val peakWidth = stats.map(each => getBytes(each.peak).length).max
-    for (i <- stats.indices) {
-      val each = stats(i)
-      sb.append("\tfrom ") // indent with a tab (align with exception stack trace)
+
+    // determine padding widths
+    var nameWidth = 0
+    var usedWidth = 0
+    var peakWidth = 0
+    def addPaddingSingleLevel(stats: MemoryConsumerStats, extraWidth: Integer): Unit = {
+      nameWidth = Math.max(nameWidth, getFullName(stats.name, "").length + extraWidth)
+      usedWidth = Math.max(usedWidth, getBytes(stats.used).length)
+      peakWidth = Math.max(peakWidth, getBytes(stats.peak).length)
+      stats.children.foreach(addPaddingSingleLevel(_, extraWidth + 3)) // e.g. "\- "
+    }
+    addPaddingSingleLevel(stats, 1) // take the leading '\t' into account
+
+    // print
+    def printSingleLevel(
+        stats: MemoryConsumerStats,
+        treePrefix: String,
+        treeChildrenPrefix: String): Unit = {
+      sb.append(System.lineSeparator())
+
+      val name = getFullName(stats.name, treePrefix)
       sb.append(
-        s"%${nameWidth}s: Current used bytes: %${usedWidth}s, peak bytes: %${peakWidth}s"
-          .format(each.name, getBytes(each.used), getBytes(each.peak)))
-      if (i != stats.size - 1) {
-        sb.append(System.lineSeparator)
+        s"%s Current used bytes: %s, peak bytes: %s"
+          .format(
+            StringUtils.rightPad(name, nameWidth, ' '),
+            StringUtils.leftPad(String.valueOf(getBytes(stats.used)), usedWidth, ' '),
+            StringUtils.leftPad(String.valueOf(getBytes(stats.peak)), peakWidth, ' ')
+          ))
+
+      stats.children.zipWithIndex.foreach {
+        case (child, i) =>
+          if (i != stats.children.size - 1) {
+            printSingleLevel(child, treeChildrenPrefix + "+- ", treeChildrenPrefix + "|  ")
+          } else {
+            printSingleLevel(child, treeChildrenPrefix + "\\- ", treeChildrenPrefix + "   ")
+          }
       }
     }
+
+    printSingleLevel(
+      stats,
+      "\t",
+      "\t"
+    ) // top level is indented with one tab (align with exception stack trace)
+
+    // return
     sb.toString()
   }
 
-  private case class MemoryConsumerStats(name: String, used: Option[Long], peak: Option[Long])
+  private case class MemoryConsumerStats(
+      name: String,
+      used: Option[Long],
+      peak: Option[Long],
+      children: Iterable[MemoryConsumerStats])
 }

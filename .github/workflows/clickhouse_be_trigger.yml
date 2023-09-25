@@ -22,6 +22,7 @@ on:
       - '.github/**'
       - 'pom.xml'
       - 'backends-clickhouse/**'
+      - 'gluten-celeborn/**'
       - 'gluten-core/**'
       - 'gluten-ut/**'
       - 'shims/**'

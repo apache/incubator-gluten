@@ -17,88 +17,82 @@
 #include "BlockStripeSplitter.h"
 #include <Columns/ColumnNullable.h>
 
-
 using namespace local_engine;
 
 BlockStripes
-local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vector<size_t> & partition_col_indice, bool has_bucket)
+local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vector<size_t> & partition_column_indices, bool has_bucket)
 {
     BlockStripes ret;
-    ret.original_block_address = reinterpret_cast<int64_t>(&block);
-    ret.origin_block_col_num = static_cast<int>(block.columns());
+    ret.origin_block_address = reinterpret_cast<int64_t>(&block);
+    ret.origin_block_num_columns = static_cast<int>(block.columns());
 
-    std::vector<size_t> splitPoints;
+    /// In case block has zero rows
+    const size_t rows = block.rows();
+    if (rows == 0)
+        return ret;
 
-    std::vector<size_t> columns = partition_col_indice;
+    std::vector<size_t> partition_bucket_column_indices = partition_column_indices;
     if (has_bucket)
-        columns.push_back(block.columns() - 1);
-    for (size_t i = 0; i < columns.size(); i++)
+        partition_bucket_column_indices.push_back(block.columns() - 1);
+
+    std::vector<size_t> split_points;
+    for (size_t i = 0; i < partition_bucket_column_indices.size(); i++)
     {
-        auto columnPtr = block.getColumns().at(columns.at(i));
-        if (i == 0 && columnPtr->compareAt(0, block.rows() - 1, *columnPtr, 1) == 0)
+        auto column = block.safeGetByPosition(partition_bucket_column_indices.at(i)).column;
+
+        if (i == 0 && column->compareAt(0, rows - 1, *column, 1) == 0)
         {
-            // no value changes for this whole column
+            /// No value changes for this whole column
             continue;
         }
 
-        for (size_t j = 1; j < block.rows(); ++j)
+        for (size_t j = 1; j < rows; ++j)
         {
-            if (columnPtr->compareAt(j - 1, j, *columnPtr, 1) != 0)
-            {
-                //                std::cout << "j-1(nullable): " << columnPtr->isNullAt(j - 1) << "; j(nullable):" << columnPtr->isNullAt(j) << std::endl;
-                //                std::cout << "j-1: " << static_cast<const DB::ColumnNullable *>(columnPtr.get())->getNestedColumn().getInt(j - 1) <<
-                //                    "; j:" << static_cast<const DB::ColumnNullable *>(columnPtr.get())->getNestedColumn().getInt(j ) << std::endl;
-                splitPoints.push_back(j);
-            }
+            if (column->compareAt(j - 1, j, *column, 1) != 0)
+                split_points.push_back(j);
         }
     }
 
-    //sort split points
-    std::sort(splitPoints.begin(), splitPoints.end());
-    //dedup split points
-    splitPoints.erase(std::unique(splitPoints.begin(), splitPoints.end()), splitPoints.end());
-    splitPoints.push_back(block.rows());
+    const bool no_need_split = split_points.empty();
 
-    //    if (splitPoints.size() == 1)
-    //    {
-    //        // if no need to split this block
-    //        ret.noNeedSplit = true;
-    //        ret.headingRowIndice.push_back(0);
-    //        ret.blockAddresses.push_back(ret.originalBlockAddress);
-    //        return ret;
-    //    }
+    /// Sort split points
+    std::sort(split_points.begin(), split_points.end());
 
-    // create output block by ignoring the partition cols
-    DB::ColumnsWithTypeAndName outputColumns;
-    for (size_t colIndex = 0; colIndex < block.columns(); ++colIndex)
+    /// Deduplicate split points
+    split_points.erase(std::unique(split_points.begin(), split_points.end()), split_points.end());
+    split_points.push_back(rows);
+
+    /// Create output block by ignoring the partition cols
+    DB::ColumnsWithTypeAndName output_columns;
+    for (size_t col_i = 0; col_i < block.columns(); ++col_i)
     {
-        // partition columns will not be written to the file (they're written to folder name)
-        if (std::find(partition_col_indice.begin(), partition_col_indice.end(), colIndex) != partition_col_indice.end())
+        /// Partition columns will not be written to the file (they're written to folder name)
+        if (std::find(partition_column_indices.begin(), partition_column_indices.end(), col_i) != partition_column_indices.end())
             continue;
 
-        // the last column is a column representing bucketing hash value (__bucket_value__), which is not written to the file
-        if (has_bucket && colIndex == block.columns() - 1)
+        /// The last column is a column representing bucketing hash value (__bucket_value__), which is not written to the file
+        if (has_bucket && col_i == block.columns() - 1)
             continue;
 
-        outputColumns.push_back(block.getByPosition(colIndex));
+        output_columns.push_back(block.getByPosition(col_i));
     }
-    DB::Block outputBlock(outputColumns);
 
-    for (size_t i = 0; i < splitPoints.size(); i++)
+    DB::Block output_block(output_columns);
+    for (size_t i = 0; i < split_points.size(); i++)
     {
-        size_t from = i == 0 ? 0 : splitPoints.at(i - 1);
-        size_t to = splitPoints.at(i);
+        size_t from = i == 0 ? 0 : split_points.at(i - 1);
+        size_t to = split_points.at(i);
 
         DB::Block * p = nullptr;
-        if (splitPoints.size() != 1)
+        if (!no_need_split)
         {
-            const DB::Block & cutColumns = outputBlock.cloneWithCutColumns(from, to - from);
-            p = new DB::Block(cutColumns);
+            DB::Block cut_block = output_block.cloneWithCutColumns(from, to - from);
+            p = new DB::Block(std::move(cut_block));
         }
         else
         {
-            // optimization for no split
-            p = new DB::Block(outputBlock);
+            /// Optimization for no split
+            p = new DB::Block(std::move(output_block));
         }
 
         ret.heading_row_indice.push_back(static_cast<int32_t>(from));

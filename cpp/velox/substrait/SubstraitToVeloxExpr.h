@@ -87,8 +87,14 @@ class SubstraitVeloxExprConverter {
 
  private:
   /// Convert list literal to ArrayVector.
-  ArrayVectorPtr literalsToArrayVector(const ::substrait::Expression::Literal& listLiteral);
-
+  ArrayVectorPtr literalsToArrayVector(const ::substrait::Expression::Literal& literal);
+  /// Convert map literal to MapVector.
+  MapVectorPtr literalsToMapVector(const ::substrait::Expression::Literal& literal);
+  VectorPtr literalsToVector(
+      ::substrait::Expression_Literal::LiteralTypeCase childTypeCase,
+      vector_size_t childSize,
+      const ::substrait::Expression::Literal& literal,
+      std::function<::substrait::Expression::Literal(vector_size_t /* idx */)> elementAtFunc);
   RowVectorPtr literalsToRowVector(const ::substrait::Expression::Literal& structLiteral);
 
   /// Memory pool.

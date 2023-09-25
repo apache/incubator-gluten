@@ -165,6 +165,12 @@ class SingleDirectoryDataWriter(
     statsTrackers.foreach(_.newFile(currentPath))
   }
 
+  private def updateRecordsInFile(record: InternalRow): Unit = record match {
+    case fake: FakeRow =>
+      recordsInFile += fake.batch.numRows()
+    case _ => recordsInFile += 1
+  }
+
   override def write(record: InternalRow): Unit = {
     if (description.maxRecordsPerFile > 0 && recordsInFile >= description.maxRecordsPerFile) {
       fileCounter += 1
@@ -177,7 +183,7 @@ class SingleDirectoryDataWriter(
 
     currentWriter.write(record)
     statsTrackers.foreach(_.newRow(currentWriter.path, record))
-    recordsInFile += 1
+    updateRecordsInFile(record)
   }
 }
 
@@ -329,6 +335,12 @@ abstract class BaseDynamicPartitionDataWriter(
     renewCurrentWriter(partitionValues, bucketId, closeCurrentWriter = true)
   }
 
+  protected def updateRecordsInFile(record: InternalRow): Unit = record match {
+    case fake: FakeRow =>
+      recordsInFile += fake.batch.numRows()
+    case _ => recordsInFile += 1
+  }
+
   /**
    * Writes the given record with current writer.
    *
@@ -363,7 +375,12 @@ class DynamicPartitionDataSingleWriter(
   private var currentBucketId: Option[Int] = None
 
   private val partitionColIndice: Array[Int] =
-    description.partitionColumns.map(a => description.allColumns.indexOf(a)).toArray
+    description.partitionColumns.flatMap {
+      pcol =>
+        description.allColumns.zipWithIndex.collect {
+          case (acol, index) if acol.name == pcol.name && acol.exprId == pcol.exprId => index
+        }
+    }.toArray
 
   private def beforeWrite(record: InternalRow): Unit = {
     val nextPartitionValues = if (isPartitioned) Some(getPartitionValues(record)) else None
@@ -411,9 +428,8 @@ class DynamicPartitionDataSingleWriter(
 
   protected def writeStripe(record: InternalRow): Unit = {
     currentWriter.write(record)
-    // TODO: stats
-    //    statsTrackers.foreach(_.newRow(currentWriter.path, outputRow))
-    recordsInFile += 1
+    statsTrackers.foreach(_.newRow(currentWriter.path, record))
+    updateRecordsInFile(record)
   }
 }
 

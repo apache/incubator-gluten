@@ -37,8 +37,6 @@
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsConversion.h>
 #include <Functions/registerFunctions.h>
-#include <google/protobuf/util/json_util.h>
-#include <google/protobuf/wrappers.pb.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
@@ -50,6 +48,8 @@
 #include <QueryPipeline/printPipeline.h>
 #include <Storages/Output/WriteBufferBuilder.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
+#include <google/protobuf/util/json_util.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/Config/ConfigProcessor.h>
@@ -122,7 +122,8 @@ DB::Block BlockUtil::buildHeader(const DB::NamesAndTypesList & names_types_list)
  * There is a special case with which we need be careful. In spark, struct/map/list are always
  * wrapped in Nullable, but this should not happen in clickhouse.
  */
-DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively, const std::unordered_set<size_t> & columns_to_skip_flatten)
+DB::Block
+BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively, const std::unordered_set<size_t> & columns_to_skip_flatten)
 {
     DB::Block res;
 
@@ -500,7 +501,6 @@ DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::s
             // Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
             config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);
         }
-
     }
     return config;
 }
@@ -557,10 +557,12 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
         if (pair.first.starts_with(CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + "."))
         {
             settings.set(pair.first.substr((CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + ".").size()), pair.second);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings from config key:{} value:{}", pair.first, pair.second);
         }
         else if (pair.first.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
         {
             settings.set(pair.first.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), pair.second);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", pair.first, pair.second);
         }
         else if (pair.first.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
         {
@@ -581,15 +583,23 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("input_format_orc_allow_missing_columns", true);
     settings.set("input_format_orc_case_insensitive_column_matching", true);
     settings.set("input_format_orc_import_nested", true);
+    settings.set("input_format_orc_skip_columns_with_unsupported_types_in_schema_inference", true);
     settings.set("input_format_parquet_allow_missing_columns", true);
     settings.set("input_format_parquet_case_insensitive_column_matching", true);
     settings.set("input_format_parquet_import_nested", true);
+    settings.set("input_format_json_read_numbers_as_strings", true);
+    settings.set("input_format_json_read_bools_as_numbers", false);
+    settings.set("output_format_orc_string_as_string", true);
     settings.set("output_format_parquet_version", "1.0");
     settings.set("output_format_parquet_compression_method", "snappy");
     settings.set("output_format_parquet_string_as_string", true);
     settings.set("output_format_parquet_fixed_string_as_fixed_byte_array", false);
+    settings.set("output_format_json_quote_64bit_integers", false);
+    settings.set("output_format_json_quote_denormals", true);
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
+
+
 }
 
 void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
@@ -630,8 +640,7 @@ void BackendInitializerUtil::applyGlobalConfigAndSettings(DB::Context::Configura
     global_context->setSettings(settings);
 }
 
-void BackendInitializerUtil::updateNewSettings(
-    DB::ContextMutablePtr context, DB::Settings & settings)
+void BackendInitializerUtil::updateNewSettings(DB::ContextMutablePtr context, DB::Settings & settings)
 {
     context->setSettings(settings);
 }
@@ -700,6 +709,8 @@ void BackendInitializerUtil::init(std::string * plan)
     applyGlobalConfigAndSettings(config, settings);
     LOG_INFO(logger, "Apply configuration and setting for global context.");
 
+    // clean static per_bucket_clients and shared_client before running local engine,
+    // in case of running the multiple gluten ut in one process
     ReadBufferBuilderFactory::instance().clean();
 
     std::call_once(
@@ -738,6 +749,8 @@ void BackendInitializerUtil::updateConfig(DB::ContextMutablePtr context, std::st
 
 void BackendFinalizerUtil::finalizeGlobally()
 {
+    // Make sure client caches release before ClientCacheRegistry
+    ReadBufferBuilderFactory::instance().clean();
     auto & global_context = SerializedPlanParser::global_context;
     auto & shared_context = SerializedPlanParser::shared_context;
     if (global_context)
@@ -750,6 +763,11 @@ void BackendFinalizerUtil::finalizeGlobally()
 
 void BackendFinalizerUtil::finalizeSessionally()
 {
+}
+
+Int64 DateTimeUtil::currentTimeMillis()
+{
+    return timeInMilliseconds(std::chrono::system_clock::now());
 }
 
 }

@@ -18,6 +18,8 @@
 #include <Poco/StringTokenizer.h>
 #include <Common/Stopwatch.h>
 #include <Shuffle/PartitionWriter.h>
+#include <jni/CelebornClient.h>
+#include <jni/jni_common.h>
 
 
 namespace DB
@@ -33,7 +35,7 @@ namespace ErrorCodes
 namespace local_engine
 {
 using namespace DB;
-CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions & options_)
+CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions & options_, jobject rss_pusher)
 {
     options = options_;
     if (short_name == "rr")
@@ -69,8 +71,21 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions
     {
         output_columns_indicies.push_back(std::stoi(iter));
     }
-
-    partition_writer = std::make_unique<LocalPartitionWriter>(this);
+    if (rss_pusher)
+    {
+        GET_JNIENV(env)
+        jclass celeborn_partition_pusher_class =
+            CreateGlobalClassReference(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
+        jmethodID celeborn_push_partition_data_method =
+            GetMethodID(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[BI)I");
+        CLEAN_JNIENV
+        auto celeborn_client = std::make_unique<CelebornClient>(rss_pusher, celeborn_push_partition_data_method);
+        partition_writer = std::make_unique<CelebornPartitionWriter>(this, std::move(celeborn_client));
+    }
+    else
+    {
+        partition_writer = std::make_unique<LocalPartitionWriter>(this);
+    }
     split_result.partition_length.resize(options.partition_nums, 0);
     split_result.raw_partition_length.resize(options.partition_nums, 0);
 }
@@ -95,7 +110,6 @@ void CachedShuffleWriter::split(DB::Block & block)
 
     if (options.spill_threshold > 0 && partition_writer->totalCacheSize() > options.spill_threshold)
     {
-        std::cerr << "spill shuffle data: " << partition_writer->totalCacheSize() << std::endl;
         partition_writer->evictPartitions();
     }
 }
@@ -132,7 +146,8 @@ SplitResult CachedShuffleWriter::stop()
 size_t CachedShuffleWriter::evictPartitions()
 {
     auto size = partition_writer->totalCacheSize();
-    partition_writer->evictPartitions(true);
+    if (size)
+        partition_writer->evictPartitions(true);
     return size;
 }
 

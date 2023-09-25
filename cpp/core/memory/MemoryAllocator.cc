@@ -104,14 +104,6 @@ int64_t ListenableMemoryAllocator::getBytes() const {
   return bytes_;
 }
 
-MemoryAllocator* ListenableMemoryAllocator::delegatedAllocator() {
-  return delegated_;
-}
-
-std::shared_ptr<AllocationListener> ListenableMemoryAllocator::listener() {
-  return listener_;
-}
-
 bool StdMemoryAllocator::allocate(int64_t size, void** out) {
   *out = std::malloc(size);
   bytes_ += size;
@@ -167,18 +159,6 @@ bool StdMemoryAllocator::free(void* p, int64_t size) {
 int64_t StdMemoryAllocator::getBytes() const {
   return bytes_;
 }
-
-class NoopAllocationListener : public gluten::AllocationListener {
- public:
-  void allocationChanged(int64_t diff) override {
-    // no-op
-  }
-};
-
-AllocationListener* AllocationListener::noop() {
-  static AllocationListener* instance = new NoopAllocationListener();
-  return instance;
-};
 
 std::shared_ptr<MemoryAllocator> defaultMemoryAllocator() {
 #if defined(GLUTEN_ENABLE_HBM)

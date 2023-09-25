@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi.velox
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.execution._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
@@ -41,7 +42,7 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan, VeloxColumnarToRowExec}
+import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -288,10 +289,11 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
           } else {
             val handleArray = input.map(ColumnarBatches.getNativeHandle).toArray
             val serializeResult = ColumnarBatchSerializerJniWrapper.INSTANCE.serialize(
+              ExecutionCtxs.contextInstance().getHandle,
               handleArray,
               NativeMemoryManagers
                 .contextInstance("BroadcastRelation")
-                .getNativeInstanceId)
+                .getNativeInstanceHandle)
             input.foreach(ColumnarBatches.release)
             Iterator((serializeResult.getNumRows, serializeResult.getSerialized))
           }

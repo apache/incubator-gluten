@@ -120,8 +120,8 @@ function compile {
 
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
-  elif [ $ARCH == 'arm64' ]; then
-    CPU_TARGET="arm64" make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
+  elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
+    CPU_TARGET=$ARCH make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   else
     echo "Unsupport arch: $ARCH"
     exit 1
@@ -222,6 +222,14 @@ function setup_linux {
     3) scripts/setup-centos8.sh ;;
     *)
       echo "Unsupport alinux version: $LINUX_VERSION_ID"
+      exit 1
+      ;;
+    esac
+  elif [[ "$LINUX_DISTRIBUTION" == "tencentos" ]]; then
+    case "$LINUX_VERSION_ID" in
+    3.2) scripts/setup-centos8.sh ;;
+    *)
+      echo "Unsupport tencentos version: $LINUX_VERSION_ID"
       exit 1
       ;;
     esac

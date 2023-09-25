@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "memory/AllocationListener.h"
 #include "memory/MemoryAllocator.h"
 #include "memory/MemoryManager.h"
 #include "velox/common/memory/Memory.h"
@@ -27,34 +28,59 @@ namespace gluten {
 class VeloxMemoryManager final : public MemoryManager {
  public:
   explicit VeloxMemoryManager(
-      std::string name,
+      const std::string& name,
       std::shared_ptr<MemoryAllocator> allocator,
-      std::shared_ptr<AllocationListener> listener);
+      std::unique_ptr<AllocationListener> listener);
 
-  std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateMemoryPool() {
-    return veloxPool_;
+  VeloxMemoryManager(const VeloxMemoryManager&) = delete;
+  VeloxMemoryManager(VeloxMemoryManager&&) = delete;
+  VeloxMemoryManager& operator=(const VeloxMemoryManager&) = delete;
+  VeloxMemoryManager& operator=(VeloxMemoryManager&&) = delete;
+
+  std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateMemoryPool() const {
+    return veloxAggregatePool_;
   }
 
-  std::shared_ptr<facebook::velox::memory::MemoryPool> getLeafMemoryPool() {
+  std::shared_ptr<facebook::velox::memory::MemoryPool> getLeafMemoryPool() const {
     return veloxLeafPool_;
   }
 
-  virtual MemoryAllocator* getMemoryAllocator() override {
-    return glutenAlloc_.get();
+  std::shared_ptr<arrow::MemoryPool> getArrowMemoryPool() override {
+    return arrowPool_;
   }
 
+  const MemoryUsageStats collectMemoryUsageStats() const override;
+
+  const int64_t shrink(int64_t size) override;
+
  private:
+  facebook::velox::memory::IMemoryManager::Options getOptions(std::shared_ptr<MemoryAllocator> allocator) const;
+
   std::string name_;
 
+#ifdef GLUTEN_ENABLE_HBM
+  std::unique_ptr<VeloxMemoryAllocator> wrappedAlloc_;
+#endif
+
   // This is a listenable allocator used for arrow.
-  std::shared_ptr<MemoryAllocator> glutenAlloc_;
-  std::shared_ptr<AllocationListener> listener_;
+  std::unique_ptr<MemoryAllocator> glutenAlloc_;
+  std::unique_ptr<AllocationListener> listener_;
+  std::shared_ptr<arrow::MemoryPool> arrowPool_;
+
   std::unique_ptr<facebook::velox::memory::MemoryManager> veloxMemoryManager_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxAggregatePool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxLeafPool_;
 };
 
-/// This pool is not tracked by Spark, should only used in test or validation.
-/// TODO: Remove this pool with tracked pool.
-std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool();
+/// Not tracked by Spark and should only used in test or validation.
+inline std::shared_ptr<gluten::VeloxMemoryManager> getDefaultMemoryManager() {
+  static auto memoryManager = std::make_shared<gluten::VeloxMemoryManager>(
+      "test", gluten::defaultMemoryAllocator(), gluten::AllocationListener::noop());
+  return memoryManager;
+}
+
+inline std::shared_ptr<facebook::velox::memory::MemoryPool> defaultLeafVeloxMemoryPool() {
+  return getDefaultMemoryManager()->getLeafMemoryPool();
+}
+
 } // namespace gluten

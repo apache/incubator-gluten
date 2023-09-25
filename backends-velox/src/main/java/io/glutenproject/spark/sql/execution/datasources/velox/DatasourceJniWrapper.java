@@ -30,16 +30,26 @@ public class DatasourceJniWrapper extends JniInitialized {
   public DatasourceJniWrapper() throws IOException {}
 
   public long nativeInitDatasource(
-      String filePath, long cSchema, long memoryManagerId, Map<String, String> options) {
-    return nativeInitDatasource(filePath, cSchema, memoryManagerId, JniUtils.toNativeConf(options));
+      String filePath,
+      long cSchema,
+      long executionCtxHandle,
+      long memoryManagerHandle,
+      Map<String, String> options) {
+    return nativeInitDatasource(
+        filePath, cSchema, executionCtxHandle, memoryManagerHandle, JniUtils.toNativeConf(options));
   }
 
   public native long nativeInitDatasource(
-      String filePath, long cSchema, long memoryManagerId, byte[] options);
+      String filePath,
+      long cSchema,
+      long executionCtxHandle,
+      long memoryManagerHandle,
+      byte[] options);
 
-  public native void inspectSchema(long instanceId, long cSchemaAddress);
+  public native void inspectSchema(long executionCtxHandle, long dsHandle, long cSchemaAddress);
 
-  public native void close(long instanceId);
+  public native void close(long executionCtxHandle, long dsHandle);
 
-  public native void write(long instanceId, VeloxColumnarBatchIterator iterator);
+  public native void write(
+      long executionCtxHandle, long dsHandle, VeloxColumnarBatchIterator iterator);
 }

@@ -39,6 +39,7 @@
 
 #include <hdfs/hdfs.h>
 #include <Poco/Logger.h>
+#include <Common/FileCacheConcurrentMap.h>
 #include <Common/Throttler.h>
 #include <Common/logger_useful.h>
 #include <Common/safe_cast.h>
@@ -52,6 +53,8 @@
 #include <aws/s3/model/ListObjectsV2Request.h>
 #include <Common/CHUtil.h>
 
+#include <shared_mutex>
+#include <thread>
 #include <boost/compute/detail/lru_cache.hpp>
 
 namespace DB
@@ -68,6 +71,34 @@ namespace ErrorCodes
 
 namespace local_engine
 {
+template <class key_type, class value_type>
+class ConcurrentLRU
+{
+public:
+    ConcurrentLRU(size_t size) : cache(size) { }
+    boost::optional<value_type> get(const key_type & key)
+    {
+        std::shared_lock<std::shared_mutex> lock(rwLock);
+        return cache.get(key);
+    }
+
+
+    void insert(const key_type & key, const value_type & value)
+    {
+        std::unique_lock<std::shared_mutex> lock(rwLock);
+        cache.insert(key, value);
+    }
+
+    void clear()
+    {
+        std::unique_lock<std::shared_mutex> lock(rwLock);
+        cache.clear();
+    }
+
+private:
+    boost::compute::detail::lru_cache<key_type, value_type> cache;
+    std::shared_mutex rwLock;
+};
 
 std::pair<size_t, size_t> adjustFileReadPosition(DB::SeekableReadBuffer & buffer, size_t read_start_pos, size_t read_end_pos)
 {
@@ -315,23 +346,27 @@ class S3FileReadBufferBuilder : public ReadBufferBuilder
 {
     friend void registerReadBufferBuilders();
 
+
 public:
     explicit S3FileReadBufferBuilder(DB::ContextPtr context_) : ReadBufferBuilder(context_)
     {
-        DB::FileCacheSettings file_cache_settings;
-        file_cache_settings.max_size = static_cast<size_t>(context->getConfigRef().getUInt64("s3.local_cache.max_size", 100L << 30));
-        auto cache_base_path = context->getConfigRef().getString("s3.local_cache.cache_path", "/tmp/gluten/local_cache");
-        if (!fs::exists(cache_base_path))
-            fs::create_directories(cache_base_path);
-        file_cache_settings.base_path = cache_base_path;
-        new_settings = DB::ReadSettings();
+        new_settings = context->getReadSettings();
         new_settings.enable_filesystem_cache = context->getConfigRef().getBool("s3.local_cache.enabled", false);
+
         if (new_settings.enable_filesystem_cache)
         {
-            auto cache = DB::FileCacheFactory::instance().getOrCreate("s3_local_cache", file_cache_settings);
-            cache->initialize();
+            DB::FileCacheSettings file_cache_settings;
+            file_cache_settings.max_size = static_cast<size_t>(context->getConfigRef().getUInt64("s3.local_cache.max_size", 100L << 30));
+            auto cache_base_path = context->getConfigRef().getString("s3.local_cache.cache_path", "/tmp/gluten/local_cache");
 
-            new_settings.remote_fs_cache = cache;
+            if (!fs::exists(cache_base_path))
+                fs::create_directories(cache_base_path);
+
+            file_cache_settings.base_path = cache_base_path;
+            file_cache = DB::FileCacheFactory::instance().getOrCreate("s3_local_cache", file_cache_settings);
+            file_cache->initialize();
+
+            new_settings.remote_fs_cache = file_cache;
         }
     }
 
@@ -346,6 +381,36 @@ public:
         const auto client = getClient(bucket);
         std::string key = file_uri.getPath().substr(1);
         size_t object_size = DB::S3::getObjectSize(*client, bucket, key, "");
+
+        if (new_settings.enable_filesystem_cache)
+        {
+            const auto & settings = context->getSettingsRef();
+            String accept_cache_time_str = getSetting(settings, "", "spark.kylin.local-cache.accept-cache-time");
+            Int64 accept_cache_time;
+            if (accept_cache_time_str.empty())
+            {
+                accept_cache_time = DateTimeUtil::currentTimeMillis();
+            }
+            else
+            {
+                accept_cache_time = std::stoll(accept_cache_time_str);
+            }
+
+            auto file_cache_key = DB::FileCacheKey(key);
+            auto last_cache_time = files_cache_time_map.get(file_cache_key);
+            // quick check
+            if (last_cache_time != std::nullopt && last_cache_time.has_value())
+            {
+                if (last_cache_time.value() < accept_cache_time)
+                {
+                    files_cache_time_map.update_cache_time(file_cache_key, key, accept_cache_time, file_cache);
+                }
+            }
+            else
+            {
+                files_cache_time_map.update_cache_time(file_cache_key, key, accept_cache_time, file_cache);
+            }
+        }
 
         auto read_buffer_creator
             = [bucket, client, this](const std::string & path, size_t read_until_position) -> std::unique_ptr<DB::ReadBufferFromFileBase>
@@ -365,7 +430,7 @@ public:
 
         DB::StoredObjects stored_objects{DB::StoredObject{key, object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
-            std::move(read_buffer_creator), stored_objects, new_settings, /* cache_log */ nullptr, /* use_external_buffer */ false);
+            std::move(read_buffer_creator), stored_objects, new_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
 
         auto & pool_reader = context->getThreadPoolReader(DB::FilesystemReaderType::ASYNCHRONOUS_REMOTE_FS_READER);
         auto async_reader
@@ -397,9 +462,11 @@ public:
     }
 
 private:
-    static boost::compute::detail::lru_cache<std::string, std::shared_ptr<DB::S3::Client>> per_bucket_clients;
-    static std::shared_ptr<DB::S3::Client> shared_client;
+    static const std::string SHARED_CLIENT_KEY;
+    static ConcurrentLRU<std::string, std::shared_ptr<DB::S3::Client>> per_bucket_clients;
+    static FileCacheConcurrentMap files_cache_time_map;
     DB::ReadSettings new_settings;
+    DB::FileCachePtr file_cache;
 
     std::string & stripQuote(std::string & s)
     {
@@ -445,7 +512,7 @@ private:
         }
         else
         {
-            shared_client = client;
+            per_bucket_clients.insert(SHARED_CLIENT_KEY, client);
         }
     }
 
@@ -462,16 +529,20 @@ private:
         if (!getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE, "", true).empty())
             is_per_bucket = true;
 
-        if (is_per_bucket && per_bucket_clients.contains(bucket_name)
-            && "true" != getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_CLIENT_CACHE_IGNORE))
+        if (is_per_bucket && "true" != getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_CLIENT_CACHE_IGNORE))
         {
-            return per_bucket_clients.get(bucket_name).get();
+            auto client = per_bucket_clients.get(bucket_name);
+            if (client.has_value())
+            {
+                return client.get();
+            }
         }
 
-        if (!is_per_bucket && shared_client
-            && "true" != getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_CLIENT_CACHE_IGNORE))
+        if (!is_per_bucket && "true" != getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_CLIENT_CACHE_IGNORE))
         {
-            return shared_client;
+            auto client = per_bucket_clients.get(SHARED_CLIENT_KEY);
+            if (client.has_value())
+                return client.get();
         }
 
         String config_prefix = "s3";
@@ -501,6 +572,7 @@ private:
             region_name,
             context->getRemoteHostFilter(),
             static_cast<unsigned>(context->getSettingsRef().s3_max_redirects),
+            static_cast<unsigned>(context->getSettingsRef().s3_retry_attempts),
             false,
             false,
             nullptr,
@@ -552,8 +624,9 @@ private:
         }
     }
 };
-boost::compute::detail::lru_cache<std::string, std::shared_ptr<DB::S3::Client>> S3FileReadBufferBuilder::per_bucket_clients(100);
-std::shared_ptr<DB::S3::Client> S3FileReadBufferBuilder::shared_client;
+const std::string S3FileReadBufferBuilder::SHARED_CLIENT_KEY = "___shared-client___";
+ConcurrentLRU<std::string, std::shared_ptr<DB::S3::Client>> S3FileReadBufferBuilder::per_bucket_clients(100);
+FileCacheConcurrentMap S3FileReadBufferBuilder::files_cache_time_map;
 
 #endif
 
@@ -597,12 +670,7 @@ void registerReadBufferBuilders()
 #if USE_AWS_S3
     factory.registerBuilder("s3", [](DB::ContextPtr context_) { return std::make_shared<S3FileReadBufferBuilder>(context_); });
     factory.registerBuilder("s3a", [](DB::ContextPtr context_) { return std::make_shared<S3FileReadBufferBuilder>(context_); });
-    factory.registerCleaner(
-        []()
-        {
-            S3FileReadBufferBuilder::per_bucket_clients.clear();
-            S3FileReadBufferBuilder::shared_client.reset();
-        });
+    factory.registerCleaner([]() { S3FileReadBufferBuilder::per_bucket_clients.clear(); });
 #endif
 
 #if USE_AZURE_BLOB_STORAGE

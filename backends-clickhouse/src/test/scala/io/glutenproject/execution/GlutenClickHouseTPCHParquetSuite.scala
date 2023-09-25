@@ -744,6 +744,15 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("issue-3195 window row_number") {
+    val sql =
+      """
+        |select row_number() over (order by 1) as num, n_nationkey from nation
+        |order by num, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("window sum 1") {
     val sql =
       """
@@ -1264,18 +1273,44 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  test("test 'Bug fix posexplode function: https://github.com/oap-project/gluten/issues/1767'") {
-    spark.sql(
-      """
-        | create table test_tbl(id bigint, data map<string, string>) using parquet;
-        |""".stripMargin
+  test("test posexplode issue: https://github.com/oap-project/gluten/issues/1767") {
+    spark.sql("create table test_1767 (id bigint, data map<string, string>) using parquet")
+    spark.sql("INSERT INTO test_1767 values(1, map('k', 'v'))")
+
+    val sql = """
+                | select id from test_1767 lateral view
+                | posexplode(split(data['k'], ',')) tx as a, b""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+
+    spark.sql("drop table test_1767")
+  }
+
+  test("test posexplode issue: https://github.com/oap-project/gluten/issues/2492") {
+    val sql = "select posexplode(split(n_comment, ' ')) from nation where n_comment is null"
+    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+  }
+
+  test("test posexplode issue: https://github.com/oap-project/gluten/issues/2454") {
+    val sqls = Seq(
+      "select id, explode(array(id, id+1)) from range(10)",
+      "select id, explode(map(id, id+1, id+2, id+3)) from range(10)",
+      "select id, posexplode(array(id, id+1)) from range(10)",
+      "select id, posexplode(map(id, id+1, id+2, id+3)) from range(10)"
     )
 
-    spark.sql("INSERT INTO test_tbl values(1, map('k', 'v'))")
-    val sql = """
-                | select id from test_tbl lateral view
-                | posexplode(split(data['k'], ',')) tx as a, b""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    for (sql <- sqls) {
+      runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+    }
+  }
+
+  test("test explode issue: https://github.com/oap-project/gluten/issues/3124") {
+    spark.sql("create table test_3124 (id bigint, name string, sex string) using parquet")
+    spark.sql("insert into test_3124  values (31, null, 'm'), (32, 'a,b,c', 'f')")
+
+    val sql = "select id, flag from test_3124 lateral view explode(split(name, ',')) as flag"
+    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+
+    spark.sql("drop table test_3124")
   }
 
   test("test 'scala udf'") {
@@ -1300,7 +1335,14 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       queriesResults: String = queriesResults,
       compareResult: Boolean = true,
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
+    val confName = "spark.gluten.sql.columnar.backend.ch." +
+      "runtime_settings.query_plan_enable_optimizations"
+    withSQLConf((confName, "true")) {
+      compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
+    }
+    withSQLConf((confName, "false")) {
+      compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
+    }
   }
 
   test("test 'ColumnarToRowExec should not be used'") {
@@ -1951,6 +1993,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-3105: test json output format") {
+    val sql =
+      """
+        |select to_json(struct(cast(id as string), id, 1.1, 1.1f, 1.1d)) from range(3)
+        |""".stripMargin
+    // cast('nan' as double) output 'NaN' in Spark, 'nan' in CH
+    // cast('inf' as double) output 'Infinity' in Spark, 'inf' in CH
+    // ignore them temporarily
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("Test plan json non-empty") {
     spark.sparkContext.setLogLevel("WARN")
     val df1 = spark
@@ -1972,6 +2025,31 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     executedPlan2.execute()
     assert(lastStageTransformer2.get.asInstanceOf[WholeStageTransformer].getPlanJson.nonEmpty)
     spark.sparkContext.setLogLevel(logLevel)
+  }
+
+  test("GLUTEN-3140: Bug fix array_contains return null") {
+    val create_table_sql =
+      """
+        | create table test_tbl_3140(id bigint, name string) using parquet;
+        |""".stripMargin
+    val insert_data_sql =
+      """
+        | insert into test_tbl_3140 values(1, "");
+        |""".stripMargin
+    spark.sql(create_table_sql)
+    spark.sql(insert_data_sql)
+    val select_sql =
+      "select id, array_contains(split(name, ','), '2899') from test_tbl_3140 where id = 1"
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+  }
+
+  test("GLUTEN-3149 convert Nan to int") {
+    val sql = """
+                | select cast(a as Int) as n from(
+                |   select cast(s as Float) as a from(
+                |     select if(n_name='ALGERIA', 'nan', '1.0') as s from nation
+                |   ))""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 }
 // scalastyle:on line.size.limit

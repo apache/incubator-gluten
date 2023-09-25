@@ -27,12 +27,12 @@
 #include "BatchStreamIterator.h"
 #include "BatchVectorIterator.h"
 #include "BenchmarkUtils.h"
-#include "compute/VeloxBackend.h"
+#include "compute/VeloxExecutionCtx.h"
 #include "compute/VeloxPlanConverter.h"
 #include "config/GlutenConfig.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
-#include "utils/ArrowTypeUtils.h"
+#include "utils/VeloxArrowUtils.h"
 #include "utils/exception.h"
 #include "velox/exec/PlanNodeStats.h"
 
@@ -58,11 +58,12 @@ struct WriterMetrics {
   int64_t compressTime;
 };
 
-std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() {
+std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(VeloxMemoryManager* memoryManager) {
   std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
       std::make_shared<LocalPartitionWriterCreator>(false);
 
   auto options = ShuffleWriterOptions::defaults();
+  options.memory_pool = memoryManager->getArrowMemoryPool();
   options.partitioning_name = "rr"; // Round-Robin partitioning
   if (FLAGS_zstd) {
     options.codec_backend = CodecBackend::NONE;
@@ -80,7 +81,11 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() {
 
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter,
-      VeloxShuffleWriter::create(FLAGS_shuffle_partitions, std::move(partitionWriterCreator), std::move(options)));
+      VeloxShuffleWriter::create(
+          FLAGS_shuffle_partitions,
+          std::move(partitionWriterCreator),
+          std::move(options),
+          memoryManager->getLeafMemoryPool()));
 
   return shuffleWriter;
 }
@@ -120,6 +125,7 @@ auto BM_Generic = [](::benchmark::State& state,
     setCpu(state.thread_index());
   }
   auto memoryManager = getDefaultMemoryManager();
+  auto executionCtx = gluten::createExecutionCtx();
   const auto& filePath = getExampleFilePath(substraitJsonFile);
   auto plan = getPlanFromFile(filePath);
   auto startTime = std::chrono::steady_clock::now();
@@ -127,7 +133,6 @@ auto BM_Generic = [](::benchmark::State& state,
   WriterMetrics writerMetrics{};
 
   for (auto _ : state) {
-    auto backend = gluten::createBackend();
     std::vector<std::shared_ptr<gluten::ResultIterator>> inputIters;
     std::vector<BatchIterator*> inputItersRaw;
     if (!inputFiles.empty()) {
@@ -141,15 +146,17 @@ auto BM_Generic = [](::benchmark::State& state,
           });
     }
 
-    backend->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
-    auto resultIter = backend->getResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
-    auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
+    executionCtx->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
+    auto iterHandle =
+        executionCtx->createResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
+    auto resultIter = executionCtx->getResultIterator(iterHandle);
+    auto veloxPlan = dynamic_cast<gluten::VeloxExecutionCtx*>(executionCtx)->getVeloxPlan();
     if (FLAGS_with_shuffle) {
       int64_t shuffleWriteTime;
       TIME_NANO_START(shuffleWriteTime);
-      const auto& shuffleWriter = createShuffleWriter();
+      const auto& shuffleWriter = createShuffleWriter(memoryManager.get());
       while (resultIter->hasNext()) {
-        GLUTEN_THROW_NOT_OK(shuffleWriter->split(resultIter->next()));
+        GLUTEN_THROW_NOT_OK(shuffleWriter->split(resultIter->next(), ShuffleWriter::kMinMemLimit));
       }
       GLUTEN_THROW_NOT_OK(shuffleWriter->stop());
       TIME_NANO_END(shuffleWriteTime);
@@ -159,7 +166,7 @@ auto BM_Generic = [](::benchmark::State& state,
     } else {
       // May write the output into file.
       ArrowSchema cSchema;
-      toArrowSchema(veloxPlan->outputType(), &cSchema);
+      toArrowSchema(veloxPlan->outputType(), memoryManager->getLeafMemoryPool().get(), &cSchema);
       GLUTEN_ASSIGN_OR_THROW(auto outputSchema, arrow::ImportSchema(&cSchema));
       ArrowWriter writer{FLAGS_write_file};
       state.PauseTiming();
@@ -199,6 +206,7 @@ auto BM_Generic = [](::benchmark::State& state,
     auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
     std::cout << statsStr << std::endl;
   }
+  gluten::releaseExecutionCtx(executionCtx);
 
   auto endTime = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();

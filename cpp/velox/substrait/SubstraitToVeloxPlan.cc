@@ -355,7 +355,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     for (const auto& arg : aggFunction.arguments()) {
       aggParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
     }
-    auto aggVeloxType = toVeloxType(SubstraitParser::parseType(aggFunction.output_type())->type);
+    auto aggVeloxType = substraitTypeToVeloxType(aggFunction.output_type());
     auto aggExpr = std::make_shared<const core::CallTypedExpr>(aggVeloxType, std::move(aggParams), funcName);
     aggregates.emplace_back(core::AggregationNode::Aggregate{aggExpr, mask, {}, {}});
   }
@@ -478,6 +478,60 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   return std::make_shared<core::ExpandNode>(nextPlanNodeId(), projectSetExprs, std::move(names), childNode);
 }
 
+core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::GenerateRel& generateRel) {
+  core::PlanNodePtr childNode;
+  if (generateRel.has_input()) {
+    childNode = toVeloxPlan(generateRel.input());
+  } else {
+    VELOX_FAIL("Child Rel is expected in GenerateRel.");
+  }
+  const auto& inputType = childNode->outputType();
+
+  std::vector<core::FieldAccessTypedExprPtr> replicated;
+  std::vector<core::FieldAccessTypedExprPtr> unnest;
+  // TODO(yuan): get from generator output
+  std::vector<std::string> unnestNames = {"C0"};
+
+  const auto& generator = generateRel.generator();
+  const auto& requiredChildOutput = generateRel.child_output();
+  const bool& outer = generateRel.outer();
+
+  replicated.reserve(requiredChildOutput.size());
+  for (const auto& output : requiredChildOutput) {
+    auto expression = exprConverter_->toVeloxExpr(output, inputType);
+    auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
+    VELOX_CHECK(expr_field != nullptr, " the output in Generate Operator only support field")
+
+    replicated.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
+  }
+
+  auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(childNode);
+
+  if (projNode != nullptr && projNode->names().size() > 1) {
+    // generator is a scalarfunction node -> explode(array(col, 'all'))
+    // use the last one, this is ensure by scala code
+    auto innerName = projNode->names().back();
+    auto innerExpr = projNode->projections().back();
+
+    auto innerType = innerExpr->type();
+    auto unnestFieldExpr = std::make_shared<core::FieldAccessTypedExpr>(innerType, innerName);
+    VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
+    unnest.emplace_back(unnestFieldExpr);
+  } else {
+    // generator should be a array column -> explode(col)
+    auto explodeFunc = generator.scalar_function();
+    auto unnestExpr = exprConverter_->toVeloxExpr(explodeFunc.arguments(0).value(), inputType);
+    auto unnestFieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(unnestExpr);
+    VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
+    unnest.emplace_back(unnestFieldExpr);
+  }
+
+  auto node = std::make_shared<core::UnnestNode>(
+      nextPlanNodeId(), replicated, unnest, std::move(unnestNames), std::nullopt, childNode);
+
+  return node;
+}
+
 const core::WindowNode::Frame createWindowFrame(
     const ::substrait::Expression_WindowFunction_Bound& lower_bound,
     const ::substrait::Expression_WindowFunction_Bound& upper_bound,
@@ -555,7 +609,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     for (const auto& arg : windowFunction.arguments()) {
       windowParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
     }
-    auto windowVeloxType = toVeloxType(SubstraitParser::parseType(windowFunction.output_type())->type);
+    auto windowVeloxType = substraitTypeToVeloxType(windowFunction.output_type());
     auto windowCall = std::make_shared<const core::CallTypedExpr>(windowVeloxType, std::move(windowParams), funcName);
     auto upperBound = windowFunction.upper_bound();
     auto lowerBound = windowFunction.lower_bound();
@@ -579,40 +633,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     partitionKeys.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
   }
 
-  std::vector<core::FieldAccessTypedExprPtr> sortingKeys;
-  std::vector<core::SortOrder> sortingOrders;
-
-  const auto& sorts = windowRel.sorts();
-  sortingKeys.reserve(sorts.size());
-  sortingOrders.reserve(sorts.size());
-
-  for (const auto& sort : sorts) {
-    switch (sort.direction()) {
-      case ::substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_FIRST:
-        sortingOrders.emplace_back(core::kAscNullsFirst);
-        break;
-      case ::substrait::SortField_SortDirection_SORT_DIRECTION_ASC_NULLS_LAST:
-        sortingOrders.emplace_back(core::kAscNullsLast);
-        break;
-      case ::substrait::SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_FIRST:
-        sortingOrders.emplace_back(core::kDescNullsFirst);
-        break;
-      case ::substrait::SortField_SortDirection_SORT_DIRECTION_DESC_NULLS_LAST:
-        sortingOrders.emplace_back(core::kDescNullsLast);
-        break;
-      default:
-        VELOX_FAIL("Sort direction is not support in WindowRel");
-    }
-
-    if (sort.has_expr()) {
-      auto expression = exprConverter_->toVeloxExpr(sort.expr(), inputType);
-      auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-      VELOX_CHECK(expr_field != nullptr, " the sorting key in Window Operator only support field")
-
-      sortingKeys.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
-    }
-  }
-
+  auto [sortingKeys, sortingOrders] = processSortField(windowRel.sorts(), inputType);
   return std::make_shared<core::WindowNode>(
       nextPlanNodeId(), partitionKeys, sortingKeys, sortingOrders, windowColumnNames, windowNodeFunctions, childNode);
 }
@@ -829,7 +850,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         remainingFunctions,
         singularOrLists,
         subfieldrOrLists,
-        remainingrOrLists);
+        remainingrOrLists,
+        veloxTypeList,
+        splitInfo->format);
 
     // Create subfield filters based on the constructed filter info map.
     auto subfieldFilters = createSubfieldFilters(colNameList, veloxTypeList, subfieldFunctions, subfieldrOrLists);
@@ -940,12 +963,10 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return toVeloxPlan(rel.read());
   } else if (rel.has_sort()) {
     return toVeloxPlan(rel.sort());
-  } else if (rel.has_fetch()) {
-    return toVeloxPlan(rel.fetch());
-  } else if (rel.has_sort()) {
-    return toVeloxPlan(rel.sort());
   } else if (rel.has_expand()) {
     return toVeloxPlan(rel.expand());
+  } else if (rel.has_generate()) {
+    return toVeloxPlan(rel.generate());
   } else if (rel.has_fetch()) {
     return toVeloxPlan(rel.fetch());
   } else if (rel.has_window()) {
@@ -1001,7 +1022,7 @@ void SubstraitToVeloxPlanConverter::constructFunctionMap(const ::substrait::Plan
     auto name = sFmap.name();
     functionMap_[id] = name;
   }
-  exprConverter_ = std::move(std::make_unique<SubstraitVeloxExprConverter>(pool_, functionMap_));
+  exprConverter_ = std::make_unique<SubstraitVeloxExprConverter>(pool_, functionMap_);
 }
 
 void SubstraitToVeloxPlanConverter::flattenConditions(
@@ -1321,7 +1342,9 @@ void SubstraitToVeloxPlanConverter::separateFilters(
     std::vector<::substrait::Expression_ScalarFunction>& remainingFunctions,
     const std::vector<::substrait::Expression_SingularOrList>& singularOrLists,
     std::vector<::substrait::Expression_SingularOrList>& subfieldOrLists,
-    std::vector<::substrait::Expression_SingularOrList>& remainingOrLists) {
+    std::vector<::substrait::Expression_SingularOrList>& remainingOrLists,
+    const std::vector<TypePtr>& veloxTypeList,
+    const dwio::common::FileFormat& format) {
   for (const auto& singularOrList : singularOrLists) {
     if (!canPushdownSingularOrList(singularOrList)) {
       remainingOrLists.emplace_back(singularOrList);
@@ -1338,6 +1361,17 @@ void SubstraitToVeloxPlanConverter::separateFilters(
   for (const auto& scalarFunction : scalarFunctions) {
     auto filterNameSpec = SubstraitParser::findFunctionSpec(functionMap_, scalarFunction.function_reference());
     auto filterName = SubstraitParser::getSubFunctionName(filterNameSpec);
+    // Add all decimal filters to remaining functions because their pushdown are not supported.
+    if (format == dwio::common::FileFormat::ORC && scalarFunction.arguments().size() > 0) {
+      auto value = scalarFunction.arguments().at(0).value();
+      if (value.has_selection()) {
+        uint32_t fieldIndex = SubstraitParser::parseReferenceSegment(value.selection().direct_reference());
+        if (!veloxTypeList.empty() && veloxTypeList.at(fieldIndex)->isDecimal()) {
+          remainingFunctions.emplace_back(scalarFunction);
+          continue;
+        }
+      }
+    }
 
     // Check whether NOT and OR functions can be pushed down.
     // If yes, the scalar function will be added into the subfield functions.

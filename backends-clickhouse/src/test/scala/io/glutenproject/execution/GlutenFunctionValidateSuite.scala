@@ -21,6 +21,8 @@ import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import java.nio.file.Files
@@ -339,6 +341,22 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("select last_day(day) from date_table") { _ => }
   }
 
+  test("test issue: https://github.com/oap-project/gluten/issues/2340") {
+    val sql =
+      """
+        |select array(null, array(id,2)) from range(10)
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test issue: https://github.com/oap-project/gluten/issues/2947") {
+    val sql =
+      """
+        |select if(id % 2 = 0, null, array(id, 2, null)) from range(10)
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test str2map") {
     val sql1 =
       """
@@ -395,5 +413,23 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
         | select url, parse_url(url, "PROTOCOL") from url_table order by url
       """.stripMargin
     runQueryAndCompare(sql9)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test decode and encode") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
+        (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      // Test codec with 'US-ASCII'
+      runQueryAndCompare(
+        "SELECT decode(encode('Spark SQL', 'US-ASCII'), 'US-ASCII')",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      // Test codec with 'UTF-16'
+      runQueryAndCompare(
+        "SELECT decode(encode('Spark SQL', 'UTF-16'), 'UTF-16')",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
   }
 }

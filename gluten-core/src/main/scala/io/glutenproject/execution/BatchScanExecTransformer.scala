@@ -33,11 +33,17 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.Objects
 
+/**
+ * Columnar Based BatchScanExec. Although keyGroupedPartitioning is not used, it cannot be deleted,
+ * it can make BatchScanExecTransformer contain a constructor with the same parameters as
+ * Spark-3.3's BatchScanExec. Otherwise, the corresponding constructor will not be found when
+ * calling TreeNode.makeCopy and will fail to copy this node during transformation.
+ */
 class BatchScanExecTransformer(
     output: Seq[AttributeReference],
     @transient scan: Scan,
     runtimeFilters: Seq[Expression],
-    pushdownFilters: Seq[Expression] = Seq())
+    keyGroupedPartitioning: Option[Seq[Expression]] = None)
   extends BatchScanExecShim(output, scan, runtimeFilters)
   with BasicScanExecTransformer {
 
@@ -47,7 +53,7 @@ class BatchScanExecTransformer(
 
   override def filterExprs(): Seq[Expression] = scan match {
     case fileScan: FileScan =>
-      fileScan.dataFilters ++ pushdownFilters
+      fileScan.dataFilters
     case _ =>
       throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }
@@ -92,12 +98,11 @@ class BatchScanExecTransformer(
 
   override def equals(other: Any): Boolean = other match {
     case that: BatchScanExecTransformer =>
-      that.canEqual(this) && super.equals(that) &&
-      this.pushdownFilters == that.getPushdownFilters
+      that.canEqual(this) && super.equals(that)
     case _ => false
   }
 
-  override def hashCode(): Int = Objects.hash(batch, runtimeFilters, pushdownFilters)
+  override def hashCode(): Int = Objects.hash(batch, runtimeFilters)
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[BatchScanExecTransformer]
 
@@ -119,15 +124,20 @@ class BatchScanExecTransformer(
   @transient protected lazy val filteredFlattenPartitions: Seq[InputPartition] =
     filteredPartitions.flatten
 
-  private def getPushdownFilters: Seq[Expression] = {
-    pushdownFilters
-  }
-
   @transient override lazy val fileFormat: ReadFileFormat = scan.getClass.getSimpleName match {
     case "OrcScan" => ReadFileFormat.OrcReadFormat
     case "ParquetScan" => ReadFileFormat.ParquetReadFormat
     case "DwrfScan" => ReadFileFormat.DwrfReadFormat
     case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
     case _ => ReadFileFormat.UnknownFormat
+  }
+
+  override def doCanonicalize(): BatchScanExecTransformer = {
+    val canonicalized = super.doCanonicalize()
+    new BatchScanExecTransformer(
+      canonicalized.output,
+      canonicalized.scan,
+      canonicalized.runtimeFilters
+    )
   }
 }

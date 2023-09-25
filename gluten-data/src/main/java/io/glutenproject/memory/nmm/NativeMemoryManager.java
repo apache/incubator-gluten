@@ -16,6 +16,9 @@
  */
 package io.glutenproject.memory.nmm;
 
+import io.glutenproject.GlutenConfig;
+import io.glutenproject.memory.alloc.NativeMemoryAllocators;
+
 import org.apache.spark.util.TaskResource;
 import org.apache.spark.util.Utils;
 import org.slf4j.Logger;
@@ -23,45 +26,62 @@ import org.slf4j.LoggerFactory;
 
 public class NativeMemoryManager implements TaskResource {
 
-  private static Logger LOGGER = LoggerFactory.getLogger(NativeMemoryManager.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(NativeMemoryManager.class);
 
-  private final long nativeInstanceId;
+  private final long nativeInstanceHandle;
   private final String name;
   private final ReservationListener listener;
 
-  private NativeMemoryManager(String name, long nativeInstanceId, ReservationListener listener) {
+  private NativeMemoryManager(
+      String name, long nativeInstanceHandle, ReservationListener listener) {
     this.name = name;
-    this.nativeInstanceId = nativeInstanceId;
+    this.nativeInstanceHandle = nativeInstanceHandle;
     this.listener = listener;
   }
 
   public static NativeMemoryManager create(String name, ReservationListener listener) {
     long allocatorId = NativeMemoryAllocators.getDefault().globalInstance().getNativeInstanceId();
-    return new NativeMemoryManager(name, create(name, allocatorId, listener), listener);
+    long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
+    return new NativeMemoryManager(
+        name, create(name, allocatorId, reservationBlockSize, listener), listener);
   }
 
-  public long getNativeInstanceId() {
-    return this.nativeInstanceId;
+  public long getNativeInstanceHandle() {
+    return this.nativeInstanceHandle;
   }
 
-  private static native long create(String name, long allocatorId, ReservationListener listener);
+  public byte[] collectMemoryUsage() {
+    return collectMemoryUsage(nativeInstanceHandle);
+  }
 
-  private static native void releaseManager(long allocatorId);
+  public long shrink(long size) {
+    return shrink(nativeInstanceHandle, size);
+  }
+
+  private static native long shrink(long nativeInstanceHandle, long size);
+
+  private static native long create(
+      String name, long allocatorId, long reservationBlockSize, ReservationListener listener);
+
+  private static native void release(long memoryManagerId);
+
+  private static native byte[] collectMemoryUsage(long memoryManagerId);
 
   @Override
   public void release() throws Exception {
-    releaseManager(nativeInstanceId);
+    release(nativeInstanceHandle);
     if (listener.getUsedBytes() != 0) {
       LOGGER.warn(
           name
-              + " Reservation listener still has unreserved bytes, may has memory leak, size "
+              + " Reservation listener still reserved non-zero bytes, which may cause "
+              + "memory leak, size: "
               + Utils.bytesToString(listener.getUsedBytes()));
     }
   }
 
   @Override
-  public long priority() {
-    return 0L; // lowest release priority
+  public int priority() {
+    return 0; // lowest release priority
   }
 
   @Override

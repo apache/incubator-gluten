@@ -77,7 +77,7 @@ void bitSet(char * bitmap, size_t index)
 ALWAYS_INLINE bool isBitSet(const char * bitmap, size_t index)
 {
     assert(index >= 0);
-    int64_t mask = 1 << (index & 63);
+    int64_t mask = 1L << (index & 63);
     int64_t word_offset = static_cast<int64_t>(index >> 6) * 8L;
     int64_t word = *reinterpret_cast<const int64_t *>(bitmap + word_offset);
     return word & mask;
@@ -92,10 +92,23 @@ static void writeFixedLengthNonNullableValue(
     const MaskVector & masks = nullptr)
 {
     FixedLengthDataWriter writer(col.type);
-    for (size_t i = 0; i < num_rows; i++)
+
+    if (writer.getWhichDataType().isDecimal32())
     {
-        size_t row_idx = masks == nullptr ? i : masks->at(i);
-        writer.unsafeWrite(col.column->getDataAt(row_idx), buffer_address + offsets[i] + field_offset);
+        for (size_t i = 0; i < num_rows; i++)
+        {
+            size_t row_idx = masks == nullptr ? i : masks->at(i);
+            auto field = (*col.column)[row_idx];
+            writer.write(field, buffer_address + offsets[i] + field_offset);
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < num_rows; i++)
+        {
+            size_t row_idx = masks == nullptr ? i : masks->at(i);
+            writer.unsafeWrite(col.column->getDataAt(row_idx), buffer_address + offsets[i] + field_offset);
+        }
     }
 }
 
@@ -112,13 +125,31 @@ static void writeFixedLengthNullableValue(
     const auto & null_map = nullable_column->getNullMapData();
     const auto & nested_column = nullable_column->getNestedColumn();
     FixedLengthDataWriter writer(col.type);
-    for (size_t i = 0; i < num_rows; i++)
+
+    if (writer.getWhichDataType().isDecimal32())
     {
-        size_t row_idx = masks == nullptr ? i : masks->at(i);
-        if (null_map[row_idx])
-            bitSet(buffer_address + offsets[i], col_index);
-        else
-            writer.unsafeWrite(nested_column.getDataAt(row_idx), buffer_address + offsets[i] + field_offset);
+        for (size_t i = 0; i < num_rows; i++)
+        {
+            size_t row_idx = masks == nullptr ? i : masks->at(i);
+            if (null_map[row_idx])
+                bitSet(buffer_address + offsets[i], col_index);
+            else
+            {
+                auto field = (*col.column)[row_idx];
+                writer.write(field, buffer_address + offsets[i] + field_offset);
+            }
+        }
+    }
+    else
+    {
+        for (size_t i = 0; i < num_rows; i++)
+        {
+            size_t row_idx = masks == nullptr ? i : masks->at(i);
+            if (null_map[row_idx])
+                bitSet(buffer_address + offsets[i], col_index);
+            else
+                writer.unsafeWrite(nested_column.getDataAt(row_idx), buffer_address + offsets[i] + field_offset);
+        }
     }
 }
 
@@ -924,8 +955,8 @@ void FixedLengthDataWriter::write(const DB::Field & field, char * buffer)
     else if (which.isDecimal32())
     {
         const auto & value = field.get<Decimal32>();
-        const auto decimal = value.getValue();
-        memcpy(buffer, &decimal, 4);
+        const Int64 decimal = static_cast<Int64>(value.getValue());
+        memcpy(buffer, &decimal, 8);
     }
     else if (which.isDecimal64() || which.isDateTime64())
     {

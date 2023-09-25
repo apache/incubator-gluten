@@ -15,12 +15,7 @@
   <properties>
     <build.testJarPhase>none</build.testJarPhase>
     <build.copyDependenciesPhase>package</build.copyDependenciesPhase>
-    <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars
-    </jars.target.dir>
-    <!-- protobuf paths -->
-    <protobuf.input.directory>src/main/resources/substrait/proto</protobuf.input.directory>
-    <!-- library versions -->
-    <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
+    <jars.target.dir>${project.build.directory}/scala-${scala.binary.version}/jars</jars.target.dir>
   </properties>
 
   <dependencies>
@@ -235,14 +230,6 @@
   <build>
     <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
-    <extensions>
-      <!-- provides os.detected.classifier (i.e. linux-x86_64, osx-x86_64) property -->
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>${os-maven-plugin.version}</version>
-      </extension>
-    </extensions>
     <resources>
       <resource>
         <filtering>true</filtering>
@@ -283,19 +270,36 @@
       <plugin>
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
-        <version>0.5.1</version>
-        <configuration>
-          <protocArtifact>
-            com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
-          </protocArtifact>
-          <protoSourceRoot>${protobuf.input.directory}</protoSourceRoot>
-        </configuration>
         <executions>
           <execution>
+            <id>compile-substrait-proto</id>
+            <phase>generate-sources</phase>
             <goals>
               <goal>compile</goal>
               <goal>test-compile</goal>
             </goals>
+            <configuration>
+              <protocArtifact>
+                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+              </protocArtifact>
+              <protoSourceRoot>src/main/resources/substrait/proto</protoSourceRoot>
+              <clearOutputDirectory>true</clearOutputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>compile-gluten-proto</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>compile</goal>
+              <goal>test-compile</goal>
+            </goals>
+            <configuration>
+              <protocArtifact>
+                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+              </protocArtifact>
+              <protoSourceRoot>src/main/resources/io/glutenproject/proto</protoSourceRoot>
+              <clearOutputDirectory>false</clearOutputDirectory>
+            </configuration>
           </execution>
         </executions>
       </plugin>

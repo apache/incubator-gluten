@@ -25,6 +25,7 @@ import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+import io.glutenproject.utils.SubstraitUtil
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -34,6 +35,7 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.{SparkPlan, SQLExecution}
 import org.apache.spark.sql.execution.joins.{BaseJoinExec, BuildSideRelation, HashJoin}
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -105,16 +107,17 @@ trait HashJoinLikeExecTransformer
   def hashJoinType: JoinType
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
+  @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetrics(sparkContext)
 
-  // Whether the left and right side should be exchanged.
-  protected lazy val exchangeTable: Boolean = joinBuildSide match {
+  // Hint substrait to switch the left and right,
+  // since we assume always build right side in substrait.
+  protected lazy val needSwitchChildren: Boolean = joinBuildSide match {
     case BuildLeft => true
     case BuildRight => false
   }
 
-  lazy val (buildPlan, streamedPlan) = if (exchangeTable) {
+  lazy val (buildPlan, streamedPlan) = if (needSwitchChildren) {
     (left, right)
   } else {
     (right, left)
@@ -151,40 +154,21 @@ trait HashJoinLikeExecTransformer
       "Join keys from two sides should have same length and types"
     )
     // Spark has an improvement which would patch integer joins keys to a Long value.
-    // But this improvement would cause extra projet before hash join in velox, disabling
-    // this improvement as below would help reduce the project.
+    // But this improvement would cause add extra project before hash join in velox,
+    // disabling this improvement as below would help reduce the project.
     val (lkeys, rkeys) = if (BackendsApiManager.getSettings.enableJoinKeysRewrite()) {
       (HashJoin.rewriteKeyExpr(leftKeys), HashJoin.rewriteKeyExpr(rightKeys))
     } else {
       (leftKeys, rightKeys)
     }
-    if (exchangeTable) {
+    if (needSwitchChildren) {
       (lkeys, rkeys)
     } else {
       (rkeys, lkeys)
     }
   }
 
-  protected val substraitJoinType: JoinRel.JoinType = joinType match {
-    case Inner =>
-      JoinRel.JoinType.JOIN_TYPE_INNER
-    case FullOuter =>
-      JoinRel.JoinType.JOIN_TYPE_OUTER
-    case LeftOuter | RightOuter =>
-      // The right side is required to be used for building hash table in Substrait plan.
-      // Therefore, for RightOuter Join, the left and right relations are exchanged and the
-      // join type is reverted.
-      JoinRel.JoinType.JOIN_TYPE_LEFT
-    case LeftSemi =>
-      JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
-    case LeftAnti =>
-      JoinRel.JoinType.JOIN_TYPE_ANTI
-    case _ =>
-      // TODO: Support cross join with Cross Rel
-      // TODO: Support existence join
-      JoinRel.JoinType.UNRECOGNIZED
-  }
-
+  protected lazy val substraitJoinType: JoinRel.JoinType = SubstraitUtil.toSubstrait(joinType)
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genHashJoinTransformerMetricsUpdater(metrics)
 
@@ -237,7 +221,7 @@ trait HashJoinLikeExecTransformer
       buildKeyExprs,
       condition,
       substraitJoinType,
-      exchangeTable,
+      needSwitchChildren,
       joinType,
       genJoinParametersBuilder(),
       null,
@@ -296,7 +280,7 @@ trait HashJoinLikeExecTransformer
       joinParams.buildPreProjectionNeeded = true
     }
 
-    if (!condition.isEmpty) {
+    if (condition.isDefined) {
       joinParams.isWithCondition = true
     }
 
@@ -309,7 +293,7 @@ trait HashJoinLikeExecTransformer
       buildKeyExprs,
       condition,
       substraitJoinType,
-      exchangeTable,
+      needSwitchChildren,
       joinType,
       genJoinParametersBuilder(),
       inputStreamedRelNode,
@@ -323,7 +307,7 @@ trait HashJoinLikeExecTransformer
     substraitContext.registerJoinParam(operatorId, joinParams)
 
     JoinUtils.createTransformContext(
-      exchangeTable,
+      needSwitchChildren,
       output,
       joinRel,
       inputStreamedOutput,
@@ -442,7 +426,7 @@ abstract class BroadcastHashJoinExecTransformer(
   override def isSkewJoin: Boolean = false
 
   // Unique ID for builded hash table
-  lazy val buildHashTableId = "BuiltHashTable-" + buildPlan.id
+  lazy val buildHashTableId: String = "BuiltHashTable-" + buildPlan.id
 
   override def genJoinParameters(): (Int, Int, String) = {
     (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)
@@ -450,12 +434,7 @@ abstract class BroadcastHashJoinExecTransformer(
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     val streamedRDD = getColumnarInputRDDs(streamedPlan)
-    val broadcasted = buildSide match {
-      case BuildLeft =>
-        left.executeBroadcast[BuildSideRelation]()
-      case BuildRight =>
-        right.executeBroadcast[BuildSideRelation]()
-    }
+    val broadcast = buildPlan.executeBroadcast[BuildSideRelation]()
 
     val context =
       BroadCastHashJoinContext(buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
@@ -467,14 +446,14 @@ abstract class BroadcastHashJoinExecTransformer(
     val buildRDD = if (streamedRDD.isEmpty) {
       // Stream plan itself contains scan and has no input rdd,
       // so the number of partitions cannot be decided here.
-      BroadcastBuildSideRDD(sparkContext, broadcasted, context)
+      BroadcastBuildSideRDD(sparkContext, broadcast, context)
     } else {
       // Try to get the number of partitions from a non-broadcast RDD.
       val nonBroadcastRDD = streamedRDD.find(rdd => !rdd.isInstanceOf[BroadcastBuildSideRDD])
       if (nonBroadcastRDD.isDefined) {
         BroadcastBuildSideRDD(
           sparkContext,
-          broadcasted,
+          broadcast,
           context,
           nonBroadcastRDD.orNull.getNumPartitions)
       } else {
@@ -494,7 +473,7 @@ abstract class BroadcastHashJoinExecTransformer(
         }
         // If all the stream RDDs are broadcast RDD,
         // the number of partitions will be decided later in whole stage transformer.
-        BroadcastBuildSideRDD(sparkContext, broadcasted, context, partitions)
+        BroadcastBuildSideRDD(sparkContext, broadcast, context, partitions)
       }
     }
     streamedRDD :+ buildRDD
