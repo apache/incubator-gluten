@@ -14,34 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.vectorized;
+package io.glutenproject.exec;
 
-public class ShuffleReaderMetrics {
-  private long decompressTime;
-  private long ipcTime;
-  private long deserializeTime;
-
-  public void setDecompressTime(long decompressTime) {
-    this.decompressTime = decompressTime;
-  }
-
-  public long getDecompressTime() {
-    return decompressTime;
-  }
-
-  public void setIpcTime(long ipcTime) {
-    this.ipcTime = ipcTime;
-  }
-
-  public long getIpcTime() {
-    return ipcTime;
-  }
-
-  public void setDeserializeTime(long ipcTime) {
-    this.deserializeTime = deserializeTime;
-  }
-
-  public long getDeserializeTime() {
-    return deserializeTime;
-  }
+/**
+ * This defines the base abstraction for the contextual objects that can be transmitted to C++ side
+ * for further native processing.
+ */
+public interface ExecutionCtxAware {
+  long ctxHandle();
 }

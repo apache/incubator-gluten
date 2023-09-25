@@ -16,22 +16,37 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionCtxAware;
+import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 
-public class ColumnarBatchSerializerJniWrapper extends JniInitialized {
+public class ColumnarBatchSerializerJniWrapper extends JniInitialized implements ExecutionCtxAware {
+  private final ExecutionCtx ctx;
 
-  public static final ColumnarBatchSerializerJniWrapper INSTANCE =
-      new ColumnarBatchSerializerJniWrapper();
+  private ColumnarBatchSerializerJniWrapper(ExecutionCtx ctx) {
+    this.ctx = ctx;
+  }
 
-  private ColumnarBatchSerializerJniWrapper() {}
+  public static ColumnarBatchSerializerJniWrapper create() {
+    return new ColumnarBatchSerializerJniWrapper(ExecutionCtxs.contextInstance());
+  }
 
-  public native ColumnarBatchSerializeResult serialize(
-      long executionCtxHandle, long[] handles, long memoryManagerHandle);
+  public static ColumnarBatchSerializerJniWrapper forCtx(ExecutionCtx ctx) {
+    return new ColumnarBatchSerializerJniWrapper(ctx);
+  }
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
+  }
+
+  public native ColumnarBatchSerializeResult serialize(long[] handles, long memoryManagerHandle);
 
   // Return the native ColumnarBatchSerializer handle
-  public native long init(long cSchema, long executionCtxHandle, long memoryManagerHandle);
+  public native long init(long cSchema, long memoryManagerHandle);
 
-  public native long deserialize(long executionCtxHandle, long serializerHandle, byte[] data);
+  public native long deserialize(long serializerHandle, byte[] data);
 
-  public native void close(long executionCtxHandle, long serializerHandle);
+  public native void close(long serializerHandle);
 }

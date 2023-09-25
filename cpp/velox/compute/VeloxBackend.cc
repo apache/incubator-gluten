@@ -22,6 +22,9 @@
 
 #include "operators/functions/RegistrationAllFunctions.h"
 #include "operators/plannodes/RowVectorStream.h"
+
+#include "shuffle/VeloxShuffleReader.h"
+
 #ifdef GLUTEN_ENABLE_QAT
 #include "utils/qat/QatCodec.h"
 #endif
@@ -96,6 +99,9 @@ const std::string kMaxSpillFileSizeDefault = std::to_string(20L * 1024 * 1024);
 // backtrace allocation
 const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";
 
+// VeloxShuffleReader print flag.
+const std::string kVeloxShuffleReaderPrintFlag = "spark.gluten.velox.shuffleReaderPrintFlag";
+
 } // namespace
 
 namespace gluten {
@@ -142,6 +148,14 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
     auto got = conf.find(kBacktraceAllocation);
     if (got != conf.end()) {
       gluten::backtrace_allocation = (got->second == "true");
+    }
+  }
+
+  // Set veloxShuffleReaderPrintFlag
+  {
+    auto got = conf.find(kVeloxShuffleReaderPrintFlag);
+    if (got != conf.end()) {
+      gluten::veloxShuffleReaderPrintFlag = (got->second == "true");
     }
   }
 
