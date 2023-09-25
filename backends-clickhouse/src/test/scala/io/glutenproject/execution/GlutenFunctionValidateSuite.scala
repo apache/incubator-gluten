@@ -99,7 +99,8 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
         Row(1.011, 5, "{\"a_2\":\"b\"}"),
         Row(1.011, 5, "{\"a\":\"b\", \"x\":{\"i\":1}}"),
         Row(1.011, 5, "{\"a\":\"b\", \"x\":{\"i\":2}}"),
-        Row(1.011, 5, "{\"a\":1, \"x\":{\"i\":2}}")
+        Row(1.011, 5, "{\"a\":1, \"x\":{\"i\":2}}"),
+        Row(1.0, 5, "{\"a\":\"{\\\"x\\\":5}\"}")
       ))
     val dfParquet = spark.createDataFrame(data, schema)
     dfParquet
@@ -267,6 +268,13 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
     runQueryAndCompare(
       "SELECT get_json_object(string_field1, '$.x[?(@.i == 1)]') from json_test",
       noFallBack = false) { _ => }
+  }
+
+  test("Test nested get_json_object") {
+    runQueryAndCompare(
+      "SELECT get_json_object(get_json_object(string_field1, '$.a'), '$.x') from json_test") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
   }
 
   test("Test covar_samp") {
