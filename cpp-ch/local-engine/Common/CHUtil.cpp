@@ -646,12 +646,16 @@ void BackendInitializerUtil::updateNewSettings(DB::ContextMutablePtr context, DB
 }
 
 extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCombinatorFactory &);
+extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
 extern void registerFunctions(FunctionFactory &);
 
 void registerAllFunctions()
 {
     DB::registerFunctions();
+
     DB::registerAggregateFunctions();
+    auto & agg_factory = AggregateFunctionFactory::instance();
+    registerAggregateFunctionsBloomFilter(agg_factory);
 
     {
         /// register aggregate function combinators from local_engine
