@@ -16,26 +16,37 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionCtxAware;
+import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 
-public class ShuffleReaderJniWrapper extends JniInitialized {
-  public static final ShuffleReaderJniWrapper INSTANCE = new ShuffleReaderJniWrapper();
+public class ShuffleReaderJniWrapper extends JniInitialized implements ExecutionCtxAware {
+  private final ExecutionCtx ctx;
 
-  private ShuffleReaderJniWrapper() {}
+  private ShuffleReaderJniWrapper(ExecutionCtx ctx) {
+    this.ctx = ctx;
+  }
+
+  public static ShuffleReaderJniWrapper create() {
+    return new ShuffleReaderJniWrapper(ExecutionCtxs.contextInstance());
+  }
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
+  }
 
   public native long make(
       long cSchema,
-      long executionCtxHandle,
       long memoryManagerHandle,
       String compressionType,
       String compressionCodecBackend,
       String compressionMode);
 
-  public native long readStream(
-      long executionCtxHandle, long shuffleReaderHandle, JniByteInputStream jniIn);
+  public native long readStream(long shuffleReaderHandle, JniByteInputStream jniIn);
 
-  public native void populateMetrics(
-      long executionCtxHandle, long shuffleReaderHandle, ShuffleReaderMetrics metrics);
+  public native void populateMetrics(long shuffleReaderHandle, ShuffleReaderMetrics metrics);
 
-  public native void close(long executionCtxHandle, long shuffleReaderHandle);
+  public native void close(long shuffleReaderHandle);
 }

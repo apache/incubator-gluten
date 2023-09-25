@@ -16,6 +16,9 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionCtxAware;
+import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 import io.glutenproject.validate.NativePlanValidationInfo;
 
@@ -24,10 +27,25 @@ import io.glutenproject.validate.NativePlanValidationInfo;
  * This file is used to generate the .h files required for jni. Avoid all external dependencies in
  * this file.
  */
-public class PlanEvaluatorJniWrapper extends JniInitialized {
+public class PlanEvaluatorJniWrapper extends JniInitialized implements ExecutionCtxAware {
+  private final ExecutionCtx ctx;
 
-  /** Wrapper for native API. */
-  public PlanEvaluatorJniWrapper() {}
+  private PlanEvaluatorJniWrapper(ExecutionCtx ctx) {
+    this.ctx = ctx;
+  }
+
+  public static PlanEvaluatorJniWrapper create() {
+    return new PlanEvaluatorJniWrapper(ExecutionCtxs.contextInstance());
+  }
+
+  public static PlanEvaluatorJniWrapper forCtx(ExecutionCtx ctx) {
+    return new PlanEvaluatorJniWrapper(ctx);
+  }
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
+  }
 
   /**
    * Validate the Substrait plan in native compute engine.
@@ -44,7 +62,6 @@ public class PlanEvaluatorJniWrapper extends JniInitialized {
    * @return iterator instance id
    */
   public native long nativeCreateKernelWithIterator(
-      long ctxHandle,
       long memoryManagerHandle,
       byte[] wsPlan,
       GeneralInIterator[] batchItr,

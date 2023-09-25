@@ -16,40 +16,46 @@
  */
 package io.glutenproject.spark.sql.execution.datasources.velox;
 
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionCtxAware;
+import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 import io.glutenproject.init.JniUtils;
 
 import org.apache.spark.sql.execution.datasources.VeloxColumnarBatchIterator;
 
-import java.io.IOException;
 import java.util.Map;
 
 /** The jni file is at `cpp/core/jni/JniWrapper.cc` */
-public class DatasourceJniWrapper extends JniInitialized {
+// FIXME: move to module gluten-data?
+public class DatasourceJniWrapper extends JniInitialized implements ExecutionCtxAware {
+  private final ExecutionCtx ctx;
 
-  public DatasourceJniWrapper() throws IOException {}
+  private DatasourceJniWrapper(ExecutionCtx ctx) {
+    this.ctx = ctx;
+  }
+
+  public static DatasourceJniWrapper create() {
+    return new DatasourceJniWrapper(ExecutionCtxs.contextInstance());
+  }
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
+  }
 
   public long nativeInitDatasource(
-      String filePath,
-      long cSchema,
-      long executionCtxHandle,
-      long memoryManagerHandle,
-      Map<String, String> options) {
+      String filePath, long cSchema, long memoryManagerHandle, Map<String, String> options) {
     return nativeInitDatasource(
-        filePath, cSchema, executionCtxHandle, memoryManagerHandle, JniUtils.toNativeConf(options));
+        filePath, cSchema, memoryManagerHandle, JniUtils.toNativeConf(options));
   }
 
   public native long nativeInitDatasource(
-      String filePath,
-      long cSchema,
-      long executionCtxHandle,
-      long memoryManagerHandle,
-      byte[] options);
+      String filePath, long cSchema, long memoryManagerHandle, byte[] options);
 
-  public native void inspectSchema(long executionCtxHandle, long dsHandle, long cSchemaAddress);
+  public native void inspectSchema(long dsHandle, long cSchemaAddress);
 
-  public native void close(long executionCtxHandle, long dsHandle);
+  public native void close(long dsHandle);
 
-  public native void write(
-      long executionCtxHandle, long dsHandle, VeloxColumnarBatchIterator iterator);
+  public native void write(long dsHandle, VeloxColumnarBatchIterator iterator);
 }

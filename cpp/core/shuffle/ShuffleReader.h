@@ -46,12 +46,28 @@ class ShuffleReader {
   virtual std::shared_ptr<ResultIterator> readStream(std::shared_ptr<arrow::io::InputStream> in);
 
   arrow::Status close();
-  int64_t getDecompressTime();
+
+  int64_t getDecompressTime() const {
+    return decompressTime_;
+  }
+
+  int64_t getIpcTime() const {
+    return ipcTime_;
+  }
+
+  int64_t getDeserializeTime() const {
+    return deserializeTime_;
+  }
+
   const std::shared_ptr<arrow::MemoryPool>& getPool() const;
 
  protected:
   std::shared_ptr<arrow::MemoryPool> pool_;
+
   int64_t decompressTime_ = 0;
+  int64_t ipcTime_ = 0;
+  int64_t deserializeTime_ = 0;
+
   ReaderOptions options_;
 
  private:
