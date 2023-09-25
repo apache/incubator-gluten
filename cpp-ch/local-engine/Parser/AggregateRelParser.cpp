@@ -232,7 +232,7 @@ void AggregateRelParser::addAggregatingStep()
         true,
         3,
         settings.max_block_size,
-        /*enable_prefetch*/ false,
+        /*enable_prefetch*/ true,
         /*only_merge*/ false,
         settings.optimize_group_by_constant_keys);
 
