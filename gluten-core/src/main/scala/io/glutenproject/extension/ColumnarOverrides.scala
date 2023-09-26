@@ -90,32 +90,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
    */
   private def genHashAggregateExec(plan: HashAggregateExec): SparkPlan = {
     val newChild = replaceWithTransformerPlan(plan.child)
-    // If child's output is empty, fallback or offload both the child and aggregation.
-    if (plan.child.output.isEmpty && BackendsApiManager.getSettings.fallbackAggregateWithChild()) {
-      newChild match {
-        case _: TransformSupport =>
-          // If the child is transformable, transform aggregation as well.
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              newChild
-            )
-        case _ =>
-          // If the child is not transformable, transform the grandchildren only.
-          logOnLevel(
-            columnarConf.validationLogLevel,
-            s"Validation failed for plan: ${plan.nodeName}, due to: empty child output.")
-          val grandChildren = plan.child.children.map(child => replaceWithTransformerPlan(child))
-          plan.withNewChildren(Seq(plan.child.withNewChildren(grandChildren)))
-      }
-    } else {
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+    def transformHashAggregate(): GlutenPlan = {
       BackendsApiManager.getSparkPlanExecApiInstance
         .genHashAggregateExecTransformer(
           plan.requiredChildDistributionExpressions,
@@ -126,6 +101,26 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           plan.resultExpressions,
           newChild
         )
+    }
+
+    // If child's output is empty, fallback or offload both the child and aggregation.
+    if (plan.child.output.isEmpty && BackendsApiManager.getSettings.fallbackAggregateWithChild()) {
+      newChild match {
+        case _: TransformSupport =>
+          // If the child is transformable, transform aggregation as well.
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          transformHashAggregate()
+        case i: InMemoryTableScanExec if i.supportsColumnar =>
+          transformHashAggregate()
+        case _ =>
+          // If the child is not transformable, transform the grandchildren only.
+          TransformHints.tagNotTransformable(plan, "child output schema is empty")
+          val grandChildren = plan.child.children.map(child => replaceWithTransformerPlan(child))
+          plan.withNewChildren(Seq(plan.child.withNewChildren(grandChildren)))
+      }
+    } else {
+      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+      transformHashAggregate()
     }
   }
 
