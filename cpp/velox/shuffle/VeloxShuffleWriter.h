@@ -312,6 +312,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   // The actual allocation is delegated to options_.memory_pool.
   std::shared_ptr<ShuffleMemoryPool> payloadPool_;
 
+  std::shared_ptr<PartitionWriter> partitionWriter_;
+
   SplitState splitState_{kInit};
 
   bool supportAvx512_ = false;

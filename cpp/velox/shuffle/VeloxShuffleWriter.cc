@@ -1542,7 +1542,12 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     } else {
       RETURN_NOT_OK(partitionWriter_->spill());
       if (auto afterEvict = cachedPayloadSize()) {
-        LOG(WARNING) << "Not all cached payload evicted. " << afterEvict << " bytes remains." << std::endl;
+        if (splitState_ != SplitState::kPreAlloc && splitState_ != SplitState::kStop) {
+          // Apart from kPreAlloc and kStop states, spill should not be triggered by allocating payload buffers. All
+          // cached data should be evicted.
+          return arrow::Status::Invalid(
+              "Not all cached payload evicted." + std::to_string(afterEvict) + " bytes remains.");
+        }
         *size = beforeEvict - afterEvict;
       } else {
         DLOG(INFO) << "Evicted all partitions. " << std::to_string(beforeEvict) << " bytes released" << std::endl;

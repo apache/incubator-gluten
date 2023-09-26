@@ -257,8 +257,6 @@ class ShuffleWriter {
   // col partid
   std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>> partitionBuffers_;
 
-  std::shared_ptr<PartitionWriter> partitionWriter_;
-
   std::shared_ptr<Partitioner> partitioner_;
 };
 
