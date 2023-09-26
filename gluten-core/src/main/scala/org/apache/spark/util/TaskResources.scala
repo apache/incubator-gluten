@@ -19,6 +19,7 @@ package org.apache.spark.util
 import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
+
 import _root_.io.glutenproject.backendsapi.BackendsApiManager
 import _root_.io.glutenproject.memory.SimpleMemoryUsageRecorder
 import _root_.io.glutenproject.utils.TaskListener
