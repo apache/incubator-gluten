@@ -116,7 +116,7 @@ public class ColumnarBatches {
       NativeMemoryManager nmm, ColumnarBatch batch, int[] columnIndices) {
     final IndicatorVector iv = getIndicatorVector(batch);
     long outputBatchHandle =
-        ColumnarBatchJniWrapper.create()
+        ColumnarBatchJniWrapper.create(ExecutionCtxs.contextInstance())
             .select(nmm.getNativeInstanceHandle(), iv.handle(), columnIndices);
     return create(iv.ctx(), outputBatchHandle);
   }
@@ -163,7 +163,7 @@ public class ColumnarBatches {
         ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
         CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
-      ColumnarBatchJniWrapper.forCtx(iv.ctx())
+      ColumnarBatchJniWrapper.create(iv.ctx())
           .exportToArrow(iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
 
       Data.exportSchema(
@@ -202,7 +202,7 @@ public class ColumnarBatches {
       ArrowAbiUtil.exportFromSparkColumnarBatch(
           ArrowBufferAllocators.contextInstance(), input, cSchema, cArray);
       long handle =
-          ColumnarBatchJniWrapper.forCtx(ctx)
+          ColumnarBatchJniWrapper.create(ctx)
               .createWithArrowArray(cSchema.memoryAddress(), cArray.memoryAddress());
       ColumnarBatch output = ColumnarBatches.create(ctx, handle);
 
@@ -315,7 +315,7 @@ public class ColumnarBatches {
     Preconditions.checkState(
         ctxs.length == 1, "All input batches should be managed by same ExecutionCtx.");
     final long[] handles = Arrays.stream(ivs).mapToLong(IndicatorVector::handle).toArray();
-    return ColumnarBatchJniWrapper.forCtx(ctxs[0]).compose(handles);
+    return ColumnarBatchJniWrapper.create(ctxs[0]).compose(handles);
   }
 
   public static ColumnarBatch create(ExecutionCtx ctx, long nativeHandle) {

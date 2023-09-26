@@ -16,6 +16,7 @@
  */
 package io.glutenproject.utils
 
+import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
@@ -38,7 +39,7 @@ object DatasourceUtil {
 
   def readSchema(file: FileStatus): Option[StructType] = {
     val allocator = ArrowBufferAllocators.contextInstance()
-    val datasourceJniWrapper = DatasourceJniWrapper.create()
+    val datasourceJniWrapper = DatasourceJniWrapper.create(ExecutionCtxs.contextInstance())
     val dsHandle = datasourceJniWrapper.nativeInitDatasource(
       file.getPath.toString,
       -1,

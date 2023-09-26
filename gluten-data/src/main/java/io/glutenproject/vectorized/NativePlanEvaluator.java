@@ -48,11 +48,11 @@ public class NativePlanEvaluator {
   private final PlanEvaluatorJniWrapper jniWrapper;
 
   private NativePlanEvaluator(ExecutionCtx ctx) {
-    jniWrapper = PlanEvaluatorJniWrapper.forCtx(ctx);
+    jniWrapper = PlanEvaluatorJniWrapper.create(ctx);
   }
 
-  public static NativePlanEvaluator create() {
-    return new NativePlanEvaluator(ExecutionCtxs.contextInstance());
+  public static NativePlanEvaluator create(ExecutionCtx ctx) {
+    return new NativePlanEvaluator(ctx);
   }
 
   public static NativePlanEvaluator createForValidation() {

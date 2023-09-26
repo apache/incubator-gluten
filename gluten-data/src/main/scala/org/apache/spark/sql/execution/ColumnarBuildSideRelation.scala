@@ -57,7 +57,7 @@ case class ColumnarBuildSideRelation(
           SQLConf.get.sessionLocalTimeZone)
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
         val handle = ColumnarBatchSerializerJniWrapper
-          .create()
+          .create(ExecutionCtxs.contextInstance())
           .init(
             cSchema.memoryAddress(),
             NativeMemoryManagers
@@ -68,7 +68,9 @@ case class ColumnarBuildSideRelation(
       }
 
       TaskResources.addRecycler(s"BuildSideRelation_deserialized_$serializeHandle", 50) {
-        ColumnarBatchSerializerJniWrapper.create().close(serializeHandle)
+        ColumnarBatchSerializerJniWrapper
+          .create(ExecutionCtxs.contextInstance())
+          .close(serializeHandle)
       }
 
       override def hasNext: Boolean = {
@@ -84,7 +86,9 @@ case class ColumnarBuildSideRelation(
 
       override def next: ColumnarBatch = {
         val handle =
-          ColumnarBatchSerializerJniWrapper.create().deserialize(serializeHandle, batches(batchId))
+          ColumnarBatchSerializerJniWrapper
+            .create(ExecutionCtxs.contextInstance())
+            .deserialize(serializeHandle, batches(batchId))
         batchId += 1
         val batch = ColumnarBatches.create(ExecutionCtxs.contextInstance(), handle)
         if (batchId == batches.length) {
@@ -106,7 +110,7 @@ case class ColumnarBuildSideRelation(
     // This transformation happens in Spark driver, thus resources can not be managed automatically.
     val executionCtx = ExecutionCtxs.tmpInstance()
     val nativeMemoryManager = NativeMemoryManagers.tmpInstance("BuildSideRelation#transform")
-    val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.forCtx(executionCtx)
+    val serializerJniWrapper = ColumnarBatchSerializerJniWrapper.create(executionCtx)
     val serializeHandle = {
       val allocator = ArrowBufferAllocators.globalInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
@@ -123,7 +127,7 @@ case class ColumnarBuildSideRelation(
     var closed = false
 
     // Convert columnar to Row.
-    val jniWrapper = NativeColumnarToRowJniWrapper.forCtx(executionCtx)
+    val jniWrapper = NativeColumnarToRowJniWrapper.create(executionCtx)
     val c2rId = jniWrapper.nativeColumnarToRowInit(nativeMemoryManager.getNativeInstanceHandle)
     var batchId = 0
     val iterator = if (batches.length > 0) {

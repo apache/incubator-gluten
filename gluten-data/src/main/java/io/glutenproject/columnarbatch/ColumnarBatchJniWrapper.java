@@ -18,7 +18,6 @@ package io.glutenproject.columnarbatch;
 
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 
 public class ColumnarBatchJniWrapper extends JniInitialized implements ExecutionCtxAware {
@@ -28,11 +27,7 @@ public class ColumnarBatchJniWrapper extends JniInitialized implements Execution
     this.ctx = ctx;
   }
 
-  public static ColumnarBatchJniWrapper create() {
-    return new ColumnarBatchJniWrapper(ExecutionCtxs.contextInstance());
-  }
-
-  public static ColumnarBatchJniWrapper forCtx(ExecutionCtx ctx) {
+  public static ColumnarBatchJniWrapper create(ExecutionCtx ctx) {
     return new ColumnarBatchJniWrapper(ctx);
   }
 

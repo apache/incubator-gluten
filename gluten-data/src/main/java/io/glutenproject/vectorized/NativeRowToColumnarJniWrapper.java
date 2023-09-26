@@ -18,7 +18,6 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 
 public class NativeRowToColumnarJniWrapper extends JniInitialized implements ExecutionCtxAware {
@@ -28,8 +27,8 @@ public class NativeRowToColumnarJniWrapper extends JniInitialized implements Exe
     this.ctx = ctx;
   }
 
-  public static NativeRowToColumnarJniWrapper create() {
-    return new NativeRowToColumnarJniWrapper(ExecutionCtxs.contextInstance());
+  public static NativeRowToColumnarJniWrapper create(ExecutionCtx ctx) {
+    return new NativeRowToColumnarJniWrapper(ctx);
   }
 
   @Override

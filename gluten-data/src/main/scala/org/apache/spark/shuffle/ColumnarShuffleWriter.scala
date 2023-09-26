@@ -18,6 +18,7 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.memory.memtarget.spark.Spiller
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
@@ -80,7 +81,7 @@ class ColumnarShuffleWriter[K, V](
 
   private val reallocThreshold = GlutenConfig.getConf.columnarShuffleReallocThreshold
 
-  private val jniWrapper = ShuffleWriterJniWrapper.create()
+  private val jniWrapper = ShuffleWriterJniWrapper.create(ExecutionCtxs.contextInstance())
 
   private var nativeShuffleWriter: Long = -1L
 

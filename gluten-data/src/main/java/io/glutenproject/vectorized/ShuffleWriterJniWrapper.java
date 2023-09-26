@@ -18,7 +18,6 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 
 import java.io.IOException;
@@ -30,8 +29,8 @@ public class ShuffleWriterJniWrapper extends JniInitialized implements Execution
     this.ctx = ctx;
   }
 
-  public static ShuffleWriterJniWrapper create() {
-    return new ShuffleWriterJniWrapper(ExecutionCtxs.contextInstance());
+  public static ShuffleWriterJniWrapper create(ExecutionCtx ctx) {
+    return new ShuffleWriterJniWrapper(ctx);
   }
 
   @Override

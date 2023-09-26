@@ -90,7 +90,7 @@ object RowToVeloxColumnarExec {
 
     val arrowSchema =
       SparkArrowUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
-    val jniWrapper = NativeRowToColumnarJniWrapper.create()
+    val jniWrapper = NativeRowToColumnarJniWrapper.create(ExecutionCtxs.contextInstance())
     val allocator = ArrowBufferAllocators.contextInstance()
     val cSchema = ArrowSchema.allocateNew(allocator)
     var closed = false

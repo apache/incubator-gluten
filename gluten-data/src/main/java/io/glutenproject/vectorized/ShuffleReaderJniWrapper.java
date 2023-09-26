@@ -18,7 +18,6 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 
 public class ShuffleReaderJniWrapper extends JniInitialized implements ExecutionCtxAware {
@@ -28,8 +27,8 @@ public class ShuffleReaderJniWrapper extends JniInitialized implements Execution
     this.ctx = ctx;
   }
 
-  public static ShuffleReaderJniWrapper create() {
-    return new ShuffleReaderJniWrapper(ExecutionCtxs.contextInstance());
+  public static ShuffleReaderJniWrapper create(ExecutionCtx ctx) {
+    return new ShuffleReaderJniWrapper(ctx);
   }
 
   @Override

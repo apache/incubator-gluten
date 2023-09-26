@@ -43,15 +43,15 @@ public class IndicatorVector extends ColumnVector {
   }
 
   public String getType() {
-    return ColumnarBatchJniWrapper.forCtx(ctx).getType(handle);
+    return ColumnarBatchJniWrapper.create(ctx).getType(handle);
   }
 
   public long getNumColumns() {
-    return ColumnarBatchJniWrapper.forCtx(ctx).numColumns(handle);
+    return ColumnarBatchJniWrapper.create(ctx).numColumns(handle);
   }
 
   public long getNumRows() {
-    return ColumnarBatchJniWrapper.forCtx(ctx).numRows(handle);
+    return ColumnarBatchJniWrapper.create(ctx).numRows(handle);
   }
 
   public long refCnt() {
@@ -69,7 +69,7 @@ public class IndicatorVector extends ColumnVector {
       return;
     }
     if (refCnt.decrementAndGet() == 0) {
-      ColumnarBatchJniWrapper.forCtx(ctx).close(handle);
+      ColumnarBatchJniWrapper.create(ctx).close(handle);
     }
   }
 

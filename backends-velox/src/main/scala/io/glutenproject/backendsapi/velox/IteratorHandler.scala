@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.IteratorApi
+import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.execution._
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
@@ -152,7 +153,7 @@ class IteratorHandler extends IteratorApi with Logging {
       new util.ArrayList[GeneralInIterator](inputIterators.map {
         iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
-    val transKernel = NativePlanEvaluator.create()
+    val transKernel = NativePlanEvaluator.create(ExecutionCtxs.contextInstance())
     val resIter: GeneralOutIterator =
       transKernel.createKernelWithBatchIterator(inputPartition.plan, columnarNativeIterators)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
@@ -201,7 +202,7 @@ class IteratorHandler extends IteratorApi with Logging {
 
     val beforeBuild = System.nanoTime()
 
-    val transKernel = NativePlanEvaluator.create()
+    val transKernel = NativePlanEvaluator.create(ExecutionCtxs.contextInstance())
     val columnarNativeIterator =
       new util.ArrayList[GeneralInIterator](inputIterators.map {
         iter => new ColumnarBatchInIterator(iter.asJava)

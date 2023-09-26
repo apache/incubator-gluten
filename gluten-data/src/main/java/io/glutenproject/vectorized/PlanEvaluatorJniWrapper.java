@@ -18,7 +18,6 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 import io.glutenproject.validate.NativePlanValidationInfo;
 
@@ -34,11 +33,7 @@ public class PlanEvaluatorJniWrapper extends JniInitialized implements Execution
     this.ctx = ctx;
   }
 
-  public static PlanEvaluatorJniWrapper create() {
-    return new PlanEvaluatorJniWrapper(ExecutionCtxs.contextInstance());
-  }
-
-  public static PlanEvaluatorJniWrapper forCtx(ExecutionCtx ctx) {
+  public static PlanEvaluatorJniWrapper create(ExecutionCtx ctx) {
     return new PlanEvaluatorJniWrapper(ctx);
   }
 

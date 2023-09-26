@@ -95,7 +95,7 @@ private class ColumnarBatchSerializerInstance(
       }
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
-    val jniWrapper = ShuffleReaderJniWrapper.create()
+    val jniWrapper = ShuffleReaderJniWrapper.create(ExecutionCtxs.contextInstance())
     val shuffleReaderHandle = jniWrapper.make(
       cSchema.memoryAddress(),
       NativeMemoryManagers.contextInstance("ShuffleReader").getNativeInstanceHandle,
@@ -128,7 +128,7 @@ private class ColumnarBatchSerializerInstance(
       private lazy val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
         ExecutionCtxs.contextInstance(),
         ShuffleReaderJniWrapper
-          .create()
+          .create(ExecutionCtxs.contextInstance())
           .readStream(shuffleReaderHandle, byteIn))
 
       private var cb: ColumnarBatch = _

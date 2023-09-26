@@ -18,7 +18,6 @@ package io.glutenproject.vectorized;
 
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 
 public class ColumnarBatchSerializerJniWrapper extends JniInitialized implements ExecutionCtxAware {
@@ -28,11 +27,7 @@ public class ColumnarBatchSerializerJniWrapper extends JniInitialized implements
     this.ctx = ctx;
   }
 
-  public static ColumnarBatchSerializerJniWrapper create() {
-    return new ColumnarBatchSerializerJniWrapper(ExecutionCtxs.contextInstance());
-  }
-
-  public static ColumnarBatchSerializerJniWrapper forCtx(ExecutionCtx ctx) {
+  public static ColumnarBatchSerializerJniWrapper create(ExecutionCtx ctx) {
     return new ColumnarBatchSerializerJniWrapper(ctx);
   }
 

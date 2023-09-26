@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
@@ -97,7 +98,7 @@ object VeloxColumnarToRowExec {
     }
 
     // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
-    val jniWrapper = NativeColumnarToRowJniWrapper.create()
+    val jniWrapper = NativeColumnarToRowJniWrapper.create(ExecutionCtxs.contextInstance())
     var closed = false
     val c2rId = jniWrapper.nativeColumnarToRowInit(
       NativeMemoryManagers.contextInstance("ColumnarToRow").getNativeInstanceHandle)

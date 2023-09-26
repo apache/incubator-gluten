@@ -203,7 +203,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
             val batch = it.next()
             val results =
               ColumnarBatchSerializerJniWrapper
-                .create()
+                .create(ExecutionCtxs.contextInstance())
                 .serialize(
                   Array(ColumnarBatches.getNativeHandle(batch)),
                   nativeMemoryManagerHandle
@@ -233,12 +233,13 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
       it =>
         val nmm = NativeMemoryManagers
           .contextInstance("ColumnarCachedBatchSerializer read")
+        val execCtx = ExecutionCtxs.contextInstance()
         val schema = SparkArrowUtil.toArrowSchema(localSchema, timezoneId)
         val arrowAlloc = ArrowBufferAllocators.contextInstance()
         val cSchema = ArrowSchema.allocateNew(arrowAlloc)
         ArrowAbiUtil.exportSchema(arrowAlloc, schema, cSchema)
         val deserializerHandle = ColumnarBatchSerializerJniWrapper
-          .create()
+          .create(execCtx)
           .init(
             cSchema.memoryAddress(),
             nmm.getNativeInstanceHandle
@@ -247,7 +248,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
         TaskResources.addRecycler(
           s"ColumnarCachedBatchSerializer_convertCachedBatchToColumnarBatch_$deserializerHandle",
           50) {
-          ColumnarBatchSerializerJniWrapper.create().close(deserializerHandle)
+          ColumnarBatchSerializerJniWrapper.create(execCtx).close(deserializerHandle)
         }
 
         new CloseableColumnBatchIterator(new Iterator[ColumnarBatch] {
@@ -257,7 +258,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
             val cachedBatch = it.next().asInstanceOf[CachedColumnarBatch]
             val batchHandle =
               ColumnarBatchSerializerJniWrapper
-                .create()
+                .create(execCtx)
                 .deserialize(deserializerHandle, cachedBatch.bytes)
             val batch = ColumnarBatches.create(ExecutionCtxs.contextInstance(), batchHandle)
             if (shouldPruning) {

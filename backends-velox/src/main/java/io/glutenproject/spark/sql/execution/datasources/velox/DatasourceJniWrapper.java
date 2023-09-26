@@ -18,7 +18,6 @@ package io.glutenproject.spark.sql.execution.datasources.velox;
 
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 import io.glutenproject.init.JniUtils;
 
@@ -35,8 +34,8 @@ public class DatasourceJniWrapper extends JniInitialized implements ExecutionCtx
     this.ctx = ctx;
   }
 
-  public static DatasourceJniWrapper create() {
-    return new DatasourceJniWrapper(ExecutionCtxs.contextInstance());
+  public static DatasourceJniWrapper create(ExecutionCtx ctx) {
+    return new DatasourceJniWrapper(ctx);
   }
 
   @Override
