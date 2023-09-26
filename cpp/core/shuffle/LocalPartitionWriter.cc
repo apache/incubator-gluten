@@ -86,7 +86,6 @@ arrow::Status PreferCachePartitionWriter::spill() {
       ARROW_ASSIGN_OR_RAISE(auto end, spilledFileOs->Tell());
       spillInfo.partitionSpillInfos.push_back({pid, end - start});
       DEBUG_OUT << "Spilled partition " << pid << " file start: " << start << ", file end: " << end;
-                << ", cachedPayloadSize: " << cachedPayloadSize << std::endl;
     }
   }
   RETURN_NOT_OK(spilledFileOs->Close());

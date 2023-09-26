@@ -113,8 +113,6 @@ find_package(Threads REQUIRED)
 
 find_package(JNI REQUIRED)
 
-find_package(glog REQUIRED)
-
 if(BUILD_TESTS)
   set(GLUTEN_GTEST_MIN_VERSION "1.13.0")
   find_package(GTest ${GLUTEN_GTEST_MIN_VERSION} CONFIG)
@@ -123,6 +121,7 @@ if(BUILD_TESTS)
   endif()
   include(GoogleTest)
   enable_testing()
+  find_package(glog REQUIRED)
 endif()
 
 function(ADD_TEST_CASE TEST_NAME)
