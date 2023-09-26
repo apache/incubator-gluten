@@ -29,6 +29,7 @@
 #include <Common/CHUtil.h>
 #include <IO/WriteBufferFromString.h>
 #include <format>
+#include <Storages/IO/NativeWriter.h>
 
 using namespace DB;
 
@@ -73,7 +74,7 @@ void LocalPartitionWriter::evictPartitions(bool for_memory_spill)
         WriteBufferFromFile output(file, shuffle_writer->options.io_buffer_size);
         auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
         CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
-        NativeWriter writer(compressed_output, 0, shuffle_writer->output_header);
+        NativeWriter writer(compressed_output, shuffle_writer->output_header);
         SpillInfo info;
         info.spilled_file = file;
         size_t partition_id = 0;
@@ -122,7 +123,7 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
 {
     auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
     CompressedWriteBuffer compressed_output(data_file, codec, shuffle_writer->options.io_buffer_size);
-    NativeWriter writer(compressed_output, 0, shuffle_writer->output_header);
+    NativeWriter writer(compressed_output, shuffle_writer->output_header);
 
     std::vector<Int64> partition_length;
     partition_length.resize(shuffle_writer->options.partition_nums, 0);
@@ -229,7 +230,7 @@ void CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
             WriteBufferFromOwnString output;
             auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
             CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
-            NativeWriter writer(compressed_output, 0, shuffle_writer->output_header);
+            NativeWriter writer(compressed_output, shuffle_writer->output_header);
             size_t raw_size = partition.spill(writer);
             compressed_output.sync();
             Stopwatch push_time_watch;

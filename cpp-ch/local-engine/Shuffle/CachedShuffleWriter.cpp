@@ -94,11 +94,11 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions
 
 void CachedShuffleWriter::split(DB::Block & block)
 {
+    initOutputIfNeeded(block);
     Stopwatch split_time_watch;
     split_time_watch.start();
     block = convertAggregateStateInBlock(block);
     split_result.total_split_time += split_time_watch.elapsedNanoseconds();
-    initOutputIfNeeded(block);
 
     Stopwatch compute_pid_time_watch;
     compute_pid_time_watch.start();
@@ -110,7 +110,6 @@ void CachedShuffleWriter::split(DB::Block & block)
     {
         out_block.insert(block.getByPosition(output_columns_indicies[col]));
     }
-
     partition_writer->write(partition_info, out_block);
 
     if (options.spill_threshold > 0 && partition_writer->totalCacheSize() > options.spill_threshold)
