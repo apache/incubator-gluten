@@ -106,13 +106,13 @@ case class GenerateExecTransformer(
         generator.asInstanceOf[Explode].child.dataType match {
           case _: MapType =>
             return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
+          case _ =>
         }
         if (outer) {
           return ValidationResult.notOk(s"Velox backend does not support outer")
         }
       }
     }
-
     val context = new SubstraitContext
     val args = context.registeredFunction
 
@@ -176,27 +176,27 @@ case class GenerateExecTransformer(
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
       readRel
     }
-
     val projRel = if (BackendsApiManager.isVeloxBackend && needsProjection(generator)) {
       // need to insert one projection node for velox backend
       val selectOrigins = requiredChildOutput.indices.map(ExpressionBuilder.makeSelection(_))
+      val inputOrigins = child.output.indices.map(ExpressionBuilder.makeSelection(_))
       val projectExpressions = new util.ArrayList[ExpressionNode]()
-      projectExpressions.addAll(selectOrigins.asJava)
+      projectExpressions.addAll((selectOrigins ++ inputOrigins).asJava)
       val projectExprNode = ExpressionConverter
         .replaceWithExpressionTransformer(
           generator.asInstanceOf[Explode].child,
-          requiredChildOutput)
+          requiredChildOutput ++ child.output)
         .doTransform(args)
 
       projectExpressions.add(projectExprNode)
-      val projRel =
-        RelBuilder.makeProjectRel(
-          inputRel,
-          projectExpressions,
-          context,
-          operatorId,
-          requiredChildOutput.size)
-      projRel
+
+      RelBuilder.makeProjectRel(
+        inputRel,
+        projectExpressions,
+        context,
+        operatorId,
+        requiredChildOutput.size + inputOrigins.size)
+
     } else {
       inputRel
     }
