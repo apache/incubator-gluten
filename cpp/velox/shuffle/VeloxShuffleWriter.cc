@@ -671,6 +671,7 @@ arrow::Status VeloxShuffleWriter::updateInputHasNull(const velox::RowVector& rv)
 }
 
 arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv, int64_t memLimit) {
+  setSplitState(SplitState::kPreAlloc);
   auto rowNum = rv.size();
   RETURN_NOT_OK(buildPartition2Row(rowNum));
   RETURN_NOT_OK(updateInputHasNull(rv));
@@ -1535,8 +1536,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   arrow::Status VeloxShuffleWriter::evictPartitionsOnDemand(int64_t * size) {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingEvictPartition]);
     // Evict all cached partitions
-    int64_t beforeEvict = cachedPayloadSize();
-    if (beforeEvict <= 0) {
+    auto beforeEvict = cachedPayloadSize();
+    if (beforeEvict == 0) {
       *size = 0;
     } else {
       RETURN_NOT_OK(partitionWriter_->spill());
