@@ -45,7 +45,6 @@ static const std::unordered_set<std::string> kBlackList = {
     "repeat",
     "translate",
     "add_months",
-    "date_format",
     "trunc",
     "sequence",
     "posexplode",
