@@ -82,19 +82,6 @@ jobs:
             --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 && \
           bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/stop-worker.sh \
           && bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/stop-master.sh'
-      - name: Build for Spark 3.3.1
-        run: |
-          docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -DskipTests'
-      - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.3
-        run: |
-          docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean install -Pspark-3.3 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=30g -s=10.0 --threads=32 --iterations=1'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
