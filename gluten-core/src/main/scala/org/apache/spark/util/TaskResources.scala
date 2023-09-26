@@ -19,10 +19,10 @@ package org.apache.spark.util
 import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
-
 import _root_.io.glutenproject.backendsapi.BackendsApiManager
 import _root_.io.glutenproject.memory.SimpleMemoryUsageRecorder
 import _root_.io.glutenproject.utils.TaskListener
+import com.google.common.base.Preconditions
 
 import java.util
 import java.util.{Comparator, PriorityQueue, UUID}
@@ -50,18 +50,16 @@ object TaskResources extends TaskListener with Logging {
 
   private def getTaskResourceRegistry(): TaskResourceRegistry = {
     if (!inSparkTask()) {
-      logWarning(
-        "Using the fallback instance of TaskResourceRegistry. " +
-          "This should only happen when call is not from Spark task.")
-      throw new IllegalStateException("Found a caller not in Spark task scope.")
+      throw new IllegalStateException(
+        "TaskResources#getTaskResourceRegistry should only " +
+          "be called in the context of Spark task")
     }
     val tc = getLocalTaskContext()
     RESOURCE_REGISTRIES.synchronized {
       if (!RESOURCE_REGISTRIES.containsKey(tc)) {
         throw new IllegalStateException(
           "" +
-            "TaskResourceRegistry is not initialized, please ensure TaskResources " +
-            "is added to GlutenExecutorPlugin's task listener list")
+            "TaskResourceRegistry is not initialized for this Spark task context")
       }
       return RESOURCE_REGISTRIES.get(tc)
     }
@@ -132,8 +130,8 @@ object TaskResources extends TaskListener with Logging {
               throw new IllegalStateException(
                 "TaskResourceRegistry is not initialized, this should not happen")
             }
-            val registry = RESOURCE_REGISTRIES.remove(context)
-            registry.releaseAll()
+            RESOURCE_REGISTRIES.get(context).releaseAll()
+            Preconditions.checkNotNull(RESOURCE_REGISTRIES.remove(context))
             context.taskMetrics().incPeakExecutionMemory(registry.getSharedUsage().peak())
           }
         }
@@ -194,7 +192,7 @@ class TaskResourceRegistry extends Logging {
       try {
         resource.release()
       } catch {
-        case e: Throwable =>
+        case e: Exception =>
           logWarning(s"Failed to call release() on task resource ${resource.resourceName()}", e)
       }
     }
