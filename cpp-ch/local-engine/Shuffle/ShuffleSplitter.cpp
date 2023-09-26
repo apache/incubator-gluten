@@ -21,7 +21,7 @@
 #include <string>
 #include <fcntl.h>
 #include <Compression/CompressionFactory.h>
-#include <Functions/FunctionFactory.h>
+#include <Storages/IO/AggregateSerializationUtils.h>
 #include <IO/BrotliWriteBuffer.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/WriteHelpers.h>
@@ -40,6 +40,10 @@ void ShuffleSplitter::split(DB::Block & block)
         return;
     }
     computeAndCountPartitionId(block);
+    Stopwatch split_time_watch;
+    split_time_watch.start();
+    block = convertAggregateStateInBlock(block);
+    split_result.total_split_time += split_time_watch.elapsedNanoseconds();
     splitBlockByPartition(block);
 }
 SplitResult ShuffleSplitter::stop()

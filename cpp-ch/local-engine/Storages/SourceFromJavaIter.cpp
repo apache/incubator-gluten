@@ -17,13 +17,15 @@
 #include "SourceFromJavaIter.h"
 #include <Columns/ColumnNullable.h>
 #include <Core/ColumnsWithTypeAndName.h>
-#include <DataTypes/DataTypesNumber.h>
+#include <Storages/IO/AggregateSerializationUtils.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <jni/jni_common.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
+
+using namespace DB;
 
 namespace local_engine
 {
@@ -70,8 +72,27 @@ DB::Chunk SourceFromJavaIter::generate()
                 result = BlockUtil::buildRowCountChunk(rows);
             }
         }
+        Columns converted_columns;
+        auto output_header = outputs.front().getHeader();
+        for (size_t i = 0; i < result.getNumColumns(); ++i)
+        {
+            if (isAggregateFunction(output_header.getByPosition(i).type))
+            {
+                auto col = data->getByPosition(i);
+                col.column = result.getColumns().at(i);
+                auto converted = convertFixedStringToAggregateState(col, output_header.getByPosition(i).type);
+                converted_columns.emplace_back(converted.column);
+            }
+            else
+            {
+                converted_columns.emplace_back(result.getColumns().at(i));
+            }
+        }
+        result.setColumns(converted_columns, result.getNumRows());
     }
     CLEAN_JNIENV
+
+
     return result;
 }
 SourceFromJavaIter::~SourceFromJavaIter()

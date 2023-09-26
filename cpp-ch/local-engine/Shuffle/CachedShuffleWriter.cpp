@@ -17,6 +17,7 @@
 #include "CachedShuffleWriter.h"
 #include <Poco/StringTokenizer.h>
 #include <Common/Stopwatch.h>
+#include <Storages/IO/AggregateSerializationUtils.h>
 #include <Shuffle/PartitionWriter.h>
 #include <jni/CelebornClient.h>
 #include <jni/jni_common.h>
@@ -93,6 +94,10 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions
 
 void CachedShuffleWriter::split(DB::Block & block)
 {
+    Stopwatch split_time_watch;
+    split_time_watch.start();
+    block = convertAggregateStateInBlock(block);
+    split_result.total_split_time += split_time_watch.elapsedNanoseconds();
     initOutputIfNeeded(block);
 
     Stopwatch compute_pid_time_watch;

@@ -30,6 +30,7 @@
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
+#include <Storages/IO/AggregateSerializationUtils.h>
 
 namespace local_engine
 {
@@ -43,6 +44,7 @@ void NativeSplitter::split(DB::Block & block)
     {
         return;
     }
+    block = convertAggregateStateInBlock(block);
     if (!output_header.columns()) [[unlikely]]
     {
         if (output_columns_indicies.empty())
