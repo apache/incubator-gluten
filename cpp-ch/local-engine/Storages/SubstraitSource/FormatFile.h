@@ -81,17 +81,16 @@ public:
 
     virtual size_t getStartOffset() const { return file_info.start(); }
     virtual size_t getLength() const { return file_info.length(); }
-    
-    void setFilters(std::vector<SourceFilter> filters_) { filters = std::move(filters_); }
     virtual String getFileFormat() const = 0;
-    
+
 protected:
     DB::ContextPtr context;
     substrait::ReadRel::LocalFiles::FileOrFiles file_info;
     ReadBufferBuilderPtr read_buffer_builder;
     std::vector<String> partition_keys;
     std::map<String, String> partition_values;
-    std::vector<SourceFilter> filters;
+    // std::optional<SourceFilter> filter;
+    std::shared_ptr<const DB::KeyCondition> key_condition;
 };
 using FormatFilePtr = std::shared_ptr<FormatFile>;
 using FormatFiles = std::vector<FormatFilePtr>;

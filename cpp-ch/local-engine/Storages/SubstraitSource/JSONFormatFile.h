@@ -29,7 +29,7 @@ public:
     bool supportSplit() const override { return true; }
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
-    
-    DB::String getFileFormat() const override { return "json"; }
+
+    DB::String getFileFormat() const override { return "JSONEachRow"; }
 };
 }
