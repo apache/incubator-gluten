@@ -284,6 +284,7 @@ object GlutenConfig {
   val GLUTEN_ENABLE_KEY = "spark.gluten.enabled"
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
+  val GLUTEN_EXECUTOR_LIB_PATH = "spark.gluten.sql.columnar.executor.libpath"
 
   // Hive configurations.
   val SPARK_PREFIX = "spark."
