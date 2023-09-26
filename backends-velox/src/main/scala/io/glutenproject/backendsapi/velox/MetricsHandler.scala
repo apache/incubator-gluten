@@ -38,28 +38,26 @@ class MetricsHandler extends MetricsApi with Logging {
 
   override def genBatchScanTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-      "inputVectors" -> SQLMetrics.createMetric(sparkContext, "number of input vectors"),
-      "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
-      "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
-      "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
-      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of batch scan"),
+      "inputRows" -> SQLMetrics.createMetric(sparkContext, "input rows"),
+      "inputVectors" -> SQLMetrics.createMetric(sparkContext, "input vectors"),
+      "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "input bytes"),
+      "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "raw input rows"),
+      "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "raw input bytes"),
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "batch scan time"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numMemoryAllocations" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of memory allocations"),
+      "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "memory allocations"),
       "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of dynamic filters accepted"),
-      "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
-      "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
-      "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
-      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
+        "dynamic filters accepted"),
+      "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "skipped splits"),
+      "processedSplits" -> SQLMetrics.createMetric(sparkContext, "processed splits"),
+      "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "skipped row groups"),
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "processed row groups")
     )
 
   override def genBatchScanTransformerMetricsUpdater(
@@ -68,34 +66,30 @@ class MetricsHandler extends MetricsApi with Logging {
   override def genHiveTableScanTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
-      "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
-      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of scan"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime of scan and filter"),
+      "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "raw input rows"),
+      "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "raw input bytes"),
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "output bytes"),
+      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "scan"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "scan and filter"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
+      "numFiles" -> SQLMetrics.createMetric(sparkContext, "files read"),
       "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
-      "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "size of files read"),
-      "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions read"),
+      "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "files size read"),
+      "numPartitions" -> SQLMetrics.createMetric(sparkContext, "partitions read"),
       "pruningTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
-      "numMemoryAllocations" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of memory allocations"),
+      "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "memory allocations"),
       "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of dynamic filters accepted"),
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
-      "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
-      "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
-      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
+        "dynamic filters accepted"),
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "skipped splits"),
+      "processedSplits" -> SQLMetrics.createMetric(sparkContext, "processed splits"),
+      "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "skipped row groups"),
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "processed row groups")
     )
 
   override def genHiveTableScanTransformerMetricsUpdater(
@@ -104,34 +98,30 @@ class MetricsHandler extends MetricsApi with Logging {
   override def genFileSourceScanTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "number of raw input rows"),
-      "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of raw input bytes"),
-      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of scan"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime of scan and filter"),
+      "rawInputRows" -> SQLMetrics.createMetric(sparkContext, "raw input rows"),
+      "rawInputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "raw input bytes"),
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "output bytes"),
+      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "scan"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "scan and filter"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numFiles" -> SQLMetrics.createMetric(sparkContext, "number of files read"),
+      "numFiles" -> SQLMetrics.createMetric(sparkContext, "files read"),
       "metadataTime" -> SQLMetrics.createTimingMetric(sparkContext, "metadata time"),
-      "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "size of files read"),
-      "numPartitions" -> SQLMetrics.createMetric(sparkContext, "number of partitions read"),
+      "filesSize" -> SQLMetrics.createSizeMetric(sparkContext, "files size read"),
+      "numPartitions" -> SQLMetrics.createMetric(sparkContext, "partitions read"),
       "pruningTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
-      "numMemoryAllocations" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of memory allocations"),
+      "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "memory allocations"),
       "numDynamicFiltersAccepted" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of dynamic filters accepted"),
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
-      "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
-      "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
-      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
+        "dynamic filters accepted"),
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "skipped splits"),
+      "processedSplits" -> SQLMetrics.createMetric(sparkContext, "processed splits"),
+      "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "skipped row groups"),
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "processed row groups")
     )
 
   override def genFileSourceScanTransformerMetricsUpdater(
@@ -139,15 +129,13 @@ class MetricsHandler extends MetricsApi with Logging {
 
   override def genFilterTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of filter"),
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "filter"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numMemoryAllocations" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of memory allocations")
+      "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "memory allocations")
     )
 
   override def genFilterTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -155,15 +143,13 @@ class MetricsHandler extends MetricsApi with Logging {
 
   override def genProjectTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of project"),
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "project"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numMemoryAllocations" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of memory allocations")
+      "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "memory allocations")
     )
 
   override def genProjectTransformerMetricsUpdater(
@@ -172,44 +158,36 @@ class MetricsHandler extends MetricsApi with Logging {
   override def genHashAggregateTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "aggOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "aggOutputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "aggOutputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+      "aggOutputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "aggOutputVectors" -> SQLMetrics.createMetric(sparkContext, "output vectors"),
+      "aggOutputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "output bytes"),
       "aggCpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-      "aggWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of aggregation"),
+      "aggWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "aggregation time"),
       "aggPeakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "aggNumMemoryAllocations" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of memory allocations"),
-      "aggSpilledBytes" -> SQLMetrics.createMetric(sparkContext, "number of spilled bytes"),
-      "aggSpilledRows" -> SQLMetrics.createMetric(sparkContext, "number of spilled rows"),
-      "aggSpilledPartitions" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of spilled partitions"),
-      "aggSpilledFiles" -> SQLMetrics.createMetric(sparkContext, "number of spilled files"),
-      "flushRowCount" -> SQLMetrics.createMetric(sparkContext, "number of flushed rows"),
+      "aggNumMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "memory allocations"),
+      "aggSpilledBytes" -> SQLMetrics.createMetric(sparkContext, "spilled bytes"),
+      "aggSpilledRows" -> SQLMetrics.createMetric(sparkContext, "spilled rows"),
+      "aggSpilledPartitions" -> SQLMetrics.createMetric(sparkContext, "spilled partitions"),
+      "aggSpilledFiles" -> SQLMetrics.createMetric(sparkContext, "spilled files"),
+      "flushRowCount" -> SQLMetrics.createMetric(sparkContext, "flushed rows"),
       "preProjectionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "preProjection cpu wall time count"),
       "preProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime of preProjection"),
+        "preProjection time"),
       "postProjectionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "postProjection cpu wall time count"),
       "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime of postProjection"),
+        "postProjection time"),
       "extractionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "extraction cpu wall time count"),
-      "extractionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime of extraction"),
-      "finalOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of final output rows"),
-      "finalOutputVectors" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of final output vectors")
+      "extractionWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "extraction time"),
+      "finalOutputRows" -> SQLMetrics.createMetric(sparkContext, "final output rows"),
+      "finalOutputVectors" -> SQLMetrics.createMetric(sparkContext, "final output vectors")
     )
 
   override def genHashAggregateTransformerMetricsUpdater(
@@ -218,56 +196,51 @@ class MetricsHandler extends MetricsApi with Logging {
 
   override def genExpandTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of expand"),
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "expand time"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numMemoryAllocations" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of memory allocations")
+      "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "memory allocations")
     )
 
   override def genExpandTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
     new ExpandMetricsUpdater(metrics)
 
   override def genCustomExpandMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
-    Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
+    Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"))
 
   override def genColumnarShuffleExchangeMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
       "bytesSpilled" -> SQLMetrics.createSizeMetric(sparkContext, "shuffle bytes spilled"),
-      "splitBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "split buffer size total"),
-      "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to split"),
-      "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to spill"),
-      "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
-      "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to prepare"),
-      "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime decompress"),
-      "ipcTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime ipc"),
-      "deserializeTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime deserialize"),
-      "avgReadBatchNumRows" -> SQLMetrics
-        .createAverageMetric(sparkContext, "avg read batch num rows"),
-      "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-      "numOutputRows" -> SQLMetrics
-        .createMetric(sparkContext, "number of output rows"),
-      "inputBatches" -> SQLMetrics
-        .createMetric(sparkContext, "number of input batches")
+      "splitBufferSize" -> SQLMetrics.createSizeMetric(sparkContext, "split buffer size"),
+      "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "split time"),
+      "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "spill time"),
+      "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "compress time"),
+      "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "prepare time"),
+      "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "decompress time"),
+      "ipcTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "ipc time"),
+      "deserializeTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "deserialize time"),
+      "avgReadBatchNumRows" -> SQLMetrics.createAverageMetric(
+        sparkContext,
+        "avg read batch num rows"),
+      "numInputRows" -> SQLMetrics.createMetric(sparkContext, "input rows"),
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "inputBatches" -> SQLMetrics.createMetric(sparkContext, "input batches")
     )
 
   override def genWindowTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of window"),
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "window time"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numMemoryAllocations" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of memory allocations")
+      "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "memory allocations")
     )
 
   override def genWindowTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -275,29 +248,27 @@ class MetricsHandler extends MetricsApi with Logging {
 
   override def genColumnarToRowMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "number of input batches"),
-      "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to convert")
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input batches"),
+      "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "c2r convert time")
     )
 
   override def genRowToColumnarMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
-      "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-      "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "totaltime to convert")
+      "numInputRows" -> SQLMetrics.createMetric(sparkContext, "input rows"),
+      "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output batches"),
+      "convertTime" -> SQLMetrics.createTimingMetric(sparkContext, "r2c convert time")
     )
 
   override def genLimitTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of limit"),
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "limit time"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numMemoryAllocations" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of memory allocations")
+      "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "memory allocations")
     )
 
   override def genLimitTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -305,19 +276,17 @@ class MetricsHandler extends MetricsApi with Logging {
 
   override def genSortTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
-      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of sort"),
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "sort time"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
-      "numMemoryAllocations" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of memory allocations"),
-      "spilledBytes" -> SQLMetrics.createMetric(sparkContext, "total bytes written for spilling"),
-      "spilledRows" -> SQLMetrics.createMetric(sparkContext, "total rows written for spilling"),
-      "spilledPartitions" -> SQLMetrics.createMetric(sparkContext, "total spilled partitions"),
-      "spilledFiles" -> SQLMetrics.createMetric(sparkContext, "total spilled files")
+      "numMemoryAllocations" -> SQLMetrics.createMetric(sparkContext, "memory allocations"),
+      "spilledBytes" -> SQLMetrics.createMetric(sparkContext, "spilled bytes"),
+      "spilledRows" -> SQLMetrics.createMetric(sparkContext, "spilled rows"),
+      "spilledPartitions" -> SQLMetrics.createMetric(sparkContext, "spilled partitions"),
+      "spilledFiles" -> SQLMetrics.createMetric(sparkContext, "spilled files")
     )
 
   override def genSortTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
@@ -326,13 +295,13 @@ class MetricsHandler extends MetricsApi with Logging {
   override def genSortMergeJoinTransformerMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-      "prepareTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to prepare left list"),
-      "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to process"),
-      "joinTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to merge join"),
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "output batches"),
+      "prepareTime" -> SQLMetrics.createTimingMetric(sparkContext, "prepare time"),
+      "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "process time"),
+      "joinTime" -> SQLMetrics.createTimingMetric(sparkContext, "merge join time"),
       "totaltimeSortmergejoin" -> SQLMetrics
-        .createTimingMetric(sparkContext, "totaltime sortmergejoin")
+        .createTimingMetric(sparkContext, "sort merge join time")
     )
 
   override def genSortMergeJoinTransformerMetricsUpdater(
@@ -342,136 +311,106 @@ class MetricsHandler extends MetricsApi with Logging {
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size"),
-      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "collectTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to collect"),
-      "broadcastTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to broadcast")
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "output rows"),
+      "collectTime" -> SQLMetrics.createTimingMetric(sparkContext, "collect time"),
+      "broadcastTime" -> SQLMetrics.createTimingMetric(sparkContext, "broadcast time")
     )
 
   override def genColumnarSubqueryBroadcastMetrics(
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "dataSize" -> SQLMetrics.createMetric(sparkContext, "data size (bytes)"),
-      "collectTime" -> SQLMetrics.createMetric(sparkContext, "time to collect (ms)"))
+      "dataSize" -> SQLMetrics.createMetric(sparkContext, "data size(bytes)"),
+      "collectTime" -> SQLMetrics.createMetric(sparkContext, "collect time(ms)"))
 
   override def genHashJoinTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
-      "hashBuildInputRows" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of hash build input rows"),
-      "hashBuildOutputRows" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of hash build output rows"),
+      "hashBuildInputRows" -> SQLMetrics.createMetric(sparkContext, "hash build input rows"),
+      "hashBuildOutputRows" -> SQLMetrics.createMetric(sparkContext, "hash build output rows"),
       "hashBuildOutputVectors" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of hash build output vectors"),
+        "hash build output vectors"),
       "hashBuildOutputBytes" -> SQLMetrics.createSizeMetric(
         sparkContext,
-        "number of hash build output bytes"),
+        "hash build output bytes"),
       "hashBuildCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "hash build cpu wall time count"),
-      "hashBuildWallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime of hash build"),
+      "hashBuildWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "hash build time"),
       "hashBuildPeakMemoryBytes" -> SQLMetrics.createSizeMetric(
         sparkContext,
         "hash build peak memory bytes"),
       "hashBuildNumMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of hash build memory allocations"),
-      "hashBuildSpilledBytes" -> SQLMetrics.createMetric(
-        sparkContext,
-        "total bytes written for spilling of hash build"),
-      "hashBuildSpilledRows" -> SQLMetrics.createMetric(
-        sparkContext,
-        "total rows written for spilling of hash build"),
+        "hash build memory allocations"),
+      "hashBuildSpilledBytes" -> SQLMetrics.createMetric(sparkContext, "hash build spilled bytes"),
+      "hashBuildSpilledRows" -> SQLMetrics.createMetric(sparkContext, "hash build spilled rows"),
       "hashBuildSpilledPartitions" -> SQLMetrics.createMetric(
         sparkContext,
-        "total spilled partitions of hash build"),
-      "hashBuildSpilledFiles" -> SQLMetrics.createMetric(
-        sparkContext,
-        "total spilled files of hash build"),
-      "hashProbeInputRows" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of hash probe input rows"),
-      "hashProbeOutputRows" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of hash probe output rows"),
+        "hash build spilled partitions"),
+      "hashBuildSpilledFiles" -> SQLMetrics.createMetric(sparkContext, "hash build spilled files"),
+      "hashProbeInputRows" -> SQLMetrics.createMetric(sparkContext, "hash probe input rows"),
+      "hashProbeOutputRows" -> SQLMetrics.createMetric(sparkContext, "hash probe output rows"),
       "hashProbeOutputVectors" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of hash probe output vectors"),
+        "hash probe output vectors"),
       "hashProbeOutputBytes" -> SQLMetrics.createSizeMetric(
         sparkContext,
-        "number of hash probe output bytes"),
+        "hash probe output bytes"),
       "hashProbeCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "hash probe cpu wall time count"),
-      "hashProbeWallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime of hash probe"),
+      "hashProbeWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "hash probe time"),
       "hashProbePeakMemoryBytes" -> SQLMetrics.createSizeMetric(
         sparkContext,
         "hash probe peak memory bytes"),
       "hashProbeNumMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of hash probe memory allocations"),
-      "hashProbeSpilledBytes" -> SQLMetrics.createMetric(
-        sparkContext,
-        "total bytes written for spilling of hash probe"),
-      "hashProbeSpilledRows" -> SQLMetrics.createMetric(
-        sparkContext,
-        "total rows written for spilling of hash probe"),
+        "hash probe memory allocations"),
+      "hashProbeSpilledBytes" -> SQLMetrics.createMetric(sparkContext, "hash probe spilled bytes"),
+      "hashProbeSpilledRows" -> SQLMetrics.createMetric(sparkContext, "hash probe spilled rows"),
       "hashProbeSpilledPartitions" -> SQLMetrics.createMetric(
         sparkContext,
-        "total spilled partitions of hash probe"),
-      "hashProbeSpilledFiles" -> SQLMetrics.createMetric(
-        sparkContext,
-        "total spilled files of hash probe"),
+        "hash probe spilled partitions"),
+      "hashProbeSpilledFiles" -> SQLMetrics.createMetric(sparkContext, "hash probe spilled files"),
       "hashProbeReplacedWithDynamicFilterRows" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of hash probe replaced with dynamic filter rows"),
+        "hash probe replaced with dynamic filter rows"),
       "hashProbeDynamicFiltersProduced" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of hash probe dynamic filters produced"),
+        "hash probe dynamic filters produced"),
       "streamCpuCount" -> SQLMetrics.createMetric(sparkContext, "stream input cpu wall time count"),
-      "streamWallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime of stream input"),
+      "streamWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "stream input time"),
       "streamVeloxToArrow" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime of velox2arrow converter"),
+        "velox2arrow converter time"),
       "streamPreProjectionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "stream preProject cpu wall time count"),
       "streamPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime of stream preProjection"),
+        "stream preProjection"),
       "buildCpuCount" -> SQLMetrics.createMetric(sparkContext, "build input cpu wall time count"),
-      "buildWallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime to build input"),
+      "buildWallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "build input time"),
       "buildPreProjectionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "preProject cpu wall time count"),
       "buildPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime to build preProjection"),
+        "build preProjection"),
       "postProjectionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "postProject cpu wall time count"),
       "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime of postProjection"),
+        "postProjection"),
       "postProjectionOutputRows" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of postProjection output rows"),
+        "postProjection output rows"),
       "postProjectionOutputVectors" -> SQLMetrics.createMetric(
         sparkContext,
-        "number of postProjection output vectors"),
-      "finalOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of final output rows"),
-      "finalOutputVectors" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of final output vectors")
+        "postProjection output vectors"),
+      "finalOutputRows" -> SQLMetrics.createMetric(sparkContext, "final output rows"),
+      "finalOutputVectors" -> SQLMetrics.createMetric(sparkContext, "final output vectors")
     )
 
   override def genHashJoinTransformerMetricsUpdater(
