@@ -19,6 +19,7 @@ package org.apache.spark.shuffle
 import io.glutenproject.GlutenConfig
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocators
 import io.glutenproject.memory.memtarget.MemoryTarget
+import io.glutenproject.memory.memtarget.Spiller
 import io.glutenproject.vectorized._
 
 import org.apache.spark._
