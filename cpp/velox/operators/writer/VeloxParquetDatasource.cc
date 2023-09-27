@@ -117,7 +117,7 @@ void VeloxParquetDatasource::close() {
 }
 
 void VeloxParquetDatasource::write(const std::shared_ptr<ColumnarBatch>& cb) {
-  auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
+  auto veloxBatch = VeloxColumnarBatch::from(pool_.get(), cb);
   VELOX_DCHECK(veloxBatch != nullptr, "Write batch should be VeloxColumnarBatch");
   parquetWriter_->write(veloxBatch->getFlattenedRowVector());
 }

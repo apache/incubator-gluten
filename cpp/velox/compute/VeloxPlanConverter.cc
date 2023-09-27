@@ -33,7 +33,7 @@ VeloxPlanConverter::VeloxPlanConverter(
     const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
     velox::memory::MemoryPool* veloxPool,
     const std::unordered_map<std::string, std::string>& confMap)
-    : inputIters_(inputIters), substraitVeloxPlanConverter_(veloxPool, confMap) {}
+    : inputIters_(inputIters), substraitVeloxPlanConverter_(veloxPool, confMap), pool_(veloxPool) {}
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {
@@ -145,7 +145,7 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
     veloxTypeList.push_back(toVeloxType(subType->type));
   }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
-  auto vectorStream = std::make_shared<RowVectorStream>(std::move(inputIters_[iterIdx]), outputType);
+  auto vectorStream = std::make_shared<RowVectorStream>(pool_, std::move(inputIters_[iterIdx]), outputType);
   auto valuesNode = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(vectorStream));
   substraitVeloxPlanConverter_.insertInputNode(iterIdx, valuesNode, planNodeId_);
 }

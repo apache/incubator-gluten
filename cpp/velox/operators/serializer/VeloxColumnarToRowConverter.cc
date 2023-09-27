@@ -54,7 +54,7 @@ void VeloxColumnarToRowConverter::refreshStates(facebook::velox::RowVectorPtr ro
 }
 
 void VeloxColumnarToRowConverter::convert(std::shared_ptr<ColumnarBatch> cb) {
-  auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
+  auto veloxBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
   refreshStates(veloxBatch->getRowVector());
 
   // Initialize the offsets_ , lengths_

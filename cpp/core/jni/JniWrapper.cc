@@ -708,6 +708,16 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrap
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
+JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_getForEmptySchema( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jint numRows) {
+  JNI_METHOD_START
+  auto ctx = gluten::getExecutionCtx(env, wrapper);
+  return ctx->createOrGetEmptySchemaBatch(static_cast<int32_t>(numRows));
+  JNI_METHOD_END(kInvalidResourceHandle)
+}
+
 JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrapper_select( // NOLINT
     JNIEnv* env,
     jobject wrapper,

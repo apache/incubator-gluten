@@ -797,8 +797,6 @@ case class ColumnarOverrideRules(session: SparkSession)
       }
     tagBeforeTransformHitsRules :::
       List(
-        (spark: SparkSession) => PlanOneRowRelation(spark),
-        (_: SparkSession) => FallbackEmptySchemaRelation(),
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
         (_: SparkSession) => EnsureLocalSortRequirements
