@@ -110,7 +110,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           // If the child is transformable, transform aggregation as well.
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           transformHashAggregate()
-        case i: InMemoryTableScanExec if i.supportsColumnar =>
+        case i: InMemoryTableScanExec if InMemoryTableScanHelper.isGlutenTableCache(i) =>
           transformHashAggregate()
         case _ =>
           // If the child is not transformable, transform the grandchildren only.
@@ -679,6 +679,14 @@ case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[Spark
   }
 }
 
+object InMemoryTableScanHelper {
+  def isGlutenTableCache(i: InMemoryTableScanExec): Boolean = {
+    // `ColumnarCachedBatchSerializer` is at velox module, so use class name here
+    i.relation.cacheBuilder.serializer.getClass.getSimpleName == "ColumnarCachedBatchSerializer" &&
+    i.supportsColumnar
+  }
+}
+
 // This rule will try to add RowToColumnarExecBase and ColumnarToRowExec
 // to support vanilla columnar scan.
 case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[SparkPlan] {
@@ -698,8 +706,8 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
   private def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
     case _: BatchScanExec | _: FileSourceScanExec =>
       !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
-    case _: InMemoryTableScanExec =>
-      if (BackendsApiManager.isVeloxBackend && GlutenConfig.getConf.columnarTableCacheEnabled) {
+    case i: InMemoryTableScanExec =>
+      if (InMemoryTableScanHelper.isGlutenTableCache(i)) {
         // `InMemoryTableScanExec` do not need extra RowToColumnar or ColumnarToRow
         false
       } else {
