@@ -315,7 +315,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   gluten::getJniCommonState()->close();
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_init_ExecutionCtxJniWrapper_createExecutionCtx( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_exec_ExecutionCtxJniWrapper_createExecutionCtx( // NOLINT
     JNIEnv* env,
     jclass) {
   JNI_METHOD_START
@@ -324,7 +324,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_init_ExecutionCtxJniWrapper_create
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_init_ExecutionCtxJniWrapper_releaseExecutionCtx( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_exec_ExecutionCtxJniWrapper_releaseExecutionCtx( // NOLINT
     JNIEnv* env,
     jclass,
     jlong ctxHandle) {
