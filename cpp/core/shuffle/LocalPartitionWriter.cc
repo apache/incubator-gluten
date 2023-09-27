@@ -105,12 +105,12 @@ arrow::Status PreferCachePartitionWriter::stop() {
   int64_t totalBytesWritten = 0;
   auto numPartitions = shuffleWriter_->numPartitions();
 
-  auto writeTimer = Timer();
-  writeTimer.start();
-
   // Open final file.
   // If options_.buffered_write is set, it will acquire 16KB memory that might trigger spill.
   RETURN_NOT_OK(openDataFile());
+
+  auto writeTimer = Timer();
+  writeTimer.start();
 
   // Iterator over pid.
   for (auto pid = 0; pid < numPartitions; ++pid) {

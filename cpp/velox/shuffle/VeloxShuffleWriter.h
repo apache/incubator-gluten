@@ -131,7 +131,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       uint32_t partitionId,
       bool reuseBuffers) override;
 
-  arrow::Status transferPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override;
+  arrow::Status evictPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override;
 
   const uint64_t cachedPayloadSize() const override;
 
@@ -191,9 +191,14 @@ class VeloxShuffleWriter final : public ShuffleWriter {
     VS_PRINT_CONTAINER(input_has_null_);
   }
 
-  // For test only.
+  // Public for test only.
   void setSplitState(SplitState state) {
     splitState_ = state;
+  }
+
+  // For test only.
+  SplitState getSplitState() {
+    return splitState_;
   }
 
  protected:
@@ -230,6 +235,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   uint32_t calculatePartitionBufferSize(const facebook::velox::RowVector& rv, int64_t memLimit);
 
+  arrow::Status preAllocPartitionBuffers(uint32_t preAllocBufferSize);
+
   arrow::Status updateValidityBuffers(uint32_t partitionId, uint32_t newSize);
 
   arrow::Result<std::shared_ptr<arrow::ResizableBuffer>>
@@ -247,7 +254,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status splitComplexType(const facebook::velox::RowVector& rv);
 
-  arrow::Status transferDataFromPartitionBuffer(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
+  arrow::Status evictPartitionBuffer(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
 
   arrow::Result<std::shared_ptr<arrow::RecordBatch>> createArrowRecordBatchFromBuffer(
       uint32_t partitionId,
@@ -291,7 +298,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   std::shared_ptr<arrow::Buffer> generateComplexTypeBuffers(facebook::velox::RowVectorPtr vector);
 
-  arrow::Status resetValidityBuffers(uint32_t partitionId);
+  arrow::Status resetValidityBuffer(uint32_t partitionId);
 
   arrow::Result<int64_t> shrinkPartitionBuffers();
 

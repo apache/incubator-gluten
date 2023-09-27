@@ -788,7 +788,7 @@ TEST_P(VeloxShuffleWriterTest, TestSpill) {
     std::unique_ptr<arrow::ipc::IpcPayload> payload;
     ARROW_ASSIGN_OR_THROW(payload, shuffleWriter_->createPayloadFromBuffer(pid, true));
     if (payload) {
-      ASSERT_NOT_OK(shuffleWriter_->transferPayload(pid, std::move(payload)));
+      ASSERT_NOT_OK(shuffleWriter_->evictPayload(pid, std::move(payload)));
     }
   }
 
@@ -829,7 +829,7 @@ TEST_P(VeloxShuffleWriterTest, TestShrinkZeroSizeBuffer) {
     std::unique_ptr<arrow::ipc::IpcPayload> payload;
     ARROW_ASSIGN_OR_THROW(payload, shuffleWriter_->createPayloadFromBuffer(pid, true));
     if (payload) {
-      ASSERT_NOT_OK(shuffleWriter_->transferPayload(pid, std::move(payload)));
+      ASSERT_NOT_OK(shuffleWriter_->evictPayload(pid, std::move(payload)));
     }
   }
 
@@ -874,17 +874,20 @@ TEST_P(VeloxShuffleWriterTest, SinglePartitioningNoShrink) {
     ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
   }
 
+  ASSERT_EQ(shuffleWriter_->getSplitState(), SplitState::kInit);
+
+  // No partition buffers for single partitioner.
+  ASSERT_EQ(shuffleWriter_->partitionBufferSize(), 0);
+
   int64_t evicted = 0;
   auto cachedPayloadSize = shuffleWriter_->cachedPayloadSize();
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(cachedPayloadSize + 1, &evicted));
+  // No shrink.
   ASSERT_EQ(evicted, cachedPayloadSize);
   // No more cached payloads after spill.
   ASSERT_EQ(shuffleWriter_->cachedPayloadSize(), 0);
 
-  // No partition buffers for single partitioner.
-  auto bufferSize = shuffleWriter_->partitionBufferSize();
-  ASSERT_EQ(bufferSize, 0);
-
+  // No more space to spill or shrink.
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(1, &evicted));
   ASSERT_EQ(evicted, 0);
   ASSERT_NOT_OK(shuffleWriter_->stop());

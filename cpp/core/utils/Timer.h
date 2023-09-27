@@ -45,7 +45,7 @@ class Timer {
   }
 
   // REQUIRES: timer is not running
-  uint64_t realTimeUsed() const {
+  int64_t realTimeUsed() const {
     return realTimeUsed_;
   }
 
@@ -54,6 +54,21 @@ class Timer {
   TimePoint startTime_{}; // If running_
 
   // Accumulated time so far (does not contain current slice if running_)
-  uint64_t realTimeUsed_ = 0;
+  int64_t realTimeUsed_ = 0;
+};
+
+class ScopedTimer : public Timer {
+ public:
+  explicit ScopedTimer(int64_t& toAdd) : Timer(), toAdd_(toAdd) {
+    Timer::start();
+  }
+
+  ~ScopedTimer() {
+    Timer::stop();
+    toAdd_ += realTimeUsed();
+  }
+
+ private:
+  int64_t& toAdd_;
 };
 } // namespace gluten

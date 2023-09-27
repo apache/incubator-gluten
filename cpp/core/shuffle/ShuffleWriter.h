@@ -132,7 +132,7 @@ class ShuffleWriter {
       uint32_t partitionId,
       bool reuseBuffers) = 0;
 
-  virtual arrow::Status transferPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
+  virtual arrow::Status evictPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
 
   virtual arrow::Status stop() = 0;
 
