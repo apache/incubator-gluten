@@ -14,19 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.exec
+package io.glutenproject.exec;
 
-import org.apache.spark.util.TaskResource
+import io.glutenproject.init.JniInitialized;
 
-class ExecutionCtx private[exec] () extends TaskResource {
+public class ExecutionCtxJniWrapper extends JniInitialized {
 
-  private val handle = ExecutionCtxJniWrapper.createExecutionCtx()
+  private ExecutionCtxJniWrapper() {}
 
-  def getHandle: Long = handle
+  public static native long createExecutionCtx();
 
-  override def release(): Unit = ExecutionCtxJniWrapper.releaseExecutionCtx(handle)
-
-  override def priority(): Int = 10
-
-  override def resourceName(): String = s"ExecutionCtx_" + handle
+  public static native void releaseExecutionCtx(long handle);
 }
