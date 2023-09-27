@@ -809,6 +809,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         case SubstraitFileFormatCase::kParquet:
           splitInfo->format = dwio::common::FileFormat::PARQUET;
           break;
+        case SubstraitFileFormatCase::kText:
+          splitInfo->format = dwio::common::FileFormat::TEXT;
+          break;
         default:
           splitInfo->format = dwio::common::FileFormat::UNKNOWN;
           break;

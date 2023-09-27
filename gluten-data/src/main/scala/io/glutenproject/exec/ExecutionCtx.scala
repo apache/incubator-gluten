@@ -16,16 +16,15 @@
  */
 package io.glutenproject.exec
 
-import io.glutenproject.init.BackendJniWrapper
-
 import org.apache.spark.util.TaskResource
 
-class ExecutionCtx extends TaskResource {
-  private val handle = BackendJniWrapper.createExecutionCtx()
+class ExecutionCtx private[exec] () extends TaskResource {
+
+  private val handle = ExecutionCtxJniWrapper.createExecutionCtx()
 
   def getHandle: Long = handle
 
-  override def release(): Unit = BackendJniWrapper.releaseExecutionCtx(handle)
+  override def release(): Unit = ExecutionCtxJniWrapper.releaseExecutionCtx(handle)
 
   override def priority(): Int = 10
 

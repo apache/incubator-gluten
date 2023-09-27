@@ -57,7 +57,7 @@ class ResultIterator {
     return iter_.get();
   }
 
-  std::shared_ptr<Metrics> getMetrics();
+  Metrics* getMetrics();
 
   void setExportNanos(int64_t exportNanos) {
     exportNanos_ = exportNanos;

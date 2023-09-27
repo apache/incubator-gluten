@@ -57,6 +57,9 @@ SortRelParser::parseSortDescription(const google::protobuf::RepeatedPtrField<sub
     for (int i = 0, sz = sort_fields.size(); i < sz; ++i)
     {
         const auto & sort_field = sort_fields[i];
+        /// There is no meaning to sort a const column.
+        if (sort_field.expr().has_literal())
+            continue;
 
         if (!sort_field.expr().has_selection() || !sort_field.expr().selection().has_direct_reference()
             || !sort_field.expr().selection().direct_reference().has_struct_field())

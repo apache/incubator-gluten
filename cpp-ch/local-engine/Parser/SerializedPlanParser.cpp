@@ -26,6 +26,7 @@
 #include <Core/Names.h>
 #include <Core/NamesAndTypes.h>
 #include <Core/Types.h>
+#include <Core/Field.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDate32.h>
@@ -793,9 +794,20 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     ActionsDAG::NodeRawConstPtrs args;
     parseFunctionArguments(actions_dag, args, function_name, scalar_function);
 
-    /// Remove Nullable from Nullable(Array(xx)) or Nullable(Map(xx, xx)) if needed
-    auto assume_not_null_builder = FunctionFactory::instance().get("assumeNotNull", context);
-    const auto * arg_not_null = &actions_dag->addFunction(assume_not_null_builder, {args[0]}, "assumeNotNull(" + args[0]->result_name + ")");
+    auto add_column = [&actions_dag, this ](const DataTypePtr & type, const Field & field) -> auto
+    {
+        return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
+    };
+
+    auto arg_type = DB::removeNullable(args[0]->result_type);
+    /// array() or map()
+    const auto * empty_map_or_array_node
+        = add_column(DB::removeNullable(args[0]->result_type), isMap(arg_type) ? Field(Map()) : Field(Array()));
+    /// ifNull(args[0], array() or map())
+    const auto * if_null_node = toFunctionNode(actions_dag, "ifNull", {args[0], empty_map_or_array_node});
+    /// assumeNotNull(ifNull(args[0], array() or map()))
+    const auto * arg_not_null = toFunctionNode(actions_dag, "assumeNotNull", {if_null_node});
+    /// Wrap with materalize function to make sure column input to ARRAY JOIN STEP is materaized
     arg_not_null = &actions_dag->materializeNode(*arg_not_null);
 
     /// arrayJoin(arg_not_null)
@@ -804,11 +816,8 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     auto array_join_name = arg_not_null->result_name;
     const auto * array_join_node = &actions_dag->addArrayJoin(*arg_not_null, array_join_name);
 
-    auto arg_type = arg_not_null->result_type;
-    WhichDataType which(arg_type.get());
     auto tuple_element_builder = FunctionFactory::instance().get("tupleElement", context);
     auto tuple_index_type = std::make_shared<DataTypeUInt32>();
-
     auto add_tuple_element = [&](const ActionsDAG::Node * tuple_node, size_t i) -> const ActionsDAG::Node *
     {
         ColumnWithTypeAndName index_col(tuple_index_type->createColumnConst(1, i), tuple_index_type, getUniqueName(std::to_string(i)));
@@ -818,6 +827,7 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     };
 
     /// Special process to keep compatiable with Spark
+    WhichDataType which(arg_type.get());
     if (!position)
     {
         /// Spark: explode(array_or_map) -> CH: arrayJoin(array_or_map)
@@ -1634,6 +1644,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             args.emplace_back(parseExpression(actions_dag, input));
 
             const auto & substrait_type = rel.cast().type();
+            auto to_ch_type = TypeParser::parseType(substrait_type);
             const ActionsDAG::Node * function_node = nullptr;
             if (DB::isString(DB::removeNullable(args.back()->result_type)) && substrait_type.has_date())
             {
@@ -1651,6 +1662,21 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             {
                 // Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
                 function_node = toFunctionNode(actions_dag, "reinterpretAsStringSpark", args);
+            }
+            else if (DB::isFloat(DB::removeNullable(args[0]->result_type)) && DB::isNativeInteger(DB::removeNullable(to_ch_type)))
+            {
+                /// It looks like by design in CH that forbids cast NaN/Inf to integer.
+                auto zero_node = add_column(args[0]->result_type, 0.0);
+                const auto * if_not_finite_node = toFunctionNode(actions_dag, "ifNotFinite", {args[0], zero_node});
+                const auto * final_arg_node = if_not_finite_node;
+                if (args[0]->result_type->isNullable())
+                {
+                    const auto * is_null_node = toFunctionNode(actions_dag, "isNull", {args[0]});
+                    const auto * if_node = toFunctionNode(actions_dag, "if", {is_null_node, args[0], if_not_finite_node});
+                    final_arg_node = if_node;
+                }
+                function_node = toFunctionNode(
+                    actions_dag, "CAST", {final_arg_node, add_column(std::make_shared<DataTypeString>(), to_ch_type->getName())});
             }
             else
             {

@@ -24,7 +24,7 @@
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxExecutionCtx.h"
 #include "config/GlutenConfig.h"
-#include "jni/JniErrors.h"
+#include "jni/JniError.h"
 #include "jni/JniFileSystem.h"
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
@@ -54,20 +54,23 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   // logging
   google::InitGoogleLogging("gluten");
   FLAGS_logtostderr = true;
-  gluten::getJniErrorsState()->initialize(env);
+  gluten::getJniCommonState()->ensureInitialized(env);
+  gluten::getJniErrorState()->ensureInitialized(env);
   gluten::initVeloxJniFileSystem(env);
   gluten::initVeloxJniUDF(env);
-#ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Loaded Velox backend." << std::endl;
-#endif
+
+  DEBUG_OUT << "Loaded Velox backend." << std::endl;
+
   return jniVersion;
 }
 
 void JNI_OnUnload(JavaVM* vm, void*) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
-  gluten::finalizeVeloxJniFileSystem(env);
   gluten::finalizeVeloxJniUDF(env);
+  gluten::finalizeVeloxJniFileSystem(env);
+  gluten::getJniErrorState()->close();
+  gluten::getJniCommonState()->close();
   google::ShutdownGoogleLogging();
 }
 

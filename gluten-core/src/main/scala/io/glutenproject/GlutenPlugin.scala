@@ -104,6 +104,9 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
         throw new IllegalStateException("Unknown backend")
       }
 
+    // export gluten version to property to spark
+    System.setProperty("gluten.version", VERSION)
+
     val glutenBuildInfo = new mutable.HashMap[String, String]()
     glutenBuildInfo.put("Gluten Version", VERSION)
     glutenBuildInfo.put("GCC Version", GCC_VERSION)
@@ -137,14 +140,25 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     GlutenEventUtils.post(sc, event)
   }
 
-  def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
-    // extensions
+  private def setPredefinedConfigs(sc: SparkContext, conf: SparkConf): Unit = {
+    // sql extensions
     val extensions = if (conf.contains(SPARK_SESSION_EXTS_KEY)) {
       s"${conf.get(SPARK_SESSION_EXTS_KEY)},$GLUTEN_SESSION_EXTENSION_NAME"
     } else {
       s"$GLUTEN_SESSION_EXTENSION_NAME"
     }
     conf.set(SPARK_SESSION_EXTS_KEY, String.format("%s", extensions))
+
+    // sql table cache serializer
+    if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, true)) {
+      if (BackendsApiManager.isVeloxBackend) {
+        conf.set(
+          StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
+          "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
+      } else {
+        // TODO, support CH backend
+      }
+    }
 
     // off-heap bytes
     if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {

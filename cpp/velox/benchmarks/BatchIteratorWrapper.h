@@ -21,6 +21,7 @@
 #include "compute/ResultIterator.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/ColumnarBatchIterator.h"
+#include "utils/DebugOut.h"
 
 #include <arrow/adapters/orc/adapter.h>
 #include <arrow/c/bridge.h>

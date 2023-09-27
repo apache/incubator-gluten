@@ -16,27 +16,49 @@
  */
 package io.glutenproject.columnarbatch;
 
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionCtxAware;
+import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 
-public class ColumnarBatchJniWrapper extends JniInitialized {
-  public static final ColumnarBatchJniWrapper INSTANCE = new ColumnarBatchJniWrapper();
+public class ColumnarBatchJniWrapper extends JniInitialized implements ExecutionCtxAware {
+  private final ExecutionCtx ctx;
 
-  private ColumnarBatchJniWrapper() {}
+  private ColumnarBatchJniWrapper(ExecutionCtx ctx) {
+    this.ctx = ctx;
+  }
 
-  public native String getType(long executionCtxHandle, long batchHandle);
+  public static ColumnarBatchJniWrapper create() {
+    return new ColumnarBatchJniWrapper(ExecutionCtxs.contextInstance());
+  }
 
-  public native long numColumns(long executionCtxHandle, long batchHandle);
+  public static ColumnarBatchJniWrapper forCtx(ExecutionCtx ctx) {
+    return new ColumnarBatchJniWrapper(ctx);
+  }
 
-  public native long numRows(long executionCtxHandle, long batchHandle);
+  public native long createWithArrowArray(long cSchema, long cArray);
 
-  public native long numBytes(long executionCtxHandle, long batchHandle);
+  public native String getType(long batchHandle);
 
-  public native long compose(long executionCtxHandle, long[] batchHandles);
+  public native long numColumns(long batchHandle);
 
-  public native long createWithArrowArray(long executionCtxHandle, long cSchema, long cArray);
+  public native long numRows(long batchHandle);
 
-  public native void exportToArrow(
-      long executionCtxHandle, long batchHandle, long cSchema, long cArray);
+  public native long numBytes(long batchHandle);
 
-  public native void close(long executionCtxHandle, long batchHandle);
+  public native long compose(long[] batches);
+
+  public native void exportToArrow(long batch, long cSchema, long cArray);
+
+  public native long select(
+      long nativeMemoryManagerHandle, // why a mm is needed here?
+      long batch,
+      int[] columnIndices);
+
+  public native void close(long batch);
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
+  }
 }

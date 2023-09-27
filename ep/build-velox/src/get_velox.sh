@@ -241,7 +241,7 @@ function setup_macos {
     exit 1
   fi
 
-  sed -i '' $'/^  run_and_time install_fmt/a\\\n  run_and_time install_folly\\\n' scripts/setup-macos.sh
+  sed -i '' $'/^  run_and_time install_double_conversion/a\\\n  run_and_time install_folly\\\n' scripts/setup-macos.sh
 }
 
 if [ $OS == 'Linux' ]; then

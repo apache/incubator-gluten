@@ -45,4 +45,17 @@ class GlutenBloomFilterAggregateQuerySuite
       }
     }
   }
+
+  test("Test that might_contain on bloom_filter_agg with empty input") {
+    checkAnswer(
+      spark.sql("""SELECT might_contain((select bloom_filter_agg(cast(id as long))
+                  | from range(1, 1)), cast(123 as long))""".stripMargin),
+      Row(null)
+    )
+
+    checkAnswer(
+      spark.sql("""SELECT might_contain((select bloom_filter_agg(cast(id as long))
+                  | from range(1, 1)), null)""".stripMargin),
+      Row(null))
+  }
 }

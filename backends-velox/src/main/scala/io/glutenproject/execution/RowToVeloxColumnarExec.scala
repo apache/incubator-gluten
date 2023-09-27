@@ -28,7 +28,9 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.Platform
@@ -59,138 +61,150 @@ case class RowToVeloxColumnarExec(child: SparkPlan) extends RowToColumnarExecBas
     val localSchema = schema
     child.execute().mapPartitions {
       rowIterator =>
-        if (rowIterator.isEmpty) {
-          Iterator.empty
-        } else {
-          val arrowSchema =
-            SparkArrowUtil.toArrowSchema(localSchema, SQLConf.get.sessionLocalTimeZone)
-          val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
-          val jniWrapper = new NativeRowToColumnarJniWrapper()
-          val allocator = ArrowBufferAllocators.contextInstance()
-          val cSchema = ArrowSchema.allocateNew(allocator)
-          var closed = false
-          val r2cHandle =
-            try {
-              ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-              jniWrapper.init(
-                cSchema.memoryAddress(),
-                executionCtxHandle,
-                NativeMemoryManagers
-                  .contextInstance("RowToColumnar")
-                  .getNativeInstanceHandle)
-            } finally {
-              cSchema.close()
-            }
-
-          TaskResources.addRecycler(s"RowToColumnar_$r2cHandle", 100) {
-            if (!closed) {
-              jniWrapper.close(executionCtxHandle, r2cHandle)
-              closed = true
-            }
-          }
-
-          val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
-
-            override def hasNext: Boolean = {
-              val itHasNext = rowIterator.hasNext
-              if (!itHasNext && !closed) {
-                jniWrapper.close(executionCtxHandle, r2cHandle)
-                closed = true
-              }
-              itHasNext
-            }
-
-            def nativeConvert(row: UnsafeRow): ColumnarBatch = {
-              var arrowBuf: ArrowBuf = null
-              TaskResources.addRecycler("RowToColumnar_arrowBuf", 100) {
-                // Remind, remove isOpen here
-                if (arrowBuf != null && arrowBuf.refCnt() != 0) {
-                  arrowBuf.close()
-                }
-              }
-              val rowLength = new ListBuffer[Long]()
-              var rowCount = 0
-              var offset = 0
-              val sizeInBytes = row.getSizeInBytes
-              // allocate buffer based on 1st row, but if first row is very big, this will cause OOM
-              // maybe we should optimize to list ArrayBuf to native to avoid buf close and allocate
-              // 31760L origins from BaseVariableWidthVector.lastValueAllocationSizeInBytes
-              // experimental value
-              val estimatedBufSize = Math.max(
-                Math.min(sizeInBytes.toDouble * numRows * 1.2, 31760L * numRows),
-                sizeInBytes.toDouble * 10)
-              arrowBuf = allocator.buffer(estimatedBufSize.toLong)
-              Platform.copyMemory(
-                row.getBaseObject,
-                row.getBaseOffset,
-                null,
-                arrowBuf.memoryAddress() + offset,
-                sizeInBytes)
-              offset += sizeInBytes
-              rowLength += sizeInBytes.toLong
-              rowCount += 1
-
-              while (rowCount < numRows && rowIterator.hasNext) {
-                val row = rowIterator.next()
-                val unsafeRow = convertToUnsafeRow(row)
-                val sizeInBytes = unsafeRow.getSizeInBytes
-                if ((offset + sizeInBytes) > arrowBuf.capacity()) {
-                  val tmpBuf = allocator.buffer(((offset + sizeInBytes) * 2).toLong)
-                  tmpBuf.setBytes(0, arrowBuf, 0, offset)
-                  arrowBuf.close()
-                  arrowBuf = tmpBuf
-                }
-                Platform.copyMemory(
-                  unsafeRow.getBaseObject,
-                  unsafeRow.getBaseOffset,
-                  null,
-                  arrowBuf.memoryAddress() + offset,
-                  sizeInBytes)
-                offset += sizeInBytes
-                rowLength += sizeInBytes.toLong
-                rowCount += 1
-              }
-              numInputRows += rowCount
-              try {
-                val handle = jniWrapper
-                  .nativeConvertRowToColumnar(
-                    executionCtxHandle,
-                    r2cHandle,
-                    rowLength.toArray,
-                    arrowBuf.memoryAddress())
-                ColumnarBatches.create(executionCtxHandle, handle)
-              } finally {
-                arrowBuf.close()
-                arrowBuf = null
-              }
-            }
-
-            def convertToUnsafeRow(row: InternalRow): UnsafeRow = {
-              row match {
-                case unsafeRow: UnsafeRow => unsafeRow
-                case _ =>
-                  val factory = UnsafeProjection
-                  val converter = factory.create(localSchema)
-                  converter.apply(row)
-              }
-            }
-
-            override def next(): ColumnarBatch = {
-              val firstRow = rowIterator.next()
-              val start = System.currentTimeMillis()
-              val unsafeRow = convertToUnsafeRow(firstRow)
-              val cb = nativeConvert(unsafeRow)
-              numOutputBatches += 1
-              convertTime += System.currentTimeMillis() - start
-              cb
-            }
-          }
-          new CloseableColumnBatchIterator(res)
-        }
+        RowToVeloxColumnarExec.toColumnarBatchIterator(
+          rowIterator,
+          localSchema,
+          numInputRows,
+          numOutputBatches,
+          convertTime,
+          numRows)
     }
   }
 
   // For spark 3.2.
   protected def withNewChildInternal(newChild: SparkPlan): RowToVeloxColumnarExec =
     copy(child = newChild)
+}
+
+object RowToVeloxColumnarExec {
+  def toColumnarBatchIterator(
+      it: Iterator[InternalRow],
+      schema: StructType,
+      numInputRows: SQLMetric,
+      numOutputBatches: SQLMetric,
+      convertTime: SQLMetric,
+      columnBatchSize: Int): Iterator[ColumnarBatch] = {
+    if (it.isEmpty) {
+      return Iterator.empty
+    }
+
+    val arrowSchema =
+      SparkArrowUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
+    val jniWrapper = NativeRowToColumnarJniWrapper.create()
+    val allocator = ArrowBufferAllocators.contextInstance()
+    val cSchema = ArrowSchema.allocateNew(allocator)
+    var closed = false
+    val r2cHandle =
+      try {
+        ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+        jniWrapper.init(
+          cSchema.memoryAddress(),
+          NativeMemoryManagers
+            .contextInstance("RowToColumnar")
+            .getNativeInstanceHandle)
+      } finally {
+        cSchema.close()
+      }
+
+    TaskResources.addRecycler(s"RowToColumnar_$r2cHandle", 100) {
+      if (!closed) {
+        jniWrapper.close(r2cHandle)
+        closed = true
+      }
+    }
+
+    val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
+
+      override def hasNext: Boolean = {
+        val itHasNext = it.hasNext
+        if (!itHasNext && !closed) {
+          jniWrapper.close(r2cHandle)
+          closed = true
+        }
+        itHasNext
+      }
+
+      def nativeConvert(row: UnsafeRow): ColumnarBatch = {
+        var arrowBuf: ArrowBuf = null
+        TaskResources.addRecycler("RowToColumnar_arrowBuf", 100) {
+          // Remind, remove isOpen here
+          if (arrowBuf != null && arrowBuf.refCnt() != 0) {
+            arrowBuf.close()
+          }
+        }
+        val rowLength = new ListBuffer[Long]()
+        var rowCount = 0
+        var offset = 0
+        val sizeInBytes = row.getSizeInBytes
+        // allocate buffer based on 1st row, but if first row is very big, this will cause OOM
+        // maybe we should optimize to list ArrayBuf to native to avoid buf close and allocate
+        // 31760L origins from BaseVariableWidthVector.lastValueAllocationSizeInBytes
+        // experimental value
+        val estimatedBufSize = Math.max(
+          Math.min(sizeInBytes.toDouble * columnBatchSize * 1.2, 31760L * columnBatchSize),
+          sizeInBytes.toDouble * 10)
+        arrowBuf = allocator.buffer(estimatedBufSize.toLong)
+        Platform.copyMemory(
+          row.getBaseObject,
+          row.getBaseOffset,
+          null,
+          arrowBuf.memoryAddress() + offset,
+          sizeInBytes)
+        offset += sizeInBytes
+        rowLength += sizeInBytes.toLong
+        rowCount += 1
+
+        while (rowCount < columnBatchSize && it.hasNext) {
+          val row = it.next()
+          val unsafeRow = convertToUnsafeRow(row)
+          val sizeInBytes = unsafeRow.getSizeInBytes
+          if ((offset + sizeInBytes) > arrowBuf.capacity()) {
+            val tmpBuf = allocator.buffer(((offset + sizeInBytes) * 2).toLong)
+            tmpBuf.setBytes(0, arrowBuf, 0, offset)
+            arrowBuf.close()
+            arrowBuf = tmpBuf
+          }
+          Platform.copyMemory(
+            unsafeRow.getBaseObject,
+            unsafeRow.getBaseOffset,
+            null,
+            arrowBuf.memoryAddress() + offset,
+            sizeInBytes)
+          offset += sizeInBytes
+          rowLength += sizeInBytes.toLong
+          rowCount += 1
+        }
+        numInputRows += rowCount
+        try {
+          val handle = jniWrapper
+            .nativeConvertRowToColumnar(r2cHandle, rowLength.toArray, arrowBuf.memoryAddress())
+          ColumnarBatches.create(ExecutionCtxs.contextInstance(), handle)
+        } finally {
+          arrowBuf.close()
+          arrowBuf = null
+        }
+      }
+
+      def convertToUnsafeRow(row: InternalRow): UnsafeRow = {
+        row match {
+          case unsafeRow: UnsafeRow => unsafeRow
+          case _ =>
+            val factory = UnsafeProjection
+            val converter = factory.create(schema)
+            converter.apply(row)
+        }
+      }
+
+      override def next(): ColumnarBatch = {
+        val firstRow = it.next()
+        val start = System.currentTimeMillis()
+        val unsafeRow = convertToUnsafeRow(firstRow)
+        val cb = nativeConvert(unsafeRow)
+        numOutputBatches += 1
+        convertTime += System.currentTimeMillis() - start
+        cb
+      }
+    }
+    new CloseableColumnBatchIterator(res)
+  }
 }

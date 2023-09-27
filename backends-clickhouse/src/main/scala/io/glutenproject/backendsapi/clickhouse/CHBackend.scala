@@ -30,7 +30,7 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 
 import scala.util.control.Breaks.{break, breakable}
 
@@ -98,11 +98,28 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       true
     }
 
+    // Validate if all types are supported.
+    def hasComplexType: Boolean = {
+      // Collect unsupported types.
+      val unsupportedDataTypes = fields.map(_.dataType).collect {
+        case _: MapType => "MapType"
+        case _: StructType => "StructType"
+        case _: ArrayType => "ArrayType"
+      }
+      for (unsupportedDataType <- unsupportedDataTypes) {
+        // scalastyle:off println
+        println(
+          s"Validation failed for ${this.getClass.toString}" +
+            s" due to: data type $unsupportedDataType. in file schema. ")
+        // scalastyle:on println
+      }
+      !unsupportedDataTypes.isEmpty
+    }
     format match {
       case ParquetReadFormat => validateFilePath
       case OrcReadFormat => true
       case MergeTreeReadFormat => true
-      case TextReadFormat => true
+      case TextReadFormat => !hasComplexType
       case JsonReadFormat => true
       case _ => false
     }

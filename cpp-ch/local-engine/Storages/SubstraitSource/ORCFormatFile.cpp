@@ -263,7 +263,7 @@ std::vector<StripeInformation> ORCFormatFile::collectRequiredStripes(DB::ReadBuf
     {
         auto stripe_metadata = orc_reader->getStripe(i);
 
-        auto offset = stripe_metadata->getOffset();
+        auto offset = stripe_metadata->getOffset() + stripe_metadata->getLength() / 2;
         if (file_info.start() <= offset && offset < file_info.start() + file_info.length())
         {
             StripeInformation stripe_info;

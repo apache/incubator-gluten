@@ -60,10 +60,6 @@ namespace local_engine
 //   but `get_json_object`'s result is '1'
 //
 
-class EmptyJSONStringSerializer
-{
-};
-
 struct GetJsonObject
 {
     static constexpr auto name{"get_json_object"};
@@ -91,19 +87,13 @@ public:
         std::stringstream out; // STYLE_CHECK_ALLOW_STD_STRING_STREAM
         /// Create json array of results: [res1, res2, ...]
         bool success = false;
-        size_t element_count = 0;
-        out << "[";
+        std::vector<Element> elements;
         while ((status = generator_json_path.getNextItem(current_element)) != DB::VisitorStatus::Exhausted)
         {
             if (status == DB::VisitorStatus::Ok)
             {
-                if (success)
-                {
-                    out << ", ";
-                }
                 success = true;
-                element_count++;
-                out << current_element.getElement();
+                elements.push_back(current_element);
             }
             else if (status == DB::VisitorStatus::Error)
             {
@@ -113,30 +103,46 @@ public:
             }
             current_element = root;
         }
-        out << "]";
         if (!success)
         {
             return false;
         }
-        DB::ColumnNullable & col_str = assert_cast<DB::ColumnNullable &>(dest);
-        auto output_str = out.str();
-        std::string_view final_out_str;
-        assert(element_count);
-        if (element_count == 1)
+        DB::ColumnNullable & nullable_col_str = assert_cast<DB::ColumnNullable &>(dest);
+        DB::ColumnString * col_str = assert_cast<DB::ColumnString *>(&nullable_col_str.getNestedColumn());
+        JSONStringSerializer serializer(*col_str);
+        if (elements.size() == 1) [[likely]]
         {
-            std::string_view output_str_view(output_str.data() + 1, output_str.size() - 2);
-            if (output_str_view.size() >= 2 && output_str_view.front() == '\"' && output_str_view.back() == '\"')
+            nullable_col_str.getNullMapData().push_back(0);
+            if (elements[0].isString())
             {
-                final_out_str = std::string_view(output_str_view.data() + 1, output_str_view.size() - 2);
+                auto str = elements[0].getString();
+                serializer.addRawString(str);
             }
             else
-                final_out_str = output_str_view;
+            {
+                serializer.addElement(elements[0]);
+            }
         }
         else
         {
-            final_out_str = std::string_view(output_str);
+            const char * array_begin = "[";
+            const char * array_end = "]";
+            const char * comma = ", ";
+            bool flag = false;
+            serializer.addRawData(array_begin, 1);
+            for (auto & element : elements)
+            {
+                nullable_col_str.getNullMapData().push_back(0);
+                if (flag)
+                {
+                    serializer.addRawData(comma, 2);
+                }
+                serializer.addElement(element);
+                flag = true;
+            }
+            serializer.addRawData(array_end, 1);
         }
-        col_str.insertData(final_out_str.data(), final_out_str.size());
+        serializer.commit();
         return true;
     }
 
@@ -191,10 +197,15 @@ public:
 #if USE_SIMDJSON
         if (context->getSettingsRef().allow_simdjson)
         {
-            return innerExecuteImpl<DB::SimdJSONParser, GetJsonObjectImpl<DB::SimdJSONParser, EmptyJSONStringSerializer>>(arguments);
+            return innerExecuteImpl<
+                DB::SimdJSONParser,
+                GetJsonObjectImpl<DB::SimdJSONParser, DB::JSONStringSerializer<DB::SimdJSONParser::Element, DB::SimdJSONElementFormatter>>>(
+                arguments);
         }
 #endif
-        return innerExecuteImpl<DB::DummyJSONParser, GetJsonObjectImpl<DB::DummyJSONParser, EmptyJSONStringSerializer>>(arguments);
+        return innerExecuteImpl<
+            DB::DummyJSONParser,
+            GetJsonObjectImpl<DB::DummyJSONParser, DB::DefaultJSONStringSerializer<DB::DummyJSONParser::Element>>>(arguments);
     }
 
 private:

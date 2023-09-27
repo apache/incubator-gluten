@@ -27,15 +27,15 @@ object ExecutionCtxs {
       throw new IllegalStateException("This method must be called in a Spark task.")
     }
 
-    TaskResources.addResourceIfNotRegistered(EXECUTION_CTX_NAME, () => createExecutionCtx())
+    TaskResources.addResourceIfNotRegistered(EXECUTION_CTX_NAME, () => create())
   }
 
   /** Create a temporary execution ctx, caller must invoke ExecutionCtx#release manually. */
   def tmpInstance(): ExecutionCtx = {
-    createExecutionCtx()
+    create()
   }
 
-  private def createExecutionCtx(): ExecutionCtx = {
+  private def create(): ExecutionCtx = {
     new ExecutionCtx
   }
 }

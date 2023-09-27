@@ -105,7 +105,7 @@ class ValueStream : public facebook::velox::exec::SourceOperator {
       finished_ = true;
       return nullptr;
     }
-  };
+  }
 
   facebook::velox::exec::BlockingReason isBlocked(facebook::velox::ContinueFuture* /* unused */) override {
     return facebook::velox::exec::BlockingReason::kNotBlocked;
@@ -113,7 +113,7 @@ class ValueStream : public facebook::velox::exec::SourceOperator {
 
   bool isFinished() override {
     return finished_;
-  };
+  }
 
  private:
   bool finished_ = false;

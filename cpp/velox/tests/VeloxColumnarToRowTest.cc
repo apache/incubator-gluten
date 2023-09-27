@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "jni/JniErrors.h"
+#include "jni/JniError.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
