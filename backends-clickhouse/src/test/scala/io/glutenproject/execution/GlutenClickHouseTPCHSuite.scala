@@ -464,5 +464,21 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getString(2).equals("[\"a\",\"b\"]"))
     assert(result(0).isNullAt(3))
   }
+
+  test("GLUTEN-3271: Bug fix arrayElement from split") {
+    val table_create_sql =
+      """
+        | create table test_tbl_3271(id bigint, data string) using parquet;
+        |""".stripMargin
+    val table_drop_sql = "drop table test_tbl_3271";
+    val data_insert_sql = "insert into test_tbl_3271 values(1, 'ab')"
+    val select_sql_1 = "select id, split(data, ',')[1] from test_tbl_3271 where id = 1"
+    val select_sql_2 = "select id, element_at(split(data, ','), 2) from test_tbl_3271 where id = 1"
+    spark.sql(table_create_sql);
+    spark.sql(data_insert_sql)
+    compareResultsAgainstVanillaSpark(select_sql_1, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_2, true, { _ => })
+    spark.sql(table_drop_sql)
+  }
 }
 // scalastyle:off line.size.limit
