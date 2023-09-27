@@ -101,7 +101,7 @@ class ContextInitializer extends ContextApi {
 
   override def taskResourceFactories(): Seq[() => TaskResource] = Seq.empty
 
-  override def initialize(conf: SparkConf): Unit = {
+  override def initialize(conf: SparkConf, isDriver: Boolean = true): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
 
