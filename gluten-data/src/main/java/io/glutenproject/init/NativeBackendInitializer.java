@@ -19,29 +19,29 @@ package io.glutenproject.init;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
 
-import org.apache.spark.sql.internal.SQLConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-// Initialize global contexts before calling any native methods from Java side.
-public abstract class JniInitialized {
+// Initialize native backend before calling any native methods from Java side.
+public final class NativeBackendInitializer {
 
-  private static final Logger LOG = LoggerFactory.getLogger(JniInitialized.class);
+  private static final Logger LOG = LoggerFactory.getLogger(NativeBackendInitializer.class);
 
-  static {
+  public static void initializeBackend(scala.collection.Map<String, String> conf) {
     try {
       String prefix = BackendsApiManager.getSettings().getBackendConfigPrefix();
-      Map<String, String> nativeConfMap =
-          GlutenConfig.getNativeBackendConf(prefix, SQLConf.get().getAllConfs());
+      Map<String, String> nativeConfMap = GlutenConfig.getNativeBackendConf(prefix, conf);
       BackendsApiManager.getSettings().resolveNativeConf(nativeConfMap);
-      BackendJniWrapper.initializeBackend(JniUtils.toNativeConf(nativeConfMap));
+      initialize(JniUtils.toNativeConf(nativeConfMap));
     } catch (Exception e) {
       LOG.error("Error calling InitializerJniWrapper.initialize(...)", e);
       throw e;
     }
   }
 
-  protected JniInitialized() {}
+  private static native void initialize(byte[] configPlan);
+
+  private NativeBackendInitializer() {}
 }
