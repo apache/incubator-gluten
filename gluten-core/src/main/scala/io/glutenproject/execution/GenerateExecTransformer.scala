@@ -100,8 +100,13 @@ case class GenerateExecTransformer(
         return ValidationResult.notOk(s"Velox backend does not support this posexplode")
       }
       if (generator.isInstanceOf[Explode]) {
+        // explode(MAP(col1, col2))
         if (generator.asInstanceOf[Explode].child.isInstanceOf[CreateMap]) {
           return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
+        }
+        // explode(ARRAY(1, 2, 3))
+        if (generator.asInstanceOf[Explode].child.isInstanceOf[Literal]) {
+          return ValidationResult.notOk(s"Velox backend does not support literal Array datatype")
         }
         generator.asInstanceOf[Explode].child.dataType match {
           case _: MapType =>
