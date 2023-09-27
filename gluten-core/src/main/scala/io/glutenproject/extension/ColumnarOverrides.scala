@@ -724,7 +724,7 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
 }
 
 object ColumnarOverrideRules {
-  val GLUTEN_IS_ADAPTIVE_CONTEXT = "glutenIsAdaptiveContext"
+  val GLUTEN_IS_ADAPTIVE_CONTEXT = "gluten.isAdaptiveContext"
 }
 
 case class ColumnarOverrideRules(session: SparkSession)
