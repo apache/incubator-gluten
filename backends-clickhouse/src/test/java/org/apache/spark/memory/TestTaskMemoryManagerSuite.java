@@ -21,7 +21,7 @@ import io.glutenproject.memory.alloc.CHManagedCHReservationListener;
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocator;
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocatorManagerImpl;
 import io.glutenproject.memory.memtarget.MemoryTargets;
-import io.glutenproject.memory.memtarget.spark.Spiller;
+import io.glutenproject.memory.memtarget.Spiller;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.internal.config.package$;

@@ -19,7 +19,11 @@ package io.glutenproject.memory.memtarget.spark;
 import io.glutenproject.memory.MemoryUsageRecorder;
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.memory.memtarget.KnownNameAndStats;
+import io.glutenproject.memory.memtarget.MemoryTarget;
 import io.glutenproject.memory.memtarget.MemoryTargetUtil;
+import io.glutenproject.memory.memtarget.MemoryTargetVisitor;
+import io.glutenproject.memory.memtarget.Spiller;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.common.base.Preconditions;
@@ -32,7 +36,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /** A trivial memory consumer implementation used by Gluten. */
-public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryTarget {
+public class RegularMemoryConsumer extends MemoryConsumer
+    implements MemoryTarget, KnownNameAndStats {
 
   private final TaskMemoryManager taskMemoryManager;
   private final Spiller spiller;
@@ -54,16 +59,11 @@ public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryT
 
   @Override
   public long spill(long size, MemoryConsumer trigger) {
-    long spilledOut = spiller.spill(size);
+    long spilledOut = spiller.spill(this, size);
     if (TaskResources.inSparkTask()) {
       TaskResources.getLocalTaskContext().taskMetrics().incMemoryBytesSpilled(spilledOut);
     }
     return spilledOut;
-  }
-
-  @Override
-  public TaskMemoryManager getTaskMemoryManager() {
-    return taskMemoryManager;
   }
 
   @Override
@@ -74,6 +74,11 @@ public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryT
   @Override
   public long usedBytes() {
     return getUsed();
+  }
+
+  @Override
+  public <T> T accept(MemoryTargetVisitor<T> visitor) {
+    return visitor.visit(this);
   }
 
   @Override
@@ -120,5 +125,9 @@ public class RegularMemoryConsumer extends MemoryConsumer implements TaskMemoryT
   @Override
   public String toString() {
     return name();
+  }
+
+  public TaskMemoryManager getTaskMemoryManager() {
+    return taskMemoryManager;
   }
 }

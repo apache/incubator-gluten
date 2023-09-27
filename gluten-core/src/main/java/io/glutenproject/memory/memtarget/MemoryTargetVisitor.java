@@ -14,16 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.memtarget.spark;
+package io.glutenproject.memory.memtarget;
 
-public interface Spiller {
-  Spiller NO_OP =
-      new Spiller() {
-        @Override
-        public long spill(long size) {
-          return 0L;
-        }
-      };
+import io.glutenproject.memory.memtarget.spark.RegularMemoryConsumer;
+import io.glutenproject.memory.memtarget.spark.TreeMemoryConsumer;
 
-  long spill(long size);
+public interface MemoryTargetVisitor<T> {
+  T visit(OverAcquire overAcquire);
+
+  T visit(RegularMemoryConsumer regularMemoryConsumer);
+
+  T visit(ThrowOnOomMemoryTarget throwOnOomMemoryTarget);
+
+  T visit(TreeMemoryConsumer treeMemoryConsumer);
+
+  T visit(TreeMemoryTargets.Node node);
 }

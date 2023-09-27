@@ -16,22 +16,15 @@
  */
 package io.glutenproject.memory.memtarget;
 
-import io.glutenproject.memory.memtarget.spark.Spiller;
-import io.glutenproject.memory.memtarget.spark.TaskMemoryTarget;
-import io.glutenproject.proto.MemoryUsageStats;
-
 import com.google.common.base.Preconditions;
-import org.apache.spark.memory.TaskMemoryManager;
 
-import java.util.Collections;
-
-class OverAcquire implements TaskMemoryTarget {
+public class OverAcquire implements MemoryTarget {
 
   // The underlying target.
-  private final TaskMemoryTarget target;
+  private final MemoryTarget target;
 
   // This consumer holds the over-acquired memory.
-  private final TaskMemoryTarget overTarget;
+  private final MemoryTarget overTarget;
 
   // The ratio is normally 0.
   //
@@ -50,25 +43,11 @@ class OverAcquire implements TaskMemoryTarget {
   //   over-acquired memory will be used in step B.
   private final double ratio;
 
-  private final String name;
-
-  OverAcquire(TaskMemoryTarget target, double ratio) {
+  OverAcquire(MemoryTarget target, MemoryTarget overTarget, double ratio) {
     Preconditions.checkArgument(ratio >= 0.0D);
-    this.overTarget =
-        MemoryTargets.newConsumer(
-            target.getTaskMemoryManager(),
-            "OverAcquire.DummyTarget",
-            new Spiller() {
-              @Override
-              public long spill(long size) {
-                Preconditions.checkState(overTarget != null);
-                return overTarget.repay(size);
-              }
-            },
-            Collections.emptyMap());
+    this.overTarget = overTarget;
     this.target = target;
     this.ratio = ratio;
-    this.name = String.format("OverAcquire.Root[%s]", target.name());
   }
 
   @Override
@@ -101,29 +80,16 @@ class OverAcquire implements TaskMemoryTarget {
   }
 
   @Override
-  public String name() {
-    return name;
-  }
-
-  @Override
   public long usedBytes() {
     return target.usedBytes() + overTarget.usedBytes();
   }
 
   @Override
-  public MemoryUsageStats stats() {
-    MemoryUsageStats targetStats = target.stats();
-    MemoryUsageStats overTargetStats = overTarget.stats();
-    return MemoryUsageStats.newBuilder()
-        .setCurrent(targetStats.getCurrent() + overTargetStats.getCurrent())
-        .setPeak(-1L) // we don't know the peak
-        .putChildren(target.name(), targetStats)
-        .putChildren(overTarget.name(), overTargetStats)
-        .build();
+  public <T> T accept(MemoryTargetVisitor<T> visitor) {
+    return visitor.visit(this);
   }
 
-  @Override
-  public TaskMemoryManager getTaskMemoryManager() {
-    return target.getTaskMemoryManager();
+  public MemoryTarget getTarget() {
+    return target;
   }
 }
