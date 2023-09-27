@@ -14,25 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.memtarget.spark;
+package io.glutenproject.memory.memtarget;
 
-import io.glutenproject.memory.MemoryUsageStatsBuilder;
+import io.glutenproject.proto.MemoryUsageStats;
 
-import java.util.Map;
+/**
+ * The implementation provides a String name and {@link MemoryUsageStats}.
+ *
+ * <p>The API is used to format the dumped message when utility method {@link
+ * org.apache.spark.memory.SparkMemoryUtil#dumpMemoryTargetStats} is called.
+ */
+public interface KnownNameAndStats {
+  String name();
 
-/** An abstract for both {@link TreeMemoryConsumer} and it's non-consumer children nodes. */
-public interface TreeMemoryConsumerNode extends TaskMemoryTarget {
-  long CAPACITY_UNLIMITED = Long.MAX_VALUE;
-
-  TreeMemoryConsumerNode newChild(
-      String name,
-      long capacity,
-      Spiller spiller,
-      Map<String, MemoryUsageStatsBuilder> virtualChildren);
-
-  Map<String, TreeMemoryConsumerNode> children();
-
-  TreeMemoryConsumerNode parent();
-
-  Spiller getNodeSpiller();
+  MemoryUsageStats stats();
 }

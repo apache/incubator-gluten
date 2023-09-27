@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.memtarget.spark;
+package io.glutenproject.memory.memtarget;
 
 public final class Spillers {
   private Spillers() {
@@ -23,11 +23,11 @@ public final class Spillers {
 
   // calls the spillers one by one within the order
   public static Spiller withOrder(Spiller... spillers) {
-    return (size) -> {
+    return (self, size) -> {
       long remaining = size;
       for (int i = 0; i < spillers.length && remaining > 0; i++) {
         Spiller spiller = spillers[i];
-        remaining -= spiller.spill(remaining);
+        remaining -= spiller.spill(self, remaining);
       }
       return size - remaining;
     };
@@ -50,8 +50,8 @@ public final class Spillers {
     }
 
     @Override
-    public long spill(long size) {
-      return delegated.spill(Math.max(size, minSize));
+    public long spill(MemoryTarget self, long size) {
+      return delegated.spill(self, Math.max(size, minSize));
     }
   }
 }

@@ -16,7 +16,8 @@
  */
 package org.apache.spark.memory
 
-import io.glutenproject.memory.memtarget.spark.TaskMemoryTarget
+import io.glutenproject.memory.memtarget.{KnownNameAndStats, MemoryTarget, MemoryTargetVisitor, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
+import io.glutenproject.memory.memtarget.spark.{RegularMemoryConsumer, TreeMemoryConsumer}
 import io.glutenproject.proto.MemoryUsageStats
 
 import org.apache.spark.SparkEnv
@@ -50,41 +51,73 @@ object SparkMemoryUtil {
     smp.memoryFree + emp.memoryFree
   }
 
-  def dumpMemoryConsumerStats(tmm: TaskMemoryManager): String = {
-    def sortStats(stats: Seq[MemoryConsumerStats]) = {
-      stats.sortBy(_.used.getOrElse(Long.MinValue))(Ordering.Long.reverse)
+  def dumpMemoryTargetStats(target: MemoryTarget): String = {
+    def collectRootStats(target: MemoryTarget) = {
+      target.accept(new MemoryTargetVisitor[KnownNameAndStats] {
+        override def visit(overAcquire: OverAcquire): KnownNameAndStats = {
+          overAcquire.getTarget.accept(this)
+        }
+
+        override def visit(regularMemoryConsumer: RegularMemoryConsumer): KnownNameAndStats = {
+          collectFromTaskMemoryManager(regularMemoryConsumer.getTaskMemoryManager)
+        }
+
+        override def visit(throwOnOomMemoryTarget: ThrowOnOomMemoryTarget): KnownNameAndStats = {
+          throw new UnsupportedOperationException()
+        }
+
+        override def visit(treeMemoryConsumer: TreeMemoryConsumer): KnownNameAndStats = {
+          collectFromTaskMemoryManager(treeMemoryConsumer.getTaskMemoryManager)
+        }
+
+        override def visit(node: TreeMemoryTargets.Node): KnownNameAndStats = {
+          node.parent().accept(this)
+        }
+
+        private def collectFromTaskMemoryManager(tmm: TaskMemoryManager): KnownNameAndStats = {
+          tmm.synchronized {
+            val consumers = consumersField.get(tmm).asInstanceOf[util.HashSet[MemoryConsumer]]
+
+            // create stats map
+            val statsMap = new util.HashMap[String, MemoryUsageStats]()
+            consumers.asScala.foreach {
+              case mt: KnownNameAndStats =>
+                statsMap.put(mt.name(), mt.stats())
+              case mc =>
+                statsMap.put(
+                  mc.toString,
+                  MemoryUsageStats
+                    .newBuilder()
+                    .setCurrent(mc.getUsed)
+                    .setPeak(-1L)
+                    .build())
+            }
+            Preconditions.checkState(statsMap.size() == consumers.size())
+
+            // add root
+            new KnownNameAndStats {
+              override def name(): String = s"Task.${taskIdField.get(tmm)}"
+
+              override def stats(): MemoryUsageStats = MemoryUsageStats
+                .newBuilder()
+                .setCurrent(tmm.getMemoryConsumptionForThisTask)
+                .setPeak(-1L)
+                .putAllChildren(statsMap)
+                .build()
+            }
+          }
+        }
+      })
     }
 
-    val stats = tmm.synchronized {
-      val consumers = consumersField.get(tmm).asInstanceOf[util.HashSet[MemoryConsumer]]
+    val stats = collectRootStats(target)
 
-      // create stats map
-      val statsMap = new util.HashMap[String, MemoryUsageStats]()
-      consumers.asScala.foreach {
-        case mt: TaskMemoryTarget =>
-          statsMap.put(mt.name(), mt.stats())
-        case mc =>
-          statsMap.put(
-            mc.toString,
-            MemoryUsageStats
-              .newBuilder()
-              .setCurrent(mc.getUsed)
-              .setPeak(-1L)
-              .build())
+    def asPrintable(name: String, mus: MemoryUsageStats): PrintableMemoryUsageStats = {
+      def sortStats(stats: Seq[PrintableMemoryUsageStats]) = {
+        stats.sortBy(_.used.getOrElse(Long.MinValue))(Ordering.Long.reverse)
       }
-      Preconditions.checkState(statsMap.size() == consumers.size())
 
-      // add root
-      MemoryUsageStats
-        .newBuilder()
-        .setCurrent(tmm.getMemoryConsumptionForThisTask)
-        .setPeak(-1L)
-        .putAllChildren(statsMap)
-        .build()
-    }
-
-    def toMemoryConsumerStats(name: String, mus: MemoryUsageStats): MemoryConsumerStats = {
-      MemoryConsumerStats(
+      PrintableMemoryUsageStats(
         name,
         Some(mus.getCurrent),
         mus.getPeak match {
@@ -96,14 +129,14 @@ object SparkMemoryUtil {
             .entrySet()
             .asScala
             .toList
-            .map(entry => toMemoryConsumerStats(entry.getKey, entry.getValue)))
+            .map(entry => asPrintable(entry.getKey, entry.getValue)))
       )
     }
 
-    prettyPrintToString(toMemoryConsumerStats(s"Task.${taskIdField.get(tmm)}", stats))
+    prettyPrintToString(asPrintable(stats.name(), stats.stats()))
   }
 
-  private def prettyPrintToString(stats: MemoryConsumerStats): String = {
+  private def prettyPrintToString(stats: PrintableMemoryUsageStats): String = {
 
     def getBytes(bytes: Option[Long]): String = {
       bytes.map(Utils.bytesToString).getOrElse("N/A")
@@ -120,7 +153,7 @@ object SparkMemoryUtil {
     var nameWidth = 0
     var usedWidth = 0
     var peakWidth = 0
-    def addPaddingSingleLevel(stats: MemoryConsumerStats, extraWidth: Integer): Unit = {
+    def addPaddingSingleLevel(stats: PrintableMemoryUsageStats, extraWidth: Integer): Unit = {
       nameWidth = Math.max(nameWidth, getFullName(stats.name, "").length + extraWidth)
       usedWidth = Math.max(usedWidth, getBytes(stats.used).length)
       peakWidth = Math.max(peakWidth, getBytes(stats.peak).length)
@@ -130,7 +163,7 @@ object SparkMemoryUtil {
 
     // print
     def printSingleLevel(
-        stats: MemoryConsumerStats,
+        stats: PrintableMemoryUsageStats,
         treePrefix: String,
         treeChildrenPrefix: String): Unit = {
       sb.append(System.lineSeparator())
@@ -164,9 +197,9 @@ object SparkMemoryUtil {
     sb.toString()
   }
 
-  private case class MemoryConsumerStats(
+  private case class PrintableMemoryUsageStats(
       name: String,
       used: Option[Long],
       peak: Option[Long],
-      children: Iterable[MemoryConsumerStats])
+      children: Iterable[PrintableMemoryUsageStats])
 }

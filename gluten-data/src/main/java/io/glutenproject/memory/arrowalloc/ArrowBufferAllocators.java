@@ -17,11 +17,12 @@
 package io.glutenproject.memory.arrowalloc;
 
 import io.glutenproject.memory.memtarget.MemoryTargets;
-import io.glutenproject.memory.memtarget.spark.Spiller;
+import io.glutenproject.memory.memtarget.Spiller;
 
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResource;
 import org.apache.spark.util.TaskResources;
 import org.slf4j.Logger;
@@ -52,15 +53,18 @@ public class ArrowBufferAllocators {
   public static class ArrowBufferAllocatorManager implements TaskResource {
     private static Logger LOGGER = LoggerFactory.getLogger(ArrowBufferAllocatorManager.class);
     private static final List<BufferAllocator> LEAKED = new Vector<>();
-    private final AllocationListener listener =
-        new ManagedAllocationListener(
-            MemoryTargets.throwOnOom(
-                MemoryTargets.newConsumer(
-                    TaskResources.getLocalTaskContext().taskMemoryManager(),
-                    "ArrowContextInstance",
-                    Spiller.NO_OP,
-                    Collections.emptyMap())),
-            TaskResources.getSharedUsage());
+    private final AllocationListener listener;
+
+    {
+      final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
+      listener =
+          new ManagedAllocationListener(
+              MemoryTargets.throwOnOom(
+                  MemoryTargets.newConsumer(
+                      tmm, "ArrowContextInstance", Spiller.NO_OP, Collections.emptyMap())),
+              TaskResources.getSharedUsage());
+    }
+
     private final BufferAllocator managed = new RootAllocator(listener, Long.MAX_VALUE);
 
     public ArrowBufferAllocatorManager() {}

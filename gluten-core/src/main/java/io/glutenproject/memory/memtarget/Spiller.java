@@ -16,16 +16,14 @@
  */
 package io.glutenproject.memory.memtarget;
 
-// The naming convention "borrow" and "repay" are for preventing collisions with
-//   other APIs.
-//
-// Implementations are not necessary to be thread-safe
-public interface MemoryTarget {
-  long borrow(long size);
+public interface Spiller {
+  Spiller NO_OP =
+      new Spiller() {
+        @Override
+        public long spill(MemoryTarget self, long size) {
+          return 0L;
+        }
+      };
 
-  long repay(long size);
-
-  long usedBytes();
-
-  <T> T accept(MemoryTargetVisitor<T> visitor);
+  long spill(MemoryTarget self, long size);
 }
