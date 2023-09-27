@@ -125,7 +125,7 @@ auto BM_Generic = [](::benchmark::State& state,
     setCpu(state.thread_index());
   }
   auto memoryManager = getDefaultMemoryManager();
-  auto executionCtx = gluten::createExecutionCtx();
+  auto executionCtx = ExecutionCtx::create(kVeloxExecutionCtxKind);
   const auto& filePath = getExampleFilePath(substraitJsonFile);
   auto plan = getPlanFromFile(filePath);
   auto startTime = std::chrono::steady_clock::now();
@@ -206,7 +206,7 @@ auto BM_Generic = [](::benchmark::State& state,
     auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
     std::cout << statsStr << std::endl;
   }
-  gluten::releaseExecutionCtx(executionCtx);
+  ExecutionCtx::release(executionCtx);
 
   auto endTime = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();

@@ -20,7 +20,7 @@ public class ExecutionCtxJniWrapper {
 
   private ExecutionCtxJniWrapper() {}
 
-  public static native long createExecutionCtx();
+  public static native long createExecutionCtx(String backendType, byte[] sessionConf);
 
   public static native void releaseExecutionCtx(long handle);
 }

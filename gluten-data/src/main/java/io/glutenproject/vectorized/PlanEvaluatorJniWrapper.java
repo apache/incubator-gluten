@@ -68,8 +68,7 @@ public class PlanEvaluatorJniWrapper implements ExecutionCtxAware {
       int partitionId,
       long taskId,
       boolean saveInputToFile,
-      String spillDir,
-      byte[] confPlan)
+      String spillDir)
       throws RuntimeException;
 
   /** Create a native compute kernel and return a row iterator. */

@@ -23,6 +23,8 @@ namespace gluten {
 
 class DummyExecutionCtx final : public ExecutionCtx {
  public:
+  DummyExecutionCtx(const std::unordered_map<std::string, std::string>& conf) : ExecutionCtx(conf) {}
+
   ResourceHandle createResultIterator(
       MemoryManager* memoryManager,
       const std::string& spillDir,
@@ -147,19 +149,19 @@ class DummyExecutionCtx final : public ExecutionCtx {
   };
 };
 
-static ExecutionCtx* DummyExecutionCtxFactory() {
-  return new DummyExecutionCtx();
+static ExecutionCtx* DummyExecutionCtxFactory(const std::unordered_map<std::string, std::string> conf) {
+  return new DummyExecutionCtx(conf);
 }
 
 TEST(TestExecutionCtx, CreateExecutionCtx) {
-  setExecutionCtxFactory(DummyExecutionCtxFactory);
-  auto executionCtx = createExecutionCtx();
+  ExecutionCtx::registerFactory("DUMMY", DummyExecutionCtxFactory);
+  auto executionCtx = ExecutionCtx::create("DUMMY");
   ASSERT_EQ(typeid(*executionCtx), typeid(DummyExecutionCtx));
-  releaseExecutionCtx(executionCtx);
+  ExecutionCtx::release(executionCtx);
 }
 
 TEST(TestExecutionCtx, GetResultIterator) {
-  auto executionCtx = std::make_shared<DummyExecutionCtx>();
+  auto executionCtx = std::make_shared<DummyExecutionCtx>(std::unordered_map<std::string, std::string>());
   auto handle = executionCtx->createResultIterator(nullptr, "/tmp/test-spill", {}, {});
   auto iter = executionCtx->getResultIterator(handle);
   ASSERT_TRUE(iter->hasNext());
