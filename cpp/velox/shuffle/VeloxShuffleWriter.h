@@ -307,6 +307,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   void stat() const;
 
+  bool shrinkBeforeSpill() const;
+
+  bool shrinkAfterSpill() const;
+
  protected:
   // Memory Pool used to track memory allocation of Arrow IPC payloads.
   // The actual allocation is delegated to options_.memory_pool.

@@ -340,14 +340,6 @@ std::shared_ptr<arrow::RecordBatch> makeUncompressedRecordBatch(
   }
   return arrow::RecordBatch::Make(writeSchema, 1, {arrays});
 }
-
-bool shrinkBeforeSpill(SplitState state) {
-  return state == SplitState::kStop;
-}
-
-bool shrinkAfterSpill(SplitState state) {
-  return state == SplitState::kSplit;
-}
 } // namespace
 
 // VeloxShuffleWriter
@@ -739,6 +731,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const velox::RowVector& rv, int64_t me
 
   printPartitionBuffer();
 
+  setSplitState(SplitState::kInit);
   return arrow::Status::OK();
 }
 
@@ -1506,7 +1499,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
     // If OOM happens during stop(), the reclaim order is shrink->spill,
     // because the partition buffers will be freed soon.
-    if (currentEvicted < size && shrinkBeforeSpill(splitState_)) {
+    if (currentEvicted < size && shrinkBeforeSpill()) {
       ARROW_ASSIGN_OR_RAISE(auto shrunken, shrinkPartitionBuffers());
       currentEvicted += shrunken;
     }
@@ -1524,7 +1517,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
     // If OOM happens during binary buffers resize, the reclaim order is spill->shrink,
     // because the partition buffers can be reused.
-    if (currentEvicted < size && shrinkAfterSpill(splitState_)) {
+    if (currentEvicted < size && shrinkAfterSpill()) {
       ARROW_ASSIGN_OR_RAISE(auto shrunken, shrinkPartitionBuffers());
       currentEvicted += shrunken;
     }
@@ -1654,6 +1647,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
   arrow::Result<int64_t> VeloxShuffleWriter::shrinkPartitionBuffers() {
     auto beforeShrink = partitionBufferPool_->bytes_allocated();
+    if (beforeShrink == 0) {
+      return 0;
+    }
     for (auto pid = 0; pid < numPartitions_; ++pid) {
       RETURN_NOT_OK(shrinkPartitionBuffer(pid));
     }
@@ -1718,5 +1714,14 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   arrow::Status VeloxShuffleWriter::transferPayload(
       uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) {
     return partitionWriter_->processPayload(partitionId, std::move(payload));
+  }
+
+  bool VeloxShuffleWriter::shrinkBeforeSpill() const {
+    return options_.partitioning_name != "single" && splitState_ == SplitState::kStop;
+  }
+
+  bool VeloxShuffleWriter::shrinkAfterSpill() const {
+    return options_.partitioning_name != "single" &&
+        (splitState_ == SplitState::kSplit || splitState_ == SplitState::kInit);
   }
 } // namespace gluten
