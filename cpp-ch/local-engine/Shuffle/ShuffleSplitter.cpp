@@ -39,6 +39,7 @@ void ShuffleSplitter::split(DB::Block & block)
     {
         return;
     }
+    initOutputIfNeeded(block);
     computeAndCountPartitionId(block);
     Stopwatch split_time_watch;
     split_time_watch.start();
@@ -74,12 +75,12 @@ SplitResult ShuffleSplitter::stop()
     stopped = true;
     return split_result;
 }
-void ShuffleSplitter::splitBlockByPartition(DB::Block & block)
+
+void ShuffleSplitter::initOutputIfNeeded(Block & block)
 {
-    Stopwatch split_time_watch;
-    split_time_watch.start();
-    if (!output_header.columns()) [[unlikely]]
+    if (output_header.columns() == 0) [[unlikely]]
     {
+        output_header = block.cloneEmpty();
         if (output_columns_indicies.empty())
         {
             output_header = block.cloneEmpty();
@@ -90,7 +91,7 @@ void ShuffleSplitter::splitBlockByPartition(DB::Block & block)
         }
         else
         {
-            DB::ColumnsWithTypeAndName cols;
+            ColumnsWithTypeAndName cols;
             for (const auto & index : output_columns_indicies)
             {
                 cols.push_back(block.getByPosition(index));
@@ -98,6 +99,12 @@ void ShuffleSplitter::splitBlockByPartition(DB::Block & block)
             output_header = DB::Block(cols);
         }
     }
+}
+
+void ShuffleSplitter::splitBlockByPartition(DB::Block & block)
+{
+    Stopwatch split_time_watch;
+    split_time_watch.start();
     DB::Block out_block;
     for (size_t col = 0; col < output_header.columns(); ++col)
     {
@@ -152,7 +159,7 @@ void ShuffleSplitter::spillPartition(size_t partition_id)
     {
         partition_write_buffers[partition_id] = getPartitionWriteBuffer(partition_id);
         partition_outputs[partition_id]
-            = std::make_unique<DB::NativeWriter>(*partition_write_buffers[partition_id], 0, partition_buffer[partition_id].getHeader());
+            = std::make_unique<NativeWriter>(*partition_write_buffers[partition_id], output_header);
     }
     DB::Block result = partition_buffer[partition_id].releaseColumns();
     if (result.rows() > 0)

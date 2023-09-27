@@ -44,7 +44,6 @@ void NativeSplitter::split(DB::Block & block)
     {
         return;
     }
-    block = convertAggregateStateInBlock(block);
     if (!output_header.columns()) [[unlikely]]
     {
         if (output_columns_indicies.empty())

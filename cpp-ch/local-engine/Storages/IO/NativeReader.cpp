@@ -21,6 +21,7 @@
 #include <DataTypes/DataTypeFactory.h>
 #include <Columns/ColumnAggregateFunction.h>
 #include <Common/Arena.h>
+#include <Storages/IO/NativeWriter.h>
 
 namespace DB
 {
@@ -120,7 +121,14 @@ Block NativeReader::read()
         /// Type
         String type_name;
         readBinary(type_name, istr);
-        column.type = data_type_factory.get(type_name);
+        bool agg_opt_column = false;
+        String real_type_name = type_name;
+        if (type_name.ends_with(NativeWriter::AGG_STATE_SUFFIX))
+        {
+            agg_opt_column = true;
+            real_type_name = type_name.substr(0, type_name.length() - NativeWriter::AGG_STATE_SUFFIX.length());
+        }
+        column.type = data_type_factory.get(real_type_name);
         bool is_agg_state_type = isAggregateFunction(column.type);
         SerializationPtr serialization = column.type->getDefaultSerialization();
 
@@ -130,7 +138,7 @@ Block NativeReader::read()
         double avg_value_size_hint = avg_value_size_hints.empty() ? 0 : avg_value_size_hints[i];
         if (rows)    /// If no rows, nothing to read.
         {
-            if (is_agg_state_type)
+            if (is_agg_state_type && agg_opt_column)
             {
                 const DataTypeAggregateFunction * agg_type = checkAndGetDataType<DataTypeAggregateFunction>(column.type.get());
                 readAggData(*agg_type, read_column, istr, rows);

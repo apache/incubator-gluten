@@ -24,6 +24,8 @@ using namespace DB;
 
 namespace local_engine
 {
+
+const String NativeWriter::AGG_STATE_SUFFIX= "#optagg";
 void NativeWriter::flush()
 {
     ostr.next();
@@ -67,8 +69,15 @@ size_t NativeWriter::write(const DB::Block & block)
         auto original_type = header.safeGetByPosition(i).type;
         /// Type
         String type_name = original_type->getName();
-
-        writeStringBinary(type_name, ostr);
+        if (isAggregateFunction(original_type)
+            && header.safeGetByPosition(i).column->getDataType() != block.safeGetByPosition(i).column->getDataType())
+        {
+            writeStringBinary(type_name + AGG_STATE_SUFFIX, ostr);
+        }
+        else
+        {
+            writeStringBinary(type_name, ostr);
+        }
 
         SerializationPtr serialization = column.type->getDefaultSerialization();
         column.column = recursiveRemoveSparse(column.column);

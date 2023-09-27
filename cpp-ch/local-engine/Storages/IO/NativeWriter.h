@@ -32,12 +32,12 @@ namespace local_engine
 class NativeWriter
 {
 public:
+    static const String AGG_STATE_SUFFIX;
     NativeWriter(
         DB::WriteBuffer & ostr_, const DB::Block & header_): ostr(ostr_), header(header_)
     {}
 
     DB::Block getHeader() const { return header; }
-
     /// Returns the number of bytes written.
     size_t write(const DB::Block & block);
     void flush();
