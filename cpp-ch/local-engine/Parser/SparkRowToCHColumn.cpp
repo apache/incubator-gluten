@@ -164,6 +164,12 @@ Field VariableLengthDataReader::readDecimal(const char * buffer, size_t length) 
     assert(sizeof(Decimal128) >= length);
 
     char decimal128_fix_data[sizeof(Decimal128)] = {};
+
+    if (Int8 (buffer[0]) < 0)
+    {
+        memset(decimal128_fix_data, int('\xff'), sizeof(Decimal128));
+    }
+
     memcpy(decimal128_fix_data + sizeof(Decimal128) - length, buffer, length); // padding
     String buf(decimal128_fix_data, sizeof(Decimal128));
     BackingDataLengthCalculator::swapDecimalEndianBytes(buf); // Big-endian to Little-endian
