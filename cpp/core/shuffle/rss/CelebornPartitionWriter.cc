@@ -30,7 +30,7 @@ arrow::Status CelebornPartitionWriter::evictPartition(int32_t partitionId) {
   TIME_NANO_OR_RAISE(tempTotalTime, pushPartition(partitionId));
   shuffleWriter_->setTotalEvictTime(shuffleWriter_->totalEvictTime() + tempTotalTime);
   return arrow::Status::OK();
-};
+}
 
 arrow::Status CelebornPartitionWriter::pushPartition(int32_t partitionId) {
   auto buffer = celebornBufferOs_->Finish();
@@ -41,7 +41,7 @@ arrow::Status CelebornPartitionWriter::pushPartition(int32_t partitionId) {
   shuffleWriter_->setPartitionCachedRecordbatchSize(partitionId, 0);
   shuffleWriter_->setPartitionLengths(partitionId, shuffleWriter_->partitionLengths()[partitionId] + celebornBytesSize);
   return arrow::Status::OK();
-};
+}
 
 arrow::Status CelebornPartitionWriter::stop() {
   // push data and collect metrics
@@ -54,7 +54,7 @@ arrow::Status CelebornPartitionWriter::stop() {
   }
   shuffleWriter_->partitionBuffer().clear();
   return arrow::Status::OK();
-};
+}
 
 arrow::Status CelebornPartitionWriter::writeArrowToOutputStream(int32_t partitionId) {
   ARROW_ASSIGN_OR_RAISE(

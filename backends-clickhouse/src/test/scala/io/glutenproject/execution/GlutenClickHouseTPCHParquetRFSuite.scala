@@ -14,19 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.exec
+package io.glutenproject.execution
 
-import org.apache.spark.util.TaskResource
+import org.apache.spark.SparkConf
 
-class ExecutionCtx private[exec] () extends TaskResource {
-
-  private val handle = ExecutionCtxJniWrapper.createExecutionCtx()
-
-  def getHandle: Long = handle
-
-  override def release(): Unit = ExecutionCtxJniWrapper.releaseExecutionCtx(handle)
-
-  override def priority(): Int = 10
-
-  override def resourceName(): String = s"ExecutionCtx_" + handle
+class GlutenClickHouseTPCHParquetRFSuite extends GlutenClickHouseTPCHParquetSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      // radically small threshold to force runtime bloom filter
+      .set("spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold", "1KB")
+      .set("spark.sql.optimizer.runtime.bloomFilter.enabled", "true")
+  }
 }

@@ -87,7 +87,8 @@ trait BasicScanExecTransformer extends TransformSupport with SupportFormat {
           getPartitionSchemas.nonEmpty,
           getInputFilePaths)
     ) {
-      return ValidationResult.notOk(s"Not supported file format for scan: $fileFormat")
+      return ValidationResult.notOk(
+        s"Not supported file format or complex type for scan: $fileFormat")
     }
 
     val substraitContext = new SubstraitContext

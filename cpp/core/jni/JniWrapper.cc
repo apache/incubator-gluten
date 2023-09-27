@@ -94,15 +94,11 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
     try {
       auto status = JavaInputStreamAdaptor::Close();
       if (!status.ok()) {
-#ifdef GLUTEN_PRINT_DEBUG
-        std::cout << __func__ << " call JavaInputStreamAdaptor::Close() failed, status:" << status.ToString()
+        DEBUG_OUT << __func__ << " call JavaInputStreamAdaptor::Close() failed, status:" << status.ToString()
                   << std::endl;
-#endif
       }
     } catch (std::exception& e) {
-#ifdef GLUTEN_PRINT_DEBUG
-      std::cout << __func__ << " call JavaInputStreamAdaptor::Close() got exception:" << e.what() << std::endl;
-#endif
+      DEBUG_OUT << __func__ << " call JavaInputStreamAdaptor::Close() got exception:" << e.what() << std::endl;
     }
   }
 
@@ -319,7 +315,7 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   gluten::getJniCommonState()->close();
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_init_BackendJniWrapper_createExecutionCtx( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_exec_ExecutionCtxJniWrapper_createExecutionCtx( // NOLINT
     JNIEnv* env,
     jclass) {
   JNI_METHOD_START
@@ -328,7 +324,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_init_BackendJniWrapper_createExecu
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_init_BackendJniWrapper_releaseExecutionCtx( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_exec_ExecutionCtxJniWrapper_releaseExecutionCtx( // NOLINT
     JNIEnv* env,
     jclass,
     jlong ctxHandle) {

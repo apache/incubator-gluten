@@ -35,7 +35,7 @@ using namespace facebook::velox;
 
 namespace gluten {
 
-bool veloxShuffleReaderPrintFlag = true;
+bool veloxShuffleReaderPrintFlag = false;
 
 namespace {
 

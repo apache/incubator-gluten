@@ -215,7 +215,10 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"json_tuple", "json_tuple"},
        {"json_array_length", "JSONArrayLength"},
        {"make_decimal", "makeDecimalSpark"},
-       {"unscaled_value", "unscaleValueSpark"}};
+       {"unscaled_value", "unscaleValueSpark"},
+
+       // runtime filter
+       {"might_contain", "bloomFilterContains"}};
 
 static const std::set<std::string> FUNCTION_NEED_KEEP_ARGUMENTS = {"alias"};
 

@@ -14,19 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.exec
 
-import org.apache.spark.util.TaskResource
+#pragma once
 
-class ExecutionCtx private[exec] () extends TaskResource {
+#include <ostream>
 
-  private val handle = ExecutionCtxJniWrapper.createExecutionCtx()
+#ifdef GLUTEN_PRINT_DEBUG
 
-  def getHandle: Long = handle
+#define DEBUG_OUT std::cout
 
-  override def release(): Unit = ExecutionCtxJniWrapper.releaseExecutionCtx(handle)
+#else
 
-  override def priority(): Int = 10
+namespace gluten {
 
-  override def resourceName(): String = s"ExecutionCtx_" + handle
-}
+struct FakeOut {
+  template <typename T>
+  FakeOut& operator<<(T t) {
+    return *this;
+  }
+
+  FakeOut& operator<<(std::ostream& (*endl)(std::ostream& os)) {
+    return *this;
+  }
+};
+
+extern FakeOut fakeOut;
+
+} // namespace gluten
+
+#define DEBUG_OUT gluten::fakeOut
+
+#endif

@@ -14,19 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.exec
+#include <Functions/FunctionFactory.h>
 
-import org.apache.spark.util.TaskResource
+#include <Functions/FunctionsBloomFilter.h>
 
-class ExecutionCtx private[exec] () extends TaskResource {
 
-  private val handle = ExecutionCtxJniWrapper.createExecutionCtx()
+namespace local_engine
+{
 
-  def getHandle: Long = handle
-
-  override def release(): Unit = ExecutionCtxJniWrapper.releaseExecutionCtx(handle)
-
-  override def priority(): Int = 10
-
-  override def resourceName(): String = s"ExecutionCtx_" + handle
+REGISTER_FUNCTION(BloomFilter)
+{
+    factory.registerFunction<FunctionBloomFilterContains>();
+}
 }

@@ -215,7 +215,7 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   }
 }
 
-case class ProjectExecTransformer(projectList: Seq[NamedExpression], child: SparkPlan)
+case class ProjectExecTransformer private (projectList: Seq[NamedExpression], child: SparkPlan)
   extends UnaryExecNode
   with TransformSupport
   with PredicateHelper
@@ -367,6 +367,48 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression], child: Spar
 
   override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
     copy(child = newChild)
+}
+object ProjectExecTransformer {
+  private def processProjectExecTransformer(
+      project: ProjectExecTransformer): ProjectExecTransformer = {
+    // Special treatment for Project containing all bloom filters:
+    // If more than one bloom filter, Spark will merge them into a named_struct
+    // and then broadcast. The named_struct looks like {'bloomFilter',BF1,'bloomFilter',BF2},
+    // with two bloom filters sharing same name. This will cause problem for some backends,
+    // e.g. ClickHouse, which cannot tolerate duplicate type names in struct type
+    // So we need to rename 'bloomFilter' to make them unique.
+    if (project.projectList.size == 1) {
+      val newProjectListHead = project.projectList.head match {
+        case alias @ Alias(cns @ CreateNamedStruct(children: Seq[Expression]), "mergedValue") =>
+          if (
+            !cns.nameExprs.forall(
+              e =>
+                e.isInstanceOf[Literal] && "bloomFilter".equals(e.asInstanceOf[Literal].toString()))
+          ) {
+            null
+          } else {
+            val newChildren = children.zipWithIndex.map {
+              case _ @(_: Literal, index) =>
+                val newLiteral = Literal("bloomFilter" + index / 2)
+                newLiteral
+              case other @ (_, _) => other._1
+            }
+            Alias.apply(CreateNamedStruct(newChildren), "mergedValue")(alias.exprId)
+          }
+        case _ => null
+      }
+      if (newProjectListHead == null) {
+        project
+      } else {
+        ProjectExecTransformer(Seq(newProjectListHead), project.child)
+      }
+    } else {
+      project
+    }
+  }
+
+  def apply(projectList: Seq[NamedExpression], child: SparkPlan): ProjectExecTransformer =
+    processProjectExecTransformer(new ProjectExecTransformer(projectList, child))
 }
 
 // An alternatives for UnionExec.
