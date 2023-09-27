@@ -48,7 +48,7 @@ object SparkArrowUtil {
         new ArrowType.Timestamp(TimeUnit.MICROSECOND, "UTC")
       }
     case _: ArrayType => ArrowType.List.INSTANCE
-    // case NullType => ArrowType.Null.INSTANCE
+    case NullType => ArrowType.Null.INSTANCE
     case _ =>
       throw new UnsupportedOperationException(s"Unsupported data type: ${dt.catalogString}")
   }
@@ -69,7 +69,7 @@ object SparkArrowUtil {
     case date: ArrowType.Date if date.getUnit == DateUnit.DAY => DateType
     // TODO: Time unit is not handled.
     case _: ArrowType.Timestamp => TimestampType
-    // case ArrowType.Null.INSTANCE => NullType
+    case ArrowType.Null.INSTANCE => NullType
     case _ => throw new UnsupportedOperationException(s"Unsupported data type: $dt")
   }
 

@@ -140,6 +140,11 @@ SubstraitParser::SubstraitType SubstraitParser::parseType(const ::substrait::Typ
       nullability = substraitType.decimal().nullability();
       break;
     }
+    case ::substrait::Type::KindCase::kNothing: {
+      typeName = "UNKNOWN";
+      nullability = ::substrait::Type_Nullability::Type_Nullability_NULLABILITY_NULLABLE;
+      break;
+    }
     default:
       VELOX_NYI("Parsing for Substrait type not supported: {}", substraitType.DebugString());
   }

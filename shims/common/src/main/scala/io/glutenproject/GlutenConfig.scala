@@ -391,6 +391,7 @@ object GlutenConfig {
   // This is an internal config property set by Gluten. It is used to hold default session timezone
   // and will be really used by Gluten only if `spark.sql.session.timeZone` is not set.
   val GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY = "spark.gluten.sql.session.timeZone.default"
+  val GLUTEN_LEGACY_SIZE_OF_NULL = "spark.sql.legacy.sizeOfNull"
 
   // Principal of current user
   val GLUTEN_UGI_USERNAME = "spark.gluten.ugi.username"
@@ -432,7 +433,8 @@ object GlutenConfig {
       GLUTEN_MAX_BATCH_SIZE_KEY,
       GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
-      GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
+      GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
+      GLUTEN_LEGACY_SIZE_OF_NULL
     )
     keys.forEach(
       k => {

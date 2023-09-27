@@ -19,6 +19,7 @@ package io.glutenproject.utils.clickhouse
 import io.glutenproject.utils.BackendTestSettings
 
 import org.apache.spark.sql._
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.execution._
@@ -135,6 +136,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("collect functions should be able to cast to array type with no null values")
     .exclude("SPARK-17616: distinct aggregate combined with a non-partial aggregate")
     .exclude("SPARK-19471: AggregationIterator does not initialize the generated result projection before using it")
+    .exclude(GLUTEN_TEST + "SPARK-19471: AggregationIterator does not initialize the generated" +
+      " result projection before using it")
     .exclude("SPARK-26021: NaN and -0.0 in grouping expressions")
     .exclude("SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate")
     .exclude("SPARK-32136: NormalizeFloatingNumbers should work on null struct")
@@ -707,6 +710,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34739,SPARK-35889: add a year-month interval to a timestamp")
     .exclude("SPARK-34761,SPARK-35889: add a day-time interval to a timestamp")
     .exclude("Gluten - TIMESTAMP_MICROS")
+    .exclude("Gluten - from_unixtime")
     .exclude("Gluten - unix_timestamp")
     .exclude("Gluten - to_unix_timestamp")
   enableSuite[GlutenDecimalExpressionSuite].exclude("MakeDecimal")

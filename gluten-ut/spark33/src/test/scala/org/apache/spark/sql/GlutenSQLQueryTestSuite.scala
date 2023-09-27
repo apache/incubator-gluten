@@ -258,8 +258,10 @@ class GlutenSQLQueryTestSuite
     "except.sql",
     "extract.sql",
     "group-by-filter.sql",
-    "group-by-ordinal.sql",
-    "group-by.sql",
+    // test with seed specified. No need to be match with spark.
+    // "group-by-ordinal.sql",
+    // test with seed specified. No need to be match with spark.
+    // "group-by.sql",
     "grouping_set.sql",
     "having.sql",
     "ignored.sql",
@@ -288,7 +290,8 @@ class GlutenSQLQueryTestSuite
     "pred-pushdown.sql",
     "predicate-functions.sql",
     "query_regex_column.sql",
-    "random.sql",
+    // test with seed specified. No need to be match with spark.
+    // "random.sql",
     "regexp-functions.sql",
     "show-create-table.sql",
     "show-tables.sql",
