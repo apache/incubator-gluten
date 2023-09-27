@@ -862,6 +862,34 @@ TEST_P(VeloxShuffleWriterTest, SmallBufferSizeNoShrink) {
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
+TEST_P(VeloxShuffleWriterTest, SinglePartitioningNoShrink) {
+  shuffleWriterOptions_.partitioning_name = "single";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(1, partitionWriterCreator_, shuffleWriterOptions_, pool_));
+
+  // Split multiple times, to get non-empty partition buffers and cached payloads.
+  for (int i = 0; i < 100; ++i) {
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector2_));
+    ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+  }
+
+  int64_t evicted = 0;
+  auto cachedPayloadSize = shuffleWriter_->cachedPayloadSize();
+  ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(cachedPayloadSize + 1, &evicted));
+  ASSERT_EQ(evicted, cachedPayloadSize);
+  // No more cached payloads after spill.
+  ASSERT_EQ(shuffleWriter_->cachedPayloadSize(), 0);
+
+  // No partition buffers for single partitioner.
+  auto bufferSize = shuffleWriter_->partitionBufferSize();
+  ASSERT_EQ(bufferSize, 0);
+
+  ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(1, &evicted));
+  ASSERT_EQ(evicted, 0);
+  ASSERT_NOT_OK(shuffleWriter_->stop());
+}
+
 INSTANTIATE_TEST_SUITE_P(
     VeloxShuffleWriteParam,
     VeloxShuffleWriterTest,
