@@ -66,6 +66,7 @@ arrow::Status LocalPartitionWriterBase::clearResource() {
 
 arrow::Status PreferCachePartitionWriter::init() {
   partitionCachedPayload_.resize(shuffleWriter_->numPartitions());
+  fs_ = std::make_shared<arrow::fs::LocalFileSystem>();
   RETURN_NOT_OK(setLocalDirs());
   return arrow::Status::OK();
 }
@@ -95,6 +96,9 @@ arrow::Status PreferCachePartitionWriter::spill() {
 
   if (!spillInfo.partitionSpillInfos.empty()) {
     spills_.push_back(std::move(spillInfo));
+  } else {
+    // No data spilled to this file. Delete the file and discard this SpillInfo.
+    RETURN_NOT_OK(fs_->DeleteFile(spilledFile));
   }
 
   return arrow::Status::OK();
@@ -163,14 +167,16 @@ arrow::Status PreferCachePartitionWriter::stop() {
   }
 
   // Close spilled file streams and delete the file.
-  auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
   for (auto i = 0; i < spills_.size(); ++i) {
     // Check if all spilled data are merged.
     if (spills_[i].mergePos != spills_[i].partitionSpillInfos.size()) {
       return arrow::Status::Invalid("Merging from spilled file NO." + std::to_string(i) + " is out of bound.");
     }
+    if (!spills_[i].inputStream) {
+      return arrow::Status::Invalid("Spilled file NO. " + std::to_string(i) + " has not been merged.");
+    }
     RETURN_NOT_OK(spills_[i].inputStream->Close());
-    RETURN_NOT_OK(fs->DeleteFile(spills_[i].spilledFile));
+    RETURN_NOT_OK(fs_->DeleteFile(spills_[i].spilledFile));
   }
 
   ARROW_ASSIGN_OR_RAISE(totalBytesWritten, dataFileOs_->Tell());

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <arrow/filesystem/localfs.h>
 #include <arrow/io/api.h>
 
 #include "shuffle/PartitionWriter.h"
@@ -118,8 +119,8 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
   };
 
   std::vector<SpillInfo> spills_;
-
   std::vector<std::vector<std::unique_ptr<arrow::ipc::IpcPayload>>> partitionCachedPayload_;
+  std::shared_ptr<arrow::fs::LocalFileSystem> fs_{};
 };
 
 class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {

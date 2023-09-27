@@ -255,7 +255,7 @@ class ShuffleWriter {
   std::shared_ptr<arrow::Schema> compressWriteSchema_;
 
   // col partid
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>> partitionBuffers_;
+  std::vector<std::vector<std::vector<std::shared_ptr<arrow::ResizableBuffer>>>> partitionBuffers_;
 
   std::shared_ptr<Partitioner> partitioner_;
 };
