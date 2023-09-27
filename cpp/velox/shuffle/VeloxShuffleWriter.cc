@@ -1323,7 +1323,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     if (rb) {
       ARROW_ASSIGN_OR_RAISE(auto payload, createArrowIpcPayload(*rb, reuseBuffers));
       rawPartitionLengths_[partitionId] += payload->raw_body_length;
-      partitionBufferIdxBase_[partitionId] = 0;
       return payload;
     }
     return nullptr;
@@ -1470,6 +1469,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     if (!reuseBuffers) {
       partition2BufferSize_[partitionId] = 0;
     }
+    partitionBufferIdxBase_[partitionId] = 0;
 
     return makeRecordBatch(numRows, allBuffers);
   }
@@ -1635,7 +1635,13 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       return arrow::Status::OK();
     }
 
-    auto newSize = partitionBufferIdxBase_[partitionId];
+    ARROW_ASSIGN_OR_RAISE(auto newSize, sizeAfterShrink(partitionId));
+    if (newSize > bufferSize) {
+      std::stringstream invalid;
+      invalid << "Cannot shrink to larger size. Partition: " << partitionId << ", before shrink: " << bufferSize
+              << ", after shrink" << newSize;
+      return arrow::Status::Invalid(invalid.str());
+    }
     if (newSize == bufferSize) {
       return arrow::Status::OK();
     }
@@ -1723,5 +1729,15 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   bool VeloxShuffleWriter::shrinkAfterSpill() const {
     return options_.partitioning_name != "single" &&
         (splitState_ == SplitState::kSplit || splitState_ == SplitState::kInit);
+  }
+
+  arrow::Result<uint32_t> VeloxShuffleWriter::sizeAfterShrink(uint32_t partitionId) const {
+    if (splitState_ == SplitState::kSplit) {
+      return partitionBufferIdxBase_[partitionId] + partition2RowCount_[partitionId];
+    }
+    if (splitState_ == kInit || splitState_ == SplitState::kStop) {
+      return partitionBufferIdxBase_[partitionId];
+    }
+    return arrow::Status::Invalid("Cannot shrink partition buffers in SplitState: " + std::to_string(splitState_));
   }
 } // namespace gluten

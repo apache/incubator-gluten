@@ -311,6 +311,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   bool shrinkAfterSpill() const;
 
+  arrow::Result<uint32_t> sizeAfterShrink(uint32_t partitionId) const;
+
  protected:
   // Memory Pool used to track memory allocation of Arrow IPC payloads.
   // The actual allocation is delegated to options_.memory_pool.
