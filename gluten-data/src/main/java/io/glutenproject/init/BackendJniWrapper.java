@@ -16,13 +16,9 @@
  */
 package io.glutenproject.init;
 
-public class BackendJniWrapper extends JniInitialized {
+public class BackendJniWrapper {
 
   private BackendJniWrapper() {}
 
   public static native void initializeBackend(byte[] configPlan);
-
-  public static native long createExecutionCtx();
-
-  public static native void releaseExecutionCtx(long handle);
 }
