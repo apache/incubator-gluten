@@ -51,8 +51,11 @@ public:
         if (parsed_args.size() != 2)
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
 
-        const auto * left_arg = parsed_args[0];
-        const auto * right_arg = parsed_args[1];
+        ActionsDAG::NodeRawConstPtrs new_args{parsed_args[0], parsed_args[1]};
+        plan_parser->convertBinaryArithmeticFunDecimalArgs(actions_dag, new_args, substrait_func);
+
+        const auto * left_arg = new_args[0];
+        const auto * right_arg = new_args[1];
 
         const auto * divide_node = toFunctionNode(actions_dag, "divide", {left_arg, right_arg});
         DataTypePtr result_type = divide_node->result_type;
@@ -61,7 +64,7 @@ public:
         const auto * null_node = addColumnToActionsDAG(actions_dag, makeNullable(result_type), Field{});
         const auto * is_zero_node = toFunctionNode(actions_dag, "equals", {right_arg, zero_node});
         const auto * result_node = toFunctionNode(actions_dag, "if", {is_zero_node, null_node, divide_node});
-        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
+        return result_node;
     }
 };
 
