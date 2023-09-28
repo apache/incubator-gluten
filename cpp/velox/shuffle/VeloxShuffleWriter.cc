@@ -601,10 +601,8 @@ arrow::Status VeloxShuffleWriter::stop() {
   {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingStop]);
     setSplitState(SplitState::kStop);
-    EVAL_START("write", options_.thread_id)
     RETURN_NOT_OK(partitionWriter_->stop());
     partitionBuffers_.clear();
-    EVAL_END("write", options_.thread_id, options_.task_attempt_id)
   }
 
   stat();
