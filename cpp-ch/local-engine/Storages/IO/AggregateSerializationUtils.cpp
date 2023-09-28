@@ -18,6 +18,7 @@
 #include <Common/Arena.h>
 
 #include <Columns/ColumnAggregateFunction.h>
+#include <Columns/ColumnFixedString.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeFixedString.h>
 
@@ -26,6 +27,14 @@ using namespace DB;
 
 namespace local_engine
 {
+
+bool isFixedSizeStateAggregateFunction(const String& name)
+{
+    // TODO max(String) should exclude, but fallback now
+    static const std::set<String> function_set = {"min", "max", "sum", "count", "avg"};
+    return function_set.contains(name);
+}
+
 DB::ColumnWithTypeAndName convertAggregateStateToFixedString(DB::ColumnWithTypeAndName col)
 {
     if (!isAggregateFunction(col.type))
@@ -33,13 +42,19 @@ DB::ColumnWithTypeAndName convertAggregateStateToFixedString(DB::ColumnWithTypeA
         return col;
     }
     const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*col.column);
+    // only support known fixed size aggregate function
+    if (!isFixedSizeStateAggregateFunction(aggregate_col->getAggregateFunction()->getName()))
+    {
+        return col;
+    }
     size_t state_size = aggregate_col->getAggregateFunction()->sizeOfData();
     auto res_type = std::make_shared<DataTypeFixedString>(state_size);
     auto res_col = res_type->createColumn();
-    res_col->reserve(aggregate_col->size());
+    PaddedPODArray<UInt8> & column_chars_t = assert_cast<ColumnFixedString &>(*res_col).getChars();
+    column_chars_t.reserve(aggregate_col->size() * state_size);
     for (const auto & item : aggregate_col->getData())
     {
-        res_col->insertData(item, state_size);
+        column_chars_t.insert_assume_reserved(item, item + state_size);
     }
     return DB::ColumnWithTypeAndName(std::move(res_col), res_type, col.name);
 }
