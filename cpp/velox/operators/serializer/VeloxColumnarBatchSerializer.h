@@ -28,7 +28,7 @@ namespace gluten {
 class VeloxColumnarBatchSerializer final : public ColumnarBatchSerializer {
  public:
   VeloxColumnarBatchSerializer(
-      arrow::MemoryPool* arrowPool,
+      std::shared_ptr<arrow::MemoryPool> arrowPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       struct ArrowSchema* cSchema);
 

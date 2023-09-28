@@ -38,7 +38,7 @@ struct ReaderOptions {
 
 class ShuffleReader {
  public:
-  explicit ShuffleReader(std::shared_ptr<arrow::Schema> schema, ReaderOptions options, arrow::MemoryPool* pool);
+  ShuffleReader(std::shared_ptr<arrow::Schema> schema, ReaderOptions options, std::shared_ptr<arrow::MemoryPool> pool);
 
   virtual ~ShuffleReader() = default;
 
@@ -59,10 +59,11 @@ class ShuffleReader {
     return deserializeTime_;
   }
 
-  arrow::MemoryPool* getPool() const;
+  const std::shared_ptr<arrow::MemoryPool>& getPool() const;
 
  protected:
-  arrow::MemoryPool* pool_;
+  std::shared_ptr<arrow::MemoryPool> pool_;
+
   int64_t decompressTime_ = 0;
   int64_t ipcTime_ = 0;
   int64_t deserializeTime_ = 0;

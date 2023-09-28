@@ -72,7 +72,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
 
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
     shuffleWriterOptions_.buffer_compress_threshold = 0;
-    shuffleWriterOptions_.memory_pool = arrowPool_.get();
+    shuffleWriterOptions_.memory_pool = arrowPool_;
 
     ShuffleTestParams params = GetParam();
     shuffleWriterOptions_.prefer_evict = params.prefer_evict;
@@ -172,7 +172,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     ReaderOptions options;
     options.compression_type = shuffleWriterOptions_.compression_type;
     options.compression_mode = shuffleWriterOptions_.compression_mode;
-    auto reader = std::make_shared<VeloxShuffleReader>(schema, options, arrowPool_.get(), pool_);
+    auto reader = std::make_shared<VeloxShuffleReader>(schema, options, arrowPool_, pool_);
     auto iter = reader->readStream(file_);
     while (iter->hasNext()) {
       auto vector = std::dynamic_pointer_cast<VeloxColumnarBatch>(iter->next())->getRowVector();
@@ -572,7 +572,7 @@ TEST_P(VeloxShuffleWriterTest, memoryLeak) {
 
   int32_t numPartitions = 2;
   shuffleWriterOptions_.buffer_size = 4;
-  shuffleWriterOptions_.memory_pool = pool.get();
+  shuffleWriterOptions_.memory_pool = pool;
   shuffleWriterOptions_.partitioning_name = "rr";
 
   ARROW_ASSIGN_OR_THROW(
@@ -594,7 +594,7 @@ TEST_P(VeloxShuffleWriterTest, spillFailWithOutOfMemory) {
 
   int32_t numPartitions = 2;
   shuffleWriterOptions_.buffer_size = 4;
-  shuffleWriterOptions_.memory_pool = pool.get();
+  shuffleWriterOptions_.memory_pool = pool;
   shuffleWriterOptions_.partitioning_name = "rr";
   ARROW_ASSIGN_OR_THROW(
       shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_, pool_));

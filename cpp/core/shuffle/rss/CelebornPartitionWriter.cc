@@ -60,7 +60,7 @@ arrow::Status CelebornPartitionWriter::writeArrowToOutputStream(int32_t partitio
   ARROW_ASSIGN_OR_RAISE(
       celebornBufferOs_,
       arrow::io::BufferOutputStream::Create(
-          shuffleWriter_->options().buffer_size, shuffleWriter_->options().memory_pool));
+          shuffleWriter_->options().buffer_size, shuffleWriter_->options().memory_pool.get()));
   int32_t metadataLength = 0; // unused
 #ifndef SKIPWRITE
   for (auto& payload : shuffleWriter_->partitionCachedRecordbatch()[partitionId]) {

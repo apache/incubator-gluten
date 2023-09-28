@@ -50,7 +50,7 @@ arrow::Status LocalPartitionWriterBase::openDataFile() {
   if (shuffleWriter_->options().buffered_write) {
     // Output stream buffer is neither partition buffer memory nor ipc memory.
     ARROW_ASSIGN_OR_RAISE(
-        dataFileOs_, arrow::io::BufferedOutputStream::Create(16384, shuffleWriter_->options().memory_pool, fout));
+        dataFileOs_, arrow::io::BufferedOutputStream::Create(16384, shuffleWriter_->options().memory_pool.get(), fout));
   } else {
     dataFileOs_ = fout;
   }

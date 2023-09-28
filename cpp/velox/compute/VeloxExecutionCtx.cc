@@ -212,7 +212,7 @@ void VeloxExecutionCtx::releaseDatasource(ResourceHandle handle) {
 ResourceHandle VeloxExecutionCtx::createShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
     ReaderOptions options,
-    arrow::MemoryPool* pool,
+    std::shared_ptr<arrow::MemoryPool> pool,
     MemoryManager* memoryManager) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return shuffleReaderHolder_.insert(std::make_shared<VeloxShuffleReader>(schema, options, pool, ctxVeloxPool));
@@ -228,7 +228,7 @@ void VeloxExecutionCtx::releaseShuffleReader(ResourceHandle handle) {
 
 std::unique_ptr<ColumnarBatchSerializer> VeloxExecutionCtx::createTempColumnarBatchSerializer(
     MemoryManager* memoryManager,
-    arrow::MemoryPool* arrowPool,
+    std::shared_ptr<arrow::MemoryPool> arrowPool,
     struct ArrowSchema* cSchema) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, ctxVeloxPool, cSchema);
@@ -236,7 +236,7 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxExecutionCtx::createTempColumnarBa
 
 ResourceHandle VeloxExecutionCtx::createColumnarBatchSerializer(
     MemoryManager* memoryManager,
-    arrow::MemoryPool* arrowPool,
+    std::shared_ptr<arrow::MemoryPool> arrowPool,
     struct ArrowSchema* cSchema) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return columnarBatchSerializerHolder_.insert(

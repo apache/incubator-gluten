@@ -126,19 +126,19 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
   virtual ResourceHandle createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
-      arrow::MemoryPool* pool,
+      std::shared_ptr<arrow::MemoryPool> pool,
       MemoryManager* memoryManager) = 0;
   virtual std::shared_ptr<ShuffleReader> getShuffleReader(ResourceHandle) = 0;
   virtual void releaseShuffleReader(ResourceHandle) = 0;
 
   virtual ResourceHandle createColumnarBatchSerializer(
       MemoryManager* memoryManager,
-      arrow::MemoryPool* arrowPool,
+      std::shared_ptr<arrow::MemoryPool> arrowPool,
       struct ArrowSchema* cSchema) = 0;
   // TODO: separate serializer and deserializer then remove this method.
   virtual std::unique_ptr<ColumnarBatchSerializer> createTempColumnarBatchSerializer(
       MemoryManager* memoryManager,
-      arrow::MemoryPool* arrowPool,
+      std::shared_ptr<arrow::MemoryPool> arrowPool,
       struct ArrowSchema* cSchema) = 0;
   virtual std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(ResourceHandle) = 0;
   virtual void releaseColumnarBatchSerializer(ResourceHandle) = 0;

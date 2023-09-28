@@ -17,6 +17,7 @@
 
 #include "VeloxMemoryManager.h"
 
+#include <execinfo.h>
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
@@ -198,7 +199,7 @@ VeloxMemoryManager::VeloxMemoryManager(
     std::unique_ptr<AllocationListener> listener)
     : MemoryManager(), name_(name), listener_(std::move(listener)) {
   glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_.get());
-  arrowPool_ = std::make_unique<ArrowMemoryPool>(glutenAlloc_.get());
+  arrowPool_ = std::make_shared<ArrowMemoryPool>(glutenAlloc_.get());
 
   auto options = getOptions(allocator);
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(options);

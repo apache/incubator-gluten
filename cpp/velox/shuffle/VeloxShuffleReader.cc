@@ -363,7 +363,7 @@ RowVectorPtr readRowVector(
 class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
  public:
   VeloxShuffleReaderOutStream(
-      arrow::MemoryPool* pool,
+      const std::shared_ptr<arrow::MemoryPool>& pool,
       const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
       const ReaderOptions& options,
       const RowTypePtr& rowType,
@@ -395,7 +395,7 @@ class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
         options_.compression_mode,
         decompressTime,
         deserializeTime,
-        pool_,
+        pool_.get(),
         veloxPool_.get());
 
     decompressionTimeAccumulator_(decompressTime);
@@ -404,7 +404,7 @@ class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
   }
 
  private:
-  arrow::MemoryPool* pool_;
+  std::shared_ptr<arrow::MemoryPool> pool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   ReaderOptions options_;
   facebook::velox::RowTypePtr rowType_;
@@ -454,7 +454,7 @@ std::string getCompressionType(arrow::Compression::type type) {
 VeloxShuffleReader::VeloxShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
     ReaderOptions options,
-    arrow::MemoryPool* pool,
+    std::shared_ptr<arrow::MemoryPool> pool,
     std::shared_ptr<memory::MemoryPool> veloxPool)
     : ShuffleReader(schema, options, pool), veloxPool_(std::move(veloxPool)) {
   rowType_ = asRowType(gluten::fromArrowSchema(schema));
