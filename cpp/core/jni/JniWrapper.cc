@@ -81,7 +81,7 @@ static jmethodID shuffleReaderMetricsSetDeserializeTime;
 
 class JavaInputStreamAdaptor final : public arrow::io::InputStream {
  public:
-  JavaInputStreamAdaptor(JNIEnv* env, std::shared_ptr<arrow::MemoryPool> pool, jobject jniIn) : pool_(pool) {
+  JavaInputStreamAdaptor(JNIEnv* env, arrow::MemoryPool* pool, jobject jniIn) : pool_(pool) {
     // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
     if (env->GetJavaVM(&vm_) != JNI_OK) {
       std::string errorMessage = "Unable to get JavaVM instance";
@@ -138,7 +138,7 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
   }
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> Read(int64_t nbytes) override {
-    GLUTEN_ASSIGN_OR_THROW(auto buffer, arrow::AllocateResizableBuffer(nbytes, pool_.get()))
+    GLUTEN_ASSIGN_OR_THROW(auto buffer, arrow::AllocateResizableBuffer(nbytes, pool_))
     GLUTEN_ASSIGN_OR_THROW(int64_t bytes_read, Read(nbytes, buffer->mutable_data()))
     GLUTEN_THROW_NOT_OK(buffer->Resize(bytes_read, false));
     buffer->ZeroPadding();
@@ -146,7 +146,7 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
   }
 
  private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
+  arrow::MemoryPool* pool_;
   JavaVM* vm_;
   jobject jniIn_;
   bool closed_ = false;
@@ -985,7 +985,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
 
   auto pool = memoryManager->getArrowMemoryPool();
   ReaderOptions options = ReaderOptions::defaults();
-  options.ipc_read_options.memory_pool = pool.get();
+  options.ipc_read_options.memory_pool = pool;
   options.ipc_read_options.use_threads = false;
   if (compressionType != nullptr) {
     options.compression_type = getCompressionType(env, compressionType);

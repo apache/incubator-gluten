@@ -28,8 +28,7 @@ class MemoryManager {
 
   virtual ~MemoryManager() = default;
 
-  // TODO: return raw pointer, caller should not care its lifecycle.
-  virtual std::shared_ptr<arrow::MemoryPool> getArrowMemoryPool() = 0;
+  virtual arrow::MemoryPool* getArrowMemoryPool() = 0;
 
   virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
 
