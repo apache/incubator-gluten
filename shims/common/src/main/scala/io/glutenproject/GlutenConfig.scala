@@ -263,6 +263,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
   def taskId: Long = conf.getConf(BENCHMARK_TASK_TASK_ID)
   def textInputMaxBlockSize: Long = conf.getConf(TEXT_INPUT_ROW_MAX_BLOCK_SIZE)
+  def textIputEmptyAsDefault: Boolean = conf.getConf(TEXT_INPUT_EMPTY_AS_DEFAULT)
   def enableParquetRowGroupMaxMinIndex: Boolean =
     conf.getConf(ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX)
 
@@ -1210,6 +1211,13 @@ object GlutenConfig {
       .doc("the max block size for text input rows")
       .longConf
       .createWithDefault(8192);
+
+  val TEXT_INPUT_EMPTY_AS_DEFAULT =
+    buildConf("spark.gluten.sql.text.input.empty.as.default")
+      .internal()
+      .doc("treat empty fields in CSV input as default values.")
+      .booleanConf
+      .createWithDefault(false);
 
   val ENABLE_PARQUET_ROW_GROUP_MAX_MIN_INDEX =
     buildConf("spark.gluten.sql.parquet.maxmin.index")
