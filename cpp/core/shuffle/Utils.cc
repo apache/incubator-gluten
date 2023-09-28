@@ -15,48 +15,23 @@
  * limitations under the License.
  */
 
-#pragma once
-
-#include <arrow/array.h>
-#include <arrow/filesystem/filesystem.h>
-#include <arrow/filesystem/localfs.h>
-#include <arrow/filesystem/path_util.h>
-#include <arrow/ipc/writer.h>
-#include <arrow/type.h>
-#include <arrow/util/io_util.h>
+#include "shuffle/Utils.h"
 
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <fcntl.h>
-#include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <numeric>
 #include <sstream>
 #include <thread>
 
-namespace gluten {
-
-const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";
-
-#define EVAL_START(name, thread_id) \
-  //  auto eval_start = std::chrono::duration_cast<std::chrono::nanoseconds>(    \
-                        std::chrono::system_clock::now().time_since_epoch()) \
-                        .count();
-
-#define EVAL_END(name, thread_id, task_attempt_id) \
-  //  std::cout << "xgbtck " << name << " " << eval_start << " "            \
-            << std::chrono::duration_cast<std::chrono::nanoseconds>(    \
-                   std::chrono::system_clock::now().time_since_epoch()) \
-                       .count() -                                       \
-                   eval_start                                           \
-            << " " << thread_id << " " << task_attempt_id << std::endl;
-
-static inline std::string generateUuid() {
+std::string gluten::generateUuid() {
   boost::uuids::random_generator generator;
   return boost::uuids::to_string(generator());
 }
 
-static inline std::string getSpilledShuffleFileDir(const std::string& configuredDir, int32_t subDirId) {
+std::string gluten::getSpilledShuffleFileDir(const std::string& configuredDir, int32_t subDirId) {
   auto fs = std::make_shared<arrow::fs::LocalFileSystem>();
   std::stringstream ss;
   ss << std::setfill('0') << std::setw(2) << std::hex << subDirId;
@@ -64,7 +39,7 @@ static inline std::string getSpilledShuffleFileDir(const std::string& configured
   return dir;
 }
 
-static inline arrow::Result<std::vector<std::string>> getConfiguredLocalDirs() {
+arrow::Result<std::vector<std::string>> gluten::getConfiguredLocalDirs() {
   auto joinedDirsC = std::getenv(kGlutenSparkLocalDirs.c_str());
   if (joinedDirsC != nullptr && strcmp(joinedDirsC, "") > 0) {
     auto joinedDirs = std::string(joinedDirsC);
@@ -89,7 +64,7 @@ static inline arrow::Result<std::vector<std::string>> getConfiguredLocalDirs() {
   }
 }
 
-static inline arrow::Result<std::string> createTempShuffleFile(const std::string& dir) {
+arrow::Result<std::string> gluten::createTempShuffleFile(const std::string& dir) {
   if (dir.length() == 0) {
     return arrow::Status::Invalid("Failed to create spilled file, got empty path.");
   }
@@ -120,7 +95,7 @@ static inline arrow::Result<std::string> createTempShuffleFile(const std::string
   return filePath;
 }
 
-static inline arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShuffleWriterTypeId(
+arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> gluten::toShuffleWriterTypeId(
     const std::vector<std::shared_ptr<arrow::Field>>& fields) {
   std::vector<std::shared_ptr<arrow::DataType>> shuffleWriterTypeId;
   std::pair<std::string, arrow::Type::type> fieldTypeNotImplemented;
@@ -163,7 +138,7 @@ static inline arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShu
   return shuffleWriterTypeId;
 }
 
-static inline int64_t getBufferSizes(const std::shared_ptr<arrow::Array>& array) {
+int64_t gluten::getBufferSizes(const std::shared_ptr<arrow::Array>& array) {
   const auto& buffers = array->data()->buffers;
   return std::accumulate(
       std::cbegin(buffers), std::cend(buffers), 0LL, [](int64_t sum, const std::shared_ptr<arrow::Buffer>& buf) {
@@ -171,4 +146,11 @@ static inline int64_t getBufferSizes(const std::shared_ptr<arrow::Array>& array)
       });
 }
 
-} // namespace gluten
+arrow::Status gluten::writeEos(arrow::io::OutputStream* os) {
+  // write EOS
+  constexpr int32_t kIpcContinuationToken = -1;
+  constexpr int32_t kZeroLength = 0;
+  RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(int32_t)));
+  RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(int32_t)));
+  return arrow::Status::OK();
+}
