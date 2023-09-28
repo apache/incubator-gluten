@@ -295,7 +295,8 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
     val sql =
       """
         |select a, b from (
-        |select n_regionkey as a, collect_set(if(n_regionkey=0, n_name, null)) as set from nation group by n_regionkey)
+        |select n_regionkey as a, collect_set(if(n_regionkey=0, n_name, null))
+        | as set from nation group by n_regionkey)
         |lateral view explode(set) as b
         |order by a, b
         |""".stripMargin
