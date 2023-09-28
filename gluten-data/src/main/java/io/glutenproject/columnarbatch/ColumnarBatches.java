@@ -67,8 +67,8 @@ public class ColumnarBatches {
       // zero-column batch considered as heavy batch
       return BatchType.HEAVY;
     }
-    final ColumnVector col0 = batch.column(0);
 
+    final ColumnVector col0 = batch.column(0);
     if (col0 instanceof IndicatorVector) {
       // it's likely a light batch
       for (int i = 1; i < batch.numCols(); i++) {
