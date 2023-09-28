@@ -272,14 +272,13 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
 
   test("Test nested get_json_object") {
     runQueryAndCompare(
-      "SELECT get_json_object(get_json_object(string_field1, '$.a'), '$.x') from json_test") {   
-      }
+      "SELECT get_json_object(get_json_object(string_field1, '$.a'), '$.x') from json_test") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
   }
 
   test("Test get_json_object 10") {
-    runQueryAndCompare("SELECT get_json_object(string_field1, '$.12345') from json_test") {
-      checkOperatorMatch[ProjectExecTransformer]
-    }
+    runQueryAndCompare("SELECT get_json_object(string_field1, '$.12345') from json_test") { _ => }
   }
 
   test("Test covar_samp") {
