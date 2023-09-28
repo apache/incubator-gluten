@@ -20,11 +20,12 @@ import io.glutenproject.GlutenConfig;
 import io.glutenproject.memory.MemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 import io.glutenproject.memory.memtarget.MemoryTargets;
-import io.glutenproject.memory.memtarget.spark.Spiller;
-import io.glutenproject.memory.memtarget.spark.Spillers;
+import io.glutenproject.memory.memtarget.Spiller;
+import io.glutenproject.memory.memtarget.Spillers;
 import io.glutenproject.proto.MemoryUsageStats;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
 
 import java.util.Collections;
@@ -61,16 +62,17 @@ public final class NativeMemoryManagers {
     // memory target
     final double overAcquiredRatio = GlutenConfig.getConf().memoryOverAcquiredRatio();
     final long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
+    final TaskMemoryManager tmm = TaskResources.getLocalTaskContext().taskMemoryManager();
     final MemoryTarget target =
         MemoryTargets.throwOnOom(
             MemoryTargets.overAcquire(
                 MemoryTargets.newConsumer(
-                    TaskResources.getLocalTaskContext().taskMemoryManager(),
+                    tmm,
                     name,
                     // call memory manager's shrink API, if no good then call the spiller
                     Spillers.withOrder(
                         Spillers.withMinSpillSize(
-                            (size) ->
+                            (self, size) ->
                                 Optional.of(out.get())
                                     .map(nmm -> nmm.shrink(size))
                                     .orElseThrow(
@@ -125,6 +127,8 @@ public final class NativeMemoryManagers {
                                                 + "memory manager constructor."));
                           }
                         })),
+                MemoryTargets.newConsumer(
+                    tmm, "OverAcquire.DummyTarget", MemoryTarget::repay, Collections.emptyMap()),
                 overAcquiredRatio));
     // listener
     ManagedReservationListener rl =

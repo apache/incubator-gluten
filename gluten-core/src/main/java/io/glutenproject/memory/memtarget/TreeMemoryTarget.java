@@ -14,19 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.memtarget.spark;
+package io.glutenproject.memory.memtarget;
 
-import io.glutenproject.memory.memtarget.MemoryTarget;
-import io.glutenproject.proto.MemoryUsageStats;
+import io.glutenproject.memory.MemoryUsageStatsBuilder;
+import io.glutenproject.memory.memtarget.spark.TreeMemoryConsumer;
 
-import org.apache.spark.memory.TaskMemoryManager;
+import java.util.Map;
 
-// Memory target that is bound to Spark TMM (task memory manager). This is typically a Spark
-// consumer.
-public interface TaskMemoryTarget extends MemoryTarget {
-  TaskMemoryManager getTaskMemoryManager();
+/** An abstract for both {@link TreeMemoryConsumer} and it's non-consumer children nodes. */
+public interface TreeMemoryTarget extends MemoryTarget, KnownNameAndStats {
+  long CAPACITY_UNLIMITED = Long.MAX_VALUE;
 
-  String name();
+  TreeMemoryTarget newChild(
+      String name,
+      long capacity,
+      Spiller spiller,
+      Map<String, MemoryUsageStatsBuilder> virtualChildren);
 
-  MemoryUsageStats stats();
+  Map<String, TreeMemoryTarget> children();
+
+  TreeMemoryTarget parent();
+
+  Spiller getNodeSpiller();
 }

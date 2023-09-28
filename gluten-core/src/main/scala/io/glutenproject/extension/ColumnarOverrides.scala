@@ -701,7 +701,7 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
   }
 
   private def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
-    case _: BatchScanExec | _: FileSourceScanExec =>
+    case _: BatchScanExec | _: DataSourceScanExec =>
       !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
     case _: InMemoryTableScanExec =>
       if (BackendsApiManager.isVeloxBackend && GlutenConfig.getConf.columnarTableCacheEnabled) {

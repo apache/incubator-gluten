@@ -51,7 +51,7 @@ arrow::Status CelebornPartitionWriter::processPayload(
   ARROW_ASSIGN_OR_RAISE(
       auto celebornBufferOs,
       arrow::io::BufferOutputStream::Create(
-          shuffleWriter_->options().buffer_size, shuffleWriter_->options().memory_pool.get()));
+          shuffleWriter_->options().buffer_size, shuffleWriter_->options().memory_pool));
   int32_t metadataLength = 0; // unused
 #ifndef SKIPWRITE
   RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(

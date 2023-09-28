@@ -14,19 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.exec
+package io.glutenproject.memory.memtarget;
 
-import org.apache.spark.util.TaskResource
+public interface Spiller {
+  Spiller NO_OP =
+      new Spiller() {
+        @Override
+        public long spill(MemoryTarget self, long size) {
+          return 0L;
+        }
+      };
 
-class ExecutionCtx private[exec] () extends TaskResource {
-
-  private val handle = ExecutionCtxJniWrapper.createExecutionCtx()
-
-  def getHandle: Long = handle
-
-  override def release(): Unit = ExecutionCtxJniWrapper.releaseExecutionCtx(handle)
-
-  override def priority(): Int = 10
-
-  override def resourceName(): String = s"ExecutionCtx_" + handle
+  long spill(MemoryTarget self, long size);
 }

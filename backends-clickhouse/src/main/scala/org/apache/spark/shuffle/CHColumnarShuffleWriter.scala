@@ -18,7 +18,7 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocators
-import io.glutenproject.memory.memtarget.spark.Spiller
+import io.glutenproject.memory.memtarget.{MemoryTarget, Spiller}
 import io.glutenproject.vectorized._
 
 import org.apache.spark.SparkEnv
@@ -105,7 +105,7 @@ class CHColumnarShuffleWriter[K, V](
       CHNativeMemoryAllocators.createSpillable(
         "ShuffleWriter",
         new Spiller() {
-          override def spill(size: Long): Long = {
+          override def spill(self: MemoryTarget, size: Long): Long = {
             if (nativeSplitter == 0) {
               throw new IllegalStateException(
                 "Fatal: spill() called before a shuffle writer " +
