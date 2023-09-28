@@ -478,7 +478,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     spark.sql(data_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql_1, true, { _ => })
     compareResultsAgainstVanillaSpark(select_sql_2, true, { _ => })
-    
+
     spark.sql(table_drop_sql)
   }
 }
