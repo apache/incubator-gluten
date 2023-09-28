@@ -90,32 +90,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
    */
   private def genHashAggregateExec(plan: HashAggregateExec): SparkPlan = {
     val newChild = replaceWithTransformerPlan(plan.child)
-    // If child's output is empty, fallback or offload both the child and aggregation.
-    if (plan.child.output.isEmpty && BackendsApiManager.getSettings.fallbackAggregateWithChild()) {
-      newChild match {
-        case _: TransformSupport =>
-          // If the child is transformable, transform aggregation as well.
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              newChild
-            )
-        case _ =>
-          // If the child is not transformable, transform the grandchildren only.
-          logOnLevel(
-            columnarConf.validationLogLevel,
-            s"Validation failed for plan: ${plan.nodeName}, due to: empty child output.")
-          val grandChildren = plan.child.children.map(child => replaceWithTransformerPlan(child))
-          plan.withNewChildren(Seq(plan.child.withNewChildren(grandChildren)))
-      }
-    } else {
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+    def transformHashAggregate(): GlutenPlan = {
       BackendsApiManager.getSparkPlanExecApiInstance
         .genHashAggregateExecTransformer(
           plan.requiredChildDistributionExpressions,
@@ -126,6 +101,26 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           plan.resultExpressions,
           newChild
         )
+    }
+
+    // If child's output is empty, fallback or offload both the child and aggregation.
+    if (plan.child.output.isEmpty && BackendsApiManager.getSettings.fallbackAggregateWithChild()) {
+      newChild match {
+        case _: TransformSupport =>
+          // If the child is transformable, transform aggregation as well.
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          transformHashAggregate()
+        case i: InMemoryTableScanExec if InMemoryTableScanHelper.isGlutenTableCache(i) =>
+          transformHashAggregate()
+        case _ =>
+          // If the child is not transformable, transform the grandchildren only.
+          TransformHints.tagNotTransformable(plan, "child output schema is empty")
+          val grandChildren = plan.child.children.map(child => replaceWithTransformerPlan(child))
+          plan.withNewChildren(Seq(plan.child.withNewChildren(grandChildren)))
+      }
+    } else {
+      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+      transformHashAggregate()
     }
   }
 
@@ -684,6 +679,14 @@ case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[Spark
   }
 }
 
+object InMemoryTableScanHelper {
+  def isGlutenTableCache(i: InMemoryTableScanExec): Boolean = {
+    // `ColumnarCachedBatchSerializer` is at velox module, so use class name here
+    i.relation.cacheBuilder.serializer.getClass.getSimpleName == "ColumnarCachedBatchSerializer" &&
+    i.supportsColumnar
+  }
+}
+
 // This rule will try to add RowToColumnarExecBase and ColumnarToRowExec
 // to support vanilla columnar scan.
 case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[SparkPlan] {
@@ -703,8 +706,8 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
   private def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
     case _: BatchScanExec | _: DataSourceScanExec =>
       !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
-    case _: InMemoryTableScanExec =>
-      if (BackendsApiManager.isVeloxBackend && GlutenConfig.getConf.columnarTableCacheEnabled) {
+    case i: InMemoryTableScanExec =>
+      if (InMemoryTableScanHelper.isGlutenTableCache(i)) {
         // `InMemoryTableScanExec` do not need extra RowToColumnar or ColumnarToRow
         false
       } else {
