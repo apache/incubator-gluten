@@ -64,7 +64,6 @@ struct ShuffleTestParams {
   }
 };
 
-namespace {
 class LocalRssClient : public RssClient {
  public:
   LocalRssClient(std::string dataFile) : dataFile_(dataFile) {}
@@ -112,7 +111,6 @@ class LocalRssClient : public RssClient {
   std::vector<std::unique_ptr<arrow::ResizableBuffer>> partitionBuffers_;
   std::map<uint32_t, uint32_t> partitionIdx_;
 };
-} // namespace
 
 class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams>, public velox::test::VectorTestBase {
  protected:
@@ -890,6 +888,131 @@ TEST_P(VeloxShuffleWriterTest, SinglePartitioningNoShrink) {
   // No more space to spill or shrink.
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(1, &evicted));
   ASSERT_EQ(evicted, 0);
+  ASSERT_NOT_OK(shuffleWriter_->stop());
+}
+
+TEST_P(VeloxShuffleWriterTest, PreAllocPartitionBuffer1) {
+  int32_t numPartitions = 2;
+  shuffleWriterOptions_.buffer_size = 2; // Set a small buffer size.
+  shuffleWriterOptions_.buffer_realloc_threshold = 0; // Force re-alloc on buffer size changed.
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_, pool_));
+
+  // First spilt no null.
+  std::vector<VectorPtr> noNull = {
+      makeFlatVector<int8_t>({0, 1}),
+      makeFlatVector<int8_t>({0, -1}),
+      makeFlatVector<int32_t>({0, 100}),
+      makeFlatVector<int64_t>({0, 1}),
+      makeFlatVector<float>({0, 0.142857}),
+      makeFlatVector<bool>({false, true}),
+      makeFlatVector<velox::StringView>({"", "alice"}),
+      makeFlatVector<velox::StringView>({"alice", ""}),
+  };
+  auto inputNoNull = makeRowVector(noNull);
+
+  // Second split has null. Continue filling current partition buffers.
+  std::vector<VectorPtr> intHasNull = {
+      makeNullableFlatVector<int8_t>({std::nullopt, 1}),
+      makeNullableFlatVector<int8_t>({std::nullopt, -1}),
+      makeNullableFlatVector<int32_t>({std::nullopt, 100}),
+      makeNullableFlatVector<int64_t>({0, 1}),
+      makeNullableFlatVector<float>({0, 0.142857}),
+      makeNullableFlatVector<bool>({false, true}),
+      makeNullableFlatVector<velox::StringView>({"", "alice"}),
+      makeNullableFlatVector<velox::StringView>({"alice", ""}),
+  };
+
+  auto inputHasNull = makeRowVector(intHasNull);
+  // Split first input no null.
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputNoNull));
+  // Split second input, continue filling but update null.
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputHasNull));
+
+  // Split first input again.
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputNoNull));
+  // Check when buffer is full, evict current buffers and reuse.
+  auto cachedPayloadSize = shuffleWriter_->cachedPayloadSize();
+  auto partitionBufferBeforeEvict = shuffleWriter_->partitionBufferSize();
+  int64_t evicted;
+  ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(cachedPayloadSize, &evicted));
+  // Check only cached data being spilled.
+  ASSERT_EQ(evicted, cachedPayloadSize);
+  ARROW_CHECK_EQ(shuffleWriter_->partitionBufferSize(), partitionBufferBeforeEvict);
+
+  // Split more data with null. New buffer size is larger.
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+
+  // Split more data with null. New buffer size is smaller.
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector2_));
+
+  // Split more data with null. New buffer size is larger and current data is preserved.
+  // Evict cached data first.
+  ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(shuffleWriter_->cachedPayloadSize(), &evicted));
+  // Set a large buffer size.
+  shuffleWriter_->options().buffer_size = 100;
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+  // No data got evicted so the cached size is 0.
+  ASSERT_EQ(shuffleWriter_->cachedPayloadSize(), 0);
+
+  ASSERT_NOT_OK(shuffleWriter_->stop());
+}
+
+TEST_P(VeloxShuffleWriterTest, PreAllocPartitionBuffer2) {
+  int32_t numPartitions = 2;
+  shuffleWriterOptions_.buffer_size = 2; // Set a small buffer size.
+  shuffleWriterOptions_.buffer_realloc_threshold = 100; // Set a large threshold to force buffer reused.
+  shuffleWriterOptions_.partitioning_name = "rr";
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(numPartitions, partitionWriterCreator_, shuffleWriterOptions_, pool_));
+
+  // First spilt no null.
+  std::vector<VectorPtr> noNull = {
+      makeFlatVector<int8_t>({0, 1}),
+      makeFlatVector<int8_t>({0, -1}),
+      makeFlatVector<int32_t>({0, 100}),
+      makeFlatVector<int64_t>({0, 1}),
+      makeFlatVector<float>({0, 0.142857}),
+      makeFlatVector<bool>({false, true}),
+      makeFlatVector<velox::StringView>({"", "alice"}),
+      makeFlatVector<velox::StringView>({"alice", ""}),
+  };
+  auto inputNoNull = makeRowVector(noNull);
+
+  // Second split has null int.
+  std::vector<VectorPtr> fixedWithdHasNull = {
+      makeNullableFlatVector<int8_t>({0, 1, std::nullopt, std::nullopt}),
+      makeNullableFlatVector<int8_t>({0, -1, std::nullopt, std::nullopt}),
+      makeNullableFlatVector<int32_t>({0, 100, std::nullopt, std::nullopt}),
+      makeNullableFlatVector<int64_t>({0, 1, std::nullopt, std::nullopt}),
+      makeNullableFlatVector<float>({0, 0.142857, std::nullopt, std::nullopt}),
+      makeNullableFlatVector<bool>({false, true, std::nullopt, std::nullopt}),
+      makeNullableFlatVector<velox::StringView>({"", "alice", "", ""}),
+      makeNullableFlatVector<velox::StringView>({"alice", "", "", ""}),
+  };
+  auto inputFixedWidthHasNull = makeRowVector(fixedWithdHasNull);
+
+  // Third split has null string.
+  std::vector<VectorPtr> stringHasNull = {
+      makeNullableFlatVector<int8_t>({0, 1}),
+      makeNullableFlatVector<int8_t>({0, -1}),
+      makeNullableFlatVector<int32_t>({0, 100}),
+      makeNullableFlatVector<int64_t>({0, 1}),
+      makeNullableFlatVector<float>({0, 0.142857}),
+      makeNullableFlatVector<bool>({false, true}),
+      makeNullableFlatVector<velox::StringView>({std::nullopt, std::nullopt}),
+      makeNullableFlatVector<velox::StringView>({std::nullopt, std::nullopt}),
+  };
+  auto inputStringHasNull = makeRowVector(stringHasNull);
+
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputNoNull));
+  // Split more data with null. Already filled + to be filled > buffer size, Buffer is resized larger.
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputFixedWidthHasNull));
+  // Split more data with null. Already filled + to be filled > buffer size, newSize is smaller so buffer is not
+  // resized.
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputStringHasNull));
+
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
