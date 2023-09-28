@@ -334,7 +334,7 @@ void WindowRelParser::tryAddProjectionBeforeWindow()
             win_info.arg_column_types.emplace_back(arg_node->result_type);
             actions_dag->addOrReplaceInOutputs(*arg_node);
         } 
-        win_info.params = win_info.function_parser->parseFunctionParameters(win_info.parser_func_info);       
+        win_info.params = win_info.function_parser->parseFunctionParameters(win_info.parser_func_info, arg_nodes);       
     }
 
     if (actions_dag->dumpDAG() != dag_footprint)

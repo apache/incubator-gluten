@@ -23,13 +23,11 @@
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
 #include <arrow/type_fwd.h>
-#include <arrow/util/io_util.h>
 #include <benchmark/benchmark.h>
 #include <execinfo.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/file_reader.h>
 #include <sched.h>
-#include <sys/mman.h>
 
 #include <chrono>
 #include <iostream>
@@ -306,6 +304,7 @@ class BenchmarkCompression {
           GLUTEN_ASSIGN_OR_THROW(
               auto len,
               codec->Decompress(buffers[j]->size() - 8, buffers[j]->data() + 8, outputSize, out->mutable_data()));
+          (void)len;
         }
       }
     }

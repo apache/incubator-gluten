@@ -78,33 +78,22 @@ public:
         if (!array_type)
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "First argument for function {} must be an array", getName());
 
-        auto is_arr_nullable = arr_arg->result_type->isNullable();
-        auto is_val_nullable = val_arg->result_type->isNullable();
-        auto is_arr_elem_nullable = array_type->getNestedType()->isNullable();
-
-        if (!is_arr_nullable && !is_val_nullable && !is_arr_elem_nullable)
-        {
-            const auto * has_func_node = toFunctionNode(actions_dag, ch_function_name, {arr_arg, val_arg});
-            return convertNodeTypeIfNeeded(substrait_func, has_func_node, actions_dag);
-        }
-
         // has(assertNotNull(arr), value)
         const auto * arr_not_null_node = toFunctionNode(actions_dag, "assumeNotNull", {arr_arg});
         const auto * has_arr_value_node = toFunctionNode(actions_dag, ch_function_name, {arr_not_null_node, val_arg});
 
         // has(assertNotNull(arr), null)
-        const auto * arr_elem_null_const_node = addColumnToActionsDAG(actions_dag, array_type->getNestedType(), Field{});
+        const auto * arr_elem_null_const_node = addColumnToActionsDAG(actions_dag, makeNullable(array_type->getNestedType()), Field{});
         const auto * has_arr_null_node = toFunctionNode(actions_dag, ch_function_name, {arr_not_null_node, arr_elem_null_const_node});
 
         // should return nullable result
-        DataTypePtr wrap_arr_nullable_type = wrapNullableType(true, has_arr_value_node->result_type);
-        DataTypePtr wrap_boolean_nullable_type = wrapNullableType(true, std::make_shared<DataTypeUInt8>());
-        const auto * null_const_node = addColumnToActionsDAG(actions_dag, wrap_arr_nullable_type, Field{});
-        const auto * true_node = addColumnToActionsDAG(actions_dag, wrap_boolean_nullable_type, 1);
-        const auto * false_node = addColumnToActionsDAG(actions_dag, wrap_boolean_nullable_type, 0);
-
         const auto * arr_is_null_node = toFunctionNode(actions_dag, "isNull", {arr_arg});
         const auto * val_is_null_node = toFunctionNode(actions_dag, "isNull", {val_arg});
+
+        auto result_type = makeNullable(std::make_shared<DataTypeUInt8>());
+        const auto * null_const_node = addColumnToActionsDAG(actions_dag, result_type, Field{});
+        const auto * true_node = addColumnToActionsDAG(actions_dag, result_type, 1);
+        const auto * false_node = addColumnToActionsDAG(actions_dag, result_type, 0);
 
         const auto * multi_if_node = toFunctionNode(actions_dag, "multiIf", {
             arr_is_null_node,

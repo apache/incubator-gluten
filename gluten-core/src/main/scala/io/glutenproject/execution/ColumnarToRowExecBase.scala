@@ -17,10 +17,13 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import io.glutenproject.extension.GlutenPlan
 
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
 
 abstract class ColumnarToRowExecBase(child: SparkPlan)
@@ -31,12 +34,15 @@ abstract class ColumnarToRowExecBase(child: SparkPlan)
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genColumnarToRowMetrics(sparkContext)
 
-  override protected def doValidateInternal(): ValidationResult = {
-    buildCheck()
-    ValidationResult.ok
-  }
+  final override def output: Seq[Attribute] = child.output
 
-  def buildCheck(): Unit
+  final override def outputPartitioning: Partitioning = child.outputPartitioning
+
+  final override def outputOrdering: Seq[SortOrder] = child.outputOrdering
+
+  final override def doExecuteBroadcast[T](): Broadcast[T] = {
+    child.executeBroadcast()
+  }
 
   def doExecuteInternal(): RDD[InternalRow]
 

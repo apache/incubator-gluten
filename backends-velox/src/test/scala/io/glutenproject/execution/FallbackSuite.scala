@@ -19,7 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.{SparkPlan, VeloxColumnarToRowExec}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec}
 
 class FallbackSuite extends WholeStageTransformerSuite with AdaptiveSparkPlanHelper {

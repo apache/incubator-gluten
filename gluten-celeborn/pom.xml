@@ -11,19 +11,20 @@
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>gluten-celeborn</artifactId>
+  <packaging>pom</packaging>
   <name>Gluten Celeborn</name>
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.celeborn</groupId>
-      <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
-      <version>${celeborn.version}</version>
+      <groupId>io.glutenproject</groupId>
+      <artifactId>gluten-core</artifactId>
+      <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>io.glutenproject</groupId>
-      <artifactId>gluten-data</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.apache.celeborn</groupId>
+      <artifactId>celeborn-client-spark-${spark.major.version}-shaded_${scala.binary.version}</artifactId>
+      <version>${celeborn.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -39,33 +40,48 @@
   </dependencies>
 
   <build>
-    <outputDirectory>target/scala-${scala.binary.version}/classes</outputDirectory>
-    <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
-    <plugins>
-      <plugin>
-        <groupId>net.alchim31.maven</groupId>
-        <artifactId>scala-maven-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>com.diffplug.spotless</groupId>
-        <artifactId>spotless-maven-plugin</artifactId>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-      </plugin>
-    </plugins>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>net.alchim31.maven</groupId>
+          <artifactId>scala-maven-plugin</artifactId>
+          <configuration>
+            <displayCmd>true</displayCmd>
+            <jvmArgs>
+              <jvmArg>-Xss128m</jvmArg>
+            </jvmArgs>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.scalastyle</groupId>
+          <artifactId>scalastyle-maven-plugin</artifactId>
+        </plugin>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+        </plugin>
+      </plugins>
+    </pluginManagement>
   </build>
+
+  <profiles>
+    <profile>
+      <id>backends-velox</id>
+      <properties>
+      </properties>
+      <modules>
+        <module>velox</module>
+        <module>common</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>backends-clickhouse</id>
+      <properties>
+      </properties>
+      <modules>
+        <module>clickhouse</module>
+        <module>common</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>

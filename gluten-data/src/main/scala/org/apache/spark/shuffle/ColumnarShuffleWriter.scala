@@ -18,14 +18,15 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.memtarget.spark.Spiller
+import io.glutenproject.memory.memtarget.MemoryTarget
+import io.glutenproject.memory.memtarget.Spiller
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.SHUFFLE_COMPRESS
-import org.apache.spark.memory.{MemoryConsumer, SparkMemoryUtil}
+import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, Utils}
@@ -74,11 +75,11 @@ class ColumnarShuffleWriter[K, V](
   private val bufferCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBufferCompressThreshold
 
-  private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
-
   private val writeEOS = GlutenConfig.getConf.columnarShuffleWriteEOS
 
-  private val jniWrapper = new ShuffleWriterJniWrapper
+  private val reallocThreshold = GlutenConfig.getConf.columnarShuffleReallocThreshold
+
+  private val jniWrapper = ShuffleWriterJniWrapper.create()
 
   private var nativeShuffleWriter: Long = -1L
 
@@ -91,11 +92,8 @@ class ColumnarShuffleWriter[K, V](
   private val taskContext: TaskContext = TaskContext.get()
 
   private def availableOffHeapPerTask(): Long = {
-    // FIXME Is this calculation always reliable ? E.g. if dynamic allocation is enabled
-    val executorCores = SparkResourceUtil.getExecutorCores(conf)
-    val taskCores = conf.getInt("spark.task.cpus", 1)
     val perTask =
-      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / (executorCores / taskCores)
+      SparkMemoryUtil.getCurrentAvailableOffHeapMemory / SparkResourceUtil.getTaskSlots(conf)
     perTask
   }
 
@@ -125,7 +123,6 @@ class ColumnarShuffleWriter[K, V](
         if (nativeShuffleWriter == -1L) {
           nativeShuffleWriter = jniWrapper.make(
             dep.nativePartitioning,
-            availableOffHeapPerTask(),
             nativeBufferSize,
             compressionCodec,
             compressionCodecBackend,
@@ -134,12 +131,11 @@ class ColumnarShuffleWriter[K, V](
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
-            preferSpill,
             NativeMemoryManagers
               .create(
                 "ShuffleWriter",
                 new Spiller() {
-                  override def spill(size: Long, trigger: MemoryConsumer): Long = {
+                  override def spill(self: MemoryTarget, size: Long): Long = {
                     if (nativeShuffleWriter == -1L) {
                       throw new IllegalStateException(
                         "Fatal: spill() called before a shuffle writer " +
@@ -148,20 +144,22 @@ class ColumnarShuffleWriter[K, V](
                     }
                     logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
                     // fixme pass true when being called by self
-                    val spilled = jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
+                    val spilled =
+                      jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
                     logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
                     spilled
                   }
                 }
               )
-              .getNativeInstanceId,
+              .getNativeInstanceHandle,
             writeEOS,
+            reallocThreshold,
             handle,
             taskContext.taskAttemptId()
           )
         }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(nativeShuffleWriter, rows, handle)
+        val bytes = jniWrapper.split(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
         dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
@@ -188,6 +186,7 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
     dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
+    dep.metrics("uncompressedDataSize").add(splitResult.getRawPartitionLengths.sum)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 

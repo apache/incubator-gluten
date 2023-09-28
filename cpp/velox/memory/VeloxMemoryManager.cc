@@ -183,7 +183,7 @@ velox::memory::IMemoryManager::Options VeloxMemoryManager::getOptions(
   velox::memory::IMemoryManager::Options mmOptions{
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory, // the 1st capacity, Velox requires for a couple of different capacity numbers
-      true, // leak check
+      false, // leak check
       false, // debug
       veloxAlloc,
       [=]() { return std::make_unique<ListenableArbitrator>(arbitratorConfig, listener_.get()); },
@@ -193,12 +193,12 @@ velox::memory::IMemoryManager::Options VeloxMemoryManager::getOptions(
 }
 
 VeloxMemoryManager::VeloxMemoryManager(
-    std::string name,
+    const std::string& name,
     std::shared_ptr<MemoryAllocator> allocator,
     std::unique_ptr<AllocationListener> listener)
     : MemoryManager(), name_(name), listener_(std::move(listener)) {
   glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_.get());
-  arrowPool_ = std::make_shared<ArrowMemoryPool>(glutenAlloc_.get());
+  arrowPool_ = std::make_unique<ArrowMemoryPool>(glutenAlloc_.get());
 
   auto options = getOptions(allocator);
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(options);
@@ -227,6 +227,7 @@ MemoryUsageStats collectVeloxMemoryPoolUsageStats(const velox::memory::MemoryPoo
 MemoryUsageStats collectArrowMemoryPoolUsageStats(const arrow::MemoryPool* pool) {
   MemoryUsageStats stats;
   stats.set_current(pool->bytes_allocated());
+  stats.set_peak(-1LL); // we don't know about peak
   return stats;
 }
 } // namespace
@@ -236,7 +237,7 @@ const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
   const MemoryUsageStats& arrowPoolStats = collectArrowMemoryPoolUsageStats(arrowPool_.get());
   MemoryUsageStats stats;
   stats.set_current(veloxPoolStats.current() + arrowPoolStats.current());
-  stats.set_peak(-1L); // we don't know about peak
+  stats.set_peak(-1LL); // we don't know about peak
   stats.mutable_children()->emplace("velox", std::move(veloxPoolStats));
   stats.mutable_children()->emplace("arrow", std::move(arrowPoolStats));
   return stats;
@@ -258,10 +259,6 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryPool* pool, int64_t size) {
 
 const int64_t VeloxMemoryManager::shrink(int64_t size) {
   return shrinkVeloxMemoryPool(veloxAggregatePool_.get(), size);
-}
-
-velox::memory::IMemoryManager* getDefaultVeloxMemoryManager() {
-  return &(facebook::velox::memory::defaultMemoryManager());
 }
 
 } // namespace gluten

@@ -90,32 +90,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
    */
   private def genHashAggregateExec(plan: HashAggregateExec): SparkPlan = {
     val newChild = replaceWithTransformerPlan(plan.child)
-    // If child's output is empty, fallback or offload both the child and aggregation.
-    if (plan.child.output.isEmpty && BackendsApiManager.getSettings.fallbackAggregateWithChild()) {
-      newChild match {
-        case _: TransformSupport =>
-          // If the child is transformable, transform aggregation as well.
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          BackendsApiManager.getSparkPlanExecApiInstance
-            .genHashAggregateExecTransformer(
-              plan.requiredChildDistributionExpressions,
-              plan.groupingExpressions,
-              plan.aggregateExpressions,
-              plan.aggregateAttributes,
-              plan.initialInputBufferOffset,
-              plan.resultExpressions,
-              newChild
-            )
-        case _ =>
-          // If the child is not transformable, transform the grandchildren only.
-          logOnLevel(
-            columnarConf.validationLogLevel,
-            s"Validation failed for plan: ${plan.nodeName}, due to: empty child output.")
-          val grandChildren = plan.child.children.map(child => replaceWithTransformerPlan(child))
-          plan.withNewChildren(Seq(plan.child.withNewChildren(grandChildren)))
-      }
-    } else {
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+    def transformHashAggregate(): GlutenPlan = {
       BackendsApiManager.getSparkPlanExecApiInstance
         .genHashAggregateExecTransformer(
           plan.requiredChildDistributionExpressions,
@@ -126,6 +101,26 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           plan.resultExpressions,
           newChild
         )
+    }
+
+    // If child's output is empty, fallback or offload both the child and aggregation.
+    if (plan.child.output.isEmpty && BackendsApiManager.getSettings.fallbackAggregateWithChild()) {
+      newChild match {
+        case _: TransformSupport =>
+          // If the child is transformable, transform aggregation as well.
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          transformHashAggregate()
+        case i: InMemoryTableScanExec if InMemoryTableScanHelper.isGlutenTableCache(i) =>
+          transformHashAggregate()
+        case _ =>
+          // If the child is not transformable, transform the grandchildren only.
+          TransformHints.tagNotTransformable(plan, "child output schema is empty")
+          val grandChildren = plan.child.children.map(child => replaceWithTransformerPlan(child))
+          plan.withNewChildren(Seq(plan.child.withNewChildren(grandChildren)))
+      }
+    } else {
+      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+      transformHashAggregate()
     }
   }
 
@@ -332,9 +327,6 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
       case plan: CoalesceExec =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         CoalesceExecTransformer(plan.numPartitions, replaceWithTransformerPlan(plan.child))
-      case plan: InMemoryTableScanExec =>
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        ColumnarInMemoryTableScanExec(plan.attributes, plan.predicates, plan.relation)
       case plan: ProjectExec =>
         val columnarChild = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -687,6 +679,14 @@ case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[Spark
   }
 }
 
+object InMemoryTableScanHelper {
+  def isGlutenTableCache(i: InMemoryTableScanExec): Boolean = {
+    // `ColumnarCachedBatchSerializer` is at velox module, so use class name here
+    i.relation.cacheBuilder.serializer.getClass.getSimpleName == "ColumnarCachedBatchSerializer" &&
+    i.supportsColumnar
+  }
+}
+
 // This rule will try to add RowToColumnarExecBase and ColumnarToRowExec
 // to support vanilla columnar scan.
 case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[SparkPlan] {
@@ -704,8 +704,15 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
   }
 
   private def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
-    case _: BatchScanExec | _: FileSourceScanExec | _: InMemoryTableScanExec =>
+    case _: BatchScanExec | _: DataSourceScanExec =>
       !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
+    case i: InMemoryTableScanExec =>
+      if (InMemoryTableScanHelper.isGlutenTableCache(i)) {
+        // `InMemoryTableScanExec` do not need extra RowToColumnar or ColumnarToRow
+        false
+      } else {
+        !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
+      }
     case _ => false
   }
 
@@ -719,41 +726,81 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
     }
 }
 
+object ColumnarOverrideRules {
+  val GLUTEN_IS_ADAPTIVE_CONTEXT = "gluten.isAdaptiveContext"
+}
+
 case class ColumnarOverrideRules(session: SparkSession)
   extends ColumnarRule
   with Logging
   with LogLevelUtil {
 
+  import ColumnarOverrideRules._
+
   private lazy val transformPlanLogLevel = GlutenConfig.getConf.transformPlanLogLevel
   @transient private lazy val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
-  // Tracks whether the columnar rule is called through AQE.
-  private var isAdaptiveContext: Boolean = false
   // This is an empirical value, may need to be changed for supporting other versions of spark.
-  private val aqeStackTraceIndex = 13
+  private val aqeStackTraceIndex = 14
 
-  private var originalPlan: SparkPlan = _
+  // Holds the original plan for possible entire fallback.
+  private val localOriginalPlan = new ThreadLocal[SparkPlan]
+
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
 
   // Just for test use.
   def enableAdaptiveContext(): Unit = {
-    isAdaptiveContext = true
+    session.sparkContext.setLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT, "true")
   }
 
+  def isAdaptiveContext: Boolean =
+    session.sparkContext.getLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT).toBoolean
+
+  private def setAdaptiveContext(): Unit = {
+    val traceElements = Thread.currentThread.getStackTrace
+    assert(
+      traceElements.length > aqeStackTraceIndex,
+      s"The number of stack trace elements is expected to be more than $aqeStackTraceIndex")
+    // ApplyColumnarRulesAndInsertTransitions is called by either QueryExecution or
+    // AdaptiveSparkPlanExec. So by checking the stack trace, we can know whether
+    // columnar rule will be applied in adaptive execution context. This part of code
+    // needs to be carefully checked when supporting higher versions of spark to make
+    // sure the calling stack has not been changed.
+    session.sparkContext.setLocalProperty(
+      GLUTEN_IS_ADAPTIVE_CONTEXT,
+      traceElements(aqeStackTraceIndex).getClassName
+        .equals(AdaptiveSparkPlanExec.getClass.getName)
+        .toString)
+  }
+
+  private def resetAdaptiveContext(): Unit =
+    session.sparkContext.setLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT, null)
+
+  private def setOriginalPlan(plan: SparkPlan): Unit = localOriginalPlan.set(plan)
+
+  private def originalPlan: SparkPlan = {
+    val plan = localOriginalPlan.get()
+    assert(plan != null)
+    plan
+  }
+
+  private def resetOriginalPlan(): Unit = localOriginalPlan.remove()
+
   private def preOverrides(): List[SparkSession => Rule[SparkPlan]] = {
-    val tagBeforeTransformHitsRules = if (this.isAdaptiveContext) {
-      // When AQE is supported, rules are applied in ColumnarQueryStagePrepOverrides
-      List.empty
-    } else {
-      TagBeforeTransformHits.ruleBuilders
-    }
+    val tagBeforeTransformHitsRules =
+      if (isAdaptiveContext) {
+        // When AQE is supported, rules are applied in ColumnarQueryStagePrepOverrides
+        List.empty
+      } else {
+        TagBeforeTransformHits.ruleBuilders
+      }
     tagBeforeTransformHitsRules :::
       List(
         (spark: SparkSession) => PlanOneRowRelation(spark),
         (_: SparkSession) => FallbackEmptySchemaRelation(),
         (_: SparkSession) => AddTransformHintRule(),
-        (_: SparkSession) => TransformPreOverrides(this.isAdaptiveContext),
+        (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
         (_: SparkSession) => EnsureLocalSortRequirements
       ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
@@ -766,8 +813,9 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   private def postOverrides(): List[SparkSession => Rule[SparkPlan]] =
     List(
-      (_: SparkSession) => TransformPostOverrides(this.isAdaptiveContext),
-      (s: SparkSession) => VanillaColumnarPlanOverrides(s)) :::
+      (_: SparkSession) => TransformPostOverrides(isAdaptiveContext),
+      (s: SparkSession) => VanillaColumnarPlanOverrides(s)
+    ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPostRules() :::
       List((_: SparkSession) => ColumnarCollapseTransformStages(GlutenConfig.getConf)) :::
       SparkRuleUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPostRules)
@@ -781,19 +829,8 @@ case class ColumnarOverrideRules(session: SparkSession)
 
   override def preColumnarTransitions: Rule[SparkPlan] = plan =>
     PhysicalPlanSelector.maybe(session, plan) {
-      val traceElements = Thread.currentThread.getStackTrace
-      assert(
-        traceElements.length > aqeStackTraceIndex,
-        s"The number of stack trace elements is expected to be more than $aqeStackTraceIndex")
-      // ApplyColumnarRulesAndInsertTransitions is called by either QueryExecution or
-      // AdaptiveSparkPlanExec. So by checking the stack trace, we can know whether
-      // columnar rule will be applied in adaptive execution context. This part of code
-      // needs to be carefully checked when supporting higher versions of spark to make
-      // sure the calling stack has not been changed.
-      isAdaptiveContext = traceElements(aqeStackTraceIndex).getClassName.equals(
-        AdaptiveSparkPlanExec.getClass.getName)
-      // Holds the original plan for possible entire fallback.
-      originalPlan = plan
+      setAdaptiveContext()
+      setOriginalPlan(plan)
       transformPlan(preOverrides(), plan, "pre")
     }
 
@@ -809,7 +846,8 @@ case class ColumnarOverrideRules(session: SparkSession)
         case plan =>
           transformPlan(postOverrides(), plan, "post")
       }
-      originalPlan = null
+      resetOriginalPlan()
+      resetAdaptiveContext()
       transformPlan(finallyRules(), finalPlan, "final")
     }
 
@@ -836,6 +874,6 @@ case class ColumnarOverrideRules(session: SparkSession)
 
 object ColumnarOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
-    extensions.injectColumnar(ColumnarOverrideRules)
+    extensions.injectColumnar(spark => ColumnarOverrideRules(spark))
   }
 }

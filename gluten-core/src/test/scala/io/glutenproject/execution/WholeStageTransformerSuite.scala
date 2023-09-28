@@ -240,17 +240,27 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       sqlStr: String,
       compareResult: Boolean = true,
       customCheck: DataFrame => Unit,
-      noFallBack: Boolean = true): DataFrame = {
+      noFallBack: Boolean = true,
+      cache: Boolean = false): DataFrame = {
     var expected: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
       val df = spark.sql(sqlStr)
       expected = df.collect()
     }
     val df = spark.sql(sqlStr)
-    if (compareResult) {
-      checkAnswer(df, expected)
-    } else {
-      df.collect()
+    if (cache) {
+      df.cache()
+    }
+    try {
+      if (compareResult) {
+        checkAnswer(df, expected)
+      } else {
+        df.collect()
+      }
+    } finally {
+      if (cache) {
+        df.unpersist()
+      }
     }
     WholeStageTransformerSuite.checkFallBack(df, noFallBack)
     customCheck(df)
@@ -260,8 +270,9 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   protected def runQueryAndCompare(
       sqlStr: String,
       compareResult: Boolean = true,
-      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): DataFrame = {
-    compareResultsAgainstVanillaSpark(sqlStr, compareResult, customCheck, noFallBack)
+      noFallBack: Boolean = true,
+      cache: Boolean = false)(customCheck: DataFrame => Unit): DataFrame = {
+    compareResultsAgainstVanillaSpark(sqlStr, compareResult, customCheck, noFallBack, cache)
   }
 
   /**

@@ -373,8 +373,8 @@ class GlutenCoalesceShufflePartitionsSuite
                 assert(shuffleReads.isEmpty)
 
               case None =>
-                assert(shuffleReads.length === 0)
-                shuffleReads.foreach(read => assert(read.outputPartitioning.numPartitions === 3))
+                assert(shuffleReads.length === 2)
+                shuffleReads.foreach(read => assert(read.outputPartitioning.numPartitions === 4))
             }
         }
 

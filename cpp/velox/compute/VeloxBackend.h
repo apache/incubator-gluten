@@ -22,107 +22,64 @@
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <filesystem>
 
-#include "WholeStageResultIterator.h"
-#include "compute/Backend.h"
-#include "memory/VeloxMemoryManager.h"
-#include "operators/serializer/VeloxColumnarBatchSerializer.h"
-#include "operators/serializer/VeloxColumnarToRowConverter.h"
-#include "operators/writer/VeloxParquetDatasource.h"
-#include "shuffle/ShuffleWriter.h"
-#include "shuffle/VeloxShuffleReader.h"
-#include "shuffle/reader.h"
+#include "velox/common/caching/AsyncDataCache.h"
+#include "velox/common/memory/MemoryPool.h"
 
 namespace gluten {
-
-// This class is used to convert the Substrait plan into Velox plan.
-class VeloxBackend final : public Backend {
+/// As a static instance in per executor, initialized at executor startup.
+/// Should not put heavily work here.
+class VeloxBackend {
  public:
-  explicit VeloxBackend(const std::unordered_map<std::string, std::string>& confMap);
-
-  static std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
-    if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {
-      return veloxMemoryManager->getAggregateMemoryPool();
-    } else {
-      GLUTEN_CHECK(false, "Should use VeloxMemoryManager here.");
+  ~VeloxBackend() {
+    if (dynamic_cast<facebook::velox::cache::AsyncDataCache*>(asyncDataCache_.get())) {
+      LOG(INFO) << asyncDataCache_->toString();
+      for (const auto& entry : std::filesystem::directory_iterator(cachePathPrefix_)) {
+        if (entry.path().filename().string().find(cacheFilePrefix_) != std::string::npos) {
+          LOG(INFO) << "Removing cache file " << entry.path().filename().string();
+          std::filesystem::remove(cachePathPrefix_ + "/" + entry.path().filename().string());
+        }
+      }
     }
   }
 
-  static std::shared_ptr<facebook::velox::memory::MemoryPool> getLeafVeloxPool(MemoryManager* memoryManager) {
-    if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {
-      return veloxMemoryManager->getLeafMemoryPool();
-    } else {
-      GLUTEN_CHECK(false, "Should use VeloxMemoryManager here.");
-    }
-  }
+  static void create(const std::unordered_map<std::string, std::string>& conf);
 
-  MemoryManager* getMemoryManager(
-      const std::string& name,
-      std::shared_ptr<MemoryAllocator> allocator,
-      std::unique_ptr<AllocationListener> listener) override {
-    return new VeloxMemoryManager(name, allocator, std::move(listener));
-  }
+  static std::shared_ptr<VeloxBackend> get();
 
-  // FIXME This is not thread-safe?
-  std::shared_ptr<ResultIterator> getResultIterator(
-      MemoryManager* memoryManager,
-      const std::string& spillDir,
-      const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
-      const std::unordered_map<std::string, std::string>& sessionConf = {}) override;
-
-  std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(MemoryManager* memoryManager) override;
-
-  std::shared_ptr<RowToColumnarConverter> getRowToColumnarConverter(
-      MemoryManager* memoryManager,
-      struct ArrowSchema* cSchema) override;
-
-  std::shared_ptr<ShuffleWriter> makeShuffleWriter(
-      int numPartitions,
-      std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
-      const ShuffleWriterOptions& options,
-      MemoryManager* memoryManager) override;
-
-  std::shared_ptr<Metrics> getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {
-    auto iter = static_cast<WholeStageResultIterator*>(rawIter);
-    return iter->getMetrics(exportNanos);
-  }
-
-  std::shared_ptr<Datasource> getDatasource(
-      const std::string& filePath,
-      MemoryManager* memoryManager,
-      std::shared_ptr<arrow::Schema> schema) override {
-    auto veloxPool = getAggregateVeloxPool(memoryManager);
-    return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, schema);
-  }
-
-  std::shared_ptr<Reader> getShuffleReader(
-      std::shared_ptr<arrow::Schema> schema,
-      ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool,
-      MemoryManager* memoryManager) override {
-    auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
-    return std::make_shared<VeloxShuffleReader>(schema, options, pool, ctxVeloxPool);
-  }
-
-  std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(
-      MemoryManager* memoryManager,
-      std::shared_ptr<arrow::MemoryPool> arrowPool,
-      struct ArrowSchema* cSchema) override;
-
-  std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
-    return veloxPlan_;
-  }
-
-  static void getInfoAndIds(
-      const std::unordered_map<facebook::velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfoMap,
-      const std::unordered_set<facebook::velox::core::PlanNodeId>& leafPlanNodeIds,
-      std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
-      std::vector<facebook::velox::core::PlanNodeId>& scanIds,
-      std::vector<facebook::velox::core::PlanNodeId>& streamIds);
+  facebook::velox::memory::MemoryAllocator* getAsyncDataCache() const;
 
  private:
-  std::vector<std::shared_ptr<ResultIterator>> inputIters_;
-  std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
+  explicit VeloxBackend(const std::unordered_map<std::string, std::string>& conf) {
+    init(conf);
+  }
+
+  void init(const std::unordered_map<std::string, std::string>& conf);
+  void initCache(const std::unordered_map<std::string, std::string>& conf);
+  void initIOExecutor(const std::unordered_map<std::string, std::string>& conf);
+  void initUdf(const std::unordered_map<std::string, std::string>& conf);
+
+  void initJolFilesystem(const std::unordered_map<std::string, std::string>& conf);
+
+  void printConf(const std::unordered_map<std::string, std::string>& conf);
+
+  std::string getCacheFilePrefix() {
+    return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";
+  }
+
+  inline static std::shared_ptr<VeloxBackend> instance_;
+  inline static std::mutex mutex_;
+
+  // Instance of AsyncDataCache used for all large allocations.
+  std::shared_ptr<facebook::velox::memory::MemoryAllocator> asyncDataCache_ =
+      facebook::velox::memory::MemoryAllocator::createDefaultInstance();
+
+  std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
+  std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;
+
+  std::string cachePathPrefix_;
+  std::string cacheFilePrefix_;
 };
 
 } // namespace gluten

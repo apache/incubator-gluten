@@ -16,6 +16,8 @@
  */
 package io.glutenproject.columnarbatch;
 
+import io.glutenproject.exec.ExecutionCtx;
+
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.sql.vectorized.ColumnVector;
@@ -26,28 +28,30 @@ import org.apache.spark.unsafe.types.UTF8String;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class IndicatorVector extends ColumnVector {
-  private final long nativeHandle;
+  private final ExecutionCtx ctx;
+  private final long handle;
   private final AtomicLong refCnt = new AtomicLong(1L);
 
-  protected IndicatorVector(long nativeHandle) {
+  protected IndicatorVector(ExecutionCtx ctx, long handle) {
     super(DataTypes.NullType);
-    this.nativeHandle = nativeHandle;
+    this.ctx = ctx;
+    this.handle = handle;
   }
 
-  public long getNativeHandle() {
-    return nativeHandle;
+  public ExecutionCtx ctx() {
+    return ctx;
   }
 
   public String getType() {
-    return ColumnarBatchJniWrapper.INSTANCE.getType(nativeHandle);
+    return ColumnarBatchJniWrapper.forCtx(ctx).getType(handle);
   }
 
   public long getNumColumns() {
-    return ColumnarBatchJniWrapper.INSTANCE.numColumns(nativeHandle);
+    return ColumnarBatchJniWrapper.forCtx(ctx).numColumns(handle);
   }
 
   public long getNumRows() {
-    return ColumnarBatchJniWrapper.INSTANCE.numRows(nativeHandle);
+    return ColumnarBatchJniWrapper.forCtx(ctx).numRows(handle);
   }
 
   public long refCnt() {
@@ -65,7 +69,7 @@ public class IndicatorVector extends ColumnVector {
       return;
     }
     if (refCnt.decrementAndGet() == 0) {
-      ColumnarBatchJniWrapper.INSTANCE.close(nativeHandle);
+      ColumnarBatchJniWrapper.forCtx(ctx).close(handle);
     }
   }
 
@@ -151,5 +155,9 @@ public class IndicatorVector extends ColumnVector {
   @Override
   public ColumnVector getChild(int ordinal) {
     throw new UnsupportedOperationException();
+  }
+
+  public long handle() {
+    return handle;
   }
 }

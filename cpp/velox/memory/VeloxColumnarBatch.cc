@@ -28,6 +28,7 @@ namespace {
 RowVectorPtr makeRowVector(
     std::vector<std::string> childNames,
     const std::vector<VectorPtr>& children,
+    int32_t numRows,
     velox::memory::MemoryPool* pool) {
   std::vector<std::shared_ptr<const Type>> childTypes;
   childTypes.resize(children.size());
@@ -35,9 +36,7 @@ RowVectorPtr makeRowVector(
     childTypes[i] = children[i]->type();
   }
   auto rowType = ROW(std::move(childNames), std::move(childTypes));
-  const size_t vectorSize = children.empty() ? 0 : children.front()->size();
-
-  return std::make_shared<RowVector>(pool, rowType, BufferPtr(nullptr), vectorSize, std::move(children));
+  return std::make_shared<RowVector>(pool, rowType, BufferPtr(nullptr), numRows, std::move(children));
 }
 } // namespace
 
@@ -113,11 +112,32 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::from(
       }
     }
 
-    auto compositeVeloxVector = makeRowVector(childNames, childVectors, pool);
+    auto compositeVeloxVector = makeRowVector(childNames, childVectors, cb->numRows(), pool);
     return std::make_shared<VeloxColumnarBatch>(compositeVeloxVector);
   }
   auto vp = velox::importFromArrowAsOwner(*cb->exportArrowSchema(), *cb->exportArrowArray(), pool);
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
+}
+
+std::shared_ptr<ColumnarBatch> VeloxColumnarBatch::select(
+    facebook::velox::memory::MemoryPool* pool,
+    std::vector<int32_t> columnIndices) {
+  std::vector<std::string> childNames;
+  std::vector<VectorPtr> childVectors;
+  childNames.reserve(columnIndices.size());
+  childVectors.reserve(columnIndices.size());
+  auto vector = getFlattenedRowVector();
+  auto type = facebook::velox::asRowType(vector->type());
+
+  for (uint32_t i = 0; i < columnIndices.size(); i++) {
+    auto index = columnIndices[i];
+    auto child = vector->childAt(index);
+    childNames.push_back(type->nameOf(index));
+    childVectors.push_back(child);
+  }
+
+  auto rowVector = makeRowVector(std::move(childNames), std::move(childVectors), numRows(), pool);
+  return std::make_shared<VeloxColumnarBatch>(rowVector);
 }
 
 } // namespace gluten

@@ -41,7 +41,7 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan, VeloxColumnarToRowExec}
+import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -252,13 +252,21 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
     val readBatchNumRows = metrics("avgReadBatchNumRows")
     val numOutputRows = metrics("numOutputRows")
     val decompressTime = metrics("decompressTime")
+    val ipcTime = metrics("ipcTime")
+    val deserializeTime = metrics("deserializeTime")
     if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
       val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CelebornColumnarBatchSerializer")
       val constructor =
         clazz.getConstructor(classOf[StructType], classOf[SQLMetric], classOf[SQLMetric])
       constructor.newInstance(schema, readBatchNumRows, numOutputRows).asInstanceOf[Serializer]
     } else {
-      new ColumnarBatchSerializer(schema, readBatchNumRows, numOutputRows, decompressTime)
+      new ColumnarBatchSerializer(
+        schema,
+        readBatchNumRows,
+        numOutputRows,
+        decompressTime,
+        ipcTime,
+        deserializeTime)
     }
   }
 
@@ -287,11 +295,13 @@ class SparkPlanExecHandler extends SparkPlanExecApi {
             Iterator((0L, Array[Byte]()))
           } else {
             val handleArray = input.map(ColumnarBatches.getNativeHandle).toArray
-            val serializeResult = ColumnarBatchSerializerJniWrapper.INSTANCE.serialize(
-              handleArray,
-              NativeMemoryManagers
-                .contextInstance("BroadcastRelation")
-                .getNativeInstanceId)
+            val serializeResult = ColumnarBatchSerializerJniWrapper
+              .create()
+              .serialize(
+                handleArray,
+                NativeMemoryManagers
+                  .contextInstance("BroadcastRelation")
+                  .getNativeInstanceHandle)
             input.foreach(ColumnarBatches.release)
             Iterator((serializeResult.getNumRows, serializeResult.getSerialized))
           }

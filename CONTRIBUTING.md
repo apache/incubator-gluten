@@ -79,6 +79,8 @@ To check CI failure for Velox backend, please go into the GitHub action page fro
 To see the perf. impact on Velox backend, you can comment `/Benchmark Velox` on PR page to trigger a pretest. The benchmark
 (currently TPC-H) result will be posted after completed.
 
+If some new dependency is required to be installed, you may need to do some change for CI docker at [this folder](https://github.com/oap-project/gluten/tree/main/tools/gluten-te).
+
 ### Code Review
 
 Please ensure no CI failure is reported for your PR.
@@ -86,3 +88,14 @@ Please ensure no CI failure is reported for your PR.
 A PR may need several iterations in the community review process. Please @reviewer once your PR is ready for next round of review.
 
 For critical code change, merging the PR requires at least two committers' approval.
+
+### Code Merging
+
+**Squash and merge** should be selected to merge PR. If commit message title doesn't align with its PR title, please revise it.
+
+Example for commit message title:
+
+  `[GLUTEN-<issue ID>][CORE] xxxx (#<PR ID>)`
+
+Please add some brief description, if helpful, in the text box when merging PR. Please do NOT leave any meaningless
+historical commit message, such as "Initial commit", "Fix", "Fix code style", etc.

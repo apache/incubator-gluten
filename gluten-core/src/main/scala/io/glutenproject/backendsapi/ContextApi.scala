@@ -22,7 +22,7 @@ import org.apache.spark.util.TaskResource
 import java.util
 
 trait ContextApi {
-  def initialize(conf: SparkConf): Unit = {}
+  def initialize(conf: SparkConf, isDriver: Boolean = true): Unit = {}
 
   def shutdown(): Unit = {}
 

@@ -65,6 +65,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       case "GlutenMetadataColumnSuite" => false // nativeDoValidate failed due to spark conf cleanup
       case "GlutenQueryCompilationErrorsDSv2Suite" =>
         false // nativeDoValidate failed due to spark conf cleanup
+      case "GlutenBloomFilterAggregateQuerySuite" =>
+        !bloomFilterCases.contains(testName)
       case _ => true
     }
     preCheck && super.shouldRun(suiteName, testName)
@@ -94,6 +96,12 @@ class ClickHouseTestSettings extends BackendTestSettings {
     "SPARK-33084: Add jar support Ivy URI in SQL"
   )
 
+  private val bloomFilterCases: Seq[String] = Seq(
+    // Currently return a empty set(same reason as sum(empty set),
+    // both behaviors are acceptable.
+    "Test that bloom_filter_agg produces a NULL with empty input"
+  )
+
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite].exclude(
     "test ApproxCountDistinctForIntervals with large number of endpoints")
   enableSuite[GlutenApproximatePercentileQuerySuite].exclude(
@@ -107,6 +115,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCachedTableSuite]
     .exclude("SPARK-37369: Avoid redundant ColumnarToRow transition on InMemoryTableScan")
     .exclude("analyzes column statistics in cached query")
+    .exclude("GLUTEN - InMemoryRelation statistics")
   enableSuite[GlutenColumnExpressionSuite]
     .exclude("input_file_name, input_file_block_start, input_file_block_length - FileScanRDD")
     .exclude("withField should add field with no name")

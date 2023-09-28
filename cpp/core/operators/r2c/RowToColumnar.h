@@ -31,7 +31,7 @@ class RowToColumnarConverter {
 
   virtual std::shared_ptr<ColumnarBatch> convert(int64_t numRows, int64_t* rowLength, uint8_t* memoryAddress) {
     throw GlutenException("Not implement row to column");
-  };
+  }
 };
 
 } // namespace gluten

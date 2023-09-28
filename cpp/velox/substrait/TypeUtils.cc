@@ -16,6 +16,7 @@
  */
 
 #include "TypeUtils.h"
+#include "SubstraitParser.h"
 #include "velox/type/Type.h"
 
 namespace gluten {
@@ -153,6 +154,14 @@ TypePtr toVeloxType(const std::string& typeName, bool asLowerCase) {
     default:
       VELOX_NYI("Velox type conversion not supported for type {}.", typeName);
   }
+}
+
+TypePtr substraitTypeToVeloxType(const std::string& substraitType) {
+  return toVeloxType(SubstraitParser::parseType(substraitType));
+}
+
+TypePtr substraitTypeToVeloxType(const ::substrait::Type& substraitType) {
+  return toVeloxType(SubstraitParser::parseType(substraitType).type);
 }
 
 } // namespace gluten

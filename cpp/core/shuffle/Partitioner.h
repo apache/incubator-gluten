@@ -31,19 +31,21 @@ class ShuffleWriter::Partitioner {
   static arrow::Result<std::shared_ptr<ShuffleWriter::Partitioner>> make(
       const std::string& name,
       int32_t numPartitions);
+
   // whether the first column is partition key
-  bool hasPid() {
+  bool hasPid() const {
     return hasPid_;
   }
 
   virtual arrow::Status compute(
       const int32_t* pidArr,
       const int64_t numRows,
-      std::vector<uint16_t>& partitionId,
-      std::vector<uint32_t>& partitionIdCnt) = 0;
+      std::vector<uint16_t>& row2partition,
+      std::vector<uint32_t>& partition2RowCount) = 0;
 
  protected:
   Partitioner(int32_t numPartitions, bool hasPid) : numPartitions_(numPartitions), hasPid_(hasPid) {}
+
   virtual ~Partitioner() = default;
 
   int32_t numPartitions_;

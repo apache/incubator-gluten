@@ -94,7 +94,7 @@ bool SubstraitToVeloxPlanValidator::validateInputTypes(
   const auto& sTypes = inputType.struct_().types();
   for (const auto& sType : sTypes) {
     try {
-      types.emplace_back(toVeloxType(SubstraitParser::parseType(sType)->type));
+      types.emplace_back(substraitTypeToVeloxType(sType));
     } catch (const VeloxException& err) {
       logValidateMsg("native validation failed due to: Type is not supported, " + err.message());
       return false;
@@ -284,7 +284,7 @@ bool SubstraitToVeloxPlanValidator::validateCast(
     return false;
   }
 
-  const auto& toType = toVeloxType(SubstraitParser::parseType(castExpr.type())->type);
+  const auto& toType = substraitTypeToVeloxType(castExpr.type());
   if (toType->kind() == TypeKind::TIMESTAMP) {
     logValidateMsg("native validation failed due to: Casting to TIMESTAMP is not supported.");
     return false;
@@ -351,6 +351,11 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchR
     logValidateMsg("native validation failed due to: Offset and count should be valid in FetchRel.");
     return false;
   }
+  return true;
+}
+
+bool SubstraitToVeloxPlanValidator::validate(const ::substrait::GenerateRel& generateRel) {
+  // TODO(yuan): add check
   return true;
 }
 
@@ -477,7 +482,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WindowRel& windo
     try {
       const auto& windowFunction = smea.measure();
       funcSpecs.emplace_back(planConverter_.findFuncSpec(windowFunction.function_reference()));
-      toVeloxType(SubstraitParser::parseType(windowFunction.output_type())->type);
+      substraitTypeToVeloxType(windowFunction.output_type());
       for (const auto& arg : windowFunction.arguments()) {
         auto typeCase = arg.value().rex_type_case();
         switch (typeCase) {
@@ -869,11 +874,11 @@ TypePtr SubstraitToVeloxPlanValidator::getRowType(const std::string& structType)
       continue;
     }
 
-    types.emplace_back(toVeloxType(SubstraitParser::parseType(typeStr)));
+    types.emplace_back(substraitTypeToVeloxType(typeStr));
     names.emplace_back("");
     childrenTypes.erase(0, pos + delimiter.length());
   }
-  types.emplace_back(toVeloxType(SubstraitParser::parseType(childrenTypes)));
+  types.emplace_back(substraitTypeToVeloxType(childrenTypes));
   names.emplace_back("");
   return std::make_shared<RowType>(std::move(names), std::move(types));
 }
@@ -902,7 +907,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
         } else if (type.find("dec") != std::string::npos) {
           types.emplace_back(getDecimalType(type));
         } else {
-          types.emplace_back(toVeloxType(SubstraitParser::parseType(type)));
+          types.emplace_back(substraitTypeToVeloxType(type));
         }
       }
     } catch (const VeloxException& err) {
@@ -1000,7 +1005,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
       const auto& aggFunction = smea.measure();
       const auto& functionSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
       funcSpecs.emplace_back(functionSpec);
-      toVeloxType(SubstraitParser::parseType(aggFunction.output_type())->type);
+      substraitTypeToVeloxType(aggFunction.output_type());
       // Validate the size of arguments.
       if (SubstraitParser::getSubFunctionName(functionSpec) == "count" && aggFunction.arguments().size() > 1) {
         logValidateMsg("native validation failed due to: count should have only one argument");
@@ -1165,6 +1170,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
     return validate(rel.sort());
   } else if (rel.has_expand()) {
     return validate(rel.expand());
+  } else if (rel.has_generate()) {
+    return validate(rel.generate());
   } else if (rel.has_fetch()) {
     return validate(rel.fetch());
   } else if (rel.has_window()) {

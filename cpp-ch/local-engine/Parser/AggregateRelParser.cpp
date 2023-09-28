@@ -26,7 +26,9 @@
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/MergingAggregatedStep.h>
+#include "Common/PODArray.h"
 #include <Common/StringUtils/StringUtils.h>
+#include "DataTypes/IDataType.h"
 
 #include <Operator/EmptyHashAggregate.h>
 
@@ -37,20 +39,22 @@ namespace ErrorCodes
     extern const int LOGICAL_ERROR;
     extern const int BAD_ARGUMENTS;
     extern const int UNKNOWN_TYPE;
+    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 }
 }
 namespace local_engine
 {
 
-AggregateRelParser::AggregateRelParser(SerializedPlanParser * plan_paser_)
-    : RelParser(plan_paser_)
-{}
+AggregateRelParser::AggregateRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
+{
+}
 
-DB::QueryPlanPtr AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & )
+DB::QueryPlanPtr AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
 {
     setup(std::move(query_plan), rel);
     LOG_TRACE(logger, "original header is: {}", plan->getCurrentDataStream().header.dumpStructure());
-    if (rel.aggregate().measures().empty() && (rel.aggregate().groupings().empty() || rel.aggregate().groupings()[0].grouping_expressions().empty()))
+    if (rel.aggregate().measures().empty()
+        && (rel.aggregate().groupings().empty() || rel.aggregate().groupings()[0].grouping_expressions().empty()))
     {
         LOG_TRACE(&Poco::Logger::get("AggregateRelParser"), "Empty aggregate step");
         auto empty_agg = std::make_unique<EmptyHashAggregateStep>(plan->getCurrentDataStream());
@@ -93,7 +97,8 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
 
     if (phase_set.size() > 1 && has_final_stage)
     {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "AggregateRelParser: multiple aggregation phases with final stage are not supported");
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR, "AggregateRelParser: multiple aggregation phases with final stage are not supported");
     }
 
     auto input_header = plan->getCurrentDataStream().header;
@@ -145,13 +150,14 @@ void AggregateRelParser::addPreProjection()
     for (auto & agg_info : aggregates)
     {
         auto arg_nodes = agg_info.function_parser->parseFunctionArguments(agg_info.parser_func_info, projection_action);
+        // This may remove elements from arg_nodes, because some of them are converted to CH func parameters.
+        agg_info.params = agg_info.function_parser->parseFunctionParameters(agg_info.parser_func_info, arg_nodes);
         for (auto & arg_node : arg_nodes)
         {
             agg_info.arg_column_names.emplace_back(arg_node->result_name);
             agg_info.arg_column_types.emplace_back(arg_node->result_type);
             projection_action->addOrReplaceInOutputs(*arg_node);
         }
-        agg_info.params = agg_info.function_parser->parseFunctionParameters(agg_info.parser_func_info);
     }
     if (projection_action->dumpDAG() != dag_footprint)
     {
@@ -180,11 +186,47 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         const auto & measure = agg_info.measure->measure();
         description.column_name = build_result_column_name(agg_info.function_name, agg_info.arg_column_names, measure.phase());
         description.argument_names = agg_info.arg_column_names;
-        // May apply `PartialMerge` and `If` on the original function.
-        auto [combinator_function_name, combinator_function_arg_types]
-            = agg_info.function_parser->tryApplyCHCombinator(agg_info.parser_func_info, agg_info.function_name, agg_info.arg_column_types);
         DB::AggregateFunctionProperties properties;
-        description.function = getAggregateFunction(combinator_function_name, combinator_function_arg_types, properties, agg_info.params);
+
+        if (!agg_info.function_name.ends_with("State"))
+        {
+            // May apply `PartialMerge` and `If` on the original function.
+            auto [combinator_function_name, combinator_function_arg_types] = agg_info.function_parser->tryApplyCHCombinator(
+                agg_info.parser_func_info, agg_info.function_name, agg_info.arg_column_types);
+            description.function
+                = getAggregateFunction(combinator_function_name, combinator_function_arg_types, properties, agg_info.params);
+        }
+        else
+        {
+            // If the function is a state function, we don't need to apply `PartialMerge`.
+            // In INITIAL_TO_INTERMEDIATE phase, we do arguments -> xxState.
+            // In INTERMEDIATE_TO_RESULT phase, we do xxState -> xxState.
+            if (agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
+            {
+                description.function = getAggregateFunction(agg_info.function_name, agg_info.arg_column_types, properties, agg_info.params);
+            }
+            else if (agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT)
+            {
+                if (agg_info.arg_column_types.size() != 1)
+                    throw Exception(
+                        DB::ErrorCodes::BAD_ARGUMENTS,
+                        "Only support one argument aggregate function in phase {}",
+                        agg_info.parser_func_info.phase);
+                const auto * type = checkAndGetDataType<DataTypeAggregateFunction>(agg_info.arg_column_types[0].get());
+                if (!type)
+                    throw Exception(
+                        ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+                        "Argument for function {} must have type AggregateFunction as arguments",
+                        agg_info.function_name);
+                auto nested_types = type->getArgumentsDataTypes();
+                description.function = getAggregateFunction(agg_info.function_name, nested_types, properties, agg_info.params);
+            }
+            else
+            {
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupported phase for state function: {}", agg_info.function_name);
+            }
+        }
+        description.parameters = agg_info.params;
         descriptions.emplace_back(description);
     }
 }
@@ -232,8 +274,9 @@ void AggregateRelParser::addAggregatingStep()
         true,
         3,
         settings.max_block_size,
-        false,
-        false);
+        /*enable_prefetch*/ true,
+        /*only_merge*/ false,
+        settings.optimize_group_by_constant_keys);
 
     auto aggregating_step = std::make_unique<AggregatingStep>(
         plan->getCurrentDataStream(),

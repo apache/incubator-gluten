@@ -23,7 +23,7 @@ import org.apache.spark.sql.SparkSessionSwitcher
 
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-case class Queries(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int)
+case class Queries(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int, randomKillTasks: Boolean)
   extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
@@ -44,7 +44,7 @@ case class Queries(scale: Double, queryIds: Array[String], explain: Boolean, ite
             if (!allQueriesSet.contains(queryId)) {
               throw new IllegalArgumentException(s"Query ID doesn't exist: $queryId")
             }
-            Queries.runTpcQuery(queryId, explain, tpcSuite.desc(), tpcSuite.sessionSwitcher, runner)
+            Queries.runTpcQuery(runner, tpcSuite.sessionSwitcher, queryId, tpcSuite.desc(), explain, randomKillTasks)
         }
     }.toList
 
@@ -147,18 +147,13 @@ object Queries {
           )))
   }
 
-  private[tpc] def runTpcQuery(
-      id: String,
-      explain: Boolean,
-      desc: String,
-      sessionSwitcher: SparkSessionSwitcher,
-      runner: TpcRunner): TestResultLine = {
+  private def runTpcQuery(runner: _root_.io.glutenproject.integration.tpc.TpcRunner, sessionSwitcher: _root_.org.apache.spark.sql.SparkSessionSwitcher, id: _root_.java.lang.String, desc: _root_.java.lang.String, explain: Boolean, randomKillTasks: Boolean) = {
     println(s"Running query: $id...")
     try {
       val testDesc = "Gluten Spark %s %s".format(desc, id)
       sessionSwitcher.useSession("test", testDesc)
       runner.createTables(sessionSwitcher.spark())
-      val result = runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = explain)
+      val result = runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = explain, randomKillTasks = randomKillTasks)
       val resultRows = result.rows
       println(
         s"Successfully ran query $id. " +

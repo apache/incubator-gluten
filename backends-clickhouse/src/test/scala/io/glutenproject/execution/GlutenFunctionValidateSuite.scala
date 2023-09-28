@@ -21,6 +21,8 @@ import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
+import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 import java.nio.file.Files
@@ -97,7 +99,8 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
         Row(1.011, 5, "{\"a_2\":\"b\"}"),
         Row(1.011, 5, "{\"a\":\"b\", \"x\":{\"i\":1}}"),
         Row(1.011, 5, "{\"a\":\"b\", \"x\":{\"i\":2}}"),
-        Row(1.011, 5, "{\"a\":1, \"x\":{\"i\":2}}")
+        Row(1.011, 5, "{\"a\":1, \"x\":{\"i\":2}}"),
+        Row(1.0, 5, "{\"a\":\"{\\\"x\\\":5}\"}")
       ))
     val dfParquet = spark.createDataFrame(data, schema)
     dfParquet
@@ -267,6 +270,13 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
       noFallBack = false) { _ => }
   }
 
+  test("Test nested get_json_object") {
+    runQueryAndCompare(
+      "SELECT get_json_object(get_json_object(string_field1, '$.a'), '$.x') from json_test") {
+      checkOperatorMatch[ProjectExecTransformer]
+    }
+  }
+
   test("Test covar_samp") {
     runQueryAndCompare("SELECT covar_samp(double_field1, int_field1) from json_test") { _ => }
   }
@@ -342,7 +352,7 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
   test("test issue: https://github.com/oap-project/gluten/issues/2340") {
     val sql =
       """
-        |select array(null, array(id,2))  from range(10)
+        |select array(null, array(id,2)) from range(10)
         |""".stripMargin
     runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
@@ -411,5 +421,23 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
         | select url, parse_url(url, "PROTOCOL") from url_table order by url
       """.stripMargin
     runQueryAndCompare(sql9)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test decode and encode") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
+        (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      // Test codec with 'US-ASCII'
+      runQueryAndCompare(
+        "SELECT decode(encode('Spark SQL', 'US-ASCII'), 'US-ASCII')",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      // Test codec with 'UTF-16'
+      runQueryAndCompare(
+        "SELECT decode(encode('Spark SQL', 'UTF-16'), 'UTF-16')",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
   }
 }

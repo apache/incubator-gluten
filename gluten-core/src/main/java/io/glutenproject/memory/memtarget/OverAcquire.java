@@ -16,20 +16,12 @@
  */
 package io.glutenproject.memory.memtarget;
 
-import io.glutenproject.memory.SimpleMemoryUsageRecorder;
-import io.glutenproject.proto.MemoryUsageStats;
-
 import com.google.common.base.Preconditions;
-import org.apache.spark.memory.MemoryConsumer;
-import org.apache.spark.memory.MemoryMode;
-import org.apache.spark.memory.TaskMemoryManager;
 
-import java.io.IOException;
-
-class OverAcquire implements TaskManagedMemoryTarget {
+public class OverAcquire implements MemoryTarget {
 
   // The underlying target.
-  private final TaskManagedMemoryTarget target;
+  private final MemoryTarget target;
 
   // This consumer holds the over-acquired memory.
   private final MemoryTarget overTarget;
@@ -51,9 +43,9 @@ class OverAcquire implements TaskManagedMemoryTarget {
   //   over-acquired memory will be used in step B.
   private final double ratio;
 
-  OverAcquire(TaskManagedMemoryTarget target, double ratio) {
+  OverAcquire(MemoryTarget target, MemoryTarget overTarget, double ratio) {
     Preconditions.checkArgument(ratio >= 0.0D);
-    this.overTarget = new OverAcquire.DummyTarget(target.getTaskMemoryManager());
+    this.overTarget = overTarget;
     this.target = target;
     this.ratio = ratio;
   }
@@ -76,7 +68,6 @@ class OverAcquire implements TaskManagedMemoryTarget {
   public long repay(long size) {
     Preconditions.checkArgument(size != 0, "Size to repay is zero");
     long freed = target.repay(size);
-    Preconditions.checkArgument(freed == size, "Repaid size is not equal to requested size");
     // clean up the over-acquired target
     long overAcquired = overTarget.usedBytes();
     long freedOverAcquired = overTarget.repay(overAcquired);
@@ -85,12 +76,7 @@ class OverAcquire implements TaskManagedMemoryTarget {
         "Freed over-acquired size is not equal to requested size");
     Preconditions.checkArgument(
         overTarget.usedBytes() == 0, "Over-acquired target was not cleaned up");
-    return size;
-  }
-
-  @Override
-  public String name() {
-    return String.format("OverAcquire-[%s][%s]", target.name(), overTarget.name());
+    return freed;
   }
 
   @Override
@@ -99,67 +85,11 @@ class OverAcquire implements TaskManagedMemoryTarget {
   }
 
   @Override
-  public MemoryUsageStats stats() {
-    MemoryUsageStats targetStats = target.stats();
-    MemoryUsageStats overTargetStats = overTarget.stats();
-    return MemoryUsageStats.newBuilder()
-        .setCurrent(targetStats.getCurrent() + overTargetStats.getCurrent())
-        .setPeak(-1L) // we don't know the peak
-        .putChildren(target.name(), targetStats)
-        .putChildren(overTarget.name(), overTargetStats)
-        .build();
+  public <T> T accept(MemoryTargetVisitor<T> visitor) {
+    return visitor.visit(this);
   }
 
-  @Override
-  public TaskMemoryManager getTaskMemoryManager() {
-    return target.getTaskMemoryManager();
-  }
-
-  private class DummyTarget extends MemoryConsumer implements MemoryTarget {
-    private final SimpleMemoryUsageRecorder usage = new SimpleMemoryUsageRecorder();
-
-    private DummyTarget(TaskMemoryManager taskMemoryManager) {
-      super(taskMemoryManager, MemoryMode.OFF_HEAP);
-    }
-
-    @Override
-    public long spill(long size, MemoryConsumer trigger) throws IOException {
-      return repay(size);
-    }
-
-    @Override
-    public long borrow(long size) {
-      if (size == 0) {
-        // or Spark complains the zero size by throwing an error
-        return 0;
-      }
-      long granted = acquireMemory(size);
-      usage.inc(granted);
-      return granted;
-    }
-
-    @Override
-    public long repay(long size) {
-      long toFree = Math.min(size, getUsed());
-      freeMemory(toFree);
-      Preconditions.checkArgument(getUsed() >= 0);
-      usage.inc(-toFree);
-      return toFree;
-    }
-
-    @Override
-    public String name() {
-      return "OverAcquire.DummyTarget";
-    }
-
-    @Override
-    public long usedBytes() {
-      return getUsed();
-    }
-
-    @Override
-    public MemoryUsageStats stats() {
-      return usage.toStats();
-    }
+  public MemoryTarget getTarget() {
+    return target;
   }
 }

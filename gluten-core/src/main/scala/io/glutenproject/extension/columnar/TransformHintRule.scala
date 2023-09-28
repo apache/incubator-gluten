@@ -33,7 +33,6 @@ import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec, QueryStageExec}
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
-import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
@@ -313,9 +312,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   private def addTransformableTag(plan: SparkPlan): Unit = {
     if (TransformHints.isAlreadyTagged(plan)) {
       logDebug(
-        s"Skipping executing" +
-          s"io.glutenproject.extension.columnar.CheckTransformableRule.addTransformableTag " +
-          s"since plan already tagged as " +
+        s"Skip adding transformable tag, since plan already tagged as " +
           s"${TransformHints.getHint(plan)}: ${plan.toString()}")
       return
     }
@@ -358,10 +355,6 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               TransformHints.tag(plan, transformer.doValidate().toTransformHint)
             }
           }
-        case plan: InMemoryTableScanExec =>
-          // ColumnarInMemoryTableScanExec.scala appears to be out-of-date
-          //   and need some tests before being enabled.
-          TransformHints.tagNotTransformable(plan, "InMemoryTableScanExec is not supported")
         case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
           if (!enableColumnarHiveTableScan) {
             TransformHints.tagNotTransformable(plan, "columnar hive table scan is disabled")

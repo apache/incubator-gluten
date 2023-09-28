@@ -26,8 +26,6 @@ import org.apache.spark.shuffle.GlutenShuffleUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import org.apache.celeborn.client.read.CelebornInputStream
-
 import java.io._
 import java.nio.ByteBuffer
 import java.util.Locale
@@ -63,12 +61,9 @@ private class CHColumnarBatchSerializerInstance(
     new DeserializationStream {
       private val reader: CHStreamReader = new CHStreamReader(
         in,
-        GlutenConfig.getConf.isUseColumnarShuffleManager
-          || GlutenConfig.getConf.isUseCelebornShuffleManager,
-        CHBackendSettings.useCustomizedShuffleCodec
-      )
+        GlutenConfig.getConf.isUseColumnarShuffleManager,
+        CHBackendSettings.useCustomizedShuffleCodec)
       private var cb: ColumnarBatch = _
-      private val isEmptyStream: Boolean = in.equals(CelebornInputStream.empty())
 
       private var numBatchesTotal: Long = _
       private var numRowsTotal: Long = _
@@ -78,40 +73,6 @@ private class CHColumnarBatchSerializerInstance(
       override def asIterator: Iterator[Any] = {
         // This method is never called by shuffle code.
         throw new UnsupportedOperationException
-      }
-
-      override def asKeyValueIterator: Iterator[(Any, Any)] = new Iterator[(Any, Any)] {
-        private var gotNext = false
-        private var nextValue: (Any, Any) = _
-        private var finished = false
-
-        def getNext: (Any, Any) = {
-          try {
-            (readKey[Any](), readValue[Any]())
-          } catch {
-            case eof: EOFException =>
-              finished = true
-              null
-          }
-        }
-
-        override def hasNext: Boolean = {
-          if (!isEmptyStream && !finished) {
-            if (!gotNext) {
-              nextValue = getNext
-              gotNext = true
-            }
-          }
-          !isEmptyStream && !finished
-        }
-
-        override def next(): (Any, Any) = {
-          if (!hasNext) {
-            throw new NoSuchElementException("End of stream")
-          }
-          gotNext = false
-          nextValue
-        }
       }
 
       override def readKey[T: ClassTag](): T = {

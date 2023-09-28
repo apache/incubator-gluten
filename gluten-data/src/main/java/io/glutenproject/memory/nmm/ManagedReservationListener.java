@@ -19,6 +19,7 @@ package io.glutenproject.memory.nmm;
 import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.memtarget.MemoryTarget;
 
+import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,9 +53,10 @@ public class ManagedReservationListener implements ReservationListener {
   @Override
   public long unreserve(long size) {
     synchronized (this) {
-      target.repay(size);
-      sharedUsage.inc(-size);
-      return size;
+      long freed = target.repay(size);
+      sharedUsage.inc(-freed);
+      Preconditions.checkState(freed == size);
+      return freed;
     }
   }
 

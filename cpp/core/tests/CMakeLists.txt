@@ -12,8 +12,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-add_test_case(exec_backend_test SOURCES BackendTest.cc)
 
 if(ENABLE_HBM)
   add_test_case(hbw_allocator_test SOURCES HbwAllocatorTest.cc)
 endif()
+
+add_test_case(round_robin_partitioner_test SOURCES RoundRobinPartitionerTest.cc)

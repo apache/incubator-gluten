@@ -16,6 +16,7 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.SparkPlanExecApi
 import io.glutenproject.execution._
 import io.glutenproject.expression._
@@ -52,6 +53,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
+import org.apache.commons.lang3.ClassUtils
 
 import java.{lang, util}
 
@@ -231,10 +233,17 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   override def createColumnarBatchSerializer(
       schema: StructType,
       metrics: Map[String, SQLMetric]): Serializer = {
-    new CHColumnarBatchSerializer(
-      metrics("avgReadBatchNumRows"),
-      metrics("numOutputRows"),
-      metrics("dataSize"))
+    val readBatchNumRows = metrics("avgReadBatchNumRows")
+    val numOutputRows = metrics("numOutputRows")
+    val dataSize = metrics("dataSize")
+    if (GlutenConfig.getConf.isUseCelebornShuffleManager) {
+      val clazz = ClassUtils.getClass("org.apache.spark.shuffle.CHCelebornColumnarBatchSerializer")
+      val constructor =
+        clazz.getConstructor(classOf[SQLMetric], classOf[SQLMetric], classOf[SQLMetric])
+      constructor.newInstance(readBatchNumRows, numOutputRows, dataSize).asInstanceOf[Serializer]
+    } else {
+      new CHColumnarBatchSerializer(readBatchNumRows, numOutputRows, dataSize)
+    }
   }
 
   /** Create broadcast relation for BroadcastExchangeExec */
@@ -410,20 +419,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       timeZoneId: Option[String],
       original: TruncTimestamp): ExpressionTransformer = {
     CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
-  }
-
-  override def genUnixTimestampTransformer(
-      substraitExprName: String,
-      timeExp: ExpressionTransformer,
-      format: ExpressionTransformer,
-      original: ToUnixTimestamp): ExpressionTransformer = {
-    CHToUnixTimestampTransformer(
-      substraitExprName,
-      timeExp,
-      format,
-      original.timeZoneId,
-      original.failOnError,
-      original)
   }
 
   /**

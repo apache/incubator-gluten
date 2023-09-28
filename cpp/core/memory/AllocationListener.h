@@ -21,6 +21,8 @@
 
 namespace gluten {
 
+extern bool backtrace_allocation;
+
 class AllocationListener {
  public:
   static std::unique_ptr<AllocationListener> noop();

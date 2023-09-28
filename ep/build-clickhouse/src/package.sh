@@ -80,7 +80,7 @@ cp "${GLUTEN_SOURCE}"/README.md "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
 
 # build gluten jar
 cd "${GLUTEN_SOURCE}"
-mvn clean package -Pbackends-clickhouse -Pspark-3.2 -DskipTests -Dcheckstyle.skip
+mvn clean package -Pbackends-clickhouse -Pspark-3.2 -Prss -DskipTests -Dcheckstyle.skip
 mvn clean package -Pspark-3.3 -am -pl shims/spark33 -DskipTests -Dcheckstyle.skip
 
 # build libch.so
@@ -88,9 +88,10 @@ bash "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/build_clickhouse.sh
 
 # copy gluten jar and libch.so
 cp "${GLUTEN_SOURCE}"/backends-clickhouse/target/gluten-*-jar-with-dependencies-exclude-sparkshims.jar "${PACKAGE_DIR_PATH}"/jars/gluten.jar
+cp "${GLUTEN_SOURCE}"/gluten-celeborn/clickhouse/target/gluten-celeborn-clickhouse-${PROJECT_VERSION}-jar-with-dependencies.jar "${PACKAGE_DIR_PATH}"/jars
 cp "$GLUTEN_SOURCE"/cpp-ch/build/utils/extern-local-engine/libch.so "${PACKAGE_DIR_PATH}"/libs/libch.so
-cp "${GLUTEN_SOURCE}"/shims/spark32/target/spark-*-${PROJECT_VERSION}.jar "${PACKAGE_DIR_PATH}"/extraJars/spark32/spark32-shims.jar
-cp "${GLUTEN_SOURCE}"/shims/spark33/target/spark-*-${PROJECT_VERSION}.jar "${PACKAGE_DIR_PATH}"/extraJars/spark33/spark33-shims.jar
+cp "${GLUTEN_SOURCE}"/shims/spark32/target/spark-*-${PROJECT_VERSION}.jar "${PACKAGE_DIR_PATH}"/extraJars/spark32/gluten-spark32-shims.jar
+cp "${GLUTEN_SOURCE}"/shims/spark33/target/spark-*-${PROJECT_VERSION}.jar "${PACKAGE_DIR_PATH}"/extraJars/spark33/gluten-spark33-shims.jar
 
 # copy bin and conf
 cp "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/resources/bin/* "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/bin

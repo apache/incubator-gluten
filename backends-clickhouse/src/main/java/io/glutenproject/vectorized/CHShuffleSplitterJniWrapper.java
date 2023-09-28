@@ -16,8 +16,6 @@
  */
 package io.glutenproject.vectorized;
 
-import org.apache.spark.shuffle.gluten.celeborn.CelebornCHPartitionPusher;
-
 import java.io.IOException;
 
 public class CHShuffleSplitterJniWrapper {
@@ -57,7 +55,7 @@ public class CHShuffleSplitterJniWrapper {
       int bufferSize,
       String codec,
       long spillThreshold,
-      CelebornCHPartitionPusher pusher) {
+      Object pusher) {
     return nativeMakeForRSS(
         part.getShortName(),
         part.getNumPartitions(),
@@ -96,7 +94,7 @@ public class CHShuffleSplitterJniWrapper {
       int bufferSize,
       String codec,
       long spillThreshold,
-      CelebornCHPartitionPusher pusher);
+      Object pusher);
 
   public native void split(long splitterId, long block);
 

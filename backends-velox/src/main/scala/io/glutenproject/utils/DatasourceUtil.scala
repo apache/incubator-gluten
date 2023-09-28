@@ -38,19 +38,20 @@ object DatasourceUtil {
 
   def readSchema(file: FileStatus): Option[StructType] = {
     val allocator = ArrowBufferAllocators.contextInstance()
-    val datasourceJniWrapper = new DatasourceJniWrapper()
-    val instanceId = datasourceJniWrapper.nativeInitDatasource(
+    val datasourceJniWrapper = DatasourceJniWrapper.create()
+    val dsHandle = datasourceJniWrapper.nativeInitDatasource(
       file.getPath.toString,
       -1,
-      NativeMemoryManagers.contextInstance("VeloxWriter").getNativeInstanceId,
-      new util.HashMap[String, String]())
+      NativeMemoryManagers.contextInstance("VeloxWriter").getNativeInstanceHandle,
+      new util.HashMap[String, String]()
+    )
     val cSchema = ArrowSchema.allocateNew(allocator)
-    datasourceJniWrapper.inspectSchema(instanceId, cSchema.memoryAddress())
+    datasourceJniWrapper.inspectSchema(dsHandle, cSchema.memoryAddress())
     try {
       Option(SparkSchemaUtil.fromArrowSchema(ArrowAbiUtil.importToSchema(allocator, cSchema)))
     } finally {
       cSchema.close()
-      datasourceJniWrapper.close(instanceId)
+      datasourceJniWrapper.close(dsHandle)
     }
   }
 }

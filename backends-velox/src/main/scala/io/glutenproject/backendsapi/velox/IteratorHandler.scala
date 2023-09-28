@@ -152,7 +152,7 @@ class IteratorHandler extends IteratorApi with Logging {
       new util.ArrayList[GeneralInIterator](inputIterators.map {
         iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
-    val transKernel = new NativePlanEvaluator()
+    val transKernel = NativePlanEvaluator.create()
     val resIter: GeneralOutIterator =
       transKernel.createKernelWithBatchIterator(inputPartition.plan, columnarNativeIterators)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
@@ -201,7 +201,7 @@ class IteratorHandler extends IteratorApi with Logging {
 
     val beforeBuild = System.nanoTime()
 
-    val transKernel = new NativePlanEvaluator()
+    val transKernel = NativePlanEvaluator.create()
     val columnarNativeIterator =
       new util.ArrayList[GeneralInIterator](inputIterators.map {
         iter => new ColumnarBatchInIterator(iter.asJava)

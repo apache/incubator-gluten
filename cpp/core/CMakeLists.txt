@@ -184,8 +184,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attrib
 set(SPARK_COLUMNAR_PLUGIN_SRCS
         ${SUBSTRAIT_PROTO_SRCS}
         ${GLUTEN_PROTO_SRCS}
+        compute/ExecutionCtx.cc
         compute/ProtobufUtils.cc
-        compute/Backend.cc
         compute/ResultIterator.cc
         config/GlutenConfig.cc
         jni/JniWrapper.cc
@@ -194,7 +194,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         memory/ArrowMemoryPool.cc
         memory/ColumnarBatch.cc
         operators/writer/ArrowWriter.cc
-        shuffle/reader.cc
+        shuffle/ShuffleReader.cc
         shuffle/ShuffleWriter.cc
         shuffle/Partitioner.cc
         shuffle/FallbackRangePartitioner.cc
@@ -205,8 +205,12 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/LocalPartitionWriter.cc
         shuffle/rss/RemotePartitionWriter.cc
         shuffle/rss/CelebornPartitionWriter.cc
+        shuffle/Utils.cc
         utils/Compression.cc
-        utils/StringUtil.cc)
+        utils/DebugOut.cc
+        utils/StringUtil.cc
+        jni/JniError.cc
+        jni/JniCommon.cc)
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})

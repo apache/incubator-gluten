@@ -37,11 +37,14 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.UnaryExecNode
+import org.apache.spark.sql.types.MapType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.Any
 
 import java.util
+
+import scala.collection.JavaConverters._
 
 // Transformer for GeneratorExec, which Applies a [[Generator]] to a stream of input rows.
 // For clickhouse backend, it will transform Spark explode lateral view to CH array join.
@@ -88,10 +91,33 @@ case class GenerateExecTransformer(
   override def supportsColumnar: Boolean = true
 
   override protected def doValidateInternal(): ValidationResult = {
+    // TODO(yuan): support posexplode and remove this check
     if (BackendsApiManager.isVeloxBackend) {
-      return ValidationResult.notOk(s"Velox backend does not support this operator: $nodeName")
+      if (generator.isInstanceOf[JsonTuple]) {
+        return ValidationResult.notOk(s"Velox backend does not support this json_tuple")
+      }
+      if (generator.isInstanceOf[PosExplode]) {
+        return ValidationResult.notOk(s"Velox backend does not support this posexplode")
+      }
+      if (generator.isInstanceOf[Explode]) {
+        // explode(MAP(col1, col2))
+        if (generator.asInstanceOf[Explode].child.isInstanceOf[CreateMap]) {
+          return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
+        }
+        // explode(ARRAY(1, 2, 3))
+        if (generator.asInstanceOf[Explode].child.isInstanceOf[Literal]) {
+          return ValidationResult.notOk(s"Velox backend does not support literal Array datatype")
+        }
+        generator.asInstanceOf[Explode].child.dataType match {
+          case _: MapType =>
+            return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
+          case _ =>
+        }
+        if (outer) {
+          return ValidationResult.notOk(s"Velox backend does not support outer")
+        }
+      }
     }
-
     val context = new SubstraitContext
     val args = context.registeredFunction
 
@@ -145,31 +171,55 @@ case class GenerateExecTransformer(
       }
     }
 
-    val relNode = if (childCtx != null) {
-      getRelNode(
-        context,
-        operatorId,
-        child.output,
-        childCtx.root,
-        generatorNode,
-        childOutputNodes,
-        validation = false)
+    val inputRel = if (childCtx != null) {
+      childCtx.root
     } else {
       val attrList = new java.util.ArrayList[Attribute]()
       for (attr <- child.output) {
         attrList.add(attr)
       }
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
-      getRelNode(
+      readRel
+    }
+    val projRel = if (BackendsApiManager.isVeloxBackend && needsProjection(generator)) {
+      // need to insert one projection node for velox backend
+      val selectOrigins = requiredChildOutput.indices.map(ExpressionBuilder.makeSelection(_))
+      val inputOrigins = child.output.indices.map(ExpressionBuilder.makeSelection(_))
+      val projectExpressions = new util.ArrayList[ExpressionNode]()
+      projectExpressions.addAll((selectOrigins ++ inputOrigins).asJava)
+      val projectExprNode = ExpressionConverter
+        .replaceWithExpressionTransformer(
+          generator.asInstanceOf[Explode].child,
+          requiredChildOutput ++ child.output)
+        .doTransform(args)
+
+      projectExpressions.add(projectExprNode)
+
+      RelBuilder.makeProjectRel(
+        inputRel,
+        projectExpressions,
         context,
         operatorId,
-        child.output,
-        readRel,
-        generatorNode,
-        childOutputNodes,
-        validation = false)
+        requiredChildOutput.size + inputOrigins.size)
+
+    } else {
+      inputRel
     }
+
+    val relNode = getRelNode(
+      context,
+      operatorId,
+      child.output,
+      projRel,
+      generatorNode,
+      childOutputNodes,
+      validation = false)
+
     TransformContext(child.output, output, relNode)
+  }
+
+  def needsProjection(generator: Generator): Boolean = {
+    !generator.asInstanceOf[Explode].child.isInstanceOf[AttributeReference]
   }
 
   def getRelNode(

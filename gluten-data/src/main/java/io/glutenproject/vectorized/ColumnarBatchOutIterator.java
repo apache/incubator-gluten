@@ -17,61 +17,70 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.columnarbatch.ColumnarBatches;
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionCtxAware;
 import io.glutenproject.metrics.IMetrics;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
 
-public class ColumnarBatchOutIterator extends GeneralOutIterator {
-  private final long handle;
+public class ColumnarBatchOutIterator extends GeneralOutIterator implements ExecutionCtxAware {
+  private final ExecutionCtx ctx;
+  private final long iterHandle;
 
-  public ColumnarBatchOutIterator(long handle) throws IOException {
+  public ColumnarBatchOutIterator(ExecutionCtx ctx, long iterHandle) throws IOException {
     super();
-    this.handle = handle;
+    this.ctx = ctx;
+    this.iterHandle = iterHandle;
+  }
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
   }
 
   @Override
   public String getId() {
-    // Using native handle as identifier
-    return String.valueOf(handle);
+    // Using native iterHandle as identifier
+    return String.valueOf(iterHandle);
   }
 
-  private native boolean nativeHasNext(long nativeHandle);
+  private native boolean nativeHasNext(long iterHandle);
 
-  private native long nativeNext(long nativeHandle);
+  private native long nativeNext(long iterHandle);
 
-  private native long nativeSpill(long nativeHandle, long size);
+  private native long nativeSpill(long iterHandle, long size);
 
-  private native void nativeClose(long nativeHandle);
+  private native void nativeClose(long iterHandle);
 
-  private native IMetrics nativeFetchMetrics(long nativeHandle);
+  private native IMetrics nativeFetchMetrics(long iterHandle);
 
   @Override
   public boolean hasNextInternal() throws IOException {
-    return nativeHasNext(handle);
+    return nativeHasNext(iterHandle);
   }
 
   @Override
   public ColumnarBatch nextInternal() throws IOException {
-    long batchHandle = nativeNext(handle);
+    long batchHandle = nativeNext(iterHandle);
     if (batchHandle == -1L) {
       return null; // stream ended
     }
-    return ColumnarBatches.create(batchHandle);
+    return ColumnarBatches.create(ctx, batchHandle);
   }
 
   @Override
   public IMetrics getMetricsInternal() throws IOException, ClassNotFoundException {
-    return nativeFetchMetrics(handle);
+    return nativeFetchMetrics(iterHandle);
   }
 
   public long spill(long size) {
-    return nativeSpill(handle, size);
+    return nativeSpill(iterHandle, size);
   }
 
   @Override
   public void closeInternal() {
-    nativeClose(handle);
+    nativeClose(iterHandle);
   }
 }

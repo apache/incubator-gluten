@@ -21,11 +21,9 @@ import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
-import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /**
@@ -90,23 +88,7 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
     }
   }
 
-  override def output: Seq[Attribute] = child.output
-
-  override def outputPartitioning: Partitioning = child.outputPartitioning
-
-  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
-
-  override def supportsColumnar: Boolean = true
-
   // For spark 3.2.
   protected def withNewChildInternal(newChild: SparkPlan): RowToCHNativeColumnarExec =
     copy(child = newChild)
-
-  override def doExecute(): RDD[InternalRow] = {
-    child.execute()
-  }
-
-  override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
-    child.executeBroadcast()
-  }
 }

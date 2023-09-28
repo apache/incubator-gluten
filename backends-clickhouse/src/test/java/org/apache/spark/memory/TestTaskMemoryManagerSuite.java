@@ -20,8 +20,8 @@ import io.glutenproject.memory.SimpleMemoryUsageRecorder;
 import io.glutenproject.memory.alloc.CHManagedCHReservationListener;
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocator;
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocatorManagerImpl;
-import io.glutenproject.memory.memtarget.spark.GlutenMemoryConsumer;
-import io.glutenproject.memory.memtarget.spark.Spiller;
+import io.glutenproject.memory.memtarget.MemoryTargets;
+import io.glutenproject.memory.memtarget.Spiller;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.internal.config.package$;
@@ -29,6 +29,8 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.Collections;
 
 public class TestTaskMemoryManagerSuite {
   static {
@@ -50,11 +52,8 @@ public class TestTaskMemoryManagerSuite {
 
     listener =
         new CHManagedCHReservationListener(
-            new GlutenMemoryConsumer(
-                "test",
-                taskMemoryManager,
-                Spiller.NO_OP,
-                GlutenMemoryConsumer.newDefaultStatsBuilder()),
+            MemoryTargets.newConsumer(
+                taskMemoryManager, "test", Spiller.NO_OP, Collections.emptyMap()),
             new SimpleMemoryUsageRecorder());
 
     manager = new CHNativeMemoryAllocatorManagerImpl(new CHNativeMemoryAllocator(-1L, listener));

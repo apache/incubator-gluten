@@ -85,11 +85,8 @@ HashSelectorBuilder::HashSelectorBuilder(
 PartitionInfo HashSelectorBuilder::build(DB::Block & block)
 {
     ColumnsWithTypeAndName args;
-    auto rows = block.rows();
     for (size_t i = 0; i < exprs_index.size(); i++)
-    {
-        args.emplace_back(block.getByPosition(exprs_index.at(i)));
-    }
+        args.emplace_back(block.safeGetByPosition(exprs_index.at(i)));
 
     if (!hash_function) [[unlikely]]
     {
@@ -98,14 +95,24 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
 
         hash_function = function->build(args);
     }
+
+    auto rows = block.rows();
     DB::IColumn::Selector partition_ids;
     partition_ids.reserve(rows);
     auto result_type = hash_function->getResultType();
     auto hash_column = hash_function->execute(args, result_type, rows, false);
 
-    for (size_t i = 0; i < block.rows(); i++)
+    if (isNothing(removeNullable(result_type)))
     {
-        partition_ids.emplace_back(static_cast<UInt64>(hash_column->get64(i) % parts_num));
+        /// TODO: implement new hash function sparkCityHash64 like sparkXxHash64 to process null literal as column more gracefully.
+        /// Current implementation may cause partition skew.
+        for (size_t i = 0; i < rows; i++)
+            partition_ids.emplace_back(0);
+    }
+    else
+    {
+        for (size_t i = 0; i < rows; i++)
+            partition_ids.emplace_back(static_cast<UInt64>(hash_column->get64(i) % parts_num));
     }
     return PartitionInfo::fromSelector(std::move(partition_ids), parts_num);
 }

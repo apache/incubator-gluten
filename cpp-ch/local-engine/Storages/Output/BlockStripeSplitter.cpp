@@ -22,18 +22,25 @@ using namespace local_engine;
 BlockStripes
 local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vector<size_t> & partition_column_indices, bool has_bucket)
 {
+    BlockStripes ret;
+    ret.origin_block_address = reinterpret_cast<int64_t>(&block);
+    ret.origin_block_num_columns = static_cast<int>(block.columns());
+
+    /// In case block has zero rows
+    const size_t rows = block.rows();
+    if (rows == 0)
+        return ret;
 
     std::vector<size_t> partition_bucket_column_indices = partition_column_indices;
     if (has_bucket)
         partition_bucket_column_indices.push_back(block.columns() - 1);
 
     std::vector<size_t> split_points;
-    size_t rows = block.rows();
     for (size_t i = 0; i < partition_bucket_column_indices.size(); i++)
     {
-        auto column = block.getByPosition(partition_bucket_column_indices.at(i)).column;
+        auto column = block.safeGetByPosition(partition_bucket_column_indices.at(i)).column;
 
-        if (i == 0 && column->compareAt(0, block.rows() - 1, *column, 1) == 0)
+        if (i == 0 && column->compareAt(0, rows - 1, *column, 1) == 0)
         {
             /// No value changes for this whole column
             continue;
@@ -46,9 +53,6 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
         }
     }
 
-    BlockStripes ret;
-    ret.origin_block_address = reinterpret_cast<int64_t>(&block);
-    ret.origin_block_num_columns = static_cast<int>(block.columns());
     const bool no_need_split = split_points.empty();
 
     /// Sort split points
@@ -56,7 +60,7 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
 
     /// Deduplicate split points
     split_points.erase(std::unique(split_points.begin(), split_points.end()), split_points.end());
-    split_points.push_back(block.rows());
+    split_points.push_back(rows);
 
     /// Create output block by ignoring the partition cols
     DB::ColumnsWithTypeAndName output_columns;

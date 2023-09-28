@@ -1,0 +1,11 @@
+columns format version: 1
+9 columns:
+`p_partkey` Int64
+`p_name` String
+`p_mfgr` String
+`p_brand` String
+`p_type` String
+`p_size` Int64
+`p_container` String
+`p_retailprice` Float64
+`p_comment` String

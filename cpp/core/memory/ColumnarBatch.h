@@ -115,7 +115,10 @@ class CompositeColumnarBatch final : public ColumnarBatch {
   const std::vector<std::shared_ptr<ColumnarBatch>>& getBatches() const;
 
  private:
-  CompositeColumnarBatch(long numColumns, long numRows, std::vector<std::shared_ptr<ColumnarBatch>> batches);
+  explicit CompositeColumnarBatch(
+      int32_t numColumns,
+      int32_t numRows,
+      std::vector<std::shared_ptr<ColumnarBatch>> batches);
 
   // We use ArrowColumnarBatch as the way to compose columnar batches
   void ensureUnderlyingBatchCreated();

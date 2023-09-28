@@ -75,9 +75,9 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions
     {
         GET_JNIENV(env)
         jclass celeborn_partition_pusher_class =
-            CreateGlobalClassReference(env, "Lorg/apache/spark/shuffle/gluten/celeborn/CelebornCHPartitionPusher;");
+            CreateGlobalClassReference(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
         jmethodID celeborn_push_partition_data_method =
-            GetMethodID(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[B)I");
+            GetMethodID(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[BI)I");
         CLEAN_JNIENV
         auto celeborn_client = std::make_unique<CelebornClient>(rss_pusher, celeborn_push_partition_data_method);
         partition_writer = std::make_unique<CelebornPartitionWriter>(this, std::move(celeborn_client));
@@ -146,7 +146,8 @@ SplitResult CachedShuffleWriter::stop()
 size_t CachedShuffleWriter::evictPartitions()
 {
     auto size = partition_writer->totalCacheSize();
-    partition_writer->evictPartitions(true);
+    if (size)
+        partition_writer->evictPartitions(true);
     return size;
 }
 

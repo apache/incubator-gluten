@@ -388,4 +388,25 @@ class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
     validateFallbackResult("SELECT map(1, array())")
     validateFallbackResult("SELECT map(1, map())")
   }
+
+  test("map extract - getmapvalue") {
+    withTempPath {
+      path =>
+        Seq(
+          Map[Int, Int](1 -> 100, 2 -> 200),
+          Map[Int, Int](),
+          Map[Int, Int](1 -> 100, 2 -> 200, 3 -> 300),
+          null
+        )
+          .toDF("i")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        spark.read.parquet(path.getCanonicalPath).createOrReplaceTempView("map_tbl")
+
+        runQueryAndCompare("select i[\"1\"] from map_tbl") {
+          checkOperatorMatch[ProjectExecTransformer]
+        }
+    }
+  }
 }

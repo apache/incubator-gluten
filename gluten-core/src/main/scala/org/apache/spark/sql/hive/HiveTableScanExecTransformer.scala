@@ -28,16 +28,17 @@ import io.glutenproject.substrait.rel.ReadRelNode
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.catalog.HiveTableRelation
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer._
 import org.apache.spark.sql.hive.execution.HiveTableScanExec
-import org.apache.spark.sql.types.{ArrayType, MapType, StructType}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
+import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
 import org.apache.hadoop.mapred.TextInputFormat
 
 import java.net.URI
@@ -122,44 +123,25 @@ class HiveTableScanExecTransformer(
             ReadFileFormat.JsonReadFormat
           case _ => ReadFileFormat.TextReadFormat
         }
+      case Some(inputFormat)
+          if ORC_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
+        ReadFileFormat.OrcReadFormat
       case _ => ReadFileFormat.UnknownFormat
-    }
-  }
-
-  override protected def doValidateInternal(): ValidationResult = {
-    val validationResult = super.doValidateInternal()
-    if (!validationResult.isValid) {
-      return validationResult
-    }
-
-    val tableMeta = relation.tableMeta
-    val planOutput = output.asInstanceOf[Seq[AttributeReference]]
-    var hasComplexType = false
-    planOutput.foreach(
-      x => {
-        hasComplexType = if (!hasComplexType) {
-          x.dataType.isInstanceOf[StructType] ||
-          x.dataType.isInstanceOf[MapType] ||
-          x.dataType.isInstanceOf[ArrayType]
-        } else hasComplexType
-      })
-
-    fileFormat match {
-      case ReadFileFormat.JsonReadFormat => ValidationResult.ok
-      case ReadFileFormat.TextReadFormat =>
-        if (!hasComplexType) {
-          ValidationResult.ok
-        } else {
-          ValidationResult.notOk("does not support complex type")
-        }
-      case _ => ValidationResult.notOk("Unknown file format")
     }
   }
 
   private def createDefaultTextOption(): Map[String, String] = {
     var options: Map[String, String] = Map()
-    options += ("field_delimiter" -> DEFAULT_FIELD_DELIMITER.toString)
-    options += ("nullValue" -> NULL_VALUE.toString)
+    relation.tableMeta.storage.serde match {
+      case Some("org.apache.hadoop.hive.serde2.OpenCSVSerde") =>
+        options += ("field_delimiter" -> ",")
+        options += ("quote" -> "\"")
+        options += ("escape" -> "\\")
+      case _ =>
+        options += ("field_delimiter" -> DEFAULT_FIELD_DELIMITER.toString)
+        options += ("nullValue" -> NULL_VALUE.toString)
+    }
+
     options
   }
 
@@ -173,8 +155,18 @@ class HiveTableScanExecTransformer(
       var options: Map[String, String] = createDefaultTextOption()
       // property key string read from org.apache.hadoop.hive.serde.serdeConstants
       properties.foreach {
-        case ("separatorChar", v) => options += ("field_delimiter" -> v)
-        case ("field.delim", v) => options += ("field_delimiter" -> v)
+        case ("separatorChar", v) =>
+          // If separatorChar, we should use default separatorChar
+          // for org.apache.hadoop.hive.serde2.OpenCSVSerde
+          // It ifx issue: https://github.com/oap-project/gluten/issues/3108
+          var nv = if (v.isEmpty()) "," else v
+          options += ("field_delimiter" -> nv)
+        case ("field.delim", v) =>
+          // If field.delim is empty, we should use default field delimiter
+          // for org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+          // It fixed issue: https://github.com/oap-project/gluten/issues/3108
+          var nv = if (v.isEmpty) DEFAULT_FIELD_DELIMITER.toString else v
+          options += ("field_delimiter" -> nv)
         case ("quoteChar", v) => options += ("quote" -> v)
         case ("quote.delim", v) => options += ("quote" -> v)
         case ("skip.header.line.count", v) => options += ("header" -> v)
@@ -201,6 +193,14 @@ class HiveTableScanExecTransformer(
   }
 
   override def hashCode(): Int = super.hashCode()
+
+  override def doCanonicalize(): HiveTableScanExecTransformer = {
+    val canonicalized = super.doCanonicalize()
+    new HiveTableScanExecTransformer(
+      canonicalized.requestedAttributes,
+      canonicalized.relation,
+      canonicalized.partitionPruningPred)(canonicalized.session)
+  }
 }
 
 object HiveTableScanExecTransformer {
@@ -209,6 +209,8 @@ object HiveTableScanExecTransformer {
   val DEFAULT_FIELD_DELIMITER: Char = 0x01
   val TEXT_INPUT_FORMAT_CLASS: Class[TextInputFormat] =
     Utils.classForName("org.apache.hadoop.mapred.TextInputFormat")
+  val ORC_INPUT_FORMAT_CLASS: Class[OrcInputFormat] =
+    Utils.classForName("org.apache.hadoop.hive.ql.io.orc.OrcInputFormat")
 
   def isHiveTableScan(plan: SparkPlan): Boolean = {
     plan.isInstanceOf[HiveTableScanExec]

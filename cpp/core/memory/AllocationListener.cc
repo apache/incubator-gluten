@@ -19,6 +19,8 @@
 
 namespace gluten {
 
+bool backtrace_allocation = false;
+
 class NoopAllocationListener : public gluten::AllocationListener {
  public:
   void allocationChanged(int64_t diff) override {
@@ -28,6 +30,6 @@ class NoopAllocationListener : public gluten::AllocationListener {
 
 std::unique_ptr<AllocationListener> AllocationListener::noop() {
   return std::make_unique<NoopAllocationListener>();
-};
+}
 
 } // namespace gluten

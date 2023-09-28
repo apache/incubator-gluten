@@ -16,26 +16,49 @@
  */
 package io.glutenproject.columnarbatch;
 
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionCtxAware;
+import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 
-public class ColumnarBatchJniWrapper extends JniInitialized {
-  public static final ColumnarBatchJniWrapper INSTANCE = new ColumnarBatchJniWrapper();
+public class ColumnarBatchJniWrapper extends JniInitialized implements ExecutionCtxAware {
+  private final ExecutionCtx ctx;
 
-  private ColumnarBatchJniWrapper() {}
+  private ColumnarBatchJniWrapper(ExecutionCtx ctx) {
+    this.ctx = ctx;
+  }
 
-  public native String getType(long handle);
+  public static ColumnarBatchJniWrapper create() {
+    return new ColumnarBatchJniWrapper(ExecutionCtxs.contextInstance());
+  }
 
-  public native long numColumns(long handle);
-
-  public native long numRows(long handle);
-
-  public native long numBytes(long handle);
-
-  public native long compose(long[] handles);
+  public static ColumnarBatchJniWrapper forCtx(ExecutionCtx ctx) {
+    return new ColumnarBatchJniWrapper(ctx);
+  }
 
   public native long createWithArrowArray(long cSchema, long cArray);
 
-  public native void exportToArrow(long handle, long cSchema, long cArray);
+  public native String getType(long batchHandle);
 
-  public native void close(long handle);
+  public native long numColumns(long batchHandle);
+
+  public native long numRows(long batchHandle);
+
+  public native long numBytes(long batchHandle);
+
+  public native long compose(long[] batches);
+
+  public native void exportToArrow(long batch, long cSchema, long cArray);
+
+  public native long select(
+      long nativeMemoryManagerHandle, // why a mm is needed here?
+      long batch,
+      int[] columnIndices);
+
+  public native void close(long batch);
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
+  }
 }

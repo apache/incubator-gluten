@@ -17,16 +17,16 @@
 package io.glutenproject.memory.memtarget;
 
 import io.glutenproject.GlutenConfig$;
-import io.glutenproject.proto.MemoryUsageStats;
 
 import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.sql.internal.SQLConf;
+import org.apache.spark.util.TaskResources;
 import org.apache.spark.util.Utils;
 
 public class ThrowOnOomMemoryTarget implements MemoryTarget {
-  private final TaskManagedMemoryTarget target;
+  private final MemoryTarget target;
 
-  public ThrowOnOomMemoryTarget(TaskManagedMemoryTarget target) {
+  public ThrowOnOomMemoryTarget(MemoryTarget target) {
     this.target = target;
   }
 
@@ -43,7 +43,9 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
       target.repay(granted);
     }
     // Log memory usage
-    target.getTaskMemoryManager().showMemoryUsage();
+    if (TaskResources.inSparkTask()) {
+      TaskResources.getLocalTaskContext().taskMemoryManager().showMemoryUsage();
+    }
     // Build error message, then throw
     StringBuilder errorBuilder = new StringBuilder();
     errorBuilder
@@ -71,9 +73,19 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
                     SQLConf.get()
                         .getConfString(
                             GlutenConfig$.MODULE$.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY()))))
+        .append(System.lineSeparator())
+        .append(
+            String.format(
+                "\t%s=%s",
+                GlutenConfig$.MODULE$.GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY(),
+                reformatBytes(
+                    SQLConf.get()
+                        .getConfString(
+                            GlutenConfig$.MODULE$
+                                .GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY()))))
         .append(System.lineSeparator());
     // Dump all consumer usages to exception body
-    errorBuilder.append(SparkMemoryUtil.dumpMemoryConsumerStats(target.getTaskMemoryManager()));
+    errorBuilder.append(SparkMemoryUtil.dumpMemoryTargetStats(target));
     errorBuilder.append(System.lineSeparator());
     throw new OutOfMemoryException(errorBuilder.toString());
   }
@@ -88,18 +100,13 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
   }
 
   @Override
-  public String name() {
-    return target.name();
-  }
-
-  @Override
   public long usedBytes() {
     return target.usedBytes();
   }
 
   @Override
-  public MemoryUsageStats stats() {
-    return target.stats();
+  public <T> T accept(MemoryTargetVisitor<T> visitor) {
+    return visitor.visit(this);
   }
 
   public static class OutOfMemoryException extends RuntimeException {
