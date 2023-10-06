@@ -143,7 +143,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34716: Support ANSI SQL intervals by the aggregate function `sum`")
     .exclude("SPARK-34837: Support ANSI SQL intervals by the aggregate function `avg`")
     .exclude("SPARK-35412: groupBy of year-month/day-time intervals should work")
-    .exclude("SPARK-36926: decimal average mistakenly overflow")
     .exclude("Gluten - use gluten hash agg to replace vanilla spark sort agg")
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenDataFrameFunctionsSuite]
