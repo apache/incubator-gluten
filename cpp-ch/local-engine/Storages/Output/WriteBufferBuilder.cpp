@@ -15,17 +15,18 @@
  * limitations under the License.
  */
 #include <memory>
-#include <IO/WriteSettings.h>
-#include <Interpreters/Cache/FileCache.h>
-#include <Interpreters/Cache/FileCacheSettings.h>
 #include <Interpreters/Context_fwd.h>
 #include <Storages/HDFS/HDFSCommon.h>
 #include <Storages/HDFS/WriteBufferFromHDFS.h>
 #include <Storages/Output/WriteBufferBuilder.h>
 #include <hdfs/hdfs.h>
-#include <Poco/Logger.h>
 #include <Poco/URI.h>
-#include <Common/CHUtil.h>
+#include "IO/WriteSettings.h"
+
+#include <Poco/Logger.h>
+
+#include <Interpreters/Cache/FileCache.h>
+#include <Interpreters/Cache/FileCacheSettings.h>
 
 namespace DB
 {
@@ -68,27 +69,23 @@ public:
 
     std::unique_ptr<DB::WriteBuffer> build(const std::string & file_uri_) override
     {
-        Poco::URI uri(file_uri_);
+        Poco::URI file_uri(file_uri_);
+        std::unique_ptr<DB::WriteBuffer> write_buffer;
 
-        /// Add spark user for file_uri to avoid permission issue during native writing
-        std::string new_file_uri = file_uri_;
-        if (uri.getUserInfo().empty() && BackendInitializerUtil::spark_user.has_value())
-        {
-            uri.setUserInfo(*BackendInitializerUtil::spark_user);
-            new_file_uri = uri.toString();
-        }
-
-        auto builder = DB::createHDFSBuilder(new_file_uri, context->getConfigRef());
+        auto builder = DB::createHDFSBuilder(file_uri_, context->getConfigRef());
         auto fs = DB::createHDFSFS(builder.get());
-        auto first = new_file_uri.find('/', new_file_uri.find("//") + 2);
-        auto last = new_file_uri.find_last_of('/');
-        auto dir = new_file_uri.substr(first, last - first);
+        auto first = file_uri_.find('/', file_uri_.find("//") + 2);
+        auto last = file_uri_.find_last_of('/');
+        auto dir = file_uri_.substr(first, last - first);
         int err = hdfsCreateDirectory(fs.get(), dir.c_str());
         if (err)
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Cannot create dir for {} because {}", dir, std::string(hdfsGetLastError()));
+        {
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Cannot create dir for {}", dir);
+        }
 
         DB::WriteSettings write_settings;
-        return std::make_unique<DB::WriteBufferFromHDFS>(new_file_uri, context->getConfigRef(), 0, write_settings);
+        write_buffer = std::make_unique<DB::WriteBufferFromHDFS>(file_uri_, context->getConfigRef(), 0, write_settings);
+        return write_buffer;
     }
 };
 #endif

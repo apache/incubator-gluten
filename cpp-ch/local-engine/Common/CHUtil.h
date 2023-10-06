@@ -145,11 +145,6 @@ public:
     inline static const std::string SPARK_HADOOP_PREFIX = "spark.hadoop.";
     inline static const std::string S3A_PREFIX = "fs.s3a.";
 
-    /// On yarn mode, native writing on hdfs cluster takes yarn container user as the user passed to libhdfs3, which
-    /// will cause permission issue because yarn container user is not the owner of the hdfs dir to be written.
-    /// So we need to get the spark user from env and pass it to libhdfs3.
-    inline static std::optional<String> spark_user;
-
 private:
     friend class BackendFinalizerUtil;
     friend class JNIUtils;

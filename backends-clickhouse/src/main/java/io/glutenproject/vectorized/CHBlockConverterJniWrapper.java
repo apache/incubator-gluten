@@ -26,15 +26,15 @@ public class CHBlockConverterJniWrapper {
   }
 
   // for ch columnar -> spark row
-  public static native SparkRowInfo convertColumnarToRow(long blockAddress, int[] masks);
+  public native SparkRowInfo convertColumnarToRow(long blockAddress);
 
   // for ch columnar -> spark row
-  public static native void freeMemory(long address, long size);
+  public native void freeMemory(long address, long size);
 
   // for spark row -> ch columnar
-  public static native long convertSparkRowsToCHColumn(
+  public native long convertSparkRowsToCHColumn(
       SparkRowIterator iter, String[] names, byte[][] types);
 
   // for spark row -> ch columnar
-  public static native void freeBlock(long blockAddress);
+  public native void freeBlock(long blockAddress);
 }

@@ -1,1 +1,2 @@
 org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseDataSource
+org.apache.spark.sql.execution.datasources.v1.nativeparquet.CHParquetFileFormat

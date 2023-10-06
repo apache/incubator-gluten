@@ -50,7 +50,7 @@ using namespace DB;
 
 
 template <typename T>
-requires std::is_integral_v<T>
+    requires std::is_integral_v<T>
 struct IntHashPromotion
 {
     static constexpr bool is_signed = is_signed_v<T>;

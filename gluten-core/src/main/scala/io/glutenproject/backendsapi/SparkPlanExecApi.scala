@@ -200,7 +200,7 @@ trait SparkPlanExecApi {
   def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]]
 
   /**
-   * Generate extended Strategies
+   * Generate extended Strategies. Currently only for Velox backend.
    *
    * @return
    */

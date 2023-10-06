@@ -19,17 +19,11 @@ package io.glutenproject.backendsapi.velox
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ContextApi
 import io.glutenproject.exception.GlutenException
-import io.glutenproject.execution.datasource.GlutenOrcWriterInjects
-import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
-import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.expression.UDFMappings
 import io.glutenproject.utils._
 import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.datasources.velox.VeloxOrcWriterInjects
-import org.apache.spark.sql.execution.datasources.velox.VeloxParquetWriterInjects
-import org.apache.spark.sql.execution.datasources.velox.VeloxRowSplitter
 import org.apache.spark.util.TaskResource
 
 import org.apache.commons.lang3.StringUtils
@@ -127,11 +121,6 @@ class ContextInitializer extends ContextApi {
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
     loader.mapAndLoad(baseLibName, true)
     loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, true)
-
-    // inject backend-specific implementations to override spark classes
-    GlutenParquetWriterInjects.setInstance(new VeloxParquetWriterInjects())
-    GlutenOrcWriterInjects.setInstance(new VeloxOrcWriterInjects())
-    GlutenRowSplitter.setInstance(new VeloxRowSplitter())
   }
 
   override def shutdown(): Unit = {

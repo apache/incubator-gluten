@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
-import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
@@ -47,8 +47,7 @@ case class SortExecTransformer(
     child: SparkPlan,
     testSpillFrequency: Int = 0)
   extends UnaryExecNode
-  with TransformSupport
-  with GlutenPlan {
+  with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =

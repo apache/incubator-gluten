@@ -22,9 +22,8 @@ import io.glutenproject.vectorized._
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeRow}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
-import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.CHShuffleReadStreamFactory
 
@@ -80,15 +79,38 @@ case class ClickHouseBuildSideRelation(
 
     try {
       // convert columnar to row
+      val converter = new CHBlockConverterJniWrapper()
       asScalaIterator(expressionEval).flatMap {
         block =>
           val batch = new CHNativeBlock(block)
           if (batch.numRows == 0) {
             Iterator.empty
           } else {
-            CHExecUtil
-              .getRowIterFromSparkRowInfo(block, batch.numColumns(), batch.numRows())
-              .map(row => row.copy())
+            val info = converter.convertColumnarToRow(block)
+
+            new Iterator[InternalRow] {
+              var rowId = 0
+              val row = new UnsafeRow(batch.numColumns())
+              var closed = false
+
+              override def hasNext: Boolean = {
+                val result = rowId < batch.numRows()
+                if (!result && !closed) {
+                  converter.freeMemory(info.memoryAddress, info.totalSize)
+                  closed = true
+                }
+                result
+              }
+
+              override def next: UnsafeRow = {
+                if (rowId >= batch.numRows()) throw new NoSuchElementException
+
+                val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
+                row.pointTo(null, info.memoryAddress + offset, length.toInt)
+                rowId += 1
+                row.copy()
+              }
+            }
           }
       }.toArray
     } finally {

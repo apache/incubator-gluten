@@ -14,23 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources;
+package org.apache.spark.sql.execution.datasources
 
-import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.vectorized.ColumnarBatch;
-
-/*-
- * BlockStripe is used in writing partitioned/bucketed table.
- * BlockStripe is part of block belonging to same partition/bucket
- */
-public abstract class BlockStripe {
-
-    public BlockStripe() {
-    }
-
-    // get the columnar batch of this block stripe
-    public abstract ColumnarBatch getColumnarBatch();
-
-    public abstract InternalRow getHeadingRow();
-}
-
+abstract class GlutenParquetFileFormat extends FileFormat {}

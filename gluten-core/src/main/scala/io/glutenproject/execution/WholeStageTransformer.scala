@@ -163,7 +163,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       .asInstanceOf[TransformSupport]
       .doTransform(substraitContext)
     if (childCtx == null) {
-      throw new NullPointerException(s"WholeStageTransformer can't do Transform on $child")
+      throw new NullPointerException(s"ColumnarWholeStageTransformer can't doTransform on $child")
     }
     val outNames = new java.util.ArrayList[String]()
     val planNode = if (BackendsApiManager.getSettings.needOutputSchemaForPlan()) {
@@ -238,7 +238,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
       /**
        * If containing scan exec transformer this "whole stage" generates a RDD which itself takes
-       * care of SCAN there won't be any other RDD for SCAN. As a result, genFirstStageIterator
+       * care of SCAN there won't be any other RDD for SCAN as a result, genFirstStageIterator
        * rather than genFinalStageIterator will be invoked
        */
 
@@ -333,8 +333,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     case c: TransformSupport =>
       c.columnarInputRDDs
     case _ =>
-      throw new IllegalStateException(
-        "WholeStageTransformerExec's child should be a TransformSupport ")
+      throw new UnsupportedOperationException
   }
 
   // Recreate the broadcast build side rdd with matched partition number.

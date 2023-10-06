@@ -54,7 +54,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
               withTempPath {
                 f =>
                   df.write
-                    .format("parquet")
+                    .format("velox")
                     .option("compression", codec)
                     .save(f.getCanonicalPath)
                   val files = f.list()
@@ -73,38 +73,43 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
 
   test("test ctas") {
     withTable("velox_ctas") {
-      spark
-        .range(100)
-        .toDF("id")
-        .createOrReplaceTempView("ctas_temp")
-      val df = spark.sql("CREATE TABLE velox_ctas USING PARQUET AS SELECT * FROM ctas_temp")
-      Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+      intercept[UnsupportedOperationException] {
+        spark
+          .range(100)
+          .toDF("id")
+          .write
+          .format("velox")
+          .saveAsTable("velox_ctas")
+      }
     }
   }
 
   test("test parquet dynamic partition write") {
     withTempPath {
       f =>
-        val path = f.getCanonicalPath
-        spark
-          .range(100)
-          .selectExpr("id as c1", "id % 7 as p")
-          .createOrReplaceTempView("temp")
-        val df = spark.sql(s"INSERT OVERWRITE DIRECTORY '$path' USING PARQUET SELECT * FROM temp")
-        Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+        intercept[UnsupportedOperationException] {
+          spark
+            .range(100)
+            .selectExpr("id as c1", "id % 7 as p")
+            .write
+            .format("velox")
+            .partitionBy("p")
+            .save(f.getCanonicalPath)
+        }
     }
   }
 
   test("test parquet bucket write") {
     withTable("bucket") {
-      spark
-        .range(100)
-        .selectExpr("id as c1", "id % 7 as p")
-        .createOrReplaceTempView("bucket_temp")
-      val df = spark.sql(
-        "CREATE TABLE bucket USING PARQUET CLUSTERED BY (p) INTO 7 BUCKETS " +
-          "AS SELECT * FROM bucket_temp")
-      Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+      intercept[UnsupportedOperationException] {
+        spark
+          .range(100)
+          .selectExpr("id as c1", "id % 7 as p")
+          .write
+          .format("velox")
+          .bucketBy(7, "p")
+          .saveAsTable("bucket")
+      }
     }
   }
 
@@ -112,7 +117,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
     withTempPath {
       f =>
         val df = spark.emptyDataFrame.select(lit(1).as("i"))
-        df.write.format("parquet").save(f.getCanonicalPath)
+        df.write.format("velox").save(f.getCanonicalPath)
         val res = spark.read.parquet(f.getCanonicalPath)
         checkAnswer(res, Nil)
         assert(res.schema.asNullable == df.schema.asNullable)

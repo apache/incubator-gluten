@@ -33,11 +33,8 @@
 namespace local_engine
 {
 ParquetOutputFormatFile::ParquetOutputFormatFile(
-    DB::ContextPtr context_,
-    const std::string & file_uri_,
-    WriteBufferBuilderPtr write_buffer_builder_,
-    const std::vector<std::string> & preferred_column_names_)
-    : OutputFormatFile(context_, file_uri_, write_buffer_builder_, preferred_column_names_)
+    DB::ContextPtr context_, const std::string & file_uri_, WriteBufferBuilderPtr write_buffer_builder_)
+    : OutputFormatFile(context_, file_uri_, write_buffer_builder_)
 {
 }
 
@@ -46,10 +43,10 @@ OutputFormatFile::OutputFormatPtr ParquetOutputFormatFile::createOutputFormat(co
     auto res = std::make_shared<OutputFormatFile::OutputFormat>();
     res->write_buffer = write_buffer_builder->build(file_uri);
 
-    auto new_header = creatHeaderWithPreferredColumnNames(header);
-    // TODO: align all spark parquet config with ch parquet config
+    //TODO: align spark parquet config with ch parquet config
     auto format_settings = DB::getFormatSettings(context);
-    auto output_format = std::make_shared<DB::ParquetBlockOutputFormat>(*(res->write_buffer), new_header, format_settings);
+    auto output_format = std::make_shared<DB::ParquetBlockOutputFormat>(*(res->write_buffer), header, format_settings);
+
     res->output = output_format;
     return res;
 }

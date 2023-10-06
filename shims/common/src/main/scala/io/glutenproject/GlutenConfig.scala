@@ -36,6 +36,8 @@ case class GlutenNumaBindingInfo(
 class GlutenConfig(conf: SQLConf) extends Logging {
   import GlutenConfig._
 
+  def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
+
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
@@ -280,9 +282,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
 object GlutenConfig {
   import SQLConf._
-
   var GLUTEN_ENABLE_BY_DEFAULT = true
   val GLUTEN_ENABLE_KEY = "spark.gluten.enabled"
+
   val GLUTEN_LIB_NAME = "spark.gluten.sql.columnar.libname"
   val GLUTEN_LIB_PATH = "spark.gluten.sql.columnar.libpath"
   val GLUTEN_EXECUTOR_LIB_PATH = "spark.gluten.sql.columnar.executor.libpath"
@@ -469,9 +471,6 @@ object GlutenConfig {
   def getNativeBackendConf(
       backendPrefix: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
-
-    current_backend_prefix = backendPrefix
-
     val nativeConfMap = new util.HashMap[String, String]()
 
     // some configs having default values
@@ -1154,6 +1153,7 @@ object GlutenConfig {
       .longConf
       .createWithDefault(-1L)
 
+<<<<<<< HEAD
   val NATIVE_WRITER_ENABLED =
     buildConf("spark.gluten.sql.native.writer.enabled")
       .internal()
@@ -1161,6 +1161,8 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+=======
+>>>>>>> parent of 6c92a5e9 ([GLUTEN-1925][CH] allow all parquet write jobs (#2205))
   val UT_STATISTIC =
     buildConf("spark.gluten.sql.ut.statistic")
       .internal()
