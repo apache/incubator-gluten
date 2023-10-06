@@ -56,7 +56,6 @@ using gluten::GlutenException;
 using gluten::ShuffleWriterOptions;
 using gluten::VeloxShuffleWriter;
 
-DEFINE_bool(prefer_evict, true, "SplitOptions prefer_evict=true");
 DEFINE_int32(partitions, -1, "Shuffle partitions");
 DEFINE_string(file, "", "Input file to split");
 
@@ -112,13 +111,12 @@ class BenchmarkShuffleSplit {
     std::shared_ptr<arrow::MemoryPool> pool = defaultArrowMemoryPool();
 
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
-        std::make_shared<LocalPartitionWriterCreator>(FLAGS_prefer_evict);
+        std::make_shared<LocalPartitionWriterCreator>();
 
     auto options = ShuffleWriterOptions::defaults();
     options.buffer_size = kPartitionBufferSize;
     options.buffered_write = true;
-    options.prefer_evict = FLAGS_prefer_evict;
-    options.memory_pool = pool;
+    options.memory_pool = pool.get();
     options.partitioning_name = "rr";
 
     std::shared_ptr<VeloxShuffleWriter> shuffleWriter;
@@ -258,7 +256,7 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       std::cout << localSchema->ToString() << std::endl;
 
-    auto* pool = options.memory_pool.get();
+    auto pool = options.memory_pool;
     GLUTEN_ASSIGN_OR_THROW(
         shuffleWriter,
         VeloxShuffleWriter::create(numPartitions, partitionWriterCreator, options, defaultLeafVeloxMemoryPool()));
@@ -329,7 +327,7 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
     std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
     std::shared_ptr<RecordBatchReader> recordBatchReader;
     GLUTEN_THROW_NOT_OK(::parquet::arrow::FileReader::Make(
-        options.memory_pool.get(), ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
+        options.memory_pool, ::parquet::ParquetFileReader::Open(file_), properties_, &parquetReader));
 
     for (auto _ : state) {
       std::vector<std::shared_ptr<arrow::RecordBatch>> batches;
@@ -365,9 +363,6 @@ int main(int argc, char** argv) {
   gluten::BenchmarkShuffleSplitIterateScanBenchmark iterateScanBenchmark(FLAGS_file);
 
   auto bm = benchmark::RegisterBenchmark("BenchmarkShuffleSplit::IterateScan", iterateScanBenchmark)
-                ->Args({
-                    FLAGS_prefer_evict,
-                })
                 ->ReportAggregatesOnly(false)
                 ->MeasureProcessCPUTime()
                 ->Unit(benchmark::kSecond);

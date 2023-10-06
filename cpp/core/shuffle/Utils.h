@@ -17,22 +17,32 @@
 
 #pragma once
 
-#include "arrow/memory_pool.h"
-#include "memory.pb.h"
+#include <arrow/array.h>
+#include <arrow/filesystem/filesystem.h>
+#include <arrow/filesystem/localfs.h>
+#include <arrow/filesystem/path_util.h>
+#include <arrow/ipc/writer.h>
+#include <arrow/type.h>
+#include <arrow/util/io_util.h>
+#include <chrono>
 
 namespace gluten {
 
-class MemoryManager {
- public:
-  MemoryManager() = default;
+const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";
 
-  virtual ~MemoryManager() = default;
+std::string generateUuid();
 
-  virtual arrow::MemoryPool* getArrowMemoryPool() = 0;
+std::string getSpilledShuffleFileDir(const std::string& configuredDir, int32_t subDirId);
 
-  virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
+arrow::Result<std::vector<std::string>> getConfiguredLocalDirs();
 
-  virtual const int64_t shrink(int64_t size) = 0;
-};
+arrow::Result<std::string> createTempShuffleFile(const std::string& dir);
+
+arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShuffleWriterTypeId(
+    const std::vector<std::shared_ptr<arrow::Field>>& fields);
+
+int64_t getBufferSizes(const std::shared_ptr<arrow::Array>& array);
+
+arrow::Status writeEos(arrow::io::OutputStream* os);
 
 } // namespace gluten
