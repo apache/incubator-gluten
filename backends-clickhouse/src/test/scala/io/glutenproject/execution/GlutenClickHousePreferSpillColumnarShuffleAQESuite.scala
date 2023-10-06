@@ -37,7 +37,7 @@ class GlutenClickHousePreferSpillColumnarShuffleAQESuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.sql.adaptive.enabled", "true")
-      .set("spark.gluten.sql.columnar.shuffle.preferSpill", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.shuffle.preferSpill", "true")
   }
 
   test("TPCH Q1") {

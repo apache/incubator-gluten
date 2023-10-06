@@ -14,25 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.memory.memtarget;
 
-#pragma once
+public interface Spiller {
+  Spiller NO_OP =
+      new Spiller() {
+        @Override
+        public long spill(MemoryTarget self, long size) {
+          return 0L;
+        }
+      };
 
-#include "arrow/memory_pool.h"
-#include "memory.pb.h"
-
-namespace gluten {
-
-class MemoryManager {
- public:
-  MemoryManager() = default;
-
-  virtual ~MemoryManager() = default;
-
-  virtual arrow::MemoryPool* getArrowMemoryPool() = 0;
-
-  virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
-
-  virtual const int64_t shrink(int64_t size) = 0;
-};
-
-} // namespace gluten
+  long spill(MemoryTarget self, long size);
+}

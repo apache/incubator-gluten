@@ -18,7 +18,8 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.memory.memtarget.spark.Spiller
+import io.glutenproject.memory.memtarget.MemoryTarget
+import io.glutenproject.memory.memtarget.Spiller
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
 
@@ -73,8 +74,6 @@ class ColumnarShuffleWriter[K, V](
 
   private val bufferCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBufferCompressThreshold
-
-  private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
 
   private val writeEOS = GlutenConfig.getConf.columnarShuffleWriteEOS
 
@@ -132,12 +131,11 @@ class ColumnarShuffleWriter[K, V](
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
-            preferSpill,
             NativeMemoryManagers
               .create(
                 "ShuffleWriter",
                 new Spiller() {
-                  override def spill(size: Long): Long = {
+                  override def spill(self: MemoryTarget, size: Long): Long = {
                     if (nativeShuffleWriter == -1L) {
                       throw new IllegalStateException(
                         "Fatal: spill() called before a shuffle writer " +

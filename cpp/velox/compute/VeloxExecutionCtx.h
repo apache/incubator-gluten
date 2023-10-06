@@ -104,18 +104,18 @@ class VeloxExecutionCtx final : public ExecutionCtx {
   ResourceHandle createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool,
+      arrow::MemoryPool* pool,
       MemoryManager* memoryManager) override;
   std::shared_ptr<ShuffleReader> getShuffleReader(ResourceHandle handle) override;
   void releaseShuffleReader(ResourceHandle handle) override;
 
   std::unique_ptr<ColumnarBatchSerializer> createTempColumnarBatchSerializer(
       MemoryManager* memoryManager,
-      std::shared_ptr<arrow::MemoryPool> arrowPool,
+      arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) override;
   ResourceHandle createColumnarBatchSerializer(
       MemoryManager* memoryManager,
-      std::shared_ptr<arrow::MemoryPool> arrowPool,
+      arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) override;
   std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(ResourceHandle handle) override;
   void releaseColumnarBatchSerializer(ResourceHandle handle) override;

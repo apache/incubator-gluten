@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include <ostream>
+#include <iostream>
 
 #ifdef GLUTEN_PRINT_DEBUG
 

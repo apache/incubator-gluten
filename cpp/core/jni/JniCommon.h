@@ -26,6 +26,7 @@
 #include "compute/ProtobufUtils.h"
 #include "config/GlutenConfig.h"
 #include "memory/AllocationListener.h"
+#include "shuffle/rss/RssClient.h"
 #include "utils/DebugOut.h"
 #include "utils/compression.h"
 #include "utils/exception.h"
@@ -314,11 +315,6 @@ class BacktraceAllocationListener final : public gluten::AllocationListener {
   std::atomic_int64_t backtraceBytes_{1L << 30};
 };
 
-class RssClient {
- public:
-  virtual ~RssClient() = default;
-};
-
 class CelebornClient : public RssClient {
  public:
   CelebornClient(JavaVM* vm, jobject javaCelebornShuffleWriter, jmethodID javaCelebornPushPartitionDataMethod)
@@ -346,7 +342,7 @@ class CelebornClient : public RssClient {
     env->DeleteGlobalRef(array_);
   }
 
-  int32_t pushPartitonData(int32_t partitionId, char* bytes, int64_t size) {
+  int32_t pushPartitionData(int32_t partitionId, char* bytes, int64_t size) {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
       throw gluten::GlutenException("JNIEnv was not attached to current thread");
@@ -365,6 +361,8 @@ class CelebornClient : public RssClient {
     checkException(env);
     return static_cast<int32_t>(celebornBytesSize);
   }
+
+  void stop() {}
 
   JavaVM* vm_;
   jobject javaCelebornShuffleWriter_;
