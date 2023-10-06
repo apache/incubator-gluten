@@ -78,10 +78,7 @@ ReaderOptions ReaderOptions::defaults() {
   return {};
 }
 
-ShuffleReader::ShuffleReader(
-    std::shared_ptr<arrow::Schema> schema,
-    ReaderOptions options,
-    std::shared_ptr<arrow::MemoryPool> pool)
+ShuffleReader::ShuffleReader(std::shared_ptr<arrow::Schema> schema, ReaderOptions options, arrow::MemoryPool* pool)
     : pool_(pool), options_(std::move(options)), schema_(schema) {}
 
 std::shared_ptr<ResultIterator> ShuffleReader::readStream(std::shared_ptr<arrow::io::InputStream> in) {
@@ -93,7 +90,7 @@ arrow::Status ShuffleReader::close() {
   return arrow::Status::OK();
 }
 
-const std::shared_ptr<arrow::MemoryPool>& ShuffleReader::getPool() const {
+arrow::MemoryPool* ShuffleReader::getPool() const {
   return pool_;
 }
 

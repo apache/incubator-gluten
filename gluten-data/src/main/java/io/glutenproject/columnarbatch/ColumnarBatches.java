@@ -323,7 +323,7 @@ public class ColumnarBatches {
     int numColumns = Math.toIntExact(iv.getNumColumns());
     int numRows = Math.toIntExact(iv.getNumRows());
     if (numColumns == 0) {
-      return new ColumnarBatch(new ColumnVector[0], numRows);
+      return new ColumnarBatch(new ColumnVector[] {iv}, numRows);
     }
     final ColumnVector[] columnVectors = new ColumnVector[numColumns];
     columnVectors[0] = iv;

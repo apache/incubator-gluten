@@ -25,8 +25,7 @@ namespace gluten {
 
 class ColumnarBatchSerializer {
  public:
-  ColumnarBatchSerializer(std::shared_ptr<arrow::MemoryPool> arrowPool, struct ArrowSchema* cSchema)
-      : arrowPool_(std::move(arrowPool)) {}
+  ColumnarBatchSerializer(arrow::MemoryPool* arrowPool, struct ArrowSchema* cSchema) : arrowPool_(arrowPool) {}
 
   virtual ~ColumnarBatchSerializer() = default;
 
@@ -36,7 +35,7 @@ class ColumnarBatchSerializer {
   virtual std::shared_ptr<ColumnarBatch> deserialize(uint8_t* data, int32_t size) = 0;
 
  protected:
-  std::shared_ptr<arrow::MemoryPool> arrowPool_;
+  arrow::MemoryPool* arrowPool_;
 };
 
 } // namespace gluten

@@ -17,22 +17,11 @@
 
 #pragma once
 
-#include "arrow/memory_pool.h"
-#include "memory.pb.h"
-
-namespace gluten {
-
-class MemoryManager {
+class RssClient {
  public:
-  MemoryManager() = default;
+  virtual ~RssClient() = default;
 
-  virtual ~MemoryManager() = default;
+  virtual int32_t pushPartitionData(int32_t partitionId, char* bytes, int64_t size) = 0;
 
-  virtual arrow::MemoryPool* getArrowMemoryPool() = 0;
-
-  virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
-
-  virtual const int64_t shrink(int64_t size) = 0;
+  virtual void stop() = 0;
 };
-
-} // namespace gluten

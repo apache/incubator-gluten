@@ -18,6 +18,8 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 
+import org.apache.spark.SparkConf
+import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
@@ -31,6 +33,12 @@ class VeloxColumnarCacheSuite extends WholeStageTransformerSuite with AdaptiveSp
   override def beforeAll(): Unit = {
     super.beforeAll()
     createTPCHNotNullTables()
+  }
+
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set("spark.sql.shuffle.partitions", "3")
   }
 
   private def checkColumnarTableCache(plan: SparkPlan): Unit = {
@@ -97,6 +105,22 @@ class VeloxColumnarCacheSuite extends WholeStageTransformerSuite with AdaptiveSp
       checkAnswer(actual, expected)
     } finally {
       actual.unpersist()
+    }
+  }
+
+  test("Support transform count(1) with table cache") {
+    val cached = spark.table("lineitem").cache()
+    try {
+      val df = spark.sql("SELECT COUNT(*) FROM lineitem")
+      checkAnswer(df, Row(60175))
+      assert(
+        find(df.queryExecution.executedPlan) {
+          case _: RowToVeloxColumnarExec => true
+          case _ => false
+        }.isEmpty
+      )
+    } finally {
+      cached.unpersist()
     }
   }
 }

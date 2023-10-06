@@ -245,7 +245,10 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2 with Celeborn
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c \
-          'bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/start-master.sh && bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/start-worker.sh && \
+          'mv /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-env.sh.template /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-env.sh && \
+          echo -e "CELEBORN_MASTER_MEMORY=4g\nCELEBORN_WORKER_MEMORY=4g\nCELEBORN_WORKER_OFFHEAP_MEMORY=8g" > /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-env.sh && \
+          echo -e "celeborn.worker.commitFiles.threads 128\nceleborn.worker.sortPartition.threads 64" > /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf \
+          && bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/start-master.sh && bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/start-worker.sh && \
           cd /opt/gluten/tools/gluten-it && mvn clean install -Pspark-3.2,rss \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
