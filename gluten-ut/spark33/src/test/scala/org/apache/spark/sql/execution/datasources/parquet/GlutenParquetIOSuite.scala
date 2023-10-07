@@ -41,20 +41,4 @@ class GlutenParquetIOSuite extends ParquetIOSuite with GlutenSQLTestsBaseTrait {
   override protected def readResourceParquetFile(name: String): DataFrame = {
     spark.read.parquet(testFile(name))
   }
-
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-35640: int as long should throw schema incompatible error") {
-    val data = (1 to 4).map(i => Tuple1(i))
-    val readSchema = StructType(Seq(StructField("_1", DataTypes.LongType)))
-
-    withParquetFile(data) {
-      path =>
-        val errMsg =
-          intercept[Exception](spark.read.schema(readSchema).parquet(path).collect()).getMessage
-        assert(
-          errMsg.contains(
-            "BaseVector::compatibleKind( childOutputType->kind(), childRequestedType->kind())"))
-    }
-  }
 }

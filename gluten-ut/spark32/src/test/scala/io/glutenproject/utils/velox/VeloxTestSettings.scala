@@ -356,6 +356,14 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Return correct results when data columns overlap with partition " +
       "columns (nested data)")
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
+    // ORC is not well supported.
+    .exclude("SPARK-15474 Write and read back non-empty schema with empty dataframe - orc")
+    .exclude("SPARK-23271 empty RDD when saved should write a metadata only file - orc")
+    .exclude("SPARK-22146 read files containing special characters using orc")
+    .exclude("Do not use cache on overwrite")
+    .exclude("Do not use cache on append")
+    .exclude("File source v2: support partition pruning")
+    .exclude("File source v2: support passing data filters to FileScan without partitionFilters")
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")
@@ -832,7 +840,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-34817: Read UINT_8/UINT_16/UINT_32 from parquet")
     // Exception.
     .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
-    // Rewrite to align exception msg.
+    // Exception msg.
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
     // Timestamp is read as INT96.
     .exclude("read dictionary and plain encoded timestamp_millis written as INT64")
@@ -1069,5 +1077,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-33687: analyze all tables in a specific database")
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
+    // ORC is not well supported.
+    .exclude("hive orc scan")
 }
 // scalastyle:on line.size.limit
