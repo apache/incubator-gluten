@@ -177,7 +177,9 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunken + spilledOut;
     DLOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
-    return shrunken + spilledOut;
+    return total;
+  } else {
+    LOG(WARNING) << kSpillStrategy << " was not configured.";
   }
 
   DLOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
