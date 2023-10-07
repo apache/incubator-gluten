@@ -158,10 +158,6 @@ public class ColumnarBatches {
    * method will close the input column batch after loaded.
    */
   public static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
-    if (batch.numCols() == 0) {
-      // No need to load batch if no column.
-      return batch;
-    }
     if (isHeavyBatch(batch)) {
       return batch;
     }
