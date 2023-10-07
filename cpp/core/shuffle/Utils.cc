@@ -139,11 +139,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> gluten::toShuffleWr
 }
 
 int64_t gluten::getBufferSizes(const std::shared_ptr<arrow::Array>& array) {
-  const auto& buffers = array->data()->buffers;
-  return std::accumulate(
-      std::cbegin(buffers), std::cend(buffers), 0LL, [](int64_t sum, const std::shared_ptr<arrow::Buffer>& buf) {
-        return buf == nullptr ? sum : sum + buf->size();
-      });
+  return gluten::getBufferSizes(array->data()->buffers);
 }
 
 int64_t gluten::getBufferSizes(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
@@ -153,11 +149,13 @@ int64_t gluten::getBufferSizes(const std::vector<std::shared_ptr<arrow::Buffer>>
       });
 }
 
-arrow::Status gluten::writeEos(arrow::io::OutputStream* os) {
+arrow::Status gluten::writeEos(arrow::io::OutputStream* os, int64_t* bytes) {
   // write EOS
-  constexpr int32_t kIpcContinuationToken = -1;
-  constexpr int32_t kZeroLength = 0;
-  RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(int32_t)));
-  RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(int32_t)));
+  static constexpr int32_t kIpcContinuationToken = -1;
+  static constexpr int32_t kZeroLength = 0;
+  static const int64_t kSizeOfEos = sizeof(kIpcContinuationToken) + sizeof(kZeroLength);
+  RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(kIpcContinuationToken)));
+  RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(kZeroLength)));
+  *bytes = kSizeOfEos;
   return arrow::Status::OK();
 }

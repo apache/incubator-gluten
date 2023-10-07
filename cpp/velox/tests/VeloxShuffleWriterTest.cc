@@ -82,24 +82,25 @@ class LocalRssClient : public RssClient {
     auto& buffer = partitionBuffers_[idx];
     auto newSize = buffer->size() + size;
     if (buffer->capacity() < newSize) {
-      ASSERT_NOT_OK(buffer->Reserve(newSize));
+      GLUTEN_THROW_NOT_OK(buffer->Reserve(newSize));
     }
     memcpy(buffer->mutable_data() + buffer->size(), bytes, size);
-    ASSERT_NOT_OK(buffer->Resize(newSize));
+    GLUTEN_THROW_NOT_OK(buffer->Resize(newSize));
     return returnSize;
   }
 
   void stop() {
     std::shared_ptr<arrow::io::FileOutputStream> fout;
-    ARROW_ASSIGN_OR_THROW(fout, arrow::io::FileOutputStream::Open(dataFile_, true));
+    GLUTEN_ASSIGN_OR_THROW(fout, arrow::io::FileOutputStream::Open(dataFile_, true));
 
+    int64_t bytes; // unused
     for (auto item : partitionIdx_) {
       auto idx = item.second;
-      ASSERT_NOT_OK(fout->Write(partitionBuffers_[idx]->data(), partitionBuffers_[idx]->size()));
-      ASSERT_NOT_OK(writeEos(fout.get()));
-      ASSERT_NOT_OK(fout->Flush());
+      GLUTEN_THROW_NOT_OK(fout->Write(partitionBuffers_[idx]->data(), partitionBuffers_[idx]->size()));
+      GLUTEN_THROW_NOT_OK(writeEos(fout.get(), &bytes));
+      GLUTEN_THROW_NOT_OK(fout->Flush());
     }
-    ASSERT_NOT_OK(fout->Close());
+    GLUTEN_THROW_NOT_OK(fout->Close());
   }
 
  private:
@@ -656,7 +657,7 @@ TEST_P(VeloxShuffleWriterTest, spillFailWithOutOfMemory) {
 
   auto status = splitRowVectorStatus(*shuffleWriter_, inputVector1_);
 
-  // should return OOM status because there's no partition buffer to spill
+  // Should return OOM status because there's no partition buffer to spill.
   ASSERT_TRUE(status.IsOutOfMemory());
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
@@ -698,6 +699,8 @@ TEST_P(VeloxShuffleWriterTest, TestSplitSpillAndShrink) {
     int64_t evicted;
     ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
     ASSERT_GT(evicted, 0);
+    // No cached payload after evict.
+    ASSERT_EQ(shuffleWriter_->cachedPayloadSize(), 0);
   }
 
   ASSERT_NOT_OK(shuffleWriter_->stop());
@@ -728,6 +731,8 @@ TEST_P(VeloxShuffleWriterTest, TestStopShrinkAndSpill) {
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
   // Total evicted should be greater than payloadSize, to test shrinking has been triggered.
   ASSERT_GT(evicted, payloadSize);
+  // Test buffer are only shrunken and not spilled.
+  ASSERT_LT(evicted, payloadSize + bufferSize);
 
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
@@ -767,7 +772,7 @@ TEST_P(VeloxShuffleWriterTest, TestSpillOnStop) {
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
-TEST_P(VeloxShuffleWriterTest, TestSpill) {
+TEST_P(VeloxShuffleWriterTest, TestSpillVerifyResult) {
   int32_t numPartitions = 4;
   shuffleWriterOptions_.buffer_size = 1; // Set a small buffer size to force clear and cache buffers for each split.
   shuffleWriterOptions_.partitioning_name = "hash";
@@ -837,7 +842,7 @@ TEST_P(VeloxShuffleWriterTest, TestShrinkZeroSizeBuffer) {
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
-TEST_P(VeloxShuffleWriterTest, SmallBufferSizeNoShrink) {
+TEST_P(VeloxShuffleWriterTest, SpillPartitionBuffer) {
   int32_t numPartitions = 4; // Set a large number of partitions to create empty partition buffers.
   shuffleWriterOptions_.buffer_size = 1; // Set a small buffer size to test no space to shrink.
   shuffleWriterOptions_.partitioning_name = "hash";
@@ -846,11 +851,20 @@ TEST_P(VeloxShuffleWriterTest, SmallBufferSizeNoShrink) {
 
   ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, hashInputVector1_));
 
-  int64_t evicted = 0;
+  // No cached payload.
+  ASSERT_EQ(shuffleWriter_->cachedPayloadSize(), 0);
+
+  int64_t firstEvicted = 0;
   auto bufferSize = shuffleWriter_->partitionBufferSize();
-  auto payloadSize = shuffleWriter_->cachedPayloadSize();
-  ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(payloadSize + bufferSize, &evicted));
-  ASSERT_EQ(evicted, 0);
+  ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(bufferSize >> 1, &firstEvicted));
+  ASSERT_GE(firstEvicted, bufferSize >> 1);
+  // Some buffers haven't been evicted yet.
+  ASSERT_GE(shuffleWriter_->partitionBufferSize(), 0);
+
+  int64_t secondEvicted = 0;
+  ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(bufferSize, &secondEvicted));
+  // All buffers should be firstEvicted.
+  ASSERT_EQ(firstEvicted + secondEvicted, bufferSize);
 
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }

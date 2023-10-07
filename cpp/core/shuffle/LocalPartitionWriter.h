@@ -28,6 +28,22 @@
 
 namespace gluten {
 
+struct SpillInfo {
+  struct PartitionSpillInfo {
+    uint32_t partitionId{};
+    int64_t length{}; // in Bytes
+  };
+
+  bool valid{true};
+  std::string spilledFile{};
+  std::vector<PartitionSpillInfo> partitionSpillInfos{};
+  std::shared_ptr<arrow::io::MemoryMappedFile> inputStream{};
+
+  int32_t mergePos = 0;
+
+  SpillInfo(std::string spilledFile) : spilledFile(spilledFile) {}
+};
+
 class LocalPartitionWriterBase : public ShuffleWriter::PartitionWriter {
  protected:
   explicit LocalPartitionWriterBase(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
@@ -54,9 +70,9 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
 
   arrow::Status init() override;
 
-  arrow::Status processPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override;
+  arrow::Status requestNextEvict(bool flush) override;
 
-  arrow::Status spill() override;
+  EvictHandle* getEvictHandle() override;
 
   /// The stop function performs several tasks:
   /// 1. Opens the final data file.
@@ -80,47 +96,13 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
   arrow::Status stop() override;
 
  private:
+  class LocalEvictHandle;
+
   arrow::Status clearResource() override;
 
-  arrow::Status flushCachedPayload(
-      arrow::io::OutputStream* os,
-      std::unique_ptr<arrow::ipc::IpcPayload> payload,
-      int32_t* metadataLength) {
-#ifndef SKIPWRITE
-    RETURN_NOT_OK(
-        arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, metadataLength));
-#endif
-    return arrow::Status::OK();
-  }
-
-  arrow::Status flushCachedPayloads(uint32_t partitionId, arrow::io::OutputStream* os) {
-    int32_t metadataLength = 0; // unused
-
-    auto payloads = std::move(partitionCachedPayload_[partitionId]);
-    // Clear cached batches before creating the payloads, to avoid spilling this partition.
-    partitionCachedPayload_[partitionId].clear();
-    for (auto& payload : payloads) {
-      RETURN_NOT_OK(flushCachedPayload(os, std::move(payload), &metadataLength));
-    }
-    return arrow::Status::OK();
-  }
-
-  struct PartitionSpillInfo {
-    int32_t partitionId = -1;
-    int64_t length = 0; // in Bytes
-  };
-
-  struct SpillInfo {
-    std::string spilledFile{};
-    std::vector<PartitionSpillInfo> partitionSpillInfos{};
-    std::shared_ptr<arrow::io::MemoryMappedFile> inputStream{};
-
-    int32_t mergePos = 0;
-  };
-
-  std::vector<SpillInfo> spills_;
-  std::vector<std::vector<std::unique_ptr<arrow::ipc::IpcPayload>>> partitionCachedPayload_;
   std::shared_ptr<arrow::fs::LocalFileSystem> fs_{};
+  std::shared_ptr<LocalEvictHandle> evictHandle_;
+  std::vector<std::shared_ptr<SpillInfo>> spills_;
 };
 
 class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {

@@ -58,7 +58,7 @@ struct ShuffleWriterOptions {
 
   arrow::MemoryPool* memory_pool;
 
-  arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
+  std::shared_ptr<arrow::ipc::IpcWriteOptions> ipc_write_options;
 
   std::string partitioning_name;
 
