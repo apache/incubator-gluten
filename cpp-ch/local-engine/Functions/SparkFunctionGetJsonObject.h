@@ -273,11 +273,33 @@ private:
         JSONParser parser;
         using Element = typename JSONParser::Element;
 
+        auto copyJsonStringExceptCtrlChars = [&](const char * src_chars, size_t length) -> std::string_view
+        {
+            UInt8 NULL_CHAR = 0x0000;
+            UInt8 SPACE_CHAR = 0x0020;
+            char dst_chars[length];
+            size_t cursor = 0;
+            for (size_t i = 0; i < length; ++i)
+            {
+                if (*(src_chars + i) < SPACE_CHAR && *(src_chars + i) > NULL_CHAR)
+                {
+                    std::cout << "0x0020 here:" << static_cast<int>(*(src_chars + i)) << std::endl;
+                    continue;
+                }
+                else
+                    dst_chars[cursor++] = *(src_chars + i);
+            }
+            std::string_view json{dst_chars, cursor};
+            std::cout << "json here:" << json << std::endl;
+            return json;
+        };
+
         Element document;
         bool document_ok = false;
         if (col_json_const)
         {
-            std::string_view json{reinterpret_cast<const char *>(chars.data()), offsets[0] - 1};
+            // std::string_view json{reinterpret_cast<const char *>(chars.data()), offsets[0] - 1};
+            std::string_view json = copyJsonStringExceptCtrlChars(reinterpret_cast<const char *>(chars.data()), offsets[0] - 1);
             document_ok = parser.parse(json, document);
         }
 
@@ -293,8 +315,10 @@ private:
         {
             if (!col_json_const)
             {
-                std::string_view json{reinterpret_cast<const char *>(&chars[offsets[i - 1]]), offsets[i] - offsets[i - 1] - 1};
+                // std::string_view json{reinterpret_cast<const char *>(&chars[offsets[i - 1]]), offsets[i] - offsets[i - 1] - 1};
+                std::string_view json = copyJsonStringExceptCtrlChars(reinterpret_cast<const char *>(&chars[offsets[i - 1]]), offsets[i] - offsets[i - 1] - 1);
                 document_ok = parser.parse(json, document);
+                std::cout << "document ok:" << document_ok << std::endl;
             }
             if (document_ok)
             {
