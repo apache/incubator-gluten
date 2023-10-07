@@ -149,18 +149,18 @@ case class ExpandExecTransformer(
       // make expand
       val projectSetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
       for (i <- 0 until projections.size) {
-        val porjectExprNodes = new util.ArrayList[ExpressionNode]()
+        val projectExprNodes = new util.ArrayList[ExpressionNode]()
         for (j <- 0 until projections(i).size) {
           val projectExprNode = projections(i)(j) match {
             case l: Literal =>
-              new LiteralTransformer(l).doTransform(args)
+              LiteralTransformer(l).doTransform(args)
             case _ =>
               ExpressionBuilder.makeSelection(selectionMaps(i)(j))
           }
 
-          porjectExprNodes.add(projectExprNode)
+          projectExprNodes.add(projectExprNode)
         }
-        projectSetExprNodes.add(porjectExprNodes)
+        projectSetExprNodes.add(projectExprNodes)
       }
       RelBuilder.makeExpandRel(inputRel, projectSetExprNodes, context, operatorId)
     } else {
