@@ -143,6 +143,7 @@ message ReadRel {
         uint64 header = 5;
         string escape = 6;
         string null_value = 7;
+        bool empty_as_default = 8;
       }
       message JsonReadOptions {
         uint64 max_block_size = 1;

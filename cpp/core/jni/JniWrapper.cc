@@ -34,8 +34,8 @@
 #include "shuffle/PartitionWriterCreator.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
+#include "shuffle/Utils.h"
 #include "shuffle/rss/CelebornPartitionWriter.h"
-#include "shuffle/utils.h"
 #include "utils/ArrowStatus.h"
 
 using namespace gluten;
@@ -81,7 +81,7 @@ static jmethodID shuffleReaderMetricsSetDeserializeTime;
 
 class JavaInputStreamAdaptor final : public arrow::io::InputStream {
  public:
-  JavaInputStreamAdaptor(JNIEnv* env, std::shared_ptr<arrow::MemoryPool> pool, jobject jniIn) : pool_(pool) {
+  JavaInputStreamAdaptor(JNIEnv* env, arrow::MemoryPool* pool, jobject jniIn) : pool_(pool) {
     // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
     if (env->GetJavaVM(&vm_) != JNI_OK) {
       std::string errorMessage = "Unable to get JavaVM instance";
@@ -138,7 +138,7 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
   }
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> Read(int64_t nbytes) override {
-    GLUTEN_ASSIGN_OR_THROW(auto buffer, arrow::AllocateResizableBuffer(nbytes, pool_.get()))
+    GLUTEN_ASSIGN_OR_THROW(auto buffer, arrow::AllocateResizableBuffer(nbytes, pool_))
     GLUTEN_ASSIGN_OR_THROW(int64_t bytes_read, Read(nbytes, buffer->mutable_data()))
     GLUTEN_THROW_NOT_OK(buffer->Resize(bytes_read, false));
     buffer->ZeroPadding();
@@ -146,7 +146,7 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
   }
 
  private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
+  arrow::MemoryPool* pool_;
   JavaVM* vm_;
   jobject jniIn_;
   bool closed_ = false;
@@ -754,7 +754,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jstring dataFileJstr,
     jint numSubDirs,
     jstring localDirsJstr,
-    jboolean preferEvict,
     jlong memoryManagerHandle,
     jboolean writeEOS,
     jdouble reallocThreshold,
@@ -811,7 +810,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator;
 
   if (partitionWriterType == "local") {
-    shuffleWriterOptions.partition_writer_type = "local";
+    shuffleWriterOptions.partition_writer_type = kLocal;
     if (dataFileJstr == NULL) {
       throw gluten::GlutenException(std::string("Shuffle DataFile can't be null"));
     }
@@ -820,7 +819,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     }
 
     shuffleWriterOptions.write_eos = writeEOS;
-    shuffleWriterOptions.prefer_evict = preferEvict;
     shuffleWriterOptions.buffer_realloc_threshold = reallocThreshold;
 
     if (numSubDirs > 0) {
@@ -834,9 +832,9 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     auto localDirs = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
     setenv(gluten::kGlutenSparkLocalDirs.c_str(), localDirs, 1);
     env->ReleaseStringUTFChars(localDirsJstr, localDirs);
-    partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>(preferEvict);
+    partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>();
   } else if (partitionWriterType == "celeborn") {
-    shuffleWriterOptions.partition_writer_type = "celeborn";
+    shuffleWriterOptions.partition_writer_type = PartitionWriterType::kCeleborn;
     jclass celebornPartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
     jmethodID celebornPushPartitionDataMethod =
@@ -985,7 +983,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
 
   auto pool = memoryManager->getArrowMemoryPool();
   ReaderOptions options = ReaderOptions::defaults();
-  options.ipc_read_options.memory_pool = pool.get();
+  options.ipc_read_options.memory_pool = pool;
   options.ipc_read_options.use_threads = false;
   if (compressionType != nullptr) {
     options.compression_type = getCompressionType(env, compressionType);

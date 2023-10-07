@@ -28,7 +28,7 @@ class VeloxShuffleReader final : public ShuffleReader {
   VeloxShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool,
+      arrow::MemoryPool* pool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool);
 
   std::shared_ptr<ResultIterator> readStream(std::shared_ptr<arrow::io::InputStream> in) override;

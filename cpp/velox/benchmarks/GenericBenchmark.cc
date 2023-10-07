@@ -60,7 +60,7 @@ struct WriterMetrics {
 
 std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(VeloxMemoryManager* memoryManager) {
   std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator =
-      std::make_shared<LocalPartitionWriterCreator>(false);
+      std::make_shared<LocalPartitionWriterCreator>();
 
   auto options = ShuffleWriterOptions::defaults();
   options.memory_pool = memoryManager->getArrowMemoryPool();

@@ -53,9 +53,4 @@ std::shared_ptr<arrow::Schema> ShuffleWriter::compressWriteSchema() {
   return compressWriteSchema_;
 }
 
-void ShuffleWriter::clearCachedPayloads(uint32_t partitionId) {
-  partitionCachedRecordbatch()[partitionId].clear();
-  setPartitionCachedRecordbatchSize(partitionId, 0);
-}
-
 } // namespace gluten
