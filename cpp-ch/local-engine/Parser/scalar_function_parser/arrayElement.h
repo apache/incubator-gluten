@@ -61,7 +61,6 @@ public:
         //idx >= length(array)
         auto * length_node = toFunctionNode(actions_dag, "length", {parsed_args[0]});
         auto * greater_or_equals_node = toFunctionNode(actions_dag, "greater", {convertArrayIndexNode(actions_dag, parsed_args[1]), length_node});
-        
         const DataTypeArray * array_type = checkAndGetDataType<DataTypeArray>(removeNullable(parsed_args[0]->result_type).get());
         if (!array_type)
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "First argument for function {} must be an array", getName());
