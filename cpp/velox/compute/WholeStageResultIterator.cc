@@ -179,7 +179,7 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     DLOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
     return total;
   } else {
-    LOG(WARNING) << kSpillStrategy << " was not configured.";
+    LOG(WARNING) << "Disable spill to disk since " << kSpillStrategy << " was not configured.";
   }
 
   DLOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
