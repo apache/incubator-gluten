@@ -1136,6 +1136,58 @@ class GlutenClickHouseFileFormatSuite
     checkAnswer(df, expectedAnswer)
   }
 
+  test("test integer read with sign at the end of line") {
+    val file_path = csvDataPath + "/sign_at_end_int.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", IntegerType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+
+    spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+      .createTempView("test_null_int")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        | select * from test_null_int
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
+  test("test float read with sign at the end of line") {
+    val file_path = csvDataPath + "/sign_at_end_float.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", FloatType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+
+    spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+      .createTempView("test_null_float")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        | select * from test_null_float
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
   def createEmptyParquet(): String = {
     val data = spark.sparkContext.emptyRDD[Row]
     val schema = new StructType()

@@ -17,24 +17,32 @@
 
 #pragma once
 
-#include "shuffle/ShuffleWriter.h"
+#include <arrow/array.h>
+#include <arrow/filesystem/filesystem.h>
+#include <arrow/filesystem/localfs.h>
+#include <arrow/filesystem/path_util.h>
+#include <arrow/ipc/writer.h>
+#include <arrow/type.h>
+#include <arrow/util/io_util.h>
+#include <chrono>
 
 namespace gluten {
 
-class ShuffleWriter::PartitionWriter {
- public:
-  PartitionWriter(ShuffleWriter* shuffleWriter) : shuffleWriter_(shuffleWriter) {}
-  virtual ~PartitionWriter() = default;
+const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";
 
-  virtual arrow::Status init() = 0;
+std::string generateUuid();
 
-  virtual arrow::Status processPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
+std::string getSpilledShuffleFileDir(const std::string& configuredDir, int32_t subDirId);
 
-  virtual arrow::Status spill() = 0;
+arrow::Result<std::vector<std::string>> getConfiguredLocalDirs();
 
-  virtual arrow::Status stop() = 0;
+arrow::Result<std::string> createTempShuffleFile(const std::string& dir);
 
-  ShuffleWriter* shuffleWriter_;
-};
+arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShuffleWriterTypeId(
+    const std::vector<std::shared_ptr<arrow::Field>>& fields);
+
+int64_t getBufferSizes(const std::shared_ptr<arrow::Array>& array);
+
+arrow::Status writeEos(arrow::io::OutputStream* os);
 
 } // namespace gluten
