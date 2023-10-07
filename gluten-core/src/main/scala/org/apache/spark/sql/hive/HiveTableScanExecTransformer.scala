@@ -40,6 +40,7 @@ import org.apache.spark.util.Utils
 
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
 import org.apache.hadoop.hive.ql.plan.TableDesc
+import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
 import org.apache.hadoop.mapred.TextInputFormat
 
 import java.net.URI
@@ -113,6 +114,9 @@ class HiveTableScanExecTransformer(
       case Some(inputFormat)
           if ORC_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
         ReadFileFormat.OrcReadFormat
+      case Some(inputFormat)
+          if PARQUET_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
+        ReadFileFormat.ParquetReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
   }
@@ -203,7 +207,8 @@ object HiveTableScanExecTransformer {
     Utils.classForName("org.apache.hadoop.mapred.TextInputFormat")
   val ORC_INPUT_FORMAT_CLASS: Class[OrcInputFormat] =
     Utils.classForName("org.apache.hadoop.hive.ql.io.orc.OrcInputFormat")
-
+  val PARQUET_INPUT_FORMAT_CLASS: Class[MapredParquetInputFormat] =
+    Utils.classForName("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat")
   def isHiveTableScan(plan: SparkPlan): Boolean = {
     plan.isInstanceOf[HiveTableScanExec]
   }

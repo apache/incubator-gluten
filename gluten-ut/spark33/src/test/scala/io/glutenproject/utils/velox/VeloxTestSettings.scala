@@ -625,6 +625,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenParquetColumnIndexSuite]
+    // Rewrite
+    .exclude("test reading unaligned pages - test all types")
   enableSuite[GlutenParquetCompressionCodecPrecedenceSuite]
   enableSuite[GlutenParquetDeltaByteArrayEncodingSuite]
   enableSuite[GlutenParquetDeltaEncodingInteger]
