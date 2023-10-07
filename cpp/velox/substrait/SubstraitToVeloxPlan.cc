@@ -1615,9 +1615,8 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
       }
       break;
     case TypeKind::ARRAY:
-      // Doing nothing here can let filter IsNotNull still work.
-      break;
     case TypeKind::MAP:
+    case TypeKind::ROW:
       // Doing nothing here can let filter IsNotNull still work.
       break;
     default:

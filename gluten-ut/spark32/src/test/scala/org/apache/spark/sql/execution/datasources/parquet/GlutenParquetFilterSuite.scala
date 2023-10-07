@@ -67,6 +67,35 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
       getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name)
   }
 
+  test(GlutenTestConstants.GLUTEN_TEST + "filter pushdown - timestamp") {
+    Seq(true, false).foreach { java8Api =>
+      Seq(CORRECTED, LEGACY).foreach { rebaseMode =>
+        val millisData = Seq(
+          "1000-06-14 08:28:53.123",
+          "1582-06-15 08:28:53.001",
+          "1900-06-16 08:28:53.0",
+          "2018-06-17 08:28:53.999")
+        // INT96 doesn't support pushdown
+        withSQLConf(
+          SQLConf.DATETIME_JAVA8API_ENABLED.key -> java8Api.toString,
+          SQLConf.PARQUET_INT96_REBASE_MODE_IN_WRITE.key -> rebaseMode.toString,
+          SQLConf.PARQUET_OUTPUT_TIMESTAMP_TYPE.key -> INT96.toString) {
+          import testImplicits._
+          withTempPath { file =>
+            millisData.map(i => Tuple1(Timestamp.valueOf(i))).toDF
+              .write.format(dataSourceName).save(file.getCanonicalPath)
+            readParquetFile(file.getCanonicalPath) { df =>
+              val schema = new SparkToParquetSchemaConverter(conf).convert(df.schema)
+              assertResult(None) {
+                createParquetFilters(schema).createFilter(sources.IsNull("_1"))
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   test(
     GlutenTestConstants.GLUTEN_TEST +
       "Filter applied on merged Parquet schema with new column should work") {

@@ -166,6 +166,7 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
       ignoreIfNotExists = true,
       purge = false)
   }
+
   test("avoid unnecessary filter binding for subfield during scan") {
     withSQLConf("spark.sql.hive.convertMetastoreOrc" -> "false") {
       sql("DROP TABLE IF EXISTS test_subfield")
