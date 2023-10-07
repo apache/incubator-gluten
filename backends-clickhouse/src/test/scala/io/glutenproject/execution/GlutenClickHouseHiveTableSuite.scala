@@ -958,4 +958,18 @@ class GlutenClickHouseHiveTableSuite()
     spark.sql("DROP TABLE b")
   }
 
+  test("GLUTEN-3337: fix get_json_object ctrl-chars bug") {
+    val data_path = rootPath + "/text-data/ctrl-chars"
+    spark.sql(s"""
+                 |CREATE TABLE test_tbl_3337 (
+                 |  id bigint,
+                 |  data string) stored as textfile
+                 |LOCATION '$data_path'
+      """.stripMargin)
+
+    val select_sql = "select id, get_json_object(data, '$.data') from test_tbl_3337"
+    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    spark.sql("DROP TABLE test_tbl_3337")
+  }
+
 }
