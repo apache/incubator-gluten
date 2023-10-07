@@ -167,15 +167,15 @@ case class ExpandExecTransformer(
       val projectSetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
       projections.foreach {
         projectSet =>
-          val porjectExprNodes = new util.ArrayList[ExpressionNode]()
+          val projectExprNodes = new util.ArrayList[ExpressionNode]()
           projectSet.foreach {
             project =>
-              var projectExprNode = ExpressionConverter
+              val projectExprNode = ExpressionConverter
                 .replaceWithExpressionTransformer(project, originalInputAttributes)
                 .doTransform(args)
-              porjectExprNodes.add(projectExprNode)
+              projectExprNodes.add(projectExprNode)
           }
-          projectSetExprNodes.add(porjectExprNodes)
+          projectSetExprNodes.add(projectExprNodes)
       }
 
       if (!validation) {
