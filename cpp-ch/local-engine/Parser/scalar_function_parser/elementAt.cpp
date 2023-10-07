@@ -26,14 +26,6 @@ namespace local_engine
         ~FunctionParserElementAt() override = default;
         static constexpr auto name = "element_at";
         String getName() const override { return name; }
-    protected:
-        const ActionsDAG::Node* convertArrayIndexNode(ActionsDAGPtr & actions_dag, const ActionsDAG::Node * index_node) const override
-        {
-            const DataTypePtr index_type = index_node->result_type;
-            const auto * const_one_node = addColumnToActionsDAG(actions_dag, removeNullable(index_type), Field{1});
-            const auto * minus_node = toFunctionNode(actions_dag, "minus", {index_node, const_one_node});
-            return minus_node;
-        }
     };
 
     static FunctionParserRegister<FunctionParserElementAt> register_element_at;
