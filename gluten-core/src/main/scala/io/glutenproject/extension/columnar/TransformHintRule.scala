@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.utils.PhysicalPlanSelector
-import org.apache.commons.lang3.exception.ExceptionUtils
+
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
@@ -37,6 +37,8 @@ import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
+
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.util.control.Breaks.{break, breakable}
 
