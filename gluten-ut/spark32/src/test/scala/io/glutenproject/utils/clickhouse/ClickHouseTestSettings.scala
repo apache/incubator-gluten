@@ -1662,7 +1662,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Legacy mode - nested map with struct as key type")
     .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
-    .exclude("Gluten - SPARK-35640: int as long should throw schema incompatible error")
   enableSuite[GlutenParquetInteroperabilitySuite].exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetProtobufCompatibilitySuite].exclude("struct with unannotated array")
   enableSuite[GlutenParquetRebaseDatetimeV1Suite]

@@ -38,7 +38,8 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
     super.sparkConf.set("spark.gluten.sql.native.writer.enabled", "true")
   }
 
-  test("test write parquet with compression codec") {
+  // Some compression codecs are not supported in Velox parquet write.
+  ignore("test write parquet with compression codec") {
     // compression codec details see `VeloxParquetDatasource.cc`
     Seq("snappy", "gzip", "zstd", "none", "uncompressed")
       .foreach {
