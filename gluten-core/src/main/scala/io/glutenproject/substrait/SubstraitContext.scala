@@ -16,7 +16,7 @@
  */
 package io.glutenproject.substrait
 
-import io.glutenproject.substrait.ddlplan.InsertOutputNode
+import io.glutenproject.substrait.dllplan.InsertOutputNode
 import io.glutenproject.substrait.rel.LocalFilesNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package io.glutenproject.substrait.ddlplan
+package io.glutenproject.substrait.dllplan
 
 import io.glutenproject.substrait.SubstraitContext
 

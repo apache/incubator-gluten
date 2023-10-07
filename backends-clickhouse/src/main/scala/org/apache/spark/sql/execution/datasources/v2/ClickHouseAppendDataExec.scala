@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources.v2
 import io.glutenproject.execution.{FirstZippedPartitionsPartition, GlutenFilePartition}
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.ddlplan.{DllNode, DllTransformContext, InsertOutputBuilder, InsertPlanNode}
+import io.glutenproject.substrait.dllplan.{DllNode, DllTransformContext, InsertOutputBuilder, InsertPlanNode}
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
