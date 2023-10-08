@@ -163,7 +163,6 @@ VeloxExecutionCtx::select(MemoryManager* memoryManager, ResourceHandle handle, s
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   auto veloxBatch = gluten::VeloxColumnarBatch::from(ctxVeloxPool.get(), batch);
   auto outputBatch = veloxBatch->select(ctxVeloxPool.get(), std::move(columnIndices));
-  releaseBatch(handle);
   return columnarBatchHolder_.insert(outputBatch);
 }
 
