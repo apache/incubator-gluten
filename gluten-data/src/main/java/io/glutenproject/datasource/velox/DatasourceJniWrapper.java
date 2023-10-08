@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.spark.sql.execution.datasources.velox;
+package io.glutenproject.datasource.velox;
 
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
 import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniInitialized;
 import io.glutenproject.init.JniUtils;
-
-import org.apache.spark.sql.execution.datasources.VeloxColumnarBatchIterator;
+import io.glutenproject.vectorized.ColumnarBatchInIterator;
 
 import java.util.Map;
 
@@ -57,5 +56,5 @@ public class DatasourceJniWrapper extends JniInitialized implements ExecutionCtx
 
   public native void close(long dsHandle);
 
-  public native void write(long dsHandle, VeloxColumnarBatchIterator iterator);
+  public native void write(long dsHandle, ColumnarBatchInIterator iterator);
 }

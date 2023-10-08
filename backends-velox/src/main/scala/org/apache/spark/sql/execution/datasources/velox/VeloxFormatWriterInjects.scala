@@ -17,11 +17,11 @@
 package org.apache.spark.sql.execution.datasources.velox
 
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.datasource.velox.DatasourceJniWrapper
 import io.glutenproject.exception.GlutenException
 import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
-import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
 
 import org.apache.spark.sql.SparkSession
