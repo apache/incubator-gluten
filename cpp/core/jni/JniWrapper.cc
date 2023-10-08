@@ -70,10 +70,6 @@ static jmethodID serializedColumnarBatchIteratorNext;
 static jclass nativeColumnarToRowInfoClass;
 static jmethodID nativeColumnarToRowInfoConstructor;
 
-static jclass veloxColumnarBatchScannerClass;
-static jmethodID veloxColumnarBatchScannerHasNext;
-static jmethodID veloxColumnarBatchScannerNext;
-
 static jclass shuffleReaderMetricsClass;
 static jmethodID shuffleReaderMetricsSetDecompressTime;
 static jmethodID shuffleReaderMetricsSetIpcTime;
@@ -281,13 +277,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", "(J)J");
   unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", "(J)J");
 
-  veloxColumnarBatchScannerClass =
-      createGlobalClassReference(env, "Lorg/apache/spark/sql/execution/datasources/VeloxColumnarBatchIterator;");
-
-  veloxColumnarBatchScannerHasNext = getMethodId(env, veloxColumnarBatchScannerClass, "hasNext", "()Z");
-
-  veloxColumnarBatchScannerNext = getMethodId(env, veloxColumnarBatchScannerClass, "next", "()J");
-
   shuffleReaderMetricsClass =
       createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ShuffleReaderMetrics;");
   shuffleReaderMetricsSetDecompressTime =
@@ -309,7 +298,6 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(serializedColumnarBatchIteratorClass);
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
-  env->DeleteGlobalRef(veloxColumnarBatchScannerClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
   gluten::getJniErrorState()->close();
   gluten::getJniCommonState()->close();
