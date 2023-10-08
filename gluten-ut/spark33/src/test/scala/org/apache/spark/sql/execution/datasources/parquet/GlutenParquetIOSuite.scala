@@ -18,7 +18,6 @@ package org.apache.spark.sql.execution.datasources.parquet
 
 import org.apache.spark.sql._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 
 /** A test suite that tests basic Parquet I/O. */
 class GlutenParquetIOSuite extends ParquetIOSuite with GlutenSQLTestsBaseTrait {
