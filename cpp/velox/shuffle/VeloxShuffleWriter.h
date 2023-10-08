@@ -266,15 +266,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   template <typename T>
   arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
-    assert(numPartitions_ == dstAddrs.size());
-    void* startAddrs[numPartitions_];
-    size_t size = dstAddrs.size();
-    for (auto i = 0; i != size; ++i) {
-      startAddrs[i] = dstAddrs[i] + partitionBufferIdxBase_[i] * sizeof(T);
-    }
-
-    for (uint32_t pid = 0; pid < numPartitions_; ++pid) {
-      auto dstPidBase = reinterpret_cast<T*>(startAddrs[pid]);
+    for (auto& pid : partitionUsed_) {
+      auto dstPidBase = (T*)(dstAddrs[pid] + partitionBufferIdxBase_[pid] * sizeof(T));
       auto pos = partition2RowOffset_[pid];
       auto end = partition2RowOffset_[pid + 1];
       for (; pos < end; ++pos) {
@@ -346,6 +339,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   // subscript: Partition ID
   // value: how many rows does this partition have
   std::vector<uint32_t> partition2RowCount_;
+
+  std::vector<uint32_t> partitionUsed_;
 
   // Partition ID -> Buffer Size(unit is row)
   std::vector<uint32_t> partition2BufferSize_;
