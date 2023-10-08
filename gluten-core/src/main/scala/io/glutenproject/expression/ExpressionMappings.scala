@@ -287,4 +287,7 @@ object ExpressionMappings {
   }
 
   var expressionExtensionTransformer: ExpressionExtensionTrait = _
+
+  def window_functions_map: Map[Class[_], String] =
+    WINDOW_SIGS.map(s => (s.expClass, s.name)).toMap
 }

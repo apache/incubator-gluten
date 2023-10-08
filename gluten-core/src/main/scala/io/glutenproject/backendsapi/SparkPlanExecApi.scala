@@ -374,18 +374,32 @@ trait SparkPlanExecApi {
             }
 
             val childrenNodeList = new util.ArrayList[ExpressionNode]()
-            aggregateFunc.children.foreach(
-              expr =>
-                childrenNodeList.add(
-                  ExpressionConverter
-                    .replaceWithExpressionTransformer(expr, originalInputAttributes)
-                    .doTransform(args)))
+            lazy val windowFunctions =
+              ExpressionMappings.window_functions_map.get(aggregateFunc.getClass)
+            val (functionId, outputTypeNode) = if (substraitAggFuncName.isDefined) {
+              aggregateFunc.children.foreach(
+                expr =>
+                  childrenNodeList.add(
+                    ExpressionConverter
+                      .replaceWithExpressionTransformer(expr, originalInputAttributes)
+                      .doTransform(args)))
+              (
+                AggregateFunctionsBuilder.create(args, aggregateFunc).toInt,
+                ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable))
+            } else if (windowFunctions.isDefined) {
+              val aggWindowFunc = aggregateFunc.asInstanceOf[AggregateWindowFunction]
+              (
+                WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
+                ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable))
+            } else {
+              throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc")
+            }
 
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
-              AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,
+              functionId,
               childrenNodeList,
               columnName,
-              ConverterUtils.getTypeNode(aggExpression.dataType, aggExpression.nullable),
+              outputTypeNode,
               WindowExecTransformer.getFrameBound(frame.upper),
               WindowExecTransformer.getFrameBound(frame.lower),
               frame.frameType.sql
