@@ -967,7 +967,7 @@ class GlutenClickHouseHiveTableSuite()
                  |LOCATION '$data_path'
       """.stripMargin)
 
-    val select_sql = "select id, get_json_object(data, '$.data') from test_tbl_3337"
+    val select_sql = "select id, get_json_object(data, '$.data.v') from test_tbl_3337"
     compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
     spark.sql("DROP TABLE test_tbl_3337")
   }
