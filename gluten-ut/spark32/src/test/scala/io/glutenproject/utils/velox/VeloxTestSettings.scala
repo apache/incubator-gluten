@@ -356,7 +356,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Return correct results when data columns overlap with partition " +
       "columns (nested data)")
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
-    // ORC is not well supported.
+    // ReaderFactory is not registered for format orc.
     .exclude("SPARK-15474 Write and read back non-empty schema with empty dataframe - orc")
     .exclude("SPARK-23271 empty RDD when saved should write a metadata only file - orc")
     .exclude("SPARK-22146 read files containing special characters using orc")
@@ -1077,7 +1077,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-33687: analyze all tables in a specific database")
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
-    // ORC is not well supported.
+    // ReaderFactory is not registered for format orc.
     .exclude("hive orc scan")
 }
 // scalastyle:on line.size.limit
