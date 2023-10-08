@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources
 import io.glutenproject.datasource.velox.DatasourceJniWrapper
 import io.glutenproject.vectorized.{CloseableColumnBatchIterator, ColumnarBatchInIterator}
 
+import org.apache.spark.TaskContext
 import org.apache.spark.sql.execution.datasources.VeloxWriteQueue.EOS_BATCH
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -33,6 +34,7 @@ import scala.collection.JavaConverters._
 
 // TODO: This probably can be removed: Velox's Parquet writer already supports push-based write.
 class VeloxWriteQueue(
+    tc: TaskContext,
     dsHandle: Long,
     schema: Schema,
     allocator: BufferAllocator,
@@ -44,12 +46,13 @@ class VeloxWriteQueue(
 
   private val writeThread = new Thread(
     () => {
+      TaskContext.setTaskContext(tc)
       try {
         datasourceJniWrapper.write(
           dsHandle,
           new ColumnarBatchInIterator(new CloseableColumnBatchIterator(scanner).asJava))
       } catch {
-        case e: Throwable =>
+        case e: Exception =>
           writeException.set(e)
       }
     },

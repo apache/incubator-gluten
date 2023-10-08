@@ -1107,6 +1107,9 @@ JNIEXPORT void JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapp
   auto iter = makeJniColumnarBatchIterator(env, jIter, ctx, nullptr);
   while (true) {
     auto batch = iter->next();
+    if (!batch) {
+      break;
+    }
     datasource->write(batch);
   }
   JNI_METHOD_END()
