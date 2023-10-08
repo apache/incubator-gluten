@@ -1032,6 +1032,12 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameWindowFramesSuite]
+    // Local window fixes are not added.
+    .exclude("range between should accept int/long values as boundary")
+    .exclude("unbounded preceding/following range between with aggregation")
+    .exclude("sliding range between with aggregation")
+    .exclude("store and retrieve column stats in different time zones")
+    .exclude("rows between should accept int/long values as boundary")
   enableSuite[GlutenDataFrameWriterV2Suite]
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetCacheSuite]
@@ -1081,10 +1087,11 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
     // exclude as original metric not correct when task offloaded to velox
     .exclude("SPARK-37585: test input metrics for DSV2 with output limits")
-    // ORC is not well supported.
+    // ReaderFactory is not registered for format orc.
     .exclude("SPARK-15474 Write and read back non-empty schema with empty dataframe - orc")
     .exclude("SPARK-23271 empty RDD when saved should write a metadata only file - orc")
     .exclude("SPARK-22146 read files containing special characters using orc")
+    .exclude("SPARK-30362: test input metrics for DSV2")
     .exclude("Do not use cache on overwrite")
     .exclude("Do not use cache on append")
     .exclude("File source v2: support partition pruning")
@@ -1133,6 +1140,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not useful and time consuming.
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
+    // ReaderFactory is not registered for format orc.
+    .exclude("SPARK-33593: Vector reader got incorrect data with binary partition value")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
     .exclude("SPARK-33687: analyze all tables in a specific database")
@@ -1149,7 +1158,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenXPathFunctionsSuite]
   enableSuite[GlutenFallbackSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
-    // ORC is not well supported.
+    // ReaderFactory is not registered for format orc.
     .exclude("hive orc scan")
 }
 // scalastyle:on line.size.limit
