@@ -261,7 +261,11 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
                 .deserialize(deserializerHandle, cachedBatch.bytes)
             val batch = ColumnarBatches.create(ExecutionCtxs.contextInstance(), batchHandle)
             if (shouldPruning) {
-              ColumnarBatches.select(nmm, batch, requestedColumnIndices.toArray)
+              try {
+                ColumnarBatches.select(nmm, batch, requestedColumnIndices.toArray)
+              } finally {
+                batch.close()
+              }
             } else {
               batch
             }

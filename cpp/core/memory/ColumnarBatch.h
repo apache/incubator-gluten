@@ -127,4 +127,6 @@ class CompositeColumnarBatch final : public ColumnarBatch {
   std::shared_ptr<ColumnarBatch> compositeBatch_ = nullptr;
 };
 
+std::shared_ptr<ColumnarBatch> createZeroColumnBatch(int32_t numRows);
+
 } // namespace gluten

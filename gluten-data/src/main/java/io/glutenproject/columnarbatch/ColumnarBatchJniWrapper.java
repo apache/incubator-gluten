@@ -38,6 +38,8 @@ public class ColumnarBatchJniWrapper extends JniInitialized implements Execution
 
   public native long createWithArrowArray(long cSchema, long cArray);
 
+  public native long getForEmptySchema(int numRows);
+
   public native String getType(long batchHandle);
 
   public native long numColumns(long batchHandle);

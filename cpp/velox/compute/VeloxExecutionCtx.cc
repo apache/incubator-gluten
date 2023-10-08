@@ -144,6 +144,15 @@ std::shared_ptr<ColumnarBatch> VeloxExecutionCtx::getBatch(ResourceHandle handle
   return columnarBatchHolder_.lookup(handle);
 }
 
+ResourceHandle VeloxExecutionCtx::createOrGetEmptySchemaBatch(int32_t numRows) {
+  auto& lookup = emptySchemaBatchLoopUp_;
+  if (lookup.find(numRows) == lookup.end()) {
+    const std::shared_ptr<ColumnarBatch>& batch = gluten::createZeroColumnBatch(numRows);
+    lookup.emplace(numRows, addBatch(batch)); // the batch will be released after Spark task ends
+  }
+  return lookup.at(numRows);
+}
+
 void VeloxExecutionCtx::releaseBatch(ResourceHandle handle) {
   columnarBatchHolder_.erase(handle);
 }
@@ -152,9 +161,8 @@ ResourceHandle
 VeloxExecutionCtx::select(MemoryManager* memoryManager, ResourceHandle handle, std::vector<int32_t> columnIndices) {
   auto batch = columnarBatchHolder_.lookup(handle);
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
-  auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch);
+  auto veloxBatch = gluten::VeloxColumnarBatch::from(ctxVeloxPool.get(), batch);
   auto outputBatch = veloxBatch->select(ctxVeloxPool.get(), std::move(columnIndices));
-  releaseBatch(handle);
   return columnarBatchHolder_.insert(outputBatch);
 }
 

@@ -73,6 +73,7 @@ class VeloxExecutionCtx final : public ExecutionCtx {
 
   ResourceHandle addBatch(std::shared_ptr<ColumnarBatch> ptr) override;
   std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle handle) override;
+  ResourceHandle createOrGetEmptySchemaBatch(int32_t numRows) override;
   void releaseBatch(ResourceHandle handle) override;
   ResourceHandle select(MemoryManager* memoryManager, ResourceHandle batch, std::vector<int32_t> columnIndices)
       override;
@@ -142,6 +143,8 @@ class VeloxExecutionCtx final : public ExecutionCtx {
   ResourceMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
 
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
+
+  std::unordered_map<int32_t, ResourceHandle> emptySchemaBatchLoopUp_;
 };
 
 } // namespace gluten

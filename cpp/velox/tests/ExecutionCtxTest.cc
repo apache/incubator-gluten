@@ -51,6 +51,9 @@ class DummyExecutionCtx final : public ExecutionCtx {
   std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle handle) override {
     return std::shared_ptr<ColumnarBatch>();
   }
+  ResourceHandle createOrGetEmptySchemaBatch(int32_t numRows) override {
+    return kInvalidResourceHandle;
+  }
   void releaseBatch(ResourceHandle handle) override {}
   ResourceHandle createColumnar2RowConverter(MemoryManager* memoryManager) override {
     return kInvalidResourceHandle;

@@ -46,6 +46,12 @@ std::ostream& operator<<(std::ostream& os, const ColumnarBatch& columnarBatch) {
   return os << "NumColumns: " << std::to_string(columnarBatch.numColumns())
             << "NumRows: " << std::to_string(columnarBatch.numRows());
 }
+std::shared_ptr<ColumnarBatch> createZeroColumnBatch(int32_t numRows) {
+  return std::make_shared<ArrowColumnarBatch>(arrow::RecordBatch::Make(
+      std::make_shared<arrow::Schema>(std::vector<std::shared_ptr<arrow::Field>>()),
+      numRows,
+      std::vector<std::shared_ptr<arrow::Array>>()));
+}
 
 ArrowColumnarBatch::ArrowColumnarBatch(std::shared_ptr<arrow::RecordBatch> batch)
     : ColumnarBatch(batch->num_columns(), batch->num_rows()), batch_(std::move(batch)) {}

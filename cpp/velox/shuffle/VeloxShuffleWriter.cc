@@ -533,7 +533,7 @@ std::shared_ptr<arrow::Buffer> VeloxShuffleWriter::generateComplexTypeBuffers(ve
 
 arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) {
   if (options_.partitioning_name == "single") {
-    auto veloxColumnBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
+    auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_DCHECK_NOT_NULL(veloxColumnBatch);
     auto& rv = *veloxColumnBatch->getFlattenedRowVector();
     RETURN_NOT_OK(initFromRowVector(rv));
@@ -567,12 +567,12 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
     RETURN_NOT_OK(partitioner_->compute(pidArr, pidBatch->numRows(), row2Partition_, partition2RowCount_));
     END_TIMING();
-    auto rvBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(batches[1]);
+    auto rvBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[1]);
     auto& rv = *rvBatch->getFlattenedRowVector();
     RETURN_NOT_OK(initFromRowVector(rv));
     RETURN_NOT_OK(doSplit(rv, memLimit));
   } else {
-    auto veloxColumnBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
+    auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
     VELOX_DCHECK_NOT_NULL(veloxColumnBatch);
     velox::RowVectorPtr rv;
     START_TIMING(cpuWallTimingList_[CpuWallTimingFlattenRV]);
