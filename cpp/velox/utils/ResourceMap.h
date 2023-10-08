@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <mutex>
 #include "folly/container/F14Map.h"
 
 namespace gluten {
@@ -32,16 +33,19 @@ class ResourceMap {
   ResourceMap() : resourceId_(kInitResourceId) {}
 
   ResourceHandle insert(TResource holder) {
+    const std::lock_guard<std::mutex> lock(mtx_);
     ResourceHandle result = resourceId_++;
     map_.insert(std::pair<ResourceHandle, TResource>(result, holder));
     return result;
   }
 
   void erase(ResourceHandle moduleId) {
+    const std::lock_guard<std::mutex> lock(mtx_);
     map_.erase(moduleId);
   }
 
   TResource lookup(ResourceHandle moduleId) {
+    const std::lock_guard<std::mutex> lock(mtx_);
     auto it = map_.find(moduleId);
     if (it != map_.end()) {
       return it->second;
@@ -50,10 +54,12 @@ class ResourceMap {
   }
 
   void clear() {
+    const std::lock_guard<std::mutex> lock(mtx_);
     map_.clear();
   }
 
   size_t size() {
+    const std::lock_guard<std::mutex> lock(mtx_);
     return map_.size();
   }
 
@@ -66,6 +72,8 @@ class ResourceMap {
 
   // map from resource ids returned to Java and resource pointers
   folly::F14FastMap<ResourceHandle, TResource> map_;
+
+  std::mutex mtx_;
 };
 
 } // namespace gluten
