@@ -665,6 +665,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite.
     .exclude("Filter applied on merged Parquet schema with new column should work")
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
+    // Rewrite for supported INT96 - timestamp
+    .exclude("filter pushdown - timestamp")
     .exclude("filter pushdown - date")
     // Exception bebaviour.
     .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
