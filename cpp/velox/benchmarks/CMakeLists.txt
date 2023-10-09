@@ -25,7 +25,9 @@ endfunction()
 add_velox_benchmark(query_benchmark QueryBenchmark.cc)
 
 # Generic benchmark
-add_velox_benchmark(generic_benchmark GenericBenchmark.cc)
+# TODO: This benchmark generates ORC file with Arrow ORC file writer.
+# We need to compile Arrow with -DARROW_ORC first in Velox.
+# add_velox_benchmark(generic_benchmark GenericBenchmark.cc)
 
 add_velox_benchmark(columnar_to_row_benchmark ColumnarToRowBenchmark.cc)
 
