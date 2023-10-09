@@ -408,10 +408,10 @@ TEST_P(VeloxShuffleWriterTest, singlePartOtherType) {
   auto vector = makeRowVector({
       makeNullableFlatVector<int32_t>({std::nullopt, 1}),
       makeNullableFlatVector<StringView>({std::nullopt, "10"}),
-      makeShortDecimalFlatVector({232, 34567235}, DECIMAL(12, 4)),
-      makeLongDecimalFlatVector({232, 34567235}, DECIMAL(20, 4)),
-      makeFlatVector<Date>(
-          2, [](vector_size_t row) { return Date{row % 2}; }, nullEvery(5)),
+      makeNullableFlatVector<int64_t>({232, 34567235}, DECIMAL(12, 4)),
+      makeNullableFlatVector<int128_t>({232, 34567235}, DECIMAL(20, 4)),
+      makeFlatVector<int32_t>(
+          2, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
   });
   testShuffleWrite(*shuffleWriter, {vector});
 }
@@ -450,10 +450,10 @@ TEST_P(VeloxShuffleWriterTest, hashPart1Vector) {
       makeNullableFlatVector<int8_t>({1, 2, 3, std::nullopt}),
       makeFlatVector<int64_t>({1, 2, 3, 4}),
       makeFlatVector<velox::StringView>({"nn", "re", "fr", "juiu"}),
-      makeShortDecimalFlatVector({232, 34567235, 1212, 4567}, DECIMAL(12, 4)),
-      makeLongDecimalFlatVector({232, 34567235, 1212, 4567}, DECIMAL(20, 4)),
-      makeFlatVector<Date>(
-          4, [](vector_size_t row) { return Date{row % 2}; }, nullEvery(5)),
+      makeFlatVector<int64_t>({232, 34567235, 1212, 4567}, DECIMAL(12, 4)),
+      makeFlatVector<int128_t>({232, 34567235, 1212, 4567}, DECIMAL(20, 4)),
+      makeFlatVector<int32_t>(
+          4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
       makeFlatVector<Timestamp>(
           4,
           [](vector_size_t row) {
@@ -466,10 +466,10 @@ TEST_P(VeloxShuffleWriterTest, hashPart1Vector) {
       makeNullableFlatVector<int8_t>({1, 2, 3, std::nullopt}),
       makeFlatVector<int64_t>({1, 2, 3, 4}),
       makeFlatVector<velox::StringView>({"nn", "re", "fr", "juiu"}),
-      makeShortDecimalFlatVector({232, 34567235, 1212, 4567}, DECIMAL(12, 4)),
-      makeLongDecimalFlatVector({232, 34567235, 1212, 4567}, DECIMAL(20, 4)),
-      makeFlatVector<Date>(
-          4, [](vector_size_t row) { return Date{row % 2}; }, nullEvery(5)),
+      makeFlatVector<int64_t>({232, 34567235, 1212, 4567}, DECIMAL(12, 4)),
+      makeFlatVector<int128_t>({232, 34567235, 1212, 4567}, DECIMAL(20, 4)),
+      makeFlatVector<int32_t>(
+          4, [](vector_size_t row) { return row % 2; }, nullEvery(5), DATE()),
       makeFlatVector<Timestamp>(
           4,
           [](vector_size_t row) {
@@ -482,9 +482,9 @@ TEST_P(VeloxShuffleWriterTest, hashPart1Vector) {
       makeNullableFlatVector<int8_t>({2, std::nullopt}),
       makeFlatVector<int64_t>({2, 4}),
       makeFlatVector<velox::StringView>({"re", "juiu"}),
-      makeShortDecimalFlatVector({34567235, 4567}, DECIMAL(12, 4)),
-      makeLongDecimalFlatVector({34567235, 4567}, DECIMAL(20, 4)),
-      makeFlatVector<Date>({Date(1), Date(1)}),
+      makeFlatVector<int64_t>({34567235, 4567}, DECIMAL(12, 4)),
+      makeFlatVector<int128_t>({34567235, 4567}, DECIMAL(20, 4)),
+      makeFlatVector<int32_t>({1, 1}, DATE()),
       makeFlatVector<Timestamp>({Timestamp(1, 0), Timestamp(1, 0)}),
   });
 
@@ -492,9 +492,9 @@ TEST_P(VeloxShuffleWriterTest, hashPart1Vector) {
       makeNullableFlatVector<int8_t>({1, 3}),
       makeFlatVector<int64_t>({1, 3}),
       makeFlatVector<velox::StringView>({"nn", "fr"}),
-      makeShortDecimalFlatVector({232, 1212}, DECIMAL(12, 4)),
-      makeLongDecimalFlatVector({232, 1212}, DECIMAL(20, 4)),
-      makeNullableFlatVector<Date>({std::nullopt, Date(0)}),
+      makeFlatVector<int64_t>({232, 1212}, DECIMAL(12, 4)),
+      makeFlatVector<int128_t>({232, 1212}, DECIMAL(20, 4)),
+      makeNullableFlatVector<int32_t>({std::nullopt, 0}, DATE()),
       makeNullableFlatVector<Timestamp>({std::nullopt, Timestamp(0, 0)}),
   });
 

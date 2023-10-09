@@ -25,7 +25,7 @@ using namespace facebook::velox;
 class SparkFunctionTest : public SparkFunctionBaseTest {
  public:
   SparkFunctionTest() {
-    gluten::registerFunctionOverwrite();
+    gluten::registerAllFunctions();
   }
 
  protected:
