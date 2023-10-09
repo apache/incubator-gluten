@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.exception.GlutenException
 
 import org.apache.spark.sql.execution.datasources.VeloxWriteQueue.EOS_BATCH
@@ -28,7 +27,7 @@ import org.apache.arrow.vector.types.pojo.Schema
 import java.util.concurrent.{ArrayBlockingQueue, TimeUnit}
 
 class VeloxColumnarBatchIterator(schema: Schema, allocator: BufferAllocator)
-  extends Iterator[Long]
+  extends Iterator[ColumnarBatch]
   with AutoCloseable {
   private val writeQueue = new ArrayBlockingQueue[ColumnarBatch](64)
   private var currentBatch: Option[ColumnarBatch] = None
@@ -59,8 +58,16 @@ class VeloxColumnarBatchIterator(schema: Schema, allocator: BufferAllocator)
     true
   }
 
-  override def next(): Long = {
-    ColumnarBatches.getNativeHandle(currentBatch.get)
+  override def next(): ColumnarBatch = {
+    try {
+      currentBatch match {
+        case Some(b) => b
+        case _ =>
+          throw new IllegalStateException("VeloxParquetWriter: Fatal: Call hasNext() first!")
+      }
+    } finally {
+      currentBatch = None
+    }
   }
 
   override def close(): Unit = {

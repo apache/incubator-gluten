@@ -70,10 +70,6 @@ static jmethodID serializedColumnarBatchIteratorNext;
 static jclass nativeColumnarToRowInfoClass;
 static jmethodID nativeColumnarToRowInfoConstructor;
 
-static jclass veloxColumnarBatchScannerClass;
-static jmethodID veloxColumnarBatchScannerHasNext;
-static jmethodID veloxColumnarBatchScannerNext;
-
 static jclass shuffleReaderMetricsClass;
 static jmethodID shuffleReaderMetricsSetDecompressTime;
 static jmethodID shuffleReaderMetricsSetIpcTime;
@@ -281,13 +277,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", "(J)J");
   unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", "(J)J");
 
-  veloxColumnarBatchScannerClass =
-      createGlobalClassReference(env, "Lorg/apache/spark/sql/execution/datasources/VeloxColumnarBatchIterator;");
-
-  veloxColumnarBatchScannerHasNext = getMethodId(env, veloxColumnarBatchScannerClass, "hasNext", "()Z");
-
-  veloxColumnarBatchScannerNext = getMethodId(env, veloxColumnarBatchScannerClass, "next", "()J");
-
   shuffleReaderMetricsClass =
       createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ShuffleReaderMetrics;");
   shuffleReaderMetricsSetDecompressTime =
@@ -309,7 +298,6 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(serializedColumnarBatchIteratorClass);
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
-  env->DeleteGlobalRef(veloxColumnarBatchScannerClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
   gluten::getJniErrorState()->close();
   gluten::getJniCommonState()->close();
@@ -1052,8 +1040,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL
-Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper_nativeInitDatasource( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapper_nativeInitDatasource( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jstring filePath,
@@ -1083,8 +1070,7 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
-JNIEXPORT void JNICALL
-Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper_inspectSchema( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapper_inspectSchema( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong dsHandle,
@@ -1097,7 +1083,7 @@ Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper_close( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapper_close( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong dsHandle) {
@@ -1110,26 +1096,22 @@ JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_vel
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_spark_sql_execution_datasources_velox_DatasourceJniWrapper_write( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapper_write( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong dsHandle,
-    jobject iter) {
+    jobject jIter) {
   JNI_METHOD_START
   auto ctx = gluten::getExecutionCtx(env, wrapper);
-
   auto datasource = ctx->getDatasource(dsHandle);
-
-  while (env->CallBooleanMethod(iter, veloxColumnarBatchScannerHasNext)) {
-    checkException(env);
-    jlong batchHandle = env->CallLongMethod(iter, veloxColumnarBatchScannerNext);
-    checkException(env);
-    auto batch = ctx->getBatch(batchHandle);
+  auto iter = makeJniColumnarBatchIterator(env, jIter, ctx, nullptr);
+  while (true) {
+    auto batch = iter->next();
+    if (!batch) {
+      break;
+    }
     datasource->write(batch);
-    // fixme this skips the general Java side batch-closing routine
-    ctx->releaseBatch(batchHandle);
   }
-  checkException(env);
   JNI_METHOD_END()
 }
 
