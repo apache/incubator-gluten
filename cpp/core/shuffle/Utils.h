@@ -30,6 +30,19 @@ namespace gluten {
 
 const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";
 
+#define EVAL_START(name, thread_id) \
+  //  auto eval_start = std::chrono::duration_cast<std::chrono::nanoseconds>(    \
+                        std::chrono::system_clock::now().time_since_epoch()) \
+                        .count();
+
+#define EVAL_END(name, thread_id, task_attempt_id) \
+  //  std::cout << "xgbtck " << name << " " << eval_start << " "            \
+            << std::chrono::duration_cast<std::chrono::nanoseconds>(    \
+                   std::chrono::system_clock::now().time_since_epoch()) \
+                       .count() -                                       \
+                   eval_start                                           \
+            << " " << thread_id << " " << task_attempt_id << std::endl;
+
 std::string generateUuid();
 
 std::string getSpilledShuffleFileDir(const std::string& configuredDir, int32_t subDirId);
