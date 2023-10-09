@@ -66,12 +66,6 @@ jobs:
           docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --arrow_home=/opt/arrow --velox_home=/opt/velox --build_tests=ON --build_examples=ON --build_benchmarks=ON'
-      - name: Build and run unit test for Spark 3.2.2 (other tests)
-        run: |
-          docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
-          mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       - name: Run CPP unit test
         run: |
           docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
@@ -87,6 +81,12 @@ jobs:
           cmake -DBUILD_TESTS=ON -DENABLE_HBM=ON .. && \
           cmake --build . --target hbw_allocator_test -- -j && \
           ctest -V -R TestHbw'
+      - name: Build and run unit test for Spark 3.2.2 (other tests)
+        run: |
+          docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
