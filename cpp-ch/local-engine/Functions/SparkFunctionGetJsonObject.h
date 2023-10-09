@@ -293,12 +293,13 @@ private:
         bool document_ok = false;
         if (col_json_const)
         {
-            const char * src_chars = reinterpret_cast<const char *>(chars.data());
-            const size_t chars_length = offsets[0] - 1;
-            char dst_chars[chars_length];
-            // std::string_view json{src_chars, chars_length};
-            std::string_view json = copyJsonStringExceptCtrlChars(dst_chars, src_chars, chars_length);
+            std::string_view json{reinterpret_cast<const char *>(chars.data()), offsets[0] - 1};
             document_ok = parser.parse(json, document);
+            if (!document_ok) {
+                char dst_chars[json.size()];
+                json = copyJsonStringExceptCtrlChars(dst_chars, json.data(), json.size());
+                document_ok = parser.parse(json, document);
+            }
         }
 
         size_t tuple_size = tuple_columns.size();
@@ -313,12 +314,14 @@ private:
         {
             if (!col_json_const)
             {
-                const char * src_chars = reinterpret_cast<const char *>(&chars[offsets[i - 1]]);
-                const size_t chars_length = offsets[i] - offsets[i - 1] - 1;
-                char dst_chars[chars_length];
-                // std::string_view json{chars_data, chars_length};
-                std::string_view json = copyJsonStringExceptCtrlChars(dst_chars, src_chars, chars_length);
+                std::string_view json{reinterpret_cast<const char *>(&chars[offsets[i - 1]]), offsets[i] - offsets[i - 1] - 1};
                 document_ok = parser.parse(json, document);
+                if (!document_ok)
+                {
+                    char dst_chars[json.size()];
+                    json = copyJsonStringExceptCtrlChars(dst_chars, json.data(), json.size());
+                    document_ok = parser.parse(json, document);
+                }
             }
             if (document_ok)
             {
