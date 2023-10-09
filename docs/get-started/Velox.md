@@ -290,7 +290,8 @@ With above steps, you will get a physical plan output like:
 native validation failed due to: in ProjectRel, Scalar function name not registered: get_struct_field, called with arguments: (ROW<col_0:INTEGER,col_1:BIGINT,col_2:BIGINT>, INTEGER).
 ```
 
-In the above, the symbol `^` indicates a plan offloaded to Velox in a stage. In Spark DAG, all such pipelined plans are plotted inside an umbrella node called `WholeStageCodegenTransformer`.
+In the above, the symbol `^` indicates a plan is offloaded to Velox in a stage. In Spark DAG, all such pipelined plans (consecutive plans marked with `^`) are plotted
+inside an umbrella node named `WholeStageCodegenTransformer` (It's not codegen node. The naming is just for making it well plotted like Spark Whole Stage Codegen).
 
 # Spill (Experimental)
 
