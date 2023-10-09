@@ -28,6 +28,8 @@
 
 #include "FilePathGenerator.h"
 
+#include "velox/core/QueryCtx.h"
+
 using namespace facebook::velox;
 using namespace facebook::velox::test;
 

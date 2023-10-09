@@ -385,7 +385,7 @@ TEST_F(VeloxSubstraitRoundTripTest, arrayLiteral) {
                         makeConstantExpr(makeNullableArrayVector<double>({{5.5, std::nullopt}})),
                         makeConstantExpr(makeArrayVector<StringView>({{StringView("6")}})),
                         makeConstantExpr(makeArrayVector<Timestamp>({{Timestamp(123'456, 123'000)}})),
-                        makeConstantExpr(makeArrayVector<Date>({{8035}})),
+                        makeConstantExpr(makeArrayVector<int32_t>({{8035}}, DATE())),
                         makeConstantExpr(makeArrayVector<int64_t>({{54 * 1000}}, INTERVAL_DAY_TIME())),
                         makeConstantExpr(makeArrayVector<int64_t>({{}})),
                         // Nested array: [[1, 2, 3], [4, 5]]
