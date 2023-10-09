@@ -22,7 +22,7 @@ import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.expression.ExpressionTransformer
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.substrait.SubstraitContext
@@ -57,7 +57,13 @@ case class GenerateExecTransformer(
   extends UnaryExecNode
   with TransformSupport {
 
+  @transient
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genGenerateTransformerMetrics(sparkContext)
+
   override def output: Seq[Attribute] = requiredChildOutput ++ generatorOutput
+
+  override def producedAttributes: AttributeSet = AttributeSet(generatorOutput)
 
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(s"GenerateExecTransformer doesn't support doExecute")
@@ -244,5 +250,7 @@ case class GenerateExecTransformer(
     }
   }
 
-  override def metricsUpdater(): MetricsUpdater = new NoopMetricsUpdater
+  override def metricsUpdater(): MetricsUpdater = {
+    BackendsApiManager.getMetricsApiInstance.genGenerateTransformerMetricsUpdater(metrics)
+  }
 }
