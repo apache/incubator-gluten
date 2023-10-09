@@ -330,4 +330,10 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genHashJoinTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new HashJoinMetricsUpdater(metrics)
+
+  override def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map.empty
+
+  override def genGenerateTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric]): MetricsUpdater = new NoopMetricsUpdater
 }
