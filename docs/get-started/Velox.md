@@ -284,11 +284,13 @@ With above steps, you will get a physical plan output like:
 
 ```
 
-"GlutenRowToArrowColumnar" and "VeloxColumnarToRowExec" indicate there is a fallback and you may find related log with key words "due to" like:
+`GlutenRowToArrowColumnar`/`VeloxColumnarToRowExec` indicates there is a fallback operator before or after it. And you may find fallback reason like below in logs.
 
 ```
 native validation failed due to: in ProjectRel, Scalar function name not registered: get_struct_field, called with arguments: (ROW<col_0:INTEGER,col_1:BIGINT,col_2:BIGINT>, INTEGER).
 ```
+
+In the above, the symbol `^` indicates a plan offloaded to Velox in a stage. In Spark DAG, all such pipelined plans are plotted inside an umbrella node called `WholeStageCodegenTransformer`.
 
 # Spill (Experimental)
 
