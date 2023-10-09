@@ -1936,6 +1936,11 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
   for (uint32_t colIdx = 0; colIdx < inputNameList.size(); colIdx++) {
     if (columnToFilterInfo[colIdx].isInitialized()) {
       auto inputType = inputTypeList[colIdx];
+      if (inputType->isDate()) {
+        constructSubfieldFilters<TypeKind::INTEGER, common::BigintRange>(
+            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+        continue;
+      }
       switch (inputType->kind()) {
         case TypeKind::TINYINT:
           constructSubfieldFilters<TypeKind::TINYINT, common::BigintRange>(
@@ -1967,10 +1972,6 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
           break;
         case TypeKind::VARCHAR:
           constructSubfieldFilters<TypeKind::VARCHAR, common::Filter>(
-              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-          break;
-        case TypeKind::DATE:
-          constructSubfieldFilters<TypeKind::DATE, common::BigintRange>(
               colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
           break;
         case TypeKind::HUGEINT:
