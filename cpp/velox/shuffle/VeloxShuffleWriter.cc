@@ -915,8 +915,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       auto column = rv.childAt(colIdx);
       if (vectorHasNull(column)) {
         auto& dstAddrs = partitionValidityAddrs_[col];
-        for (auto pid = 0; pid < numPartitions_; ++pid) {
-          if (partition2RowCount_[pid] > 0 && dstAddrs[pid] == nullptr) {
+        for (auto& pid : partitionUsed_) {
+          if (dstAddrs[pid] == nullptr) {
             // init bitmap if it's null, initialize the buffer as true
             auto newSize = std::max(partition2RowCount_[pid], (uint32_t)options_.buffer_size);
             GLUTEN_ASSIGN_OR_THROW(
