@@ -19,11 +19,10 @@ package io.glutenproject.vectorized;
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
 import io.glutenproject.exec.ExecutionCtxs;
-import io.glutenproject.init.JniInitialized;
 
 import java.io.IOException;
 
-public class ShuffleWriterJniWrapper extends JniInitialized implements ExecutionCtxAware {
+public class ShuffleWriterJniWrapper implements ExecutionCtxAware {
   private final ExecutionCtx ctx;
 
   private ShuffleWriterJniWrapper(ExecutionCtx ctx) {

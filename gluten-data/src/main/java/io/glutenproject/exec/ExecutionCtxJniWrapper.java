@@ -16,9 +16,7 @@
  */
 package io.glutenproject.exec;
 
-import io.glutenproject.init.JniInitialized;
-
-public class ExecutionCtxJniWrapper extends JniInitialized {
+public class ExecutionCtxJniWrapper {
 
   private ExecutionCtxJniWrapper() {}
 

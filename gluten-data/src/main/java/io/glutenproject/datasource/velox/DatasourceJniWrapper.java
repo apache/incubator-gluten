@@ -19,7 +19,6 @@ package io.glutenproject.datasource.velox;
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
 import io.glutenproject.exec.ExecutionCtxs;
-import io.glutenproject.init.JniInitialized;
 import io.glutenproject.init.JniUtils;
 import io.glutenproject.vectorized.ColumnarBatchInIterator;
 
@@ -27,7 +26,7 @@ import java.util.Map;
 
 /** The jni file is at `cpp/core/jni/JniWrapper.cc` */
 // FIXME: move to module gluten-data?
-public class DatasourceJniWrapper extends JniInitialized implements ExecutionCtxAware {
+public class DatasourceJniWrapper implements ExecutionCtxAware {
   private final ExecutionCtx ctx;
 
   private DatasourceJniWrapper(ExecutionCtx ctx) {

@@ -16,9 +16,7 @@
  */
 package io.glutenproject.udf;
 
-import io.glutenproject.init.JniInitialized;
-
-public class UdfJniWrapper extends JniInitialized {
+public class UdfJniWrapper {
 
   public UdfJniWrapper() {}
 

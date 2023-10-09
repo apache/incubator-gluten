@@ -74,7 +74,7 @@ void JNI_OnUnload(JavaVM* vm, void*) {
   google::ShutdownGoogleLogging();
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_init_BackendJniWrapper_initializeBackend( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_init_NativeBackendInitializer_initialize( // NOLINT
     JNIEnv* env,
     jclass,
     jbyteArray planArray) {

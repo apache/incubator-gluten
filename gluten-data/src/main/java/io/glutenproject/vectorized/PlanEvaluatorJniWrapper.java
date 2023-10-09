@@ -19,7 +19,6 @@ package io.glutenproject.vectorized;
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
 import io.glutenproject.exec.ExecutionCtxs;
-import io.glutenproject.init.JniInitialized;
 import io.glutenproject.validate.NativePlanValidationInfo;
 
 /**
@@ -27,7 +26,7 @@ import io.glutenproject.validate.NativePlanValidationInfo;
  * This file is used to generate the .h files required for jni. Avoid all external dependencies in
  * this file.
  */
-public class PlanEvaluatorJniWrapper extends JniInitialized implements ExecutionCtxAware {
+public class PlanEvaluatorJniWrapper implements ExecutionCtxAware {
   private final ExecutionCtx ctx;
 
   private PlanEvaluatorJniWrapper(ExecutionCtx ctx) {

@@ -19,9 +19,8 @@ package io.glutenproject.vectorized;
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
 import io.glutenproject.exec.ExecutionCtxs;
-import io.glutenproject.init.JniInitialized;
 
-public class ShuffleReaderJniWrapper extends JniInitialized implements ExecutionCtxAware {
+public class ShuffleReaderJniWrapper implements ExecutionCtxAware {
   private final ExecutionCtx ctx;
 
   private ShuffleReaderJniWrapper(ExecutionCtx ctx) {
