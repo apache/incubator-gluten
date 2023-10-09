@@ -362,7 +362,6 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
   oss << " write_eos:" << options.write_eos;
   oss << " partition_writer_type:" << options.partition_writer_type;
   oss << " thread_id:" << options.thread_id;
-  oss << " offheap_per_task:" << options.offheap_per_task;
   LOG(INFO) << oss.str();
 #endif
   std::shared_ptr<VeloxShuffleWriter> res(
@@ -625,16 +624,20 @@ arrow::Status VeloxShuffleWriter::buildPartition2Row(uint32_t rowNum) {
   rowOffset2RowId_.resize(rowNum);
   for (auto row = 0; row < rowNum; ++row) {
     auto pid = row2Partition_[row];
-    PREFETCHT0((rowOffset2RowId_.data() + partition2RowOffset_[pid] + 32));
     rowOffset2RowId_[partition2RowOffset_[pid]++] = row;
   }
 
-  std::transform(
-      partition2RowOffset_.begin(),
-      std::prev(partition2RowOffset_.end()),
-      partition2RowCount_.begin(),
-      partition2RowOffset_.begin(),
-      [](uint32_t x, uint32_t y) { return x - y; });
+  for (auto pid = 0; pid < numPartitions_; ++pid) {
+    partition2RowOffset_[pid] -= partition2RowCount_[pid];
+  }
+
+  // calc valid partition list
+  partitionUsed_.clear();
+  for (auto pid = 0; pid != numPartitions_; ++pid) {
+    if (partition2RowCount_[pid] > 0) {
+      partitionUsed_.push_back(pid);
+    }
+  }
 
   printPartition2Row();
 
@@ -736,6 +739,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
               partitionBufferIdxBase_.begin(),
               partitionBufferIdxOffset.begin(),
               [](uint8_t* x, uint32_t y) { return x + y * sizeof(uint64_t); });
+
           for (auto pid = 0; pid < numPartitions_; pid++) {
             auto dstPidBase = reinterpret_cast<uint64_t*>(partitionBufferIdxOffset[pid]); /*32k*/
             auto r = partition2RowOffset_[pid]; /*8k*/
@@ -818,19 +822,17 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
   arrow::Status VeloxShuffleWriter::splitBoolType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
     // assume batch size = 32k; reducer# = 4K; row/reducer = 8
-    for (auto pid = 0; pid < numPartitions_; ++pid) {
+    for (auto& pid : partitionUsed_) {
       // set the last byte
       auto dstaddr = dstAddrs[pid];
-      if (partition2RowCount_[pid] > 0 && dstaddr != nullptr) {
+      if (dstaddr != nullptr) {
         auto r = partition2RowOffset_[pid]; /*8k*/
         auto size = partition2RowOffset_[pid + 1];
         uint32_t dstOffset = partitionBufferIdxBase_[pid];
         uint32_t dstOffsetInByte = (8 - (dstOffset & 0x7)) & 0x7;
         uint32_t dstIdxByte = dstOffsetInByte;
         uint8_t dst = dstaddr[dstOffset >> 3];
-        if (pid + 1 < numPartitions_) {
-          PREFETCHT1((&dstaddr[partitionBufferIdxBase_[pid + 1] >> 3]));
-        }
+
         for (; r < size && dstIdxByte > 0; r++, dstIdxByte--) {
           auto srcOffset = rowOffset2RowId_[r]; /*16k*/
           uint8_t src = srcAddr[srcOffset >> 3];
@@ -939,7 +941,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       uint32_t binaryIdx, const velox::FlatVector<velox::StringView>& src, std::vector<BinaryBuf>& dst) {
     auto rawValues = src.rawValues();
 
-    for (auto pid = 0; pid < numPartitions_; ++pid) {
+    for (auto& pid : partitionUsed_) {
       auto& binaryBuf = dst[pid];
 
       // use 32bit offset
@@ -1031,7 +1033,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     }
     auto rowVector = std::make_shared<RowVector>(
         veloxPool_.get(), complexWriteType_, BufferPtr(nullptr), rv.size(), std::move(childrens));
-    for (auto pid = 0; pid < numPartitions_; pid++) {
+
+    for (auto& pid : partitionUsed_) {
       if (rowIndexs[pid].size() != 0) {
         complexTypeData_[pid]->append(rowVector, folly::Range(rowIndexs[pid].data(), rowIndexs[pid].size()));
       }
@@ -1687,51 +1690,50 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   }
 
   arrow::Status VeloxShuffleWriter::preAllocPartitionBuffers(uint32_t preAllocBufferSize) {
-    for (auto pid = 0; pid < numPartitions_; ++pid) {
-      if (partition2RowCount_[pid] > 0) {
-        auto newSize = std::max(preAllocBufferSize, partition2RowCount_[pid]);
-        // Make sure the size to be allocated is larger than the size to be filled.
-        if (partition2BufferSize_[pid] == 0) {
-          // Allocate buffer if it's not yet allocated.
+    for (auto& pid : partitionUsed_) {
+      auto newSize = std::max(preAllocBufferSize, partition2RowCount_[pid]);
+      // Make sure the size to be allocated is larger than the size to be filled.
+      if (partition2BufferSize_[pid] == 0) {
+        // Allocate buffer if it's not yet allocated.
+        RETURN_NOT_OK(allocatePartitionBuffer(pid, newSize, false));
+      } else if (beyondThreshold(pid, newSize)) {
+        if (newSize <= partitionBufferIdxBase_[pid]) {
+          // If the newSize is smaller, cache the buffered data and reuse and shrink the buffer.
+          RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, true));
+          RETURN_NOT_OK(allocatePartitionBuffer(pid, newSize, true));
+        } else {
+          // If the newSize is larger, check if alreadyFilled + toBeFilled <= newSize
+          if (partitionBufferIdxBase_[pid] + partition2RowCount_[pid] <= newSize) {
+            // If so, keep the data in buffers and resize buffers.
+            RETURN_NOT_OK(resizePartitionBuffer(pid, newSize)); // resize
+            // Because inputHasNull_ is updated every time split is called, and resizePartitionBuffer won't allocate
+            // validity buffer.
+            RETURN_NOT_OK(updateValidityBuffers(pid, newSize));
+          } else {
+            // Otherwise cache the buffered data.
+            // If newSize <= allocated buffer size, reuse and shrink the buffer.
+            // Else free and allocate new buffers.
+            bool reuseBuffers = newSize <= partition2BufferSize_[pid];
+            RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, reuseBuffers));
+            RETURN_NOT_OK(allocatePartitionBuffer(pid, newSize, reuseBuffers));
+          }
+        }
+      } else if (partitionBufferIdxBase_[pid] + partition2RowCount_[pid] > partition2BufferSize_[pid]) {
+        // If the size to be filled + already filled > the buffer size, need to free current buffers and allocate new
+        // buffer.
+        if (newSize > partition2BufferSize_[pid]) {
+          // If the partition size after split is already larger than allocated buffer size, need reallocate.
+          RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, false));
           RETURN_NOT_OK(allocatePartitionBuffer(pid, newSize, false));
-        } else if (beyondThreshold(pid, newSize)) {
-          if (newSize <= partitionBufferIdxBase_[pid]) {
-            // If the newSize is smaller, cache the buffered data and reuse and shrink the buffer.
-            RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, true));
-            RETURN_NOT_OK(allocatePartitionBuffer(pid, newSize, true));
-          } else {
-            // If the newSize is larger, check if alreadyFilled + toBeFilled <= newSize
-            if (partitionBufferIdxBase_[pid] + partition2RowCount_[pid] <= newSize) {
-              // If so, keep the data in buffers and resize buffers.
-              RETURN_NOT_OK(resizePartitionBuffer(pid, newSize)); // resize
-              // Because inputHasNull_ is updated every time split is called, and resizePartitionBuffer won't allocate
-              // validity buffer.
-              RETURN_NOT_OK(updateValidityBuffers(pid, newSize));
-            } else {
-              // Otherwise cache the buffered data.
-              // If newSize <= allocated buffer size, reuse and shrink the buffer.
-              // Else free and allocate new buffers.
-              bool reuseBuffers = newSize <= partition2BufferSize_[pid];
-              RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, reuseBuffers));
-              RETURN_NOT_OK(allocatePartitionBuffer(pid, newSize, reuseBuffers));
-            }
-          }
-        } else if (partitionBufferIdxBase_[pid] + partition2RowCount_[pid] > partition2BufferSize_[pid]) {
-          // If the size to be filled + already filled > the buffer size, need to free current buffers and allocate new
-          // buffer.
-          if (newSize > partition2BufferSize_[pid]) {
-            // If the partition size after split is already larger than allocated buffer size, need reallocate.
-            RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, false));
-            RETURN_NOT_OK(allocatePartitionBuffer(pid, newSize, false));
-          } else {
-            // Partition size after split is smaller than buffer size. Reuse the buffers.
-            RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, true));
-            // Reset validity buffer for reuse.
-            RETURN_NOT_OK(resetValidityBuffer(pid));
-          }
+        } else {
+          // Partition size after split is smaller than buffer size. Reuse the buffers.
+          RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, true));
+          // Reset validity buffer for reuse.
+          RETURN_NOT_OK(resetValidityBuffer(pid));
         }
       }
     }
+
     return arrow::Status::OK();
   }
 } // namespace gluten
