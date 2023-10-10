@@ -962,7 +962,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_OnHeapJniByteInputStream
     jint size) {
   JNI_METHOD_START
   jbyte* bytes = env->GetByteArrayElements(source, nullptr);
-  std::memcpy(reinterpret_cast<void*>(destAddress), reinterpret_cast<const void*>(bytes), size);
+  gluten::fastCopy(reinterpret_cast<void*>(destAddress), reinterpret_cast<const void*>(bytes), size);
   env->ReleaseByteArrayElements(source, bytes, JNI_ABORT);
   JNI_METHOD_END()
 }

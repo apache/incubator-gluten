@@ -98,7 +98,7 @@ VectorPtr readFlatVector<TypeKind::HUGEINT>(
     values = valueBuffer;
   } else {
     values = AlignedBuffer::allocate<char>(valueBuffer->size(), pool);
-    memcpy(values->asMutable<char>(), valueBuffer->as<char>(), valueBuffer->size());
+    gluten::fastCopy(values->asMutable<char>(), valueBuffer->as<char>(), valueBuffer->size());
   }
   std::vector<BufferPtr> stringBuffers;
   if (nulls == nullptr || nulls->size() == 0) {
