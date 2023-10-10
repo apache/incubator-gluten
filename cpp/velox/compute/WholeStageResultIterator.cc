@@ -173,7 +173,8 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     });
     // suspend the driver when we are on it
     ConditionalSuspendedSection noCancel(thisDriver, thisDriver != nullptr);
-    uint64_t spilledOut = pool_->reclaim(remaining);
+    velox::exec::MemoryReclaimer::Stats status;
+    uint64_t spilledOut = pool_->reclaim(remaining, status);
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunken + spilledOut;
     DLOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";

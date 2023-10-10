@@ -125,6 +125,8 @@ class VeloxTestSettings extends BackendTestSettings {
       // Not supported for approx_count_distinct
       "SPARK-34165: Add count_distinct to summary"
     )
+    // Double precision loss: https://github.com/facebookincubator/velox/pull/6051#issuecomment-1731028215.
+    .exclude("SPARK-22271: mean overflows and returns null for some decimal variables")
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]
     .exclude(
