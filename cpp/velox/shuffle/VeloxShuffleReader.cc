@@ -22,6 +22,7 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/compression.h"
+#include "utils/Common.h"
 #include "utils/macros.h"
 #include "velox/serializers/PrestoSerializer.h"
 #include "velox/vector/ComplexVector.h"
