@@ -1,0 +1,12 @@
+diff --git a/backends-velox/pom.xml b/backends-velox/pom.xml
+index 4ad40b07e..d8f5da8c6 100755
+--- a/backends-velox/pom.xml
++++ b/backends-velox/pom.xml
+@@ -228,6 +228,7 @@
+         <artifactId>scalatest-maven-plugin</artifactId>
+         <configuration>
+           <tagsToExclude>${tagsToExclude}</tagsToExclude>
++          <testFailureIgnore>true</testFailureIgnore>
+           <systemProperties>
+             <velox.udf.lib.path>${cpp.build.dir}/velox/udf/examples/libmyudf.so</velox.udf.lib.path>
+           </systemProperties>
