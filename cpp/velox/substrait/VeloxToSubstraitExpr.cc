@@ -358,6 +358,12 @@ const ::substrait::Expression& VeloxToSubstraitExprConvertor::toSubstraitExpr(
     return *substraitExpr;
   }
 
+  if (auto derefExpr = std::dynamic_pointer_cast<const core::DereferenceTypedExpr>(expr)) {
+    substraitExpr->mutable_selection()->MergeFrom(toSubstraitExpr(arena, derefExpr, inputType));
+
+    return *substraitExpr;
+  }
+
   VELOX_UNSUPPORTED("Unsupport Expr '{}' in Substrait", expr->toString());
 }
 
@@ -423,6 +429,35 @@ const ::substrait::Expression_FieldReference& VeloxToSubstraitExprConvertor::toS
     }
   }
 
+  return *substraitFieldExpr;
+}
+
+const ::substrait::Expression_FieldReference& VeloxToSubstraitExprConvertor::toSubstraitExpr(
+    google::protobuf::Arena& arena,
+    const std::shared_ptr<const core::DereferenceTypedExpr>& derefExpr,
+    const RowTypePtr& inputType) {
+  ::substrait::Expression_FieldReference* substraitFieldExpr =
+      google::protobuf::Arena::CreateMessage<::substrait::Expression_FieldReference>(&arena);
+
+  ::substrait::Expression_ReferenceSegment_StructField* directStruct =
+      substraitFieldExpr->mutable_direct_reference()->mutable_struct_field();
+
+  auto input = toSubstraitExpr(arena, derefExpr->inputs()[0], inputType);
+  VELOX_USER_CHECK(input.has_selection(), "Non-field expression is not supported");
+  auto inputRef = input.selection().direct_reference();
+
+  ::substrait::Expression_ReferenceSegment_StructField* childStruct =
+      google::protobuf::Arena::CreateMessage<::substrait::Expression_ReferenceSegment_StructField>(&arena);
+  ::substrait::Expression_ReferenceSegment* refSegment =
+      google::protobuf::Arena::CreateMessage<::substrait::Expression_ReferenceSegment>(&arena);
+  directStruct->MergeFrom(inputRef.struct_field());
+  childStruct->set_field(derefExpr->index());
+  refSegment->set_allocated_struct_field(childStruct);
+  ::substrait::Expression_ReferenceSegment_StructField* innerChild = directStruct;
+  while (innerChild->has_child()) {
+    innerChild = innerChild->mutable_child()->mutable_struct_field();
+  }
+  innerChild->set_allocated_child(refSegment);
   return *substraitFieldExpr;
 }
 
