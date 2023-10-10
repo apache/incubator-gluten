@@ -21,6 +21,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <stdint.h>
 
 #include "velox/common/base/SimdUtil.h"
 #include "velox/common/time/CpuWallTimer.h"
@@ -280,7 +281,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
         EXPECT_EQ(result.get(i), data[indices[i]]);
       }
     */
-    auto result = facebook::velox::simd::gather(src, indices);
+    auto result = facebook::velox::simd::gather(src, indexes);
     result.store_unaligned(dst);
   }
 
@@ -291,25 +292,32 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       auto pos = partition2RowOffset_[pid];
       auto end = partition2RowOffset_[pid + 1];
 
-      if constexpr (std::is_same_v<T, int128>) {
-        for (; pos < end; ++pos) {
-          auto rowId = rowOffset2RowId_[pos];
-          *dstPidBase++ = reinterpret_cast<const T*>(srcAddr)[rowId]; // copy
-        }
-      } else {
-        T* dst = dstPidBase;
-        constexpr int kBatchSize = xsimd::batch<T>::size;
-        for (; pos + kBatchSize < end; pos += kBatchSize) {
-          T* src = (T*)srcAddr;
-          int32_t* indexes = (int32_t*)(&rowOffset2RowId_[pos]);
-          gather<T>(dst, src, indexes);
-          dst += kBatchSize;
-        }
+      T* dst = dstPidBase;
+      constexpr int kBatchSize = xsimd::batch<T>::size;
+      for (; pos + kBatchSize < end; pos += kBatchSize) {
+        T* src = (T*)srcAddr;
+        int32_t* indexes = (int32_t*)(&rowOffset2RowId_[pos]);
+        gather<T>(dst, src, indexes);
+        dst += kBatchSize;
+      }
 
-        for (; pos < end; ++pos) {
-          auto rowId = rowOffset2RowId_[pos];
-          *dst++ = reinterpret_cast<const T*>(srcAddr)[rowId]; // copy
-        }
+      for (; pos < end; ++pos) {
+        auto rowId = rowOffset2RowId_[pos];
+        *dst++ = reinterpret_cast<const T*>(srcAddr)[rowId]; // copy
+      }
+    }
+    return arrow::Status::OK();
+  }
+
+  arrow::Status splitFixedType128(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
+    for (auto& pid : partitionUsed_) {
+      auto dstPidBase = (__int128_t*)(dstAddrs[pid] + partitionBufferIdxBase_[pid] * sizeof(__int128_t));
+      auto pos = partition2RowOffset_[pid];
+      auto end = partition2RowOffset_[pid + 1];
+
+      for (; pos < end; ++pos) {
+        auto rowId = rowOffset2RowId_[pos];
+        *dstPidBase++ = reinterpret_cast<const __int128_t*>(srcAddr)[rowId]; // copy
       }
     }
     return arrow::Status::OK();

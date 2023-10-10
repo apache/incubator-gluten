@@ -716,17 +716,17 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         RETURN_NOT_OK(splitBoolType(srcAddr, dstAddrs));
         break;
       case 8:
-        RETURN_NOT_OK(splitFixedType<uint8_t>(srcAddr, dstAddrs));
+        RETURN_NOT_OK(splitFixedType<int8_t>(srcAddr, dstAddrs));
         break;
       case 16:
-        RETURN_NOT_OK(splitFixedType<uint16_t>(srcAddr, dstAddrs));
+        RETURN_NOT_OK(splitFixedType<int16_t>(srcAddr, dstAddrs));
         break;
       case 32:
-        RETURN_NOT_OK(splitFixedType<uint32_t>(srcAddr, dstAddrs));
+        RETURN_NOT_OK(splitFixedType<int32_t>(srcAddr, dstAddrs));
         break;
       case 64: {
         if (column->type()->kind() == velox::TypeKind::TIMESTAMP) {
-          RETURN_NOT_OK(splitFixedType<int128_t>(srcAddr, dstAddrs));
+          RETURN_NOT_OK(splitFixedType128(srcAddr, dstAddrs));
           break;
         } else {
 #ifdef PROCESSAVX
@@ -790,7 +790,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
             }
             break;
 #else
-          RETURN_NOT_OK(splitFixedType<uint64_t>(srcAddr, dstAddrs));
+          RETURN_NOT_OK(splitFixedType<int64_t>(srcAddr, dstAddrs));
 #endif
             break;
           }
@@ -804,7 +804,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
               RETURN_NOT_OK(splitFixedType<int64_t>(srcAddr, dstAddrs));
             } else if (column->type()->isLongDecimal()) {
               // assume batch size = 32k; reducer# = 4K; row/reducer = 8
-              RETURN_NOT_OK(splitFixedType<int128_t>(srcAddr, dstAddrs));
+              RETURN_NOT_OK(splitFixedType128(srcAddr, dstAddrs));
             } else {
               return arrow::Status::Invalid(
                   "Column type " + schema_->field(colIdx)->type()->ToString() + " is not supported.");
