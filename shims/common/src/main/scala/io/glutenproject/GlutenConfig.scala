@@ -531,7 +531,8 @@ object GlutenConfig {
   val GLUTEN_ENABLED =
     buildConf(GLUTEN_ENABLE_KEY)
       .internal()
-      .doc("Whether to enable gluten. Default value is true.")
+      .doc("Whether to enable gluten. Default value is true. Just an experimental property." +
+        " Recommend to enable/disable Gluten through the setting for spark.plugins.")
       .booleanConf
       .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
 
