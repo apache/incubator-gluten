@@ -22,7 +22,9 @@
 #include <string>
 #include <vector>
 
+#include "velox/common/base/SimdUtil.h"
 #include "velox/common/time/CpuWallTimer.h"
+
 #include "velox/serializers/PrestoSerializer.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
@@ -265,14 +267,49 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       bool reuseBuffers);
 
   template <typename T>
+  static void gather(T* dst, T* src, const int32_t* indexes) {
+    /*
+      int32_t indices8[8] = {7, 6, 5, 4, 3, 2, 1, 0};
+      int32_t indices6[8] = {7, 6, 5, 4, 3, 2, 1 << 31, 1 << 31};
+      int32_t data[8] = {0, 11, 22, 33, 44, 55, 66, 77};
+      constexpr int kBatchSize = xsimd::batch<int32_t>::size;
+      const int32_t* indices = indices8 + (8 - kBatchSize);
+      const int32_t* indicesMask = indices6 + (8 - kBatchSize);
+      auto result = simd::gather(data, indices);
+      for (auto i = 0; i < kBatchSize; ++i) {
+        EXPECT_EQ(result.get(i), data[indices[i]]);
+      }
+    */
+    auto result = facebook::velox::simd::gather(src, indices);
+    result.store_unaligned(dst);
+  }
+
+  template <typename T>
   arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
     for (auto& pid : partitionUsed_) {
       auto dstPidBase = (T*)(dstAddrs[pid] + partitionBufferIdxBase_[pid] * sizeof(T));
       auto pos = partition2RowOffset_[pid];
       auto end = partition2RowOffset_[pid + 1];
-      for (; pos < end; ++pos) {
-        auto rowId = rowOffset2RowId_[pos];
-        *dstPidBase++ = reinterpret_cast<const T*>(srcAddr)[rowId]; // copy
+
+      if constexpr (std::is_same_v<T, int128>) {
+        for (; pos < end; ++pos) {
+          auto rowId = rowOffset2RowId_[pos];
+          *dstPidBase++ = reinterpret_cast<const T*>(srcAddr)[rowId]; // copy
+        }
+      } else {
+        T* dst = dstPidBase;
+        constexpr int kBatchSize = xsimd::batch<T>::size;
+        for (; pos + kBatchSize < end; pos += kBatchSize) {
+          T* src = (T*)srcAddr;
+          int32_t* indexes = (int32_t*)(&rowOffset2RowId_[pos]);
+          gather<T>(dst, src, indexes);
+          dst += kBatchSize;
+        }
+
+        for (; pos < end; ++pos) {
+          auto rowId = rowOffset2RowId_[pos];
+          *dst++ = reinterpret_cast<const T*>(srcAddr)[rowId]; // copy
+        }
       }
     }
     return arrow::Status::OK();
