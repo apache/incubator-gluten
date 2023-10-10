@@ -22,7 +22,7 @@ import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.expression.ExpressionTransformer
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.substrait.SubstraitContext
@@ -57,7 +57,13 @@ case class GenerateExecTransformer(
   extends UnaryExecNode
   with TransformSupport {
 
+  @transient
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genGenerateTransformerMetrics(sparkContext)
+
   override def output: Seq[Attribute] = requiredChildOutput ++ generatorOutput
+
+  override def producedAttributes: AttributeSet = AttributeSet(generatorOutput)
 
   override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(s"GenerateExecTransformer doesn't support doExecute")
@@ -100,19 +106,24 @@ case class GenerateExecTransformer(
         return ValidationResult.notOk(s"Velox backend does not support this posexplode")
       }
       if (generator.isInstanceOf[Explode]) {
+        // explode(MAP(col1, col2))
         if (generator.asInstanceOf[Explode].child.isInstanceOf[CreateMap]) {
           return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
+        }
+        // explode(ARRAY(1, 2, 3))
+        if (generator.asInstanceOf[Explode].child.isInstanceOf[Literal]) {
+          return ValidationResult.notOk(s"Velox backend does not support literal Array datatype")
         }
         generator.asInstanceOf[Explode].child.dataType match {
           case _: MapType =>
             return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
+          case _ =>
         }
         if (outer) {
           return ValidationResult.notOk(s"Velox backend does not support outer")
         }
       }
     }
-
     val context = new SubstraitContext
     val args = context.registeredFunction
 
@@ -176,27 +187,27 @@ case class GenerateExecTransformer(
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
       readRel
     }
-
     val projRel = if (BackendsApiManager.isVeloxBackend && needsProjection(generator)) {
       // need to insert one projection node for velox backend
       val selectOrigins = requiredChildOutput.indices.map(ExpressionBuilder.makeSelection(_))
+      val inputOrigins = child.output.indices.map(ExpressionBuilder.makeSelection(_))
       val projectExpressions = new util.ArrayList[ExpressionNode]()
-      projectExpressions.addAll(selectOrigins.asJava)
+      projectExpressions.addAll((selectOrigins ++ inputOrigins).asJava)
       val projectExprNode = ExpressionConverter
         .replaceWithExpressionTransformer(
           generator.asInstanceOf[Explode].child,
-          requiredChildOutput)
+          requiredChildOutput ++ child.output)
         .doTransform(args)
 
       projectExpressions.add(projectExprNode)
-      val projRel =
-        RelBuilder.makeProjectRel(
-          inputRel,
-          projectExpressions,
-          context,
-          operatorId,
-          requiredChildOutput.size)
-      projRel
+
+      RelBuilder.makeProjectRel(
+        inputRel,
+        projectExpressions,
+        context,
+        operatorId,
+        requiredChildOutput.size + inputOrigins.size)
+
     } else {
       inputRel
     }
@@ -239,5 +250,7 @@ case class GenerateExecTransformer(
     }
   }
 
-  override def metricsUpdater(): MetricsUpdater = new NoopMetricsUpdater
+  override def metricsUpdater(): MetricsUpdater = {
+    BackendsApiManager.getMetricsApiInstance.genGenerateTransformerMetricsUpdater(metrics)
+  }
 }

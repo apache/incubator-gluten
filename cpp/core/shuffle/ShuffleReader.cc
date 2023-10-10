@@ -30,10 +30,11 @@ using namespace gluten;
 class ShuffleReaderOutStream : public ColumnarBatchIterator {
  public:
   ShuffleReaderOutStream(
+      const ReaderOptions& options,
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::io::InputStream>& in,
-      const ReaderOptions& options)
-      : options_(options), in_(in) {
+      const std::function<void(int64_t)> ipcTimeAccumulator)
+      : options_(options), in_(in), ipcTimeAccumulator_(ipcTimeAccumulator) {
     if (options.compression_type != arrow::Compression::UNCOMPRESSED) {
       writeSchema_ = toCompressWriteSchema(*schema);
     } else {
@@ -44,6 +45,10 @@ class ShuffleReaderOutStream : public ColumnarBatchIterator {
   std::shared_ptr<ColumnarBatch> next() override {
     std::shared_ptr<arrow::RecordBatch> arrowBatch;
     std::unique_ptr<arrow::ipc::Message> messageToRead;
+
+    int64_t ipcTime = 0;
+    TIME_NANO_START(ipcTime);
+
     GLUTEN_ASSIGN_OR_THROW(messageToRead, arrow::ipc::ReadMessage(in_.get()))
     if (messageToRead == nullptr) {
       return nullptr;
@@ -51,6 +56,10 @@ class ShuffleReaderOutStream : public ColumnarBatchIterator {
 
     GLUTEN_ASSIGN_OR_THROW(
         arrowBatch, arrow::ipc::ReadRecordBatch(*messageToRead, writeSchema_, nullptr, options_.ipc_read_options))
+
+    TIME_NANO_END(ipcTime);
+    ipcTimeAccumulator_(ipcTime);
+
     std::shared_ptr<ColumnarBatch> glutenBatch = std::make_shared<ArrowColumnarBatch>(arrowBatch);
     return glutenBatch;
   }
@@ -58,6 +67,7 @@ class ShuffleReaderOutStream : public ColumnarBatchIterator {
  private:
   ReaderOptions options_;
   std::shared_ptr<arrow::io::InputStream> in_;
+  std::function<void(int64_t)> ipcTimeAccumulator_;
   std::shared_ptr<arrow::Schema> writeSchema_;
 };
 } // namespace
@@ -68,24 +78,19 @@ ReaderOptions ReaderOptions::defaults() {
   return {};
 }
 
-ShuffleReader::ShuffleReader(
-    std::shared_ptr<arrow::Schema> schema,
-    ReaderOptions options,
-    std::shared_ptr<arrow::MemoryPool> pool)
+ShuffleReader::ShuffleReader(std::shared_ptr<arrow::Schema> schema, ReaderOptions options, arrow::MemoryPool* pool)
     : pool_(pool), options_(std::move(options)), schema_(schema) {}
 
 std::shared_ptr<ResultIterator> ShuffleReader::readStream(std::shared_ptr<arrow::io::InputStream> in) {
-  return std::make_shared<ResultIterator>(std::make_unique<ShuffleReaderOutStream>(schema_, in, options_));
+  return std::make_shared<ResultIterator>(std::make_unique<ShuffleReaderOutStream>(
+      options_, schema_, in, [this](int64_t ipcTime) { this->ipcTime_ += ipcTime; }));
 }
 
 arrow::Status ShuffleReader::close() {
   return arrow::Status::OK();
 }
 
-int64_t ShuffleReader::getDecompressTime() {
-  return decompressTime_;
-}
-const std::shared_ptr<arrow::MemoryPool>& ShuffleReader::getPool() const {
+arrow::MemoryPool* ShuffleReader::getPool() const {
   return pool_;
 }
 

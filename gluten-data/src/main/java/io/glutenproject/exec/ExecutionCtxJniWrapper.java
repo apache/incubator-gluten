@@ -14,16 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.memtarget.spark;
+package io.glutenproject.exec;
 
-public interface Spiller {
-  Spiller NO_OP =
-      new Spiller() {
-        @Override
-        public long spill(long size) {
-          return 0L;
-        }
-      };
+public class ExecutionCtxJniWrapper {
 
-  long spill(long size);
+  private ExecutionCtxJniWrapper() {}
+
+  public static native long createExecutionCtx();
+
+  public static native void releaseExecutionCtx(long handle);
 }

@@ -17,21 +17,20 @@
 package org.apache.spark.sql.execution.datasources.velox
 
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.datasource.velox.DatasourceJniWrapper
 import io.glutenproject.exception.GlutenException
-import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
-import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.execution.datasources.GlutenFormatWriterInjectsBase
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
+import org.apache.spark.util.TaskResources
 
 import com.google.common.base.Preconditions
 import org.apache.arrow.c.ArrowSchema
@@ -52,15 +51,13 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       SparkArrowUtil.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
     val cSchema = ArrowSchema.allocateNew(ArrowBufferAllocators.contextInstance())
     var dsHandle = -1L
-    val datasourceJniWrapper = new DatasourceJniWrapper()
+    val datasourceJniWrapper = DatasourceJniWrapper.create()
     val allocator = ArrowBufferAllocators.contextInstance()
-    val executionCtxHandle = ExecutionCtxs.contextInstance().getHandle
     try {
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
       dsHandle = datasourceJniWrapper.nativeInitDatasource(
         originPath,
         cSchema.memoryAddress(),
-        executionCtxHandle,
         NativeMemoryManagers.contextInstance("VeloxWriter").getNativeInstanceHandle,
         nativeConf)
     } catch {
@@ -72,7 +69,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
     val writeQueue =
       new VeloxWriteQueue(
-        executionCtxHandle,
+        TaskResources.getLocalTaskContext(),
         dsHandle,
         arrowSchema,
         allocator,
@@ -89,7 +86,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
       override def close(): Unit = {
         writeQueue.close()
-        datasourceJniWrapper.close(executionCtxHandle, dsHandle)
+        datasourceJniWrapper.close(dsHandle)
       }
 
       // Do NOT add override keyword for compatibility on spark 3.1.

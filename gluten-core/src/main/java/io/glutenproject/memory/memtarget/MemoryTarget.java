@@ -26,4 +26,6 @@ public interface MemoryTarget {
   long repay(long size);
 
   long usedBytes();
+
+  <T> T accept(MemoryTargetVisitor<T> visitor);
 }

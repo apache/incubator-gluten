@@ -348,6 +348,7 @@ case class CHHashAggregateExecTransformer(
     //   1. the intermediate result column will has a special format name,
     //     see genPartialAggregateResultColumnName
     //   2. Use a struct type to wrap the arguments' types of the aggregate function.
+    //      the arguments' types will be useful later in TypeParser::buildBlockFromNamedStruct
     val (dataType, nullable) = if (aggregateExpression.isEmpty) {
       (attr.dataType, attr.nullable)
     } else {
@@ -355,6 +356,9 @@ case class CHHashAggregateExecTransformer(
         case aggExpr: AggregateExpression =>
           aggExpr.aggregateFunction match {
             case avg: Average =>
+              // why using attr.nullable instead of child.nullable?
+              // because some aggregate operator's input's nullability is force changed
+              // in AggregateFunctionParser::parseFunctionArguments
               (makeStructTypeSingleOne(avg.child.dataType, attr.nullable), attr.nullable)
             case collect @ (_: CollectList | _: CollectSet) =>
               // Be careful with the nullable. We must keep the nullable the same as the column
@@ -371,10 +375,12 @@ case class CHHashAggregateExecTransformer(
               fields = fields :+ (corr.left.dataType, corr.left.nullable)
               fields = fields :+ (corr.right.dataType, corr.right.nullable)
               (makeStructType(fields), attr.nullable)
-            case expr =>
+            case expr if "bloom_filter_agg".equals(expr.prettyName) =>
+              (makeStructTypeSingleOne(expr.children.head.dataType, attr.nullable), attr.nullable)
+            case _ =>
               (makeStructTypeSingleOne(attr.dataType, attr.nullable), attr.nullable)
           }
-        case expr =>
+        case _ =>
           (attr.dataType, attr.nullable)
       }
     }

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <velox/common/memory/MemoryPool.h>
 #include "compute/ResultIterator.h"
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlan.h"
@@ -71,6 +72,8 @@ class VeloxPlanConverter {
   std::vector<std::shared_ptr<ResultIterator>> inputIters_;
 
   SubstraitToVeloxPlanConverter substraitVeloxPlanConverter_;
+
+  facebook::velox::memory::MemoryPool* pool_;
 };
 
 } // namespace gluten

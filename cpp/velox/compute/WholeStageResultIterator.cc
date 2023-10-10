@@ -177,7 +177,9 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunken + spilledOut;
     DLOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
-    return shrunken + spilledOut;
+    return total;
+  } else {
+    LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";
   }
 
   DLOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
@@ -214,10 +216,8 @@ void WholeStageResultIterator::collectMetrics() {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
       if (omittedNodeIds_.find(nodeId) == omittedNodeIds_.end()) {
-#ifdef GLUTEN_PRINT_DEBUG
-        std::cout << "Not found node id: " << nodeId << std::endl;
-        std::cout << "Plan Node: " << std::endl << veloxPlan_->toString(true, true) << std::endl;
-#endif
+        DEBUG_OUT << "Not found node id: " << nodeId << std::endl;
+        DEBUG_OUT << "Plan Node: " << std::endl << veloxPlan_->toString(true, true) << std::endl;
         throw std::runtime_error("Node id cannot be found in plan status.");
       }
       // Special handing for Filter over Project case. Filter metrics are

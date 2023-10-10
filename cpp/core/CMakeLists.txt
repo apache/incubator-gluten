@@ -205,8 +205,12 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/LocalPartitionWriter.cc
         shuffle/rss/RemotePartitionWriter.cc
         shuffle/rss/CelebornPartitionWriter.cc
+        shuffle/Utils.cc
         utils/Compression.cc
-        utils/StringUtil.cc)
+        utils/DebugOut.cc
+        utils/StringUtil.cc
+        jni/JniError.cc
+        jni/JniCommon.cc)
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})

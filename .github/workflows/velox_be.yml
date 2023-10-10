@@ -66,27 +66,27 @@ jobs:
           docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --arrow_home=/opt/arrow --velox_home=/opt/velox --build_tests=ON --build_examples=ON --build_benchmarks=ON'
-      - name: Build and run unit test for Spark 3.2.2 (other tests)
-        run: |
-          docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
-          mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       - name: Run CPP unit test
         run: |
           docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
           ctest -V'
-      # Cpp micro benchmarks will use generated files from unit test in backends-velox module.
-      - name: Run micro benchmarks
-        run: |
-          docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build/velox/benchmarks && \
-          ./generic_benchmark --with-shuffle --threads 1 --iterations 1'
       - name: Run HBM CPP unit test
         run: |
           docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
           cmake -DBUILD_TESTS=ON -DENABLE_HBM=ON .. && \
           cmake --build . --target hbw_allocator_test -- -j && \
           ctest -V -R TestHbw'
+      - name: Build and run unit test for Spark 3.2.2 (other tests)
+        run: |
+          docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
+      # Cpp micro benchmarks will use generated files from unit test in backends-velox module.
+      - name: Run micro benchmarks
+        run: |
+          docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build/velox/benchmarks && \
+          ./generic_benchmark --with-shuffle --threads 1 --iterations 1'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
@@ -245,7 +245,10 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2 with Celeborn
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c \
-          'bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/start-master.sh && bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/start-worker.sh && \
+          'mv /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-env.sh.template /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-env.sh && \
+          echo -e "CELEBORN_MASTER_MEMORY=4g\nCELEBORN_WORKER_MEMORY=4g\nCELEBORN_WORKER_OFFHEAP_MEMORY=8g" > /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-env.sh && \
+          echo -e "celeborn.worker.commitFiles.threads 128\nceleborn.worker.sortPartition.threads 64" > /opt/apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf \
+          && bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/start-master.sh && bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/start-worker.sh && \
           cd /opt/gluten/tools/gluten-it && mvn clean install -Pspark-3.2,rss \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox-with-celeborn --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \

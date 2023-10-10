@@ -18,8 +18,8 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.exec.ExecutionCtxs
-import io.glutenproject.memory.memtarget.spark.Spiller
+import io.glutenproject.memory.memtarget.MemoryTarget
+import io.glutenproject.memory.memtarget.Spiller
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
 
@@ -75,15 +75,11 @@ class ColumnarShuffleWriter[K, V](
   private val bufferCompressThreshold =
     GlutenConfig.getConf.columnarShuffleBufferCompressThreshold
 
-  private val preferSpill = GlutenConfig.getConf.columnarShufflePreferSpill
-
   private val writeEOS = GlutenConfig.getConf.columnarShuffleWriteEOS
-
-  private lazy val executionCtxHandle: Long = ExecutionCtxs.contextInstance().getHandle
 
   private val reallocThreshold = GlutenConfig.getConf.columnarShuffleReallocThreshold
 
-  private val jniWrapper = new ShuffleWriterJniWrapper
+  private val jniWrapper = ShuffleWriterJniWrapper.create()
 
   private var nativeShuffleWriter: Long = -1L
 
@@ -135,13 +131,11 @@ class ColumnarShuffleWriter[K, V](
             dataTmp.getAbsolutePath,
             blockManager.subDirsPerLocalDir,
             localDirs,
-            preferSpill,
-            executionCtxHandle,
             NativeMemoryManagers
               .create(
                 "ShuffleWriter",
                 new Spiller() {
-                  override def spill(size: Long): Long = {
+                  override def spill(self: MemoryTarget, size: Long): Long = {
                     if (nativeShuffleWriter == -1L) {
                       throw new IllegalStateException(
                         "Fatal: spill() called before a shuffle writer " +
@@ -151,7 +145,7 @@ class ColumnarShuffleWriter[K, V](
                     logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
                     // fixme pass true when being called by self
                     val spilled =
-                      jniWrapper.nativeEvict(executionCtxHandle, nativeShuffleWriter, size, false)
+                      jniWrapper.nativeEvict(nativeShuffleWriter, size, false)
                     logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
                     spilled
                   }
@@ -165,12 +159,7 @@ class ColumnarShuffleWriter[K, V](
           )
         }
         val startTime = System.nanoTime()
-        val bytes = jniWrapper.split(
-          executionCtxHandle,
-          nativeShuffleWriter,
-          rows,
-          handle,
-          availableOffHeapPerTask())
+        val bytes = jniWrapper.split(nativeShuffleWriter, rows, handle, availableOffHeapPerTask())
         dep.metrics("dataSize").add(bytes)
         dep.metrics("splitTime").add(System.nanoTime() - startTime)
         dep.metrics("numInputRows").add(rows)
@@ -183,7 +172,7 @@ class ColumnarShuffleWriter[K, V](
 
     val startTime = System.nanoTime()
     if (nativeShuffleWriter != -1L) {
-      splitResult = jniWrapper.stop(executionCtxHandle, nativeShuffleWriter)
+      splitResult = jniWrapper.stop(nativeShuffleWriter)
       closeShuffleWriter
     }
 
@@ -197,6 +186,7 @@ class ColumnarShuffleWriter[K, V](
     dep.metrics("compressTime").add(splitResult.getTotalCompressTime)
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
     dep.metrics("splitBufferSize").add(splitResult.getSplitBufferSize)
+    dep.metrics("uncompressedDataSize").add(splitResult.getRawPartitionLengths.sum)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
@@ -228,7 +218,7 @@ class ColumnarShuffleWriter[K, V](
   }
 
   private def closeShuffleWriter(): Unit = {
-    jniWrapper.close(executionCtxHandle, nativeShuffleWriter)
+    jniWrapper.close(nativeShuffleWriter)
     nativeShuffleWriter = -1L
   }
 

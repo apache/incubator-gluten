@@ -144,6 +144,15 @@ std::shared_ptr<ColumnarBatch> VeloxExecutionCtx::getBatch(ResourceHandle handle
   return columnarBatchHolder_.lookup(handle);
 }
 
+ResourceHandle VeloxExecutionCtx::createOrGetEmptySchemaBatch(int32_t numRows) {
+  auto& lookup = emptySchemaBatchLoopUp_;
+  if (lookup.find(numRows) == lookup.end()) {
+    const std::shared_ptr<ColumnarBatch>& batch = gluten::createZeroColumnBatch(numRows);
+    lookup.emplace(numRows, addBatch(batch)); // the batch will be released after Spark task ends
+  }
+  return lookup.at(numRows);
+}
+
 void VeloxExecutionCtx::releaseBatch(ResourceHandle handle) {
   columnarBatchHolder_.erase(handle);
 }
@@ -152,9 +161,8 @@ ResourceHandle
 VeloxExecutionCtx::select(MemoryManager* memoryManager, ResourceHandle handle, std::vector<int32_t> columnIndices) {
   auto batch = columnarBatchHolder_.lookup(handle);
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
-  auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch);
+  auto veloxBatch = gluten::VeloxColumnarBatch::from(ctxVeloxPool.get(), batch);
   auto outputBatch = veloxBatch->select(ctxVeloxPool.get(), std::move(columnIndices));
-  releaseBatch(handle);
   return columnarBatchHolder_.insert(outputBatch);
 }
 
@@ -212,7 +220,7 @@ void VeloxExecutionCtx::releaseDatasource(ResourceHandle handle) {
 ResourceHandle VeloxExecutionCtx::createShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
     ReaderOptions options,
-    std::shared_ptr<arrow::MemoryPool> pool,
+    arrow::MemoryPool* pool,
     MemoryManager* memoryManager) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return shuffleReaderHolder_.insert(std::make_shared<VeloxShuffleReader>(schema, options, pool, ctxVeloxPool));
@@ -228,7 +236,7 @@ void VeloxExecutionCtx::releaseShuffleReader(ResourceHandle handle) {
 
 std::unique_ptr<ColumnarBatchSerializer> VeloxExecutionCtx::createTempColumnarBatchSerializer(
     MemoryManager* memoryManager,
-    std::shared_ptr<arrow::MemoryPool> arrowPool,
+    arrow::MemoryPool* arrowPool,
     struct ArrowSchema* cSchema) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, ctxVeloxPool, cSchema);
@@ -236,7 +244,7 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxExecutionCtx::createTempColumnarBa
 
 ResourceHandle VeloxExecutionCtx::createColumnarBatchSerializer(
     MemoryManager* memoryManager,
-    std::shared_ptr<arrow::MemoryPool> arrowPool,
+    arrow::MemoryPool* arrowPool,
     struct ArrowSchema* cSchema) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return columnarBatchSerializerHolder_.insert(

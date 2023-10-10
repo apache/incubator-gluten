@@ -29,6 +29,7 @@
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
+#include "utils/DebugOut.h"
 
 namespace gluten {
 
@@ -61,6 +62,7 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
 
   virtual ResourceHandle addBatch(std::shared_ptr<ColumnarBatch>) = 0;
   virtual std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle) = 0;
+  virtual ResourceHandle createOrGetEmptySchemaBatch(int32_t numRows) = 0;
   virtual void releaseBatch(ResourceHandle) = 0;
   virtual ResourceHandle select(MemoryManager*, ResourceHandle, std::vector<int32_t>) = 0;
 
@@ -75,8 +77,8 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
 #ifdef GLUTEN_PRINT_DEBUG
     try {
       auto jsonPlan = substraitFromPbToJson("Plan", data, size);
-      std::cout << std::string(50, '#') << " received substrait::Plan:" << std::endl;
-      std::cout << "Task stageId: " << taskInfo_.stageId << ", partitionId: " << taskInfo_.partitionId
+      DEBUG_OUT << std::string(50, '#') << " received substrait::Plan:" << std::endl;
+      DEBUG_OUT << "Task stageId: " << taskInfo_.stageId << ", partitionId: " << taskInfo_.partitionId
                 << ", taskId: " << taskInfo_.taskId << "; " << jsonPlan << std::endl;
     } catch (const std::exception& e) {
       std::cerr << "Error converting Substrait plan to JSON: " << e.what() << std::endl;
@@ -125,19 +127,19 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
   virtual ResourceHandle createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool,
+      arrow::MemoryPool* pool,
       MemoryManager* memoryManager) = 0;
   virtual std::shared_ptr<ShuffleReader> getShuffleReader(ResourceHandle) = 0;
   virtual void releaseShuffleReader(ResourceHandle) = 0;
 
   virtual ResourceHandle createColumnarBatchSerializer(
       MemoryManager* memoryManager,
-      std::shared_ptr<arrow::MemoryPool> arrowPool,
+      arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) = 0;
   // TODO: separate serializer and deserializer then remove this method.
   virtual std::unique_ptr<ColumnarBatchSerializer> createTempColumnarBatchSerializer(
       MemoryManager* memoryManager,
-      std::shared_ptr<arrow::MemoryPool> arrowPool,
+      arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) = 0;
   virtual std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(ResourceHandle) = 0;
   virtual void releaseColumnarBatchSerializer(ResourceHandle) = 0;

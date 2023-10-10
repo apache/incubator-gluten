@@ -14,25 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.memtarget.spark;
+package io.glutenproject.memory.memtarget;
 
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
+import io.glutenproject.memory.memtarget.spark.TreeMemoryConsumer;
 
 import java.util.Map;
 
 /** An abstract for both {@link TreeMemoryConsumer} and it's non-consumer children nodes. */
-public interface TreeMemoryConsumerNode extends TaskMemoryTarget {
+public interface TreeMemoryTarget extends MemoryTarget, KnownNameAndStats {
   long CAPACITY_UNLIMITED = Long.MAX_VALUE;
 
-  TreeMemoryConsumerNode newChild(
+  TreeMemoryTarget newChild(
       String name,
       long capacity,
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren);
 
-  Map<String, TreeMemoryConsumerNode> children();
+  Map<String, TreeMemoryTarget> children();
 
-  TreeMemoryConsumerNode parent();
+  TreeMemoryTarget parent();
 
   Spiller getNodeSpiller();
 }

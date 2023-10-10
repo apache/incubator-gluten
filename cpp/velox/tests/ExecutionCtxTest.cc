@@ -51,6 +51,9 @@ class DummyExecutionCtx final : public ExecutionCtx {
   std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle handle) override {
     return std::shared_ptr<ColumnarBatch>();
   }
+  ResourceHandle createOrGetEmptySchemaBatch(int32_t numRows) override {
+    return kInvalidResourceHandle;
+  }
   void releaseBatch(ResourceHandle handle) override {}
   ResourceHandle createColumnar2RowConverter(MemoryManager* memoryManager) override {
     return kInvalidResourceHandle;
@@ -94,7 +97,7 @@ class DummyExecutionCtx final : public ExecutionCtx {
   ResourceHandle createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool,
+      arrow::MemoryPool* pool,
       MemoryManager* memoryManager) override {
     return kInvalidResourceHandle;
   }
@@ -104,13 +107,13 @@ class DummyExecutionCtx final : public ExecutionCtx {
   void releaseShuffleReader(ResourceHandle handle) override {}
   ResourceHandle createColumnarBatchSerializer(
       MemoryManager* memoryManager,
-      std::shared_ptr<arrow::MemoryPool> arrowPool,
+      arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) override {
     return kInvalidResourceHandle;
   }
   std::unique_ptr<ColumnarBatchSerializer> createTempColumnarBatchSerializer(
       MemoryManager* memoryManager,
-      std::shared_ptr<arrow::MemoryPool> arrowPool,
+      arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) override {
     return std::unique_ptr<ColumnarBatchSerializer>();
   }

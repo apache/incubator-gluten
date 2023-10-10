@@ -73,6 +73,7 @@ class VeloxExecutionCtx final : public ExecutionCtx {
 
   ResourceHandle addBatch(std::shared_ptr<ColumnarBatch> ptr) override;
   std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle handle) override;
+  ResourceHandle createOrGetEmptySchemaBatch(int32_t numRows) override;
   void releaseBatch(ResourceHandle handle) override;
   ResourceHandle select(MemoryManager* memoryManager, ResourceHandle batch, std::vector<int32_t> columnIndices)
       override;
@@ -104,18 +105,18 @@ class VeloxExecutionCtx final : public ExecutionCtx {
   ResourceHandle createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool,
+      arrow::MemoryPool* pool,
       MemoryManager* memoryManager) override;
   std::shared_ptr<ShuffleReader> getShuffleReader(ResourceHandle handle) override;
   void releaseShuffleReader(ResourceHandle handle) override;
 
   std::unique_ptr<ColumnarBatchSerializer> createTempColumnarBatchSerializer(
       MemoryManager* memoryManager,
-      std::shared_ptr<arrow::MemoryPool> arrowPool,
+      arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) override;
   ResourceHandle createColumnarBatchSerializer(
       MemoryManager* memoryManager,
-      std::shared_ptr<arrow::MemoryPool> arrowPool,
+      arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) override;
   std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(ResourceHandle handle) override;
   void releaseColumnarBatchSerializer(ResourceHandle handle) override;
@@ -142,6 +143,8 @@ class VeloxExecutionCtx final : public ExecutionCtx {
   ResourceMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
 
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
+
+  std::unordered_map<int32_t, ResourceHandle> emptySchemaBatchLoopUp_;
 };
 
 } // namespace gluten

@@ -113,6 +113,12 @@ notes：The compilation of `Velox` using the script of `build_velox.sh` may fail
 
 Once building successfully, the Jar file will be generated in the directory: package/target/\<gluten-jar\> for Spark 3.2.x/Spark 3.3.x.
 
+## Dependency library deployment
+
+With config `enable_vcpkg=ON`, the dependency libraries will be built and staticly linked into libvelox.so and libgluten.so, which is packed into the gluten-jar. In this way, only the gluten-jar is needed to add to `spark.<driver|executor>.extraClassPath` and spark will deploy the jar to each worker node. It's better to build the static version using a clean docker image without any extra libraries installed. On host with some libraries like jemalloc installed, the script may crash with odd message. You may need to uninstall those libraries to get a clean host.
+
+With config `enable_vcpkg=OFF`, the dependency libraries won't be staticly linked, instead the script will install the libraries to system then pack the dependency libraries into another jar named gluten-package-<version>-SNAPSHOT.jar. Then you need to add the jar to extraClassPath then set `spark.gluten.loadLibFromJar=true`. Or you already manually deployed the dependency libraries on each worker node. You may find the libraries list from the gluten-package jar.
+
 ## HDFS support
 
 Hadoop hdfs support is ready via the [libhdfs3](https://github.com/apache/hawq/tree/master/depends/libhdfs3) library. The libhdfs3 provides native API for Hadoop I/O without the drawbacks of JNI. It also provides advanced authentication like Kerberos based. Please note this library has several dependencies which may require extra installations on Driver and Worker node.
@@ -278,11 +284,14 @@ With above steps, you will get a physical plan output like:
 
 ```
 
-"GlutenRowToArrowColumnar" and "VeloxColumnarToRowExec" indicate there is a fallback and you may find related log with key words "due to" like:
+`GlutenRowToArrowColumnar`/`VeloxColumnarToRowExec` indicates there is a fallback operator before or after it. And you may find fallback reason like below in logs.
 
 ```
 native validation failed due to: in ProjectRel, Scalar function name not registered: get_struct_field, called with arguments: (ROW<col_0:INTEGER,col_1:BIGINT,col_2:BIGINT>, INTEGER).
 ```
+
+In the above, the symbol `^` indicates a plan is offloaded to Velox in a stage. In Spark DAG, all such pipelined plans (consecutive plans marked with `^`) are plotted
+inside an umbrella node named `WholeStageCodegenTransformer` (It's not codegen node. The naming is just for making it well plotted like Spark Whole Stage Codegen).
 
 # Spill (Experimental)
 

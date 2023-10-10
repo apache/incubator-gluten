@@ -68,8 +68,14 @@ case class WindowExecTransformer(
     } else ClusteredDistribution(partitionSpec) :: Nil
   }
 
-  // We no longer require for sorted input for columnar window
-  override def requiredChildOrdering: Seq[Seq[SortOrder]] = Seq.fill(children.size)(Nil)
+  override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
+    if (BackendsApiManager.isVeloxBackend) {
+      // We still need to do sort for columnar window, see `FLAGS_SkipRowSortInWindowOp`
+      Seq(partitionSpec.map(SortOrder(_, Ascending)) ++ orderSpec)
+    } else {
+      Seq(Nil)
+    }
+  }
 
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 

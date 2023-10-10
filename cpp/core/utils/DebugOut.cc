@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.init;
 
-public class BackendJniWrapper extends JniInitialized {
+#include "DebugOut.h"
 
-  private BackendJniWrapper() {}
+namespace gluten {
 
-  public static native void initializeBackend(byte[] configPlan);
+#ifndef GLUTEN_PRINT_DEBUG
 
-  public static native long createExecutionCtx();
+FakeOut fakeOut;
 
-  public static native void releaseExecutionCtx(long handle);
-}
+#endif
+
+} // namespace gluten

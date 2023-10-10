@@ -16,6 +16,7 @@
  */
 
 #include "ExecutionCtx.h"
+#include "utils/Print.h"
 
 namespace gluten {
 
@@ -28,16 +29,12 @@ void setExecutionCtxFactory(
     ExecutionCtxFactoryWithConf factory,
     const std::unordered_map<std::string, std::string>& sparkConfs) {
   getExecutionCtxFactoryContext()->set(factory, sparkConfs);
-#ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Set execution context factory with conf." << std::endl;
-#endif
+  DEBUG_OUT << "Set execution context factory with conf." << std::endl;
 }
 
 void setExecutionCtxFactory(ExecutionCtxFactory factory) {
   getExecutionCtxFactoryContext()->set(factory);
-#ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Set execution context factory." << std::endl;
-#endif
+  DEBUG_OUT << "Set execution context factory." << std::endl;
 }
 
 ExecutionCtx* createExecutionCtx() {

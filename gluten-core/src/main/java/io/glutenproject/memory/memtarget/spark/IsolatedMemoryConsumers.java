@@ -18,6 +18,8 @@ package io.glutenproject.memory.memtarget.spark;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
+import io.glutenproject.memory.memtarget.Spiller;
+import io.glutenproject.memory.memtarget.TreeMemoryTarget;
 
 import org.apache.spark.memory.TaskMemoryManager;
 
@@ -35,17 +37,16 @@ import java.util.WeakHashMap;
  * <p>See <a href="https://github.com/oap-project/gluten/issues/3030">GLUTEN-3030</a>
  */
 public class IsolatedMemoryConsumers {
-  private static final WeakHashMap<TaskMemoryManager, TreeMemoryConsumerNode> MAP =
-      new WeakHashMap<>();
+  private static final WeakHashMap<TaskMemoryManager, TreeMemoryTarget> MAP = new WeakHashMap<>();
 
   private IsolatedMemoryConsumers() {}
 
-  private static TreeMemoryConsumerNode getSharedAccount(TaskMemoryManager tmm) {
+  private static TreeMemoryTarget getSharedAccount(TaskMemoryManager tmm) {
     synchronized (MAP) {
       return MAP.computeIfAbsent(
           tmm,
           m -> {
-            TreeMemoryConsumerNode tmc = new TreeMemoryConsumer(m);
+            TreeMemoryTarget tmc = new TreeMemoryConsumer(m);
             return tmc.newChild(
                 "root",
                 GlutenConfig.getConf().conservativeTaskOffHeapMemorySize(),
@@ -55,12 +56,12 @@ public class IsolatedMemoryConsumers {
     }
   }
 
-  public static TreeMemoryConsumerNode newConsumer(
+  public static TreeMemoryTarget newConsumer(
       TaskMemoryManager tmm,
       String name,
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
-    TreeMemoryConsumerNode account = getSharedAccount(tmm);
+    TreeMemoryTarget account = getSharedAccount(tmm);
     return account.newChild(name, TreeMemoryConsumer.CAPACITY_UNLIMITED, spiller, virtualChildren);
   }
 }

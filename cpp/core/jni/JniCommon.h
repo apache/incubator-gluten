@@ -19,27 +19,44 @@
 
 #include <arrow/ipc/reader.h>
 #include <arrow/ipc/writer.h>
-#include <arrow/util/parallel.h>
 #include <execinfo.h>
 #include <jni.h>
 
+#include "compute/ExecutionCtx.h"
 #include "compute/ProtobufUtils.h"
 #include "config/GlutenConfig.h"
 #include "memory/AllocationListener.h"
+#include "shuffle/rss/RssClient.h"
+#include "utils/DebugOut.h"
 #include "utils/compression.h"
 #include "utils/exception.h"
 
-static inline void backtrace() {
-  void* array[1024];
-  auto size = backtrace(array, 1024);
-  char** strings = backtrace_symbols(array, size);
-  for (size_t i = 0; i < size; ++i) {
-    std::cout << strings[i] << std::endl;
-  }
-  free(strings);
+static jint jniVersion = JNI_VERSION_1_8;
+
+static inline std::string jStringToCString(JNIEnv* env, jstring string) {
+  int32_t jlen, clen;
+  clen = env->GetStringUTFLength(string);
+  jlen = env->GetStringLength(string);
+  char buffer[clen];
+  env->GetStringUTFRegion(string, 0, jlen, buffer);
+  return std::string(buffer, clen);
 }
 
-static jint jniVersion = JNI_VERSION_1_8;
+static inline void checkException(JNIEnv* env) {
+  if (env->ExceptionCheck()) {
+    jthrowable t = env->ExceptionOccurred();
+    env->ExceptionClear();
+    jclass describerClass = env->FindClass("io/glutenproject/exception/JniExceptionDescriber");
+    jmethodID describeMethod =
+        env->GetStaticMethodID(describerClass, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
+    std::string description =
+        jStringToCString(env, (jstring)env->CallStaticObjectMethod(describerClass, describeMethod, t));
+    if (env->ExceptionCheck()) {
+      std::cerr << "Fatal: Uncaught Java exception during calling the Java exception describer method! " << std::endl;
+    }
+    throw gluten::GlutenException("Error during calling Java code from native code: " + description);
+  }
+}
 
 static inline jclass createGlobalClassReference(JNIEnv* env, const char* className) {
   jclass localClass = env->FindClass(className);
@@ -48,8 +65,26 @@ static inline jclass createGlobalClassReference(JNIEnv* env, const char* classNa
   return globalClass;
 }
 
+static inline jclass createGlobalClassReferenceOrError(JNIEnv* env, const char* className) {
+  jclass globalClass = createGlobalClassReference(env, className);
+  if (globalClass == nullptr) {
+    std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for" + std::string(className);
+    throw gluten::GlutenException(errorMessage);
+  }
+  return globalClass;
+}
+
 static inline jmethodID getMethodId(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
   jmethodID ret = env->GetMethodID(thisClass, name, sig);
+  return ret;
+}
+
+static inline jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
+  jmethodID ret = getMethodId(env, thisClass, name, sig);
+  if (ret == nullptr) {
+    std::string errorMessage = "Unable to find method " + std::string(name) + " within signature" + std::string(sig);
+    throw gluten::GlutenException(errorMessage);
+  }
   return ret;
 }
 
@@ -68,13 +103,67 @@ static inline jmethodID getStaticMethodIdOrError(JNIEnv* env, jclass thisClass, 
   return ret;
 }
 
-static inline std::string jStringToCString(JNIEnv* env, jstring string) {
-  int32_t jlen, clen;
-  clen = env->GetStringUTFLength(string);
-  jlen = env->GetStringLength(string);
-  char buffer[clen];
-  env->GetStringUTFRegion(string, 0, jlen, buffer);
-  return std::string(buffer, clen);
+static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
+  int getEnvStat = vm->GetEnv(reinterpret_cast<void**>(out), jniVersion);
+  if (getEnvStat == JNI_EDETACHED) {
+    DEBUG_OUT << "JNIEnv was not attached to current thread." << std::endl;
+    // Reattach current thread to JVM
+    getEnvStat = vm->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(out), NULL);
+    if (getEnvStat != JNI_OK) {
+      throw gluten::GlutenException("Failed to reattach current thread to JVM.");
+    }
+    DEBUG_OUT << "Succeeded attaching current thread." << std::endl;
+    return;
+  }
+  if (getEnvStat != JNI_OK) {
+    throw gluten::GlutenException("Failed to attach current thread to JVM.");
+  }
+}
+
+namespace gluten {
+
+class JniCommonState {
+ public:
+  virtual ~JniCommonState() = default;
+
+  void ensureInitialized(JNIEnv* env);
+
+  void assertInitialized();
+
+  void close();
+
+  jmethodID executionCtxAwareCtxHandle();
+
+ private:
+  void initialize(JNIEnv* env);
+
+  jclass executionCtxAwareClass_;
+  jmethodID executionCtxAwareCtxHandle_;
+
+  JavaVM* vm_;
+  bool initialized_{false};
+  bool closed_{false};
+  std::mutex mtx_;
+};
+
+inline JniCommonState* getJniCommonState() {
+  static JniCommonState jniCommonState;
+  return &jniCommonState;
+}
+
+ExecutionCtx* getExecutionCtx(JNIEnv* env, jobject executionCtxAware);
+} // namespace gluten
+
+// TODO: Move the static functions to namespace gluten
+
+static inline void backtrace() {
+  void* array[1024];
+  auto size = backtrace(array, 1024);
+  char** strings = backtrace_symbols(array, size);
+  for (size_t i = 0; i < size; ++i) {
+    std::cout << strings[i] << std::endl;
+  }
+  free(strings);
 }
 
 static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring codecJstr) {
@@ -119,61 +208,6 @@ static inline gluten::CompressionMode getCompressionMode(JNIEnv* env, jstring co
   } else {
     throw std::invalid_argument("Not support this compression mode " + compressionMode);
   }
-}
-
-static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
-  int getEnvStat = vm->GetEnv(reinterpret_cast<void**>(out), jniVersion);
-  if (getEnvStat == JNI_EDETACHED) {
-#ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "JNIEnv was not attached to current thread." << std::endl;
-#endif
-    // Reattach current thread to JVM
-    getEnvStat = vm->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(out), NULL);
-    if (getEnvStat != JNI_OK) {
-      throw gluten::GlutenException("Failed to reattach current thread to JVM.");
-    }
-#ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "Succeeded attaching current thread." << std::endl;
-#endif
-    return;
-  }
-  if (getEnvStat != JNI_OK) {
-    throw gluten::GlutenException("Failed to attach current thread to JVM.");
-  }
-}
-
-static inline void checkException(JNIEnv* env) {
-  if (env->ExceptionCheck()) {
-    jthrowable t = env->ExceptionOccurred();
-    env->ExceptionClear();
-    jclass describerClass = env->FindClass("io/glutenproject/exception/JniExceptionDescriber");
-    jmethodID describeMethod =
-        env->GetStaticMethodID(describerClass, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
-    std::string description =
-        jStringToCString(env, (jstring)env->CallStaticObjectMethod(describerClass, describeMethod, t));
-    if (env->ExceptionCheck()) {
-      std::cerr << "Fatal: Uncaught Java exception during calling the Java exception describer method! " << std::endl;
-    }
-    throw gluten::GlutenException("Error during calling Java code from native code: " + description);
-  }
-}
-
-static inline jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
-  jmethodID ret = getMethodId(env, thisClass, name, sig);
-  if (ret == nullptr) {
-    std::string errorMessage = "Unable to find method " + std::string(name) + " within signature" + std::string(sig);
-    throw gluten::GlutenException(errorMessage);
-  }
-  return ret;
-}
-
-static inline jclass createGlobalClassReferenceOrError(JNIEnv* env, const char* className) {
-  jclass globalClass = createGlobalClassReference(env, className);
-  if (globalClass == nullptr) {
-    std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for" + std::string(className);
-    throw gluten::GlutenException(errorMessage);
-  }
-  return globalClass;
 }
 
 class SparkAllocationListener final : public gluten::AllocationListener {
@@ -281,11 +315,6 @@ class BacktraceAllocationListener final : public gluten::AllocationListener {
   std::atomic_int64_t backtraceBytes_{1L << 30};
 };
 
-class RssClient {
- public:
-  virtual ~RssClient() = default;
-};
-
 class CelebornClient : public RssClient {
  public:
   CelebornClient(JavaVM* vm, jobject javaCelebornShuffleWriter, jmethodID javaCelebornPushPartitionDataMethod)
@@ -313,7 +342,7 @@ class CelebornClient : public RssClient {
     env->DeleteGlobalRef(array_);
   }
 
-  int32_t pushPartitonData(int32_t partitionId, char* bytes, int64_t size) {
+  int32_t pushPartitionData(int32_t partitionId, char* bytes, int64_t size) {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
       throw gluten::GlutenException("JNIEnv was not attached to current thread");
@@ -332,6 +361,8 @@ class CelebornClient : public RssClient {
     checkException(env);
     return static_cast<int32_t>(celebornBytesSize);
   }
+
+  void stop() {}
 
   JavaVM* vm_;
   jobject javaCelebornShuffleWriter_;

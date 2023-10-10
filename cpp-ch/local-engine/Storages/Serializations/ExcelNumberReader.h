@@ -469,6 +469,11 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
         }
         else if (!has_number && !(*buf.position() >= '0' && *buf.position() <= '9')) // process prefix
         {
+            if(*buf.position() == settings.csv.delimiter || *buf.position() == '\n' || *buf.position() == '\r')
+            {
+                break;
+            }
+
             if (!((static_cast<UInt8>(*buf.position()) & 0b11000000u) == 0b10000000u)) // learn from UTF8Helpers.h
             {
                 head_skip++;

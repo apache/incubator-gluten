@@ -240,6 +240,13 @@ case class PlanOneRowRelation(spark: SparkSession) extends Rule[SparkPlan] {
   }
 }
 
+/**
+ * FIXME To be removed: Since Velox backend is the only one to use the strategy, and we already
+ * support offloading zero-column batch in ColumnarBatchInIterator via PR #3309.
+ *
+ * We'd make sure all Velox operators be able to handle zero-column input correctly then remove the
+ * rule together with [[PlanOneRowRelation]].
+ */
 case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
     case p =>

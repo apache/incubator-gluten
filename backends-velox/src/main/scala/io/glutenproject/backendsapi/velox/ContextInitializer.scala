@@ -18,11 +18,13 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.ContextApi
+import io.glutenproject.backendsapi.velox.ContextInitializer.initializeNative
 import io.glutenproject.exception.GlutenException
 import io.glutenproject.execution.datasource.GlutenOrcWriterInjects
 import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.expression.UDFMappings
+import io.glutenproject.init.NativeBackendInitializer
 import io.glutenproject.utils._
 import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
 
@@ -101,7 +103,7 @@ class ContextInitializer extends ContextApi {
 
   override def taskResourceFactories(): Seq[() => TaskResource] = Seq.empty
 
-  override def initialize(conf: SparkConf): Unit = {
+  override def initialize(conf: SparkConf, isDriver: Boolean = true): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
 
@@ -128,6 +130,8 @@ class ContextInitializer extends ContextApi {
     loader.mapAndLoad(baseLibName, false)
     loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, false)
 
+    initializeNative(conf.getAll.toMap)
+
     // inject backend-specific implementations to override spark classes
     GlutenParquetWriterInjects.setInstance(new VeloxParquetWriterInjects())
     GlutenOrcWriterInjects.setInstance(new VeloxOrcWriterInjects())
@@ -136,5 +140,22 @@ class ContextInitializer extends ContextApi {
 
   override def shutdown(): Unit = {
     // TODO shutdown implementation in velox to release resources
+  }
+}
+
+object ContextInitializer {
+  // Spark DriverPlugin/ExecutorPlugin will only invoke ContextInitializer#initialize method once
+  // in its init method.
+  // In cluster mode, ContextInitializer#initialize only will be invoked in different JVM.
+  // In local mode, ContextInitializer#initialize will be invoked twice in same thread,
+  // driver first then executor, initFlag ensure only invoke initializeBackend once,
+  // so there are no race condition here.
+  private var initFlag: Boolean = false
+  def initializeNative(conf: Map[String, String]): Unit = {
+    if (initFlag) {
+      return
+    }
+    NativeBackendInitializer.initializeBackend(conf)
+    initFlag = true
   }
 }

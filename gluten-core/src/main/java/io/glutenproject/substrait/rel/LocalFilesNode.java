@@ -167,6 +167,7 @@ public class LocalFilesNode implements Serializable {
                   .setEscape(escape)
                   .setNullValue(nullValue)
                   .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
+                  .setEmptyAsDefault(GlutenConfig.getConf().textIputEmptyAsDefault())
                   .build();
           fileBuilder.setText(textReadOptions);
           break;

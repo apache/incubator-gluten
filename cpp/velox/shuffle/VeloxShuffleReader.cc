@@ -35,6 +35,8 @@ using namespace facebook::velox;
 
 namespace gluten {
 
+bool veloxShuffleReaderPrintFlag = false;
+
 namespace {
 
 struct BufferViewReleaser {
@@ -327,6 +329,7 @@ RowVectorPtr readRowVector(
     CodecBackend codecBackend,
     CompressionMode compressionMode,
     int64_t& decompressTime,
+    int64_t& deserializeTime,
     arrow::MemoryPool* arrowPool,
     memory::MemoryPool* pool) {
   auto header = readColumnBuffer(batch, 0);
@@ -349,23 +352,30 @@ RowVectorPtr readRowVector(
     getUncompressedBuffers(batch, arrowPool, codec.get(), compressionMode, buffers);
     TIME_NANO_END(decompressTime);
   }
-  return deserialize(rowType, length, buffers, pool);
+
+  TIME_NANO_START(deserializeTime);
+  auto rv = deserialize(rowType, length, buffers, pool);
+  TIME_NANO_END(deserializeTime);
+
+  return rv;
 }
 
 class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
  public:
   VeloxShuffleReaderOutStream(
-      const std::shared_ptr<arrow::MemoryPool>& pool,
+      arrow::MemoryPool* pool,
       const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
       const ReaderOptions& options,
       const RowTypePtr& rowType,
-      const std::function<void(int64_t&)> decompressionTimeAccumulator,
+      const std::function<void(int64_t)> decompressionTimeAccumulator,
+      const std::function<void(int64_t)> deserializeTimeAccumulator,
       ResultIterator& in)
       : pool_(pool),
         veloxPool_(veloxPool),
         options_(options),
         rowType_(rowType),
         decompressionTimeAccumulator_(decompressionTimeAccumulator),
+        deserializeTimeAccumulator_(deserializeTimeAccumulator),
         in_(std::move(in)) {}
 
   std::shared_ptr<ColumnarBatch> next() override {
@@ -374,37 +384,87 @@ class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
     }
     auto batch = in_.next();
     auto rb = std::dynamic_pointer_cast<ArrowColumnarBatch>(batch)->getRecordBatch();
+
     int64_t decompressTime = 0LL;
+    int64_t deserializeTime = 0LL;
+
     auto vp = readRowVector(
         *rb,
         rowType_,
         options_.codec_backend,
         options_.compression_mode,
         decompressTime,
-        pool_.get(),
+        deserializeTime,
+        pool_,
         veloxPool_.get());
+
     decompressionTimeAccumulator_(decompressTime);
+    deserializeTimeAccumulator_(deserializeTime);
     return std::make_shared<VeloxColumnarBatch>(vp);
   }
 
  private:
-  std::shared_ptr<arrow::MemoryPool> pool_;
+  arrow::MemoryPool* pool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
   ReaderOptions options_;
   facebook::velox::RowTypePtr rowType_;
-  std::function<void(int64_t&)> decompressionTimeAccumulator_;
+
+  std::function<void(int64_t)> decompressionTimeAccumulator_;
+  std::function<void(int64_t)> deserializeTimeAccumulator_;
+
   ResultIterator in_;
 };
+
+std::string getCompressionMode(CompressionMode type) {
+  if (type == CompressionMode::BUFFER) {
+    return "BUFFER";
+  } else if (type == CompressionMode::ROWVECTOR) {
+    return "ROWVECTOR";
+  } else {
+    return "UNKNOWN";
+  }
+}
+
+std::string getCodecBackend(CodecBackend type) {
+  if (type == CodecBackend::QAT) {
+    return "QAT";
+  } else if (type == CodecBackend::IAA) {
+    return "IAA";
+  } else {
+    return "NONE";
+  }
+}
+
+std::string getCompressionType(arrow::Compression::type type) {
+  if (type == arrow::Compression::UNCOMPRESSED) {
+    return "UNCOMPRESSED";
+  } else if (type == arrow::Compression::LZ4_FRAME) {
+    return "LZ4_FRAME";
+  } else if (type == arrow::Compression::ZSTD) {
+    return "ZSTD";
+  } else if (type == arrow::Compression::GZIP) {
+    return "GZIP";
+  } else {
+    return "UNKNOWN";
+  }
+}
 
 } // namespace
 
 VeloxShuffleReader::VeloxShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
     ReaderOptions options,
-    std::shared_ptr<arrow::MemoryPool> pool,
+    arrow::MemoryPool* pool,
     std::shared_ptr<memory::MemoryPool> veloxPool)
     : ShuffleReader(schema, options, pool), veloxPool_(std::move(veloxPool)) {
   rowType_ = asRowType(gluten::fromArrowSchema(schema));
+  if (gluten::veloxShuffleReaderPrintFlag) {
+    std::ostringstream oss;
+    oss << "VeloxShuffleReader create, compression_type:" << getCompressionType(options.compression_type);
+    oss << " codec_backend:" << getCodecBackend(options.codec_backend);
+    oss << " compression_mode:" << getCompressionMode(options.compression_mode);
+    LOG(INFO) << oss.str();
+  }
 }
 
 std::shared_ptr<ResultIterator> VeloxShuffleReader::readStream(std::shared_ptr<arrow::io::InputStream> in) {
@@ -415,6 +475,7 @@ std::shared_ptr<ResultIterator> VeloxShuffleReader::readStream(std::shared_ptr<a
       options_,
       rowType_,
       [this](int64_t decompressionTime) { this->decompressTime_ += decompressionTime; },
+      [this](int64_t deserializeTime) { this->deserializeTime_ += deserializeTime; },
       *wrappedIn));
 }
 

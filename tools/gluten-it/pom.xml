@@ -17,9 +17,9 @@
     <maven.compiler.source>8</maven.compiler.source>
     <maven.compiler.target>8</maven.compiler.target>
     <scala.library.version>2.12.15</scala.library.version>
-    <spark.version>3.2.2</spark.version>
     <spark32.version>3.2.2</spark32.version>
     <spark33.version>3.3.1</spark33.version>
+    <spark.version>${spark32.version}</spark.version>
     <scala.binary.version>2.12</scala.binary.version>
     <spark.major.version>3</spark.major.version>
     <celeborn.version>0.3.0-incubating</celeborn.version>
@@ -98,6 +98,9 @@
   <profiles>
     <profile>
       <id>spark-3.2</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
       <properties>
         <spark.version>${spark32.version}</spark.version>
       </properties>
@@ -125,34 +128,6 @@
       <id>spark-3.3</id>
       <properties>
         <spark.version>${spark33.version}</spark.version>
-      </properties>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.spark</groupId>
-          <artifactId>spark-sql_${scala.binary.version}</artifactId>
-          <version>${spark.version}</version>
-          <exclusions>
-            <exclusion>
-              <groupId>com.google.protobuf</groupId>
-              <artifactId>protobuf-java</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-        <dependency>
-          <groupId>org.apache.spark</groupId>
-          <artifactId>spark-sql_${scala.binary.version}</artifactId>
-          <version>${spark.version}</version>
-          <type>test-jar</type>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>spark-3.4</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <properties>
-        <spark.version>3.4.0</spark.version>
       </properties>
       <dependencies>
         <dependency>

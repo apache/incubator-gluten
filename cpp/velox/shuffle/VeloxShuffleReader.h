@@ -22,12 +22,13 @@
 #include "velox/vector/ComplexVector.h"
 
 namespace gluten {
+
 class VeloxShuffleReader final : public ShuffleReader {
  public:
   VeloxShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool,
+      arrow::MemoryPool* pool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool);
 
   std::shared_ptr<ResultIterator> readStream(std::shared_ptr<arrow::io::InputStream> in) override;
@@ -36,5 +37,7 @@ class VeloxShuffleReader final : public ShuffleReader {
   facebook::velox::RowTypePtr rowType_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
 };
+
+extern bool veloxShuffleReaderPrintFlag;
 
 } // namespace gluten

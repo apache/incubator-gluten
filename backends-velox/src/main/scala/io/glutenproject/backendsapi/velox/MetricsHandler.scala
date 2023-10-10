@@ -245,14 +245,17 @@ class MetricsHandler extends MetricsApi with Logging {
       "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to spill"),
       "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
       "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to prepare"),
-      "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime_decompress"),
+      "decompressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime decompress"),
+      "ipcTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime ipc"),
+      "deserializeTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime deserialize"),
       "avgReadBatchNumRows" -> SQLMetrics
         .createAverageMetric(sparkContext, "avg read batch num rows"),
       "numInputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
       "numOutputRows" -> SQLMetrics
         .createMetric(sparkContext, "number of output rows"),
       "inputBatches" -> SQLMetrics
-        .createMetric(sparkContext, "number of input batches")
+        .createMetric(sparkContext, "number of input batches"),
+      "uncompressedDataSize" -> SQLMetrics.createMetric(sparkContext, "uncompressed data size")
     )
 
   override def genWindowTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
@@ -329,8 +332,8 @@ class MetricsHandler extends MetricsApi with Logging {
       "prepareTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to prepare left list"),
       "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to process"),
       "joinTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to merge join"),
-      "totaltime_sortmergejoin" -> SQLMetrics
-        .createTimingMetric(sparkContext, "totaltime_sortmergejoin")
+      "totaltimeSortmergejoin" -> SQLMetrics
+        .createTimingMetric(sparkContext, "totaltime sortmergejoin")
     )
 
   override def genSortMergeJoinTransformerMetricsUpdater(
@@ -474,4 +477,11 @@ class MetricsHandler extends MetricsApi with Logging {
 
   override def genHashJoinTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new HashJoinMetricsUpdaterImpl(metrics)
+
+  override def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
+    Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
+  }
+
+  override def genGenerateTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric]): MetricsUpdater = new GenerateMetricsUpdater(metrics)
 }

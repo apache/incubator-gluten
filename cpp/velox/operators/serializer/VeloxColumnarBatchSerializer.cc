@@ -40,7 +40,7 @@ std::unique_ptr<ByteStream> toByteStream(uint8_t* data, int32_t size) {
 } // namespace
 
 VeloxColumnarBatchSerializer::VeloxColumnarBatchSerializer(
-    std::shared_ptr<arrow::MemoryPool> arrowPool,
+    arrow::MemoryPool* arrowPool,
     std::shared_ptr<memory::MemoryPool> veloxPool,
     struct ArrowSchema* cSchema)
     : ColumnarBatchSerializer(arrowPool, cSchema), veloxPool_(std::move(veloxPool)) {
@@ -55,14 +55,15 @@ VeloxColumnarBatchSerializer::VeloxColumnarBatchSerializer(
 std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBatches(
     const std::vector<std::shared_ptr<ColumnarBatch>>& batches) {
   VELOX_DCHECK(batches.size() != 0, "Should serialize at least 1 vector");
-  auto firstRowVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(batches[0])->getRowVector();
+  const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
+  auto firstRowVector = vb->getRowVector();
   auto numRows = firstRowVector->size();
   auto arena = std::make_unique<StreamArena>(veloxPool_.get());
   auto rowType = asRowType(firstRowVector->type());
   auto serializer = serde_->createSerializer(rowType, numRows, arena.get(), /* serdeOptions */ nullptr);
   for (auto& batch : batches) {
-    auto rowVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch)->getRowVector();
-    auto numRows = rowVector->size();
+    auto rowVector = VeloxColumnarBatch::from(veloxPool_.get(), batch)->getRowVector();
+    numRows = rowVector->size();
     std::vector<IndexRange> rows(numRows);
     for (int i = 0; i < numRows; i++) {
       rows[i] = IndexRange{i, 1};
@@ -71,8 +72,7 @@ std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBa
   }
 
   std::shared_ptr<arrow::Buffer> valueBuffer;
-  GLUTEN_ASSIGN_OR_THROW(
-      valueBuffer, arrow::AllocateResizableBuffer(serializer->maxSerializedSize(), arrowPool_.get()));
+  GLUTEN_ASSIGN_OR_THROW(valueBuffer, arrow::AllocateResizableBuffer(serializer->maxSerializedSize(), arrowPool_));
   auto output = std::make_shared<arrow::io::FixedSizeBufferWriter>(valueBuffer);
   serializer::presto::PrestoOutputStreamListener listener;
   ArrowFixedSizeBufferOutputStream out(output, &listener);

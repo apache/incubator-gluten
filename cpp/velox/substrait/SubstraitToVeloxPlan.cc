@@ -507,7 +507,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   auto projNode = std::dynamic_pointer_cast<const core::ProjectNode>(childNode);
 
-  if (projNode != nullptr && projNode->names().size() > 1) {
+  if (projNode != nullptr && projNode->names().size() > requiredChildOutput.size()) {
     // generator is a scalarfunction node -> explode(array(col, 'all'))
     // use the last one, this is ensure by scala code
     auto innerName = projNode->names().back();
@@ -808,6 +808,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
           break;
         case SubstraitFileFormatCase::kParquet:
           splitInfo->format = dwio::common::FileFormat::PARQUET;
+          break;
+        case SubstraitFileFormatCase::kText:
+          splitInfo->format = dwio::common::FileFormat::TEXT;
           break;
         default:
           splitInfo->format = dwio::common::FileFormat::UNKNOWN;

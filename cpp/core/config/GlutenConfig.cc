@@ -18,7 +18,7 @@
 #include <jni.h>
 
 #include "compute/ProtobufUtils.h"
-#include "jni/JniErrors.h"
+#include "jni/JniError.h"
 #include "substrait/plan.pb.h"
 
 namespace gluten {

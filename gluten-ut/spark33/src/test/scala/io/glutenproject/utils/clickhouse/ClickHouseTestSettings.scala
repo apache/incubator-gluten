@@ -65,6 +65,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
       case "GlutenMetadataColumnSuite" => false // nativeDoValidate failed due to spark conf cleanup
       case "GlutenQueryCompilationErrorsDSv2Suite" =>
         false // nativeDoValidate failed due to spark conf cleanup
+      case "GlutenBloomFilterAggregateQuerySuite" =>
+        !bloomFilterCases.contains(testName)
       case _ => true
     }
     preCheck && super.shouldRun(suiteName, testName)
@@ -92,6 +94,12 @@ class ClickHouseTestSettings extends BackendTestSettings {
 
   private val sqlQuerySlowCases: Seq[String] = Seq(
     "SPARK-33084: Add jar support Ivy URI in SQL"
+  )
+
+  private val bloomFilterCases: Seq[String] = Seq(
+    // Currently return a empty set(same reason as sum(empty set),
+    // both behaviors are acceptable.
+    "Test that bloom_filter_agg produces a NULL with empty input"
   )
 
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite].exclude(

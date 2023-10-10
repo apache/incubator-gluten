@@ -18,11 +18,11 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocators
-import io.glutenproject.memory.memtarget.spark.Spiller
+import io.glutenproject.memory.memtarget.MemoryTarget
+import io.glutenproject.memory.memtarget.Spiller
 import io.glutenproject.vectorized._
 
 import org.apache.spark._
-import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -39,59 +39,24 @@ class CelebornHashBasedCHColumnarShuffleWriter[K, V](
     celebornConf: CelebornConf,
     client: ShuffleClient,
     writeMetrics: ShuffleWriteMetricsReporter)
-  extends ShuffleWriter[K, V]
-  with Logging {
-
-  private val shuffleId = handle.dependency.shuffleId
-
-  private val numMappers = handle.numMappers
-
-  private val numPartitions = handle.dependency.partitioner.numPartitions
-
-  private val dep = handle.dependency.asInstanceOf[ColumnarShuffleDependency[K, V, V]]
-
-  private val conf = SparkEnv.get.conf
-
-  private val mapId = context.partitionId()
-
-  private val celebornPartitionPusher = new CelebornPartitionPusher(
-    shuffleId,
-    numMappers,
-    numPartitions,
+  extends CelebornHashBasedColumnarShuffleWriter[K, V](
+    handle,
     context,
-    mapId,
+    celebornConf,
     client,
-    celebornConf)
+    writeMetrics) {
 
-  private val blockManager = SparkEnv.get.blockManager
-
-  private val nativeBufferSize = GlutenConfig.getConf.maxBatchSize
   private val customizedCompressCodec =
-    GlutenShuffleUtils.getCompressionCodec(conf).toUpperCase(Locale.ROOT)
+    customizedCompressionCodec.toUpperCase(Locale.ROOT)
 
   private val jniWrapper = new CHShuffleSplitterJniWrapper
-  // Are we in the process of stopping? Because map tasks can call stop() with success = true
-  // and then call stop() with success = false if they get an exception, we want to make sure
-  // we don't try deleting files, etc twice.
-  private var stopping = false
-  private var mapStatus: MapStatus = _
-  private var nativeShuffleWriter: Long = -1L
 
   private var splitResult: CHSplitResult = _
 
-  private var partitionLengths: Array[Long] = _
-
   @throws[IOException]
-  override def write(records: Iterator[Product2[K, V]]): Unit = {
-    internalWrite(records)
-  }
-
-  @throws[IOException]
-  def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
+  override def internalWrite(records: Iterator[Product2[K, V]]): Unit = {
     if (!records.hasNext) {
-      partitionLengths = new Array[Long](dep.partitioner.numPartitions)
-      client.mapperEnd(shuffleId, mapId, context.attemptNumber, numMappers)
-      mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths, mapId)
+      handleEmptyIterator()
       return
     }
 
@@ -108,7 +73,7 @@ class CelebornHashBasedCHColumnarShuffleWriter[K, V](
       CHNativeMemoryAllocators.createSpillable(
         "CelebornShuffleWriter",
         new Spiller() {
-          override def spill(size: Long): Long = {
+          override def spill(self: MemoryTarget, size: Long): Long = {
             if (nativeShuffleWriter == -1L) {
               throw new IllegalStateException(
                 "Fatal: spill() called before a celeborn shuffle writer " +
@@ -154,37 +119,11 @@ class CelebornHashBasedCHColumnarShuffleWriter[K, V](
     writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
 
     partitionLengths = splitResult.getPartitionLengths
-    val pushMergedDataTime = System.nanoTime
-    client.prepareForMergeData(shuffleId, mapId, context.attemptNumber())
-    client.pushMergedData(shuffleId, mapId, context.attemptNumber)
-    client.mapperEnd(shuffleId, mapId, context.attemptNumber, numMappers)
-    writeMetrics.incWriteTime(System.nanoTime - pushMergedDataTime)
+    pushMergedDataToCeleborn()
     mapStatus = MapStatus(blockManager.shuffleServerId, splitResult.getRawPartitionLengths, mapId)
   }
 
-  override def stop(success: Boolean): Option[MapStatus] = {
-    try {
-      if (stopping) {
-        None
-      }
-      stopping = true
-      if (success) {
-        Option(mapStatus)
-      } else {
-        None
-      }
-    } finally {
-      if (nativeShuffleWriter != -1L) {
-        closeShuffleWriter()
-        nativeShuffleWriter = -1L
-      }
-      client.cleanup(shuffleId, mapId, context.attemptNumber)
-    }
-  }
-
-  def closeShuffleWriter(): Unit = {
+  override def closeShuffleWriter(): Unit = {
     jniWrapper.close(nativeShuffleWriter)
   }
-
-  def getPartitionLengths: Array[Long] = partitionLengths
 }
