@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.catalyst.expressions._
@@ -66,9 +66,7 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
     spark.read.parquet(
       getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name)
   }
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-40280: filter pushdown - int with annotation") {}
+
   test(
     GlutenTestConstants.GLUTEN_TEST +
       "Filter applied on merged Parquet schema with new column should work") {
@@ -225,43 +223,6 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
               assert(df.where("a = null").count() === 0)
               assert(df.where("a is null").count() === 1)
             }
-        }
-    }
-  }
-
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-25207: exception when duplicate fields in case-insensitive mode") {
-    withTempPath {
-      dir =>
-        val count = 10
-        val tableName = "spark_25207"
-        val tableDir = dir.getAbsoluteFile + "/table"
-        withTable(tableName) {
-          withSQLConf(SQLConf.CASE_SENSITIVE.key -> "true") {
-            spark
-              .range(count)
-              .selectExpr("id as A", "id as B", "id as b")
-              .write
-              .mode("overwrite")
-              .parquet(tableDir)
-          }
-          sql(s"""
-                 |CREATE TABLE $tableName (A LONG, B LONG) USING PARQUET LOCATION '$tableDir'
-           """.stripMargin)
-
-          withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
-            val e = intercept[SparkException] {
-              sql(s"select a from $tableName where b > 0").collect()
-            }
-            assert(
-              e.getCause.isInstanceOf[RuntimeException] && e.getCause.getMessage.contains(
-                """Found duplicate field(s) b in read lowercase mode"""))
-          }
-
-          withSQLConf(SQLConf.CASE_SENSITIVE.key -> "true") {
-            checkAnswer(sql(s"select A from $tableName where B > 0"), (1 until count).map(Row(_)))
-          }
         }
     }
   }

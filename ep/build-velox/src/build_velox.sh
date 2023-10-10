@@ -21,7 +21,6 @@ ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
-ARROW_HOME=""
 ENABLE_EP_CACHE=OFF
 ENABLE_BENCHMARK=OFF
 RUN_SETUP_SCRIPT=ON
@@ -33,10 +32,6 @@ for arg in "$@"; do
   case $arg in
   --velox_home=*)
     VELOX_HOME=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --arrow_home=*)
-    ARROW_HOME=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_s3=*)
@@ -104,14 +99,6 @@ function compile {
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
-  fi
-
-  # Let Velox use pre-build arrow,parquet,thrift.
-  if [ "$ARROW_HOME" == "" ]; then
-    ARROW_HOME=$CURRENT_DIR/../../build-arrow/build
-  fi
-  if [ -d "$ARROW_HOME" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DArrow_HOME=${ARROW_HOME}"
   fi
 
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
@@ -245,7 +232,6 @@ fi
 echo "Start building Velox..."
 echo "CMAKE Arguments:"
 echo "VELOX_HOME=${VELOX_HOME}"
-echo "ARROW_HOME=${ARROW_HOME}"
 echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"

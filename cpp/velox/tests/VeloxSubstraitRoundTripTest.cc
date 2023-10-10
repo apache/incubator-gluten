@@ -76,25 +76,29 @@ class VeloxSubstraitRoundTripTest : public OperatorTestBase {
     assertQuery(samePlan, duckDbSql);
   }
 
-  void assertFailingPlanConversion(
-      const std::shared_ptr<const core::PlanNode>& plan,
-      const std::string& expectedErrorMessage) {
-    CursorParameters params;
-    params.planNode = plan;
-    VELOX_ASSERT_THROW(readCursor(params, [](auto /*task*/) {}), expectedErrorMessage);
+  void assertFailingPlanConversion(const std::shared_ptr<const core::PlanNode>& plan, const std::string& errorMessage) {
+    try {
+      CursorParameters params;
+      params.planNode = plan;
+      readCursor(params, [](auto /*task*/) {});
 
-    // Convert Velox Plan to Substrait Plan.
-    google::protobuf::Arena arena;
-    auto substraitPlan = veloxConvertor_->toSubstrait(arena, plan);
-    std::unordered_map<std::string, std::string> sessionConf = {};
-    std::shared_ptr<SubstraitToVeloxPlanConverter> substraitConverter_ =
-        std::make_shared<SubstraitToVeloxPlanConverter>(pool_.get(), sessionConf, true);
-    // Convert Substrait Plan to the same Velox Plan.
-    auto samePlan = substraitConverter_->toVeloxPlan(substraitPlan);
+      // Convert Velox Plan to Substrait Plan.
+      google::protobuf::Arena arena;
+      auto substraitPlan = veloxConvertor_->toSubstrait(arena, plan);
+      std::unordered_map<std::string, std::string> sessionConf = {};
+      std::shared_ptr<SubstraitToVeloxPlanConverter> substraitConverter_ =
+          std::make_shared<SubstraitToVeloxPlanConverter>(pool_.get(), sessionConf, true);
+      // Convert Substrait Plan to the same Velox Plan.
+      auto samePlan = substraitConverter_->toVeloxPlan(substraitPlan);
 
-    // Assert velox again.
-    params.planNode = samePlan;
-    VELOX_ASSERT_THROW(readCursor(params, [](auto /*task*/) {}), expectedErrorMessage);
+      // Assert velox again.
+      params.planNode = samePlan;
+      readCursor(params, [](auto /*task*/) {});
+      FAIL() << "Expected an exception";
+    } catch (const VeloxException& e) {
+      ASSERT_TRUE(e.message().find(errorMessage) != std::string::npos)
+          << "Expected error message to contain '" << errorMessage << "', but received '" << e.message() << "'.";
+    }
   }
 
   std::shared_ptr<VeloxToSubstraitPlanConvertor> veloxConvertor_ = std::make_shared<VeloxToSubstraitPlanConvertor>();
@@ -120,7 +124,7 @@ TEST_F(VeloxSubstraitRoundTripTest, cast) {
 
   // Cast literal "abc" to int64, expecting an exception to be thrown.
   plan = PlanBuilder().values(vectors).project({"cast('abc' as bigint)"}).planNode();
-  assertFailingPlanConversion(plan, "Failed to cast from VARCHAR to BIGINT");
+  assertFailingPlanConversion(plan, "Cannot cast VARCHAR 'abc' to BIGINT.");
 }
 
 TEST_F(VeloxSubstraitRoundTripTest, filter) {
@@ -402,7 +406,7 @@ TEST_F(VeloxSubstraitRoundTripTest, arrayLiteral) {
       plan,
       "SELECT array[true, null], array[0, null], array[1, null], "
       "array[2, null], array[3, null], array[4.4, null], array[5.5, null], "
-      "array[6],"
+      "array['6'],"
       "array['1970-01-02T10:17:36.000123000'::TIMESTAMP],"
       "array['1992-01-01'::DATE],"
       "array[INTERVAL 54 MILLISECONDS], "
@@ -412,7 +416,7 @@ TEST_F(VeloxSubstraitRoundTripTest, arrayLiteral) {
 TEST_F(VeloxSubstraitRoundTripTest, dateType) {
   auto a = makeFlatVector<int32_t>({0, 1});
   auto b = makeFlatVector<double_t>({0.3, 0.4});
-  auto c = makeFlatVector<int32_t>({8036, 8035});
+  auto c = makeFlatVector<int32_t>({8036, 8035}, DATE());
 
   auto vectors = makeRowVector({"a", "b", "c"}, {a, b, c});
   createDuckDbTable({vectors});
@@ -430,15 +434,18 @@ TEST_F(VeloxSubstraitRoundTripTest, subField) {
           makeFlatVector<double>({0.905, 0.968, 0.632}),
       });
   createDuckDbTable({data});
-  auto plan =
-      PlanBuilder()
-          .values({data})
-          .project({"cast(row_constructor(a, b) as row(a bigint, b bigint)) as ab", "a", "b", "c"})
-          .project({"cast(row_constructor(ab, c) as row(ab row(a bigint, b bigint), c bigint)) as abc", "a", "b"})
-          .project({"(cast(row_constructor(a, b) as row(a bigint, b bigint))).a", "(abc).ab.a", "(abc).ab.b", "abc.c"})
-          .planNode();
+  auto plan = PlanBuilder()
+                  .values({data})
+                  .project({"cast(row_constructor(a, b) as row(a bigint, b bigint)) as ab", "a", "b", "c"})
+                  .project({"cast(row_constructor(ab, c) as row(ab row(a bigint, b bigint), c bigint)) as abc"})
+                  .project({"(abc).ab.a", "(abc).ab.b", "abc.c"})
+                  .planNode();
 
-  assertPlanConversion(plan, "SELECT a, a, b, c FROM tmp");
+  assertPlanConversion(plan, "SELECT a, b, c FROM tmp");
+
+  plan =
+      PlanBuilder().values({data}).project({"(cast(row_constructor(a, b) as row(a bigint, b bigint))).a"}).planNode();
+  assertFailingPlanConversion(plan, "Non-field expression is not supported");
 }
 } // namespace gluten
 

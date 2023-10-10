@@ -643,8 +643,9 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite.
     .exclude("Filter applied on merged Parquet schema with new column should work")
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
-    .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
     .exclude("filter pushdown - date")
+    // Exception bebaviour.
+    .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
     // Ignore Spark's filter pushdown check.
     .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
     .exclude("SPARK-31026: Parquet predicate pushdown for fields having dots in the names")
@@ -658,8 +659,9 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite.
     .exclude("Filter applied on merged Parquet schema with new column should work")
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
-    .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
     .exclude("filter pushdown - date")
+    // Exception bebaviour.
+    .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
     // Ignore Spark's filter pushdown check.
     .exclude("Filters should be pushed down for vectorized Parquet reader at row group level")
     .exclude("SPARK-31026: Parquet predicate pushdown for fields having dots in the names")

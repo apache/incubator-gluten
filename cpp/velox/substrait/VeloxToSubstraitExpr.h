@@ -59,6 +59,11 @@ class VeloxToSubstraitExprConvertor {
       const std::shared_ptr<const core::FieldAccessTypedExpr>& fieldExpr,
       const RowTypePtr& inputType);
 
+  const ::substrait::Expression_FieldReference& toSubstraitExpr(
+      google::protobuf::Arena& arena,
+      const std::shared_ptr<const core::DereferenceTypedExpr>& derefExpr,
+      const RowTypePtr& inputType);
+
   /// Convert Velox vector to Substrait literal.
   const ::substrait::Expression_Literal& toSubstraitLiteral(
       google::protobuf::Arena& arena,
