@@ -16,13 +16,15 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.execution.WholeStageTransformer
+import io.glutenproject.extension.{GlutenPlan, InMemoryTableScanHelper}
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.expressions.{Expression, PlanExpression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.GlutenFallbackReporter.FALLBACK_REASON_TAG
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, QueryStageExec}
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
 
 import java.util.{IdentityHashMap, Set}
@@ -52,12 +54,19 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
     def collect(tmp: QueryPlan[_]): Unit = {
       tmp.foreachUp {
         case _: WholeStageCodegenExec =>
+        case _: WholeStageTransformer =>
         case _: InputAdapter =>
         case p: AdaptiveSparkPlanExec => collect(p.executedPlan)
         case p: QueryStageExec => collect(p.plan)
         case p: GlutenPlan =>
           numGlutenNodes += 1
           p.innerChildren.foreach(collect)
+        case i: InMemoryTableScanExec =>
+          if (InMemoryTableScanHelper.isGlutenTableCache(i)) {
+            numGlutenNodes += 1
+          } else {
+            addFallbackNodeWithReason(i, "Columnar table cache is disabled")
+          }
         case p: SparkPlan =>
           p.logicalLink.flatMap(_.getTagValue(FALLBACK_REASON_TAG)) match {
             case Some(reason) => addFallbackNodeWithReason(p, reason)

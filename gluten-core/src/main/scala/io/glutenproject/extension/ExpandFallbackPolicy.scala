@@ -25,8 +25,9 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, SparkPlan}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, BroadcastQueryStageExec, ColumnarAQEShuffleReadExec, QueryStageExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.ExecutedCommandExec
 import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
 
@@ -77,6 +78,12 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
         // support columnar, so the output columnar is always false in AQE postStageCreationRules
         case ColumnarToRowExec(s: Exchange) if isAdaptiveContext =>
           countFallback(s)
+        case u: UnaryExecNode
+            if !u.isInstanceOf[GlutenPlan] && InMemoryTableScanHelper.isGlutenTableCache(u.child) =>
+          // Vanilla Spark plan will call `InMemoryTableScanExec.convertCachedBatchToInternalRow`
+          // which is a kind of `ColumnarToRowExec`.
+          fallbacks = fallbacks + 1
+          countFallback(u.child)
         case ColumnarToRowExec(p: GlutenPlan) =>
           logDebug(s"Find a columnar to row for gluten plan:\n$p")
           fallbacks = fallbacks + 1
@@ -157,6 +164,12 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
         transformPostOverrides.transformColumnarToRowExec(c2r)
       case c2r @ ColumnarToRowExec(_: ColumnarAQEShuffleReadExec) =>
         transformPostOverrides.transformColumnarToRowExec(c2r)
+      case ColumnarToRowExec(q: QueryStageExec) if InMemoryTableScanHelper.isGlutenTableCache(q) =>
+        q
+      case ColumnarToRowExec(i: InMemoryTableScanExec)
+          if InMemoryTableScanHelper.isGlutenTableCache(i) =>
+        // `InMemoryTableScanExec` itself supports columnar to row
+        i
     }
   }
 
