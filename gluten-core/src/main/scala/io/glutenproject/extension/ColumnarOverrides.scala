@@ -110,6 +110,8 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           // If the child is transformable, transform aggregation as well.
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           transformHashAggregate()
+        case q: QueryStageExec if InMemoryTableScanHelper.isGlutenTableCache(q) =>
+          transformHashAggregate()
         case i: InMemoryTableScanExec if InMemoryTableScanHelper.isGlutenTableCache(i) =>
           transformHashAggregate()
         case _ =>
@@ -680,10 +682,21 @@ case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[Spark
 }
 
 object InMemoryTableScanHelper {
-  def isGlutenTableCache(i: InMemoryTableScanExec): Boolean = {
+  private def isGlutenTableCacheInternal(i: InMemoryTableScanExec): Boolean = {
     // `ColumnarCachedBatchSerializer` is at velox module, so use class name here
     i.relation.cacheBuilder.serializer.getClass.getSimpleName == "ColumnarCachedBatchSerializer" &&
     i.supportsColumnar
+  }
+
+  def isGlutenTableCache(plan: SparkPlan): Boolean = {
+    plan match {
+      case i: InMemoryTableScanExec =>
+        isGlutenTableCacheInternal(i)
+      case q: QueryStageExec =>
+        // Compatible with Spark3.5 `TableCacheQueryStage`
+        isGlutenTableCache(q.plan)
+      case _ => false
+    }
   }
 }
 

@@ -74,7 +74,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait {
       val id = runExecution("SELECT * FROM t")
       val execution = glutenStore.execution(id)
       assert(execution.isDefined)
-      assert(execution.get.numGlutenNodes == 3)
+      assert(execution.get.numGlutenNodes == 2)
       assert(execution.get.numFallbackNodes == 0)
       assert(execution.get.fallbackNodeToReason.isEmpty)
 

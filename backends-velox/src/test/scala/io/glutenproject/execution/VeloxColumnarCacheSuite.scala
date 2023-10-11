@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{ColumnarToRowExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.storage.StorageLevel
@@ -121,6 +121,26 @@ class VeloxColumnarCacheSuite extends WholeStageTransformerSuite with AdaptiveSp
       )
     } finally {
       cached.unpersist()
+    }
+  }
+
+  test("Columnar table cache should compatible with TableCacheQueryStage") {
+    withSQLConf(GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
+      val cached = spark.table("lineitem").cache()
+      try {
+        val df = cached.filter(row => row.getLong(0) > 0)
+        assert(df.count() == 60175)
+        assert(find(df.queryExecution.executedPlan) {
+          case _: ColumnarToRowExec => true
+          case _ => false
+        }.isEmpty)
+        assert(find(df.queryExecution.executedPlan) {
+          case _: RowToVeloxColumnarExec => true
+          case _ => false
+        }.isEmpty)
+      } finally {
+        cached.unpersist()
+      }
     }
   }
 }
