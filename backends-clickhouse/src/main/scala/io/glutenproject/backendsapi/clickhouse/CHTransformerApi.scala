@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.{BackendsApiManager, TransformerApi}
 import io.glutenproject.execution.CHHashAggregateExecTransformer
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.{ExpressionNode, SelectionNode}
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, SelectionNode}
 import io.glutenproject.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
 import org.apache.spark.internal.Logging
@@ -176,6 +176,12 @@ class CHTransformerApi extends TransformerApi with Logging {
         plan.output
     }
 
+  }
+
+  override def createDateDiffParamList(
+      start: ExpressionNode,
+      end: ExpressionNode): Iterable[ExpressionNode] = {
+    List(ExpressionBuilder.makeStringLiteral("day"), start, end)
   }
 
   override def createLikeParamList(

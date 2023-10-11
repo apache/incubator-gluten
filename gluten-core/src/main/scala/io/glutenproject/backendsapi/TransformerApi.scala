@@ -67,9 +67,7 @@ trait TransformerApi {
   def validateGenerator(generator: Generator, outer: Boolean): ValidationResult =
     ValidationResult.ok
 
-  def createDateDiffParamList(
-      start: ExpressionNode,
-      end: ExpressionNode): Iterable[ExpressionNode] = List(start, end)
+  def createDateDiffParamList(start: ExpressionNode, end: ExpressionNode): Iterable[ExpressionNode]
 
   def createLikeParamList(
       left: ExpressionNode,
