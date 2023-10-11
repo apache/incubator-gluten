@@ -2051,5 +2051,19 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
                 |   ))""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test("GLUTEN-3287: diff when divide zero") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select 1/0f, 1/0.0d",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select n_nationkey / n_regionkey from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
 }
 // scalastyle:on line.size.limit
