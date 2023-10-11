@@ -79,7 +79,7 @@ trait TransformSupport extends GlutenPlan {
   }
 }
 
-case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = false)(
+case class WholeStageTransformer(child: SparkPlan)(
     val transformStageId: Int
 ) extends UnaryExecNode
   with TransformSupport {
@@ -305,8 +305,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
           resCtx.substraitContext.registeredRelMap,
           resCtx.substraitContext.registeredJoinParams,
           resCtx.substraitContext.registeredAggregationParams
-        ),
-        materializeInput
+        )
       )
     }
   }
@@ -374,5 +373,5 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformer =
-    copy(child = newChild, materializeInput = materializeInput)(transformStageId)
+    copy(child = newChild)(transformStageId)
 }

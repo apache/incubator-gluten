@@ -283,6 +283,10 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
   }
 
   def replaceWithTransformerPlan(plan: SparkPlan): SparkPlan = {
+    if (plan.isInstanceOf[TransformSupport]) {
+      return plan // if it's already XXTransformer, then break the replace process
+    }
+
     TransformHints.getHint(plan) match {
       case _: TRANSFORM_SUPPORTED =>
       // supported, break

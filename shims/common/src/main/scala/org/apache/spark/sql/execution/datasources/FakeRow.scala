@@ -18,11 +18,18 @@ package org.apache.spark.sql.execution.datasources
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.{DataType, Decimal}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.types.{CalendarInterval, UTF8String}
 
-trait IFakeRowAdaptor
+trait IFakeRowAdaptor {
+  // If FakeRowAdaptor(WholeStageTransformer(XXTransformer))), return XXTransformer.
+  //    So that caller can append YYTransformer to XXTransformer,
+  //    and combine them into a single WholeStageTransformer.
+  // Otherwise just return itself
+  def stripFakeRowAdaptorAndWSTIfPossible: SparkPlan
+}
 
 class FakeRow(val batch: ColumnarBatch) extends InternalRow {
   override def numFields: Int = throw new UnsupportedOperationException()

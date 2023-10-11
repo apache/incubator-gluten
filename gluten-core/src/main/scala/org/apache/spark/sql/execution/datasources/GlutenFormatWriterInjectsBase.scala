@@ -38,7 +38,9 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
    */
   override def executeWriterWrappedSparkPlan(plan: SparkPlan): RDD[InternalRow] = {
     if (plan.isInstanceOf[FakeRowAdaptor]) {
-      // here, the FakeRowAdaptor is simply a R2C converter
+      // Here, the FakeRowAdaptor is simply a R2C converter,
+      // otherwise it would have been stripped.
+      // (check IFakeRowAdaptor.stripFakeRowAdaptorAndWSTIfPossible)
       return plan.execute()
     }
 
@@ -49,15 +51,7 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
           "consider disabling native writer to workaround this issue.")
     }
 
-    // why materializeInput = true? this is for CH backend.
-    // in this wst, a Sort will be executed by the underlying native engine.
-    // In CH, a SortingTransform cannot handle Const Columns,
-    // unless it can get its const-ness from input's header
-    // and use const_columns_to_remove to skip const columns.
-    // Unfortunately, in our case this wst's input is SourceFromJavaIter
-    // and cannot provide const-ness.
-    val wst = WholeStageTransformer(transformed, materializeInput = true)(
-      transformStageCounter.incrementAndGet())
+    val wst = WholeStageTransformer(transformed)(transformStageCounter.incrementAndGet())
     FakeRowAdaptor(wst).execute()
   }
 }

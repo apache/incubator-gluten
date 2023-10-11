@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.ColumnarToRowExecBase
+import io.glutenproject.execution.{ColumnarToRowExecBase, WholeStageTransformer}
 import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.rdd.RDD
@@ -76,6 +76,15 @@ case class FakeRowAdaptor(child: SparkPlan)
   // For spark 3.2.
   protected def withNewChildInternal(newChild: SparkPlan): FakeRowAdaptor =
     copy(child = newChild)
+
+  override def stripFakeRowAdaptorAndWSTIfPossible: SparkPlan = {
+    child match {
+      case transformer: WholeStageTransformer =>
+        transformer.child
+      case _ =>
+        this
+    }
+  }
 }
 
 case class MATERIALIZE_TAG()

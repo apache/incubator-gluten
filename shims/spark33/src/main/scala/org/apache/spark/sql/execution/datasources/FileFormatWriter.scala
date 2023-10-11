@@ -102,7 +102,7 @@ object FileFormatWriter extends Logging {
    */
   def write(
       sparkSession: SparkSession,
-      plan: SparkPlan,
+      plan_ : SparkPlan,
       fileFormat: FileFormat,
       committer: FileCommitProtocol,
       outputSpec: OutputSpec,
@@ -115,8 +115,10 @@ object FileFormatWriter extends Logging {
     val nativeEnabled =
       "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))
 
+    var plan: SparkPlan = plan_
     if (nativeEnabled) {
       assert(plan.isInstanceOf[IFakeRowAdaptor])
+      plan = plan.asInstanceOf[IFakeRowAdaptor].stripFakeRowAdaptorAndWSTIfPossible
     }
 
     val job = Job.getInstance(hadoopConf)
