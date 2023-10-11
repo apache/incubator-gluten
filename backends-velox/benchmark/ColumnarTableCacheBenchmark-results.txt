@@ -1,0 +1,11 @@
+OpenJDK 64-Bit Server VM 1.8.0_322-b06 on Mac OS X 13.5
+Apple M1 Pro
+table cache benchmark:                    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+enable columnar table cache                        8773           8860          82          2.3         438.7       1.0X
+
+OpenJDK 64-Bit Server VM 1.8.0_322-b06 on Mac OS X 13.5
+Apple M1 Pro
+table cache benchmark:                    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+disable columnar table cache                      16168          16684         511          1.2         808.4       1.0X
