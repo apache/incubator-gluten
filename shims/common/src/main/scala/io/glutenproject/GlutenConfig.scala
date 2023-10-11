@@ -446,10 +446,9 @@ object GlutenConfig {
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
-    // FIXME all configs with BE prefix is considered dynamic and static at the same time
-    //   We'd untangle this logic
+    // Backend's dynamic session conf only.
     conf
-      .filter(_._1.startsWith(backendPrefix))
+      .filter(entry => entry._1.startsWith(backendPrefix) && !SQLConf.isStaticConfigKey(entry._1))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // Pass the latest tokens to native
@@ -971,63 +970,63 @@ object GlutenConfig {
 
   // velox caching options
   val COLUMNAR_VELOX_CACHE_ENABLED =
-    buildConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
       .internal()
       .doc("Enable Velox cache, default off")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_VELOX_MEM_CACHE_SIZE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.memCacheSize")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.memCacheSize")
       .internal()
       .doc("The memory cache size")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1GB")
 
   val COLUMNAR_VELOX_SSD_CACHE_PATH =
-    buildConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")
       .internal()
       .doc("The folder to store the cache files, better on SSD")
       .stringConf
       .createWithDefault("/tmp")
 
   val COLUMNAR_VELOX_SSD_CACHE_SIZE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.ssdCacheSize")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCacheSize")
       .internal()
       .doc("The SSD cache size, will do memory caching only if this value = 0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1GB")
 
   val COLUMNAR_VELOX_SSD_CACHE_SHARDS =
-    buildConf("spark.gluten.sql.columnar.backend.velox.ssdCacheShards")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCacheShards")
       .internal()
       .doc("The cache shards")
       .intConf
       .createWithDefault(1)
 
   val COLUMNAR_VELOX_SSD_CACHE_IO_THREADS =
-    buildConf("spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads")
       .internal()
       .doc("The IO threads for cache promoting")
       .intConf
       .createWithDefault(1)
 
   val COLUMNAR_VELOX_SSD_ODIRECT_ENABLED =
-    buildConf("spark.gluten.sql.columnar.backend.velox.ssdODirect")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdODirect")
       .internal()
       .doc("The O_DIRECT flag for cache writing")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
-    buildConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
       .doc("The IO threads for connector split preloading")
       .intConf
       .createWithDefault(0)
 
   val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
-    buildConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
       .internal()
       .doc("The split preload per task")
       .intConf
