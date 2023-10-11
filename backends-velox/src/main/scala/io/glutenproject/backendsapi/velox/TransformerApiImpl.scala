@@ -18,9 +18,8 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.TransformerApi
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.utils.InputPartitionsUtil
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, CreateMap, Explode, Generator, JsonTuple, Literal, PosExplode}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
