@@ -146,6 +146,13 @@ int64_t gluten::getBufferSizes(const std::shared_ptr<arrow::Array>& array) {
       });
 }
 
+int64_t gluten::getBufferSizes(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
+  return std::accumulate(
+      std::cbegin(buffers), std::cend(buffers), 0LL, [](int64_t sum, const std::shared_ptr<arrow::Buffer>& buf) {
+        return buf == nullptr ? sum : sum + buf->size();
+      });
+}
+
 arrow::Status gluten::writeEos(arrow::io::OutputStream* os) {
   // write EOS
   constexpr int32_t kIpcContinuationToken = -1;
