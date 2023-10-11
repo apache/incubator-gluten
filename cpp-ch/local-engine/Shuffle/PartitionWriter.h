@@ -60,6 +60,7 @@ protected:
     SplitOptions * options;
     CachedShuffleWriter * shuffle_writer;
     size_t total_partition_buffer_size = 0;
+    std::mutex mtx;
 };
 
 class LocalPartitionWriter : public PartitionWriter

@@ -230,29 +230,33 @@ void CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
     auto spill_to_celeborn = [this]() -> void {
         Stopwatch serialization_time_watch;
         serialization_time_watch.start();
-        for (size_t partition_id = 0; partition_id < partition_buffer.size(); ++partition_id)
+        if (mtx.try_lock())
         {
-            const auto & partition = partition_buffer[partition_id];
-            size_t raw_size = 0;
-            if (partition.empty()) continue;
-            WriteBufferFromOwnString output;
-            auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
-            CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
-            NativeWriter writer(compressed_output, 0, shuffle_writer->output_header);
-            for (const auto & block : partition)
+            for (size_t partition_id = 0; partition_id < partition_buffer.size(); ++partition_id)
             {
-                raw_size += writer.write(block);
+                const auto & partition = partition_buffer[partition_id];
+                size_t raw_size = 0;
+                if (partition.empty()) continue;
+                WriteBufferFromOwnString output;
+                auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
+                CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
+                NativeWriter writer(compressed_output, 0, shuffle_writer->output_header);
+                for (const auto & block : partition)
+                {
+                    raw_size += writer.write(block);
+                }
+                compressed_output.sync();
+                Stopwatch push_time_watch;
+                push_time_watch.start();
+                celeborn_client->pushPartitionData(partition_id, output.str().data(), output.str().size());
+                shuffle_writer->split_result.partition_length[partition_id] += output.str().size();
+                shuffle_writer->split_result.raw_partition_length[partition_id] += raw_size;
+                shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
+                shuffle_writer->split_result.total_write_time += compressed_output.getWriteTime();
+                shuffle_writer->split_result.total_write_time += push_time_watch.elapsedNanoseconds();
+                shuffle_writer->split_result.total_disk_time += push_time_watch.elapsedNanoseconds();
             }
-            compressed_output.sync();
-            Stopwatch push_time_watch;
-            push_time_watch.start();
-            celeborn_client->pushPartitionData(partition_id, output.str().data(), output.str().size());
-            shuffle_writer->split_result.partition_length[partition_id] += output.str().size();
-            shuffle_writer->split_result.raw_partition_length[partition_id] += raw_size;
-            shuffle_writer->split_result.total_compress_time += compressed_output.getCompressTime();
-            shuffle_writer->split_result.total_write_time += compressed_output.getWriteTime();
-            shuffle_writer->split_result.total_write_time += push_time_watch.elapsedNanoseconds();
-            shuffle_writer->split_result.total_disk_time += push_time_watch.elapsedNanoseconds();
+            mtx.unlock();
         }
         shuffle_writer->split_result.total_serialize_time += serialization_time_watch.elapsedNanoseconds();
     };
@@ -271,10 +275,13 @@ void CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
         spill_to_celeborn();
     }
     shuffle_writer->split_result.total_spill_time += spill_time_watch.elapsedNanoseconds();
-
-    for (auto & partition : partition_buffer)
+    if (mtx.try_lock())
     {
-        partition.clear();
+        for (auto & partition : partition_buffer)
+        {
+            partition.clear();
+        }
+        mtx.unlock();
     }
     shuffle_writer->split_result.total_bytes_spilled += total_partition_buffer_size;
     total_partition_buffer_size = 0;
