@@ -21,6 +21,7 @@
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnConst.h>
+#include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnTuple.h>
 #include <Columns/IColumn.h>
@@ -29,6 +30,7 @@
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
@@ -201,10 +203,17 @@ BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively,
         }
         else if (const DB::DataTypeTuple * type_tuple = typeid_cast<const DB::DataTypeTuple *>(nested_type.get()))
         {
-            if (type_tuple->haveExplicitNames() && (flags & FLAT_STRUCT))
+            if ((flags & FLAT_STRUCT_FORCE) || (type_tuple->haveExplicitNames() && (flags & FLAT_STRUCT)))
             {
                 const DB::DataTypes & element_types = type_tuple->getElements();
-                const DB::Strings & element_names = type_tuple->getElementNames();
+                DB::Strings element_names = type_tuple->getElementNames();
+                if (element_names.empty())
+                {
+                    // This is a struct without named fields, we should flatten it.
+                    // But we can't get the field names, so we use the field index as the field name.
+                    for (size_t i = 0; i < element_types.size(); ++i)
+                        element_names.push_back(elem.name + "_filed_" + std::to_string(i));
+                }
 
                 const DB::ColumnTuple * column_tuple;
                 if (isColumnConst(*nested_col))

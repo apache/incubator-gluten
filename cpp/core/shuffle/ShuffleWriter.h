@@ -246,7 +246,7 @@ class ShuffleWriter {
   int64_t peakMemoryAllocated_ = 0;
 
   std::vector<int64_t> partitionLengths_;
-  std::vector<int64_t> rawPartitionLengths_;
+  std::vector<int64_t> rawPartitionLengths_; // Uncompressed size.
 
   std::unique_ptr<arrow::util::Codec> codec_;
 

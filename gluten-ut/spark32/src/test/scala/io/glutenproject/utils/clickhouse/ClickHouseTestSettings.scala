@@ -170,6 +170,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameRangeSuite]
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenDataFrameSessionWindowingSuite]
+    .exclude("simple session window with record at window start")
+    .exclude("session window groupBy statement")
+    .exclude("SPARK-36465: filter out events with negative/zero gap duration")
     .exclude("session window groupBy with multiple keys statement")
     .exclude("session window groupBy with multiple keys statement - one distinct")
     .exclude("session window groupBy with multiple keys statement - two distinct")

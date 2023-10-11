@@ -18,6 +18,14 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <Common/CHUtil.h>
+#include <Columns/ColumnArray.h>
+#include <Columns/ColumnMap.h>
+#include <Columns/ColumnNullable.h>
+#include <Columns/ColumnTuple.h>
+#include <DataTypes/DataTypeArray.h>
+#include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionFactory.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/TypeParser.h>
@@ -86,7 +94,11 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
 {
     ColumnsWithTypeAndName args;
     for (size_t i = 0; i < exprs_index.size(); i++)
+    {
         args.emplace_back(block.safeGetByPosition(exprs_index.at(i)));
+    }
+    auto flatten_block = BlockUtil::flattenBlock(DB::Block(args), BlockUtil::FLAT_STRUCT_FORCE | BlockUtil::FLAT_NESTED_TABLE, true);
+    args = flatten_block.getColumnsWithTypeAndName();
 
     if (!hash_function) [[unlikely]]
     {

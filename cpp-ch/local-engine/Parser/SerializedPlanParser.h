@@ -188,8 +188,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        // array functions
        {"array", "array"},
        {"size", "length"},
-       {"get_array_item", "arrayElement"},
-       {"element_at", "arrayElement"},
        {"range", "range"}, /// dummy mapping
 
        // map functions
@@ -299,6 +297,9 @@ public:
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
 
+    bool convertBinaryArithmeticFunDecimalArgs(
+        ActionsDAGPtr actions_dag, ActionsDAG::NodeRawConstPtrs & args, const substrait::Expression_ScalarFunction & arithmeticFun);
+
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
 
     static ContextMutablePtr global_context;
@@ -333,8 +334,6 @@ private:
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false,
         bool position = false);
-    bool convertBinaryArithmeticFunDecimalArgs(
-        ActionsDAGPtr actions_dag, ActionsDAG::NodeRawConstPtrs & args, const substrait::Expression_ScalarFunction & arithmeticFun);
     const ActionsDAG::Node * parseFunctionWithDAG(
         const substrait::Expression & rel, std::string & result_name, DB::ActionsDAGPtr actions_dag = nullptr, bool keep_result = false);
     ActionsDAG::NodeRawConstPtrs parseArrayJoinWithDAG(

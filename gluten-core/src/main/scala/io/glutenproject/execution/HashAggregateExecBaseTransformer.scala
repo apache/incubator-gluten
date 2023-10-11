@@ -125,7 +125,7 @@ abstract class HashAggregateExecBaseTransformer(
 
   override def simpleString(maxFields: Int): String = toString(verbose = false, maxFields)
 
-  private def checkType(dataType: DataType): Boolean = {
+  protected def checkType(dataType: DataType): Boolean = {
     dataType match {
       case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
           StringType | TimestampType | DateType | BinaryType =>

@@ -255,7 +255,7 @@ class MetricsHandler extends MetricsApi with Logging {
         .createMetric(sparkContext, "number of output rows"),
       "inputBatches" -> SQLMetrics
         .createMetric(sparkContext, "number of input batches"),
-      "uncompressedDataSize" -> SQLMetrics.createMetric(sparkContext, "uncompressed data size")
+      "uncompressedDataSize" -> SQLMetrics.createSizeMetric(sparkContext, "uncompressed data size")
     )
 
   override def genWindowTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =

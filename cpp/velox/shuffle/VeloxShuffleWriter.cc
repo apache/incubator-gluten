@@ -552,9 +552,9 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64
       buffers.emplace_back(generateComplexTypeBuffers(rowVector));
     }
 
+    rawPartitionLengths_[0] += getBuffersSize(buffers);
     auto rb = makeRecordBatch(rv.size(), buffers);
     ARROW_ASSIGN_OR_RAISE(auto payload, createArrowIpcPayload(*rb, false));
-    rawPartitionLengths_[0] += payload->raw_body_length;
     RETURN_NOT_OK(partitionWriter_->processPayload(0, std::move(payload)));
   } else if (options_.partitioning_name == "range") {
     auto compositeBatch = std::dynamic_pointer_cast<CompositeColumnarBatch>(cb);
@@ -1278,7 +1278,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     ARROW_ASSIGN_OR_RAISE(auto rb, createArrowRecordBatchFromBuffer(partitionId, reuseBuffers));
     if (rb) {
       ARROW_ASSIGN_OR_RAISE(auto payload, createArrowIpcPayload(*rb, reuseBuffers));
-      rawPartitionLengths_[partitionId] += payload->raw_body_length;
       return payload;
     }
     return nullptr;
@@ -1425,6 +1424,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     }
     partitionBufferIdxBase_[partitionId] = 0;
 
+    rawPartitionLengths_[partitionId] += getBuffersSize(allBuffers);
     return makeRecordBatch(numRows, allBuffers);
   }
 
