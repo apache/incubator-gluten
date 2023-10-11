@@ -2004,6 +2004,14 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("GLUTEN-3216: invalid read rel schema in aggregation") {
+    val sql =
+      """
+        |select count(distinct(n_regionkey,n_nationkey)) from nation
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("Test plan json non-empty") {
     spark.sparkContext.setLogLevel("WARN")
     val df1 = spark
