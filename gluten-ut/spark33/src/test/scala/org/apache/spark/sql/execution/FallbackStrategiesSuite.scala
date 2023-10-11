@@ -140,26 +140,23 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
         |""".stripMargin
 
     val noFallbackPlan = spark.sql(sql).queryExecution.executedPlan
-    val noFallbackScanExec = noFallbackPlan collect {
-      case _: BasicScanExecTransformer => true
-    }
+    val noFallbackScanExec = noFallbackPlan collect { case _: BasicScanExecTransformer => true }
     assert(noFallbackScanExec.size == 1)
 
-    val thread = new Thread(() => {
-      spark.sparkContext.setLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, "false")
-      val fallbackPlan = spark.sql(sql).queryExecution.executedPlan
-      val fallbackScanExec = fallbackPlan collect {
-        case e: FileSourceScanExec if !e.isInstanceOf[BasicScanExecTransformer] => true
-      }
-      assert(fallbackScanExec.size == 1)
+    val thread = new Thread(
+      () => {
+        spark.sparkContext.setLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, "false")
+        val fallbackPlan = spark.sql(sql).queryExecution.executedPlan
+        val fallbackScanExec = fallbackPlan collect {
+          case e: FileSourceScanExec if !e.isInstanceOf[BasicScanExecTransformer] => true
+        }
+        assert(fallbackScanExec.size == 1)
 
-      spark.sparkContext.setLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, null)
-      val noFallbackPlan = spark.sql(sql).queryExecution.executedPlan
-      val noFallbackScanExec = noFallbackPlan collect {
-        case _: BasicScanExecTransformer => true
-      }
-      assert(noFallbackScanExec.size == 1)
-    })
+        spark.sparkContext.setLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY, null)
+        val noFallbackPlan = spark.sql(sql).queryExecution.executedPlan
+        val noFallbackScanExec = noFallbackPlan collect { case _: BasicScanExecTransformer => true }
+        assert(noFallbackScanExec.size == 1)
+      })
     thread.start()
     thread.join(10000)
   }
