@@ -95,7 +95,7 @@ class GlutenClickHouseTPCDSParquetGraceHashJoinSuite extends GlutenClickHouseTPC
         |""".stripMargin
 
     val df = spark.sql(testSql)
-    assert(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+    assert(FallbackUtil.hasFallbacks(df.queryExecution.executedPlan))
   }
 
   test("Gluten-1235: Fix missing reading from the broadcasted value when executing DPP") {

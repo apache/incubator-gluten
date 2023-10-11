@@ -19,6 +19,8 @@ package org.apache.spark.shuffle.gluten.celeborn;
 import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.exception.GlutenException;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterators;
 import org.apache.celeborn.client.LifecycleManager;
 import org.apache.celeborn.client.ShuffleClient;
 import org.apache.celeborn.common.CelebornConf;
@@ -31,9 +33,13 @@ import org.apache.spark.shuffle.sort.ColumnarShuffleManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 public class CelebornShuffleManager implements ShuffleManager {
 
@@ -47,6 +53,28 @@ public class CelebornShuffleManager implements ShuffleManager {
 
   private static final String LOCAL_SHUFFLE_READER_KEY =
       "spark.sql.adaptive.localShuffleReader.enabled";
+
+  private static final CelebornShuffleWriterFactory writerFactory;
+
+  static {
+    final ServiceLoader<CelebornShuffleWriterFactory> loader =
+        ServiceLoader.load(CelebornShuffleWriterFactory.class);
+    final List<CelebornShuffleWriterFactory> factoryList =
+        Arrays.stream(Iterators.toArray(loader.iterator(), CelebornShuffleWriterFactory.class))
+            .collect(Collectors.toList());
+    Preconditions.checkState(
+        !factoryList.isEmpty(), "No factory found for Celeborn shuffle writer");
+    final Map<String, CelebornShuffleWriterFactory> factoryMap =
+        factoryList.stream()
+            .collect(Collectors.toMap(CelebornShuffleWriterFactory::backendName, f -> f));
+
+    final String backendName = BackendsApiManager.getBackendName();
+    if (!factoryMap.containsKey(backendName)) {
+      throw new UnsupportedOperationException(
+          "No Celeborn shuffle writer factory found for backend " + backendName);
+    }
+    writerFactory = factoryMap.get(backendName);
+  }
 
   private final SparkConf conf;
   private final CelebornConf celebornConf;
@@ -268,25 +296,8 @@ public class CelebornShuffleManager implements ShuffleManager {
         }
         if (h.dependency() instanceof ColumnarShuffleDependency) {
           // columnar-based shuffle
-          if (BackendsApiManager.isVeloxBackend()) {
-            return createShuffleWriterInstance(
-                "org.apache.spark.shuffle.CelebornHashBasedVeloxColumnarShuffleWriter",
-                h,
-                context,
-                celebornConf,
-                client,
-                metrics);
-          } else if (BackendsApiManager.isCHBackend()) {
-            return createShuffleWriterInstance(
-                "org.apache.spark.shuffle.CelebornHashBasedCHColumnarShuffleWriter",
-                h,
-                context,
-                celebornConf,
-                client,
-                metrics);
-          } else {
-            throw new IllegalStateException("Unknown backend");
-          }
+          return writerFactory.createShuffleWriterInstance(
+              h, context, celebornConf, client, metrics);
         } else {
           // row-based shuffle
           return vanillaCelebornShuffleManager().getWriter(handle, mapId, context, metrics);
@@ -298,26 +309,6 @@ public class CelebornShuffleManager implements ShuffleManager {
     } catch (Exception e) {
       throw new GlutenException(e);
     }
-  }
-
-  public <K, V> ShuffleWriter<K, V> createShuffleWriterInstance(
-      String className,
-      CelebornShuffleHandle<K, V, V> handle,
-      TaskContext context,
-      CelebornConf celebornConf,
-      ShuffleClient client,
-      ShuffleWriteMetricsReporter writeMetrics)
-      throws Exception {
-    Class<?> cls = Class.forName(className);
-    Constructor<?> cons =
-        cls.getConstructor(
-            CelebornShuffleHandle.class,
-            TaskContext.class,
-            CelebornConf.class,
-            ShuffleClient.class,
-            ShuffleWriteMetricsReporter.class);
-    return (ShuffleWriter<K, V>)
-        cons.newInstance(handle, context, celebornConf, client, writeMetrics);
   }
 
   // Added in SPARK-32055, for Spark 3.1 and above

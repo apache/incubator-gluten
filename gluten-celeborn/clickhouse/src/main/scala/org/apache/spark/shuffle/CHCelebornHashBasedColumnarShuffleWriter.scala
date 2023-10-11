@@ -33,7 +33,7 @@ import org.apache.celeborn.common.CelebornConf
 import java.io.IOException
 import java.util.Locale
 
-class CelebornHashBasedCHColumnarShuffleWriter[K, V](
+class CHCelebornHashBasedColumnarShuffleWriter[K, V](
     handle: CelebornShuffleHandle[K, V, V],
     context: TaskContext,
     celebornConf: CelebornConf,

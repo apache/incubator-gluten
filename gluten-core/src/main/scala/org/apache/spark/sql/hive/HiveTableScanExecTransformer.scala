@@ -66,15 +66,8 @@ class HiveTableScanExecTransformer(
   override def getDataSchemas: StructType = relation.tableMeta.dataSchema
 
   override def getInputFilePaths: Seq[String] = {
-    if (BackendsApiManager.isVeloxBackend) {
-      Seq.empty[String]
-    } else if (BackendsApiManager.isCHBackend) {
-      // We only support reading from text file format, so we can safely return empty.
-      // see CHBackendSettings#supportFileFormatRead
-      Seq.empty[String]
-    } else {
-      throw new UnsupportedOperationException("Unsupported backend")
-    }
+    // FIXME how does a hive table expose file paths?
+    Seq.empty
   }
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {

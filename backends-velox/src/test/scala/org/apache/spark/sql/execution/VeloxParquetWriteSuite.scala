@@ -78,7 +78,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
         .toDF("id")
         .createOrReplaceTempView("ctas_temp")
       val df = spark.sql("CREATE TABLE velox_ctas USING PARQUET AS SELECT * FROM ctas_temp")
-      Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+      Assert.assertTrue(FallbackUtil.hasFallbacks(df.queryExecution.executedPlan))
     }
   }
 
@@ -91,7 +91,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
           .selectExpr("id as c1", "id % 7 as p")
           .createOrReplaceTempView("temp")
         val df = spark.sql(s"INSERT OVERWRITE DIRECTORY '$path' USING PARQUET SELECT * FROM temp")
-        Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+        Assert.assertTrue(FallbackUtil.hasFallbacks(df.queryExecution.executedPlan))
     }
   }
 
@@ -104,7 +104,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
       val df = spark.sql(
         "CREATE TABLE bucket USING PARQUET CLUSTERED BY (p) INTO 7 BUCKETS " +
           "AS SELECT * FROM bucket_temp")
-      Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+      Assert.assertTrue(FallbackUtil.hasFallbacks(df.queryExecution.executedPlan))
     }
   }
 

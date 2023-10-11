@@ -14,28 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi
+package org.apache.spark.shuffle.gluten.celeborn;
 
-import io.glutenproject.GlutenPlugin
+import org.apache.celeborn.client.ShuffleClient;
+import org.apache.celeborn.common.CelebornConf;
+import org.apache.spark.TaskContext;
+import org.apache.spark.shuffle.ShuffleWriteMetricsReporter;
+import org.apache.spark.shuffle.ShuffleWriter;
+import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle;
 
-trait Backend {
-  def name(): String
+public interface CelebornShuffleWriterFactory {
+  String backendName();
 
-  def buildInfo(): GlutenPlugin.BackendBuildInfo
-
-  def iteratorApi(): IteratorApi
-
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def listenerApi(): ListenerApi
-
-  def broadcastApi(): BroadcastApi
-
-  def settings(): BackendSettingsApi
+  <K, V> ShuffleWriter<K, V> createShuffleWriterInstance(
+      CelebornShuffleHandle<K, V, V> handle,
+      TaskContext context,
+      CelebornConf celebornConf,
+      ShuffleClient client,
+      ShuffleWriteMetricsReporter writeMetrics);
 }

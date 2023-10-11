@@ -17,8 +17,7 @@
 package org.apache.spark.sql.execution.joins
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.utils.SystemParameters
+import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
@@ -61,7 +60,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       // Avoid the code size overflow error in Spark code generation.
       .config("spark.sql.codegen.wholeStage", "false")
 
-    spark = if (BackendsApiManager.isCHBackend) {
+    spark = if (BackendTestUtils.isCHBackendLoaded()) {
       sparkBuilder
         .config("spark.io.compression.codec", "LZ4")
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")

@@ -21,8 +21,7 @@ import io.glutenproject.backendsapi.{BackendsApiManager, TransformerApi}
 import io.glutenproject.execution.CHHashAggregateExecTransformer
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.SelectionNode
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.substrait.expression.{ExpressionNode, SelectionNode}
 import io.glutenproject.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
 import org.apache.spark.internal.Logging
@@ -34,7 +33,6 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
-import org.apache.spark.sql.types.StructField
 import org.apache.spark.util.collection.BitSet
 
 import java.util
@@ -77,19 +75,6 @@ class CHTransformerApi extends TransformerApi with Logging {
       case _ => true
     }
   }
-
-  /**
-   * Used for table scan validation.
-   *
-   * @return
-   *   true if backend supports reading the file format.
-   */
-  def supportsReadFileFormat(
-      fileFormat: ReadFileFormat,
-      fields: Array[StructField],
-      partTable: Boolean,
-      paths: Seq[String]): Boolean =
-    BackendsApiManager.getSettings.supportFileFormatRead(fileFormat, fields, partTable, paths)
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
@@ -192,4 +177,10 @@ class CHTransformerApi extends TransformerApi with Logging {
     }
 
   }
+
+  override def createLikeParamList(
+      left: ExpressionNode,
+      right: ExpressionNode,
+      escapeChar: ExpressionNode): Iterable[ExpressionNode] =
+    List(left, right)
 }

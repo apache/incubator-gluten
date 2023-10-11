@@ -225,7 +225,7 @@ public class ExpressionBuilder {
   }
 
   public static ScalarFunctionNode makeScalarFunction(
-      Long functionId, ArrayList<ExpressionNode> expressionNodes, TypeNode typeNode) {
+      Long functionId, List<ExpressionNode> expressionNodes, TypeNode typeNode) {
     return new ScalarFunctionNode(functionId, expressionNodes, typeNode);
   }
 

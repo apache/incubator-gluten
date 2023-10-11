@@ -73,13 +73,9 @@ class BatchScanExecTransformer(
   }
 
   override def getInputFilePaths: Seq[String] = {
-    if (BackendsApiManager.isVeloxBackend) {
-      Seq.empty[String]
-    } else {
-      scan match {
-        case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
-        case _ => Seq.empty
-      }
+    scan match {
+      case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
+      case _ => Seq.empty
     }
   }
 

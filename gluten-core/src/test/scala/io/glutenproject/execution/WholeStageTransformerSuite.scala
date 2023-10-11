@@ -16,7 +16,6 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.utils.FallbackUtil
 
 import org.apache.spark.SparkConf
@@ -155,7 +154,9 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     } else {
       df.collect()
     }
-    WholeStageTransformerSuite.checkFallBack(df, noFallBack)
+    if (noFallBack) {
+      WholeStageTransformerSuite.checkFallBack(df)
+    }
     customCheck(df)
   }
 
@@ -163,7 +164,9 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       customCheck: DataFrame => Unit): Seq[Row] = {
     val df = spark.sql(sql)
     val result = df.collect()
-    WholeStageTransformerSuite.checkFallBack(df, noFallBack)
+    if (noFallBack) {
+      WholeStageTransformerSuite.checkFallBack(df)
+    }
     customCheck(df)
     result
   }
@@ -262,7 +265,9 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
         df.unpersist()
       }
     }
-    WholeStageTransformerSuite.checkFallBack(df, noFallBack)
+    if (noFallBack) {
+      WholeStageTransformerSuite.checkFallBack(df)
+    }
     customCheck(df)
     df
   }
@@ -304,19 +309,17 @@ object WholeStageTransformerSuite extends Logging {
   /** Check whether the sql is fallback */
   def checkFallBack(
       df: DataFrame,
-      noFallBack: Boolean = true,
+      noFallback: Boolean = true,
       skipAssert: Boolean = false): Unit = {
-    if (BackendsApiManager.isCHBackend) {
-      // When noFallBack is true, it means there is no fallback plan,
-      // otherwise there must be some fallback plans.
-      val isFallBack = FallbackUtil.isFallback(df.queryExecution.executedPlan)
-      if (!skipAssert) {
-        assert(
-          !isFallBack == noFallBack,
-          s"FallBack $noFallBack check error: ${df.queryExecution.executedPlan}")
-      } else {
-        logWarning(s"FallBack $noFallBack check error: ${df.queryExecution.executedPlan}")
-      }
+    // When noFallBack is true, it means there is no fallback plan,
+    // otherwise there must be some fallback plans.
+    val hasFallbacks = FallbackUtil.hasFallbacks(df.queryExecution.executedPlan)
+    if (!skipAssert) {
+      assert(
+        !hasFallbacks == noFallback,
+        s"FallBack $noFallback check error: ${df.queryExecution.executedPlan}")
+    } else {
+      logWarning(s"FallBack $noFallback check error: ${df.queryExecution.executedPlan}")
     }
   }
 }

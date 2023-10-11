@@ -16,17 +16,7 @@
  */
 package io.glutenproject.backendsapi
 
-import org.apache.spark.SparkConf
-import org.apache.spark.util.TaskResource
-
-import java.util
-
-trait ContextApi {
-  def initialize(conf: SparkConf, isDriver: Boolean = true): Unit = {}
-
-  def shutdown(): Unit = {}
-
-  def taskResourceFactories(): Seq[() => TaskResource] = Seq()
+trait BroadcastApi {
 
   /**
    * Should call by driver. Collect Broadcast Hash Table Ids.
@@ -48,5 +38,5 @@ trait ContextApi {
    */
   def cleanExecutionBroadcastHashtable(
       executionId: String,
-      broadcastHashIds: util.Set[String]): Unit = {}
+      broadcastHashIds: java.util.Set[String]): Unit = {}
 }

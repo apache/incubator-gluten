@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.backendsapi.velox.Validator
+import io.glutenproject.backendsapi.velox.ValidatorApiImpl
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.exec.ExecutionCtxs
 import io.glutenproject.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
@@ -91,7 +91,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
   }
 
   private def validateSchema(schema: StructType): Boolean = {
-    new Validator().doSchemaValidate(schema)
+    new ValidatorApiImpl().doSchemaValidate(schema)
   }
 
   override def supportsColumnarInput(schema: Seq[Attribute]): Boolean = {

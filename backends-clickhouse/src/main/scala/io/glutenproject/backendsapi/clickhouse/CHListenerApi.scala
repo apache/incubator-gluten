@@ -17,29 +17,31 @@
 package io.glutenproject.backendsapi.clickhouse
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.ContextApi
+import io.glutenproject.backendsapi.ListenerApi
 import io.glutenproject.execution.CHBroadcastBuildSideCache
-import io.glutenproject.execution.datasource.GlutenOrcWriterInjects
-import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
-import io.glutenproject.execution.datasource.GlutenRowSplitter
+import io.glutenproject.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
 import io.glutenproject.expression.UDFMappings
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, JniLibLoader}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
-import org.apache.spark.rpc.GlutenDriverEndpoint
-import org.apache.spark.sql.execution.datasources.v1.CHOrcWriterInjects
-import org.apache.spark.sql.execution.datasources.v1.CHParquetWriterInjects
-import org.apache.spark.sql.execution.datasources.v1.CHRowSplitter
+import org.apache.spark.sql.execution.datasources.v1.{CHOrcWriterInjects, CHParquetWriterInjects, CHRowSplitter}
 
 import org.apache.commons.lang3.StringUtils
 
-import java.util
 import java.util.TimeZone
 
-class CHContextApi extends ContextApi with Logging {
+class CHListenerApi extends ListenerApi with Logging {
 
-  override def initialize(conf: SparkConf, isDriver: Boolean = true): Unit = {
+  override def onDriverStart(conf: SparkConf): Unit = initialize(conf, isDriver = true)
+
+  override def onDriverShutdown(): Unit = shutdown()
+
+  override def onExecutorStart(conf: SparkConf): Unit = initialize(conf, isDriver = false)
+
+  override def onExecutorShutdown(): Unit = shutdown()
+
+  private def initialize(conf: SparkConf, isDriver: Boolean): Unit = {
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isBlank(libPath)) {
       throw new IllegalArgumentException(
@@ -67,36 +69,15 @@ class CHContextApi extends ContextApi with Logging {
     initKernel.initNative(conf)
 
     // inject backend-specific implementations to override spark classes
+    // FIXME: The following set instances twice in local mode?
     GlutenParquetWriterInjects.setInstance(new CHParquetWriterInjects())
     GlutenOrcWriterInjects.setInstance(new CHOrcWriterInjects())
     GlutenRowSplitter.setInstance(new CHRowSplitter())
   }
 
-  override def shutdown(): Unit = {
+  private def shutdown(): Unit = {
     CHBroadcastBuildSideCache.cleanAll()
     val kernel = new CHNativeExpressionEvaluator()
     kernel.finalizeNative()
-  }
-
-  override def cleanExecutionBroadcastHashtable(
-      executionId: String,
-      broadcastHashIds: util.Set[String]): Unit = {
-    if (broadcastHashIds != null) {
-      broadcastHashIds.forEach(
-        resource_id => CHBroadcastBuildSideCache.invalidateBroadcastHashtable(resource_id))
-    }
-  }
-
-  override def collectExecutionBroadcastHashTableId(
-      executionId: String,
-      buildHashTableId: String): Unit = {
-    if (executionId != null) {
-      GlutenDriverEndpoint.collectResources(executionId, buildHashTableId)
-    } else {
-      logWarning(
-        s"Can't not trace broadcast hash table data $buildHashTableId" +
-          s" because execution id is null." +
-          s" Will clean up until expire time.")
-    }
   }
 }

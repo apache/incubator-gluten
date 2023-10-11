@@ -80,8 +80,8 @@ trait BasicScanExecTransformer extends TransformSupport with SupportFormat {
   override protected def doValidateInternal(): ValidationResult = {
     val fileFormat = ConverterUtils.getFileFormat(this)
     if (
-      !BackendsApiManager.getTransformerApiInstance
-        .supportsReadFileFormat(
+      !BackendsApiManager.getSettings
+        .supportFileFormatRead(
           fileFormat,
           schema.fields,
           getPartitionSchemas.nonEmpty,

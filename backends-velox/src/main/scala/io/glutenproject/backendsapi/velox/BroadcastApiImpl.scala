@@ -14,28 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi
+package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.GlutenPlugin
+import io.glutenproject.backendsapi.BroadcastApi
 
-trait Backend {
-  def name(): String
+import java.util
 
-  def buildInfo(): GlutenPlugin.BackendBuildInfo
+class BroadcastApiImpl extends BroadcastApi {
 
-  def iteratorApi(): IteratorApi
+  override def collectExecutionBroadcastHashTableId(
+      executionId: String,
+      buildHashTableId: String): Unit =
+    super.collectExecutionBroadcastHashTableId(executionId, buildHashTableId)
 
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def listenerApi(): ListenerApi
-
-  def broadcastApi(): BroadcastApi
-
-  def settings(): BackendSettingsApi
+  override def cleanExecutionBroadcastHashtable(
+      executionId: String,
+      broadcastHashIds: util.Set[String]): Unit =
+    super.cleanExecutionBroadcastHashtable(executionId, broadcastHashIds)
 }

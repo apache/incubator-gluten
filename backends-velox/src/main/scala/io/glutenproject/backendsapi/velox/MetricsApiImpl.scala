@@ -27,7 +27,7 @@ import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
 import java.{lang, util}
 
-class MetricsHandler extends MetricsApi with Logging {
+class MetricsApiImpl extends MetricsApi with Logging {
   override def metricsUpdatingFunction(
       child: SparkPlan,
       relMap: util.HashMap[lang.Long, util.ArrayList[lang.Long]],

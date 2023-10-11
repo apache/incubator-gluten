@@ -21,20 +21,6 @@
 
   <profiles>
     <profile>
-      <id>rss</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <dependencies>
-        <dependency>
-          <groupId>io.glutenproject</groupId>
-          <artifactId>gluten-celeborn-velox</artifactId>
-          <version>${project.version}</version>
-          <scope>compile</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
       <id>udf</id>
       <activation>
         <activeByDefault>true</activeByDefault>

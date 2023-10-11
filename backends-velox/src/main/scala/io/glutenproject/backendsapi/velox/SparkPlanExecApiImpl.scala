@@ -58,7 +58,7 @@ import javax.ws.rs.core.UriBuilder
 
 import scala.collection.mutable.ArrayBuffer
 
-class SparkPlanExecHandler extends SparkPlanExecApi {
+class SparkPlanExecApiImpl extends SparkPlanExecApi {
 
   /**
    * Transform GetArrayItem to Substrait.

@@ -64,7 +64,7 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
     }
   }
 
-  def isFallback(plan: SparkPlan): Boolean = {
+  def hasFallbacks(plan: SparkPlan): Boolean = {
     var fallbackOperator: Seq[SparkPlan] = null
     if (plan.isInstanceOf[AdaptiveSparkPlanExec]) {
       fallbackOperator = collectWithSubqueries(plan) {

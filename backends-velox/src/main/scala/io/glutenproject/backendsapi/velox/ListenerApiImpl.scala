@@ -17,28 +17,41 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.ContextApi
-import io.glutenproject.backendsapi.velox.ContextInitializer.initializeNative
+import io.glutenproject.backendsapi.ListenerApi
+import io.glutenproject.backendsapi.velox.ListenerApiImpl.initializeNative
 import io.glutenproject.exception.GlutenException
-import io.glutenproject.execution.datasource.GlutenOrcWriterInjects
-import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
-import io.glutenproject.execution.datasource.GlutenRowSplitter
+import io.glutenproject.execution.datasource.{GlutenOrcWriterInjects, GlutenParquetWriterInjects, GlutenRowSplitter}
 import io.glutenproject.expression.UDFMappings
 import io.glutenproject.init.NativeBackendInitializer
 import io.glutenproject.utils._
 import io.glutenproject.vectorized.{JniLibLoader, JniWorkspace}
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.datasources.velox.VeloxOrcWriterInjects
-import org.apache.spark.sql.execution.datasources.velox.VeloxParquetWriterInjects
-import org.apache.spark.sql.execution.datasources.velox.VeloxRowSplitter
-import org.apache.spark.util.TaskResource
+import org.apache.spark.sql.execution.datasources.velox.{VeloxOrcWriterInjects, VeloxParquetWriterInjects, VeloxRowSplitter}
+import org.apache.spark.sql.internal.StaticSQLConf
 
 import org.apache.commons.lang3.StringUtils
 
 import scala.sys.process._
 
-class ContextInitializer extends ContextApi {
+class ListenerApiImpl extends ListenerApi {
+
+  override def onDriverStart(conf: SparkConf): Unit = {
+    // sql table cache serializer
+    if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = true)) {
+      conf.set(
+        StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
+        "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
+    }
+    initialize(conf)
+  }
+
+  override def onDriverShutdown(): Unit = shutdown()
+
+  override def onExecutorStart(conf: SparkConf): Unit = initialize(conf)
+
+  override def onExecutorShutdown(): Unit = shutdown()
+
   private def loadLibFromJar(load: JniLibLoader): Unit = {
     val system = "cat /etc/os-release".!!
     val systemNamePattern = "^NAME=\"?(.*)\"?".r
@@ -101,9 +114,7 @@ class ContextInitializer extends ContextApi {
       .commit()
   }
 
-  override def taskResourceFactories(): Seq[() => TaskResource] = Seq.empty
-
-  override def initialize(conf: SparkConf, isDriver: Boolean = true): Unit = {
+  private def initialize(conf: SparkConf): Unit = {
     val workspace = JniWorkspace.getDefault
     val loader = workspace.libLoader
 
@@ -128,22 +139,23 @@ class ContextInitializer extends ContextApi {
     }
     val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
     loader.mapAndLoad(baseLibName, false)
-    loader.mapAndLoad(GlutenConfig.GLUTEN_VELOX_BACKEND, false)
+    loader.mapAndLoad(VeloxBackend.BACKEND_NAME, false)
 
     initializeNative(conf.getAll.toMap)
 
     // inject backend-specific implementations to override spark classes
+    // FIXME: The following set instances twice in local mode?
     GlutenParquetWriterInjects.setInstance(new VeloxParquetWriterInjects())
     GlutenOrcWriterInjects.setInstance(new VeloxOrcWriterInjects())
     GlutenRowSplitter.setInstance(new VeloxRowSplitter())
   }
 
-  override def shutdown(): Unit = {
+  private def shutdown(): Unit = {
     // TODO shutdown implementation in velox to release resources
   }
 }
 
-object ContextInitializer {
+object ListenerApiImpl {
   // Spark DriverPlugin/ExecutorPlugin will only invoke ContextInitializer#initialize method once
   // in its init method.
   // In cluster mode, ContextInitializer#initialize only will be invoked in different JVM.

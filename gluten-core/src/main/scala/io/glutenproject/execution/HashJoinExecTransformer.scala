@@ -440,7 +440,7 @@ abstract class BroadcastHashJoinExecTransformer(
       BroadCastHashJoinContext(buildKeyExprs, joinType, buildPlan.output, buildHashTableId)
 
     val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-    BackendsApiManager.getContextApiInstance
+    BackendsApiManager.getBroadcastApiInstance
       .collectExecutionBroadcastHashTableId(executionId, context.buildHashTableId)
 
     val buildRDD = if (streamedRDD.isEmpty) {

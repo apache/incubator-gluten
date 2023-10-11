@@ -14,28 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi
+package io.glutenproject.utils
 
-import io.glutenproject.GlutenPlugin
+import io.glutenproject.backendsapi.BackendsApiManager
 
-trait Backend {
-  def name(): String
+// FIXME: We mixed the use of "Utils" and "Util" in utility class naming
+// FIXME: The utility methods "is...BackendLoaded" stands because we rely
+//  on legacy backend-specific code in UTs. The new usages of the methods should
+//  be better avoided. We'd remove them until the time is ripe.
+object BackendTestUtils {
+  def isVeloxBackendLoaded(): Boolean = {
+    BackendsApiManager.getBackendName == "velox" // the same with VeloxBackend.BACKEND_NAME
+  }
 
-  def buildInfo(): GlutenPlugin.BackendBuildInfo
-
-  def iteratorApi(): IteratorApi
-
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def listenerApi(): ListenerApi
-
-  def broadcastApi(): BroadcastApi
-
-  def settings(): BackendSettingsApi
+  def isCHBackendLoaded(): Boolean = {
+    BackendsApiManager.getBackendName == "ch" // the same with CHBackend.BACKEND_NAME
+  }
 }

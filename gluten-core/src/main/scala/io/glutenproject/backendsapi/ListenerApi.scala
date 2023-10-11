@@ -16,26 +16,11 @@
  */
 package io.glutenproject.backendsapi
 
-import io.glutenproject.GlutenPlugin
+import org.apache.spark.SparkConf
 
-trait Backend {
-  def name(): String
-
-  def buildInfo(): GlutenPlugin.BackendBuildInfo
-
-  def iteratorApi(): IteratorApi
-
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def listenerApi(): ListenerApi
-
-  def broadcastApi(): BroadcastApi
-
-  def settings(): BackendSettingsApi
+trait ListenerApi {
+  def onDriverStart(conf: SparkConf): Unit = {}
+  def onDriverShutdown(): Unit = {}
+  def onExecutorStart(conf: SparkConf): Unit = {}
+  def onExecutorShutdown(): Unit = {}
 }

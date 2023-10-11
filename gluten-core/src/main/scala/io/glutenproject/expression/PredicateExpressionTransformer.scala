@@ -23,8 +23,6 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
-import com.google.common.collect.Lists
-
 import scala.collection.JavaConverters._
 
 case class InTransformer(
@@ -90,12 +88,11 @@ case class LikeTransformer(
 
     // CH backend does not support escapeChar, so skip it here.
     val expressionNodes =
-      if (BackendsApiManager.isCHBackend) {
-        Lists.newArrayList(leftNode, rightNode)
-      } else {
-        Lists.newArrayList(leftNode, rightNode, escapeCharNode)
-      }
+      BackendsApiManager.getTransformerApiInstance.createLikeParamList(
+        leftNode,
+        rightNode,
+        escapeCharNode)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
-    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes.toList.asJava, typeNode)
   }
 }

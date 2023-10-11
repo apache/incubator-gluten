@@ -196,10 +196,8 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
       sparkSession: SparkSession,
       parameters: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
-    if (
-      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))
-      && GlutenConfig.isCurrentBackendVelox && false
-    ) {
+    // why if (false)? Such code requires comments when being written
+    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable")) && false) {
       GlutenParquetWriterInjects.getInstance().inferSchema(sparkSession, parameters, files)
     } else { // including vanilla spark case and CH backend case
       ParquetUtils.inferSchema(sparkSession, parameters, files)

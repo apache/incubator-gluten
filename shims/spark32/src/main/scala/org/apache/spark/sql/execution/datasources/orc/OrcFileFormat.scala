@@ -82,10 +82,8 @@ class OrcFileFormat extends FileFormat with DataSourceRegister with Serializable
       sparkSession: SparkSession,
       options: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
-    if (
-      "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))
-      && GlutenConfig.isCurrentBackendVelox && false
-    ) {
+    // why if (false)? Such code requires comments when being written
+    if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable")) && false) {
       GlutenOrcWriterInjects
         .getInstance()
         .inferSchema(sparkSession, Map.empty[String, String], files)

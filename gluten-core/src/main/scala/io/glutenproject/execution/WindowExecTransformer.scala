@@ -69,7 +69,7 @@ case class WindowExecTransformer(
   }
 
   override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
-    if (BackendsApiManager.isVeloxBackend) {
+    if (BackendsApiManager.getSettings.requiredChildOrderingForWindow()) {
       // We still need to do sort for columnar window, see `FLAGS_SkipRowSortInWindowOp`
       Seq(partitionSpec.map(SortOrder(_, Ascending)) ++ orderSpec)
     } else {

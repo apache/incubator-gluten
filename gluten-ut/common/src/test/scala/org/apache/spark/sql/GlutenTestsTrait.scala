@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.ProjectExecTransformer
 import io.glutenproject.test.TestStats
-import io.glutenproject.utils.SystemParameters
+import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.sql.GlutenQueryTest.isNaNOrInf
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
@@ -107,7 +107,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         // Avoid the code size overflow error in Spark code generation.
         .config("spark.sql.codegen.wholeStage", "false")
 
-      _spark = if (BackendsApiManager.isCHBackend) {
+      _spark = if (BackendTestUtils.isCHBackendLoaded()) {
         sparkBuilder
           .config("spark.io.compression.codec", "LZ4")
           .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
@@ -293,7 +293,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
   def shouldNotFallback(): Unit = {
     TestStats.offloadGluten = false
-    if (BackendsApiManager.getBackendName != GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND) {
+    if (BackendTestUtils.isCHBackendLoaded()) {
       return
     }
 

@@ -104,11 +104,7 @@ class FileSourceScanExecTransformer(
   override def getDataSchemas: StructType = relation.dataSchema
 
   override def getInputFilePaths: Seq[String] = {
-    if (BackendsApiManager.isVeloxBackend) {
-      Seq.empty[String]
-    } else {
-      relation.location.inputFiles.toSeq
-    }
+    relation.location.inputFiles.toSeq
   }
 
   override def equals(other: Any): Boolean = other match {

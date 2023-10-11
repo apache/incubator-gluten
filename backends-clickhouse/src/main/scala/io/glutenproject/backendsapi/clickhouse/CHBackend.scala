@@ -16,7 +16,7 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.GlutenConfig
+import io.glutenproject.{CH_BRANCH, CH_COMMIT, GlutenConfig, GlutenPlugin}
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -35,14 +35,21 @@ import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends Backend {
-  override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
-  override def contextApi(): ContextApi = new CHContextApi
+  override def name(): String = CHBackend.BACKEND_NAME
+  override def buildInfo(): GlutenPlugin.BackendBuildInfo =
+    GlutenPlugin.BackendBuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
   override def validatorApi(): ValidatorApi = new CHValidatorApi
   override def metricsApi(): MetricsApi = new CHMetricsApi
+  override def listenerApi(): ListenerApi = new CHListenerApi
+  override def broadcastApi(): BroadcastApi = new CHBroadcastApi
   override def settings(): BackendSettingsApi = CHBackendSettings
+}
+
+object CHBackend {
+  val BACKEND_NAME = "ch"
 }
 
 object CHBackendSettings extends BackendSettingsApi with Logging {
@@ -53,12 +60,12 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   // experimental: when the files count per partition exceeds this threshold,
   // it will put the files into one partition.
   val GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD: String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".files.per.partition.threshold"
   val GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD_DEFAULT = "-1"
 
   private val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE: String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".customized.shuffle.codec.enable"
   private val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT = false
   lazy val useCustomizedShuffleCodec: Boolean = SparkEnv.get.conf.getBoolean(
@@ -67,7 +74,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   )
 
   private val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE: String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".customized.buffer.size"
   private val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT = 4096
   lazy val customizeBufferSize: Int = SparkEnv.get.conf.getInt(
@@ -76,7 +83,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   )
 
   val GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME: String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".broadcast.cache.expired.time"
   // unit: SECONDS, default 1 day
   val GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME_DEFAULT: Int = 86400
@@ -178,7 +185,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
 
   /** Get the config prefix for each backend */
   override def getBackendConfigPrefix: String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME
 
   override def shuffleSupportedCodec(): Set[String] = GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
   override def needOutputSchemaForPlan(): Boolean = true

@@ -50,7 +50,7 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class IteratorHandler extends IteratorApi with Logging {
+class IteratorApiImpl extends IteratorApi with Logging {
 
   /**
    * Generate native row partition.
