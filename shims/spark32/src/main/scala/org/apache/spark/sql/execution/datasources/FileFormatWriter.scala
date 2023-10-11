@@ -122,8 +122,11 @@ object FileFormatWriter extends Logging {
 
     val nativeEnabled =
       "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))
+    val isVeloxBackend =
+      "true".equals(sparkSession.sparkContext.getLocalProperty("isVeloxBackend"))
 
     if (nativeEnabled) {
+      logInfo("Use Gluten partition write for hive")
       assert(plan.isInstanceOf[IFakeRowAdaptor])
     }
 
@@ -142,7 +145,14 @@ object FileFormatWriter extends Logging {
         Alias(Empty2Null(p), p.name)()
       case attr => attr
     }
-    val empty2NullPlan = if (needConvert) ProjectExec(projectList, plan) else plan
+
+    val empty2NullPlan = if (isVeloxBackend && nativeEnabled) {
+      // Velox backend only support static partition write.
+      // And no need to add sort operator for static partition write.
+      plan
+    } else {
+      if (needConvert) ProjectExec(projectList, plan) else plan
+    }
 
     val bucketIdExpression = bucketSpec.map {
       spec =>
@@ -228,7 +238,7 @@ object FileFormatWriter extends Logging {
 
     try {
       val (rdd, concurrentOutputWriterSpec) = if (orderingMatched) {
-        if (!nativeEnabled) {
+        if (!nativeEnabled || (isVeloxBackend && nativeEnabled)) {
           (empty2NullPlan.execute(), None)
         } else {
           nativeWrap(empty2NullPlan)
@@ -256,10 +266,15 @@ object FileFormatWriter extends Logging {
             empty2NullPlan.execute(),
             Some(ConcurrentOutputWriterSpec(maxWriters, () => sortPlan.createSorter())))
         } else {
-          if (!nativeEnabled) {
-            (sortPlan.execute(), None)
+          if (isVeloxBackend && nativeEnabled) {
+            // remove the sort operator for static partition write.
+            (empty2NullPlan.execute(), None)
           } else {
-            nativeWrap(sortPlan)
+            if (!nativeEnabled) {
+              (sortPlan.execute(), None)
+            } else {
+              nativeWrap(sortPlan)
+            }
           }
         }
       }

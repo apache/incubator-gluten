@@ -87,7 +87,6 @@ object GlutenWriterColumnarRules {
   //  2. support detect partition value, partition path, bucket value, bucket path at native side,
   //     see `BaseDynamicPartitionDataWriter`
   def getNativeFormat(cmd: DataWritingCommand): Option[String] = {
-
     val parquetHiveFormat = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
     val orcHiveFormat = "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"
 
@@ -112,7 +111,15 @@ object GlutenWriterColumnarRules {
             command.fileFormat.isInstanceOf[OrcFileFormat] =>
         if (
           BackendsApiManager.isVeloxBackend
-          && (command.partitionColumns.nonEmpty || command.bucketSpec.nonEmpty)
+          && command.partitionColumns.nonEmpty &&
+          command.staticPartitions.size < command.partitionColumns.size
+        ) {
+          return None
+        }
+
+        if (
+          BackendsApiManager.isVeloxBackend
+          && command.bucketSpec.nonEmpty
         ) {
           return None
         }
@@ -151,6 +158,9 @@ object GlutenWriterColumnarRules {
     override def apply(p: SparkPlan): SparkPlan = p match {
       case rc @ DataWritingCommandExec(cmd, child) =>
         val format = getNativeFormat(cmd)
+        session.sparkContext.setLocalProperty(
+          "isVeloxBackend",
+          BackendsApiManager.isVeloxBackend.toString)
         session.sparkContext.setLocalProperty("isNativeAppliable", format.isDefined.toString)
         session.sparkContext.setLocalProperty("nativeFormat", format.getOrElse(""))
         if (format.isDefined) {
