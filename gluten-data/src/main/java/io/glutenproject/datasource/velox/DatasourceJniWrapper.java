@@ -22,6 +22,8 @@ import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniUtils;
 import io.glutenproject.vectorized.ColumnarBatchInIterator;
 
+import org.apache.spark.sql.execution.datasources.BlockStripes;
+
 import java.util.Map;
 
 /** The jni file is at `cpp/core/jni/JniWrapper.cc` */
@@ -56,4 +58,7 @@ public class DatasourceJniWrapper implements ExecutionCtxAware {
   public native void close(long dsHandle);
 
   public native void write(long dsHandle, ColumnarBatchInIterator iterator);
+
+  public native BlockStripes splitBlockByPartitionAndBucket(
+      long blockAddress, int[] partitionColIndice, boolean hasBucket, long memoryManagerId);
 }

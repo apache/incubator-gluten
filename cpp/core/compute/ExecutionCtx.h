@@ -144,6 +144,18 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
   virtual std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(ResourceHandle) = 0;
   virtual void releaseColumnarBatchSerializer(ResourceHandle) = 0;
 
+  virtual std::shared_ptr<ColumnarBatch> getNonPartitionedColumnarBatch(
+      std::shared_ptr<ColumnarBatch> cb,
+      std::vector<size_t> partitionColIndiceVec,
+      MemoryManager* memoryManager,
+      char*& rowBytes) {
+    throw GlutenException("Not implement getNonPartitionedColumnarBatch");
+  }
+
+  virtual int32_t getColumnarBatchPerRowSize(std::shared_ptr<ColumnarBatch> cb) {
+    throw GlutenException("Not implement getNonPartitionedColumnarBatch");
+  }
+
   std::unordered_map<std::string, std::string> getConfMap() {
     return confMap_;
   }

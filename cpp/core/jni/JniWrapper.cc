@@ -75,6 +75,9 @@ static jmethodID shuffleReaderMetricsSetDecompressTime;
 static jmethodID shuffleReaderMetricsSetIpcTime;
 static jmethodID shuffleReaderMetricsSetDeserializeTime;
 
+static jclass block_stripes_class;
+static jmethodID block_stripes_constructor;
+
 class JavaInputStreamAdaptor final : public arrow::io::InputStream {
  public:
   JavaInputStreamAdaptor(JNIEnv* env, arrow::MemoryPool* pool, jobject jniIn) : pool_(pool) {
@@ -285,6 +288,10 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   shuffleReaderMetricsSetDeserializeTime =
       getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", "(J)V");
 
+  block_stripes_class =
+      createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
+  block_stripes_constructor = env->GetMethodID(block_stripes_class, "<init>", "(J[J[II[B)V");
+
   return jniVersion;
 }
 
@@ -299,6 +306,8 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
   env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
   env->DeleteGlobalRef(byteArrayClass);
   env->DeleteGlobalRef(shuffleReaderMetricsClass);
+  env->DeleteGlobalRef(block_stripes_class);
+
   gluten::getJniErrorState()->close();
   gluten::getJniCommonState()->close();
 }
@@ -1113,6 +1122,53 @@ JNIEXPORT void JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapp
     datasource->write(batch);
   }
   JNI_METHOD_END()
+}
+
+JNIEXPORT jobject JNICALL
+Java_io_glutenproject_datasource_velox_DatasourceJniWrapper_splitBlockByPartitionAndBucket( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong batchAddress,
+    jintArray partitionColIndice,
+    jboolean hasBucket,
+    jlong memoryManagerId) {
+  JNI_METHOD_START
+  auto ctx = gluten::getExecutionCtx(env, wrapper);
+  auto batch = ctx->getBatch(batchAddress);
+  int* pIndice = env->GetIntArrayElements(partitionColIndice, nullptr);
+  int size = env->GetArrayLength(partitionColIndice);
+  std::vector<size_t> partitionColIndiceVec;
+  for (int i = 0; i < size; ++i) {
+    partitionColIndiceVec.push_back(pIndice[i]);
+  }
+  env->ReleaseIntArrayElements(partitionColIndice, pIndice, JNI_ABORT);
+
+  size = ctx->getColumnarBatchPerRowSize(batch);
+  MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
+  char* rowBytes = new char[size];
+  auto newBatch = ctx->getNonPartitionedColumnarBatch(batch, partitionColIndiceVec, memoryManager, rowBytes);
+  auto batchHandler = ctx->addBatch(newBatch);
+
+  jbyteArray bytesArray = env->NewByteArray(size);
+  env->SetByteArrayRegion(bytesArray, 0, size, reinterpret_cast<jbyte*>(rowBytes));
+  delete[] rowBytes;
+
+  jlongArray batchArray = env->NewLongArray(1);
+  long* cBatchArray = new long[1];
+  cBatchArray[0] = batchHandler;
+  env->SetLongArrayRegion(batchArray, 0, 1, cBatchArray);
+  delete[] cBatchArray;
+
+  jobject block_stripes = env->NewObject(
+      block_stripes_class,
+      block_stripes_constructor,
+      batchAddress,
+      batchArray,
+      nullptr,
+      batch->numColumns(),
+      bytesArray);
+  return block_stripes;
+  JNI_METHOD_END(nullptr)
 }
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator_getAllocator( // NOLINT
