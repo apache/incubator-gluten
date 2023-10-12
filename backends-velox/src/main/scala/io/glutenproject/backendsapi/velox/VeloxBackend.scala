@@ -312,10 +312,14 @@ object BackendSettings extends BackendSettingsApi {
   override def skipNativeCtas(ctas: CreateDataSourceTableAsSelectCommand): Boolean = true
 
   override def skipNativeInsertInto(insertInto: InsertIntoHadoopFsRelationCommand): Boolean = {
-    insertInto.partitionColumns.nonEmpty && insertInto.staticPartitions.size < insertInto.partitionColumns.size || insertInto.bucketSpec.nonEmpty
+    insertInto.partitionColumns.nonEmpty &&
+    insertInto.staticPartitions.size < insertInto.partitionColumns.size ||
+    insertInto.bucketSpec.nonEmpty
   }
 
   override def alwaysFailOnMapExpression(): Boolean = true
 
   override def requiredChildOrderingForWindow(): Boolean = true
+
+  override def staticPartitionWriteOnly(): Boolean = true
 }

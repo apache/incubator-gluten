@@ -24,7 +24,7 @@ import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructT
 
 import scala.collection.JavaConverters
 
-class TestOperator extends WholeStageTransformerSuite {
+class TestOperator extends VeloxWholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"

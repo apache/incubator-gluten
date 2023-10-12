@@ -19,7 +19,7 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 
-abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
+abstract class VeloxTPCHSuite extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"

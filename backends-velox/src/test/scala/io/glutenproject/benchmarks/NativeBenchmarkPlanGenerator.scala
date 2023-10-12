@@ -16,7 +16,7 @@
  */
 package io.glutenproject.benchmarks
 
-import io.glutenproject.execution.{WholeStageTransformer, WholeStageTransformerSuite}
+import io.glutenproject.execution.{VeloxWholeStageTransformerSuite, WholeStageTransformer}
 
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.internal.SQLConf
@@ -32,7 +32,7 @@ import scala.collection.JavaConverters._
 
 object GenerateExample extends Tag("io.glutenproject.tags.GenerateExample")
 
-class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
+class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"

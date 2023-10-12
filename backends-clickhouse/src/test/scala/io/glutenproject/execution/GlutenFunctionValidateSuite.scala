@@ -30,7 +30,7 @@ import java.sql.Date
 
 import scala.collection.immutable.Seq
 
-class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
+class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerSuite {
   override protected val resourcePath: String = {
     "../../../../gluten-core/src/test/resources/tpch-data"
   }

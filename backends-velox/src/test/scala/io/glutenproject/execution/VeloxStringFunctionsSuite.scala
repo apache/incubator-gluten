@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StringType
 
-class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
+class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"

@@ -20,7 +20,7 @@ import org.apache.spark.SparkConf
 
 import java.io.File
 
-class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
+class VeloxDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/data-type-validation-data"

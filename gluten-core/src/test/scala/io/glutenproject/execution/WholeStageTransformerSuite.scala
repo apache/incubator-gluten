@@ -27,6 +27,7 @@ import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{DoubleType, StructType}
 
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.io.Source
 import scala.reflect.ClassTag
@@ -39,6 +40,13 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   protected val logLevel: String = "WARN"
 
   protected var TPCHTables: Map[String, DataFrame] = _
+
+  private val isFallbackCheckDisabled0 = new AtomicBoolean(false)
+
+  final protected def disableFallbackCheck: Boolean =
+    isFallbackCheckDisabled0.compareAndSet(false, true)
+
+  private def isFallbackCheckDisabled = isFallbackCheckDisabled0.get()
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -154,8 +162,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     } else {
       df.collect()
     }
-    if (noFallBack) {
-      WholeStageTransformerSuite.checkFallBack(df)
+    if (!isFallbackCheckDisabled) {
+      WholeStageTransformerSuite.checkFallBack(df, noFallBack)
     }
     customCheck(df)
   }
@@ -164,8 +172,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       customCheck: DataFrame => Unit): Seq[Row] = {
     val df = spark.sql(sql)
     val result = df.collect()
-    if (noFallBack) {
-      WholeStageTransformerSuite.checkFallBack(df)
+    if (!isFallbackCheckDisabled) {
+      WholeStageTransformerSuite.checkFallBack(df, noFallBack)
     }
     customCheck(df)
     result
@@ -265,8 +273,8 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
         df.unpersist()
       }
     }
-    if (noFallBack) {
-      WholeStageTransformerSuite.checkFallBack(df)
+    if (!isFallbackCheckDisabled) {
+      WholeStageTransformerSuite.checkFallBack(df, noFallBack)
     }
     customCheck(df)
     df

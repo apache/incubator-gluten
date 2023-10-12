@@ -107,4 +107,6 @@ trait BackendSettingsApi {
   def alwaysFailOnMapExpression(): Boolean = false
 
   def requiredChildOrderingForWindow(): Boolean = false
+
+  def staticPartitionWriteOnly(): Boolean = false
 }

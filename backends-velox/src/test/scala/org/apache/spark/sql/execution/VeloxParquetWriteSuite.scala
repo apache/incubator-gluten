@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.WholeStageTransformerSuite
+import io.glutenproject.execution.VeloxWholeStageTransformerSuite
 import io.glutenproject.utils.FallbackUtil
 
 import org.apache.spark.SparkConf
@@ -24,7 +24,7 @@ import org.apache.spark.sql.functions.lit
 
 import org.junit.Assert
 
-class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
+class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"

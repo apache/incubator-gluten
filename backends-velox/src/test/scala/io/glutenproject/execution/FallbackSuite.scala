@@ -22,7 +22,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec}
 
-class FallbackSuite extends WholeStageTransformerSuite with AdaptiveSparkPlanHelper {
+class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"

@@ -16,6 +16,4 @@
  */
 package io.glutenproject.execution
 
-abstract class VeloxWholeStageTransformerSuite extends WholeStageTransformerSuite {
-  disableFallbackCheck
-}
+abstract class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSuite {}

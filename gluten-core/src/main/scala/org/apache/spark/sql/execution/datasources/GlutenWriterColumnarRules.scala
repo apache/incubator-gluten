@@ -148,8 +148,8 @@ object GlutenWriterColumnarRules {
       case rc @ DataWritingCommandExec(cmd, child) =>
         val format = getNativeFormat(cmd)
         session.sparkContext.setLocalProperty(
-          "isVeloxBackend",
-          BackendsApiManager.isVeloxBackend.toString)
+          "staticPartitionWriteOnly",
+          BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
         session.sparkContext.setLocalProperty("isNativeAppliable", format.isDefined.toString)
         session.sparkContext.setLocalProperty("nativeFormat", format.getOrElse(""))
         if (format.isDefined) {
