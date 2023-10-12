@@ -112,7 +112,7 @@ class FallbackStrategiesSuite extends GlutenSQLTestsTrait {
     }
   }
 
-  test("Fall back the whole plan if disabled gluten by thread") {
+  test("test enabling/disabling Gluten at thread level") {
     spark.sql("create table fallback_by_thread_config (a int) using parquet")
     spark.sql("insert overwrite fallback_by_thread_config select id as a from range(3)")
     val sql =

@@ -68,4 +68,14 @@ Additionally, you can control the configurations of gluten at thread level by lo
 
 | Parameters                                              | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Recommend Setting                                    |
 |---------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
-| gluten.enabledForCurrentThread                          | Control the usage of gluten at thread level.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | true                                                 |
+| gluten.enabledForCurrentThread                          | Control the usage of gluten at thread level.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | true                                                 |
+
+Below is an example of developing an application using scala to set local properties.
+
+```
+##### Before executing the query, set local properties
+
+sparkContext.setLocalProperty(key, value)
+spark.sql("select * from demo_tables").show()
+######
+```
