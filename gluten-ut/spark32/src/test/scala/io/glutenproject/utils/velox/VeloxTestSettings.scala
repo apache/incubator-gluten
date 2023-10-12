@@ -129,7 +129,9 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-34165: Add count_distinct to summary",
       // Result depends on the implementation for nondeterministic expression rand.
       // Not really an issue.
-      "SPARK-9083: sort with non-deterministic expressions"
+      "SPARK-9083: sort with non-deterministic expressions",
+      // Unsupported case: GLUTEN-3245
+      "SPARK-8608: call `show` on local DataFrame with random columns should return same value"
     )
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]
