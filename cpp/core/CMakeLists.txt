@@ -213,8 +213,8 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         compute/shuffle/PartitionWriterCreator.cc
         compute/shuffle/LocalPartitionWriter.cc
         compute/shuffle/ShuffleJniWrapper.cc
-        shuffle/rss/RemotePartitionWriter.cc
-        shuffle/rss/CelebornPartitionWriter.cc
+        compute/shuffle/rss/RemotePartitionWriter.cc
+        compute/shuffle/rss/CelebornPartitionWriter.cc
         compute/shuffle/Utils.cc
         utils/Compression.cc
         utils/DebugOut.cc
