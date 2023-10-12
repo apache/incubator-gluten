@@ -17,7 +17,7 @@
 #pragma once
 
 #include "compute/ExecutionCtx.h"
-#include "memory/ColumnarBatchIterator.h"
+#include "compute/batch/ColumnarBatchIterator.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"

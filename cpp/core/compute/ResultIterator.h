@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "memory/ColumnarBatch.h"
-#include "memory/ColumnarBatchIterator.h"
+#include "compute/batch/ColumnarBatch.h"
+#include "compute/batch/ColumnarBatchIterator.h"
 #include "utils/metrics.h"
 
 namespace gluten {

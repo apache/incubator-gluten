@@ -25,10 +25,10 @@
 #include <arrow/util/io_util.h>
 #include <iostream>
 
+#include "compute/shuffle/LocalPartitionWriter.h"
+#include "compute/shuffle/Utils.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
-#include "shuffle/LocalPartitionWriter.h"
-#include "shuffle/Utils.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/CelebornPartitionWriter.h"

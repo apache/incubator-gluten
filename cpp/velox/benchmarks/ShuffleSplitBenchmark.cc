@@ -29,8 +29,8 @@
 #include <chrono>
 
 #include "benchmarks/BenchmarkUtils.h"
-#include "memory/ColumnarBatch.h"
-#include "shuffle/LocalPartitionWriter.h"
+#include "compute/batch/ColumnarBatch.h"
+#include "compute/shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"

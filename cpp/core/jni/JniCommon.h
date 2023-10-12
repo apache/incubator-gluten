@@ -134,6 +134,44 @@ class JniCommonState {
 
   jmethodID executionCtxAwareCtxHandle();
 
+  jclass serializableObjBuilderClass = nullptr;
+
+  jclass javaReservationListenerClass = nullptr;
+
+  jmethodID reserveMemoryMethod = nullptr;
+  jmethodID unreserveMemoryMethod = nullptr;
+
+  jclass byteArrayClass = nullptr;
+
+  jclass jniByteInputStreamClass = nullptr;
+  jmethodID jniByteInputStreamRead = nullptr;
+  jmethodID jniByteInputStreamTell = nullptr;
+  jmethodID jniByteInputStreamClose = nullptr;
+
+  jclass splitResultClass = nullptr;
+  jmethodID splitResultConstructor = nullptr;
+
+  jclass columnarBatchSerializeResultClass = nullptr;
+  jmethodID columnarBatchSerializeResultConstructor = nullptr;
+
+  jclass serializedColumnarBatchIteratorClass = nullptr;
+  jclass metricsBuilderClass = nullptr;
+  jmethodID metricsBuilderConstructor = nullptr;
+
+  jmethodID serializedColumnarBatchIteratorHasNext = nullptr;
+  jmethodID serializedColumnarBatchIteratorNext = nullptr;
+
+  jclass nativeColumnarToRowInfoClass = nullptr;
+  jmethodID nativeColumnarToRowInfoConstructor = nullptr;
+
+  jclass shuffleReaderMetricsClass = nullptr;
+  jmethodID shuffleReaderMetricsSetDecompressTime = nullptr;
+  jmethodID shuffleReaderMetricsSetIpcTime = nullptr;
+  jmethodID shuffleReaderMetricsSetDeserializeTime = nullptr;
+
+  jclass blockStripesClass = nullptr;
+  jmethodID blockStripesConstructor = nullptr;
+
  private:
   void initialize(JNIEnv* env);
 
@@ -153,6 +191,156 @@ inline JniCommonState* getJniCommonState() {
 
 ExecutionCtx* getExecutionCtx(JNIEnv* env, jobject executionCtxAware);
 } // namespace gluten
+
+class JavaInputStreamAdaptor final : public arrow::io::InputStream {
+ public:
+  JavaInputStreamAdaptor(JNIEnv* env, arrow::MemoryPool* pool, jobject jniIn) : pool_(pool) {
+    // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
+    if (env->GetJavaVM(&vm_) != JNI_OK) {
+      std::string errorMessage = "Unable to get JavaVM instance";
+      throw gluten::GlutenException(errorMessage);
+    }
+    jniIn_ = env->NewGlobalRef(jniIn);
+  }
+
+  ~JavaInputStreamAdaptor() override {
+    try {
+      auto status = JavaInputStreamAdaptor::Close();
+      if (!status.ok()) {
+        DEBUG_OUT << __func__ << " call JavaInputStreamAdaptor::Close() failed, status:" << status.ToString()
+                  << std::endl;
+      }
+    } catch (std::exception& e) {
+      DEBUG_OUT << __func__ << " call JavaInputStreamAdaptor::Close() got exception:" << e.what() << std::endl;
+    }
+  }
+
+  // not thread safe
+  arrow::Status Close() override {
+    if (closed_) {
+      return arrow::Status::OK();
+    }
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    env->CallVoidMethod(jniIn_, gluten::getJniCommonState()->jniByteInputStreamClose);
+    checkException(env);
+    env->DeleteGlobalRef(jniIn_);
+    vm_->DetachCurrentThread();
+    closed_ = true;
+    return arrow::Status::OK();
+  }
+
+  arrow::Result<int64_t> Tell() const override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    jlong told = env->CallLongMethod(jniIn_, gluten::getJniCommonState()->jniByteInputStreamTell);
+    checkException(env);
+    return told;
+  }
+
+  bool closed() const override {
+    return closed_;
+  }
+
+  arrow::Result<int64_t> Read(int64_t nbytes, void* out) override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    jlong read = env->CallLongMethod(
+        jniIn_, gluten::getJniCommonState()->jniByteInputStreamRead, reinterpret_cast<jlong>(out), nbytes);
+    checkException(env);
+    return read;
+  }
+
+  arrow::Result<std::shared_ptr<arrow::Buffer>> Read(int64_t nbytes) override {
+    GLUTEN_ASSIGN_OR_THROW(auto buffer, arrow::AllocateResizableBuffer(nbytes, pool_))
+    GLUTEN_ASSIGN_OR_THROW(int64_t bytes_read, Read(nbytes, buffer->mutable_data()))
+    GLUTEN_THROW_NOT_OK(buffer->Resize(bytes_read, false));
+    buffer->ZeroPadding();
+    return std::move(buffer);
+  }
+
+ private:
+  arrow::MemoryPool* pool_;
+  JavaVM* vm_;
+  jobject jniIn_;
+  bool closed_ = false;
+};
+
+class JniColumnarBatchIterator : public gluten::ColumnarBatchIterator {
+ public:
+  explicit JniColumnarBatchIterator(
+      JNIEnv* env,
+      jobject jColumnarBatchItr,
+      gluten::ExecutionCtx* executionCtx,
+      std::shared_ptr<ArrowWriter> writer)
+      : executionCtx_(executionCtx), writer_(writer) {
+    // IMPORTANT: DO NOT USE LOCAL REF IN DIFFERENT THREAD
+    if (env->GetJavaVM(&vm_) != JNI_OK) {
+      std::string errorMessage = "Unable to get JavaVM instance";
+      throw gluten::GlutenException(errorMessage);
+    }
+    jColumnarBatchItr_ = env->NewGlobalRef(jColumnarBatchItr);
+  }
+
+  // singleton
+  JniColumnarBatchIterator(const JniColumnarBatchIterator&) = delete;
+  JniColumnarBatchIterator(JniColumnarBatchIterator&&) = delete;
+  JniColumnarBatchIterator& operator=(const JniColumnarBatchIterator&) = delete;
+  JniColumnarBatchIterator& operator=(JniColumnarBatchIterator&&) = delete;
+
+  static std::unique_ptr<JniColumnarBatchIterator> makeJniColumnarBatchIterator(
+      JNIEnv* env,
+      jobject jColumnarBatchItr,
+      gluten::ExecutionCtx* executionCtx,
+      std::shared_ptr<ArrowWriter> writer) {
+    return std::make_unique<JniColumnarBatchIterator>(env, jColumnarBatchItr, executionCtx, writer);
+  }
+
+  virtual ~JniColumnarBatchIterator() {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    env->DeleteGlobalRef(jColumnarBatchItr_);
+    vm_->DetachCurrentThread();
+  }
+
+  std::shared_ptr<gluten::ColumnarBatch> next() override {
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
+    if (!env->CallBooleanMethod(
+            jColumnarBatchItr_, gluten::getJniCommonState()->serializedColumnarBatchIteratorHasNext)) {
+      checkException(env);
+      return nullptr; // stream ended
+    }
+
+    checkException(env);
+    jlong handle =
+        env->CallLongMethod(jColumnarBatchItr_, gluten::getJniCommonState()->serializedColumnarBatchIteratorNext);
+    checkException(env);
+    auto batch = executionCtx_->getBatch(handle);
+    if (writer_ != nullptr) {
+      // save snapshot of the batch to file
+      std::shared_ptr<ArrowSchema> schema = batch->exportArrowSchema();
+      std::shared_ptr<ArrowArray> array = batch->exportArrowArray();
+      auto rb = gluten::arrowGetOrThrow(arrow::ImportRecordBatch(array.get(), schema.get()));
+      GLUTEN_THROW_NOT_OK(writer_->initWriter(*(rb->schema().get())));
+      GLUTEN_THROW_NOT_OK(writer_->writeInBatches(rb));
+    }
+    return batch;
+  }
+
+ private:
+  JavaVM* vm_;
+  jobject jColumnarBatchItr_;
+  gluten::ExecutionCtx* executionCtx_;
+  std::shared_ptr<ArrowWriter> writer_;
+};
+
+template <typename T>
+T* jniCastOrThrow(gluten::ResourceHandle handle) {
+  auto instance = reinterpret_cast<T*>(handle);
+  GLUTEN_CHECK(instance != nullptr, "FATAL: resource instance should not be null.");
+  return instance;
+}
 
 // TODO: Move the static functions to namespace gluten
 

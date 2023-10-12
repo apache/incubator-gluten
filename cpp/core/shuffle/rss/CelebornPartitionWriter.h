@@ -19,10 +19,10 @@
 
 #include <arrow/io/api.h>
 
-#include "shuffle/rss/RemotePartitionWriter.h"
+#include "RemotePartitionWriter.h"
 
+#include "compute/shuffle/PartitionWriterCreator.h"
 #include "jni/JniCommon.h"
-#include "shuffle/PartitionWriterCreator.h"
 #include "utils/macros.h"
 
 namespace gluten {

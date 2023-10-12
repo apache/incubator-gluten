@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "shuffle/PartitionWriter.h"
+#include "compute/shuffle/PartitionWriter.h"
 
 namespace gluten {
 

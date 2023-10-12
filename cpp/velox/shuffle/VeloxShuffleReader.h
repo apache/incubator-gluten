@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "shuffle/ShuffleReader.h"
+#include "compute/shuffle/ShuffleReader.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
 

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "shuffle/RoundRobinPartitioner.h"
+#include "compute/shuffle/RoundRobinPartitioner.h"
 #include <gtest/gtest.h>
 #include <cstdlib>
 #include <numeric>

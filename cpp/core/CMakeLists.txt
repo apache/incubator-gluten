@@ -192,20 +192,30 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         memory/AllocationListener.cc
         memory/MemoryAllocator.cc
         memory/ArrowMemoryPool.cc
-        memory/ColumnarBatch.cc
-        operators/writer/ArrowWriter.cc
-        shuffle/ShuffleReader.cc
-        shuffle/ShuffleWriter.cc
-        shuffle/Partitioner.cc
-        shuffle/FallbackRangePartitioner.cc
-        shuffle/HashPartitioner.cc
-        shuffle/RoundRobinPartitioner.cc
-        shuffle/SinglePartPartitioner.cc
-        shuffle/PartitionWriterCreator.cc
-        shuffle/LocalPartitionWriter.cc
+        compute/batch/ColumnarBatch.cc
+        compute/batch/ColumnarBatchOutIterJniWrapper.cc
+        compute/batch/ColumnarBatchJniWrapper.cc
+        compute/r2c/RowToColumnarJniWrapper.cc
+        compute/ExecutionCtxJniWrapper.cc
+        compute/PlanEvaluatorJniWrapper.cc
+        compute/writer/DatasourceJniWrapper.cc
+        memory/MemoryJniWrapper.cc
+        compute/serializer/ColumnarBatchSerializerJniWrapper.cc
+        compute/c2r/ColumnarToRowJniWrapper.cc
+        compute/writer/ArrowWriter.cc
+        compute/shuffle/ShuffleReader.cc
+        compute/shuffle/ShuffleWriter.cc
+        compute/shuffle/Partitioner.cc
+        compute/shuffle/FallbackRangePartitioner.cc
+        compute/shuffle/HashPartitioner.cc
+        compute/shuffle/RoundRobinPartitioner.cc
+        compute/shuffle/SinglePartPartitioner.cc
+        compute/shuffle/PartitionWriterCreator.cc
+        compute/shuffle/LocalPartitionWriter.cc
+        compute/shuffle/ShuffleJniWrapper.cc
         shuffle/rss/RemotePartitionWriter.cc
         shuffle/rss/CelebornPartitionWriter.cc
-        shuffle/Utils.cc
+        compute/shuffle/Utils.cc
         utils/Compression.cc
         utils/DebugOut.cc
         utils/StringUtil.cc

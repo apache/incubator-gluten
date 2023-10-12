@@ -35,8 +35,8 @@
 
 #include "BenchmarkUtils.h"
 #include "compute/VeloxExecutionCtx.h"
+#include "compute/batch/ColumnarBatch.h"
 #include "memory/ArrowMemoryPool.h"
-#include "memory/ColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "utils/TestUtils.h"
 #include "utils/macros.h"

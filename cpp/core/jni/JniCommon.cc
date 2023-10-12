@@ -38,13 +38,68 @@ jmethodID gluten::JniCommonState::executionCtxAwareCtxHandle() {
 }
 
 void gluten::JniCommonState::initialize(JNIEnv* env) {
-  executionCtxAwareClass_ = createGlobalClassReference(env, "Lio/glutenproject/exec/ExecutionCtxAware;");
-  executionCtxAwareCtxHandle_ = getMethodIdOrError(env, executionCtxAwareClass_, "ctxHandle", "()J");
   JavaVM* vm;
   if (env->GetJavaVM(&vm) != JNI_OK) {
     throw gluten::GlutenException("Unable to get JavaVM instance");
   }
   vm_ = vm;
+
+  executionCtxAwareClass_ = createGlobalClassReference(env, "Lio/glutenproject/exec/ExecutionCtxAware;");
+  executionCtxAwareCtxHandle_ = getMethodIdOrError(env, executionCtxAwareClass_, "ctxHandle", "()J");
+  serializableObjBuilderClass =
+      createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/NativeSerializableObject;");
+
+  byteArrayClass = createGlobalClassReferenceOrError(env, "[B");
+
+  jniByteInputStreamClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/JniByteInputStream;");
+  jniByteInputStreamRead = getMethodIdOrError(env, jniByteInputStreamClass, "read", "(JJ)J");
+  jniByteInputStreamTell = getMethodIdOrError(env, jniByteInputStreamClass, "tell", "()J");
+  jniByteInputStreamClose = getMethodIdOrError(env, jniByteInputStreamClass, "close", "()V");
+
+  splitResultClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/GlutenSplitResult;");
+  splitResultConstructor = getMethodIdOrError(env, splitResultClass, "<init>", "(JJJJJJJ[J[J)V");
+
+  columnarBatchSerializeResultClass =
+      createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ColumnarBatchSerializeResult;");
+  columnarBatchSerializeResultConstructor =
+      getMethodIdOrError(env, columnarBatchSerializeResultClass, "<init>", "(J[B)V");
+
+  metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/metrics/Metrics;");
+
+  metricsBuilderConstructor =
+      getMethodIdOrError(env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+
+  serializedColumnarBatchIteratorClass =
+      createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ColumnarBatchInIterator;");
+
+  serializedColumnarBatchIteratorHasNext =
+      getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "hasNext", "()Z");
+
+  serializedColumnarBatchIteratorNext = getMethodIdOrError(env, serializedColumnarBatchIteratorClass, "next", "()J");
+
+  nativeColumnarToRowInfoClass =
+      createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/NativeColumnarToRowInfo;");
+  nativeColumnarToRowInfoConstructor = getMethodIdOrError(env, nativeColumnarToRowInfoClass, "<init>", "([I[IJ)V");
+
+  javaReservationListenerClass = createGlobalClassReference(
+      env,
+      "Lio/glutenproject/memory/nmm/"
+      "ReservationListener;");
+
+  reserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "reserve", "(J)J");
+  unreserveMemoryMethod = getMethodIdOrError(env, javaReservationListenerClass, "unreserve", "(J)J");
+
+  shuffleReaderMetricsClass =
+      createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ShuffleReaderMetrics;");
+  shuffleReaderMetricsSetDecompressTime =
+      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDecompressTime", "(J)V");
+  shuffleReaderMetricsSetIpcTime = getMethodIdOrError(env, shuffleReaderMetricsClass, "setIpcTime", "(J)V");
+  shuffleReaderMetricsSetDeserializeTime =
+      getMethodIdOrError(env, shuffleReaderMetricsClass, "setDeserializeTime", "(J)V");
+
+  blockStripesClass =
+      createGlobalClassReferenceOrError(env, "Lorg/apache/spark/sql/execution/datasources/BlockStripes;");
+  blockStripesConstructor = env->GetMethodID(blockStripesClass, "<init>", "(J[J[II[B)V");
 }
 
 void gluten::JniCommonState::close() {
@@ -55,6 +110,15 @@ void gluten::JniCommonState::close() {
   JNIEnv* env;
   attachCurrentThreadAsDaemonOrThrow(vm_, &env);
   env->DeleteGlobalRef(executionCtxAwareClass_);
+  env->DeleteGlobalRef(serializableObjBuilderClass);
+  env->DeleteGlobalRef(jniByteInputStreamClass);
+  env->DeleteGlobalRef(splitResultClass);
+  env->DeleteGlobalRef(columnarBatchSerializeResultClass);
+  env->DeleteGlobalRef(serializedColumnarBatchIteratorClass);
+  env->DeleteGlobalRef(nativeColumnarToRowInfoClass);
+  env->DeleteGlobalRef(byteArrayClass);
+  env->DeleteGlobalRef(shuffleReaderMetricsClass);
+  env->DeleteGlobalRef(blockStripesClass);
   closed_ = true;
 }
 

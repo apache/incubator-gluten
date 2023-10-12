@@ -20,7 +20,7 @@
 #include <arrow/memory_pool.h>
 #include <arrow/type.h>
 
-#include "operators/c2r/ColumnarToRow.h"
+#include "compute/c2r/ColumnarToRow.h"
 #include "velox/buffer/Buffer.h"
 #include "velox/row/UnsafeRowFast.h"
 #include "velox/vector/ComplexVector.h"

@@ -21,16 +21,16 @@
 #include <arrow/c/bridge.h>
 #include <arrow/util/range.h>
 #include <benchmark/benchmark.h>
+#include <compute/writer/ArrowWriter.h>
 #include <gflags/gflags.h>
-#include <operators/writer/ArrowWriter.h>
 
 #include "BatchStreamIterator.h"
 #include "BatchVectorIterator.h"
 #include "BenchmarkUtils.h"
 #include "compute/VeloxExecutionCtx.h"
 #include "compute/VeloxPlanConverter.h"
+#include "compute/shuffle/LocalPartitionWriter.h"
 #include "config/GlutenConfig.h"
-#include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/exception.h"

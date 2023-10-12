@@ -19,12 +19,12 @@
 
 #include "WholeStageResultIterator.h"
 #include "compute/ExecutionCtx.h"
+#include "compute/shuffle/ShuffleReader.h"
+#include "compute/shuffle/ShuffleWriter.h"
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
 #include "operators/writer/VeloxParquetDatasource.h"
-#include "shuffle/ShuffleReader.h"
-#include "shuffle/ShuffleWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "utils/ResourceMap.h"
 

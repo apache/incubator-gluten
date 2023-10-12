@@ -18,6 +18,7 @@ package io.glutenproject.memory.nmm;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
+import io.glutenproject.memory.NativeMemoryJniWrapper;
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
 
 import org.apache.spark.util.TaskResource;
@@ -45,7 +46,7 @@ public class NativeMemoryManager implements TaskResource {
     long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
     return new NativeMemoryManager(
         name,
-        create(
+        NativeMemoryJniWrapper.create(
             BackendsApiManager.getBackendName(), name, allocatorId, reservationBlockSize, listener),
         listener);
   }
@@ -55,29 +56,16 @@ public class NativeMemoryManager implements TaskResource {
   }
 
   public byte[] collectMemoryUsage() {
-    return collectMemoryUsage(nativeInstanceHandle);
+    return NativeMemoryJniWrapper.collectMemoryUsage(nativeInstanceHandle);
   }
 
   public long shrink(long size) {
-    return shrink(nativeInstanceHandle, size);
+    return NativeMemoryJniWrapper.shrink(nativeInstanceHandle, size);
   }
-
-  private static native long shrink(long memoryManagerId, long size);
-
-  private static native long create(
-      String backendType,
-      String name,
-      long allocatorId,
-      long reservationBlockSize,
-      ReservationListener listener);
-
-  private static native void release(long memoryManagerId);
-
-  private static native byte[] collectMemoryUsage(long memoryManagerId);
 
   @Override
   public void release() throws Exception {
-    release(nativeInstanceHandle);
+    NativeMemoryJniWrapper.release(nativeInstanceHandle);
     if (listener.getUsedBytes() != 0) {
       LOGGER.warn(
           name

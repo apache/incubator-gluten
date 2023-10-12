@@ -19,8 +19,8 @@
 #include "BenchmarkUtils.h"
 
 #include "compute/ResultIterator.h"
-#include "memory/ColumnarBatch.h"
-#include "memory/ColumnarBatchIterator.h"
+#include "compute/batch/ColumnarBatch.h"
+#include "compute/batch/ColumnarBatchIterator.h"
 #include "utils/DebugOut.h"
 
 #include <arrow/adapters/orc/adapter.h>

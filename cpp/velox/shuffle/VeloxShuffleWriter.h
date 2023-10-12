@@ -44,11 +44,11 @@
 #include "arrow/array/util.h"
 #include "arrow/result.h"
 
+#include "compute/shuffle/PartitionWriterCreator.h"
+#include "compute/shuffle/Partitioner.h"
+#include "compute/shuffle/ShuffleWriter.h"
+#include "compute/shuffle/Utils.h"
 #include "memory/VeloxMemoryManager.h"
-#include "shuffle/PartitionWriterCreator.h"
-#include "shuffle/Partitioner.h"
-#include "shuffle/ShuffleWriter.h"
-#include "shuffle/Utils.h"
 
 #include "utils/Print.h"
 

@@ -18,8 +18,8 @@
 #pragma once
 
 #include <arrow/c/abi.h>
-#include "memory/ColumnarBatch.h"
-#include "operators/r2c/RowToColumnar.h"
+#include "compute/batch/ColumnarBatch.h"
+#include "compute/r2c/RowToColumnar.h"
 #include "velox/common/memory/Memory.h"
 #include "velox/type/Type.h"
 

@@ -24,8 +24,8 @@
 #include <arrow/util/logging.h>
 #include <sys/mman.h>
 #include <numeric>
+#include "compute/batch/ColumnarBatch.h"
 #include "memory/ArrowMemoryPool.h"
-#include "memory/ColumnarBatch.h"
 #include "utils/macros.h"
 #include "velox/type/Type.h"
 

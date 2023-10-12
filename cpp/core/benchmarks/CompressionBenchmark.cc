@@ -33,7 +33,7 @@
 #include <iostream>
 #include <utility>
 
-#include "shuffle/ShuffleWriter.h"
+#include "compute/shuffle/ShuffleWriter.h"
 #include "utils/compression.h"
 #include "utils/macros.h"
 

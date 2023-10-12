@@ -16,6 +16,8 @@
  */
 package io.glutenproject.memory.alloc;
 
+import io.glutenproject.memory.NativeMemoryJniWrapper;
+
 /**
  * This along with {@link NativeMemoryAllocators}, as built-in toolkit for managing native memory
  * allocations.
@@ -32,7 +34,7 @@ public class NativeMemoryAllocator {
   }
 
   public static NativeMemoryAllocator create(Type type) {
-    return new NativeMemoryAllocator(getAllocator(type.name()));
+    return new NativeMemoryAllocator(NativeMemoryJniWrapper.getAllocator(type.name()));
   }
 
   public long getNativeInstanceId() {
@@ -40,10 +42,6 @@ public class NativeMemoryAllocator {
   }
 
   public void close() {
-    releaseAllocator(this.nativeInstanceId);
+    NativeMemoryJniWrapper.releaseAllocator(this.nativeInstanceId);
   }
-
-  private static native long getAllocator(String typeName);
-
-  private static native void releaseAllocator(long allocatorId);
 }

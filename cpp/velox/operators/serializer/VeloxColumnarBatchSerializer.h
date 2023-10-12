@@ -19,8 +19,8 @@
 
 #include <arrow/c/abi.h>
 
-#include "memory/ColumnarBatch.h"
-#include "operators/serializer/ColumnarBatchSerializer.h"
+#include "compute/batch/ColumnarBatch.h"
+#include "compute/serializer/ColumnarBatchSerializer.h"
 #include "velox/serializers/PrestoSerializer.h"
 
 namespace gluten {
