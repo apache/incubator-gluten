@@ -29,11 +29,10 @@ import org.apache.spark.storage.StorageLevel
  * }}}
  */
 object ColumnarTableCacheBenchmark extends SqlBasedBenchmark {
-  private val numRows = 20 * 1000 * 1000
+  private val numRows = 20L * 1000 * 1000
 
   private def doBenchmark(name: String, cardinality: Long)(f: => Unit): Unit = {
     val benchmark = new Benchmark(name, cardinality, output = output)
-    System.gc()
     val flag = if (spark.sessionState.conf.getConf(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED)) {
       "enable"
     } else {
@@ -49,15 +48,34 @@ object ColumnarTableCacheBenchmark extends SqlBasedBenchmark {
         spark
           .range(numRows)
           .selectExpr(
-            "cast(id as int) as c1",
+            "cast(id as int) as c0",
+            "cast(id as double) as c1",
             "id as c2",
             "cast(id as string) as c3",
             "uuid() as c4")
           .write
           .parquet(f.getCanonicalPath)
 
-        doBenchmark("table cache benchmark", numRows) {
+        doBenchmark("table cache count", numRows) {
           spark.read.parquet(f.getCanonicalPath).persist(StorageLevel.MEMORY_ONLY).count()
+          spark.catalog.clearCache()
+        }
+
+        doBenchmark("table cache column pruning", numRows) {
+          val cached = spark.read
+            .parquet(f.getCanonicalPath)
+            .persist(StorageLevel.MEMORY_ONLY)
+          cached.select("c1", "c2").noop()
+          cached.select("c0", "c3").noop()
+          spark.catalog.clearCache()
+        }
+
+        doBenchmark("table cache filter", numRows) {
+          val cached = spark.read
+            .parquet(f.getCanonicalPath)
+            .persist(StorageLevel.MEMORY_ONLY)
+          cached.where("c1 % 100 > 10").noop()
+          cached.where("c1 % 100 > 20").noop()
           spark.catalog.clearCache()
         }
     }
