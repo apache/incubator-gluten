@@ -71,7 +71,7 @@ class TransformerApiImpl extends TransformerApi with Logging {
 
   override def validateGenerator(generator: Generator, outer: Boolean): ValidationResult = {
     if (outer) {
-      ValidationResult.notOk(s"Velox backend does not support outer")
+      return ValidationResult.notOk(s"Velox backend does not support outer")
     }
     generator match {
       case generator: JsonTuple =>
