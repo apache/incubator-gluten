@@ -494,7 +494,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   const auto& generator = generateRel.generator();
   const auto& requiredChildOutput = generateRel.child_output();
-  const bool& outer = generateRel.outer();
 
   replicated.reserve(requiredChildOutput.size());
   for (const auto& output : requiredChildOutput) {

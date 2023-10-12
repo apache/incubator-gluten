@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0
+syntax = "proto3";
+
+package gluten;
+
+option java_package = "io.glutenproject.proto";
+option java_multiple_files = true;
+
+message ConfigMap {
+  message Pair {
+    string key = 1;
+    string value = 2;
+  }
+
+  repeated Pair configs = 1;
+}

@@ -39,9 +39,14 @@ constexpr static ResourceHandle kInvalidResourceHandle = -1;
 class ResultIterator;
 
 struct SparkTaskInfo {
-  int32_t stageId;
-  int32_t partitionId;
-  int64_t taskId;
+  int32_t stageId{0};
+  int32_t partitionId{0};
+  // Same as TID.
+  int64_t taskId{0};
+
+  std::string toString() const {
+    return "[Stage: " + std::to_string(stageId) + " TID: " + std::to_string(taskId) + "]";
+  }
 };
 
 /// ExecutionCtx is stateful and manager all kinds of native resources' lifecycle during execute a computation fragment.
@@ -174,7 +179,7 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
  protected:
   ::substrait::Plan substraitPlan_;
   SparkTaskInfo taskInfo_;
-  // static conf map
+  // Session conf map
   const std::unordered_map<std::string, std::string> confMap_;
 };
 } // namespace gluten
