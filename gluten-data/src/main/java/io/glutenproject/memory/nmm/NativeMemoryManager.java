@@ -17,6 +17,7 @@
 package io.glutenproject.memory.nmm;
 
 import io.glutenproject.GlutenConfig;
+import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
 
 import org.apache.spark.util.TaskResource;
@@ -43,7 +44,10 @@ public class NativeMemoryManager implements TaskResource {
     long allocatorId = NativeMemoryAllocators.getDefault().globalInstance().getNativeInstanceId();
     long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
     return new NativeMemoryManager(
-        name, create(name, allocatorId, reservationBlockSize, listener), listener);
+        name,
+        create(
+            BackendsApiManager.getBackendName(), name, allocatorId, reservationBlockSize, listener),
+        listener);
   }
 
   public long getNativeInstanceHandle() {
@@ -61,7 +65,11 @@ public class NativeMemoryManager implements TaskResource {
   private static native long shrink(long memoryManagerId, long size);
 
   private static native long create(
-      String name, long allocatorId, long reservationBlockSize, ReservationListener listener);
+      String backendType,
+      String name,
+      long allocatorId,
+      long reservationBlockSize,
+      ReservationListener listener);
 
   private static native void release(long memoryManagerId);
 

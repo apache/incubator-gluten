@@ -30,6 +30,9 @@
 
 namespace gluten {
 
+// This kind string must be same with VeloxBackend#name in java side.
+inline static const std::string kVeloxExecutionCtxKind{"velox"};
+
 class VeloxExecutionCtx final : public ExecutionCtx {
  public:
   explicit VeloxExecutionCtx(const std::unordered_map<std::string, std::string>& confMap);

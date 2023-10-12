@@ -34,11 +34,9 @@
 using namespace facebook;
 
 namespace {
-
-gluten::ExecutionCtx* veloxExecutionCtxFactory(const std::unordered_map<std::string, std::string>& sparkConfs) {
-  return new gluten::VeloxExecutionCtx(sparkConfs);
+gluten::ExecutionCtx* veloxExecutionCtxFactory(const std::unordered_map<std::string, std::string>& sessionConf) {
+  return new gluten::VeloxExecutionCtx(sessionConf);
 }
-
 } // namespace
 
 #ifdef __cplusplus
@@ -77,11 +75,11 @@ void JNI_OnUnload(JavaVM* vm, void*) {
 JNIEXPORT void JNICALL Java_io_glutenproject_init_NativeBackendInitializer_initialize( // NOLINT
     JNIEnv* env,
     jclass,
-    jbyteArray planArray) {
+    jbyteArray conf) {
   JNI_METHOD_START
-  auto sparkConfs = gluten::getConfMap(env, planArray);
-  gluten::setExecutionCtxFactory(veloxExecutionCtxFactory, sparkConfs);
-  gluten::VeloxBackend::create(sparkConfs);
+  auto sparkConf = gluten::getConfMap(env, conf);
+  gluten::ExecutionCtx::registerFactory(gluten::kVeloxExecutionCtxKind, veloxExecutionCtxFactory);
+  gluten::VeloxBackend::create(sparkConf);
   JNI_METHOD_END()
 }
 

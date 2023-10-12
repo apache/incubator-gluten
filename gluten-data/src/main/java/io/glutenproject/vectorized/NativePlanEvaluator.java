@@ -16,29 +16,19 @@
  */
 package io.glutenproject.vectorized;
 
-import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.memory.nmm.NativeMemoryManagers;
-import io.glutenproject.substrait.expression.ExpressionBuilder;
-import io.glutenproject.substrait.expression.StringMapNode;
-import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
-import io.glutenproject.substrait.extensions.ExtensionBuilder;
-import io.glutenproject.substrait.plan.PlanBuilder;
-import io.glutenproject.substrait.plan.PlanNode;
 import io.glutenproject.utils.DebugUtil;
 import io.glutenproject.validate.NativePlanValidationInfo;
 
-import com.google.protobuf.Any;
 import io.substrait.proto.Plan;
 import org.apache.spark.TaskContext;
-import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.util.SparkDirectoryUtil;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -62,13 +52,6 @@ public class NativePlanEvaluator {
 
   public NativePlanValidationInfo doNativeValidateWithFailureReason(byte[] subPlan) {
     return jniWrapper.nativeValidateWithFailureReason(subPlan);
-  }
-
-  private PlanNode buildNativeConfNode(Map<String, String> confs) {
-    StringMapNode stringMapNode = ExpressionBuilder.makeStringMap(confs);
-    AdvancedExtensionNode extensionNode =
-        ExtensionBuilder.makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
-    return PlanBuilder.makePlan(extensionNode);
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and
@@ -107,13 +90,7 @@ public class NativePlanEvaluator {
             TaskContext.getPartitionId(),
             TaskContext.get().taskAttemptId(),
             DebugUtil.saveInputToFile(),
-            BackendsApiManager.getSparkPlanExecApiInstance().rewriteSpillPath(spillDirPath),
-            buildNativeConfNode(
-                    GlutenConfig.getNativeSessionConf(
-                        BackendsApiManager.getSettings().getBackendConfigPrefix(),
-                        SQLConf.get().getAllConfs()))
-                .toProtobuf()
-                .toByteArray());
+            BackendsApiManager.getSparkPlanExecApiInstance().rewriteSpillPath(spillDirPath));
     outIterator.set(createOutIterator(ExecutionCtxs.contextInstance(), iterHandle));
     return outIterator.get();
   }

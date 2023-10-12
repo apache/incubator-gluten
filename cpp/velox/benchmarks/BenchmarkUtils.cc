@@ -35,14 +35,14 @@ namespace {
 
 std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, FLAGS_batch_size}};
 
-gluten::ExecutionCtx* veloxExecutionCtxFactory(const std::unordered_map<std::string, std::string>& sparkConfs) {
-  return new gluten::VeloxExecutionCtx(sparkConfs);
+gluten::ExecutionCtx* veloxExecutionCtxFactory(const std::unordered_map<std::string, std::string>& sparkConf) {
+  return new gluten::VeloxExecutionCtx(sparkConf);
 }
 
 } // anonymous namespace
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
-  gluten::setExecutionCtxFactory(veloxExecutionCtxFactory, conf);
+  gluten::ExecutionCtx::registerFactory(gluten::kVeloxExecutionCtxKind, veloxExecutionCtxFactory);
   gluten::VeloxBackend::create(conf);
 }
 

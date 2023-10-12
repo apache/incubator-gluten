@@ -314,9 +314,13 @@ void JNI_OnUnload(JavaVM* vm, void* reserved) {
 
 JNIEXPORT jlong JNICALL Java_io_glutenproject_exec_ExecutionCtxJniWrapper_createExecutionCtx( // NOLINT
     JNIEnv* env,
-    jclass) {
+    jclass,
+    jstring jbackendType,
+    jbyteArray sessionConf) {
   JNI_METHOD_START
-  auto executionCtx = gluten::createExecutionCtx();
+  auto backendType = jStringToCString(env, jbackendType);
+  auto sparkConf = gluten::getConfMap(env, sessionConf);
+  auto executionCtx = gluten::ExecutionCtx::create(backendType, sparkConf);
   return reinterpret_cast<jlong>(executionCtx);
   JNI_METHOD_END(kInvalidResourceHandle)
 }
@@ -328,7 +332,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_exec_ExecutionCtxJniWrapper_release
   JNI_METHOD_START
   auto executionCtx = jniCastOrThrow<ExecutionCtx>(ctxHandle);
 
-  gluten::releaseExecutionCtx(executionCtx);
+  gluten::ExecutionCtx::release(executionCtx);
   JNI_METHOD_END()
 }
 
@@ -343,8 +347,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
     jint partitionId,
     jlong taskId,
     jboolean saveInput,
-    jstring spillDir,
-    jbyteArray confArr) {
+    jstring spillDir) {
   JNI_METHOD_START
 
   auto ctx = gluten::getExecutionCtx(env, wrapper);
@@ -356,8 +359,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
   auto planSize = env->GetArrayLength(planArr);
 
   ctx->parsePlan(planData, planSize, {stageId, partitionId, taskId});
-
-  auto confs = getConfMap(env, confArr);
+  auto& conf = ctx->getConfMap();
 
   // Handle the Java iters
   jsize itersLen = env->GetArrayLength(iterArr);
@@ -365,12 +367,12 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
   for (int idx = 0; idx < itersLen; idx++) {
     std::shared_ptr<ArrowWriter> writer = nullptr;
     if (saveInput) {
-      auto dir = confs[kGlutenSaveDir];
+      auto dir = conf.at(kGlutenSaveDir);
       std::filesystem::path f{dir};
       if (!std::filesystem::exists(f)) {
         throw gluten::GlutenException("Save input path " + dir + " does not exists");
       }
-      auto file = confs[kGlutenSaveDir] + "/input_" + std::to_string(taskId) + "_" + std::to_string(idx) + "_" +
+      auto file = conf.at(kGlutenSaveDir) + "/input_" + std::to_string(taskId) + "_" + std::to_string(idx) + "_" +
           std::to_string(partitionId) + ".parquet";
       writer = std::make_shared<ArrowWriter>(file);
     }
@@ -380,7 +382,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithI
     inputIters.push_back(std::move(resultIter));
   }
 
-  return ctx->createResultIterator(memoryManager, spillDirStr, inputIters, confs);
+  return ctx->createResultIterator(memoryManager, spillDirStr, inputIters, conf);
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
@@ -1066,13 +1068,13 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrap
     // Only inspect the schema and not write
     handle = ctx->createDatasource(jStringToCString(env, filePath), memoryManager, nullptr);
   } else {
-    auto sparkOptions = gluten::getConfMap(env, options);
-    auto sparkConf = ctx->getConfMap();
-    sparkOptions.insert(sparkConf.begin(), sparkConf.end());
+    auto datasourceOptions = gluten::getConfMap(env, options);
+    auto& sparkConf = ctx->getConfMap();
+    datasourceOptions.insert(sparkConf.begin(), sparkConf.end());
     auto schema = gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
     handle = ctx->createDatasource(jStringToCString(env, filePath), memoryManager, schema);
     auto datasource = ctx->getDatasource(handle);
-    datasource->init(sparkOptions);
+    datasource->init(datasourceOptions);
   }
 
   return handle;
@@ -1214,7 +1216,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_alloc_NativeMemoryAllocator
 JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_create( // NOLINT
     JNIEnv* env,
     jclass,
-    jstring jname,
+    jstring jbackendType,
+    jstring jnmmName,
     jlong allocatorId,
     jlong reservationBlockSize,
     jobject jlistener) {
@@ -1235,11 +1238,12 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_cre
     listener = std::make_unique<BacktraceAllocationListener>(std::move(listener));
   }
 
-  auto name = jStringToCString(env, jname);
+  auto name = jStringToCString(env, jnmmName);
+  auto backendType = jStringToCString(env, jbackendType);
   // TODO: move memory manager into ExecutionCtx then we can use more general ExecutionCtx.
-  auto executionCtx = gluten::createExecutionCtx();
+  auto executionCtx = gluten::ExecutionCtx::create(backendType);
   auto manager = executionCtx->createMemoryManager(name, *allocator, std::move(listener));
-  gluten::releaseExecutionCtx(executionCtx);
+  gluten::ExecutionCtx::release(executionCtx);
   return reinterpret_cast<jlong>(manager);
   JNI_METHOD_END(kInvalidResourceHandle)
 }

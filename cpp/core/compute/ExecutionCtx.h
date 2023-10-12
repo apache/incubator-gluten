@@ -47,6 +47,13 @@ struct SparkTaskInfo {
 /// ExecutionCtx is stateful and manager all kinds of native resources' lifecycle during execute a computation fragment.
 class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
  public:
+  using Factory = std::function<ExecutionCtx*(const std::unordered_map<std::string, std::string>&)>;
+  static void registerFactory(const std::string& kind, Factory factory);
+  static ExecutionCtx* create(
+      const std::string& kind,
+      const std::unordered_map<std::string, std::string>& sessionConf = {});
+  static void release(ExecutionCtx*);
+
   ExecutionCtx() = default;
   ExecutionCtx(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
   virtual ~ExecutionCtx() = default;
@@ -156,7 +163,7 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
     throw GlutenException("Not implement getNonPartitionedColumnarBatch");
   }
 
-  std::unordered_map<std::string, std::string> getConfMap() {
+  const std::unordered_map<std::string, std::string>& getConfMap() {
     return confMap_;
   }
 
@@ -168,79 +175,6 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
   ::substrait::Plan substraitPlan_;
   SparkTaskInfo taskInfo_;
   // static conf map
-  std::unordered_map<std::string, std::string> confMap_;
+  const std::unordered_map<std::string, std::string> confMap_;
 };
-
-using ExecutionCtxFactoryWithConf = ExecutionCtx* (*)(const std::unordered_map<std::string, std::string>&);
-using ExecutionCtxFactory = ExecutionCtx* (*)();
-
-struct ExecutionCtxFactoryContext {
-  std::mutex mutex;
-
-  enum {
-    kExecutionCtxFactoryInvalid,
-    kExecutionCtxFactoryDefault,
-    kExecutionCtxFactoryWithConf
-  } type = kExecutionCtxFactoryInvalid;
-
-  union {
-    ExecutionCtxFactoryWithConf backendFactoryWithConf;
-    ExecutionCtxFactory backendFactory;
-  };
-
-  std::unordered_map<std::string, std::string> sparkConf_;
-
-  void set(ExecutionCtxFactoryWithConf factory, const std::unordered_map<std::string, std::string>& sparkConf) {
-    std::lock_guard<std::mutex> lockGuard(mutex);
-
-    if (type != kExecutionCtxFactoryInvalid) {
-      assert(false);
-      abort();
-      return;
-    }
-
-    type = kExecutionCtxFactoryWithConf;
-    backendFactoryWithConf = factory;
-    this->sparkConf_.clear();
-    for (auto& x : sparkConf) {
-      this->sparkConf_[x.first] = x.second;
-    }
-  }
-
-  void set(ExecutionCtxFactory factory) {
-    std::lock_guard<std::mutex> lockGuard(mutex);
-    if (type != kExecutionCtxFactoryInvalid) {
-      assert(false);
-      abort();
-      return;
-    }
-
-    type = kExecutionCtxFactoryDefault;
-    backendFactory = factory;
-  }
-
-  ExecutionCtx* create() {
-    std::lock_guard<std::mutex> lockGuard(mutex);
-    if (type == kExecutionCtxFactoryInvalid) {
-      assert(false);
-      abort();
-      return nullptr;
-    } else if (type == kExecutionCtxFactoryWithConf) {
-      return backendFactoryWithConf(sparkConf_);
-    } else {
-      return backendFactory();
-    }
-  }
-};
-
-void setExecutionCtxFactory(
-    ExecutionCtxFactoryWithConf factory,
-    const std::unordered_map<std::string, std::string>& sparkConf);
-
-void setExecutionCtxFactory(ExecutionCtxFactory factory);
-
-ExecutionCtx* createExecutionCtx();
-
-void releaseExecutionCtx(ExecutionCtx*);
-
 } // namespace gluten

@@ -78,7 +78,7 @@ auto BM = [](::benchmark::State& state,
   auto plan = getPlanFromFile(filePath);
 
   auto memoryManager = getDefaultMemoryManager();
-  auto executionCtx = gluten::createExecutionCtx();
+  auto executionCtx = ExecutionCtx::create(kVeloxExecutionCtxKind);
   auto veloxPool = memoryManager->getAggregateMemoryPool();
 
   std::vector<std::shared_ptr<SplitInfo>> scanInfos;
@@ -109,7 +109,7 @@ auto BM = [](::benchmark::State& state,
       std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
     }
   }
-  gluten::releaseExecutionCtx(executionCtx);
+  ExecutionCtx::release(executionCtx);
 };
 
 #define orc_reader_decimal 1
