@@ -159,6 +159,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"space", "space"},
        {"initcap", "initcapUTF8"},
        {"conv", "sparkConv"},
+       {"uuid", "generateUUIDv4"},
 
        /// hash functions
        {"sha1", "SHA1"},
