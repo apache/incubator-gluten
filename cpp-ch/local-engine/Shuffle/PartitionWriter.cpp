@@ -259,12 +259,9 @@ void CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
         spill_to_celeborn();
     }
     shuffle_writer->split_result.total_spill_time += spill_time_watch.elapsedNanoseconds();
-    if (!partition_buffer.empty())
+    for (auto & partition : partition_buffer)
     {
-        for (auto & partition : partition_buffer)
-        {
-            partition.clear();
-        }
+        partition.clear();
     }
     shuffle_writer->split_result.total_bytes_spilled += total_partition_buffer_size;
     total_partition_buffer_size = 0;
