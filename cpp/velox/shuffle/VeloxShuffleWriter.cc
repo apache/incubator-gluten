@@ -198,7 +198,7 @@ void getLengthBufferAndValueBufferOneByOne(
       } else {
         // Will not compress small buffer, mark uncompressed length as -1 to indicate it is original buffer
         writeInt64(lengthBuffer, offset, -1);
-        memcpy(valueBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
+        gluten::fastCopy(valueBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
         actualLength = buffer->size();
       }
       compressValueOffset += actualLength;
@@ -251,7 +251,7 @@ void getLengthBufferAndValueBufferStream(
       // Copy all buffers into one big buffer.
       if (buffer != nullptr && buffer->size() != 0) {
         lengthBufferPtr[pos++] = buffer->size();
-        memcpy(uncompressedBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
+        gluten::fastCopy(uncompressedBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
         compressValueOffset += buffer->size();
       } else {
         lengthBufferPtr[pos++] = 0;
@@ -279,7 +279,7 @@ void getLengthBufferAndValueBufferStream(
     for (auto& buffer : buffers) {
       if (buffer != nullptr && buffer->size() != 0) {
         writeInt64(lengthBuffer, offset, buffer->size());
-        memcpy(compressedBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
+        gluten::fastCopy(compressedBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
         compressValueOffset += buffer->size();
       } else {
         writeInt64(lengthBuffer, offset, 0);
@@ -445,7 +445,7 @@ std::shared_ptr<arrow::Buffer> convertToArrowBuffer(velox::BufferPtr buffer, arr
   }
 
   GLUTEN_ASSIGN_OR_THROW(auto arrowBuffer, arrow::AllocateResizableBuffer(buffer->size(), pool));
-  memcpy(arrowBuffer->mutable_data(), buffer->asMutable<void>(), buffer->size());
+  gluten::fastCopy(arrowBuffer->mutable_data(), buffer->asMutable<void>(), buffer->size());
   return arrowBuffer;
 }
 
@@ -484,7 +484,7 @@ void collectFlatVectorBufferStringView(
   GLUTEN_ASSIGN_OR_THROW(auto valueBuffer, arrow::AllocateResizableBuffer(offset, pool));
   auto raw = reinterpret_cast<char*>(valueBuffer->mutable_data());
   for (int32_t i = 0; i < flatVector->size(); i++) {
-    memcpy(raw, rawValues[i].data(), rawValues[i].size());
+    gluten::fastCopy(raw, rawValues[i].data(), rawValues[i].size());
     raw += rawValues[i].size();
   }
   buffers.push_back(std::move(valueBuffer));
@@ -980,7 +980,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         }
 
         // 2. copy value
-        memcpy(dstValuePtr, stringView.data(), stringLen);
+        gluten::fastCopy(dstValuePtr, stringView.data(), stringLen);
 
         dstValuePtr += stringLen;
       }
@@ -1297,7 +1297,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           if (buffer) {
             ARROW_ASSIGN_OR_RAISE(auto copy, ::arrow::AllocateResizableBuffer(buffer->size(), payloadPool_.get()));
             if (buffer->size() > 0) {
-              memcpy(copy->mutable_data(), buffer->data(), static_cast<size_t>(buffer->size()));
+              gluten::fastCopy(copy->mutable_data(), buffer->data(), static_cast<size_t>(buffer->size()));
             }
             buffer = std::move(copy);
           }

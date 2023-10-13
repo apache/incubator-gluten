@@ -20,6 +20,7 @@
 #include <arrow/array/array_binary.h>
 
 #include "memory/VeloxColumnarBatch.h"
+#include "utils/Common.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/compression.h"
 #include "utils/macros.h"
@@ -98,7 +99,7 @@ VectorPtr readFlatVector<TypeKind::HUGEINT>(
     values = valueBuffer;
   } else {
     values = AlignedBuffer::allocate<char>(valueBuffer->size(), pool);
-    memcpy(values->asMutable<char>(), valueBuffer->as<char>(), valueBuffer->size());
+    gluten::fastCopy(values->asMutable<char>(), valueBuffer->as<char>(), valueBuffer->size());
   }
   std::vector<BufferPtr> stringBuffers;
   if (nulls == nullptr || nulls->size() == 0) {
