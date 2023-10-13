@@ -472,12 +472,11 @@ void collectFlatVectorBufferStringView(
   auto offsetBufferSize = sizeof(int32_t) * (flatVector->size() + 1);
   GLUTEN_ASSIGN_OR_THROW(auto offsetBuffer, arrow::AllocateResizableBuffer(offsetBufferSize, pool));
   int32_t* rawOffset = reinterpret_cast<int32_t*>(offsetBuffer->mutable_data());
-  // first offset is 0
-  *rawOffset++ = 0;
   int32_t offset = 0;
   for (int32_t i = 0; i < flatVector->size(); i++) {
-    offset += rawValues[i].size();
-    *rawOffset++ = offset;
+    auto length = rawValues[i].size();
+    *rawOffset++ = length;
+    offset += length;
   }
   buffers.push_back(std::move(offsetBuffer));
 
@@ -960,9 +959,11 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         auto& stringView = rawValues[rowId];
         auto stringLen = stringView.size();
 
-        // 1. copy offset
-        valueOffset = dstOffsetBase[x + 1] = valueOffset + stringLen;
+        // 1. copy length, update offset.
+        dstOffsetBase[x] = stringLen;
+        valueOffset += stringLen;
 
+        // Resize if necessary.
         if (valueOffset >= capacity) {
           auto oldCapacity = capacity;
           (void)oldCapacity; // suppress warning
@@ -1208,7 +1209,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           ARROW_ASSIGN_OR_RAISE(validityBuffer, allocateValidityBuffer(columnIdx, partitionId, newSize));
 
           auto valueBufSize = calculateValueBufferSizeForBinaryArray(binaryIdx, newSize);
-          auto offsetBufSize = (newSize + 1) * sizeof(BinaryArrayOffsetType);
+          auto offsetBufSize = newSize * sizeof(BinaryArrayOffsetType);
 
           auto& buffers = partitionBuffers_[columnIdx][partitionId];
           if (reuseBuffers) {
@@ -1222,8 +1223,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
             ARROW_ASSIGN_OR_RAISE(
                 offsetBuffer, arrow::AllocateResizableBuffer(offsetBufSize, partitionBufferPool_.get()));
           }
-          // Set the first offset to 0.
-          memset(offsetBuffer->mutable_data(), 0, sizeof(BinaryArrayOffsetType));
           partitionBinaryAddrs_[binaryIdx][partitionId] =
               BinaryBuf(valueBuffer->mutable_data(), offsetBuffer->mutable_data(), valueBufSize);
           buffers = {std::move(validityBuffer), std::move(offsetBuffer), std::move(valueBuffer)};
@@ -1332,6 +1331,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         case arrow::BinaryType::type_id:
         case arrow::StringType::type_id: {
           const auto& buffers = partitionBuffers_[fixedWidthColumnCount_ + binaryIdx][partitionId];
+          auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][partitionId];
           // validity buffer
           if (buffers[kValidityBufferIndex] != nullptr) {
             allBuffers.push_back(
@@ -1342,21 +1342,18 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           // offset buffer
           ARROW_RETURN_IF(
               !buffers[kOffsetBufferIndex], arrow::Status::Invalid("Offset buffer of binary array is null."));
-          allBuffers.push_back(arrow::SliceBuffer(buffers[kOffsetBufferIndex], 0, (numRows + 1) * sizeof(int32_t)));
+          allBuffers.push_back(arrow::SliceBuffer(buffers[kOffsetBufferIndex], 0, numRows * sizeof(int32_t)));
           ARROW_RETURN_IF(!buffers[kValueBufferIndex], arrow::Status::Invalid("Value buffer of binary array is null."));
           // value buffer
-          allBuffers.push_back(arrow::SliceBuffer(
-              buffers[kValueBufferIndex],
-              0,
-              reinterpret_cast<const int32_t*>(buffers[kOffsetBufferIndex]->data())[numRows]));
+          allBuffers.push_back(arrow::SliceBuffer(buffers[kValueBufferIndex], 0, binaryBuf.valueOffset));
 
           if (reuseBuffers) {
             // Set the first value offset to 0.
-            partitionBinaryAddrs_[binaryIdx][partitionId].valueOffset = 0;
+            binaryBuf.valueOffset = 0;
           } else {
             // Reset all buffers.
             partitionValidityAddrs_[fixedWidthColumnCount_ + binaryIdx][partitionId] = nullptr;
-            partitionBinaryAddrs_[binaryIdx][partitionId] = BinaryBuf();
+            binaryBuf = BinaryBuf();
             partitionBuffers_[fixedWidthColumnCount_ + binaryIdx][partitionId].clear();
           }
           binaryIdx++;
@@ -1540,7 +1537,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         case arrow::StringType::type_id: {
           auto& offsetBuffer = buffers[kOffsetBufferIndex];
           ARROW_RETURN_IF(!offsetBuffer, arrow::Status::Invalid("Offset buffer of binary array is null."));
-          RETURN_NOT_OK(offsetBuffer->Resize((newSize + 1) * sizeof(BinaryArrayOffsetType)));
+          RETURN_NOT_OK(offsetBuffer->Resize(newSize * sizeof(BinaryArrayOffsetType)));
 
           auto binaryIdx = i - fixedWidthColumnCount_;
           auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][partitionId];
