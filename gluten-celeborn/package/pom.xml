@@ -10,7 +10,7 @@
   </parent>
 
   <artifactId>gluten-celeborn-package</artifactId>
-  <packaging>pom</packaging>
+  <packaging>jar</packaging>
   <name>Gluten Celeborn Common</name>
 
   <profiles>
