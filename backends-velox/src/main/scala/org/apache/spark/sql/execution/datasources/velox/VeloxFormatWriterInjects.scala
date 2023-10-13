@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.datasources.velox
 
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.datasource.DatasourceJniWrapper
 import io.glutenproject.exception.GlutenException
 import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
@@ -32,7 +33,6 @@ import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.util.TaskResources
 
 import com.google.common.base.Preconditions
-import io.glutenproject.datasource.DatasourceJniWrapper
 import org.apache.arrow.c.ArrowSchema
 import org.apache.hadoop.fs.FileStatus
 import org.apache.hadoop.mapreduce.TaskAttemptContext
