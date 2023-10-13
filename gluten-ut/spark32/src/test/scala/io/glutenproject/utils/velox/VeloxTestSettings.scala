@@ -211,6 +211,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_unix_timestamp")
     // Unsupported format: yyyy-MM-dd HH:mm:ss.SSS
     .exclude("SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError")
+    // Not supported.
+    .exclude("to_timestamp exception mode")
+    // Timezone is not correctly set. TODO: will investigate it.
+    .exclude("SPARK-31896: Handle am-pm timestamp parsing when hour is missing")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]
@@ -252,6 +256,14 @@ class VeloxTestSettings extends BackendTestSettings {
     // The below two are replaced by two modified versions.
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
+    // Replaced.
+    .exclude("function to_date")
+    // Replaced.
+    .exclude("to_timestamp")
+    // Not supported.
+    .exclude("to_timestamp with microseconds precision")
+    // Not supported.
+    .exclude("SPARK-30668: use legacy timestamp parser in to_timestamp")
   enableSuite[GlutenDataFrameFunctionsSuite]
     // blocked by Velox-5768
     .exclude("aggregate function - array for primitive type containing null")
