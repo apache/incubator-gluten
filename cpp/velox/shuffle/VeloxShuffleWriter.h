@@ -17,15 +17,12 @@
 
 #pragma once
 
-#include <stdint.h>
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "velox/common/base/SimdUtil.h"
 #include "velox/common/time/CpuWallTimer.h"
-
 #include "velox/serializers/PrestoSerializer.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
@@ -290,11 +287,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
     return arrow::Status::OK();
   }
 
-  template <typename T>
   arrow::Status splitFixedType32(const uint8_t* src, const std::vector<uint8_t*>& dstAddrs) {
     auto rowOffset2RowId = &rowOffset2RowId_[0];
     for (auto& pid : partitionUsed_) {
-      auto dst = (T*)(dstAddrs[pid] + partitionBufferIdxBase_[pid] * sizeof(T));
+      auto dst = (int*)(dstAddrs[pid] + partitionBufferIdxBase_[pid] * sizeof(int));
       auto pos = partition2RowOffset_[pid];
       auto end = partition2RowOffset_[pid + 1];
 
@@ -313,7 +309,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
       for (; pos < end; ++pos) {
         auto rowId = rowOffset2RowId[pos];
-        *dst++ = ((const T*)src)[rowId];
+        *dst++ = ((const int*)src)[rowId];
       }
     }
     return arrow::Status::OK();

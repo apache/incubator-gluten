@@ -83,6 +83,7 @@ add_compile_options(-Werror)
 add_compile_options(-Wno-error=parentheses)
 add_compile_options(-Wno-error=unused-function)
 add_compile_options(-Wno-error=unused-variable)
+add_compile_options(-mavx2)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   add_compile_options(-Wno-error=unused-but-set-variable)

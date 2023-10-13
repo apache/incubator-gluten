@@ -716,10 +716,10 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         RETURN_NOT_OK(splitBoolType(srcAddr, dstAddrs));
         break;
       case 8:
-        RETURN_NOT_OK(splitFixedType<int8_t>(srcAddr, dstAddrs));
+        RETURN_NOT_OK(splitFixedType<uint8_t>(srcAddr, dstAddrs));
         break;
       case 16:
-        RETURN_NOT_OK(splitFixedType<int16_t>(srcAddr, dstAddrs));
+        RETURN_NOT_OK(splitFixedType<uint16_t>(srcAddr, dstAddrs));
         break;
       case 32:
         RETURN_NOT_OK(splitFixedType32(srcAddr, dstAddrs));
@@ -790,7 +790,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
             }
             break;
 #else
-          RETURN_NOT_OK(splitFixedType<int64_t>(srcAddr, dstAddrs));
+          RETURN_NOT_OK(splitFixedType<uint64_t>(srcAddr, dstAddrs));
 #endif
             break;
           }
@@ -801,7 +801,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           // splitFixedType<__m128i_u>(srcAddr, dstAddrs);
           {
             if (column->type()->isShortDecimal()) {
-              RETURN_NOT_OK(splitFixedType<int64_t>(srcAddr, dstAddrs));
+              RETURN_NOT_OK(splitFixedType<uint64_t>(srcAddr, dstAddrs));
             } else if (column->type()->isLongDecimal()) {
               // assume batch size = 32k; reducer# = 4K; row/reducer = 8
               RETURN_NOT_OK(splitFixedType<int128_t>(srcAddr, dstAddrs));
