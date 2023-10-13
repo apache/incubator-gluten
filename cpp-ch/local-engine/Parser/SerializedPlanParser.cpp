@@ -1615,7 +1615,10 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
 const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr actions_dag, const substrait::Expression & rel)
 {
     auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
-    { return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field)))); };
+    {
+        return &actions_dag->addColumn(
+            ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field).substr(0, 10))));
+    };
 
     switch (rel.rex_type_case())
     {
