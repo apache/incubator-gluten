@@ -106,6 +106,7 @@ object ExpressionNames {
   final val FIND_IN_SET = "find_in_set"
   final val DECODE = "decode"
   final val ENCODE = "encode"
+  final val UUID = "uuid"
 
   // URL functions
   final val PARSE_URL = "parse_url"

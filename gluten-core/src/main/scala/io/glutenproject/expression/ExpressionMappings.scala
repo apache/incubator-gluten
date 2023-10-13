@@ -95,6 +95,7 @@ object ExpressionMappings {
     Sig[FindInSet](FIND_IN_SET),
     Sig[StringDecode](DECODE),
     Sig[Encode](ENCODE),
+    Sig[Uuid](UUID),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),

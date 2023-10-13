@@ -220,6 +220,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-37371: UnionExec should support columnar if all children support columnar")
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
+    .exclude("Uuid expressions should produce same results at retries in the same DataFrame")
     .exclude("SPARK-28224: Aggregate sum big decimal overflow")
     .exclude("SPARK-28067: Aggregate sum should not return wrong results for decimal overflow")
     .exclude("SPARK-35955: Aggregate avg should not return wrong results for decimal overflow")
@@ -834,7 +835,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35926: Support YearMonthIntervalType in width-bucket function")
     .exclude("SPARK-35925: Support DayTimeIntervalType in width-bucket function")
     .exclude("SPARK-37388: width_bucket")
-  enableSuite[GlutenMiscExpressionsSuite].exclude("uuid")
+  enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
     .exclude("SparkPartitionID")

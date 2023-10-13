@@ -196,6 +196,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35756: unionByName support struct having same col names but different sequence")
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
+    .exclude("Uuid expressions should produce same results at retries in the same DataFrame")
     .exclude("SPARK-28224: Aggregate sum big decimal overflow")
     .exclude("SPARK-28067: Aggregate sum should not return wrong results for decimal overflow")
     .exclude("SPARK-35955: Aggregate avg should not return wrong results for decimal overflow")
@@ -813,7 +814,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("round/bround")
     .exclude("SPARK-37388: width_bucket")
     .exclude("Gluten - round/bround")
-  enableSuite[GlutenMiscExpressionsSuite].exclude("uuid")
+  enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
     .exclude("SparkPartitionID")
