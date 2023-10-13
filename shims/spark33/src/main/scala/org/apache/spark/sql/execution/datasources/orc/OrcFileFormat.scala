@@ -68,7 +68,7 @@ class OrcFileFormat extends FileFormat with DataSourceRegister with Serializable
     // Why if (false)? Such code requires comments when being written.
     if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable")) && false) {
       GlutenOrcWriterInjects.getInstance().inferSchema(sparkSession, options, files)
-    } else { // including vanilla spark case and CH backend case
+    } else { // the vanilla spark case
       OrcUtils.inferSchema(sparkSession, files, options)
     }
   }

@@ -199,7 +199,7 @@ class ParquetFileFormat extends FileFormat with DataSourceRegister with Logging 
     // Why if (false)? Such code requires comments when being written.
     if ("true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable")) && false) {
       GlutenParquetWriterInjects.getInstance().inferSchema(sparkSession, parameters, files)
-    } else { // including vanilla spark case and CH backend case
+    } else { // the vanilla spark case
       ParquetUtils.inferSchema(sparkSession, parameters, files)
     }
   }

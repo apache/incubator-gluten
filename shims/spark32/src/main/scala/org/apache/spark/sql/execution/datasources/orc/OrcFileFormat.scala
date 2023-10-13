@@ -87,7 +87,7 @@ class OrcFileFormat extends FileFormat with DataSourceRegister with Serializable
       GlutenOrcWriterInjects
         .getInstance()
         .inferSchema(sparkSession, Map.empty[String, String], files)
-    } else { // including vanilla spark case and CH backend case
+    } else { // the vanilla spark case
       OrcUtils.inferSchema(sparkSession, files, options)
     }
   }
