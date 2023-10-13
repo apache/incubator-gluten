@@ -313,7 +313,6 @@ size_t Partition::spill(DB::NativeWriter & writer)
         {
             raw_size += writer.write(block);
         }
-        spilled = true;
         return raw_size;
     }
     else
