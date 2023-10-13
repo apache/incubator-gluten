@@ -53,5 +53,5 @@ const std::string kShuffleCompressionCodecBackend = "spark.gluten.sql.columnar.s
 const std::string kQatBackendName = "qat";
 const std::string kIaaBackendName = "iaa";
 
-std::unordered_map<std::string, std::string> getConfMap(JNIEnv* env, jbyteArray planArray);
+std::unordered_map<std::string, std::string> parseConfMap(JNIEnv* env, jbyteArray configArray);
 } // namespace gluten

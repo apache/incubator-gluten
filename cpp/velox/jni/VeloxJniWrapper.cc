@@ -77,7 +77,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_NativeBackendInitializer_initi
     jclass,
     jbyteArray conf) {
   JNI_METHOD_START
-  auto sparkConf = gluten::getConfMap(env, conf);
+  auto sparkConf = gluten::parseConfMap(env, conf);
   gluten::ExecutionCtx::registerFactory(gluten::kVeloxExecutionCtxKind, veloxExecutionCtxFactory);
   gluten::VeloxBackend::create(sparkConf);
   JNI_METHOD_END()

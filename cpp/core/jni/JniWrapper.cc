@@ -319,7 +319,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_exec_ExecutionCtxJniWrapper_create
     jbyteArray sessionConf) {
   JNI_METHOD_START
   auto backendType = jStringToCString(env, jbackendType);
-  auto sparkConf = gluten::getConfMap(env, sessionConf);
+  auto sparkConf = gluten::parseConfMap(env, sessionConf);
   auto executionCtx = gluten::ExecutionCtx::create(backendType, sparkConf);
   return reinterpret_cast<jlong>(executionCtx);
   JNI_METHOD_END(kInvalidResourceHandle)
@@ -1068,7 +1068,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_datasource_DatasourceJniWrapper_na
     // Only inspect the schema and not write
     handle = ctx->createDatasource(jStringToCString(env, filePath), memoryManager, nullptr);
   } else {
-    auto datasourceOptions = gluten::getConfMap(env, options);
+    auto datasourceOptions = gluten::parseConfMap(env, options);
     auto& sparkConf = ctx->getConfMap();
     datasourceOptions.insert(sparkConf.begin(), sparkConf.end());
     auto schema = gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));

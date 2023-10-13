@@ -421,7 +421,7 @@ object GlutenConfig {
     }
   }
 
-  // TODO Backend-ize this
+  /** Get dynamic configs. */
   def getNativeSessionConf(
       backendPrefix: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
@@ -463,8 +463,10 @@ object GlutenConfig {
     nativeConfMap
   }
 
-  // TODO: some of the config is dynamic in spark, but is static in gluten, because it should be
-  //  used to construct HiveConnector which intends reused in velox
+  /**
+   * Get static and dynamic configs. Some of the config is dynamic in spark, but is static in
+   * gluten, these will be used to construct HiveConnector which intends reused in velox
+   */
   def getNativeBackendConf(
       backendPrefix: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
