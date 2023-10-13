@@ -98,7 +98,7 @@ namespace gluten {
 enum SplitState { kInit, kPreAlloc, kSplit, kStop };
 
 class VeloxShuffleWriter final : public ShuffleWriter {
-  enum { kValidityBufferIndex = 0, kOffsetBufferIndex = 1, kValueBufferIndex = 2 };
+  enum { kValidityBufferIndex = 0, kLengthBufferIndex = 1, kValueBufferIndex = 2 };
 
  public:
   struct BinaryBuf {
