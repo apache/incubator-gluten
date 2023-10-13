@@ -49,7 +49,6 @@
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 
 DECLARE_int32(split_preload_per_driver);
-// DECLARE_bool(SkipRowSortInWindowOp);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
 
@@ -117,9 +116,6 @@ void VeloxBackend::printConf(const std::unordered_map<std::string, std::string>&
 }
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
-  // In spark, planner takes care the partitioning and sorting, so the rows are sorted.
-  // There is no need to sort the rows in window op again.
-  // FLAGS_SkipRowSortInWindowOp = true;
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;
 
@@ -316,10 +312,10 @@ void VeloxBackend::initCache(const std::unordered_map<std::string, std::string>&
     auto allocator = std::make_shared<velox::memory::MmapAllocator>(options);
     if (ssdCacheSize == 0) {
       LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
-      // FIXME this is not tracked by Spark
+      // TODO: this is not tracked by Spark.
       asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator.get());
     } else {
-      // FIXME this is not tracked by Spark
+      // TODO: this is not tracked by Spark.
       asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator.get(), std::move(ssd));
     }
 
