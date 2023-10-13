@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql
 
-import org.apache.spark.SparkUpgradeException
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.functions._
