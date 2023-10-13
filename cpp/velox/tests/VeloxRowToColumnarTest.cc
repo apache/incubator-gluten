@@ -15,10 +15,10 @@
  * limitations under the License.
  */
 
+#include "compute/batch/VeloxColumnarBatch.h"
+#include "compute/c2r/VeloxColumnarToRowConverter.h"
+#include "compute/r2c/VeloxRowToColumnarConverter.h"
 #include "memory/ArrowMemoryPool.h"
-#include "memory/VeloxColumnarBatch.h"
-#include "operators/serializer//VeloxColumnarToRowConverter.h"
-#include "operators/serializer//VeloxRowToColumnarConverter.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
 

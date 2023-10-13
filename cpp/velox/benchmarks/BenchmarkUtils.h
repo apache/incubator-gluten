@@ -26,7 +26,7 @@
 #include "substrait/SubstraitToVeloxPlan.h"
 
 #include "compute/ProtobufUtils.h"
-#include "memory/VeloxColumnarBatch.h"
+#include "compute/batch/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "utils/exception.h"
 #include "velox/common/memory/Memory.h"

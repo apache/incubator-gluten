@@ -22,9 +22,9 @@
 #include "compute/ExecutionCtx.h"
 #include "compute/ResultIterator.h"
 #include "compute/VeloxPlanConverter.h"
+#include "compute/r2c/VeloxRowToColumnarConverter.h"
+#include "compute/shuffle/VeloxShuffleWriter.h"
 #include "config/GlutenConfig.h"
-#include "operators/serializer/VeloxRowToColumnarConverter.h"
-#include "shuffle/VeloxShuffleWriter.h"
 
 using namespace facebook;
 

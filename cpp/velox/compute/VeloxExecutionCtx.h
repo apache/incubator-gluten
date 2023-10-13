@@ -19,13 +19,13 @@
 
 #include "WholeStageResultIterator.h"
 #include "compute/ExecutionCtx.h"
+#include "compute/c2r/VeloxColumnarToRowConverter.h"
+#include "compute/serializer/VeloxColumnarBatchSerializer.h"
 #include "compute/shuffle/ShuffleReader.h"
 #include "compute/shuffle/ShuffleWriter.h"
+#include "compute/shuffle/VeloxShuffleReader.h"
+#include "compute/writer/VeloxParquetDatasource.h"
 #include "memory/VeloxMemoryManager.h"
-#include "operators/serializer/VeloxColumnarBatchSerializer.h"
-#include "operators/serializer/VeloxColumnarToRowConverter.h"
-#include "operators/writer/VeloxParquetDatasource.h"
-#include "shuffle/VeloxShuffleReader.h"
 #include "utils/ResourceMap.h"
 
 namespace gluten {

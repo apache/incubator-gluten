@@ -28,8 +28,8 @@
 #include <parquet/properties.h>
 
 #include "compute/batch/ColumnarBatch.h"
+#include "compute/batch/VeloxColumnarBatch.h"
 #include "compute/writer/Datasource.h"
-#include "memory/VeloxColumnarBatch.h"
 
 #include "velox/common/file/FileSystems.h"
 #ifdef ENABLE_HDFS

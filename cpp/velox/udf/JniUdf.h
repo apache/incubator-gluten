@@ -14,27 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory;
 
-import io.glutenproject.memory.nmm.ReservationListener;
+#pragma once
 
-public class NativeMemoryJniWrapper {
-  // For NativeMemoryAllocator
-  public static native long getAllocator(String typeName);
+#include <string>
+#include <unordered_map>
+#include "jni/JniCommon.h"
 
-  public static native void releaseAllocator(long allocatorId);
+namespace gluten {
 
-  // For NativeMemoryManager
-  public static native long shrink(long memoryManagerId, long size);
+void initVeloxJniUDF(JNIEnv* env);
 
-  public static native long create(
-      String backendType,
-      String name,
-      long allocatorId,
-      long reservationBlockSize,
-      ReservationListener listener);
+void finalizeVeloxJniUDF(JNIEnv* env);
 
-  public static native void release(long memoryManagerId);
+void jniLoadUdf(JNIEnv* env, const std::string& libPaths);
 
-  public static native byte[] collectMemoryUsage(long memoryManagerId);
-}
+} // namespace gluten

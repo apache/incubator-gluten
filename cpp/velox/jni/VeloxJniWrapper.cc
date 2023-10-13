@@ -20,7 +20,6 @@
 #include <glog/logging.h>
 #include <jni/JniCommon.h>
 #include <exception>
-#include "JniUdf.h"
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxExecutionCtx.h"
 #include "config/GlutenConfig.h"
@@ -28,6 +27,7 @@
 #include "jni/JniFileSystem.h"
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
+#include "udf/JniUdf.h"
 
 #include <iostream>
 
@@ -80,15 +80,6 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_NativeBackendInitializer_initi
   auto sparkConf = gluten::getConfMap(env, conf);
   gluten::ExecutionCtx::registerFactory(gluten::kVeloxExecutionCtxKind, veloxExecutionCtxFactory);
   gluten::VeloxBackend::create(sparkConf);
-  JNI_METHOD_END()
-}
-
-JNIEXPORT void JNICALL Java_io_glutenproject_udf_UdfJniWrapper_nativeLoadUdfLibraries( // NOLINT
-    JNIEnv* env,
-    jclass,
-    jstring libPaths) {
-  JNI_METHOD_START
-  gluten::jniLoadUdf(env, jStringToCString(env, libPaths));
   JNI_METHOD_END()
 }
 

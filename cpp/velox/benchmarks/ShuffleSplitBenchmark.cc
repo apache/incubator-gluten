@@ -31,7 +31,7 @@
 #include "benchmarks/BenchmarkUtils.h"
 #include "compute/batch/ColumnarBatch.h"
 #include "compute/shuffle/LocalPartitionWriter.h"
-#include "shuffle/VeloxShuffleWriter.h"
+#include "compute/shuffle/VeloxShuffleWriter.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/macros.h"

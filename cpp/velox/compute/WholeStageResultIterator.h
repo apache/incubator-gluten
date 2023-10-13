@@ -18,7 +18,7 @@
 
 #include "compute/ExecutionCtx.h"
 #include "compute/batch/ColumnarBatchIterator.h"
-#include "memory/VeloxColumnarBatch.h"
+#include "compute/batch/VeloxColumnarBatch.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
 #include "utils/metrics.h"

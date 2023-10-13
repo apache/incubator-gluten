@@ -226,22 +226,24 @@ endmacro()
 
 # Build Velox backend.
 set(VELOX_SRCS
+    compute/batch/VeloxColumnarBatch.cc
+    compute/c2r/VeloxColumnarToRowConverter.cc
+    compute/r2c/VeloxRowToColumnarConverter.cc
+    compute/serializer/VeloxColumnarBatchSerializer.cc
+    compute/shuffle/VeloxShuffleReader.cc
+    compute/shuffle/VeloxShuffleWriter.cc
+    compute/writer/VeloxParquetDatasource.cc
     compute/VeloxBackend.cc
     compute/VeloxExecutionCtx.cc
-    compute/WholeStageResultIterator.cc
     compute/VeloxPlanConverter.cc
+    compute/WholeStageResultIterator.cc
     jni/VeloxJniWrapper.cc
     jni/JniFileSystem.cc
-    jni/JniUdf.cc
-    memory/VeloxColumnarBatch.cc
     memory/VeloxMemoryManager.cc
     operators/functions/RegistrationAllFunctions.cc
-    operators/serializer/VeloxColumnarToRowConverter.cc
-    operators/serializer/VeloxColumnarBatchSerializer.cc
-    operators/serializer/VeloxRowToColumnarConverter.cc
-    operators/writer/VeloxParquetDatasource.cc
-    shuffle/VeloxShuffleReader.cc
-    shuffle/VeloxShuffleWriter.cc
+    udf/JniUdf.cc
+    udf/UdfJniWrapper.cc
+    udf/UdfLoader.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
     substrait/SubstraitToVeloxPlan.cc
@@ -253,7 +255,6 @@ set(VELOX_SRCS
     substrait/VeloxToSubstraitExpr.cc
     substrait/VeloxToSubstraitPlan.cc
     substrait/VeloxToSubstraitType.cc
-    udf/UdfLoader.cc
     utils/VeloxArrowUtils.cc
     utils/ConfigExtractor.cc
     utils/Common.cc

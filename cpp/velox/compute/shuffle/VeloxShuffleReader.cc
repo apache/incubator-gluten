@@ -19,7 +19,7 @@
 
 #include <arrow/array/array_binary.h>
 
-#include "memory/VeloxColumnarBatch.h"
+#include "compute/batch/VeloxColumnarBatch.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/compression.h"
 #include "utils/macros.h"

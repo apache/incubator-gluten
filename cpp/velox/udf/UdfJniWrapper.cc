@@ -15,18 +15,23 @@
  * limitations under the License.
  */
 
-#pragma once
+#include "JniUdf.h"
+#include "jni/JniCommon.h"
+#include "jni/JniError.h"
 
-#include <jni.h>
-#include <string>
-#include <unordered_map>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-namespace gluten {
+JNIEXPORT void JNICALL Java_io_glutenproject_udf_UdfJniWrapper_nativeLoadUdfLibraries( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jstring libPaths) {
+  JNI_METHOD_START
+  gluten::jniLoadUdf(env, jStringToCString(env, libPaths));
+  JNI_METHOD_END()
+}
 
-void initVeloxJniUDF(JNIEnv* env);
-
-void finalizeVeloxJniUDF(JNIEnv* env);
-
-void jniLoadUdf(JNIEnv* env, const std::string& libPaths);
-
-} // namespace gluten
+#ifdef __cplusplus
+}
+#endif

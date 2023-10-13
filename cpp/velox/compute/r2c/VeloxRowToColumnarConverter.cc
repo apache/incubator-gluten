@@ -16,7 +16,7 @@
  */
 
 #include "VeloxRowToColumnarConverter.h"
-#include "memory/VeloxColumnarBatch.h"
+#include "compute/batch/VeloxColumnarBatch.h"
 #include "velox/row/UnsafeRowDeserializers.h"
 #include "velox/vector/arrow/Bridge.h"
 

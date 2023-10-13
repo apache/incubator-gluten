@@ -19,7 +19,7 @@
 
 #include <velox/common/memory/MemoryPool.h>
 #include "compute/ResultIterator.h"
-#include "memory/VeloxColumnarBatch.h"
+#include "compute/batch/VeloxColumnarBatch.h"
 #include "velox/exec/Driver.h"
 #include "velox/exec/Operator.h"
 

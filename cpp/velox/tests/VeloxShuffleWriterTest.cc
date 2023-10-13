@@ -25,13 +25,13 @@
 #include <arrow/util/io_util.h>
 #include <iostream>
 
+#include "compute/batch/VeloxColumnarBatch.h"
 #include "compute/shuffle/LocalPartitionWriter.h"
 #include "compute/shuffle/Utils.h"
+#include "compute/shuffle/VeloxShuffleReader.h"
+#include "compute/shuffle/VeloxShuffleWriter.h"
 #include "compute/shuffle/rss/CelebornPartitionWriter.h"
 #include "compute/shuffle/rss/RssClient.h"
-#include "memory/VeloxColumnarBatch.h"
-#include "shuffle/VeloxShuffleReader.h"
-#include "shuffle/VeloxShuffleWriter.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"

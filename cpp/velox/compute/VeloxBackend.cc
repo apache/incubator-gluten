@@ -23,7 +23,7 @@
 #include "operators/functions/RegistrationAllFunctions.h"
 #include "operators/plannodes/RowVectorStream.h"
 
-#include "shuffle/VeloxShuffleReader.h"
+#include "compute/shuffle/VeloxShuffleReader.h"
 
 #ifdef GLUTEN_ENABLE_QAT
 #include "utils/qat/QatCodec.h"
