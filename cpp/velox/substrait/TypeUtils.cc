@@ -163,4 +163,67 @@ TypePtr substraitTypeToVeloxType(const ::substrait::Type& substraitType) {
   return toVeloxType(SubstraitParser::parseType(substraitType).type);
 }
 
+TypePtr getRowType(const std::string& structType) {
+  // Struct info is in the format of struct<T1,T2, ...,Tn>.
+  // TODO: nested struct is not supported.
+  auto structStart = structType.find_first_of('<');
+  auto structEnd = structType.find_last_of('>');
+  VELOX_CHECK(
+      structEnd - structStart > 1, "native validation failed due to: More information is needed to create RowType");
+  std::string childrenTypes = structType.substr(structStart + 1, structEnd - structStart - 1);
+
+  // Split the types with delimiter.
+  std::string delimiter = ",";
+  std::size_t pos;
+  std::vector<TypePtr> types;
+  std::vector<std::string> names;
+  while ((pos = childrenTypes.find(delimiter)) != std::string::npos) {
+    const auto& typeStr = childrenTypes.substr(0, pos);
+    std::string decDelimiter = ">";
+    if (typeStr.find("dec") != std::string::npos) {
+      std::size_t endPos = childrenTypes.find(decDelimiter);
+      VELOX_CHECK(endPos >= pos + 1, "Decimal scale is expected.");
+      const auto& decimalStr = typeStr + childrenTypes.substr(pos, endPos - pos) + decDelimiter;
+      types.emplace_back(getDecimalType(decimalStr));
+      names.emplace_back("");
+      childrenTypes.erase(0, endPos + delimiter.length() + decDelimiter.length());
+      continue;
+    }
+
+    types.emplace_back(substraitTypeToVeloxType(typeStr));
+    names.emplace_back("");
+    childrenTypes.erase(0, pos + delimiter.length());
+  }
+  types.emplace_back(substraitTypeToVeloxType(childrenTypes));
+  names.emplace_back("");
+  return std::make_shared<RowType>(std::move(names), std::move(types));
+}
+
+TypePtr getDecimalType(const std::string& decimalType) {
+  // Decimal info is in the format of dec<precision,scale>.
+  auto precisionStart = decimalType.find_first_of('<');
+  auto tokenIndex = decimalType.find_first_of(',');
+  auto scaleStart = decimalType.find_first_of('>');
+  auto precision = stoi(decimalType.substr(precisionStart + 1, (tokenIndex - precisionStart - 1)));
+  auto scale = stoi(decimalType.substr(tokenIndex + 1, (scaleStart - tokenIndex - 1)));
+  return DECIMAL(precision, scale);
+}
+
+std::vector<TypePtr> sigToTypes(const std::string& functionSig) {
+  std::vector<std::string> typeStrs;
+  SubstraitParser::getSubFunctionTypes(functionSig, typeStrs);
+  std::vector<TypePtr> types;
+  types.reserve(typeStrs.size());
+  for (const auto& typeStr : typeStrs) {
+    if (typeStr.find("struct") != std::string::npos) {
+      types.emplace_back(getRowType(typeStr));
+    } else if (typeStr.find("dec") != std::string::npos) {
+      types.emplace_back(getDecimalType(typeStr));
+    } else {
+      types.emplace_back(substraitTypeToVeloxType(typeStr));
+    }
+  }
+  return types;
+}
+
 } // namespace gluten
