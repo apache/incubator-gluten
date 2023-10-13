@@ -17,6 +17,7 @@
 #pragma once
 #include <cstddef>
 #include <memory>
+#include <mutex>
 #include <vector>
 #include <IO/WriteBuffer.h>
 #include <Core/Block.h>
@@ -38,6 +39,22 @@ struct SpillInfo {
 
 class CachedShuffleWriter;
 
+class Partition
+{
+public:
+    Partition() {}
+    Partition(const Partition & p) : blocks(p.blocks) {}
+    ~Partition() = default;
+    void addBlock(DB::Block & block);
+    bool empty() const;
+    void clear();
+    size_t spill(DB::NativeWriter & writer);
+
+private:
+    std::vector<DB::Block> blocks;
+    std::mutex mtx;
+};
+
 class PartitionWriter {
 public:
     explicit PartitionWriter(CachedShuffleWriter* shuffle_writer_);
@@ -56,11 +73,10 @@ public:
 
 protected:
     std::vector<ColumnsBuffer> partition_block_buffer;
-    std::vector<std::vector<DB::Block>> partition_buffer;
+    std::vector<Partition> partition_buffer;
     SplitOptions * options;
     CachedShuffleWriter * shuffle_writer;
     size_t total_partition_buffer_size = 0;
-    std::mutex mtx;
 };
 
 class LocalPartitionWriter : public PartitionWriter
