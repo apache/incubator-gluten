@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.datasources.velox
 
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.datasource.velox.DatasourceJniWrapper
+import io.glutenproject.datasource.DatasourceJniWrapper
 import io.glutenproject.exception.GlutenException
 import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators

@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import io.glutenproject.datasource.velox.DatasourceJniWrapper
+import io.glutenproject.datasource.DatasourceJniWrapper
 import io.glutenproject.vectorized.{CloseableColumnBatchIterator, ColumnarBatchInIterator}
 
 import org.apache.spark.TaskContext
