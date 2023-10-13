@@ -24,11 +24,7 @@ public class JniUtils {
 
   public static byte[] toNativeConf(Map<String, String> confs) {
     ConfigMap.Builder builder = ConfigMap.newBuilder();
-    confs.forEach(
-        (k, v) -> {
-          ConfigMap.Pair pair = ConfigMap.Pair.newBuilder().setKey(k).setValue(v).build();
-          builder.addConfigs(pair);
-        });
+    builder.putAllConfigs(confs);
     return builder.build().toByteArray();
   }
 }

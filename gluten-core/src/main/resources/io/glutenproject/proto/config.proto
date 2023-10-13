@@ -7,10 +7,5 @@ option java_package = "io.glutenproject.proto";
 option java_multiple_files = true;
 
 message ConfigMap {
-  message Pair {
-    string key = 1;
-    string value = 2;
-  }
-
-  repeated Pair configs = 1;
+  map<string, string> configs = 1;
 }

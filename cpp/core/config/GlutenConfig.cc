@@ -28,9 +28,8 @@ std::unordered_map<std::string, std::string> parseConfMap(JNIEnv* env, jbyteArra
   auto planSize = env->GetArrayLength(configArray);
   ConfigMap pConfigMap;
   gluten::parseProtobuf(planData, planSize, &pConfigMap);
-
   for (const auto& pair : pConfigMap.configs()) {
-    sparkConfs.emplace(pair.key(), pair.value());
+    sparkConfs.emplace(pair.first, pair.second);
   }
 
   return sparkConfs;
