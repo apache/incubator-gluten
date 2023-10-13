@@ -24,9 +24,9 @@
 
 #include "compute/ExecutionCtx.h"
 #include "compute/ProtobufUtils.h"
+#include "compute/shuffle/rss/RssClient.h"
 #include "config/GlutenConfig.h"
 #include "memory/AllocationListener.h"
-#include "shuffle/rss/RssClient.h"
 #include "utils/DebugOut.h"
 #include "utils/compression.h"
 #include "utils/exception.h"

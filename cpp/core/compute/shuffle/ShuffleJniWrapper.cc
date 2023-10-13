@@ -23,7 +23,7 @@
 #include "compute/shuffle/ShuffleReader.h"
 #include "compute/shuffle/ShuffleWriter.h"
 #include "compute/shuffle/Utils.h"
-#include "shuffle/rss/CelebornPartitionWriter.h"
+#include "compute/shuffle/rss/CelebornPartitionWriter.h"
 #include "utils/ArrowStatus.h"
 
 #ifdef __cplusplus
