@@ -256,7 +256,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "velox_parquet_write.parquet";
 
-    auto executionCtx = gluten::createExecutionCtx();
+    auto executionCtx = ExecutionCtx::create(kVeloxExecutionCtxKind);
     auto memoryManager = getDefaultMemoryManager();
     auto veloxPool = memoryManager->getAggregateMemoryPool();
 
@@ -292,7 +292,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
         benchmark::Counter(initTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["write_time"] =
         benchmark::Counter(writeTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    gluten::releaseExecutionCtx(executionCtx);
+    ExecutionCtx::release(executionCtx);
   }
 };
 

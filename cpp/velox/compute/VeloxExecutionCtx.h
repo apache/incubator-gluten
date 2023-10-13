@@ -30,6 +30,9 @@
 
 namespace gluten {
 
+// This kind string must be same with VeloxBackend#name in java side.
+inline static const std::string kVeloxExecutionCtxKind{"velox"};
+
 class VeloxExecutionCtx final : public ExecutionCtx {
  public:
   explicit VeloxExecutionCtx(const std::unordered_map<std::string, std::string>& confMap);
@@ -120,6 +123,14 @@ class VeloxExecutionCtx final : public ExecutionCtx {
       struct ArrowSchema* cSchema) override;
   std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(ResourceHandle handle) override;
   void releaseColumnarBatchSerializer(ResourceHandle handle) override;
+
+  int32_t getColumnarBatchPerRowSize(std::shared_ptr<ColumnarBatch> cb) override;
+
+  std::shared_ptr<ColumnarBatch> getNonPartitionedColumnarBatch(
+      std::shared_ptr<ColumnarBatch> cb,
+      std::vector<size_t> partitionColIndiceVec,
+      MemoryManager* memoryManager,
+      char*& rowBytes) override;
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
     return veloxPlan_;

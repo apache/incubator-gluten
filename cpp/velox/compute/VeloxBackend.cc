@@ -117,7 +117,7 @@ void VeloxBackend::printConf(const std::unordered_map<std::string, std::string>&
 }
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
-  // In spark, planner takes care the parititioning and sorting, so the rows are sorted.
+  // In spark, planner takes care the partitioning and sorting, so the rows are sorted.
   // There is no need to sort the rows in window op again.
   FLAGS_SkipRowSortInWindowOp = true;
   // Avoid creating too many shared leaf pools.
@@ -266,7 +266,7 @@ void VeloxBackend::initJolFilesystem(const std::unordered_map<std::string, std::
   if (got != conf.end()) {
     maxSpillFileSize = std::stol(got->second);
   }
-  // FIMXE It's known that if spill compression is disabled, the actual spill file size may
+  // FIXME It's known that if spill compression is disabled, the actual spill file size may
   //   in crease beyond this limit a little (maximum 64 rows which is by default
   //   one compression page)
   gluten::registerJolFileSystem(maxSpillFileSize);
@@ -353,24 +353,18 @@ void VeloxBackend::initUdf(const std::unordered_map<std::string, std::string>& c
   }
 }
 
+std::unique_ptr<VeloxBackend> VeloxBackend::instance_ = nullptr;
+
 void VeloxBackend::create(const std::unordered_map<std::string, std::string>& conf) {
-  std::lock_guard<std::mutex> lockGuard(mutex_);
-  if (instance_ != nullptr) {
-    assert(false);
-    throw gluten::GlutenException("VeloxBackend already set");
-  }
-  instance_.reset(new gluten::VeloxBackend(conf));
+  instance_ = std::unique_ptr<VeloxBackend>(new gluten::VeloxBackend(conf));
 }
 
-std::shared_ptr<VeloxBackend> VeloxBackend::get() {
-  std::lock_guard<std::mutex> lockGuard(mutex_);
-  if (instance_ == nullptr) {
-    LOG(INFO) << "VeloxBackend not set, using default VeloxBackend instance. This should only happen in test code.";
-    static const std::unordered_map<std::string, std::string> kEmptyConf;
-    static std::shared_ptr<VeloxBackend> defaultInstance{new gluten::VeloxBackend(kEmptyConf)};
-    return defaultInstance;
+VeloxBackend* VeloxBackend::get() {
+  if (!instance_) {
+    LOG(WARNING) << "VeloxBackend instance is null, please invoke VeloxBackend#create before use.";
+    throw GlutenException("VeloxBackend instance is null.");
   }
-  return instance_;
+  return instance_.get();
 }
 
 } // namespace gluten

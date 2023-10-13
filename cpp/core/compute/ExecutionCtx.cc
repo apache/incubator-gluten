@@ -20,28 +20,50 @@
 
 namespace gluten {
 
-static ExecutionCtxFactoryContext* getExecutionCtxFactoryContext() {
-  static ExecutionCtxFactoryContext* executionCtxFactoryCtx = new ExecutionCtxFactoryContext;
-  return executionCtxFactoryCtx;
+namespace {
+class FactoryRegistry {
+ public:
+  void registerFactory(const std::string& kind, ExecutionCtx::Factory factory) {
+    std::lock_guard<std::mutex> l(mutex_);
+    GLUTEN_CHECK(map_.find(kind) == map_.end(), "ExecutionCtx factory already registered for " + kind);
+    map_[kind] = std::move(factory);
+  }
+
+  ExecutionCtx::Factory& getFactory(const std::string& kind) {
+    std::lock_guard<std::mutex> l(mutex_);
+    GLUTEN_CHECK(map_.find(kind) != map_.end(), "ExecutionCtx factory not registered for " + kind);
+    return map_[kind];
+  }
+
+  bool unregisterFactory(const std::string& kind) {
+    std::lock_guard<std::mutex> l(mutex_);
+    GLUTEN_CHECK(map_.find(kind) != map_.end(), "ExecutionCtx factory not registered for " + kind);
+    return map_.erase(kind);
+  }
+
+ private:
+  std::mutex mutex_;
+  std::unordered_map<std::string, ExecutionCtx::Factory> map_;
+};
+
+FactoryRegistry& executionCtxFactories() {
+  static FactoryRegistry registry;
+  return registry;
+}
+} // namespace
+
+void ExecutionCtx::registerFactory(const std::string& kind, ExecutionCtx::Factory factory) {
+  executionCtxFactories().registerFactory(kind, std::move(factory));
 }
 
-void setExecutionCtxFactory(
-    ExecutionCtxFactoryWithConf factory,
-    const std::unordered_map<std::string, std::string>& sparkConfs) {
-  getExecutionCtxFactoryContext()->set(factory, sparkConfs);
-  DEBUG_OUT << "Set execution context factory with conf." << std::endl;
+ExecutionCtx* ExecutionCtx::create(
+    const std::string& kind,
+    const std::unordered_map<std::string, std::string>& sessionConf) {
+  auto& factory = executionCtxFactories().getFactory(kind);
+  return factory(sessionConf);
 }
 
-void setExecutionCtxFactory(ExecutionCtxFactory factory) {
-  getExecutionCtxFactoryContext()->set(factory);
-  DEBUG_OUT << "Set execution context factory." << std::endl;
-}
-
-ExecutionCtx* createExecutionCtx() {
-  return getExecutionCtxFactoryContext()->create();
-}
-
-void releaseExecutionCtx(ExecutionCtx* executionCtx) {
+void ExecutionCtx::release(ExecutionCtx* executionCtx) {
   delete executionCtx;
 }
 

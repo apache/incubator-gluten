@@ -417,7 +417,9 @@ class DynamicPartitionDataSingleWriter(
           val blockStripe = iter.next()
           val headingRow = blockStripe.getHeadingRow
           beforeWrite(headingRow)
-          writeStripe(new FakeRow(blockStripe.getColumnarBatch))
+          val columnBatch = blockStripe.getColumnarBatch
+          writeStripe(new FakeRow(columnBatch))
+          columnBatch.close()
         }
         blockStripes.release()
       case _ =>

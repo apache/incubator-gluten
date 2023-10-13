@@ -46,7 +46,7 @@ class VeloxBackend {
 
   static void create(const std::unordered_map<std::string, std::string>& conf);
 
-  static std::shared_ptr<VeloxBackend> get();
+  static VeloxBackend* get();
 
   facebook::velox::memory::MemoryAllocator* getAsyncDataCache() const;
 
@@ -68,8 +68,7 @@ class VeloxBackend {
     return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";
   }
 
-  inline static std::shared_ptr<VeloxBackend> instance_;
-  inline static std::mutex mutex_;
+  static std::unique_ptr<VeloxBackend> instance_;
 
   // Instance of AsyncDataCache used for all large allocations.
   std::shared_ptr<facebook::velox::memory::MemoryAllocator> asyncDataCache_ =

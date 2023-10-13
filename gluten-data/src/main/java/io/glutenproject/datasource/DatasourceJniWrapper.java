@@ -14,13 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.datasource.velox;
+package io.glutenproject.datasource;
 
 import io.glutenproject.exec.ExecutionCtx;
 import io.glutenproject.exec.ExecutionCtxAware;
 import io.glutenproject.exec.ExecutionCtxs;
 import io.glutenproject.init.JniUtils;
 import io.glutenproject.vectorized.ColumnarBatchInIterator;
+
+import org.apache.spark.sql.execution.datasources.BlockStripes;
 
 import java.util.Map;
 
@@ -56,4 +58,7 @@ public class DatasourceJniWrapper implements ExecutionCtxAware {
   public native void close(long dsHandle);
 
   public native void write(long dsHandle, ColumnarBatchInIterator iterator);
+
+  public native BlockStripes splitBlockByPartitionAndBucket(
+      long blockAddress, int[] partitionColIndice, boolean hasBucket, long memoryManagerId);
 }

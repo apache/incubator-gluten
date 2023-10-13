@@ -16,11 +16,22 @@
  */
 package io.glutenproject.exec
 
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.init.JniUtils
+
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.TaskResource
 
 class ExecutionCtx private[exec] () extends TaskResource {
 
-  private val handle = ExecutionCtxJniWrapper.createExecutionCtx()
+  private val handle = ExecutionCtxJniWrapper.createExecutionCtx(
+    BackendsApiManager.getBackendName,
+    JniUtils.toNativeConf(
+      GlutenConfig.getNativeSessionConf(
+        BackendsApiManager.getSettings.getBackendConfigPrefix,
+        SQLConf.get.getAllConfs))
+  )
 
   def getHandle: Long = handle
 

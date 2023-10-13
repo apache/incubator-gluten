@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.datasources.velox
 
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.datasource.velox.DatasourceJniWrapper
+import io.glutenproject.datasource.DatasourceJniWrapper
 import io.glutenproject.exception.GlutenException
 import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
@@ -109,7 +109,15 @@ class VeloxRowSplitter extends GlutenRowSplitter {
       row: FakeRow,
       partitionColIndice: Array[Int],
       hasBucket: Boolean): BlockStripes = {
-    throw new UnsupportedOperationException(
-      "VeloxRowSplitter does not support splitBlockByPartitionAndBucket")
+    val handler = ColumnarBatches.getNativeHandle(row.batch)
+    val datasourceJniWrapper = DatasourceJniWrapper.create()
+    new VeloxBlockStripes(
+      datasourceJniWrapper
+        .splitBlockByPartitionAndBucket(
+          handler,
+          partitionColIndice,
+          hasBucket,
+          NativeMemoryManagers.contextInstance("VeloxPartitionWriter").getNativeInstanceHandle)
+    )
   }
 }
