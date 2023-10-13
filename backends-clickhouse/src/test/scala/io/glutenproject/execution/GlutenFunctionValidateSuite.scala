@@ -440,4 +440,10 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
       )(checkOperatorMatch[ProjectExecTransformer])
     }
   }
+
+  test("test cast float string to int") {
+    runQueryAndCompare(
+      "select cast(concat(cast(id as string), '.1') as int) from range(10)"
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
 }
