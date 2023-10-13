@@ -360,7 +360,6 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"strpos", "instr"},
     {"ends_with", "endswith"},
     {"starts_with", "startswith"},
-    {"datediff", "date_diff"},
     {"named_struct", "row_constructor"},
     {"bit_or", "bitwise_or_agg"},
     {"bit_or_merge", "bitwise_or_agg_merge"},
