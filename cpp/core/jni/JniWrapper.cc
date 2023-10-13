@@ -1051,7 +1051,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper_
   JNI_METHOD_END()
 }
 
-JNIEXPORT jlong JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapper_nativeInitDatasource( // NOLINT
+JNIEXPORT jlong JNICALL Java_io_glutenproject_datasource_DatasourceJniWrapper_nativeInitDatasource( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jstring filePath,
@@ -1081,7 +1081,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrap
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapper_inspectSchema( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_datasource_DatasourceJniWrapper_inspectSchema( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong dsHandle,
@@ -1094,7 +1094,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapp
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapper_close( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_datasource_DatasourceJniWrapper_close( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong dsHandle) {
@@ -1107,7 +1107,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapp
   JNI_METHOD_END()
 }
 
-JNIEXPORT void JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapper_write( // NOLINT
+JNIEXPORT void JNICALL Java_io_glutenproject_datasource_DatasourceJniWrapper_write( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong dsHandle,
@@ -1127,7 +1127,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_datasource_velox_DatasourceJniWrapp
 }
 
 JNIEXPORT jobject JNICALL
-Java_io_glutenproject_datasource_velox_DatasourceJniWrapper_splitBlockByPartitionAndBucket( // NOLINT
+Java_io_glutenproject_datasource_DatasourceJniWrapper_splitBlockByPartitionAndBucket( // NOLINT
     JNIEnv* env,
     jobject wrapper,
     jlong batchAddress,

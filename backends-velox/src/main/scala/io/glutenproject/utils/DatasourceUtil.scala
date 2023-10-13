@@ -16,7 +16,7 @@
  */
 package io.glutenproject.utils
 
-import io.glutenproject.datasource.velox.DatasourceJniWrapper
+import io.glutenproject.datasource.DatasourceJniWrapper
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 
