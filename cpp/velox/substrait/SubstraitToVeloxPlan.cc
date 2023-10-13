@@ -357,7 +357,10 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     }
     auto aggVeloxType = substraitTypeToVeloxType(aggFunction.output_type());
     auto aggExpr = std::make_shared<const core::CallTypedExpr>(aggVeloxType, std::move(aggParams), funcName);
-    aggregates.emplace_back(core::AggregationNode::Aggregate{aggExpr, mask, {}, {}});
+
+    const auto& functionSpec = SubstraitParser::findFunctionSpec(functionMap_, aggFunction.function_reference());
+    std::vector<TypePtr> rawInputTypes = sigToTypes(functionSpec);
+    aggregates.emplace_back(core::AggregationNode::Aggregate{aggExpr, rawInputTypes, mask, {}, {}});
   }
 
   bool ignoreNullKeys = false;
