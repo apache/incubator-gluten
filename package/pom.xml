@@ -70,6 +70,16 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>rss</id>
+      <dependencies>
+        <dependency>
+          <groupId>io.glutenproject</groupId>
+          <artifactId>gluten-celeborn-package</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 
   <build>
