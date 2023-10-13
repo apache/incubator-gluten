@@ -1391,18 +1391,20 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
             allBuffers.push_back(nullptr);
           }
           // value buffer
-          ARROW_RETURN_IF(!buffers[1], arrow::Status::Invalid("Value buffer of fixed-width array is null."));
           std::shared_ptr<arrow::Buffer> valueBuffer;
-          if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
-            valueBuffer = arrow::SliceBuffer(buffers[1], 0, arrow::bit_util::BytesForBits(numRows));
-          } else if (veloxColumnTypes_[i]->isShortDecimal()) {
-            valueBuffer =
-                arrow::SliceBuffer(buffers[1], 0, numRows * (arrow::bit_width(arrow::Int64Type::type_id) >> 3));
-          } else if (veloxColumnTypes_[i]->kind() == TypeKind::TIMESTAMP) {
-            valueBuffer = arrow::SliceBuffer(buffers[1], 0, BaseVector::byteSize<Timestamp>(numRows));
-          } else {
-            valueBuffer =
-                arrow::SliceBuffer(buffers[1], 0, numRows * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3));
+          if (arrowColumnTypes_[i]->id() != arrow::NullType::type_id) {
+            ARROW_RETURN_IF(!buffers[1], arrow::Status::Invalid("Value buffer of fixed-width array is null."));
+            if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
+              valueBuffer = arrow::SliceBuffer(buffers[1], 0, arrow::bit_util::BytesForBits(numRows));
+            } else if (veloxColumnTypes_[i]->isShortDecimal()) {
+              valueBuffer =
+                  arrow::SliceBuffer(buffers[1], 0, numRows * (arrow::bit_width(arrow::Int64Type::type_id) >> 3));
+            } else if (veloxColumnTypes_[i]->kind() == TypeKind::TIMESTAMP) {
+              valueBuffer = arrow::SliceBuffer(buffers[1], 0, BaseVector::byteSize<Timestamp>(numRows));
+            } else {
+              valueBuffer =
+                  arrow::SliceBuffer(buffers[1], 0, numRows * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3));
+            }
           }
           allBuffers.push_back(std::move(valueBuffer));
           if (!reuseBuffers) {
