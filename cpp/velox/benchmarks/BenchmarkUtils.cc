@@ -39,7 +39,7 @@ gluten::ExecutionCtx* veloxExecutionCtxFactory(const std::unordered_map<std::str
   return new gluten::VeloxExecutionCtx(sparkConf);
 }
 
-} // anonymous namespace
+} // namespace
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
   gluten::ExecutionCtx::registerFactory(gluten::kVeloxExecutionCtxKind, veloxExecutionCtxFactory);
