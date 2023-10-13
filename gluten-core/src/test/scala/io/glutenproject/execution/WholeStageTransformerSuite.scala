@@ -321,7 +321,7 @@ object WholeStageTransformerSuite extends Logging {
       skipAssert: Boolean = false): Unit = {
     // When noFallBack is true, it means there is no fallback plan,
     // otherwise there must be some fallback plans.
-    val hasFallbacks = FallbackUtil.hasFallbacks(df.queryExecution.executedPlan)
+    val hasFallbacks = FallbackUtil.hasFallback(df.queryExecution.executedPlan)
     if (!skipAssert) {
       assert(
         !hasFallbacks == noFallback,

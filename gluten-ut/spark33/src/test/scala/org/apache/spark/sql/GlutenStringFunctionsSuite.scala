@@ -37,36 +37,36 @@ class GlutenStringFunctionsSuite
   test(GlutenTestConstants.GLUTEN_TEST + "string split function with no limit and regex pattern") {
     val df1 = Seq(("aaAbbAcc4")).toDF("a").select(split($"a", "A"))
     checkAnswer(df1, Row(Seq("aa", "bb", "cc4")))
-    Assert.assertFalse(FallbackUtil.hasFallbacks(df1.queryExecution.executedPlan))
+    Assert.assertFalse(FallbackUtil.hasFallback(df1.queryExecution.executedPlan))
 
     // scalastyle:off nonascii
     val df2 = Seq(("test_gluten单测_")).toDF("a").select(split($"a", "_"))
     checkAnswer(df2, Row(Seq("test", "gluten单测", "")))
     // scalastyle:on nonascii
-    Assert.assertFalse(FallbackUtil.hasFallbacks(df2.queryExecution.executedPlan))
+    Assert.assertFalse(FallbackUtil.hasFallback(df2.queryExecution.executedPlan))
   }
 
   test(GlutenTestConstants.GLUTEN_TEST + "string split function with limit explicitly set to 0") {
     val df1 = Seq(("aaAbbAcc4")).toDF("a").select(split($"a", "A", 0))
     checkAnswer(df1, Row(Seq("aa", "bb", "cc4")))
-    Assert.assertFalse(FallbackUtil.hasFallbacks(df1.queryExecution.executedPlan))
+    Assert.assertFalse(FallbackUtil.hasFallback(df1.queryExecution.executedPlan))
 
     // scalastyle:off nonascii
     val df2 = Seq(("test_gluten单测_")).toDF("a").select(split($"a", "_", 0))
     checkAnswer(df2, Row(Seq("test", "gluten单测", "")))
     // scalastyle:on nonascii
-    Assert.assertFalse(FallbackUtil.hasFallbacks(df2.queryExecution.executedPlan))
+    Assert.assertFalse(FallbackUtil.hasFallback(df2.queryExecution.executedPlan))
   }
 
   test(GlutenTestConstants.GLUTEN_TEST + "string split function with negative limit") {
     val df1 = Seq(("aaAbbAcc4")).toDF("a").select(split($"a", "A", -1))
     checkAnswer(df1, Row(Seq("aa", "bb", "cc4")))
-    Assert.assertFalse(FallbackUtil.hasFallbacks(df1.queryExecution.executedPlan))
+    Assert.assertFalse(FallbackUtil.hasFallback(df1.queryExecution.executedPlan))
 
     // scalastyle:off nonascii
     val df2 = Seq(("test_gluten单测_")).toDF("a").select(split($"a", "_", -2))
     checkAnswer(df2, Row(Seq("test", "gluten单测", "")))
     // scalastyle:on nonascii
-    Assert.assertFalse(FallbackUtil.hasFallbacks(df2.queryExecution.executedPlan))
+    Assert.assertFalse(FallbackUtil.hasFallback(df2.queryExecution.executedPlan))
   }
 }

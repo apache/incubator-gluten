@@ -174,7 +174,7 @@ class GlutenClickHouseTPCDSParquetSuite extends GlutenClickHouseTPCDSAbstractSui
         |""".stripMargin
 
     val df = spark.sql(testSql)
-    assert(FallbackUtil.hasFallbacks(df.queryExecution.executedPlan))
+    assert(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
   }
 
   test(
