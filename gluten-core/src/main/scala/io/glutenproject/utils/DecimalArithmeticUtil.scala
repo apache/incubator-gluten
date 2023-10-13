@@ -207,7 +207,7 @@ object DecimalArithmeticUtil {
         (left, right)
       }
     } else {
-      // cast int * cast int, usually user defined cast
+      // Cast int * cast int. Usually user defined cast.
       (left, right)
     }
   }
