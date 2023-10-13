@@ -17,11 +17,11 @@
 
 #pragma once
 
+#include <stdint.h>
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
-#include <stdint.h>
 
 #include "velox/common/base/SimdUtil.h"
 #include "velox/common/time/CpuWallTimer.h"
@@ -54,6 +54,13 @@
 #include "shuffle/Utils.h"
 
 #include "utils/Print.h"
+
+#if defined(__x86_64__)
+#include <immintrin.h>
+#include <x86intrin.h>
+#elif defined(__aarch64__)
+#include <arm_neon.h>
+#endif
 
 namespace gluten {
 
@@ -268,56 +275,45 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       bool reuseBuffers);
 
   template <typename T>
-  static void gather(T* dst, T* src, const int32_t* indexes) {
-    /*
-      int32_t indices8[8] = {7, 6, 5, 4, 3, 2, 1, 0};
-      int32_t indices6[8] = {7, 6, 5, 4, 3, 2, 1 << 31, 1 << 31};
-      int32_t data[8] = {0, 11, 22, 33, 44, 55, 66, 77};
-      constexpr int kBatchSize = xsimd::batch<int32_t>::size;
-      const int32_t* indices = indices8 + (8 - kBatchSize);
-      const int32_t* indicesMask = indices6 + (8 - kBatchSize);
-      auto result = simd::gather(data, indices);
-      for (auto i = 0; i < kBatchSize; ++i) {
-        EXPECT_EQ(result.get(i), data[indices[i]]);
-      }
-    */
-    auto result = facebook::velox::simd::gather(src, indexes);
-    result.store_unaligned(dst);
-  }
-
-  template <typename T>
-  arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
+  arrow::Status splitFixedType(const uint8_t* src, const std::vector<uint8_t*>& dstAddrs) {
+    auto rowOffset2RowId = &rowOffset2RowId_[0];
     for (auto& pid : partitionUsed_) {
-      auto dstPidBase = (T*)(dstAddrs[pid] + partitionBufferIdxBase_[pid] * sizeof(T));
+      auto dst = (T*)(dstAddrs[pid] + partitionBufferIdxBase_[pid] * sizeof(T));
       auto pos = partition2RowOffset_[pid];
       auto end = partition2RowOffset_[pid + 1];
 
-      T* dst = dstPidBase;
-      constexpr int kBatchSize = xsimd::batch<T>::size;
-      for (; pos + kBatchSize < end; pos += kBatchSize) {
-        T* src = (T*)srcAddr;
-        int32_t* indexes = (int32_t*)(&rowOffset2RowId_[pos]);
-        gather<T>(dst, src, indexes);
-        dst += kBatchSize;
-      }
-
       for (; pos < end; ++pos) {
-        auto rowId = rowOffset2RowId_[pos];
-        *dst++ = reinterpret_cast<const T*>(srcAddr)[rowId]; // copy
+        auto rowId = rowOffset2RowId[pos];
+        *dst++ = ((const T*)src)[rowId];
       }
     }
     return arrow::Status::OK();
   }
 
-  arrow::Status splitFixedType128(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
+  template <typename T>
+  arrow::Status splitFixedType32(const uint8_t* src, const std::vector<uint8_t*>& dstAddrs) {
+    auto rowOffset2RowId = &rowOffset2RowId_[0];
     for (auto& pid : partitionUsed_) {
-      auto dstPidBase = (__int128_t*)(dstAddrs[pid] + partitionBufferIdxBase_[pid] * sizeof(__int128_t));
+      auto dst = (T*)(dstAddrs[pid] + partitionBufferIdxBase_[pid] * sizeof(T));
       auto pos = partition2RowOffset_[pid];
       auto end = partition2RowOffset_[pid + 1];
 
+      constexpr int kBatchSize = 8;
+      for (; pos + kBatchSize <= end; pos += kBatchSize) {
+        // 把索引从内存加载到向量寄存器
+        __m256i vindex = _mm256_loadu_si256((__m256i*)(rowOffset2RowId + pos));
+
+        // 从内存位置gather index描述的位置的数据到向量寄存器
+        __m256i x = _mm256_i32gather_epi32((const int*)src, vindex, 4);
+
+        // 把向量寄存器的数据保存到目标内存
+        _mm256_storeu_si256((__m256i*)dst, x);
+        dst += kBatchSize;
+      }
+
       for (; pos < end; ++pos) {
-        auto rowId = rowOffset2RowId_[pos];
-        *dstPidBase++ = reinterpret_cast<const __int128_t*>(srcAddr)[rowId]; // copy
+        auto rowId = rowOffset2RowId[pos];
+        *dst++ = ((const T*)src)[rowId];
       }
     }
     return arrow::Status::OK();
