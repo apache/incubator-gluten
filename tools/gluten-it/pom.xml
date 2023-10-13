@@ -41,6 +41,7 @@
             <artifactId>gluten-core</artifactId>
           </exclusion>
         </exclusions>
+        <scope>runtime</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
