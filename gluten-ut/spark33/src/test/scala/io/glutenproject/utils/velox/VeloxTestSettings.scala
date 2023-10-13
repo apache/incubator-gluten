@@ -152,6 +152,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_timestamp exception mode")
     // Timezone is not correctly set. TODO: will investigate it.
     .exclude("SPARK-31896: Handle am-pm timestamp parsing when hour is missing")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("DateFormat")
   enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenHashExpressionsSuite]
   enableSuite[GlutenIntervalExpressionsSuite]
