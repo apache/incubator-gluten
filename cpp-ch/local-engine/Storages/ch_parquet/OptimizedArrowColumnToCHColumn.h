@@ -20,11 +20,11 @@
 
 #if USE_ARROW || USE_ORC || USE_PARQUET
 
-#    include <unordered_map>
-#    include <Core/Block.h>
-#    include <Core/ColumnWithTypeAndName.h>
-#    include <DataTypes/IDataType.h>
-#    include <arrow/table.h>
+#include <unordered_map>
+#include <Core/Block.h>
+#include <Core/ColumnWithTypeAndName.h>
+#include <DataTypes/IDataType.h>
+#include <arrow/table.h>
 
 namespace DB
 {
