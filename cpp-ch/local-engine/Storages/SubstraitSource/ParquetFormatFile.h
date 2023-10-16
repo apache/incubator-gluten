@@ -45,7 +45,7 @@ public:
         DB::ContextPtr context_,
         const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
         ReadBufferBuilderPtr read_buffer_builder_,
-        bool enable_local_parquet_format);
+        bool useLocalFormat);
     ~ParquetFormatFile() override = default;
 
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
@@ -55,7 +55,7 @@ public:
     DB::String getFileFormat() const override { return "parquet"; }
 
 private:
-    bool enable_local_format;
+    bool use_local_format;
     std::mutex mutex;
     std::optional<size_t> total_rows;
     bool enable_row_group_maxmin_index;

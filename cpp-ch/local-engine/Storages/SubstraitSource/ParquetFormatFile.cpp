@@ -49,9 +49,9 @@ ParquetFormatFile::ParquetFormatFile(
     DB::ContextPtr context_,
     const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
     ReadBufferBuilderPtr read_buffer_builder_,
-    bool enable_local_parquet_format)
+    bool useLocalFormat)
     : FormatFile(context_, file_info_, read_buffer_builder_)
-    , enable_local_format(enable_local_parquet_format)
+    , use_local_format(useLocalFormat)
     , enable_row_group_maxmin_index(file_info_.parquet().enable_row_group_maxmin_index())
 {
 }
@@ -74,7 +74,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
 
     auto format_settings = DB::getFormatSettings(context);
 
-    if (enable_local_format)
+    if (use_local_format)
     {
         std::vector<int> row_group_indices;
         row_group_indices.reserve(required_row_groups.size());

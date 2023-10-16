@@ -79,7 +79,7 @@ FormatFilePtr FormatFileUtil::createFile(
 #if USE_PARQUET
     if (file.has_parquet())
     {
-        bool useLocalFormat = context->getConfigRef().getBool("enable_local_parquet_format", false);
+        bool useLocalFormat = context->getConfigRef().getBool("use_local_format", false);
         return std::make_shared<ParquetFormatFile>(context, file, read_buffer_builder, useLocalFormat);
     }
 #endif
