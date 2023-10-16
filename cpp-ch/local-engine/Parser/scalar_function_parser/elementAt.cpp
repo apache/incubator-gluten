@@ -17,6 +17,7 @@
 
 #include <Parser/scalar_function_parser/arrayElement.h>
 #include <DataTypes/DataTypeMap.h>
+#include <DataTypes/IDataType.h>
 
 namespace local_engine
 {
@@ -35,8 +36,7 @@ namespace local_engine
             auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
             if (parsed_args.size() != 2)
                 throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly two arguments", getName());
-            const DataTypeMap * map_type = checkAndGetDataType<DataTypeMap>(removeNullable(parsed_args[0]->result_type).get());
-            if (map_type)
+            if (isMap(removeNullable(parsed_args[0]->result_type)))
                 return toFunctionNode(actions_dag, "arrayElement", parsed_args);
             else
                 return FunctionParserArrayElement::parse(substrait_func, actions_dag);
