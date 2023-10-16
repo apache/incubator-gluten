@@ -118,20 +118,20 @@ VectorPtr readFlatVectorStringView(
     std::shared_ptr<const Type> type,
     memory::MemoryPool* pool) {
   auto nulls = buffers[bufferIdx++];
-  auto offsetBuffers = buffers[bufferIdx++];
-  auto valueBuffers = buffers[bufferIdx++];
-  const int32_t* rawLength = offsetBuffers->as<int32_t>();
+  auto offsetBuffer = buffers[bufferIdx++];
+  auto valueBuffer = buffers[bufferIdx++];
+  const int32_t* rawLength = offsetBuffer->as<int32_t>();
 
   std::vector<BufferPtr> stringBuffers;
   auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * length, pool);
   auto rawValues = values->asMutable<StringView>();
-  auto rawChars = valueBuffers->as<char>();
+  auto rawChars = valueBuffer->as<char>();
   auto offset = 0;
   for (int32_t i = 0; i < length; ++i) {
     rawValues[i] = StringView(rawChars + offset, rawLength[i]);
     offset += rawLength[i];
   }
-  stringBuffers.emplace_back(valueBuffers);
+  stringBuffers.emplace_back(valueBuffer);
   if (nulls == nullptr || nulls->size() == 0) {
     return std::make_shared<FlatVector<StringView>>(
         pool, type, BufferPtr(nullptr), length, std::move(values), std::move(stringBuffers));
