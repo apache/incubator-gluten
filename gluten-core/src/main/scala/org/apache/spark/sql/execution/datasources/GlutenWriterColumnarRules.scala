@@ -96,7 +96,7 @@ object GlutenWriterColumnarRules {
 
     cmd match {
       case command: CreateDataSourceTableAsSelectCommand =>
-        if (BackendsApiManager.isVeloxBackend) {
+        if (BackendsApiManager.getSettings.skipNativeCtas(command)) {
           return None
         }
         if ("parquet".equals(command.table.provider.get)) {
@@ -109,18 +109,7 @@ object GlutenWriterColumnarRules {
       case command: InsertIntoHadoopFsRelationCommand
           if command.fileFormat.isInstanceOf[ParquetFileFormat] ||
             command.fileFormat.isInstanceOf[OrcFileFormat] =>
-        if (
-          BackendsApiManager.isVeloxBackend
-          && command.partitionColumns.nonEmpty &&
-          command.staticPartitions.size < command.partitionColumns.size
-        ) {
-          return None
-        }
-
-        if (
-          BackendsApiManager.isVeloxBackend
-          && command.bucketSpec.nonEmpty
-        ) {
+        if (BackendsApiManager.getSettings.skipNativeInsertInto(command)) {
           return None
         }
 
@@ -159,8 +148,8 @@ object GlutenWriterColumnarRules {
       case rc @ DataWritingCommandExec(cmd, child) =>
         val format = getNativeFormat(cmd)
         session.sparkContext.setLocalProperty(
-          "isVeloxBackend",
-          BackendsApiManager.isVeloxBackend.toString)
+          "staticPartitionWriteOnly",
+          BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
         session.sparkContext.setLocalProperty("isNativeAppliable", format.isDefined.toString)
         session.sparkContext.setLocalProperty("nativeFormat", format.getOrElse(""))
         if (format.isDefined) {

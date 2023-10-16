@@ -17,8 +17,7 @@
 package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.utils.SystemParameters
+import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator
@@ -168,7 +167,7 @@ class GlutenSQLQueryTestSuite
     attempt.isSuccess && attempt.get == 0
   }
 
-  private val isCHBackend = BackendsApiManager.isCHBackend
+  private val isCHBackend = BackendTestUtils.isCHBackendLoaded()
 
   override protected def sparkConf: SparkConf = {
     val conf = super.sparkConf

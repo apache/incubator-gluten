@@ -16,8 +16,6 @@
  */
 package io.glutenproject.utils
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.test.TestStats
 
 import java.util
@@ -130,23 +128,23 @@ abstract class BackendTestSettings {
 }
 
 object BackendTestSettings {
-  val instance: BackendTestSettings = BackendsApiManager.getBackendName match {
-    case GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND =>
+  val instance: BackendTestSettings = {
+    if (BackendTestUtils.isCHBackendLoaded()) {
       // scalastyle:off classforname
       Class
         .forName("io.glutenproject.utils.clickhouse.ClickHouseTestSettings")
         .getDeclaredConstructor()
         .newInstance()
         .asInstanceOf[BackendTestSettings]
-    case GlutenConfig.GLUTEN_VELOX_BACKEND =>
+    } else if (BackendTestUtils.isVeloxBackendLoaded()) {
       Class
         .forName("io.glutenproject.utils.velox.VeloxTestSettings")
         .getDeclaredConstructor()
         .newInstance()
         .asInstanceOf[BackendTestSettings]
-    // scalastyle:on classforname
-    case other =>
-      throw new IllegalStateException(other)
+    } else {
+      throw new IllegalStateException()
+    }
   }
 
   def shouldRun(suiteName: String, testName: String): Boolean = {

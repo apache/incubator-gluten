@@ -25,6 +25,8 @@ import org.apache.spark.sql.types._
 
 import com.google.common.collect.Lists
 
+import scala.collection.JavaConverters._
+
 /** The extract trait for 'GetDateField' from Date */
 case class ExtractDateTransformer(
     substraitExprName: String,
@@ -72,16 +74,12 @@ case class DateDiffTransformer(
       FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
 
-    val expressionNodes = if (BackendsApiManager.isCHBackend) {
-      // In CH backend, datediff params are ('day', startDate, endDate).
-      Lists.newArrayList(ExpressionBuilder.makeStringLiteral("day"), startDateNode, endDateNode)
-    } else {
-      // In the others, datediff params are (startDate, endDate).
-      Lists.newArrayList(startDateNode, endDateNode)
-    }
+    val expressionNodes = BackendsApiManager.getTransformerApiInstance.createDateDiffParamList(
+      startDateNode,
+      endDateNode)
     ExpressionBuilder.makeScalarFunction(
       functionId,
-      expressionNodes,
+      expressionNodes.toList.asJava,
       ConverterUtils.getTypeNode(original.dataType, original.nullable))
   }
 }

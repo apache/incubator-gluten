@@ -66,13 +66,11 @@ case class GetMapValueTransformer(
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // ClickHouse backend doesn't support fail on error
-    if (BackendsApiManager.isCHBackend && failOnError) {
+    if (BackendsApiManager.getSettings.alwaysFailOnMapExpression()) {
       throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
-    // Velox backend always fails on error
-    if (BackendsApiManager.isVeloxBackend && !failOnError) {
+    if (failOnError) {
       throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 

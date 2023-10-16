@@ -20,7 +20,6 @@ import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
-import _root_.io.glutenproject.backendsapi.BackendsApiManager
 import _root_.io.glutenproject.memory.SimpleMemoryUsageRecorder
 import _root_.io.glutenproject.utils.TaskListener
 
@@ -141,11 +140,6 @@ object TaskResources extends TaskListener with Logging {
           }
         }
       })
-    }
-    // Register resources from context API
-    val resourceFactories = BackendsApiManager.getContextApiInstance.taskResourceFactories()
-    for (factory <- resourceFactories) {
-      addAnonymousResource(factory.apply())
     }
   }
 

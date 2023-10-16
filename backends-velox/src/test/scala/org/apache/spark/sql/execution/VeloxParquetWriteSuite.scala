@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.WholeStageTransformerSuite
+import io.glutenproject.execution.VeloxWholeStageTransformerSuite
 import io.glutenproject.utils.FallbackUtil
 
 import org.apache.spark.SparkConf
@@ -24,7 +24,7 @@ import org.apache.spark.sql.functions.lit
 
 import org.junit.Assert
 
-class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
+class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
@@ -78,7 +78,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
         .toDF("id")
         .createOrReplaceTempView("ctas_temp")
       val df = spark.sql("CREATE TABLE velox_ctas USING PARQUET AS SELECT * FROM ctas_temp")
-      Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+      Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
 
@@ -91,7 +91,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
           .selectExpr("id as c1", "id % 7 as p")
           .createOrReplaceTempView("temp")
         val df = spark.sql(s"INSERT OVERWRITE DIRECTORY '$path' USING PARQUET SELECT * FROM temp")
-        Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+        Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
 
@@ -104,7 +104,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
       val df = spark.sql(
         "CREATE TABLE bucket USING PARQUET CLUSTERED BY (p) INTO 7 BUCKETS " +
           "AS SELECT * FROM bucket_temp")
-      Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+      Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
 

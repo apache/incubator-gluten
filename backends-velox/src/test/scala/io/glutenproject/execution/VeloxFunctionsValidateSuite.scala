@@ -26,7 +26,7 @@ import java.nio.file.Files
 
 import scala.collection.JavaConverters._
 
-class VeloxFunctionsValidateSuite extends WholeStageTransformerSuite {
+class VeloxFunctionsValidateSuite extends VeloxWholeStageTransformerSuite {
 
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"

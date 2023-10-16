@@ -29,7 +29,9 @@ import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import java.io.File
 
-abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSuite with Logging {
+abstract class GlutenClickHouseTPCHAbstractSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
+  with Logging {
 
   protected val createNullableTables = false
 

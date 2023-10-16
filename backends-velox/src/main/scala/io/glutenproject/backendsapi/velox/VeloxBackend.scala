@@ -16,7 +16,7 @@
  */
 package io.glutenproject.backendsapi.velox
 
-import io.glutenproject.GlutenConfig
+import io.glutenproject.{GlutenConfig, GlutenPlugin, VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME}
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -27,20 +27,29 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
+import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.types._
 
 import scala.util.control.Breaks.breakable
 
 class VeloxBackend extends Backend {
-  override def name(): String = GlutenConfig.GLUTEN_VELOX_BACKEND
-  override def iteratorApi(): IteratorApi = new IteratorHandler
-  override def sparkPlanExecApi(): SparkPlanExecApi = new SparkPlanExecHandler
-  override def transformerApi(): TransformerApi = new TransformerHandler
-  override def validatorApi(): ValidatorApi = new Validator
-  override def metricsApi(): MetricsApi = new MetricsHandler
+  override def name(): String = VeloxBackend.BACKEND_NAME
+  override def buildInfo(): GlutenPlugin.BackendBuildInfo =
+    GlutenPlugin.BackendBuildInfo("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
+  override def iteratorApi(): IteratorApi = new IteratorApiImpl
+  override def sparkPlanExecApi(): SparkPlanExecApi = new SparkPlanExecApiImpl
+  override def transformerApi(): TransformerApi = new TransformerApiImpl
+  override def validatorApi(): ValidatorApi = new ValidatorApiImpl
+  override def metricsApi(): MetricsApi = new MetricsApiImpl
+  override def listenerApi(): ListenerApi = new ListenerApiImpl
+  override def broadcastApi(): BroadcastApi = new BroadcastApiImpl
   override def settings(): BackendSettingsApi = BackendSettings
-  override def contextApi(): ContextApi = new ContextInitializer
+}
+
+object VeloxBackend {
+  val BACKEND_NAME = "velox"
 }
 
 object BackendSettings extends BackendSettingsApi {
@@ -286,7 +295,7 @@ object BackendSettings extends BackendSettingsApi {
 
   /** Get the config prefix for each backend */
   override def getBackendConfigPrefix(): String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_VELOX_BACKEND
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + VeloxBackend.BACKEND_NAME
 
   override def rescaleDecimalIntegralExpression(): Boolean = true
 
@@ -297,4 +306,20 @@ object BackendSettings extends BackendSettingsApi {
   }
 
   override def supportBucketScan(): Boolean = true
+
+  override def insertPostProjectForGenerate(): Boolean = true
+
+  override def skipNativeCtas(ctas: CreateDataSourceTableAsSelectCommand): Boolean = true
+
+  override def skipNativeInsertInto(insertInto: InsertIntoHadoopFsRelationCommand): Boolean = {
+    insertInto.partitionColumns.nonEmpty &&
+    insertInto.staticPartitions.size < insertInto.partitionColumns.size ||
+    insertInto.bucketSpec.nonEmpty
+  }
+
+  override def alwaysFailOnMapExpression(): Boolean = true
+
+  override def requiredChildOrderingForWindow(): Boolean = true
+
+  override def staticPartitionWriteOnly(): Boolean = true
 }

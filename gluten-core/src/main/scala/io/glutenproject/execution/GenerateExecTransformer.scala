@@ -18,26 +18,19 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.exception.GlutenException
-import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.expression.ExpressionTransformer
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.`type`.TypeBuilder
-import io.glutenproject.substrait.`type`.TypeNode
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.ExpressionBuilder
-import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.substrait.rel.RelNode
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.UnaryExecNode
-import org.apache.spark.sql.types.MapType
+import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.Any
@@ -97,32 +90,10 @@ case class GenerateExecTransformer(
   override def supportsColumnar: Boolean = true
 
   override protected def doValidateInternal(): ValidationResult = {
-    // TODO(yuan): support posexplode and remove this check
-    if (BackendsApiManager.isVeloxBackend) {
-      if (generator.isInstanceOf[JsonTuple]) {
-        return ValidationResult.notOk(s"Velox backend does not support this json_tuple")
-      }
-      if (generator.isInstanceOf[PosExplode]) {
-        return ValidationResult.notOk(s"Velox backend does not support this posexplode")
-      }
-      if (generator.isInstanceOf[Explode]) {
-        // explode(MAP(col1, col2))
-        if (generator.asInstanceOf[Explode].child.isInstanceOf[CreateMap]) {
-          return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
-        }
-        // explode(ARRAY(1, 2, 3))
-        if (generator.asInstanceOf[Explode].child.isInstanceOf[Literal]) {
-          return ValidationResult.notOk(s"Velox backend does not support literal Array datatype")
-        }
-        generator.asInstanceOf[Explode].child.dataType match {
-          case _: MapType =>
-            return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
-          case _ =>
-        }
-        if (outer) {
-          return ValidationResult.notOk(s"Velox backend does not support outer")
-        }
-      }
+    val validationResult =
+      BackendsApiManager.getTransformerApiInstance.validateGenerator(generator, outer)
+    if (!validationResult.isValid) {
+      return validationResult
     }
     val context = new SubstraitContext
     val args = context.registeredFunction
@@ -187,30 +158,33 @@ case class GenerateExecTransformer(
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
       readRel
     }
-    val projRel = if (BackendsApiManager.isVeloxBackend && needsProjection(generator)) {
-      // need to insert one projection node for velox backend
-      val selectOrigins = requiredChildOutput.indices.map(ExpressionBuilder.makeSelection(_))
-      val inputOrigins = child.output.indices.map(ExpressionBuilder.makeSelection(_))
-      val projectExpressions = new util.ArrayList[ExpressionNode]()
-      projectExpressions.addAll((selectOrigins ++ inputOrigins).asJava)
-      val projectExprNode = ExpressionConverter
-        .replaceWithExpressionTransformer(
-          generator.asInstanceOf[Explode].child,
-          requiredChildOutput ++ child.output)
-        .doTransform(args)
+    val projRel =
+      if (
+        BackendsApiManager.getSettings.insertPostProjectForGenerate() && needsProjection(generator)
+      ) {
+        // need to insert one projection node for velox backend
+        val selectOrigins = requiredChildOutput.indices.map(ExpressionBuilder.makeSelection(_))
+        val inputOrigins = child.output.indices.map(ExpressionBuilder.makeSelection(_))
+        val projectExpressions = new util.ArrayList[ExpressionNode]()
+        projectExpressions.addAll((selectOrigins ++ inputOrigins).asJava)
+        val projectExprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(
+            generator.asInstanceOf[Explode].child,
+            requiredChildOutput ++ child.output)
+          .doTransform(args)
 
-      projectExpressions.add(projectExprNode)
+        projectExpressions.add(projectExprNode)
 
-      RelBuilder.makeProjectRel(
-        inputRel,
-        projectExpressions,
-        context,
-        operatorId,
-        requiredChildOutput.size + inputOrigins.size)
+        RelBuilder.makeProjectRel(
+          inputRel,
+          projectExpressions,
+          context,
+          operatorId,
+          requiredChildOutput.size + inputOrigins.size)
 
-    } else {
-      inputRel
-    }
+      } else {
+        inputRel
+      }
 
     val relNode = getRelNode(
       context,

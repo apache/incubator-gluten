@@ -35,7 +35,7 @@ import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
 
-class CelebornHashBasedVeloxColumnarShuffleWriter[K, V](
+class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
     handle: CelebornShuffleHandle[K, V, V],
     context: TaskContext,
     celebornConf: CelebornConf,

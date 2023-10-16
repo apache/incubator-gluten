@@ -33,7 +33,9 @@ import java.util
 
 import scala.io.Source
 
-abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
+abstract class GlutenClickHouseTPCDSAbstractSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
+  with Logging {
   private var _spark: SparkSession = _
 
   override protected def spark: SparkSession = _spark

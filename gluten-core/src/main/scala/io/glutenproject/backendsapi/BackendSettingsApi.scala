@@ -24,6 +24,8 @@ import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
+import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.types.StructField
 
 trait BackendSettingsApi {
@@ -95,4 +97,16 @@ trait BackendSettingsApi {
   def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {}
 
   def supportBucketScan(): Boolean = false
+
+  def insertPostProjectForGenerate(): Boolean = false
+
+  def skipNativeCtas(ctas: CreateDataSourceTableAsSelectCommand): Boolean = false
+
+  def skipNativeInsertInto(insertInto: InsertIntoHadoopFsRelationCommand): Boolean = false
+
+  def alwaysFailOnMapExpression(): Boolean = false
+
+  def requiredChildOrderingForWindow(): Boolean = false
+
+  def staticPartitionWriteOnly(): Boolean = false
 }

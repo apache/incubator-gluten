@@ -19,7 +19,7 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 
-abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
+abstract class VeloxTPCHSuite extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
@@ -48,91 +48,135 @@ abstract class VeloxTPCHSuite extends WholeStageTransformerSuite {
   }
 
   test("TPC-H q1") {
-    runTPCHQuery(1, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(1, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q2") {
-    runTPCHQuery(2, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(2, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q3") {
-    runTPCHQuery(3, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(3, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q4") {
-    runTPCHQuery(4, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(4, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q5") {
-    runTPCHQuery(5, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(5, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q6") {
-    runTPCHQuery(6, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(6, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q7") {
-    runTPCHQuery(7, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(7, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q8") {
-    runTPCHQuery(8, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(8, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q9") {
-    runTPCHQuery(9, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(9, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q10") {
-    runTPCHQuery(10, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(10, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q11") {
-    runTPCHQuery(11, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(11, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q12") {
-    runTPCHQuery(12, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(12, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q13") {
-    runTPCHQuery(13, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(13, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q14") {
-    runTPCHQuery(14, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(14, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q15") {
-    runTPCHQuery(15, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(15, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q16") {
-    runTPCHQuery(16, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(16, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q17") {
-    runTPCHQuery(17, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(17, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q18") {
-    runTPCHQuery(18, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(18, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q19") {
-    runTPCHQuery(19, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(19, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q20") {
-    runTPCHQuery(20, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(20, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q21") {
-    runTPCHQuery(21, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(21, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("TPC-H q22") {
-    runTPCHQuery(22, veloxTPCHQueries, queriesResults, compareResult = false) { _ => }
+    runTPCHQuery(22, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
+      _ =>
+    }
   }
 
   test("test 'order by limit'") {

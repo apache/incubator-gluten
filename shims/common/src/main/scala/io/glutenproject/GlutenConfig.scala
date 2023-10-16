@@ -329,10 +329,6 @@ object GlutenConfig {
   val GLUTEN_IAA_BACKEND_NAME = "iaa"
   val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("gzip")
 
-  // Backends.
-  val GLUTEN_VELOX_BACKEND = "velox"
-  val GLUTEN_CLICKHOUSE_BACKEND = "ch"
-
   val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
@@ -398,15 +394,6 @@ object GlutenConfig {
   val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
 
   var ins: GlutenConfig = _
-  private var current_backend_prefix = ""
-
-  def isCurrentBackendVelox: Boolean = {
-    current_backend_prefix.endsWith(GLUTEN_VELOX_BACKEND)
-  }
-
-  def isCurrentBackendCH: Boolean = {
-    current_backend_prefix.endsWith(GLUTEN_CLICKHOUSE_BACKEND)
-  }
 
   def getConf: GlutenConfig = {
     new GlutenConfig(SQLConf.get)
@@ -470,8 +457,6 @@ object GlutenConfig {
   def getNativeBackendConf(
       backendPrefix: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
-
-    current_backend_prefix = backendPrefix
 
     val nativeConfMap = new util.HashMap[String, String]()
 

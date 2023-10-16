@@ -59,7 +59,7 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
 
   override def receive: PartialFunction[Any, Unit] = {
     case GlutenCleanExecutionResource(executionId, hashIds) =>
-      BackendsApiManager.getContextApiInstance
+      BackendsApiManager.getBroadcastApiInstance
         .cleanExecutionBroadcastHashtable(executionId, hashIds)
 
     case e =>
