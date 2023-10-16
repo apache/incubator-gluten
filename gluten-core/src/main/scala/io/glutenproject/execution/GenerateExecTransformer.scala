@@ -136,13 +136,13 @@ case class GenerateExecTransformer(
     val operatorId = context.nextOperatorId(this.nodeName)
     val generatorExpr =
       ExpressionConverter.replaceWithExpressionTransformer(generator, child.output)
-    val generatorNode = generatorExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-    val childOutputNodes = new java.util.ArrayList[ExpressionNode]
+    val generatorNode = generatorExpr.doTransform(args)
+    val requiredChildOutputNodes = new java.util.ArrayList[ExpressionNode]
     for (target <- requiredChildOutput) {
       val found = child.output.zipWithIndex.filter(_._1.name == target.name)
       if (found.nonEmpty) {
         val exprNode = ExpressionBuilder.makeSelection(found.head._2)
-        childOutputNodes.add(exprNode)
+        requiredChildOutputNodes.add(exprNode)
       } else {
         throw new GlutenException(s"Can't found column ${target.name} in child output")
       }
@@ -158,19 +158,19 @@ case class GenerateExecTransformer(
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
       readRel
     }
+
     val projRel =
       if (
         BackendsApiManager.getSettings.insertPostProjectForGenerate() && needsProjection(generator)
       ) {
         // need to insert one projection node for velox backend
-        val selectOrigins = requiredChildOutput.indices.map(ExpressionBuilder.makeSelection(_))
-        val inputOrigins = child.output.indices.map(ExpressionBuilder.makeSelection(_))
         val projectExpressions = new util.ArrayList[ExpressionNode]()
-        projectExpressions.addAll((selectOrigins ++ inputOrigins).asJava)
+        val childOutputNodes = child.output.indices
+          .map(i => ExpressionBuilder.makeSelection(i).asInstanceOf[ExpressionNode])
+          .asJava
+        projectExpressions.addAll(childOutputNodes)
         val projectExprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(
-            generator.asInstanceOf[Explode].child,
-            requiredChildOutput ++ child.output)
+          .replaceWithExpressionTransformer(generator.asInstanceOf[Explode].child, child.output)
           .doTransform(args)
 
         projectExpressions.add(projectExprNode)
@@ -180,8 +180,7 @@ case class GenerateExecTransformer(
           projectExpressions,
           context,
           operatorId,
-          requiredChildOutput.size + inputOrigins.size)
-
+          childOutputNodes.size)
       } else {
         inputRel
       }
@@ -192,7 +191,7 @@ case class GenerateExecTransformer(
       child.output,
       projRel,
       generatorNode,
-      childOutputNodes,
+      requiredChildOutputNodes,
       validation = false)
 
     TransformContext(child.output, output, relNode)
@@ -208,10 +207,10 @@ case class GenerateExecTransformer(
       inputAttributes: Seq[Attribute],
       input: RelNode,
       generator: ExpressionNode,
-      childOuput: util.ArrayList[ExpressionNode],
+      childOutput: util.ArrayList[ExpressionNode],
       validation: Boolean): RelNode = {
     if (!validation) {
-      RelBuilder.makeGenerateRel(input, generator, childOuput, context, operatorId)
+      RelBuilder.makeGenerateRel(input, generator, childOutput, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -220,7 +219,7 @@ case class GenerateExecTransformer(
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeGenerateRel(input, generator, childOuput, extensionNode, context, operatorId)
+      RelBuilder.makeGenerateRel(input, generator, childOutput, extensionNode, context, operatorId)
     }
   }
 
