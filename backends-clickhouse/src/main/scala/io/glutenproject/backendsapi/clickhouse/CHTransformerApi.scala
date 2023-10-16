@@ -22,7 +22,6 @@ import io.glutenproject.execution.CHHashAggregateExecTransformer
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{CastNode, ExpressionBuilder, ExpressionNode, SelectionNode}
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
 import org.apache.spark.internal.Logging
