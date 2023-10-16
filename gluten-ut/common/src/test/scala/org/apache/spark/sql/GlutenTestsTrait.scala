@@ -293,7 +293,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
 
   def shouldNotFallback(): Unit = {
     TestStats.offloadGluten = false
-    if (BackendTestUtils.isCHBackendLoaded()) {
+    if (!BackendTestUtils.isCHBackendLoaded()) {
       return
     }
 
