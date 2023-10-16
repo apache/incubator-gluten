@@ -19,9 +19,9 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.{BackendsApiManager, TransformerApi}
 import io.glutenproject.execution.CHHashAggregateExecTransformer
-import io.glutenproject.expression.ExpressionConverter
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.{CastNode, ExpressionBuilder, ExpressionNode, SelectionNode}
+import io.glutenproject.substrait.expression.{BooleanLiteralNode, CastNode, ExpressionBuilder, ExpressionNode, SelectionNode}
 import io.glutenproject.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
 import org.apache.spark.internal.Logging
@@ -33,7 +33,10 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
+import org.apache.spark.sql.types._
 import org.apache.spark.util.collection.BitSet
+
+import com.google.common.collect.Lists
 
 import java.util
 
@@ -203,4 +206,28 @@ class CHTransformerApi extends TransformerApi with Logging {
       right: ExpressionNode,
       escapeChar: ExpressionNode): Iterable[ExpressionNode] =
     List(left, right)
+
+  override def createCheckOverflowExprNode(
+      args: java.lang.Object,
+      substraitExprName: String,
+      childNode: ExpressionNode,
+      dataType: DecimalType,
+      nullable: Boolean,
+      nullOnOverflow: Boolean): ExpressionNode = {
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        substraitExprName,
+        Seq(dataType, BooleanType),
+        ConverterUtils.FunctionConfig.OPT))
+
+    // Just make a fake toType value, because native engine cannot accept datatype itself.
+    val toTypeNodes =
+      ExpressionBuilder.makeDecimalLiteral(new Decimal().set(0, dataType.precision, dataType.scale))
+    val expressionNodes =
+      Lists.newArrayList(childNode, new BooleanLiteralNode(nullOnOverflow), toTypeNodes)
+    val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
+  }
 }
