@@ -25,16 +25,16 @@ import scala.reflect.ClassTag
 
 abstract class BackendTestSettings {
 
-  private val enabledSuites: java.util.Map[String, TestNameFilters] = new util.HashMap()
+  private val enabledSuites: java.util.Map[String, SuiteSettings] = new util.HashMap()
 
-  protected def enableSuite[T: ClassTag]: TestNameFilters = {
+  protected def enableSuite[T: ClassTag]: SuiteSettings = {
     val suiteName = implicitly[ClassTag[T]].runtimeClass.getCanonicalName
     if (enabledSuites.containsKey(suiteName)) {
       throw new IllegalArgumentException("Duplicated suite name: " + suiteName)
     }
-    val filters = new TestNameFilters
-    enabledSuites.put(suiteName, filters)
-    filters
+    val suiteSettings = new SuiteSettings
+    enabledSuites.put(suiteName, suiteSettings)
+    suiteSettings
   }
 
   private[utils] def shouldRun(suiteName: String, testName: String): Boolean = {
@@ -42,10 +42,15 @@ abstract class BackendTestSettings {
       return false
     }
 
-    val filters = enabledSuites.get(suiteName)
+    val suiteSettings = enabledSuites.get(suiteName)
 
-    val inclusion = filters.inclusion.asScala
-    val exclusion = filters.exclusion.asScala
+    suiteSettings.disableReason match {
+      case Some(_) => return false
+      case _ => // continue
+    }
+
+    val inclusion = suiteSettings.inclusion.asScala
+    val exclusion = suiteSettings.exclusion.asScala
 
     if (inclusion.isEmpty && exclusion.isEmpty) {
       // default to run all cases under this suite
@@ -73,33 +78,34 @@ abstract class BackendTestSettings {
     throw new IllegalStateException("Unreachable code")
   }
 
-  final protected class TestNameFilters {
+  final protected class SuiteSettings {
     private[utils] val inclusion: util.List[IncludeBase] = new util.ArrayList()
     private[utils] val exclusion: util.List[ExcludeBase] = new util.ArrayList()
 
-    private val TEMP_DISABLE_ALL_TAG = "temp_disable_all"
+    private[utils] var disableReason: Option[String] = None
 
-    def include(testNames: String*): TestNameFilters = {
+    def include(testNames: String*): SuiteSettings = {
       inclusion.add(Include(testNames: _*))
       this
     }
-    def exclude(testNames: String*): TestNameFilters = {
+    def exclude(testNames: String*): SuiteSettings = {
       exclusion.add(Exclude(testNames: _*))
       this
     }
-    def includeByPrefix(prefixes: String*): TestNameFilters = {
+    def includeByPrefix(prefixes: String*): SuiteSettings = {
       inclusion.add(IncludeByPrefix(prefixes: _*))
       this
     }
-    def excludeByPrefix(prefixes: String*): TestNameFilters = {
+    def excludeByPrefix(prefixes: String*): SuiteSettings = {
       exclusion.add(ExcludeByPrefix(prefixes: _*))
       this
     }
 
-    def excludeAll(reason: String): TestNameFilters = {
-      exclusion.clear()
-      inclusion.clear()
-      inclusion.add(Include(Seq(TEMP_DISABLE_ALL_TAG, reason).mkString(" ")))
+    def disableByReason(reason: String): SuiteSettings = {
+      disableReason = disableReason match {
+        case Some(r) => throw new IllegalArgumentException("Disable reason already set: " + r)
+        case None => Some(reason)
+      }
       this
     }
   }
