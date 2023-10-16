@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include <Functions/FunctionFactory.h>
+#include <Join/StorageJoinFromReadBuffer.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Processors/Executors/PipelineExecutor.h>
@@ -25,7 +26,6 @@
 #include <Processors/Sources/SourceFromSingleChunk.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/CustomMergeTreeSink.h>
-#include <Storages/StorageJoinFromReadBuffer.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
 #include <gtest/gtest.h>
 #include <Common/DebugUtils.h>
@@ -92,7 +92,7 @@ TEST(TestJoin, simple)
     join->addDisjunct();
     ASTPtr lkey = std::make_shared<ASTIdentifier>("colA");
     ASTPtr rkey = std::make_shared<ASTIdentifier>("colD");
-    join->addOnKeys(lkey, rkey);
+    join->addOnKeys(lkey, rkey, false);
     for (const auto & column : join->columnsFromJoinedTable())
     {
         join->addJoinedColumn(column);
@@ -195,14 +195,13 @@ TEST(TestJoin, StorageJoinFromReadBufferTest)
 
     auto in = std::make_unique<ReadBufferFromString>(buf);
     auto metadata = local_engine::buildMetaData(right.getNamesAndTypesList(), global_context);
-
+    Names cols = {"colD"};
+    auto table_join = std::make_shared<TableJoin>(SizeLimits(), false, JoinKind::Left, JoinStrictness::All, cols);
     auto join_storage = std::shared_ptr<StorageJoinFromReadBuffer>(new StorageJoinFromReadBuffer( // NOLINT
-        std::move(in),
-        {"colD"},
+        *in,
+        cols,
         false,
-        {},
-        JoinKind::Left,
-        JoinStrictness::All,
+        table_join,
         ColumnsDescription(right.getNamesAndTypesList()),
         {},
         "test",
@@ -220,7 +219,7 @@ TEST(TestJoin, StorageJoinFromReadBufferTest)
     join->addJoinedColumn(NameAndTypePair("colC", int_type));
     ASTPtr lkey = std::make_shared<ASTIdentifier>("colA");
     ASTPtr rkey = std::make_shared<ASTIdentifier>("colD");
-    join->addOnKeys(lkey, rkey);
+    join->addOnKeys(lkey, rkey, false);
 
 
     auto hash_join = join_storage->getJoinLocked(join, global_context);

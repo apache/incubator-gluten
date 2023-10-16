@@ -16,12 +16,11 @@
  */
 #pragma once
 #include <config.h>
-#include <Common/Config.h>
 
-#if USE_PARQUET && USE_LOCAL_FORMATS
-#    include <Formats/FormatSettings.h>
-#    include <Processors/Formats/IInputFormat.h>
-#    include <Processors/Formats/ISchemaReader.h>
+#if USE_PARQUET
+#include <Formats/FormatSettings.h>
+#include <Processors/Formats/IInputFormat.h>
+#include <Processors/Formats/ISchemaReader.h>
 
 namespace ch_parquet::arrow
 {
