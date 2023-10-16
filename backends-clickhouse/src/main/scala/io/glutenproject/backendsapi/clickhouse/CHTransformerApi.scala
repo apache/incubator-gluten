@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.{BackendsApiManager, TransformerApi}
 import io.glutenproject.execution.CHHashAggregateExecTransformer
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, SelectionNode}
+import io.glutenproject.substrait.expression.{CastNode, ExpressionBuilder, ExpressionNode, SelectionNode}
 import io.glutenproject.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
 import org.apache.spark.internal.Logging
@@ -59,7 +59,7 @@ class CHTransformerApi extends TransformerApi with Logging {
               val node = ExpressionConverter
                 .replaceWithExpressionTransformer(expr, outputAttributes)
                 .doTransform(substraitContext.registeredFunction)
-              if (!node.isInstanceOf[SelectionNode]) {
+              if (!node.isInstanceOf[SelectionNode] && !node.isInstanceOf[CastNode]) {
                 // This is should not happen.
                 logDebug("Expressions are not supported in HashPartitioning.")
                 false
@@ -165,13 +165,27 @@ class CHTransformerApi extends TransformerApi with Logging {
   override def getPlanOutput(plan: SparkPlan): Seq[Attribute] = {
     plan match {
       case hash: HashAggregateExec =>
-        CHHashAggregateExecTransformer.getAggregateResultAttributes(
-          // when grouping expression has alias,
-          // output name will be different from grouping expressions,
-          // so using output attribute instead of grouping expression
-          hash.output.splitAt(hash.groupingExpressions.size)._1,
+        // when grouping expression has alias,
+        // output name will be different from grouping expressions,
+        // so using output attribute instead of grouping expression
+        val groupingExpressions = hash.output.splitAt(hash.groupingExpressions.size)._1
+        val aggResultAttributes = CHHashAggregateExecTransformer.getAggregateResultAttributes(
+          groupingExpressions,
           hash.aggregateExpressions
         )
+        if (aggResultAttributes.size == hash.output.size) {
+          aggResultAttributes
+        } else {
+          var output = Seq.empty[Attribute]
+          for (i <- hash.output.indices) {
+            if (i < groupingExpressions.size) {
+              output = output :+ aggResultAttributes(i)
+            } else {
+              output = output :+ hash.output(i)
+            }
+          }
+          output
+        }
       case _ =>
         plan.output
     }
