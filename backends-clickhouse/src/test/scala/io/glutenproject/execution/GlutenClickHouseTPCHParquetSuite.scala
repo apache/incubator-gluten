@@ -2098,35 +2098,37 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("GLUTEN-3134: Bug fix left join not match") {
-    val left_tbl_create_sql =
-      "create table test_tbl_left_3134(id bigint, name string) using parquet";
-    val right_tbl_create_sql =
-      "create table test_tbl_right_3134(id string, name string) using parquet";
-    val left_data_insert_sql =
-      "insert into test_tbl_left_3134 values(2, 'a'), (3, 'b'), (673, 'c')";
-    val right_data_insert_sql = "insert into test_tbl_right_3134 values('673', 'c')";
-    val join_select_sql_1 = "select a.id, b.cnt from " +
-      "(select id from test_tbl_left_3134) as a " +
-      "left join (select id, 12 as cnt from test_tbl_right_3134 group by id) as b on a.id = b.id"
-    val join_select_sql_2 = "select a.id, b.cnt from" +
-      "(select id from test_tbl_left_3134) as a " +
-      "left join (select id, count(1) as cnt from test_tbl_right_3134 group by id) as b on a.id = b.id"
-    val join_select_sql_3 = "select a.id, b.cnt1, b.cnt2 from" +
-      "(select id as id from test_tbl_left_3134) as a " +
-      "left join (select id as id, 12 as cnt1, count(1) as cnt2 from test_tbl_right_3134 group by id) as b on a.id = b.id"
-    val agg_select_sql_4 =
-      "select id, 12 as cnt1, count(1) as cnt2 from test_tbl_left_3134 group by id"
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "1B")) {
+      val left_tbl_create_sql =
+        "create table test_tbl_left_3134(id bigint, name string) using parquet";
+      val right_tbl_create_sql =
+        "create table test_tbl_right_3134(id string, name string) using parquet";
+      val left_data_insert_sql =
+        "insert into test_tbl_left_3134 values(2, 'a'), (3, 'b'), (673, 'c')";
+      val right_data_insert_sql = "insert into test_tbl_right_3134 values('673', 'c')";
+      val join_select_sql_1 = "select a.id, b.cnt from " +
+        "(select id from test_tbl_left_3134) as a " +
+        "left join (select id, 12 as cnt from test_tbl_right_3134 group by id) as b on a.id = b.id"
+      val join_select_sql_2 = "select a.id, b.cnt from" +
+        "(select id from test_tbl_left_3134) as a " +
+        "left join (select id, count(1) as cnt from test_tbl_right_3134 group by id) as b on a.id = b.id"
+      val join_select_sql_3 = "select a.id, b.cnt1, b.cnt2 from" +
+        "(select id as id from test_tbl_left_3134) as a " +
+        "left join (select id as id, 12 as cnt1, count(1) as cnt2 from test_tbl_right_3134 group by id) as b on a.id = b.id"
+      val agg_select_sql_4 =
+        "select id, 12 as cnt1, count(1) as cnt2 from test_tbl_left_3134 group by id"
 
-    spark.sql(left_tbl_create_sql)
-    spark.sql(right_tbl_create_sql)
-    spark.sql(left_data_insert_sql)
-    spark.sql(right_data_insert_sql)
-    compareResultsAgainstVanillaSpark(join_select_sql_1, true, { _ => })
-    compareResultsAgainstVanillaSpark(join_select_sql_2, true, { _ => })
-    compareResultsAgainstVanillaSpark(join_select_sql_3, true, { _ => })
-    compareResultsAgainstVanillaSpark(agg_select_sql_4, true, { _ => })
-    spark.sql("drop table test_tbl_left_3134")
-    spark.sql("drop table test_tbl_right_3134")
+      spark.sql(left_tbl_create_sql)
+      spark.sql(right_tbl_create_sql)
+      spark.sql(left_data_insert_sql)
+      spark.sql(right_data_insert_sql)
+      compareResultsAgainstVanillaSpark(join_select_sql_1, true, { _ => })
+      compareResultsAgainstVanillaSpark(join_select_sql_2, true, { _ => })
+      compareResultsAgainstVanillaSpark(join_select_sql_3, true, { _ => })
+      compareResultsAgainstVanillaSpark(agg_select_sql_4, true, { _ => })
+      spark.sql("drop table test_tbl_left_3134")
+      spark.sql("drop table test_tbl_right_3134")
+    }
   }
 }
 // scalastyle:on line.size.limit

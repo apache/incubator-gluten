@@ -19,7 +19,7 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.{BackendsApiManager, TransformerApi}
 import io.glutenproject.execution.CHHashAggregateExecTransformer
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
+import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{CastNode, ExpressionBuilder, ExpressionNode, SelectionNode}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
@@ -166,11 +166,11 @@ class CHTransformerApi extends TransformerApi with Logging {
   override def getPlanOutput(plan: SparkPlan): Seq[Attribute] = {
     plan match {
       case hash: HashAggregateExec =>
+        // when grouping expression has alias,
+        // output name will be different from grouping expressions,
+        // so using output attribute instead of grouping expression
         val groupingExpressions = hash.output.splitAt(hash.groupingExpressions.size)._1
         val aggResultAttributes = CHHashAggregateExecTransformer.getAggregateResultAttributes(
-          // when grouping expression has alias,
-          // output name will be different from grouping expressions,
-          // so using output attribute instead of grouping expression
           groupingExpressions,
           hash.aggregateExpressions
         )
@@ -180,8 +180,7 @@ class CHTransformerApi extends TransformerApi with Logging {
           var output = Seq.empty[Attribute]
           for (i <- hash.output.indices) {
             if (i < groupingExpressions.size) {
-              val outputAttr = ConverterUtils.getAttrFromExpr(hash.output(i)).toAttribute
-              output = output :+ outputAttr
+              output = output :+ aggResultAttributes(i)
             } else {
               output = output :+ hash.output(i)
             }
