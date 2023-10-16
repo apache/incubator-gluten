@@ -17,8 +17,9 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.TransformerApi
+import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.utils.InputPartitionsUtil
 
 import org.apache.spark.internal.Logging
@@ -108,5 +109,16 @@ class TransformerApiImpl extends TransformerApi with Logging {
       right: ExpressionNode,
       escapeChar: ExpressionNode): Iterable[ExpressionNode] = {
     List(left, right, escapeChar)
+  }
+
+  override def createCheckOverflowExprNode(
+      args: java.lang.Object,
+      substraitExprName: String,
+      childNode: ExpressionNode,
+      dataType: DecimalType,
+      nullable: Boolean,
+      nullOnOverflow: Boolean): ExpressionNode = {
+    val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+    ExpressionBuilder.makeCast(typeNode, childNode, !nullOnOverflow)
   }
 }
