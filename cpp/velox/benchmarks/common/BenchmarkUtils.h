@@ -17,12 +17,12 @@
 
 #pragma once
 
-#include <benchmark/benchmark.h>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <thread>
 #include <utility>
+#include "benchmark/benchmark.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 
 #include "compute/ProtobufUtils.h"

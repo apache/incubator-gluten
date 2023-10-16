@@ -49,6 +49,7 @@ option(ENABLE_QAT "Enable QAT for de/compression" OFF)
 option(ENABLE_IAA "Enable IAA for de/compression" OFF)
 option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
+option(ENABLE_ORC "Enable ORC" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
@@ -185,6 +186,10 @@ endif()
 
 if(ENABLE_IAA)
   add_definitions(-DGLUTEN_ENABLE_IAA)
+endif()
+
+if(ENABLE_ORC)
+  add_definitions(-DGLUTEN_ENABLE_ORC)
 endif()
 
 #

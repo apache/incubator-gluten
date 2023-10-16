@@ -18,7 +18,7 @@
 #include <benchmark/benchmark.h>
 #include <compute/VeloxExecutionCtx.h>
 
-#include "BenchmarkUtils.h"
+#include "benchmarks/common/BenchmarkUtils.h"
 #include "compute/VeloxPlanConverter.h"
 #include "memory/VeloxMemoryManager.h"
 #include "utils/VeloxArrowUtils.h"

@@ -17,7 +17,7 @@
 
 #include "arrow/c/abi.h"
 #include "benchmarks/BatchStreamIterator.h"
-#include "benchmarks/BenchmarkUtils.h"
+#include "benchmarks/common/BenchmarkUtils.h"
 
 #include "utils/TestUtils.h"
 

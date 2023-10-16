@@ -79,11 +79,11 @@ jobs:
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
-#       Cpp micro benchmarks will use generated files from unit test in backends-velox module.
-#      - name: Run micro benchmarks
-#        run: |
-#          docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build/velox/benchmarks && \
-#          ./generic_benchmark --with-shuffle --threads 1 --iterations 1'
+      # Cpp micro benchmarks will use generated files from unit test in backends-velox module.
+      - name: Run micro benchmarks
+        run: |
+          docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build/velox/benchmarks && \
+          ./generic_benchmark --with-shuffle --threads 1 --iterations 1'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
