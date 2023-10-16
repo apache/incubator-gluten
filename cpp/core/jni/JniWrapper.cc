@@ -1139,20 +1139,20 @@ Java_io_glutenproject_datasource_DatasourceJniWrapper_splitBlockByPartitionAndBu
   auto batch = ctx->getBatch(batchAddress);
   int* pIndice = env->GetIntArrayElements(partitionColIndice, nullptr);
   int size = env->GetArrayLength(partitionColIndice);
-  std::vector<size_t> partitionColIndiceVec;
+  std::vector<int32_t> partitionColIndiceVec;
   for (int i = 0; i < size; ++i) {
     partitionColIndiceVec.push_back(pIndice[i]);
   }
   env->ReleaseIntArrayElements(partitionColIndice, pIndice, JNI_ABORT);
 
-  size = ctx->getColumnarBatchPerRowSize(batch);
   MemoryManager* memoryManager = reinterpret_cast<MemoryManager*>(memoryManagerId);
-  char* rowBytes = new char[size];
-  auto newBatch = ctx->getNonPartitionedColumnarBatch(batch, partitionColIndiceVec, memoryManager, rowBytes);
-  auto batchHandler = ctx->addBatch(newBatch);
+  auto result = batch->getRowBytes(0);
+  auto rowBytes = result.first;
+  auto batchHandler = ctx->select(memoryManager, batchAddress, partitionColIndiceVec);
 
-  jbyteArray bytesArray = env->NewByteArray(size);
-  env->SetByteArrayRegion(bytesArray, 0, size, reinterpret_cast<jbyte*>(rowBytes));
+  auto bytesSize = result.second;
+  jbyteArray bytesArray = env->NewByteArray(bytesSize);
+  env->SetByteArrayRegion(bytesArray, 0, bytesSize, reinterpret_cast<jbyte*>(rowBytes));
   delete[] rowBytes;
 
   jlongArray batchArray = env->NewLongArray(1);
