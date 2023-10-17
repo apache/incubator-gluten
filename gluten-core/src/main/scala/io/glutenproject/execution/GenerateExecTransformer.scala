@@ -158,7 +158,6 @@ case class GenerateExecTransformer(
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
       readRel
     }
-
     val projRel =
       if (
         BackendsApiManager.getSettings.insertPostProjectForGenerate() && needsProjection(generator)
