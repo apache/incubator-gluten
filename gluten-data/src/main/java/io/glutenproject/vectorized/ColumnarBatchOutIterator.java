@@ -17,27 +17,27 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.columnarbatch.ColumnarBatches;
-import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionCtxAware;
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.RuntimeAware;
 import io.glutenproject.metrics.IMetrics;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
 
-public class ColumnarBatchOutIterator extends GeneralOutIterator implements ExecutionCtxAware {
-  private final ExecutionCtx ctx;
+public class ColumnarBatchOutIterator extends GeneralOutIterator implements RuntimeAware {
+  private final Runtime runtime;
   private final long iterHandle;
 
-  public ColumnarBatchOutIterator(ExecutionCtx ctx, long iterHandle) throws IOException {
+  public ColumnarBatchOutIterator(Runtime runtime, long iterHandle) throws IOException {
     super();
-    this.ctx = ctx;
+    this.runtime = runtime;
     this.iterHandle = iterHandle;
   }
 
   @Override
-  public long ctxHandle() {
-    return ctx.getHandle();
+  public long handle() {
+    return runtime.getHandle();
   }
 
   @Override
@@ -67,7 +67,7 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Exec
     if (batchHandle == -1L) {
       return null; // stream ended
     }
-    return ColumnarBatches.create(ctx, batchHandle);
+    return ColumnarBatches.create(runtime, batchHandle);
   }
 
   @Override

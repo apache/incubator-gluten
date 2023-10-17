@@ -18,7 +18,7 @@
 #pragma once
 
 #include "WholeStageResultIterator.h"
-#include "compute/ExecutionCtx.h"
+#include "compute/Runtime.h"
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
@@ -31,11 +31,11 @@
 namespace gluten {
 
 // This kind string must be same with VeloxBackend#name in java side.
-inline static const std::string kVeloxExecutionCtxKind{"velox"};
+inline static const std::string kVeloxRuntimeKind{"velox"};
 
-class VeloxExecutionCtx final : public ExecutionCtx {
+class VeloxRuntime final : public Runtime {
  public:
-  explicit VeloxExecutionCtx(const std::unordered_map<std::string, std::string>& confMap);
+  explicit VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap);
 
   static std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
     if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {

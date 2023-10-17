@@ -20,7 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.backendsapi.velox.ValidatorApiImpl
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.exec.ExecutionCtxs
+import io.glutenproject.exec.Runtimes
 import io.glutenproject.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
@@ -259,7 +259,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
               ColumnarBatchSerializerJniWrapper
                 .create()
                 .deserialize(deserializerHandle, cachedBatch.bytes)
-            val batch = ColumnarBatches.create(ExecutionCtxs.contextInstance(), batchHandle)
+            val batch = ColumnarBatches.create(Runtimes.contextInstance(), batchHandle)
             if (shouldPruning) {
               try {
                 ColumnarBatches.select(nmm, batch, requestedColumnIndices.toArray)

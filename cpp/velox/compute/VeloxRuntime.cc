@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-#include "VeloxExecutionCtx.h"
+#include "VeloxRuntime.h"
 #include <filesystem>
 
 #include "arrow/c/bridge.h"
-#include "compute/ExecutionCtx.h"
 #include "compute/ResultIterator.h"
+#include "compute/Runtime.h"
 #include "compute/VeloxPlanConverter.h"
 #include "config/GlutenConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
@@ -46,10 +46,9 @@ void printSessionConf(const std::unordered_map<std::string, std::string>& conf) 
 
 } // namespace
 
-VeloxExecutionCtx::VeloxExecutionCtx(const std::unordered_map<std::string, std::string>& confMap)
-    : ExecutionCtx(confMap) {}
+VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap) : Runtime(confMap) {}
 
-void VeloxExecutionCtx::getInfoAndIds(
+void VeloxRuntime::getInfoAndIds(
     const std::unordered_map<velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfoMap,
     const std::unordered_set<velox::core::PlanNodeId>& leafPlanNodeIds,
     std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
@@ -70,7 +69,7 @@ void VeloxExecutionCtx::getInfoAndIds(
   }
 }
 
-ResourceHandle VeloxExecutionCtx::createResultIterator(
+ResourceHandle VeloxRuntime::createResultIterator(
     MemoryManager* memoryManager,
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
@@ -106,11 +105,11 @@ ResourceHandle VeloxExecutionCtx::createResultIterator(
   }
 }
 
-ResourceHandle VeloxExecutionCtx::addResultIterator(std::shared_ptr<ResultIterator> iterator) {
+ResourceHandle VeloxRuntime::addResultIterator(std::shared_ptr<ResultIterator> iterator) {
   return resultIteratorHolder_.insert(std::move(iterator));
 }
 
-std::shared_ptr<ResultIterator> VeloxExecutionCtx::getResultIterator(ResourceHandle iterHandle) {
+std::shared_ptr<ResultIterator> VeloxRuntime::getResultIterator(ResourceHandle iterHandle) {
   auto instance = resultIteratorHolder_.lookup(iterHandle);
   if (!instance) {
     std::string errorMessage = "invalid handle for ResultIterator " + std::to_string(iterHandle);
@@ -119,32 +118,32 @@ std::shared_ptr<ResultIterator> VeloxExecutionCtx::getResultIterator(ResourceHan
   return instance;
 }
 
-void VeloxExecutionCtx::releaseResultIterator(ResourceHandle iterHandle) {
+void VeloxRuntime::releaseResultIterator(ResourceHandle iterHandle) {
   resultIteratorHolder_.erase(iterHandle);
 }
 
-ResourceHandle VeloxExecutionCtx::createColumnar2RowConverter(MemoryManager* memoryManager) {
+ResourceHandle VeloxRuntime::createColumnar2RowConverter(MemoryManager* memoryManager) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return columnarToRowConverterHolder_.insert(std::make_shared<VeloxColumnarToRowConverter>(ctxVeloxPool));
 }
 
-std::shared_ptr<ColumnarToRowConverter> VeloxExecutionCtx::getColumnar2RowConverter(ResourceHandle handle) {
+std::shared_ptr<ColumnarToRowConverter> VeloxRuntime::getColumnar2RowConverter(ResourceHandle handle) {
   return columnarToRowConverterHolder_.lookup(handle);
 }
 
-void VeloxExecutionCtx::releaseColumnar2RowConverter(ResourceHandle handle) {
+void VeloxRuntime::releaseColumnar2RowConverter(ResourceHandle handle) {
   columnarToRowConverterHolder_.erase(handle);
 }
 
-ResourceHandle VeloxExecutionCtx::addBatch(std::shared_ptr<ColumnarBatch> batch) {
+ResourceHandle VeloxRuntime::addBatch(std::shared_ptr<ColumnarBatch> batch) {
   return columnarBatchHolder_.insert(std::move(batch));
 }
 
-std::shared_ptr<ColumnarBatch> VeloxExecutionCtx::getBatch(ResourceHandle handle) {
+std::shared_ptr<ColumnarBatch> VeloxRuntime::getBatch(ResourceHandle handle) {
   return columnarBatchHolder_.lookup(handle);
 }
 
-ResourceHandle VeloxExecutionCtx::createOrGetEmptySchemaBatch(int32_t numRows) {
+ResourceHandle VeloxRuntime::createOrGetEmptySchemaBatch(int32_t numRows) {
   auto& lookup = emptySchemaBatchLoopUp_;
   if (lookup.find(numRows) == lookup.end()) {
     const std::shared_ptr<ColumnarBatch>& batch = gluten::createZeroColumnBatch(numRows);
@@ -153,12 +152,12 @@ ResourceHandle VeloxExecutionCtx::createOrGetEmptySchemaBatch(int32_t numRows) {
   return lookup.at(numRows);
 }
 
-void VeloxExecutionCtx::releaseBatch(ResourceHandle handle) {
+void VeloxRuntime::releaseBatch(ResourceHandle handle) {
   columnarBatchHolder_.erase(handle);
 }
 
 ResourceHandle
-VeloxExecutionCtx::select(MemoryManager* memoryManager, ResourceHandle handle, std::vector<int32_t> columnIndices) {
+VeloxRuntime::select(MemoryManager* memoryManager, ResourceHandle handle, std::vector<int32_t> columnIndices) {
   auto batch = columnarBatchHolder_.lookup(handle);
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   auto veloxBatch = gluten::VeloxColumnarBatch::from(ctxVeloxPool.get(), batch);
@@ -166,22 +165,20 @@ VeloxExecutionCtx::select(MemoryManager* memoryManager, ResourceHandle handle, s
   return columnarBatchHolder_.insert(outputBatch);
 }
 
-ResourceHandle VeloxExecutionCtx::createRow2ColumnarConverter(
-    MemoryManager* memoryManager,
-    struct ArrowSchema* cSchema) {
+ResourceHandle VeloxRuntime::createRow2ColumnarConverter(MemoryManager* memoryManager, struct ArrowSchema* cSchema) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return rowToColumnarConverterHolder_.insert(std::make_shared<VeloxRowToColumnarConverter>(cSchema, ctxVeloxPool));
 }
 
-std::shared_ptr<RowToColumnarConverter> VeloxExecutionCtx::getRow2ColumnarConverter(ResourceHandle handle) {
+std::shared_ptr<RowToColumnarConverter> VeloxRuntime::getRow2ColumnarConverter(ResourceHandle handle) {
   return rowToColumnarConverterHolder_.lookup(handle);
 }
 
-void VeloxExecutionCtx::releaseRow2ColumnarConverter(ResourceHandle handle) {
+void VeloxRuntime::releaseRow2ColumnarConverter(ResourceHandle handle) {
   rowToColumnarConverterHolder_.erase(handle);
 }
 
-ResourceHandle VeloxExecutionCtx::createShuffleWriter(
+ResourceHandle VeloxRuntime::createShuffleWriter(
     int numPartitions,
     std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
     const ShuffleWriterOptions& options,
@@ -193,15 +190,15 @@ ResourceHandle VeloxExecutionCtx::createShuffleWriter(
   return shuffleWriterHolder_.insert(std::move(shuffle_writer));
 }
 
-std::shared_ptr<ShuffleWriter> VeloxExecutionCtx::getShuffleWriter(ResourceHandle handle) {
+std::shared_ptr<ShuffleWriter> VeloxRuntime::getShuffleWriter(ResourceHandle handle) {
   return shuffleWriterHolder_.lookup(handle);
 }
 
-void VeloxExecutionCtx::releaseShuffleWriter(ResourceHandle handle) {
+void VeloxRuntime::releaseShuffleWriter(ResourceHandle handle) {
   shuffleWriterHolder_.erase(handle);
 }
 
-ResourceHandle VeloxExecutionCtx::createDatasource(
+ResourceHandle VeloxRuntime::createDatasource(
     const std::string& filePath,
     MemoryManager* memoryManager,
     std::shared_ptr<arrow::Schema> schema) {
@@ -209,15 +206,15 @@ ResourceHandle VeloxExecutionCtx::createDatasource(
   return datasourceHolder_.insert(std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, schema));
 }
 
-std::shared_ptr<Datasource> VeloxExecutionCtx::getDatasource(ResourceHandle handle) {
+std::shared_ptr<Datasource> VeloxRuntime::getDatasource(ResourceHandle handle) {
   return datasourceHolder_.lookup(handle);
 }
 
-void VeloxExecutionCtx::releaseDatasource(ResourceHandle handle) {
+void VeloxRuntime::releaseDatasource(ResourceHandle handle) {
   datasourceHolder_.erase(handle);
 }
 
-ResourceHandle VeloxExecutionCtx::createShuffleReader(
+ResourceHandle VeloxRuntime::createShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
     ShuffleReaderOptions options,
     arrow::MemoryPool* pool,
@@ -226,15 +223,15 @@ ResourceHandle VeloxExecutionCtx::createShuffleReader(
   return shuffleReaderHolder_.insert(std::make_shared<VeloxShuffleReader>(schema, options, pool, ctxVeloxPool));
 }
 
-std::shared_ptr<ShuffleReader> VeloxExecutionCtx::getShuffleReader(ResourceHandle handle) {
+std::shared_ptr<ShuffleReader> VeloxRuntime::getShuffleReader(ResourceHandle handle) {
   return shuffleReaderHolder_.lookup(handle);
 }
 
-void VeloxExecutionCtx::releaseShuffleReader(ResourceHandle handle) {
+void VeloxRuntime::releaseShuffleReader(ResourceHandle handle) {
   shuffleReaderHolder_.erase(handle);
 }
 
-std::unique_ptr<ColumnarBatchSerializer> VeloxExecutionCtx::createTempColumnarBatchSerializer(
+std::unique_ptr<ColumnarBatchSerializer> VeloxRuntime::createTempColumnarBatchSerializer(
     MemoryManager* memoryManager,
     arrow::MemoryPool* arrowPool,
     struct ArrowSchema* cSchema) {
@@ -242,7 +239,7 @@ std::unique_ptr<ColumnarBatchSerializer> VeloxExecutionCtx::createTempColumnarBa
   return std::make_unique<VeloxColumnarBatchSerializer>(arrowPool, ctxVeloxPool, cSchema);
 }
 
-ResourceHandle VeloxExecutionCtx::createColumnarBatchSerializer(
+ResourceHandle VeloxRuntime::createColumnarBatchSerializer(
     MemoryManager* memoryManager,
     arrow::MemoryPool* arrowPool,
     struct ArrowSchema* cSchema) {
@@ -251,11 +248,11 @@ ResourceHandle VeloxExecutionCtx::createColumnarBatchSerializer(
       std::make_shared<VeloxColumnarBatchSerializer>(arrowPool, ctxVeloxPool, cSchema));
 }
 
-std::shared_ptr<ColumnarBatchSerializer> VeloxExecutionCtx::getColumnarBatchSerializer(ResourceHandle handle) {
+std::shared_ptr<ColumnarBatchSerializer> VeloxRuntime::getColumnarBatchSerializer(ResourceHandle handle) {
   return columnarBatchSerializerHolder_.lookup(handle);
 }
 
-void VeloxExecutionCtx::releaseColumnarBatchSerializer(ResourceHandle handle) {
+void VeloxRuntime::releaseColumnarBatchSerializer(ResourceHandle handle) {
   columnarBatchSerializerHolder_.erase(handle);
 }
 

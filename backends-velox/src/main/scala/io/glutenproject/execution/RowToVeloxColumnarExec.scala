@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.velox.ValidatorApiImpl
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.exec.ExecutionCtxs
+import io.glutenproject.exec.Runtimes
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.ArrowAbiUtil
@@ -178,7 +178,7 @@ object RowToVeloxColumnarExec {
         try {
           val handle = jniWrapper
             .nativeConvertRowToColumnar(r2cHandle, rowLength.toArray, arrowBuf.memoryAddress())
-          ColumnarBatches.create(ExecutionCtxs.contextInstance(), handle)
+          ColumnarBatches.create(Runtimes.contextInstance(), handle)
         } finally {
           arrowBuf.close()
           arrowBuf = null

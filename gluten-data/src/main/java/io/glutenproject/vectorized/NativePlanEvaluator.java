@@ -17,8 +17,8 @@
 package io.glutenproject.vectorized;
 
 import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionCtxs;
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.Runtimes;
 import io.glutenproject.memory.nmm.NativeMemoryManagers;
 import io.glutenproject.utils.DebugUtil;
 import io.glutenproject.validate.NativePlanValidationInfo;
@@ -37,17 +37,17 @@ public class NativePlanEvaluator {
 
   private final PlanEvaluatorJniWrapper jniWrapper;
 
-  private NativePlanEvaluator(ExecutionCtx ctx) {
-    jniWrapper = PlanEvaluatorJniWrapper.forCtx(ctx);
+  private NativePlanEvaluator(Runtime runtime) {
+    jniWrapper = PlanEvaluatorJniWrapper.forRuntime(runtime);
   }
 
   public static NativePlanEvaluator create() {
-    return new NativePlanEvaluator(ExecutionCtxs.contextInstance());
+    return new NativePlanEvaluator(Runtimes.contextInstance());
   }
 
   public static NativePlanEvaluator createForValidation() {
-    // Driver side doesn't have context instance of ExecutionCtx
-    return new NativePlanEvaluator(ExecutionCtxs.tmpInstance());
+    // Driver side doesn't have context instance of Runtime
+    return new NativePlanEvaluator(Runtimes.tmpInstance());
   }
 
   public NativePlanValidationInfo doNativeValidateWithFailureReason(byte[] subPlan) {
@@ -91,13 +91,13 @@ public class NativePlanEvaluator {
             TaskContext.get().taskAttemptId(),
             DebugUtil.saveInputToFile(),
             BackendsApiManager.getSparkPlanExecApiInstance().rewriteSpillPath(spillDirPath));
-    outIterator.set(createOutIterator(ExecutionCtxs.contextInstance(), iterHandle));
+    outIterator.set(createOutIterator(Runtimes.contextInstance(), iterHandle));
     return outIterator.get();
   }
 
-  private ColumnarBatchOutIterator createOutIterator(ExecutionCtx ctx, long iterHandle)
+  private ColumnarBatchOutIterator createOutIterator(Runtime runtime, long iterHandle)
       throws IOException {
-    return new ColumnarBatchOutIterator(ctx, iterHandle);
+    return new ColumnarBatchOutIterator(runtime, iterHandle);
   }
 
   private byte[] getPlanBytesBuf(Plan planNode) {

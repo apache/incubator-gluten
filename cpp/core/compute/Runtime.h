@@ -49,19 +49,16 @@ struct SparkTaskInfo {
   }
 };
 
-/// ExecutionCtx is stateful and manager all kinds of native resources' lifecycle during execute a computation fragment.
-class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
+class Runtime : public std::enable_shared_from_this<Runtime> {
  public:
-  using Factory = std::function<ExecutionCtx*(const std::unordered_map<std::string, std::string>&)>;
+  using Factory = std::function<Runtime*(const std::unordered_map<std::string, std::string>&)>;
   static void registerFactory(const std::string& kind, Factory factory);
-  static ExecutionCtx* create(
-      const std::string& kind,
-      const std::unordered_map<std::string, std::string>& sessionConf = {});
-  static void release(ExecutionCtx*);
+  static Runtime* create(const std::string& kind, const std::unordered_map<std::string, std::string>& sessionConf = {});
+  static void release(Runtime*);
 
-  ExecutionCtx() = default;
-  ExecutionCtx(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
-  virtual ~ExecutionCtx() = default;
+  Runtime() = default;
+  Runtime(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
+  virtual ~Runtime() = default;
 
   virtual ResourceHandle createResultIterator(
       MemoryManager* memoryManager,

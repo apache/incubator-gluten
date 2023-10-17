@@ -17,7 +17,7 @@
 
 #include "BenchmarkUtils.h"
 #include "compute/VeloxBackend.h"
-#include "compute/VeloxExecutionCtx.h"
+#include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "velox/dwio/common/Options.h"
 
@@ -35,14 +35,14 @@ namespace {
 
 std::unordered_map<std::string, std::string> bmConfMap = {{gluten::kSparkBatchSize, FLAGS_batch_size}};
 
-gluten::ExecutionCtx* veloxExecutionCtxFactory(const std::unordered_map<std::string, std::string>& sparkConf) {
-  return new gluten::VeloxExecutionCtx(sparkConf);
+gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::string>& sparkConf) {
+  return new gluten::VeloxRuntime(sparkConf);
 }
 
 } // namespace
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
-  gluten::ExecutionCtx::registerFactory(gluten::kVeloxExecutionCtxKind, veloxExecutionCtxFactory);
+  gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
   gluten::VeloxBackend::create(conf);
 }
 

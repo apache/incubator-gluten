@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-#include "compute/VeloxExecutionCtx.h"
+#include "compute/VeloxRuntime.h"
 
 #include <gtest/gtest.h>
 
 namespace gluten {
 
-class DummyExecutionCtx final : public ExecutionCtx {
+class DummyRuntime final : public Runtime {
  public:
-  DummyExecutionCtx(const std::unordered_map<std::string, std::string>& conf) : ExecutionCtx(conf) {}
+  DummyRuntime(const std::unordered_map<std::string, std::string>& conf) : Runtime(conf) {}
 
   ResourceHandle createResultIterator(
       MemoryManager* memoryManager,
@@ -149,21 +149,21 @@ class DummyExecutionCtx final : public ExecutionCtx {
   };
 };
 
-static ExecutionCtx* DummyExecutionCtxFactory(const std::unordered_map<std::string, std::string> conf) {
-  return new DummyExecutionCtx(conf);
+static Runtime* dummyRuntimeFactory(const std::unordered_map<std::string, std::string> conf) {
+  return new DummyRuntime(conf);
 }
 
-TEST(TestExecutionCtx, CreateExecutionCtx) {
-  ExecutionCtx::registerFactory("DUMMY", DummyExecutionCtxFactory);
-  auto executionCtx = ExecutionCtx::create("DUMMY");
-  ASSERT_EQ(typeid(*executionCtx), typeid(DummyExecutionCtx));
-  ExecutionCtx::release(executionCtx);
+TEST(TestRuntime, CreateRuntime) {
+  Runtime::registerFactory("DUMMY", dummyRuntimeFactory);
+  auto runtime = Runtime::create("DUMMY");
+  ASSERT_EQ(typeid(*runtime), typeid(DummyRuntime));
+  Runtime::release(runtime);
 }
 
-TEST(TestExecutionCtx, GetResultIterator) {
-  auto executionCtx = std::make_shared<DummyExecutionCtx>(std::unordered_map<std::string, std::string>());
-  auto handle = executionCtx->createResultIterator(nullptr, "/tmp/test-spill", {}, {});
-  auto iter = executionCtx->getResultIterator(handle);
+TEST(TestRuntime, GetResultIterator) {
+  auto runtime = std::make_shared<DummyRuntime>(std::unordered_map<std::string, std::string>());
+  auto handle = runtime->createResultIterator(nullptr, "/tmp/test-spill", {}, {});
+  auto iter = runtime->getResultIterator(handle);
   ASSERT_TRUE(iter->hasNext());
   auto next = iter->next();
   ASSERT_NE(next, nullptr);

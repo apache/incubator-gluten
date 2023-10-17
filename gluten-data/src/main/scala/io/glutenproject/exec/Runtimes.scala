@@ -14,13 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.exec;
+package io.glutenproject.exec
 
-public class ExecutionCtxJniWrapper {
+import org.apache.spark.util.TaskResources
 
-  private ExecutionCtxJniWrapper() {}
+object Runtimes {
+  private val RUNTIME_NAME = "Runtime"
 
-  public static native long createExecutionCtx(String backendType, byte[] sessionConf);
+  /** Get or create the runtime which bound with Spark TaskContext. */
+  def contextInstance(): Runtime = {
+    if (!TaskResources.inSparkTask()) {
+      throw new IllegalStateException("This method must be called in a Spark task.")
+    }
 
-  public static native void releaseExecutionCtx(long handle);
+    TaskResources.addResourceIfNotRegistered(RUNTIME_NAME, () => create())
+  }
+
+  /** Create a temporary runtime, caller must invoke Runtime#release manually. */
+  def tmpInstance(): Runtime = {
+    create()
+  }
+
+  private def create(): Runtime = {
+    new Runtime
+  }
 }

@@ -16,10 +16,11 @@
  */
 package io.glutenproject.exec;
 
-/**
- * This defines the base abstraction for the contextual objects that can be transmitted to C++ side
- * for further native processing.
- */
-public interface ExecutionCtxAware {
-  long ctxHandle();
+public class RuntimeJniWrapper {
+
+  private RuntimeJniWrapper() {}
+
+  public static native long createRuntime(String backendType, byte[] sessionConf);
+
+  public static native void releaseRuntime(long handle);
 }

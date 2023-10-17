@@ -17,7 +17,7 @@
 package io.glutenproject.vectorized
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.exec.ExecutionCtxs
+import io.glutenproject.exec.Runtimes
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.ArrowAbiUtil
@@ -125,7 +125,7 @@ private class ColumnarBatchSerializerInstance(
     new DeserializationStream {
       private lazy val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
       private lazy val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
-        ExecutionCtxs.contextInstance(),
+        Runtimes.contextInstance(),
         ShuffleReaderJniWrapper
           .create()
           .readStream(shuffleReaderHandle, byteIn))
