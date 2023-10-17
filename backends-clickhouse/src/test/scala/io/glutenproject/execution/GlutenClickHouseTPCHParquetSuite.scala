@@ -390,6 +390,12 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     )(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("test 'function to_date'") {
+    runQueryAndCompare(
+      "select to_date(l_shipdate, 'yyyyMMdd') from lineitem limit 1"
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test 'function remainder'") {
     runQueryAndCompare(
       "select l_orderkey, l_partkey, l_orderkey % l_partkey, l_partkey % l_orderkey " +
