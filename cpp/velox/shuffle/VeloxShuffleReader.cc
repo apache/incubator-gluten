@@ -118,9 +118,9 @@ VectorPtr readFlatVectorStringView(
     std::shared_ptr<const Type> type,
     memory::MemoryPool* pool) {
   auto nulls = buffers[bufferIdx++];
-  auto offsetBuffer = buffers[bufferIdx++];
+  auto lengthBuffer = buffers[bufferIdx++];
   auto valueBuffer = buffers[bufferIdx++];
-  const int32_t* rawLength = offsetBuffer->as<int32_t>();
+  const int32_t* rawLength = lengthBuffer->as<int32_t>();
 
   std::vector<BufferPtr> stringBuffers;
   auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * length, pool);
