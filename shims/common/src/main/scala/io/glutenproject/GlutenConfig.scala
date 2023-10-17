@@ -802,8 +802,10 @@ object GlutenConfig {
   val COLUMNAR_SHUFFLE_BUFFER_COMPRESS_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.bufferCompressThreshold")
       .internal()
+      .doc("If number of rows in a batch falls below this threshold," +
+        " will copy all buffers into one buffer to compress.")
       .intConf
-      .createWithDefault(1024)
+      .createWithDefault(100)
 
   val COLUMNAR_MAX_BATCH_SIZE =
     buildConf(GLUTEN_MAX_BATCH_SIZE_KEY)
