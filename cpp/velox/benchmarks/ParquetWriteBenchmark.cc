@@ -33,7 +33,7 @@
 
 #include <chrono>
 
-#include "BenchmarkUtils.h"
+#include "benchmarks/common/BenchmarkUtils.h"
 #include "compute/VeloxExecutionCtx.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"

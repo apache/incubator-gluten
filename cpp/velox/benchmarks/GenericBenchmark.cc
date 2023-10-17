@@ -24,9 +24,8 @@
 #include <gflags/gflags.h>
 #include <operators/writer/ArrowWriter.h>
 
-#include "BatchStreamIterator.h"
-#include "BatchVectorIterator.h"
-#include "BenchmarkUtils.h"
+#include "benchmarks/common/BenchmarkUtils.h"
+#include "benchmarks/common/FileReaderIterator.h"
 #include "compute/VeloxExecutionCtx.h"
 #include "compute/VeloxPlanConverter.h"
 #include "config/GlutenConfig.h"
@@ -40,7 +39,6 @@ using namespace gluten;
 
 namespace {
 DEFINE_bool(skip_input, false, "Skip specifying input files.");
-DEFINE_bool(gen_orc_input, false, "Generate orc files from parquet as input files.");
 DEFINE_bool(with_shuffle, false, "Add shuffle split at end.");
 DEFINE_string(partitioning, "rr", "Short partitioning name. Valid options are rr, hash, range, single");
 DEFINE_bool(zstd, false, "Use ZSTD as shuffle compression codec");
@@ -48,9 +46,6 @@ DEFINE_bool(qat_gzip, false, "Use QAT GZIP as shuffle compression codec");
 DEFINE_bool(qat_zstd, false, "Use QAT ZSTD as shuffle compression codec");
 DEFINE_bool(iaa_gzip, false, "Use IAA GZIP as shuffle compression codec");
 DEFINE_int32(shuffle_partitions, 200, "Number of shuffle split (reducer) partitions");
-
-static const std::string kParquetSuffix = ".parquet";
-static const std::string kOrcSuffix = ".orc";
 
 struct WriterMetrics {
   int64_t splitTime;
@@ -118,7 +113,7 @@ auto BM_Generic = [](::benchmark::State& state,
                      const std::string& substraitJsonFile,
                      const std::vector<std::string>& inputFiles,
                      const std::unordered_map<std::string, std::string>& conf,
-                     GetInputFunc* getInputIterator) {
+                     FileReaderType readerType) {
   // Pin each threads to different CPU# starting from 0 or --cpu.
   if (FLAGS_cpu != -1) {
     setCpu(FLAGS_cpu + state.thread_index());
@@ -135,15 +130,17 @@ auto BM_Generic = [](::benchmark::State& state,
 
   for (auto _ : state) {
     std::vector<std::shared_ptr<gluten::ResultIterator>> inputIters;
-    std::vector<BatchIterator*> inputItersRaw;
+    std::vector<FileReaderIterator*> inputItersRaw;
     if (!inputFiles.empty()) {
-      std::transform(inputFiles.cbegin(), inputFiles.cend(), std::back_inserter(inputIters), getInputIterator);
+      for (const auto& input : inputFiles) {
+        inputIters.push_back(getInputIteratorFromFileReader(input, readerType));
+      }
       std::transform(
           inputIters.begin(),
           inputIters.end(),
           std::back_inserter(inputItersRaw),
           [](std::shared_ptr<gluten::ResultIterator> iter) {
-            return static_cast<BatchIterator*>(iter->getInputIter());
+            return static_cast<FileReaderIterator*>(iter->getInputIter());
           });
     }
 
@@ -197,7 +194,7 @@ auto BM_Generic = [](::benchmark::State& state,
     }
 
     collectBatchTime +=
-        std::accumulate(inputItersRaw.begin(), inputItersRaw.end(), 0, [](int64_t sum, BatchIterator* iter) {
+        std::accumulate(inputItersRaw.begin(), inputItersRaw.end(), 0, [](int64_t sum, FileReaderIterator* iter) {
           return sum + iter->getCollectBatchTime();
         });
 
@@ -226,80 +223,6 @@ auto BM_Generic = [](::benchmark::State& state,
       writerMetrics.compressTime, benchmark::Counter::kAvgIterations, benchmark::Counter::OneK::kIs1000);
 };
 
-class OrcFileGuard {
- public:
-  explicit OrcFileGuard(const std::vector<std::string>& inputFiles) {
-    orcFiles_.resize(inputFiles.size());
-    for (auto i = 0; i != inputFiles.size(); ++i) {
-      GLUTEN_ASSIGN_OR_THROW(orcFiles_[i], createOrcFile(inputFiles[i]));
-    }
-  }
-
-  ~OrcFileGuard() {
-    for (auto& x : orcFiles_) {
-      std::filesystem::remove(x);
-    }
-  }
-
-  const std::vector<std::string>& getOrcFiles() {
-    return orcFiles_;
-  }
-
- private:
-  arrow::Result<std::string> createOrcFile(const std::string& inputFile) {
-    ParquetBatchStreamIterator parquetIterator(inputFile);
-
-    std::string outputFile = inputFile;
-    // Get the filename.
-    auto pos = inputFile.find_last_of("/");
-    if (pos != std::string::npos) {
-      outputFile = inputFile.substr(pos + 1);
-    }
-    // If any suffix is found, replace it with ".orc"
-    pos = outputFile.find_first_of(".");
-    if (pos != std::string::npos) {
-      outputFile = outputFile.substr(0, pos) + kOrcSuffix;
-    } else {
-      return arrow::Status::Invalid("Invalid input file: " + inputFile);
-    }
-    outputFile = std::filesystem::current_path().string() + "/" + outputFile;
-
-    std::shared_ptr<arrow::io::FileOutputStream> outputStream;
-    ARROW_ASSIGN_OR_RAISE(outputStream, arrow::io::FileOutputStream::Open(outputFile));
-
-    auto writerOptions = arrow::adapters::orc::WriteOptions();
-    auto maybeWriter = arrow::adapters::orc::ORCFileWriter::Open(outputStream.get(), writerOptions);
-    GLUTEN_THROW_NOT_OK(maybeWriter);
-    auto& writer = *maybeWriter;
-
-    while (true) {
-      // 1. read from Parquet
-      auto cb = parquetIterator.next();
-      if (cb == nullptr) {
-        break;
-      }
-
-      auto arrowColumnarBatch = std::dynamic_pointer_cast<gluten::ArrowColumnarBatch>(cb);
-      auto recordBatch = arrowColumnarBatch->getRecordBatch();
-
-      // 2. write to Orc
-      if (!(writer->Write(*recordBatch)).ok()) {
-        return arrow::Status::IOError("Write failed");
-      }
-    }
-
-    if (!(writer->Close()).ok()) {
-      return arrow::Status::IOError("Close failed");
-    }
-
-    std::cout << "Created orc file: " << outputFile << std::endl;
-
-    return outputFile;
-  }
-
-  std::vector<std::string> orcFiles_;
-};
-
 int main(int argc, char** argv) {
   ::benchmark::Initialize(&argc, argv);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -307,7 +230,6 @@ int main(int argc, char** argv) {
   std::string substraitJsonFile;
   std::vector<std::string> inputFiles;
   std::unordered_map<std::string, std::string> conf;
-  std::shared_ptr<OrcFileGuard> orcFileGuard;
 
   conf.insert({gluten::kSparkBatchSize, FLAGS_batch_size});
   initVeloxBackend(conf);
@@ -339,19 +261,19 @@ int main(int argc, char** argv) {
     std::exit(EXIT_FAILURE);
   }
 
-#define GENERIC_BENCHMARK(NAME, FUNC)                                                                      \
-  do {                                                                                                     \
-    auto* bm = ::benchmark::RegisterBenchmark(NAME, BM_Generic, substraitJsonFile, inputFiles, conf, FUNC) \
-                   ->MeasureProcessCPUTime()                                                               \
-                   ->UseRealTime();                                                                        \
-    if (FLAGS_threads > 0) {                                                                               \
-      bm->Threads(FLAGS_threads);                                                                          \
-    } else {                                                                                               \
-      bm->ThreadRange(1, std::thread::hardware_concurrency());                                             \
-    }                                                                                                      \
-    if (FLAGS_iterations > 0) {                                                                            \
-      bm->Iterations(FLAGS_iterations);                                                                    \
-    }                                                                                                      \
+#define GENERIC_BENCHMARK(NAME, READER_TYPE)                                                                      \
+  do {                                                                                                            \
+    auto* bm = ::benchmark::RegisterBenchmark(NAME, BM_Generic, substraitJsonFile, inputFiles, conf, READER_TYPE) \
+                   ->MeasureProcessCPUTime()                                                                      \
+                   ->UseRealTime();                                                                               \
+    if (FLAGS_threads > 0) {                                                                                      \
+      bm->Threads(FLAGS_threads);                                                                                 \
+    } else {                                                                                                      \
+      bm->ThreadRange(1, std::thread::hardware_concurrency());                                                    \
+    }                                                                                                             \
+    if (FLAGS_iterations > 0) {                                                                                   \
+      bm->Iterations(FLAGS_iterations);                                                                           \
+    }                                                                                                             \
   } while (0)
 
 #if 0
@@ -364,15 +286,10 @@ int main(int argc, char** argv) {
 #endif
 
   if (FLAGS_skip_input) {
-    GENERIC_BENCHMARK("SkipInput", nullptr);
-  } else if (FLAGS_gen_orc_input) {
-    orcFileGuard = std::make_shared<OrcFileGuard>(inputFiles);
-    inputFiles = orcFileGuard->getOrcFiles();
-    GENERIC_BENCHMARK("OrcInputFromBatchVector", getOrcInputFromBatchVector);
-    GENERIC_BENCHMARK("OrcInputFromBatchStream", getOrcInputFromBatchStream);
+    GENERIC_BENCHMARK("SkipInput", FileReaderType::kNone);
   } else {
-    GENERIC_BENCHMARK("ParquetInputFromBatchVector", getParquetInputFromBatchVector);
-    GENERIC_BENCHMARK("ParquetInputFromBatchStream", getParquetInputFromBatchStream);
+    GENERIC_BENCHMARK("InputFromBatchVector", FileReaderType::kBuffered);
+    GENERIC_BENCHMARK("InputFromBatchStream", FileReaderType::kStream);
   }
 
   ::benchmark::RunSpecifiedBenchmarks();

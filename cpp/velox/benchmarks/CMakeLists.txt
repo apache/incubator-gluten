@@ -15,19 +15,21 @@
 
 find_arrow_lib(${PARQUET_LIB_NAME})
 
+set(VELOX_BENCHMARK_COMMON_SRCS common/FileReaderIterator.cc common/BenchmarkUtils.cc)
+add_library(velox_benchmark_common STATIC ${VELOX_BENCHMARK_COMMON_SRCS})
+target_include_directories(velox_benchmark_common PUBLIC ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/core)
+target_link_libraries(velox_benchmark_common PUBLIC Arrow::parquet velox benchmark::benchmark gflags simdjson)
+
 function(add_velox_benchmark BM_EXEC BM_FILE)
-  add_executable(${BM_EXEC} ${BM_FILE} BenchmarkUtils.cc)
-  target_include_directories(${BM_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
-  target_link_libraries(${BM_EXEC} gflags Arrow::parquet velox benchmark::benchmark simdjson)
+  add_executable(${BM_EXEC} ${BM_FILE})
+  target_link_libraries(${BM_EXEC} PRIVATE velox_benchmark_common)
 endfunction()
 
 # Query benchmark
 add_velox_benchmark(query_benchmark QueryBenchmark.cc)
 
 # Generic benchmark
-# TODO: This benchmark generates ORC file with Arrow ORC file writer.
-# We need to compile Arrow with -DARROW_ORC first in Velox.
-# add_velox_benchmark(generic_benchmark GenericBenchmark.cc)
+add_velox_benchmark(generic_benchmark GenericBenchmark.cc)
 
 add_velox_benchmark(columnar_to_row_benchmark ColumnarToRowBenchmark.cc)
 
@@ -35,3 +37,6 @@ add_velox_benchmark(parquet_write_benchmark ParquetWriteBenchmark.cc)
 
 add_velox_benchmark(shuffle_split_benchmark ShuffleSplitBenchmark.cc)
 
+if(ENABLE_ORC)
+  add_velox_benchmark(orc_converter exec/OrcConverter.cc)
+endif()
