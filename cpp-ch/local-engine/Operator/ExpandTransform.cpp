@@ -27,6 +27,14 @@
 #include <Common/Exception.h>
 #include <Common/logger_useful.h>
 
+namespace DB
+{
+namespace ErrorCodes
+{
+extern const int LOGICAL_ERROR;
+}
+}
+
 namespace local_engine
 {
 ExpandTransform::ExpandTransform(const DB::Block & input_, const DB::Block & output_, const ExpandField & project_set_exprs_)
@@ -53,7 +61,8 @@ ExpandTransform::Status ExpandTransform::prepare()
 
     if (has_output)
     {
-        output.push(nextChunk());
+        output.push(std::move(output_chunk));
+        has_output = false;
         return Status::PortFull;
     }
 
@@ -72,6 +81,7 @@ ExpandTransform::Status ExpandTransform::prepare()
         
         input_chunk = input.pull(true);
         has_input = true;
+        expand_expr_iterator = 0;
     }
     
     return Status::Ready;
@@ -79,73 +89,57 @@ ExpandTransform::Status ExpandTransform::prepare()
 
 void ExpandTransform::work()
 {
-    assert(expanded_chunks.empty());
+    if (expand_expr_iterator >= project_set_exprs.getExpandRows())
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "expand_expr_iterator >= project_set_exprs.getExpandRows()");
     const auto & original_cols = input_chunk.getColumns();
     size_t rows = input_chunk.getNumRows();
-
-    for (size_t i = 0; i < project_set_exprs.getExpandRows(); ++i)
+    DB::Columns cols;
+    for (size_t j = 0; j < project_set_exprs.getExpandCols(); ++j)
     {
-        DB::Columns cols;
-        for (size_t j = 0; j < project_set_exprs.getExpandCols(); ++j)
-        {
-            const auto & type = project_set_exprs.getTypes()[j];
-            const auto & kind = project_set_exprs.getKinds()[i][j];
-            const auto & field = project_set_exprs.getFields()[i][j];
+        const auto & type = project_set_exprs.getTypes()[j];
+        const auto & kind = project_set_exprs.getKinds()[expand_expr_iterator][j];
+        const auto & field = project_set_exprs.getFields()[expand_expr_iterator][j];
 
-            if (kind == EXPAND_FIELD_KIND_SELECTION)
+        if (kind == EXPAND_FIELD_KIND_SELECTION)
+        {
+            const auto & original_col = original_cols[field.get<Int32>()];
+            if (type->isNullable() == original_col->isNullable())
             {
-                const auto & original_col = original_cols[field.get<Int32>()];
-                if (type->isNullable() == original_col->isNullable())
-                {
-                    cols.push_back(original_col);
-                }
-                else if (type->isNullable() && !original_col->isNullable())
-                {
-                    auto null_map = DB::ColumnUInt8::create(rows, 0);
-                    auto col = DB::ColumnNullable::create(original_col, std::move(null_map));
-                    cols.push_back(std::move(col));
-                }
-                else
-                {
-                    throw DB::Exception(
-                        DB::ErrorCodes::LOGICAL_ERROR,
-                        "Miss match nullable, column {} is nullable, but type {} is not nullable",
-                        original_col->getName(),
-                        type->getName());
-                }
+                cols.push_back(original_col);
+            }
+            else if (type->isNullable() && !original_col->isNullable())
+            {
+                auto null_map = DB::ColumnUInt8::create(rows, 0);
+                auto col = DB::ColumnNullable::create(original_col, std::move(null_map));
+                cols.push_back(std::move(col));
             }
             else
             {
-                if (field.isNull())
-                {
-                    // Add null column
-                    auto null_map = DB::ColumnUInt8::create(rows, 1);
-                    auto nested_type = DB::removeNullable(type);
-                    auto col = DB::ColumnNullable::create(nested_type->createColumn()->cloneResized(rows), std::move(null_map));
-                    cols.push_back(std::move(col));
-                }
-                else
-                {
-                    // Add constant column: gid, gpos, etc.
-                    auto col = type->createColumnConst(rows, field);
-                    cols.push_back(col->convertToFullColumnIfConst());
-                }
+                throw DB::Exception(
+                    DB::ErrorCodes::LOGICAL_ERROR,
+                    "Miss match nullable, column {} is nullable, but type {} is not nullable",
+                    original_col->getName(),
+                    type->getName());
             }
         }
-        expanded_chunks.push_back(DB::Chunk(cols, rows));
+        else if (field.isNull())
+        {
+            // Add null column
+            auto null_map = DB::ColumnUInt8::create(rows, 1);
+            auto nested_type = DB::removeNullable(type);
+            auto col = DB::ColumnNullable::create(nested_type->createColumn()->cloneResized(rows), std::move(null_map));
+            cols.push_back(std::move(col));
+        }
+        else
+        {
+            // Add constant column: gid, gpos, etc.
+            auto col = type->createColumnConst(rows, field);
+            cols.push_back(col->convertToFullColumnIfConst());
+        }
     }
-
-    has_output = true;
-    has_input = false;
-}
-
-DB::Chunk ExpandTransform::nextChunk()
-{
-    assert(!expanded_chunks.empty());
-    DB::Chunk ret;
-    ret.swap(expanded_chunks.front());
-    expanded_chunks.pop_front();
-    has_output = !expanded_chunks.empty();
-    return ret;
+    output_chunk = DB::Chunk(cols, rows);
+    expand_expr_iterator += 1;
+    has_output = expand_expr_iterator <= project_set_exprs.getExpandRows();
+    has_input = expand_expr_iterator < project_set_exprs.getExpandRows();
 }
 }
