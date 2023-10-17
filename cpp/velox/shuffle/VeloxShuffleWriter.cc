@@ -469,17 +469,16 @@ void collectFlatVectorBufferStringView(
 
   auto rawValues = flatVector->rawValues();
   // last offset is the totalStringSize
-  auto offsetBufferSize = sizeof(int32_t) * (flatVector->size() + 1);
-  GLUTEN_ASSIGN_OR_THROW(auto offsetBuffer, arrow::AllocateResizableBuffer(offsetBufferSize, pool));
-  int32_t* rawOffset = reinterpret_cast<int32_t*>(offsetBuffer->mutable_data());
-  // first offset is 0
-  *rawOffset++ = 0;
+  auto lengthBufferSize = sizeof(int32_t) * flatVector->size();
+  GLUTEN_ASSIGN_OR_THROW(auto lengthBuffer, arrow::AllocateResizableBuffer(lengthBufferSize, pool));
+  int32_t* rawLength = reinterpret_cast<int32_t*>(lengthBuffer->mutable_data());
   int32_t offset = 0;
   for (int32_t i = 0; i < flatVector->size(); i++) {
-    offset += rawValues[i].size();
-    *rawOffset++ = offset;
+    auto length = rawValues[i].size();
+    *rawLength++ = length;
+    offset += length;
   }
-  buffers.push_back(std::move(offsetBuffer));
+  buffers.push_back(std::move(lengthBuffer));
 
   GLUTEN_ASSIGN_OR_THROW(auto valueBuffer, arrow::AllocateResizableBuffer(offset, pool));
   auto raw = reinterpret_cast<char*>(valueBuffer->mutable_data());
@@ -960,9 +959,11 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         auto& stringView = rawValues[rowId];
         auto stringLen = stringView.size();
 
-        // 1. copy offset
-        valueOffset = dstOffsetBase[x + 1] = valueOffset + stringLen;
+        // 1. copy length, update offset.
+        dstOffsetBase[x] = stringLen;
+        valueOffset += stringLen;
 
+        // Resize if necessary.
         if (valueOffset >= capacity) {
           auto oldCapacity = capacity;
           (void)oldCapacity; // suppress warning
@@ -1201,32 +1202,30 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         case arrow::BinaryType::type_id:
         case arrow::StringType::type_id: {
           std::shared_ptr<arrow::ResizableBuffer> validityBuffer{};
-          std::shared_ptr<arrow::ResizableBuffer> offsetBuffer{};
+          std::shared_ptr<arrow::ResizableBuffer> lengthBuffer{};
           std::shared_ptr<arrow::ResizableBuffer> valueBuffer{};
 
           auto columnIdx = fixedWidthColumnCount_ + binaryIdx;
           ARROW_ASSIGN_OR_RAISE(validityBuffer, allocateValidityBuffer(columnIdx, partitionId, newSize));
 
-          auto valueBufSize = calculateValueBufferSizeForBinaryArray(binaryIdx, newSize);
-          auto offsetBufSize = (newSize + 1) * sizeof(BinaryArrayOffsetType);
+          auto valueBufferSize = calculateValueBufferSizeForBinaryArray(binaryIdx, newSize);
+          auto lengthBufferSize = newSize * sizeof(BinaryArrayOffsetType);
 
           auto& buffers = partitionBuffers_[columnIdx][partitionId];
           if (reuseBuffers) {
             valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kValueBufferIndex]);
-            RETURN_NOT_OK(valueBuffer->Resize(valueBufSize, /*shrink_to_fit=*/true));
-            offsetBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kOffsetBufferIndex]);
-            RETURN_NOT_OK(offsetBuffer->Resize(offsetBufSize, /*shrink_to_fit=*/true));
+            RETURN_NOT_OK(valueBuffer->Resize(valueBufferSize, /*shrink_to_fit=*/true));
+            lengthBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[kLengthBufferIndex]);
+            RETURN_NOT_OK(lengthBuffer->Resize(lengthBufferSize, /*shrink_to_fit=*/true));
           } else {
             ARROW_ASSIGN_OR_RAISE(
-                valueBuffer, arrow::AllocateResizableBuffer(valueBufSize, partitionBufferPool_.get()));
+                valueBuffer, arrow::AllocateResizableBuffer(valueBufferSize, partitionBufferPool_.get()));
             ARROW_ASSIGN_OR_RAISE(
-                offsetBuffer, arrow::AllocateResizableBuffer(offsetBufSize, partitionBufferPool_.get()));
+                lengthBuffer, arrow::AllocateResizableBuffer(lengthBufferSize, partitionBufferPool_.get()));
           }
-          // Set the first offset to 0.
-          memset(offsetBuffer->mutable_data(), 0, sizeof(BinaryArrayOffsetType));
           partitionBinaryAddrs_[binaryIdx][partitionId] =
-              BinaryBuf(valueBuffer->mutable_data(), offsetBuffer->mutable_data(), valueBufSize);
-          buffers = {std::move(validityBuffer), std::move(offsetBuffer), std::move(valueBuffer)};
+              BinaryBuf(valueBuffer->mutable_data(), lengthBuffer->mutable_data(), valueBufferSize);
+          buffers = {std::move(validityBuffer), std::move(lengthBuffer), std::move(valueBuffer)};
 
           binaryIdx++;
           break;
@@ -1241,24 +1240,24 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
 
           ARROW_ASSIGN_OR_RAISE(validityBuffer, allocateValidityBuffer(fixedWidthIdx, partitionId, newSize));
 
-          int64_t valueBufSize = 0;
+          int64_t valueBufferSize = 0;
           if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
-            valueBufSize = arrow::bit_util::BytesForBits(newSize);
+            valueBufferSize = arrow::bit_util::BytesForBits(newSize);
           } else if (veloxColumnTypes_[i]->isShortDecimal()) {
-            valueBufSize = newSize * (arrow::bit_width(arrow::Int64Type::type_id) >> 3);
+            valueBufferSize = newSize * (arrow::bit_width(arrow::Int64Type::type_id) >> 3);
           } else if (veloxColumnTypes_[i]->kind() == TypeKind::TIMESTAMP) {
-            valueBufSize = BaseVector::byteSize<Timestamp>(newSize);
+            valueBufferSize = BaseVector::byteSize<Timestamp>(newSize);
           } else {
-            valueBufSize = newSize * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3);
+            valueBufferSize = newSize * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3);
           }
 
           auto& buffers = partitionBuffers_[fixedWidthIdx][partitionId];
           if (reuseBuffers) {
             valueBuffer = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffers[1]);
-            RETURN_NOT_OK(valueBuffer->Resize(valueBufSize, /*shrink_to_fit=*/true));
+            RETURN_NOT_OK(valueBuffer->Resize(valueBufferSize, /*shrink_to_fit=*/true));
           } else {
             ARROW_ASSIGN_OR_RAISE(
-                valueBuffer, arrow::AllocateResizableBuffer(valueBufSize, partitionBufferPool_.get()));
+                valueBuffer, arrow::AllocateResizableBuffer(valueBufferSize, partitionBufferPool_.get()));
           }
           partitionFixedWidthValueAddrs_[fixedWidthIdx][partitionId] = valueBuffer->mutable_data();
           buffers = {std::move(validityBuffer), std::move(valueBuffer)};
@@ -1332,6 +1331,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         case arrow::BinaryType::type_id:
         case arrow::StringType::type_id: {
           const auto& buffers = partitionBuffers_[fixedWidthColumnCount_ + binaryIdx][partitionId];
+          auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][partitionId];
           // validity buffer
           if (buffers[kValidityBufferIndex] != nullptr) {
             allBuffers.push_back(
@@ -1341,22 +1341,19 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           }
           // offset buffer
           ARROW_RETURN_IF(
-              !buffers[kOffsetBufferIndex], arrow::Status::Invalid("Offset buffer of binary array is null."));
-          allBuffers.push_back(arrow::SliceBuffer(buffers[kOffsetBufferIndex], 0, (numRows + 1) * sizeof(int32_t)));
+              !buffers[kLengthBufferIndex], arrow::Status::Invalid("Offset buffer of binary array is null."));
+          allBuffers.push_back(arrow::SliceBuffer(buffers[kLengthBufferIndex], 0, numRows * sizeof(int32_t)));
           ARROW_RETURN_IF(!buffers[kValueBufferIndex], arrow::Status::Invalid("Value buffer of binary array is null."));
           // value buffer
-          allBuffers.push_back(arrow::SliceBuffer(
-              buffers[kValueBufferIndex],
-              0,
-              reinterpret_cast<const int32_t*>(buffers[kOffsetBufferIndex]->data())[numRows]));
+          allBuffers.push_back(arrow::SliceBuffer(buffers[kValueBufferIndex], 0, binaryBuf.valueOffset));
 
           if (reuseBuffers) {
             // Set the first value offset to 0.
-            partitionBinaryAddrs_[binaryIdx][partitionId].valueOffset = 0;
+            binaryBuf.valueOffset = 0;
           } else {
             // Reset all buffers.
             partitionValidityAddrs_[fixedWidthColumnCount_ + binaryIdx][partitionId] = nullptr;
-            partitionBinaryAddrs_[binaryIdx][partitionId] = BinaryBuf();
+            binaryBuf = BinaryBuf();
             partitionBuffers_[fixedWidthColumnCount_ + binaryIdx][partitionId].clear();
           }
           binaryIdx++;
@@ -1538,9 +1535,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         // binary types
         case arrow::BinaryType::type_id:
         case arrow::StringType::type_id: {
-          auto& offsetBuffer = buffers[kOffsetBufferIndex];
-          ARROW_RETURN_IF(!offsetBuffer, arrow::Status::Invalid("Offset buffer of binary array is null."));
-          RETURN_NOT_OK(offsetBuffer->Resize((newSize + 1) * sizeof(BinaryArrayOffsetType)));
+          auto& lengthBuffer = buffers[kLengthBufferIndex];
+          ARROW_RETURN_IF(!lengthBuffer, arrow::Status::Invalid("Offset buffer of binary array is null."));
+          RETURN_NOT_OK(lengthBuffer->Resize(newSize * sizeof(BinaryArrayOffsetType)));
 
           auto binaryIdx = i - fixedWidthColumnCount_;
           auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][partitionId];
@@ -1551,7 +1548,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           RETURN_NOT_OK(valueBuffer->Resize(valueBufferSize));
 
           binaryBuf = BinaryBuf(
-              valueBuffer->mutable_data(), offsetBuffer->mutable_data(), valueBufferSize, binaryBuf.valueOffset);
+              valueBuffer->mutable_data(), lengthBuffer->mutable_data(), valueBufferSize, binaryBuf.valueOffset);
           break;
         }
         default: { // fixed-width types
