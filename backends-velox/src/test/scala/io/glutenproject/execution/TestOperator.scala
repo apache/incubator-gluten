@@ -529,4 +529,19 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       }
     }
   }
+
+  test("Fix Generate fail when required child output is not same with child output") {
+    withTable("t") {
+      spark
+        .range(10)
+        .selectExpr("id as c1", "id as c2")
+        .write
+        .format("parquet")
+        .saveAsTable("t")
+
+      runQueryAndCompare("SELECT c1, explode(array(c2)) FROM t") {
+        checkOperatorMatch[GenerateExecTransformer]
+      }
+    }
+  }
 }
