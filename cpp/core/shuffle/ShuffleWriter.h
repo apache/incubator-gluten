@@ -23,46 +23,10 @@
 
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
+#include "shuffle/options.h"
 #include "utils/compression.h"
 
 namespace gluten {
-
-namespace {
-static constexpr int32_t kDefaultShuffleWriterBufferSize = 4096;
-static constexpr int32_t kDefaultNumSubDirs = 64;
-static constexpr int32_t kDefaultBufferCompressThreshold = 1024;
-static constexpr int32_t kDefaultBufferAlignment = 64;
-static constexpr double kDefaultBufferReallocThreshold = 0.25;
-} // namespace
-
-enum PartitionWriterType { kLocal, kCeleborn };
-
-struct ShuffleWriterOptions {
-  int32_t buffer_size = kDefaultShuffleWriterBufferSize;
-  int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
-  int32_t num_sub_dirs = kDefaultNumSubDirs;
-  int32_t buffer_compress_threshold = kDefaultBufferCompressThreshold;
-  double buffer_realloc_threshold = kDefaultBufferReallocThreshold;
-  arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
-  CodecBackend codec_backend = CodecBackend::NONE;
-  CompressionMode compression_mode = CompressionMode::BUFFER;
-  bool buffered_write = false;
-  bool write_eos = true;
-
-  std::string data_file;
-  PartitionWriterType partition_writer_type = kLocal;
-
-  int64_t thread_id = -1;
-  int64_t task_attempt_id = -1;
-
-  arrow::MemoryPool* memory_pool;
-
-  arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
-
-  std::string partitioning_name;
-
-  static ShuffleWriterOptions defaults();
-};
 
 class ShuffleMemoryPool : public arrow::MemoryPool {
  public:

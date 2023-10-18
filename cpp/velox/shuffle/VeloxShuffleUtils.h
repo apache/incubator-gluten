@@ -15,27 +15,8 @@
  * limitations under the License.
  */
 
-#pragma once
-
-#include "shuffle/ShuffleWriter.h"
-#include "shuffle/options.h"
-
 namespace gluten {
 
-class ShuffleWriter::PartitionWriter {
- public:
-  PartitionWriter(ShuffleWriter* shuffleWriter) : shuffleWriter_(shuffleWriter) {}
-  virtual ~PartitionWriter() = default;
-
-  virtual arrow::Status init() = 0;
-
-  virtual arrow::Status processPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
-
-  virtual arrow::Status spill() = 0;
-
-  virtual arrow::Status stop() = 0;
-
-  ShuffleWriter* shuffleWriter_;
-};
+using BinaryArrayLengthType = uint32_t;
 
 } // namespace gluten

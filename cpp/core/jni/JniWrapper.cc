@@ -810,7 +810,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   }
 
   shuffleWriterOptions.task_attempt_id = (int64_t)taskAttemptId;
-  shuffleWriterOptions.buffer_compress_threshold = bufferCompressThreshold;
+  shuffleWriterOptions.compression_threshold = bufferCompressThreshold;
 
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);
   auto partitionWriterType = std::string(partitionWriterTypeC);
@@ -984,20 +984,18 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
     jlong cSchema,
     jlong memoryManagerHandle,
     jstring compressionType,
-    jstring compressionBackend,
-    jstring compressionMode) {
+    jstring compressionBackend) {
   JNI_METHOD_START
   auto ctx = gluten::getExecutionCtx(env, wrapper);
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
 
   auto pool = memoryManager->getArrowMemoryPool();
-  ReaderOptions options = ReaderOptions::defaults();
+  ShuffleReaderOptions options = ShuffleReaderOptions::defaults();
   options.ipc_read_options.memory_pool = pool;
   options.ipc_read_options.use_threads = false;
   if (compressionType != nullptr) {
     options.compression_type = getCompressionType(env, compressionType);
     options.codec_backend = getCodecBackend(env, compressionBackend);
-    options.compression_mode = getCompressionMode(env, compressionMode);
   }
   std::shared_ptr<arrow::Schema> schema =
       gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));

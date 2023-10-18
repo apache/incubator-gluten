@@ -73,7 +73,7 @@ class ColumnarShuffleWriter[K, V](
     GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
 
   private val bufferCompressThreshold =
-    GlutenConfig.getConf.columnarShuffleBufferCompressThreshold
+    GlutenConfig.getConf.columnarShuffleCompressionThreshold
 
   private val writeEOS = GlutenConfig.getConf.columnarShuffleWriteEOS
 

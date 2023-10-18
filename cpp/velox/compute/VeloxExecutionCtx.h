@@ -107,7 +107,7 @@ class VeloxExecutionCtx final : public ExecutionCtx {
 
   ResourceHandle createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
-      ReaderOptions options,
+      ShuffleReaderOptions options,
       arrow::MemoryPool* pool,
       MemoryManager* memoryManager) override;
   std::shared_ptr<ShuffleReader> getShuffleReader(ResourceHandle handle) override;
