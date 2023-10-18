@@ -216,7 +216,6 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
           ->newConnector(kHiveConnectorId, veloxmemcfg, ioExecutor_.get());
 
   registerConnector(hiveConnector);
-
   // Register Velox functions
   registerAllFunctions();
   if (!facebook::velox::isRegisteredVectorSerde()) {

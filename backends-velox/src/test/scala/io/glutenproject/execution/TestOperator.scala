@@ -466,7 +466,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     checkOperatorMatch[HashAggregateExecTransformer](result)
   }
 
-  ignore("orc scan") {
+  test("orc scan") {
     val df = spark.read
       .format("orc")
       .load("../cpp/velox/benchmarks/data/bm_lineitem/orc/lineitem.orc")
