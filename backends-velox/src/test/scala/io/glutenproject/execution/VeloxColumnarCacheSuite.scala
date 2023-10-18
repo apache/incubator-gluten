@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.extension.InMemoryTableScanHelper
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
@@ -121,6 +122,26 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
       )
     } finally {
       cached.unpersist()
+    }
+  }
+
+  test("no ColumnarToRow for table cache") {
+    val cached = spark.table("lineitem").cache()
+    withSQLConf(GlutenConfig.COLUMNAR_HASHAGG_ENABLED.key -> "false") {
+      try {
+        val df = spark.sql("SELECT COUNT(*) FROM lineitem")
+        checkAnswer(df, Row(60175))
+        assert(
+          find(df.queryExecution.executedPlan) {
+            case VeloxColumnarToRowExec(child: SparkPlan)
+                if InMemoryTableScanHelper.isGlutenTableCache(child) =>
+              true
+            case _ => false
+          }.isEmpty
+        )
+      } finally {
+        cached.unpersist()
+      }
     }
   }
 

@@ -110,9 +110,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           // If the child is transformable, transform aggregation as well.
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           transformHashAggregate()
-        case q: QueryStageExec if InMemoryTableScanHelper.isGlutenTableCache(q) =>
-          transformHashAggregate()
-        case i: InMemoryTableScanExec if InMemoryTableScanHelper.isGlutenTableCache(i) =>
+        case p: SparkPlan if InMemoryTableScanHelper.isGlutenTableCache(p) =>
           transformHashAggregate()
         case _ =>
           // If the child is not transformable, transform the grandchildren only.
@@ -656,6 +654,9 @@ case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[Spark
       replaceWithTransformerPlan(child)
     case ColumnarToRowExec(child: BroadcastQueryStageExec) =>
       replaceWithTransformerPlan(child)
+    // `InMemoryTableScanExec` internally supports ColumnarToRow
+    case ColumnarToRowExec(child: SparkPlan) if InMemoryTableScanHelper.isGlutenTableCache(child) =>
+      child
     case plan: ColumnarToRowExec =>
       transformColumnarToRowExec(plan)
     case r: SparkPlan
@@ -664,7 +665,8 @@ case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[Spark
       // This is a fix for when DPP and AQE both enabled,
       // ColumnarExchange maybe child as a Row SparkPlan
       r.withNewChildren(r.children.map {
-        case c: ColumnarToRowExec =>
+        // `InMemoryTableScanExec` internally supports ColumnarToRow
+        case c: ColumnarToRowExec if !InMemoryTableScanHelper.isGlutenTableCache(c.child) =>
           transformColumnarToRowExec(c)
         case other =>
           replaceWithTransformerPlan(other)
