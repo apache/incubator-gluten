@@ -219,7 +219,7 @@ void VeloxExecutionCtx::releaseDatasource(ResourceHandle handle) {
 
 ResourceHandle VeloxExecutionCtx::createShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
-    ShuffleReaderOptions options,
+    ReaderOptions options,
     arrow::MemoryPool* pool,
     MemoryManager* memoryManager) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);

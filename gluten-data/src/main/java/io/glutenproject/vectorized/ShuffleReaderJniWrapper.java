@@ -40,7 +40,8 @@ public class ShuffleReaderJniWrapper implements ExecutionCtxAware {
       long cSchema,
       long memoryManagerHandle,
       String compressionType,
-      String compressionCodecBackend);
+      String compressionCodecBackend,
+      String compressionMode);
 
   public native long readStream(long shuffleReaderHandle, JniByteInputStream jniIn);
 

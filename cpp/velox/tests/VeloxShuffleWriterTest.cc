@@ -123,7 +123,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     setenv(kGlutenSparkLocalDirs.c_str(), configDirs.c_str(), 1);
 
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
-    shuffleWriterOptions_.compression_threshold = 0;
+    shuffleWriterOptions_.buffer_compress_threshold = 0;
     shuffleWriterOptions_.memory_pool = arrowPool_.get();
 
     ShuffleTestParams params = GetParam();
@@ -229,8 +229,9 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
   }
 
   void getRowVectors(std::shared_ptr<arrow::Schema> schema, std::vector<velox::RowVectorPtr>& vectors) {
-    ShuffleReaderOptions options;
+    ReaderOptions options;
     options.compression_type = shuffleWriterOptions_.compression_type;
+    options.compression_mode = shuffleWriterOptions_.compression_mode;
     auto reader = std::make_shared<VeloxShuffleReader>(schema, options, arrowPool_.get(), pool_);
     auto iter = reader->readStream(file_);
     while (iter->hasNext()) {
@@ -375,7 +376,7 @@ TEST_P(VeloxShuffleWriterTest, singlePartCompressSmallBuffer) {
   shuffleWriterOptions_.buffer_size = 10;
   shuffleWriterOptions_.partitioning_name = "single";
   shuffleWriterOptions_.compression_type = arrow::Compression::LZ4_FRAME;
-  shuffleWriterOptions_.compression_threshold = 1024;
+  shuffleWriterOptions_.buffer_compress_threshold = 1024;
 
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter, VeloxShuffleWriter::create(1, partitionWriterCreator_, shuffleWriterOptions_, pool_))
