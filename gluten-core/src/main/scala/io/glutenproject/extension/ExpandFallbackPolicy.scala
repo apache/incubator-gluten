@@ -27,7 +27,6 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, BroadcastQueryStageExec, ColumnarAQEShuffleReadExec, QueryStageExec, ShuffleQueryStageExec}
-import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.ExecutedCommandExec
 import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
 
@@ -164,12 +163,10 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
         transformPostOverrides.transformColumnarToRowExec(c2r)
       case c2r @ ColumnarToRowExec(_: ColumnarAQEShuffleReadExec) =>
         transformPostOverrides.transformColumnarToRowExec(c2r)
-      case ColumnarToRowExec(q: QueryStageExec) if InMemoryTableScanHelper.isGlutenTableCache(q) =>
-        q
-      case ColumnarToRowExec(i: InMemoryTableScanExec)
-          if InMemoryTableScanHelper.isGlutenTableCache(i) =>
-        // `InMemoryTableScanExec` itself supports columnar to row
-        i
+      // `InMemoryTableScanExec` itself supports columnar to row
+      case ColumnarToRowExec(child: SparkPlan)
+          if InMemoryTableScanHelper.isGlutenTableCache(child) =>
+        child
     }
   }
 
