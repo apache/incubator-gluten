@@ -18,7 +18,6 @@
 #pragma once
 
 #include "shuffle/ShuffleWriter.h"
-#include "shuffle/options.h"
 
 namespace gluten {
 

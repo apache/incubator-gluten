@@ -138,7 +138,7 @@ class ExecutionCtx : public std::enable_shared_from_this<ExecutionCtx> {
 
   virtual ResourceHandle createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
-      ShuffleReaderOptions options,
+      ReaderOptions options,
       arrow::MemoryPool* pool,
       MemoryManager* memoryManager) = 0;
   virtual std::shared_ptr<ShuffleReader> getShuffleReader(ResourceHandle) = 0;

@@ -98,7 +98,7 @@ class DummyExecutionCtx final : public ExecutionCtx {
   void releaseDatasource(ResourceHandle handle) override {}
   ResourceHandle createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
-      ShuffleReaderOptions options,
+      ReaderOptions options,
       arrow::MemoryPool* pool,
       MemoryManager* memoryManager) override {
     return kInvalidResourceHandle;

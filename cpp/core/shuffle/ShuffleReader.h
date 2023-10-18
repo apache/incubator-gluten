@@ -23,14 +23,22 @@
 #include <arrow/ipc/options.h>
 
 #include "compute/ResultIterator.h"
-#include "options.h"
 #include "utils/compression.h"
 
 namespace gluten {
 
+struct ReaderOptions {
+  arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
+  arrow::Compression::type compression_type = arrow::Compression::type::LZ4_FRAME;
+  CodecBackend codec_backend = CodecBackend::NONE;
+  CompressionMode compression_mode = CompressionMode::BUFFER;
+
+  static ReaderOptions defaults();
+};
+
 class ShuffleReader {
  public:
-  explicit ShuffleReader(std::shared_ptr<arrow::Schema> schema, ShuffleReaderOptions options, arrow::MemoryPool* pool);
+  explicit ShuffleReader(std::shared_ptr<arrow::Schema> schema, ReaderOptions options, arrow::MemoryPool* pool);
 
   virtual ~ShuffleReader() = default;
 
@@ -59,7 +67,7 @@ class ShuffleReader {
   int64_t ipcTime_ = 0;
   int64_t deserializeTime_ = 0;
 
-  ShuffleReaderOptions options_;
+  ReaderOptions options_;
 
  private:
   std::shared_ptr<arrow::Schema> schema_;
