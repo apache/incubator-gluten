@@ -16,7 +16,6 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
@@ -54,7 +53,7 @@ abstract class HashAggregateExecBaseTransformer(
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan)
   extends BaseAggregateExec
-  with TransformSupport {
+  with UnaryTransformSupport {
 
   override lazy val allAttributes: AttributeSeq =
     child.output ++ aggregateBufferAttributes ++ aggregateAttributes ++
@@ -63,8 +62,6 @@ abstract class HashAggregateExecBaseTransformer(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genHashAggregateTransformerMetrics(sparkContext)
-
-  val sparkConf = sparkContext.getConf
 
   // The direct outputs of Aggregation.
   protected lazy val allAggregateResultAttributes: List[Attribute] = {
@@ -77,31 +74,8 @@ abstract class HashAggregateExecBaseTransformer(
       aggregateAttributes)
   }
 
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
-
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      c.getBuildPlans
-    case _ =>
-      Seq()
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
   }
 
   override def metricsUpdater(): MetricsUpdater =
@@ -184,11 +158,6 @@ abstract class HashAggregateExecBaseTransformer(
 
   // Members declared in org.apache.spark.sql.execution.AliasAwareOutputPartitioning
   override protected def outputExpressions: Seq[NamedExpression] = resultExpressions
-
-  // Members declared in org.apache.spark.sql.execution.SparkPlan
-  override protected def doExecute()
-      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] =
-    throw new UnsupportedOperationException()
 
   protected def needsPreProjection: Boolean = {
     var needsProjection = false

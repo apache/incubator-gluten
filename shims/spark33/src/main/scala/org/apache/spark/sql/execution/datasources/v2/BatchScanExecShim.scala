@@ -16,8 +16,6 @@
  */
 package org.apache.spark.sql.execution.datasources.v2
 
-import io.glutenproject.GlutenConfig
-
 import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -39,8 +37,6 @@ class BatchScanExecShim(
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
-
-  override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Need to implement this method")

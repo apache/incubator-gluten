@@ -27,7 +27,6 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution._
@@ -44,7 +43,7 @@ case class ExpandExecTransformer(
     output: Seq[Attribute],
     child: SparkPlan)
   extends UnaryExecNode
-  with TransformSupport {
+  with UnaryTransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -58,26 +57,6 @@ case class ExpandExecTransformer(
   // The GroupExpressions can output data with arbitrary partitioning, so set it
   // as UNKNOWN partitioning
   override def outputPartitioning: Partitioning = UnknownPartitioning(0)
-
-  override def supportsColumnar: Boolean = true
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
 
   def getRelNode(
       context: SubstraitContext,
@@ -251,9 +230,6 @@ case class ExpandExecTransformer(
     assert(currRel != null, "Expand Rel should be valid")
     TransformContext(inputAttributes, output, currRel)
   }
-
-  override protected def doExecute(): RDD[InternalRow] =
-    throw new UnsupportedOperationException("doExecute is not supported in ColumnarExpandExec.")
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")

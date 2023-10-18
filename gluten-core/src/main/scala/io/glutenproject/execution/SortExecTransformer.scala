@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
-import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
@@ -27,7 +27,6 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
@@ -46,9 +45,7 @@ case class SortExecTransformer(
     global: Boolean,
     child: SparkPlan,
     testSpillFrequency: Int = 0)
-  extends UnaryExecNode
-  with TransformSupport
-  with GlutenPlan {
+  extends UnaryTransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -56,10 +53,6 @@ case class SortExecTransformer(
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genSortTransformerMetricsUpdater(metrics)
-
-  val sparkConf = sparkContext.getConf
-
-  override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = child.output
 
@@ -69,28 +62,6 @@ case class SortExecTransformer(
 
   override def requiredChildDistribution: Seq[Distribution] =
     if (global) OrderedDistribution(sortOrder) :: Nil else UnspecifiedDistribution :: Nil
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      val childPlans = c.getBuildPlans
-      childPlans :+ (this, null)
-    case _ =>
-      Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
 
   def getRelWithProject(
       context: SubstraitContext,
@@ -307,10 +278,6 @@ case class SortExecTransformer(
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(s"ColumnarSortExec doesn't support doExecute")
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SortExecTransformer =

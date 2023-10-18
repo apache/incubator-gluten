@@ -28,7 +28,6 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.SubstraitUtil
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
@@ -192,23 +191,6 @@ trait HashJoinLikeExecTransformer
       }
   }
 
-  override def supportsColumnar: Boolean = true
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = buildPlan match {
-    case c: TransformSupport =>
-      val childPlans = c.getBuildPlans
-      childPlans :+ (this, null)
-    case _ =>
-      Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = streamedPlan match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
-
   override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
@@ -345,11 +327,6 @@ trait HashJoinLikeExecTransformer
 
   def genJoinParameters(): (Int, Int, String) = {
     (0, 0, "")
-  }
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(
-      s"${this.getClass.getSimpleName} doesn't support doExecute")
   }
 }
 

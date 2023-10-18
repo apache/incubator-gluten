@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.hive
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{BasicScanExecTransformer, TransformContext}
 import io.glutenproject.extension.ValidationResult
@@ -70,22 +69,8 @@ class HiveTableScanExecTransformer(
     Seq.empty
   }
 
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    Seq.empty
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-    Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = {
-    this
-  }
-
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genHiveTableScanTransformerMetricsUpdater(metrics)
-
-  override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     doExecuteColumnarInternal()

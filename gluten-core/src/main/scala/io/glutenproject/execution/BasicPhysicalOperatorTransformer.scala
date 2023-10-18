@@ -16,7 +16,6 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
@@ -44,8 +43,7 @@ import java.util
 import scala.collection.JavaConverters._
 
 abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkPlan)
-  extends UnaryExecNode
-  with TransformSupport
+  extends UnaryTransformSupport
   with PredicateHelper
   with AliasAwareOutputPartitioning
   with Logging {
@@ -65,32 +63,9 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
   private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
 
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
-
   override def isNullIntolerant(expr: Expression): Boolean = expr match {
     case e: NullIntolerant => e.children.forall(isNullIntolerant)
     case _ => false
-  }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      c.getBuildPlans
-    case _ =>
-      Seq()
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
   }
 
   override def metricsUpdater(): MetricsUpdater =
@@ -208,16 +183,10 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     }
     TransformContext(inputAttributes, output, currRel)
   }
-
-  override protected def doExecute()
-      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
-  }
 }
 
 case class ProjectExecTransformer private (projectList: Seq[NamedExpression], child: SparkPlan)
-  extends UnaryExecNode
-  with TransformSupport
+  extends UnaryTransformSupport
   with PredicateHelper
   with AliasAwareOutputPartitioning
   with Logging {
@@ -227,8 +196,6 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
     BackendsApiManager.getMetricsApiInstance.genProjectTransformerMetrics(sparkContext)
 
   val sparkConf: SparkConf = sparkContext.getConf
-
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
@@ -243,27 +210,6 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
   override def isNullIntolerant(expr: Expression): Boolean = expr match {
     case e: NullIntolerant => e.children.forall(isNullIntolerant)
     case _ => false
-  }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      c.getBuildPlans
-    case _ =>
-      Seq()
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
   }
 
   override def metricsUpdater(): MetricsUpdater =
@@ -359,11 +305,6 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
   }
 
   override protected def outputExpressions: Seq[NamedExpression] = projectList
-
-  override protected def doExecute()
-      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
-  }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
     copy(child = newChild)

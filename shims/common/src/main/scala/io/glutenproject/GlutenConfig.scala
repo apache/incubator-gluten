@@ -101,8 +101,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableOneRowRelationColumnar: Boolean = conf.getConf(COLUMNAR_ONE_ROW_RELATION_ENABLED)
 
-  def enableColumnarIterator: Boolean = conf.getConf(COLUMNAR_ITERATOR_ENABLED)
-
   def physicalJoinOptimizationThrottle: Integer =
     conf.getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE)
 
@@ -698,14 +696,6 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.tableCache")
       .internal()
       .doc("Enable or disable columnar table cache.")
-      .booleanConf
-      .createWithDefault(true)
-
-  val COLUMNAR_ITERATOR_ENABLED =
-    buildConf("spark.gluten.sql.columnar.iterator")
-      .internal()
-      .doc(
-        "This config is used for specifying whether to use a columnar iterator in WS transformer.")
       .booleanConf
       .createWithDefault(true)
 

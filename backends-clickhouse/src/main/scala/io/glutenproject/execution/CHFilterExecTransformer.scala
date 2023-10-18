@@ -28,8 +28,7 @@ import java.util
 import scala.collection.JavaConverters._
 
 case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecTransformerBase(condition, child)
-  with TransformSupport {
+  extends FilterExecTransformerBase(condition, child) {
 
   override protected def doValidateInternal(): ValidationResult = {
     val leftCondition = getLeftCondition
