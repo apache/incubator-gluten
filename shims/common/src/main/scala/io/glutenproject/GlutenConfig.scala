@@ -797,7 +797,7 @@ object GlutenConfig {
         "rowvector means to copy the buffers to a big buffer, and then compress the buffer")
       .stringConf
       .checkValues(Set("buffer", "rowvector"))
-      .createWithDefault("buffer")
+      .createWithDefault("rowvector")
 
   val COLUMNAR_SHUFFLE_BUFFER_COMPRESS_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.bufferCompressThreshold")
