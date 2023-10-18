@@ -1708,8 +1708,10 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 const auto * final_arg_node = if_not_finite_node;
                 if (args[0]->result_type->isNullable())
                 {
+                    DB::Field null_field;
+                    const auto * null_value = add_column(args[0]->result_type, null_field);
                     const auto * is_null_node = toFunctionNode(actions_dag, "isNull", {args[0]});
-                    const auto * if_node = toFunctionNode(actions_dag, "if", {is_null_node, args[0], if_not_finite_node});
+                    const auto * if_node = toFunctionNode(actions_dag, "if", {is_null_node, null_value, if_not_finite_node});
                     final_arg_node = if_node;
                 }
                 function_node = toFunctionNode(

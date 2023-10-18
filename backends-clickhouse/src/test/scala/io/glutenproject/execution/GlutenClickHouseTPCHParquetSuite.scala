@@ -2060,6 +2060,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("GLUTEN-3149 convert Inf to int") {
+    val sql = """
+                | select n_regionkey, n is null, isnan(n),  cast(n as int) from (
+                |   select n_regionkey, x, n_regionkey/(x) as n from (
+                |     select n_regionkey, cast(n_nationkey as float) as x from  nation
+                |   )t1
+                | )t2""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("GLUTEN-3287: diff when divide zero") {
     withSQLConf(
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
