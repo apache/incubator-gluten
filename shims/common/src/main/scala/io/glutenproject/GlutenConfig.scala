@@ -1139,7 +1139,7 @@ object GlutenConfig {
       .internal()
       .doc("This is config to specify whether to enable the native columnar parquet/orc writer")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val UT_STATISTIC =
     buildConf("spark.gluten.sql.ut.statistic")
