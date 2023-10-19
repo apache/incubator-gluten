@@ -34,18 +34,26 @@ import org.apache.spark.util.TaskResources
 
 import com.google.common.base.Preconditions
 import org.apache.arrow.c.ArrowSchema
-import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import java.io.IOException
 
 trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
   def createOutputWriter(
-      path: String,
+      filePath: String,
       dataSchema: StructType,
       context: TaskAttemptContext,
       nativeConf: java.util.Map[String, String]): OutputWriter = {
-    val originPath = path
+    // Create the hdfs path if not existed.
+    val hdfsSchema = "hdfs://"
+    if (filePath.startsWith(hdfsSchema)) {
+      val fs = FileSystem.get(context.getConfiguration)
+      val hdfsPath = new Path(filePath)
+      if (!fs.exists(hdfsPath)) {
+        fs.mkdirs(hdfsPath)
+      }
+    }
 
     val arrowSchema =
       SparkArrowUtil.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
@@ -56,7 +64,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     try {
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
       dsHandle = datasourceJniWrapper.nativeInitDatasource(
-        originPath,
+        filePath,
         cSchema.memoryAddress(),
         NativeMemoryManagers.contextInstance("VeloxWriter").getNativeInstanceHandle,
         nativeConf)
@@ -74,7 +82,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
         arrowSchema,
         allocator,
         datasourceJniWrapper,
-        originPath)
+        filePath)
 
     new OutputWriter {
       override def write(row: InternalRow): Unit = {
@@ -91,7 +99,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
       // Do NOT add override keyword for compatibility on spark 3.1.
       def path(): String = {
-        originPath
+        filePath
       }
     }
   }
