@@ -21,6 +21,7 @@ import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, Express
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
@@ -503,7 +504,7 @@ object FilterHandler {
               batchScan.output,
               scan,
               leftFilters ++ newPartitionFilters,
-              batchScan.table)
+              table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScan))
           case _ =>
             if (batchScan.runtimeFilters.isEmpty) {
               throw new UnsupportedOperationException(

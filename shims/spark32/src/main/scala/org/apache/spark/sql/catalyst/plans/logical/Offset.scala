@@ -14,20 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.utils
+package org.apache.spark.sql.catalyst.plans.logical
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.connector.expressions.filter.Predicate
-import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Strategy
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, IntegerLiteral}
 
-object DataSourceStrategyUtil {
-
-  /**
-   * Translates a runtime filter into a data source filter.
-   *
-   * Runtime filters usually contain a subquery that must be evaluated before the translation. If
-   * the underlying subquery hasn't completed yet, this method will throw an exception.
-   */
-  def translateRuntimeFilter(expr: Expression): Option[Predicate] =
-    DataSourceV2Strategy.translateRuntimeFilterV2(expr)
+/**
+ * A logical offset, which may removing a specified number of rows from the beginning of the output
+ * of child logical plan.
+ */
+case class Offset(offsetExpr: Expression, child: LogicalPlan) extends OrderPreservingUnaryNode {
+  override def output: Seq[Attribute] = child.output
+  override def maxRows: Option[Long] = {
+    import scala.math.max
+    offsetExpr match {
+      case IntegerLiteral(offset) => child.maxRows.map(x => max(x - offset, 0))
+      case _ => None
+    }
+  }
+  override protected def withNewChildInternal(newChild: LogicalPlan): Offset =
+    copy(child = newChild)
 }

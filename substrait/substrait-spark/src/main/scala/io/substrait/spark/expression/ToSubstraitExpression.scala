@@ -134,7 +134,7 @@ abstract class ToSubstraitExpression extends HasOutputStack[Seq[Attribute]] {
       case SubstraitLiteral(substraitLiteral) => Some(substraitLiteral)
       case a: AttributeReference if currentOutput.nonEmpty => translateAttribute(a)
       case a: Alias => translateUp(a.child)
-//      case p: PromotePrecision => translateUp(p.child)
+      case p: PromotePrecision => translateUp(p.child)
       case CaseWhen(branches, elseValue) => translateCaseWhen(branches, elseValue)
       case scalar @ ScalarFunction(children) =>
         Util

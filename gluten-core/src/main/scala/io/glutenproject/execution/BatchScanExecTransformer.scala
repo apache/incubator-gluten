@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
@@ -43,22 +44,13 @@ class BatchScanExecTransformer(
     output: Seq[AttributeReference],
     @transient scan: Scan,
     runtimeFilters: Seq[Expression],
-    @transient table: Table,
     keyGroupedPartitioning: Option[Seq[Expression]] = None,
     ordering: Option[Seq[SortOrder]] = None,
+    @transient table: Table,
     commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
     applyPartialClustering: Boolean = false,
     replicatePartitions: Boolean = false)
-  extends BatchScanExecShim(
-    output,
-    scan,
-    runtimeFilters,
-    keyGroupedPartitioning,
-    ordering,
-    table,
-    commonPartitionValues,
-    applyPartialClustering,
-    replicatePartitions)
+  extends BatchScanExecShim(output, scan, runtimeFilters, table)
   with BasicScanExecTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -134,7 +126,7 @@ class BatchScanExecTransformer(
       canonicalized.output,
       canonicalized.scan,
       canonicalized.runtimeFilters,
-      canonicalized.table
+      table = SparkShimLoader.getSparkShims.getBatchScanExecTable(canonicalized)
     )
   }
 }

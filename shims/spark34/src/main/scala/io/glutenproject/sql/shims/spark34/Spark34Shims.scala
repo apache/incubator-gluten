@@ -21,16 +21,19 @@ import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark.SparkException
+import org.apache.spark.paths.SparkPath
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
+import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanLike, PartitionedFileUtil, SparkPlan}
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.types.StructType
@@ -113,6 +116,16 @@ class Spark34Shims extends SparkShims {
             .getOrElse(throw invalidBucketFile(f.toPath.getName))
       }
   }
+
+  override def getBatchScanExecTable(batchScan: BatchScanExec): Table = batchScan.table
+
+  override def generatePartitionedFile(
+      partitionValues: InternalRow,
+      filePath: String,
+      start: Long,
+      length: Long,
+      @transient locations: Array[String] = Array.empty): PartitionedFile =
+    PartitionedFile(partitionValues, SparkPath.fromPathString(filePath), start, length, locations)
 
   private def invalidBucketFile(path: String): Throwable = {
     new SparkException(

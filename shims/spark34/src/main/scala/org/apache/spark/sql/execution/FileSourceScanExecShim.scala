@@ -16,9 +16,11 @@
  */
 package org.apache.spark.sql.execution
 
+import io.glutenproject.metrics.GlutenTimeMetric
+
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.execution.datasources.HadoopFsRelation
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
+import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
@@ -61,4 +63,66 @@ class FileSourceScanExecShim(
   def hasMetadataColumns: Boolean = fileConstantMetadataColumns.nonEmpty
 
   def hasFieldIds: Boolean = ParquetUtils.hasFieldIds(requiredSchema)
+
+  private def isDynamicPruningFilter(e: Expression): Boolean =
+    e.find(_.isInstanceOf[PlanExpression[_]]).isDefined
+
+  protected def setFilesNumAndSizeMetric(
+      partitions: Seq[PartitionDirectory],
+      static: Boolean): Unit = {
+    val filesNum = partitions.map(_.files.size.toLong).sum
+    val filesSize = partitions.map(_.files.map(_.getLen).sum).sum
+    if (!static || !partitionFilters.exists(isDynamicPruningFilter)) {
+      driverMetrics("numFiles").set(filesNum)
+      driverMetrics("filesSize").set(filesSize)
+    } else {
+      driverMetrics("staticFilesNum").set(filesNum)
+      driverMetrics("staticFilesSize").set(filesSize)
+    }
+    if (relation.partitionSchema.nonEmpty) {
+      driverMetrics("numPartitions").set(partitions.length)
+    }
+  }
+
+  @transient override protected lazy val dynamicallySelectedPartitions
+      : Array[PartitionDirectory] = {
+    val dynamicPartitionFilters =
+      partitionFilters.filter(isDynamicPruningFilter)
+    val selected = if (dynamicPartitionFilters.nonEmpty) {
+      // When it includes some DynamicPruningExpression,
+      // it needs to execute InSubqueryExec first,
+      // because doTransform path can't execute 'doExecuteColumnar' which will
+      // execute prepare subquery first.
+      dynamicPartitionFilters.foreach {
+        case DynamicPruningExpression(inSubquery: InSubqueryExec) =>
+          if (inSubquery.values().isEmpty) inSubquery.updateResult()
+        case e: Expression =>
+          e.foreach {
+            case s: ScalarSubquery => s.updateResult()
+            case _ =>
+          }
+        case _ =>
+      }
+      GlutenTimeMetric.withMillisTime {
+        // call the file index for the files matching all filters except dynamic partition filters
+        val predicate = dynamicPartitionFilters.reduce(And)
+        val partitionColumns = relation.partitionSchema
+        val boundPredicate = Predicate.create(
+          predicate.transform {
+            case a: AttributeReference =>
+              val index = partitionColumns.indexWhere(a.name == _.name)
+              BoundReference(index, partitionColumns(index).dataType, nullable = true)
+          },
+          Nil
+        )
+        val ret = selectedPartitions.filter(p => boundPredicate.eval(p.values))
+        setFilesNumAndSizeMetric(ret, static = false)
+        ret
+      }(t => driverMetrics("pruningTime").set(t))
+    } else {
+      selectedPartitions
+    }
+    sendDriverMetrics()
+    selected
+  }
 }

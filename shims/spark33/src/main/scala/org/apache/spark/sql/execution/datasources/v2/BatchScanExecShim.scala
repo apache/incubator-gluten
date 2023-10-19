@@ -21,6 +21,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.KeyGroupedPartitioning
 import org.apache.spark.sql.catalyst.util.InternalRowSet
+import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.read.{HasPartitionKey, InputPartition, Scan, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
@@ -32,7 +33,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 class BatchScanExecShim(
     output: Seq[AttributeReference],
     @transient scan: Scan,
-    runtimeFilters: Seq[Expression])
+    runtimeFilters: Seq[Expression],
+    @transient table: Table)
   extends BatchScanExec(output, scan, runtimeFilters) {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -115,5 +117,9 @@ class BatchScanExecShim(
       case o: OrcScan => o.pushedAggregate
       case _ => None
     }
+  }
+
+  final override protected def otherCopyArgs: Seq[AnyRef] = {
+    output :: scan :: runtimeFilters :: Nil
   }
 }

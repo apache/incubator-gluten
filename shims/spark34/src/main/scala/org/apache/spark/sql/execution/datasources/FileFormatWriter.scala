@@ -26,12 +26,14 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.connector.write.WriterCommitMessage
 import org.apache.spark.sql.errors.QueryExecutionErrors
 import org.apache.spark.sql.execution.{ProjectExec, SortExec, SparkPlan, SQLExecution, UnsafeExternalRowSorter}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.util.{SerializableConfiguration, Utils}
 
 import org.apache.hadoop.conf.Configuration
@@ -50,6 +52,28 @@ object FileFormatWriter extends Logging {
       outputPath: String,
       customPartitionLocations: Map[TablePartitionSpec, String],
       outputColumns: Seq[Attribute])
+
+  case class Empty2Null(child: Expression) extends UnaryExpression with String2StringExpression {
+    override def convert(v: UTF8String): UTF8String = if (v.numBytes() == 0) null else v
+    override def nullable: Boolean = true
+    override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
+      nullSafeCodeGen(
+        ctx,
+        ev,
+        c => {
+          s"""if ($c.numBytes() == 0) {
+             |  ${ev.isNull} = true;
+             |  ${ev.value} = null;
+             |} else {
+             |  ${ev.value} = $c;
+             |}""".stripMargin
+        }
+      )
+    }
+
+    override protected def withNewChildInternal(newChild: Expression): Empty2Null =
+      copy(child = newChild)
+  }
 
   /** Describes how concurrent output writers should be executed. */
   case class ConcurrentOutputWriterSpec(

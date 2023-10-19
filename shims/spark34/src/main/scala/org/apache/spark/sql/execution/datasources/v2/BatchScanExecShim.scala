@@ -40,27 +40,11 @@ class BatchScanExecShim(
     output: Seq[AttributeReference],
     @transient scan: Scan,
     runtimeFilters: Seq[Expression],
-    keyGroupedPartitioning: Option[Seq[Expression]],
-    ordering: Option[Seq[SortOrder]],
-    @transient table: Table,
-    commonPartitionValues: Option[Seq[(InternalRow, Int)]],
-    applyPartialClustering: Boolean,
-    replicatePartitions: Boolean)
-  extends BatchScanExec(
-    output,
-    scan,
-    runtimeFilters,
-    keyGroupedPartitioning,
-    ordering,
-    table,
-    commonPartitionValues,
-    applyPartialClustering,
-    replicatePartitions) {
+    @transient table: Table)
+  extends BatchScanExec(output, scan, runtimeFilters, table = table) {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
-
-  override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Need to implement this method")

@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
@@ -333,12 +334,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             if (plan.runtimeFilters.nonEmpty) {
               TransformHints.tagTransformable(plan)
             } else {
-              val transformer =
-                new BatchScanExecTransformer(
-                  plan.output,
-                  plan.scan,
-                  plan.runtimeFilters,
-                  plan.table)
+              val transformer = new BatchScanExecTransformer(
+                plan.output,
+                plan.scan,
+                plan.runtimeFilters,
+                table = SparkShimLoader.getSparkShims.getBatchScanExecTable(plan))
               TransformHints.tag(plan, transformer.doValidate().toTransformHint)
             }
           }

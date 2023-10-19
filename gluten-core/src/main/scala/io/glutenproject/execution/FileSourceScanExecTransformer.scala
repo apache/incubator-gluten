@@ -19,23 +19,21 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.metrics.{GlutenTimeMetric, MetricsUpdater}
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.ReadRelNode
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, PlanExpression}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.{FileSourceScanExecShim, InSubqueryExec, ScalarSubquery, SQLExecution}
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.FileSourceScanExecShim
+import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
-
-import java.util.concurrent.TimeUnit.NANOSECONDS
 
 import scala.collection.JavaConverters
 
@@ -64,10 +62,10 @@ class FileSourceScanExecTransformer(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance
-      .genFileSourceScanTransformerMetrics(sparkContext) ++ staticMetrics
+      .genFileSourceScanTransformerMetrics(sparkContext) ++ staticMetricsAlias
 
   /** SQL metrics generated only for scans using dynamic partition pruning. */
-  override protected lazy val staticMetrics =
+  private lazy val staticMetricsAlias =
     if (partitionFilters.exists(FileSourceScanExecTransformer.isDynamicPruningFilter)) {
       Map(
         "staticFilesNum" -> SQLMetrics.createMetric(sparkContext, "static number of files read"),
@@ -134,91 +132,6 @@ class FileSourceScanExecTransformer(
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFileSourceScanTransformerMetricsUpdater(metrics)
-
-  // The codes below are copied from FileSourceScanExec in Spark,
-  // all of them are private.
-
-  /**
-   * Send the driver-side metrics. Before calling this function, selectedPartitions has been
-   * initialized. See SPARK-26327 for more details.
-   */
-  override protected def sendDriverMetrics(): Unit = {
-    val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-    SQLMetrics.postDriverMetricUpdates(sparkContext, executionId, driverMetrics.values.toSeq)
-  }
-
-  protected def setFilesNumAndSizeMetric(
-      partitions: Seq[PartitionDirectory],
-      static: Boolean): Unit = {
-    val filesNum = partitions.map(_.files.size.toLong).sum
-    val filesSize = partitions.map(_.files.map(_.getLen).sum).sum
-    if (!static || !partitionFilters.exists(FileSourceScanExecTransformer.isDynamicPruningFilter)) {
-      driverMetrics("numFiles").set(filesNum)
-      driverMetrics("filesSize").set(filesSize)
-    } else {
-      driverMetrics("staticFilesNum").set(filesNum)
-      driverMetrics("staticFilesSize").set(filesSize)
-    }
-    if (relation.partitionSchema.nonEmpty) {
-      driverMetrics("numPartitions").set(partitions.length)
-    }
-  }
-
-  @transient override lazy val selectedPartitions: Array[PartitionDirectory] = {
-    val optimizerMetadataTimeNs = relation.location.metadataOpsTimeNs.getOrElse(0L)
-    GlutenTimeMetric.withNanoTime {
-      val ret =
-        relation.location.listFiles(
-          partitionFilters.filterNot(FileSourceScanExecTransformer.isDynamicPruningFilter),
-          dataFilters)
-      setFilesNumAndSizeMetric(ret, static = true)
-      ret
-    }(t => driverMetrics("metadataTime").set(NANOSECONDS.toMillis(t + optimizerMetadataTimeNs)))
-  }.toArray
-
-  // We can only determine the actual partitions at runtime when a dynamic partition filter is
-  // present. This is because such a filter relies on information that is only available at run
-  // time (for instance the keys used in the other side of a join).
-  @transient override lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
-    val dynamicPartitionFilters =
-      partitionFilters.filter(FileSourceScanExecTransformer.isDynamicPruningFilter)
-    val selected = if (dynamicPartitionFilters.nonEmpty) {
-      // When it includes some DynamicPruningExpression,
-      // it needs to execute InSubqueryExec first,
-      // because doTransform path can't execute 'doExecuteColumnar' which will
-      // execute prepare subquery first.
-      dynamicPartitionFilters.foreach {
-        case DynamicPruningExpression(inSubquery: InSubqueryExec) =>
-          executeInSubqueryForDynamicPruningExpression(inSubquery)
-        case e: Expression =>
-          e.foreach {
-            case s: ScalarSubquery => s.updateResult()
-            case _ =>
-          }
-        case _ =>
-      }
-      GlutenTimeMetric.withMillisTime {
-        // call the file index for the files matching all filters except dynamic partition filters
-        val predicate = dynamicPartitionFilters.reduce(And)
-        val partitionColumns = relation.partitionSchema
-        val boundPredicate = Predicate.create(
-          predicate.transform {
-            case a: AttributeReference =>
-              val index = partitionColumns.indexWhere(a.name == _.name)
-              BoundReference(index, partitionColumns(index).dataType, nullable = true)
-          },
-          Nil
-        )
-        val ret = selectedPartitions.filter(p => boundPredicate.eval(p.values))
-        setFilesNumAndSizeMetric(ret, static = false)
-        ret
-      }(t => driverMetrics("pruningTime").set(t))
-    } else {
-      selectedPartitions
-    }
-    sendDriverMetrics()
-    selected
-  }
 
   override val nodeNamePrefix: String = "NativeFile"
 

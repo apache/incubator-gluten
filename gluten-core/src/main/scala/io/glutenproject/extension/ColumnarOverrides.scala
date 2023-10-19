@@ -22,6 +22,7 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.metrics.GlutenTimeMetric
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
@@ -578,8 +579,12 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         case _ =>
           ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery)
       }
-      val transformer =
-        new BatchScanExecTransformer(plan.output, plan.scan, newPartitionFilters, plan.table)
+      val transformer = new BatchScanExecTransformer(
+        plan.output,
+        plan.scan,
+        newPartitionFilters,
+        table = SparkShimLoader.getSparkShims.getBatchScanExecTable(plan))
+
       val validationResult = transformer.doValidate()
       if (validationResult.isValid) {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
