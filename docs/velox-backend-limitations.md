@@ -88,9 +88,9 @@ Exception occurs when Velox TableScan is used to read files with unsupported com
 
 ### Native Write
 
-#### Offload native write to velox (offload)
+#### Offload native write to velox
 
-We have implemented support for Parquet and Hive file formats, as well as static partition writing. This functionality was achieved by overriding the following vanilla Spark classes. And you need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. Refer to [How to prioritize loading Gluten jars in Spark](https://github.com/oap-project/gluten/blob/main/docs/velox-backend-troubleshooting.md#incompatible-class-error-when-using-native-writer). It should be noted that if the user also modifies the overriding classes, the user's changes may be overwritten.
+We implemented write support by overriding the following vanilla Spark classes. And you need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. Refer to [How to prioritize loading Gluten jars in Spark](https://github.com/oap-project/gluten/blob/main/docs/velox-backend-troubleshooting.md#incompatible-class-error-when-using-native-writer). It should be noted that if the user also modifies the following overriding classes, the user's changes may be overwritten.
 
 ```
 ./shims/spark32/src/main/scala/org/apache/spark/sql/hive/execution/HiveFileFormat.scala
@@ -119,7 +119,16 @@ Parquet write only support three configs, other will not take effect.
   - sql conf: `spark.gluten.sql.native.parquet.write.blockRows`
   - option: `parquet.block.rows`
 
-#### Write a partitioned or bucketed table (exception)
+#### Static partition write
+
+Velox exclusively supports static partition writes and does not support dynamic partition writes.
+
+```scala
+spark.sql("CREATE TABLE t (c int, d long, e long) STORED AS PARQUET partitioned by (c, d)")
+spark.sql("INSERT OVERWRITE TABLE t partition(c=1, d=2) SELECT 3 as e")
+```
+
+#### Write a dynamic partitioned or bucketed table (exception)
 
 Velox does not support dynamic partition write and bucket write, e.g.,
 
