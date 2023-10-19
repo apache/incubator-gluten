@@ -35,6 +35,14 @@ TypePtr substraitTypeToVeloxType(const std::string& substraitType);
 /// Return the Velox type according to substrait type.
 TypePtr substraitTypeToVeloxType(const ::substrait::Type& substraitType);
 
+/// Create RowType based on the type information in string.
+TypePtr getRowType(const std::string& structType);
+
+/// Create DecimalType based on the type information in string.
+TypePtr getDecimalType(const std::string& decimalType);
+
+std::vector<TypePtr> sigToTypes(const std::string& functionSig);
+
 #endif /* TOVELOXTYPE_H */
 
 std::string_view getNameBeforeDelimiter(const std::string& compoundName, const std::string& delimiter);
@@ -99,13 +107,6 @@ struct RangeTraits<TypeKind::VARCHAR> {
   using RangeType = common::BytesRange;
   using MultiRangeType = common::MultiRange;
   using NativeType = std::string;
-};
-
-template <>
-struct RangeTraits<TypeKind::DATE> {
-  using RangeType = common::BigintRange;
-  using MultiRangeType = common::BigintMultiRange;
-  using NativeType = int32_t;
 };
 
 template <>

@@ -30,7 +30,7 @@ dnf install -y --setopt=install_weak_deps=False ccache gcc-toolset-9 git wget wh
 
 source /opt/rh/gcc-toolset-9/enable || exit 1
 
-yum install -y java-1.8.0-openjdk-devel 
+yum install -y java-1.8.0-openjdk-devel patch
 export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 export PATH=$JAVA_HOME/bin:$PATH
 

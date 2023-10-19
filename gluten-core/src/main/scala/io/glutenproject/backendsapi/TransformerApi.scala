@@ -24,6 +24,7 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.util.collection.BitSet
 
 import java.util
@@ -73,4 +74,12 @@ trait TransformerApi {
       left: ExpressionNode,
       right: ExpressionNode,
       escapeChar: ExpressionNode): Iterable[ExpressionNode]
+
+  def createCheckOverflowExprNode(
+      args: java.lang.Object,
+      substraitExprName: String,
+      childNode: ExpressionNode,
+      dataType: DecimalType,
+      nullable: Boolean,
+      nullOnOverflow: Boolean): ExpressionNode
 }

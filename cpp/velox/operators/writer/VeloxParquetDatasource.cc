@@ -26,21 +26,29 @@
 #include "config/GlutenConfig.h"
 
 #include "utils/VeloxArrowUtils.h"
+#include "velox/common/compression/Compression.h"
 #include "velox/core/QueryConfig.h"
 #include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/Options.h"
 
 using namespace facebook;
 using namespace facebook::velox::dwio::common;
+using namespace facebook::velox::common;
+using namespace facebook::velox::filesystems;
 
 namespace gluten {
 
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
-    sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(filePath_.substr(5));
+    auto path = filePath_.substr(5);
+    auto localWriteFile = std::make_unique<LocalWriteFile>(path, true, false);
+    sink_ = std::make_unique<WriteFileSink>(std::move(localWriteFile), path);
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
 #ifdef ENABLE_HDFS
-    sink_ = std::make_unique<velox::HdfsFileSink>(filePath_);
+    std::string pathSuffix = getHdfsPath(filePath_, HdfsFileSystem::kScheme);
+    auto fileSystem = getFileSystem(filePath_, nullptr);
+    auto* hdfsFileSystem = dynamic_cast<filesystems::HdfsFileSystem*>(fileSystem.get());
+    sink_ = std::make_unique<WriteFileSink>(hdfsFileSystem->openFileForWrite(pathSuffix), filePath_);
 #else
     throw std::runtime_error(
         "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox executionCtx!");
@@ -50,6 +58,14 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     throw std::runtime_error(
         "The file path is not local or hdfs when writing data with parquet format in velox executionCtx!");
   }
+
+  ArrowSchema cSchema{};
+  arrow::Status status = arrow::ExportSchema(*(schema_.get()), &cSchema);
+  if (!status.ok()) {
+    throw std::runtime_error("Failed to export arrow cSchema.");
+  }
+
+  type_ = velox::importFromArrow(cSchema);
 
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
     maxRowGroupBytes_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
@@ -82,14 +98,14 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   }
 
   velox::parquet::WriterOptions writeOption;
-  writeOption.maxRowGroupLength = maxRowGroupRows_;
-  writeOption.bytesInRowGroup = maxRowGroupBytes_;
   writeOption.compression = compressionCodec;
-  // Setting the ratio to 2 here refers to the grow strategy in the reserve() method of MemoryPool on the arrow side.
-  std::unordered_map<std::string, std::string> configData({{velox::core::QueryConfig::kDataBufferGrowRatio, "2"}});
-  auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, configData);
+  writeOption.flushPolicyFactory = [&]() {
+    return std::make_unique<velox::parquet::LambdaFlushPolicy>(
+        maxRowGroupRows_, maxRowGroupRows_, [&]() { return false; });
+  };
+  writeOption.schema = gluten::fromArrowSchema(schema_);
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_, schema_);
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_);
 }
 
 void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
@@ -117,7 +133,7 @@ void VeloxParquetDatasource::close() {
 }
 
 void VeloxParquetDatasource::write(const std::shared_ptr<ColumnarBatch>& cb) {
-  auto veloxBatch = VeloxColumnarBatch::from(pool_.get(), cb);
+  auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   VELOX_DCHECK(veloxBatch != nullptr, "Write batch should be VeloxColumnarBatch");
   parquetWriter_->write(veloxBatch->getFlattenedRowVector());
 }

@@ -260,7 +260,8 @@ void VeloxToSubstraitPlanConvertor::toSubstrait(
       }
     }
 
-    auto referenceNumber = extensionCollector_->getReferenceNumber(funName, arguments, aggregateNode->step());
+    auto referenceNumber =
+        extensionCollector_->getReferenceNumber(funName, aggregate.rawInputTypes, aggregateNode->step());
 
     aggFunction->set_function_reference(referenceNumber);
 

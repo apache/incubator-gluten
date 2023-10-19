@@ -35,10 +35,10 @@
 #include "velox/common/file/FileSystems.h"
 #include "velox/serializers/PrestoSerializer.h"
 #ifdef ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
+#include "velox/connectors/hive/storage_adapters/hdfs/RegisterHdfsFileSystem.h"
 #endif
 #ifdef ENABLE_S3
-#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
+#include "velox/connectors/hive/storage_adapters/s3fs/RegisterS3FileSystem.h"
 #endif
 #include "jni/JniFileSystem.h"
 #include "udf/UdfLoader.h"
@@ -49,7 +49,6 @@
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 
 DECLARE_int32(split_preload_per_driver);
-DECLARE_bool(SkipRowSortInWindowOp);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
 
@@ -117,9 +116,6 @@ void VeloxBackend::printConf(const std::unordered_map<std::string, std::string>&
 }
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
-  // In spark, planner takes care the partitioning and sorting, so the rows are sorted.
-  // There is no need to sort the rows in window op again.
-  FLAGS_SkipRowSortInWindowOp = true;
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;
 
@@ -241,9 +237,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
 
   registerConnector(hiveConnector);
-  velox::parquet::registerParquetReaderFactory(velox::parquet::ParquetReaderType::NATIVE);
+  velox::parquet::registerParquetReaderFactory();
   velox::dwrf::registerDwrfReaderFactory();
-  velox::dwrf::registerOrcReaderFactory();
   // Register Velox functions
   registerAllFunctions();
   if (!facebook::velox::isRegisteredVectorSerde()) {
@@ -255,7 +250,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   initUdf(conf);
 }
 
-velox::memory::MemoryAllocator* VeloxBackend::getAsyncDataCache() const {
+facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
   return asyncDataCache_.get();
 }
 
@@ -317,9 +312,11 @@ void VeloxBackend::initCache(const std::unordered_map<std::string, std::string>&
     auto allocator = std::make_shared<velox::memory::MmapAllocator>(options);
     if (ssdCacheSize == 0) {
       LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
-      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, nullptr);
+      // TODO: this is not tracked by Spark.
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator.get());
     } else {
-      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, std::move(ssd));
+      // TODO: this is not tracked by Spark.
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator.get(), std::move(ssd));
     }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()))

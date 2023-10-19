@@ -21,7 +21,6 @@ ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
-ARROW_HOME=""
 ENABLE_EP_CACHE=OFF
 ENABLE_BENCHMARK=OFF
 RUN_SETUP_SCRIPT=ON
@@ -33,10 +32,6 @@ for arg in "$@"; do
   case $arg in
   --velox_home=*)
     VELOX_HOME=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
-  --arrow_home=*)
-    ARROW_HOME=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_s3=*)
@@ -106,14 +101,6 @@ function compile {
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
   fi
 
-  # Let Velox use pre-build arrow,parquet,thrift.
-  if [ "$ARROW_HOME" == "" ]; then
-    ARROW_HOME=$CURRENT_DIR/../../build-arrow/build
-  fi
-  if [ -d "$ARROW_HOME" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DArrow_HOME=${ARROW_HOME}"
-  fi
-
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
   echo "COMPILE_OPTION: "$COMPILE_OPTION
@@ -127,6 +114,8 @@ function compile {
     exit 1
   fi
 
+  export simdjson_SOURCE=BUNDLED
+  make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   # Install deps to system as needed
   if [ -d "_build/$COMPILE_TYPE/_deps" ]; then
     cd _build/$COMPILE_TYPE/_deps
@@ -144,14 +133,6 @@ function compile {
         sudo cmake --install gtest-build/
       elif [ $OS == 'Darwin' ]; then
         cmake --install gtest-build/
-      fi
-    fi
-    if [ -d simdjson-build ]; then
-      echo "INSTALL simdjson."
-      if [ $OS == 'Linux' ]; then
-        sudo cmake --install simdjson-build/
-      elif [ $OS == 'Darwin' ]; then
-        cmake --install simdjson-build/
       fi
     fi
   fi
@@ -251,7 +232,6 @@ fi
 echo "Start building Velox..."
 echo "CMAKE Arguments:"
 echo "VELOX_HOME=${VELOX_HOME}"
-echo "ARROW_HOME=${ARROW_HOME}"
 echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"

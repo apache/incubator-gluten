@@ -134,9 +134,8 @@ SubstraitParser::SubstraitType SubstraitParser::parseType(const ::substrait::Typ
       if (precision <= 18) {
         typeName = "SHORT_DECIMAL<" + std::to_string(precision) + "," + std::to_string(scale) + ">";
       } else {
-        typeName = "LONG_DECIMAL<" + std::to_string(precision) + "," + std::to_string(scale) + ">";
+        typeName = "HUGEINT<" + std::to_string(precision) + "," + std::to_string(scale) + ">";
       }
-
       nullability = substraitType.decimal().nullability();
       break;
     }
@@ -317,10 +316,12 @@ std::string SubstraitParser::findVeloxFunction(
 std::string SubstraitParser::mapToVeloxFunction(const std::string& substraitFunction, bool isDecimal) {
   auto it = substraitVeloxFunctionMap_.find(substraitFunction);
   if (isDecimal) {
-    if (substraitFunction == "add" || substraitFunction == "subtract" || substraitFunction == "multiply" ||
-        substraitFunction == "divide" || substraitFunction == "avg" || substraitFunction == "avg_merge" ||
-        substraitFunction == "sum" || substraitFunction == "sum_merge" || substraitFunction == "round") {
+    if (substraitFunction == "round" || substraitFunction == "lt" || substraitFunction == "lte" ||
+        substraitFunction == "gt" || substraitFunction == "gte") {
       return "decimal_" + substraitFunction;
+    }
+    if (substraitFunction == "equal") {
+      return "decimal_eq";
     }
   }
   if (it != substraitVeloxFunctionMap_.end()) {
@@ -360,13 +361,14 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"strpos", "instr"},
     {"ends_with", "endswith"},
     {"starts_with", "startswith"},
-    {"datediff", "date_diff"},
     {"named_struct", "row_constructor"},
     {"bit_or", "bitwise_or_agg"},
     {"bit_or_merge", "bitwise_or_agg_merge"},
     {"bit_and", "bitwise_and_agg"},
     {"bit_and_merge", "bitwise_and_agg_merge"},
     {"collect_set", "array_distinct"},
+    {"murmur3hash", "hash_with_seed"},
+    {"make_decimal", "make_decimal_by_unscaled_value"},
     {"modulus", "mod"} /*Presto functions.*/
 };
 
@@ -383,6 +385,6 @@ const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
     {"str", "VARCHAR"},
     {"vbin", "VARBINARY"},
     {"decShort", "SHORT_DECIMAL"},
-    {"decLong", "LONG_DECIMAL"}};
+    {"decLong", "HUGEINT"}};
 
 } // namespace gluten

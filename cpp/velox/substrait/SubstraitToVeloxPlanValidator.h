@@ -18,6 +18,7 @@
 #pragma once
 
 #include "SubstraitToVeloxPlan.h"
+#include "velox/core/QueryCtx.h"
 
 namespace gluten {
 
@@ -119,12 +120,6 @@ class SubstraitToVeloxPlanValidator {
 
   /// Validate Substrait literal.
   bool validateLiteral(const ::substrait::Expression_Literal& literal, const RowTypePtr& inputType);
-
-  /// Create RowType based on the type information in string.
-  TypePtr getRowType(const std::string& structType);
-
-  /// Create DecimalType based on the type information in string.
-  TypePtr getDecimalType(const std::string& decimalType);
 
   /// Add necessary log for fallback
   void logValidateMsg(const std::string& log) {

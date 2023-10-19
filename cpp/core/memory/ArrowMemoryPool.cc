@@ -16,6 +16,7 @@
  */
 
 #include "ArrowMemoryPool.h"
+#include "arrow/type_fwd.h"
 #include "utils/exception.h"
 
 namespace gluten {

@@ -55,9 +55,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON'
@@ -65,7 +62,7 @@ jobs:
         run: |
           docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --arrow_home=/opt/arrow --velox_home=/opt/velox --build_tests=ON --build_examples=ON --build_benchmarks=ON'
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --arrow_home=/opt/velox/_build/release/third_party/arrow_ep --build_tests=ON --build_examples=ON --build_benchmarks=ON'
       - name: Run CPP unit test
         run: |
           docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/cpp/build && \
@@ -104,9 +101,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           docker exec ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON'
@@ -114,7 +108,7 @@ jobs:
         run: |
           docker exec ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --arrow_home=/opt/arrow --velox_home=/opt/velox'
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --arrow_home=/opt/velox/_build/release/third_party/arrow_ep'
       - name: Build and run unit test for Spark 3.2.2(slow tests)
         run: |
           docker exec ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
@@ -145,9 +139,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           docker exec ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON'
@@ -155,7 +146,7 @@ jobs:
         run: |
           docker exec ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --arrow_home=/opt/arrow --velox_home=/opt/velox'
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --arrow_home=/opt/velox/_build/release/third_party/arrow_ep'
       - name: Build and Run unit test for Spark 3.3.1(slow tests)
         run: |
           docker exec ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten && \
@@ -185,9 +176,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           docker exec ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON'
@@ -195,7 +183,7 @@ jobs:
         run: |
           docker exec ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --arrow_home=/opt/arrow --velox_home=/opt/velox --build_examples=ON'
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --arrow_home=/opt/velox/_build/release/third_party/arrow_ep --build_examples=ON'
       - name: Build and Run unit test for Spark 3.3.1(other tests)
         run: |
           docker exec ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
@@ -218,9 +206,6 @@ jobs:
       - name: Build Gluten velox third party
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON'
@@ -228,7 +213,7 @@ jobs:
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --arrow_home=/opt/arrow --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON'
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --arrow_home=/opt/velox/_build/release/third_party/arrow_ep --enable_hdfs=ON --enable_s3=ON'
       - name: Build for Spark 3.2.2
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
@@ -287,9 +272,7 @@ jobs:
         run: |
           docker exec centos8-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
+          sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON'
@@ -298,7 +281,7 @@ jobs:
           docker exec centos8-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --arrow_home=/opt/arrow --velox_home=/opt/velox'
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --arrow_home=/opt/velox/_build/release/third_party/arrow_ep'
       - name: Build for Spark 3.2.2
         run: |
           docker exec centos8-test-$GITHUB_RUN_ID bash -c '
@@ -338,9 +321,7 @@ jobs:
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
-          cd /opt/gluten/ep/build-arrow/src && \
-          ./get_arrow.sh --arrow_home=/opt/arrow && \
-          ./build_arrow.sh --arrow_home=/opt/arrow --enable_ep_cache=ON && \
+          sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
@@ -349,7 +330,7 @@ jobs:
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --arrow_home=/opt/arrow --velox_home=/opt/velox'
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --arrow_home=/opt/velox/_build/release/third_party/arrow_ep'
       - name: Build for Spark 3.2.2
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
@@ -394,6 +375,7 @@ jobs:
         run: |
           docker exec -i static-build-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
+          sudo yum -y install patch && \
           cd /opt/gluten && \
           sudo -E ./dev/vcpkg/setup-build-depends.sh && \
           source ./dev/vcpkg/env.sh && \

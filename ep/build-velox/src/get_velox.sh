@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=main
+VELOX_BRANCH=update
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -67,20 +67,20 @@ function process_setup_ubuntu {
   git checkout scripts/setup-ubuntu.sh
   sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
   sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  *thrift* \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libiberty-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libxml2-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libkrb5-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libgsasl7-dev \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  libuuid1 \\' scripts/setup-ubuntu.sh
-  sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  uuid-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/ccache/a\  *thrift* \\' scripts/setup-ubuntu.sh
+  sed -i '/ccache/a\  libiberty-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/ccache/a\  libxml2-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/ccache/a\  libkrb5-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/ccache /a\  libgsasl7-dev \\' scripts/setup-ubuntu.sh
+  sed -i '/ccache/a\  libuuid1 \\' scripts/setup-ubuntu.sh
+  sed -i '/ccache/a\  uuid-dev \\' scripts/setup-ubuntu.sh
   sed -i 's/^  liblzo2-dev.*/  liblzo2-dev \\/g' scripts/setup-ubuntu.sh
   sed -i '/libre2-dev/d' scripts/setup-ubuntu.sh
   sed -i '/libgmock-dev/d' scripts/setup-ubuntu.sh # resolved by ep/build-velox/build/velox_ep/CMake/resolve_dependency_modules/gtest.cmake
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function install_fmt.*/i function install_libhdfs3 {\n  github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_libhdfs3' scripts/setup-ubuntu.sh
-    sed -i '/^sudo --preserve-env apt update && sudo apt install -y/a\  yasm \\' scripts/setup-ubuntu.sh
+    sed -i '/ccache /a\  yasm \\' scripts/setup-ubuntu.sh
   fi
   if [ $BUILD_PROTOBUF == "ON" ]; then
     sed -i '/^function install_fmt.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
@@ -99,9 +99,7 @@ function process_setup_centos8 {
   git checkout scripts/setup-centos8.sh
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos8.sh
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
-
-  # install gtest
-  sed -i '/^cmake_install_deps fmt/a \ \ install_gtest' scripts/setup-centos8.sh
+  sed -i '/^function cmake_install_deps.*/i FB_OS_VERSION=v2022.11.14.00\n function install_folly {\n  github_checkout facebook/folly "${FB_OS_VERSION}"\n  cmake_install -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON\n}\n'     scripts/setup-centos8.sh
   sed -i '/^cmake_install_deps fmt/a \install_folly' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
@@ -110,7 +108,8 @@ function process_setup_centos8 {
     sed -i '/^dnf_install ninja-build/a\ \ yasm \\' scripts/setup-centos8.sh
   fi
   if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
-    sed -i '/^cmake_install_deps fmt/a \ \ install_protobuf' scripts/setup-centos8.sh
+    sed -i '/^function cmake_install_deps.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-centos8.sh
+    sed -i '/^cmake_install_deps fmt/a \\install_protobuf' scripts/setup-centos8.sh
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^cmake_install_deps fmt/a \ \ install_awssdk' scripts/setup-centos8.sh

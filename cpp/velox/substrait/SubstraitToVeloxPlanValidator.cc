@@ -21,7 +21,9 @@
 #include <string>
 #include "TypeUtils.h"
 #include "utils/Common.h"
+#include "velox/core/ExpressionEvaluator.h"
 #include "velox/exec/Aggregate.h"
+#include "velox/expression/Expr.h"
 #include "velox/expression/SignatureBinder.h"
 #include "velox/type/Tokenizer.h"
 
@@ -56,7 +58,7 @@ static const std::unordered_set<std::string> kBlackList = {
 
 bool validateColNames(const ::substrait::NamedStruct& schema) {
   for (auto& name : schema.names()) {
-    common::Tokenizer token(name);
+    common::Tokenizer token(name, common::Separators::get());
     for (auto i = 0; i < name.size(); i++) {
       auto c = name[i];
       if (!token.isUnquotedPathCharacter(c)) {
@@ -293,6 +295,17 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   core::TypedExprPtr input = exprConverter_->toVeloxExpr(castExpr.input(), inputType);
 
   // Casting from some types is not supported. See CastExpr::applyCast.
+  if (input->type()->isDate()) {
+    if (toType->kind() == TypeKind::TIMESTAMP) {
+      logValidateMsg("native validation failed due to: Casting from DATE to TIMESTAMP is not supported.");
+      return false;
+    }
+    if (toType->kind() != TypeKind::VARCHAR) {
+      logValidateMsg(fmt::format(
+          "native validation failed due to: Casting from DATE to {} is not supported.", toType->toString()));
+      return false;
+    }
+  }
   switch (input->type()->kind()) {
     case TypeKind::ARRAY:
     case TypeKind::MAP:
@@ -300,18 +313,6 @@ bool SubstraitToVeloxPlanValidator::validateCast(
     case TypeKind::VARBINARY:
       logValidateMsg("native validation failed due to: Invalid input type in casting: ARRAY/MAP/ROW/VARBINARY");
       return false;
-    case TypeKind::DATE: {
-      if (toType->kind() == TypeKind::TIMESTAMP) {
-        logValidateMsg("native validation failed due to: Casting from DATE to TIMESTAMP is not supported.");
-        return false;
-      }
-      if (toType->kind() != TypeKind::VARCHAR) {
-        logValidateMsg(fmt::format(
-            "native validation failed due to: Casting from DATE to {} is not supported.", toType->toString()));
-        return false;
-      }
-      break;
-    }
     case TypeKind::TIMESTAMP: {
       logValidateMsg(
           "native validation failed due to: Casting from TIMESTAMP is not supported or has incorrect result.");
@@ -834,55 +835,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
   return true;
 }
 
-TypePtr SubstraitToVeloxPlanValidator::getDecimalType(const std::string& decimalType) {
-  // Decimal info is in the format of dec<precision,scale>.
-  auto precisionStart = decimalType.find_first_of('<');
-  auto tokenIndex = decimalType.find_first_of(',');
-  auto scaleStart = decimalType.find_first_of('>');
-  auto precision = stoi(decimalType.substr(precisionStart + 1, (tokenIndex - precisionStart - 1)));
-  auto scale = stoi(decimalType.substr(tokenIndex + 1, (scaleStart - tokenIndex - 1)));
-  return DECIMAL(precision, scale);
-}
-
-TypePtr SubstraitToVeloxPlanValidator::getRowType(const std::string& structType) {
-  // Struct info is in the format of struct<T1,T2, ...,Tn>.
-  // TODO: nested struct is not supported.
-  auto structStart = structType.find_first_of('<');
-  auto structEnd = structType.find_last_of('>');
-  if (structEnd - structStart > 1) {
-    logValidateMsg("native validation failed due to: More information is needed to create RowType");
-  }
-  VELOX_CHECK(
-      structEnd - structStart > 1, "native validation failed due to: More information is needed to create RowType");
-  std::string childrenTypes = structType.substr(structStart + 1, structEnd - structStart - 1);
-
-  // Split the types with delimiter.
-  std::string delimiter = ",";
-  std::size_t pos;
-  std::vector<TypePtr> types;
-  std::vector<std::string> names;
-  while ((pos = childrenTypes.find(delimiter)) != std::string::npos) {
-    const auto& typeStr = childrenTypes.substr(0, pos);
-    std::string decDelimiter = ">";
-    if (typeStr.find("dec") != std::string::npos) {
-      std::size_t endPos = childrenTypes.find(decDelimiter);
-      VELOX_CHECK(endPos >= pos + 1, "Decimal scale is expected.");
-      const auto& decimalStr = typeStr + childrenTypes.substr(pos, endPos - pos) + decDelimiter;
-      types.emplace_back(getDecimalType(decimalStr));
-      names.emplace_back("");
-      childrenTypes.erase(0, endPos + delimiter.length() + decDelimiter.length());
-      continue;
-    }
-
-    types.emplace_back(substraitTypeToVeloxType(typeStr));
-    names.emplace_back("");
-    childrenTypes.erase(0, pos + delimiter.length());
-  }
-  types.emplace_back(substraitTypeToVeloxType(childrenTypes));
-  names.emplace_back("");
-  return std::make_shared<RowType>(std::move(names), std::move(types));
-}
-
 bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait::AggregateRel& aggRel) {
   if (aggRel.measures_size() == 0) {
     return true;
@@ -894,20 +846,10 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
     std::vector<TypePtr> types;
     bool isDecimal = false;
     try {
-      std::vector<std::string> funcTypes;
-      SubstraitParser::getSubFunctionTypes(funcSpec, funcTypes);
-      types.reserve(funcTypes.size());
-      for (auto& type : funcTypes) {
-        if (!isDecimal && type.find("dec") != std::string::npos) {
+      types = sigToTypes(funcSpec);
+      for (const auto& type : types) {
+        if (!isDecimal && type->isDecimal()) {
           isDecimal = true;
-        }
-
-        if (type.find("struct") != std::string::npos) {
-          types.emplace_back(getRowType(type));
-        } else if (type.find("dec") != std::string::npos) {
-          types.emplace_back(getDecimalType(type));
-        } else {
-          types.emplace_back(substraitTypeToVeloxType(type));
         }
       }
     } catch (const VeloxException& err) {

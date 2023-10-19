@@ -49,12 +49,17 @@ option(ENABLE_QAT "Enable QAT for de/compression" OFF)
 option(ENABLE_IAA "Enable IAA for de/compression" OFF)
 option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
+option(ENABLE_ORC "Enable ORC" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
 
 if (NOT DEFINED ARROW_HOME)
-  set(ARROW_HOME ${GLUTEN_HOME}/ep/build-arrow/build)
+  if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(ARROW_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep/_build/debug/third_party/arrow_ep)
+  else()
+    set(ARROW_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep/_build/release/third_party/arrow_ep)
+  endif()
 endif()
 
 #
@@ -86,6 +91,9 @@ add_compile_options(-Wno-error=unused-variable)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   add_compile_options(-Wno-error=unused-but-set-variable)
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+    add_compile_options(-Wno-error=maybe-uninitialized)
+  endif()
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   # Experimental
   add_compile_options(-Wno-implicit-int-float-conversion)
@@ -178,6 +186,10 @@ endif()
 
 if(ENABLE_IAA)
   add_definitions(-DGLUTEN_ENABLE_IAA)
+endif()
+
+if(ENABLE_ORC)
+  add_definitions(-DGLUTEN_ENABLE_ORC)
 endif()
 
 #

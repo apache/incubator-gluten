@@ -173,7 +173,8 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     });
     // suspend the driver when we are on it
     ConditionalSuspendedSection noCancel(thisDriver, thisDriver != nullptr);
-    uint64_t spilledOut = pool_->reclaim(remaining);
+    velox::exec::MemoryReclaimer::Stats status;
+    uint64_t spilledOut = pool_->reclaim(remaining, status);
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunken + spilledOut;
     DLOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
@@ -310,12 +311,14 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   try {
     // To align with Spark's behavior, set casting to int to be truncating.
     configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
-    // To align with Spark's behavior, allow decimal in casting string to int.
-    configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
+    // To align with Spark's behavior, unset to support non-ISO8601 standard strings.
+    configs[velox::core::QueryConfig::kCastStringToDateIsIso8601] = std::to_string(false);
     auto defaultTimezone = getConfigValue(confMap_, kDefaultSessionTimezone, "");
     configs[velox::core::QueryConfig::kSessionTimezone] = getConfigValue(confMap_, kSessionTimezone, defaultTimezone);
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = std::to_string(true);
+    // Align Velox size function with Spark.
+    configs[velox::core::QueryConfig::kSparkLegacySizeOfNull] = getConfigValue(confMap_, kLegacySize, "true");
 
     {
       // partial aggregation memory config
@@ -356,7 +359,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         getConfigValue(confMap_, kMinSpillRunSize, std::to_string(256 << 20));
     configs[velox::core::QueryConfig::kSpillStartPartitionBit] =
         getConfigValue(confMap_, kSpillStartPartitionBit, "29");
-    configs[velox::core::QueryConfig::kSpillPartitionBits] = getConfigValue(confMap_, kSpillPartitionBits, "2");
+    configs[velox::core::QueryConfig::kAggregationSpillPartitionBits] =
+        getConfigValue(confMap_, kSpillPartitionBits, "2");
+    configs[velox::core::QueryConfig::kJoinSpillPartitionBits] = getConfigValue(confMap_, kSpillPartitionBits, "2");
     configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
         getConfigValue(confMap_, kSpillableReservationGrowthPct, "25");
   } catch (const std::invalid_argument& err) {
@@ -478,7 +483,7 @@ void WholeStageResultIteratorFirstStage::constructPartitionColumns(
   for (const auto& partitionColumn : map) {
     auto key = partitionColumn.first;
     const auto value = partitionColumn.second;
-    if (!folly::to<bool>(getConfigValue(confMap_, kCaseSensitive, "true"))) {
+    if (!folly::to<bool>(getConfigValue(confMap_, kCaseSensitive, "false"))) {
       folly::toLowerAscii(key);
     }
     if (value == kHiveDefaultPartition) {

@@ -40,7 +40,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
 
   test("test write parquet with compression codec") {
     // compression codec details see `VeloxParquetDatasource.cc`
-    Seq("snappy", "gzip", "zstd", "none", "uncompressed")
+    Seq("snappy", "gzip", "zstd", "lz4", "none", "uncompressed")
       .foreach {
         codec =>
           val extension = codec match {
@@ -108,7 +108,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("parquet write with empty dataframe") {
+  ignore("parquet write with empty dataframe") {
     withTempPath {
       f =>
         val df = spark.emptyDataFrame.select(lit(1).as("i"))

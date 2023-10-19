@@ -67,7 +67,6 @@ arrow::Status MyMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, int64_t
   if (newSize > capacity_) {
     return arrow::Status::OutOfMemory("malloc of size ", newSize, " failed");
   }
-  // auto old_ptr = *ptr;
   RETURN_NOT_OK(pool_->Reallocate(oldSize, newSize, alignment, ptr));
   stats_.UpdateAllocatedBytes(newSize - oldSize);
   return arrow::Status::OK();
