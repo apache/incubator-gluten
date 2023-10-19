@@ -30,11 +30,9 @@
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
 #include "utils/DebugOut.h"
+#include "utils/ObjectStore.h"
 
 namespace gluten {
-
-using ResourceHandle = int64_t;
-constexpr static ResourceHandle kInvalidResourceHandle = -1;
 
 class ResultIterator;
 
@@ -59,21 +57,6 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   Runtime() = default;
   Runtime(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
   virtual ~Runtime() = default;
-
-  virtual ResourceHandle createResultIterator(
-      MemoryManager* memoryManager,
-      const std::string& spillDir,
-      const std::vector<std::shared_ptr<ResultIterator>>& inputs,
-      const std::unordered_map<std::string, std::string>& sessionConf) = 0;
-  virtual ResourceHandle addResultIterator(std::shared_ptr<ResultIterator>) = 0;
-  virtual std::shared_ptr<ResultIterator> getResultIterator(ResourceHandle) = 0;
-  virtual void releaseResultIterator(ResourceHandle) = 0;
-
-  virtual ResourceHandle addBatch(std::shared_ptr<ColumnarBatch>) = 0;
-  virtual std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle) = 0;
-  virtual ResourceHandle createOrGetEmptySchemaBatch(int32_t numRows) = 0;
-  virtual void releaseBatch(ResourceHandle) = 0;
-  virtual ResourceHandle select(MemoryManager*, ResourceHandle, std::vector<int32_t>) = 0;
 
   void parsePlan(const uint8_t* data, int32_t size) {
     parsePlan(data, size, {-1, -1, -1});
@@ -101,6 +84,17 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     return substraitPlan_;
   }
 
+  virtual std::shared_ptr<ResultIterator> createResultIterator(
+      MemoryManager* memoryManager,
+      const std::string& spillDir,
+      const std::vector<std::shared_ptr<ResultIterator>>& inputs,
+      const std::unordered_map<std::string, std::string>& sessionConf) = 0;
+
+  virtual std::shared_ptr<ColumnarBatch> createOrGetEmptySchemaBatch(int32_t numRows) = 0;
+
+  virtual std::shared_ptr<ColumnarBatch>
+  select(MemoryManager*, std::shared_ptr<ColumnarBatch>, std::vector<int32_t>) = 0;
+
   virtual MemoryManager* createMemoryManager(
       const std::string& name,
       std::shared_ptr<MemoryAllocator>,
@@ -108,50 +102,32 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   /// This function is used to create certain converter from the format used by
   /// the backend to Spark unsafe row.
-  virtual ResourceHandle createColumnar2RowConverter(MemoryManager* memoryManager) = 0;
-  virtual std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(ResourceHandle) = 0;
-  virtual void releaseColumnar2RowConverter(ResourceHandle) = 0;
+  virtual std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter(MemoryManager* memoryManager) = 0;
 
-  virtual ResourceHandle createRow2ColumnarConverter(MemoryManager* memoryManager, struct ArrowSchema* cSchema) = 0;
-  virtual std::shared_ptr<RowToColumnarConverter> getRow2ColumnarConverter(ResourceHandle) = 0;
-  virtual void releaseRow2ColumnarConverter(ResourceHandle) = 0;
+  virtual std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(MemoryManager* memoryManager, struct ArrowSchema* cSchema) = 0;
 
-  virtual ResourceHandle createShuffleWriter(
+  virtual std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
       MemoryManager* memoryManager) = 0;
-  virtual std::shared_ptr<ShuffleWriter> getShuffleWriter(ResourceHandle) = 0;
-  virtual void releaseShuffleWriter(ResourceHandle) = 0;
-
   virtual Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;
 
-  virtual ResourceHandle createDatasource(
+  virtual std::shared_ptr<Datasource> createDatasource(
       const std::string& filePath,
       MemoryManager* memoryManager,
       std::shared_ptr<arrow::Schema> schema) = 0;
-  virtual std::shared_ptr<Datasource> getDatasource(ResourceHandle) = 0;
-  virtual void releaseDatasource(ResourceHandle) = 0;
 
-  virtual ResourceHandle createShuffleReader(
+  virtual std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ShuffleReaderOptions options,
       arrow::MemoryPool* pool,
       MemoryManager* memoryManager) = 0;
-  virtual std::shared_ptr<ShuffleReader> getShuffleReader(ResourceHandle) = 0;
-  virtual void releaseShuffleReader(ResourceHandle) = 0;
 
-  virtual ResourceHandle createColumnarBatchSerializer(
+  virtual std::unique_ptr<ColumnarBatchSerializer> createColumnarBatchSerializer(
       MemoryManager* memoryManager,
       arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) = 0;
-  // TODO: separate serializer and deserializer then remove this method.
-  virtual std::unique_ptr<ColumnarBatchSerializer> createTempColumnarBatchSerializer(
-      MemoryManager* memoryManager,
-      arrow::MemoryPool* arrowPool,
-      struct ArrowSchema* cSchema) = 0;
-  virtual std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(ResourceHandle) = 0;
-  virtual void releaseColumnarBatchSerializer(ResourceHandle) = 0;
 
   const std::unordered_map<std::string, std::string>& getConfMap() {
     return confMap_;
