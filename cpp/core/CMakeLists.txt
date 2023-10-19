@@ -194,6 +194,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         memory/ArrowMemoryPool.cc
         memory/ColumnarBatch.cc
         operators/writer/ArrowWriter.cc
+        shuffle/options.cc
         shuffle/ShuffleReader.cc
         shuffle/ShuffleWriter.cc
         shuffle/Partitioner.cc

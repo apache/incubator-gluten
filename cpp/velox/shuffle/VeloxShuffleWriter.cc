@@ -22,6 +22,7 @@
 #include "utils/VeloxArrowUtils.h"
 #include "velox/vector/arrow/Bridge.h"
 
+#include "VeloxShuffleUtils.h"
 #include "utils/Common.h"
 #include "utils/compression.h"
 #include "utils/macros.h"
@@ -83,8 +84,6 @@ std::string m128iToString(const __m128i var) {
 #endif
 
 namespace {
-
-using BinaryArrayOffsetType = arrow::BinaryType::offset_type;
 
 bool vectorHasNull(const velox::VectorPtr& vp) {
   if (!vp->mayHaveNulls()) {
@@ -169,18 +168,20 @@ int64_t getMaxCompressedBufferSize(
   return totalSize;
 }
 
-// Length buffer layout |buffers.size()|buffer1 unCompressedLength|buffer1 compressedLength| buffer2...
+// Length buffer layout |compressionMode|buffers.size()|buffer1 unCompressedLength|buffer1 compressedLength| buffer2...
 void getLengthBufferAndValueBufferOneByOne(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     arrow::MemoryPool* pool,
     arrow::util::Codec* codec,
-    int32_t bufferCompressThreshold,
     std::shared_ptr<arrow::ResizableBuffer>& lengthBuffer,
     std::shared_ptr<arrow::ResizableBuffer>& valueBuffer) {
   GLUTEN_ASSIGN_OR_THROW(
-      lengthBuffer, arrow::AllocateResizableBuffer((buffers.size() * 2 + 1) * sizeof(int64_t), pool));
-  int64_t offset = 0;
-  writeInt64(lengthBuffer, offset, buffers.size());
+      lengthBuffer, arrow::AllocateResizableBuffer((1 + 1 + buffers.size() * 2) * sizeof(int64_t), pool));
+  auto lengthBufferPtr = (int64_t*)(lengthBuffer->mutable_data());
+  // Write compression mode.
+  *lengthBufferPtr++ = CompressionMode::BUFFER;
+  // Write number of buffers.
+  *lengthBufferPtr++ = buffers.size();
 
   int64_t compressedBufferMaxSize = getMaxCompressedBufferSize(buffers, codec);
   GLUTEN_ASSIGN_OR_THROW(valueBuffer, arrow::AllocateResizableBuffer(compressedBufferMaxSize, pool));
@@ -188,24 +189,17 @@ void getLengthBufferAndValueBufferOneByOne(
   for (auto& buffer : buffers) {
     if (buffer != nullptr && buffer->size() != 0) {
       int64_t actualLength;
-      if (buffer->size() >= bufferCompressThreshold) {
-        writeInt64(lengthBuffer, offset, buffer->size());
-        int64_t maxLength = codec->MaxCompressedLen(buffer->size(), nullptr);
-        GLUTEN_ASSIGN_OR_THROW(
-            actualLength,
-            codec->Compress(
-                buffer->size(), buffer->data(), maxLength, valueBuffer->mutable_data() + compressValueOffset));
-      } else {
-        // Will not compress small buffer, mark uncompressed length as -1 to indicate it is original buffer
-        writeInt64(lengthBuffer, offset, -1);
-        gluten::fastCopy(valueBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
-        actualLength = buffer->size();
-      }
+      int64_t maxLength = codec->MaxCompressedLen(buffer->size(), nullptr);
+      GLUTEN_ASSIGN_OR_THROW(
+          actualLength,
+          codec->Compress(
+              buffer->size(), buffer->data(), maxLength, valueBuffer->mutable_data() + compressValueOffset));
       compressValueOffset += actualLength;
-      writeInt64(lengthBuffer, offset, actualLength);
+      *lengthBufferPtr++ = buffer->size();
+      *lengthBufferPtr++ = actualLength;
     } else {
-      writeInt64(lengthBuffer, offset, 0);
-      writeInt64(lengthBuffer, offset, 0);
+      *lengthBufferPtr++ = 0;
+      *lengthBufferPtr++ = 0;
     }
   }
   GLUTEN_THROW_NOT_OK(valueBuffer->Resize(compressValueOffset, /*shrink*/ true));
@@ -221,71 +215,56 @@ int64_t getBuffersSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffer
   return totalSize;
 }
 
-// Length buffer layout |buffer unCompressedLength|buffer compressedLength|buffers.size()| buffer1 size | buffer2 size
+// Length buffer layout |compressionMode|buffer unCompressedLength|buffer compressedLength|buffers.size()| buffer1 size
+// | buffer2 size
 void getLengthBufferAndValueBufferStream(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     arrow::MemoryPool* pool,
     arrow::util::Codec* codec,
-    int32_t bufferCompressThreshold,
     std::shared_ptr<arrow::ResizableBuffer>& lengthBuffer,
     std::shared_ptr<arrow::ResizableBuffer>& compressedBuffer) {
-  GLUTEN_ASSIGN_OR_THROW(lengthBuffer, arrow::AllocateResizableBuffer((buffers.size() + 3) * sizeof(int64_t), pool));
-
+  GLUTEN_ASSIGN_OR_THROW(
+      lengthBuffer, arrow::AllocateResizableBuffer((1 + 3 + buffers.size()) * sizeof(int64_t), pool));
   auto originalBufferSize = getBuffersSize(buffers);
 
-  if (originalBufferSize >= bufferCompressThreshold) {
-    // because 64B align, uncompressedBuffer size maybe bigger than unCompressedBufferSize which is
-    // getBuffersSize(buffers), then cannot use this size
-    GLUTEN_ASSIGN_OR_THROW(auto uncompressedBuffer, arrow::AllocateResizableBuffer(originalBufferSize, pool));
-    int64_t uncompressedSize = uncompressedBuffer->size();
+  // because 64B align, uncompressedBuffer size maybe bigger than unCompressedBufferSize which is
+  // getBuffersSize(buffers), then cannot use this size
+  GLUTEN_ASSIGN_OR_THROW(auto uncompressedBuffer, arrow::AllocateResizableBuffer(originalBufferSize, pool));
+  int64_t uncompressedSize = uncompressedBuffer->size();
 
-    // Write metadata.
-    auto lengthBufferPtr = (int64_t*)lengthBuffer->mutable_data();
-    int64_t pos = 0;
-    lengthBufferPtr[pos++] = uncompressedSize; // uncompressedLength
-    lengthBufferPtr[pos++] = 0; // 0 for compressedLength
-    lengthBufferPtr[pos++] = buffers.size();
+  auto lengthBufferPtr = (int64_t*)(lengthBuffer->mutable_data());
+  // First write metadata.
+  // Write compression mode.
+  *lengthBufferPtr++ = CompressionMode::ROWVECTOR;
+  // Store uncompressed size.
+  *lengthBufferPtr++ = uncompressedSize; // uncompressedLength
+  // Skip compressed size and update later.
+  auto compressedLengthPtr = lengthBufferPtr++;
+  // Store number of buffers.
+  *lengthBufferPtr++ = buffers.size();
 
-    int64_t compressValueOffset = 0;
-    for (auto& buffer : buffers) {
-      // Copy all buffers into one big buffer.
-      if (buffer != nullptr && buffer->size() != 0) {
-        lengthBufferPtr[pos++] = buffer->size();
-        gluten::fastCopy(uncompressedBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
-        compressValueOffset += buffer->size();
-      } else {
-        lengthBufferPtr[pos++] = 0;
-      }
-    }
-
-    // Compress the big buffer.
-    int64_t maxLength = codec->MaxCompressedLen(uncompressedSize, nullptr);
-    GLUTEN_ASSIGN_OR_THROW(compressedBuffer, arrow::AllocateResizableBuffer(maxLength, pool));
-    GLUTEN_ASSIGN_OR_THROW(
-        int64_t actualLength,
-        codec->Compress(uncompressedSize, uncompressedBuffer->data(), maxLength, compressedBuffer->mutable_data()));
-    GLUTEN_THROW_NOT_OK(compressedBuffer->Resize(actualLength, /*shrink*/ true));
-
-    // Update compressedLength.
-    lengthBufferPtr[1] = actualLength;
-  } else {
-    int64_t offset = 0;
-    // mark uncompress size as -1 to mark it is uncompressed buffer
-    writeInt64(lengthBuffer, offset, -1); // unCompressedBufferSize
-    GLUTEN_ASSIGN_OR_THROW(compressedBuffer, arrow::AllocateResizableBuffer(originalBufferSize, pool));
-    writeInt64(lengthBuffer, offset, compressedBuffer->size()); // 0 for compressLength
-    writeInt64(lengthBuffer, offset, buffers.size());
-    int64_t compressValueOffset = 0;
-    for (auto& buffer : buffers) {
-      if (buffer != nullptr && buffer->size() != 0) {
-        writeInt64(lengthBuffer, offset, buffer->size());
-        gluten::fastCopy(compressedBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
-        compressValueOffset += buffer->size();
-      } else {
-        writeInt64(lengthBuffer, offset, 0);
-      }
+  int64_t compressValueOffset = 0;
+  for (auto& buffer : buffers) {
+    // Copy all buffers into one big buffer.
+    if (buffer != nullptr && buffer->size() != 0) {
+      *lengthBufferPtr++ = buffer->size();
+      gluten::fastCopy(uncompressedBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
+      compressValueOffset += buffer->size();
+    } else {
+      *lengthBufferPtr++ = 0;
     }
   }
+
+  // Compress the big buffer.
+  int64_t maxLength = codec->MaxCompressedLen(uncompressedSize, nullptr);
+  GLUTEN_ASSIGN_OR_THROW(compressedBuffer, arrow::AllocateResizableBuffer(maxLength, pool));
+  GLUTEN_ASSIGN_OR_THROW(
+      int64_t actualLength,
+      codec->Compress(uncompressedSize, uncompressedBuffer->data(), maxLength, compressedBuffer->mutable_data()));
+  GLUTEN_THROW_NOT_OK(compressedBuffer->Resize(actualLength, /*shrink*/ true));
+
+  // Update compressed size.
+  *compressedLengthPtr = actualLength;
 }
 
 std::shared_ptr<arrow::RecordBatch> makeCompressedRecordBatch(
@@ -307,10 +286,10 @@ std::shared_ptr<arrow::RecordBatch> makeCompressedRecordBatch(
   }
   std::shared_ptr<arrow::ResizableBuffer> lengthBuffer;
   std::shared_ptr<arrow::ResizableBuffer> valueBuffer;
-  if (compressionMode == CompressionMode::BUFFER) {
-    getLengthBufferAndValueBufferOneByOne(buffers, pool, codec, bufferCompressThreshold, lengthBuffer, valueBuffer);
+  if (compressionMode == CompressionMode::BUFFER && numRows > bufferCompressThreshold) {
+    getLengthBufferAndValueBufferOneByOne(buffers, pool, codec, lengthBuffer, valueBuffer);
   } else {
-    getLengthBufferAndValueBufferStream(buffers, pool, codec, bufferCompressThreshold, lengthBuffer, valueBuffer);
+    getLengthBufferAndValueBufferStream(buffers, pool, codec, lengthBuffer, valueBuffer);
   }
 
   arrays.emplace_back(makeBinaryArray(compressWriteSchema->field(1)->type(), lengthBuffer, pool));
@@ -469,10 +448,10 @@ void collectFlatVectorBufferStringView(
 
   auto rawValues = flatVector->rawValues();
   // last offset is the totalStringSize
-  auto lengthBufferSize = sizeof(int32_t) * flatVector->size();
+  auto lengthBufferSize = sizeof(gluten::BinaryArrayLengthType) * flatVector->size();
   GLUTEN_ASSIGN_OR_THROW(auto lengthBuffer, arrow::AllocateResizableBuffer(lengthBufferSize, pool));
-  int32_t* rawLength = reinterpret_cast<int32_t*>(lengthBuffer->mutable_data());
-  int32_t offset = 0;
+  auto* rawLength = reinterpret_cast<gluten::BinaryArrayLengthType*>(lengthBuffer->mutable_data());
+  uint64_t offset = 0;
   for (int32_t i = 0; i < flatVector->size(); i++) {
     auto length = rawValues[i].size();
     *rawLength++ = length;
@@ -599,10 +578,8 @@ arrow::Status VeloxShuffleWriter::stop() {
   {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingStop]);
     setSplitState(SplitState::kStop);
-    EVAL_START("write", options_.thread_id)
     RETURN_NOT_OK(partitionWriter_->stop());
     partitionBuffers_.clear();
-    EVAL_END("write", options_.thread_id, options_.task_attempt_id)
   }
 
   stat();
@@ -944,7 +921,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       auto& binaryBuf = dst[pid];
 
       // use 32bit offset
-      auto dstOffsetBase = (BinaryArrayOffsetType*)(binaryBuf.offsetPtr) + partitionBufferIdxBase_[pid];
+      auto dstOffsetBase = (BinaryArrayLengthType*)(binaryBuf.offsetPtr) + partitionBufferIdxBase_[pid];
 
       auto valueOffset = binaryBuf.valueOffset;
       auto dstValuePtr = binaryBuf.valuePtr + valueOffset;
@@ -1209,7 +1186,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           ARROW_ASSIGN_OR_RAISE(validityBuffer, allocateValidityBuffer(columnIdx, partitionId, newSize));
 
           auto valueBufferSize = calculateValueBufferSizeForBinaryArray(binaryIdx, newSize);
-          auto lengthBufferSize = newSize * sizeof(BinaryArrayOffsetType);
+          auto lengthBufferSize = newSize * sizeof(BinaryArrayLengthType);
 
           auto& buffers = partitionBuffers_[columnIdx][partitionId];
           if (reuseBuffers) {
@@ -1342,7 +1319,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           // offset buffer
           ARROW_RETURN_IF(
               !buffers[kLengthBufferIndex], arrow::Status::Invalid("Offset buffer of binary array is null."));
-          allBuffers.push_back(arrow::SliceBuffer(buffers[kLengthBufferIndex], 0, numRows * sizeof(int32_t)));
+          allBuffers.push_back(
+              arrow::SliceBuffer(buffers[kLengthBufferIndex], 0, numRows * sizeof(BinaryArrayLengthType)));
           ARROW_RETURN_IF(!buffers[kValueBufferIndex], arrow::Status::Invalid("Value buffer of binary array is null."));
           // value buffer
           allBuffers.push_back(arrow::SliceBuffer(buffers[kValueBufferIndex], 0, binaryBuf.valueOffset));
@@ -1438,7 +1416,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           compressWriteSchema(),
           payloadPool_.get(),
           codec_.get(),
-          options_.buffer_compress_threshold,
+          options_.compression_threshold,
           options_.compression_mode);
       TIME_NANO_END(totalCompressTime_);
       return rb;
@@ -1537,7 +1515,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         case arrow::StringType::type_id: {
           auto& lengthBuffer = buffers[kLengthBufferIndex];
           ARROW_RETURN_IF(!lengthBuffer, arrow::Status::Invalid("Offset buffer of binary array is null."));
-          RETURN_NOT_OK(lengthBuffer->Resize(newSize * sizeof(BinaryArrayOffsetType)));
+          RETURN_NOT_OK(lengthBuffer->Resize(newSize * sizeof(BinaryArrayLengthType)));
 
           auto binaryIdx = i - fixedWidthColumnCount_;
           auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][partitionId];

@@ -29,7 +29,7 @@ inline std::shared_ptr<arrow::Schema> toWriteSchema(arrow::Schema& schema) {
       case arrow::BinaryType::type_id:
       case arrow::StringType::type_id: {
         fields.emplace_back(std::make_shared<arrow::Field>("nullBuffer" + std::to_string(i), arrow::large_utf8()));
-        fields.emplace_back(std::make_shared<arrow::Field>("offsetBuffer" + std::to_string(i), arrow::large_utf8()));
+        fields.emplace_back(std::make_shared<arrow::Field>("lengthBuffer" + std::to_string(i), arrow::large_utf8()));
         fields.emplace_back(std::make_shared<arrow::Field>("valueBuffer" + std::to_string(i), arrow::large_utf8()));
       } break;
       case arrow::StructType::type_id:

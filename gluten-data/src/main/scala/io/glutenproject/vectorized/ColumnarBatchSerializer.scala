@@ -100,8 +100,7 @@ private class ColumnarBatchSerializerInstance(
       cSchema.memoryAddress(),
       NativeMemoryManagers.contextInstance("ShuffleReader").getNativeInstanceHandle,
       compressionCodec,
-      compressionCodecBackend,
-      GlutenConfig.getConf.columnarShuffleCompressionMode
+      compressionCodecBackend
     )
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that

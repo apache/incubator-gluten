@@ -19,6 +19,7 @@
 
 #include <arrow/array/array_binary.h>
 
+#include "VeloxShuffleUtils.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "utils/Common.h"
 #include "utils/VeloxArrowUtils.h"
@@ -120,13 +121,13 @@ VectorPtr readFlatVectorStringView(
   auto nulls = buffers[bufferIdx++];
   auto lengthBuffer = buffers[bufferIdx++];
   auto valueBuffer = buffers[bufferIdx++];
-  const int32_t* rawLength = lengthBuffer->as<int32_t>();
+  const auto* rawLength = lengthBuffer->as<BinaryArrayLengthType>();
 
   std::vector<BufferPtr> stringBuffers;
   auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * length, pool);
   auto rawValues = values->asMutable<StringView>();
   auto rawChars = valueBuffer->as<char>();
-  auto offset = 0;
+  uint64_t offset = 0;
   for (int32_t i = 0; i < length; ++i) {
     rawValues[i] = StringView(rawChars + offset, rawLength[i]);
     offset += rawLength[i];
@@ -314,15 +315,16 @@ void getUncompressedBuffers(
     const arrow::RecordBatch& batch,
     arrow::MemoryPool* arrowPool,
     arrow::util::Codec* codec,
-    CompressionMode compressionMode,
     std::vector<BufferPtr>& buffers) {
+  // Get compression mode from first byte.
   auto lengthBuffer = readColumnBuffer(batch, 1);
-  const int64_t* lengthPtr = reinterpret_cast<const int64_t*>(lengthBuffer->data());
+  auto lengthBufferPtr = reinterpret_cast<const int64_t*>(lengthBuffer->data());
+  auto compressionMode = (CompressionMode)(*lengthBufferPtr++);
   auto valueBuffer = readColumnBuffer(batch, 2);
   if (compressionMode == CompressionMode::BUFFER) {
-    getUncompressedBuffersOneByOne(arrowPool, codec, lengthPtr, valueBuffer, buffers);
+    getUncompressedBuffersOneByOne(arrowPool, codec, lengthBufferPtr, valueBuffer, buffers);
   } else {
-    getUncompressedBuffersStream(arrowPool, codec, lengthPtr, valueBuffer, buffers);
+    getUncompressedBuffersStream(arrowPool, codec, lengthBufferPtr, valueBuffer, buffers);
   }
 }
 
@@ -330,7 +332,6 @@ RowVectorPtr readRowVector(
     const arrow::RecordBatch& batch,
     RowTypePtr rowType,
     CodecBackend codecBackend,
-    CompressionMode compressionMode,
     int64_t& decompressTime,
     int64_t& deserializeTime,
     arrow::MemoryPool* arrowPool,
@@ -352,7 +353,7 @@ RowVectorPtr readRowVector(
   } else {
     TIME_NANO_START(decompressTime);
     auto codec = createArrowIpcCodec(compressType, codecBackend);
-    getUncompressedBuffers(batch, arrowPool, codec.get(), compressionMode, buffers);
+    getUncompressedBuffers(batch, arrowPool, codec.get(), buffers);
     TIME_NANO_END(decompressTime);
   }
 
@@ -368,7 +369,7 @@ class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
   VeloxShuffleReaderOutStream(
       arrow::MemoryPool* pool,
       const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
-      const ReaderOptions& options,
+      const ShuffleReaderOptions& options,
       const RowTypePtr& rowType,
       const std::function<void(int64_t)> decompressionTimeAccumulator,
       const std::function<void(int64_t)> deserializeTimeAccumulator,
@@ -391,15 +392,8 @@ class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
     int64_t decompressTime = 0LL;
     int64_t deserializeTime = 0LL;
 
-    auto vp = readRowVector(
-        *rb,
-        rowType_,
-        options_.codec_backend,
-        options_.compression_mode,
-        decompressTime,
-        deserializeTime,
-        pool_,
-        veloxPool_.get());
+    auto vp =
+        readRowVector(*rb, rowType_, options_.codec_backend, decompressTime, deserializeTime, pool_, veloxPool_.get());
 
     decompressionTimeAccumulator_(decompressTime);
     deserializeTimeAccumulator_(deserializeTime);
@@ -409,7 +403,7 @@ class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
  private:
   arrow::MemoryPool* pool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
-  ReaderOptions options_;
+  ShuffleReaderOptions options_;
   facebook::velox::RowTypePtr rowType_;
 
   std::function<void(int64_t)> decompressionTimeAccumulator_;
@@ -417,16 +411,6 @@ class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
 
   ResultIterator in_;
 };
-
-std::string getCompressionMode(CompressionMode type) {
-  if (type == CompressionMode::BUFFER) {
-    return "BUFFER";
-  } else if (type == CompressionMode::ROWVECTOR) {
-    return "ROWVECTOR";
-  } else {
-    return "UNKNOWN";
-  }
-}
 
 std::string getCodecBackend(CodecBackend type) {
   if (type == CodecBackend::QAT) {
@@ -456,7 +440,7 @@ std::string getCompressionType(arrow::Compression::type type) {
 
 VeloxShuffleReader::VeloxShuffleReader(
     std::shared_ptr<arrow::Schema> schema,
-    ReaderOptions options,
+    ShuffleReaderOptions options,
     arrow::MemoryPool* pool,
     std::shared_ptr<memory::MemoryPool> veloxPool)
     : ShuffleReader(schema, options, pool), veloxPool_(std::move(veloxPool)) {
@@ -465,7 +449,6 @@ VeloxShuffleReader::VeloxShuffleReader(
     std::ostringstream oss;
     oss << "VeloxShuffleReader create, compression_type:" << getCompressionType(options.compression_type);
     oss << " codec_backend:" << getCodecBackend(options.codec_backend);
-    oss << " compression_mode:" << getCompressionMode(options.compression_mode);
     LOG(INFO) << oss.str();
   }
 }

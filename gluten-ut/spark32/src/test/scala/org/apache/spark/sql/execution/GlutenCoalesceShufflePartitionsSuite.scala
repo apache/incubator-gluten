@@ -267,7 +267,7 @@ class GlutenCoalesceShufflePartitionsSuite
 
               case None =>
                 assert(shuffleReads.length === 2)
-                shuffleReads.foreach(read => assert(read.outputPartitioning.numPartitions === 3))
+                shuffleReads.foreach(read => assert(read.outputPartitioning.numPartitions === 2))
             }
         }
         // Change the original value 16384 to 40000 for gluten. The test depends on the calculation
@@ -320,7 +320,7 @@ class GlutenCoalesceShufflePartitionsSuite
 
               case None =>
                 assert(shuffleReads.length === 2)
-                shuffleReads.foreach(read => assert(read.outputPartitioning.numPartitions === 3))
+                shuffleReads.foreach(read => assert(read.outputPartitioning.numPartitions === 2))
             }
         }
 
@@ -374,7 +374,7 @@ class GlutenCoalesceShufflePartitionsSuite
 
               case None =>
                 assert(shuffleReads.length === 2)
-                shuffleReads.foreach(read => assert(read.outputPartitioning.numPartitions === 4))
+                shuffleReads.foreach(read => assert(read.outputPartitioning.numPartitions === 3))
             }
         }
 
