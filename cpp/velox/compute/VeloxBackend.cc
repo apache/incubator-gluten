@@ -31,22 +31,15 @@
 #ifdef GLUTEN_ENABLE_IAA
 #include "utils/qpl/qpl_codec.h"
 #endif
-#include "utils/exception.h"
-#include "velox/common/file/FileSystems.h"
-#include "velox/serializers/PrestoSerializer.h"
-#ifdef ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/RegisterHdfsFileSystem.h"
-#endif
-#ifdef ENABLE_S3
-#include "velox/connectors/hive/storage_adapters/s3fs/RegisterS3FileSystem.h"
-#endif
 #include "jni/JniFileSystem.h"
 #include "udf/UdfLoader.h"
 #include "utils/ConfigExtractor.h"
+#include "utils/exception.h"
+#include "velox/common/caching/SsdCache.h"
+#include "velox/common/file/FileSystems.h"
 #include "velox/common/memory/MmapAllocator.h"
 #include "velox/connectors/hive/HiveConnector.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/parquet/RegisterParquetReader.h"
+#include "velox/serializers/PrestoSerializer.h"
 
 DECLARE_int32(split_preload_per_driver);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
@@ -159,14 +152,9 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::filesystems::registerLocalFileSystem();
   initJolFilesystem(conf);
 
-#ifdef ENABLE_HDFS
-  velox::filesystems::registerHdfsFileSystem();
-#endif
-
   std::unordered_map<std::string, std::string> configurationValues;
-#ifdef ENABLE_S3
-  velox::filesystems::registerS3FileSystem();
 
+#ifdef ENABLE_S3
   std::string awsAccessKey = conf.at("spark.hadoop.fs.s3a.access.key");
   std::string awsSecretKey = conf.at("spark.hadoop.fs.s3a.secret.key");
   std::string awsEndpoint = conf.at("spark.hadoop.fs.s3a.endpoint");
@@ -237,8 +225,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
 
   registerConnector(hiveConnector);
-  velox::parquet::registerParquetReaderFactory();
-  velox::dwrf::registerDwrfReaderFactory();
+
   // Register Velox functions
   registerAllFunctions();
   if (!facebook::velox::isRegisteredVectorSerde()) {
