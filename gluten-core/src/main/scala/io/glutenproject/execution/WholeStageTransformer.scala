@@ -317,7 +317,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   override def metricsUpdater(): MetricsUpdater = {
     child match {
       case transformer: TransformSupport => transformer.metricsUpdater()
-      case _ => new NoopMetricsUpdater
+      case _ => NoopMetricsUpdater
     }
   }
 
@@ -328,7 +328,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         case _ => false
       }
       .map(_.asInstanceOf[TransformSupport].metricsUpdater())
-      .getOrElse(new NoopMetricsUpdater)
+      .getOrElse(NoopMetricsUpdater)
   }
 
   // Recreate the broadcast build side rdd with matched partition number.

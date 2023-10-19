@@ -335,5 +335,5 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
     Map.empty
 
   override def genGenerateTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = new NoopMetricsUpdater
+      metrics: Map[String, SQLMetric]): MetricsUpdater = NoopMetricsUpdater
 }

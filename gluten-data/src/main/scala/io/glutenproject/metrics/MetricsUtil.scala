@@ -50,7 +50,7 @@ object MetricsUtil extends Logging {
         case t: TransformSupport =>
           MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
         case _ =>
-          MetricsUpdaterTree(new NoopMetricsUpdater, Seq())
+          MetricsUpdaterTree(NoopMetricsUpdater, Seq())
       }
     }
 
@@ -219,7 +219,7 @@ object MetricsUtil extends Logging {
 
     mutNode.children.foreach {
       child =>
-        if (!child.updater.isInstanceOf[NoopMetricsUpdater]) {
+        if (child.updater != NoopMetricsUpdater) {
           val result = updateTransformerMetricsInternal(
             child,
             relMap,
@@ -266,7 +266,7 @@ object MetricsUtil extends Logging {
         val numNativeMetrics = metrics.inputRows.length
         if (numNativeMetrics == 0) {
           ()
-        } else if (mutNode.updater.isInstanceOf[NoopMetricsUpdater]) {
+        } else if (mutNode.updater == NoopMetricsUpdater) {
           ()
         } else {
           updateTransformerMetricsInternal(
