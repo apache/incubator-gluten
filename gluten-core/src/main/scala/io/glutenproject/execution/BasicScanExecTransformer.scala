@@ -34,7 +34,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
 
-trait BasicScanExecTransformer extends TransformSupport with SupportFormat {
+trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
 
   // The key of merge schema option in Parquet reader.
   protected val mergeSchemaOptionKey = "mergeschema"

@@ -16,7 +16,6 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.ValidationResult
@@ -29,7 +28,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.{FileSourceScanExecShim, InSubqueryExec, ScalarSubquery, SparkPlan, SQLExecution}
+import org.apache.spark.sql.execution.{FileSourceScanExecShim, InSubqueryExec, ScalarSubquery, SQLExecution}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.types.StructType
@@ -78,14 +77,6 @@ class FileSourceScanExecTransformer(
       Map.empty[String, SQLMetric]
     }
 
-  override lazy val supportsColumnar: Boolean = {
-    /*
-    relation.fileFormat
-      .supportBatch(relation.sparkSession, schema) && GlutenConfig.getConf.enableColumnarIterator
-     */
-    GlutenConfig.getConf.enableColumnarIterator
-  }
-
   override def filterExprs(): Seq[Expression] = dataFilters
 
   override def outputAttributes(): Seq[Attribute] = output
@@ -116,18 +107,6 @@ class FileSourceScanExecTransformer(
   override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecTransformer]
 
   override def hashCode(): Int = super.hashCode()
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    Seq()
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-    Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = {
-    this
-  }
 
   override protected def doValidateInternal(): ValidationResult = {
     // Bucketing table has `bucketId` in filename, should apply this in backends

@@ -36,6 +36,6 @@ trait MetricsUpdater extends Serializable {
 
 final case class MetricsUpdaterTree(updater: MetricsUpdater, children: Seq[MetricsUpdaterTree])
 
-class NoopMetricsUpdater extends MetricsUpdater {
+object NoopMetricsUpdater extends MetricsUpdater {
   override def metrics: Map[String, SQLMetric] = Map.empty
 }

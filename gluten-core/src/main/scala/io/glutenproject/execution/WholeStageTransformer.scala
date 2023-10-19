@@ -50,6 +50,13 @@ case class WholeStageTransformContext(root: PlanNode, substraitContext: Substrai
 
 trait TransformSupport extends GlutenPlan {
 
+  final override def doExecute(): RDD[InternalRow] = {
+    throw new UnsupportedOperationException(
+      s"${this.getClass.getSimpleName} doesn't support doExecute")
+  }
+
+  final override lazy val supportsColumnar: Boolean = true
+
   /**
    * Returns all the RDDs of ColumnarBatch which generates the input rows.
    *
@@ -58,10 +65,6 @@ trait TransformSupport extends GlutenPlan {
    */
   def columnarInputRDDs: Seq[RDD[ColumnarBatch]]
 
-  def getBuildPlans: Seq[(SparkPlan, SparkPlan)]
-
-  def getStreamedLeafPlan: SparkPlan
-
   def doTransform(context: SubstraitContext): TransformContext = {
     throw new UnsupportedOperationException(
       s"This operator doesn't support doTransform with SubstraitContext.")
@@ -69,7 +72,7 @@ trait TransformSupport extends GlutenPlan {
 
   def metricsUpdater(): MetricsUpdater
 
-  def getColumnarInputRDDs(plan: SparkPlan): Seq[RDD[ColumnarBatch]] = {
+  protected def getColumnarInputRDDs(plan: SparkPlan): Seq[RDD[ColumnarBatch]] = {
     plan match {
       case c: TransformSupport =>
         c.columnarInputRDDs
@@ -79,10 +82,20 @@ trait TransformSupport extends GlutenPlan {
   }
 }
 
+trait LeafTransformSupport extends TransformSupport with LeafExecNode {
+  final override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = Seq.empty
+}
+
+trait UnaryTransformSupport extends TransformSupport with UnaryExecNode {
+  final override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    getColumnarInputRDDs(child)
+  }
+}
+
 case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = false)(
     val transformStageId: Int
-) extends UnaryExecNode
-  with TransformSupport {
+) extends UnaryTransformSupport {
+  assert(child.isInstanceOf[TransformSupport])
 
   // For WholeStageCodegen-like operator, only pipeline time will be handled in graph plotting.
   // See SparkPlanGraph.scala:205 for reference.
@@ -108,8 +121,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
-
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def otherCopyArgs: Seq[AnyRef] = Seq(transformStageId.asInstanceOf[Integer])
 
@@ -145,14 +156,6 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   // make whole stage transformer clearly plotted in UI, like spark's whole stage codegen.
   // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
   override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-    child.asInstanceOf[TransformSupport].getBuildPlans
-  }
-
-  override def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException("Row based execution is not supported")
-  }
 
   def doWholeStageTransform(): WholeStageTransformContext = {
     // invoke SparkPlan.prepare to do subquery preparation etc.
@@ -311,30 +314,21 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     }
   }
 
-  override def getStreamedLeafPlan: SparkPlan = {
-    child.asInstanceOf[TransformSupport].getStreamedLeafPlan
-  }
-
   override def metricsUpdater(): MetricsUpdater = {
     child match {
       case transformer: TransformSupport => transformer.metricsUpdater()
-      case _ => new NoopMetricsUpdater
+      case _ => NoopMetricsUpdater
     }
   }
 
-  def leafMetricsUpdater(): MetricsUpdater = {
-    getStreamedLeafPlan match {
-      case transformer: TransformSupport => transformer.metricsUpdater()
-      case _ => new NoopMetricsUpdater
-    }
-  }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      throw new IllegalStateException(
-        "WholeStageTransformerExec's child should be a TransformSupport ")
+  private def leafMetricsUpdater(): MetricsUpdater = {
+    child
+      .find {
+        case t: TransformSupport if t.children.forall(!_.isInstanceOf[TransformSupport]) => true
+        case _ => false
+      }
+      .map(_.asInstanceOf[TransformSupport].metricsUpdater())
+      .getOrElse(NoopMetricsUpdater)
   }
 
   // Recreate the broadcast build side rdd with matched partition number.

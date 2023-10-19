@@ -27,7 +27,6 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
@@ -45,7 +44,7 @@ case class WindowExecTransformer(
     orderSpec: Seq[SortOrder],
     child: SparkPlan)
   extends WindowExecBase
-  with TransformSupport {
+  with UnaryTransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -53,8 +52,6 @@ case class WindowExecTransformer(
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genWindowTransformerMetricsUpdater(metrics)
-
-  override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = child.output ++ windowExpression.map(_.toAttribute)
 
@@ -80,24 +77,6 @@ case class WindowExecTransformer(
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
 
   def getRelNode(
       context: SubstraitContext,
@@ -254,10 +233,6 @@ case class WindowExecTransformer(
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException()
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): WindowExecTransformer =

@@ -24,7 +24,6 @@ import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
@@ -55,12 +54,8 @@ case class SortMergeJoinExecTransformer(
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetrics(sparkContext)
 
-  val sparkConf = sparkContext.getConf
-
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
     (rightKeys, leftKeys, right, left)
-
-  override def supportsColumnar: Boolean = true
 
   override def stringArgs: Iterator[Any] = super.stringArgs.toSeq.dropRight(1).iterator
 
@@ -178,34 +173,6 @@ case class SortMergeJoinExecTransformer(
 
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(bufferedPlan)
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-
-    val curbufferedPlan: Seq[(SparkPlan, SparkPlan)] = bufferedPlan match {
-      case s: SortExecTransformer =>
-        Seq((s, this))
-      case c: TransformSupport if !c.isInstanceOf[SortExecTransformer] =>
-        c.getBuildPlans
-      case other =>
-        /* should be InputAdapterTransformer or others */
-        Seq((other, this))
-    }
-    streamedPlan match {
-      case c: TransformSupport if c.isInstanceOf[SortExecTransformer] =>
-        curbufferedPlan ++ Seq((c, this))
-      case c: TransformSupport if !c.isInstanceOf[SortExecTransformer] =>
-        c.getBuildPlans ++ curbufferedPlan
-      case _ =>
-        curbufferedPlan
-    }
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = streamedPlan match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
   }
 
   override def metricsUpdater(): MetricsUpdater =
@@ -349,10 +316,6 @@ case class SortMergeJoinExecTransformer(
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(s"ColumnarSortMergeJoinExec doesn't support doExecute")
   }
 
   override protected def withNewChildrenInternal(

@@ -27,11 +27,8 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.execution.SparkPlan
 
 import com.google.protobuf.Any
 
@@ -47,8 +44,7 @@ case class GenerateExecTransformer(
     outer: Boolean,
     generatorOutput: Seq[Attribute],
     child: SparkPlan)
-  extends UnaryExecNode
-  with TransformSupport {
+  extends UnaryTransformSupport {
 
   @transient
   override lazy val metrics =
@@ -58,36 +54,8 @@ case class GenerateExecTransformer(
 
   override def producedAttributes: AttributeSet = AttributeSet(generatorOutput)
 
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(s"GenerateExecTransformer doesn't support doExecute")
-  }
-
   override protected def withNewChildInternal(newChild: SparkPlan): GenerateExecTransformer =
     copy(generator, requiredChildOutput, outer, generatorOutput, newChild)
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      val childPlans = c.getBuildPlans
-      childPlans :+ (this, null)
-    case _ =>
-      Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
-
-  override def supportsColumnar: Boolean = true
 
   override protected def doValidateInternal(): ValidationResult = {
     val validationResult =

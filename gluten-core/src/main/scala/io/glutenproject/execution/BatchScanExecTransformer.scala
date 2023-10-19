@@ -16,7 +16,6 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
@@ -25,7 +24,6 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
@@ -86,8 +84,6 @@ class BatchScanExecTransformer(
     super.doValidateInternal()
   }
 
-  override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
-
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     doExecuteColumnarInternal()
   }
@@ -101,18 +97,6 @@ class BatchScanExecTransformer(
   override def hashCode(): Int = Objects.hash(batch, runtimeFilters)
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[BatchScanExecTransformer]
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    Seq()
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-    Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = {
-    this
-  }
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetricsUpdater(metrics)
