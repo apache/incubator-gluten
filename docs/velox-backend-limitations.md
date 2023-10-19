@@ -86,11 +86,22 @@ Exception occurs when Velox TableScan is used to read files with unsupported com
 | DWRF        | Y    | Y    | Y    | Y      | Y   | Y   | N    |
 
 
-### Parquet Write
+### Native Write
 
-#### Offload hive file format to velox (offload)
+#### Offload native write to velox (offload)
 
-We implemented the insert into command by overriding HiveFileFormat in Vanilla spark. And you need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. Refer to [How to prioritize loading Gluten jars in Spark](https://github.com/oap-project/gluten/blob/main/docs/developers/NewToGluten.md). It should be noted that if the user also modifies the HiveFileFormat, the user's changes may be overwritten.
+We have implemented support for Parquet and Hive file formats, as well as static partition writing. This functionality was achieved by overriding the following vanilla Spark classes. And you need to ensure preferentially load the Gluten jar to overwrite the jar of vanilla spark. Refer to [How to prioritize loading Gluten jars in Spark](https://github.com/oap-project/gluten/blob/main/docs/velox-backend-troubleshooting.md#incompatible-class-error-when-using-native-writer). It should be noted that if the user also modifies the overriding classes, the user's changes may be overwritten.
+
+```
+./shims/spark32/src/main/scala/org/apache/spark/sql/hive/execution/HiveFileFormat.scala
+./shims/spark32/src/main/scala/org/apache/spark/sql/execution/datasources/parquet/ParquetFileFormat.scala
+./shims/spark32/src/main/scala/org/apache/spark/sql/execution/datasources/orc/OrcFileFormat.scala
+./shims/spark32/src/main/scala/org/apache/spark/sql/execution/stat/StatFunctions.scala
+./shims/spark32/src/main/scala/org/apache/spark/sql/execution/datasources/BasicWriteStatsTracker.scala
+./shims/spark32/src/main/scala/org/apache/spark/sql/execution/datasources/FileFormatDataWriter.scala
+./shims/spark32/src/main/scala/org/apache/spark/sql/execution/datasources/FileFormatWriter.scala
+
+```
 
 ### Velox Parquet Write
 
@@ -115,7 +126,7 @@ Velox does not support dynamic partition write and bucket write, e.g.,
 ```scala
 spark.range(100).selectExpr("id as c1", "id % 7 as p")
   .write
-  .format("velox")
+  .format("parquet")
   .partitionBy("p")
   .save(f.getCanonicalPath)
 ```
@@ -127,7 +138,7 @@ Velox does not create table as select, e.g.,
 ```scala
 spark.range(100).toDF("id")
   .write
-  .format("velox")
+  .format("parquet")
   .saveAsTable("velox_ctas")
 ```
 
