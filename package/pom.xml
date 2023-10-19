@@ -20,7 +20,7 @@
   <parent>
     <groupId>io.glutenproject</groupId>
     <artifactId>gluten-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>1.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -66,6 +66,16 @@
         <dependency>
           <groupId>io.glutenproject</groupId>
           <artifactId>backends-velox</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>rss</id>
+      <dependencies>
+        <dependency>
+          <groupId>io.glutenproject</groupId>
+          <artifactId>gluten-celeborn-package</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -208,6 +218,39 @@
                     <ignoreClass>org.apache.spark.sql.execution.datasources.BasicWriteJobStatsTracker$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.stat.StatFunctions$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.stat.StatFunctions$CovarianceCounter</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter$WriterStatus</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataSingleWriter</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$Empty2Null$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter$WriterIndex$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatDataWriter</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriteTaskResult$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$OutputSpec</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.EmptyDirectoryDataWriter</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$ConcurrentOutputWriterSpec$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.SingleDirectoryDataWriter</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$Empty2Null</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.BaseDynamicPartitionDataWriter</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriteJobDescription</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.SingleDirectoryDataWriter$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataConcurrentWriter$WriterIndex</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.DynamicPartitionDataSingleWriter$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriteTaskResult</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$ConcurrentOutputWriterSpec</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.ExecutedWriteSummary</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat*</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.orc.OrcFileFormat$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.orc.OrcFileFormat*</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$OutputSpec$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.FileFormatWriter$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.ExecutedWriteSummary$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.EmptyDirectoryDataWriter$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec$</ignoreClass>
+
                   </ignoreClasses>
                   <scopes>
                     <scope>compile</scope>

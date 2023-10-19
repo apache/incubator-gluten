@@ -18,6 +18,6 @@ package org.apache.spark.sql.connector
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenFileDataSourceV2FallBackSuite extends FileDataSourceV2FallBackSuite
-  with GlutenSQLTestsBaseTrait {
-}
+class GlutenFileDataSourceV2FallBackSuite
+  extends FileDataSourceV2FallBackSuite
+  with GlutenSQLTestsBaseTrait {}

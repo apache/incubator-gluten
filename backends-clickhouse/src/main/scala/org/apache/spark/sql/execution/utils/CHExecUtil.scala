@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.utils
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.row.SparkRowInfo
 import io.glutenproject.vectorized._
 import io.glutenproject.vectorized.BlockSplitIterator.IteratorOptions
 
@@ -31,15 +32,17 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BindReferences, BoundReference, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
 import org.apache.spark.sql.catalyst.plans.physical.{SinglePartition, _}
-import org.apache.spark.sql.execution.PartitionIdPassthrough
+import org.apache.spark.sql.execution.{PartitionIdPassthrough, SparkPlan}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
-import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleWriteMetricsReporter}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.MutablePair
 
 import io.substrait.proto.Type
+
+import java.io.ByteArrayOutputStream
 
 import scala.collection.JavaConverters._
 
@@ -51,7 +54,35 @@ object CHExecUtil extends Logging {
     datatype
   }
 
-  def buildRangePartitionSampleRDD(
+  def toBytes(
+      dataSize: SQLMetric,
+      iter: Iterator[ColumnarBatch],
+      compressionCodec: Option[String] = Some("lz4"),
+      bufferSize: Int = 4 << 10): Iterator[(Int, Array[Byte])] = {
+    var count = 0
+    val bos = new ByteArrayOutputStream()
+    val buffer = new Array[Byte](bufferSize) // 4K
+    val blockOutputStream =
+      compressionCodec
+        .map(new BlockOutputStream(bos, buffer, dataSize, true, _, bufferSize))
+        .getOrElse(new BlockOutputStream(bos, buffer, dataSize, false, "", bufferSize))
+    while (iter.hasNext) {
+      val batch = iter.next()
+      count += batch.numRows
+      blockOutputStream.write(batch)
+    }
+    blockOutputStream.flush()
+    blockOutputStream.close()
+    Iterator((count, bos.toByteArray))
+  }
+
+  def buildSideRDD(dataSize: SQLMetric, newChild: SparkPlan): RDD[(Int, Array[Byte])] = {
+    newChild
+      .executeColumnar()
+      .mapPartitionsInternal(iter => toBytes(dataSize, iter))
+  }
+
+  private def buildRangePartitionSampleRDD(
       rdd: RDD[ColumnarBatch],
       rangePartitioning: RangePartitioning,
       outputAttributes: Seq[Attribute]): RDD[MutablePair[InternalRow, Null]] = {
@@ -61,63 +92,84 @@ object CHExecUtil extends Logging {
           iter =>
             iter.flatMap(
               batch => {
-                val jniWrapper = new CHBlockConverterJniWrapper()
                 val blockAddress = CHNativeBlock.fromColumnarBatch(batch).blockAddress()
-                val rowInfo = jniWrapper.convertColumnarToRow(blockAddress)
 
                 // generate rows from a columnar batch
-                val rows: Iterator[InternalRow] = new Iterator[InternalRow] {
-                  var rowId = 0
-                  val row = new UnsafeRow(batch.numCols())
-                  var closed = false
+                val rowItr: Iterator[InternalRow] =
+                  getRowIterFromSparkRowInfo(blockAddress, batch.numCols(), batch.numRows())
 
-                  override def hasNext: Boolean = {
-                    val result = rowId < batch.numRows()
-                    if (!result && !closed) {
-                      jniWrapper.freeMemory(rowInfo.memoryAddress, rowInfo.totalSize)
-                      closed = true
-                    }
-                    result
-                  }
-
-                  override def next: UnsafeRow = {
-                    if (rowId >= batch.numRows()) throw new NoSuchElementException
-
-                    val (offset, length) = (rowInfo.offsets(rowId), rowInfo.lengths(rowId))
-                    row.pointTo(null, rowInfo.memoryAddress + offset, length.toInt)
-                    rowId += 1
-                    row
-                  }
-                }
                 val projection =
                   UnsafeProjection.create(sortingExpressions.map(_.child), outputAttributes)
                 val mutablePair = new MutablePair[InternalRow, Null]()
-                rows.map(row => mutablePair.update(projection(row).copy(), null))
+                rowItr.map(row => mutablePair.update(projection(row).copy(), null))
               })
         }
         sampleRDD
     }
   }
 
+  def getRowIterFromSparkRowInfo(
+      rowInfo: SparkRowInfo,
+      columns: Int,
+      rows: Int): Iterator[InternalRow] = {
+    new Iterator[InternalRow] {
+      var rowId = 0
+      val row = new UnsafeRow(columns)
+      var closed = false
+
+      override def hasNext: Boolean = {
+        val result = rowId < rows
+        if (!result && !closed) {
+          CHBlockConverterJniWrapper.freeMemory(rowInfo.memoryAddress, rowInfo.totalSize)
+          closed = true
+        }
+        result
+      }
+
+      override def next: UnsafeRow = {
+        if (rowId >= rows) throw new NoSuchElementException
+
+        val (offset, length) = (rowInfo.offsets(rowId), rowInfo.lengths(rowId))
+        row.pointTo(null, rowInfo.memoryAddress + offset, length.toInt)
+        rowId += 1
+        row
+      }
+    }
+  }
+  def getRowIterFromSparkRowInfo(
+      blockAddress: Long,
+      columns: Int,
+      rows: Int): Iterator[InternalRow] = {
+    val rowInfo = CHBlockConverterJniWrapper.convertColumnarToRow(blockAddress, null)
+    getRowIterFromSparkRowInfo(rowInfo, columns, rows)
+  }
   private def buildPartitionedBlockIterator(
       cbIter: Iterator[ColumnarBatch],
-      options: IteratorOptions): CloseablePartitionedBlockIterator = {
-    val iter = new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
-      val splitIterator = new BlockSplitIterator(
-        cbIter
-          .map(
-            CHNativeBlock
-              .fromColumnarBatch(_)
-              .blockAddress()
-              .asInstanceOf[java.lang.Long])
-          .asJava,
-        options
-      )
-      override def hasNext: Boolean = splitIterator.hasNext
-      override def next(): Product2[Int, ColumnarBatch] =
-        (splitIterator.nextPartitionId(), splitIterator.next())
-      override def close(): Unit = splitIterator.close()
-    }
+      options: IteratorOptions,
+      records_written_metric: SQLMetric): CloseablePartitionedBlockIterator = {
+    val iter: Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable =
+      new Iterator[Product2[Int, ColumnarBatch]] with AutoCloseable {
+        val splitIterator = new BlockSplitIterator(
+          cbIter
+            .map(
+              CHNativeBlock
+                .fromColumnarBatch(_)
+                .blockAddress()
+                .asInstanceOf[java.lang.Long])
+            .asJava,
+          options
+        )
+        override def hasNext: Boolean = splitIterator.hasNext
+        override def next(): Product2[Int, ColumnarBatch] = {
+          val nextBatch = splitIterator.next()
+          // need add rows before shuffle write, one block will convert to one row
+          // Because one is always added during shuffle write
+          // one line needs to be subtracted here
+          records_written_metric.add(nextBatch.numRows() - 1)
+          (splitIterator.nextPartitionId(), nextBatch)
+        }
+        override def close(): Unit = splitIterator.close()
+      }
     new CloseablePartitionedBlockIterator(iter)
   }
 
@@ -125,13 +177,13 @@ object CHExecUtil extends Logging {
       partitoining: HashPartitioning,
       childOutput: Seq[Attribute],
       output: Seq[Attribute]): NativePartitioning = {
-    val hashFields = partitoining.expressions.map {
-      case a: Attribute =>
-        BindReferences
-          .bindReference(a, childOutput)
-          .asInstanceOf[BoundReference]
-          .ordinal
-    }
+    val hashFields =
+      partitoining.expressions.map(
+        a =>
+          BindReferences
+            .bindReference(ConverterUtils.getAttrFromExpr(a).toAttribute, childOutput)
+            .asInstanceOf[BoundReference]
+            .ordinal)
     val outputFields = if (output != null) {
       output.map {
         a: Attribute =>
@@ -247,7 +299,10 @@ object CHExecUtil extends Logging {
     val isOrderSensitive = isRoundRobin && !SQLConf.get.sortBeforeRepartition
 
     val rddWithpartitionKey: RDD[Product2[Int, ColumnarBatch]] =
-      if (GlutenConfig.getConf.isUseColumnarShuffleManager) {
+      if (
+        GlutenConfig.getConf.isUseColumnarShuffleManager
+        || GlutenConfig.getConf.isUseCelebornShuffleManager
+      ) {
         newPartitioning match {
           case _ =>
             rdd.mapPartitionsWithIndexInternal(
@@ -258,7 +313,10 @@ object CHExecUtil extends Logging {
         val options = buildPartitioningOptions(nativePartitioning)
         rdd.mapPartitionsWithIndexInternal(
           (_, cbIter) => {
-            buildPartitionedBlockIterator(cbIter, options)
+            buildPartitionedBlockIterator(
+              cbIter,
+              options,
+              writeMetrics(SQLShuffleWriteMetricsReporter.SHUFFLE_RECORDS_WRITTEN))
           },
           isOrderSensitive = isOrderSensitive
         )

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
 import org.apache.spark.sql.execution.metric.SQLMetric;
@@ -29,13 +28,7 @@ public class BlockOutputStream implements Closeable {
   private final long instance;
   private final OutputStream outputStream;
 
-  private final byte[] buffer;
-
-  private final int bufferSize;
-
-  private final String defaultCompressionCodec;
-
-  private SQLMetric dataSize;
+  private final SQLMetric dataSize;
 
   private boolean isClosed = false;
 
@@ -55,16 +48,9 @@ public class BlockOutputStream implements Closeable {
       this.outputStream = outputStream;
       compressionEnable = false;
     }
-    this.defaultCompressionCodec = defaultCompressionCodec;
-    this.buffer = buffer;
-    this.bufferSize = bufferSize;
     this.instance =
         nativeCreate(
-            this.outputStream,
-            this.buffer,
-            this.defaultCompressionCodec,
-            compressionEnable,
-            this.bufferSize);
+            this.outputStream, buffer, defaultCompressionCodec, compressionEnable, bufferSize);
     this.dataSize = dataSize;
   }
 

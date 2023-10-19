@@ -18,5 +18,4 @@ package org.apache.spark.sql.execution.datasources.v2
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenFileTableSuite extends FileTableSuite with GlutenSQLTestsBaseTrait {
-}
+class GlutenFileTableSuite extends FileTableSuite with GlutenSQLTestsBaseTrait {}

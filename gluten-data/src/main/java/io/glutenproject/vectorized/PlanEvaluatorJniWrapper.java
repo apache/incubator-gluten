@@ -14,54 +14,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
-import io.glutenproject.validate.NativePlanValidatorInfo;
-import io.glutenproject.init.JniInitialized;
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionCtxAware;
+import io.glutenproject.exec.ExecutionCtxs;
+import io.glutenproject.validate.NativePlanValidationInfo;
 
 /**
- * This class is implemented in JNI. This provides the Java interface to invoke
- * functions in JNI. This file is used to generate the .h files required for
- * jni. Avoid all external dependencies in this file.
+ * This class is implemented in JNI. This provides the Java interface to invoke functions in JNI.
+ * This file is used to generate the .h files required for jni. Avoid all external dependencies in
+ * this file.
  */
-public class PlanEvaluatorJniWrapper extends JniInitialized {
+public class PlanEvaluatorJniWrapper implements ExecutionCtxAware {
+  private final ExecutionCtx ctx;
 
-  /**
-   * Wrapper for native API.
-   */
-  public PlanEvaluatorJniWrapper() {
+  private PlanEvaluatorJniWrapper(ExecutionCtx ctx) {
+    this.ctx = ctx;
+  }
+
+  public static PlanEvaluatorJniWrapper create() {
+    return new PlanEvaluatorJniWrapper(ExecutionCtxs.contextInstance());
+  }
+
+  public static PlanEvaluatorJniWrapper forCtx(ExecutionCtx ctx) {
+    return new PlanEvaluatorJniWrapper(ctx);
+  }
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
   }
 
   /**
    * Validate the Substrait plan in native compute engine.
    *
    * @param subPlan the Substrait plan in binary format.
-   * @return whether the computing of this plan is supported in native.
+   * @return whether the computing of this plan is supported in native and related info.
    */
-  native boolean nativeDoValidate(byte[] subPlan);
+  native NativePlanValidationInfo nativeValidateWithFailureReason(byte[] subPlan);
 
-  native NativePlanValidatorInfo nativeDoValidateWithFallBackLog(byte[] subPlan);
   /**
    * Create a native compute kernel and return a columnar result iterator.
    *
-   * @param allocatorId allocator id
+   * @param memoryManagerHandle NativeMemoryManager instance handle
    * @return iterator instance id
    */
   public native long nativeCreateKernelWithIterator(
-      long allocatorId,
+      long memoryManagerHandle,
       byte[] wsPlan,
       GeneralInIterator[] batchItr,
       int stageId,
       int partitionId,
       long taskId,
       boolean saveInputToFile,
-      String localDir,
-      byte[] confPlan) throws RuntimeException;
+      String spillDir)
+      throws RuntimeException;
 
-  /**
-   * Create a native compute kernel and return a row iterator.
-   */
+  /** Create a native compute kernel and return a row iterator. */
   native long nativeCreateKernelWithRowIterator(byte[] wsPlan) throws RuntimeException;
 
   /**

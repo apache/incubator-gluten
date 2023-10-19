@@ -14,11 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.extension
 
 import io.glutenproject.extension.{ColumnarOverrideRules, FallbackBroadcastExchange, JoinSelectionOverrides}
-import io.glutenproject.extension.columnar.{FallbackMultiCodegens, FallbackOneRowRelation}
+import io.glutenproject.extension.columnar.{FallbackMultiCodegens, FallbackOnANSIMode}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql._
@@ -32,7 +31,7 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
   }
 
   test("test gluten extensions") {
-    assert(spark.sessionState.queryStagePrepRules.contains(FallbackOneRowRelation(spark)))
+    assert(spark.sessionState.queryStagePrepRules.contains(FallbackOnANSIMode(spark)))
     assert(spark.sessionState.queryStagePrepRules.contains(FallbackMultiCodegens(spark)))
     assert(spark.sessionState.queryStagePrepRules.contains(FallbackBroadcastExchange(spark)))
     assert(spark.sessionState.columnarRules.contains(ColumnarOverrideRules(spark)))
@@ -44,9 +43,12 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
     assert(spark.sessionState.analyzer.extendedCheckRules.contains(MyCheckRule(spark)))
     assert(spark.sessionState.optimizer.batches.flatMap(_.rules).contains(MyRule(spark)))
     assert(spark.sessionState.sqlParser.isInstanceOf[MyParser])
-    assert(spark.sessionState.functionRegistry
-      .lookupFunction(MyExtensions.myFunction._1).isDefined)
-    assert(spark.sessionState.columnarRules.contains(
-      MyColumnarRule(PreRuleReplaceAddWithBrokenVersion(), MyPostRule())))
+    assert(
+      spark.sessionState.functionRegistry
+        .lookupFunction(MyExtensions.myFunction._1)
+        .isDefined)
+    assert(
+      spark.sessionState.columnarRules.contains(
+        MyColumnarRule(PreRuleReplaceAddWithBrokenVersion(), MyPostRule())))
   }
 }

@@ -16,61 +16,79 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.GlutenConfig
+import io.glutenproject.{CH_BRANCH, CH_COMMIT, GlutenConfig, GlutenPlugin}
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{JsonReadFormat, MergeTreeReadFormat, OrcReadFormat, ParquetReadFormat, TextReadFormat}
 
+import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Alias, DenseRank, Lag, Lead, NamedExpression, Rank, RowNumber}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Cast, DenseRank, Lag, Lead, NamedExpression, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 
 import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends Backend {
-  override def name(): String = GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
-  override def contextApi(): ContextApi = new CHContextApi
+  override def name(): String = CHBackend.BACKEND_NAME
+  override def buildInfo(): GlutenPlugin.BackendBuildInfo =
+    GlutenPlugin.BackendBuildInfo("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
   override def iteratorApi(): IteratorApi = new CHIteratorApi
   override def sparkPlanExecApi(): SparkPlanExecApi = new CHSparkPlanExecApi
   override def transformerApi(): TransformerApi = new CHTransformerApi
   override def validatorApi(): ValidatorApi = new CHValidatorApi
   override def metricsApi(): MetricsApi = new CHMetricsApi
+  override def listenerApi(): ListenerApi = new CHListenerApi
+  override def broadcastApi(): BroadcastApi = new CHBroadcastApi
   override def settings(): BackendSettingsApi = CHBackendSettings
+}
+
+object CHBackend {
+  val BACKEND_NAME = "ch"
 }
 
 object CHBackendSettings extends BackendSettingsApi with Logging {
 
-  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
-  val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
+  private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD = "spark.gluten.sql.columnar.separate.scan.rdd.for.ch"
+  private val GLUTEN_CLICKHOUSE_SEP_SCAN_RDD_DEFAULT = "false"
 
   // experimental: when the files count per partition exceeds this threshold,
   // it will put the files into one partition.
-  val GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+  val GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".files.per.partition.threshold"
   val GLUTEN_CLICKHOUSE_FILES_PER_PARTITION_THRESHOLD_DEFAULT = "-1"
 
-  val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+  private val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".customized.shuffle.codec.enable"
-  val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT = "false"
+  private val GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT = false
+  lazy val useCustomizedShuffleCodec: Boolean = SparkEnv.get.conf.getBoolean(
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE,
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT
+  )
 
-  val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+  private val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".customized.buffer.size"
-  val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT = "4096"
+  private val GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT = 4096
+  lazy val customizeBufferSize: Int = SparkEnv.get.conf.getInt(
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
+    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT
+  )
 
   val GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME: String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND +
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".broadcast.cache.expired.time"
   // unit: SECONDS, default 1 day
   val GLUTEN_CLICKHOUSE_BROADCAST_CACHE_EXPIRED_TIME_DEFAULT: Int = 86400
+
+  private val GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC: Set[String] = Set("lz4", "zstd", "snappy")
 
   override def supportFileFormatRead(
       format: ReadFileFormat,
@@ -87,11 +105,28 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       true
     }
 
+    // Validate if all types are supported.
+    def hasComplexType: Boolean = {
+      // Collect unsupported types.
+      val unsupportedDataTypes = fields.map(_.dataType).collect {
+        case _: MapType => "MapType"
+        case _: StructType => "StructType"
+        case _: ArrayType => "ArrayType"
+      }
+      for (unsupportedDataType <- unsupportedDataTypes) {
+        // scalastyle:off println
+        println(
+          s"Validation failed for ${this.getClass.toString}" +
+            s" due to: data type $unsupportedDataType. in file schema. ")
+        // scalastyle:on println
+      }
+      !unsupportedDataTypes.isEmpty
+    }
     format match {
       case ParquetReadFormat => validateFilePath
       case OrcReadFormat => true
       case MergeTreeReadFormat => true
-      case TextReadFormat => true
+      case TextReadFormat => !hasComplexType
       case JsonReadFormat => true
       case _ => false
     }
@@ -101,14 +136,26 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def supportShuffleWithProject(
       outputPartitioning: Partitioning,
       child: SparkPlan): Boolean = {
-    // FIXME: The HashAggregateExec's output is different from backend, cannot use directly.
     child match {
-      case _: HashAggregateExec =>
-        logInfo(
-          s"Not support shuffleExechangeExec with child of HashAggregateExec, which" +
-            s" has expressions in partitioning")
-        false
-      case _ => true
+      case hash: HashAggregateExec =>
+        if (hash.aggregateExpressions.isEmpty) {
+          true
+        } else {
+          outputPartitioning match {
+            case hashPartitioning: HashPartitioning =>
+              hashPartitioning.expressions.foreach(
+                x => {
+                  if (!x.isInstanceOf[Cast]) {
+                    return false
+                  }
+                })
+              true
+            case _ =>
+              false
+          }
+        }
+      case _ =>
+        true
     }
   }
 
@@ -130,7 +177,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
           wExpression.windowFunction match {
             case _: RowNumber | _: AggregateExpression | _: Rank | _: Lead | _: Lag |
                 _: DenseRank =>
-              allSupported = allSupported && true
+              allSupported = allSupported
             case _ =>
               logDebug(s"Not support window function: ${wExpression.getClass}")
               allSupported = false
@@ -151,6 +198,9 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       .toBoolean
 
   /** Get the config prefix for each backend */
-  override def getBackendConfigPrefix(): String =
-    GlutenConfig.GLUTEN_CONFIG_PREFIX + GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND
+  override def getBackendConfigPrefix: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME
+
+  override def shuffleSupportedCodec(): Set[String] = GLUTEN_CLICKHOUSE_SHUFFLE_SUPPORTED_CODEC
+  override def needOutputSchemaForPlan(): Boolean = true
 }

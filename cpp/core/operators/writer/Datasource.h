@@ -22,7 +22,6 @@
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
 #include <arrow/type_fwd.h>
-#include <folly/executors/IOThreadPoolExecutor.h>
 
 #include "memory/ColumnarBatch.h"
 #include "operators/writer/Datasource.h"

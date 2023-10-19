@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
+
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.types.DataType
 
@@ -30,8 +30,11 @@ object AggregateFunctionsBuilder {
     var substraitAggFuncName = getSubstraitFunctionName(aggregateFunc)
 
     // Check whether each backend supports this aggregate function.
-    if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(
-      substraitAggFuncName.get, aggregateFunc)) {
+    if (
+      !BackendsApiManager.getValidatorApiInstance.doExprValidate(
+        substraitAggFuncName.get,
+        aggregateFunc)
+    ) {
       throw new UnsupportedOperationException(
         s"Aggregate function not supported for $aggregateFunc.")
     }
@@ -40,10 +43,7 @@ object AggregateFunctionsBuilder {
 
     ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(
-        substraitAggFuncName.get,
-        inputTypes,
-        FunctionConfig.REQ))
+      ConverterUtils.makeFuncName(substraitAggFuncName.get, inputTypes, FunctionConfig.REQ))
   }
 
   def getSubstraitFunctionName(aggregateFunc: AggregateFunction): Option[String] = {

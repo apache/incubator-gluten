@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.ExpressionNode;
@@ -36,10 +35,11 @@ public class WindowRelNode implements RelNode, Serializable {
   private final ArrayList<SortField> sorts = new ArrayList<>();
   private final AdvancedExtensionNode extensionNode;
 
-  public WindowRelNode(RelNode input,
-                       ArrayList<WindowFunctionNode> windowFunctionNodes,
-                       ArrayList<ExpressionNode> partitionExpressions,
-                       ArrayList<SortField> sorts) {
+  public WindowRelNode(
+      RelNode input,
+      ArrayList<WindowFunctionNode> windowFunctionNodes,
+      ArrayList<ExpressionNode> partitionExpressions,
+      ArrayList<SortField> sorts) {
     this.input = input;
     this.windowFunctionNodes.addAll(windowFunctionNodes);
     this.partitionExpressions.addAll(partitionExpressions);
@@ -47,11 +47,12 @@ public class WindowRelNode implements RelNode, Serializable {
     this.extensionNode = null;
   }
 
-  public WindowRelNode(RelNode input,
-                       ArrayList<WindowFunctionNode> windowFunctionNodes,
-                       ArrayList<ExpressionNode> partitionExpressions,
-                       ArrayList<SortField> sorts,
-                       AdvancedExtensionNode extensionNode) {
+  public WindowRelNode(
+      RelNode input,
+      ArrayList<WindowFunctionNode> windowFunctionNodes,
+      ArrayList<ExpressionNode> partitionExpressions,
+      ArrayList<SortField> sorts,
+      AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.windowFunctionNodes.addAll(windowFunctionNodes);
     this.partitionExpressions.addAll(partitionExpressions);
@@ -76,11 +77,11 @@ public class WindowRelNode implements RelNode, Serializable {
       windowBuilder.addMeasures(measureBuilder.build());
     }
 
-    for(int i = 0; i < partitionExpressions.size(); i ++) {
+    for (int i = 0; i < partitionExpressions.size(); i++) {
       windowBuilder.addPartitionExpressions(i, partitionExpressions.get(i).toProtobuf());
     }
 
-    for(int i = 0; i < sorts.size(); i ++) {
+    for (int i = 0; i < sorts.size(); i++) {
       windowBuilder.addSorts(i, sorts.get(i));
     }
 

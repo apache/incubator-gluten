@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "WriteBufferFromJavaOutputStream.h"
 #include <jni/jni_common.h>
 #include <Common/JNIUtils.h>
@@ -24,8 +40,8 @@ void WriteBufferFromJavaOutputStream::nextImpl()
 WriteBufferFromJavaOutputStream::WriteBufferFromJavaOutputStream(jobject output_stream_, jbyteArray buffer_, size_t customize_buffer_size)
 {
     GET_JNIENV(env)
-    buffer = static_cast<jbyteArray>(env->NewWeakGlobalRef(buffer_));
-    output_stream = env->NewWeakGlobalRef(output_stream_);
+    buffer = static_cast<jbyteArray>(env->NewGlobalRef(buffer_));
+    output_stream = env->NewGlobalRef(output_stream_);
     buffer_size = customize_buffer_size;
     CLEAN_JNIENV
 }
@@ -39,8 +55,8 @@ void WriteBufferFromJavaOutputStream::finalizeImpl()
 WriteBufferFromJavaOutputStream::~WriteBufferFromJavaOutputStream()
 {
     GET_JNIENV(env)
-    env->DeleteWeakGlobalRef(output_stream);
-    env->DeleteWeakGlobalRef(buffer);
+    env->DeleteGlobalRef(output_stream);
+    env->DeleteGlobalRef(buffer);
     CLEAN_JNIENV
 }
 }

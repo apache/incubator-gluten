@@ -29,17 +29,13 @@ class HbwMemoryAllocator final : public MemoryAllocator {
 
   bool allocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
 
-  bool allocateAligned(uint16_t alignment, int64_t size, void** out) override;
+  bool allocateAligned(uint64_t alignment, int64_t size, void** out) override;
 
   bool reallocate(void* p, int64_t size, int64_t newSize, void** out) override;
 
-  bool reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) override;
+  bool reallocateAligned(void* p, uint64_t alignment, int64_t size, int64_t newSize, void** out) override;
 
   bool free(void* p, int64_t size) override;
-
-  bool reserveBytes(int64_t size) override;
-
-  bool unreserveBytes(int64_t size) override;
 
   int64_t getBytes() const override;
 

@@ -16,10 +16,8 @@
  */
 package org.apache.spark.api.python
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.TransformContext
-import io.glutenproject.execution.TransformSupport
+import io.glutenproject.execution.{TransformContext, TransformSupport, UnaryTransformSupport}
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
@@ -27,17 +25,15 @@ import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression._
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel._
+
 import org.apache.spark.TaskContext
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.ColumnarBatch
-import com.google.common.collect.Lists
+
 import com.google.protobuf.Any
 
 import java.util.ArrayList
@@ -47,7 +43,7 @@ case class EvalPythonExecTransformer(
     resultAttrs: Seq[Attribute],
     child: SparkPlan)
   extends EvalPythonExec
-  with TransformSupport {
+  with UnaryTransformSupport {
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
@@ -58,45 +54,17 @@ case class EvalPythonExecTransformer(
       iter: Iterator[InternalRow],
       schema: StructType,
       context: TaskContext): Iterator[InternalRow] = {
-    throw new NotImplementedError("EvalPythonExecTransformer doesn't support evaluate")
-  }
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(s"EvalPythonExecTransformer doesn't support doExecute")
+    throw new IllegalStateException("EvalPythonExecTransformer doesn't support evaluate")
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): EvalPythonExecTransformer =
     copy(udfs, resultAttrs, newChild)
 
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      val childPlans = c.getBuildPlans
-      childPlans :+ (this, null)
-    case _ =>
-      Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
-
-  override def supportsColumnar: Boolean = true
-
   override protected def doValidateInternal(): ValidationResult = {
     // All udfs should be scalar python udf
     for (udf <- udfs) {
       if (!PythonUDF.isScalarPythonUDF(udf)) {
-        return notOk(s"$udf is not scalar python udf")
+        return ValidationResult.notOk(s"$udf is not scalar python udf")
       }
     }
 
@@ -114,16 +82,8 @@ case class EvalPythonExecTransformer(
       })
 
     val relNode = RelBuilder.makeProjectRel(null, expressionNodes, context, operatorId)
-    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(relNode))
-      if (BackendsApiManager.getValidatorApiInstance.doValidate(planNode)) {
-        ok()
-      } else {
-        notOk(s"substrait plan check failure, $planNode")
-      }
-    } else {
-      ok()
-    }
+
+    doNativeValidation(context, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {

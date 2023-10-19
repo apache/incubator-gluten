@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
 import com.google.protobuf.Any;
@@ -32,24 +31,31 @@ public class ExtensionTableNode implements Serializable {
   private String relativePath = null;
   private StringBuffer extensionTableStr = new StringBuffer(MERGE_TREE);
 
-  ExtensionTableNode(Long minPartsNum, Long maxPartsNum, String database, String tableName,
-                     String relativePath) {
+  ExtensionTableNode(
+      Long minPartsNum, Long maxPartsNum, String database, String tableName, String relativePath) {
     this.minPartsNum = minPartsNum;
     this.maxPartsNum = maxPartsNum;
     this.database = database;
     this.tableName = tableName;
     this.relativePath = relativePath;
     // MergeTree;{database}\n{table}\n{relative_path}\n{min_part}\n{max_part}\n
-    extensionTableStr.append(database).append("\n").append(tableName).append("\n")
-        .append(relativePath).append("\n")
-        .append(this.minPartsNum).append("\n")
-        .append(this.maxPartsNum).append("\n");
+    extensionTableStr
+        .append(database)
+        .append("\n")
+        .append(tableName)
+        .append("\n")
+        .append(relativePath)
+        .append("\n")
+        .append(this.minPartsNum)
+        .append("\n")
+        .append(this.maxPartsNum)
+        .append("\n");
   }
 
   public ReadRel.ExtensionTable toProtobuf() {
     ReadRel.ExtensionTable.Builder extensionTableBuilder = ReadRel.ExtensionTable.newBuilder();
-    StringValue extensionTable =  StringValue.newBuilder()
-            .setValue(extensionTableStr.toString()).build();
+    StringValue extensionTable =
+        StringValue.newBuilder().setValue(extensionTableStr.toString()).build();
     extensionTableBuilder.setDetail(Any.pack(extensionTable));
     return extensionTableBuilder.build();
   }

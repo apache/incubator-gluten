@@ -14,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.memory.alloc;
 
 /**
- * This along with {@link NativeMemoryAllocators},
- * as built-in toolkit for managing native memory allocations.
+ * This along with {@link NativeMemoryAllocators}, as built-in toolkit for managing native memory
+ * allocations.
  */
 public class NativeMemoryAllocator {
   enum Type {
@@ -27,36 +26,17 @@ public class NativeMemoryAllocator {
   }
 
   private final long nativeInstanceId;
-  private final ReservationListener listener;
 
-  public NativeMemoryAllocator(long nativeInstanceId, ReservationListener listener) {
+  public NativeMemoryAllocator(long nativeInstanceId) {
     this.nativeInstanceId = nativeInstanceId;
-    this.listener = listener;
   }
 
   public static NativeMemoryAllocator create(Type type) {
-    return
-        new NativeMemoryAllocator(
-            getAllocator(type.name()),
-            ReservationListener.NOOP);
-  }
-
-  public static NativeMemoryAllocator createListenable(
-      ReservationListener listener, NativeMemoryAllocator delegated) {
-    return new NativeMemoryAllocator(
-        createListenableAllocator(listener, delegated.nativeInstanceId), listener);
-  }
-
-  public ReservationListener listener() {
-    return listener;
+    return new NativeMemoryAllocator(getAllocator(type.name()));
   }
 
   public long getNativeInstanceId() {
     return this.nativeInstanceId;
-  }
-
-  public long getBytesAllocated() {
-    return bytesAllocated(this.nativeInstanceId);
   }
 
   public void close() {
@@ -65,10 +45,5 @@ public class NativeMemoryAllocator {
 
   private static native long getAllocator(String typeName);
 
-  private static native long createListenableAllocator(
-      ReservationListener listener, long delegatedAllocatorId);
-
   private static native void releaseAllocator(long allocatorId);
-
-  private static native long bytesAllocated(long allocatorId);
 }

@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
 public class ShuffleReaderMetrics {
   private long decompressTime;
+  private long ipcTime;
+  private long deserializeTime;
 
   public void setDecompressTime(long decompressTime) {
     this.decompressTime = decompressTime;
@@ -26,5 +27,21 @@ public class ShuffleReaderMetrics {
 
   public long getDecompressTime() {
     return decompressTime;
+  }
+
+  public void setIpcTime(long ipcTime) {
+    this.ipcTime = ipcTime;
+  }
+
+  public long getIpcTime() {
+    return ipcTime;
+  }
+
+  public void setDeserializeTime(long ipcTime) {
+    this.deserializeTime = deserializeTime;
+  }
+
+  public long getDeserializeTime() {
+    return deserializeTime;
   }
 }

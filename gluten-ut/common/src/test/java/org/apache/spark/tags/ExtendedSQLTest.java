@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.tags;
 
 import org.scalatest.TagAnnotation;
@@ -27,5 +26,4 @@ import java.lang.annotation.Target;
 @TagAnnotation
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.TYPE})
-public @interface ExtendedSQLTest { }
-
+public @interface ExtendedSQLTest {}

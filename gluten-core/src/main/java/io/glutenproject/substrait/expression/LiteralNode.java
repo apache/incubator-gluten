@@ -14,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
-
 import io.glutenproject.substrait.type.TypeNode;
+
+import io.substrait.proto.Expression;
 
 import java.io.Serializable;
 

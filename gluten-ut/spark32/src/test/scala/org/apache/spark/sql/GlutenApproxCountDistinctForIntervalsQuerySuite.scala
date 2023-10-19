@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 class GlutenApproxCountDistinctForIntervalsQuerySuite
-  extends ApproxCountDistinctForIntervalsQuerySuite with GlutenSQLTestsTrait {
-}
+  extends ApproxCountDistinctForIntervalsQuerySuite
+  with GlutenSQLTestsTrait {}

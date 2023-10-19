@@ -14,36 +14,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.utils
 
 import io.glutenproject.columnarbatch.ColumnarBatches
-import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.vectorized.ArrowWritableColumnVector
+
+import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import org.apache.arrow.memory.ArrowBuf
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.message.{ArrowFieldNode, ArrowRecordBatch}
 
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
 
 object SparkVectorUtil {
 
   def toArrowRecordBatch(columnarBatch: ColumnarBatch): ArrowRecordBatch = {
     val numRowsInBatch = columnarBatch.numRows()
-    val cols = (0 until columnarBatch.numCols).toList.map(i =>
-      ColumnarBatches
-        .ensureLoaded(ArrowBufferAllocators.contextInstance(), columnarBatch)
-        .column(i).asInstanceOf[ArrowWritableColumnVector].getValueVector)
+    val cols = (0 until columnarBatch.numCols).toList.map(
+      i =>
+        ColumnarBatches
+          .ensureLoaded(ArrowBufferAllocators.contextInstance(), columnarBatch)
+          .column(i)
+          .asInstanceOf[ArrowWritableColumnVector]
+          .getValueVector)
     toArrowRecordBatch(numRowsInBatch, cols)
   }
 
   def toArrowRecordBatch(numRows: Int, cols: List[ValueVector]): ArrowRecordBatch = {
     val nodes = new java.util.ArrayList[ArrowFieldNode]()
     val buffers = new java.util.ArrayList[ArrowBuf]()
-    cols.foreach(vector => {
-      appendNodes(vector.asInstanceOf[FieldVector], nodes, buffers);
-    })
+    cols.foreach(
+      vector => {
+        appendNodes(vector.asInstanceOf[FieldVector], nodes, buffers);
+      })
     new ArrowRecordBatch(numRows, nodes, buffers);
   }
 
@@ -65,10 +70,10 @@ object SparkVectorUtil {
   }
 
   def appendNodes(
-                   vector: FieldVector,
-                   nodes: java.util.List[ArrowFieldNode],
-                   buffers: java.util.List[ArrowBuf],
-                   bits: java.util.List[Boolean] = null): Unit = {
+      vector: FieldVector,
+      nodes: java.util.List[ArrowFieldNode],
+      buffers: java.util.List[ArrowBuf],
+      bits: java.util.List[Boolean] = null): Unit = {
     if (nodes != null) {
       nodes.add(new ArrowFieldNode(vector.getValueCount, vector.getNullCount))
     }
@@ -77,15 +82,15 @@ object SparkVectorUtil {
     if (fieldBuffers.size != expectedBufferCount) {
       throw new IllegalArgumentException(
         s"Wrong number of buffers for field ${vector.getField} in vector " +
-          s"${vector.getClass.getSimpleName}. found: ${fieldBuffers}")
+          s"${vector.getClass.getSimpleName}. found: $fieldBuffers")
     }
     buffers.addAll(fieldBuffers.toSeq.asJava)
     if (bits != null) {
       val bits_tmp = Array.fill[Boolean](expectedBufferCount)(false)
       bits_tmp(0) = true
       bits.addAll(bits_tmp.toSeq.asJava)
-      vector.getChildrenFromFields.asScala.foreach(child =>
-        appendNodes(child, nodes, buffers, bits))
+      vector.getChildrenFromFields.asScala.foreach(
+        child => appendNodes(child, nodes, buffers, bits))
     } else {
       vector.getChildrenFromFields.asScala.foreach(child => appendNodes(child, nodes, buffers))
     }

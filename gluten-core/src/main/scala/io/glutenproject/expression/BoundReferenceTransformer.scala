@@ -14,14 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.types._
 
-class BoundReferenceTransformer(ordinal: Int, dataType: DataType, nullable: Boolean)
+case class BoundReferenceTransformer(ordinal: Int, dataType: DataType, nullable: Boolean)
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {

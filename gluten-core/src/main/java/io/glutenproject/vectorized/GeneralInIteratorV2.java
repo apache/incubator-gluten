@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -25,6 +24,4 @@ public abstract class GeneralInIteratorV2 extends GeneralInIterator {
   public GeneralInIteratorV2(Iterator<ColumnarBatch> delegated) {
     super(delegated);
   }
-
-
 }

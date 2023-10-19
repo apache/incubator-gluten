@@ -77,7 +77,8 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "pruningTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "dynamic partition pruning time"),
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time")
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "readBytes" -> SQLMetrics.createMetric(sparkContext, "number of read bytes")
     )
 
   override def genHiveTableScanTransformerMetricsUpdater(
@@ -196,6 +197,10 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
         sparkContext,
         "totaltime to compute pid"),
       "splitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to split"),
+      "IOTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to disk io"),
+      "serializeTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "totaltime to block serialization"),
       "spillTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to spill"),
       "compressTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to compress"),
       "prepareTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime to prepare"),
@@ -325,4 +330,10 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genHashJoinTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new HashJoinMetricsUpdater(metrics)
+
+  override def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map.empty
+
+  override def genGenerateTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric]): MetricsUpdater = NoopMetricsUpdater
 }

@@ -1,9 +1,27 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.glutenproject.integration.tpc.action
 
 import io.glutenproject.integration.stat.RamStat
 import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
+
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
 import org.apache.spark.sql.SparkSessionSwitcher
+
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.collection.immutable.Map
@@ -101,10 +119,11 @@ class Parameterized(
     }
 
     // warm up
-    (0 until warmupIterations).foreach { _ =>
-      runQueryIds.foreach {
-        queryId => Parameterized.warmUp(queryId, tpcSuite.desc(), sessionSwitcher, runner)
-      }
+    (0 until warmupIterations).foreach {
+      _ =>
+        runQueryIds.foreach {
+          queryId => Parameterized.warmUp(queryId, tpcSuite.desc(), sessionSwitcher, runner)
+        }
     }
 
     val results = coordinates.flatMap {
@@ -115,7 +134,13 @@ class Parameterized(
             println(s"Running tests (iteration $iteration) with coordinate $coordinate...")
             runQueryIds.map {
               queryId =>
-                Parameterized.runTpcQuery(runner, sessionSwitcher, queryId, coordinate, tpcSuite.desc(), metrics)
+                Parameterized.runTpcQuery(
+                  runner,
+                  sessionSwitcher,
+                  queryId,
+                  coordinate,
+                  tpcSuite.desc(),
+                  metrics)
             }
         }.toList
         coordinateResults
@@ -175,7 +200,10 @@ case class TestResultLine(
     metrics: Map[String, Long],
     errorMessage: Option[String])
 
-case class TestResultLines(dimNames: Seq[String], metricNames: Seq[String], lines: Iterable[TestResultLine]) {
+case class TestResultLines(
+    dimNames: Seq[String],
+    metricNames: Seq[String],
+    lines: Iterable[TestResultLine]) {
   def print(): Unit = {
     var fmt = "|%15s|%15s"
     for (_ <- dimNames.indices) {
@@ -215,13 +243,20 @@ case class TestResultLines(dimNames: Seq[String], metricNames: Seq[String], line
 }
 
 object Parameterized {
-  private def runTpcQuery(runner: TpcRunner, sessionSwitcher: SparkSessionSwitcher, id: String, coordinate: Coordinate, desc: String, metrics: Array[String]) = {
+  private def runTpcQuery(
+      runner: TpcRunner,
+      sessionSwitcher: SparkSessionSwitcher,
+      id: String,
+      coordinate: Coordinate,
+      desc: String,
+      metrics: Array[String]) = {
     println(s"Running query: $id...")
     try {
       val testDesc = "Gluten Spark %s %s %s".format(desc, id, coordinate)
       sessionSwitcher.useSession(coordinate.toString, testDesc)
       runner.createTables(sessionSwitcher.spark())
-      val result = runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = false, metrics)
+      val result =
+        runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = false, metrics)
       val resultRows = result.rows
       println(
         s"Successfully ran query $id. " +
@@ -245,10 +280,10 @@ object Parameterized {
   }
 
   private[tpc] def warmUp(
-                           id: String,
-                           desc: String,
-                           sessionSwitcher: SparkSessionSwitcher,
-                           runner: TpcRunner): Unit = {
+      id: String,
+      desc: String,
+      sessionSwitcher: SparkSessionSwitcher,
+      runner: TpcRunner): Unit = {
     println(s"Warming up: Running query: $id...")
     try {
       val testDesc = "Gluten Spark %s %s warm up".format(desc, id)

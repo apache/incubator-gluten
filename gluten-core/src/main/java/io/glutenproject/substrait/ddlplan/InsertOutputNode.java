@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.ddlplan;
 
 import com.google.protobuf.Any;
@@ -31,16 +30,21 @@ public class InsertOutputNode implements Serializable {
   private String relativePath = null;
   private StringBuffer extensionTableStr = new StringBuffer(MERGE_TREE);
 
-  InsertOutputNode(Long partsNum, String database, String tableName,
-                   String relativePath) {
+  InsertOutputNode(Long partsNum, String database, String tableName, String relativePath) {
     this.partsNum = partsNum;
     this.database = database;
     this.tableName = tableName;
     this.relativePath = relativePath;
     // MergeTree;{database}\n{table}\n{relative_path}\n{min_part}\n{max_part}\n
-    extensionTableStr.append(database).append("\n").append(tableName).append("\n")
-        .append(relativePath).append("\n")
-        .append(this.partsNum).append("\n");
+    extensionTableStr
+        .append(database)
+        .append("\n")
+        .append(tableName)
+        .append("\n")
+        .append(relativePath)
+        .append("\n")
+        .append(this.partsNum)
+        .append("\n");
   }
 
   public ReadRel.ExtensionTable toProtobuf() {

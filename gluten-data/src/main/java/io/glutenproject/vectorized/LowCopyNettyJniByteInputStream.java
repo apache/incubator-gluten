@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
+
+import io.glutenproject.exception.GlutenException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
@@ -27,9 +28,9 @@ import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 
 /**
- * This implementation is targeted to optimize against Spark's
- * {@link org.apache.spark.network.buffer.NettyManagedBuffer} to make sure shuffle data is shared
- * over JNI without unnecessary copy.
+ * This implementation is targeted to optimize against Spark's {@link
+ * org.apache.spark.network.buffer.NettyManagedBuffer} to make sure shuffle data is shared over JNI
+ * without unnecessary copy.
  */
 public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
 
@@ -56,7 +57,7 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
     try {
       this.byteBuf = (ByteBuf) FIELD_ByteBufInputStream_buffer.get(unwrapped);
     } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -86,7 +87,7 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
       }
       return true;
     } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -100,7 +101,7 @@ public class LowCopyNettyJniByteInputStream implements JniByteInputStream {
     try {
       in.close();
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 }

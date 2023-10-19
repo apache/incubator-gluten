@@ -1,13 +1,31 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #pragma once
 #include <unordered_map>
 #include <Core/Field.h>
 #include <Core/SortDescription.h>
 #include <DataTypes/IDataType.h>
 #include <Interpreters/WindowDescription.h>
+#include <Parser/AggregateFunctionParser.h>
 #include <Parser/RelParser.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
+
 namespace local_engine
 {
 class WindowRelParser : public RelParser
@@ -17,27 +35,44 @@ public:
     ~WindowRelParser() override = default;
     DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_) override;
+    const substrait::Rel & getSingleInput(const substrait::Rel & rel) override { return rel.window().input(); }
 
 private:
+    struct WindowInfo
+    {
+        const substrait::WindowRel::Measure * measure = nullptr;
+        String result_column_name;
+        Strings arg_column_names;
+        DB::DataTypes arg_column_types;
+        DB::Array params;
+        String signature_function_name;
+        // function name in CH
+        String function_name;
+        // For avoiding repeated builds.
+        AggregateFunctionParser::CommonFunctionInfo parser_func_info;
+        // For avoiding repeated builds.
+        AggregateFunctionParserPtr function_parser;
+
+        google::protobuf::RepeatedPtrField<substrait::Expression> partition_exprs;
+        google::protobuf::RepeatedPtrField<substrait::SortField> sort_fields;
+    };
     DB::QueryPlanPtr current_plan;
-    // std::list<const substrait::Rel *> * rel_stack;
+    DB::Block input_header;
+    // The final output schema.
+    DB::Block output_header;
     Poco::Logger * logger = &Poco::Logger::get("WindowRelParser");
-    // for constructing aggregate function argument names
-    std::vector<DB::Names> measures_arg_names;
-    std::vector<DB::DataTypes> measures_arg_types;
+    std::vector<WindowInfo> win_infos;
 
     /// There will be window descrptions generated for different window frame type;
-    std::unordered_map<DB::String, WindowDescription> parseWindowDescriptions(const substrait::WindowRel & win_rel);
+    std::unordered_map<DB::String, WindowDescription> parseWindowDescriptions();
 
     // Build a window description in CH with respect to a window function, since the same
     // function may have different window frame in CH and spark.
-    DB::WindowDescription
-    parseWindowDescrption(const substrait::WindowRel & win_rel, const substrait::Expression::WindowFunction & win_function);
-    DB::WindowFrame parseWindowFrame(const substrait::Expression::WindowFunction & window_function);
+    DB::WindowDescription parseWindowDescription(const WindowInfo & win_info);
+    DB::WindowFrame parseWindowFrame(const WindowInfo & win_info);
     DB::WindowFrame::FrameType
     parseWindowFrameType(const std::string & function_name, const substrait::Expression::WindowFunction & window_function);
     static void parseBoundType(
-        const std::string & function_name,
         const substrait::Expression::WindowFunction::Bound & bound,
         bool is_begin_or_end,
         DB::WindowFrame::BoundaryType & bound_type,
@@ -45,12 +80,15 @@ private:
         bool & preceding);
     DB::SortDescription parsePartitionBy(const google::protobuf::RepeatedPtrField<substrait::Expression> & expressions);
     DB::WindowFunctionDescription parseWindowFunctionDescription(
-        const substrait::WindowRel & win_rel,
+        const String & ch_function_name,
         const substrait::Expression::WindowFunction & window_function,
         const DB::Names & arg_names,
-        const DB::DataTypes & arg_types);
+        const DB::DataTypes & arg_types,
+        const DB::Array & params);
 
-    void tryAddProjectionBeforeWindow(QueryPlan & plan, const substrait::WindowRel & win_rel);
+    void initWindowsInfos(const substrait::WindowRel & win_rel);
+    void tryAddProjectionBeforeWindow();
+    void tryAddProjectionAfterWindow();
 };
 
 

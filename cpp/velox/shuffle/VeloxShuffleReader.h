@@ -17,31 +17,27 @@
 
 #pragma once
 
-#include "shuffle/reader.h"
+#include "shuffle/ShuffleReader.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
 
 namespace gluten {
-class VeloxShuffleReader final : public Reader {
+
+class VeloxShuffleReader final : public ShuffleReader {
  public:
-  explicit VeloxShuffleReader(
-      std::shared_ptr<arrow::io::InputStream> in,
+  VeloxShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
-      ReaderOptions options,
-      std::shared_ptr<arrow::MemoryPool> pool,
+      ShuffleReaderOptions options,
+      arrow::MemoryPool* pool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool);
 
-  arrow::Result<std::shared_ptr<ColumnarBatch>> next() override;
-
-  // Visiable for testing
-  static facebook::velox::RowVectorPtr readRowVector(
-      const arrow::RecordBatch& batch,
-      facebook::velox::RowTypePtr rowType,
-      facebook::velox::memory::MemoryPool* pool);
+  std::shared_ptr<ResultIterator> readStream(std::shared_ptr<arrow::io::InputStream> in) override;
 
  private:
   facebook::velox::RowTypePtr rowType_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
 };
+
+extern bool veloxShuffleReaderPrintFlag;
 
 } // namespace gluten

@@ -22,6 +22,7 @@
 #include "shuffle/SinglePartPartitioner.h"
 
 namespace gluten {
+
 arrow::Result<std::shared_ptr<ShuffleWriter::Partitioner>> ShuffleWriter::Partitioner::make(
     const std::string& name,
     int32_t numPartitions) {

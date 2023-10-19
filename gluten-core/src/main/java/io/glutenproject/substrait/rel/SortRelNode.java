@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
+
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
 import io.substrait.proto.SortField;
@@ -31,16 +31,14 @@ public class SortRelNode implements RelNode, Serializable {
   private final ArrayList<SortField> sorts = new ArrayList<>();
   private final AdvancedExtensionNode extensionNode;
 
-  public SortRelNode(RelNode input,
-                     ArrayList<SortField> sorts,
-                     AdvancedExtensionNode extensionNode) {
+  public SortRelNode(
+      RelNode input, ArrayList<SortField> sorts, AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.sorts.addAll(sorts);
     this.extensionNode = extensionNode;
   }
 
-  public SortRelNode(RelNode input,
-                     ArrayList<SortField> sorts) {
+  public SortRelNode(RelNode input, ArrayList<SortField> sorts) {
     this.input = input;
     this.sorts.addAll(sorts);
     this.extensionNode = null;
@@ -58,7 +56,7 @@ public class SortRelNode implements RelNode, Serializable {
       sortBuilder.setInput(input.toProtobuf());
     }
 
-    for(int i = 0; i < sorts.size(); i ++) {
+    for (int i = 0; i < sorts.size(); i++) {
       sortBuilder.addSorts(i, sorts.get(i));
     }
 

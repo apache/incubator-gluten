@@ -1,6 +1,23 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "TextFormatFile.h"
 
 #include <memory>
+
 #include <Formats/FormatSettings.h>
 #include <Processors/Formats/Impl/HiveTextRowInputFormat.h>
 #include <Poco/URI.h>
@@ -17,31 +34,25 @@ TextFormatFile::TextFormatFile(
 FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
-    res->read_buffer = read_buffer_builder->build(file_info, true);
+    res->read_buffer = read_buffer_builder->buildWithCompressionWrapper(file_info, true);
 
-    Poco::URI file_uri(file_info.uri_file());
-    DB::CompressionMethod compression = DB::chooseCompressionMethod(file_uri.getPath(), "auto");
-    if (compression != DB::CompressionMethod::None)
-    {
-        res->read_buffer = DB::wrapReadBufferWithCompressionMethod(std::move(res->read_buffer), compression);
-    }
-    
     /// Initialize format params
     size_t max_block_size = file_info.text().max_block_size();
     DB::RowInputFormatParams params = {.max_block_size = max_block_size};
 
     /// Initialize format settings
     DB::FormatSettings format_settings = DB::getFormatSettings(context);
-    const auto & schema = file_info.text().schema();
+    const auto & schema = file_info.schema();
     for (const auto & name : schema.names())
         format_settings.hive_text.input_field_names.push_back(name);
+
     std::string text_field_delimiter = file_info.text().field_delimiter();
-    if (text_field_delimiter == "\t" || text_field_delimiter == " ")
-    {
-       format_settings.csv.allow_whitespace_or_tab_as_delimiter = true;
-    }
     format_settings.hive_text.fields_delimiter = file_info.text().field_delimiter()[0];
-    format_settings.csv.empty_as_default = false;
+    format_settings.csv.empty_as_default = file_info.text().empty_as_default();
+    format_settings.csv.allow_whitespace_or_tab_as_delimiter = true;
+    format_settings.csv.use_default_on_bad_values = true;
+    format_settings.csv.skip_trailing_empty_lines = true;
+    format_settings.csv.allow_variable_number_of_columns = true;
     char quote = *file_info.text().quote().data();
     if (quote == '\'')
     {

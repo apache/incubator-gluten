@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -64,4 +64,7 @@ trait SparkShims {
       options: CaseInsensitiveStringMap,
       partitionFilters: Seq[Expression] = Seq.empty,
       dataFilters: Seq[Expression] = Seq.empty): TextScan
+
+  def filesGroupedToBuckets(
+      selectedPartitions: Array[PartitionDirectory]): Map[Int, Array[PartitionedFile]]
 }

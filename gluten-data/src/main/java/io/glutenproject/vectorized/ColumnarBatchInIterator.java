@@ -14,12 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
+import io.glutenproject.columnarbatch.ColumnarBatchJniWrapper;
 import io.glutenproject.columnarbatch.ColumnarBatches;
-import java.util.Iterator;
+import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
+
 import org.apache.spark.sql.vectorized.ColumnarBatch;
+
+import java.util.Iterator;
 
 public class ColumnarBatchInIterator extends GeneralInIterator {
   public ColumnarBatchInIterator(Iterator<ColumnarBatch> delegated) {
@@ -27,7 +30,13 @@ public class ColumnarBatchInIterator extends GeneralInIterator {
   }
 
   public long next() {
-    final ColumnarBatch batch = nextColumnarBatch();
-    return ColumnarBatches.getNativeHandle(batch);
+    final ColumnarBatch next = nextColumnarBatch();
+    if (next.numCols() == 0) {
+      // the operation will find a zero column batch from a task-local pool
+      return ColumnarBatchJniWrapper.create().getForEmptySchema(next.numRows());
+    }
+    final ColumnarBatch offloaded =
+        ColumnarBatches.ensureOffloaded(ArrowBufferAllocators.contextInstance(), next);
+    return ColumnarBatches.getNativeHandle(offloaded);
   }
 }

@@ -38,7 +38,7 @@ object MetricsUtil extends Logging {
       case t: TransformSupport =>
         MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
       case _ =>
-        MetricsUpdaterTree(new NoopMetricsUpdater, Seq())
+        MetricsUpdaterTree(NoopMetricsUpdater, Seq())
     }
   }
 
@@ -65,7 +65,7 @@ object MetricsUtil extends Logging {
     updateTransformerMetrics(
       mut,
       relMap,
-      new java.lang.Long(relMap.size() - 1),
+      java.lang.Long.valueOf(relMap.size() - 1),
       joinParamsMap,
       aggParamsMap)
   }
@@ -104,7 +104,7 @@ object MetricsUtil extends Logging {
             s"Updating native metrics failed due to the wrong size of metrics data: " +
               s"$numNativeMetrics")
           ()
-        } else if (mutNode.updater.isInstanceOf[NoopMetricsUpdater]) {
+        } else if (mutNode.updater == NoopMetricsUpdater) {
           ()
         } else {
           updateTransformerMetricsInternal(
@@ -155,7 +155,7 @@ object MetricsUtil extends Logging {
 
     mutNode.children.foreach {
       child =>
-        if (!child.updater.isInstanceOf[NoopMetricsUpdater]) {
+        if (child.updater != NoopMetricsUpdater) {
           val result = updateTransformerMetricsInternal(
             child,
             relMap,

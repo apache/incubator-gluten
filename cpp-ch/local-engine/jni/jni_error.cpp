@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <stdexcept>
 #include <jni.h>
 #include <jni/jni_common.h>
@@ -44,7 +60,7 @@ void JniErrorsGlobalState::destroy(JNIEnv * env)
 void JniErrorsGlobalState::initialize(JNIEnv * env_)
 {
     io_exception_class = CreateGlobalExceptionClassReference(env_, "Ljava/io/IOException;");
-    runtime_exception_class = CreateGlobalExceptionClassReference(env_, "Ljava/lang/RuntimeException;");
+    runtime_exception_class = CreateGlobalExceptionClassReference(env_, "Lio/glutenproject/exception/GlutenException;");
     unsupportedoperation_exception_class = CreateGlobalExceptionClassReference(env_, "Ljava/lang/UnsupportedOperationException;");
     illegal_access_exception_class = CreateGlobalExceptionClassReference(env_, "Ljava/lang/IllegalAccessException;");
     illegal_argument_exception_class = CreateGlobalExceptionClassReference(env_, "Ljava/lang/IllegalArgumentException;");
@@ -66,7 +82,6 @@ void JniErrorsGlobalState::throwException(
     if (exception_class)
     {
         std::string error_msg = message + "\n" + stack_trace;
-        std::cerr << "Re-throwing a java exception for native exception..." << std::endl;
         env->ThrowNew(exception_class, error_msg.c_str());
     }
     else

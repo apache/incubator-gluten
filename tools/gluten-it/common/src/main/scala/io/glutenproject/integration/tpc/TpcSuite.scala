@@ -1,48 +1,77 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.glutenproject.integration.tpc
 
 import io.glutenproject.integration.tpc.action.Action
 
-import java.io.File
-import java.util.Scanner
-import org.apache.log4j.{Level, LogManager}
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.history.HistoryServerHelper
 import org.apache.spark.network.util.ByteUnit
-import org.apache.spark.sql.SparkSessionSwitcher
 import org.apache.spark.sql.ConfUtils.ConfImplicits._
+import org.apache.spark.sql.SparkSessionSwitcher
+
+import org.apache.log4j.{Level, LogManager}
+
+import java.io.File
+import java.util.Scanner
 
 abstract class TpcSuite(
-  private val masterUrl: String,
-  private val actions: Array[Action],
-  private val testConf: SparkConf,
-  private val baselineConf: SparkConf,
-  private val extraSparkConf: Map[String, String],
-  private val logLevel: Level,
-  private val errorOnMemLeak: Boolean,
-  private val enableUi: Boolean,
-  private val enableHsUi: Boolean,
-  private val hsUiPort: Int,
-  private val offHeapSize: String,
-  private val disableAqe: Boolean,
-  private val disableBhj: Boolean,
-  private val disableWscg: Boolean,
-  private val shufflePartitions: Int,
-  private val minimumScanPartitions: Boolean) {
+    private val masterUrl: String,
+    private val actions: Array[Action],
+    private val testConf: SparkConf,
+    private val baselineConf: SparkConf,
+    private val extraSparkConf: Map[String, String],
+    private val logLevel: Level,
+    private val errorOnMemLeak: Boolean,
+    private val enableUi: Boolean,
+    private val enableHsUi: Boolean,
+    private val hsUiPort: Int,
+    private val offHeapSize: String,
+    private val disableAqe: Boolean,
+    private val disableBhj: Boolean,
+    private val disableWscg: Boolean,
+    private val shufflePartitions: Int,
+    private val minimumScanPartitions: Boolean) {
 
   resetLogLevel()
 
-  private[tpc] val sessionSwitcher: SparkSessionSwitcher = new SparkSessionSwitcher(masterUrl, logLevel.toString)
+  private[tpc] val sessionSwitcher: SparkSessionSwitcher =
+    new SparkSessionSwitcher(masterUrl, logLevel.toString)
 
   // define initial configs
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.sources.useV1SourceList", "")
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.shuffle.partitions", s"$shufflePartitions")
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.storage.blockManagerSlaveTimeoutMs", "3600000")
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.executor.heartbeatInterval", "1s") // for keeping metrics updated
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.executor.metrics.pollingInterval", "0")
+  sessionSwitcher
+    .defaultConf()
+    .setWarningOnOverriding("spark.sql.shuffle.partitions", s"$shufflePartitions")
+  sessionSwitcher
+    .defaultConf()
+    .setWarningOnOverriding("spark.storage.blockManagerSlaveTimeoutMs", "3600000")
+  sessionSwitcher
+    .defaultConf()
+    .setWarningOnOverriding("spark.executor.heartbeatInterval", "1s") // for keeping metrics updated
+  sessionSwitcher
+    .defaultConf()
+    .setWarningOnOverriding("spark.executor.metrics.pollingInterval", "0")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.network.timeout", "3601s")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.broadcastTimeout", "1800")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.network.io.preferDirectBufs", "false")
-  sessionSwitcher.defaultConf().setWarningOnOverriding("spark.unsafe.exceptionOnMemoryLeak", s"$errorOnMemLeak")
+  sessionSwitcher
+    .defaultConf()
+    .setWarningOnOverriding("spark.unsafe.exceptionOnMemoryLeak", s"$errorOnMemLeak")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.memory.offHeap.enabled", "true")
   sessionSwitcher.defaultConf().setWarningOnOverriding("spark.memory.offHeap.size", offHeapSize)
 
@@ -52,8 +81,9 @@ abstract class TpcSuite(
 
   if (enableHsUi) {
     if (!new File(historyWritePath()).exists() && !new File(historyWritePath()).mkdirs()) {
-      throw new RuntimeException("Unable to create history directory: " +
-        historyWritePath())
+      throw new RuntimeException(
+        "Unable to create history directory: " +
+          historyWritePath())
     }
     sessionSwitcher.defaultConf().setWarningOnOverriding("spark.eventLog.enabled", "true")
     sessionSwitcher.defaultConf().setWarningOnOverriding("spark.eventLog.dir", historyWritePath())
@@ -64,7 +94,9 @@ abstract class TpcSuite(
   }
 
   if (disableBhj) {
-    sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.autoBroadcastJoinThreshold", "-1")
+    sessionSwitcher
+      .defaultConf()
+      .setWarningOnOverriding("spark.sql.autoBroadcastJoinThreshold", "-1")
   }
 
   if (disableWscg) {
@@ -72,13 +104,17 @@ abstract class TpcSuite(
   }
 
   if (minimumScanPartitions) {
-    sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
-    sessionSwitcher.defaultConf().setWarningOnOverriding("spark.sql.files.openCostInBytes", s"${ByteUnit.PiB.toBytes(1L)}")
+    sessionSwitcher
+      .defaultConf()
+      .setWarningOnOverriding("spark.sql.files.maxPartitionBytes", s"${ByteUnit.PiB.toBytes(1L)}")
+    sessionSwitcher
+      .defaultConf()
+      .setWarningOnOverriding("spark.sql.files.openCostInBytes", s"${ByteUnit.PiB.toBytes(1L)}")
     sessionSwitcher.defaultConf().setWarningOnOverriding("spark.default.parallelism", "1")
   }
 
-  extraSparkConf.toStream.foreach { kv =>
-    sessionSwitcher.defaultConf().setWarningOnOverriding(kv._1, kv._2)
+  extraSparkConf.toStream.foreach {
+    kv => sessionSwitcher.defaultConf().setWarningOnOverriding(kv._1, kv._2)
   }
 
   // register sessions
@@ -86,10 +122,10 @@ abstract class TpcSuite(
   sessionSwitcher.registerSession("baseline", baselineConf)
 
   def startHistoryServer(): Unit = {
-    val conf = new SparkConf(false)
-    conf.setWarningOnOverriding("spark.history.ui.port", s"$hsUiPort")
-    conf.setWarningOnOverriding("spark.history.fs.logDirectory", historyWritePath())
-    HistoryServerHelper.startHistoryServer(conf)
+    val hsConf = new SparkConf(false)
+    hsConf.setWarningOnOverriding("spark.history.ui.port", s"$hsUiPort")
+    hsConf.setWarningOnOverriding("spark.history.fs.logDirectory", historyWritePath())
+    HistoryServerHelper.startHistoryServer(hsConf)
   }
 
   // boot up history server
@@ -98,9 +134,10 @@ abstract class TpcSuite(
   }
 
   def run(): Boolean = {
-    val succeed = actions.forall { action =>
-      resetLogLevel() // to prevent log level from being set by unknown external codes
-      action.execute(this)
+    val succeed = actions.forall {
+      action =>
+        resetLogLevel() // to prevent log level from being set by unknown external codes
+        action.execute(this)
     }
     succeed
   }
@@ -142,4 +179,3 @@ abstract class TpcSuite(
   private[tpc] def desc(): String
 
 }
-

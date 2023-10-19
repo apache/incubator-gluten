@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -70,15 +70,14 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * A column backed by an in memory JVM array. This stores the NULLs as a byte per value
- * and a java array for the values.
+ * A column backed by an in memory JVM array. This stores the NULLs as a byte per value and a java
+ * array for the values.
  */
 public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   private static final boolean bigEndianPlatform =
       ByteOrder.nativeOrder().equals(ByteOrder.BIG_ENDIAN);
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(ArrowWritableColumnVector.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ArrowWritableColumnVector.class);
 
   private ArrowVectorAccessor accessor;
   private ArrowVectorWriter writer;
@@ -91,20 +90,18 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   private boolean closed = false;
 
   /**
-   * Allocates columns to store elements of each field of the schema on heap.
-   * Capacity is the initial capacity of the vector and it will grow as necessary.
-   * Capacity is in number of elements, not number of bytes.
+   * Allocates columns to store elements of each field of the schema on heap. Capacity is the
+   * initial capacity of the vector and it will grow as necessary. Capacity is in number of
+   * elements, not number of bytes.
    */
-  public static ArrowWritableColumnVector[] allocateColumns(
-      int capacity, StructType schema) {
+  public static ArrowWritableColumnVector[] allocateColumns(int capacity, StructType schema) {
     String timeZoneId = SparkSchemaUtil.getLocalTimezoneID();
     Schema arrowSchema = SparkArrowUtil.toArrowSchema(schema, timeZoneId);
     VectorSchemaRoot newRoot =
         VectorSchemaRoot.create(arrowSchema, ArrowBufferAllocators.contextInstance());
 
     List<FieldVector> fieldVectors = newRoot.getFieldVectors();
-    ArrowWritableColumnVector[] vectors =
-        new ArrowWritableColumnVector[fieldVectors.size()];
+    ArrowWritableColumnVector[] vectors = new ArrowWritableColumnVector[fieldVectors.size()];
     for (int i = 0; i < fieldVectors.size(); i++) {
       vectors[i] = new ArrowWritableColumnVector(fieldVectors.get(i), i, capacity, true);
     }
@@ -117,31 +114,32 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     if (fieldVectors.size() != dictionaryVectors.size()) {
       throw new IllegalArgumentException(
           "Mismatched field vectors and dictionary vectors. "
-              + "Field vector count: " + fieldVectors.size() + ", "
-              + "dictionary vector count: " + dictionaryVectors.size());
+              + "Field vector count: "
+              + fieldVectors.size()
+              + ", "
+              + "dictionary vector count: "
+              + dictionaryVectors.size());
     }
-    ArrowWritableColumnVector[] vectors =
-        new ArrowWritableColumnVector[fieldVectors.size()];
+    ArrowWritableColumnVector[] vectors = new ArrowWritableColumnVector[fieldVectors.size()];
     for (int i = 0; i < fieldVectors.size(); i++) {
-      vectors[i] = new ArrowWritableColumnVector(
-          fieldVectors.get(i), dictionaryVectors.get(i), i, capacity, false);
+      vectors[i] =
+          new ArrowWritableColumnVector(
+              fieldVectors.get(i), dictionaryVectors.get(i), i, capacity, false);
     }
     return vectors;
   }
 
   public static ArrowWritableColumnVector[] loadColumns(
       int capacity, List<FieldVector> fieldVectors) {
-    ArrowWritableColumnVector[] vectors =
-        new ArrowWritableColumnVector[fieldVectors.size()];
+    ArrowWritableColumnVector[] vectors = new ArrowWritableColumnVector[fieldVectors.size()];
     for (int i = 0; i < fieldVectors.size(); i++) {
       vectors[i] = new ArrowWritableColumnVector(fieldVectors.get(i), i, capacity, false);
     }
     return vectors;
   }
 
-  public static ArrowWritableColumnVector[] loadColumns(int capacity, Schema arrowSchema,
-                                                        ArrowRecordBatch recordBatch,
-                                                        BufferAllocator allocator) {
+  public static ArrowWritableColumnVector[] loadColumns(
+      int capacity, Schema arrowSchema, ArrowRecordBatch recordBatch, BufferAllocator allocator) {
     VectorSchemaRoot root = VectorSchemaRoot.create(arrowSchema, allocator);
     VectorLoader loader = new VectorLoader(root);
     loader.load(recordBatch);
@@ -149,13 +147,12 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   @Deprecated
-  public ArrowWritableColumnVector(
-      ValueVector vector, int ordinal, int capacity, boolean init) {
+  public ArrowWritableColumnVector(ValueVector vector, int ordinal, int capacity, boolean init) {
     this(vector, null, ordinal, capacity, init);
   }
 
-  public ArrowWritableColumnVector(ValueVector vector, ValueVector dicionaryVector,
-                                   int ordinal, int capacity, boolean init) {
+  public ArrowWritableColumnVector(
+      ValueVector vector, ValueVector dicionaryVector, int ordinal, int capacity, boolean init) {
     super(capacity, SparkArrowUtil.fromArrowField(vector.getField()));
     vectorCount.getAndIncrement();
     refCnt.getAndIncrement();
@@ -206,8 +203,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       }
       IntVector index = (IntVector) vector;
       if (dictionary instanceof VarBinaryVector) {
-        accessor =
-            new DictionaryEncodedBinaryAccessor(index, (VarBinaryVector) dictionary);
+        accessor = new DictionaryEncodedBinaryAccessor(index, (VarBinaryVector) dictionary);
       } else if (dictionary instanceof VarCharVector) {
         accessor = new DictionaryEncodedStringAccessor(index, (VarCharVector) dictionary);
       } else {
@@ -238,8 +234,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       accessor = new BinaryAccessor((VarBinaryVector) vector);
     } else if (vector instanceof DateDayVector) {
       accessor = new DateAccessor((DateDayVector) vector);
-    } else if (vector instanceof TimeStampMicroVector
-        || vector instanceof TimeStampMicroTZVector) {
+    } else if (vector instanceof TimeStampMicroVector || vector instanceof TimeStampMicroTZVector) {
       accessor = new TimestampMicroAccessor((TimeStampVector) vector);
     } else if (vector instanceof MapVector) {
       MapVector mapVector = (MapVector) vector;
@@ -248,24 +243,23 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       final StructVector structVector = (StructVector) mapVector.getDataVector();
       final FieldVector keyChild = structVector.getChild(MapVector.KEY_NAME);
       final FieldVector valueChild = structVector.getChild(MapVector.VALUE_NAME);
-      childColumns[0] = new ArrowWritableColumnVector(
-          keyChild, 0,  structVector.size(), false);
-      childColumns[1] = new ArrowWritableColumnVector(
-          valueChild, 1,  structVector.size(), false);
+      childColumns[0] = new ArrowWritableColumnVector(keyChild, 0, structVector.size(), false);
+      childColumns[1] = new ArrowWritableColumnVector(valueChild, 1, structVector.size(), false);
     } else if (vector instanceof ListVector) {
       ListVector listVector = (ListVector) vector;
       accessor = new ArrayAccessor(listVector);
       reallocateChildColumns(1);
-      childColumns[0] = new ArrowWritableColumnVector(
-          listVector.getDataVector(), 0, listVector.size(), false);
+      childColumns[0] =
+          new ArrowWritableColumnVector(listVector.getDataVector(), 0, listVector.size(), false);
     } else if (vector instanceof StructVector) {
       StructVector structVector = (StructVector) vector;
       accessor = new StructAccessor(structVector);
 
       reallocateChildColumns(structVector.size());
       for (int i = 0; i < childColumns.length; ++i) {
-        childColumns[i] = new ArrowWritableColumnVector(structVector.getVectorById(i),
-            i, structVector.size(), false);
+        childColumns[i] =
+            new ArrowWritableColumnVector(
+                structVector.getVectorById(i), i, structVector.size(), false);
       }
     } else if (vector instanceof NullVector) {
       NullVector nullVector = (NullVector) vector;
@@ -311,8 +305,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       return new BinaryWriter((VarBinaryVector) vector);
     } else if (vector instanceof DateDayVector) {
       return new DateWriter((DateDayVector) vector);
-    } else if (vector instanceof TimeStampMicroVector
-        || vector instanceof TimeStampMicroTZVector) {
+    } else if (vector instanceof TimeStampMicroVector || vector instanceof TimeStampMicroTZVector) {
       return new TimestampMicroWriter((TimeStampVector) vector);
     } else if (vector instanceof ListVector) {
       ListVector listVector = (ListVector) vector;
@@ -328,8 +321,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     } else if (vector instanceof NullVector) {
       return new NullWriter((NullVector) vector);
     } else {
-      throw new UnsupportedOperationException(
-          "Unsupported data type: " + vector.getMinorType());
+      throw new UnsupportedOperationException("Unsupported data type: " + vector.getMinorType());
     }
   }
 
@@ -563,9 +555,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   /**
-   * Returns the dictionary Id for rowId.
-   * This should only be called when the ColumnVector is dictionaryIds.
-   * We have this separate method for dictionaryIds as per SPARK-16928.
+   * Returns the dictionary Id for rowId. This should only be called when the ColumnVector is
+   * dictionaryIds. We have this separate method for dictionaryIds as per SPARK-16928.
    */
   public int getDictId(int rowId) {
     assert (dictionary == null);
@@ -636,8 +627,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   @Override
-  public void putFloatsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {
-  }
+  public void putFloatsLittleEndian(int rowId, int count, byte[] src, int srcIndex) {}
 
   @Override
   public float getFloat(int rowId) {
@@ -669,8 +659,7 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
   }
 
   @Override
-  public void putDoublesLittleEndian(int rowId, int count, byte[] src, int srcIndex) {
-  }
+  public void putDoublesLittleEndian(int rowId, int count, byte[] src, int srcIndex) {}
 
   @Override
   public void putDoubles(int rowId, int count, byte[] src, int srcIndex) {
@@ -1038,7 +1027,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       if (stringResult.isSet == 0) {
         return null;
       } else {
-        return UTF8String.fromAddress(null,
+        return UTF8String.fromAddress(
+            null,
             stringResult.buffer.memoryAddress() + stringResult.start,
             stringResult.end - stringResult.start);
       }
@@ -1063,7 +1053,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       if (stringResult.isSet == 0) {
         return null;
       } else {
-        return UTF8String.fromAddress(null,
+        return UTF8String.fromAddress(
+            null,
             stringResult.buffer.memoryAddress() + stringResult.start,
             stringResult.end - stringResult.start);
       }
@@ -1090,7 +1081,8 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
       if (stringResult.isSet == 0) {
         return null;
       } else {
-        return UTF8String.fromAddress(null,
+        return UTF8String.fromAddress(
+            null,
             stringResult.buffer.memoryAddress() + stringResult.start,
             stringResult.end - stringResult.start);
       }
@@ -1227,13 +1219,12 @@ public final class ArrowWritableColumnVector extends WritableColumnVectorShim {
     }
   }
 
-
   /**
    * Any call to "get" method will throw UnsupportedOperationException.
-   * <p>
-   * Access struct values in a ArrowWritableColumnVector doesn't use this accessor.
-   * Instead, it uses getStruct() method defined in the parent class. Any call to "get"
-   * method in this class is a bug in the code.
+   *
+   * <p>Access struct values in a ArrowWritableColumnVector doesn't use this accessor. Instead, it
+   * uses getStruct() method defined in the parent class. Any call to "get" method in this class is
+   * a bug in the code.
    */
   private static class StructAccessor extends ArrowVectorAccessor {
     StructAccessor(StructVector vector) {

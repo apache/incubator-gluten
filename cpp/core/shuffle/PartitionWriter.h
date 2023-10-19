@@ -18,6 +18,7 @@
 #pragma once
 
 #include "shuffle/ShuffleWriter.h"
+#include "shuffle/options.h"
 
 namespace gluten {
 
@@ -28,7 +29,9 @@ class ShuffleWriter::PartitionWriter {
 
   virtual arrow::Status init() = 0;
 
-  virtual arrow::Status evictPartition(int32_t partitionId) = 0;
+  virtual arrow::Status processPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
+
+  virtual arrow::Status spill() = 0;
 
   virtual arrow::Status stop() = 0;
 

@@ -14,12 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import io.glutenproject.vectorized.JniLibLoader
 
-trait SharedLibraryLoader{
-    def loadLib(loader: JniLibLoader) : Unit = {}
+trait SharedLibraryLoader {
+  def loadLib(loader: JniLibLoader): Unit
 }
-

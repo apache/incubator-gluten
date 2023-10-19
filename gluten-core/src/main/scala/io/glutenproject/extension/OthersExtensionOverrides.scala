@@ -14,22 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.extension
 
 import io.glutenproject.GlutenSparkExtensionsInjector
 import io.glutenproject.backendsapi.BackendsApiManager
+
 import org.apache.spark.sql.SparkSessionExtensions
 
 object OthersExtensionOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedAnalyzers()
-        .foreach (extensions.injectResolutionRule)
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedOptimizers()
-        .foreach (extensions.injectOptimizerRule)
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedDataSourceV2Strategies()
-        .foreach(extensions.injectPlannerStrategy)
-      BackendsApiManager.getSparkPlanExecApiInstance.genExtendedStrategies()
-        .foreach(extensions.injectPlannerStrategy)
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genExtendedAnalyzers()
+      .foreach(extensions.injectResolutionRule)
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genExtendedOptimizers()
+      .foreach(extensions.injectOptimizerRule)
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genExtendedDataSourceV2Strategies()
+      .foreach(extensions.injectPlannerStrategy)
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genExtendedStrategies()
+      .foreach(extensions.injectPlannerStrategy)
+    BackendsApiManager.getSparkPlanExecApiInstance
+      .genInjectedFunctions()
+      .foreach(extensions.injectFunction)
   }
 }

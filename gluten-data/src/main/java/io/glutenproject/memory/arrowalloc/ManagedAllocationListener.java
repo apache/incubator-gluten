@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.memory.arrowalloc;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
-import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.GlutenConfig;
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.memory.memtarget.MemoryTarget;
+
 import org.apache.arrow.memory.AllocationListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,23 +27,21 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ManagedAllocationListener implements AllocationListener, AutoCloseable {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(ManagedAllocationListener.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ManagedAllocationListener.class);
 
-  public static long BLOCK_SIZE = 8L * 1024 * 1024; // 8MB per block
+  public static long BLOCK_SIZE = GlutenConfig.getConf().memoryReservationBlockSize();
 
-  private final GlutenMemoryConsumer consumer;
-  private final TaskMemoryMetrics metrics;
+  private final MemoryTarget target;
+  private final SimpleMemoryUsageRecorder sharedUsage;
 
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
   private long bytesReserved = 0L;
   private long blocksReserved = 0L;
 
-  public ManagedAllocationListener(GlutenMemoryConsumer consumer,
-                                        TaskMemoryMetrics metrics) {
-    this.consumer = consumer;
-    this.metrics = metrics;
+  public ManagedAllocationListener(MemoryTarget target, SimpleMemoryUsageRecorder sharedUsage) {
+    this.target = target;
+    this.sharedUsage = sharedUsage;
   }
 
   @Override
@@ -59,15 +58,8 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
       return;
     }
     long toBeAcquired = requiredBlocks * BLOCK_SIZE;
-    long granted = consumer.acquire(toBeAcquired);
-    if (granted < toBeAcquired) {
-      consumer.free(granted);
-      throw new UnsupportedOperationException("Not enough spark off-heap execution memory. " +
-          "Acquired: " + size + ", granted: " + granted + ". " +
-          "Try tweaking config option spark.memory.offHeap.size to " +
-          "get larger space to run this application. ");
-    }
-    metrics.inc(granted);
+    long granted = target.borrow(toBeAcquired);
+    sharedUsage.inc(granted);
   }
 
   @Override
@@ -84,8 +76,8 @@ public class ManagedAllocationListener implements AllocationListener, AutoClosea
       return;
     }
     long toBeReleased = -requiredBlocks * BLOCK_SIZE;
-    consumer.free(toBeReleased);
-    metrics.inc(-toBeReleased);
+    long freed = target.repay(toBeReleased);
+    sharedUsage.inc(-freed);
   }
 
   public long updateReservation(long bytesToAdd) {

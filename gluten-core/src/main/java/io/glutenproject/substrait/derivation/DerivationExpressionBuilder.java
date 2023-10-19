@@ -14,20 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.derivation;
 
 public class DerivationExpressionBuilder {
-  private DerivationExpressionBuilder() {
-  }
+  private DerivationExpressionBuilder() {}
 
   public static DerivationExpressionNode makeDerivationFP64(Boolean nullable) {
     return new DerivationFP64TypeNode(nullable);
   }
 
   public static DerivationExpressionNode makeBinaryOP(
-      String op, DerivationExpressionNode arg1,
-      DerivationExpressionNode arg2) {
+      String op, DerivationExpressionNode arg1, DerivationExpressionNode arg2) {
     return new BinaryOPNode(op, arg1, arg2);
   }
 }

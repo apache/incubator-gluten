@@ -28,6 +28,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.io._
 import java.nio.ByteBuffer
+import java.util.Locale
 
 import scala.reflect.ClassTag
 
@@ -53,23 +54,15 @@ private class CHColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private lazy val isUseColumnarShufflemanager =
-    GlutenConfig.getConf.isUseColumnarShuffleManager
-  private lazy val customizeBufferSize = SparkEnv.get.conf.getInt(
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT.toInt
-  )
-  private lazy val isCustomizedShuffleCodec = SparkEnv.get.conf.getBoolean(
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE,
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_SHUFFLE_CODEC_ENABLE_DEFAULT.toBoolean
-  )
   private lazy val compressionCodec =
-    GlutenShuffleUtils.getCompressionCodec(SparkEnv.get.conf)
+    GlutenShuffleUtils.getCompressionCodec(SparkEnv.get.conf).toUpperCase(Locale.ROOT)
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
-
-      private var reader: CHStreamReader = _
+      private val reader: CHStreamReader = new CHStreamReader(
+        in,
+        GlutenConfig.getConf.isUseColumnarShuffleManager,
+        CHBackendSettings.useCustomizedShuffleCodec)
       private var cb: ColumnarBatch = _
 
       private var numBatchesTotal: Long = _
@@ -90,35 +83,26 @@ private class CHColumnarBatchSerializerInstance(
 
       @throws(classOf[EOFException])
       override def readValue[T: ClassTag](): T = {
-        if (reader != null) {
-          if (cb != null) {
-            cb.close()
-            cb = null
-          }
-
-          var nativeBlock = reader.next()
-          while (nativeBlock.numRows() == 0) {
-            if (nativeBlock.numColumns() == 0) {
-              nativeBlock.close()
-              this.close()
-              throw new EOFException
-            }
-            nativeBlock = reader.next()
-          }
-          val numRows = nativeBlock.numRows()
-
-          numBatchesTotal += 1
-          numRowsTotal += numRows
-          cb = nativeBlock.toColumnarBatch
-          cb.asInstanceOf[T]
-        } else {
-          reader = new CHStreamReader(
-            in,
-            isUseColumnarShufflemanager,
-            isCustomizedShuffleCodec,
-            customizeBufferSize)
-          readValue()
+        if (cb != null) {
+          cb.close()
+          cb = null
         }
+
+        var nativeBlock = reader.next()
+        while (nativeBlock.numRows() == 0) {
+          if (nativeBlock.numColumns() == 0) {
+            nativeBlock.close()
+            this.close()
+            throw new EOFException
+          }
+          nativeBlock = reader.next()
+        }
+        val numRows = nativeBlock.numRows()
+
+        numBatchesTotal += 1
+        numRowsTotal += numRows
+        cb = nativeBlock.toColumnarBatch
+        cb.asInstanceOf[T]
       }
 
       override def readObject[T: ClassTag](): T = {
@@ -136,7 +120,7 @@ private class CHColumnarBatchSerializerInstance(
             cb.close()
             cb = null
           }
-          if (reader != null) reader.close()
+          reader.close()
           isClosed = true
         }
       }
@@ -144,15 +128,16 @@ private class CHColumnarBatchSerializerInstance(
   }
 
   override def serializeStream(out: OutputStream): SerializationStream = new SerializationStream {
-    private[this] var writeBuffer: Array[Byte] = new Array[Byte](customizeBufferSize)
-    private[this] var dOut: BlockOutputStream =
+    private[this] var writeBuffer: Array[Byte] =
+      new Array[Byte](CHBackendSettings.customizeBufferSize)
+    private[this] val dOut: BlockOutputStream =
       new BlockOutputStream(
         out,
         writeBuffer,
         dataSize,
-        isCustomizedShuffleCodec,
+        CHBackendSettings.useCustomizedShuffleCodec,
         compressionCodec,
-        customizeBufferSize
+        CHBackendSettings.customizeBufferSize
       )
 
     override def writeKey[T: ClassTag](key: T): SerializationStream = {

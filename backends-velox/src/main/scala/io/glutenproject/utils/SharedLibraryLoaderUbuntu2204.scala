@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import io.glutenproject.vectorized.JniLibLoader
 
 class SharedLibraryLoaderUbuntu2204 extends SharedLibraryLoader {
-  override def loadLib(loader: JniLibLoader) : Unit = {
-    loader.newTransaction()
+  override def loadLib(loader: JniLibLoader): Unit = {
+    loader
+      .newTransaction()
       .loadAndCreateLink("libboost_context.so.1.74.0", "libboost_context.so", false)
       .loadAndCreateLink("libicudata.so.70", "libicudata.so", false)
       .loadAndCreateLink("libicuuc.so.70", "libicuuc.so", false)
@@ -51,4 +51,3 @@ class SharedLibraryLoaderUbuntu2204 extends SharedLibraryLoader {
       .commit()
   }
 }
-

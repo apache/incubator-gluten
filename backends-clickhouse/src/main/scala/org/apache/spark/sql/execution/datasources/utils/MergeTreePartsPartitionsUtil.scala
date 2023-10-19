@@ -23,7 +23,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
-import org.apache.spark.util.SparkResourcesUtil
+import org.apache.spark.util.SparkResourceUtil
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -68,7 +68,7 @@ object MergeTreePartsPartitionsUtil extends Logging {
       currentFileCnt = 0L
     }
 
-    val totalCores = SparkResourcesUtil.getTotalCores(sparkSession.sessionState.conf)
+    val totalCores = SparkResourceUtil.getTotalCores(sparkSession.sessionState.conf)
     val fileCntPerPartition = math.ceil((partsFiles.size * 1.0) / totalCores).toInt
     val fileCntThreshold = sparkSession.sessionState.conf
       .getConfString(

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
 import io.glutenproject.execution.SparkRowIterator;
@@ -22,16 +21,20 @@ import io.glutenproject.row.SparkRowInfo;
 
 public class CHBlockConverterJniWrapper {
 
-  // for ch columnar -> spark row
-  public native SparkRowInfo convertColumnarToRow(long blockAddress);
+  private CHBlockConverterJniWrapper() {
+    // utility class
+  }
 
   // for ch columnar -> spark row
-  public native void freeMemory(long address, long size);
+  public static native SparkRowInfo convertColumnarToRow(long blockAddress, int[] masks);
+
+  // for ch columnar -> spark row
+  public static native void freeMemory(long address, long size);
 
   // for spark row -> ch columnar
-  public native long convertSparkRowsToCHColumn(
+  public static native long convertSparkRowsToCHColumn(
       SparkRowIterator iter, String[] names, byte[][] types);
 
   // for spark row -> ch columnar
-  public native void freeBlock(long blockAddress);
+  public static native void freeBlock(long blockAddress);
 }

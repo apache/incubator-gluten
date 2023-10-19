@@ -18,22 +18,20 @@ package org.apache.spark.sql.execution
 
 import io.glutenproject.execution.{RowToColumnarExecBase, SparkRowIterator}
 import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
-import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder, UnsafeProjection, UnsafeRow}
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import java.util.concurrent.TimeUnit.NANOSECONDS
 
 /**
  * this class is only for test use, not yet suggested to use in non-test code the performance is not
  * optimized
  *
- * @param child
+ * @param child:
+ *   the input plan
  */
 case class RowToCHNativeColumnarExec(child: SparkPlan)
   extends RowToColumnarExecBase(child = child) {
@@ -45,14 +43,13 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
     // This avoids calling `schema` in the RDD closure, so that we don't need to include the entire
     // plan (this) in the closure.
     val localSchema = this.schema
-    val fieldNames = output.map(ConverterUtils.genColumnNameWithExprId(_)).toArray
+    val fieldNames = output.map(ConverterUtils.genColumnNameWithExprId).toArray
     val fieldTypes = output
       .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable).toProtobuf.toByteArray)
       .toArray
     child.execute().mapPartitions {
       rowIterator =>
         val projection = UnsafeProjection.create(localSchema)
-        val cvt = new CHBlockConverterJniWrapper
         if (rowIterator.hasNext) {
           val res = new Iterator[ColumnarBatch] {
             private val byteArrayIterator = rowIterator.map {
@@ -64,24 +61,23 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
 
             override def hasNext: Boolean = {
               if (last_address != 0) {
-                cvt.freeBlock(last_address)
+                CHBlockConverterJniWrapper.freeBlock(last_address)
                 last_address = 0
               }
               byteArrayIterator.hasNext
             }
 
             override def next(): ColumnarBatch = {
-              val start = System.nanoTime()
-              val slice = byteArrayIterator.take(8192);
-              val sparkRowIterator = new SparkRowIterator(slice)
-              last_address =
-                cvt.convertSparkRowsToCHColumn(sparkRowIterator, fieldNames, fieldTypes);
-              val block = new CHNativeBlock(last_address)
-
-              convertTime += NANOSECONDS.toMillis(System.nanoTime() - start)
+              val block = GlutenTimeMetric.millis(convertTime) {
+                _ =>
+                  val slice = byteArrayIterator.take(8192)
+                  val sparkRowIterator = new SparkRowIterator(slice)
+                  last_address = CHBlockConverterJniWrapper
+                    .convertSparkRowsToCHColumn(sparkRowIterator, fieldNames, fieldTypes)
+                  new CHNativeBlock(last_address)
+              }
               numInputRows += block.numRows()
               numOutputBatches += 1
-
               block.toColumnarBatch
             }
           }
@@ -92,23 +88,7 @@ case class RowToCHNativeColumnarExec(child: SparkPlan)
     }
   }
 
-  override def output: Seq[Attribute] = child.output
-
-  override def outputPartitioning: Partitioning = child.outputPartitioning
-
-  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
-
-  override def supportsColumnar: Boolean = true
-
   // For spark 3.2.
   protected def withNewChildInternal(newChild: SparkPlan): RowToCHNativeColumnarExec =
     copy(child = newChild)
-
-  override def doExecute(): RDD[InternalRow] = {
-    child.execute()
-  }
-
-  override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
-    child.executeBroadcast()
-  }
 }

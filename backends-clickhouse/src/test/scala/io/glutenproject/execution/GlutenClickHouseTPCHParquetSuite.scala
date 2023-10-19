@@ -18,9 +18,9 @@ package io.glutenproject.execution
 
 import io.glutenproject.extension.GlutenPlan
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, ConstantFolding}
+import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, ConstantFolding, NullPropagation}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ReusedSubqueryExec, SubqueryExec}
 import org.apache.spark.sql.functions.{col, rand, when}
 import org.apache.spark.sql.internal.SQLConf
@@ -339,6 +339,28 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runTPCHQuery(21, noFallBack = false) { df => }
   }
 
+  test("GLUTEN-2115: Fix wrong number of records shuffle written") {
+    withSQLConf(
+      ("spark.sql.shuffle.partitions", "1"),
+      ("spark.sql.adaptive.enabled", "true")
+    ) {
+      compareResultsAgainstVanillaSpark(
+        """
+          |select
+          |    l_shipdate_grp l_shipdate,
+          |    (lead(count(distinct l_suppkey), -1) over (order by l_shipdate_grp)) cc
+          |from
+          |    (select l_suppkey, EXTRACT(year from `l_shipdate`)  l_shipdate_grp from lineitem) t
+          |group by l_shipdate_grp
+          |order by l_shipdate_grp desc
+          |limit 20
+          |""".stripMargin,
+        compareResult = true,
+        _ => {}
+      )
+    }
+  }
+
   test("test 'function pmod'") {
     val df = runQueryAndCompare(
       "select pmod(-10, id+10) from range(10)"
@@ -359,7 +381,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("test 'function date_add/date_sub/datediff'") {
-    val df = runQueryAndCompare(
+    runQueryAndCompare(
       "select l_shipdate, l_commitdate, " +
         "date_add(l_shipdate, 1), date_add(l_shipdate, -1), " +
         "date_sub(l_shipdate, 1), date_sub(l_shipdate, -1), " +
@@ -369,13 +391,107 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("test 'function remainder'") {
-    val df = runQueryAndCompare(
+    runQueryAndCompare(
       "select l_orderkey, l_partkey, l_orderkey % l_partkey, l_partkey % l_orderkey " +
         "from lineitem order by l_orderkey desc, l_partkey desc limit 1"
     )(checkOperatorMatch[ProjectExecTransformer])
   }
 
-  test("coalesce") {
+  test("test positive/negative") {
+    runQueryAndCompare(
+      "select +n_nationkey, positive(n_nationkey), -n_nationkey, negative(n_nationkey) from nation"
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  // TODO: enable when supports interval type
+  ignore("test positive/negative with interval type") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select +interval 1 day, positive(interval 1 day), -interval 1 day, negative(interval 1 day)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test array_intersect") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select a from (select array_intersect(split(n_comment, ' '), split(n_comment, ' ')) as arr " +
+          "from nation) lateral view explode(arr) as a order by a"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select a from (select array_intersect(array(null,1,2,3,null), array(3,5,1,null,null)) as arr) " +
+          "lateral view explode(arr) as a order by a",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select array_intersect(array(null,1,2,3,null), cast(null as array<int>))",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select a from (select array_intersect(array(array(1,2),array(3,4)), array(array(1,2),array(3,4))) as arr) " +
+          "lateral view explode(arr) as a order by a",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test array_position") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select array_position(split(n_comment, ' '), 'final') from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select array_position(array(1,2,3,null), 1), array_position(array(1,2,3,null), null)," +
+          "array_position(array(1,2,3,null), 5), array_position(array(1,2,3), 5), " +
+          "array_position(array(1,2,3), 2), array_position(cast(null as array<int>), 1)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test array_contains") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select array_contains(split(n_comment, ' '), 'final') from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select array_contains(array(1,2,3,null), 1), array_contains(array(1,2,3,null), " +
+          "cast(null as int)), array_contains(array(1,2,3,null), 5), array_contains(array(1,2,3), 5)," +
+          "array_contains(array(1,2,3), 2), array_contains(cast(null as array<int>), 1)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test sort_array") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select sort_array(split(n_comment, ' ')) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select sort_array(split(n_comment, ' '), false) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select sort_array(array(1,3,2,null)), sort_array(array(1,2,3,null),false)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test coalesce") {
     var df = runQueryAndCompare(
       "select l_orderkey, coalesce(l_comment, 'default_val') " +
         "from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
@@ -416,6 +532,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     checkLengthAndPlan(df, 10)
   }
 
+  test("test find_in_set") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select find_in_set(null, 'a'), find_in_set('a', null), " +
+          "find_in_set('a', 'a,b'), find_in_set('a', 'ab,ab')",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("test 'function regexp_replace'") {
     runQueryAndCompare(
       "select l_orderkey, regexp_replace(l_comment, '([a-z])', '1') " +
@@ -453,6 +580,114 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(
       s"select l_orderkey, rpad(l_comment, 80, '??') " +
         s"from lineitem limit 5")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test elt") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select elt(2, n_comment, n_regionkey) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+      runQueryAndCompare(
+        "select elt(null, 'a', 'b'), elt(0, 'a', 'b'), elt(1, 'a', 'b'), elt(3, 'a', 'b')",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test array_max") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select array_max(split(n_comment, ' ')) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+      runQueryAndCompare(
+        "select array_max(null), array_max(array(null)), array_max(array(1, 2, 3, null)), " +
+          "array_max(array(1.0, 2.0, 3.0, null)), array_max(array('z', 't', 'abc'))",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test array_min") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select array_min(split(n_comment, ' ')) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+      runQueryAndCompare(
+        "select array_min(null), array_min(array(null)), array_min(array(1, 2, 3, null)), " +
+          "array_min(array(1.0, 2.0, 3.0, null)), array_min(array('z', 't', 'abc'))",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test slice function") {
+    val sql =
+      """
+        |select slice(arr, 1, 5), slice(arr, 1, 100), slice(arr, -2, 5), slice(arr, 1, n_nationkey),
+        |slice(null, 1, 2), slice(arr, null, 2), slice(arr, 1, null)
+        |from (select split(n_comment, ' ') as arr, n_nationkey from nation) t
+        |""".stripMargin
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test slice function with unexpected arguments") {
+    def checkException(sql: String, expectedErrMsg: String): Unit = {
+      val errMsg = intercept[SparkException] {
+        spark.sql(sql).collect()
+      }.getMessage
+
+      if (errMsg == null) {
+        fail(s"Expected null error message, but `$errMsg` found")
+      } else if (!errMsg.contains(expectedErrMsg)) {
+        fail(s"Expected error message is `$expectedErrMsg`, but `$errMsg` found")
+      }
+    }
+
+    checkException(
+      "select slice(split(n_comment, ' '), n_regionkey, 5) from nation",
+      "Unexpected value for start")
+    checkException(
+      "select slice(split(n_comment, ' '), 1, -5) from nation",
+      "Unexpected value for length")
+  }
+
+  test("test array_distinct") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select array_distinct(split(n_comment, ' ')) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select array_distinct(array(1,2,1,2,3)), array_distinct(array(null,1,null,1,2,null,3)), " +
+          "array_distinct(array(array(1,null,2), array(1,null,2))), array_distinct(null), array_distinct(array(null))",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test array_union") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select array_union(split(n_comment, ' '), reverse(split(n_comment, ' '))) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select array_union(array(1,2,1,2,3), array(2,4,2,3,5)), " +
+          "array_union(array(null,1,null,1,2,null,3), array(1,null,2,null,3,null,4)), " +
+          "array_union(array(array(1,null,2), array(2,null,3)), array(array(2,null,3), array(1,null,2))), " +
+          "array_union(array(null), array(null)), " +
+          "array_union(cast(null as array<int>), cast(null as array<int>))",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
   }
 
   test("test 'function regexp_extract_all'") {
@@ -505,6 +740,15 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       """
         |select row_number() over (partition by n_regionkey order by n_nationkey) as num from nation
         |order by n_regionkey, n_nationkey, num
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("issue-3195 window row_number") {
+    val sql =
+      """
+        |select row_number() over (order by 1) as num, n_nationkey from nation
+        |order by num, n_nationkey
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
@@ -759,6 +1003,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("window bug #2586") {
+    val sql =
+      """
+        | select row_number() over (partition by n_regionkey, id  order by n_nationkey) as num from (
+        |   select n_regionkey, 'x' as id , n_nationkey from nation
+        | ) order by n_regionkey, id, n_nationkey, num
+      """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("group with rollup") {
     val sql =
       """
@@ -898,13 +1152,46 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         "sequence(id+10, id, -3) from range(1)")(checkOperatorMatch[ProjectExecTransformer])
   }
 
-  test("Bug-398 collec_list failure") {
+  test("GLUTEN-2491: sequence with null value as argument") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select sequence(null, 1), sequence(1, null), sequence(1, 3, null), sequence(1, 5)," +
+          "sequence(5, 1), sequence(1, 5, 2), sequence(5, 1, -2)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select sequence(n_nationkey, n_nationkey+10), sequence(n_nationkey, n_nationkey+10, 2) " +
+          "from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("Bug-398 collect_list failure") {
     val sql =
       """
         |select n_regionkey, collect_list(if(n_regionkey=0, n_name, null)) as t from nation group by n_regionkey
         |order by n_regionkey
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, df => {})
+  }
+
+  test("collect_set") {
+    val sql =
+      """
+        |select a, b from (
+        |select n_regionkey as a, collect_set(if(n_regionkey=0, n_name, null)) as set from nation group by n_regionkey)
+        |lateral view explode(set) as b
+        |order by a, b
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[CHHashAggregateExecTransformer])
+  }
+
+  test("collect_set should return empty set") {
+    runQueryAndCompare(
+      "select collect_set(if(n_regionkey != -1, null, n_regionkey)) from nation"
+    )(checkOperatorMatch[CHHashAggregateExecTransformer])
   }
 
   test("Test 'spark.gluten.enabled' false") {
@@ -986,18 +1273,44 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  test("test 'Bug fix posexplode function: https://github.com/oap-project/gluten/issues/1767'") {
-    spark.sql(
-      """
-        | create table test_tbl(id bigint, data map<string, string>) using parquet;
-        |""".stripMargin
+  test("test posexplode issue: https://github.com/oap-project/gluten/issues/1767") {
+    spark.sql("create table test_1767 (id bigint, data map<string, string>) using parquet")
+    spark.sql("INSERT INTO test_1767 values(1, map('k', 'v'))")
+
+    val sql = """
+                | select id from test_1767 lateral view
+                | posexplode(split(data['k'], ',')) tx as a, b""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+
+    spark.sql("drop table test_1767")
+  }
+
+  test("test posexplode issue: https://github.com/oap-project/gluten/issues/2492") {
+    val sql = "select posexplode(split(n_comment, ' ')) from nation where n_comment is null"
+    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+  }
+
+  test("test posexplode issue: https://github.com/oap-project/gluten/issues/2454") {
+    val sqls = Seq(
+      "select id, explode(array(id, id+1)) from range(10)",
+      "select id, explode(map(id, id+1, id+2, id+3)) from range(10)",
+      "select id, posexplode(array(id, id+1)) from range(10)",
+      "select id, posexplode(map(id, id+1, id+2, id+3)) from range(10)"
     )
 
-    spark.sql("INSERT INTO test_tbl values(1, map('k', 'v'))")
-    val sql = """
-                | select id from test_tbl lateral view
-                | posexplode(split(data['k'], ',')) tx as a, b""".stripMargin
-    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    for (sql <- sqls) {
+      runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+    }
+  }
+
+  test("test explode issue: https://github.com/oap-project/gluten/issues/3124") {
+    spark.sql("create table test_3124 (id bigint, name string, sex string) using parquet")
+    spark.sql("insert into test_3124  values (31, null, 'm'), (32, 'a,b,c', 'f')")
+
+    val sql = "select id, flag from test_3124 lateral view explode(split(name, ',')) as flag"
+    runQueryAndCompare(sql)(checkOperatorMatch[GenerateExecTransformer])
+
+    spark.sql("drop table test_3124")
   }
 
   test("test 'scala udf'") {
@@ -1022,7 +1335,14 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       queriesResults: String = queriesResults,
       compareResult: Boolean = true,
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
+    val confName = "spark.gluten.sql.columnar.backend.ch." +
+      "runtime_settings.query_plan_enable_optimizations"
+    withSQLConf((confName, "true")) {
+      compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
+    }
+    withSQLConf((confName, "false")) {
+      compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
+    }
   }
 
   test("test 'ColumnarToRowExec should not be used'") {
@@ -1044,6 +1364,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         "select size(null), size(split(l_shipinstruct, ' ')) from lineitem"
       )(checkOperatorMatch[ProjectExecTransformer])
     }
+  }
+
+  test("GLUTEN-1822: test reverse/concat") {
+    val sql =
+      """
+        |select reverse(split(n_comment, ' ')), reverse(n_comment),
+        |concat(split(n_comment, ' ')), concat(n_comment), concat(n_comment, n_name),
+        |concat(split(n_comment, ' '), split(n_name, ' '))
+        |from nation
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
 
   test("GLUTEN-1620: fix 'attribute binding failed.' when executing hash agg without aqe") {
@@ -1166,6 +1497,72 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("GLUTEN-2198: Fix wrong schema when there is no aggregate function") {
+    val sql =
+      """
+        |select b, a
+        |from
+        |  (
+        |    select l_shipdate as a, l_returnflag as b from lineitem
+        |    union
+        |    select o_orderdate as a, o_orderstatus as b from orders
+        |  )
+        |group by b, a
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+
+    val sql1 =
+      """
+        |select b, a, sum(c), avg(c)
+        |from
+        |  (
+        |    select l_shipdate as a, l_returnflag as b, l_quantity as c from lineitem
+        |    union
+        |    select o_orderdate as a, o_orderstatus as b, o_totalprice as c from orders
+        |  )
+        |group by b, a
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+    val sql2 =
+      """
+        |select t1.o_orderkey, o_shippriority, sss from (
+        |(
+        |  select o_orderkey,o_shippriority from orders
+        |) t1
+        |left join
+        |(
+        | select c_custkey custkey, c_nationkey, sum(c_acctbal) as sss
+        | from customer
+        | group by 1,2
+        |) t2
+        |on t1.o_orderkey=t2.custkey and t1.o_shippriority=t2.c_nationkey
+        |)
+        |order by t1.o_orderkey desc, o_shippriority
+        |limit 100
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+
+    val sql3 =
+      """
+        |select t1.o_orderkey, o_shippriority from (
+        |(
+        |  select o_orderkey,o_shippriority from orders
+        |) t1
+        |left join
+        |(
+        | select c_custkey custkey, c_nationkey
+        | from customer
+        | group by 1,2
+        |) t2
+        |on t1.o_orderkey=t2.custkey and t1.o_shippriority=t2.c_nationkey
+        |)
+        |order by t1.o_orderkey desc, o_shippriority
+        |limit 100
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+  }
+
   test("GLUTEN-2079: aggregate function with filter") {
     val sql =
       """
@@ -1183,6 +1580,32 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         "select struct(1.0f), array(2.0f), map('a', 3.0f) from range(1)"
       )(checkOperatorMatch[ProjectExecTransformer])
     }
+  }
+
+  test("GLUTEN-1790 count multi cols") {
+    val sql1 =
+      """
+        | select count(n_regionkey, n_nationkey) from nation
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+    val sql2 =
+      """
+        | select count(a, b) from values(1,null),(2, 2) as data(a,b)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+
+    val sql3 =
+      """
+        | select count(a, b) from values(null,1),(2, 2) as data(a,b)
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => })
+
+    val sql4 =
+      """
+        | select count(n_regionkey, n_name) from nation
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => })
   }
 
   test("GLUTEN-2028: struct as join key") {
@@ -1224,6 +1647,148 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |from
         | values (1, null), (2,2) as data(a,b)
         |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-2221 empty hash aggregate exec") {
+    val sql1 =
+      """
+        | select count(1) from (
+        |   select (c/all_pv)/d as t from (
+        |     select t0.*, t1.b pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t2 join(
+        |     select sum(t1.b) all_pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t3
+        | )""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => }, false)
+
+    val sql2 =
+      """
+        | select count(1) from (
+        |   select (c/all_pv)/d as t from (
+        |     select t0.*, t1.b pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t2 join(
+        |     select sum(t1.b) all_pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 left join (
+        |       select * from values(6,5),(7,5),(8,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t3
+        | )""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => }, false)
+
+    val sql3 =
+      """
+        | select count(1) from (
+        |   select (c/all_pv)/d as t from (
+        |     select t0.*, t1.b pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t2 join(
+        |     select sum(t1.b) all_pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(6,5),(7,5),(8,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t3
+        | )""".stripMargin
+    compareResultsAgainstVanillaSpark(sql3, true, { _ => }, false)
+
+    val sql4 =
+      """
+        | select count(*) from (
+        |   select (c/all_pv)/d as t from (
+        |     select t0.*, t1.b pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t2 join(
+        |     select sum(t1.b) all_pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t3
+        | )""".stripMargin
+    compareResultsAgainstVanillaSpark(sql4, true, { _ => }, false)
+
+    val sql5 =
+      """
+        | select count(*) from (
+        |   select (c/all_pv)/d as t from (
+        |     select t0.*, t1.b pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(1,5),(2,5),(2,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t2 join(
+        |     select sum(t1.b) all_pv from (
+        |       select * from values (1,2,2,1), (2,3,4,1), (3,4,6,1) as data(a,b,c,d)
+        |     ) as t0 join (
+        |       select * from values(6,5),(7,5),(8,6) as data(a,b)
+        |     ) as t1
+        |     on t0.a = t1.a
+        |   ) t3
+        | )""".stripMargin
+    compareResultsAgainstVanillaSpark(sql5, true, { _ => }, false)
+  }
+
+  test("GLUTEN-1874 not null in one stream") {
+    val sql =
+      """
+        |select n_regionkey from (
+        | select *, row_number() over (partition by n_regionkey order by is_new) as rank from(
+        |   select n_regionkey, 0 as is_new from nation where n_regionkey is not null
+        |   union all
+        |   select n_regionkey, 1 as is_new from (
+        |     select n_regionkey,
+        |       row_number() over (partition by n_regionkey order by n_nationkey) as rn from nation
+        |   ) t0 where rn = 1
+        | ) t1
+        |) t2 where rank = 1
+    """.stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-1874 not null in both streams") {
+    val sql =
+      """
+        |select n_regionkey from (
+        | select *, row_number() over (partition by n_regionkey order by is_new) as rank from(
+        |   select n_regionkey, 0 as is_new from nation where n_regionkey is not null
+        |   union all
+        |   select n_regionkey, 1 as is_new from (
+        |     select n_regionkey,
+        |       row_number() over (partition by n_regionkey order by n_nationkey) as rn
+        |     from nation where n_regionkey is not null
+        |   ) t0 where rn = 1
+        | ) t1
+        |) t2 where rank = 1
+    """.stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
@@ -1281,5 +1846,289 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("test concat_ws") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select concat_ws(null), concat_ws('-'), concat_ws('-', null), concat_ws('-', null, null), " +
+          "concat_ws(null, 'a'), concat_ws('-', 'a'), concat_ws('-', 'a', null), " +
+          "concat_ws('-', 'a', null, 'b', 'c', null, array(null), array('d', null), array('f', 'g'))",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select concat_ws('-', n_comment, " +
+          "array(if(n_regionkey=0, null, cast(n_regionkey as string)))) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("GLUTEN-2422 range bound with nan/inf") {
+    val sql =
+      """
+        |select a from values (1.0), (2.1), (null), (cast('NaN' as double)), (cast('inf' as double)),
+        | (cast('-inf' as double)) as data(a) order by a asc nulls last
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[SortExecTransformer])
+  }
+
+  test("GLUTEN-2639: log1p") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select log1p(n_regionkey), log1p(-1.0), log1p(-2.0) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("GLUTEN-2243 empty projection") {
+    val sql =
+      """
+        | select count(1) from(
+        |   select b,c from values(1,2),(1,2) as data(b,c) group by b,c
+        |   union all
+        |   select a, b from values (1,2),(1,2),(2,3) as data(a,b) group by a, b
+        | )
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("Gluten-2430 hash partition column not found") {
+    val sql =
+      """
+        |
+        | select a.l_shipdate,
+        |    a.l_partkey,
+        |    b.l_shipmode,
+        |    if(c.l_suppkey is not null, 'new', 'old') as usertype,
+        |    a.uid
+        |from (
+        |        select l_shipdate,
+        |            l_partkey,
+        |            l_suppkey as uid
+        |        from lineitem
+        |        where l_shipdate = '2023-03-07'
+        |        group by l_shipdate,
+        |            l_partkey,
+        |            l_suppkey
+        |    ) a
+        |    join (
+        |        select l_shipdate,
+        |            l_suppkey as uid,
+        |            l_shipmode
+        |        from lineitem
+        |        where l_shipdate = '2023-03-07'
+        |    ) b on a.l_shipdate = b.l_shipdate
+        |    and a.uid = b.uid
+        |    left join (
+        |        select l_shipdate,
+        |            l_suppkey
+        |        from lineitem
+        |        where l_shipdate = '2023-03-07'
+        |        group by l_shipdate,
+        |            l_suppkey
+        |    ) c on a.l_shipdate = c.l_shipdate
+        |    and a.uid = c.l_suppkey
+        |limit 100;
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("cast date issue-2474") {
+    spark.sql(
+      """
+        | create table test_date (pid BIGINT) using parquet;
+        |""".stripMargin
+    )
+    spark.sql(
+      """
+        | insert into test_date values (6927737632337729200), (6927744564414944949)
+        |""".stripMargin
+    )
+
+    val sql1 =
+      """
+        | select
+        |   pid,
+        |   from_unixtime(bigint(pid / 4294967296),'yyyy-mm-dd') < date_sub('2023-01-01', 1) as c
+        | from test_date
+        | order by pid
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+
+    val sql2 =
+      """
+        | select pid
+        | from test_date
+        | where from_unixtime(bigint(pid / 4294967296),'yyyy-mm-dd') < date_sub('2023-01-01', 1)
+        | order by pid
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+  }
+
+  test("test-conv-function") {
+    {
+      val sql =
+        """
+          | select conv(a, 2, 10) from(
+          |   select a from values('100'),('1010') as data(a))
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+    {
+      val sql =
+        """
+          | select conv(a, 200, 10) from(
+          |   select a from values('100'),('1010') as data(a))
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+    {
+      val sql =
+        """
+          | select conv(a, 16, 10) from(
+          |   select a from values(10),(20) as data(a))
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
+
+  test("GLUTEN-3105: test json output format") {
+    val sql =
+      """
+        |select to_json(struct(cast(id as string), id, 1.1, 1.1f, 1.1d)) from range(3)
+        |""".stripMargin
+    // cast('nan' as double) output 'NaN' in Spark, 'nan' in CH
+    // cast('inf' as double) output 'Infinity' in Spark, 'inf' in CH
+    // ignore them temporarily
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("GLUTEN-3216: invalid read rel schema in aggregation") {
+    val sql =
+      """
+        |select count(distinct(n_regionkey,n_nationkey)) from nation
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("Test plan json non-empty") {
+    spark.sparkContext.setLogLevel("WARN")
+    val df1 = spark
+      .sql("""
+             | select * from lineitem limit 1
+             | """.stripMargin)
+    val executedPlan1 = df1.queryExecution.executedPlan
+    val lastStageTransformer1 = executedPlan1.find(_.isInstanceOf[WholeStageTransformer])
+    executedPlan1.execute()
+    assert(lastStageTransformer1.get.asInstanceOf[WholeStageTransformer].getPlanJson.isEmpty)
+
+    spark.sparkContext.setLogLevel("DEBUG")
+    val df2 = spark
+      .sql("""
+             | select * from lineitem limit 1
+             | """.stripMargin)
+    val executedPlan2 = df2.queryExecution.executedPlan
+    val lastStageTransformer2 = executedPlan2.find(_.isInstanceOf[WholeStageTransformer])
+    executedPlan2.execute()
+    assert(lastStageTransformer2.get.asInstanceOf[WholeStageTransformer].getPlanJson.nonEmpty)
+    spark.sparkContext.setLogLevel(logLevel)
+  }
+
+  test("GLUTEN-3140: Bug fix array_contains return null") {
+    val create_table_sql =
+      """
+        | create table test_tbl_3140(id bigint, name string) using parquet;
+        |""".stripMargin
+    val insert_data_sql =
+      """
+        | insert into test_tbl_3140 values(1, "");
+        |""".stripMargin
+    spark.sql(create_table_sql)
+    spark.sql(insert_data_sql)
+    val select_sql =
+      "select id, array_contains(split(name, ','), '2899') from test_tbl_3140 where id = 1"
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+  }
+
+  test("GLUTEN-3149 convert Nan to int") {
+    val sql = """
+                | select cast(a as Int) as n from(
+                |   select cast(s as Float) as a from(
+                |     select if(n_name='ALGERIA', 'nan', '1.0') as s from nation
+                |   ))""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-3287: diff when divide zero") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select 1/0f, 1/0.0d",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select n_nationkey / n_regionkey from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("GLUTEN-3135: Bug fix to_date") {
+    val create_table_sql =
+      """
+        | create table test_tbl_3135(id bigint, data string) using parquet
+        |""".stripMargin
+    val insert_data_sql =
+      """
+        |insert into test_tbl_3135 values
+        |(1, '2023-09-02 23:59:59.299+11'),
+        |(2, '2023-09-02 23:59:59.299-11'),
+        |(3, '2023-09-02 00:00:01.333+11'),
+        |(4, '2023-09-02 00:00:01.333-11'),
+        |(5, '  2023-09-02 agdfegfew'),
+        |(6, 'afe2023-09-02 11:22:33')
+        |""".stripMargin
+    spark.sql(create_table_sql)
+    spark.sql(insert_data_sql)
+
+    val select_sql = "select id, to_date(data) from test_tbl_3135"
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_3135")
+  }
+
+  test("GLUTEN-3134: Bug fix left join not match") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "1B")) {
+      val left_tbl_create_sql =
+        "create table test_tbl_left_3134(id bigint, name string) using parquet";
+      val right_tbl_create_sql =
+        "create table test_tbl_right_3134(id string, name string) using parquet";
+      val left_data_insert_sql =
+        "insert into test_tbl_left_3134 values(2, 'a'), (3, 'b'), (673, 'c')";
+      val right_data_insert_sql = "insert into test_tbl_right_3134 values('673', 'c')";
+      val join_select_sql_1 = "select a.id, b.cnt from " +
+        "(select id from test_tbl_left_3134) as a " +
+        "left join (select id, 12 as cnt from test_tbl_right_3134 group by id) as b on a.id = b.id"
+      val join_select_sql_2 = "select a.id, b.cnt from" +
+        "(select id from test_tbl_left_3134) as a " +
+        "left join (select id, count(1) as cnt from test_tbl_right_3134 group by id) as b on a.id = b.id"
+      val join_select_sql_3 = "select a.id, b.cnt1, b.cnt2 from" +
+        "(select id as id from test_tbl_left_3134) as a " +
+        "left join (select id as id, 12 as cnt1, count(1) as cnt2 from test_tbl_right_3134 group by id) as b on a.id = b.id"
+      val agg_select_sql_4 =
+        "select id, 12 as cnt1, count(1) as cnt2 from test_tbl_left_3134 group by id"
+
+      spark.sql(left_tbl_create_sql)
+      spark.sql(right_tbl_create_sql)
+      spark.sql(left_data_insert_sql)
+      spark.sql(right_data_insert_sql)
+      compareResultsAgainstVanillaSpark(join_select_sql_1, true, { _ => })
+      compareResultsAgainstVanillaSpark(join_select_sql_2, true, { _ => })
+      compareResultsAgainstVanillaSpark(join_select_sql_3, true, { _ => })
+      compareResultsAgainstVanillaSpark(agg_select_sql_4, true, { _ => })
+      spark.sql("drop table test_tbl_left_3134")
+      spark.sql("drop table test_tbl_right_3134")
+    }
+  }
 }
 // scalastyle:on line.size.limit

@@ -307,6 +307,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         .getProcessors
         .get(0)
         .getInputRows == 591677)
+
     assert(
       nativeMetricsData.metricsDataList
         .get(4)
@@ -315,6 +316,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         .getProcessors
         .get(1)
         .getOutputRows == 4)
+
     assert(
       nativeMetricsData.metricsDataList
         .get(4)

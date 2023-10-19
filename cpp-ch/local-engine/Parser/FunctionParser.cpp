@@ -1,7 +1,24 @@
-#include <Functions/FunctionFactory.h>
-#include <Common/CHUtil.h>
-#include <DataTypes/IDataType.h>
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <Core/Field.h>
+#include <DataTypes/IDataType.h>
+#include <Functions/FunctionFactory.h>
+#include <Parser/TypeParser.h>
+#include <Common/CHUtil.h>
 
 #include "FunctionParser.h"
 
@@ -11,6 +28,7 @@ namespace DB
 namespace ErrorCodes
 {
     extern const int UNKNOWN_FUNCTION;
+    extern const int NOT_IMPLEMENTED;
 }
 }
 
@@ -31,9 +49,7 @@ String FunctionParser::getCHFunctionName(const substrait::Expression_ScalarFunct
 }
 
 ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
-    const substrait::Expression_ScalarFunction & substrait_func,
-    const String & ch_func_name,
-    ActionsDAGPtr & actions_dag) const
+    const substrait::Expression_ScalarFunction & substrait_func, const String & ch_func_name, ActionsDAGPtr & actions_dag) const
 {
     ActionsDAG::NodeRawConstPtrs parsed_args;
     const auto & args = substrait_func.arguments();
@@ -43,9 +59,10 @@ ActionsDAG::NodeRawConstPtrs FunctionParser::parseFunctionArguments(
     return parsed_args;
 }
 
-const ActionsDAG::Node * FunctionParser::parse(
-    const substrait::Expression_ScalarFunction & substrait_func,
-    ActionsDAGPtr & actions_dag) const
+
+
+const ActionsDAG::Node *
+FunctionParser::parse(const substrait::Expression_ScalarFunction & substrait_func, ActionsDAGPtr & actions_dag) const
 {
     auto ch_func_name = getCHFunctionName(substrait_func);
     auto parsed_args = parseFunctionArguments(substrait_func, ch_func_name, actions_dag);
@@ -57,9 +74,14 @@ const ActionsDAG::Node * FunctionParser::convertNodeTypeIfNeeded(
     const substrait::Expression_ScalarFunction & substrait_func, const ActionsDAG::Node * func_node, ActionsDAGPtr & actions_dag) const
 {
     const auto & output_type = substrait_func.output_type();
-    if (!isTypeMatched(output_type, func_node->result_type))
+    if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
         return ActionsDAGUtil::convertNodeType(
-            actions_dag, func_node, SerializedPlanParser::parseType(output_type)->getName(), func_node->result_name);
+            actions_dag,
+            func_node,
+            // as stated in isTypeMatched， currently we don't change nullability of the result type
+            func_node->result_type->isNullable() ? local_engine::wrapNullableType(true, TypeParser::parseType(output_type))->getName()
+                                                 : local_engine::removeNullable(TypeParser::parseType(output_type))->getName(),
+            func_node->result_name);
     else
         return func_node;
 }
@@ -70,12 +92,13 @@ void FunctionParserFactory::registerFunctionParser(const String & name, Value va
         throw Exception(ErrorCodes::LOGICAL_ERROR, "FunctionParserFactory: function parser name '{}' is not unique", name);
 }
 
-
 FunctionParserPtr FunctionParserFactory::get(const String & name, SerializedPlanParser * plan_parser)
 {
     auto res = tryGet(name, plan_parser);
     if (!res)
+    {
         throw Exception(ErrorCodes::UNKNOWN_FUNCTION, "Unknown function parser {}", name);
+    }
 
     return res;
 }

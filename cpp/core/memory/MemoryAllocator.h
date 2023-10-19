@@ -23,7 +23,7 @@
 #include <memory>
 #include <utility>
 
-#include "arrow/memory_pool.h"
+#include "memory/AllocationListener.h"
 
 namespace gluten {
 
@@ -33,57 +33,39 @@ class MemoryAllocator {
 
   virtual bool allocate(int64_t size, void** out) = 0;
   virtual bool allocateZeroFilled(int64_t nmemb, int64_t size, void** out) = 0;
-  virtual bool allocateAligned(uint16_t alignment, int64_t size, void** out) = 0;
+  virtual bool allocateAligned(uint64_t alignment, int64_t size, void** out) = 0;
 
   virtual bool reallocate(void* p, int64_t size, int64_t newSize, void** out) = 0;
-  virtual bool reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) = 0;
+  virtual bool reallocateAligned(void* p, uint64_t alignment, int64_t size, int64_t newSize, void** out) = 0;
 
   virtual bool free(void* p, int64_t size) = 0;
-
-  virtual bool reserveBytes(int64_t size) = 0;
-  virtual bool unreserveBytes(int64_t size) = 0;
 
   virtual int64_t getBytes() const = 0;
 };
 
-class AllocationListener {
- public:
-  virtual ~AllocationListener() = default;
-
-  // Value of diff can be either positive or negative
-  virtual void allocationChanged(int64_t diff) = 0;
-
- protected:
-  AllocationListener() = default;
-};
-
 class ListenableMemoryAllocator final : public MemoryAllocator {
  public:
-  explicit ListenableMemoryAllocator(MemoryAllocator* delegated, std::shared_ptr<AllocationListener> listener)
-      : delegated_(delegated), listener_(std::move(listener)) {}
+  explicit ListenableMemoryAllocator(MemoryAllocator* delegated, AllocationListener* listener)
+      : delegated_(delegated), listener_(listener) {}
 
  public:
   bool allocate(int64_t size, void** out) override;
 
   bool allocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
 
-  bool allocateAligned(uint16_t alignment, int64_t size, void** out) override;
+  bool allocateAligned(uint64_t alignment, int64_t size, void** out) override;
 
   bool reallocate(void* p, int64_t size, int64_t newSize, void** out) override;
 
-  bool reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) override;
+  bool reallocateAligned(void* p, uint64_t alignment, int64_t size, int64_t newSize, void** out) override;
 
   bool free(void* p, int64_t size) override;
-
-  bool reserveBytes(int64_t size) override;
-
-  bool unreserveBytes(int64_t size) override;
 
   int64_t getBytes() const override;
 
  private:
   MemoryAllocator* delegated_;
-  std::shared_ptr<AllocationListener> listener_;
+  AllocationListener* listener_;
   std::atomic_int64_t bytes_{0};
 };
 
@@ -93,17 +75,13 @@ class StdMemoryAllocator final : public MemoryAllocator {
 
   bool allocateZeroFilled(int64_t nmemb, int64_t size, void** out) override;
 
-  bool allocateAligned(uint16_t alignment, int64_t size, void** out) override;
+  bool allocateAligned(uint64_t alignment, int64_t size, void** out) override;
 
   bool reallocate(void* p, int64_t size, int64_t newSize, void** out) override;
 
-  bool reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) override;
+  bool reallocateAligned(void* p, uint64_t alignment, int64_t size, int64_t newSize, void** out) override;
 
   bool free(void* p, int64_t size) override;
-
-  bool reserveBytes(int64_t size) override;
-
-  bool unreserveBytes(int64_t size) override;
 
   int64_t getBytes() const override;
 

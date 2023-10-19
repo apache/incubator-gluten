@@ -14,73 +14,76 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
-import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
-import io.glutenproject.backendsapi.BackendsApiManager
 
 import com.google.common.collect.Lists
-import io.glutenproject.GlutenConfig
 
-class CreateMapTransformer(substraitExprName: String, children: Seq[ExpressionTransformer],
-  useStringTypeWhenEmpty: Boolean, original: CreateMap)
-  extends ExpressionTransformer
-  with Logging {
+case class CreateMapTransformer(
+    substraitExprName: String,
+    children: Seq[ExpressionTransformer],
+    useStringTypeWhenEmpty: Boolean,
+    original: CreateMap)
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     // If children is empty,
     // transformation is only supported when useStringTypeWhenEmpty is false
     // because ClickHouse and Velox currently doesn't support this config.
     if (children.isEmpty && useStringTypeWhenEmpty) {
-      throw new UnsupportedOperationException(s"not supported yet.")
+      throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
     val childNodes = new java.util.ArrayList[ExpressionNode]()
-    children.foreach(child => {
-      val childNode = child.doTransform(args)
-      childNodes.add(childNode)
-    })
+    children.foreach(
+      child => {
+        val childNode = child.doTransform(args)
+        childNodes.add(childNode)
+      })
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(substraitExprName,
-      original.children.map(_.dataType), FunctionConfig.OPT)
+    val functionName = ConverterUtils.makeFuncName(
+      substraitExprName,
+      original.children.map(_.dataType),
+      FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, childNodes, typeNode)
   }
 }
 
-class GetMapValueTransformer(substraitExprName: String, child: ExpressionTransformer,
-  key: ExpressionTransformer, failOnError: Boolean, original: GetMapValue)
-  extends ExpressionTransformer
-  with Logging {
+case class GetMapValueTransformer(
+    substraitExprName: String,
+    child: ExpressionTransformer,
+    key: ExpressionTransformer,
+    failOnError: Boolean,
+    original: GetMapValue)
+  extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    // ClickHouse backend doesn't support fail on error
-    if (BackendsApiManager.chBackend && failOnError) {
-      throw new UnsupportedOperationException(s"not supported yet.")
+    if (BackendsApiManager.getSettings.alwaysFailOnMapExpression()) {
+      throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
-    // Velox backend always fails on error
-    if (BackendsApiManager.veloxBackend && !failOnError) {
-      throw new UnsupportedOperationException(s"not supported yet.")
+    if (failOnError) {
+      throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
     val childNode = child.doTransform(args)
     val keyNode = key.doTransform(args)
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionName = ConverterUtils.makeFuncName(substraitExprName,
-      Seq(original.child.dataType, original.key.dataType), FunctionConfig.OPT)
+    val functionName = ConverterUtils.makeFuncName(
+      substraitExprName,
+      Seq(original.child.dataType, original.key.dataType),
+      FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    val exprNodes = Lists.newArrayList(
-      childNode.asInstanceOf[ExpressionNode],
-      keyNode.asInstanceOf[ExpressionNode])
+    val exprNodes = Lists.newArrayList(childNode, keyNode)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, exprNodes, typeNode)
   }

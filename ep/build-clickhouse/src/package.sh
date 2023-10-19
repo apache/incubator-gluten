@@ -1,4 +1,18 @@
 #!/bin/bash
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 set -exu
 
@@ -66,7 +80,7 @@ cp "${GLUTEN_SOURCE}"/README.md "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"
 
 # build gluten jar
 cd "${GLUTEN_SOURCE}"
-mvn clean package -Pbackends-clickhouse -Pspark-3.2 -DskipTests -Dcheckstyle.skip
+mvn clean package -Pbackends-clickhouse -Pspark-3.2 -Prss -DskipTests -Dcheckstyle.skip
 mvn clean package -Pspark-3.3 -am -pl shims/spark33 -DskipTests -Dcheckstyle.skip
 
 # build libch.so
@@ -74,20 +88,26 @@ bash "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/build_clickhouse.sh
 
 # copy gluten jar and libch.so
 cp "${GLUTEN_SOURCE}"/backends-clickhouse/target/gluten-*-jar-with-dependencies-exclude-sparkshims.jar "${PACKAGE_DIR_PATH}"/jars/gluten.jar
+cp "${GLUTEN_SOURCE}"/gluten-celeborn/clickhouse/target/gluten-celeborn-clickhouse-${PROJECT_VERSION}-jar-with-dependencies.jar "${PACKAGE_DIR_PATH}"/jars
 cp "$GLUTEN_SOURCE"/cpp-ch/build/utils/extern-local-engine/libch.so "${PACKAGE_DIR_PATH}"/libs/libch.so
-cp "${GLUTEN_SOURCE}"/shims/spark32/target/spark-*-${PROJECT_VERSION}.jar "${PACKAGE_DIR_PATH}"/extraJars/spark32/spark32-shims.jar
-cp "${GLUTEN_SOURCE}"/shims/spark33/target/spark-*-${PROJECT_VERSION}.jar "${PACKAGE_DIR_PATH}"/extraJars/spark33/spark33-shims.jar
+cp "${GLUTEN_SOURCE}"/shims/spark32/target/spark-*-${PROJECT_VERSION}.jar "${PACKAGE_DIR_PATH}"/extraJars/spark32/gluten-spark32-shims.jar
+cp "${GLUTEN_SOURCE}"/shims/spark33/target/spark-*-${PROJECT_VERSION}.jar "${PACKAGE_DIR_PATH}"/extraJars/spark33/gluten-spark33-shims.jar
 
 # copy bin and conf
 cp "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/resources/bin/* "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/bin
 cp "${GLUTEN_SOURCE}"/ep/build-clickhouse/src/resources/conf/* "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/conf
 
 # download 3rd party jars
-wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P "${PACKAGE_DIR_PATH}"/jars
-wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.0.1/delta-core_2.12-2.0.1.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
-wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.1/delta-storage-2.0.1.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
-wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.2.0/delta-core_2.12-2.2.0.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark33
-wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.2.0/delta-storage-2.2.0.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark33
+protobuf_version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${protobuf.version}' --non-recursive exec:exec)
+wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/${protobuf_version}/protobuf-java-${protobuf_version}.jar -P "${PACKAGE_DIR_PATH}"/jars
+celeborn_version=$(mvn -q -Dexec.executable="echo" -Dexec.args='${celeborn.version}' --non-recursive exec:exec)
+wget https://repo1.maven.org/maven2/org/apache/celeborn/celeborn-client-spark-3-shaded_2.12/${celeborn_version}/celeborn-client-spark-3-shaded_2.12-${celeborn_version}.jar -P "${PACKAGE_DIR_PATH}"/jars
+delta_version_32=$(mvn -q -Dexec.executable="echo" -Dexec.args='${delta.version}' -Pspark-3.2 --non-recursive exec:exec)
+wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/${delta_version_32}/delta-core_2.12-${delta_version_32}.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
+wget https://repo1.maven.org/maven2/io/delta/delta-storage/${delta_version_32}/delta-storage-${delta_version_32}.jar -P "${PACKAGE_DIR_PATH}"/extraJars/spark32
+delta_version_33=$(mvn -q -Dexec.executable="echo" -Dexec.args='${delta.version}' -Pspark-3.3 --non-recursive exec:exec)
+wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/${delta_version_33}/delta-core_2.12-${delta_version_33}.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark33
+wget https://repo1.maven.org/maven2/io/delta/delta-storage/${delta_version_33}/delta-storage-${delta_version_33}.jar -P "${GLUTEN_SOURCE}"/dist/"${PACKAGE_NAME}"/extraJars/spark33
 
 # build tar.gz
 cd "${GLUTEN_SOURCE}"/dist

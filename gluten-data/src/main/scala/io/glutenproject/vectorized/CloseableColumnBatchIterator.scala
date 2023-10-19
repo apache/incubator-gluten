@@ -14,25 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized
 
-import java.util.concurrent.TimeUnit
-
-import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.memory.TaskResources
+import org.apache.spark.util.TaskResources
+
+import java.util.concurrent.TimeUnit
 
 /**
  * An Iterator that insures that the batches [[ColumnarBatch]]s it iterates over are all closed
  * properly.
  */
-class CloseableColumnBatchIterator(itr: Iterator[ColumnarBatch],
-                                   pipelineTime: Option[SQLMetric] = None)
+class CloseableColumnBatchIterator(
+    itr: Iterator[ColumnarBatch],
+    pipelineTime: Option[SQLMetric] = None)
   extends Iterator[ColumnarBatch]
-    with Logging {
+  with Logging {
   var cb: ColumnarBatch = _
   var scanTime = 0L
 
@@ -42,11 +41,12 @@ class CloseableColumnBatchIterator(itr: Iterator[ColumnarBatch],
     scanTime += System.nanoTime() - beforeTime
     if (!res) {
       pipelineTime.foreach(t => t += TimeUnit.NANOSECONDS.toMillis(scanTime))
+      closeCurrentBatch()
     }
     res
   }
 
-  TaskResources.addRecycler(100) {
+  TaskResources.addRecycler("CloseableColumnBatchIterator", 100) {
     closeCurrentBatch()
   }
 

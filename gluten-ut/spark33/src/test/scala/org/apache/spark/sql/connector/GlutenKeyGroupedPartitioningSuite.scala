@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.connector
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
-class GlutenKeyGroupedPartitioningSuite extends KeyGroupedPartitioningSuite
+class GlutenKeyGroupedPartitioningSuite
+  extends KeyGroupedPartitioningSuite
   with GlutenSQLTestsBaseTrait {
   override def sparkConf: SparkConf = {
     // Native SQL configs
@@ -28,4 +28,3 @@ class GlutenKeyGroupedPartitioningSuite extends KeyGroupedPartitioningSuite
       .set("spark.sql.shuffle.partitions", "5")
   }
 }
-

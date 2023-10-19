@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
@@ -26,15 +25,15 @@ class GlutenExchangeSuite extends ExchangeSuite with GlutenSQLTestsBaseTrait {
   test("Exchange reuse across the whole plan with shuffle partition 2") {
     // The shuffle exchange will be inserted between Aggregate
     // when shuffle partition is > 1.
-    withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
       SQLConf.SHUFFLE_PARTITIONS.key -> "2") {
-      val df = sql(
-        """
-          |SELECT
-          |  (SELECT max(a.key) FROM testData AS a JOIN testData AS b ON b.key = a.key),
-          |  a.key
-          |FROM testData AS a
-          |JOIN testData AS b ON b.key = a.key
+      val df = sql("""
+                     |SELECT
+                     |  (SELECT max(a.key) FROM testData AS a JOIN testData AS b ON b.key = a.key),
+                     |  a.key
+                     |FROM testData AS a
+                     |JOIN testData AS b ON b.key = a.key
       """.stripMargin)
 
       val plan = df.queryExecution.executedPlan
@@ -46,14 +45,14 @@ class GlutenExchangeSuite extends ExchangeSuite with GlutenSQLTestsBaseTrait {
 
       assert(exchangeIds.size == 2, "Whole plan exchange reusing not working correctly")
       assert(reusedExchangeIds.size == 3, "Whole plan exchange reusing not working correctly")
-      assert(reusedExchangeIds.forall(exchangeIds.contains(_)),
+      assert(
+        reusedExchangeIds.forall(exchangeIds.contains(_)),
         "ReusedExchangeExec should reuse an existing exchange")
 
-      val df2 = sql(
-        """
-          |SELECT
-          |  (SELECT min(a.key) FROM testData AS a JOIN testData AS b ON b.key = a.key),
-          |  (SELECT max(a.key) FROM testData AS a JOIN testData2 AS b ON b.a = a.key)
+      val df2 = sql("""
+                      |SELECT
+                      |  (SELECT min(a.key) FROM testData AS a JOIN testData AS b ON b.key = a.key),
+                      |  (SELECT max(a.key) FROM testData AS a JOIN testData2 AS b ON b.a = a.key)
       """.stripMargin)
 
       val plan2 = df2.queryExecution.executedPlan
@@ -65,7 +64,8 @@ class GlutenExchangeSuite extends ExchangeSuite with GlutenSQLTestsBaseTrait {
 
       assert(exchangeIds2.size == 4, "Whole plan exchange reusing not working correctly")
       assert(reusedExchangeIds2.size == 2, "Whole plan exchange reusing not working correctly")
-      assert(reusedExchangeIds2.forall(exchangeIds2.contains(_)),
+      assert(
+        reusedExchangeIds2.forall(exchangeIds2.contains(_)),
         "ReusedExchangeExec should reuse an existing exchange")
     }
   }

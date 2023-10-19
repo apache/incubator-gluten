@@ -14,14 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.expression;
 
 import io.substrait.proto.Expression;
 
-/**
- * Contains helper functions for constructing Substrait expressions.
- */
+/** Contains helper functions for constructing Substrait expressions. */
 public interface ExpressionNode {
   /**
    * Converts a Expression into a protobuf.

@@ -33,12 +33,13 @@
 
 #include <chrono>
 
-#include "BenchmarkUtils.h"
-#include "compute/VeloxBackend.h"
+#include "benchmarks/common/BenchmarkUtils.h"
+#include "compute/VeloxExecutionCtx.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "utils/TestUtils.h"
+#include "utils/macros.h"
 #include "velox/dwio/parquet/writer/Writer.h"
 #include "velox/vector/arrow/Bridge.h"
 
@@ -96,13 +97,6 @@ class GoogleBenchmarkParquetWrite {
     return sched_setaffinity(0, sizeof(cs), &cs);
   }
 
-  velox::VectorPtr recordBatch2RowVector(const arrow::RecordBatch& rb) {
-    ArrowArray arrowArray;
-    ArrowSchema arrowSchema;
-    ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-    return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::defaultLeafVeloxMemoryPool().get());
-  }
-
   std::shared_ptr<ColumnarBatch> recordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb) {
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
@@ -118,7 +112,7 @@ class GoogleBenchmarkParquetWrite {
   std::vector<int> rowGroupIndices_;
   std::vector<int> columnIndices_;
   std::shared_ptr<arrow::Schema> schema_;
-  parquet::ArrowReaderProperties properties_;
+  ::parquet::ArrowReaderProperties properties_;
 };
 
 class GoogleBenchmarkArrowParquetWriteCacheScanBenchmark : public GoogleBenchmarkParquetWrite {
@@ -169,16 +163,14 @@ class GoogleBenchmarkArrowParquetWriteCacheScanBenchmark : public GoogleBenchmar
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "arrow_parquet_write.parquet";
 
-    auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
-
     for (auto _ : state) {
       // Choose compression
-      std::shared_ptr<parquet::WriterProperties> props =
-          parquet::WriterProperties::Builder().compression(arrow::Compression::SNAPPY)->build();
+      std::shared_ptr<::parquet::WriterProperties> props =
+          ::parquet::WriterProperties::Builder().compression(arrow::Compression::SNAPPY)->build();
 
       // Opt to store Arrow schema for easier reads back into Arrow
-      std::shared_ptr<parquet::ArrowWriterProperties> arrow_props =
-          parquet::ArrowWriterProperties::Builder().store_schema()->build();
+      std::shared_ptr<::parquet::ArrowWriterProperties> arrow_props =
+          ::parquet::ArrowWriterProperties::Builder().store_schema()->build();
 
       std::shared_ptr<arrow::io::FileOutputStream> outfile;
       outfile = arrow::io::FileOutputStream::Open(outputPath_ + fileName).ValueOrDie();
@@ -264,14 +256,16 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "velox_parquet_write.parquet";
 
-    auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
+    auto executionCtx = ExecutionCtx::create(kVeloxExecutionCtxKind);
+    auto memoryManager = getDefaultMemoryManager();
+    auto veloxPool = memoryManager->getAggregateMemoryPool();
 
     for (auto _ : state) {
       // Init VeloxParquetDataSource
-      auto veloxParquetDatasource =
-          std::make_unique<gluten::VeloxParquetDatasource>(outputPath_ + "/" + fileName, localSchema);
+      auto veloxParquetDatasource = std::make_unique<gluten::VeloxParquetDatasource>(
+          outputPath_ + "/" + fileName, veloxPool->addAggregateChild("writer_benchmark"), localSchema);
 
-      veloxParquetDatasource->init(backend->getConfMap());
+      veloxParquetDatasource->init(executionCtx->getConfMap());
       auto start = std::chrono::steady_clock::now();
       for (const auto& vector : vectors) {
         veloxParquetDatasource->write(vector);
@@ -298,6 +292,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
         benchmark::Counter(initTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["write_time"] =
         benchmark::Counter(writeTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+    ExecutionCtx::release(executionCtx);
   }
 };
 

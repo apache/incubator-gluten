@@ -14,12 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.connector
 
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 
 class GlutenDataSourceV2SQLSessionCatalogSuite
   extends DataSourceV2SQLSessionCatalogSuite
-  with GlutenSQLTestsBaseTrait {
-}
+  with GlutenSQLTestsBaseTrait {}

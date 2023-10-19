@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.memory.alloc;
 
 public class CHNativeMemoryAllocatorManagerImpl implements CHNativeMemoryAllocatorManager {
@@ -36,7 +35,12 @@ public class CHNativeMemoryAllocatorManagerImpl implements CHNativeMemoryAllocat
   }
 
   @Override
-  public long priority() {
-    return 0L; // lowest priority
+  public int priority() {
+    return 0; // lowest priority
+  }
+
+  @Override
+  public String resourceName() {
+    return "CHNativeMemoryAllocatorManager_" + managed.getNativeInstanceId();
   }
 }

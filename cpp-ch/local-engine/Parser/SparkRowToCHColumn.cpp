@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "SparkRowToCHColumn.h"
 #include <memory>
 #include <Columns/ColumnNullable.h>
@@ -32,7 +48,7 @@ jmethodID SparkRowToCHColumn::spark_row_interator_hasNext = nullptr;
 jmethodID SparkRowToCHColumn::spark_row_interator_next = nullptr;
 jmethodID SparkRowToCHColumn::spark_row_iterator_nextBatch = nullptr;
 
-ALWAYS_INLINE static void writeRowToColumns(std::vector<MutableColumnPtr> & columns, const SparkRowReader & spark_row_reader)
+ALWAYS_INLINE static void writeRowToColumns(const std::vector<MutableColumnPtr> & columns, const SparkRowReader & spark_row_reader)
 {
     auto num_fields = columns.size();
 
@@ -68,8 +84,8 @@ std::unique_ptr<Block> SparkRowToCHColumn::convertSparkRowInfoToCHColumn(const S
         SparkRowReader row_reader(types);
         for (int64_t i = 0; i < num_rows; i++)
         {
-            row_reader.pointTo(spark_row_info.getBufferAddress() + spark_row_info.getOffsets()[i],
-                               static_cast<int32_t>(spark_row_info.getLengths()[i]));
+            row_reader.pointTo(
+                spark_row_info.getBufferAddress() + spark_row_info.getOffsets()[i], static_cast<int32_t>(spark_row_info.getLengths()[i]));
             writeRowToColumns(mutable_columns, row_reader);
         }
         block->setColumns(std::move(mutable_columns));
@@ -148,6 +164,12 @@ Field VariableLengthDataReader::readDecimal(const char * buffer, size_t length) 
     assert(sizeof(Decimal128) >= length);
 
     char decimal128_fix_data[sizeof(Decimal128)] = {};
+
+    if (Int8 (buffer[0]) < 0)
+    {
+        memset(decimal128_fix_data, int('\xff'), sizeof(Decimal128));
+    }
+
     memcpy(decimal128_fix_data + sizeof(Decimal128) - length, buffer, length); // padding
     String buf(decimal128_fix_data, sizeof(Decimal128));
     BackingDataLengthCalculator::swapDecimalEndianBytes(buf); // Big-endian to Little-endian

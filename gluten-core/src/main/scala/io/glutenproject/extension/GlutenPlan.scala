@@ -14,34 +14,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.extension
+
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.expression.TransformerState
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.substrait.rel.RelNode
+import io.glutenproject.test.TestStats
+import io.glutenproject.utils.LogLevelUtil
+import io.glutenproject.validate.NativePlanValidationInfo
+
+import org.apache.spark.sql.execution.SparkPlan
+
+import com.google.common.collect.Lists
 
 import scala.collection.JavaConverters._
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.expression.TransformerState
-import io.glutenproject.test.TestStats
-import io.glutenproject.utils.LogLevelUtil
-import io.glutenproject.validate.NativePlanValidatorInfo
-import org.apache.spark.sql.execution.SparkPlan
-
-case class ValidationResult(
-    validated: Boolean,
-    reason: Option[String])
+case class ValidationResult(isValid: Boolean, reason: Option[String])
 
 object ValidationResult {
-  def ok: ValidationResult = ValidationResult(validated = true, None)
-  def notOk(reason: String): ValidationResult = ValidationResult(validated = false, Some(reason))
+  def ok: ValidationResult = ValidationResult(isValid = true, None)
+  def notOk(reason: String): ValidationResult = ValidationResult(isValid = false, Some(reason))
+  def convertFromValidationInfo(info: NativePlanValidationInfo): ValidationResult = {
+    if (info.isSupported) {
+      ok
+    } else {
+      val fallbackInfo = info.getFallbackInfo.asScala
+        .mkString("native check failure:", ", ", "")
+      notOk(fallbackInfo)
+    }
+  }
 }
 
-/**
- * Every Gluten Operator should extend this trait.
- */
+/** Every Gluten Operator should extend this trait. */
 trait GlutenPlan extends SparkPlan with LogLevelUtil {
 
-  private lazy val validateFailureLogLevel = glutenConf.validateFailureLogLevel
-  private lazy val printStackOnValidateFailure = glutenConf.printStackOnValidateFailure
+  private lazy val validationLogLevel = glutenConf.validationLogLevel
+  private lazy val printStackOnValidationFailure = glutenConf.printStackOnValidationFailure
+  protected lazy val enableNativeValidation = glutenConf.enableNativeValidation
 
   protected def glutenConf: GlutenConfig = GlutenConfig.getConf
 
@@ -52,42 +64,39 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
     try {
       TransformerState.enterValidation
       val res = doValidateInternal()
-      if (!res.validated) {
+      if (!res.isValid) {
         TestStats.addFallBackClassName(this.getClass.toString)
-        // the reason must be set if failed to validate
-        assert(res.reason.isDefined)
       }
       res
     } catch {
-      case e: Throwable =>
+      case e: Exception =>
+        // FIXME: Use a validation-specific method to catch validation failures
         TestStats.addFallBackClassName(this.getClass.toString)
-        logValidateFailure(s"Validation failed with exception for plan: $nodeName, due to:", e)
-        notOk(e.getMessage)
+        logValidationMessage(s"Validation failed with exception for plan: $nodeName, due to:", e)
+        ValidationResult.notOk(e.getMessage)
     } finally {
       TransformerState.finishValidation
     }
   }
 
-  protected def doValidateInternal(): ValidationResult =
-    ValidationResult.notOk(s"$nodeName does not override doValidateInternal")
+  protected def doValidateInternal(): ValidationResult = ValidationResult.ok
 
-  protected def logValidateFailure(msg: => String, e: Throwable): Unit = {
-    if (printStackOnValidateFailure) {
-      logOnLevel(validateFailureLogLevel, msg, e)
+  protected def doNativeValidation(context: SubstraitContext, node: RelNode): ValidationResult = {
+    if (node != null && enableNativeValidation) {
+      val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(node))
+      val info = BackendsApiManager.getValidatorApiInstance
+        .doNativeValidateWithFailureReason(planNode)
+      ValidationResult.convertFromValidationInfo(info)
     } else {
-      logOnLevel(validateFailureLogLevel, msg)
+      ValidationResult.ok
     }
   }
 
-  protected def ok(): ValidationResult = ValidationResult.ok
-  protected def notOk(reason: String): ValidationResult = ValidationResult.notOk(reason)
-  protected def nativeValidationResult(info: NativePlanValidatorInfo): ValidationResult = {
-    if (info.isSupported) {
-      ok()
+  private def logValidationMessage(msg: => String, e: Throwable): Unit = {
+    if (printStackOnValidationFailure) {
+      logOnLevel(validationLogLevel, msg, e)
     } else {
-      val fallbackInfo = info.getFallbackInfo.asScala
-        .mkString("native check failure:", ", ", "")
-      notOk(fallbackInfo)
+      logOnLevel(validationLogLevel, msg)
     }
   }
 }

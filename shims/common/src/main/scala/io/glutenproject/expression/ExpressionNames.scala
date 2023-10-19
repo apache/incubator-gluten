@@ -27,6 +27,7 @@ object ExpressionNames {
   final val STDDEV_SAMP = "stddev_samp"
   final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"
+  final val COLLECT_SET = "collect_set"
   final val BLOOM_FILTER_AGG = "bloom_filter_agg"
   final val VAR_SAMP = "var_samp"
   final val VAR_POP = "var_pop"
@@ -47,6 +48,8 @@ object ExpressionNames {
   final val SUBTRACT = "subtract"
   final val MULTIPLY = "multiply"
   final val DIVIDE = "divide"
+  final val POSITIVE = "positive"
+  final val NEGATIVE = "negative"
   final val AND = "and"
   final val OR = "or"
   final val CAST = "cast"
@@ -71,6 +74,7 @@ object ExpressionNames {
   // SparkSQL String functions
   final val ASCII = "ascii"
   final val CHR = "chr"
+  final val ELT = "elt"
   final val EXTRACT = "extract"
   final val ENDS_WITH = "ends_with"
   final val STARTS_WITH = "starts_with"
@@ -90,11 +94,23 @@ object ExpressionNames {
   final val REVERSE = "reverse"
   final val SPLIT = "split"
   final val SUBSTRING = "substring"
+  final val SUBSTRING_INDEX = "substring_index"
   final val CONCAT_WS = "concat_ws"
   final val LEFT = "left"
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
   final val SPACE = "space"
+  final val EMPTY2NULL = "empty2null"
+  final val INITCAP = "initcap"
+  final val OVERLAY = "overlay"
+  final val CONV = "conv"
+  final val FIND_IN_SET = "find_in_set"
+  final val DECODE = "decode"
+  final val ENCODE = "encode"
+  final val UUID = "uuid"
+
+  // URL functions
+  final val PARSE_URL = "parse_url"
 
   // SparkSQL Math functions
   final val ABS = "abs"
@@ -117,8 +133,11 @@ object ExpressionNames {
   final val BITWISE_AND = "bitwise_and"
   final val BITWISE_OR = "bitwise_or"
   final val BITWISE_XOR = "bitwise_xor"
+  final val BITWISE_GET = "bit_get"
+  final val BITWISE_COUNT = "bit_count"
   final val SHIFTLEFT = "shiftleft"
   final val SHIFTRIGHT = "shiftright"
+  final val SHIFTRIGHTUNSIGNED = "shiftrightunsigned"
   final val SQRT = "sqrt"
   final val CBRT = "cbrt"
   final val E = "e"
@@ -160,6 +179,9 @@ object ExpressionNames {
   final val TRUNC = "trunc"
   final val DATE_TRUNC = "date_trunc"
   final val GET_TIMESTAMP = "get_timestamp" // for function: to_date/to_timestamp
+  final val NEXT_DAY = "next_day"
+  final val LAST_DAY = "last_day"
+  final val MONTHS_BETWEEN = "months_between"
 
   // JSON functions
   final val GET_JSON_OBJECT = "get_json_object"
@@ -178,16 +200,21 @@ object ExpressionNames {
 
   // Array functions
   final val SIZE = "size"
+  final val SLICE = "slice"
+  final val SEQUENCE = "sequence"
   final val CREATE_ARRAY = "array"
   final val GET_ARRAY_ITEM = "get_array_item"
   final val ELEMENT_AT = "element_at"
   final val ARRAY_CONTAINS = "array_contains"
   final val ARRAY_MAX = "array_max"
   final val ARRAY_MIN = "array_min"
-  final val SEQUENCE = "sequence"
+  final val ARRAY_JOIN = "array_join"
   final val SORT_ARRAY = "sort_array"
   final val ARRAYS_OVERLAP = "arrays_overlap"
-  final val SLICE = "slice"
+  final val ARRAY_POSITION = "array_position"
+  final val ARRAY_DISTINCT = "array_distinct"
+  final val ARRAY_UNION = "array_union"
+  final val ARRAY_INTERSECT = "array_intersect"
 
   // Map functions
   final val CREATE_MAP = "map"
@@ -195,6 +222,7 @@ object ExpressionNames {
   final val MAP_KEYS = "map_keys"
   final val MAP_VALUES = "map_values"
   final val MAP_FROM_ARRAYS = "map_from_arrays"
+  final val STR_TO_MAP = "str_to_map"
 
   // struct functions
   final val GET_STRUCT_FIELD = "get_struct_field"
@@ -211,10 +239,13 @@ object ExpressionNames {
   final val ATTRIBUTE_REFERENCE = "attribute_reference"
   final val BOUND_REFERENCE = "bound_reference"
   final val LITERAL = "literal"
+  final val NAMED_LAMBDA_VARIABLE = "namedlambdavariable"
   final val CASE_WHEN = "case_when"
   final val IN = "in"
   final val IN_SET = "in_set"
   final val SCALAR_SUBQUERY = "scalar_subquery"
+  final val AGGREGATE = "aggregate"
+  final val LAMBDAFUNCTION = "lambdafunction"
   final val EXPLODE = "explode"
   final val POSEXPLODE = "posexplode"
   final val CHECK_OVERFLOW = "check_overflow"
@@ -238,4 +269,7 @@ object ExpressionNames {
 
   // Decimal functions
   final val UNSCALED_VALUE = "unscaled_value"
+
+  // A placeholder for native UDF functions
+  final val UDF_PLACEHOLDER = "udf_placeholder"
 }

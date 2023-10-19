@@ -20,6 +20,9 @@
 #include <arrow/result.h>
 
 #include "ShuffleSchema.h"
+#include "utils/macros.h"
+
+#include "PartitionWriterCreator.h"
 
 namespace gluten {
 
@@ -27,35 +30,6 @@ namespace gluten {
 // by default, allocate 8M block, 2M page size
 #define SPLIT_BUFFER_SIZE 16 * 1024 * 1024
 #endif
-
-ShuffleWriterOptions ShuffleWriterOptions::defaults() {
-  return {};
-}
-
-arrow::Status ShuffleBufferPool::allocate(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size) {
-  // if size is already larger than buffer pool size, allocate it directly
-  // make size 64byte aligned
-  auto reminder = size & 0x3f;
-  size += (64 - reminder) & ((reminder == 0) - 1);
-  if (size > SPLIT_BUFFER_SIZE) {
-    ARROW_ASSIGN_OR_RAISE(buffer, arrow::AllocateResizableBuffer(size, pool_.get()));
-    return arrow::Status::OK();
-  } else if (combineBuffer_->capacity() - combineBuffer_->size() < size) {
-    // memory pool is not enough
-    ARROW_ASSIGN_OR_RAISE(combineBuffer_, arrow::AllocateResizableBuffer(SPLIT_BUFFER_SIZE, pool_.get()));
-    RETURN_NOT_OK(combineBuffer_->Resize(0, /*shrink_to_fit = */ false));
-  }
-  buffer = arrow::SliceMutableBuffer(combineBuffer_, combineBuffer_->size(), size);
-  RETURN_NOT_OK(combineBuffer_->Resize(combineBuffer_->size() + size, /*shrink_to_fit = */ false));
-  return arrow::Status::OK();
-}
-
-arrow::Status ShuffleBufferPool::allocateDirectly(std::shared_ptr<arrow::Buffer>& buffer, uint32_t size) {
-  auto reminder = size & 0x3f;
-  size += (64 - reminder) & ((reminder == 0) - 1);
-  ARROW_ASSIGN_OR_RAISE(buffer, arrow::AllocateResizableBuffer(size, pool_.get()));
-  return arrow::Status::OK();
-}
 
 std::shared_ptr<arrow::Schema> ShuffleWriter::writeSchema() {
   if (writeSchema_ != nullptr) {
@@ -65,4 +39,14 @@ std::shared_ptr<arrow::Schema> ShuffleWriter::writeSchema() {
   writeSchema_ = toWriteSchema(*schema_);
   return writeSchema_;
 }
+
+std::shared_ptr<arrow::Schema> ShuffleWriter::compressWriteSchema() {
+  if (compressWriteSchema_ != nullptr) {
+    return compressWriteSchema_;
+  }
+
+  compressWriteSchema_ = toCompressWriteSchema(*schema_);
+  return compressWriteSchema_;
+}
+
 } // namespace gluten

@@ -1,3 +1,17 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h.in ${CMAKE_CURRENT_SOURCE_DIR}/testConfig.h)
 
 if (ENABLE_TESTS)
@@ -26,20 +40,28 @@ if (ENABLE_TESTS)
 
         file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../Parser/*_udf)
         foreach(child ${children})
-            add_headers_and_sources(local_udfs_test ${child})
+            add_headers_and_sources(local_engine_udf ${child})
         endforeach()
     endif ()
 
-    message("gtest_sources ${local_engine_gtest_sources}")
-    message("local UDFs: ${local_udfs_test_sources}")
+    file(GLOB children CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ../Parser/*_function_parser)
+    foreach(child ${children})
+        add_headers_and_sources(local_engine_function_parser ${child})
+    endforeach()
 
-    add_executable(unit_tests_local_engine ${local_engine_gtest_sources} ${local_udfs_test_sources})
+
+    message("local engine gtest sources: ${local_engine_gtest_sources}")
+    message("local engine udf sources: ${local_engine_udf_sources}")
+    message("local engine function parser sources: ${local_engine_function_parser_sources}")
+
+    add_executable(unit_tests_local_engine ${local_engine_gtest_sources} ${local_engine_udf_sources} ${local_engine_function_parser_sources})
     target_include_directories(unit_tests_local_engine PRIVATE
         ${GTEST_INCLUDE_DIRS}/include
         ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine)
     # no-unreachable-code for GTEST_SKIP
     target_compile_options(unit_tests_local_engine PRIVATE -Wno-unreachable-code)
     target_link_libraries(unit_tests_local_engine PRIVATE gluten_clickhouse_backend_libs _gtest_all clickhouse_parsers loggers)
+    target_link_libraries(unit_tests_local_engine PRIVATE ch_parquet)
 else()
     include_directories(benchmark_local_engine SYSTEM PUBLIC
         ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine

@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.expression;
+
+import io.glutenproject.substrait.type.MapNode;
+import io.glutenproject.substrait.type.TypeNode;
 
 import io.substrait.proto.Expression;
 import io.substrait.proto.Expression.Literal.Builder;
-import io.glutenproject.substrait.type.TypeNode;
-import io.glutenproject.substrait.type.MapNode;
 import org.apache.spark.sql.catalyst.util.MapData;
 
 public class MapLiteralNode extends LiteralNodeWithValue<MapData> {
@@ -35,13 +35,13 @@ public class MapLiteralNode extends LiteralNodeWithValue<MapData> {
 
     Expression.Literal.Map.Builder mapBuilder = Expression.Literal.Map.newBuilder();
     for (int i = 0; i < keys.length; ++i) {
-      LiteralNode keyNode = ExpressionBuilder.makeLiteral(keys[i],
-        ((MapNode) getTypeNode()).getKeyType());
-      LiteralNode valueNode = ExpressionBuilder.makeLiteral(values[i],
-        ((MapNode) getTypeNode()).getValueType());
+      LiteralNode keyNode =
+          ExpressionBuilder.makeLiteral(keys[i], ((MapNode) getTypeNode()).getKeyType());
+      LiteralNode valueNode =
+          ExpressionBuilder.makeLiteral(values[i], ((MapNode) getTypeNode()).getValueType());
 
       Expression.Literal.Map.KeyValue.Builder kvBuilder =
-        Expression.Literal.Map.KeyValue.newBuilder();
+          Expression.Literal.Map.KeyValue.newBuilder();
       kvBuilder.setKey(keyNode.getLiteral());
       kvBuilder.setValue(valueNode.getLiteral());
       mapBuilder.addKeyValues(kvBuilder.build());

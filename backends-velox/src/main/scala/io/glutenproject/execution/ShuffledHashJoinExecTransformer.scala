@@ -14,25 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import io.substrait.proto.JoinRel
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.{FilterExec, SparkPlan}
-
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 
-case class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                           rightKeys: Seq[Expression],
-                                           joinType: JoinType,
-                                           buildSide: BuildSide,
-                                           condition: Option[Expression],
-                                           left: SparkPlan,
-                                           right: SparkPlan,
-                                           isSkewJoin: Boolean)
+import io.substrait.proto.JoinRel
+
+case class ShuffledHashJoinExecTransformer(
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSide: BuildSide,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan,
+    isSkewJoin: Boolean)
   extends ShuffledHashJoinExecTransformerBase(
     leftKeys,
     rightKeys,
@@ -51,20 +51,24 @@ case class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
   }
 
   /**
-   * Returns whether the plan matches the condition to be preferred as build side.
-   * Currently, filter and aggregation are preferred.
-   * @param plan the left or right plan of join
-   * @return whether the plan matches the condition
+   * Returns whether the plan matches the condition to be preferred as build side. Currently, filter
+   * and aggregation are preferred.
+   * @param plan
+   *   the left or right plan of join
+   * @return
+   *   whether the plan matches the condition
    */
   private def matchCondition(plan: SparkPlan): Boolean =
     plan.isInstanceOf[FilterExecTransformerBase] || plan.isInstanceOf[FilterExec] ||
-    plan.isInstanceOf[BaseAggregateExec]
+      plan.isInstanceOf[BaseAggregateExec]
 
   /**
-   * Returns whether a plan is preferred as the build side.
-   * If this plan or its children match the condition, it will be preferred.
-   * @param plan the left or right plan of join
-   * @return whether the plan is preferred as the build side
+   * Returns whether a plan is preferred as the build side. If this plan or its children match the
+   * condition, it will be preferred.
+   * @param plan
+   *   the left or right plan of join
+   * @return
+   *   whether the plan is preferred as the build side
    */
   private def isPreferred(plan: SparkPlan): Boolean =
     matchCondition(plan) || plan.children.exists(child => matchCondition(child))
@@ -80,77 +84,62 @@ case class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
     }
 
   /**
-   * Returns whether the build and stream table should be exchanged with consideration of
-   * build type, planned build side and the preferred build side.
+   * Returns whether the build and stream table should be exchanged with consideration of build
+   * type, planned build side and the preferred build side.
    */
-  override lazy val exchangeTable: Boolean = hashJoinType match {
-    case LeftOuter | LeftSemi | ExistenceJoin(_) => joinBuildSide match {
-      case BuildLeft =>
-        // Exchange build and stream side when left side or none is preferred as the build side,
-        // and RightOuter or RightSemi wil be used.
-        !(preferredBuildSide == PreferredBuildSide.RIGHT)
-      case _ =>
-        // Do not exchange build and stream side when right side or none is preferred
-        // as the build side, and LeftOuter or LeftSemi wil be used.
-        preferredBuildSide == PreferredBuildSide.LEFT
-    }
-    case RightOuter => joinBuildSide match {
-      case BuildRight =>
-        // Do not exchange build and stream side when right side or none is preferred
-        // as the build side, and RightOuter will be used.
-        preferredBuildSide == PreferredBuildSide.LEFT
-      case _ =>
-        // Exchange build and stream side when left side or none is preferred as the build side,
-        // and LeftOuter will be used.
-        !(preferredBuildSide == PreferredBuildSide.RIGHT)
-    }
-    case _ => joinBuildSide match {
-      case BuildLeft => true
-      case BuildRight => false
-    }
+  override lazy val needSwitchChildren: Boolean = hashJoinType match {
+    case LeftOuter | LeftSemi | ExistenceJoin(_) =>
+      joinBuildSide match {
+        case BuildLeft =>
+          // Exchange build and stream side when left side or none is preferred as the build side,
+          // and RightOuter or RightSemi wil be used.
+          !(preferredBuildSide == PreferredBuildSide.RIGHT)
+        case _ =>
+          // Do not exchange build and stream side when right side or none is preferred
+          // as the build side, and LeftOuter or LeftSemi wil be used.
+          preferredBuildSide == PreferredBuildSide.LEFT
+      }
+    case RightOuter =>
+      joinBuildSide match {
+        case BuildRight =>
+          // Do not exchange build and stream side when right side or none is preferred
+          // as the build side, and RightOuter will be used.
+          preferredBuildSide == PreferredBuildSide.LEFT
+        case _ =>
+          // Exchange build and stream side when left side or none is preferred as the build side,
+          // and LeftOuter will be used.
+          !(preferredBuildSide == PreferredBuildSide.RIGHT)
+      }
+    case _ =>
+      joinBuildSide match {
+        case BuildLeft => true
+        case BuildRight => false
+      }
   }
 
-  override protected val substraitJoinType: JoinRel.JoinType = joinType match {
+  override protected lazy val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
       JoinRel.JoinType.JOIN_TYPE_OUTER
-    case LeftOuter => joinBuildSide match {
-      case BuildLeft => if (preferredBuildSide == PreferredBuildSide.RIGHT) {
-        JoinRel.JoinType.JOIN_TYPE_LEFT
-      } else {
-        JoinRel.JoinType.JOIN_TYPE_RIGHT
-      }
-      case _ => if (preferredBuildSide == PreferredBuildSide.LEFT) {
+    case LeftOuter =>
+      if (needSwitchChildren) {
         JoinRel.JoinType.JOIN_TYPE_RIGHT
       } else {
         JoinRel.JoinType.JOIN_TYPE_LEFT
       }
-    }
-    case RightOuter => joinBuildSide match {
-      case BuildRight => if (preferredBuildSide == PreferredBuildSide.LEFT) {
+    case RightOuter =>
+      if (needSwitchChildren) {
         JoinRel.JoinType.JOIN_TYPE_LEFT
       } else {
         JoinRel.JoinType.JOIN_TYPE_RIGHT
       }
-      case _ => if (preferredBuildSide == PreferredBuildSide.RIGHT) {
-        JoinRel.JoinType.JOIN_TYPE_RIGHT
-      } else {
-        JoinRel.JoinType.JOIN_TYPE_LEFT
-      }
-    }
-    case LeftSemi | ExistenceJoin(_) => joinBuildSide match {
-      case BuildLeft => if (preferredBuildSide == PreferredBuildSide.RIGHT) {
-        JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
-      } else {
-        JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
-      }
-      case _ => if (preferredBuildSide == PreferredBuildSide.LEFT) {
+    case LeftSemi | ExistenceJoin(_) =>
+      if (needSwitchChildren) {
         JoinRel.JoinType.JOIN_TYPE_RIGHT_SEMI
       } else {
         JoinRel.JoinType.JOIN_TYPE_LEFT_SEMI
       }
-    }
     case LeftAnti =>
       JoinRel.JoinType.JOIN_TYPE_ANTI
     case _ =>
@@ -159,18 +148,20 @@ case class ShuffledHashJoinExecTransformer(leftKeys: Seq[Expression],
   }
 
   override protected def withNewChildrenInternal(
-      newLeft: SparkPlan, newRight: SparkPlan): ShuffledHashJoinExecTransformer =
+      newLeft: SparkPlan,
+      newRight: SparkPlan): ShuffledHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 }
 
-case class GlutenBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
-                                                 rightKeys: Seq[Expression],
-                                                 joinType: JoinType,
-                                                 buildSide: BuildSide,
-                                                 condition: Option[Expression],
-                                                 left: SparkPlan,
-                                                 right: SparkPlan,
-                                                 isNullAwareAntiJoin: Boolean)
+case class GlutenBroadcastHashJoinExecTransformer(
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    buildSide: BuildSide,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan,
+    isNullAwareAntiJoin: Boolean)
   extends BroadcastHashJoinExecTransformer(
     leftKeys,
     rightKeys,
@@ -181,7 +172,7 @@ case class GlutenBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
     right,
     isNullAwareAntiJoin) {
 
-  override protected val substraitJoinType: JoinRel.JoinType = joinType match {
+  override protected lazy val substraitJoinType: JoinRel.JoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
@@ -201,6 +192,7 @@ case class GlutenBroadcastHashJoinExecTransformer(leftKeys: Seq[Expression],
   }
 
   override protected def withNewChildrenInternal(
-      newLeft: SparkPlan, newRight: SparkPlan): GlutenBroadcastHashJoinExecTransformer =
+      newLeft: SparkPlan,
+      newRight: SparkPlan): GlutenBroadcastHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 }

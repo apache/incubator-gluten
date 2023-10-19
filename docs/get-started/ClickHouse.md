@@ -149,11 +149,10 @@ The prerequisites are the same as the one mentioned above. Compile Gluten with C
 tar zxf spark-3.2.2-bin-hadoop2.7.tgz
 cd spark-3.2.2-bin-hadoop2.7
 rm -f jars/protobuf-java-2.5.0.jar
-#download protobuf-java-3.16.3.jar, delta-core_2.12-2.0.1.jar and delta-storage-2.0.1.jar
-wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P ./jars
+#download protobuf-java-3.23.4.jar, delta-core_2.12-2.0.1.jar and delta-storage-2.0.1.jar
+wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.23.4/protobuf-java-3.23.4.jar -P ./jars
 wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.0.1/delta-core_2.12-2.0.1.jar -P ./jars
 wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.1/delta-storage-2.0.1.jar -P ./jars
-wget https://repo1.maven.org/maven2/io/starburst/openx/data/json-serde/1.3.9-e.10/json-serde-1.3.9-e.10-jar-with-dependencies.jar ./jars
 cp gluten-XXXXX-spark-3.2-jar-with-dependencies.jar jars/
 ```
 
@@ -163,11 +162,10 @@ cp gluten-XXXXX-spark-3.2-jar-with-dependencies.jar jars/
 tar zxf spark-3.3.1-bin-hadoop2.7.tgz
 cd spark-3.3.1-bin-hadoop2.7
 rm -f jars/protobuf-java-2.5.0.jar
-#download protobuf-java-3.16.3.jar, delta-core_2.12-2.2.0.jar and delta-storage-2.2.0.jar
-wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.16.3/protobuf-java-3.16.3.jar -P ./jars
+#download protobuf-java-3.23.4.jar, delta-core_2.12-2.2.0.jar and delta-storage-2.2.0.jar
+wget https://repo1.maven.org/maven2/com/google/protobuf/protobuf-java/3.23.4/protobuf-java-3.23.4.jar -P ./jars
 wget https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.2.0/delta-core_2.12-2.2.0.jar -P ./jars
 wget https://repo1.maven.org/maven2/io/delta/delta-storage/2.2.0/delta-storage-2.2.0.jar -P ./jars
-wget https://repo1.maven.org/maven2/io/starburst/openx/data/json-serde/1.3.9-e.10/json-serde-1.3.9-e.10-jar-with-dependencies.jar ./jars
 cp gluten-XXXXX-spark-3.3-jar-with-dependencies.jar jars/
 ```
 
@@ -198,7 +196,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \
-  --conf spark.gluten.sql.columnar.backend.lib=ch \
   --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
   --conf spark.gluten.sql.enable.native.validation=false \
   --conf spark.io.compression.codec=snappy \
@@ -381,7 +378,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \
-  --conf spark.gluten.sql.columnar.backend.lib=ch \
   --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
   --conf spark.gluten.sql.enable.native.validation=false \
   --conf spark.io.compression.codec=snappy \
@@ -461,7 +457,6 @@ $spark_cmd \
   --conf spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.libhdfs3_conf=$hdfs_conf \
   --conf spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level=debug \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
-  --conf spark.gluten.sql.columnar.backend.lib=ch \
   --conf spark.executorEnv.LD_PRELOAD=$LD_PRELOAD \
   --conf spark.hadoop.input.connect.timeout=600000 \
   --conf spark.hadoop.input.read.timeout=600000 \
@@ -575,7 +570,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.gluten.sql.columnar.libpath=/path_to_clickhouse_library/libch.so \
   --conf spark.gluten.sql.columnar.iterator=true \
   --conf spark.gluten.sql.columnar.loadarrow=false \
-  --conf spark.gluten.sql.columnar.backend.lib=ch \
   --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
   --conf spark.gluten.sql.enable.native.validation=false \
   --conf spark.io.compression.codec=snappy \
@@ -635,3 +629,75 @@ The performance of Gluten + ClickHouse backend increases by **about 1/3**.
 
 https://opencicd.kyligence.com/job/Gluten/job/gluten-ci/
 public read-only account：gluten/hN2xX3uQ4m
+
+### Celeborn support
+
+Gluten with clickhouse backend has not yet supportted [Celeborn](https://github.com/apache/incubator-celeborn) natively as remote shuffle service using columar shuffle. However, you can still use Celeborn with row shuffle, which means a ColumarBatch will be converted to a row during shuffle.
+Below introduction is used to enable this feature:
+
+First refer to this URL(https://github.com/apache/incubator-celeborn) to setup a celeborn cluster.
+
+Then add the Spark Celeborn Client packages to your Spark application's classpath(usually add them into `$SPARK_HOME/jars`).
+
+- Celeborn: celeborn-client-spark-3-shaded_2.12-0.3.0-incubating.jar
+
+Currently to use Celeborn following configurations are required in `spark-defaults.conf`
+
+```
+spark.shuffle.manager org.apache.spark.shuffle.celeborn.SparkShuffleManager
+
+# celeborn master
+spark.celeborn.master.endpoints clb-master:9097
+
+spark.shuffle.service.enabled false
+
+# options: hash, sort
+# Hash shuffle writer use (partition count) * (celeborn.push.buffer.max.size) * (spark.executor.cores) memory.
+# Sort shuffle writer uses less memory than hash shuffle writer, if your shuffle partition count is large, try to use sort hash writer.
+spark.celeborn.client.spark.shuffle.writer hash
+
+# We recommend setting spark.celeborn.client.push.replicate.enabled to true to enable server-side data replication
+# If you have only one worker, this setting must be false 
+# If your Celeborn is using HDFS, it's recommended to set this setting to false
+spark.celeborn.client.push.replicate.enabled true
+
+# Support for Spark AQE only tested under Spark 3
+# we recommend setting localShuffleReader to false to get better performance of Celeborn
+spark.sql.adaptive.localShuffleReader.enabled false
+
+# If Celeborn is using HDFS
+spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
+
+# If you want to use dynamic resource allocation,
+# please refer to this URL (https://github.com/apache/incubator-celeborn/tree/main/assets/spark-patch) to apply the patch into your own Spark.
+spark.dynamicAllocation.enabled false
+```
+
+#### Celeborn Columnar Shuffle Support
+The native Celeborn support can be enabled by the following configuration
+```
+spark.shuffle.manager=org.apache.spark.shuffle.gluten.celeborn.CelebornShuffleManager
+```
+
+quickly start a celeborn cluster
+```shell
+wget https://dlcdn.apache.org/incubator/celeborn/celeborn-0.3.0-incubating/apache-celeborn-0.3.0-incubating-bin.tgz && \
+tar -zxvf apache-celeborn-0.3.0-incubating-bin.tgz && \
+mv apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf.template apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf && \
+mv apache-celeborn-0.3.0-incubating-bin/conf/log4j2.xml.template apache-celeborn-0.3.0-incubating-bin/conf/log4j2.xml && \
+mkdir /opt/hadoop && chmod 777 /opt/hadoop && \
+echo -e "celeborn.worker.flusher.threads 4\nceleborn.worker.storage.dirs /tmp\nceleborn.worker.monitor.disk.enabled false" > apache-celeborn-0.3.0-incubating-bin/conf/celeborn-defaults.conf && \
+bash apache-celeborn-0.3.0-incubating-bin/sbin/start-master.sh && bash apache-celeborn-0.3.0-incubating-bin/sbin/start-worker.sh
+```
+
+### Columnar shuffle mode
+We have two modes of columnar shuffle   
+1. prefer cache
+2. prefer spill
+
+Switch through the configuration `spark.gluten.sql.columnar.backend.ch.shuffle.preferSpill`, the default is `false`, enable prefer cache shuffle.
+
+In the prefer cache mode, as much memory as possible will be used to cache the shuffle data. When the memory is insufficient,
+spark will actively trigger the memory spill. You can also specify the threshold size through `spark.gluten.sql.columnar.backend.ch.spillThreshold` to Limit memory usage. The default value is `0MB`, which means no limit on memory usage.
+
+

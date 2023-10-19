@@ -1,11 +1,29 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.glutenproject.integration.tpc.action
 
 import io.glutenproject.integration.stat.RamStat
 import io.glutenproject.integration.tpc.{TpcRunner, TpcSuite}
-import org.apache.commons.lang3.exception.ExceptionUtils
+
 import org.apache.spark.sql.SparkSessionSwitcher
 
-case class Queries(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int)
+import org.apache.commons.lang3.exception.ExceptionUtils
+
+case class Queries(scale: Double, queryIds: Array[String], explain: Boolean, iterations: Int, randomKillTasks: Boolean)
   extends Action {
 
   override def execute(tpcSuite: TpcSuite): Boolean = {
@@ -26,12 +44,7 @@ case class Queries(scale: Double, queryIds: Array[String], explain: Boolean, ite
             if (!allQueriesSet.contains(queryId)) {
               throw new IllegalArgumentException(s"Query ID doesn't exist: $queryId")
             }
-            Queries.runTpcQuery(
-              queryId,
-              explain,
-              tpcSuite.desc(),
-              tpcSuite.sessionSwitcher,
-              runner)
+            Queries.runTpcQuery(runner, tpcSuite.sessionSwitcher, queryId, tpcSuite.desc(), explain, randomKillTasks)
         }
     }.toList
 
@@ -134,18 +147,13 @@ object Queries {
           )))
   }
 
-  private[tpc] def runTpcQuery(
-                                id: String,
-                                explain: Boolean,
-                                desc: String,
-                                sessionSwitcher: SparkSessionSwitcher,
-                                runner: TpcRunner): TestResultLine = {
+  private def runTpcQuery(runner: _root_.io.glutenproject.integration.tpc.TpcRunner, sessionSwitcher: _root_.org.apache.spark.sql.SparkSessionSwitcher, id: _root_.java.lang.String, desc: _root_.java.lang.String, explain: Boolean, randomKillTasks: Boolean) = {
     println(s"Running query: $id...")
     try {
       val testDesc = "Gluten Spark %s %s".format(desc, id)
       sessionSwitcher.useSession("test", testDesc)
       runner.createTables(sessionSwitcher.spark())
-      val result = runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = explain)
+      val result = runner.runTpcQuery(sessionSwitcher.spark(), testDesc, id, explain = explain, randomKillTasks = randomKillTasks)
       val resultRows = result.rows
       println(
         s"Successfully ran query $id. " +

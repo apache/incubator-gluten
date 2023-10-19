@@ -14,18 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.ColumnTypeNode
+import io.glutenproject.substrait.{SubstraitContext, SupportFormat}
 import io.glutenproject.substrait.plan.PlanBuilder
+import io.glutenproject.substrait.rel.ReadRelNode
 import io.glutenproject.substrait.rel.RelBuilder
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector.read.InputPartition
@@ -33,7 +32,9 @@ import org.apache.spark.sql.execution.InSubqueryExec
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-trait BasicScanExecTransformer extends TransformSupport {
+import com.google.common.collect.Lists
+
+trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
 
   // The key of merge schema option in Parquet reader.
   protected val mergeSchemaOptionKey = "mergeschema"
@@ -42,12 +43,13 @@ trait BasicScanExecTransformer extends TransformSupport {
 
   def outputAttributes(): Seq[Attribute]
 
-  def getPartitions: Seq[Seq[InputPartition]]
-
-  def getFlattenPartitions: Seq[InputPartition]
+  def getPartitions: Seq[InputPartition]
 
   def getPartitionSchemas: StructType
 
+  def getDataSchemas: StructType
+
+  // TODO: Remove this expensive call when CH support scan custom partition location.
   def getInputFilePaths: Seq[String]
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
@@ -66,12 +68,9 @@ trait BasicScanExecTransformer extends TransformSupport {
 
     BackendsApiManager.getIteratorApiInstance.genNativeFileScanRDD(
       sparkContext,
-      WholestageTransformContext(outputAttributes(),
-        outputAttributes(),
-        planNode,
-        substraitContext),
+      WholeStageTransformContext(planNode, substraitContext),
       fileFormat,
-      getFlattenPartitions,
+      getPartitions,
       numOutputRows,
       numOutputVectors,
       scanTime
@@ -80,22 +79,22 @@ trait BasicScanExecTransformer extends TransformSupport {
 
   override protected def doValidateInternal(): ValidationResult = {
     val fileFormat = ConverterUtils.getFileFormat(this)
-    if (!BackendsApiManager.getTransformerApiInstance
-      .supportsReadFileFormat(
-        fileFormat, schema.fields, getPartitionSchemas.nonEmpty, getInputFilePaths)) {
-      return notOk(s"does not support fileFormat: $fileFormat")
+    if (
+      !BackendsApiManager.getSettings
+        .supportFileFormatRead(
+          fileFormat,
+          schema.fields,
+          getPartitionSchemas.nonEmpty,
+          getInputFilePaths)
+    ) {
+      return ValidationResult.notOk(
+        s"Not supported file format or complex type for scan: $fileFormat")
     }
 
     val substraitContext = new SubstraitContext
     val relNode = doTransform(substraitContext).root
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -125,10 +124,11 @@ trait BasicScanExecTransformer extends TransformSupport {
       exprNode,
       context,
       context.nextOperatorId(this.nodeName))
+    relNode.asInstanceOf[ReadRelNode].setDataSchema(getDataSchemas)
     TransformContext(output, output, relNode)
   }
 
   def executeInSubqueryForDynamicPruningExpression(inSubquery: InSubqueryExec): Unit = {
-    if (!inSubquery.values().isDefined) inSubquery.updateResult()
+    if (inSubquery.values().isEmpty) inSubquery.updateResult()
   }
 }

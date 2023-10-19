@@ -17,12 +17,13 @@
 
 #pragma once
 
+#include "arrow/memory_pool.h"
+
 #include "MemoryAllocator.h"
 
 namespace gluten {
 
-std::shared_ptr<arrow::MemoryPool> asArrowMemoryPool(MemoryAllocator* allocator);
-
+/// This pool was not tracked by Spark, should only used in test.
 std::shared_ptr<arrow::MemoryPool> defaultArrowMemoryPool();
 
 class ArrowMemoryPool final : public arrow::MemoryPool {

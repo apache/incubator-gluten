@@ -1,3 +1,17 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 cmake_minimum_required(VERSION 3.20)
 
 file(READ ${CMAKE_CURRENT_SOURCE_DIR}/clickhouse.version CH_VERSION)
@@ -15,9 +29,14 @@ project(libch LANGUAGES C CXX ASM)
 file(GLOB clickhouse_files "${CH_SOURCE_DIR}/*")
 if ("${CH_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}/ClickHouse")
     if (NOT clickhouse_files)
-        execute_process(COMMAND git clone -b ${CH_BRANCH} --depth 1 https://github.com/${CH_ORG}/ClickHouse.git ${CH_SOURCE_DIR})
-        execute_process(COMMAND git reset --hard ${CH_COMMIT} WORKING_DIRECTORY ${CH_SOURCE_DIR})
-        execute_process(COMMAND git submodule update --init --recursive --force --depth 1 WORKING_DIRECTORY ${CH_SOURCE_DIR})
+        execute_process(COMMAND git clone -b ${CH_BRANCH} --depth 3 https://github.com/${CH_ORG}/ClickHouse.git ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
+        execute_process(COMMAND git reset --hard ${CH_COMMIT} WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
+        execute_process(COMMAND git submodule update --init --recursive --force --depth 1 WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
+    else()
+        execute_process(COMMAND git fetch origin ${CH_BRANCH} --depth 3 WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
+        execute_process(COMMAND git checkout ${CH_BRANCH} WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
+        execute_process(COMMAND git reset --hard ${CH_COMMIT} WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
+        execute_process(COMMAND git submodule update --init --recursive --force --depth 1 WORKING_DIRECTORY ${CH_SOURCE_DIR} COMMAND_ERROR_IS_FATAL ANY)
     endif()
 else()
     if (NOT clickhouse_files)
@@ -28,9 +47,10 @@ else()
     endif()
 endif()
 
-if (NOT EXISTS "${CH_SOURCE_DIR}/utils/extern-local-engine/")
-    execute_process(COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/local-engine ${CH_SOURCE_DIR}/utils/extern-local-engine)
+if (EXISTS "${CH_SOURCE_DIR}/utils/extern-local-engine")
+    execute_process(COMMAND rm -rf ${CH_SOURCE_DIR}/utils/extern-local-engine)
 endif ()
+execute_process(COMMAND ln -s ${CMAKE_CURRENT_SOURCE_DIR}/local-engine ${CH_SOURCE_DIR}/utils/extern-local-engine COMMAND_ERROR_IS_FATAL ANY)
 
 # execute_process(COMMAND find ${CMAKE_CURRENT_SOURCE_DIR}/local-engine -regex '.*\.\(c\|cpp\|h\)' -exec clang-format-15 --verbose -i --style=file -i {} \;)
 
@@ -67,6 +87,29 @@ add_custom_command(
         -DENABLE_JEMALLOC=ON
         -DENABLE_MULTITARGET_CODE=ON
         -DENABLE_EXTERN_LOCAL_ENGINE=ON
+        -DENABLE_ODBC=OFF
+        -DENABLE_CAPNP=OFF
+        -DENABLE_ROCKSDB=OFF
+        -DENABLE_GRPC=OFF
+        -DENABLE_RUST=OFF
+        -DENABLE_H3=OFF
+        -DENABLE_AMQPCPP=OFF
+        -DENABLE_CASSANDRA=OFF
+        -DENABLE_KAFKA=OFF
+        -DENABLE_NATS=OFF
+        -DENABLE_LIBPQXX=OFF
+        -DENABLE_NURAFT=OFF
+        -DENABLE_DATASKETCHES=OFF
+        -DENABLE_SQLITE=OFF
+        -DENABLE_S2_GEOMETRY=OFF
+        -DENABLE_ANNOY=OFF
+        -DENABLE_ULID=OFF
+        -DENABLE_MYSQL=OFF
+        -DENABLE_BCRYPT=OFF
+        -DENABLE_LDAP=OFF
+        -DENABLE_MSGPACK=OFF
+        -DUSE_REPLXX=OFF
+        -DENABLE_CLICKHOUSE_ALL=OFF
         -DCOMPILER_FLAGS='-fvisibility=hidden -fvisibility-inlines-hidden'
         -S ${CH_SOURCE_DIR} -G Ninja -B ${CH_BINARY_DIR} &&
         cmake --build ${CH_BINARY_DIR} --target ch\"

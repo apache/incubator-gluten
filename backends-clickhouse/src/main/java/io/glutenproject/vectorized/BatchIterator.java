@@ -14,25 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
 import io.glutenproject.metrics.IMetrics;
 
-import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.IOException;
-import java.util.List;
 
 public class BatchIterator extends GeneralOutIterator {
   private final long handle;
 
-  public BatchIterator(long handle, List<Attribute> outAttrs) {
-    super(outAttrs);
+  public BatchIterator(long handle) {
+    super();
     this.handle = handle;
+  }
+
+  @Override
+  public String getId() {
+    // Using native handle as identifier
+    return String.valueOf(handle);
   }
 
   private native boolean nativeHasNext(long nativeHandle);

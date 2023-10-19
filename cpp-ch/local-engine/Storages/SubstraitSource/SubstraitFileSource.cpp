@@ -1,6 +1,23 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <functional>
 #include <memory>
 
+#include <boost/algorithm/string/predicate.hpp>
 #include <substrait/plan.pb.h>
 #include <magic_enum.hpp>
 #include <Poco/URI.h>
@@ -8,6 +25,8 @@
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnTuple.h>
 #include <Columns/ColumnsNumber.h>
+#include <DataTypes/DataTypeDateTime64.h>
+#include <DataTypes/DataTypeDecimalBase.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
@@ -17,10 +36,14 @@
 #include <QueryPipeline/Pipe.h>
 #include <Storages/SubstraitSource/FormatFile.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
 #include <Common/CHUtil.h>
 #include <Common/Exception.h>
 #include <Common/StringUtils.h>
 #include <Common/typeid_cast.h>
+#include "DataTypes/DataTypesDecimal.h"
+#include "IO/readDecimalText.h"
+#include <boost/stacktrace.hpp>
 
 namespace DB
 {
@@ -30,6 +53,7 @@ namespace ErrorCodes
     extern const int LOGICAL_ERROR;
 }
 }
+
 namespace local_engine
 {
 // When run query "select count(*) from t", there is no any column to be read.
@@ -46,36 +70,76 @@ SubstraitFileSource::SubstraitFileSource(
     DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos)
     : DB::ISource(getRealHeader(header_), false), context(context_), output_header(header_)
 {
-    /**
-     * We may query part fields of a struct column. For example, we have a column c in type
-     * struct{x:int, y:int, z:int}, and just want fields c.x and c.y. In the substraint plan, we get
-     * a column c described in type struct{x:int, y:int} which is not matched with the original
-     * struct type and cause some exceptions. To solve this, we flatten all struct columns into
-     * independent field columns recursively, and fold the field columns back into struct columns
-     * at the end.
-     */
-    flatten_output_header = BlockUtil::flattenBlock(output_header, BlockUtil::FLAT_STRUCT, true);
-
-    to_read_header = flatten_output_header;
     if (file_infos.items_size())
     {
         Poco::URI file_uri(file_infos.items().Get(0).uri_file());
         read_buffer_builder = ReadBufferBuilderFactory::instance().createBuilder(file_uri.getScheme(), context);
         for (const auto & item : file_infos.items())
-        {
             files.emplace_back(FormatFileUtil::createFile(context, read_buffer_builder, item));
-        }
 
-        auto partition_keys = files[0]->getFilePartitionKeys();
-        /// file partition keys are read from the file path
-        for (const auto & key : partition_keys)
+        /// Decide which tuple type column in output_header should skip flatten.
+        file_schema = files[0]->getSchema();
+        for (size_t i = 0; i < output_header.columns(); ++i)
         {
-            if (to_read_header.findByName(key))
+            const auto & col = output_header.getByPosition(i);
+
+            /// Find the same column in the file schema, if the two columns have the same tuple element size, then it should be skipped flatten.
+            for (const auto & pair : file_schema)
             {
-                to_read_header.erase(key);
+                if (boost::iequals(pair.name, col.name))
+                {
+                    auto type_in_file = DB::removeNullable(pair.type);
+                    auto type_in_header = DB::removeNullable(col.type);
+
+                    const auto * tuple_type_in_file = typeid_cast<const DB::DataTypeTuple *>(type_in_file.get());
+                    const auto * tuple_type_in_header = typeid_cast<const DB::DataTypeTuple *>(type_in_header.get());
+                    if (tuple_type_in_file && tuple_type_in_header && tuple_type_in_file->haveExplicitNames() && tuple_type_in_header->haveExplicitNames()
+                        && tuple_type_in_file->getElements().size() == tuple_type_in_header->getElements().size())
+                        columns_to_skip_flatten.insert(i);
+                }
             }
         }
     }
+
+    /**
+     * We may query part fields of a struct column. For example, we have a column c in type
+     * struct{x:int, y:int, z:int}, and just want fields c.x and c.y. In the substrait plan, we get
+     * a column c described in type struct{x:int, y:int} which is not matched with the original
+     * struct type and cause some exceptions. To solve this, we flatten all struct columns into
+     * independent field columns recursively, and fold the field columns back into struct columns
+     * at the end.
+     */
+    flatten_output_header = BlockUtil::flattenBlock(output_header, BlockUtil::FLAT_STRUCT, true, columns_to_skip_flatten);
+    to_read_header = flatten_output_header;
+    if (file_infos.items_size())
+    {
+        /// file partition keys are read from the file path
+        auto partition_keys = files[0]->getFilePartitionKeys();
+        for (const auto & key : partition_keys)
+        {
+            if (to_read_header.findByName(key))
+                to_read_header.erase(key);
+        }
+    }
+}
+
+void SubstraitFileSource::applyFilters(std::vector<SourceFilter> filters_) const
+{
+    for (size_t i = 0; i < files.size(); ++i)
+    {
+        FormatFilePtr file = files[i];
+        file->setFilters(filters_);
+    }
+}
+
+std::vector<String> SubstraitFileSource::getPartitionKeys() const
+{
+    return files.size() > 0 ? files[0]->getFilePartitionKeys() : std::vector<String>();
+}
+
+DB::String SubstraitFileSource::getFileFormat() const
+{
+    return files.size() > 0 ? files[0]->getFileFormat() : "unknown";
 }
 
 DB::Chunk SubstraitFileSource::generate()
@@ -93,7 +157,7 @@ DB::Chunk SubstraitFileSource::generate()
         {
             if (output_header.columns())
             {
-                auto block = foldFlattenColumns(chunk.detachColumns(), output_header);
+                auto block = foldFlattenColumns(chunk.detachColumns(), output_header, columns_to_skip_flatten);
                 auto columns = block.getColumns();
                 return DB::Chunk(columns, block.rows());
             }
@@ -111,7 +175,7 @@ DB::Chunk SubstraitFileSource::generate()
 
 bool SubstraitFileSource::tryPrepareReader()
 {
-    if (file_reader) [[likely]]
+    if (file_reader)
         return true;
 
     if (current_file_index >= files.size())
@@ -131,9 +195,7 @@ bool SubstraitFileSource::tryPrepareReader()
     {
         auto total_rows = current_file->getTotalRows();
         if (total_rows)
-        {
             file_reader = std::make_unique<ConstColumnsFileReader>(current_file, context, flatten_output_header, *total_rows);
-        }
         else
         {
             /// For text/json format file, we can't get total rows from file metadata.
@@ -145,72 +207,66 @@ bool SubstraitFileSource::tryPrepareReader()
         }
     }
     else
-    {
         file_reader = std::make_unique<NormalFileReader>(current_file, context, to_read_header, flatten_output_header);
-    }
-
     return true;
 }
 
-DB::Block SubstraitFileSource::foldFlattenColumns(const DB::Columns & cols, const DB::Block & header)
+DB::Block SubstraitFileSource::foldFlattenColumns(
+    const DB::Columns & cols, const DB::Block & header, const std::unordered_set<size_t> & columns_to_skip_flatten)
 {
     DB::ColumnsWithTypeAndName result_cols;
+
     size_t pos = 0;
     for (size_t i = 0; i < header.columns(); ++i)
     {
         const auto & named_col = header.getByPosition(i);
-        auto new_col = foldFlattenColumn(named_col.type, named_col.name, pos, cols);
-        result_cols.push_back(new_col);
+
+        DB::ColumnWithTypeAndName result_col;
+        if (columns_to_skip_flatten.contains(i)) [[unlikely]]
+        {
+            result_col.name = named_col.name;
+            result_col.type = named_col.type;
+            result_col.column = cols[pos];
+            ++pos;
+        }
+        else
+            result_col = foldFlattenColumn(named_col.type, named_col.name, pos, cols);
+
+        result_cols.emplace_back(std::move(result_col));
     }
+
     return DB::Block(std::move(result_cols));
 }
 
 DB::ColumnWithTypeAndName
 SubstraitFileSource::foldFlattenColumn(DB::DataTypePtr col_type, const std::string & col_name, size_t & pos, const DB::Columns & cols)
 {
-    DB::DataTypePtr nested_type = nullptr;
-    if (col_type->isNullable())
-    {
-        nested_type = typeid_cast<const DB::DataTypeNullable *>(col_type.get())->getNestedType();
-    }
-    else
-    {
-        nested_type = col_type;
-    }
-
+    DB::DataTypePtr nested_type = DB::removeNullable(col_type);
     const DB::DataTypeTuple * type_tuple = typeid_cast<const DB::DataTypeTuple *>(nested_type.get());
-    if (type_tuple)
+    if (type_tuple && type_tuple->haveExplicitNames())
     {
-        if (type_tuple->haveExplicitNames())
-        {
-            const auto & field_types = type_tuple->getElements();
-            const auto & field_names = type_tuple->getElementNames();
-            size_t fields_num = field_names.size();
-            DB::Columns tuple_cols;
-            for (size_t i = 0; i < fields_num; ++i)
-            {
-                auto named_col = foldFlattenColumn(field_types[i], field_names[i], pos, cols);
-                tuple_cols.push_back(named_col.column);
-            }
-            auto tuple_col = DB::ColumnTuple::create(std::move(tuple_cols));
+        const auto & field_types = type_tuple->getElements();
+        const auto & field_names = type_tuple->getElementNames();
 
-            // The original type col_type may be wrapped by nullable, so add a cast here.
-            DB::ColumnWithTypeAndName ret_col(std::move(tuple_col), nested_type, col_name);
-            ret_col.column = DB::castColumn(ret_col, col_type);
-            ret_col.type = col_type;
-            return ret_col;
-        }
-        else
+        size_t fields_num = field_names.size();
+        DB::Columns tuple_cols;
+        for (size_t i = 0; i < fields_num; ++i)
         {
-            size_t current_pos = pos;
-            pos += 1;
-            return DB::ColumnWithTypeAndName(cols[current_pos], col_type, col_name);
+            auto named_col = foldFlattenColumn(field_types[i], field_names[i], pos, cols);
+            tuple_cols.push_back(named_col.column);
         }
+        auto tuple_col = DB::ColumnTuple::create(std::move(tuple_cols));
+
+        // The original type col_type may be wrapped by nullable, so add a cast here.
+        DB::ColumnWithTypeAndName ret_col(std::move(tuple_col), nested_type, col_name);
+        ret_col.column = DB::castColumn(ret_col, col_type);
+        ret_col.type = col_type;
+        return ret_col;
     }
 
-    size_t current_pos = pos;
-    pos += 1;
-    return DB::ColumnWithTypeAndName(cols[current_pos], col_type, col_name);
+    size_t curr_pos = pos;
+    ++pos;
+    return DB::ColumnWithTypeAndName(cols[curr_pos], col_type, col_name);
 }
 
 DB::ColumnPtr FileReaderWrapper::createConstColumn(DB::DataTypePtr data_type, const DB::Field & field, size_t rows)
@@ -261,34 +317,88 @@ DB::ColumnPtr FileReaderWrapper::createColumn(const String & value, DB::DataType
 DB::Field FileReaderWrapper::buildFieldFromString(const String & str_value, DB::DataTypePtr type)
 {
     using FieldBuilder = std::function<DB::Field(DB::ReadBuffer &, const String &)>;
-    static std::map<int, FieldBuilder> field_builders
-        = {{magic_enum::enum_integer(DB::TypeIndex::Int8), BUILD_INT_FIELD(Int8)},
-           {magic_enum::enum_integer(DB::TypeIndex::Int16), BUILD_INT_FIELD(Int16)},
-           {magic_enum::enum_integer(DB::TypeIndex::Int32), BUILD_INT_FIELD(Int32)},
-           {magic_enum::enum_integer(DB::TypeIndex::Int64), BUILD_INT_FIELD(Int64)},
-           {magic_enum::enum_integer(DB::TypeIndex::Float32), BUILD_FP_FIELD(DB::Float32)},
-           {magic_enum::enum_integer(DB::TypeIndex::Float64), BUILD_FP_FIELD(DB::Float64)},
-           {magic_enum::enum_integer(DB::TypeIndex::String), [](DB::ReadBuffer &, const String & val) { return DB::Field(val); }},
-           {magic_enum::enum_integer(DB::TypeIndex::Date),
+    static std::map<std::string, FieldBuilder> field_builders
+        = {{"Int8", BUILD_INT_FIELD(Int8)},
+           {"Int16", BUILD_INT_FIELD(Int16)},
+           {"Int32", BUILD_INT_FIELD(Int32)},
+           {"Int64", BUILD_INT_FIELD(Int64)},
+           {"Float32", BUILD_FP_FIELD(DB::Float32)},
+           {"Float64", BUILD_FP_FIELD(DB::Float64)},
+           {"String", [](DB::ReadBuffer &, const String & val) { return DB::Field(val); }},
+           {"Date",
             [](DB::ReadBuffer & in, const String &)
             {
                 DayNum value;
                 readDateText(value, in);
                 return DB::Field(value);
             }},
-           {magic_enum::enum_integer(DB::TypeIndex::Date32),
+           {"Date32",
             [](DB::ReadBuffer & in, const String &)
             {
                 ExtendedDayNum value;
                 readDateText(value, in);
                 return DB::Field(value.toUnderType());
-            }}};
+            }},
+           {"Bool",
+            [](DB::ReadBuffer & in, const String &)
+            {
+                bool value;
+                readBoolTextWord(value, in, true);
+                return DB::Field(value);
+            }},
+           {"DateTime64(6)",
+            [](DB::ReadBuffer &, const String & s)
+            {
+                std::string decoded; // s: "2023-07-12 05%3A05%3A33.798" (spark encoded it) => decoded: "2023-07-12 05:05:33.798"
+                Poco::URI::decode(s, decoded);
+
+                std::string to_read;
+                if (decoded.length() > 23) // we see cases when spark mistakely? encode the URI twice, so we need to decode twice
+                    Poco::URI::decode(decoded, to_read);
+                else
+                    to_read = decoded;
+
+                DB::ReadBufferFromString read_buffer(to_read);
+                DB::DateTime64 value;
+                DB::readDateTime64Text(value, 6, read_buffer);
+                return DB::Field(value);
+            }}
+
+        };
 
     auto nested_type = DB::removeNullable(type);
     DB::ReadBufferFromString read_buffer(str_value);
-    auto it = field_builders.find(magic_enum::enum_integer(nested_type->getTypeId()));
+    auto it = field_builders.find(nested_type->getName());
     if (it == field_builders.end())
-        throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported data type {}", type->getFamilyName());
+    {
+        DB::WhichDataType which(nested_type->getTypeId());
+        if (which.isDecimal32())
+        {
+            auto & dataTypeDecimal = static_cast<const DB::DataTypeDecimal<DB::Decimal32> &>(*nested_type);
+            DB::Decimal32 value = dataTypeDecimal.parseFromString(str_value);
+            return DB::DecimalField<DB::Decimal32>(value, dataTypeDecimal.getScale());
+        }
+        else if (which.isDecimal64())
+        {
+            auto & dataTypeDecimal = static_cast<const DB::DataTypeDecimal<DB::Decimal64> &>(*nested_type);
+            DB::Decimal64 value = dataTypeDecimal.parseFromString(str_value);
+            return DB::DecimalField<DB::Decimal64>(value, dataTypeDecimal.getScale());
+        }
+        else if (which.isDecimal128())
+        {
+            auto & dataTypeDecimal = static_cast<const DB::DataTypeDecimal<DB::Decimal128> &>(*nested_type);
+            DB::Decimal128 value = dataTypeDecimal.parseFromString(str_value);
+            return DB::DecimalField<DB::Decimal128>(value, dataTypeDecimal.getScale());
+        }
+        else if (which.isDecimal256())
+        {
+            auto & dataTypeDecimal = static_cast<const DB::DataTypeDecimal<DB::Decimal256> &>(*nested_type);
+            DB::Decimal256 value = dataTypeDecimal.parseFromString(str_value);
+            return DB::DecimalField<DB::Decimal256>(value, dataTypeDecimal.getScale());
+        }
+
+        throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported data type {}", nested_type->getName());
+    }
     return it->second(read_buffer, str_value);
 }
 
@@ -395,4 +505,5 @@ bool NormalFileReader::pull(DB::Chunk & chunk)
     chunk = DB::Chunk(std::move(res_columns), rows);
     return true;
 }
+
 }

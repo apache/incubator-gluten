@@ -14,24 +14,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
-import io.glutenproject.init.JniInitialized;
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionCtxAware;
+import io.glutenproject.exec.ExecutionCtxs;
 
-public class ColumnarBatchSerializerJniWrapper extends JniInitialized {
+public class ColumnarBatchSerializerJniWrapper implements ExecutionCtxAware {
+  private final ExecutionCtx ctx;
 
-  public static final ColumnarBatchSerializerJniWrapper INSTANCE =
-      new ColumnarBatchSerializerJniWrapper();
+  private ColumnarBatchSerializerJniWrapper(ExecutionCtx ctx) {
+    this.ctx = ctx;
+  }
 
-  private ColumnarBatchSerializerJniWrapper()  {}
+  public static ColumnarBatchSerializerJniWrapper create() {
+    return new ColumnarBatchSerializerJniWrapper(ExecutionCtxs.contextInstance());
+  }
 
-  public native ColumnarBatchSerializeResult serialize(long[] handles, long allocId);
+  public static ColumnarBatchSerializerJniWrapper forCtx(ExecutionCtx ctx) {
+    return new ColumnarBatchSerializerJniWrapper(ctx);
+  }
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
+  }
+
+  public native ColumnarBatchSerializeResult serialize(long[] handles, long memoryManagerHandle);
 
   // Return the native ColumnarBatchSerializer handle
-  public native long init(long cSchema, long allocId);
+  public native long init(long cSchema, long memoryManagerHandle);
 
-  public native long deserialize(long handle, byte[] data);
+  public native long deserialize(long serializerHandle, byte[] data);
 
-  public native void close(long handle);
+  public native void close(long serializerHandle);
 }

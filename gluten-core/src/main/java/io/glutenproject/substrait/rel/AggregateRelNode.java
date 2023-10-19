@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.AggregateFunctionNode;
 import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
+
 import io.substrait.proto.AggregateRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
@@ -35,10 +35,11 @@ public class AggregateRelNode implements RelNode, Serializable {
   private final ArrayList<ExpressionNode> filters = new ArrayList<>();
   private final AdvancedExtensionNode extensionNode;
 
-  AggregateRelNode(RelNode input,
-                   ArrayList<ExpressionNode> groupings,
-                   ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-                   ArrayList<ExpressionNode> filters) {
+  AggregateRelNode(
+      RelNode input,
+      ArrayList<ExpressionNode> groupings,
+      ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
+      ArrayList<ExpressionNode> filters) {
     this.input = input;
     this.groupings.addAll(groupings);
     this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
@@ -46,11 +47,12 @@ public class AggregateRelNode implements RelNode, Serializable {
     this.extensionNode = null;
   }
 
-  AggregateRelNode(RelNode input,
-                   ArrayList<ExpressionNode> groupings,
-                   ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-                   ArrayList<ExpressionNode> filters,
-                   AdvancedExtensionNode extensionNode) {
+  AggregateRelNode(
+      RelNode input,
+      ArrayList<ExpressionNode> groupings,
+      ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
+      ArrayList<ExpressionNode> filters,
+      AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.groupings.addAll(groupings);
     this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
@@ -63,8 +65,7 @@ public class AggregateRelNode implements RelNode, Serializable {
     RelCommon.Builder relCommonBuilder = RelCommon.newBuilder();
     relCommonBuilder.setDirect(RelCommon.Direct.newBuilder());
 
-    AggregateRel.Grouping.Builder groupingBuilder =
-        AggregateRel.Grouping.newBuilder();
+    AggregateRel.Grouping.Builder groupingBuilder = AggregateRel.Grouping.newBuilder();
     for (ExpressionNode exprNode : groupings) {
       groupingBuilder.addGroupingExpressions(exprNode.toProtobuf());
     }
@@ -73,7 +74,7 @@ public class AggregateRelNode implements RelNode, Serializable {
     aggBuilder.setCommon(relCommonBuilder.build());
     aggBuilder.addGroupings(groupingBuilder.build());
 
-    for (int i = 0; i < aggregateFunctionNodes.size(); i ++) {
+    for (int i = 0; i < aggregateFunctionNodes.size(); i++) {
       AggregateRel.Measure.Builder measureBuilder = AggregateRel.Measure.newBuilder();
       measureBuilder.setMeasure(aggregateFunctionNodes.get(i).toProtobuf());
       // Set the filter expression if valid.

@@ -14,13 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.softaffinity
-
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.locks.ReentrantReadWriteLock
-
-import scala.collection.mutable
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.softaffinity.strategy.SoftAffinityStrategy
@@ -28,6 +22,11 @@ import io.glutenproject.utils.LogLevelUtil
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
+
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantReadWriteLock
+
+import scala.collection.mutable
 
 object SoftAffinityManager extends LogLevelUtil with Logging {
 
@@ -60,11 +59,14 @@ object SoftAffinityManager extends LogLevelUtil with Logging {
     resourceRWLock.writeLock().lock()
     try {
       // first, check whether the execId exists
-      if (!fixedIdForExecutors.exists( exec => {
-        exec.isDefined && exec.get._1.equals(execHostId._1)
-      })) {
-        val executorsSet = nodesExecutorsMap.getOrElseUpdate(execHostId._2,
-          new mutable.HashSet[String]())
+      if (
+        !fixedIdForExecutors.exists(
+          exec => {
+            exec.isDefined && exec.get._1.equals(execHostId._1)
+          })
+      ) {
+        val executorsSet =
+          nodesExecutorsMap.getOrElseUpdate(execHostId._2, new mutable.HashSet[String]())
         executorsSet.add(execHostId._1)
         if (fixedIdForExecutors.exists(_.isEmpty)) {
           // replace the executor which was removed
@@ -75,7 +77,8 @@ object SoftAffinityManager extends LogLevelUtil with Logging {
         }
         totalRegisteredExecutors.addAndGet(1)
       }
-      logOnLevel(softAffinityLogLevel,
+      logOnLevel(
+        softAffinityLogLevel,
         s"After adding executor ${execHostId._1} on host ${execHostId._2}, " +
           s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
           s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
@@ -89,13 +92,14 @@ object SoftAffinityManager extends LogLevelUtil with Logging {
   def handleExecutorRemoved(execId: String): Unit = {
     resourceRWLock.writeLock().lock()
     try {
-      val execIdx = fixedIdForExecutors.indexWhere( execHost => {
-        if (execHost.isDefined) {
-          execHost.get._1.equals(execId)
-        } else {
-          false
-        }
-      })
+      val execIdx = fixedIdForExecutors.indexWhere(
+        execHost => {
+          if (execHost.isDefined) {
+            execHost.get._1.equals(execId)
+          } else {
+            false
+          }
+        })
       if (execIdx != -1) {
         val findedExecId = fixedIdForExecutors(execIdx)
         fixedIdForExecutors(execIdx) = None
@@ -107,10 +111,12 @@ object SoftAffinityManager extends LogLevelUtil with Logging {
         }
         totalRegisteredExecutors.addAndGet(-1)
       }
-      logOnLevel(softAffinityLogLevel, s"After removing executor ${execId}, " +
-        s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
-        s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
-        s"actual executors count is ${totalRegisteredExecutors.intValue()}."
+      logOnLevel(
+        softAffinityLogLevel,
+        s"After removing executor $execId, " +
+          s"fixedIdForExecutors is ${fixedIdForExecutors.mkString(",")}, " +
+          s"nodesExecutorsMap is ${nodesExecutorsMap.keySet.mkString(",")}, " +
+          s"actual executors count is ${totalRegisteredExecutors.intValue()}."
       )
     } finally {
       resourceRWLock.writeLock().unlock()

@@ -16,8 +16,6 @@
  */
 package org.apache.spark.sql.extension
 
-import com.google.common.collect.Lists
-
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.extension.ExpressionExtensionTrait
@@ -26,11 +24,15 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 
+import com.google.common.collect.Lists
+
 class CustomAddExpressionTransformer(
-  substraitExprName: String,
-  left: ExpressionTransformer,
-  right: ExpressionTransformer,
-  original: Expression) extends ExpressionTransformer with Logging {
+    substraitExprName: String,
+    left: ExpressionTransformer,
+    right: ExpressionTransformer,
+    original: Expression)
+  extends ExpressionTransformer
+  with Logging {
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val leftNode = left.doTransform(args)
     val rightNode = right.doTransform(args)
@@ -53,25 +55,22 @@ case class CustomerExpressionTransformer() extends ExpressionExtensionTrait {
   lazy val expressionSigs = Seq(
     Sig[CustomAdd]("add")
   )
-  /**
-   * Generate the extension expressions list,
-   * format: Sig[XXXExpression]("XXXExpressionName")
-   */
+
+  /** Generate the extension expressions list, format: Sig[XXXExpression]("XXXExpressionName") */
   override def expressionSigList: Seq[Sig] = expressionSigs
 
-  /**
-   * Replace extension expression to transformer.
-   */
+  /** Replace extension expression to transformer. */
   override def replaceWithExtensionExpressionTransformer(
-    substraitExprName: String,
-    expr: Expression,
-    attributeSeq: Seq[Attribute]): ExpressionTransformer = expr match {
+      substraitExprName: String,
+      expr: Expression,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = expr match {
     case custom: CustomAdd =>
       new CustomAddExpressionTransformer(
         substraitExprName,
         ExpressionConverter.replaceWithExpressionTransformer(custom.left, attributeSeq),
         ExpressionConverter.replaceWithExpressionTransformer(custom.right, attributeSeq),
-        custom)
+        custom
+      )
     case other =>
       throw new UnsupportedOperationException(
         s"${expr.getClass} or $expr is not currently supported.")

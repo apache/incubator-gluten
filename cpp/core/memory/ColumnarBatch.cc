@@ -20,6 +20,7 @@
 #include "arrow/c/bridge.h"
 #include "arrow/c/helpers.h"
 #include "arrow/record_batch.h"
+#include "memory/MemoryManager.h"
 #include "operators/writer/ArrowWriter.h"
 #include "utils/ArrowStatus.h"
 #include "utils/exception.h"
@@ -42,9 +43,20 @@ int64_t ColumnarBatch::getExportNanos() const {
   return exportNanos_;
 }
 
+std::pair<char*, int> ColumnarBatch::getRowBytes(int32_t rowId) const {
+  throw gluten::GlutenException("Not implemented getRowBytes for ColumnarBatch");
+}
+
 std::ostream& operator<<(std::ostream& os, const ColumnarBatch& columnarBatch) {
   return os << "NumColumns: " << std::to_string(columnarBatch.numColumns())
             << "NumRows: " << std::to_string(columnarBatch.numRows());
+}
+
+std::shared_ptr<ColumnarBatch> createZeroColumnBatch(int32_t numRows) {
+  return std::make_shared<ArrowColumnarBatch>(arrow::RecordBatch::Make(
+      std::make_shared<arrow::Schema>(std::vector<std::shared_ptr<arrow::Field>>()),
+      numRows,
+      std::vector<std::shared_ptr<arrow::Array>>()));
 }
 
 ArrowColumnarBatch::ArrowColumnarBatch(std::shared_ptr<arrow::RecordBatch> batch)
@@ -72,6 +84,10 @@ std::shared_ptr<ArrowArray> ArrowColumnarBatch::exportArrowArray() {
   auto cArray = std::make_shared<ArrowArray>();
   GLUTEN_THROW_NOT_OK(arrow::ExportRecordBatch(*batch_, cArray.get()));
   return cArray;
+}
+
+std::pair<char*, int> ArrowColumnarBatch::getRowBytes(int32_t rowId) const {
+  throw gluten::GlutenException("Not implemented getRowBytes for ArrowColumnarBatch");
 }
 
 ArrowCStructColumnarBatch::ArrowCStructColumnarBatch(
@@ -107,6 +123,10 @@ std::shared_ptr<ArrowArray> ArrowCStructColumnarBatch::exportArrowArray() {
   return cArray_;
 }
 
+std::pair<char*, int> ArrowCStructColumnarBatch::getRowBytes(int32_t rowId) const {
+  throw gluten::GlutenException("Not implemented getRowBytes for ArrowCStructColumnarBatch");
+}
+
 std::shared_ptr<ColumnarBatch> CompositeColumnarBatch::create(std::vector<std::shared_ptr<ColumnarBatch>> batches) {
   int32_t numRows = -1;
   int32_t numColumns = 0;
@@ -118,7 +138,7 @@ std::shared_ptr<ColumnarBatch> CompositeColumnarBatch::create(std::vector<std::s
     }
     numColumns += batch->numColumns();
   }
-  return std::shared_ptr<ColumnarBatch>(new CompositeColumnarBatch(numColumns, numRows, batches));
+  return std::shared_ptr<ColumnarBatch>(new CompositeColumnarBatch(numColumns, numRows, std::move(batches)));
 }
 
 std::string CompositeColumnarBatch::getType() const {
@@ -126,11 +146,15 @@ std::string CompositeColumnarBatch::getType() const {
 }
 
 int64_t CompositeColumnarBatch::numBytes() {
-  int64_t numBytes = 0L;
-  for (const auto& batch : batches_) {
-    numBytes += batch->numBytes();
+  if (compositeBatch_) {
+    return compositeBatch_->numBytes();
+  } else {
+    int64_t numBytes = 0L;
+    for (const auto& batch : batches_) {
+      numBytes += batch->numBytes();
+    }
+    return numBytes;
   }
-  return numBytes;
 }
 
 std::shared_ptr<ArrowArray> CompositeColumnarBatch::exportArrowArray() {
@@ -147,9 +171,13 @@ const std::vector<std::shared_ptr<ColumnarBatch>>& CompositeColumnarBatch::getBa
   return batches_;
 }
 
+std::pair<char*, int> CompositeColumnarBatch::getRowBytes(int32_t rowId) const {
+  throw gluten::GlutenException("Not implemented getRowBytes for CompositeColumnarBatch");
+}
+
 CompositeColumnarBatch::CompositeColumnarBatch(
-    long numColumns,
-    long numRows,
+    int32_t numColumns,
+    int32_t numRows,
     std::vector<std::shared_ptr<ColumnarBatch>> batches)
     : ColumnarBatch(numColumns, numRows) {
   this->batches_ = std::move(batches);
@@ -184,4 +212,5 @@ void CompositeColumnarBatch::ensureUnderlyingBatchCreated() {
   compositeBatch_ = std::make_shared<ArrowColumnarBatch>(
       arrow::RecordBatch::Make(std::make_shared<arrow::Schema>(fields), numRows(), arrays));
 }
+
 } // namespace gluten

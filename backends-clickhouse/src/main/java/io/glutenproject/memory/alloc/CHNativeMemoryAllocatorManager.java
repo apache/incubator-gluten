@@ -14,12 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.memory.alloc;
 
-import org.apache.spark.util.memory.TaskResourceManager;
+import org.apache.spark.util.TaskResource;
 
 /** Resource manager implementation that manages a {@link CHNativeMemoryAllocator}. */
-public interface CHNativeMemoryAllocatorManager extends TaskResourceManager {
+public interface CHNativeMemoryAllocatorManager extends TaskResource {
   CHNativeMemoryAllocator getManaged();
 }

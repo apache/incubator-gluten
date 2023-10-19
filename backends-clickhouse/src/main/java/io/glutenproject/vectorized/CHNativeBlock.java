@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
+
+import io.glutenproject.exception.GlutenException;
 
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
@@ -30,7 +31,7 @@ public class CHNativeBlock {
 
   public static CHNativeBlock fromColumnarBatch(ColumnarBatch batch) {
     if (batch.numCols() == 0 || !(batch.column(0) instanceof CHColumnVector)) {
-      throw new RuntimeException(
+      throw new GlutenException(
           "Unexpected ColumnarBatch: "
               + (batch.numCols() == 0
                   ? "0 column"
@@ -74,6 +75,17 @@ public class CHNativeBlock {
     if (blockAddress != 0) {
       nativeClose(blockAddress);
       blockAddress = 0;
+    }
+  }
+
+  public static void closeFromColumnarBatch(ColumnarBatch cb) {
+    if (cb != null) {
+      if (cb.numCols() > 0) {
+        CHColumnVector col = (CHColumnVector) cb.column(0);
+        CHNativeBlock block = new CHNativeBlock(col.getBlockAddress());
+        block.close();
+      }
+      cb.close();
     }
   }
 

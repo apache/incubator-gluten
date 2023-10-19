@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
+
 import io.substrait.proto.FilterRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
@@ -30,16 +30,13 @@ public class FilterRelNode implements RelNode, Serializable {
   private final ExpressionNode condition;
   private final AdvancedExtensionNode extensionNode;
 
-  FilterRelNode(RelNode input,
-                ExpressionNode condition) {
+  FilterRelNode(RelNode input, ExpressionNode condition) {
     this.input = input;
     this.condition = condition;
     this.extensionNode = null;
   }
 
-  FilterRelNode(RelNode input,
-                ExpressionNode condition,
-                AdvancedExtensionNode extensionNode) {
+  FilterRelNode(RelNode input, ExpressionNode condition, AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.condition = condition;
     this.extensionNode = extensionNode;

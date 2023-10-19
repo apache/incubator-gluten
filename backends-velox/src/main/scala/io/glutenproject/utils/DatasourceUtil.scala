@@ -14,17 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
-import java.util
-
+import io.glutenproject.datasource.DatasourceJniWrapper
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
-import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
-import org.apache.arrow.c.ArrowSchema
-import org.apache.hadoop.fs.FileStatus
+import io.glutenproject.memory.nmm.NativeMemoryManagers
+
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkSchemaUtil
+
+import org.apache.arrow.c.ArrowSchema
+import org.apache.hadoop.fs.FileStatus
+
+import java.util
 
 object DatasourceUtil {
   def readSchema(files: Seq[FileStatus]): Option[StructType] = {
@@ -36,17 +38,20 @@ object DatasourceUtil {
 
   def readSchema(file: FileStatus): Option[StructType] = {
     val allocator = ArrowBufferAllocators.contextInstance()
-    val datasourceJniWrapper = new DatasourceJniWrapper()
-    val instanceId = datasourceJniWrapper.nativeInitDatasource(
-      file.getPath.toString, -1, new util.HashMap[String, String]())
+    val datasourceJniWrapper = DatasourceJniWrapper.create()
+    val dsHandle = datasourceJniWrapper.nativeInitDatasource(
+      file.getPath.toString,
+      -1,
+      NativeMemoryManagers.contextInstance("VeloxWriter").getNativeInstanceHandle,
+      new util.HashMap[String, String]()
+    )
     val cSchema = ArrowSchema.allocateNew(allocator)
-    datasourceJniWrapper.inspectSchema(instanceId, cSchema.memoryAddress())
+    datasourceJniWrapper.inspectSchema(dsHandle, cSchema.memoryAddress())
     try {
-      Option(SparkSchemaUtil.fromArrowSchema(
-        ArrowAbiUtil.importToSchema(allocator, cSchema)))
+      Option(SparkSchemaUtil.fromArrowSchema(ArrowAbiUtil.importToSchema(allocator, cSchema)))
     } finally {
       cSchema.close()
-      datasourceJniWrapper.close(instanceId)
+      datasourceJniWrapper.close(dsHandle)
     }
   }
 }

@@ -45,6 +45,7 @@ class GlutenClickHouseTPCHParquetAQESuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.sql.adaptive.enabled", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {

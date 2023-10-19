@@ -14,24 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.init;
+
+import io.glutenproject.proto.ConfigMap;
 
 import java.util.Map;
 
-import com.google.protobuf.Any;
-import io.glutenproject.substrait.expression.ExpressionBuilder;
-import io.glutenproject.substrait.expression.StringMapNode;
-import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
-import io.glutenproject.substrait.extensions.ExtensionBuilder;
-import io.glutenproject.substrait.plan.PlanBuilder;
-
 public class JniUtils {
 
-    public static byte[] toNativeConf(Map<String, String> confs) {
-        StringMapNode stringMapNode = ExpressionBuilder.makeStringMap(confs);
-        AdvancedExtensionNode extensionNode = ExtensionBuilder
-                .makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
-        return PlanBuilder.makePlan(extensionNode).toProtobuf().toByteArray();
-    }
+  public static byte[] toNativeConf(Map<String, String> confs) {
+    ConfigMap.Builder builder = ConfigMap.newBuilder();
+    builder.putAllConfigs(confs);
+    return builder.build().toByteArray();
+  }
 }

@@ -14,19 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 
-import io.glutenproject.GlutenConfig
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.SparkPlan
-
-import scala.util.Try
 
 object PhysicalPlanSelector extends QueryPlanSelector[SparkPlan] {
   override protected def validate(plan: SparkPlan): Boolean = {
@@ -38,10 +35,7 @@ object LogicalPlanSelector extends QueryPlanSelector[LogicalPlan] {
   override protected def validate(plan: LogicalPlan): Boolean = true
 }
 
-/**
- * Select to decide whether a Spark plan can be accepted by Gluten for further
- * execution.
- */
+/** Select to decide whether a Spark plan can be accepted by Gluten for further execution. */
 abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
 
   private[this] def stackTrace(max: Int = 5): String = {
@@ -49,21 +43,31 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
     new Throwable().getStackTrace().slice(trim, trim + max).mkString("\n")
   }
 
+  private def isGlutenEnabledForCurrentThread(session: SparkSession): Boolean = {
+    val enabled =
+      session.sparkContext.getLocalProperty(QueryPlanSelector.GLUTEN_ENABLE_FOR_THREAD_KEY)
+    if (enabled != null) {
+      enabled.toBoolean
+    } else {
+      true
+    }
+  }
+
   protected def validate(plan: T): Boolean
 
   private[this] def shouldUseGluten(session: SparkSession, plan: T): Boolean = {
+    val glutenEnabled = session.conf
+      .get(GlutenConfig.GLUTEN_ENABLE_KEY, GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT.toString)
+      .toBoolean && isGlutenEnabledForCurrentThread(session)
     if (log.isDebugEnabled) {
+      logDebug(s"shouldUseGluten: $glutenEnabled")
       logDebug(
         s"=========================\n" +
           s"running shouldUseGluten from:\n${stackTrace()}\n" +
           s"plan:\n${plan.treeString}\n" +
           "=========================")
     }
-    val conf: Option[String] = session.conf.getOption(GlutenConfig.GLUTEN_ENABLE_KEY)
-    val ret = conf.flatMap((x: String) =>
-      Try(x.toBoolean).toOption).getOrElse(GlutenConfig.GLUTEN_ENABLE_BY_DEFAULT)
-    logInfo(s"shouldUseGluten: $ret")
-    ret & validate(plan)
+    glutenEnabled & validate(plan)
   }
 
   def maybe(session: SparkSession, plan: T)(func: => T): T = {
@@ -73,4 +77,9 @@ abstract class QueryPlanSelector[T <: QueryPlan[_]] extends Logging {
   def maybeNil(session: SparkSession, plan: T)(func: => Seq[SparkPlan]): Seq[SparkPlan] = {
     if (shouldUseGluten(session, plan)) func else Nil
   }
+}
+
+object QueryPlanSelector {
+  // control the usage of gluten at thread level
+  val GLUTEN_ENABLE_FOR_THREAD_KEY = "gluten.enabledForCurrentThread"
 }

@@ -17,31 +17,31 @@
 package org.apache.spark.sql.utils
 
 import io.glutenproject.extension.{DefaultExpressionExtensionTransformer, ExpressionExtensionTrait}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
 object ExpressionUtil extends Logging {
 
-  /**
-   * Generate the extended expression transformer by conf
-   */
+  /** Generate the extended expression transformer by conf */
   def extendedExpressionTransformer(
-    extendedExpressionTransformer: String
-    ): ExpressionExtensionTrait = {
+      extendedExpressionTransformer: String
+  ): ExpressionExtensionTrait = {
     if (extendedExpressionTransformer.isEmpty) {
       DefaultExpressionExtensionTransformer()
     } else {
       try {
         val extensionConfClass = Utils.classForName(extendedExpressionTransformer)
-        extensionConfClass.getConstructor().newInstance()
+        extensionConfClass
+          .getConstructor()
+          .newInstance()
           .asInstanceOf[ExpressionExtensionTrait]
       } catch {
         // Ignore the error if we cannot find the class or when the class has the wrong type.
-        case e@(_: ClassCastException |
-                _: ClassNotFoundException |
-                _: NoClassDefFoundError) =>
+        case e @ (_: ClassCastException | _: ClassNotFoundException | _: NoClassDefFoundError) =>
           logWarning(
-            s"Cannot create extended expression transformer $extendedExpressionTransformer", e)
+            s"Cannot create extended expression transformer $extendedExpressionTransformer",
+            e)
           DefaultExpressionExtensionTransformer()
       }
     }

@@ -22,7 +22,7 @@ import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 
-class GlutenClickHouseNativeExceptionSuite extends WholeStageTransformerSuite {
+class GlutenClickHouseNativeExceptionSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
   override protected val backend: String = "ch"
   override protected val fileFormat: String = "parquet"

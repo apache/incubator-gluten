@@ -14,40 +14,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
-import com.google.protobuf.Any
-import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.extension.ValidationResult
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.utils.BindReferencesUtil
-import io.substrait.proto.SortField
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
+
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.protobuf.Any
+import io.substrait.proto.SortField
+
 import java.util
+
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
 
-case class SortExecTransformer(sortOrder: Seq[SortOrder],
-                               global: Boolean,
-                               child: SparkPlan,
-                               testSpillFrequency: Int = 0)
-  extends UnaryExecNode with TransformSupport {
+case class SortExecTransformer(
+    sortOrder: Seq[SortOrder],
+    global: Boolean,
+    child: SparkPlan,
+    testSpillFrequency: Int = 0)
+  extends UnaryTransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
@@ -55,10 +53,6 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genSortTransformerMetricsUpdater(metrics)
-
-  val sparkConf = sparkContext.getConf
-
-  override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = child.output
 
@@ -69,34 +63,13 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
   override def requiredChildDistribution: Seq[Distribution] =
     if (global) OrderedDistribution(sortOrder) :: Nil else UnspecifiedDistribution :: Nil
 
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      val childPlans = c.getBuildPlans
-      childPlans :+ (this, null)
-    case _ =>
-      Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
-
-  def getRelWithProject(context: SubstraitContext,
-                        sortOrder: Seq[SortOrder],
-                        originalInputAttributes: Seq[Attribute],
-                        operatorId: Long,
-                        input: RelNode,
-                        validation: Boolean): RelNode = {
+  def getRelWithProject(
+      context: SubstraitContext,
+      sortOrder: Seq[SortOrder],
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode,
+      validation: Boolean): RelNode = {
     val args = context.registeredFunction
 
     val sortFieldList = new util.ArrayList[SortField]()
@@ -108,22 +81,23 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     projectExpressions.addAll(selectOrigins.asJava)
 
     var colIdx = originalInputAttributes.size
-    sortOrder.foreach(order => {
-      val builder = SortField.newBuilder();
-      val projectExprNode = ExpressionConverter
-        .replaceWithExpressionTransformer(order.child, originalInputAttributes).doTransform(args)
-      projectExpressions.add(projectExprNode)
+    sortOrder.foreach(
+      order => {
+        val builder = SortField.newBuilder()
+        val projectExprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(order.child, originalInputAttributes)
+          .doTransform(args)
+        projectExpressions.add(projectExprNode)
 
-      val exprNode = ExpressionBuilder.makeSelection(colIdx)
-      sortExprArttributes.add(
-        AttributeReference(s"col_${colIdx}", order.child.dataType)())
-      colIdx += 1
-      builder.setExpr(exprNode.toProtobuf)
+        val exprNode = ExpressionBuilder.makeSelection(colIdx)
+        sortExprArttributes.add(AttributeReference(s"col_$colIdx", order.child.dataType)())
+        colIdx += 1
+        builder.setExpr(exprNode.toProtobuf)
 
-      builder.setDirectionValue(SortExecTransformer.transformSortDirection(order.direction.sql,
-        order.nullOrdering.sql))
-      sortFieldList.add(builder.build())
-    })
+        builder.setDirectionValue(
+          SortExecTransformer.transformSortDirection(order.direction.sql, order.nullOrdering.sql))
+        sortFieldList.add(builder.build())
+      })
 
     // Add a Project Rel both original columns and the sorting columns
     val emitStartIndex = originalInputAttributes.size
@@ -133,23 +107,25 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
       // Use a extension node to send the input types through Substrait plan for a validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
       for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(
-          ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
-      sortExprArttributes.forEach { attr =>
-        inputTypeNodeList.add(
-          ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      sortExprArttributes.forEach {
+        attr => inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
-        input, projectExpressions, extensionNode, context, operatorId, emitStartIndex)
+        input,
+        projectExpressions,
+        extensionNode,
+        context,
+        operatorId,
+        emitStartIndex)
     }
 
     val sortRel = if (!validation) {
-      RelBuilder.makeSortRel(
-        inputRel, sortFieldList, context, operatorId)
+      RelBuilder.makeSortRel(inputRel, sortFieldList, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -157,16 +133,14 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
 
-      sortExprArttributes.forEach { attr =>
-        inputTypeNodeList.add(
-          ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      sortExprArttributes.forEach {
+        attr => inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
 
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
 
-      RelBuilder.makeSortRel(
-        inputRel, sortFieldList, extensionNode, context, operatorId)
+      RelBuilder.makeSortRel(inputRel, sortFieldList, extensionNode, context, operatorId)
     }
 
     // Add a Project Rel to remove the sorting columns
@@ -174,45 +148,51 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
       RelBuilder.makeProjectRel(
         sortRel,
         new java.util.ArrayList[ExpressionNode](selectOrigins.asJava),
-        context, operatorId, originalInputAttributes.size + sortFieldList.size)
+        context,
+        operatorId,
+        originalInputAttributes.size + sortFieldList.size)
     } else {
       // Use a extension node to send the input types through Substrait plan for a validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
       for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(
-          ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
-        sortRel, new java.util.ArrayList[ExpressionNode](selectOrigins.asJava),
-        extensionNode, context, operatorId, originalInputAttributes.size + sortFieldList.size)
+        sortRel,
+        new java.util.ArrayList[ExpressionNode](selectOrigins.asJava),
+        extensionNode,
+        context,
+        operatorId,
+        originalInputAttributes.size + sortFieldList.size)
     }
   }
 
-  def getRelWithoutProject(context: SubstraitContext,
-                           sortOrder: Seq[SortOrder],
-                           originalInputAttributes: Seq[Attribute],
-                           operatorId: Long,
-                           input: RelNode,
-                           validation: Boolean): RelNode = {
+  def getRelWithoutProject(
+      context: SubstraitContext,
+      sortOrder: Seq[SortOrder],
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode,
+      validation: Boolean): RelNode = {
     val args = context.registeredFunction
     val sortFieldList = new util.ArrayList[SortField]()
-    sortOrder.foreach(order => {
-      val builder = SortField.newBuilder();
-      val exprNode = ExpressionConverter
-        .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
-        .doTransform(args)
-      builder.setExpr(exprNode.toProtobuf)
+    sortOrder.foreach(
+      order => {
+        val builder = SortField.newBuilder()
+        val exprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
+          .doTransform(args)
+        builder.setExpr(exprNode.toProtobuf)
 
-      builder.setDirectionValue(SortExecTransformer.transformSortDirection(order.direction.sql,
-        order.nullOrdering.sql))
-      sortFieldList.add(builder.build())
-    })
+        builder.setDirectionValue(
+          SortExecTransformer.transformSortDirection(order.direction.sql, order.nullOrdering.sql))
+        sortFieldList.add(builder.build())
+      })
     if (!validation) {
-      RelBuilder.makeSortRel(
-        input, sortFieldList, context, operatorId)
+      RelBuilder.makeSortRel(input, sortFieldList, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
@@ -222,46 +202,43 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
 
-      RelBuilder.makeSortRel(
-        input, sortFieldList, extensionNode, context, operatorId)
+      RelBuilder.makeSortRel(input, sortFieldList, extensionNode, context, operatorId)
     }
   }
 
-  def getRelNode(context: SubstraitContext,
-                 sortOrder: Seq[SortOrder],
-                 originalInputAttributes: Seq[Attribute],
-                 operatorId: Long,
-                 input: RelNode,
-                 validation: Boolean): RelNode = {
+  def getRelNode(
+      context: SubstraitContext,
+      sortOrder: Seq[SortOrder],
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode,
+      validation: Boolean): RelNode = {
     val needsProjection = SortExecTransformer.needProjection(sortOrder: Seq[SortOrder])
 
     if (needsProjection) {
-      getRelWithProject(context, sortOrder,
-        originalInputAttributes, operatorId, input, validation)
+      getRelWithProject(context, sortOrder, originalInputAttributes, operatorId, input, validation)
     } else {
       getRelWithoutProject(
-        context, sortOrder, originalInputAttributes, operatorId, input, validation)
+        context,
+        sortOrder,
+        originalInputAttributes,
+        operatorId,
+        input,
+        validation)
     }
   }
 
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportSortExec()) {
-      return notOk("backend does not sort")
+      return ValidationResult.notOk("Current backend does not support sort")
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
-    val relNode = getRelNode(
-      substraitContext, sortOrder, child.output, operatorId, null, validation = true)
+    val relNode =
+      getRelNode(substraitContext, sortOrder, child.output, operatorId, null, validation = true)
 
-    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -280,8 +257,8 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
     }
 
     val (currRel, inputAttributes) = if (childCtx != null) {
-      (getRelNode(
-        context, sortOrder, child.output, operatorId, childCtx.root, validation = false),
+      (
+        getRelNode(context, sortOrder, child.output, operatorId, childCtx.root, validation = false),
         childCtx.outputAttributes)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
@@ -291,21 +268,16 @@ case class SortExecTransformer(sortOrder: Seq[SortOrder],
         attrList.add(attr)
       }
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
-      (getRelNode(
-        context, sortOrder, child.output, operatorId, readRel, validation = false),
+      (
+        getRelNode(context, sortOrder, child.output, operatorId, readRel, validation = false),
         child.output)
     }
     assert(currRel != null, "Sort Rel should be valid")
-    val outputAttrs = BindReferencesUtil.bindReferencesWithNullable(output, inputAttributes)
-    TransformContext(inputAttributes, outputAttrs, currRel)
+    TransformContext(inputAttributes, output, currRel)
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(s"ColumnarSortExec doesn't support doExecute")
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): SortExecTransformer =

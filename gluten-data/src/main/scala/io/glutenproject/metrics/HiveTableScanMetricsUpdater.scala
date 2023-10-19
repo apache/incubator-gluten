@@ -14,13 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.metrics
 
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 
-class HiveTableScanMetricsUpdater (@transient val metrics: Map[String, SQLMetric])
+class HiveTableScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric])
   extends MetricsUpdater {
   val rawInputRows: SQLMetric = metrics("rawInputRows")
   val rawInputBytes: SQLMetric = metrics("rawInputBytes")

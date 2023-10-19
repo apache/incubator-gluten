@@ -22,6 +22,7 @@
 #include "arrow/c/bridge.h"
 #include "arrow/c/helpers.h"
 #include "arrow/record_batch.h"
+#include "memory/MemoryManager.h"
 #include "operators/writer/ArrowWriter.h"
 #include "utils/ArrowStatus.h"
 #include "utils/exception.h"
@@ -47,7 +48,8 @@ class ColumnarBatch {
   virtual std::shared_ptr<ArrowSchema> exportArrowSchema() = 0;
 
   virtual int64_t getExportNanos() const;
-  ;
+
+  virtual std::pair<char*, int> getRowBytes(int32_t rowId) const;
 
   friend std::ostream& operator<<(std::ostream& os, const ColumnarBatch& columnarBatch);
 
@@ -73,6 +75,8 @@ class ArrowColumnarBatch final : public ColumnarBatch {
 
   std::shared_ptr<ArrowArray> exportArrowArray() override;
 
+  std::pair<char*, int> getRowBytes(int32_t rowId) const override;
+
  private:
   std::shared_ptr<arrow::RecordBatch> batch_;
 };
@@ -90,6 +94,8 @@ class ArrowCStructColumnarBatch final : public ColumnarBatch {
   std::shared_ptr<ArrowSchema> exportArrowSchema() override;
 
   std::shared_ptr<ArrowArray> exportArrowArray() override;
+
+  std::pair<char*, int> getRowBytes(int32_t rowId) const override;
 
  private:
   std::shared_ptr<ArrowSchema> cSchema_ = std::make_shared<ArrowSchema>();
@@ -114,8 +120,13 @@ class CompositeColumnarBatch final : public ColumnarBatch {
 
   const std::vector<std::shared_ptr<ColumnarBatch>>& getBatches() const;
 
+  std::pair<char*, int> getRowBytes(int32_t rowId) const override;
+
  private:
-  CompositeColumnarBatch(long numColumns, long numRows, std::vector<std::shared_ptr<ColumnarBatch>> batches);
+  explicit CompositeColumnarBatch(
+      int32_t numColumns,
+      int32_t numRows,
+      std::vector<std::shared_ptr<ColumnarBatch>> batches);
 
   // We use ArrowColumnarBatch as the way to compose columnar batches
   void ensureUnderlyingBatchCreated();
@@ -123,5 +134,7 @@ class CompositeColumnarBatch final : public ColumnarBatch {
   std::vector<std::shared_ptr<ColumnarBatch>> batches_;
   std::shared_ptr<ColumnarBatch> compositeBatch_ = nullptr;
 };
+
+std::shared_ptr<ColumnarBatch> createZeroColumnBatch(int32_t numRows);
 
 } // namespace gluten

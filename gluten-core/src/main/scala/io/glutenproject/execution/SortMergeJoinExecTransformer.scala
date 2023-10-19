@@ -14,56 +14,48 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
-import com.google.protobuf.StringValue
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
-import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.GlutenConfig
-import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.substrait.proto.JoinRel
+
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import scala.collection.JavaConverters._
-import java.{lang, util}
+import com.google.protobuf.StringValue
+import io.substrait.proto.JoinRel
 
-/**
- * Performs a hash join of two child relations by first shuffling the data using the join keys.
- */
+import java.util.{ArrayList => JArrayList}
+
+import scala.collection.JavaConverters._
+
+/** Performs a sort merge join of two child relations. */
 case class SortMergeJoinExecTransformer(
-                                         leftKeys: Seq[Expression],
-                                         rightKeys: Seq[Expression],
-                                         joinType: JoinType,
-                                         condition: Option[Expression],
-                                         left: SparkPlan,
-                                         right: SparkPlan,
-                                         isSkewJoin: Boolean = false,
-                                         projectList: Seq[NamedExpression] = null)
-  extends BinaryExecNode with TransformSupport {
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    condition: Option[Expression],
+    left: SparkPlan,
+    right: SparkPlan,
+    isSkewJoin: Boolean = false,
+    projectList: Seq[NamedExpression] = null)
+  extends BinaryExecNode
+  with TransformSupport {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetrics(sparkContext)
 
-  val sparkConf = sparkContext.getConf
-
-  val resultSchema = this.schema
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
     (rightKeys, leftKeys, right, left)
-
-  override def supportsColumnar: Boolean = true
 
   override def stringArgs: Iterator[Any] = super.stringArgs.toSeq.dropRight(1).iterator
 
@@ -134,6 +126,9 @@ case class SortMergeJoinExecTransformer(
     }
   }
 
+  override def requiredChildOrdering: Seq[Seq[SortOrder]] =
+    requiredOrders(leftKeys) :: requiredOrders(rightKeys) :: Nil
+
   override def outputOrdering: Seq[SortOrder] = joinType match {
     // For inner join, orders of both sides keys should be kept.
     case _: InnerLike =>
@@ -143,8 +138,7 @@ case class SortMergeJoinExecTransformer(
         case (lKey, rKey) =>
           // Also add the right key and its `sameOrderExpressions`
           val sameOrderExpressions = ExpressionSet(lKey.sameOrderExpressions ++ rKey.children)
-          SortOrder(
-            lKey.child, Ascending, sameOrderExpressions.toSeq)
+          SortOrder(lKey.child, Ascending, sameOrderExpressions.toSeq)
       }
     // For left and right outer joins, the output is ordered by the streamed input's join keys.
     case LeftOuter => getKeyOrdering(leftKeys, left.outputOrdering)
@@ -158,8 +152,8 @@ case class SortMergeJoinExecTransformer(
   }
 
   private def getKeyOrdering(
-                              keys: Seq[Expression],
-                              childOutputOrdering: Seq[SortOrder]): Seq[SortOrder] = {
+      keys: Seq[Expression],
+      childOutputOrdering: Seq[SortOrder]): Seq[SortOrder] = {
     val requiredOrdering = requiredOrders(keys)
     if (SortOrder.orderingSatisfies(childOutputOrdering, requiredOrdering)) {
       keys.zip(childOutputOrdering).map {
@@ -181,48 +175,25 @@ case class SortMergeJoinExecTransformer(
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(bufferedPlan)
   }
 
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-
-    val curbufferedPlan: Seq[(SparkPlan, SparkPlan)] = bufferedPlan match {
-      case s: SortExecTransformer =>
-        Seq((s, this))
-      case c: TransformSupport if !c.isInstanceOf[SortExecTransformer] =>
-        c.getBuildPlans
-      case other =>
-        /* should be InputAdapterTransformer or others */
-        Seq((other, this))
-    }
-    streamedPlan match {
-      case c: TransformSupport if c.isInstanceOf[SortExecTransformer] =>
-        curbufferedPlan ++ Seq((c, this))
-      case c: TransformSupport if !c.isInstanceOf[SortExecTransformer] =>
-        c.getBuildPlans ++ curbufferedPlan
-      case _ =>
-        curbufferedPlan
-    }
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = streamedPlan match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
-
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetricsUpdater(metrics)
 
   def genJoinParametersBuilder(): com.google.protobuf.Any.Builder = {
-    val (isSMJ, isNullAwareAntiJoin) = (0, 0)
+    val (isSMJ, isNullAwareAntiJoin) = (1, 0)
     // Start with "JoinParameters:"
     val joinParametersStr = new StringBuffer("JoinParameters:")
-    // isSMJ: 0 for SMJ, 1 for SHJ
+    // isSMJ: 0 for SHJ, 1 for SMJ
     // isNullAwareAntiJoin: 0 for false, 1 for true
-    // buildHashTableId: the unique id for the hash table of build plan
-    joinParametersStr.append("isSMJ=").append(isSMJ).append("\n")
-      .append("isNullAwareAntiJoin=").append(isNullAwareAntiJoin).append("\n")
-      .append("isExistenceJoin=").append(
-      if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0).append("\n")
+    joinParametersStr
+      .append("isSMJ=")
+      .append(isSMJ)
+      .append("\n")
+      .append("isNullAwareAntiJoin=")
+      .append(isNullAwareAntiJoin)
+      .append("\n")
+      .append("isExistenceJoin=")
+      .append(if (joinType.isInstanceOf[ExistenceJoin]) 1 else 0)
+      .append("\n")
     val message = StringValue
       .newBuilder()
       .setValue(joinParametersStr.toString)
@@ -233,7 +204,7 @@ case class SortMergeJoinExecTransformer(
   }
 
   // Direct output order of substrait join operation
-  protected  val substraitJoinType = joinType match {
+  protected val substraitJoinType = joinType match {
     case Inner =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
@@ -256,7 +227,8 @@ case class SortMergeJoinExecTransformer(
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     if (substraitJoinType == JoinRel.JoinType.UNRECOGNIZED) {
-      return notOk(s"does not support join type $joinType, substrait: $substraitJoinType")
+      return ValidationResult
+        .notOk(s"Found unsupported join type of $joinType for substrait: $substraitJoinType")
     }
     val relNode = JoinUtils.createJoinRel(
       streamedKeys,
@@ -266,18 +238,16 @@ case class SortMergeJoinExecTransformer(
       false,
       joinType,
       genJoinParametersBuilder(),
-      null, null, streamedPlan.output,
+      null,
+      null,
+      streamedPlan.output,
       bufferedPlan.output,
-      substraitContext, substraitContext.nextOperatorId(this.nodeName), validation = true)
+      substraitContext,
+      substraitContext.nextOperatorId(this.nodeName),
+      validation = true
+    )
     // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -288,9 +258,10 @@ case class SortMergeJoinExecTransformer(
           (transformContext.root, transformContext.outputAttributes, false)
         case _ =>
           val readRel = RelBuilder.makeReadRel(
-            new util.ArrayList[Attribute](plan.output.asJava),
+            new JArrayList[Attribute](plan.output.asJava),
             context,
-            new lang.Long(-1)) /* A special handling in Join to delay the rel registration. */
+            -1
+          ) /* A special handling in Join to delay the rel registration. */
           (readRel, plan.output, true)
       }
     }
@@ -335,28 +306,20 @@ case class SortMergeJoinExecTransformer(
       inputStreamedOutput,
       inputBuildOutput,
       context,
-      operatorId)
+      operatorId
+    )
 
     context.registerJoinParam(operatorId, joinParams)
 
-    JoinUtils.createTransformContext(
-      false,
-      output,
-      joinRel,
-      inputStreamedOutput,
-      inputBuildOutput)
+    JoinUtils.createTransformContext(false, output, joinRel, inputStreamedOutput, inputBuildOutput)
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(
-      s"ColumnarSortMergeJoinExec doesn't support doExecute")
-  }
-
   override protected def withNewChildrenInternal(
-      newLeft: SparkPlan, newRight: SparkPlan): SortMergeJoinExecTransformer =
+      newLeft: SparkPlan,
+      newRight: SparkPlan): SortMergeJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 }

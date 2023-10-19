@@ -14,19 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
-import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class LocalFilesBuilder {
-  private LocalFilesBuilder() {
-  }
+  private LocalFilesBuilder() {}
 
-  public static LocalFilesNode makeLocalFiles(Integer index, ArrayList<String> paths,
-                                              ArrayList<Long> starts, ArrayList<Long> lengths,
-                                              LocalFilesNode.ReadFileFormat fileFormat) {
-    return new LocalFilesNode(index, paths, starts, lengths, fileFormat);
+  public static LocalFilesNode makeLocalFiles(
+      Integer index,
+      List<String> paths,
+      List<Long> starts,
+      List<Long> lengths,
+      List<Map<String, String>> partitionColumns,
+      LocalFilesNode.ReadFileFormat fileFormat) {
+    return new LocalFilesNode(index, paths, starts, lengths, partitionColumns, fileFormat);
   }
 
   public static LocalFilesNode makeLocalFiles(String iterPath) {

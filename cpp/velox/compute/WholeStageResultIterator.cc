@@ -1,13 +1,28 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "WholeStageResultIterator.h"
 #include "VeloxBackend.h"
-#include "VeloxInitializer.h"
+#include "VeloxExecutionCtx.h"
 #include "config/GlutenConfig.h"
-#include "utils/URLDecoder.h"
-#include "velox/connectors/hive/FileHandle.h"
 #include "velox/connectors/hive/HiveConfig.h"
-#include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
+
+#include "utils/ConfigExtractor.h"
 
 #ifdef ENABLE_HDFS
 #include <hdfs/hdfs.h>
@@ -23,6 +38,7 @@ const std::string kHiveConnectorId = "test-hive";
 
 // memory
 const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
+const std::string kSpillStrategyDefaultValue = "auto";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
@@ -37,6 +53,14 @@ const std::string kSpillStartPartitionBit = "spark.gluten.sql.columnar.backend.v
 const std::string kSpillPartitionBits = "spark.gluten.sql.columnar.backend.velox.spillPartitionBits";
 const std::string kSpillableReservationGrowthPct =
     "spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct";
+const std::string kMaxPartialAggregationMemoryRatio =
+    "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio";
+const std::string kMaxExtendedPartialAggregationMemoryRatio =
+    "spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio";
+const std::string kAbandonPartialAggregationMinPct =
+    "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct";
+const std::string kAbandonPartialAggregationMinRows =
+    "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows";
 
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
@@ -62,7 +86,7 @@ WholeStageResultIterator::WholeStageResultIterator(
 #ifdef ENABLE_HDFS
   updateHdfsTokens();
 #endif
-  spillStrategy_ = getConfigValue(kSpillStrategy, "threshold");
+  spillStrategy_ = getConfigValue(confMap_, kSpillStrategy, kSpillStrategyDefaultValue);
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 }
 
@@ -73,7 +97,7 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
       nullptr,
       getQueryContextConf(),
       connectorConfigs,
-      gluten::VeloxInitializer::get()->getAsyncDataCache(),
+      gluten::VeloxBackend::get()->getAsyncDataCache(),
       pool_,
       nullptr,
       "");
@@ -100,21 +124,73 @@ std::shared_ptr<ColumnarBatch> WholeStageResultIterator::next() {
   return std::make_shared<VeloxColumnarBatch>(vector);
 }
 
-int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
-  if (spillStrategy_ == "auto") {
-    return pool_->reclaim(size);
+namespace {
+class ConditionalSuspendedSection {
+ public:
+  ConditionalSuspendedSection(velox::exec::Driver* driver, bool condition) {
+    if (condition) {
+      section_ = new velox::exec::SuspendedSection(driver);
+    }
   }
-  return 0;
+
+  virtual ~ConditionalSuspendedSection() {
+    if (section_) {
+      delete section_;
+    }
+  }
+
+  // singleton
+  ConditionalSuspendedSection(const ConditionalSuspendedSection&) = delete;
+  ConditionalSuspendedSection(ConditionalSuspendedSection&&) = delete;
+  ConditionalSuspendedSection& operator=(const ConditionalSuspendedSection&) = delete;
+  ConditionalSuspendedSection& operator=(ConditionalSuspendedSection&&) = delete;
+
+ private:
+  velox::exec::SuspendedSection* section_ = nullptr;
+};
+} // namespace
+
+int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
+  std::string poolName{pool_->root()->name() + "/" + pool_->name()};
+  std::string logPrefix{"Spill[" + poolName + "]: "};
+  DLOG(INFO) << logPrefix << "Trying to reclaim " << size << " bytes of data...";
+  DLOG(INFO) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes()
+             << "/" << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
+  DLOG(INFO) << logPrefix << "Shrinking...";
+  int64_t shrunken = pool_->shrinkManaged(pool_.get(), size);
+  DLOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
+
+  // todo return the actual spilled size?
+  if (spillStrategy_ == "auto") {
+    int64_t remaining = size - shrunken;
+    LOG(INFO) << logPrefix << "Trying to request spilling for " << remaining << " bytes...";
+    // if we are on one of the driver of the spilled task, suspend it
+    velox::exec::Driver* thisDriver = nullptr;
+    task_->testingVisitDrivers([&](velox::exec::Driver* driver) {
+      if (driver->isOnThread()) {
+        thisDriver = driver;
+      }
+    });
+    // suspend the driver when we are on it
+    ConditionalSuspendedSection noCancel(thisDriver, thisDriver != nullptr);
+    velox::exec::MemoryReclaimer::Stats status;
+    uint64_t spilledOut = pool_->reclaim(remaining, status);
+    LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
+    uint64_t total = shrunken + spilledOut;
+    DLOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
+    return total;
+  } else {
+    LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";
+  }
+
+  DLOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
+  return shrunken;
 }
 
 void WholeStageResultIterator::getOrderedNodeIds(
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     std::vector<velox::core::PlanNodeId>& nodeIds) {
-  bool isProjectNode = false;
-  if (std::dynamic_pointer_cast<const velox::core::ProjectNode>(planNode)) {
-    isProjectNode = true;
-  }
-
+  bool isProjectNode = (std::dynamic_pointer_cast<const velox::core::ProjectNode>(planNode) != nullptr);
   const auto& sourceNodes = planNode->sources();
   for (const auto& sourceNode : sourceNodes) {
     // Filter over Project are mapped into FilterProject operator in Velox.
@@ -136,146 +212,158 @@ void WholeStageResultIterator::collectMetrics() {
 
   auto planStats = velox::exec::toPlanStats(task_->taskStats());
   // Calculate the total number of metrics.
-  int numOfStats = 0;
+  int statsNum = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
       if (omittedNodeIds_.find(nodeId) == omittedNodeIds_.end()) {
-#ifdef GLUTEN_PRINT_DEBUG
-        std::cout << "Not found node id: " << nodeId << std::endl;
-        std::cout << "Plan Node: " << std::endl << veloxPlan_->toString(true, true) << std::endl;
-#endif
+        DEBUG_OUT << "Not found node id: " << nodeId << std::endl;
+        DEBUG_OUT << "Plan Node: " << std::endl << veloxPlan_->toString(true, true) << std::endl;
         throw std::runtime_error("Node id cannot be found in plan status.");
       }
       // Special handing for Filter over Project case. Filter metrics are
       // omitted.
-      numOfStats += 1;
+      statsNum += 1;
       continue;
     }
-    numOfStats += planStats.at(nodeId).operatorStats.size();
+    statsNum += planStats.at(nodeId).operatorStats.size();
   }
 
-  metrics_ = std::make_shared<Metrics>(numOfStats);
-  int metricsIdx = 0;
+  metrics_ = std::make_unique<Metrics>(statsNum);
+
+  int metricIndex = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
       // Special handing for Filter over Project case. Filter metrics are
       // omitted.
-      metricsIdx += 1;
+      metricIndex += 1;
       continue;
     }
+
     const auto& status = planStats.at(nodeId);
     // Add each operator status into metrics.
     for (const auto& entry : status.operatorStats) {
-      metrics_->inputRows[metricsIdx] = entry.second->inputRows;
-      metrics_->inputVectors[metricsIdx] = entry.second->inputVectors;
-      metrics_->inputBytes[metricsIdx] = entry.second->inputBytes;
-      metrics_->rawInputRows[metricsIdx] = entry.second->rawInputRows;
-      metrics_->rawInputBytes[metricsIdx] = entry.second->rawInputBytes;
-      metrics_->outputRows[metricsIdx] = entry.second->outputRows;
-      metrics_->outputVectors[metricsIdx] = entry.second->outputVectors;
-      metrics_->outputBytes[metricsIdx] = entry.second->outputBytes;
-      metrics_->cpuCount[metricsIdx] = entry.second->cpuWallTiming.count;
-      metrics_->wallNanos[metricsIdx] = entry.second->cpuWallTiming.wallNanos;
-      metrics_->peakMemoryBytes[metricsIdx] = entry.second->peakMemoryBytes;
-      metrics_->numMemoryAllocations[metricsIdx] = entry.second->numMemoryAllocations;
-      metrics_->spilledBytes[metricsIdx] = entry.second->spilledBytes;
-      metrics_->spilledRows[metricsIdx] = entry.second->spilledRows;
-      metrics_->spilledPartitions[metricsIdx] = entry.second->spilledPartitions;
-      metrics_->spilledFiles[metricsIdx] = entry.second->spilledFiles;
-      metrics_->numDynamicFiltersProduced[metricsIdx] =
-          runtimeMetric("sum", entry.second->customStats, kDynamicFiltersProduced);
-      metrics_->numDynamicFiltersAccepted[metricsIdx] =
-          runtimeMetric("sum", entry.second->customStats, kDynamicFiltersAccepted);
-      metrics_->numReplacedWithDynamicFilterRows[metricsIdx] =
-          runtimeMetric("sum", entry.second->customStats, kReplacedWithDynamicFilterRows);
-      metrics_->flushRowCount[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kFlushRowCount);
-      metrics_->scanTime[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kTotalScanTime);
-      metrics_->skippedSplits[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kSkippedSplits);
-      metrics_->processedSplits[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kProcessedSplits);
-      metrics_->skippedStrides[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kSkippedStrides);
-      metrics_->processedStrides[metricsIdx] = runtimeMetric("sum", entry.second->customStats, kProcessedStrides);
-      metricsIdx += 1;
+      const auto& second = entry.second;
+      metrics_->get(Metrics::kInputRows)[metricIndex] = second->inputRows;
+      metrics_->get(Metrics::kInputVectors)[metricIndex] = second->inputVectors;
+      metrics_->get(Metrics::kInputBytes)[metricIndex] = second->inputBytes;
+      metrics_->get(Metrics::kRawInputRows)[metricIndex] = second->rawInputRows;
+      metrics_->get(Metrics::kRawInputBytes)[metricIndex] = second->rawInputBytes;
+      metrics_->get(Metrics::kOutputRows)[metricIndex] = second->outputRows;
+      metrics_->get(Metrics::kOutputVectors)[metricIndex] = second->outputVectors;
+      metrics_->get(Metrics::kOutputBytes)[metricIndex] = second->outputBytes;
+      metrics_->get(Metrics::kCpuCount)[metricIndex] = second->cpuWallTiming.count;
+      metrics_->get(Metrics::kWallNanos)[metricIndex] = second->cpuWallTiming.wallNanos;
+      metrics_->get(Metrics::kPeakMemoryBytes)[metricIndex] = second->peakMemoryBytes;
+      metrics_->get(Metrics::kNumMemoryAllocations)[metricIndex] = second->numMemoryAllocations;
+      metrics_->get(Metrics::kSpilledBytes)[metricIndex] = second->spilledBytes;
+      metrics_->get(Metrics::kSpilledRows)[metricIndex] = second->spilledRows;
+      metrics_->get(Metrics::kSpilledPartitions)[metricIndex] = second->spilledPartitions;
+      metrics_->get(Metrics::kSpilledFiles)[metricIndex] = second->spilledFiles;
+      metrics_->get(Metrics::kNumDynamicFiltersProduced)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kDynamicFiltersProduced);
+      metrics_->get(Metrics::kNumDynamicFiltersAccepted)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kDynamicFiltersAccepted);
+      metrics_->get(Metrics::kNumReplacedWithDynamicFilterRows)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kReplacedWithDynamicFilterRows);
+      metrics_->get(Metrics::kFlushRowCount)[metricIndex] = runtimeMetric("sum", second->customStats, kFlushRowCount);
+      metrics_->get(Metrics::kScanTime)[metricIndex] = runtimeMetric("sum", second->customStats, kTotalScanTime);
+      metrics_->get(Metrics::kSkippedSplits)[metricIndex] = runtimeMetric("sum", second->customStats, kSkippedSplits);
+      metrics_->get(Metrics::kProcessedSplits)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kProcessedSplits);
+      metrics_->get(Metrics::kSkippedStrides)[metricIndex] = runtimeMetric("sum", second->customStats, kSkippedStrides);
+      metrics_->get(Metrics::kProcessedStrides)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kProcessedStrides);
+      metricIndex += 1;
     }
   }
 }
 
 int64_t WholeStageResultIterator::runtimeMetric(
-    const std::string& metricType,
+    const std::string& type,
     const std::unordered_map<std::string, velox::RuntimeMetric>& runtimeStats,
-    const std::string& metricId) const {
-  if (runtimeStats.size() == 0 || runtimeStats.find(metricId) == runtimeStats.end()) {
+    const std::string& metricId) {
+  if (runtimeStats.find(metricId) == runtimeStats.end()) {
     return 0;
   }
-  if (metricType == "sum") {
-    return runtimeStats.at(metricId).sum;
-  }
-  if (metricType == "count") {
-    return runtimeStats.at(metricId).count;
-  }
-  if (metricType == "min") {
-    return runtimeStats.at(metricId).min;
-  }
-  if (metricType == "max") {
-    return runtimeStats.at(metricId).max;
-  }
-  return 0;
-}
 
-std::string WholeStageResultIterator::getConfigValue(
-    const std::string& key,
-    const std::optional<std::string>& fallbackValue) {
-  auto got = confMap_.find(key);
-  if (got == confMap_.end()) {
-    if (fallbackValue == std::nullopt) {
-      throw std::runtime_error("No such config key: " + key);
-    }
-    return fallbackValue.value();
+  if (type == "sum") {
+    return runtimeStats.at(metricId).sum;
+  } else if (type == "count") {
+    return runtimeStats.at(metricId).count;
+  } else if (type == "min") {
+    return runtimeStats.at(metricId).min;
+  } else if (type == "max") {
+    return runtimeStats.at(metricId).max;
+  } else {
+    return 0;
   }
-  return got->second;
 }
 
 std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryContextConf() {
   std::unordered_map<std::string, std::string> configs = {};
   // Find batch size from Spark confs. If found, set the preferred and max batch size.
-  configs[velox::core::QueryConfig::kPreferredOutputBatchRows] = getConfigValue(kSparkBatchSize, "4096");
-  configs[velox::core::QueryConfig::kMaxOutputBatchRows] = getConfigValue(kSparkBatchSize, "4096");
+  configs[velox::core::QueryConfig::kPreferredOutputBatchRows] = getConfigValue(confMap_, kSparkBatchSize, "4096");
+  configs[velox::core::QueryConfig::kMaxOutputBatchRows] = getConfigValue(confMap_, kSparkBatchSize, "4096");
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
   try {
     // To align with Spark's behavior, set casting to int to be truncating.
     configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
-    // To align with Spark's behavior, allow decimal in casting string to int.
-    configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
+    // To align with Spark's behavior, unset to support non-ISO8601 standard strings.
+    configs[velox::core::QueryConfig::kCastStringToDateIsIso8601] = std::to_string(false);
+    auto defaultTimezone = getConfigValue(confMap_, kDefaultSessionTimezone, "");
+    configs[velox::core::QueryConfig::kSessionTimezone] = getConfigValue(confMap_, kSessionTimezone, defaultTimezone);
+    // Adjust timestamp according to the above configured session timezone.
+    configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = std::to_string(true);
+    // Align Velox size function with Spark.
+    configs[velox::core::QueryConfig::kSparkLegacySizeOfNull] = getConfigValue(confMap_, kLegacySize, "true");
 
-    // Set the max memory of partial aggregation as 3/4 of offheap size.
-    auto maxMemory =
-        (long)(0.75 * (double)std::stol(getConfigValue(kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory))));
-    configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxMemory);
-    configs[velox::core::QueryConfig::kAbandonPartialAggregationMinPct] = std::to_string(90);
+    {
+      // partial aggregation memory config
+      auto offHeapMemory = std::stol(
+          getConfigValue(confMap_, kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory)));
+      auto maxPartialAggregationMemory =
+          (long)(std::stod(getConfigValue(confMap_, kMaxPartialAggregationMemoryRatio, "0.1")) * offHeapMemory);
+      auto maxExtendedPartialAggregationMemory =
+          (long)(std::stod(getConfigValue(confMap_, kMaxExtendedPartialAggregationMemoryRatio, "0.5")) * offHeapMemory);
+      configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxPartialAggregationMemory);
+      configs[velox::core::QueryConfig::kMaxExtendedPartialAggregationMemory] =
+          std::to_string(maxExtendedPartialAggregationMemory);
+      configs[velox::core::QueryConfig::kAbandonPartialAggregationMinPct] =
+          getConfigValue(confMap_, kAbandonPartialAggregationMinPct, "90");
+      configs[velox::core::QueryConfig::kAbandonPartialAggregationMinRows] =
+          getConfigValue(confMap_, kAbandonPartialAggregationMinRows, "100000");
+    }
     // Spill configs
     if (spillStrategy_ == "none") {
       configs[velox::core::QueryConfig::kSpillEnabled] = "false";
     } else {
       configs[velox::core::QueryConfig::kSpillEnabled] = "true";
     }
-    configs[velox::core::QueryConfig::kAggregationSpillEnabled] = getConfigValue(kAggregationSpillEnabled, "true");
-    configs[velox::core::QueryConfig::kJoinSpillEnabled] = getConfigValue(kJoinSpillEnabled, "true");
-    configs[velox::core::QueryConfig::kOrderBySpillEnabled] = getConfigValue(kOrderBySpillEnabled, "true");
+    configs[velox::core::QueryConfig::kAggregationSpillEnabled] =
+        getConfigValue(confMap_, kAggregationSpillEnabled, "true");
+    configs[velox::core::QueryConfig::kJoinSpillEnabled] = getConfigValue(confMap_, kJoinSpillEnabled, "true");
+    configs[velox::core::QueryConfig::kOrderBySpillEnabled] = getConfigValue(confMap_, kOrderBySpillEnabled, "true");
     configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] =
-        getConfigValue(kAggregationSpillMemoryThreshold, "0"); // spill only when input doesn't fit
+        getConfigValue(confMap_, kAggregationSpillMemoryThreshold, "0"); // spill only when input doesn't fit
     configs[velox::core::QueryConfig::kJoinSpillMemoryThreshold] =
-        getConfigValue(kJoinSpillMemoryThreshold, "0"); // spill only when input doesn't fit
+        getConfigValue(confMap_, kJoinSpillMemoryThreshold, "0"); // spill only when input doesn't fit
     configs[velox::core::QueryConfig::kOrderBySpillMemoryThreshold] =
-        getConfigValue(kOrderBySpillMemoryThreshold, "0"); // spill only when input doesn't fit
-    configs[velox::core::QueryConfig::kMaxSpillLevel] = getConfigValue(kMaxSpillLevel, "4");
-    configs[velox::core::QueryConfig::kMaxSpillFileSize] = getConfigValue(kMaxSpillFileSize, "0");
-    configs[velox::core::QueryConfig::kMinSpillRunSize] = getConfigValue(kMinSpillRunSize, std::to_string(256 << 20));
-    configs[velox::core::QueryConfig::kSpillStartPartitionBit] = getConfigValue(kSpillStartPartitionBit, "29");
-    configs[velox::core::QueryConfig::kSpillPartitionBits] = getConfigValue(kSpillPartitionBits, "2");
+        getConfigValue(confMap_, kOrderBySpillMemoryThreshold, "0"); // spill only when input doesn't fit
+    configs[velox::core::QueryConfig::kMaxSpillLevel] = getConfigValue(confMap_, kMaxSpillLevel, "4");
+    configs[velox::core::QueryConfig::kMaxSpillFileSize] =
+        getConfigValue(confMap_, kMaxSpillFileSize, std::to_string(20L * 1024 * 1024));
+    configs[velox::core::QueryConfig::kMinSpillRunSize] =
+        getConfigValue(confMap_, kMinSpillRunSize, std::to_string(256 << 20));
+    configs[velox::core::QueryConfig::kSpillStartPartitionBit] =
+        getConfigValue(confMap_, kSpillStartPartitionBit, "29");
+    configs[velox::core::QueryConfig::kAggregationSpillPartitionBits] =
+        getConfigValue(confMap_, kSpillPartitionBits, "2");
+    configs[velox::core::QueryConfig::kJoinSpillPartitionBits] = getConfigValue(confMap_, kSpillPartitionBits, "2");
     configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
-        getConfigValue(kSpillableReservationGrowthPct, "25");
+        getConfigValue(confMap_, kSpillableReservationGrowthPct, "25");
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();
     throw std::runtime_error("Invalid conf arg: " + errDetails);
@@ -285,6 +373,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 
 #ifdef ENABLE_HDFS
 void WholeStageResultIterator::updateHdfsTokens() {
+  std::lock_guard lock{mutex};
   const auto& username = confMap_[kUGIUserName];
   const auto& allTokens = confMap_[kUGITokens];
 
@@ -301,7 +390,9 @@ void WholeStageResultIterator::updateHdfsTokens() {
 
 std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {
   std::unordered_map<std::string, std::string> configs = {};
-  configs[velox::connector::hive::HiveConfig::kCaseSensitive] = getConfigValue(kCaseSensitive, "true");
+  // The semantics of reading as lower case is opposite with case-sensitive.
+  configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCase] =
+      getConfigValue(confMap_, kCaseSensitive, "false") == "false" ? "true" : "false";
   return std::make_shared<velox::core::MemConfig>(configs);
 }
 
@@ -309,7 +400,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     std::shared_ptr<velox::memory::MemoryPool> pool,
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     const std::vector<velox::core::PlanNodeId>& scanNodeIds,
-    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& scanInfos,
+    const std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
     const std::vector<velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
@@ -331,11 +422,14 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     const auto& starts = scanInfo->starts;
     const auto& lengths = scanInfo->lengths;
     const auto& format = scanInfo->format;
+    const auto& partitionColumns = scanInfo->partitionColumns;
 
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
     for (int idx = 0; idx < paths.size(); idx++) {
-      auto partitionKeys = extractPartitionColumnAndValue(paths[idx]);
+      auto partitionColumn = partitionColumns[idx];
+      std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
+      constructPartitionColumns(partitionKeys, partitionColumn);
       auto split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
           kHiveConnectorId, paths[idx], format, starts[idx], lengths[idx], partitionKeys);
       connectorSplits.emplace_back(split);
@@ -365,6 +459,9 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }
+  auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
+  GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
+  fileSystem->mkdir(spillDir);
   task_->setSpillDirectory(spillDir);
   addSplits_ = [&](velox::exec::Task* task) {
     if (noMoreSplits_) {
@@ -380,47 +477,21 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   };
 }
 
-std::unordered_map<std::string, std::optional<std::string>>
-WholeStageResultIteratorFirstStage::extractPartitionColumnAndValue(const std::string& filePath) {
-  std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
-
-  // Column name with '=' is not supported now.
-  std::string delimiter = "=";
-  std::string str = filePath;
-  std::size_t pos = str.find(delimiter);
-
-  while (pos != std::string::npos) {
-    // Split the string with delimiter.
-    std::string prePart = str.substr(0, pos);
-    std::string latterPart = str.substr(pos + 1);
-    // Extract the partition column.
-    pos = prePart.find_last_of('/');
-    std::string partitionColumn;
-    if (pos == std::string::npos) {
-      partitionColumn = prePart;
+void WholeStageResultIteratorFirstStage::constructPartitionColumns(
+    std::unordered_map<std::string, std::optional<std::string>>& partitionKeys,
+    const std::unordered_map<std::string, std::string>& map) {
+  for (const auto& partitionColumn : map) {
+    auto key = partitionColumn.first;
+    const auto value = partitionColumn.second;
+    if (!folly::to<bool>(getConfigValue(confMap_, kCaseSensitive, "false"))) {
+      folly::toLowerAscii(key);
+    }
+    if (value == kHiveDefaultPartition) {
+      partitionKeys[key] = std::nullopt;
     } else {
-      partitionColumn = prePart.substr(pos + 1);
+      partitionKeys[key] = value;
     }
-    // Extract the partition value.
-    pos = latterPart.find('/');
-    if (pos == std::string::npos) {
-      throw std::runtime_error("No value found for partition key: " + partitionColumn + " in path: " + filePath);
-    }
-    std::string partitionValue = latterPart.substr(0, pos);
-    if (!folly::to<bool>(getConfigValue(kCaseSensitive, "true"))) {
-      folly::toLowerAscii(partitionColumn);
-    }
-    if (partitionValue == kHiveDefaultPartition) {
-      partitionKeys[partitionColumn] = std::nullopt;
-    } else {
-      // Set to the map of partition keys. Timestamp could be URL encoded.
-      partitionKeys[partitionColumn] = urlDecode(partitionValue);
-    }
-    // For processing the remaining keys.
-    str = latterPart.substr(pos + 1);
-    pos = str.find(delimiter);
   }
-  return partitionKeys;
 }
 
 WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
@@ -444,6 +515,9 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
   }
+  auto fileSystem = velox::filesystems::getFileSystem(spillDir, nullptr);
+  GLUTEN_CHECK(fileSystem != nullptr, "File System for spilling is null!");
+  fileSystem->mkdir(spillDir);
   task_->setSpillDirectory(spillDir);
   addSplits_ = [&](velox::exec::Task* task) {
     if (noMoreSplits_) {

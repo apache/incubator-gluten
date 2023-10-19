@@ -33,7 +33,9 @@ import java.util
 
 import scala.io.Source
 
-abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
+abstract class GlutenClickHouseTPCDSAbstractSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
+  with Logging {
   private var _spark: SparkSession = _
 
   override protected def spark: SparkSession = _spark
@@ -65,7 +67,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           val noFallBack = queryNum match {
             case i
                 if i == 10 || i == 16 || i == 28 || i == 35 || i == 45 || i == 77 ||
-                  i == 88 || i == 94 =>
+                  i == 88 || i == 90 || i == 94 =>
               // Q10 BroadcastHashJoin, ExistenceJoin
               // Q16 ShuffledHashJoin, NOT condition
               // Q28 BroadcastNestedLoopJoin
@@ -73,6 +75,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
               // Q45 BroadcastHashJoin, ExistenceJoin
               // Q77 CartesianProduct
               // Q88 BroadcastNestedLoopJoin
+              // Q90 BroadcastNestedLoopJoin
               // Q94 BroadcastHashJoin, LeftSemi, NOT condition
               (false, false)
             case j if j == 38 || j == 87 =>
@@ -88,16 +91,10 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
         })
 
   // FIXME "q17", stddev_samp inconsistent results, CH return NaN, Spark return null
-  protected val excludedTpcdsQueries: Set[String] = Set(
-    "q14a", // inconsistent results
-    "q14b", // inconsistent results
+  protected def excludedTpcdsQueries: Set[String] = Set(
     "q18", // inconsistent results
-    "q49", // inconsistent results
     "q61", // inconsistent results
-    "q67", // inconsistent results
-    "q78", // inconsistent results
-    "q83", // decimal error
-    "q90" // inconsistent results(decimal)
+    "q67" // inconsistent results
   )
 
   def executeTPCDSTest(isAqe: Boolean): Unit = {
@@ -133,7 +130,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       _spark = SparkSession
         .builder()
         .appName("Gluten-UT-TPC_DS")
-        .master(s"local[8]")
         .config(sparkConf)
         .getOrCreate()
     }
@@ -159,6 +155,7 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
+      .setMaster("local[8]")
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
       .set("spark.sql.shuffle.partitions", "5")
@@ -240,8 +237,14 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
           .collect()
       }
       checkAnswer(df, expectedAnswer)
+      // using WARN to guarantee printed
+      log.warn(s"query: $queryNum, finish comparing with saved result")
     } else {
-      df.collect()
+      val start = System.currentTimeMillis();
+      val ret = df.collect()
+      // using WARN to guarantee printed
+      log.warn(s"query: $queryNum skipped comparing, time cost to collect: ${System
+          .currentTimeMillis() - start} ms, ret size: ${ret.length}")
     }
     WholeStageTransformerSuite.checkFallBack(df, noFallBack, skipFallBackAssert)
     customCheck(df)

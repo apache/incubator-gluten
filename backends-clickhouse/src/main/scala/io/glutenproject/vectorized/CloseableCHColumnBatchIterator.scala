@@ -16,6 +16,8 @@
  */
 package io.glutenproject.vectorized
 
+import io.glutenproject.metrics.GlutenTimeMetric
+
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -32,14 +34,12 @@ class CloseableCHColumnBatchIterator(
     pipelineTime: Option[SQLMetric] = None)
   extends Iterator[ColumnarBatch]
   with Logging {
-  var cb: ColumnarBatch = null
+  var cb: ColumnarBatch = _
   var scanTime = 0L
   var scanTimeAdded = false
 
   override def hasNext: Boolean = {
-    val beforeTime = System.nanoTime()
-    val res = itr.hasNext
-    scanTime += System.nanoTime() - beforeTime
+    val res = GlutenTimeMetric.withNanoTime(itr.hasNext)(t => scanTime += t)
     if (!res && pipelineTime.nonEmpty && !scanTimeAdded) {
       pipelineTime.foreach(t => t += TimeUnit.NANOSECONDS.toMillis(scanTime))
       scanTimeAdded = true
@@ -50,26 +50,24 @@ class CloseableCHColumnBatchIterator(
   TaskContext.get().addTaskCompletionListener[Unit] {
     _ =>
       closeCurrentBatch()
-      if (itr.isInstanceOf[AutoCloseable]) itr.asInstanceOf[AutoCloseable].close()
+      itr match {
+        case closeable: AutoCloseable => closeable.close()
+        case _ =>
+      }
   }
 
   override def next(): ColumnarBatch = {
-    val beforeTime = System.nanoTime()
-    closeCurrentBatch()
-    cb = itr.next()
-    scanTime += System.nanoTime() - beforeTime
+    cb = GlutenTimeMetric.withNanoTime {
+      closeCurrentBatch()
+      itr.next()
+    }(t => scanTime += t)
     cb
   }
 
   private def closeCurrentBatch(): Unit = {
     if (cb != null) {
-      if (cb.numCols() > 0) {
-        val col = cb.column(0).asInstanceOf[CHColumnVector]
-        val block = new CHNativeBlock(col.getBlockAddress)
-        block.close();
-      }
-      cb.close()
-      cb = null;
+      CHNativeBlock.closeFromColumnarBatch(cb)
+      cb = null
     }
   }
 }

@@ -19,7 +19,7 @@
 
 #include "memory/ArrowMemoryPool.h"
 #include "memory/VeloxColumnarBatch.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "velox/vector/arrow/Bridge.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
@@ -43,17 +43,17 @@ TEST_F(VeloxColumnarBatchSerializerTest, serialize) {
       makeNullableFlatVector<bool>({std::nullopt, true, false, std::nullopt, true}),
       makeFlatVector<StringView>({"alice0", "bob1", "alice2", "bob3", "Alice4uuudeuhdhfudhfudhfudhbvudubvudfvu"}),
       makeNullableFlatVector<StringView>({"alice", "bob", std::nullopt, std::nullopt, "Alice"}),
-      makeShortDecimalFlatVector({34567235, 4567, 222, 34567, 333}, DECIMAL(12, 4)),
-      makeLongDecimalFlatVector({34567235, 4567, 222, 34567, 333}, DECIMAL(20, 4)),
+      makeNullableFlatVector<int64_t>({34567235, 4567, 222, 34567, 333}, DECIMAL(12, 4)),
+      makeNullableFlatVector<int128_t>({34567235, 4567, 222, 34567, 333}, DECIMAL(20, 4)),
   };
   auto vector = makeRowVector(children);
   auto batch = std::make_shared<VeloxColumnarBatch>(vector);
-  auto serializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_, veloxPool_, nullptr);
+  auto serializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_.get(), veloxPool_, nullptr);
   auto buffer = serializer->serializeColumnarBatches({batch});
 
   ArrowSchema cSchema;
   exportToArrow(vector, cSchema);
-  auto deserializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_, veloxPool_, &cSchema);
+  auto deserializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_.get(), veloxPool_, &cSchema);
   auto deserialized = deserializer->deserialize(const_cast<uint8_t*>(buffer->data()), buffer->size());
   auto deserializedVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(deserialized)->getRowVector();
   test::assertEqualVectors(vector, deserializedVector);

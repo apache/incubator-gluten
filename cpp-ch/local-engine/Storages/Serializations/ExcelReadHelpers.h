@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #pragma once
 
 #include <Formats/FormatSettings.h>
@@ -74,7 +90,7 @@ bool readDatetime64TextWithExcel(
     const DateLUTImpl & time_zone,
     const DB::FormatSettings::CSV & settings,
     bool quote);
-void readDateTime64Text(
+bool readDateTime64Text(
     DB::DateTime64 & x,
     DB::ReadBuffer & buf,
     const DB::FormatSettings & settings,
@@ -122,7 +138,7 @@ bool readCSVSimple(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & setti
 
     char maybe_quote = *buf.position();
     bool has_quote = false;
-    if (maybe_quote == '\'' || maybe_quote == '\"')
+    if ((settings.csv.allow_single_quotes && maybe_quote == '\'') || (settings.csv.allow_double_quotes && maybe_quote == '\"'))
     {
         has_quote = true;
         ++buf.position();
@@ -137,7 +153,7 @@ bool readCSVSimple(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & setti
     if (!result)
         return false;
 
-    if (maybe_quote == '\'' || maybe_quote == '\"')
+    if (has_quote)
         assertChar(maybe_quote, buf);
 
     while (!buf.eof() && *buf.position() == ' ')
@@ -155,7 +171,7 @@ bool readCSVSimple(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & setti
 
 
 template <typename T>
-    requires is_arithmetic_v<T>
+requires is_arithmetic_v<T>
 inline bool readCSV(T & x, DB::ReadBuffer & buf, const DB::FormatSettings & settings)
 {
     return readCSVSimple(x, buf, settings);

@@ -1,12 +1,30 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #pragma once
 
-#include <substrait/algebra.pb.h>
-#include <boost/noncopyable.hpp>
-
-#include <base/types.h>
-#include <Common/IFactoryWithAliases.h>
+#include <Core/Field.h>
+#include <DataTypes/IDataType.h>
+#include <Functions/FunctionFactory.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Parser/SerializedPlanParser.h>
+#include <base/types.h>
+#include <boost/noncopyable.hpp>
+#include <substrait/algebra.pb.h>
+#include <Common/IFactoryWithAliases.h>
 
 namespace local_engine
 {
@@ -22,8 +40,11 @@ public:
 
     virtual String getName() const = 0;
 
-    /// Input: substrait_func, action_dag
-    /// Output: actions_dag, required_columns, and result_node
+    /// This is a convenient interface for scalar functions, and should not be used for aggregate functions.
+    /// It usally take following actions:
+    /// - add const columns for literal arguments into actions_dag.
+    /// - make pre-projections for input arguments. e.g. type conversion.
+    /// - make a post-projection for the function result. e.g. type conversion.
     virtual const DB::ActionsDAG::Node * parse(
         const substrait::Expression_ScalarFunction & substrait_func,
         DB::ActionsDAGPtr & actions_dag) const;
@@ -55,6 +76,20 @@ protected:
     {
         return plan_parser->toFunctionNode(action_dag, func_name, args);
     }
+    
+    const DB::ActionsDAG::Node *
+    toFunctionNode(DB::ActionsDAGPtr & action_dag, const String & func_name, const String & result_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
+    {
+        auto function_builder = DB::FunctionFactory::instance().get(func_name, getContext());
+        return &action_dag->addFunction(function_builder, args, result_name);
+    }
+
+    const DB::ActionsDAG::Node * parseExpression(DB::ActionsDAGPtr actions_dag, const substrait::Expression & rel) const
+    {
+        return plan_parser->parseExpression(actions_dag, rel);
+    }
+
+    std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) const { return plan_parser->parseLiteral(literal); }
 
     SerializedPlanParser * plan_parser;
 };
@@ -80,7 +115,6 @@ public:
         // std::cout << "register function parser with name:" << Parser::name << std::endl;
         auto creator
             = [](SerializedPlanParser * plan_parser) -> std::shared_ptr<FunctionParser> { return std::make_shared<Parser>(plan_parser); };
-
         registerFunctionParser(Parser::name, creator);
     }
 

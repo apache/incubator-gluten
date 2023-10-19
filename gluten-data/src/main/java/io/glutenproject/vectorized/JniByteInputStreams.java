@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
+
+import io.glutenproject.exception.GlutenException;
 
 import org.apache.spark.storage.BufferReleasingInputStream;
 import org.slf4j.Logger;
@@ -26,13 +27,9 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.zip.CheckedInputStream;
 
-/**
- * Create optimal {@link JniByteInputStream} implementation from Java {@link InputStream}.
- */
+/** Create optimal {@link JniByteInputStream} implementation from Java {@link InputStream}. */
 public final class JniByteInputStreams {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(JniByteInputStreams.class);
-
+  private static final Logger LOG = LoggerFactory.getLogger(JniByteInputStreams.class);
 
   private static final Field FIELD_FilterInputStream_in;
 
@@ -41,12 +38,11 @@ public final class JniByteInputStreams {
       FIELD_FilterInputStream_in = FilterInputStream.class.getDeclaredField("in");
       FIELD_FilterInputStream_in.setAccessible(true);
     } catch (NoSuchFieldException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
-  private JniByteInputStreams() {
-  }
+  private JniByteInputStreams() {}
 
   public static JniByteInputStream create(InputStream in) {
     // Unwrap BufferReleasingInputStream
@@ -71,7 +67,7 @@ public final class JniByteInputStreams {
       try {
         unwrapped = ((InputStream) FIELD_FilterInputStream_in.get(cin));
       } catch (IllegalAccessException e) {
-        throw new RuntimeException(e);
+        throw new GlutenException(e);
       }
     }
     return unwrapped;

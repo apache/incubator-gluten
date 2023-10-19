@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.expression;
 
 import io.substrait.proto.Expression;
@@ -43,9 +42,9 @@ public class SelectionNode implements ExpressionNode, Serializable {
   }
 
   public Expression.ReferenceSegment createRef(
-          Integer childIdx, Expression.ReferenceSegment childRef) {
+      Integer childIdx, Expression.ReferenceSegment childRef) {
     Expression.ReferenceSegment.StructField.Builder structBuilder =
-            Expression.ReferenceSegment.StructField.newBuilder();
+        Expression.ReferenceSegment.StructField.newBuilder();
     structBuilder.setField(childIdx);
     if (childRef != null) {
       structBuilder.setChild(childRef);
@@ -74,8 +73,7 @@ public class SelectionNode implements ExpressionNode, Serializable {
     Expression.ReferenceSegment.Builder refBuilder = Expression.ReferenceSegment.newBuilder();
     refBuilder.setStructField(structBuilder.build());
 
-    Expression.FieldReference.Builder fieldBuilder =
-        Expression.FieldReference.newBuilder();
+    Expression.FieldReference.Builder fieldBuilder = Expression.FieldReference.newBuilder();
     fieldBuilder.setDirectReference(refBuilder.build());
 
     Expression.Builder builder = Expression.newBuilder();

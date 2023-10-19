@@ -26,15 +26,15 @@
 #include <utility>
 #include <vector>
 
-#include "Storages/ch_parquet/arrow/column_reader.h"
 #include "parquet/arrow/schema.h"
+#include "Storages/ch_parquet/arrow/column_reader.h"
 #include "parquet/file_reader.h"
 #include "parquet/metadata.h"
 #include "parquet/platform.h"
 #include "parquet/schema.h"
 
-namespace arrow
-{
+namespace arrow {
+
 class Array;
 class ChunkedArray;
 class DataType;
@@ -42,12 +42,13 @@ class Field;
 class KeyValueMetadata;
 class Schema;
 
-} // namespace arrow
+}  // namespace arrow
 
 using arrow::Status;
 
 namespace parquet
 {
+
 class ArrowReaderProperties;
 }
 
@@ -55,81 +56,73 @@ namespace ch_parquet
 {
 using namespace parquet;
 
-namespace arrow
-{
-    class ColumnReaderImpl;
+namespace arrow {
 
-    // ----------------------------------------------------------------------
-    // Iteration utilities
+class ColumnReaderImpl;
 
-    // Abstraction to decouple row group iteration details from the ColumnReader,
-    // so we can read only a single row group if we want
-    class FileColumnIterator
-    {
-    public:
-        explicit FileColumnIterator(int column_index, ParquetFileReader * reader, std::vector<int> row_groups)
-            : column_index_(column_index)
-            , reader_(reader)
-            , schema_(reader->metadata()->schema())
-            , row_groups_(row_groups.begin(), row_groups.end())
-        {
-        }
+// ----------------------------------------------------------------------
+// Iteration utilities
 
-        virtual ~FileColumnIterator() { }
+// Abstraction to decouple row group iteration details from the ColumnReader,
+// so we can read only a single row group if we want
+class FileColumnIterator {
+ public:
+  explicit FileColumnIterator(int column_index, ParquetFileReader* reader,
+                              std::vector<int> row_groups)
+      : column_index_(column_index),
+        reader_(reader),
+        schema_(reader->metadata()->schema()),
+        row_groups_(row_groups.begin(), row_groups.end()) {}
 
-        std::unique_ptr<::parquet::PageReader> NextChunk()
-        {
-            if (row_groups_.empty())
-            {
-                return nullptr;
-            }
+  virtual ~FileColumnIterator() {}
 
-            auto row_group_reader = reader_->RowGroup(row_groups_.front());
-            row_groups_.pop_front();
-            return row_group_reader->GetColumnPageReader(column_index_);
-        }
+  std::unique_ptr<::parquet::PageReader> NextChunk() {
+    if (row_groups_.empty()) {
+      return nullptr;
+    }
 
-        const SchemaDescriptor * schema() const { return schema_; }
+    auto row_group_reader = reader_->RowGroup(row_groups_.front());
+    row_groups_.pop_front();
+    return row_group_reader->GetColumnPageReader(column_index_);
+  }
 
-        const ColumnDescriptor * descr() const { return schema_->Column(column_index_); }
+  const SchemaDescriptor* schema() const { return schema_; }
 
-        std::shared_ptr<FileMetaData> metadata() const { return reader_->metadata(); }
+  const ColumnDescriptor* descr() const { return schema_->Column(column_index_); }
 
-        int column_index() const { return column_index_; }
+  std::shared_ptr<FileMetaData> metadata() const { return reader_->metadata(); }
 
-    protected:
-        int column_index_;
-        ParquetFileReader * reader_;
-        const SchemaDescriptor * schema_;
-        std::deque<int> row_groups_;
-    };
+  int column_index() const { return column_index_; }
 
-    using FileColumnIteratorFactory = std::function<FileColumnIterator *(int, ParquetFileReader *)>;
+ protected:
+  int column_index_;
+  ParquetFileReader* reader_;
+  const SchemaDescriptor* schema_;
+  std::deque<int> row_groups_;
+};
 
-    Status TransferColumnData(
-        ::ch_parquet::internal::RecordReader * reader,
-        std::shared_ptr<::arrow::DataType> value_type,
-        const ColumnDescriptor * descr,
-        ::arrow::MemoryPool * pool,
-        std::shared_ptr<::arrow::ChunkedArray> * out);
+using FileColumnIteratorFactory =
+    std::function<FileColumnIterator*(int, ParquetFileReader*)>;
 
-    struct ReaderContext
-    {
-        ParquetFileReader * reader;
-        ::arrow::MemoryPool * pool;
-        FileColumnIteratorFactory iterator_factory;
-        bool filter_leaves;
-        std::shared_ptr<std::unordered_set<int>> included_leaves;
+Status TransferColumnData(::ch_parquet::internal::RecordReader* reader,
+                          const std::shared_ptr<::arrow::Field>& value_field,
+                          const ColumnDescriptor* descr, ::arrow::MemoryPool* pool,
+                          std::shared_ptr<::arrow::ChunkedArray>* out);
 
-        bool IncludesLeaf(int leaf_index) const
-        {
-            if (this->filter_leaves)
-            {
-                return this->included_leaves->find(leaf_index) != this->included_leaves->end();
-            }
-            return true;
-        }
-    };
+struct ReaderContext {
+  ParquetFileReader* reader;
+  ::arrow::MemoryPool* pool;
+  FileColumnIteratorFactory iterator_factory;
+  bool filter_leaves;
+  std::shared_ptr<std::unordered_set<int>> included_leaves;
 
-} // namespace arrow
-} // namespace parquet
+  bool IncludesLeaf(int leaf_index) const {
+    if (this->filter_leaves) {
+      return this->included_leaves->find(leaf_index) != this->included_leaves->end();
+    }
+    return true;
+  }
+};
+
+}  // namespace arrow
+}  // namespace parquet

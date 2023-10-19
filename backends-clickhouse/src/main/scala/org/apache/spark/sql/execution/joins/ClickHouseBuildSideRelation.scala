@@ -16,34 +16,27 @@
  */
 package org.apache.spark.sql.execution.joins
 
-import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.execution.{BroadCastHashJoinContext, ColumnarNativeIterator}
-import io.glutenproject.utils.PlanNodesUtil
+import io.glutenproject.utils.{IteratorUtil, PlanNodesUtil}
 import io.glutenproject.vectorized._
 
-import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.BroadcastMode
+import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import java.io.ByteArrayInputStream
+import org.apache.spark.storage.CHShuffleReadStreamFactory
 
 import scala.collection.JavaConverters._
 
 case class ClickHouseBuildSideRelation(
     mode: BroadcastMode,
     output: Seq[Attribute],
-    batches: Array[Array[Byte]],
+    batches: Array[Byte],
     newBuildKeys: Seq[Expression] = Seq.empty)
   extends BuildSideRelation
   with Logging {
-
-  private lazy val customizeBufferSize = SparkEnv.get.conf.getInt(
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE,
-    CHBackendSettings.GLUTEN_CLICKHOUSE_CUSTOMIZED_BUFFER_SIZE_DEFAULT.toInt
-  )
 
   override def deserialized: Iterator[ColumnarBatch] = Iterator.empty
 
@@ -55,23 +48,12 @@ case class ClickHouseBuildSideRelation(
       broadCastContext: BroadCastHashJoinContext): (Long, ClickHouseBuildSideRelation) =
     synchronized {
       if (hashTableData == 0) {
-        val allBatches = batches.flatten
         logDebug(
           s"BHJ value size: " +
-            s"${broadCastContext.buildHashTableId} = ${allBatches.length}")
-        val storageJoinBuilder = new StorageJoinBuilder(
-          new OnHeapCopyShuffleInputStream(
-            new ByteArrayInputStream(allBatches),
-            customizeBufferSize,
-            false),
-          broadCastContext,
-          customizeBufferSize,
-          output.asJava,
-          newBuildKeys.asJava
-        )
+            s"${broadCastContext.buildHashTableId} = ${batches.length}")
         // Build the hash table
-        hashTableData = storageJoinBuilder.build()
-        storageJoinBuilder.close()
+        hashTableData =
+          StorageJoinBuilder.build(batches, broadCastContext, newBuildKeys.asJava, output.asJava)
         (hashTableData, this)
       } else {
         (StorageJoinBuilder.nativeCloneBuildHashTable(hashTableData), null)
@@ -88,22 +70,9 @@ case class ClickHouseBuildSideRelation(
    * @return
    */
   override def transform(key: Expression): Array[InternalRow] = {
-    val allBatches = batches.flatten
     // native block reader
-    val input = new ByteArrayInputStream(allBatches)
-    val blockReader = new CHStreamReader(input, customizeBufferSize)
-    val broadCastIter = new Iterator[ColumnarBatch] {
-      private var current: CHNativeBlock = _
-
-      override def hasNext: Boolean = {
-        current = blockReader.next()
-        current != null && current.numRows() > 0
-      }
-
-      override def next(): ColumnarBatch = {
-        current.toColumnarBatch
-      }
-    }
+    val blockReader = new CHStreamReader(CHShuffleReadStreamFactory.create(batches, true))
+    val broadCastIter: Iterator[ColumnarBatch] = IteratorUtil.createBatchIterator(blockReader)
     // Expression compute, return block iterator
     val expressionEval = new SimpleExpressionEval(
       new ColumnarNativeIterator(broadCastIter.asJava),
@@ -111,38 +80,15 @@ case class ClickHouseBuildSideRelation(
 
     try {
       // convert columnar to row
-      val converter = new CHBlockConverterJniWrapper()
       asScalaIterator(expressionEval).flatMap {
         block =>
           val batch = new CHNativeBlock(block)
           if (batch.numRows == 0) {
             Iterator.empty
           } else {
-            val info = converter.convertColumnarToRow(block)
-
-            new Iterator[InternalRow] {
-              var rowId = 0
-              val row = new UnsafeRow(batch.numColumns())
-              var closed = false
-
-              override def hasNext: Boolean = {
-                val result = rowId < batch.numRows()
-                if (!result && !closed) {
-                  converter.freeMemory(info.memoryAddress, info.totalSize)
-                  closed = true
-                }
-                result
-              }
-
-              override def next: UnsafeRow = {
-                if (rowId >= batch.numRows()) throw new NoSuchElementException
-
-                val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
-                row.pointTo(null, info.memoryAddress + offset, length.toInt)
-                rowId += 1
-                row.copy()
-              }
-            }
+            CHExecUtil
+              .getRowIterFromSparkRowInfo(block, batch.numColumns(), batch.numRows())
+              .map(row => row.copy())
           }
       }.toArray
     } finally {

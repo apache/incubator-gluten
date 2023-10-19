@@ -23,6 +23,7 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -41,11 +42,10 @@
 #include "arrow/util/bit_util.h"
 #include "arrow/util/checked_cast.h"
 #include "arrow/util/endian.h"
-#include "arrow/util/int_util_internal.h"
+#include "arrow/util/int_util_overflow.h"
 #include "arrow/util/logging.h"
-#include "arrow/util/string_view.h"
 #include "arrow/util/ubsan.h"
-#include "arrow/visitor_inline.h"
+
 #include "Storages/ch_parquet/arrow/reader.h"
 #include "parquet/arrow/schema.h"
 #include "parquet/arrow/schema_internal.h"
@@ -55,8 +55,7 @@
 #include "parquet/schema.h"
 #include "parquet/statistics.h"
 #include "parquet/types.h"
-// Required after "arrow/util/int_util_internal.h" (for OPTIONAL)
-#include "parquet/windows_compatibility.h"
+#include "parquet/windows_fixup.h"  // for OPTIONAL
 
 using arrow::Array;
 using arrow::BooleanArray;
@@ -79,7 +78,7 @@ using arrow::StructArray;
 using arrow::Table;
 using arrow::TimestampArray;
 
-using ::arrow::BitUtil::FromBigEndian;
+using ::arrow::bit_util::FromBigEndian;
 using ::arrow::internal::checked_cast;
 using ::arrow::internal::checked_pointer_cast;
 using ::arrow::internal::SafeLeftShift;
@@ -93,7 +92,7 @@ using parquet::schema::Node;
 using parquet::schema::PrimitiveNode;
 using ParquetType = parquet::Type;
 
-namespace BitUtil = arrow::BitUtil;
+namespace bit_util = arrow::bit_util;
 
 namespace ch_parquet {
 using namespace parquet;
@@ -306,9 +305,23 @@ Status StatisticsAsScalars(const Statistics& statistics,
 
 namespace {
 
+/// Drop the validity buffer from each chunk.
+///
+/// Used when reading a non-nullable field.
+void ReconstructChunksWithoutNulls(::arrow::ArrayVector* chunks) {
+  for (size_t i = 0; i < chunks->size(); i++) {
+    if ((*chunks)[i]->data()->buffers[0]) {
+      std::shared_ptr<::arrow::ArrayData> data = (*chunks)[i]->data();
+      data->null_count = 0;
+      data->buffers[0] = nullptr;
+      (*chunks)[i] = MakeArray(data);
+    }
+  }
+}
+
 template <typename ArrowType, typename ParquetType>
 Status TransferInt(RecordReader* reader, MemoryPool* pool,
-                   const std::shared_ptr<DataType>& type, Datum* out) {
+                   const std::shared_ptr<Field>& field, Datum* out) {
   using ArrowCType = typename ArrowType::c_type;
   using ParquetCType = typename ParquetType::c_type;
   int64_t length = reader->values_written();
@@ -318,24 +331,38 @@ Status TransferInt(RecordReader* reader, MemoryPool* pool,
   auto values = reinterpret_cast<const ParquetCType*>(reader->values());
   auto out_ptr = reinterpret_cast<ArrowCType*>(data->mutable_data());
   std::copy(values, values + length, out_ptr);
-  *out = std::make_shared<ArrayType<ArrowType>>(
-      type, length, std::move(data), reader->ReleaseIsValid(), reader->null_count());
+  if (field->nullable()) {
+    *out = std::make_shared<ArrayType<ArrowType>>(field->type(), length, std::move(data),
+                                                  reader->ReleaseIsValid(),
+                                                  reader->null_count());
+  } else {
+    *out =
+        std::make_shared<ArrayType<ArrowType>>(field->type(), length, std::move(data),
+                                               /*null_bitmap=*/nullptr, /*null_count=*/0);
+  }
   return Status::OK();
 }
 
 std::shared_ptr<Array> TransferZeroCopy(RecordReader* reader,
-                                        const std::shared_ptr<DataType>& type) {
-  std::vector<std::shared_ptr<Buffer>> buffers = {reader->ReleaseIsValid(),
-                                                  reader->ReleaseValues()};
-  auto data = std::make_shared<::arrow::ArrayData>(type, reader->values_written(),
-                                                   buffers, reader->null_count());
+                                        const std::shared_ptr<Field>& field) {
+  std::shared_ptr<::arrow::ArrayData> data;
+  if (field->nullable()) {
+    std::vector<std::shared_ptr<Buffer>> buffers = {reader->ReleaseIsValid(),
+                                                    reader->ReleaseValues()};
+    data = std::make_shared<::arrow::ArrayData>(field->type(), reader->values_written(),
+                                                std::move(buffers), reader->null_count());
+  } else {
+    std::vector<std::shared_ptr<Buffer>> buffers = {nullptr, reader->ReleaseValues()};
+    data = std::make_shared<::arrow::ArrayData>(field->type(), reader->values_written(),
+                                                std::move(buffers), /*null_count=*/0);
+  }
   return ::arrow::MakeArray(data);
 }
 
-Status TransferBool(RecordReader* reader, MemoryPool* pool, Datum* out) {
+Status TransferBool(RecordReader* reader, bool nullable, MemoryPool* pool, Datum* out) {
   int64_t length = reader->values_written();
 
-  const int64_t buffer_size = BitUtil::BytesForBits(length);
+  const int64_t buffer_size = bit_util::BytesForBits(length);
   ARROW_ASSIGN_OR_RAISE(auto data, ::arrow::AllocateBuffer(buffer_size, pool));
 
   // Transfer boolean values to packed bitmap
@@ -345,17 +372,22 @@ Status TransferBool(RecordReader* reader, MemoryPool* pool, Datum* out) {
 
   for (int64_t i = 0; i < length; i++) {
     if (values[i]) {
-      ::arrow::BitUtil::SetBit(data_ptr, i);
+      ::arrow::bit_util::SetBit(data_ptr, i);
     }
   }
 
-  *out = std::make_shared<BooleanArray>(length, std::move(data), reader->ReleaseIsValid(),
-                                        reader->null_count());
+  if (nullable) {
+    *out = std::make_shared<BooleanArray>(length, std::move(data),
+                                          reader->ReleaseIsValid(), reader->null_count());
+  } else {
+    *out = std::make_shared<BooleanArray>(length, std::move(data),
+                                          /*null_bitmap=*/nullptr, /*null_count=*/0);
+  }
   return Status::OK();
 }
 
 Status TransferInt96(RecordReader* reader, MemoryPool* pool,
-                     const std::shared_ptr<DataType>& type, Datum* out,
+                     const std::shared_ptr<Field>& field, Datum* out,
                      const ::arrow::TimeUnit::type int96_arrow_time_unit) {
   int64_t length = reader->values_written();
   auto values = reinterpret_cast<const Int96*>(reader->values());
@@ -384,13 +416,19 @@ Status TransferInt96(RecordReader* reader, MemoryPool* pool,
       }
     }
   }
-  *out = std::make_shared<TimestampArray>(type, length, std::move(data),
-                                          reader->ReleaseIsValid(), reader->null_count());
+  if (field->nullable()) {
+    *out =
+        std::make_shared<TimestampArray>(field->type(), length, std::move(data),
+                                         reader->ReleaseIsValid(), reader->null_count());
+  } else {
+    *out = std::make_shared<TimestampArray>(field->type(), length, std::move(data),
+                                            /*null_bitmap=*/nullptr, /*null_count=*/0);
+  }
   return Status::OK();
 }
 
 Status TransferDate64(RecordReader* reader, MemoryPool* pool,
-                      const std::shared_ptr<DataType>& type, Datum* out) {
+                      const std::shared_ptr<Field>& field, Datum* out) {
   int64_t length = reader->values_written();
   auto values = reinterpret_cast<const int32_t*>(reader->values());
 
@@ -402,8 +440,15 @@ Status TransferDate64(RecordReader* reader, MemoryPool* pool,
     *out_ptr++ = static_cast<int64_t>(values[i]) * kMillisecondsPerDay;
   }
 
-  *out = std::make_shared<::arrow::Date64Array>(
-      type, length, std::move(data), reader->ReleaseIsValid(), reader->null_count());
+  if (field->nullable()) {
+    *out = std::make_shared<::arrow::Date64Array>(field->type(), length, std::move(data),
+                                                  reader->ReleaseIsValid(),
+                                                  reader->null_count());
+  } else {
+    *out =
+        std::make_shared<::arrow::Date64Array>(field->type(), length, std::move(data),
+                                               /*null_bitmap=*/nullptr, /*null_count=*/0);
+  }
   return Status::OK();
 }
 
@@ -412,22 +457,28 @@ Status TransferDate64(RecordReader* reader, MemoryPool* pool,
 
 Status TransferDictionary(RecordReader* reader,
                           const std::shared_ptr<DataType>& logical_value_type,
-                          std::shared_ptr<ChunkedArray>* out) {
+                          bool nullable, std::shared_ptr<ChunkedArray>* out) {
   auto dict_reader = dynamic_cast<DictionaryRecordReader*>(reader);
   DCHECK(dict_reader);
   *out = dict_reader->GetResult();
   if (!logical_value_type->Equals(*(*out)->type())) {
     ARROW_ASSIGN_OR_RAISE(*out, (*out)->View(logical_value_type));
   }
+  if (!nullable) {
+    ::arrow::ArrayVector chunks = (*out)->chunks();
+    ReconstructChunksWithoutNulls(&chunks);
+    *out = std::make_shared<ChunkedArray>(std::move(chunks), logical_value_type);
+  }
   return Status::OK();
 }
 
 Status TransferBinary(RecordReader* reader, MemoryPool* pool,
-                      const std::shared_ptr<DataType>& logical_value_type,
+                      const std::shared_ptr<Field>& logical_type_field,
                       std::shared_ptr<ChunkedArray>* out) {
   if (reader->read_dictionary()) {
     return TransferDictionary(
-        reader, ::arrow::dictionary(::arrow::int32(), logical_value_type), out);
+        reader, ::arrow::dictionary(::arrow::int32(), logical_type_field->type()),
+        logical_type_field->nullable(), out);
   }
   ::arrow::compute::ExecContext ctx(pool);
   ::arrow::compute::CastOptions cast_options;
@@ -439,19 +490,23 @@ Status TransferBinary(RecordReader* reader, MemoryPool* pool,
   auto chunks = binary_reader->GetBuilderChunks();
   if (chunks.size() > 0 && dynamic_cast<::ch_parquet::internal::CHStringArray*>(chunks.at(0).get()) != nullptr) {
       //bypass any cast if it's already CHStringArray
-      *out = std::make_shared<ChunkedArray>(chunks, logical_value_type);
+      *out = std::make_shared<ChunkedArray>(chunks, logical_type_field->type());
       return Status::OK();
   }
 
   for (auto& chunk : chunks) {
-    if (!chunk->type()->Equals(*logical_value_type)) {
+    if (!chunk->type()->Equals(*logical_type_field->type())) {
       // XXX: if a LargeBinary chunk is larger than 2GB, the MSBs of offsets
       // will be lost because they are first created as int32 and then cast to int64.
       ARROW_ASSIGN_OR_RAISE(
-          chunk, ::arrow::compute::Cast(*chunk, logical_value_type, cast_options, &ctx));
+          chunk,
+          ::arrow::compute::Cast(*chunk, logical_type_field->type(), cast_options, &ctx));
     }
   }
-  *out = std::make_shared<ChunkedArray>(chunks, logical_value_type);
+  if (!logical_type_field->nullable()) {
+    ReconstructChunksWithoutNulls(&chunks);
+  }
+  *out = std::make_shared<ChunkedArray>(std::move(chunks), logical_type_field->type());
   return Status::OK();
 }
 
@@ -592,20 +647,15 @@ struct DecimalConverter<DecimalArrayType, ByteArrayType> {
 /// small enough to fit in less 4 bytes or less than 8 bytes, respectively.
 /// This function implements the conversion from int32 and int64 arrays to decimal arrays.
 template <
-    typename ParquetIntegerType,
+    typename DecimalArrayType, typename ParquetIntegerType,
     typename = ::arrow::enable_if_t<std::is_same<ParquetIntegerType, Int32Type>::value ||
                                     std::is_same<ParquetIntegerType, Int64Type>::value>>
 static Status DecimalIntegerTransfer(RecordReader* reader, MemoryPool* pool,
-                                     const std::shared_ptr<DataType>& type, Datum* out) {
+                                     const std::shared_ptr<Field>& field, Datum* out) {
   // Decimal128 and Decimal256 are only Arrow constructs.  Parquet does not
   // specifically distinguish between decimal byte widths.
-  // Decimal256 isn't relevant here because the Arrow-Parquet C++ bindings never
-  // write Decimal values as integers and if the decimal value can fit in an
-  // integer it is wasteful to use Decimal256. Put another way, the only
-  // way an integer column could be construed as Decimal256 is if an arrow
-  // schema was stored as metadata in the file indicating the column was
-  // Decimal256. The current Arrow-Parquet C++ bindings will never do this.
-  DCHECK(type->id() == ::arrow::Type::DECIMAL128);
+  DCHECK(field->type()->id() == ::arrow::Type::DECIMAL128 ||
+         field->type()->id() == ::arrow::Type::DECIMAL256);
 
   const int64_t length = reader->values_written();
 
@@ -616,28 +666,33 @@ static Status DecimalIntegerTransfer(RecordReader* reader, MemoryPool* pool,
 
   const auto values = reinterpret_cast<const ElementType*>(reader->values());
 
-  const auto& decimal_type = checked_cast<const ::arrow::DecimalType&>(*type);
+  const auto& decimal_type = checked_cast<const ::arrow::DecimalType&>(*field->type());
   const int64_t type_length = decimal_type.byte_width();
 
   ARROW_ASSIGN_OR_RAISE(auto data, ::arrow::AllocateBuffer(length * type_length, pool));
   uint8_t* out_ptr = data->mutable_data();
 
-  using ::arrow::BitUtil::FromLittleEndian;
+  using ::arrow::bit_util::FromLittleEndian;
 
   for (int64_t i = 0; i < length; ++i, out_ptr += type_length) {
     // sign/zero extend int32_t values, otherwise a no-op
     const auto value = static_cast<int64_t>(values[i]);
 
-    ::arrow::Decimal128 decimal(value);
-    decimal.ToBytes(out_ptr);
+    if constexpr (std::is_same_v<DecimalArrayType, Decimal128Array>) {
+      ::arrow::Decimal128 decimal(value);
+      decimal.ToBytes(out_ptr);
+    } else {
+      ::arrow::Decimal256 decimal(value);
+      decimal.ToBytes(out_ptr);
+    }
   }
 
-  if (reader->nullable_values()) {
+  if (reader->nullable_values() && field->nullable()) {
     std::shared_ptr<ResizableBuffer> is_valid = reader->ReleaseIsValid();
-    *out = std::make_shared<Decimal128Array>(type, length, std::move(data), is_valid,
-                                             reader->null_count());
+    *out = std::make_shared<DecimalArrayType>(field->type(), length, std::move(data),
+                                              is_valid, reader->null_count());
   } else {
-    *out = std::make_shared<Decimal128Array>(type, length, std::move(data));
+    *out = std::make_shared<DecimalArrayType>(field->type(), length, std::move(data));
   }
   return Status::OK();
 }
@@ -650,43 +705,47 @@ static Status DecimalIntegerTransfer(RecordReader* reader, MemoryPool* pool,
 ///    representing the high and low bits of each decimal value.
 template <typename DecimalArrayType, typename ParquetType>
 Status TransferDecimal(RecordReader* reader, MemoryPool* pool,
-                       const std::shared_ptr<DataType>& type, Datum* out) {
+                       const std::shared_ptr<Field>& field, Datum* out) {
   auto binary_reader = dynamic_cast<BinaryRecordReader*>(reader);
   DCHECK(binary_reader);
   ::arrow::ArrayVector chunks = binary_reader->GetBuilderChunks();
   for (size_t i = 0; i < chunks.size(); ++i) {
     std::shared_ptr<Array> chunk_as_decimal;
     auto fn = &DecimalConverter<DecimalArrayType, ParquetType>::ConvertToDecimal;
-    RETURN_NOT_OK(fn(*chunks[i], type, pool, &chunk_as_decimal));
+    RETURN_NOT_OK(fn(*chunks[i], field->type(), pool, &chunk_as_decimal));
     // Replace the chunk, which will hopefully also free memory as we go
     chunks[i] = chunk_as_decimal;
   }
-  *out = std::make_shared<ChunkedArray>(chunks, type);
+  if (!field->nullable()) {
+    ReconstructChunksWithoutNulls(&chunks);
+  }
+  *out = std::make_shared<ChunkedArray>(chunks, field->type());
   return Status::OK();
 }
 
 }  // namespace
 
-#define TRANSFER_INT32(ENUM, ArrowType)                                              \
-  case ::arrow::Type::ENUM: {                                                        \
-    Status s = TransferInt<ArrowType, Int32Type>(reader, pool, value_type, &result); \
-    RETURN_NOT_OK(s);                                                                \
+#define TRANSFER_INT32(ENUM, ArrowType)                                               \
+  case ::arrow::Type::ENUM: {                                                         \
+    Status s = TransferInt<ArrowType, Int32Type>(reader, pool, value_field, &result); \
+    RETURN_NOT_OK(s);                                                                 \
   } break;
 
-#define TRANSFER_INT64(ENUM, ArrowType)                                              \
-  case ::arrow::Type::ENUM: {                                                        \
-    Status s = TransferInt<ArrowType, Int64Type>(reader, pool, value_type, &result); \
-    RETURN_NOT_OK(s);                                                                \
+#define TRANSFER_INT64(ENUM, ArrowType)                                               \
+  case ::arrow::Type::ENUM: {                                                         \
+    Status s = TransferInt<ArrowType, Int64Type>(reader, pool, value_field, &result); \
+    RETURN_NOT_OK(s);                                                                 \
   } break;
 
-Status TransferColumnData(RecordReader* reader, std::shared_ptr<DataType> value_type,
+Status TransferColumnData(RecordReader* reader, const std::shared_ptr<Field>& value_field,
                           const ColumnDescriptor* descr, MemoryPool* pool,
                           std::shared_ptr<ChunkedArray>* out) {
   Datum result;
   std::shared_ptr<ChunkedArray> chunked_result;
-  switch (value_type->id()) {
+  switch (value_field->type()->id()) {
     case ::arrow::Type::DICTIONARY: {
-      RETURN_NOT_OK(TransferDictionary(reader, value_type, &chunked_result));
+      RETURN_NOT_OK(TransferDictionary(reader, value_field->type(),
+                                       value_field->nullable(), &chunked_result));
       result = chunked_result;
     } break;
     case ::arrow::Type::NA: {
@@ -698,10 +757,10 @@ Status TransferColumnData(RecordReader* reader, std::shared_ptr<DataType> value_
     case ::arrow::Type::FLOAT:
     case ::arrow::Type::DOUBLE:
     case ::arrow::Type::DATE32:
-      result = TransferZeroCopy(reader, value_type);
+      result = TransferZeroCopy(reader, value_field);
       break;
     case ::arrow::Type::BOOL:
-      RETURN_NOT_OK(TransferBool(reader, pool, &result));
+      RETURN_NOT_OK(TransferBool(reader, value_field->nullable(), pool, &result));
       break;
       TRANSFER_INT32(UINT8, ::arrow::UInt8Type);
       TRANSFER_INT32(INT8, ::arrow::Int8Type);
@@ -711,34 +770,35 @@ Status TransferColumnData(RecordReader* reader, std::shared_ptr<DataType> value_
       TRANSFER_INT64(UINT64, ::arrow::UInt64Type);
       TRANSFER_INT32(TIME32, ::arrow::Time32Type);
       TRANSFER_INT64(TIME64, ::arrow::Time64Type);
+      TRANSFER_INT64(DURATION, ::arrow::DurationType);
     case ::arrow::Type::DATE64:
-      RETURN_NOT_OK(TransferDate64(reader, pool, value_type, &result));
+      RETURN_NOT_OK(TransferDate64(reader, pool, value_field, &result));
       break;
     case ::arrow::Type::FIXED_SIZE_BINARY:
     case ::arrow::Type::BINARY:
     case ::arrow::Type::STRING:
     case ::arrow::Type::LARGE_BINARY:
     case ::arrow::Type::LARGE_STRING: {
-      RETURN_NOT_OK(TransferBinary(reader, pool, value_type, &chunked_result));
+      RETURN_NOT_OK(TransferBinary(reader, pool, value_field, &chunked_result));
       result = chunked_result;
     } break;
     case ::arrow::Type::DECIMAL128: {
       switch (descr->physical_type()) {
         case ::parquet::Type::INT32: {
-          auto fn = DecimalIntegerTransfer<Int32Type>;
-          RETURN_NOT_OK(fn(reader, pool, value_type, &result));
+          auto fn = DecimalIntegerTransfer<Decimal128Array, Int32Type>;
+          RETURN_NOT_OK(fn(reader, pool, value_field, &result));
         } break;
         case ::parquet::Type::INT64: {
-          auto fn = &DecimalIntegerTransfer<Int64Type>;
-          RETURN_NOT_OK(fn(reader, pool, value_type, &result));
+          auto fn = &DecimalIntegerTransfer<Decimal128Array, Int64Type>;
+          RETURN_NOT_OK(fn(reader, pool, value_field, &result));
         } break;
         case ::parquet::Type::BYTE_ARRAY: {
           auto fn = &TransferDecimal<Decimal128Array, ByteArrayType>;
-          RETURN_NOT_OK(fn(reader, pool, value_type, &result));
+          RETURN_NOT_OK(fn(reader, pool, value_field, &result));
         } break;
         case ::parquet::Type::FIXED_LEN_BYTE_ARRAY: {
           auto fn = &TransferDecimal<Decimal128Array, FLBAType>;
-          RETURN_NOT_OK(fn(reader, pool, value_type, &result));
+          RETURN_NOT_OK(fn(reader, pool, value_field, &result));
         } break;
         default:
           return Status::Invalid(
@@ -748,32 +808,41 @@ Status TransferColumnData(RecordReader* reader, std::shared_ptr<DataType> value_
     } break;
     case ::arrow::Type::DECIMAL256:
       switch (descr->physical_type()) {
+        case ::parquet::Type::INT32: {
+          auto fn = DecimalIntegerTransfer<Decimal256Array, Int32Type>;
+          RETURN_NOT_OK(fn(reader, pool, value_field, &result));
+        } break;
+        case ::parquet::Type::INT64: {
+          auto fn = &DecimalIntegerTransfer<Decimal256Array, Int64Type>;
+          RETURN_NOT_OK(fn(reader, pool, value_field, &result));
+        } break;
         case ::parquet::Type::BYTE_ARRAY: {
           auto fn = &TransferDecimal<Decimal256Array, ByteArrayType>;
-          RETURN_NOT_OK(fn(reader, pool, value_type, &result));
+          RETURN_NOT_OK(fn(reader, pool, value_field, &result));
         } break;
         case ::parquet::Type::FIXED_LEN_BYTE_ARRAY: {
           auto fn = &TransferDecimal<Decimal256Array, FLBAType>;
-          RETURN_NOT_OK(fn(reader, pool, value_type, &result));
+          RETURN_NOT_OK(fn(reader, pool, value_field, &result));
         } break;
         default:
           return Status::Invalid(
-              "Physical type for decimal256 must be fixed length binary");
+              "Physical type for decimal256 must be int32, int64, byte array, or fixed "
+              "length binary");
       }
       break;
 
     case ::arrow::Type::TIMESTAMP: {
       const ::arrow::TimestampType& timestamp_type =
-          checked_cast<::arrow::TimestampType&>(*value_type);
+          checked_cast<::arrow::TimestampType&>(*value_field->type());
       if (descr->physical_type() == ::parquet::Type::INT96) {
         RETURN_NOT_OK(
-            TransferInt96(reader, pool, value_type, &result, timestamp_type.unit()));
+            TransferInt96(reader, pool, value_field, &result, timestamp_type.unit()));
       } else {
         switch (timestamp_type.unit()) {
           case ::arrow::TimeUnit::MILLI:
           case ::arrow::TimeUnit::MICRO:
           case ::arrow::TimeUnit::NANO:
-            result = TransferZeroCopy(reader, value_type);
+            result = TransferZeroCopy(reader, value_field);
             break;
           default:
             return Status::NotImplemented("TimeUnit not supported");
@@ -782,7 +851,7 @@ Status TransferColumnData(RecordReader* reader, std::shared_ptr<DataType> value_
     } break;
     default:
       return Status::NotImplemented("No support for reading columns of type ",
-                                    value_type->ToString());
+                                    value_field->type()->ToString());
   }
 
   if (result.kind() == Datum::ARRAY) {

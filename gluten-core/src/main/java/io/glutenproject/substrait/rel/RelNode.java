@@ -14,14 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
 import io.substrait.proto.Rel;
 
-/**
- * Contains helper functions for constructing substrait relations.
- */
+/** Contains helper functions for constructing substrait relations. */
 public interface RelNode {
   /**
    * Converts a Rel into a protobuf.

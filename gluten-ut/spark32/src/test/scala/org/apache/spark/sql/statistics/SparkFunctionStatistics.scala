@@ -17,21 +17,20 @@
 package org.apache.spark.sql.statistics
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.GlutenPlan
-import io.glutenproject.utils.SystemParameters
+import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
+
+import org.apache.spark.sql.{GlutenTestConstants, QueryTest, SparkSession}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.{GlutenTestConstants, QueryTest, SparkSession}
 
 import scala.util.control.Breaks.{break, breakable}
 
 /**
- * TODO:
- * There are some false positive & false negative cases for some functions.
- * For such situation, we need to use a suitable test sql to do the check.
+ * TODO: There are some false positive & false negative cases for some functions. For such
+ * situation, we need to use a suitable test sql to do the check.
  */
 class SparkFunctionStatistics extends QueryTest {
 
@@ -40,45 +39,50 @@ class SparkFunctionStatistics extends QueryTest {
   protected def initializeSession(): Unit = {
     if (spark == null) {
       val sparkBuilder = SparkSession
-          .builder()
-          .appName("Gluten-UT")
-          .master(s"local[2]")
-          // Avoid static evaluation for literal input by spark catalyst.
-          .config(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName +
-              "," + ConstantFolding.ruleName + "," + NullPropagation.ruleName)
-          .config("spark.driver.memory", "1G")
-          .config("spark.sql.adaptive.enabled", "true")
-          .config("spark.sql.shuffle.partitions", "1")
-          .config("spark.sql.files.maxPartitionBytes", "134217728")
-          .config("spark.memory.offHeap.enabled", "true")
-          .config("spark.memory.offHeap.size", "1024MB")
-          .config("spark.plugins", "io.glutenproject.GlutenPlugin")
-          .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-          // Avoid the code size overflow error in Spark code generation.
-          .config("spark.sql.codegen.wholeStage", "false")
+        .builder()
+        .appName("Gluten-UT")
+        .master(s"local[2]")
+        // Avoid static evaluation for literal input by spark catalyst.
+        .config(
+          SQLConf.OPTIMIZER_EXCLUDED_RULES.key,
+          ConvertToLocalRelation.ruleName +
+            "," + ConstantFolding.ruleName + "," + NullPropagation.ruleName)
+        .config("spark.driver.memory", "1G")
+        .config("spark.sql.adaptive.enabled", "true")
+        .config("spark.sql.shuffle.partitions", "1")
+        .config("spark.sql.files.maxPartitionBytes", "134217728")
+        .config("spark.memory.offHeap.enabled", "true")
+        .config("spark.memory.offHeap.size", "1024MB")
+        .config("spark.plugins", "io.glutenproject.GlutenPlugin")
+        .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+        // Avoid the code size overflow error in Spark code generation.
+        .config("spark.sql.codegen.wholeStage", "false")
 
-      spark = if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-        GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+      spark = if (BackendTestUtils.isCHBackendLoaded()) {
         sparkBuilder
-            .config("spark.io.compression.codec", "LZ4")
-            .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-            .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
-            .config("spark.gluten.sql.enable.native.validation", "false")
-            .config("spark.sql.files.openCostInBytes", "134217728")
-            .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
-            .config("spark.unsafe.exceptionOnMemoryLeak", "true")
-            .getOrCreate()
+          .config("spark.io.compression.codec", "LZ4")
+          .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+          .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
+          .config("spark.gluten.sql.enable.native.validation", "false")
+          .config("spark.sql.files.openCostInBytes", "134217728")
+          .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+          .config("spark.unsafe.exceptionOnMemoryLeak", "true")
+          .getOrCreate()
       } else {
         sparkBuilder
-            .config("spark.unsafe.exceptionOnMemoryLeak", "true")
-            .getOrCreate()
+          .config("spark.unsafe.exceptionOnMemoryLeak", "true")
+          .getOrCreate()
       }
     }
   }
 
   def extractQuery(examples: String): Seq[String] = {
-    examples.split("\n").map(_.trim).filter(!_.isEmpty).filter(_.startsWith("> SELECT"))
-        .map(_.replace("> SELECT", "SELECT"))
+    examples
+      .split("\n")
+      .map(_.trim)
+      .filter(!_.isEmpty)
+      .filter(_.startsWith("> SELECT"))
+      .map(_.replace("> SELECT", "SELECT"))
   }
 
   test(GlutenTestConstants.GLUTEN_TEST + "Run spark function statistics: ") {
@@ -89,8 +93,13 @@ class SparkFunctionStatistics extends QueryTest {
     // these functions are registered only for testing, not available for end users.
     // Other functions like current_database is NOT necessarily offloaded to native.
     val ignoreFunctions = FunctionRegistry.expressionsForTimestampNTZSupport.keySet ++
-        Seq("get_fake_app_name", "current_catalog", "current_database", "spark_partition_id",
-          "current_user", "current_timezone")
+      Seq(
+        "get_fake_app_name",
+        "current_catalog",
+        "current_database",
+        "spark_partition_id",
+        "current_user",
+        "current_timezone")
     val supportedFunctions = new java.util.ArrayList[String]()
     val unsupportedFunctions = new java.util.ArrayList[String]()
     val needInspectFunctions = new java.util.ArrayList[String]()
@@ -147,8 +156,18 @@ class SparkFunctionStatistics extends QueryTest {
     println("Need inspect functions: " + needInspectFunctions.size())
     // scalastyle:on println
     // For correction.
-    val supportedCastAliasFunctions = Seq("boolean", "tinyint", "smallint", "int", "bigint",
-      "float", "double", "decimal", "date", "binary", "string")
+    val supportedCastAliasFunctions = Seq(
+      "boolean",
+      "tinyint",
+      "smallint",
+      "int",
+      "bigint",
+      "float",
+      "double",
+      "decimal",
+      "date",
+      "binary",
+      "string")
     for (func <- supportedCastAliasFunctions) {
       if (needInspectFunctions.contains(func)) {
         needInspectFunctions.remove(func)
@@ -162,12 +181,17 @@ class SparkFunctionStatistics extends QueryTest {
         if (unsupportedFunctions.remove(name)) {
           supportedFunctions.add(name)
         }
-      }
-    )
+      })
     // For wrongly recognized supported case.
-    Seq("array_contains", "map_keys", "get_json_object",
-        "element_at", "map_from_arrays", "map_values",
-        "struct", "array").foreach(
+    Seq(
+      "array_contains",
+      "map_keys",
+      "get_json_object",
+      "element_at",
+      "map_from_arrays",
+      "map_values",
+      "struct",
+      "array").foreach(
       name => {
         if (supportedFunctions.remove(name)) {
           unsupportedFunctions.add(name)

@@ -1,15 +1,36 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "AggregateRelParser.h"
 #include <memory>
 #include <AggregateFunctions/AggregateFunctionIf.h>
-#include <Common/StringUtils/StringUtils.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
+#include <Parser/AggregateFunctionParser.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/MergingAggregatedStep.h>
+#include "Common/PODArray.h"
+#include <Common/StringUtils/StringUtils.h>
+#include "DataTypes/IDataType.h"
+
+#include <Operator/EmptyHashAggregate.h>
 
 namespace DB
 {
@@ -18,19 +39,30 @@ namespace ErrorCodes
     extern const int LOGICAL_ERROR;
     extern const int BAD_ARGUMENTS;
     extern const int UNKNOWN_TYPE;
+    extern const int ILLEGAL_TYPE_OF_ARGUMENT;
 }
 }
 namespace local_engine
 {
 
-AggregateRelParser::AggregateRelParser(SerializedPlanParser * plan_paser_)
-    : RelParser(plan_paser_)
-{}
+AggregateRelParser::AggregateRelParser(SerializedPlanParser * plan_paser_) : RelParser(plan_paser_)
+{
+}
 
-DB::QueryPlanPtr AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & )
+DB::QueryPlanPtr AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
 {
     setup(std::move(query_plan), rel);
     LOG_TRACE(logger, "original header is: {}", plan->getCurrentDataStream().header.dumpStructure());
+    if (rel.aggregate().measures().empty()
+        && (rel.aggregate().groupings().empty() || rel.aggregate().groupings()[0].grouping_expressions().empty()))
+    {
+        LOG_TRACE(&Poco::Logger::get("AggregateRelParser"), "Empty aggregate step");
+        auto empty_agg = std::make_unique<EmptyHashAggregateStep>(plan->getCurrentDataStream());
+        empty_agg->setStepDescription("Empty aggregate");
+        steps.push_back(empty_agg.get());
+        plan->addStep(std::move(empty_agg));
+        return std::move(plan);
+    }
     addPreProjection();
     LOG_TRACE(logger, "header after pre-projection is: {}", plan->getCurrentDataStream().header.dumpStructure());
     if (has_final_stage)
@@ -65,7 +97,8 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
 
     if (phase_set.size() > 1 && has_final_stage)
     {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "AggregateRelParser: multiple aggregation phases with final stage are not supported");
+        throw DB::Exception(
+            DB::ErrorCodes::LOGICAL_ERROR, "AggregateRelParser: multiple aggregation phases with final stage are not supported");
     }
 
     auto input_header = plan->getCurrentDataStream().header;
@@ -73,13 +106,17 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
     {
         AggregateInfo agg_info;
         auto arg = measure.measure().arguments(0).value();
-        auto function_name = parseFunctionName(measure.measure().function_reference(), {});
-        if (!function_name)
+        agg_info.signature_function_name = *parseSignatureFunctionName(measure.measure().function_reference());
+        auto function_parser = AggregateFunctionParserFactory::instance().get(agg_info.signature_function_name, getPlanParser());
+        if (!function_parser)
         {
-            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unsupported aggregate function");
+            throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unsupported aggregate function: {}", agg_info.signature_function_name);
         }
+        /// Put function_parser, parser_func_info and function_name into agg_info for reducing repeated builds.
+        agg_info.function_parser = function_parser;
+        agg_info.parser_func_info = AggregateFunctionParser::CommonFunctionInfo(measure);
+        agg_info.function_name = function_parser->getCHFunctionName(agg_info.parser_func_info);
         agg_info.measure = &measure;
-        agg_info.function_name = *function_name;
         aggregates.push_back(agg_info);
     }
 
@@ -103,71 +140,26 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
     }
 }
 
-// projections for function arguments.
-// 1. add literal columns
-// 2. change argument columns' nullabitlity.
-// 3. if the aggregate expression has filter, add a filter column.
+/// Projections for function arguments.
+/// The projections are built by the function parsers.
 void AggregateRelParser::addPreProjection()
 {
     auto input_header = plan->getCurrentDataStream().header;
-    bool need_projection = false;
     ActionsDAGPtr projection_action = std::make_shared<ActionsDAG>(input_header.getColumnsWithTypeAndName());
+    std::string dag_footprint = projection_action->dumpDAG();
     for (auto & agg_info : aggregates)
     {
-        for (const auto & arg : agg_info.measure->measure().arguments())
+        auto arg_nodes = agg_info.function_parser->parseFunctionArguments(agg_info.parser_func_info, projection_action);
+        // This may remove elements from arg_nodes, because some of them are converted to CH func parameters.
+        agg_info.params = agg_info.function_parser->parseFunctionParameters(agg_info.parser_func_info, arg_nodes);
+        for (auto & arg_node : arg_nodes)
         {
-            String arg_column_name;
-            DB::DataTypePtr arg_column_type = nullptr;
-            auto arg_value = arg.value();
-            if (arg_value.has_selection())
-            {
-                const auto & col = input_header.getByPosition(arg_value.selection().direct_reference().struct_field().field());
-                arg_column_name = col.name;
-                arg_column_type = col.type;
-            }
-            else if (arg_value.has_literal())
-            {
-                const auto * node = parseArgument(projection_action, arg_value);
-                projection_action->addOrReplaceInOutputs(*node);
-                arg_column_name = node->result_name;
-                arg_column_type = node->result_type;
-                need_projection = true;
-            }
-            else
-            {
-                throw Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported aggregate argument: {}", arg_value.DebugString());
-            }
-
-            // If the aggregate result is required to be nullable, make all inputs be nullable at the first stage.
-            auto required_output_which_type = WhichDataType(parseType(agg_info.measure->measure().output_type()));
-            if (required_output_which_type.isNullable()
-                && agg_info.measure->measure().phase() == substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE
-                && !projection_action->findInOutputs(arg_column_name).result_type->isNullable())
-            {
-                ActionsDAG::NodeRawConstPtrs args;
-                agg_info.has_mismatch_nullablity = true;
-                args.emplace_back(&projection_action->findInOutputs(arg_column_name));
-                const auto * node = buildFunctionNode(projection_action, "toNullable", args);
-                projection_action->addOrReplaceInOutputs(*node);
-                arg_column_name = node->result_name;
-                arg_column_type = node->result_type;
-                need_projection = true;
-            }
-            agg_info.arg_column_names.emplace_back(arg_column_name);
-            agg_info.arg_column_types.emplace_back(arg_column_type);
-        }
-
-        if (agg_info.measure->has_filter())
-        {
-            // With `If` combinator, the function take one more argument which refers to the condition.
-            const auto * action_node = parseExpression(projection_action, agg_info.measure->filter());
-            agg_info.filter_column_name = action_node->result_name;
-            agg_info.arg_column_names.emplace_back(agg_info.filter_column_name);
-            agg_info.arg_column_types.emplace_back(action_node->result_type);
-            need_projection = true;
+            agg_info.arg_column_names.emplace_back(arg_node->result_name);
+            agg_info.arg_column_types.emplace_back(arg_node->result_type);
+            projection_action->addOrReplaceInOutputs(*arg_node);
         }
     }
-    if (need_projection)
+    if (projection_action->dumpDAG() != dag_footprint)
     {
         auto projection_step = std::make_unique<DB::ExpressionStep>(plan->getCurrentDataStream(), projection_action);
         projection_step->setStepDescription("Projection before aggregate");
@@ -194,70 +186,47 @@ void AggregateRelParser::buildAggregateDescriptions(AggregateDescriptions & desc
         const auto & measure = agg_info.measure->measure();
         description.column_name = build_result_column_name(agg_info.function_name, agg_info.arg_column_names, measure.phase());
         description.argument_names = agg_info.arg_column_names;
-        // The suffix of "PartialMerge" is used in AggregateFunctionCombinatorPartialMerge
-        const auto * partial_merge_suffix = "PartialMerge";
-        auto function_name = agg_info.function_name;
-        auto arg_column_types = agg_info.arg_column_types;
-        if (measure.phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
-        {
-            if (agg_info.arg_column_types.size() != 1)
-            {
-                throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Only support one argument aggregate function in phase {}", measure.phase());
-            }
-            // Add a check here for safty.
-            if (!agg_info.filter_column_name.empty())
-            {
-                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unspport apply filter in phase {}", measure.phase());
-            }
+        DB::AggregateFunctionProperties properties;
 
-            const auto * agg_function_data = DB::checkAndGetDataType<DB::DataTypeAggregateFunction>(agg_info.arg_column_types[0].get());
-            if (!agg_function_data)
+        if (!agg_info.function_name.ends_with("State"))
+        {
+            // May apply `PartialMerge` and `If` on the original function.
+            auto [combinator_function_name, combinator_function_arg_types] = agg_info.function_parser->tryApplyCHCombinator(
+                agg_info.parser_func_info, agg_info.function_name, agg_info.arg_column_types);
+            description.function
+                = getAggregateFunction(combinator_function_name, combinator_function_arg_types, properties, agg_info.params);
+        }
+        else
+        {
+            // If the function is a state function, we don't need to apply `PartialMerge`.
+            // In INITIAL_TO_INTERMEDIATE phase, we do arguments -> xxState.
+            // In INTERMEDIATE_TO_RESULT phase, we do xxState -> xxState.
+            if (agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
             {
-                // FIXME. This is should be fixed. It's the case that count(distinct(xxx)) with other aggregate functions.
-                // Gluten breaks the rule that intermediate result should have a special format name here.
-                if (measure.phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
-                {
-                    LOG_INFO(logger, "Intermediate aggregate function data is expected in phase {} for {}", measure.phase(), function_name);
-                    auto arg_type = DB::removeNullable(agg_info.arg_column_types[0]);
-                    if (auto * tupe_type = typeid_cast<const DB::DataTypeTuple*>(arg_type.get()))
-                    {
-                        arg_column_types = tupe_type->getElements();
-                    }
-                    auto agg_function = getAggregateFunction(function_name, arg_column_types);
-                    auto agg_intermediate_result_type = agg_function->getStateType();
-                    arg_column_types = {agg_intermediate_result_type};
-                }
+                description.function = getAggregateFunction(agg_info.function_name, agg_info.arg_column_types, properties, agg_info.params);
+            }
+            else if (agg_info.parser_func_info.phase == substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT)
+            {
+                if (agg_info.arg_column_types.size() != 1)
+                    throw Exception(
+                        DB::ErrorCodes::BAD_ARGUMENTS,
+                        "Only support one argument aggregate function in phase {}",
+                        agg_info.parser_func_info.phase);
+                const auto * type = checkAndGetDataType<DataTypeAggregateFunction>(agg_info.arg_column_types[0].get());
+                if (!type)
+                    throw Exception(
+                        ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
+                        "Argument for function {} must have type AggregateFunction as arguments",
+                        agg_info.function_name);
+                auto nested_types = type->getArgumentsDataTypes();
+                description.function = getAggregateFunction(agg_info.function_name, nested_types, properties, agg_info.params);
             }
             else
             {
-                // Special case for handling the intermedidate result from aggregate functions with filter.
-                // It's safe to use AggregateFunctionxxx to parse intermediate result from AggregateFunctionxxxIf,
-                // since they have the same binary representation
-                // reproduce this case by
-                //  select 
-                //    count(a),count(b), count(1), count(distinct(a)), count(distinct(b)) 
-                //  from values (1, null), (2,2) as data(a,b)
-                // with `first_value` enable
-                if (measure.phase() != substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE)
-                {
-                    if (endsWith(agg_function_data->getFunction()->getName(), "If")
-                        && function_name != agg_function_data->getFunction()->getName())
-                    {
-                        auto original_args_types = agg_function_data->getArgumentsDataTypes();
-                        arg_column_types = DataTypes(original_args_types.begin(), std::prev(original_args_types.end()));
-                        auto agg_function = getAggregateFunction(function_name, arg_column_types);
-                        arg_column_types = {agg_function->getStateType()};
-                    }
-                }
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupported phase for state function: {}", agg_info.function_name);
             }
-            function_name = function_name + partial_merge_suffix;
         }
-        else if (!agg_info.filter_column_name.empty())
-        {
-            // Apply `If` aggregate function combinator on the original aggregate function.
-            function_name += "If";
-        }
-        description.function = getAggregateFunction(function_name, arg_column_types);
+        description.parameters = agg_info.params;
         descriptions.emplace_back(description);
     }
 }
@@ -305,8 +274,9 @@ void AggregateRelParser::addAggregatingStep()
         true,
         3,
         settings.max_block_size,
-        false,
-        false);
+        /*enable_prefetch*/ true,
+        /*only_merge*/ false,
+        settings.optimize_group_by_constant_keys);
 
     auto aggregating_step = std::make_unique<AggregatingStep>(
         plan->getCurrentDataStream(),
@@ -331,87 +301,23 @@ void AggregateRelParser::addAggregatingStep()
 // Only be called in final stage.
 void AggregateRelParser::addPostProjection()
 {
-    addPostProjectionForAggregatingResult();   
-    addPostProjectionForTypeMismatch();
-}
-
-// Handle special cases for aggregate result.
-void AggregateRelParser::addPostProjectionForAggregatingResult()
-{
     auto input_header = plan->getCurrentDataStream().header;
-    auto current_cols = plan->getCurrentDataStream().header.getColumnsWithTypeAndName();
-    ActionsDAGPtr projection_action = std::make_shared<ActionsDAG>(input_header.getColumnsWithTypeAndName());
-
-    auto build_function_node = [&](ActionsDAGPtr action_dag,
-                                   const String & function_name,
-                                   const String & result_name,
-                                   const DB::ActionsDAG::NodeRawConstPtrs & args)
-    {
-        auto function_builder = DB::FunctionFactory::instance().get(function_name, getContext());
-        return &action_dag->addFunction(function_builder, args, result_name);
-    };
-
-    bool need_projection = false;
+    ActionsDAGPtr project_actions_dag = std::make_shared<ActionsDAG>(input_header.getColumnsWithTypeAndName());
+    auto dag_footprint = project_actions_dag->dumpDAG();
     for (const auto & agg_info : aggregates)
     {
-        // groupArray is used to implement collect_list in spark. But there is a difference between them.
-        // If all elements are null, collect_list will return [], but groupArray will return null. And clickhosue
-        // has backward compatibility issue, we cannot modify the inner implementation of groupArray
-        if (agg_info.function_name == "groupArray" || agg_info.function_name == "groupUniqArray")
-        {
-            auto pos = agg_info.measure->measure().arguments(0).value().selection().direct_reference().struct_field().field();
-            if (current_cols[pos].type->isNullable())
-            {
-                ActionsDAG::NodeRawConstPtrs args;
-                args.push_back(&projection_action->findInOutputs(agg_info.arg_column_names[0]));
-                auto nested_type = typeid_cast<const DB::DataTypeNullable *>(current_cols[pos].type.get())->getNestedType();
-                DB::Field empty_field = nested_type->getDefault();
-                const auto * default_value_node = &projection_action->addColumn(
-                    ColumnWithTypeAndName(nested_type->createColumnConst(1, empty_field), nested_type, getUniqueName("[]")));
-                args.push_back(default_value_node);
-                const auto * if_null_node = build_function_node(projection_action, "ifNull", current_cols[pos].name, args);
-                projection_action->addOrReplaceInOutputs(*if_null_node);
-                need_projection = true;
-            }
-        }
-    }
-
-    if (need_projection)
-    {
-        auto projection_step = std::make_unique<DB::ExpressionStep>(plan->getCurrentDataStream(), projection_action);
-        projection_step->setStepDescription("Post-projection For Special Aggregate Functions");
-        steps.emplace_back(projection_step.get());
-        plan->addStep(std::move(projection_step));
-    }
-}
-
-void AggregateRelParser::addPostProjectionForTypeMismatch()
-{
-    auto current_cols = plan->getCurrentDataStream().header.getColumnsWithTypeAndName();
-    auto target_cols = current_cols;
-    bool need_convert = false;
-    for (const auto & agg_info : aggregates)
-    {
-        // For final stage, the argument refers to a intermediate resutl.
+        /// For final stage, the aggregate function's input is only one intermediate result columns.
+        /// The final result columm's position is the same as the intermediate result column's position.
         auto pos = agg_info.measure->measure().arguments(0).value().selection().direct_reference().struct_field().field();
-        auto output_type = parseType(agg_info.measure->measure().output_type());
-        if (!output_type->equals(*current_cols[pos].type))
-        {
-            target_cols[pos].type = output_type;
-            target_cols[pos].column = output_type->createColumn();
-            need_convert = true;
-        }
+        const auto * agg_result_node = project_actions_dag->getInputs()[pos];
+        agg_info.function_parser->convertNodeTypeIfNeeded(agg_info.parser_func_info, agg_result_node, project_actions_dag);
     }
-    if (need_convert)
+    if (project_actions_dag->dumpDAG() != dag_footprint)
     {
-        ActionsDAGPtr convert_action = ActionsDAG::makeConvertingActions(current_cols, target_cols, DB::ActionsDAG::MatchColumnsMode::Position);
-        if (convert_action)
-        {
-            QueryPlanStepPtr convert_step = std::make_unique<ExpressionStep>(plan->getCurrentDataStream(), convert_action);
-            convert_step->setStepDescription("Post-projection For Type Mismatch");
-            steps.emplace_back(convert_step.get());
-            plan->addStep(std::move(convert_step));
-        }
+        QueryPlanStepPtr convert_step = std::make_unique<ExpressionStep>(plan->getCurrentDataStream(), project_actions_dag);
+        convert_step->setStepDescription("Post-projection for aggregate");
+        steps.emplace_back(convert_step.get());
+        plan->addStep(std::move(convert_step));
     }
 }
 
@@ -420,5 +326,4 @@ void registerAggregateParser(RelParserFactory & factory)
     auto builder = [](SerializedPlanParser * plan_parser) { return std::make_shared<AggregateRelParser>(plan_parser); };
     factory.registerBuilder(substrait::Rel::RelTypeCase::kAggregate, builder);
 }
-
 }

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.metrics;
 
 public class OperatorMetrics implements IOperatorMetrics {
@@ -44,9 +43,7 @@ public class OperatorMetrics implements IOperatorMetrics {
   public long skippedStrides;
   public long processedStrides;
 
-  /**
-   * Create an instance for operator metrics.
-   */
+  /** Create an instance for operator metrics. */
   public OperatorMetrics(
       long inputRows,
       long inputVectors,

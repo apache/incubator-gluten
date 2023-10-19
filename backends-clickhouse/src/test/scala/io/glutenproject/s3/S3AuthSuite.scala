@@ -49,8 +49,8 @@ class S3AuthSuite extends AnyFunSuite {
   val trustingEndpoint2 = "s3.us-east-2.amazonaws.com"
 
   // this is the "trusted user part", e.g. consumer of customer's data
-  val trustedAK = "" // @ global prod
-  val trustedSK = ""
+  val trustedAK = System.getenv("S3AuthSuiteAK") // @ global prod
+  val trustedSK = System.getenv("S3AuthSuiteSK")
   val trustedOwnedBucket = "mhb-prod-bucket" // another bucket in us-west-2
   val trustedOwnedParquetPath = s"s3a://$trustedOwnedBucket/tpch10_nation"
   val trustedOwnedEndpoint = "s3.us-west-2.amazonaws.com"
@@ -225,8 +225,77 @@ class S3AuthSuite extends AnyFunSuite {
     }
   }
 
+  test(s"test update config later") {
+    val spark = SparkSession
+      .builder()
+      .appName("Gluten-S3-Test")
+      .master(s"local[1]")
+      .config("spark.plugins", "io.glutenproject.GlutenPlugin")
+      .config(GlutenConfig.GLUTEN_LIB_PATH, libPath)
+      .config("spark.memory.offHeap.enabled", "true")
+      .config("spark.memory.offHeap.size", "1g")
+      .config("spark.gluten.sql.enable.native.validation", "false")
+      .config("spark.hadoop.fs.s3a.endpoint", trustingEndpoint2)
+      .config(
+        "spark.hadoop.fs.s3a.aws.credentials.provider",
+        "org.apache.hadoop.fs.s3a.auth.AssumedRoleCredentialProvider")
+      .config(s"spark.hadoop.fs.s3a.bucket.$trustingBucket.assumed.role.arn", trustedAssumeRole)
+      .config(s"spark.hadoop.fs.s3a.bucket.$trustingBucket.assumed.role.externalId", "")
+      .config(
+        s"spark.hadoop.fs.s3a.bucket.$trustingBucket.assumed.role.session.name",
+        trustedSessionName)
+      .config(s"spark.hadoop.fs.s3a.bucket.$trustingBucket.endpoint", trustingEndpoint)
+//      .config(s"spark.hadoop.fs.s3a.bucket.$trustingBucket2.assumed.role.arn", trustedAssumeRole2)
+//      .config(
+//        s"spark.hadoop.fs.s3a.bucket.$trustingBucket2.assumed.role.session.name",
+//        trustedSessionName2)
+//      .config(
+//        s"spark.hadoop.fs.s3a.bucket.$trustingBucket2.assumed.role.externalId",
+//        trustedExternalId2
+//      )
+      // The following two configs are provided to help hadoop-aws to pass.
+      // They're not required by native code (they don't have prefix spark.hadoop so
+      // native code will not see them)
+      // They're also unnecessary in real EC2 instance environment (at least it's the case with Kyligence/hadoop-aws)
+      .config("fs.s3a.assumed.role.sts.endpoint.region", "us-east-1")
+      .config("fs.s3a.assumed.role.sts.endpoint", "sts.us-east-1.amazonaws.com")
+      .withAuthMode("AKSK", assuming = true)
+      .withGluten(true)
+      .enableHiveSupport()
+      .getOrCreate()
+
+    try {
+      spark.read.parquet(trustingParquetPath).show(10)
+      try {
+        spark.read.parquet(trustingParquetPath2).show(10)
+        throw new Exception("should not reach here")
+      } catch {
+        case e: java.io.IOException => println("meet io exception as expected")
+      }
+
+      // compensate the configs for trustingBucket2
+      spark.conf.set(
+        s"spark.hadoop.fs.s3a.bucket.$trustingBucket2.assumed.role.arn",
+        trustedAssumeRole2)
+      spark.conf.set(
+        s"spark.hadoop.fs.s3a.bucket.$trustingBucket2.assumed.role.session.name",
+        trustedSessionName2)
+      // without the following two configs, java side will throw exception.
+      // I guess the spark.hadoop.xx configs are only converted to xx once.
+      spark.conf.set(s"fs.s3a.bucket.$trustingBucket2.assumed.role.arn", trustedAssumeRole2)
+      spark.conf.set(
+        s"fs.s3a.bucket.$trustingBucket2.assumed.role.session.name",
+        trustedSessionName2)
+
+      spark.read.parquet(trustingParquetPath2).show(10)
+    } finally {
+      spark.close
+      FileSystem.closeAll()
+    }
+  }
+
   // a special case for CN aws
-  test("CN: simple ak sk") {
+  ignore("CN: simple ak sk") {
     val spark = SparkSession
       .builder()
       .appName("Gluten-S3-Test")

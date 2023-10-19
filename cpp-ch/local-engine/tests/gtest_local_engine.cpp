@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <fstream>
 #include <iostream>
 #include <Builder/SerializedPlanBuilder.h>
@@ -24,9 +40,9 @@
 #include <gtest/gtest.h>
 #include <substrait/plan.pb.h>
 #include <Poco/Util/MapConfiguration.h>
+#include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
 #include <Common/Logger.h>
-#include <Common/CHUtil.h>
 #include "testConfig.h"
 
 using namespace local_engine;
@@ -34,7 +50,7 @@ using namespace dbms;
 
 TEST(TestSelect, ReadRel)
 {
-    GTEST_SKIP() ;
+    GTEST_SKIP();
     dbms::SerializedSchemaBuilder schema_builder;
     auto * schema = schema_builder.column("sepal_length", "FP64")
                         .column("sepal_width", "FP64")
@@ -65,7 +81,7 @@ TEST(TestSelect, ReadRel)
 
 TEST(TestSelect, ReadDate)
 {
-    GTEST_SKIP() ;
+    GTEST_SKIP();
     dbms::SerializedSchemaBuilder schema_builder;
     auto * schema = schema_builder.column("date", "Date").build();
     dbms::SerializedPlanBuilder plan_builder;
@@ -90,7 +106,7 @@ TEST(TestSelect, ReadDate)
 
 TEST(TestSelect, TestFilter)
 {
-    GTEST_SKIP() ;
+    GTEST_SKIP();
     dbms::SerializedSchemaBuilder schema_builder;
     // sorted by key
     auto * schema = schema_builder.column("sepal_length", "FP64")
@@ -128,7 +144,7 @@ TEST(TestSelect, TestFilter)
 
 TEST(TestSelect, TestAgg)
 {
-    GTEST_SKIP() ;
+    GTEST_SKIP();
     dbms::SerializedSchemaBuilder schema_builder;
     // sorted by key
     auto * schema = schema_builder.column("sepal_length", "FP64")
@@ -169,7 +185,7 @@ TEST(TestSelect, TestAgg)
 
 TEST(TestSelect, MergeTreeWriteTest)
 {
-    GTEST_SKIP() ;
+    GTEST_SKIP();
     std::shared_ptr<DB::StorageInMemoryMetadata> metadata = std::make_shared<DB::StorageInMemoryMetadata>();
     ColumnsDescription columns_description;
     auto shared_context = Context::createShared();
@@ -224,7 +240,7 @@ TEST(TestSelect, MergeTreeWriteTest)
             return std::make_shared<local_engine::CustomMergeTreeSink>(custom_merge_tree, metadata, global_context);
         });
     auto executor = query_pipeline.execute();
-    executor->execute(1);
+    executor->execute(1, false);
 }
 
 TEST(TESTUtil, TestByteToLong)
@@ -249,7 +265,7 @@ TEST(TESTUtil, TestByteToLong)
 
 TEST(TestSimpleAgg, TestGenerate)
 {
-    GTEST_SKIP() ;
+    GTEST_SKIP();
     //    dbms::SerializedSchemaBuilder schema_builder;
     //    auto * schema = schema_builder.column("l_orderkey", "I64")
     //                        .column("l_partkey", "I64")

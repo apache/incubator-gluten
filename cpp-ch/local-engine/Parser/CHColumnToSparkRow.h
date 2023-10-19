@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #pragma once
 #include <vector>
 #include <Core/Block.h>
@@ -16,15 +32,21 @@ bool isBitSet(const char * bitmap, size_t index);
 class CHColumnToSparkRow;
 class SparkRowToCHColumn;
 
+using MaskVector = std::unique_ptr<std::vector<size_t>>;
+
 class SparkRowInfo : public boost::noncopyable
 {
     friend CHColumnToSparkRow;
     friend SparkRowToCHColumn;
 
 public:
-    explicit SparkRowInfo(const DB::Block & block);
+    explicit SparkRowInfo(const DB::Block & block, const MaskVector & masks = nullptr);
     explicit SparkRowInfo(
-        const DB::ColumnsWithTypeAndName & cols, const DB::DataTypes & types, const size_t & col_size, const size_t & row_size);
+        const DB::ColumnsWithTypeAndName & cols,
+        const DB::DataTypes & types,
+        const size_t & col_size,
+        const size_t & row_size,
+        const MaskVector & masks = nullptr);
 
     const DB::DataTypes & getDataTypes() const;
 
@@ -49,7 +71,7 @@ public:
 
 private:
     const DB::DataTypes types;
-    int64_t num_rows;
+    size_t num_rows;
     int64_t num_cols;
     int64_t null_bitset_width_in_bytes;
     int64_t total_bytes;
@@ -62,11 +84,11 @@ private:
 
 using SparkRowInfoPtr = std::unique_ptr<local_engine::SparkRowInfo>;
 
-class CHColumnToSparkRow : private Allocator<false, true>
+class CHColumnToSparkRow : private Allocator<false/* clear_memory */>
 // class CHColumnToSparkRow : public DB::Arena
 {
 public:
-    std::unique_ptr<SparkRowInfo> convertCHColumnToSparkRow(const DB::Block & block);
+    std::unique_ptr<SparkRowInfo> convertCHColumnToSparkRow(const DB::Block & block, const MaskVector & masks = nullptr);
     void freeMem(char * address, size_t size);
 };
 

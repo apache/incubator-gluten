@@ -14,33 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.GlutenPlan
 
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{ColumnarToRowTransition, SparkPlan}
 
-abstract class ColumnarToRowExecBase(child: SparkPlan) extends ColumnarToRowTransition {
+abstract class ColumnarToRowExecBase(child: SparkPlan)
+  extends ColumnarToRowTransition
+  with GlutenPlan {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genColumnarToRowMetrics(sparkContext)
 
-  def doValidate(): Boolean = {
-    try {
-      buildCheck()
-    } catch {
-      case _: Throwable =>
-        logInfo("NativeColumnarToRow : Falling back to ColumnarToRow...")
-        return false
-    }
-    true
-  }
+  final override def output: Seq[Attribute] = child.output
 
-  def buildCheck(): Unit
+  final override def outputPartitioning: Partitioning = child.outputPartitioning
+
+  final override def outputOrdering: Seq[SortOrder] = child.outputOrdering
+
+  final override def doExecuteBroadcast[T](): Broadcast[T] = {
+    child.executeBroadcast()
+  }
 
   def doExecuteInternal(): RDD[InternalRow]
 
@@ -48,4 +50,3 @@ abstract class ColumnarToRowExecBase(child: SparkPlan) extends ColumnarToRowTran
     doExecuteInternal()
   }
 }
-

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
 import io.glutenproject.extension.GlutenPlan
@@ -24,7 +23,8 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec, QueryStageExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
-/** attention: if AQE is enable,This method will only be executed correctly after the execution plan
+/**
+ * attention: if AQE is enable,This method will only be executed correctly after the execution plan
  * is fully determined
  */
 
@@ -64,7 +64,7 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
     }
   }
 
-  def isFallback(plan: SparkPlan): Boolean = {
+  def hasFallback(plan: SparkPlan): Boolean = {
     var fallbackOperator: Seq[SparkPlan] = null
     if (plan.isInstanceOf[AdaptiveSparkPlanExec]) {
       fallbackOperator = collectWithSubqueries(plan) {
@@ -79,9 +79,7 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
     }
 
     if (!fallbackOperator.isEmpty) {
-      fallbackOperator.foreach { operator =>
-        log.info(s"gluten fallback operator:{$operator}")
-      }
+      fallbackOperator.foreach(operator => log.info(s"gluten fallback operator:{$operator}"))
     }
     return fallbackOperator.nonEmpty
   }

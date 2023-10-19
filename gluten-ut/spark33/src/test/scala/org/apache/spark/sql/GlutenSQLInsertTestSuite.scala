@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import org.apache.spark.SparkConf
 
-class GlutenFileSourceSQLInsertTestSuite extends FileSourceSQLInsertTestSuite
+class GlutenFileSourceSQLInsertTestSuite
+  extends FileSourceSQLInsertTestSuite
   with GlutenSQLTestsTrait {
   override def sparkConf: SparkConf = {
     // Timezone is not supported yet.

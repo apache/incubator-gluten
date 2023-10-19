@@ -75,75 +75,82 @@ class GlutenClickHouseFileFormatSuite
 
   // in this case, FakeRowAdaptor does R2C
   test("parquet native writer writing a in memory DF") {
-    val filePath = basePath + "/native_parquet_test"
-    val format = "parquet"
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
+      val filePath = basePath + "/native_parquet_test"
+      val format = "parquet"
 
-    val df1 = spark
-      .createDataFrame(genTestData())
-    df1.write
-      .mode("overwrite")
-      .format("native_parquet")
-      .save(filePath)
-    val sql =
-      s"""
-         | select *
-         | from $format.`$filePath`
-         |""".stripMargin
-    val df2 = spark.sql(sql)
-    df2.collect()
-    WholeStageTransformerSuite.checkFallBack(df2)
-    checkAnswer(df2, df1)
+      val df1 = spark.createDataFrame(genTestData())
+      df1.write
+        .mode("overwrite")
+        .format("parquet")
+        .save(filePath)
+      val sql =
+        s"""
+           | select *
+           | from $format.`$filePath`
+           |""".stripMargin
+      val df2 = spark.sql(sql)
+      df2.collect()
+      WholeStageTransformerSuite.checkFallBack(df2)
+      checkAnswer(df2, df1)
+    }
   }
 
   // in this case, FakeRowAdaptor only wrap&transfer
   test("parquet native writer writing a DF from file") {
-    val filePath = basePath + "/native_parquet_test"
-    val format = "parquet"
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
 
-    val df1 = spark.read.parquet(tablesPath + "/customer")
-    df1.write
-      .mode("overwrite")
-      .format("native_parquet")
-      .save(filePath)
-    val sql =
-      s"""
-         | select *
-         | from $format.`$filePath`
-         |""".stripMargin
-    val df2 = spark.sql(sql)
-    df2.collect()
-    WholeStageTransformerSuite.checkFallBack(df2)
-    checkAnswer(df2, df1)
+      val filePath = basePath + "/native_parquet_test"
+      val format = "parquet"
+
+      val df1 = spark.read.parquet(tablesPath + "/customer")
+      df1.write
+        .mode("overwrite")
+        .format("parquet")
+        .save(filePath)
+      val sql =
+        s"""
+           | select *
+           | from $format.`$filePath`
+           |""".stripMargin
+      val df2 = spark.sql(sql)
+      df2.collect()
+      WholeStageTransformerSuite.checkFallBack(df2)
+      checkAnswer(df2, df1)
+    }
   }
 
   // in this case, FakeRowAdaptor only wrap&transfer
   test("parquet native writer writing a DF from an aggregate") {
-    val filePath = basePath + "/native_parquet_test_agg"
-    val format = "parquet"
+    withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
 
-    val df0 = spark
-      .createDataFrame(genTestData())
-    val df1 = df0
-      .select("string_field", "int_field", "double_field")
-      .groupBy("string_field")
-      .agg(
-        functions.sum("int_field").as("a"),
-        functions.max("double_field").as("b"),
-        functions.count("*").as("c"))
-    df1.write
-      .mode("overwrite")
-      .format("native_parquet")
-      .save(filePath)
+      val filePath = basePath + "/native_parquet_test_agg"
+      val format = "parquet"
 
-    val sql =
-      s"""
-         | select *
-         | from $format.`$filePath`
-         |""".stripMargin
-    val df2 = spark.sql(sql)
-    df2.collect()
-    WholeStageTransformerSuite.checkFallBack(df2)
-    checkAnswer(df2, df1)
+      val df0 = spark
+        .createDataFrame(genTestData())
+      val df1 = df0
+        .select("string_field", "int_field", "double_field")
+        .groupBy("string_field")
+        .agg(
+          functions.sum("int_field").as("a"),
+          functions.max("double_field").as("b"),
+          functions.count("*").as("c"))
+      df1.write
+        .mode("overwrite")
+        .format("parquet")
+        .save(filePath)
+
+      val sql =
+        s"""
+           | select *
+           | from $format.`$filePath`
+           |""".stripMargin
+      val df2 = spark.sql(sql)
+      df2.collect()
+      WholeStageTransformerSuite.checkFallBack(df2)
+      checkAnswer(df2, df1)
+    }
   }
 
   test("read data from csv file format") {
@@ -260,6 +267,42 @@ class GlutenClickHouseFileFormatSuite
         StructField.apply("long_field", LongType, nullable = true),
         StructField.apply("float_field", FloatType, nullable = true),
         StructField.apply("double_field", DoubleType, nullable = true),
+        StructField.apply("short_field", ShortType, nullable = true),
+        StructField.apply("bool_field", BooleanType, nullable = true),
+        StructField.apply("timestamp_field", TimestampType, nullable = true),
+        StructField.apply("date_field", DateType, nullable = true),
+        StructField.apply("string_field", StringType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val tm1 = Timestamp.valueOf("2023-08-30 18:00:01")
+    val dt1 = Date.valueOf("2023-08-30")
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1, 1.toLong, 1.toFloat, 1.toDouble, 1.toShort, true, tm1, dt1, null))
+    dataCorrect.add(Row(2, 2.toLong, 2.toFloat, 2.toDouble, 2.toShort, false, tm1, dt1, null))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("issues-2443 test1 for whitespace surrounding data") {
+    val file_path = csvDataPath + "/whitespace_surrounding_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true),
         StructField.apply("short_field", ShortType, nullable = true)
       ))
 
@@ -274,7 +317,104 @@ class GlutenClickHouseFileFormatSuite
       .toDF()
 
     val dataCorrect = new util.ArrayList[Row]()
-    dataCorrect.add(Row(1, 1.toLong, 1.toFloat, 1.toDouble, 1.toShort))
+    dataCorrect.add(Row(1, 2.toLong, 3.toShort))
+    dataCorrect.add(Row(1, 2.toLong, 3.toShort))
+    dataCorrect.add(Row(1, 2.toLong, 4.toShort))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("issues-2443 test2 for float to int data") {
+    val file_path = csvDataPath + "/float_to_int_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true),
+        StructField.apply("short_field", ShortType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", "|")
+    options.put("quote", "\'")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1, 1.toLong, 10.toShort))
+    dataCorrect.add(Row(1, null, 10.toShort))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("issue-2670 test for special char surrounding int data") {
+    val file_path = csvDataPath + "/special_char_surrounding_int_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("short_field", ShortType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("quote", "\"")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1, 2.toShort, 3.toLong))
+    dataCorrect.add(Row(1, 2.toShort, 3.toLong))
+    dataCorrect.add(Row(1, null, null))
+    dataCorrect.add(Row(1, null, -100000.toLong))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("issues-2677 test for ignoring special char around float value") {
+    val file_path = csvDataPath + "/special_character_surrounding_float_data.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("float_field", FloatType, nullable = true),
+        StructField.apply("double_field", DoubleType, nullable = true),
+        StructField.apply("double_field2", DoubleType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+    options.put("header", "false")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(1.55.toFloat, 1.55.toDouble, -100.toDouble))
+    dataCorrect.add(Row(1.55.toFloat, null, 100.toDouble))
+    dataCorrect.add(Row(null, 1.55.toDouble, 98.88))
 
     var expectedAnswer: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
@@ -313,7 +453,7 @@ class GlutenClickHouseFileFormatSuite
     }
 
     assert(csvFileScan.size == 1)
-    assert(result.length == 20)
+    assert(result.length == 21)
     assert(result.apply(0).getString(6) == null)
     assert(result.apply(0).getString(6) == null)
     assert(result.apply(16).getFloat(2) == -100000)
@@ -322,6 +462,7 @@ class GlutenClickHouseFileFormatSuite
     assert(result.apply(16).getLong(5) == -100000)
     assert(result.apply(18).getDate(0) == "2023-07-19".date)
     assert(result.apply(19).getDate(0) == "2023-07-01".date)
+    assert(result.apply(20).getDate(0) == "2023-01-21".date)
   }
 
   test("read excel export csv delimiter") {
@@ -796,6 +937,29 @@ class GlutenClickHouseFileFormatSuite
       })
   }
 
+  test("knownfloatingpointnormalized") {
+    val sql =
+      s"""
+         |select coalesce(t1.`i1`, 0) + coalesce(t2.`l1`, 0) `c1`,
+         |       coalesce(t1.`d1`, t2.`d2`)                  sf
+         |from (select double_field   d1,
+         |             sum(int_field) i1
+         |      from tt
+         |      group by double_field) t1
+         |         full join (select double_field    d2,
+         |                           avg(long_field) l1
+         |                    from tt
+         |                    group by double_field) t2
+         |                   on t1.d1 = t2.d2
+         |""".stripMargin
+    spark.createDataFrame(genTestData()).createOrReplaceTempView("tt")
+    compareResultsAgainstVanillaSpark(
+      sql,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
   test("read data from orc file format") {
     val filePath = basePath + "/orc_test.orc"
     // val filePath = "/data2/case_insensitive_column_matching.orc"
@@ -819,6 +983,22 @@ class GlutenClickHouseFileFormatSuite
          | from $orcFileFormat.`$filePath`
          |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, compareResult = true, df => {}, noFallBack = false)
+  }
+
+  test("ISSUE-2925 range partition with date32") {
+    spark.createDataFrame(genTestData()).createOrReplaceTempView("t1")
+    spark.createDataFrame(genTestData()).createTempView("t2")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        | select t1.date_field from t1 inner join t2 on t1.date_field = t2.date_field
+        | group by t1.date_field
+        | order by t1.date_field
+        |
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
   }
 
   def testFileFormatBase(
@@ -888,14 +1068,124 @@ class GlutenClickHouseFileFormatSuite
             i.toByte,
             i % 2 == 0,
             new java.math.BigDecimal(i + ".56"),
-            new java.sql.Date(System.currentTimeMillis()))
+            Date.valueOf(1950 + i / 3 + "-0" + (i % 3 + 1) + "-01"))
         }
     }
+  }
+
+  test("test_filter_not_null") {
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("int_field", IntegerType, nullable = true),
+        StructField.apply("long_field", LongType, nullable = true),
+        StructField.apply("bool_field", BooleanType, nullable = true)
+      ))
+
+    val data = new util.ArrayList[Row]()
+    data.add(Row(1, 1.toLong, false))
+
+    spark
+      .createDataFrame(data, schema)
+      .toDF()
+      .createTempView("test_filter_not_null")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        | select
+        |     sum(long_field) aa
+        | from
+        | (    select long_field,case when sum(int_field) > 0 then true else false end b
+        |     from test_filter_not_null group by long_field) t where b
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
   }
 
   test("empty parquet") {
     val df = spark.read.parquet(createEmptyParquet()).toDF().select($"a")
     assert(df.collect().isEmpty)
+  }
+
+  test("issue-2881 null string test") {
+    val file_path = csvDataPath + "/null_string.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", StringType, nullable = true),
+        StructField.apply("c2", ShortType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+
+    val df = spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+
+    val dataCorrect = new util.ArrayList[Row]()
+    dataCorrect.add(Row(null, 1.toShort))
+    dataCorrect.add(Row(null, 2.toShort))
+    dataCorrect.add(Row("1", 3.toShort))
+
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+    }
+    checkAnswer(df, expectedAnswer)
+  }
+
+  test("test integer read with sign at the end of line") {
+    val file_path = csvDataPath + "/sign_at_end_int.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", IntegerType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+
+    spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+      .createTempView("test_null_int")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        | select * from test_null_int
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
+  }
+
+  test("test float read with sign at the end of line") {
+    val file_path = csvDataPath + "/sign_at_end_float.csv"
+    val schema = StructType.apply(
+      Seq(
+        StructField.apply("c1", FloatType, nullable = true)
+      ))
+
+    val options = new util.HashMap[String, String]()
+    options.put("delimiter", ",")
+
+    spark.read
+      .options(options)
+      .schema(schema)
+      .csv(file_path)
+      .toDF()
+      .createTempView("test_null_float")
+
+    compareResultsAgainstVanillaSpark(
+      """
+        | select * from test_null_float
+        |""".stripMargin,
+      compareResult = true,
+      _ => {}
+    )
   }
 
   def createEmptyParquet(): String = {

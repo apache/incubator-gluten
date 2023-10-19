@@ -14,14 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.type;
 
 import java.util.ArrayList;
 
 public class TypeBuilder {
-  private TypeBuilder() {
-  }
+  private TypeBuilder() {}
 
   public static TypeNode makeFP32(Boolean nullable) {
     return new FP32TypeNode(nullable);
@@ -79,8 +77,8 @@ public class TypeBuilder {
     return new TimestampTypeNode(nullable);
   }
 
-  public static TypeNode makeStruct(Boolean nullable, ArrayList<TypeNode> types,
-                                    ArrayList<String> names) {
+  public static TypeNode makeStruct(
+      Boolean nullable, ArrayList<TypeNode> types, ArrayList<String> names) {
     return new StructNode(nullable, types, names);
   }
 

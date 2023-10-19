@@ -14,16 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
 public class ExtensionTableBuilder {
-  private ExtensionTableBuilder() {
-  }
+  private ExtensionTableBuilder() {}
 
-  public static ExtensionTableNode makeExtensionTable(Long minPartsNum, Long maxPartsNum,
-                                                      String database, String tableName,
-                                                      String relativePath) {
+  public static ExtensionTableNode makeExtensionTable(
+      Long minPartsNum, Long maxPartsNum, String database, String tableName, String relativePath) {
     return new ExtensionTableNode(minPartsNum, maxPartsNum, database, tableName, relativePath);
   }
 }

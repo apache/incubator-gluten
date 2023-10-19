@@ -11,7 +11,7 @@ Gluten has cpp code and java/scala code, we can use some useful IDE to read and 
 
 # Environment
 
-Now gluten supports Ubuntu20.04, Ubuntu22.04, centos8
+Now gluten supports Ubuntu20.04, Ubuntu22.04, centos8, centos7 and macOS.
 
 ## Openjdk8
 
@@ -52,22 +52,23 @@ And then set the environment setting.
 
 # Compile gluten using debug mode
 
-If you just debug java code, you don't need to compile cpp debug mode, just do as [build-gluten-with-velox-backend](../get-started/Velox.md#2-build-gluten-with-velox-backend)
+If you want to just debug java/scala code, there is no need to compile cpp code with debug mode.
+You can just refer to [build-gluten-with-velox-backend](../get-started/Velox.md#2-build-gluten-with-velox-backend).
 
-If you need to debug cpp code, please compile the backend code and gluten cpp code as debug mode.
+If you need to debug cpp code, please compile the backend code and gluten cpp code with debug mode.
 
 ```bash
 ## compile velox
 ./build_velox.sh --build_type=Debug
 ## compile arrow with tests required library
-./build_arrow.sh --build_tests=ON
+./build_arrow.sh
 ## compile gluten cpp with benchmark and tests to debug
 cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=Debug ..
 ```
 
 If you need to debug the tests in <gluten>/gluten-ut, You need to compile java code with `-P spark-ut`.
 
-# Debug java/scala with Intellij
+# Java/scala code development with Intellij
 
 ## Linux intellij local debug
 
@@ -102,7 +103,25 @@ If you have Ultimate intellij, you can try to debug remotely.
 - Activate your profiles such as <backends-velox>, and Reload Maven Project, you will find all your need modules have been activated.
 - Create breakpoint and debug as you wish, maybe you can try `CTRL+N` to find `TestOperator` to start your test.
 
-# Debug cpp code with Visual Studio Code
+## Java/Scala code style
+
+Intellij IDE supports importing settings for Java/Scala code style. You can import [intellij-codestyle.xml](../../dev/intellij-codestyle.xml) to your IDE.
+See [Intellij guide](https://www.jetbrains.com/help/idea/configuring-code-style.html#import-code-style).
+
+To generate a fix for Java/Scala code style, you can run one or more of the below commands according to the code modules involved in your PR.
+
+For Velox backend:
+```
+mvn spotless:apply -Pbackends-velox -Prss -Pspark-3.2 -Pspark-ut -DskipTests
+mvn spotless:apply -Pbackends-velox -Prss -Pspark-3.3 -Pspark-ut -DskipTests
+```
+For Clickhouse backend:
+```
+mvn spotless:apply -Pbackends-clickhouse -Pspark-3.2 -Pspark-ut -DskipTests
+mvn spotless:apply -Pbackends-clickhouse -Pspark-3.3 -Pspark-ut -DskipTests
+```
+
+# CPP code development with Visual Studio Code
 
 This guide is for remote debug. We will connect the remote linux server by `SSH`.
 Download the [windows vscode software](https://code.visualstudio.com/Download)
@@ -110,10 +129,8 @@ The important leftside bar is:
 - Explorer (Project structure)
 - Search
 - Run and Debug
-- Extensions (Install C/C++ Extension Pack, Remote Develoment, GitLens at least, C++ Test Mate is also suggested)
+- Extensions (Install C/C++ Extension Pack, Remote Development, GitLens at least, C++ Test Mate is also suggested)
 - Remote Explorer (Connect linux server by ssh command, click `+`, then input `ssh user@10.1.7.003`)
--
--
 - Manage (Settings)
 
 Input your password in the above pop-up window, it will take a few minutes to install linux vscode server in remote machine folder `~/.vscode-server`
@@ -351,52 +368,13 @@ Refer to [velox_be.yml](https://github.com/oap-project/gluten/blob/main/.github/
 
 # Run gluten+velox on clean machine
 
-We can run gluten+velox on clean machine by one command.(Support Ubuntu20.04/Ubuntu22.04). gluten will load dynamic link(DLL)
-from gluten-thirdparty-lib-<osversion>.jar when spark.gluten.loadLibFromJar=true.
+We can run gluten + velox on clean machine by one command (supported OS: Ubuntu20.04/22.04, Centos 7/8, etc.).
 ```
 spark-shell --name run_gluten \
  --master yarn --deploy-mode client \
  --conf spark.plugins=io.glutenproject.GlutenPlugin \
- --conf spark.gluten.sql.columnar.backend.lib=velox \
  --conf spark.memory.offHeap.enabled=true \
  --conf spark.memory.offHeap.size=20g \
- --conf spark.gluten.loadLibFromJar=true \
- --jars https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-0.5.0-SNAPSHOT.jar,https://github.com/oap-project/gluten/releases/download/0.5.0/gluten-thirdparty-lib-ubuntu-20.04.jar 
-
+ --jars https://github.com/oap-project/gluten/releases/download/v1.0.0/gluten-velox-bundle-spark3.2_2.12-ubuntu_20.04-1.0.0.jar \
+ --conf spark.shuffle.manager=org.apache.spark.shuffle.sort.ColumnarShuffleManager
 ```
-
-# How to prioritize loading Gluten jars in Spark 
-
-To implement the Insert into directory function in gluten, it is necessary to overwrite the implementation of HiveFileFormat in vanilla spark. Therefore, when running a program that uses gluten, it is essential to ensure that the gluten jar is loaded prior to the vanilla spark jar. In this section, we will provide some configuration settings in `$SPARK_HOME/conf/spark-defaults.conf` for Yarn client, Yarn cluster, and Local&Standalone mode to guarantee that the gluten jar is prioritized.
-
-## Configurations for Yarn Client mode
-
-```
-// spark will upload the gluten jar to hdfs and then the nodemanager will fetch the gluten jar before start the executor process. Here also can set the spark.jars.
-spark.files = {absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
-// The absolute path on running node
-spark.driver.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
-// The relative path under the executor working directory
-spark.executor.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
-```
-
-## Configurations for Yarn Cluster mode
-```
-spark.driver.userClassPathFirst = true
-spark.executor.userClassPathFirst = true
-
-spark.files = {absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
-// The relative path under the executor working directory
-spark.driver.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
-// The relative path under the executor working directory
-spark.executor.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
-```
-## Configurations for Local & Standalone mode
-```
-// The absolute path on running node
-spark.driver.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
-// The absolute path on running node
-spark.executor.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
-```
-
-

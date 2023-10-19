@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
+
 import io.substrait.proto.GenerateRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
@@ -36,7 +36,10 @@ public class GenerateRelNode implements RelNode, Serializable {
     this(input, generator, childOutput, null);
   }
 
-  GenerateRelNode(RelNode input, ExpressionNode generator, ArrayList<ExpressionNode> childOutput,
+  GenerateRelNode(
+      RelNode input,
+      ExpressionNode generator,
+      ArrayList<ExpressionNode> childOutput,
       AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.generator = generator;

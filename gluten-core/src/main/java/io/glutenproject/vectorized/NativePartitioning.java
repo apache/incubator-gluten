@@ -14,14 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
 import java.io.Serializable;
 
-/**
- * POJO to hold partitioning parameters needed by native shuffle writer
- */
+/** POJO to hold partitioning parameters needed by native shuffle writer */
 public class NativePartitioning implements Serializable {
 
   private final String shortName;
@@ -36,13 +33,11 @@ public class NativePartitioning implements Serializable {
   /**
    * Constructs a new instance.
    *
-   * @param shortName     Partitioning short name. "single" -> SinglePartitioning, "rr" ->
-   *                      RoundRobinPartitioning, "hash" -> HashPartitioning,
-   *                                              "range" -> RangePartitioning
+   * @param shortName Partitioning short name. "single" -> SinglePartitioning, "rr" ->
+   *     RoundRobinPartitioning, "hash" -> HashPartitioning, "range" -> RangePartitioning
    * @param numPartitions Partitioning numPartitions
    * @param exprList Serialized expressions
    */
-
   public NativePartitioning(String shortName, int numPartitions, byte[] exprList) {
     this.shortName = shortName;
     this.numPartitions = numPartitions;
@@ -63,8 +58,8 @@ public class NativePartitioning implements Serializable {
     this.requiredFields = null;
   }
 
-  public NativePartitioning(String shortName, int numPartitions, byte[] schema, byte[] exprList,
-                            byte[] requiredFields) {
+  public NativePartitioning(
+      String shortName, int numPartitions, byte[] schema, byte[] exprList, byte[] requiredFields) {
     this.shortName = shortName;
     this.numPartitions = numPartitions;
     this.schema = schema;
@@ -91,5 +86,4 @@ public class NativePartitioning implements Serializable {
   public byte[] getSchema() {
     return schema;
   }
-
 }

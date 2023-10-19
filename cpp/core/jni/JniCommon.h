@@ -19,39 +19,19 @@
 
 #include <arrow/ipc/reader.h>
 #include <arrow/ipc/writer.h>
-#include <arrow/util/parallel.h>
+#include <execinfo.h>
 #include <jni.h>
 
+#include "compute/ExecutionCtx.h"
 #include "compute/ProtobufUtils.h"
-#include "memory/ArrowMemoryPool.h"
+#include "config/GlutenConfig.h"
+#include "memory/AllocationListener.h"
+#include "shuffle/rss/RssClient.h"
+#include "utils/DebugOut.h"
+#include "utils/compression.h"
 #include "utils/exception.h"
 
-#ifdef GLUTEN_ENABLE_QAT
-#include "utils/qat/qat_util.h"
-#endif
-
-#ifdef GLUTEN_ENABLE_IAA
-#include "utils/qpl/qpl_codec.h"
-#endif
-
 static jint jniVersion = JNI_VERSION_1_8;
-
-static inline jclass createGlobalClassReference(JNIEnv* env, const char* className) {
-  jclass localClass = env->FindClass(className);
-  jclass globalClass = (jclass)env->NewGlobalRef(localClass);
-  env->DeleteLocalRef(localClass);
-  return globalClass;
-}
-
-static inline jmethodID getMethodId(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
-  jmethodID ret = env->GetMethodID(thisClass, name, sig);
-  return ret;
-}
-
-static inline jmethodID getStaticMethodId(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
-  jmethodID ret = env->GetStaticMethodID(thisClass, name, sig);
-  return ret;
-}
 
 static inline std::string jStringToCString(JNIEnv* env, jstring string) {
   int32_t jlen, clen;
@@ -60,72 +40,6 @@ static inline std::string jStringToCString(JNIEnv* env, jstring string) {
   char buffer[clen];
   env->GetStringUTFRegion(string, 0, jlen, buffer);
   return std::string(buffer, clen);
-}
-
-static inline arrow::Result<arrow::Compression::type> getCompressionType(JNIEnv* env, jstring codecJstr) {
-  auto codecU = env->GetStringUTFChars(codecJstr, JNI_FALSE);
-
-  std::string codecL;
-  std::transform(codecU, codecU + std::strlen(codecU), std::back_inserter(codecL), ::tolower);
-#ifdef GLUTEN_ENABLE_QAT
-  // TODO: Support more codec.
-  static const std::string qat_codec_prefix = "gluten_qat_";
-  if (codecL.rfind(qat_codec_prefix, 0) == 0) {
-    auto codec = codecL.substr(qat_codec_prefix.size());
-    if (gluten::qat::SupportsCodec(codec)) {
-      gluten::qat::EnsureQatCodecRegistered(codec);
-      codecL = "custom";
-    } else {
-      std::string error_message = "Unrecognized compression codec: " + codecL;
-      env->ReleaseStringUTFChars(codecJstr, codecU);
-      throw gluten::GlutenException(error_message);
-    }
-  }
-#endif
-
-#ifdef GLUTEN_ENABLE_IAA
-  static const std::string qpl_codec_prefix = "gluten_iaa_";
-  if (codecL.rfind(qpl_codec_prefix, 0) == 0) {
-    auto codec = codecL.substr(qpl_codec_prefix.size());
-    if (gluten::qpl::SupportsCodec(codec)) {
-      gluten::qpl::EnsureQplCodecRegistered(codec);
-      codecL = "custom";
-    } else {
-      std::string error_message = "Unrecognized compression codec: " + codecL;
-      env->ReleaseStringUTFChars(codecJstr, codecU);
-      throw gluten::GlutenException(error_message);
-    }
-  }
-#endif
-
-  ARROW_ASSIGN_OR_RAISE(auto compression_type, arrow::util::Codec::GetCompressionType(codecL));
-
-  if (compression_type == arrow::Compression::LZ4) {
-    compression_type = arrow::Compression::LZ4_FRAME;
-  }
-  env->ReleaseStringUTFChars(codecJstr, codecU);
-  return compression_type;
-}
-
-static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
-  int getEnvStat = vm->GetEnv(reinterpret_cast<void**>(out), jniVersion);
-  if (getEnvStat == JNI_EDETACHED) {
-#ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "JNIEnv was not attached to current thread." << std::endl;
-#endif
-    // Reattach current thread to JVM
-    getEnvStat = vm->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(out), NULL);
-    if (getEnvStat != JNI_OK) {
-      throw gluten::GlutenException("Failed to reattach current thread to JVM.");
-    }
-#ifdef GLUTEN_PRINT_DEBUG
-    std::cout << "Succeeded attaching current thread." << std::endl;
-#endif
-    return;
-  }
-  if (getEnvStat != JNI_OK) {
-    throw gluten::GlutenException("Failed to attach current thread to JVM.");
-  }
 }
 
 static inline void checkException(JNIEnv* env) {
@@ -137,7 +51,162 @@ static inline void checkException(JNIEnv* env) {
         env->GetStaticMethodID(describerClass, "describe", "(Ljava/lang/Throwable;)Ljava/lang/String;");
     std::string description =
         jStringToCString(env, (jstring)env->CallStaticObjectMethod(describerClass, describeMethod, t));
+    if (env->ExceptionCheck()) {
+      std::cerr << "Fatal: Uncaught Java exception during calling the Java exception describer method! " << std::endl;
+    }
     throw gluten::GlutenException("Error during calling Java code from native code: " + description);
+  }
+}
+
+static inline jclass createGlobalClassReference(JNIEnv* env, const char* className) {
+  jclass localClass = env->FindClass(className);
+  jclass globalClass = (jclass)env->NewGlobalRef(localClass);
+  env->DeleteLocalRef(localClass);
+  return globalClass;
+}
+
+static inline jclass createGlobalClassReferenceOrError(JNIEnv* env, const char* className) {
+  jclass globalClass = createGlobalClassReference(env, className);
+  if (globalClass == nullptr) {
+    std::string errorMessage = "Unable to CreateGlobalClassReferenceOrError for" + std::string(className);
+    throw gluten::GlutenException(errorMessage);
+  }
+  return globalClass;
+}
+
+static inline jmethodID getMethodId(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
+  jmethodID ret = env->GetMethodID(thisClass, name, sig);
+  return ret;
+}
+
+static inline jmethodID getMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
+  jmethodID ret = getMethodId(env, thisClass, name, sig);
+  if (ret == nullptr) {
+    std::string errorMessage = "Unable to find method " + std::string(name) + " within signature" + std::string(sig);
+    throw gluten::GlutenException(errorMessage);
+  }
+  return ret;
+}
+
+static inline jmethodID getStaticMethodId(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
+  jmethodID ret = env->GetStaticMethodID(thisClass, name, sig);
+  return ret;
+}
+
+static inline jmethodID getStaticMethodIdOrError(JNIEnv* env, jclass thisClass, const char* name, const char* sig) {
+  jmethodID ret = getStaticMethodId(env, thisClass, name, sig);
+  if (ret == nullptr) {
+    std::string errorMessage =
+        "Unable to find static method " + std::string(name) + " within signature" + std::string(sig);
+    throw gluten::GlutenException(errorMessage);
+  }
+  return ret;
+}
+
+static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
+  int getEnvStat = vm->GetEnv(reinterpret_cast<void**>(out), jniVersion);
+  if (getEnvStat == JNI_EDETACHED) {
+    DEBUG_OUT << "JNIEnv was not attached to current thread." << std::endl;
+    // Reattach current thread to JVM
+    getEnvStat = vm->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(out), NULL);
+    if (getEnvStat != JNI_OK) {
+      throw gluten::GlutenException("Failed to reattach current thread to JVM.");
+    }
+    DEBUG_OUT << "Succeeded attaching current thread." << std::endl;
+    return;
+  }
+  if (getEnvStat != JNI_OK) {
+    throw gluten::GlutenException("Failed to attach current thread to JVM.");
+  }
+}
+
+namespace gluten {
+
+class JniCommonState {
+ public:
+  virtual ~JniCommonState() = default;
+
+  void ensureInitialized(JNIEnv* env);
+
+  void assertInitialized();
+
+  void close();
+
+  jmethodID executionCtxAwareCtxHandle();
+
+ private:
+  void initialize(JNIEnv* env);
+
+  jclass executionCtxAwareClass_;
+  jmethodID executionCtxAwareCtxHandle_;
+
+  JavaVM* vm_;
+  bool initialized_{false};
+  bool closed_{false};
+  std::mutex mtx_;
+};
+
+inline JniCommonState* getJniCommonState() {
+  static JniCommonState jniCommonState;
+  return &jniCommonState;
+}
+
+ExecutionCtx* getExecutionCtx(JNIEnv* env, jobject executionCtxAware);
+} // namespace gluten
+
+// TODO: Move the static functions to namespace gluten
+
+static inline void backtrace() {
+  void* array[1024];
+  auto size = backtrace(array, 1024);
+  char** strings = backtrace_symbols(array, size);
+  for (size_t i = 0; i < size; ++i) {
+    std::cout << strings[i] << std::endl;
+  }
+  free(strings);
+}
+
+static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring codecJstr) {
+  if (codecJstr == NULL) {
+    return arrow::Compression::UNCOMPRESSED;
+  }
+  auto codecU = env->GetStringUTFChars(codecJstr, JNI_FALSE);
+
+  std::string codecL;
+  std::transform(codecU, codecU + std::strlen(codecU), std::back_inserter(codecL), ::tolower);
+
+  GLUTEN_ASSIGN_OR_THROW(auto compression_type, arrow::util::Codec::GetCompressionType(codecL));
+
+  if (compression_type == arrow::Compression::LZ4) {
+    compression_type = arrow::Compression::LZ4_FRAME;
+  }
+  env->ReleaseStringUTFChars(codecJstr, codecU);
+  return compression_type;
+}
+
+static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecJstr) {
+  if (codecJstr == nullptr) {
+    return gluten::CodecBackend::NONE;
+  }
+  auto codecBackend = jStringToCString(env, codecJstr);
+  if (codecBackend == "qat") {
+    return gluten::CodecBackend::QAT;
+  } else if (codecBackend == "iaa") {
+    return gluten::CodecBackend::IAA;
+  } else {
+    throw std::invalid_argument("Not support this codec backend " + codecBackend);
+  }
+}
+
+static inline gluten::CompressionMode getCompressionMode(JNIEnv* env, jstring compressionModeJstr) {
+  GLUTEN_DCHECK(compressionModeJstr != nullptr, "CompressionMode cannot be null");
+  auto compressionMode = jStringToCString(env, compressionModeJstr);
+  if (compressionMode == "buffer") {
+    return gluten::CompressionMode::BUFFER;
+  } else if (compressionMode == "rowvector") {
+    return gluten::CompressionMode::ROWVECTOR;
+  } else {
+    throw std::invalid_argument("Not support this compression mode " + compressionMode);
   }
 }
 
@@ -145,18 +214,20 @@ class SparkAllocationListener final : public gluten::AllocationListener {
  public:
   SparkAllocationListener(
       JavaVM* vm,
-      jobject javaListener,
-      jmethodID javaReserveMethod,
-      jmethodID javaUnreserveMethod,
+      jobject jListenerLocalRef,
+      jmethodID jReserveMethod,
+      jmethodID jUnreserveMethod,
       int64_t blockSize)
-      : vm_(vm),
-        javaReserveMethod_(javaReserveMethod),
-        javaUnreserveMethod_(javaUnreserveMethod),
-        blockSize_(blockSize) {
+      : vm_(vm), jReserveMethod_(jReserveMethod), jUnreserveMethod_(jUnreserveMethod), blockSize_(blockSize) {
     JNIEnv* env;
     attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-    javaListener_ = env->NewGlobalRef(javaListener);
+    jListenerGlobalRef_ = env->NewGlobalRef(jListenerLocalRef);
   }
+
+  SparkAllocationListener(const SparkAllocationListener&) = delete;
+  SparkAllocationListener(SparkAllocationListener&&) = delete;
+  SparkAllocationListener& operator=(const SparkAllocationListener&) = delete;
+  SparkAllocationListener& operator=(SparkAllocationListener&&) = delete;
 
   ~SparkAllocationListener() override {
     JNIEnv* env;
@@ -165,12 +236,12 @@ class SparkAllocationListener final : public gluten::AllocationListener {
                 << "JNIEnv was not attached to current thread" << std::endl;
       return;
     }
-    env->DeleteGlobalRef(javaListener_);
+    env->DeleteGlobalRef(jListenerGlobalRef_);
   }
 
   void allocationChanged(int64_t size) override {
     updateReservation(size);
-  };
+  }
 
  private:
   int64_t reserve(int64_t diff) {
@@ -192,25 +263,25 @@ class SparkAllocationListener final : public gluten::AllocationListener {
   }
 
   void updateReservation(int64_t diff) {
-    JNIEnv* env;
-    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     int64_t granted = reserve(diff);
     if (granted == 0) {
       return;
     }
+    JNIEnv* env;
+    attachCurrentThreadAsDaemonOrThrow(vm_, &env);
     if (granted < 0) {
-      env->CallObjectMethod(javaListener_, javaUnreserveMethod_, -granted);
+      env->CallLongMethod(jListenerGlobalRef_, jUnreserveMethod_, -granted);
       checkException(env);
       return;
     }
-    env->CallObjectMethod(javaListener_, javaReserveMethod_, granted);
+    env->CallLongMethod(jListenerGlobalRef_, jReserveMethod_, granted);
     checkException(env);
   }
 
   JavaVM* vm_;
-  jobject javaListener_;
-  jmethodID javaReserveMethod_;
-  jmethodID javaUnreserveMethod_;
+  jobject jListenerGlobalRef_;
+  jmethodID jReserveMethod_;
+  jmethodID jUnreserveMethod_;
   int64_t blockSize_;
   int64_t blocksReserved_ = 0L;
   int64_t bytesReserved_ = 0L;
@@ -218,9 +289,30 @@ class SparkAllocationListener final : public gluten::AllocationListener {
   std::mutex mutex_;
 };
 
-class RssClient {
+class BacktraceAllocationListener final : public gluten::AllocationListener {
  public:
-  virtual ~RssClient() = default;
+  BacktraceAllocationListener(std::unique_ptr<gluten::AllocationListener> delegator)
+      : delegator_(std::move(delegator)) {}
+
+  void allocationChanged(int64_t bytes) override {
+    allocationBacktrace(bytes);
+    delegator_->allocationChanged(bytes);
+  }
+
+ private:
+  void allocationBacktrace(int64_t bytes) {
+    allocatedBytes_ += bytes;
+    if (bytes > (64L << 20)) {
+      backtrace();
+    } else if (allocatedBytes_ >= backtraceBytes_) {
+      backtrace();
+      backtraceBytes_ += (1L << 30);
+    }
+  }
+
+  std::unique_ptr<gluten::AllocationListener> delegator_;
+  std::atomic_int64_t allocatedBytes_{};
+  std::atomic_int64_t backtraceBytes_{1L << 30};
 };
 
 class CelebornClient : public RssClient {
@@ -233,6 +325,8 @@ class CelebornClient : public RssClient {
     }
 
     javaCelebornShuffleWriter_ = env->NewGlobalRef(javaCelebornShuffleWriter);
+    array_ = env->NewByteArray(1024 * 1024);
+    array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
   }
 
   ~CelebornClient() {
@@ -243,20 +337,35 @@ class CelebornClient : public RssClient {
       return;
     }
     env->DeleteGlobalRef(javaCelebornShuffleWriter_);
+    jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
+    env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
+    env->DeleteGlobalRef(array_);
   }
 
-  void pushPartitonData(int32_t partitionId, char* bytes, int64_t size) {
+  int32_t pushPartitionData(int32_t partitionId, char* bytes, int64_t size) {
     JNIEnv* env;
     if (vm_->GetEnv(reinterpret_cast<void**>(&env), jniVersion) != JNI_OK) {
       throw gluten::GlutenException("JNIEnv was not attached to current thread");
     }
-    jbyteArray array = env->NewByteArray(size);
-    env->SetByteArrayRegion(array, 0, size, reinterpret_cast<jbyte*>(bytes));
-    env->CallIntMethod(javaCelebornShuffleWriter_, javaCelebornPushPartitionData_, partitionId, array);
+    jint length = env->GetArrayLength(array_);
+    if (size > length) {
+      jbyte* byteArray = env->GetByteArrayElements(array_, NULL);
+      env->ReleaseByteArrayElements(array_, byteArray, JNI_ABORT);
+      env->DeleteGlobalRef(array_);
+      array_ = env->NewByteArray(size);
+      array_ = static_cast<jbyteArray>(env->NewGlobalRef(array_));
+    }
+    env->SetByteArrayRegion(array_, 0, size, reinterpret_cast<jbyte*>(bytes));
+    jint celebornBytesSize =
+        env->CallIntMethod(javaCelebornShuffleWriter_, javaCelebornPushPartitionData_, partitionId, array_, size);
     checkException(env);
+    return static_cast<int32_t>(celebornBytesSize);
   }
+
+  void stop() {}
 
   JavaVM* vm_;
   jobject javaCelebornShuffleWriter_;
   jmethodID javaCelebornPushPartitionData_;
+  jbyteArray array_;
 };

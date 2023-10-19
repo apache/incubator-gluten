@@ -16,16 +16,13 @@
  */
 
 #include "ArrowMemoryPool.h"
+#include "arrow/type_fwd.h"
 #include "utils/exception.h"
 
 namespace gluten {
 
-std::shared_ptr<arrow::MemoryPool> asArrowMemoryPool(MemoryAllocator* allocator) {
-  return std::make_shared<ArrowMemoryPool>(allocator);
-}
-
 std::shared_ptr<arrow::MemoryPool> defaultArrowMemoryPool() {
-  static auto staticPool = asArrowMemoryPool(defaultMemoryAllocator().get());
+  static auto staticPool = std::make_shared<ArrowMemoryPool>(defaultMemoryAllocator().get());
   return staticPool;
 }
 
@@ -61,7 +58,7 @@ int64_t ArrowMemoryPool::num_allocations() const {
 }
 
 std::string ArrowMemoryPool::backend_name() const {
-  return "gluten allocator";
+  return "gluten arrow allocator";
 }
 
 } // namespace gluten

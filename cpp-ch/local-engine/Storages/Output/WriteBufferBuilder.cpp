@@ -1,16 +1,31 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <memory>
+#include <IO/WriteSettings.h>
+#include <Interpreters/Cache/FileCache.h>
+#include <Interpreters/Cache/FileCacheSettings.h>
 #include <Interpreters/Context_fwd.h>
 #include <Storages/HDFS/HDFSCommon.h>
 #include <Storages/HDFS/WriteBufferFromHDFS.h>
 #include <Storages/Output/WriteBufferBuilder.h>
 #include <hdfs/hdfs.h>
-#include <Poco/URI.h>
-#include "IO/WriteSettings.h"
-
 #include <Poco/Logger.h>
-
-#include <Interpreters/Cache/FileCache.h>
-#include <Interpreters/Cache/FileCacheSettings.h>
+#include <Poco/URI.h>
+#include <Common/CHUtil.h>
 
 namespace DB
 {
@@ -53,23 +68,27 @@ public:
 
     std::unique_ptr<DB::WriteBuffer> build(const std::string & file_uri_) override
     {
-        Poco::URI file_uri(file_uri_);
-        std::unique_ptr<DB::WriteBuffer> write_buffer;
+        Poco::URI uri(file_uri_);
 
-        auto builder = DB::createHDFSBuilder(file_uri_, context->getGlobalContext()->getConfigRef());
-        auto fs = DB::createHDFSFS(builder.get());
-        auto first = file_uri_.find('/', file_uri_.find("//") + 2);
-        auto last = file_uri_.find_last_of('/');
-        auto dir = file_uri_.substr(first, last - first);
-        int err = hdfsCreateDirectory(fs.get(), dir.c_str());
-        if (err)
+        /// Add spark user for file_uri to avoid permission issue during native writing
+        std::string new_file_uri = file_uri_;
+        if (uri.getUserInfo().empty() && BackendInitializerUtil::spark_user.has_value())
         {
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Cannot create dir for {}", dir);
+            uri.setUserInfo(*BackendInitializerUtil::spark_user);
+            new_file_uri = uri.toString();
         }
 
+        auto builder = DB::createHDFSBuilder(new_file_uri, context->getConfigRef());
+        auto fs = DB::createHDFSFS(builder.get());
+        auto first = new_file_uri.find('/', new_file_uri.find("//") + 2);
+        auto last = new_file_uri.find_last_of('/');
+        auto dir = new_file_uri.substr(first, last - first);
+        int err = hdfsCreateDirectory(fs.get(), dir.c_str());
+        if (err)
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Cannot create dir for {} because {}", dir, std::string(hdfsGetLastError()));
+
         DB::WriteSettings write_settings;
-        write_buffer = std::make_unique<DB::WriteBufferFromHDFS>(file_uri_, context->getGlobalContext()->getConfigRef(), 0, write_settings);
-        return write_buffer;
+        return std::make_unique<DB::WriteBufferFromHDFS>(new_file_uri, context->getConfigRef(), 0, write_settings);
     }
 };
 #endif

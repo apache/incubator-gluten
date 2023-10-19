@@ -14,10 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.connector
 
 import org.apache.spark.sql._
 
-class GlutenDataSourceV2SQLSuite extends DataSourceV2SQLSuite with GlutenSQLTestsBaseTrait {
-}
+class GlutenDataSourceV2SQLSuite extends DataSourceV2SQLSuite with GlutenSQLTestsBaseTrait {}

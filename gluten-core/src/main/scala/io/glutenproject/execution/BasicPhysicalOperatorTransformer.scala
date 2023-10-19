@@ -14,24 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import com.google.common.collect.Lists
-import com.google.protobuf.Any
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
-import io.glutenproject.utils.BindReferencesUtil
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -41,12 +36,14 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV
 import org.apache.spark.sql.utils.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import com.google.protobuf.Any
+
 import java.util
+
 import scala.collection.JavaConverters._
 
-abstract class FilterExecTransformerBase(val cond: Expression,
-                                         val input: SparkPlan) extends UnaryExecNode
-  with TransformSupport
+abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkPlan)
+  extends UnaryTransformSupport
   with PredicateHelper
   with AliasAwareOutputPartitioning
   with Logging {
@@ -66,32 +63,9 @@ abstract class FilterExecTransformerBase(val cond: Expression,
   // The columns that will filtered out by `IsNotNull` could be considered as not nullable.
   private val notNullAttributes = notNullPreds.flatMap(_.references).distinct.map(_.exprId)
 
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
-
   override def isNullIntolerant(expr: Expression): Boolean = expr match {
     case e: NullIntolerant => e.children.forall(isNullIntolerant)
     case _ => false
-  }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      c.getBuildPlans
-    case _ =>
-      Seq()
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
   }
 
   override def metricsUpdater(): MetricsUpdater =
@@ -101,18 +75,19 @@ abstract class FilterExecTransformerBase(val cond: Expression,
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
-  def getRelNode(context: SubstraitContext,
-                 condExpr: Expression,
-                 originalInputAttributes: Seq[Attribute],
-                 operatorId: Long,
-                 input: RelNode,
-                 validation: Boolean): RelNode = {
+  def getRelNode(
+      context: SubstraitContext,
+      condExpr: Expression,
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode,
+      validation: Boolean): RelNode = {
     val args = context.registeredFunction
     if (condExpr == null) {
       return input
     }
-    val condExprNode = ExpressionConverter.replaceWithExpressionTransformer(
-      condExpr, attributeSeq = originalInputAttributes)
+    val condExprNode = ExpressionConverter
+      .replaceWithExpressionTransformer(condExpr, attributeSeq = originalInputAttributes)
       .doTransform(args)
 
     if (!validation) {
@@ -132,42 +107,39 @@ abstract class FilterExecTransformerBase(val cond: Expression,
   override protected def outputExpressions: Seq[NamedExpression] = output
 
   override def output: Seq[Attribute] = {
-    child.output.map { a =>
-      if (a.nullable && notNullAttributes.contains(a.exprId)) {
-        a.withNullability(false)
-      } else {
-        a
-      }
+    child.output.map {
+      a =>
+        if (a.nullable && notNullAttributes.contains(a.exprId)) {
+          a.withNullability(false)
+        } else {
+          a
+        }
     }
   }
 
   override protected def doValidateInternal(): ValidationResult = {
     if (cond == null) {
       // The computing of this Filter is not needed.
-      return ok()
+      return ValidationResult.ok
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
-    val relNode = getRelNode(
-      substraitContext, cond, child.output, operatorId, null, validation = true)
-    // For now arrow backend only support scan + filter pattern
+    val relNode =
+      getRelNode(substraitContext, cond, child.output, operatorId, null, validation = true)
+    // For now backends only support scan + filter pattern
     if (BackendsApiManager.getSettings.fallbackFilterWithoutConjunctiveScan()) {
-      if (!(child.isInstanceOf[DataSourceScanExec] ||
-        child.isInstanceOf[DataSourceV2ScanExecBase])) {
-        return notOk("child is not DataSourceScanExec or DataSourceV2ScanExecBase")
+      if (
+        !(child.isInstanceOf[DataSourceScanExec] ||
+          child.isInstanceOf[DataSourceV2ScanExecBase])
+      ) {
+        return ValidationResult
+          .notOk("Filter operator's child is not DataSourceScanExec or DataSourceV2ScanExecBase")
       }
     }
 
     // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -186,14 +158,18 @@ abstract class FilterExecTransformerBase(val cond: Expression,
     }
 
     val currRel = if (childCtx != null) {
-      getRelNode(
-        context, cond, child.output, operatorId, childCtx.root, validation = false)
+      getRelNode(context, cond, child.output, operatorId, childCtx.root, validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       val attrList = new util.ArrayList[Attribute](child.output.asJava)
-      getRelNode(context, cond, child.output, operatorId,
-        RelBuilder.makeReadRel(attrList, context, operatorId), validation = false)
+      getRelNode(
+        context,
+        cond,
+        child.output,
+        operatorId,
+        RelBuilder.makeReadRel(attrList, context, operatorId),
+        validation = false)
     }
     assert(currRel != null, "Filter rel should be valid.")
     if (currRel == null) {
@@ -207,16 +183,10 @@ abstract class FilterExecTransformerBase(val cond: Expression,
     }
     TransformContext(inputAttributes, output, currRel)
   }
-
-  protected override def doExecute()
-  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
-  }
 }
 
-case class ProjectExecTransformer(projectList: Seq[NamedExpression],
-                                  child: SparkPlan) extends UnaryExecNode
-  with TransformSupport
+case class ProjectExecTransformer private (projectList: Seq[NamedExpression], child: SparkPlan)
+  extends UnaryTransformSupport
   with PredicateHelper
   with AliasAwareOutputPartitioning
   with Logging {
@@ -227,49 +197,19 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 
   val sparkConf: SparkConf = sparkContext.getConf
 
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
-
   override protected def doValidateInternal(): ValidationResult = {
     val substraitContext = new SubstraitContext
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
-    val relNode = getRelNode(
-      substraitContext, projectList, child.output, operatorId, null, validation = true)
+    val relNode =
+      getRelNode(substraitContext, projectList, child.output, operatorId, null, validation = true)
     // Then, validate the generated plan in native engine.
-    if (relNode != null && GlutenConfig.getConf.enableNativeValidation) {
-      val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
-      val validateInfo = BackendsApiManager.getValidatorApiInstance
-        .doValidateWithFallBackLog(planNode)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def isNullIntolerant(expr: Expression): Boolean = expr match {
     case e: NullIntolerant => e.children.forall(isNullIntolerant)
     case _ => false
-  }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      c.getBuildPlans
-    case _ =>
-      Seq()
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
   }
 
   override def metricsUpdater(): MetricsUpdater =
@@ -292,8 +232,14 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
     }
 
     val (currRel, inputAttributes) = if (childCtx != null) {
-      (getRelNode(
-        context, projectList, child.output, operatorId, childCtx.root, validation = false),
+      (
+        getRelNode(
+          context,
+          projectList,
+          child.output,
+          operatorId,
+          childCtx.root,
+          validation = false),
         childCtx.outputAttributes)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
@@ -303,31 +249,32 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
         attrList.add(attr)
       }
       val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
-      (getRelNode(
-        context, projectList, child.output, operatorId, readRel, validation = false),
+      (
+        getRelNode(context, projectList, child.output, operatorId, readRel, validation = false),
         child.output)
     }
     assert(currRel != null, "Project Rel should be valid")
 
-    val outputAttrs = BindReferencesUtil.bindReferencesWithNullable(output, inputAttributes)
-    TransformContext(inputAttributes, outputAttrs, currRel)
+    TransformContext(inputAttributes, output, currRel)
   }
 
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
 
   // override def canEqual(that: Any): Boolean = false
 
-  def getRelNode(context: SubstraitContext,
-                 projectList: Seq[NamedExpression],
-                 originalInputAttributes: Seq[Attribute],
-                 operatorId: Long,
-                 input: RelNode,
-                 validation: Boolean): RelNode = {
+  def getRelNode(
+      context: SubstraitContext,
+      projectList: Seq[NamedExpression],
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode,
+      validation: Boolean): RelNode = {
     val args = context.registeredFunction
-    val columnarProjExprs: Seq[ExpressionTransformer] = projectList.map(expr => {
-      ExpressionConverter
-        .replaceWithExpressionTransformer(expr, attributeSeq = originalInputAttributes)
-    })
+    val columnarProjExprs: Seq[ExpressionTransformer] = projectList.map(
+      expr => {
+        ExpressionConverter
+          .replaceWithExpressionTransformer(expr, attributeSeq = originalInputAttributes)
+      })
     val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
     for (expr <- columnarProjExprs) {
       projExprNodeList.add(expr.doTransform(args))
@@ -344,7 +291,12 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
-        input, projExprNodeList, extensionNode, context, operatorId, emitStartIndex)
+        input,
+        projExprNodeList,
+        extensionNode,
+        context,
+        operatorId,
+        emitStartIndex)
     }
   }
 
@@ -354,13 +306,50 @@ case class ProjectExecTransformer(projectList: Seq[NamedExpression],
 
   override protected def outputExpressions: Seq[NamedExpression] = projectList
 
-  protected override def doExecute()
-  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
-  }
-
   override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
     copy(child = newChild)
+}
+object ProjectExecTransformer {
+  private def processProjectExecTransformer(
+      project: ProjectExecTransformer): ProjectExecTransformer = {
+    // Special treatment for Project containing all bloom filters:
+    // If more than one bloom filter, Spark will merge them into a named_struct
+    // and then broadcast. The named_struct looks like {'bloomFilter',BF1,'bloomFilter',BF2},
+    // with two bloom filters sharing same name. This will cause problem for some backends,
+    // e.g. ClickHouse, which cannot tolerate duplicate type names in struct type
+    // So we need to rename 'bloomFilter' to make them unique.
+    if (project.projectList.size == 1) {
+      val newProjectListHead = project.projectList.head match {
+        case alias @ Alias(cns @ CreateNamedStruct(children: Seq[Expression]), "mergedValue") =>
+          if (
+            !cns.nameExprs.forall(
+              e =>
+                e.isInstanceOf[Literal] && "bloomFilter".equals(e.asInstanceOf[Literal].toString()))
+          ) {
+            null
+          } else {
+            val newChildren = children.zipWithIndex.map {
+              case _ @(_: Literal, index) =>
+                val newLiteral = Literal("bloomFilter" + index / 2)
+                newLiteral
+              case other @ (_, _) => other._1
+            }
+            Alias.apply(CreateNamedStruct(newChildren), "mergedValue")(alias.exprId)
+          }
+        case _ => null
+      }
+      if (newProjectListHead == null) {
+        project
+      } else {
+        ProjectExecTransformer(Seq(newProjectListHead), project.child)
+      }
+    } else {
+      project
+    }
+  }
+
+  def apply(projectList: Seq[NamedExpression], child: SparkPlan): ProjectExecTransformer =
+    processProjectExecTransformer(new ProjectExecTransformer(projectList, child))
 }
 
 // An alternatives for UnionExec.
@@ -368,62 +357,64 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {
-    children.map(_.output).transpose.map { attrs =>
-      val firstAttr = attrs.head
-      val nullable = attrs.exists(_.nullable)
-      val newDt = attrs.map(_.dataType).reduce(StructTypeFWD.unionLikeMerge)
-      if (firstAttr.dataType == newDt) {
-        firstAttr.withNullability(nullable)
-      } else {
-        AttributeReference(firstAttr.name, newDt, nullable, firstAttr.metadata)(
-          firstAttr.exprId,
-          firstAttr.qualifier)
-      }
+    children.map(_.output).transpose.map {
+      attrs =>
+        val firstAttr = attrs.head
+        val nullable = attrs.exists(_.nullable)
+        val newDt = attrs.map(_.dataType).reduce(StructTypeFWD.unionLikeMerge)
+        if (firstAttr.dataType == newDt) {
+          firstAttr.withNullability(nullable)
+        } else {
+          AttributeReference(firstAttr.name, newDt, nullable, firstAttr.metadata)(
+            firstAttr.exprId,
+            firstAttr.qualifier)
+        }
     }
   }
 
-  override protected def withNewChildrenInternal(newChildren: IndexedSeq[SparkPlan]
-                                                ): UnionExecTransformer =
+  override protected def withNewChildrenInternal(
+      newChildren: IndexedSeq[SparkPlan]): UnionExecTransformer =
     copy(children = newChildren)
 
   def columnarInputRDD: RDD[ColumnarBatch] = {
-    if (children.size == 0) {
+    if (children.isEmpty) {
       throw new IllegalArgumentException(s"Empty children")
     }
-    children.map {
-      case c => Seq(c.executeColumnar())
-    }.reduce {
-      (a, b) => a ++ b
-    }.reduce(
-      (a, b) => a.union(b)
-    )
+    children
+      .map(c => Seq(c.executeColumnar()))
+      .reduce((a, b) => a ++ b)
+      .reduce((a, b) => a.union(b))
   }
 
-  protected override def doExecute()
-  : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
+  override protected def doExecute()
+      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecute().")
   }
 
-  protected override def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
+  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = columnarInputRDD
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getValidatorApiInstance.doSchemaValidate(schema)) {
-      return notOk(s"schema check failed, $schema")
+      return ValidationResult.notOk(s"Found schema check failure for $schema in $nodeName")
     }
-    ok()
+    ValidationResult.ok
   }
 }
 
-/** Contains functions for the comparision and separation of the filter conditions
- * in Scan and Filter.
- * Contains the function to manually push down the conditions into Scan.
+/**
+ * Contains functions for the comparision and separation of the filter conditions in Scan and
+ * Filter. Contains the function to manually push down the conditions into Scan.
  */
 object FilterHandler {
-  /** Get the original filter conditions in Scan for the comparison with those in Filter.
+
+  /**
+   * Get the original filter conditions in Scan for the comparison with those in Filter.
    *
-   * @param plan : the Spark plan
-   * @return If the plan is FileSourceScanExec or BatchScanExec, return the filter conditions in it.
-   *         Otherwise, return empty sequence.
+   * @param plan
+   *   : the Spark plan
+   * @return
+   *   If the plan is FileSourceScanExec or BatchScanExec, return the filter conditions in it.
+   *   Otherwise, return empty sequence.
    */
   def getScanFilters(plan: SparkPlan): Seq[Expression] = {
     plan match {
@@ -442,29 +433,37 @@ object FilterHandler {
     }
   }
 
-  /** Flatten the condition connected with 'And'. Return the filter conditions with sequence.
+  /**
+   * Flatten the condition connected with 'And'. Return the filter conditions with sequence.
    *
-   * @param condition : the condition connected with 'And'
-   * @return flattened conditions in sequence
+   * @param condition
+   *   : the condition connected with 'And'
+   * @return
+   *   flattened conditions in sequence
    */
   def flattenCondition(condition: Expression): Seq[Expression] = {
     var expressions: Seq[Expression] = Seq()
     condition match {
       case and: And =>
-        and.children.foreach(expression => {
-          expressions ++= flattenCondition(expression)
-        })
+        and.children.foreach(
+          expression => {
+            expressions ++= flattenCondition(expression)
+          })
       case _ =>
         expressions = expressions :+ condition
     }
     expressions
   }
 
-  /** Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
+  /**
+   * Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
    *
-   * @param scanFilters : the conditions pushed down into Scan
-   * @param filters     : the conditions in the Filter after the Scan
-   * @return the filter conditions not pushed down into Scan.
+   * @param scanFilters
+   *   : the conditions pushed down into Scan
+   * @param filters
+   *   : the conditions in the Filter after the Scan
+   * @return
+   *   the filter conditions not pushed down into Scan.
    */
   def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] = {
     var leftFilters: Seq[Expression] = Seq()
@@ -478,54 +477,50 @@ object FilterHandler {
 
   // Separate and compare the filter conditions in Scan and Filter.
   // Push down the left conditions in Filter into Scan.
-  def applyFilterPushdownToScan(
-    plan: FilterExec,
-    reuseSubquery: Boolean): SparkPlan = plan.child match {
-    case fileSourceScan: FileSourceScanExec =>
-      val leftFilters =
-        getLeftFilters(fileSourceScan.dataFilters, flattenCondition(plan.condition))
-      // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
-      val newPartitionFilters =
-        ExpressionConverter.transformDynamicPruningExpr(
-          fileSourceScan.partitionFilters,
-          reuseSubquery)
-      new FileSourceScanExecTransformer(
-        fileSourceScan.relation,
-        fileSourceScan.output,
-        fileSourceScan.requiredSchema,
-        newPartitionFilters,
-        fileSourceScan.optionalBucketSet,
-        fileSourceScan.optionalNumCoalescedBuckets,
-        fileSourceScan.dataFilters ++ leftFilters,
-        fileSourceScan.tableIdentifier,
-        fileSourceScan.disableBucketedScan)
-    case batchScan: BatchScanExec =>
-      batchScan.scan match {
-        case scan: FileScan =>
-          val leftFilters =
-            getLeftFilters(scan.dataFilters, flattenCondition(plan.condition))
-          val newPartitionFilters =
-            ExpressionConverter.transformDynamicPruningExpr(
-              scan.partitionFilters,
-              reuseSubquery)
-          new BatchScanExecTransformer(batchScan.output, scan,
-            leftFilters ++ newPartitionFilters)
-        case _ =>
-          if (batchScan.runtimeFilters.isEmpty) {
-            throw new UnsupportedOperationException(
-              s"${batchScan.scan.getClass.toString} is not supported.")
-          } else {
-            // IF filter expressions aren't empty, we need to transform the inner operators.
-            val newSource = batchScan.copy(runtimeFilters = ExpressionConverter
-              .transformDynamicPruningExpr(
-                batchScan.runtimeFilters,
-                reuseSubquery))
-            TransformHints.tagNotTransformable(newSource,
-              "The scan in BatchScanExec is not a FileScan")
-            newSource
-          }
-      }
-    case other =>
-      throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
-  }
+  def applyFilterPushdownToScan(plan: FilterExec, reuseSubquery: Boolean): SparkPlan =
+    plan.child match {
+      case fileSourceScan: FileSourceScanExec =>
+        val leftFilters =
+          getLeftFilters(fileSourceScan.dataFilters, flattenCondition(plan.condition))
+        // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
+        val newPartitionFilters =
+          ExpressionConverter.transformDynamicPruningExpr(
+            fileSourceScan.partitionFilters,
+            reuseSubquery)
+        new FileSourceScanExecTransformer(
+          fileSourceScan.relation,
+          fileSourceScan.output,
+          fileSourceScan.requiredSchema,
+          newPartitionFilters,
+          fileSourceScan.optionalBucketSet,
+          fileSourceScan.optionalNumCoalescedBuckets,
+          fileSourceScan.dataFilters ++ leftFilters,
+          fileSourceScan.tableIdentifier,
+          fileSourceScan.disableBucketedScan
+        )
+      case batchScan: BatchScanExec =>
+        batchScan.scan match {
+          case scan: FileScan =>
+            val leftFilters =
+              getLeftFilters(scan.dataFilters, flattenCondition(plan.condition))
+            val newPartitionFilters =
+              ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters, reuseSubquery)
+            new BatchScanExecTransformer(batchScan.output, scan, leftFilters ++ newPartitionFilters)
+          case _ =>
+            if (batchScan.runtimeFilters.isEmpty) {
+              throw new UnsupportedOperationException(
+                s"${batchScan.scan.getClass.toString} is not supported.")
+            } else {
+              // IF filter expressions aren't empty, we need to transform the inner operators.
+              val newSource = batchScan.copy(runtimeFilters = ExpressionConverter
+                .transformDynamicPruningExpr(batchScan.runtimeFilters, reuseSubquery))
+              TransformHints.tagNotTransformable(
+                newSource,
+                "The scan in BatchScanExec is not a FileScan")
+              newSource
+            }
+        }
+      case other =>
+        throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
+    }
 }

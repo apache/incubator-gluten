@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.plan;
 
 import io.glutenproject.substrait.SubstraitContext;
@@ -22,26 +21,45 @@ import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 import io.glutenproject.substrait.extensions.ExtensionBuilder;
 import io.glutenproject.substrait.extensions.FunctionMappingNode;
 import io.glutenproject.substrait.rel.RelNode;
+import io.glutenproject.substrait.type.TypeNode;
 
 import java.util.ArrayList;
 import java.util.Map;
 
 public class PlanBuilder {
-  private PlanBuilder() {
+  private PlanBuilder() {}
+
+  public static PlanNode makePlan(
+      ArrayList<FunctionMappingNode> mappingNodes,
+      ArrayList<RelNode> relNodes,
+      ArrayList<String> outNames) {
+    return new PlanNode(mappingNodes, relNodes, outNames);
   }
 
-  public static PlanNode makePlan(ArrayList<FunctionMappingNode> mappingNodes,
-                                  ArrayList<RelNode> relNodes,
-                                  ArrayList<String> outNames) {
-    return new PlanNode(mappingNodes, relNodes, outNames);
+  public static PlanNode makePlan(
+      ArrayList<FunctionMappingNode> mappingNodes,
+      ArrayList<RelNode> relNodes,
+      ArrayList<String> outNames,
+      TypeNode outputSchema,
+      AdvancedExtensionNode extension) {
+    return new PlanNode(mappingNodes, relNodes, outNames, outputSchema, extension);
   }
 
   public static PlanNode makePlan(AdvancedExtensionNode extension) {
     return new PlanNode(extension);
   }
 
-  public static PlanNode makePlan(SubstraitContext subCtx, ArrayList<RelNode> relNodes,
-                                  ArrayList<String> outNames) {
+  public static PlanNode makePlan(
+      SubstraitContext subCtx, ArrayList<RelNode> relNodes, ArrayList<String> outNames) {
+    return makePlan(subCtx, relNodes, outNames, null, null);
+  }
+
+  public static PlanNode makePlan(
+      SubstraitContext subCtx,
+      ArrayList<RelNode> relNodes,
+      ArrayList<String> outNames,
+      TypeNode outputSchema,
+      AdvancedExtensionNode extension) {
     if (subCtx == null) {
       throw new NullPointerException("ColumnarWholestageTransformer cannot doTansform.");
     }
@@ -51,6 +69,9 @@ public class PlanBuilder {
       FunctionMappingNode mappingNode =
           ExtensionBuilder.makeFunctionMapping(entry.getKey(), entry.getValue());
       mappingNodes.add(mappingNode);
+    }
+    if (extension != null || outputSchema != null) {
+      return makePlan(mappingNodes, relNodes, outNames, outputSchema, extension);
     }
     return makePlan(mappingNodes, relNodes, outNames);
   }

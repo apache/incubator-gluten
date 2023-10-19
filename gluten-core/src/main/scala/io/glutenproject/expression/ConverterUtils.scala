@@ -14,34 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
+import io.glutenproject.execution.BasicScanExecTransformer
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.substrait.proto.Type
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.catalyst.plans._
-import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import java.util.Locale
+
+import io.substrait.proto.Type
+
 import java.util.{ArrayList => JArrayList, List => JList}
+import java.util.Locale
 
-import org.apache.spark.sql.execution.datasources.GlutenTextBasedScanWrapper
-import org.apache.spark.sql.execution.datasources.v2.json.JsonScan
-import org.apache.spark.sql.execution.datasources.v2.text.TextScan
-
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 object ConverterUtils extends Logging {
 
+  @tailrec
   def getAttrFromExpr(fieldExpr: Expression, skipAlias: Boolean = false): AttributeReference = {
     fieldExpr match {
       case a: Cast =>
@@ -129,8 +128,8 @@ object ConverterUtils extends Logging {
     collectAttributeNamesDFS(attributes)(genColumnNameWithoutExprId)
   }
 
-  private def collectAttributeNamesDFS(
-    attributes: Seq[Attribute])(f: Attribute => String): JArrayList[String] = {
+  private def collectAttributeNamesDFS(attributes: Seq[Attribute])(
+      f: Attribute => String): JArrayList[String] = {
     val nameList = new JArrayList[String]()
     attributes.foreach(
       attr => {
@@ -143,8 +142,7 @@ object ConverterUtils extends Logging {
             case _ =>
           }
         }
-      }
-    )
+      })
     nameList
   }
 
@@ -157,8 +155,7 @@ object ConverterUtils extends Logging {
             nameList.add(normalizeColName(field.name))
             val nestedNames = collectStructFieldNames(field.dataType)
             nameList.addAll(nestedNames)
-          }
-        )
+          })
       case _ =>
     }
     nameList
@@ -204,18 +201,17 @@ object ConverterUtils extends Logging {
           val (field, nullable) = parseFromSubstraitType(typ)
           fields.add(StructField("", field, nullable))
         }
-        (StructType(fields),
-          isNullable(substraitType.getStruct.getNullability))
+        (StructType(fields), isNullable(substraitType.getStruct.getNullability))
       case Type.KindCase.LIST =>
         val list = substraitType.getList
         val (elementType, containsNull) = parseFromSubstraitType(list.getType)
-        (ArrayType(elementType, containsNull),
-          isNullable(substraitType.getList.getNullability))
+        (ArrayType(elementType, containsNull), isNullable(substraitType.getList.getNullability))
       case Type.KindCase.MAP =>
         val map = substraitType.getMap
         val (keyType, _) = parseFromSubstraitType(map.getKey)
-        val (valueType, valueContainsNull) = parseFromSubstraitType(map.getValue())
-        (MapType(keyType, valueType, valueContainsNull),
+        val (valueType, valueContainsNull) = parseFromSubstraitType(map.getValue)
+        (
+          MapType(keyType, valueType, valueContainsNull),
           isNullable(substraitType.getMap.getNullability))
       case Type.KindCase.NOTHING =>
         (NullType, true)
@@ -254,7 +250,9 @@ object ConverterUtils extends Logging {
       case TimestampType =>
         TypeBuilder.makeTimestamp(nullable)
       case m: MapType =>
-        TypeBuilder.makeMap(nullable, getTypeNode(m.keyType, nullable = false),
+        TypeBuilder.makeMap(
+          nullable,
+          getTypeNode(m.keyType, nullable = false),
           getTypeNode(m.valueType, m.valueContainsNull))
       case a: ArrayType =>
         TypeBuilder.makeList(nullable, getTypeNode(a.elementType, a.containsNull))
@@ -335,7 +333,8 @@ object ConverterUtils extends Logging {
       ("1000000000000000000000000000000000", 34, 0),
       ("10000000000000000000000000000000000", 35, 0),
       ("100000000000000000000000000000000000", 36, 0),
-      ("1000000000000000000000000000000000000", 37, 0))
+      ("1000000000000000000000000000000000000", 37, 0)
+    )
     POWERS_OF_10(pow)
   }
 
@@ -348,8 +347,10 @@ object ConverterUtils extends Logging {
   /**
    * Get the signature name of a type based on Substrait's definition in
    * https://substrait.io/extensions/#function-signature-compound-names.
-   * @param dataType: the input data type.
-   * @return the corresponding signature name.
+   * @param dataType:
+   *   the input data type.
+   * @return
+   *   the corresponding signature name.
    */
   def getTypeSigName(dataType: DataType): String = {
     dataType match {
@@ -377,11 +378,12 @@ object ConverterUtils extends Logging {
         // TODO: different with Substrait due to more details here.
         var sigName = "struct<"
         var index = 0
-        fields.foreach(field => {
-          sigName = sigName.concat(getTypeSigName(field.dataType))
-          sigName = sigName.concat(if (index < fields.length - 1) "," else "")
-          index += 1
-        })
+        fields.foreach(
+          field => {
+            sigName = sigName.concat(getTypeSigName(field.dataType))
+            sigName = sigName.concat(if (index < fields.length - 1) "," else "")
+            index += 1
+          })
         sigName = sigName.concat(">")
         sigName
       case MapType(_, _, _) =>
@@ -399,8 +401,10 @@ object ConverterUtils extends Logging {
   // The format would be aligned with that specified in Substrait.
   // The function name Format:
   // <function name>:<short_arg_type0>_<short_arg_type1>_..._<short_arg_typeN>
-  def makeFuncName(funcName: String, datatypes: Seq[DataType],
-                   config: FunctionConfig.Config = FunctionConfig.NON): String = {
+  def makeFuncName(
+      funcName: String,
+      datatypes: Seq[DataType],
+      config: FunctionConfig.Config = FunctionConfig.NON): String = {
     var typedFuncName = config match {
       case FunctionConfig.REQ =>
         funcName.concat(":req_")
@@ -439,43 +443,7 @@ object ConverterUtils extends Logging {
     }
   }
 
-  def getFileFormat(scan: BasicScanExecTransformer): ReadFileFormat = {
-    scan match {
-      case f: BatchScanExecTransformer =>
-        f.scan.getClass.getSimpleName match {
-          case "OrcScan" => ReadFileFormat.OrcReadFormat
-          case "ParquetScan" => ReadFileFormat.ParquetReadFormat
-          case "DwrfScan" => ReadFileFormat.DwrfReadFormat
-          case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
-          case _ => ReadFileFormat.UnknownFormat
-        }
-      case f: FileSourceScanExecTransformer =>
-        f.relation.fileFormat.getClass.getSimpleName match {
-          case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
-          case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
-          case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
-          case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
-          case "CSVFileFormat" => ReadFileFormat.TextReadFormat
-          case _ => ReadFileFormat.UnknownFormat
-        }
-      case f: HiveTableScanExecTransformer =>
-        f.getScan match {
-          case Some(fileScan) =>
-            fileScan match {
-              case scanWrapper: GlutenTextBasedScanWrapper =>
-                scanWrapper.getScan match {
-                  case _: JsonScan => ReadFileFormat.JsonReadFormat
-                  case _: TextScan => ReadFileFormat.TextReadFormat
-                  case _ => ReadFileFormat.UnknownFormat
-                }
-              case _ =>
-                ReadFileFormat.UnknownFormat
-            }
-          case _ => ReadFileFormat.UnknownFormat
-        }
-      case _ => ReadFileFormat.UnknownFormat
-    }
-  }
+  def getFileFormat(scan: BasicScanExecTransformer): ReadFileFormat = scan.fileFormat
 
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"

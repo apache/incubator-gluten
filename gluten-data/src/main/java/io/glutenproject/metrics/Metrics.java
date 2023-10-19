@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.metrics;
+
+import io.glutenproject.exception.GlutenException;
 
 public class Metrics implements IMetrics {
   public long[] inputRows;
@@ -45,9 +46,7 @@ public class Metrics implements IMetrics {
   public long[] processedStrides;
   public SingleMetric singleMetric = new SingleMetric();
 
-  /**
-   * Create an instance for native metrics.
-   */
+  /** Create an instance for native metrics. */
   public Metrics(
       long[] inputRows,
       long[] inputVectors,
@@ -105,7 +104,7 @@ public class Metrics implements IMetrics {
 
   public OperatorMetrics getOperatorMetrics(int index) {
     if (index >= inputRows.length) {
-      throw new RuntimeException("Invalid index.");
+      throw new GlutenException("Invalid index.");
     }
 
     return new OperatorMetrics(

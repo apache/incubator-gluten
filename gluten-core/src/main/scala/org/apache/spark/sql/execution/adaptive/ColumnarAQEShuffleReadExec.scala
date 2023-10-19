@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.adaptive
 
-import scala.collection.mutable.ArrayBuffer
+import io.glutenproject.extension.GlutenPlan
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
@@ -28,32 +28,38 @@ import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
  * A wrapper of shuffle query stage, which follows the given partition arrangement.
  *
- * @param child          It is usually `ShuffleQueryStageExec`, but can be the shuffle exchange
- *                       node during canonicalization.
- * @param partitionSpecs The partition specs that defines the arrangement.
- * @param description    The string description of this shuffle reader.
+ * @param child
+ *   It is usually `ShuffleQueryStageExec`, but can be the shuffle exchange node during
+ *   canonicalization.
+ * @param partitionSpecs
+ *   The partition specs that defines the arrangement.
  */
-case class ColumnarAQEShuffleReadExec(child: SparkPlan,
-                                      partitionSpecs: Seq[ShufflePartitionSpec])
-  extends UnaryExecNode {
+case class ColumnarAQEShuffleReadExec(child: SparkPlan, partitionSpecs: Seq[ShufflePartitionSpec])
+  extends UnaryExecNode
+  with GlutenPlan {
   // We don't extends AQEShuffleReadExec since it has private constructor
 
   override lazy val outputPartitioning: Partitioning = {
     // If it is a local shuffle reader with one mapper per task, then the output partitioning is
     // the same as the plan before shuffle.
     // TODO this check is based on assumptions of callers' behavior but is sufficient for now.
-    if (partitionSpecs.forall(_.isInstanceOf[PartialMapperPartitionSpec]) &&
+    if (
+      partitionSpecs.forall(_.isInstanceOf[PartialMapperPartitionSpec]) &&
       partitionSpecs.map(_.asInstanceOf[PartialMapperPartitionSpec].mapIndex).toSet.size ==
-        partitionSpecs.length) {
+        partitionSpecs.length
+    ) {
       child match {
         case ShuffleQueryStageExec(_, s: ColumnarShuffleExchangeExec, _) =>
           s.child.outputPartitioning
         case ShuffleQueryStageExec(
-        _,
-        r@ReusedExchangeExec(_, s: ColumnarShuffleExchangeExec), _) =>
+              _,
+              r @ ReusedExchangeExec(_, s: ColumnarShuffleExchangeExec),
+              _) =>
           s.child.outputPartitioning match {
             case e: Expression => r.updateAttr(e).asInstanceOf[Partitioning]
             case other => other
@@ -73,7 +79,7 @@ case class ColumnarAQEShuffleReadExec(child: SparkPlan,
         // `RoundRobinPartitioning` but we don't need to retain the number of partitions.
         case r: RoundRobinPartitioning =>
           r.copy(numPartitions = partitionSpecs.length)
-        case other@SinglePartition =>
+        case other @ SinglePartition =>
           throw new IllegalStateException(
             "Unexpected partitioning for coalesced shuffle read: " + other)
         case _ =>
@@ -102,7 +108,8 @@ case class ColumnarAQEShuffleReadExec(child: SparkPlan,
               .asInstanceOf[ColumnarShuffleExchangeExec]
               .columnarShuffleDependency,
             stage.shuffle.asInstanceOf[ColumnarShuffleExchangeExec].readMetrics,
-            partitionSpecs.toArray)
+            partitionSpecs.toArray
+          )
         case _ =>
           throw new IllegalStateException("operating on canonicalized plan")
       }
@@ -128,18 +135,14 @@ case class ColumnarAQEShuffleReadExec(child: SparkPlan,
     Iterator(desc)
   }
 
-  /**
-   * Returns true iff some partitions were actually combined
-   */
+  /** Returns true iff some partitions were actually combined */
   private def isCoalescedSpec(spec: ShufflePartitionSpec) = spec match {
     case CoalescedPartitionSpec(0, 0, _) => true
     case s: CoalescedPartitionSpec => s.endReducerIndex - s.startReducerIndex > 1
     case _ => false
   }
 
-  /**
-   * Returns true iff some non-empty partitions were combined
-   */
+  /** Returns true iff some non-empty partitions were combined */
   def hasCoalescedPartition: Boolean = {
     partitionSpecs.exists(isCoalescedSpec)
   }
@@ -189,9 +192,7 @@ case class ColumnarAQEShuffleReadExec(child: SparkPlan,
     driverAccumUpdates += (numPartitionsMetric.id -> partitionSpecs.length.toLong)
 
     if (hasSkewedPartition) {
-      val skewedSpecs = partitionSpecs.collect {
-        case p: PartialReducerPartitionSpec => p
-      }
+      val skewedSpecs = partitionSpecs.collect { case p: PartialReducerPartitionSpec => p }
 
       val skewedPartitions = metrics("numSkewedPartitions")
       val skewedSplits = metrics("numSkewedSplits")
@@ -213,11 +214,12 @@ case class ColumnarAQEShuffleReadExec(child: SparkPlan,
       driverAccumUpdates += numCoalescedPartitionsMetric.id -> x
     }
 
-    partitionDataSizes.foreach { dataSizes =>
-      val partitionDataSizeMetrics = metrics("partitionDataSize")
-      driverAccumUpdates ++= dataSizes.map(partitionDataSizeMetrics.id -> _)
-      // Set sum value to "partitionDataSize" metric.
-      partitionDataSizeMetrics.set(dataSizes.sum)
+    partitionDataSizes.foreach {
+      dataSizes =>
+        val partitionDataSizeMetrics = metrics("partitionDataSize")
+        driverAccumUpdates ++= dataSizes.map(partitionDataSizeMetrics.id -> _)
+        // Set sum value to "partitionDataSize" metric.
+        partitionDataSizeMetrics.set(dataSizes.sum)
     }
 
     SQLMetrics.postDriverMetricsUpdatedByValue(sparkContext, executionId, driverAccumUpdates.toSeq)
@@ -232,22 +234,26 @@ case class ColumnarAQEShuffleReadExec(child: SparkPlan,
           // data size info is available.
           Map.empty
         } else {
-          Map("partitionDataSize" ->
-            SQLMetrics.createSizeMetric(sparkContext, "partition data size"))
+          Map(
+            "partitionDataSize" ->
+              SQLMetrics.createSizeMetric(sparkContext, "partition data size"))
         }
       } ++ {
         if (hasSkewedPartition) {
-          Map("numSkewedPartitions" ->
-            SQLMetrics.createMetric(sparkContext, "number of skewed partitions"),
+          Map(
+            "numSkewedPartitions" ->
+              SQLMetrics.createMetric(sparkContext, "number of skewed partitions"),
             "numSkewedSplits" ->
-              SQLMetrics.createMetric(sparkContext, "number of skewed partition splits"))
+              SQLMetrics.createMetric(sparkContext, "number of skewed partition splits")
+          )
         } else {
           Map.empty
         }
       } ++ {
         if (hasCoalescedPartition) {
-          Map("numCoalescedPartitions" ->
-            SQLMetrics.createMetric(sparkContext, "number of coalesced partitions"))
+          Map(
+            "numCoalescedPartitions" ->
+              SQLMetrics.createMetric(sparkContext, "number of coalesced partitions"))
         } else {
           Map.empty
         }

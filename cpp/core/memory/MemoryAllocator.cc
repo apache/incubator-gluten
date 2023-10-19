@@ -45,7 +45,7 @@ bool ListenableMemoryAllocator::allocateZeroFilled(int64_t nmemb, int64_t size, 
   return succeed;
 }
 
-bool ListenableMemoryAllocator::allocateAligned(uint16_t alignment, int64_t size, void** out) {
+bool ListenableMemoryAllocator::allocateAligned(uint64_t alignment, int64_t size, void** out) {
   listener_->allocationChanged(size);
   bool succeed = delegated_->allocateAligned(alignment, size, out);
   if (!succeed) {
@@ -72,7 +72,7 @@ bool ListenableMemoryAllocator::reallocate(void* p, int64_t size, int64_t newSiz
 
 bool ListenableMemoryAllocator::reallocateAligned(
     void* p,
-    uint16_t alignment,
+    uint64_t alignment,
     int64_t size,
     int64_t newSize,
     void** out) {
@@ -100,16 +100,6 @@ bool ListenableMemoryAllocator::free(void* p, int64_t size) {
   return succeed;
 }
 
-bool ListenableMemoryAllocator::reserveBytes(int64_t size) {
-  listener_->allocationChanged(size);
-  return true;
-}
-
-bool ListenableMemoryAllocator::unreserveBytes(int64_t size) {
-  listener_->allocationChanged(-size);
-  return true;
-}
-
 int64_t ListenableMemoryAllocator::getBytes() const {
   return bytes_;
 }
@@ -126,7 +116,7 @@ bool StdMemoryAllocator::allocateZeroFilled(int64_t nmemb, int64_t size, void** 
   return true;
 }
 
-bool StdMemoryAllocator::allocateAligned(uint16_t alignment, int64_t size, void** out) {
+bool StdMemoryAllocator::allocateAligned(uint64_t alignment, int64_t size, void** out) {
   *out = aligned_alloc(alignment, size);
   bytes_ += size;
   return true;
@@ -138,7 +128,7 @@ bool StdMemoryAllocator::reallocate(void* p, int64_t size, int64_t newSize, void
   return true;
 }
 
-bool StdMemoryAllocator::reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) {
+bool StdMemoryAllocator::reallocateAligned(void* p, uint64_t alignment, int64_t size, int64_t newSize, void** out) {
   if (newSize <= 0) {
     return false;
   }
@@ -162,16 +152,6 @@ bool StdMemoryAllocator::reallocateAligned(void* p, uint16_t alignment, int64_t 
 
 bool StdMemoryAllocator::free(void* p, int64_t size) {
   std::free(p);
-  bytes_ -= size;
-  return true;
-}
-
-bool StdMemoryAllocator::reserveBytes(int64_t size) {
-  bytes_ += size;
-  return true;
-}
-
-bool StdMemoryAllocator::unreserveBytes(int64_t size) {
   bytes_ -= size;
   return true;
 }

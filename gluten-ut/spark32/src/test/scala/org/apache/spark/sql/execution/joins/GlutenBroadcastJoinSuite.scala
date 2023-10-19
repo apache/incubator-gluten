@@ -14,20 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.joins
 
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{BroadcastHashJoinExecTransformer, ColumnarToRowExecBase, WholeStageTransformer}
-import io.glutenproject.utils.SystemParameters
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
+
 import org.apache.spark.sql.{GlutenTestsCommonTrait, SparkSession}
-import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide, ConstantFolding, ConvertToLocalRelation, NullPropagation}
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.execution.exchange.EnsureRequirements
 import org.apache.spark.sql.functions.broadcast
 import org.apache.spark.sql.internal.SQLConf
 
+/**
+ * This test needs setting for spark test home (its source code), e.g., appending the following
+ * setting for `mvn test`: -DargLine="-Dspark.test.home=/home/sparkuser/spark/".
+ *
+ * In addition, you also need build spark source code before running this test, e.g., with
+ * `./build/mvn -DskipTests clean package`.
+ */
 class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommonTrait {
 
   import testImplicits._
@@ -51,11 +57,14 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
     spark.stop()
     spark = null
 
-    val sparkBuilder = SparkSession.builder()
+    val sparkBuilder = SparkSession
+      .builder()
       .master("local-cluster[2,1,1024]")
       .appName("Gluten-UT")
       // Avoid static evaluation for literal input by spark catalyst.
-      .config(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName +
+      .config(
+        SQLConf.OPTIMIZER_EXCLUDED_RULES.key,
+        ConvertToLocalRelation.ruleName +
           "," + ConstantFolding.ruleName + "," + NullPropagation.ruleName)
       .config("spark.driver.memory", "1G")
       .config("spark.sql.adaptive.enabled", "true")
@@ -69,7 +78,7 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       // Avoid the code size overflow error in Spark code generation.
       .config("spark.sql.codegen.wholeStage", "false")
 
-    spark = if (BackendsApiManager.chBackend) {
+    spark = if (BackendTestUtils.isCHBackendLoaded()) {
       sparkBuilder
         .config("spark.io.compression.codec", "LZ4")
         .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
@@ -100,21 +109,31 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
       /* ######## test cases for equal join ######### */
       // INNER JOIN && t1Size < t2Size => BuildLeft
       assertJoinBuildSide(
-        "SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 JOIN t2 ON t1.key = t2.key", bh, BuildLeft)
+        "SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 JOIN t2 ON t1.key = t2.key",
+        bh,
+        BuildLeft)
       // LEFT JOIN => BuildRight
       // broadcast hash join can not build left side for left join.
       assertJoinBuildSide(
-        "SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 LEFT JOIN t2 ON t1.key = t2.key", bh, BuildRight)
+        "SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 LEFT JOIN t2 ON t1.key = t2.key",
+        bh,
+        BuildRight)
       // RIGHT JOIN => BuildLeft
       // broadcast hash join can not build right side for right join.
       assertJoinBuildSide(
-        "SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 RIGHT JOIN t2 ON t1.key = t2.key", bh, BuildLeft)
+        "SELECT /*+ MAPJOIN(t1, t2) */ * FROM t1 RIGHT JOIN t2 ON t1.key = t2.key",
+        bh,
+        BuildLeft)
       // INNER JOIN && broadcast(t1) => BuildLeft
       assertJoinBuildSide(
-        "SELECT /*+ MAPJOIN(t1) */ * FROM t1 JOIN t2 ON t1.key = t2.key", bh, BuildLeft)
+        "SELECT /*+ MAPJOIN(t1) */ * FROM t1 JOIN t2 ON t1.key = t2.key",
+        bh,
+        BuildLeft)
       // INNER JOIN && broadcast(t2) => BuildRight
       assertJoinBuildSide(
-        "SELECT /*+ MAPJOIN(t2) */ * FROM t1 JOIN t2 ON t1.key = t2.key", bh, BuildRight)
+        "SELECT /*+ MAPJOIN(t2) */ * FROM t1 JOIN t2 ON t1.key = t2.key",
+        bh,
+        BuildRight)
 
       /* ######## test cases for non-equal join ######### */
       withSQLConf(SQLConf.CROSS_JOINS_ENABLED.key -> "true") {
@@ -138,7 +157,9 @@ class GlutenBroadcastJoinSuite extends BroadcastJoinSuite with GlutenTestsCommon
         assertJoinBuildSide("SELECT /*+ MAPJOIN(t1) */ * FROM t1 FULL OUTER JOIN t2", bl, BuildLeft)
         // FULL OUTER && broadcast(t2) => BuildRight
         assertJoinBuildSide(
-          "SELECT /*+ MAPJOIN(t2) */ * FROM t1 FULL OUTER JOIN t2", bl, BuildRight)
+          "SELECT /*+ MAPJOIN(t2) */ * FROM t1 FULL OUTER JOIN t2",
+          bl,
+          BuildRight)
         // LEFT JOIN && broadcast(t1) => BuildLeft
         assertJoinBuildSide("SELECT /*+ MAPJOIN(t1) */ * FROM t1 LEFT JOIN t2", bl, BuildLeft)
         // RIGHT JOIN && broadcast(t2) => BuildRight

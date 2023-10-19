@@ -16,7 +16,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.glutenproject</groupId>
   <artifactId>gluten-parent</artifactId>
-  <version>0.5.0-SNAPSHOT</version>
+  <version>1.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
@@ -34,6 +34,7 @@
     <module>gluten-core</module>
     <module>package</module>
     <module>substrait/substrait-spark</module>
+    <module>gluten-ui</module>
   </modules>
 
   <properties>
@@ -52,7 +53,7 @@
     <scala.version>${spark32.scala}</scala.version>
     <spark.version>${spark32.version}</spark.version>
     <spark.major.version>3</spark.major.version>
-    <celeborn.version>0.2.1-incubating</celeborn.version>
+    <celeborn.version>0.3.0-incubating</celeborn.version>
     <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
     <arrow.version>12.0.0</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
@@ -61,6 +62,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.prefix>spark-sql-columnar</project.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
+    <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <!-- To build built-in backend c++ codes -->
     <scala.recompile.mode>all</scala.recompile.mode>
     <!-- For unit tests -->
@@ -71,9 +73,7 @@
     <junit.version>4.13.1</junit.version>
 
     <substrait.version>0.5.0</substrait.version>
-    <guava.version>32.0.1-jre</guava.version>
-    <protobuf.version>3.16.3</protobuf.version>
-    <protobuf.substrait.version>3.21.7</protobuf.substrait.version>
+    <protobuf.version>3.23.4</protobuf.version>
     <!--spotless-->
     <spotless.version>2.27.2</spotless.version>
     <spotless.scalafmt.version>3.5.9</spotless.scalafmt.version>
@@ -328,12 +328,6 @@
         <scope>provided</scope>
       </dependency>
       <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava</artifactId>
-        <version>${guava.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
         <groupId>io.substrait</groupId>
         <artifactId>core</artifactId>
         <version>${substrait.version}</version>
@@ -508,6 +502,14 @@
   </dependencyManagement>
 
   <build>
+    <extensions>
+      <!-- provides os.detected.classifier (i.e. linux-x86_64, osx-x86_64) property -->
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>${os-maven-plugin.version}</version>
+      </extension>
+    </extensions>
     <pluginManagement>
       <plugins>
         <plugin>
@@ -565,7 +567,11 @@
           <configuration>
             <recompileMode>${scala.recompile.mode}</recompileMode>
             <args>
+              <arg>-Wconf:msg=While parsing annotations in:silent</arg>
               <arg>-Ywarn-unused:imports</arg>
+              <arg>-Xfatal-warnings</arg>
+              <arg>-deprecation</arg>
+              <arg>-feature</arg>
             </args>
           </configuration>
           <executions>
@@ -634,6 +640,7 @@
             <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
             <outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
             <outputEncoding>UTF-8</outputEncoding>
+            <configLocation>dev/scalastyle-config.xml</configLocation>
           </configuration>
           <executions>
             <execution>
@@ -681,6 +688,7 @@
           <version>${spotless.version}</version>
           <configuration>
             <java>
+              <toggleOffOn />
               <googleJavaFormat>
                 <version>1.7</version>
               </googleJavaFormat>
@@ -691,8 +699,14 @@
               </importOrder>
 
               <removeUnusedImports />
+              <licenseHeader>
+                <content>${spotless.license.header}</content>
+                <delimiter>${spotless.delimiter}</delimiter>
+              </licenseHeader>
             </java>
             <scala>
+              <!--  make it works `// spotless:off `  -->
+              <toggleOffOn />
               <scalafmt>
                 <version>${spotless.scalafmt.version}</version>
                 <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
@@ -718,6 +732,11 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>${build-helper-maven-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.xolstice.maven.plugins</groupId>
+          <artifactId>protobuf-maven-plugin</artifactId>
+          <version>0.5.1</version>
         </plugin>
       </plugins>
     </pluginManagement>

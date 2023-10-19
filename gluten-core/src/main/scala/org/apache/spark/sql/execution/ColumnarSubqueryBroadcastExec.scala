@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.metrics.GlutenTimeMetric
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -26,19 +26,21 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
-import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashJoin, HashedRelation, LongHashedRelation}
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.joins.{BuildSideRelation, HashedRelation, HashJoin, LongHashedRelation}
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.util.ThreadUtils
 
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
-case class ColumnarSubqueryBroadcastExec(name: String,
-                                         index: Int,
-                                         buildKeys: Seq[Expression],
-                                         child: SparkPlan
-                                        )
-    extends BaseSubqueryExec with UnaryExecNode with GlutenPlan {
+case class ColumnarSubqueryBroadcastExec(
+    name: String,
+    index: Int,
+    buildKeys: Seq[Expression],
+    child: SparkPlan)
+  extends BaseSubqueryExec
+  with UnaryExecNode
+  with GlutenPlan {
 
   // `ColumnarSubqueryBroadcastExec` is only used with `InSubqueryExec`.
   // No one would reference this output,
@@ -55,7 +57,7 @@ case class ColumnarSubqueryBroadcastExec(name: String,
   }
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
-  @transient override lazy val metrics =
+  @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genColumnarSubqueryBroadcastMetrics(sparkContext)
 
   override def doCanonicalize(): SparkPlan = {
@@ -71,34 +73,39 @@ case class ColumnarSubqueryBroadcastExec(name: String,
       // This will run in another thread. Set the execution id so that we can connect these jobs
       // with the correct execution.
       SQLExecution.withExecutionId(session, executionId) {
-        val beforeCollect = System.nanoTime()
+        val rows = GlutenTimeMetric.millis(longMetric("collectTime")) {
+          _ =>
+            val exchangeChild = child match {
+              case exec: ReusedExchangeExec =>
+                exec.child
+              case _ =>
+                child
+            }
+            if (
+              exchangeChild.isInstanceOf[ColumnarBroadcastExchangeExec] ||
+              exchangeChild.isInstanceOf[AdaptiveSparkPlanExec]
+            ) {
+              // transform broadcasted columnar value to Array[InternalRow] by key
+              exchangeChild
+                .executeBroadcast[BuildSideRelation]
+                .value
+                .transform(buildKeys(index))
+                .distinct
+            } else {
+              val broadcastRelation = exchangeChild.executeBroadcast[HashedRelation]().value
+              val (iter, expr) = if (broadcastRelation.isInstanceOf[LongHashedRelation]) {
+                (broadcastRelation.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
+              } else {
+                (
+                  broadcastRelation.keys(),
+                  BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
+              }
 
-        val exchangeChild = child match {
-          case exec: ReusedExchangeExec =>
-            exec.child
-          case _ =>
-            child
+              val proj = UnsafeProjection.create(expr)
+              val keyIter = iter.map(proj).map(_.copy())
+              keyIter.toArray[InternalRow].distinct
+            }
         }
-        val rows = if (exchangeChild.isInstanceOf[ColumnarBroadcastExchangeExec] ||
-          exchangeChild.isInstanceOf[AdaptiveSparkPlanExec]) {
-          // transform broadcasted columnar value to Array[InternalRow] by key
-          exchangeChild.executeBroadcast[BuildSideRelation].value
-            .transform(buildKeys(index)).distinct
-        } else {
-          val broadcastRelation = exchangeChild.executeBroadcast[HashedRelation]().value
-          val (iter, expr) = if (broadcastRelation.isInstanceOf[LongHashedRelation]) {
-            (broadcastRelation.keys(), HashJoin.extractKeyExprAt(buildKeys, index))
-          } else {
-            (broadcastRelation.keys(),
-              BoundReference(index, buildKeys(index).dataType, buildKeys(index).nullable))
-          }
-
-          val proj = UnsafeProjection.create(expr)
-          val keyIter = iter.map(proj).map(_.copy())
-          keyIter.toArray[InternalRow].distinct
-        }
-        val beforeBuild = System.nanoTime()
-        longMetric("collectTime") += (beforeBuild - beforeCollect) / 1000000
         val dataSize = rows.map(_.asInstanceOf[UnsafeRow].getSizeInBytes).sum
         longMetric("dataSize") += dataSize
         SQLMetrics.postDriverMetricUpdates(sparkContext, executionId, metrics.values.toSeq)
@@ -107,11 +114,11 @@ case class ColumnarSubqueryBroadcastExec(name: String,
     }(SubqueryBroadcastExec.executionContext)
   }
 
-  protected override def doPrepare(): Unit = {
+  override protected def doPrepare(): Unit = {
     relationFuture
   }
 
-  protected override def doExecute(): RDD[InternalRow] = {
+  override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException(
       "SubqueryBroadcastExec does not support the execute() code path.")
   }

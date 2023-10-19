@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.memory.alloc;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
-import io.glutenproject.memory.TaskMemoryMetrics;
+import io.glutenproject.GlutenConfig;
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.memory.memtarget.MemoryTarget;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,19 +29,26 @@ public class CHManagedCHReservationListener implements CHReservationListener {
 
   private static final Logger LOG = LoggerFactory.getLogger(CHManagedCHReservationListener.class);
 
-  private GlutenMemoryConsumer consumer;
-  private final TaskMemoryMetrics metrics;
+  private MemoryTarget target;
+  private final SimpleMemoryUsageRecorder usage;
+  private final boolean throwIfMemoryExceed =
+      GlutenConfig.getConf().chColumnarThrowIfMemoryExceed();
   private volatile boolean open = true;
 
   private final AtomicLong currentMemory = new AtomicLong(0L);
 
-  public CHManagedCHReservationListener(GlutenMemoryConsumer consumer, TaskMemoryMetrics metrics) {
-    this.consumer = consumer;
-    this.metrics = metrics;
+  public CHManagedCHReservationListener(MemoryTarget target, SimpleMemoryUsageRecorder usage) {
+    this.target = target;
+    this.usage = usage;
   }
 
   @Override
   public void reserveOrThrow(long size) {
+    if (!throwIfMemoryExceed) {
+      reserve(size);
+      return;
+    }
+
     synchronized (this) {
       if (!open) {
         return;
@@ -49,9 +56,9 @@ public class CHManagedCHReservationListener implements CHReservationListener {
       if (LOG.isDebugEnabled()) {
         LOG.debug(String.format("reserve memory size from native: %d", size));
       }
-      long granted = consumer.acquire(size);
+      long granted = target.borrow(size);
       if (granted < size) {
-        consumer.free(granted);
+        target.repay(granted);
         throw new UnsupportedOperationException(
             "Not enough spark off-heap execution memory. "
                 + "Acquired: "
@@ -63,7 +70,7 @@ public class CHManagedCHReservationListener implements CHReservationListener {
                 + "get larger space to run this application. ");
       }
       currentMemory.addAndGet(size);
-      metrics.inc(size);
+      usage.inc(size);
     }
   }
 
@@ -76,7 +83,7 @@ public class CHManagedCHReservationListener implements CHReservationListener {
       if (LOG.isDebugEnabled()) {
         LOG.debug(String.format("reserve memory (without exception) size from native: %d", size));
       }
-      long granted = consumer.acquire(size);
+      long granted = target.borrow(size);
       if (granted < size && (LOG.isWarnEnabled())) {
         LOG.warn(
             String.format(
@@ -87,7 +94,7 @@ public class CHManagedCHReservationListener implements CHReservationListener {
                 size, granted));
       }
       currentMemory.addAndGet(granted);
-      metrics.inc(size);
+      usage.inc(size);
       return granted;
     }
   }
@@ -114,9 +121,9 @@ public class CHManagedCHReservationListener implements CHReservationListener {
       if (LOG.isDebugEnabled()) {
         LOG.debug(String.format("unreserve memory size from native: %d", memoryToFree));
       }
-      consumer.free(memoryToFree);
+      target.repay(memoryToFree);
       currentMemory.addAndGet(-memoryToFree);
-      metrics.inc(-size);
+      usage.inc(-size);
       return memoryToFree;
     }
   }
@@ -133,7 +140,7 @@ public class CHManagedCHReservationListener implements CHReservationListener {
       }
       currentMemory.set(0L);
 
-      consumer = null; // make it gc reachable
+      target = null; // make it gc reachable
       open = false;
     }
   }

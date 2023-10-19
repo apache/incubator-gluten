@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.expression;
 
 import io.substrait.proto.Expression;
@@ -29,9 +28,10 @@ public class IfThenNode implements ExpressionNode, Serializable {
 
   private final ExpressionNode elseValue;
 
-  public IfThenNode(ArrayList<ExpressionNode> ifNodes,
-                    ArrayList<ExpressionNode> thenNodes,
-                    ExpressionNode elseValue) {
+  public IfThenNode(
+      ArrayList<ExpressionNode> ifNodes,
+      ArrayList<ExpressionNode> thenNodes,
+      ExpressionNode elseValue) {
     this.ifNodes.addAll(ifNodes);
     this.thenNodes.addAll(thenNodes);
     this.elseValue = elseValue;

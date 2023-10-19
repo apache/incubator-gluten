@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -41,8 +40,7 @@ public abstract class GeneralInIterator implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {
-  }
+  public void close() throws Exception {}
 
   public ColumnarBatch nextColumnarBatch() {
     return nextBatch;

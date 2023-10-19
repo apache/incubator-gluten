@@ -14,26 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
-import io.glutenproject.init.JniInitialized;
+import io.glutenproject.exec.ExecutionCtx;
+import io.glutenproject.exec.ExecutionCtxAware;
+import io.glutenproject.exec.ExecutionCtxs;
 
-import java.io.IOException;
+public class NativeColumnarToRowJniWrapper implements ExecutionCtxAware {
+  private final ExecutionCtx ctx;
 
-public class NativeColumnarToRowJniWrapper extends JniInitialized {
-
-  public NativeColumnarToRowJniWrapper() throws IOException {
+  private NativeColumnarToRowJniWrapper(ExecutionCtx ctx) {
+    this.ctx = ctx;
   }
 
-  public native long nativeColumnarToRowInit(
-      long batchHandle, long allocatorId)
+  public static NativeColumnarToRowJniWrapper create() {
+    return new NativeColumnarToRowJniWrapper(ExecutionCtxs.contextInstance());
+  }
+
+  public static NativeColumnarToRowJniWrapper forCtx(ExecutionCtx ctx) {
+    return new NativeColumnarToRowJniWrapper(ctx);
+  }
+
+  @Override
+  public long ctxHandle() {
+    return ctx.getHandle();
+  }
+
+  public native long nativeColumnarToRowInit(long memoryManagerHandle) throws RuntimeException;
+
+  public native NativeColumnarToRowInfo nativeColumnarToRowConvert(long batchHandle, long c2rHandle)
       throws RuntimeException;
 
-  public native NativeColumnarToRowInfo nativeColumnarToRowWrite(
-      long batchHandle, long instanceId)
-      throws RuntimeException;
-
-  public native void nativeClose(long instanceID);
-
+  public native void nativeClose(long c2rHandle);
 }

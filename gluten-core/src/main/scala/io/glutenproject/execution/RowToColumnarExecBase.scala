@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.broadcast
 import org.apache.spark.rdd.RDD
@@ -30,29 +30,30 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 /**
  * Provides a common executor to translate an [[RDD]] of [[InternalRow]] into an [[RDD]] of
  * [[ColumnarBatch]]. This is inserted whenever such a transition is determined to be needed.
- *
  */
-abstract class RowToColumnarExecBase(child: SparkPlan) extends RowToColumnarTransition {
+abstract class RowToColumnarExecBase(child: SparkPlan)
+  extends RowToColumnarTransition
+  with GlutenPlan {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genRowToColumnarMetrics(sparkContext)
 
-  override def output: Seq[Attribute] = child.output
+  final override def output: Seq[Attribute] = child.output
 
-  override def outputPartitioning: Partitioning = child.outputPartitioning
+  final override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
+  final override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
-  override def doExecute(): RDD[InternalRow] = {
+  final override def doExecute(): RDD[InternalRow] = {
     child.execute()
   }
 
-  override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
+  final override def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
     child.executeBroadcast()
   }
 
-  override def supportsColumnar: Boolean = true
+  final override def supportsColumnar: Boolean = true
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch]
 

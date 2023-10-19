@@ -18,19 +18,22 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.NamedExpression
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
+import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
 import org.apache.spark.sql.types.StructField
 
-
 trait BackendSettingsApi {
-  def supportFileFormatRead(format: ReadFileFormat,
-                            fields: Array[StructField],
-                            partTable: Boolean,
-                            paths: Seq[String]): Boolean = false
+  def supportFileFormatRead(
+      format: ReadFileFormat,
+      fields: Array[StructField],
+      partTable: Boolean,
+      paths: Seq[String]): Boolean = false
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true
@@ -56,11 +59,13 @@ trait BackendSettingsApi {
   def fallbackAggregateWithChild(): Boolean = false
 
   def disableVanillaColumnarReaders(conf: SparkConf): Boolean =
-    !conf.getBoolean(GlutenConfig.VANILLA_COLUMNAR_READERS_ENABLED.key,
-      GlutenConfig.VANILLA_COLUMNAR_READERS_ENABLED.defaultValue.get)
+    !conf.getBoolean(
+      GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.key,
+      GlutenConfig.VANILLA_VECTORIZED_READERS_ENABLED.defaultValue.get)
 
   def recreateJoinExecOnFallback(): Boolean = false
   def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = false
+
   /**
    * A shuffle key may be an expression. We would add a projection for this expression shuffle key
    * and make it into a new column which the shuffle will refer to. But we need to remove it from
@@ -71,18 +76,37 @@ trait BackendSettingsApi {
   def excludeScanExecFromCollapsedStage(): Boolean = false
   def avoidOverwritingFilterTransformer(): Boolean = false
   def fallbackFilterWithoutConjunctiveScan(): Boolean = false
-  def rescaleDecimalLiteral(): Boolean = false
+  def rescaleDecimalLiteral: Boolean = false
 
   /**
-   * Whether to replace sort agg with hash agg., e.g., sort agg will be used in
-   * spark's planning for string type input.
+   * Whether to replace sort agg with hash agg., e.g., sort agg will be used in spark's planning for
+   * string type input.
    */
   def replaceSortAggWithHashAgg: Boolean = false
 
-  /**
-   * Get the config prefix for each backend
-   */
+  /** Get the config prefix for each backend */
   def getBackendConfigPrefix: String
 
   def rescaleDecimalIntegralExpression(): Boolean = false
+
+  def shuffleSupportedCodec(): Set[String]
+
+  def needOutputSchemaForPlan(): Boolean = false
+
+  /** Apply necessary conversions before passing to native side */
+  def resolveNativeConf(nativeConf: java.util.Map[String, String]): Unit = {}
+
+  def supportBucketScan(): Boolean = false
+
+  def insertPostProjectForGenerate(): Boolean = false
+
+  def skipNativeCtas(ctas: CreateDataSourceTableAsSelectCommand): Boolean = false
+
+  def skipNativeInsertInto(insertInto: InsertIntoHadoopFsRelationCommand): Boolean = false
+
+  def alwaysFailOnMapExpression(): Boolean = false
+
+  def requiredChildOrderingForWindow(): Boolean = false
+
+  def staticPartitionWriteOnly(): Boolean = false
 }

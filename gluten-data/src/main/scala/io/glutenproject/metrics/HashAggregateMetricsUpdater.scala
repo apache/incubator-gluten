@@ -17,15 +17,17 @@
 package io.glutenproject.metrics
 
 import io.glutenproject.substrait.AggregationParams
+
 import org.apache.spark.sql.execution.metric.SQLMetric
 
 trait HashAggregateMetricsUpdater extends MetricsUpdater {
-  def updateAggregationMetrics(aggregationMetrics: java.util.ArrayList[OperatorMetrics],
-                               aggParams: AggregationParams): Unit
+  def updateAggregationMetrics(
+      aggregationMetrics: java.util.ArrayList[OperatorMetrics],
+      aggParams: AggregationParams): Unit
 }
 
-class HashAggregateMetricsUpdaterImpl(
-    val metrics: Map[String, SQLMetric]) extends HashAggregateMetricsUpdater {
+class HashAggregateMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
+  extends HashAggregateMetricsUpdater {
   val aggOutputRows: SQLMetric = metrics("aggOutputRows")
   val aggOutputVectors: SQLMetric = metrics("aggOutputVectors")
   val aggOutputBytes: SQLMetric = metrics("aggOutputBytes")
@@ -51,8 +53,9 @@ class HashAggregateMetricsUpdaterImpl(
   val finalOutputRows: SQLMetric = metrics("finalOutputRows")
   val finalOutputVectors: SQLMetric = metrics("finalOutputVectors")
 
-  override def updateAggregationMetrics(aggregationMetrics: java.util.ArrayList[OperatorMetrics],
-                                        aggParams: AggregationParams): Unit = {
+  override def updateAggregationMetrics(
+      aggregationMetrics: java.util.ArrayList[OperatorMetrics],
+      aggParams: AggregationParams): Unit = {
     var idx = 0
     if (aggParams.postProjectionNeeded) {
       postProjectionCpuCount += aggregationMetrics.get(idx).cpuCount

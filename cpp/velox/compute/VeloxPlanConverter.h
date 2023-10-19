@@ -17,29 +17,35 @@
 
 #pragma once
 
+#include <velox/common/memory/MemoryPool.h>
 #include "compute/ResultIterator.h"
-#include "memory/VeloxMemoryPool.h"
+#include "memory/VeloxMemoryManager.h"
+#include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
 #include "velox/core/PlanNode.h"
-#include "velox/substrait/SubstraitToVeloxPlan.h"
 
 namespace gluten {
+
 // This class is used to convert the Substrait plan into Velox plan.
 class VeloxPlanConverter {
  public:
-  explicit VeloxPlanConverter(std::vector<std::shared_ptr<ResultIterator>>& inputIters) : inputIters_(inputIters) {}
+  explicit VeloxPlanConverter(
+      const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
+      facebook::velox::memory::MemoryPool* veloxPool,
+      const std::unordered_map<std::string, std::string>& confMap);
 
   std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(::substrait::Plan& substraitPlan);
 
-  const std::unordered_map<facebook::velox::core::PlanNodeId, std::shared_ptr<facebook::velox::substrait::SplitInfo>>&
-  splitInfos() {
-    return subVeloxPlanConverter_->splitInfos();
+  const std::unordered_map<facebook::velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfos() {
+    return substraitVeloxPlanConverter_.splitInfos();
   }
 
  private:
   void setInputPlanNode(const ::substrait::FetchRel& fetchRel);
 
   void setInputPlanNode(const ::substrait::ExpandRel& sExpand);
+
+  void setInputPlanNode(const ::substrait::GenerateRel& sGenerate);
 
   void setInputPlanNode(const ::substrait::SortRel& sSort);
 
@@ -62,13 +68,12 @@ class VeloxPlanConverter {
   std::string nextPlanNodeId();
 
   int planNodeId_ = 0;
+
   std::vector<std::shared_ptr<ResultIterator>> inputIters_;
 
-  std::shared_ptr<facebook::velox::substrait::SubstraitParser> subParser_ =
-      std::make_shared<facebook::velox::substrait::SubstraitParser>();
+  SubstraitToVeloxPlanConverter substraitVeloxPlanConverter_;
 
-  std::shared_ptr<facebook::velox::substrait::SubstraitVeloxPlanConverter> subVeloxPlanConverter_ =
-      std::make_shared<facebook::velox::substrait::SubstraitVeloxPlanConverter>(defaultLeafVeloxMemoryPool().get());
+  facebook::velox::memory::MemoryPool* pool_;
 };
 
 } // namespace gluten

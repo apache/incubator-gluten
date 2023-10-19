@@ -16,28 +16,26 @@
  */
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.PlatformDependent;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 public class LowCopyNettyShuffleInputStream implements ShuffleInputStream {
 
   private final InputStream in;
-  private final int bufferSize;
   private final boolean isCompressed;
 
-  private ByteBuf byteBuf;
+  private final ByteBuf byteBuf;
   private int readBytesCount = 0;
 
-  public LowCopyNettyShuffleInputStream(
-      InputStream in, ByteBuf byteBuf, int bufferSize, boolean isCompressed) {
+  public LowCopyNettyShuffleInputStream(InputStream in, ByteBuf byteBuf, boolean isCompressed) {
     // to prevent underlying netty buffer from being collected by GC
     this.in = in;
     this.byteBuf = byteBuf;
-    this.bufferSize = bufferSize;
     this.isCompressed = isCompressed;
   }
 
@@ -67,10 +65,10 @@ public class LowCopyNettyShuffleInputStream implements ShuffleInputStream {
 
   @Override
   public void close() {
-    try {
-      in.close();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    GlutenException.wrap(
+        () -> {
+          in.close();
+          return null;
+        });
   }
 }

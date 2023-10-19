@@ -14,11 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
 
-import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
-import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+
 import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -28,7 +27,8 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
-  extends UnaryExecNode with TransformSupport {
+  extends UnaryExecNode
+  with GlutenPlan {
 
   override def supportsColumnar: Boolean = true
 
@@ -38,42 +38,31 @@ case class CoalesceExecTransformer(numPartitions: Int, child: SparkPlan)
     if (numPartitions == 1) SinglePartition else UnknownPartitioning(numPartitions)
   }
 
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support inputRDDs.")
-  }
+  override protected def doValidateInternal(): ValidationResult =
+    ValidationResult.ok
 
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support getBuildPlans.")
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
-
-  override def doTransform(context: SubstraitContext): TransformContext = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doTransform.")
-  }
-
-  protected override def doExecute(): RDD[InternalRow] = {
+  override protected def doExecute(): RDD[InternalRow] = {
     throw new UnsupportedOperationException()
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
+    if (numPartitions == 1 && child.executeColumnar().getNumPartitions < 1) {
+      // Make sure we don't output an RDD with 0 partitions, when claiming that we have a
+      // `SinglePartition`.
+      new CoalesceExecTransformer.EmptyRDDWithPartitions(sparkContext, numPartitions)
+    } else {
+      child.executeColumnar().coalesce(numPartitions, shuffle = false)
+    }
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): CoalesceExecTransformer =
     copy(child = newChild)
 
-  override def metricsUpdater(): MetricsUpdater = new NoopMetricsUpdater
 }
 
 object CoalesceExecTransformer {
-  class EmptyRDDWithPartitions(@transient private val sc: SparkContext,
-                               numPartitions: Int) extends RDD[ColumnarBatch](sc, Nil) {
+  class EmptyRDDWithPartitions(@transient private val sc: SparkContext, numPartitions: Int)
+    extends RDD[ColumnarBatch](sc, Nil) {
 
     override def getPartitions: Array[Partition] =
       Array.tabulate(numPartitions)(i => EmptyPartition(i))

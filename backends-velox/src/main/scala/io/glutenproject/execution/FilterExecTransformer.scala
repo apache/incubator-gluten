@@ -14,48 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
+
+import io.glutenproject.extension.ValidationResult
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.rel.RelBuilder
+
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
+import org.apache.spark.sql.execution.SparkPlan
 
 import java.util
 
 import scala.collection.JavaConverters._
 
-import com.google.common.collect.Lists
-import io.glutenproject.GlutenConfig
-import io.glutenproject.extension.ValidationResult
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.vectorized.NativePlanEvaluator
-
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
-import org.apache.spark.sql.execution.SparkPlan
-
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecTransformerBase(condition, child) with TransformSupport {
+  extends FilterExecTransformerBase(condition, child) {
 
-  override def doValidateInternal(): ValidationResult = {
+  override protected def doValidateInternal(): ValidationResult = {
     val leftCondition = getLeftCondition
     if (leftCondition == null) {
       // All the filters can be pushed down and the computing of this Filter
       // is not needed.
-      return ok()
+      return ValidationResult.ok
     }
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
-    val relNode = getRelNode(
-      substraitContext, leftCondition, child.output, operatorId, null, validation = true)
-    val planNode = PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode))
+    val relNode =
+      getRelNode(substraitContext, leftCondition, child.output, operatorId, null, validation = true)
     // Then, validate the generated plan in native engine.
-    if (GlutenConfig.getConf.enableNativeValidation) {
-      val validator = new NativePlanEvaluator()
-      val validateInfo = validator.doValidateWithFallBackLog(planNode.toProtobuf.toByteArray)
-      nativeValidationResult(validateInfo)
-    } else {
-      ok()
-    }
+    doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -76,13 +64,23 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
 
     val currRel = if (childCtx != null) {
       getRelNode(
-        context, leftCondition, child.output, operatorId, childCtx.root, validation = false)
+        context,
+        leftCondition,
+        child.output,
+        operatorId,
+        childCtx.root,
+        validation = false)
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       val attrList = new util.ArrayList[Attribute](child.output.asJava)
-      getRelNode(context, leftCondition, child.output, operatorId,
-        RelBuilder.makeReadRel(attrList, context, operatorId), validation = false)
+      getRelNode(
+        context,
+        leftCondition,
+        child.output,
+        operatorId,
+        RelBuilder.makeReadRel(attrList, context, operatorId),
+        validation = false)
     }
     assert(currRel != null, "Filter rel should be valid.")
     val inputAttributes = if (childCtx != null) {
@@ -108,12 +106,12 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     if (scanFilters.isEmpty) {
       condition
     } else {
-      val leftFilters = FilterHandler.getLeftFilters(
-        scanFilters, FilterHandler.flattenCondition(condition))
+      val leftFilters =
+        FilterHandler.getLeftFilters(scanFilters, FilterHandler.flattenCondition(condition))
       leftFilters.reduceLeftOption(And).orNull
     }
   }
 
-  override protected def withNewChildInternal(
-      newChild: SparkPlan): FilterExecTransformer = copy(child = newChild)
+  override protected def withNewChildInternal(newChild: SparkPlan): FilterExecTransformer =
+    copy(child = newChild)
 }

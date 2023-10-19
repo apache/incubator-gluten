@@ -14,26 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
-/**
- * For being called from C++ code only.
- */
+/** For being called from C++ code only. */
 public interface JniByteInputStream {
   /**
    * Read fixed size of data into an address.
+   *
    * @return the read bytes; 0 if end of stream.
    */
   long read(long destAddress, long maxSize);
 
-  /**
-   * Position of this stream.
-   */
+  /** Position of this stream. */
   long tell();
 
-  /**
-   * Close and reclaim the resources.
-   */
+  /** Close and reclaim the resources. */
   void close();
 }

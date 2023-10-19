@@ -14,10 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
-
-import com.google.common.collect.Lists
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
@@ -25,7 +22,9 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
 
-case class AliasTransformerBase(
+import com.google.common.collect.Lists
+
+case class AliasTransformer(
     substraitExprName: String,
     child: ExpressionTransformer,
     original: Expression)
@@ -34,7 +33,8 @@ case class AliasTransformerBase(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode = child.doTransform(args)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val functionId = ExpressionBuilder.newScalarFunction(functionMap,
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
       ConverterUtils.makeFuncName(
         substraitExprName,
         original.children.map(_.dataType),
@@ -45,13 +45,35 @@ case class AliasTransformerBase(
   }
 }
 
-case class AttributeReferenceTransformer(name: String,
-                                         ordinal: Int,
-                                         dataType: DataType,
-                                         nullable: Boolean = true,
-                                         exprId: ExprId,
-                                         qualifier: Seq[String],
-                                         metadata: Metadata = Metadata.empty)
+case class NamedLambdaVariableTransformer(
+    substraitExprName: String,
+    name: String,
+    dataType: DataType,
+    nullable: Boolean,
+    exprId: ExprId)
+  extends ExpressionTransformer {
+  override def doTransform(args: Object): ExpressionNode = {
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val namedLambdaVarFunctionName =
+      ConverterUtils.makeFuncName(substraitExprName, Seq(dataType), FunctionConfig.OPT)
+    val arrayAggFunctionId =
+      ExpressionBuilder.newScalarFunction(functionMap, namedLambdaVarFunctionName)
+    val exprNodes = Lists.newArrayList(
+      ExpressionBuilder.makeLiteral(name, StringType, false).asInstanceOf[ExpressionNode])
+    val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
+    // namedlambdavariable('acc')-> <Integer, notnull>
+    ExpressionBuilder.makeScalarFunction(arrayAggFunctionId, exprNodes, typeNode)
+  }
+}
+
+case class AttributeReferenceTransformer(
+    name: String,
+    ordinal: Int,
+    dataType: DataType,
+    nullable: Boolean = true,
+    exprId: ExprId,
+    qualifier: Seq[String],
+    metadata: Metadata = Metadata.empty)
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {

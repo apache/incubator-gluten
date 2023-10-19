@@ -16,17 +16,14 @@
  */
 package org.apache.spark.sql.execution.benchmarks
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.{FileSourceScanExecTransformer, WholestageTransformContext}
+import io.glutenproject.execution.{FileSourceScanExecTransformer, WholeStageTransformContext}
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.utils.UTSystemParameters
-import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock, JniLibLoader}
+import io.glutenproject.vectorized.{CHBlockConverterJniWrapper, CHNativeBlock}
 
-import org.apache.spark.SparkConf
 import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -35,7 +32,6 @@ import org.apache.spark.sql.catalyst.expressions.{UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.benchmark.SqlBasedBenchmark
 import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
@@ -60,8 +56,9 @@ import scala.collection.JavaConverters._
  *     5. whether to run vanilla spark benchmarks;
  * }}}
  */
-object CHParquetReadBenchmark extends SqlBasedBenchmark {
+object CHParquetReadBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark {
 
+  protected lazy val appName = "CHParquetReadBenchmark"
   protected lazy val thrdNum = "1"
   protected lazy val memorySize = "4G"
   protected lazy val offheapSize = "4G"
@@ -69,30 +66,10 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
   def beforeAll(): Unit = {}
 
   override def getSparkSession: SparkSession = {
-    beforeAll();
-    val conf = new SparkConf()
-      .setAppName("CHParquetReadBenchmark")
-      .setIfMissing("spark.master", s"local[$thrdNum]")
-      .set("spark.plugins", "io.glutenproject.GlutenPlugin")
-      .set(
-        "spark.sql.catalog.spark_catalog",
-        "org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog")
-      .set("spark.memory.offHeap.enabled", "true")
-      .setIfMissing("spark.memory.offHeap.size", offheapSize)
+    beforeAll()
+    val conf = getSparkcConf
       .setIfMissing("spark.sql.columnVector.offheap.enabled", "true")
-      .set("spark.databricks.delta.maxSnapshotLineageLength", "20")
-      .set("spark.databricks.delta.snapshotPartitions", "1")
-      .set("spark.databricks.delta.properties.defaults.checkpointInterval", "5")
-      .set("spark.databricks.delta.stalenessLimit", "3600000")
-      .set("spark.gluten.sql.columnar.columnarToRow", "true")
-      .setIfMissing(GlutenConfig.GLUTEN_LIB_PATH, UTSystemParameters.getClickHouseLibPath())
-      .set("spark.gluten.sql.enable.native.validation", "false")
       .set("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "true")
-      .set("spark.sql.adaptive.enabled", "false")
-      .setIfMissing("spark.driver.memory", memorySize)
-      .setIfMissing("spark.executor.memory", memorySize)
-      .setIfMissing("spark.sql.files.maxPartitionBytes", "1G")
-      .setIfMissing("spark.sql.files.openCostInBytes", "1073741824")
 
     SparkSession.builder.config(conf).getOrCreate()
   }
@@ -117,7 +94,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
 
     val chFileScan = chScanPlan.head
     val outputAttrs = chFileScan.outputAttributes()
-    val filePartitions = chFileScan.getFlattenPartitions
+    val filePartitions = chFileScan.getPartitions
       .take(readFileCnt)
       .map(_.asInstanceOf[FilePartition])
 
@@ -137,7 +114,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
 
     val nativeFileScanRDD = BackendsApiManager.getIteratorApiInstance.genNativeFileScanRDD(
       spark.sparkContext,
-      WholestageTransformContext(outputAttrs, outputAttrs, planNode, substraitContext),
+      WholeStageTransformContext(planNode, substraitContext),
       fileFormat,
       filePartitions,
       numOutputRows,
@@ -176,11 +153,11 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
       _ =>
         val resultRDD: RDD[Long] = nativeFileScanRDD.mapPartitionsInternal {
           batches =>
-            val jniWrapper = new CHBlockConverterJniWrapper()
             batches.map {
               batch =>
                 val block = CHNativeBlock.fromColumnarBatch(batch)
-                val info = jniWrapper.convertColumnarToRow(block.blockAddress())
+                val info =
+                  CHBlockConverterJniWrapper.convertColumnarToRow(block.blockAddress(), null)
                 new Iterator[InternalRow] {
                   var rowId = 0
                   val row = new UnsafeRow(batch.numCols())
@@ -189,7 +166,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
                   override def hasNext: Boolean = {
                     val result = rowId < batch.numRows()
                     if (!result && !closed) {
-                      jniWrapper.freeMemory(info.memoryAddress, info.totalSize)
+                      CHBlockConverterJniWrapper.freeMemory(info.memoryAddress, info.totalSize)
                       closed = true
                     }
                     result
@@ -227,7 +204,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
       val fileScan = vanillaScanPlan.head
       val fileScanOutput = fileScan.output
       val relation = fileScan.relation
-      val readFile: (PartitionedFile) => Iterator[InternalRow] =
+      val readFile: PartitionedFile => Iterator[InternalRow] =
         relation.fileFormat.buildReaderWithPartitionValues(
           sparkSession = relation.sparkSession,
           dataSchema = relation.dataSchema,
@@ -274,15 +251,5 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark {
     }
 
     parquetReadBenchmark.run()
-  }
-
-  override def afterAll(): Unit = {
-    ClickHouseLog.clearCache()
-    val libPath = spark.conf.get(
-      GlutenConfig.GLUTEN_LIB_PATH,
-      UTSystemParameters
-        .getClickHouseLibPath())
-    JniLibLoader.unloadFromPath(libPath)
-    super.afterAll()
   }
 }

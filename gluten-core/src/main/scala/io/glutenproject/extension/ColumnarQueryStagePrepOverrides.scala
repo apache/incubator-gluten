@@ -14,19 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.extension
 
+import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.columnar._
 import io.glutenproject.utils.PhysicalPlanSelector
-import io.glutenproject.{GlutenConfig, GlutenSparkExtensionsInjector}
+
+import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, SparkPlan}
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, SparkPlan}
-import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 
 // BroadcastHashJoinExec and it's child BroadcastExec will be cut into different QueryStages,
 // so the columnar rules will be applied to the two QueryStages separately, and they cannot
@@ -47,34 +47,38 @@ case class FallbackBroadcastExchange(session: SparkSession) extends Rule[SparkPl
           case _ => false
         }
         maybeExchange match {
-          case Some(exchange@BroadcastExchangeExec(mode, child)) =>
-            val isTransformable = if (!columnarConf.enableColumnarBroadcastExchange ||
-              !columnarConf.enableColumnarBroadcastJoin) {
-              ValidationResult.notOk("columnar broadcast exchange is disabled or " +
-                "columnar broadcast join is disabled")
-            } else {
-              if (TransformHints.isAlreadyTagged(bhj) && TransformHints.isNotTransformable(bhj)) {
-                ValidationResult.notOk("broadcast join is already tagged as not transformable")
+          case Some(exchange @ BroadcastExchangeExec(mode, child)) =>
+            val isTransformable =
+              if (
+                !columnarConf.enableColumnarBroadcastExchange ||
+                !columnarConf.enableColumnarBroadcastJoin
+              ) {
+                ValidationResult.notOk(
+                  "columnar broadcast exchange is disabled or " +
+                    "columnar broadcast join is disabled")
               } else {
-                val bhjTransformer = BackendsApiManager.getSparkPlanExecApiInstance
-                  .genBroadcastHashJoinExecTransformer(
-                    bhj.leftKeys,
-                    bhj.rightKeys,
-                    bhj.joinType,
-                    bhj.buildSide,
-                    bhj.condition,
-                    bhj.left,
-                    bhj.right,
-                    bhj.isNullAwareAntiJoin)
-                val isBhjTransformable = bhjTransformer.doValidate()
-                if (isBhjTransformable.validated) {
-                  val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
-                  exchangeTransformer.doValidate()
+                if (TransformHints.isAlreadyTagged(bhj) && TransformHints.isNotTransformable(bhj)) {
+                  ValidationResult.notOk("broadcast join is already tagged as not transformable")
                 } else {
-                  isBhjTransformable
+                  val bhjTransformer = BackendsApiManager.getSparkPlanExecApiInstance
+                    .genBroadcastHashJoinExecTransformer(
+                      bhj.leftKeys,
+                      bhj.rightKeys,
+                      bhj.joinType,
+                      bhj.buildSide,
+                      bhj.condition,
+                      bhj.left,
+                      bhj.right,
+                      bhj.isNullAwareAntiJoin)
+                  val isBhjTransformable = bhjTransformer.doValidate()
+                  if (isBhjTransformable.isValid) {
+                    val exchangeTransformer = ColumnarBroadcastExchangeExec(mode, child)
+                    exchangeTransformer.doValidate()
+                  } else {
+                    isBhjTransformable
+                  }
                 }
               }
-            }
             TransformHints.tagNotTransformable(bhj, isTransformable)
             TransformHints.tagNotTransformable(exchange, isTransformable)
           case _ =>

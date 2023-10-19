@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.expression;
 
 import io.glutenproject.substrait.type.I16TypeNode;
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.Expression.Literal.Builder;
 
 public class ShortLiteralNode extends LiteralNodeWithValue<Short> {

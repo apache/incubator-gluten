@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.rpc
 
 import io.glutenproject.GlutenConfig
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
-
 import org.apache.spark.rpc.GlutenRpcMessages._
+
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine, RemovalCause, RemovalListener}
 
 import java.util
@@ -93,7 +92,7 @@ class GlutenDriverEndpoint extends IsolatedRpcEndpoint with Logging {
   }
 }
 
-object GlutenDriverEndpoint extends Logging with RemovalListener[String, util.Set[String]]{
+object GlutenDriverEndpoint extends Logging with RemovalListener[String, util.Set[String]] {
   private lazy val executionResourceExpiredTime = SparkEnv.get.conf.getLong(
     GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME,
     GlutenConfig.GLUTEN_RESOURCE_RELATION_EXPIRED_TIME_DEFAULT
@@ -109,10 +108,10 @@ object GlutenDriverEndpoint extends Logging with RemovalListener[String, util.Se
   // We set a maximum expiration time of 1 day by default
   // key: executionId, value: resourceIds
   private val executionResourceRelation: Cache[String, util.Set[String]] =
-  Caffeine.newBuilder
-    .expireAfterAccess(executionResourceExpiredTime, TimeUnit.SECONDS)
-    .removalListener(this)
-    .build[String, util.Set[String]]()
+    Caffeine.newBuilder
+      .expireAfterAccess(executionResourceExpiredTime, TimeUnit.SECONDS)
+      .removalListener(this)
+      .build[String, util.Set[String]]()
 
   def collectResources(executionId: String, resourceId: String): Unit = {
     val resources = executionResourceRelation
@@ -126,9 +125,7 @@ object GlutenDriverEndpoint extends Logging with RemovalListener[String, util.Se
 
   override def onRemoval(key: String, value: util.Set[String], cause: RemovalCause): Unit = {
     executorDataMap.forEach(
-      (_, executor) =>
-        executor.executorEndpointRef.send(GlutenCleanExecutionResource(key, value))
-    )
+      (_, executor) => executor.executorEndpointRef.send(GlutenCleanExecutionResource(key, value)))
   }
 }
 

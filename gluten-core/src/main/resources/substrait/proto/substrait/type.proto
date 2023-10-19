@@ -5,7 +5,6 @@ package substrait;
 
 import "google/protobuf/empty.proto";
 
-option cc_enable_arenas = true;
 option csharp_namespace = "Substrait.Protobuf";
 option go_package = "github.com/substrait-io/substrait-go/proto";
 option java_multiple_files = true;
@@ -234,11 +233,7 @@ message NamedStruct {
   // list of names in dfs order
   repeated string names = 1;
   Type.Struct struct = 2;
-  PartitionColumns partition_columns = 3;
-}
-
-message PartitionColumns {
-  repeated ColumnType column_type = 1;
+  repeated ColumnType column_types = 3;
   enum ColumnType {
     NORMAL_COL = 0;
     PARTITION_COL = 1;

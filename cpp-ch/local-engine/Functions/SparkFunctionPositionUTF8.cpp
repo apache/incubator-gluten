@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <string>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsStringSearch.h>
@@ -88,7 +104,7 @@ struct PositionSparkImpl
     }
 
     /// Search for substring in string.
-    static void constantConstantScalar(std::string data, std::string needle, UInt64 start_pos, UInt64 & res)
+    static void constantConstantScalar(std::string data, const std::string & needle, UInt64 start_pos, UInt64 & res)
     {
         size_t start_byte = Impl::advancePos(data.data(), data.data() + data.size(), start_pos - 1) - data.data();
         res = data.find(needle, start_byte);

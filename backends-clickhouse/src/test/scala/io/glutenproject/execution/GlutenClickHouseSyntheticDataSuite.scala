@@ -29,7 +29,9 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 import java.time.LocalDate
 
-class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with Logging {
+class GlutenClickHouseSyntheticDataSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
+  with Logging {
 
   override protected val backend: String = "ch"
   override protected val fileFormat: String = "parquet"

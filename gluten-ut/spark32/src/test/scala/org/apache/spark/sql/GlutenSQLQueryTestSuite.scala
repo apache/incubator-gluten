@@ -14,17 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.utils.SystemParameters
-import java.io.File
-import java.net.URI
-import java.util.Locale
-
-import scala.collection.mutable.ArrayBuffer
+import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator
@@ -38,14 +31,20 @@ import org.apache.spark.sql.internal.SQLConf.TimestampTypes
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.tags.ExtendedSQLTest
 import org.apache.spark.util.Utils
+
+import java.io.File
+import java.net.URI
+import java.util.Locale
+
+import scala.collection.mutable.ArrayBuffer
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.Try
 
 /**
  * End-to-end test cases for SQL queries.
  *
- * Each case is loaded from a file in "spark/sql/core/src/test/resources/sql-tests/inputs".
- * Each case has a golden result file in "spark/sql/core/src/test/resources/sql-tests/results".
+ * Each case is loaded from a file in "spark/sql/core/src/test/resources/sql-tests/inputs". Each
+ * case has a golden result file in "spark/sql/core/src/test/resources/sql-tests/results".
  *
  * To run the entire test suite:
  * {{{
@@ -68,24 +67,23 @@ import scala.util.Try
  * }}}
  *
  * The format for input files is simple:
- *  1. A list of SQL queries separated by semicolons by default. If the semicolon cannot effectively
- *     separate the SQL queries in the test file(e.g. bracketed comments), please use
- *     --QUERY-DELIMITER-START and --QUERY-DELIMITER-END. Lines starting with
- *     --QUERY-DELIMITER-START and --QUERY-DELIMITER-END represent the beginning and end of a query,
- *     respectively. Code that is not surrounded by lines that begin with --QUERY-DELIMITER-START
- *     and --QUERY-DELIMITER-END is still separated by semicolons.
- *  2. Lines starting with -- are treated as comments and ignored.
- *  3. Lines starting with --SET are used to specify the configs when running this testing file. You
- *     can set multiple configs in one --SET, using comma to separate them. Or you can use multiple
- *     --SET statements.
- *  4. Lines starting with --IMPORT are used to load queries from another test file.
- *  5. Lines starting with --CONFIG_DIM are used to specify config dimensions of this testing file.
- *     The dimension name is decided by the string after --CONFIG_DIM. For example, --CONFIG_DIM1
- *     belongs to dimension 1. One dimension can have multiple lines, each line representing one
- *     config set (one or more configs, separated by comma). Spark will run this testing file many
- *     times, each time picks one config set from each dimension, until all the combinations are
- *     tried. For example, if dimension 1 has 2 lines, dimension 2 has 3 lines, this testing file
- *     will be run 6 times (cartesian product).
+ *   1. A list of SQL queries separated by semicolons by default. If the semicolon cannot
+ *      effectively separate the SQL queries in the test file(e.g. bracketed comments), please use
+ * --QUERY-DELIMITER-START and --QUERY-DELIMITER-END. Lines starting with
+ * --QUERY-DELIMITER-START and --QUERY-DELIMITER-END represent the beginning and end of a query,
+ * respectively. Code that is not surrounded by lines that begin with --QUERY-DELIMITER-START and
+ * --QUERY-DELIMITER-END is still separated by semicolons. 2. Lines starting with -- are treated as
+ * comments and ignored. 3. Lines starting with --SET are used to specify the configs when running
+ * this testing file. You can set multiple configs in one --SET, using comma to separate them. Or
+ * you can use multiple
+ * --SET statements. 4. Lines starting with --IMPORT are used to load queries from another test
+ * file. 5. Lines starting with --CONFIG_DIM are used to specify config dimensions of this testing
+ * file. The dimension name is decided by the string after --CONFIG_DIM. For example, --CONFIG_DIM1
+ * belongs to dimension 1. One dimension can have multiple lines, each line representing one config
+ * set (one or more configs, separated by comma). Spark will run this testing file many times, each
+ * time picks one config set from each dimension, until all the combinations are tried. For example,
+ * if dimension 1 has 2 lines, dimension 2 has 3 lines, this testing file will be run 6 times
+ * (cartesian product).
  *
  * For example:
  * {{{
@@ -114,20 +112,23 @@ import scala.util.Try
  * Note that UDF tests work differently. After the test files under 'inputs/udf' directory are
  * detected, it creates three test cases:
  *
- *  - Scala UDF test case with a Scalar UDF registered as the name 'udf'.
+ *   - Scala UDF test case with a Scalar UDF registered as the name 'udf'.
  *
- *  - Python UDF test case with a Python UDF registered as the name 'udf'
- *    iff Python executable and pyspark are available.
+ *   - Python UDF test case with a Python UDF registered as the name 'udf' iff Python executable and
+ *     pyspark are available.
  *
- *  - Scalar Pandas UDF test case with a Scalar Pandas UDF registered as the name 'udf'
- *    iff Python executable, pyspark, pandas and pyarrow are available.
+ *   - Scalar Pandas UDF test case with a Scalar Pandas UDF registered as the name 'udf' iff Python
+ *     executable, pyspark, pandas and pyarrow are available.
  *
  * Therefore, UDF test cases should have single input and output files but executed by three
  * different types of UDFs. See 'udf/udf-inner-join.sql' as an example.
  */
 @ExtendedSQLTest
-class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
-    with SQLQueryTestHelper {
+class GlutenSQLQueryTestSuite
+  extends QueryTest
+  with SharedSparkSession
+  with SQLHelper
+  with SQLQueryTestHelper {
 
   import IntegratedUDFTestUtils._
 
@@ -156,23 +157,19 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
 
   protected val validFileExtensions = ".sql"
 
-  /**
-   * Test if a command is available.
-   */
+  /** Test if a command is available. */
   def testCommandAvailable(command: String): Boolean = {
     val attempt = if (Utils.isWindows) {
-      Try(Process(Seq(
-        "cmd.exe", "/C", s"where $command")).run(ProcessLogger(_ => ())).exitValue())
+      Try(Process(Seq("cmd.exe", "/C", s"where $command")).run(ProcessLogger(_ => ())).exitValue())
     } else {
-      Try(Process(Seq(
-        "sh", "-c", s"command -v $command")).run(ProcessLogger(_ => ())).exitValue())
+      Try(Process(Seq("sh", "-c", s"command -v $command")).run(ProcessLogger(_ => ())).exitValue())
     }
     attempt.isSuccess && attempt.get == 0
   }
 
-  private val isCHBackend = BackendsApiManager.chBackend
+  private val isCHBackend = BackendTestUtils.isCHBackendLoaded()
 
-  protected override def sparkConf: SparkConf = {
+  override protected def sparkConf: SparkConf = {
     val conf = super.sparkConf
       // Fewer shuffle partitions to speed up testing.
       .set(SQLConf.SHUFFLE_PARTITIONS, 4)
@@ -206,20 +203,24 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
   // here we need to ignore it.
   private val otherIgnoreList =
     if (testCommandAvailable("/bin/bash")) Nil else Set("transform.sql")
+
   /** List of test cases to ignore, in lower cases. */
   protected def ignoreList: Set[String] = Set(
     "ignored.sql", // Do NOT remove this one. It is here to test the ignore functionality.
     "explain-aqe.sql", // explain plan is different
     "explain-cbo.sql", // explain
     "explain.sql", // explain
-    "group-analytics.sql" // wait velox to fix issue 3357
+    "group-analytics.sql", // wait velox to fix issue 3357
+    "array.sql", // blocked by VELOX-5768
+    "higher-order-functions.sql", // blocked by VELOX-5768
+    "udf/udf-window.sql" // Local window fixes are not added.
   ) ++ otherIgnoreList
 
-  /** List of supported cases to run with Velox backend, in lower case.
-   * Please add to the supported list after enabling a sql test.
+  /**
+   * List of supported cases to run with Velox backend, in lower case. Please add to the supported
+   * list after enabling a sql test.
    */
   private val veloxSupportedList: Set[String] = Set(
-    "array.sql",
     "bitwise.sql",
     "cast.sql",
     "change-column.sql",
@@ -261,7 +262,6 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "group-by.sql",
     "grouping_set.sql",
     "having.sql",
-    "higher-order-functions.sql",
     "ignored.sql",
     "inline-table.sql",
     "inner-join.sql",
@@ -398,8 +398,9 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     "udf-window.sql"
   )
 
-  /** List of supported cases to run with Clickhouse backend, in lower case.
-   * Please add to the supported list after enabling a sql test.
+  /**
+   * List of supported cases to run with Clickhouse backend, in lower case. Please add to the
+   * supported list after enabling a sql test.
    */
   private val CHSupportedList: Set[String] = Set()
 
@@ -438,14 +439,10 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
    */
   protected trait PgSQLTest
 
-  /**
-   * traits that indicate ANSI-related tests with the ANSI mode enabled.
-   */
+  /** traits that indicate ANSI-related tests with the ANSI mode enabled. */
   protected trait AnsiTest
 
-  /**
-   * traits that indicate the default timestamp type is TimestampNTZType.
-   */
+  /** traits that indicate the default timestamp type is TimestampNTZType. */
   protected trait TimestampNTZTest
 
   protected trait UDFTest {
@@ -453,61 +450,75 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
   }
 
   /** A regular test case. */
-  protected case class RegularTestCase(
-      name: String, inputFile: String, resultFile: String) extends TestCase
+  protected case class RegularTestCase(name: String, inputFile: String, resultFile: String)
+    extends TestCase
 
   /** A PostgreSQL test case. */
-  protected case class PgSQLTestCase(
-      name: String, inputFile: String, resultFile: String) extends TestCase with PgSQLTest
+  protected case class PgSQLTestCase(name: String, inputFile: String, resultFile: String)
+    extends TestCase
+    with PgSQLTest
 
   /** A UDF test case. */
   protected case class UDFTestCase(
       name: String,
       inputFile: String,
       resultFile: String,
-      udf: TestUDF) extends TestCase with UDFTest
+      udf: TestUDF)
+    extends TestCase
+    with UDFTest
 
   /** A UDF PostgreSQL test case. */
   protected case class UDFPgSQLTestCase(
       name: String,
       inputFile: String,
       resultFile: String,
-      udf: TestUDF) extends TestCase with UDFTest with PgSQLTest
+      udf: TestUDF)
+    extends TestCase
+    with UDFTest
+    with PgSQLTest
 
   /** An ANSI-related test case. */
-  protected case class AnsiTestCase(
-      name: String, inputFile: String, resultFile: String) extends TestCase with AnsiTest
+  protected case class AnsiTestCase(name: String, inputFile: String, resultFile: String)
+    extends TestCase
+    with AnsiTest
 
   /** An date time test case with default timestamp as TimestampNTZType */
-  protected case class TimestampNTZTestCase(
-      name: String, inputFile: String, resultFile: String) extends TestCase with TimestampNTZTest
+  protected case class TimestampNTZTestCase(name: String, inputFile: String, resultFile: String)
+    extends TestCase
+    with TimestampNTZTest
 
   protected def createScalaTestCase(testCase: TestCase): Unit = {
     // If a test case is not in the test list, or it is in the ignore list, ignore this test case.
-    if (!supportedList.exists(t =>
-      testCase.name.toLowerCase(Locale.ROOT).contains(t.toLowerCase(Locale.ROOT))) ||
-      ignoreList.exists(t =>
-        testCase.name.toLowerCase(Locale.ROOT).contains(t.toLowerCase(Locale.ROOT)))) {
+    if (
+      !supportedList.exists(
+        t => testCase.name.toLowerCase(Locale.ROOT).contains(t.toLowerCase(Locale.ROOT))) ||
+      ignoreList.exists(
+        t => testCase.name.toLowerCase(Locale.ROOT).contains(t.toLowerCase(Locale.ROOT)))
+    ) {
       // Create a test case to ignore this case.
       ignore(testCase.name) { /* Do nothing */ }
-    } else testCase match {
-      case udfTestCase: UDFTest
-          if udfTestCase.udf.isInstanceOf[TestPythonUDF] && !shouldTestPythonUDFs =>
-        ignore(s"${testCase.name} is skipped because " +
-          s"[$pythonExec] and/or pyspark were not available.") {
-          /* Do nothing */
-        }
-      case udfTestCase: UDFTest
-          if udfTestCase.udf.isInstanceOf[TestScalarPandasUDF] && !shouldTestScalarPandasUDFs =>
-        ignore(s"${testCase.name} is skipped because pyspark," +
-          s"pandas and/or pyarrow were not available in [$pythonExec].") {
-          /* Do nothing */
-        }
-      case _ =>
-        // Create a test case to run this case.
-        test(testCase.name) {
-          runTest(testCase)
-        }
+    } else {
+      testCase match {
+        case udfTestCase: UDFTest
+            if udfTestCase.udf.isInstanceOf[TestPythonUDF] && !shouldTestPythonUDFs =>
+          ignore(
+            s"${testCase.name} is skipped because " +
+              s"[$pythonExec] and/or pyspark were not available.") {
+            /* Do nothing */
+          }
+        case udfTestCase: UDFTest
+            if udfTestCase.udf.isInstanceOf[TestScalarPandasUDF] && !shouldTestScalarPandasUDFs =>
+          ignore(
+            s"${testCase.name} is skipped because pyspark," +
+              s"pandas and/or pyarrow were not available in [$pythonExec].") {
+            /* Do nothing */
+          }
+        case _ =>
+          // Create a test case to run this case.
+          test(testCase.name) {
+            runTest(testCase)
+          }
+      }
     }
   }
 
@@ -517,9 +528,10 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
       seq.mkString("\n").split("(?<=[^\\\\]);")
     }
 
-    def splitCommentsAndCodes(input: String) = input.split("\n").partition { line =>
-      val newLine = line.trim
-      newLine.startsWith("--") && !newLine.startsWith("--QUERY-DELIMITER")
+    def splitCommentsAndCodes(input: String) = input.split("\n").partition {
+      line =>
+        val newLine = line.trim
+        newLine.startsWith("--") && !newLine.startsWith("--QUERY-DELIMITER")
     }
 
     val input = fileToString(new File(testCase.inputFile))
@@ -529,12 +541,14 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     // If `--IMPORT` found, load code from another test case file, then insert them
     // into the head in this test.
     val importedTestCaseName = comments.filter(_.startsWith("--IMPORT ")).map(_.substring(9))
-    val importedCode = importedTestCaseName.flatMap { testCaseName =>
-      listTestCases.find(_.name == testCaseName).map { testCase =>
-        val input = fileToString(new File(testCase.inputFile))
-        val (_, code) = splitCommentsAndCodes(input)
-        code
-      }
+    val importedCode = importedTestCaseName.flatMap {
+      testCaseName =>
+        listTestCases.find(_.name == testCaseName).map {
+          testCase =>
+            val input = fileToString(new File(testCase.inputFile))
+            val (_, code) = splitCommentsAndCodes(input)
+            code
+        }
     }.flatten
 
     val allCode = importedCode ++ code
@@ -568,14 +582,20 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     }
 
     // List of SQL queries to run
-    val queries = tempQueries.map(_.trim).filter(_ != "").toSeq
+    val queries = tempQueries
+      .map(_.trim)
+      .filter(_ != "")
+      .toSeq
       // Fix misplacement when comment is at the end of the query.
-      .map(_.split("\n").filterNot(_.startsWith("--")).mkString("\n")).map(_.trim).filter(_ != "")
+      .map(_.split("\n").filterNot(_.startsWith("--")).mkString("\n"))
+      .map(_.trim)
+      .filter(_ != "")
 
     val settingLines = comments.filter(_.startsWith("--SET ")).map(_.substring(6))
-    val settings = settingLines.flatMap(_.split(",").map { kv =>
-      val (conf, value) = kv.span(_ != '=')
-      conf.trim -> value.substring(1).trim
+    val settings = settingLines.flatMap(_.split(",").map {
+      kv =>
+        val (conf, value) = kv.span(_ != '=')
+        conf.trim -> value.substring(1).trim
     })
 
     if (regenerateGoldenFiles) {
@@ -588,28 +608,34 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
       // We need to do cartesian product for all the config dimensions, to get a list of
       // config sets, and run the query once for each config set.
       val configDimLines = comments.filter(_.startsWith("--CONFIG_DIM")).map(_.substring(12))
-      val configDims = configDimLines.groupBy(_.takeWhile(_ != ' ')).mapValues { lines =>
-        lines.map(_.dropWhile(_ != ' ').substring(1)).map(_.split(",").map { kv =>
-          val (conf, value) = kv.span(_ != '=')
-          conf.trim -> value.substring(1).trim
-        }.toSeq).toSeq
+      val configDims = configDimLines.groupBy(_.takeWhile(_ != ' ')).mapValues {
+        lines =>
+          lines
+            .map(_.dropWhile(_ != ' ').substring(1))
+            .map(_.split(",")
+              .map {
+                kv =>
+                  val (conf, value) = kv.span(_ != '=')
+                  conf.trim -> value.substring(1).trim
+              }
+              .toSeq)
+            .toSeq
       }
 
-      val configSets = configDims.values.foldLeft(Seq(Seq[(String, String)]())) { (res, dim) =>
-        dim.flatMap { configSet => res.map(_ ++ configSet) }
+      val configSets = configDims.values.foldLeft(Seq(Seq[(String, String)]())) {
+        (res, dim) => dim.flatMap(configSet => res.map(_ ++ configSet))
       }
 
-      configSets.foreach { configSet =>
-        try {
-          runQueries(queries, testCase, settings ++ configSet)
-        } catch {
-          case e: Throwable =>
-            val configs = configSet.map {
-              case (k, v) => s"$k=$v"
-            }
-            logError(s"Error using configs: ${configs.mkString(",")}")
-            throw e
-        }
+      configSets.foreach {
+        configSet =>
+          try {
+            runQueries(queries, testCase, settings ++ configSet)
+          } catch {
+            case e: Throwable =>
+              val configs = configSet.map { case (k, v) => s"$k=$v" }
+              logError(s"Error using configs: ${configs.mkString(",")}")
+              throw e
+          }
       }
     }
   }
@@ -640,7 +666,8 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
       case _: AnsiTest =>
         localSparkSession.conf.set(SQLConf.ANSI_ENABLED.key, true)
       case _: TimestampNTZTest =>
-        localSparkSession.conf.set(SQLConf.TIMESTAMP_TYPE.key,
+        localSparkSession.conf.set(
+          SQLConf.TIMESTAMP_TYPE.key,
           TimestampTypes.TIMESTAMP_NTZ.toString)
       case _ =>
     }
@@ -653,21 +680,22 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     }
 
     // Run the SQL queries preparing them for comparison.
-    val outputs: Seq[QueryOutput] = queries.map { sql =>
-      val (schema, output) = handleExceptions(getNormalizedResult(localSparkSession, sql))
-      // We might need to do some query canonicalization in the future.
-      QueryOutput(
-        sql = sql,
-        schema = schema,
-        output = output.mkString("\n").replaceAll("\\s+$", ""))
+    val outputs: Seq[QueryOutput] = queries.map {
+      sql =>
+        val (schema, output) = handleExceptions(getNormalizedResult(localSparkSession, sql))
+        // We might need to do some query canonicalization in the future.
+        QueryOutput(
+          sql = sql,
+          schema = schema,
+          output = output.mkString("\n").replaceAll("\\s+$", ""))
     }
 
     if (regenerateGoldenFiles) {
       // Again, we are explicitly not using multi-line string due to stripMargin removing "|".
       val goldenOutput = {
         s"-- Automatically generated by ${getClass.getSimpleName}\n" +
-        s"-- Number of queries: ${outputs.size}\n\n\n" +
-        outputs.mkString("\n\n\n") + "\n"
+          s"-- Number of queries: ${outputs.size}\n\n\n" +
+          outputs.mkString("\n\n\n") + "\n"
       }
       val resultFile = new File(testCase.resultFile)
       val parent = resultFile.getParentFile
@@ -701,15 +729,17 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
         val segments = goldenOutput.split("-- !query.*\n")
 
         // each query has 3 segments, plus the header
-        assert(segments.size == outputs.size * 3 + 1,
+        assert(
+          segments.size == outputs.size * 3 + 1,
           s"Expected ${outputs.size * 3 + 1} blocks in result file but got ${segments.size}. " +
             s"Try regenerate the result files.")
-        Seq.tabulate(outputs.size) { i =>
-          QueryOutput(
-            sql = segments(i * 3 + 1).trim,
-            schema = segments(i * 3 + 2).trim,
-            output = segments(i * 3 + 3).replaceAll("\\s+$", "")
-          )
+        Seq.tabulate(outputs.size) {
+          i =>
+            QueryOutput(
+              sql = segments(i * 3 + 1).trim,
+              schema = segments(i * 3 + 2).trim,
+              output = segments(i * 3 + 3).replaceAll("\\s+$", "")
+            )
         }
       }
 
@@ -718,46 +748,53 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
         outputs.size
       }
 
-      outputs.zip(expectedOutputs).zipWithIndex.foreach { case ((output, expected), i) =>
-        assertResult(expected.sql, s"SQL query did not match for query #$i\n${expected.sql}") {
-          output.sql
-        }
-        assertResult(expected.schema,
-          s"Schema did not match for query #$i\n${expected.sql}: $output") {
-          output.schema
-        }
-        assertResult(expected.output, s"Result did not match" +
-          s" for query #$i\n${expected.sql}") { output.output }
+      outputs.zip(expectedOutputs).zipWithIndex.foreach {
+        case ((output, expected), i) =>
+          assertResult(expected.sql, s"SQL query did not match for query #$i\n${expected.sql}") {
+            output.sql
+          }
+          assertResult(
+            expected.schema,
+            s"Schema did not match for query #$i\n${expected.sql}: $output") {
+            output.schema
+          }
+          assertResult(
+            expected.output,
+            s"Result did not match" +
+              s" for query #$i\n${expected.sql}")(output.output)
       }
     }
   }
 
   protected lazy val listTestCases: Seq[TestCase] = {
-    listFilesRecursively(new File(inputFilePath)).flatMap { file =>
-      val resultFile = file.getAbsolutePath.replace(inputFilePath, goldenFilePath) + ".out"
-      val absPath = file.getAbsolutePath
-      val testCaseName = absPath.stripPrefix(inputFilePath).stripPrefix(File.separator)
+    listFilesRecursively(new File(inputFilePath)).flatMap {
+      file =>
+        val resultFile = file.getAbsolutePath.replace(inputFilePath, goldenFilePath) + ".out"
+        val absPath = file.getAbsolutePath
+        val testCaseName = absPath.stripPrefix(inputFilePath).stripPrefix(File.separator)
 
-      if (file.getAbsolutePath.startsWith(
-        s"$inputFilePath${File.separator}udf${File.separator}postgreSQL")) {
-        Seq(TestScalaUDF("udf"), TestPythonUDF("udf"), TestScalarPandasUDF("udf")).map { udf =>
-          UDFPgSQLTestCase(
-            s"$testCaseName - ${udf.prettyName}", absPath, resultFile, udf)
+        if (
+          file.getAbsolutePath.startsWith(
+            s"$inputFilePath${File.separator}udf${File.separator}postgreSQL")
+        ) {
+          Seq(TestScalaUDF("udf"), TestPythonUDF("udf"), TestScalarPandasUDF("udf")).map {
+            udf => UDFPgSQLTestCase(s"$testCaseName - ${udf.prettyName}", absPath, resultFile, udf)
+          }
+        } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}udf")) {
+          Seq(TestScalaUDF("udf"), TestPythonUDF("udf"), TestScalarPandasUDF("udf")).map {
+            udf => UDFTestCase(s"$testCaseName - ${udf.prettyName}", absPath, resultFile, udf)
+          }
+        } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}postgreSQL")) {
+          PgSQLTestCase(testCaseName, absPath, resultFile) :: Nil
+        } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}ansi")) {
+          AnsiTestCase(testCaseName, absPath, resultFile) :: Nil
+        } else if (
+          file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}timestampNTZ")
+        ) {
+          TimestampNTZTestCase(testCaseName, absPath, resultFile) :: Nil
+        } else {
+          RegularTestCase(testCaseName, absPath, resultFile) :: Nil
         }
-      } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}udf")) {
-        Seq(TestScalaUDF("udf"), TestPythonUDF("udf"), TestScalarPandasUDF("udf")).map { udf =>
-          UDFTestCase(
-            s"$testCaseName - ${udf.prettyName}", absPath, resultFile, udf)
-        }
-      } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}postgreSQL")) {
-        PgSQLTestCase(testCaseName, absPath, resultFile) :: Nil
-      } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}ansi")) {
-        AnsiTestCase(testCaseName, absPath, resultFile) :: Nil
-      } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}timestampNTZ")) {
-        TimestampNTZTestCase(testCaseName, absPath, resultFile) :: Nil
-      } else {
-        RegularTestCase(testCaseName, absPath, resultFile) :: Nil
-      }
     }
   }
 
@@ -775,14 +812,17 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
     import session.implicits._
 
     // Before creating test tables, deletes orphan directories in warehouse dir
-    Seq("testdata", "arraydata", "mapdata", "aggtest", "onek", "tenk1").foreach { dirName =>
-      val f = new File(new URI(s"${conf.warehousePath}/$dirName"))
-      if (f.exists()) {
-        Utils.deleteRecursively(f)
-      }
+    Seq("testdata", "arraydata", "mapdata", "aggtest", "onek", "tenk1").foreach {
+      dirName =>
+        val f = new File(new URI(s"${conf.warehousePath}/$dirName"))
+        if (f.exists()) {
+          Utils.deleteRecursively(f)
+        }
     }
 
-    (1 to 100).map(i => (i, i.toString)).toDF("key", "value")
+    (1 to 100)
+      .map(i => (i, i.toString))
+      .toDF("key", "value")
       .repartition(1)
       .write
       .format("parquet")
@@ -804,8 +844,7 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
       .format("parquet")
       .saveAsTable("mapdata")
 
-    session
-      .read
+    session.read
       .format("csv")
       .options(Map("delimiter" -> "\t", "header" -> "false"))
       .schema("a int, b float")
@@ -814,56 +853,52 @@ class GlutenSQLQueryTestSuite extends QueryTest with SharedSparkSession with SQL
       .format("parquet")
       .saveAsTable("aggtest")
 
-    session
-      .read
+    session.read
       .format("csv")
       .options(Map("delimiter" -> "\t", "header" -> "false"))
-      .schema(
-        """
-          |unique1 int,
-          |unique2 int,
-          |two int,
-          |four int,
-          |ten int,
-          |twenty int,
-          |hundred int,
-          |thousand int,
-          |twothousand int,
-          |fivethous int,
-          |tenthous int,
-          |odd int,
-          |even int,
-          |stringu1 string,
-          |stringu2 string,
-          |string4 string
+      .schema("""
+                |unique1 int,
+                |unique2 int,
+                |two int,
+                |four int,
+                |ten int,
+                |twenty int,
+                |hundred int,
+                |thousand int,
+                |twothousand int,
+                |fivethous int,
+                |tenthous int,
+                |odd int,
+                |even int,
+                |stringu1 string,
+                |stringu2 string,
+                |string4 string
         """.stripMargin)
       .load(testDataPath + "/postgresql/onek.data")
       .write
       .format("parquet")
       .saveAsTable("onek")
 
-    session
-      .read
+    session.read
       .format("csv")
       .options(Map("delimiter" -> "\t", "header" -> "false"))
-      .schema(
-        """
-          |unique1 int,
-          |unique2 int,
-          |two int,
-          |four int,
-          |ten int,
-          |twenty int,
-          |hundred int,
-          |thousand int,
-          |twothousand int,
-          |fivethous int,
-          |tenthous int,
-          |odd int,
-          |even int,
-          |stringu1 string,
-          |stringu2 string,
-          |string4 string
+      .schema("""
+                |unique1 int,
+                |unique2 int,
+                |two int,
+                |four int,
+                |ten int,
+                |twenty int,
+                |hundred int,
+                |thousand int,
+                |twothousand int,
+                |fivethous int,
+                |tenthous int,
+                |odd int,
+                |even int,
+                |stringu1 string,
+                |stringu2 string,
+                |string4 string
         """.stripMargin)
       .load(testDataPath + "/postgresql/tenk.data")
       .write

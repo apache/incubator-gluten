@@ -14,10 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io
 
+import io.glutenproject.exception.GlutenException
+
 import java.util.Properties
+
 import scala.util.Try
 
 package object glutenproject {
@@ -27,7 +29,7 @@ package object glutenproject {
       Thread.currentThread().getContextClassLoader.getResourceAsStream(buildFile)
 
     if (buildFileStream == null) {
-      throw new RuntimeException(s"Can not load the core build file: $buildFile")
+      throw new GlutenException(s"Can not load the core build file: $buildFile")
     }
 
     val unknown = "<unknown>"

@@ -16,16 +16,18 @@
  */
 package org.apache.spark.sql.extension
 
-import org.apache.spark.sql.GlutenSQLTestsTrait
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.GlutenSQLTestsTrait
 
 class GlutenCustomerExtensionSuite extends GlutenSQLTestsTrait {
 
   override def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.sql.adaptive.enabled", "false")
-      .set("spark.gluten.sql.columnar.extended.columnar.pre.rules", "org.apache.spark.sql" +
-        ".extension.CustomerColumnarPreRules")
+      .set(
+        "spark.gluten.sql.columnar.extended.columnar.pre.rules",
+        "org.apache.spark.sql" +
+          ".extension.CustomerColumnarPreRules")
       .set("spark.gluten.sql.columnar.extended.columnar.post.rules", "")
   }
 

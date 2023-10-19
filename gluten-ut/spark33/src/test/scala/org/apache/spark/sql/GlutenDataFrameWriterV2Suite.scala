@@ -14,9 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
-class GlutenDataFrameWriterV2Suite extends DataFrameWriterV2Suite
-  with GlutenSQLTestsTrait {
-}
+class GlutenDataFrameWriterV2Suite extends DataFrameWriterV2Suite with GlutenSQLTestsTrait {}
