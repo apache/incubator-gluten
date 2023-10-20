@@ -17,14 +17,12 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.functions.{col, rand, when}
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.functions.{col, rand, when}
 import org.apache.spark.sql.types._
 
-
 import java.io.File
-
 import java.util
 
 case class DataTypesWithNonPrimitiveType(
@@ -77,7 +75,6 @@ class GlutenClickHouseDecimalSuite
     spark.sql(s"DROP database IF EXISTS decimal_${dataType.precision}_${dataType.scale}")
     spark.sql(s"create database IF not EXISTS decimal_${dataType.precision}_${dataType.scale}")
     spark.sql(s"use decimal_${dataType.precision}_${dataType.scale}")
-
 
     // first process the parquet data to:
     // 1. make every column nullable in schema (optional rather than required)
@@ -162,134 +159,125 @@ class GlutenClickHouseDecimalSuite
 
     val customerData = saltedTablesPath + "/customer"
     spark.sql(s"DROP TABLE IF EXISTS customer")
-    spark.sql(
-      s"""
-         | CREATE TABLE IF NOT EXISTS customer (
-         | c_custkey    bigint,
-         | c_name       string,
-         | c_address    string,
-         | c_nationkey  bigint,
-         | c_phone      string,
-         | c_acctbal    decimal(${dataType.precision},${dataType.scale}),
-         | c_mktsegment string,
-         | c_comment    string)
-         | USING PARQUET LOCATION '$customerData'
-         |""".stripMargin)
+    spark.sql(s"""
+                 | CREATE TABLE IF NOT EXISTS customer (
+                 | c_custkey    bigint,
+                 | c_name       string,
+                 | c_address    string,
+                 | c_nationkey  bigint,
+                 | c_phone      string,
+                 | c_acctbal    decimal(${dataType.precision},${dataType.scale}),
+                 | c_mktsegment string,
+                 | c_comment    string)
+                 | USING PARQUET LOCATION '$customerData'
+                 |""".stripMargin)
 
     val lineitemData = saltedTablesPath + "/lineitem"
     spark.sql(s"DROP TABLE IF EXISTS lineitem")
-    spark.sql(
-      s"""
-         | CREATE TABLE IF NOT EXISTS lineitem (
-         | l_orderkey      bigint,
-         | l_partkey       bigint,
-         | l_suppkey       bigint,
-         | l_linenumber    bigint,
-         | l_quantity      decimal(${dataType.precision},${dataType.scale}),
-         | l_extendedprice decimal(${dataType.precision},${dataType.scale}),
-         | l_discount      decimal(${dataType.precision},${dataType.scale}),
-         | l_tax           decimal(${dataType.precision},${dataType.scale}),
-         | l_returnflag    string,
-         | l_linestatus    string,
-         | l_shipdate      date,
-         | l_commitdate    date,
-         | l_receiptdate   date,
-         | l_shipinstruct  string,
-         | l_shipmode      string,
-         | l_comment       string)
-         | USING PARQUET LOCATION '$lineitemData'
-         |""".stripMargin)
+    spark.sql(s"""
+                 | CREATE TABLE IF NOT EXISTS lineitem (
+                 | l_orderkey      bigint,
+                 | l_partkey       bigint,
+                 | l_suppkey       bigint,
+                 | l_linenumber    bigint,
+                 | l_quantity      decimal(${dataType.precision},${dataType.scale}),
+                 | l_extendedprice decimal(${dataType.precision},${dataType.scale}),
+                 | l_discount      decimal(${dataType.precision},${dataType.scale}),
+                 | l_tax           decimal(${dataType.precision},${dataType.scale}),
+                 | l_returnflag    string,
+                 | l_linestatus    string,
+                 | l_shipdate      date,
+                 | l_commitdate    date,
+                 | l_receiptdate   date,
+                 | l_shipinstruct  string,
+                 | l_shipmode      string,
+                 | l_comment       string)
+                 | USING PARQUET LOCATION '$lineitemData'
+                 |""".stripMargin)
 
     val nationData = saltedTablesPath + "/nation"
     spark.sql(s"DROP TABLE IF EXISTS nation")
-    spark.sql(
-      s"""
-         | CREATE TABLE IF NOT EXISTS nation (
-         | n_nationkey bigint,
-         | n_name      string,
-         | n_regionkey bigint,
-         | n_comment   string)
-         | USING PARQUET LOCATION '$nationData'
-         |""".stripMargin)
+    spark.sql(s"""
+                 | CREATE TABLE IF NOT EXISTS nation (
+                 | n_nationkey bigint,
+                 | n_name      string,
+                 | n_regionkey bigint,
+                 | n_comment   string)
+                 | USING PARQUET LOCATION '$nationData'
+                 |""".stripMargin)
 
     val regionData = saltedTablesPath + "/region"
     spark.sql(s"DROP TABLE IF EXISTS region")
-    spark.sql(
-      s"""
-         | CREATE TABLE IF NOT EXISTS region (
-         | r_regionkey bigint,
-         | r_name      string,
-         | r_comment   string)
-         | USING PARQUET LOCATION '$regionData'
-         |""".stripMargin)
+    spark.sql(s"""
+                 | CREATE TABLE IF NOT EXISTS region (
+                 | r_regionkey bigint,
+                 | r_name      string,
+                 | r_comment   string)
+                 | USING PARQUET LOCATION '$regionData'
+                 |""".stripMargin)
 
     val ordersData = saltedTablesPath + "/orders"
     spark.sql(s"DROP TABLE IF EXISTS orders")
-    spark.sql(
-      s"""
-         | CREATE TABLE IF NOT EXISTS orders (
-         | o_orderkey      bigint,
-         | o_custkey       bigint,
-         | o_orderstatus   string,
-         | o_totalprice    decimal(${dataType.precision},${dataType.scale}),
-         | o_orderdate     date,
-         | o_orderpriority string,
-         | o_clerk         string,
-         | o_shippriority  bigint,
-         | o_comment       string)
-         | USING PARQUET LOCATION '$ordersData'
-         |""".stripMargin)
+    spark.sql(s"""
+                 | CREATE TABLE IF NOT EXISTS orders (
+                 | o_orderkey      bigint,
+                 | o_custkey       bigint,
+                 | o_orderstatus   string,
+                 | o_totalprice    decimal(${dataType.precision},${dataType.scale}),
+                 | o_orderdate     date,
+                 | o_orderpriority string,
+                 | o_clerk         string,
+                 | o_shippriority  bigint,
+                 | o_comment       string)
+                 | USING PARQUET LOCATION '$ordersData'
+                 |""".stripMargin)
 
     val partData = saltedTablesPath + "/part"
     spark.sql(s"DROP TABLE IF EXISTS part")
-    spark.sql(
-      s"""
-         | CREATE TABLE IF NOT EXISTS part (
-         | p_partkey     bigint,
-         | p_name        string,
-         | p_mfgr        string,
-         | p_brand       string,
-         | p_type        string,
-         | p_size        bigint,
-         | p_container   string,
-         | p_retailprice decimal(${dataType.precision},${dataType.scale}),
-         | p_comment     string)
-         | USING PARQUET LOCATION '$partData'
-         |""".stripMargin)
+    spark.sql(s"""
+                 | CREATE TABLE IF NOT EXISTS part (
+                 | p_partkey     bigint,
+                 | p_name        string,
+                 | p_mfgr        string,
+                 | p_brand       string,
+                 | p_type        string,
+                 | p_size        bigint,
+                 | p_container   string,
+                 | p_retailprice decimal(${dataType.precision},${dataType.scale}),
+                 | p_comment     string)
+                 | USING PARQUET LOCATION '$partData'
+                 |""".stripMargin)
 
     val partsuppData = saltedTablesPath + "/partsupp"
     spark.sql(s"DROP TABLE IF EXISTS partsupp")
-    spark.sql(
-      s"""
-         | CREATE TABLE IF NOT EXISTS partsupp (
-         | ps_partkey    bigint,
-         | ps_suppkey    bigint,
-         | ps_availqty   bigint,
-         | ps_supplycost decimal(${dataType.precision},${dataType.scale}),
-         | ps_comment    string)
-         | USING PARQUET LOCATION '$partsuppData'
-         |""".stripMargin)
+    spark.sql(s"""
+                 | CREATE TABLE IF NOT EXISTS partsupp (
+                 | ps_partkey    bigint,
+                 | ps_suppkey    bigint,
+                 | ps_availqty   bigint,
+                 | ps_supplycost decimal(${dataType.precision},${dataType.scale}),
+                 | ps_comment    string)
+                 | USING PARQUET LOCATION '$partsuppData'
+                 |""".stripMargin)
 
     val supplierData = saltedTablesPath + "/supplier"
     spark.sql(s"DROP TABLE IF EXISTS supplier")
-    spark.sql(
-      s"""
-         | CREATE TABLE IF NOT EXISTS supplier (
-         | s_suppkey   bigint,
-         | s_name      string,
-         | s_address   string,
-         | s_nationkey bigint,
-         | s_phone     string,
-         | s_acctbal   decimal(${dataType.precision},${dataType.scale}),
-         | s_comment   string)
-         | USING PARQUET LOCATION '$supplierData'
-         |""".stripMargin)
+    spark.sql(s"""
+                 | CREATE TABLE IF NOT EXISTS supplier (
+                 | s_suppkey   bigint,
+                 | s_name      string,
+                 | s_address   string,
+                 | s_nationkey bigint,
+                 | s_phone     string,
+                 | s_acctbal   decimal(${dataType.precision},${dataType.scale}),
+                 | s_comment   string)
+                 | USING PARQUET LOCATION '$supplierData'
+                 |""".stripMargin)
 
     val result = spark
-      .sql(
-        s"""
-           | show tables;
-           |""".stripMargin)
+      .sql(s"""
+              | show tables;
+              |""".stripMargin)
       .collect()
     assert(result.size == 16)
     spark.sql(s"use default")
@@ -301,13 +289,13 @@ class GlutenClickHouseDecimalSuite
       queriesResults: String = queriesResults,
       compareResult: Boolean = true,
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    decimalTPCHTables.foreach(decimalType => {
-      spark.sql(s"use decimal_${decimalType.precision}_${decimalType.scale}")
-      compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
-      spark.sql(s"use default")
-    })
+    decimalTPCHTables.foreach(
+      decimalType => {
+        spark.sql(s"use decimal_${decimalType.precision}_${decimalType.scale}")
+        compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
+        spark.sql(s"use default")
+      })
   }
-
 
   test("TPCH Q20") {
     runTPCHQuery(20)(_ => {})
