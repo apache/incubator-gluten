@@ -32,7 +32,7 @@ gluten::ObjectStore::~ObjectStore() {
 
 gluten::ResourceHandle gluten::ObjectStore::save(std::shared_ptr<void> obj) {
   const std::lock_guard<std::mutex> lock(mtx_);
-  ResourceHandle handle = store_.insert(obj);
+  ResourceHandle handle = store_.insert(std::move(obj));
   aliveObjectHandles_.insert(handle);
   return handle;
 }
