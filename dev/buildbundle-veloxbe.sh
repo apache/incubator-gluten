@@ -8,4 +8,5 @@ mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
 mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
 mvn clean package -Pbackends-velox -Prss -Pspark-3.4 -DskipTests
 mvn clean package -Pbackends-velox -Prss -Pspark-3.5 -DskipTests
-mvn clean package -Pbackends-velox -Prss -Pspark-3.5-2.13 -DskipTests
+# No celbron Scala 2.13 support yet.
+mvn clean package -Pbackends-velox -Pspark-3.5-2.13 -DskipTests

@@ -36,7 +36,7 @@ object SparkExtension {
     val ret = new collection.mutable.ArrayBuffer[SimpleExtension.ScalarFunctionVariant]()
     ret.appendAll(EXTENSION_COLLECTION.scalarFunctions().asScala)
     ret.appendAll(SparkImpls.scalarFunctions().asScala)
-    ret
+    ret.toSeq
   }
 
   val toAggregateFunction: ToAggregateFunction = ToAggregateFunction(

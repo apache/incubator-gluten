@@ -90,7 +90,7 @@ class ToSparkExpression(
       case l: Literal if l.nullable => None
       case other => Some(other)
     }
-    CaseWhen(branches, default)
+    CaseWhen(branches.toSeq, default)
   }
 
   override def visit(expr: SExpression.ScalarSubquery): Expression = {
@@ -110,7 +110,7 @@ class ToSparkExpression(
   override def visit(expr: SExpression.SingleOrList): Expression = {
     val value = expr.condition().accept(this)
     val list = expr.options().asScala.map(e => e.accept(this))
-    In(value, list)
+    In(value, list.toSeq)
   }
   override def visit(expr: SExpression.ScalarFunctionInvocation): Expression = {
     val eArgs = expr.arguments().asScala
@@ -121,7 +121,7 @@ class ToSparkExpression(
 
     scalarFunctionConverter
       .getSparkExpressionFromSubstraitFunc(expr.declaration().key(), expr.outputType())
-      .flatMap(sig => Option(sig.makeCall(args)))
+      .flatMap(sig => Option(sig.makeCall(args.toSeq)))
       .getOrElse({
         val msg = String.format(
           "Unable to convert scalar function %s(%s).",

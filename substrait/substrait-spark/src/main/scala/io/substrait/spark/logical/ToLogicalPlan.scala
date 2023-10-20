@@ -51,7 +51,7 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
     val arguments = measure.getFunction.arguments().asScala.zipWithIndex.map {
       case (arg, i) =>
         arg.accept(measure.getFunction.declaration(), i, expressionConverter)
-    }
+    }.toSeq
 
     val aggregateFunction = SparkExtension.toAggregateFunction
       .getSparkExpressionFromSubstraitFunc(
@@ -100,7 +100,7 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
       val outputs = groupBy.map(toNamedExpression)
       val aggregateExpressions =
         aggregate.getMeasures.asScala.map(fromMeasure).map(toNamedExpression)
-      Aggregate(groupBy, outputs ++= aggregateExpressions, child)
+      Aggregate(groupBy.toSeq, (outputs ++= aggregateExpressions).toSeq, child)
     }
   }
 
@@ -149,7 +149,7 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
   override def visit(sort: relation.Sort): LogicalPlan = {
     val child = sort.getInput.accept(this)
     withChild(child) {
-      val sortOrders = sort.getSortFields.asScala.map(toSortOrder)
+      val sortOrders = sort.getSortFields.asScala.map(toSortOrder).toSeq
       Sort(sortOrders, global = true, child)
     }
   }
@@ -165,7 +165,7 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
       val projectList =
         project.getExpressions.asScala
           .map(expr => expr.accept(expressionConverter))
-          .map(toNamedExpression)
+          .map(toNamedExpression).toSeq
       if (createProject) {
         Project(projectList, child)
       } else {
@@ -187,7 +187,7 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
     LocalRelation(ToSubstraitType.toAttribute(emptyScan.getInitialSchema))
   }
   override def visit(namedScan: relation.NamedScan): LogicalPlan = {
-    resolve(UnresolvedRelation(namedScan.getNames.asScala)) match {
+    resolve(UnresolvedRelation(namedScan.getNames.asScala.toSeq)) match {
       case m: MultiInstanceRelation => m.newInstance()
       case other => other
     }
