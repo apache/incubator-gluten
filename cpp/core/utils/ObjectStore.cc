@@ -29,12 +29,14 @@ gluten::ObjectStore::~ObjectStore() {
     store_.erase(handle);
   }
 }
+
 gluten::ResourceHandle gluten::ObjectStore::save(std::shared_ptr<void> obj) {
   const std::lock_guard<std::mutex> lock(mtx_);
   ResourceHandle handle = store_.insert(obj);
   aliveObjectHandles_.insert(handle);
   return handle;
 }
+
 void gluten::ObjectStore::release(gluten::ResourceHandle handle) {
   const std::lock_guard<std::mutex> lock(mtx_);
   store_.erase(handle);
