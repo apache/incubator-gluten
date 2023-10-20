@@ -114,13 +114,17 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
     conf.getConf(GlutenConfig.GLUTEN_ENABLED) && validateSchema(schema)
   }
 
+  private def shouldFallback(schema: Seq[Attribute], conf: SQLConf): Boolean = {
+    !supportsColumnarInput(schema) ||
+    !conf.getConf(GlutenConfig.COLUMNAR_TABLE_CACHE_ALLOW_ROW_BASED_ENABLED)
+  }
+
   override def convertInternalRowToCachedBatch(
       input: RDD[InternalRow],
       schema: Seq[Attribute],
       storageLevel: StorageLevel,
       conf: SQLConf): RDD[CachedBatch] = {
-    val localSchema = toStructType(schema)
-    if (!validateSchema(localSchema)) {
+    if (shouldFallback(schema, conf)) {
       // we can not use columnar cache here, as the `RowToColumnar` does not support this schema
       return rowBasedCachedBatchSerializer.convertInternalRowToCachedBatch(
         input,
@@ -129,6 +133,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
         conf)
     }
 
+    val localSchema = toStructType(schema)
     // note, these metrics are unused but just make `RowToVeloxColumnarExec` happy
     val metrics = BackendsApiManager.getMetricsApiInstance.genRowToColumnarMetrics(
       SparkSession.getActiveSession.orNull.sparkContext)
@@ -155,7 +160,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
       cacheAttributes: Seq[Attribute],
       selectedAttributes: Seq[Attribute],
       conf: SQLConf): RDD[InternalRow] = {
-    if (!validateSchema(cacheAttributes)) {
+    if (shouldFallback(cacheAttributes, conf)) {
       // if we do not support this schema that means we are using row-based serializer,
       // see `convertInternalRowToCachedBatch`, so fallback to vanilla Spark serializer
       return rowBasedCachedBatchSerializer.convertCachedBatchToInternalRow(

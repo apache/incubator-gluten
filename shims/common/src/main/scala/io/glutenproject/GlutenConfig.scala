@@ -700,6 +700,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val COLUMNAR_TABLE_CACHE_ALLOW_ROW_BASED_ENABLED =
+    buildConf("spark.gluten.sql.columnar.tableCacheAllowRowBasedInput")
+      .internal()
+      .doc("Enable columnar table cache if the input is row-based.")
+      .booleanConf
+      .createWithDefault(false)
+
   val COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE =
     buildConf("spark.gluten.sql.columnar.physicalJoinOptimizationLevel")
       .internal()
