@@ -32,7 +32,7 @@ class VeloxToSubstraitTypeTest : public ::testing::Test {
 
     google::protobuf::Arena arena;
     auto substraitType = typeConvertor_->toSubstraitType(arena, type);
-    auto sameType = substraitTypeToVeloxType(substraitType);
+    auto sameType = SubstraitParser::parseType(substraitType);
     ASSERT_TRUE(sameType->kindEquals(type))
         << "Expected: " << type->toString() << ", but got: " << sameType->toString();
   }
@@ -59,6 +59,6 @@ TEST_F(VeloxToSubstraitTypeTest, basic) {
 
   testTypeConversion(ROW({"a", "b", "c"}, {BIGINT(), BOOLEAN(), VARCHAR()}));
   testTypeConversion(ROW({"a", "b", "c"}, {BIGINT(), ROW({"x", "y"}, {BOOLEAN(), VARCHAR()}), REAL()}));
-  ASSERT_ANY_THROW(testTypeConversion(ROW({}, {})));
+  testTypeConversion(ROW({}, {}));
 }
 } // namespace gluten

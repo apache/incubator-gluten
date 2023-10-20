@@ -252,7 +252,6 @@ set(VELOX_SRCS
     substrait/SubstraitToVeloxPlan.cc
     substrait/SubstraitToVeloxPlanValidator.cc
     substrait/VariantToVectorConverter.cc
-    substrait/TypeUtils.cc
     substrait/SubstraitExtensionCollector.cc
     substrait/VeloxSubstraitSignature.cc
     substrait/VeloxToSubstraitExpr.cc
