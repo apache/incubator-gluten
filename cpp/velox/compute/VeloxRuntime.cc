@@ -119,15 +119,19 @@ std::shared_ptr<ColumnarBatch> VeloxRuntime::createOrGetEmptySchemaBatch(int32_t
   return lookup.at(numRows);
 }
 
-std::shared_ptr<ColumnarBatch>
-VeloxRuntime::select(MemoryManager* memoryManager, std::shared_ptr<ColumnarBatch> batch, std::vector<int32_t> columnIndices) {
+std::shared_ptr<ColumnarBatch> VeloxRuntime::select(
+    MemoryManager* memoryManager,
+    std::shared_ptr<ColumnarBatch> batch,
+    std::vector<int32_t> columnIndices) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   auto veloxBatch = gluten::VeloxColumnarBatch::from(ctxVeloxPool.get(), batch);
   auto outputBatch = veloxBatch->select(ctxVeloxPool.get(), std::move(columnIndices));
   return outputBatch;
 }
 
-std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverter(MemoryManager* memoryManager, struct ArrowSchema* cSchema) {
+std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverter(
+    MemoryManager* memoryManager,
+    struct ArrowSchema* cSchema) {
   auto ctxVeloxPool = getLeafVeloxPool(memoryManager);
   return std::make_shared<VeloxRowToColumnarConverter>(cSchema, ctxVeloxPool);
 }

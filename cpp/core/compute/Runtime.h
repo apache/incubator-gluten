@@ -104,7 +104,9 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   /// the backend to Spark unsafe row.
   virtual std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter(MemoryManager* memoryManager) = 0;
 
-  virtual std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(MemoryManager* memoryManager, struct ArrowSchema* cSchema) = 0;
+  virtual std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(
+      MemoryManager* memoryManager,
+      struct ArrowSchema* cSchema) = 0;
 
   virtual std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,

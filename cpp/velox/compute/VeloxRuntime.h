@@ -119,7 +119,6 @@ class VeloxRuntime final : public Runtime {
       std::vector<facebook::velox::core::PlanNodeId>& streamIds);
 
  private:
-
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
 
   std::unordered_map<int32_t, std::shared_ptr<ColumnarBatch>> emptySchemaBatchLoopUp_;

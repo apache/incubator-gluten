@@ -18,15 +18,15 @@
 #include "ObjectStore.h"
 
 gluten::ObjectStore::~ObjectStore() {
-    // destructing in reversed order (the last added object destructed first)
-    const std::lock_guard<std::mutex> lock(mtx_);
-    for (auto itr = aliveObjectHandles_.rbegin(); itr != aliveObjectHandles_.rend(); itr++) {
-        ResourceHandle handle = *itr;
-        if (store_.lookup(handle) == nullptr) {
-            throw GlutenException("Fatal: resource handle " + std::to_string(handle) + " not found in store");
-        }
-        store_.erase(handle);
+  // destructing in reversed order (the last added object destructed first)
+  const std::lock_guard<std::mutex> lock(mtx_);
+  for (auto itr = aliveObjectHandles_.rbegin(); itr != aliveObjectHandles_.rend(); itr++) {
+    ResourceHandle handle = *itr;
+    if (store_.lookup(handle) == nullptr) {
+      throw GlutenException("Fatal: resource handle " + std::to_string(handle) + " not found in store");
     }
+    store_.erase(handle);
+  }
 }
 gluten::ResourceHandle gluten::ObjectStore::save(std::shared_ptr<void> obj) {
   const std::lock_guard<std::mutex> lock(mtx_);

@@ -566,7 +566,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_NativeRowToColumnarJniW
   auto ctx = gluten::getRuntime(env, wrapper);
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
 
-  return ctx->objectStore()->save(ctx->createRow2ColumnarConverter(memoryManager, reinterpret_cast<struct ArrowSchema*>(cSchema)));
+  return ctx->objectStore()->save(
+      ctx->createRow2ColumnarConverter(memoryManager, reinterpret_cast<struct ArrowSchema*>(cSchema)));
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
@@ -735,8 +736,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_columnarbatch_ColumnarBatchJniWrap
   }
   env->ReleaseIntArrayElements(jcolumnIndices, tmp, JNI_ABORT);
 
-  return ctx->objectStore()->save(ctx->select(
-      memoryManager, ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle), std::move(columnIndices)));
+  return ctx->objectStore()->save(
+      ctx->select(memoryManager, ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle), std::move(columnIndices)));
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
@@ -1332,7 +1333,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ColumnarBatchSerializer
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
 
   auto arrowPool = memoryManager->getArrowMemoryPool();
-  return ctx->objectStore()->save(ctx->createColumnarBatchSerializer(memoryManager, arrowPool, reinterpret_cast<struct ArrowSchema*>(cSchema)));
+  return ctx->objectStore()->save(
+      ctx->createColumnarBatchSerializer(memoryManager, arrowPool, reinterpret_cast<struct ArrowSchema*>(cSchema)));
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
