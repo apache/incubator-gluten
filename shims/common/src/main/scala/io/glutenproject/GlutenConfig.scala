@@ -1015,16 +1015,17 @@ object GlutenConfig {
   val COLUMNAR_VELOX_GLOG_VERBOSE_LEVEL =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.glogVerboseLevel")
       .internal()
-      .doc("Set glog verbose level in Velox backend.")
+      .doc("Set glog verbose level in Velox backend, used for control VLOG().")
       .intConf
-      .createOptional
+      .createWithDefault(0)
 
   val COLUMNAR_VELOX_GLOG_SEVERITY_LEVEL =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel")
       .internal()
-      .doc("Set glog severity level in Velox backend.")
+      .doc("Set glog severity level in Velox backend, used for control LOG(severity), " +
+        "0 for INFO, 1 for WARNING.")
       .intConf
-      .createOptional
+      .createWithDefault(0)
 
   val COLUMNAR_VELOX_SPILL_STRATEGY =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
