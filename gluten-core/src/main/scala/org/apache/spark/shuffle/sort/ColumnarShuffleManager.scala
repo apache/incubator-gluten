@@ -28,7 +28,7 @@ import org.apache.spark.util.collection.OpenHashSet
 import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class ColumnarShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
 

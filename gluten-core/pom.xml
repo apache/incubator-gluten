@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>io.glutenproject</groupId>
@@ -79,7 +79,7 @@
     <dependency>
       <groupId>org.scalacheck</groupId>
       <artifactId>scalacheck_${scala.binary.version}</artifactId>
-      <version>1.13.5</version>
+      <version>1.14.3</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -215,15 +215,15 @@
     <profile>
       <id>backends-velox</id>
       <properties>
-        <backend.type>velox</backend.type>
-        <backend.home>${project.basedir}/../ep/build-velox/build/velox_ep</backend.home>
+	<backend.type>velox</backend.type>
+	<backend.home>${project.basedir}/../ep/build-velox/build/velox_ep</backend.home>
       </properties>
     </profile>
     <profile>
       <id>backends-clickhouse</id>
       <properties>
-        <backend.type>ch</backend.type>
-        <backend.home>${project.basedir}/../cpp-ch/ClickHouse</backend.home>
+	<backend.type>ch</backend.type>
+	<backend.home>${project.basedir}/../cpp-ch/ClickHouse</backend.home>
       </properties>
     </profile>
   </profiles>
@@ -233,126 +233,126 @@
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <resources>
       <resource>
-        <filtering>true</filtering>
-        <!-- Include the properties file to provide the build information. -->
-        <directory>${project.build.directory}/extra-resources</directory>
+	<filtering>true</filtering>
+	<!-- Include the properties file to provide the build information. -->
+	<directory>${project.build.directory}/extra-resources</directory>
       </resource>
     </resources>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>build-info</id>
-            <goals>
-              <goal>run</goal>
-            </goals>
-            <phase>generate-resources</phase>
-            <configuration>
-              <target>
-                <exec executable="bash" osfamily="unix">
-                  <arg value="${project.basedir}/../dev/gluten-build-info.sh"/>
-                  <arg value="${backend.type}"/>
-                  <arg value="${backend.home}"/>
-                  <arg value="${project.build.directory}/extra-resources"/>
-                  <arg value="${project.version}"/>
-                  <arg value="${java.version}"/>
-                  <arg value="${scala.version}"/>
-                  <arg value="${spark.version}"/>
-                  <arg value="${hadoop.version}"/>
-                </exec>
-              </target>
-            </configuration>
-          </execution>
-        </executions>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-antrun-plugin</artifactId>
+	<executions>
+	  <execution>
+	    <id>build-info</id>
+	    <goals>
+	      <goal>run</goal>
+	    </goals>
+	    <phase>generate-resources</phase>
+	    <configuration>
+	      <target>
+		<exec executable="bash" osfamily="unix">
+		  <arg value="${project.basedir}/../dev/gluten-build-info.sh"/>
+		  <arg value="${backend.type}"/>
+		  <arg value="${backend.home}"/>
+		  <arg value="${project.build.directory}/extra-resources"/>
+		  <arg value="${project.version}"/>
+		  <arg value="${java.version}"/>
+		  <arg value="${scala.version}"/>
+		  <arg value="${spark.version}"/>
+		  <arg value="${hadoop.version}"/>
+		</exec>
+	      </target>
+	    </configuration>
+	  </execution>
+	</executions>
       </plugin>
       <!-- compile proto buffer files using copied protoc binary -->
       <plugin>
-        <groupId>org.xolstice.maven.plugins</groupId>
-        <artifactId>protobuf-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>compile-substrait-proto</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>compile</goal>
-              <goal>test-compile</goal>
-            </goals>
-            <configuration>
-              <protocArtifact>
-                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
-              </protocArtifact>
-              <protoSourceRoot>src/main/resources/substrait/proto</protoSourceRoot>
-              <clearOutputDirectory>true</clearOutputDirectory>
-            </configuration>
-          </execution>
-          <execution>
-            <id>compile-gluten-proto</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>compile</goal>
-              <goal>test-compile</goal>
-            </goals>
-            <configuration>
-              <protocArtifact>
-                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
-              </protocArtifact>
-              <protoSourceRoot>src/main/resources/io/glutenproject/proto</protoSourceRoot>
-              <clearOutputDirectory>false</clearOutputDirectory>
-            </configuration>
-          </execution>
-        </executions>
+	<groupId>org.xolstice.maven.plugins</groupId>
+	<artifactId>protobuf-maven-plugin</artifactId>
+	<executions>
+	  <execution>
+	    <id>compile-substrait-proto</id>
+	    <phase>generate-sources</phase>
+	    <goals>
+	      <goal>compile</goal>
+	      <goal>test-compile</goal>
+	    </goals>
+	    <configuration>
+	      <protocArtifact>
+		com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+	      </protocArtifact>
+	      <protoSourceRoot>src/main/resources/substrait/proto</protoSourceRoot>
+	      <clearOutputDirectory>true</clearOutputDirectory>
+	    </configuration>
+	  </execution>
+	  <execution>
+	    <id>compile-gluten-proto</id>
+	    <phase>generate-sources</phase>
+	    <goals>
+	      <goal>compile</goal>
+	      <goal>test-compile</goal>
+	    </goals>
+	    <configuration>
+	      <protocArtifact>
+		com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+	      </protocArtifact>
+	      <protoSourceRoot>src/main/resources/io/glutenproject/proto</protoSourceRoot>
+	      <clearOutputDirectory>false</clearOutputDirectory>
+	    </configuration>
+	  </execution>
+	</executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-resources-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>net.alchim31.maven</groupId>
-        <artifactId>scala-maven-plugin</artifactId>
+	<groupId>net.alchim31.maven</groupId>
+	<artifactId>scala-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-compiler-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
+	<groupId>org.scalastyle</groupId>
+	<artifactId>scalastyle-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>com.diffplug.spotless</groupId>
-        <artifactId>spotless-maven-plugin</artifactId>
-        <configuration>
-          <scala>
-            <scalafmt>
-              <file>${project.basedir}/../.scalafmt.conf</file>
-            </scalafmt>
-          </scala>
-        </configuration>
+	<groupId>com.diffplug.spotless</groupId>
+	<artifactId>spotless-maven-plugin</artifactId>
+	<configuration>
+	  <scala>
+	    <scalafmt>
+	      <file>${project.basedir}/../.scalafmt.conf</file>
+	    </scalafmt>
+	  </scala>
+	</configuration>
       </plugin>
       <plugin>
-        <groupId>org.scalatest</groupId>
-        <artifactId>scalatest-maven-plugin</artifactId>
-        <version>${scalatest-maven-plugin.version}</version>
+	<groupId>org.scalatest</groupId>
+	<artifactId>scalatest-maven-plugin</artifactId>
+	<version>${scalatest-maven-plugin.version}</version>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>${maven.jar.plugin}</version>
-        <executions>
-          <execution>
-            <id>prepare-test-jar</id>
-            <phase>test-compile</phase>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-        </executions>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-jar-plugin</artifactId>
+	<version>${maven.jar.plugin}</version>
+	<executions>
+	  <execution>
+	    <id>prepare-test-jar</id>
+	    <phase>test-compile</phase>
+	    <goals>
+	      <goal>test-jar</goal>
+	    </goals>
+	  </execution>
+	</executions>
       </plugin>
     </plugins>
   </build>

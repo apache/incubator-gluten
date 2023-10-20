@@ -564,17 +564,17 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
                   buildSidePlan.foreach {
                     case e: BroadcastExchangeLike =>
                       maybeHiddenExchange = Some(e)
-                      break
+                      break()
                     case t: BroadcastQueryStageExec =>
                       t.plan.foreach {
                         case e2: BroadcastExchangeLike =>
                           maybeHiddenExchange = Some(e2)
-                          break
+                          break()
                         case r: ReusedExchangeExec =>
                           r.child match {
                             case e2: BroadcastExchangeLike =>
                               maybeHiddenExchange = Some(e2)
-                              break
+                              break()
                             case _ =>
                           }
                         case _ =>

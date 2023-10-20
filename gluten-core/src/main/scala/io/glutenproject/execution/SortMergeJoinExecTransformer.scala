@@ -32,6 +32,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.JoinRel
 
+import scala.jdk.CollectionConverters._
+
 /** Performs a sort merge join of two child relations. */
 case class SortMergeJoinExecTransformer(
     leftKeys: Seq[Expression],

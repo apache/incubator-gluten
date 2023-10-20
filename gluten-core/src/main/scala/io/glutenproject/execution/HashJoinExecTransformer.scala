@@ -44,6 +44,8 @@ import io.substrait.proto.JoinRel
 import java.lang.{Long => JLong}
 import java.util.{Map => JMap}
 
+import scala.jdk.CollectionConverters._
+
 trait ColumnarShuffledJoin extends BaseJoinExec {
   def isSkewJoin: Boolean
 

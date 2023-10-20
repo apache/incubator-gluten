@@ -37,7 +37,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.Any
 
-import scala.collection.JavaConverters._
+import java.util
+
+import scala.jdk.CollectionConverters._
 
 abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkPlan)
   extends UnaryTransformSupport

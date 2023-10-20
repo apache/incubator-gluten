@@ -74,7 +74,7 @@ class Namespace(private val parents: Array[File], private val name: String) {
       path.toFile
   }
 
-  private val cycleLooper = Stream.continually(all).flatten.toIterator
+  private val cycleLooper = LazyList.continually(all).flatten.iterator
 
   def mkChildDirRoundRobin(childDirName: String): File = synchronized {
     if (!cycleLooper.hasNext) {

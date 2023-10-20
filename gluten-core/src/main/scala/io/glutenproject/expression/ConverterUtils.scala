@@ -36,7 +36,7 @@ import java.util.{ArrayList => JArrayList, List => JList}
 import java.util.Locale
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ConverterUtils extends Logging {
 
@@ -104,16 +104,16 @@ object ConverterUtils extends Logging {
     getShortAttributeName(attr) + "#" + attr.exprId.id
   }
 
-  def collectAttributeTypeNodes(attributes: JList[Attribute]): JList[TypeNode] = {
-    collectAttributeTypeNodes(attributes.asScala)
+  def collectAttributeTypeNodes(attributes: JList[Attribute]): JArrayList[TypeNode] = {
+    collectAttributeTypeNodes(attributes.asScala.toSeq)
   }
 
   def collectAttributeTypeNodes(attributes: Seq[Attribute]): JList[TypeNode] = {
     attributes.map(attr => getTypeNode(attr.dataType, attr.nullable)).asJava
   }
 
-  def collectAttributeNamesWithExprId(attributes: JList[Attribute]): JList[String] = {
-    collectAttributeNamesWithExprId(attributes.asScala)
+  def collectAttributeNamesWithExprId(attributes: JList[Attribute]): JArrayList[String] = {
+    collectAttributeNamesWithExprId(attributes.asScala.toSeq)
   }
 
   def collectAttributeNamesWithExprId(attributes: Seq[Attribute]): JList[String] = {
@@ -274,7 +274,7 @@ object ConverterUtils extends Logging {
     for (rowId <- 0 until cb.numRows()) {
       var row = ""
       for (colId <- 0 until cb.numCols()) {
-        row += (cb.column(colId).getUTF8String(rowId) + " ")
+        row += (cb.column(colId).getUTF8String(rowId).toString + " ")
       }
       batch += (row + "\n")
     }

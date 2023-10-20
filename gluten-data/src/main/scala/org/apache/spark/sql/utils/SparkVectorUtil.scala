@@ -26,7 +26,7 @@ import org.apache.arrow.memory.ArrowBuf
 import org.apache.arrow.vector._
 import org.apache.arrow.vector.ipc.message.{ArrowFieldNode, ArrowRecordBatch}
 
-import scala.collection.JavaConverters.{asScalaBufferConverter, seqAsJavaListConverter}
+import scala.jdk.CollectionConverters._
 
 object SparkVectorUtil {
 

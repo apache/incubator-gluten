@@ -35,7 +35,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.collection.BitSet
 
-import scala.collection.JavaConverters
+import scala.jdk.CollectionConverters._
 
 class FileSourceScanExecTransformer(
     @transient relation: HadoopFsRelation,
@@ -151,7 +151,7 @@ class FileSourceScanExecTransformer(
 
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
       readRelNode.setDataSchema(getDataSchemas)
-      readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
+      readRelNode.setProperties(options.asJava)
     }
     transformCtx
   }

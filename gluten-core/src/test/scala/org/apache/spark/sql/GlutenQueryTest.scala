@@ -34,7 +34,8 @@ import org.scalatest.Assertions
 
 import java.util.TimeZone
 
-import scala.collection.JavaConverters._
+import scala.collection.immutable
+import scala.jdk.CollectionConverters._
 import scala.reflect.runtime.universe
 
 abstract class GlutenQueryTest extends PlanTest {
@@ -159,7 +160,7 @@ abstract class GlutenQueryTest extends PlanTest {
   }
 
   protected def checkAnswer(df: => DataFrame, expectedAnswer: DataFrame): Unit = {
-    checkAnswer(df, expectedAnswer.collect())
+    checkAnswer(df, immutable.ArraySeq.unsafeWrapArray(expectedAnswer.collect()))
   }
 
   /**

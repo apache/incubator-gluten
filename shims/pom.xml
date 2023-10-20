@@ -13,8 +13,8 @@
   limitations under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -56,15 +56,15 @@
   <build>
     <pluginManagement>
       <plugins>
-        <plugin>
-          <groupId>org.scalastyle</groupId>
-          <artifactId>scalastyle-maven-plugin</artifactId>
-        </plugin>
-        <plugin>
-          <groupId>com.diffplug.spotless</groupId>
-          <artifactId>spotless-maven-plugin</artifactId>
-          <version>${spotless.version}</version>
-        </plugin>
+	<plugin>
+	  <groupId>org.scalastyle</groupId>
+	  <artifactId>scalastyle-maven-plugin</artifactId>
+	</plugin>
+	<plugin>
+	  <groupId>com.diffplug.spotless</groupId>
+	  <artifactId>spotless-maven-plugin</artifactId>
+	  <version>${spotless.version}</version>
+	</plugin>
       </plugins>
     </pluginManagement>
   </build>
@@ -73,19 +73,31 @@
     <profile>
       <id>spark-3.2</id>
       <modules>
-        <module>spark32</module>
+	<module>spark32</module>
       </modules>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <modules>
-        <module>spark33</module>
+	<module>spark33</module>
       </modules>
     </profile>
     <profile>
       <id>spark-3.4</id>
       <modules>
-        <module>spark34</module>
+	<module>spark34</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>spark-3.5</id>
+      <modules>
+	<module>spark35</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>spark-3.5-2.13</id>
+      <modules>
+	<module>spark35</module>
       </modules>
     </profile>
   </profiles>

@@ -134,7 +134,7 @@ class ShuffledColumnarBatchRDD(
     reader.read().asInstanceOf[Iterator[Product2[Int, ColumnarBatch]]].map(_._2)
   }
 
-  override def clearDependencies() {
+  override def clearDependencies(): Unit = {
     super.clearDependencies()
     dependency = null
   }

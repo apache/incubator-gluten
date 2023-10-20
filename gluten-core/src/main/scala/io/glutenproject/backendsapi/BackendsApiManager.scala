@@ -20,7 +20,7 @@ import io.glutenproject.GlutenPlugin
 
 import java.util.ServiceLoader
 
-import scala.collection.JavaConverters
+import scala.jdk.CollectionConverters._
 
 object BackendsApiManager {
 
@@ -29,7 +29,7 @@ object BackendsApiManager {
   /** Initialize all backends api. */
   private def initializeInternal(): Backend = {
     val discoveredBackends =
-      JavaConverters.iterableAsScalaIterable(ServiceLoader.load(classOf[Backend])).toSeq
+      ServiceLoader.load(classOf[Backend]).asScala.toSeq
     if (discoveredBackends.isEmpty) {
       throw new IllegalStateException("Backend implementation not discovered from JVM classpath")
     }
@@ -90,6 +90,6 @@ object BackendsApiManager {
   }
 
   def getSettings: BackendSettingsApi = {
-    backend.settings
+    backend.settings()
   }
 }

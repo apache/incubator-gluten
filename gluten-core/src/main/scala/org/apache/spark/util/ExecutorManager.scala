@@ -25,7 +25,7 @@ import java.lang.management.ManagementFactory
 object ExecutorManager {
   var isTaskSet: Boolean = false
 
-  def getExecutorIds(sc: SparkContext): Seq[String] = sc.getExecutorIds
+  def getExecutorIds(sc: SparkContext): Seq[String] = sc.getExecutorIds()
 
   def tryTaskSet(numaInfo: GlutenNumaBindingInfo): Any = synchronized {
     if (numaInfo.enableNumaBinding && !isTaskSet) {

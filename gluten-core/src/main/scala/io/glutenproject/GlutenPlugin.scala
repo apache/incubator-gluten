@@ -40,7 +40,7 @@ import org.apache.spark.util.{SparkResourceUtil, TaskResources}
 import java.util
 import java.util.{Collections, Objects}
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.language.implicitConversions
 
 class GlutenPlugin extends SparkPlugin {
@@ -190,7 +190,8 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
 
 private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
   private var executorEndpoint: GlutenExecutorEndpoint = _
-  private val taskListeners: Seq[TaskListener] = Array(TaskResources)
+  private val taskListeners: Seq[TaskListener] =
+    (immutable.ArraySeq.unsafeWrapArray(Array(TaskResources)))
 
   /** Initialize the executor plugin. */
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
@@ -250,7 +251,7 @@ private[glutenproject] class SparkConfImplicits(conf: SparkConf) {
 }
 
 private[glutenproject] trait GlutenSparkExtensionsInjector {
-  def inject(extensions: SparkSessionExtensions)
+  def inject(extensions: SparkSessionExtensions): Unit
 }
 
 private[glutenproject] object GlutenPlugin {

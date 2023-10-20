@@ -25,6 +25,8 @@ import org.apache.spark.sql.execution.PartitionedFileUtil
 import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.util.collection.BitSet
 
+import scala.collection.immutable
+
 case class InputPartitionsUtil(
     relation: HadoopFsRelation,
     selectedPartitions: Array[PartitionDirectory],
@@ -45,8 +47,9 @@ case class InputPartitionsUtil(
 
   private def genNonBuckedInputPartitionSeq(): Seq[InputPartition] = {
     val openCostInBytes = relation.sparkSession.sessionState.conf.filesOpenCostInBytes
-    val maxSplitBytes =
-      FilePartition.maxSplitBytes(relation.sparkSession, selectedPartitions)
+    val maxSplitBytes = FilePartition.maxSplitBytes(
+      relation.sparkSession,
+      immutable.ArraySeq.unsafeWrapArray(selectedPartitions))
     logInfo(
       s"Planning scan with bin packing, max size: $maxSplitBytes bytes, " +
         s"open cost is considered as scanning $openCostInBytes bytes.")
@@ -71,7 +74,10 @@ case class InputPartitionsUtil(
       }
       .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
 
-    FilePartition.getFilePartitions(relation.sparkSession, splitFiles, maxSplitBytes)
+    FilePartition.getFilePartitions(
+      relation.sparkSession,
+      immutable.ArraySeq.unsafeWrapArray(splitFiles),
+      maxSplitBytes)
   }
 
   private def genBucketedInputPartitionSeq(): Seq[InputPartition] = {

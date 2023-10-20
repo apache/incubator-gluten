@@ -37,7 +37,7 @@ import io.substrait.proto.SortField
 
 import java.util.{ArrayList => JArrayList}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 
 case class SortExecTransformer(
@@ -278,7 +278,7 @@ object SortExecTransformer {
       for (sortOrder <- sortOrders) {
         if (!sortOrder.child.isInstanceOf[Attribute]) {
           needsProjection = true
-          break
+          break()
         }
       }
     }

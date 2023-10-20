@@ -28,7 +28,7 @@ import com.google.common.collect.Lists
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /** The extract trait for 'GetDateField' from Date */
 case class ExtractDateTransformer(

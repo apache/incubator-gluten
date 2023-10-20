@@ -34,7 +34,7 @@ import com.google.protobuf.Any
 
 import java.util.{ArrayList => JArrayList, List => JList}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 // Transformer for GeneratorExec, which Applies a [[Generator]] to a stream of input rows.
 // For clickhouse backend, it will transform Spark explode lateral view to CH array join.

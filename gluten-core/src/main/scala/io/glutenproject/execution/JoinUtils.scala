@@ -31,7 +31,9 @@ import org.apache.spark.sql.types.DataType
 import com.google.protobuf.Any
 import io.substrait.proto.JoinRel
 
-import scala.collection.JavaConverters._
+import java.util
+
+import scala.jdk.CollectionConverters._
 
 object JoinUtils {
   private def createEnhancement(output: Seq[Attribute]): com.google.protobuf.Any = {

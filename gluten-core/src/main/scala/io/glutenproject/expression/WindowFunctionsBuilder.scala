@@ -46,7 +46,7 @@ object WindowFunctionsBuilder {
           other.children.foreach(
             child => {
               w = extractWindowExpression(child)
-              break
+              break()
             })
         }
         w

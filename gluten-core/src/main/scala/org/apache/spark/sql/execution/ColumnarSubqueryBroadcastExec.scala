@@ -87,7 +87,7 @@ case class ColumnarSubqueryBroadcastExec(
             ) {
               // transform broadcasted columnar value to Array[InternalRow] by key
               exchangeChild
-                .executeBroadcast[BuildSideRelation]
+                .executeBroadcast[BuildSideRelation]()
                 .value
                 .transform(buildKeys(index))
                 .distinct

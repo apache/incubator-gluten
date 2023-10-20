@@ -22,7 +22,7 @@ import org.apache.spark.util.kvstore.{KVIndex, KVStore, KVStoreView}
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 
-import scala.collection.JavaConverters.asScalaIteratorConverter
+import scala.jdk.CollectionConverters._
 
 /**
  * Provides a view of a KVStore with methods that make it easy to query SQL-specific state. There's

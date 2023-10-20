@@ -22,7 +22,7 @@ import org.apache.arrow.vector.complex.MapVector
 import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, TimeUnit}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field, FieldType, Schema}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /** Originated from org.apache.spark.sql.util.ArrowUtils. */
 object SparkArrowUtil {
@@ -130,7 +130,7 @@ object SparkArrowUtil {
             val dt = fromArrowField(child)
             StructField(child.getName, dt, child.isNullable)
         }
-        StructType(fields)
+        StructType(fields.toSeq)
       case arrowType => fromArrowType(arrowType)
     }
   }
@@ -147,6 +147,6 @@ object SparkArrowUtil {
       field =>
         val dt = fromArrowField(field)
         StructField(field.getName, dt, field.isNullable)
-    })
+    }.toSeq)
   }
 }

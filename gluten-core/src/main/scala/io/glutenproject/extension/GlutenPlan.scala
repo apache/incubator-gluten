@@ -30,7 +30,7 @@ import org.apache.spark.sql.execution.SparkPlan
 
 import com.google.common.collect.Lists
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class ValidationResult(isValid: Boolean, reason: Option[String])
 

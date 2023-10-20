@@ -30,7 +30,7 @@ object UDFMappings extends Logging {
   val pythonUDFMap: Map[String, String] = Map()
   val scalaUDFMap: Map[String, String] = Map()
 
-  private def appendKVToMap(key: String, value: String, res: Map[String, String]) {
+  private def appendKVToMap(key: String, value: String, res: Map[String, String]): Unit = {
     if (key.isEmpty || value.isEmpty()) {
       throw new IllegalArgumentException(s"key:$key or value:$value is empty")
     }
@@ -44,7 +44,7 @@ object UDFMappings extends Logging {
     res.put(key, value)
   }
 
-  private def parseStringToMap(input: String, res: Map[String, String]) {
+  private def parseStringToMap(input: String, res: Map[String, String]): Unit = {
     input.split(",").map {
       item =>
         val keyValue = item.split(":")
@@ -55,7 +55,7 @@ object UDFMappings extends Logging {
     }
   }
 
-  def loadFromSparkConf(conf: SparkConf) {
+  def loadFromSparkConf(conf: SparkConf): Unit = {
     val strHiveUDFs = conf.get(GlutenConfig.GLUTEN_SUPPORTED_HIVE_UDFS, "")
     if (!StringUtils.isBlank(strHiveUDFs)) {
       parseStringToMap(strHiveUDFs, hiveUDFMap)

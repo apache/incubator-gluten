@@ -35,6 +35,8 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.hive.execution.{CreateHiveTableAsSelectCommand, InsertIntoHiveDirCommand, InsertIntoHiveTable}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import scala.collection.immutable
+
 private case class FakeRowLogicAdaptor(child: LogicalPlan) extends OrderPreservingUnaryNode {
   override def output: Seq[Attribute] = child.output
 
@@ -156,23 +158,27 @@ object GlutenWriterColumnarRules {
           child match {
             // if the child is columnar, we can just wrap&transfer the columnar data
             case c2r: ColumnarToRowExecBase =>
-              rc.withNewChildren(Array(FakeRowAdaptor(c2r.child)))
+              rc.withNewChildren(
+                immutable.ArraySeq.unsafeWrapArray(Array(FakeRowAdaptor(c2r.child)))
+              )
             // If the child is aqe, we make aqe "support columnar",
             // then aqe itself will guarantee to generate columnar outputs.
             // So FakeRowAdaptor will always consumes columnar data,
             // thus avoiding the case of c2r->aqe->r2c->writer
             case aqe: AdaptiveSparkPlanExec =>
               rc.withNewChildren(
-                Array(
-                  FakeRowAdaptor(
-                    AdaptiveSparkPlanExec(
-                      aqe.inputPlan,
-                      aqe.context,
-                      aqe.preprocessingRules,
-                      aqe.isSubquery,
-                      supportsColumnar = true
-                    ))))
-            case other => rc.withNewChildren(Array(FakeRowAdaptor(other)))
+                immutable.ArraySeq.unsafeWrapArray(
+                  Array(
+                    FakeRowAdaptor(
+                      AdaptiveSparkPlanExec(
+                        aqe.inputPlan,
+                        aqe.context,
+                        aqe.preprocessingRules,
+                        aqe.isSubquery,
+                        supportsColumnar = true
+                      )))))
+            case other =>
+              rc.withNewChildren(immutable.ArraySeq.unsafeWrapArray(Array(FakeRowAdaptor(other))))
           }
         } else {
           rc.withNewChildren(rc.children.map(apply))

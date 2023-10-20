@@ -178,7 +178,7 @@ class ColumnarShuffleWriter[K, V](
     val startTime = System.nanoTime()
     if (nativeShuffleWriter != -1L) {
       splitResult = jniWrapper.stop(nativeShuffleWriter)
-      closeShuffleWriter
+      closeShuffleWriter()
     }
 
     dep
@@ -246,6 +246,6 @@ class ColumnarShuffleWriter[K, V](
     }
   }
 
-  def getPartitionLengths: Array[Long] = partitionLengths
+  def getPartitionLengths(): Array[Long] = partitionLengths
 
 }

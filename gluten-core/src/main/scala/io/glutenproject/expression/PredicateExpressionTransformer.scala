@@ -25,7 +25,7 @@ import org.apache.spark.sql.types._
 
 import com.google.common.collect.Lists
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class InTransformer(
     value: ExpressionTransformer,

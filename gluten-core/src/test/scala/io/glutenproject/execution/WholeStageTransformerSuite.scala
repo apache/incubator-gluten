@@ -29,6 +29,7 @@ import org.apache.spark.sql.types.{DoubleType, StructType}
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
+import scala.collection.immutable
 import scala.io.Source
 import scala.reflect.ClassTag
 
@@ -171,7 +172,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       WholeStageTransformerSuite.checkFallBack(df, noFallBack)
     }
     customCheck(df)
-    result
+    immutable.ArraySeq.unsafeWrapArray(result)
   }
 
   def checkLengthAndPlan(df: DataFrame, len: Int = 100): Unit = {
@@ -251,7 +252,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     var expected: Seq[Row] = null
     withSQLConf(vanillaSparkConfs(): _*) {
       val df = spark.sql(sqlStr)
-      expected = df.collect()
+      expected = immutable.ArraySeq.unsafeWrapArray(df.collect())
     }
     val df = spark.sql(sqlStr)
     if (cache) {
