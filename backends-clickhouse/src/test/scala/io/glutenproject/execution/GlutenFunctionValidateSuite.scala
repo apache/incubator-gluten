@@ -446,4 +446,15 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       "select cast(concat(cast(id as string), '.1') as int) from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
   }
+
+  test("test cast string to float") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
+        (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select cast('7.921901' as float), cast('7.921901' as double)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
 }
