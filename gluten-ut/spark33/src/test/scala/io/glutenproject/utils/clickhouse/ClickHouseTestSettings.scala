@@ -613,6 +613,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36924: Cast IntegralType to DayTimeIntervalType")
     .exclude("SPARK-36924: Cast YearMonthIntervalType to IntegralType")
     .exclude("SPARK-36924: Cast IntegralType to YearMonthIntervalType")
+    .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude("null cast")
     .exclude("cast string to date")
