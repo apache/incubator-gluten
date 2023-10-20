@@ -110,7 +110,8 @@ class GlutenClickHouseDecimalSuite
                 s"""
                    |select
                    |  o_orderkey,o_custkey,o_orderstatus,
-                   |  cast(o_totalprice as decimal(${dataType.precision},${dataType.scale})),o_orderdate,
+                   |  cast(o_totalprice as decimal(${dataType.precision},${dataType.scale})),
+                   |  o_orderdate,
                    |  o_orderpriority,o_clerk,o_shippriority,o_comment
                    |from ${tableName}_ori
                    |""".stripMargin
@@ -118,14 +119,16 @@ class GlutenClickHouseDecimalSuite
                 s"""
                    |select
                    |  p_partkey,p_name,p_mfgr,p_brand,p_type,p_size,p_container,
-                   |  cast(p_retailprice as decimal(${dataType.precision},${dataType.scale})),p_comment
+                   |  cast(p_retailprice as decimal(${dataType.precision},${dataType.scale})),
+                   |  p_comment
                    |from ${tableName}_ori
                    |""".stripMargin
               case "partsupp" =>
                 s"""
                    |select
                    |  ps_partkey,ps_suppkey,ps_availqty,
-                   |  cast(ps_supplycost as decimal(${dataType.precision},${dataType.scale})),ps_comment
+                   |  cast(ps_supplycost as decimal(${dataType.precision},${dataType.scale})),
+                   |  ps_comment
                    |from ${tableName}_ori
                    |""".stripMargin
               case "supplier" =>
