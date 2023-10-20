@@ -23,7 +23,7 @@
 
 namespace gluten {
 
-// An store for caching shared-ptrs and enlarging lifecycles of the ptrs to match lifecycle of the store itself by
+// A store for caching shared-ptrs and enlarging lifecycles of the ptrs to match lifecycle of the store itself by
 // default, and also serving release calls to release a ptr in advance. This is typically used in JNI scenario to bind
 // a shared-ptr's lifecycle to a Java-side object or some kind of resource manager.
 class ObjectStore {
