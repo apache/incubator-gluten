@@ -16,6 +16,7 @@
  */
 
 #include "ObjectStore.h"
+#include <iostream>
 
 gluten::ObjectStore::~ObjectStore() {
   // destructing in reversed order (the last added object destructed first)
@@ -23,7 +24,7 @@ gluten::ObjectStore::~ObjectStore() {
   for (auto itr = aliveObjectHandles_.rbegin(); itr != aliveObjectHandles_.rend(); itr++) {
     ResourceHandle handle = *itr;
     if (store_.lookup(handle) == nullptr) {
-      throw GlutenException("Fatal: resource handle " + std::to_string(handle) + " not found in store");
+      std::cerr << "Fatal: resource handle " + std::to_string(handle) + " not found in store." << std::endl;
     }
     store_.erase(handle);
   }
