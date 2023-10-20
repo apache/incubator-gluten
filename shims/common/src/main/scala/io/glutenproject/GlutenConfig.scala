@@ -1012,6 +1012,13 @@ object GlutenConfig {
       .intConf
       .createWithDefault(2)
 
+  val COLUMNAR_VELOX_GLOG_VERBOSE_LEVEL =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.glogVerboseLevel")
+      .internal()
+      .doc("Set glog verbose level in Velox backend.")
+      .intConf
+      .createOptional
+
   val COLUMNAR_VELOX_SPILL_STRATEGY =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
       .internal()
@@ -1239,13 +1246,6 @@ object GlutenConfig {
       .internal()
       .doc("If partial aggregation aggregationPct greater than this value, "
         + "partial aggregation may be early abandoned.")
-      .intConf
-      .createOptional
-
-  val COLUMNAR_VELOX_GLOG_VERBOSE_LEVEL =
-    buildConf("spark.gluten.sql.columnar.backend.velox.glogVerboseLevel")
-      .internal()
-      .doc("Set glog verbose level in Velox backend.")
       .intConf
       .createOptional
 }
