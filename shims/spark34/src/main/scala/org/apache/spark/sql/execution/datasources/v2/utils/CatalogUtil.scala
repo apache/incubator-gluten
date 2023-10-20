@@ -14,20 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.utils
+package org.apache.spark.sql.execution.datasources.v2.utils
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.execution.datasources.DataSourceStrategy
-import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.connector.expressions.Transform
 
-object DataSourceStrategyUtil {
+object CatalogUtil {
 
-  /**
-   * Translates a runtime filter into a data source filter.
-   *
-   * Runtime filters usually contain a subquery that must be evaluated before the translation. If
-   * the underlying subquery hasn't completed yet, this method will throw an exception.
-   */
-  def translateRuntimeFilter(expr: Expression): Option[Filter] =
-    DataSourceStrategy.translateRuntimeFilter(expr)
+  def convertPartitionTransforms(partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
+    import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.TransformHelper
+    partitions.toSeq.convertTransforms
+  }
 }
