@@ -137,7 +137,12 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     return taskInfo_;
   }
 
+  const std::unique_ptr<ObjectStore>& objectStore() {
+    return objStore_;
+  }
+
  protected:
+  std::unique_ptr<ObjectStore> objStore_ = ObjectStore::create();
   ::substrait::Plan substraitPlan_;
   SparkTaskInfo taskInfo_;
   // Session conf map

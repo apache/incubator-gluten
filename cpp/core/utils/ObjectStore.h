@@ -15,42 +15,42 @@
  * limitations under the License.
  */
 
-
 #pragma once
 
-#include "utils/ResourceMap.h"
 #include <set>
+#include "utils/ResourceMap.h"
+#include "utils/exception.h"
 
 namespace gluten {
 
-class JniObjectStore {
+// An store for caching shared-ptrs and enlarging lifecycles of the ptrs to match lifecycle of the store itself by
+// default, and also serving release calls to release a ptr in advance. This is typically used in JNI scenario to bind
+// a shared-ptr's lifecycle to a Java-side object or some kind of resource manager.
+class ObjectStore {
  public:
-  static std::unique_ptr<JniObjectStore> create()  {
-    return std::unique_ptr<JniObjectStore>(new JniObjectStore());
+  static std::unique_ptr<ObjectStore> create() {
+    return std::unique_ptr<ObjectStore>(new ObjectStore());
   }
 
-  ResourceHandle save(std::shared_ptr<void> obj) {
-    const std::lock_guard<std::mutex> lock(mtx_);
-    ResourceHandle handle = store_.insert(obj);
-    aliveObjectHandles_.insert(handle);
-    return handle;
-  }
+  virtual ~ObjectStore();
+
+  ResourceHandle save(std::shared_ptr<void> obj);
 
   template <typename T>
   std::shared_ptr<T> retrieve(ResourceHandle handle) {
     const std::lock_guard<std::mutex> lock(mtx_);
     std::shared_ptr<void> object = store_.lookup(handle);
-    // todo
+    // Programming carefully. This will lead to ub if wrong typename T as passed in.
+    auto casted = std::static_pointer_cast<T>(object);
+    return casted;
   }
 
-  void release(ResourceHandle handle) {
-    const std::lock_guard<std::mutex> lock(mtx_);
-  }
+  void release(ResourceHandle handle);
 
  private:
-  JniObjectStore() {};
+  ObjectStore(){};
   ResourceMap<std::shared_ptr<void>> store_;
   std::set<ResourceHandle> aliveObjectHandles_;
   std::mutex mtx_;
 };
-}
+} // namespace gluten

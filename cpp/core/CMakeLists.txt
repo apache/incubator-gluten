@@ -210,6 +210,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         utils/Compression.cc
         utils/DebugOut.cc
         utils/StringUtil.cc
+        utils/ObjectStore.cc
         jni/JniError.cc
         jni/JniCommon.cc)
 
