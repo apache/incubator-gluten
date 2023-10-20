@@ -108,6 +108,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_compile_options(-Wno-macro-redefined)
   add_compile_options(-Wno-nullability-completeness)
   add_compile_options(-Wno-pessimizing-move)
+  add_compile_options(-Wno-mismatched-tags)
 endif()
 
 #
