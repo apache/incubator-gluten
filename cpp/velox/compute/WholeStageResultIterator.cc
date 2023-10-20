@@ -153,12 +153,12 @@ class ConditionalSuspendedSection {
 int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
   std::string poolName{pool_->root()->name() + "/" + pool_->name()};
   std::string logPrefix{"Spill[" + poolName + "]: "};
-  DLOG(INFO) << logPrefix << "Trying to reclaim " << size << " bytes of data...";
-  DLOG(INFO) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes()
-             << "/" << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
-  DLOG(INFO) << logPrefix << "Shrinking...";
+  VLOG(2) << logPrefix << "Trying to reclaim " << size << " bytes of data...";
+  VLOG(2) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes() << "/"
+          << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
+  VLOG(2) << logPrefix << "Shrinking...";
   int64_t shrunken = pool_->shrinkManaged(pool_.get(), size);
-  DLOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
+  VLOG(2) << logPrefix << shrunken << " bytes released from shrinking.";
 
   // todo return the actual spilled size?
   if (spillStrategy_ == "auto") {
@@ -177,13 +177,13 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     uint64_t spilledOut = pool_->reclaim(remaining, status);
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunken + spilledOut;
-    DLOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
+    VLOG(2) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
     return total;
   } else {
     LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";
   }
 
-  DLOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
+  VLOG(2) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
   return shrunken;
 }
 

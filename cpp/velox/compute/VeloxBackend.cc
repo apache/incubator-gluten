@@ -60,6 +60,9 @@ const std::string kEnableUserExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace";
 const std::string kEnableUserExceptionStacktraceDefault = "true";
 
+const std::string kGlogVerboseLevel = "spark.gluten.sql.columnar.backend.velox.glogVerboseLevel";
+const std::string kGlogVerboseLevelDefault = "0";
+
 const std::string kEnableSystemExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace";
 const std::string kEnableSystemExceptionStacktraceDefault = "true";
@@ -116,6 +119,12 @@ void VeloxBackend::printConf(const std::unordered_map<std::string, std::string>&
 }
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
+  // Init glog and verbose level.
+  auto vlogLevel = stoi(getConfigValue(conf, kGlogVerboseLevel, kGlogVerboseLevelDefault));
+  FLAGS_v = vlogLevel;
+  FLAGS_logtostderr = true;
+  google::InitGoogleLogging("gluten");
+
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;
 

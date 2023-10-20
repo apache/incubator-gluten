@@ -1241,4 +1241,11 @@ object GlutenConfig {
         + "partial aggregation may be early abandoned.")
       .intConf
       .createOptional
+
+  val COLUMNAR_VELOX_GLOG_VERBOSE_LEVEL =
+    buildConf("spark.gluten.sql.columnar.backend.velox.glogVerboseLevel")
+      .internal()
+      .doc("Set glog verbose level in Velox backend.")
+      .intConf
+      .createOptional
 }
