@@ -40,7 +40,7 @@ class ObjectStore {
   std::shared_ptr<T> retrieve(ResourceHandle handle) {
     const std::lock_guard<std::mutex> lock(mtx_);
     std::shared_ptr<void> object = store_.lookup(handle);
-    // Programming carefully. This will lead to ub if wrong typename T as passed in.
+    // Programming carefully. This will lead to ub if wrong typename T was passed in.
     auto casted = std::static_pointer_cast<T>(object);
     return casted;
   }
