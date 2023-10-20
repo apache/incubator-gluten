@@ -1019,6 +1019,13 @@ object GlutenConfig {
       .intConf
       .createOptional
 
+  val COLUMNAR_VELOX_GLOG_SEVERITY_LEVEL =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel")
+      .internal()
+      .doc("Set glog severity level in Velox backend.")
+      .intConf
+      .createOptional
+
   val COLUMNAR_VELOX_SPILL_STRATEGY =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
       .internal()
