@@ -139,8 +139,8 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     return taskInfo_;
   }
 
-  const std::unique_ptr<ObjectStore>& objectStore() {
-    return objStore_;
+  ObjectStore* objectStore() {
+    return objStore_.get();
   }
 
  protected:
