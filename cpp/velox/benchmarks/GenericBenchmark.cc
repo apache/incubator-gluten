@@ -145,9 +145,8 @@ auto BM_Generic = [](::benchmark::State& state,
     }
 
     runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
-    auto iterHandle =
+    auto resultIter =
         runtime->createResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
-    auto resultIter = runtime->getResultIterator(iterHandle);
     auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
     if (FLAGS_with_shuffle) {
       int64_t shuffleWriteTime;

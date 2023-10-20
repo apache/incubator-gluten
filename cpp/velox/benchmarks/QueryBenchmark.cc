@@ -66,8 +66,7 @@ std::shared_ptr<ResultIterator> getResultIterator(
       runtime->getConfMap(),
       runtime->getSparkTaskInfo());
   auto iter = std::make_shared<ResultIterator>(std::move(wholestageIter), runtime);
-  auto handle = runtime->addResultIterator(iter);
-  return runtime->getResultIterator(handle);
+  return iter;
 }
 
 auto BM = [](::benchmark::State& state,

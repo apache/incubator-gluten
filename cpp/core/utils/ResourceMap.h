@@ -18,7 +18,7 @@
 #pragma once
 
 #include <mutex>
-#include "folly/container/F14Map.h"
+#include <unordered_map>
 
 namespace gluten {
 
@@ -69,7 +69,7 @@ class ResourceMap {
   ResourceHandle resourceId_;
 
   // map from resource ids returned to Java and resource pointers
-  folly::F14FastMap<ResourceHandle, TResource> map_;
+  std::unordered_map<ResourceHandle, TResource> map_;
 };
 
 } // namespace gluten

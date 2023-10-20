@@ -25,106 +25,64 @@ class DummyRuntime final : public Runtime {
  public:
   DummyRuntime(const std::unordered_map<std::string, std::string>& conf) : Runtime(conf) {}
 
-  ResourceHandle createResultIterator(
+  std::shared_ptr<ResultIterator> createResultIterator(
       MemoryManager* memoryManager,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs,
       const std::unordered_map<std::string, std::string>& sessionConf) override {
     auto resIter = std::make_unique<DummyResultIterator>();
     auto iter = std::make_shared<ResultIterator>(std::move(resIter));
-    return resultIteratorHolder_.insert(iter);
+    return iter;
   }
   MemoryManager* createMemoryManager(
       const std::string& name,
       std::shared_ptr<MemoryAllocator> ptr,
       std::unique_ptr<AllocationListener> uniquePtr) override {
-    return nullptr;
+    throw GlutenException("Not yet implemented");
   }
-  ResourceHandle addResultIterator(std::shared_ptr<ResultIterator> ptr) override {
-    return kInvalidResourceHandle;
+  std::shared_ptr<ColumnarBatch> createOrGetEmptySchemaBatch(int32_t numRows) override {
+    throw GlutenException("Not yet implemented");
   }
-  std::shared_ptr<ResultIterator> getResultIterator(ResourceHandle handle) override {
-    return resultIteratorHolder_.lookup(handle);
+  std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter(MemoryManager* memoryManager) override {
+    throw GlutenException("Not yet implemented");
   }
-  void releaseResultIterator(ResourceHandle handle) override {}
-  ResourceHandle addBatch(std::shared_ptr<ColumnarBatch> ptr) override {
-    return kInvalidResourceHandle;
+  std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(
+      MemoryManager* memoryManager,
+      struct ArrowSchema* cSchema) override {
+    throw GlutenException("Not yet implemented");
   }
-  std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle handle) override {
-    return std::shared_ptr<ColumnarBatch>();
-  }
-  ResourceHandle createOrGetEmptySchemaBatch(int32_t numRows) override {
-    return kInvalidResourceHandle;
-  }
-  void releaseBatch(ResourceHandle handle) override {}
-  ResourceHandle createColumnar2RowConverter(MemoryManager* memoryManager) override {
-    return kInvalidResourceHandle;
-  }
-  std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(ResourceHandle handle) override {
-    return std::shared_ptr<ColumnarToRowConverter>();
-  }
-  void releaseColumnar2RowConverter(ResourceHandle handle) override {}
-  ResourceHandle createRow2ColumnarConverter(MemoryManager* memoryManager, struct ArrowSchema* cSchema) override {
-    return kInvalidResourceHandle;
-  }
-  std::shared_ptr<RowToColumnarConverter> getRow2ColumnarConverter(ResourceHandle handle) override {
-    return std::shared_ptr<RowToColumnarConverter>();
-  }
-  void releaseRow2ColumnarConverter(ResourceHandle handle) override {}
-  ResourceHandle createShuffleWriter(
+  std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
       MemoryManager* memoryManager) override {
-    return kInvalidResourceHandle;
+    throw GlutenException("Not yet implemented");
   }
-  std::shared_ptr<ShuffleWriter> getShuffleWriter(ResourceHandle handle) override {
-    return std::shared_ptr<ShuffleWriter>();
-  }
-  void releaseShuffleWriter(ResourceHandle handle) override {}
   Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {
     static Metrics m(1);
     return &m;
   }
-  ResourceHandle createDatasource(
+  std::shared_ptr<Datasource> createDatasource(
       const std::string& filePath,
       MemoryManager* memoryManager,
       std::shared_ptr<arrow::Schema> schema) override {
-    return kInvalidResourceHandle;
+    throw GlutenException("Not yet implemented");
   }
-  std::shared_ptr<Datasource> getDatasource(ResourceHandle handle) override {
-    return std::shared_ptr<Datasource>();
-  }
-  void releaseDatasource(ResourceHandle handle) override {}
-  ResourceHandle createShuffleReader(
+  std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ShuffleReaderOptions options,
       arrow::MemoryPool* pool,
       MemoryManager* memoryManager) override {
-    return kInvalidResourceHandle;
+    throw GlutenException("Not yet implemented");
   }
-  std::shared_ptr<ShuffleReader> getShuffleReader(ResourceHandle handle) override {
-    return std::shared_ptr<ShuffleReader>();
-  }
-  void releaseShuffleReader(ResourceHandle handle) override {}
-  ResourceHandle createColumnarBatchSerializer(
+  std::unique_ptr<ColumnarBatchSerializer> createColumnarBatchSerializer(
       MemoryManager* memoryManager,
       arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) override {
-    return kInvalidResourceHandle;
+    throw GlutenException("Not yet implemented");
   }
-  std::unique_ptr<ColumnarBatchSerializer> createTempColumnarBatchSerializer(
-      MemoryManager* memoryManager,
-      arrow::MemoryPool* arrowPool,
-      struct ArrowSchema* cSchema) override {
-    return std::unique_ptr<ColumnarBatchSerializer>();
-  }
-  std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(ResourceHandle handle) override {
-    return std::shared_ptr<ColumnarBatchSerializer>();
-  }
-  void releaseColumnarBatchSerializer(ResourceHandle handle) override {}
-  ResourceHandle select(MemoryManager*, ResourceHandle, std::vector<int32_t>) override {
-    return kInvalidResourceHandle;
+  std::shared_ptr<ColumnarBatch> select(MemoryManager*, std::shared_ptr<ColumnarBatch>, std::vector<int32_t>) override {
+    throw GlutenException("Not yet implemented");
   }
 
  private:
@@ -162,8 +120,7 @@ TEST(TestRuntime, CreateRuntime) {
 
 TEST(TestRuntime, GetResultIterator) {
   auto runtime = std::make_shared<DummyRuntime>(std::unordered_map<std::string, std::string>());
-  auto handle = runtime->createResultIterator(nullptr, "/tmp/test-spill", {}, {});
-  auto iter = runtime->getResultIterator(handle);
+  auto iter = runtime->createResultIterator(nullptr, "/tmp/test-spill", {}, {});
   ASSERT_TRUE(iter->hasNext());
   auto next = iter->next();
   ASSERT_NE(next, nullptr);
