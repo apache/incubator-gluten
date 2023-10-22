@@ -132,14 +132,17 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
       private var outputRowCount = 0L
       private var outputVectorCount = 0L
+      private var metricsUpdated = false
 
       override def hasNext: Boolean = {
         val res = resIter.hasNext
-        if (!res) {
+        // avoid to collect native metrics more than once, 'hasNext' is a idempotent operation
+        if (!res && !metricsUpdated) {
           val nativeMetrics = resIter.getMetrics.asInstanceOf[NativeMetrics]
           nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
           updateNativeMetrics(nativeMetrics)
           updateInputMetrics(inputMetrics)
+          metricsUpdated = true
         }
         res
       }
@@ -190,13 +193,16 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val resIter = new Iterator[ColumnarBatch] {
       private var outputRowCount = 0L
       private var outputVectorCount = 0L
+      private var metricsUpdated = false
 
       override def hasNext: Boolean = {
         val res = nativeIterator.hasNext
-        if (!res) {
+        // avoid to collect native metrics more than once, 'hasNext' is a idempotent operation
+        if (!res && !metricsUpdated) {
           val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
           nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
           updateNativeMetrics(nativeMetrics)
+          metricsUpdated = true
         }
         res
       }
