@@ -256,6 +256,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableVeloxUserExceptionStacktrace: Boolean =
     conf.getConf(COLUMNAR_VELOX_ENABLE_USER_EXCEPTION_STACKTRACE)
 
+  def memoryUseHugePages: Boolean =
+    conf.getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
+
   def debug: Boolean = conf.getConf(DEBUG_LEVEL_ENABLED)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
@@ -1177,6 +1180,13 @@ object GlutenConfig {
       .doc("Enable the stacktrace for user type of VeloxException")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.memoryUseHugePages")
+      .internal()
+      .doc("Use explicit huge pages for Velox memory allocation.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_VELOX_ENABLE_SYSTEM_EXCEPTION_STACKTRACE =
     buildConf("spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace")
