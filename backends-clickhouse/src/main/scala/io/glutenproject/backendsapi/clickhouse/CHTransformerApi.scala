@@ -162,18 +162,22 @@ class CHTransformerApi extends TransformerApi with Logging {
 
     // Respect spark config spark.sql.orc.compression.codec for CH backend
     // TODO: consider compression or orc.compression in table options.
-    if (nativeConfMap.containsKey("spark.sql.orc.compression.codec")) {
-      val compression = nativeConfMap.get("spark.sql.orc.compression.codec").toLowerCase()
-      val orcCompressionKey = settingPrefix + "output_format_orc_compression_method"
-      compression match {
-        case "none" => nativeConfMap.put(orcCompressionKey, "none")
-        case "uncompressed" => nativeConfMap.put(orcCompressionKey, "none")
-        case "snappy" => nativeConfMap.put(orcCompressionKey, "snappy")
-        case "zlib" => nativeConfMap.put(orcCompressionKey, "zlib")
-        case "zstd" => nativeConfMap.put(orcCompressionKey, "zstd")
-        case "lz4" => nativeConfMap.put(orcCompressionKey, "lz4")
-        case _ =>
-          throw new UnsupportedOperationException(s"Not supported ORC compression: $compression")
+    val orcCompressionKey = settingPrefix + "output_format_orc_compression_method"
+    if (!nativeConfMap.containsKey(orcCompressionKey)) {
+      if (nativeConfMap.containsKey("spark.sql.orc.compression.codec")) {
+        val compression = nativeConfMap.get("spark.sql.orc.compression.codec").toLowerCase()
+        compression match {
+          case "none" => nativeConfMap.put(orcCompressionKey, "none")
+          case "uncompressed" => nativeConfMap.put(orcCompressionKey, "none")
+          case "snappy" => nativeConfMap.put(orcCompressionKey, "snappy")
+          case "zlib" => nativeConfMap.put(orcCompressionKey, "zlib")
+          case "zstd" => nativeConfMap.put(orcCompressionKey, "zstd")
+          case "lz4" => nativeConfMap.put(orcCompressionKey, "lz4")
+          case _ =>
+            throw new UnsupportedOperationException(s"Not supported ORC compression: $compression")
+        }
+      } else {
+        nativeConfMap.put(orcCompressionKey, "snappy")
       }
     }
   }
