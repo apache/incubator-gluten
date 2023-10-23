@@ -159,6 +159,23 @@ class CHTransformerApi extends TransformerApi with Logging {
     if (!nativeConfMap.containsKey(planOptKey)) {
       nativeConfMap.put(planOptKey, "false")
     }
+
+    // Respect spark config spark.sql.orc.compression.codec for CH backend
+    // TODO: consider compression or orc.compression in table options.
+    if (nativeConfMap.containsKey("spark.sql.orc.compression.codec")) {
+      val compression = nativeConfMap.get("spark.sql.orc.compression.codec").toLowerCase()
+      val orcCompressionKey = settingPrefix + "output_format_orc_compression_method"
+      compression match {
+        case "none" => nativeConfMap.put(orcCompressionKey, "none")
+        case "uncompressed" => nativeConfMap.put(orcCompressionKey, "none")
+        case "snappy" => nativeConfMap.put(orcCompressionKey, "snappy")
+        case "zlib" => nativeConfMap.put(orcCompressionKey, "zlib")
+        case "zstd" => nativeConfMap.put(orcCompressionKey, "zstd")
+        case "lz4" => nativeConfMap.put(orcCompressionKey, "lz4")
+        case _ =>
+          throw new UnsupportedOperationException(s"Not supported ORC compression: $compression")
+      }
+    }
   }
 
   override def getSupportExpressionClassName: util.Set[String] = {
