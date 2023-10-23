@@ -197,5 +197,12 @@
         <module>common</module>
       </modules>
     </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <modules>
+        <module>spark34</module>
+        <module>common</module>
+      </modules>
+    </profile>
   </profiles>
 </project>
