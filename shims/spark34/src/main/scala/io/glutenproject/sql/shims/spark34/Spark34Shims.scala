@@ -18,6 +18,7 @@ package io.glutenproject.sql.shims.spark34
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.expression.{ExpressionNames, Sig}
+import io.glutenproject.expression.ExpressionNames.EMPTY2NULL
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark.SparkException
@@ -59,7 +60,9 @@ class Spark34Shims extends SparkShims {
     list ++ Seq(
       Sig[SplitPart](ExpressionNames.SPLIT_PART),
       Sig[Sec](ExpressionNames.SEC),
-      Sig[Csc](ExpressionNames.CSC))
+      Sig[Csc](ExpressionNames.CSC),
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
+
   }
 
   override def convertPartitionTransforms(
