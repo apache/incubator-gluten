@@ -2070,6 +2070,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("test in-filter contains null value (bigint)") {
+    val sql = "select s_nationkey from supplier where s_nationkey in (null, 1, 2)"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test in-filter contains null value (string)") {
+    val sql = "select n_name from nation where n_name in ('CANADA', null, 'BRAZIL')"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("GLUTEN-3287: diff when divide zero") {
     withSQLConf(
       SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
