@@ -100,6 +100,8 @@ object FileFormatWriter extends Logging {
    * @return
    *   The set of all partition paths that were updated during this write job.
    */
+
+  // scalastyle:off argcount
   def write(
       sparkSession: SparkSession,
       plan: SparkPlan,
@@ -110,7 +112,32 @@ object FileFormatWriter extends Logging {
       partitionColumns: Seq[Attribute],
       bucketSpec: Option[BucketSpec],
       statsTrackers: Seq[WriteJobStatsTracker],
-      options: Map[String, String]): Set[String] = {
+      options: Map[String, String]): Set[String] = write(
+    sparkSession = sparkSession,
+    plan = plan,
+    fileFormat = fileFormat,
+    committer = committer,
+    outputSpec = outputSpec,
+    hadoopConf = hadoopConf,
+    partitionColumns = partitionColumns,
+    bucketSpec = bucketSpec,
+    statsTrackers = statsTrackers,
+    options = options,
+    numStaticPartitionCols = 0
+  )
+
+  def write(
+      sparkSession: SparkSession,
+      plan: SparkPlan,
+      fileFormat: FileFormat,
+      committer: FileCommitProtocol,
+      outputSpec: OutputSpec,
+      hadoopConf: Configuration,
+      partitionColumns: Seq[Attribute],
+      bucketSpec: Option[BucketSpec],
+      statsTrackers: Seq[WriteJobStatsTracker],
+      options: Map[String, String],
+      numStaticPartitionCols: Int = 0): Set[String] = {
 
     val nativeEnabled =
       "true".equals(sparkSession.sparkContext.getLocalProperty("isNativeAppliable"))
@@ -215,8 +242,8 @@ object FileFormatWriter extends Logging {
     )
 
     // We should first sort by partition columns, then bucket id, and finally sorting columns.
-    val requiredOrdering =
-      partitionColumns ++ writerBucketSpec.map(_.bucketIdExpression) ++ sortColumns
+    val requiredOrdering = partitionColumns.drop(numStaticPartitionCols) ++
+      writerBucketSpec.map(_.bucketIdExpression) ++ sortColumns
     // the sort order doesn't matter
     val actualOrdering = empty2NullPlan.outputOrdering.map(_.child)
     val orderingMatched = if (requiredOrdering.length > actualOrdering.length) {
@@ -349,6 +376,7 @@ object FileFormatWriter extends Logging {
         throw QueryExecutionErrors.jobAbortedError(cause)
     }
   }
+  // scalastyle:on argcount
 
   /** Writes data out in a single Spark task. */
   private def executeTask(

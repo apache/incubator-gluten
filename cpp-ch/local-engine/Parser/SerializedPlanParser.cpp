@@ -1839,6 +1839,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 DB::ActionsDAG::NodeRawConstPtrs cast_args({function_node, add_column(type, true), add_column(type, Field())});
                 auto cast = FunctionFactory::instance().get("if", context);
                 function_node = toFunctionNode(actions_dag, "if", cast_args);
+                actions_dag->addOrReplaceInOutputs(*function_node);
             }
             return function_node;
         }

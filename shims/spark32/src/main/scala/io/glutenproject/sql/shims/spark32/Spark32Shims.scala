@@ -16,7 +16,7 @@
  */
 package io.glutenproject.sql.shims.spark32
 
-import io.glutenproject.expression.Sig
+import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark.sql.SparkSession
@@ -28,6 +28,7 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil}
 import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
@@ -43,7 +44,7 @@ class Spark32Shims extends SparkShims {
     HashClusteredDistribution(leftKeys) :: HashClusteredDistribution(rightKeys) :: Nil
   }
 
-  override def expressionMappings: Seq[Sig] = Seq.empty
+  override def expressionMappings: Seq[Sig] = Seq(Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
 
   override def convertPartitionTransforms(
       partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {

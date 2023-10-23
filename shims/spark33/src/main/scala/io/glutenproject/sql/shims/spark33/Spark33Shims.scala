@@ -31,6 +31,7 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
@@ -57,7 +58,8 @@ class Spark33Shims extends SparkShims {
     list ++ Seq(
       Sig[SplitPart](ExpressionNames.SPLIT_PART),
       Sig[Sec](ExpressionNames.SEC),
-      Sig[Csc](ExpressionNames.CSC))
+      Sig[Csc](ExpressionNames.CSC),
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
   }
 
   override def convertPartitionTransforms(
