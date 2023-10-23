@@ -2140,5 +2140,14 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       spark.sql("drop table test_tbl_right_3134")
     }
   }
+
+  test("GLUTEN-3467: Fix 'Names of tuple elements must be unique' error for ch backend") {
+    val sql =
+      """
+        |select named_struct('a', r_regionkey, 'b', r_name, 'a', r_comment) as mergedValue
+        |from region
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
 }
 // scalastyle:on line.size.limit
