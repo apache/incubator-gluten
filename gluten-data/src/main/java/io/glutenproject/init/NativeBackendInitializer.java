@@ -36,7 +36,7 @@ public final class NativeBackendInitializer {
       BackendsApiManager.getSettings().resolveNativeConf(nativeConfMap);
       initialize(JniUtils.toNativeConf(nativeConfMap));
     } catch (Exception e) {
-      LOG.error("Error calling InitializerJniWrapper.initialize(...)", e);
+      LOG.error("Failed to call native backend's initialize method", e);
       throw e;
     }
   }
