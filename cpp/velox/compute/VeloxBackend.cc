@@ -51,6 +51,7 @@
 DECLARE_int32(split_preload_per_driver);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
+DECLARE_bool(velox_memory_use_hugepages);
 
 using namespace facebook;
 
@@ -63,6 +64,9 @@ const std::string kEnableUserExceptionStacktraceDefault = "true";
 const std::string kEnableSystemExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace";
 const std::string kEnableSystemExceptionStacktraceDefault = "true";
+
+const std::string kMemoryUseHugePages = "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages";
+const std::string kMemoryUseHugePagesDefault = "false";
 
 const std::string kHiveConnectorId = "test-hive";
 const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
@@ -137,6 +141,16 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
       enableSystemExceptionStacktrace = got->second;
     }
     FLAGS_velox_exception_system_stacktrace_enabled = (enableSystemExceptionStacktrace == "true");
+  }
+
+  // Set velox_memory_use_hugepages.
+  {
+    auto got = conf.find(kMemoryUseHugePages);
+    std::string memoryUseHugePages = kMemoryUseHugePagesDefault;
+    if (got != conf.end()) {
+      memoryUseHugePages = got->second;
+    }
+    FLAGS_velox_memory_use_hugepages = (memoryUseHugePages == "true");
   }
 
   // Set backtrace_allocation
