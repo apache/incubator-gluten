@@ -184,7 +184,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attrib
 set(SPARK_COLUMNAR_PLUGIN_SRCS
         ${SUBSTRAIT_PROTO_SRCS}
         ${GLUTEN_PROTO_SRCS}
-        compute/ExecutionCtx.cc
+        compute/Runtime.cc
         compute/ProtobufUtils.cc
         compute/ResultIterator.cc
         config/GlutenConfig.cc
@@ -210,6 +210,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         utils/Compression.cc
         utils/DebugOut.cc
         utils/StringUtil.cc
+        utils/ObjectStore.cc
         jni/JniError.cc
         jni/JniCommon.cc)
 

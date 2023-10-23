@@ -145,7 +145,7 @@ object ExecUtil {
               val newHandle = ColumnarBatches.compose(pidBatch, cb)
               // Composed batch already hold pidBatch's shared ref, so close is safe.
               ColumnarBatches.forceClose(pidBatch)
-              (0, ColumnarBatches.create(ColumnarBatches.getExecutionCtx(cb), newHandle))
+              (0, ColumnarBatches.create(ColumnarBatches.getRuntime(cb), newHandle))
           }
       }
     }

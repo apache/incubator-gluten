@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.velox;
 
-import io.glutenproject.exec.ExecutionCtxs;
+import io.glutenproject.exec.Runtimes;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow;
 import org.apache.spark.sql.execution.datasources.BlockStripe;
@@ -53,7 +53,7 @@ public class VeloxBlockStripes extends BlockStripes {
         return new BlockStripe() {
           @Override
           public ColumnarBatch getColumnarBatch() {
-            return ColumnarBatches.create(ExecutionCtxs.contextInstance(), blockAddresses[0]);
+            return ColumnarBatches.create(Runtimes.contextInstance(), blockAddresses[0]);
           }
 
           @Override

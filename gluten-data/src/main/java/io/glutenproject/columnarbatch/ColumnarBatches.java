@@ -17,8 +17,8 @@
 package io.glutenproject.columnarbatch;
 
 import io.glutenproject.exception.GlutenException;
-import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionCtxs;
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.Runtimes;
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
 import io.glutenproject.memory.nmm.NativeMemoryManager;
 import io.glutenproject.utils.ArrowAbiUtil;
@@ -131,7 +131,7 @@ public class ColumnarBatches {
         long outputBatchHandle =
             ColumnarBatchJniWrapper.create()
                 .select(nmm.getNativeInstanceHandle(), iv.handle(), columnIndices);
-        return create(iv.ctx(), outputBatchHandle);
+        return create(iv.runtime(), outputBatchHandle);
       case HEAVY:
         return new ColumnarBatch(
             Arrays.stream(columnIndices).mapToObj(batch::column).toArray(ColumnVector[]::new),
@@ -179,7 +179,7 @@ public class ColumnarBatches {
         ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
         CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
-      ColumnarBatchJniWrapper.forCtx(iv.ctx())
+      ColumnarBatchJniWrapper.forRuntime(iv.runtime())
           .exportToArrow(iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
 
       Data.exportSchema(
@@ -215,15 +215,15 @@ public class ColumnarBatches {
     if (input.numCols() == 0) {
       throw new IllegalArgumentException("batch with zero columns cannot be offloaded");
     }
-    final ExecutionCtx ctx = ExecutionCtxs.contextInstance();
+    final Runtime runtime = Runtimes.contextInstance();
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
       ArrowAbiUtil.exportFromSparkColumnarBatch(
           ArrowBufferAllocators.contextInstance(), input, cSchema, cArray);
       long handle =
-          ColumnarBatchJniWrapper.forCtx(ctx)
+          ColumnarBatchJniWrapper.forRuntime(runtime)
               .createWithArrowArray(cSchema.memoryAddress(), cArray.memoryAddress());
-      ColumnarBatch output = ColumnarBatches.create(ctx, handle);
+      ColumnarBatch output = ColumnarBatches.create(runtime, handle);
 
       // Follow input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
@@ -332,18 +332,18 @@ public class ColumnarBatches {
         Arrays.stream(batches)
             .map(ColumnarBatches::getIndicatorVector)
             .toArray(IndicatorVector[]::new);
-    // We assume all input batches should be managed by same ExecutionCtx.
+    // We assume all input batches should be managed by same Runtime.
     // FIXME: The check could be removed to adopt ownership-transfer semantic
-    final ExecutionCtx[] ctxs =
-        Arrays.stream(ivs).map(IndicatorVector::ctx).distinct().toArray(ExecutionCtx[]::new);
+    final Runtime[] ctxs =
+        Arrays.stream(ivs).map(IndicatorVector::runtime).distinct().toArray(Runtime[]::new);
     Preconditions.checkState(
-        ctxs.length == 1, "All input batches should be managed by same ExecutionCtx.");
+        ctxs.length == 1, "All input batches should be managed by same Runtime.");
     final long[] handles = Arrays.stream(ivs).mapToLong(IndicatorVector::handle).toArray();
-    return ColumnarBatchJniWrapper.forCtx(ctxs[0]).compose(handles);
+    return ColumnarBatchJniWrapper.forRuntime(ctxs[0]).compose(handles);
   }
 
-  public static ColumnarBatch create(ExecutionCtx ctx, long nativeHandle) {
-    final IndicatorVector iv = new IndicatorVector(ctx, nativeHandle);
+  public static ColumnarBatch create(Runtime runtime, long nativeHandle) {
+    final IndicatorVector iv = new IndicatorVector(runtime, nativeHandle);
     int numColumns = Math.toIntExact(iv.getNumColumns());
     int numRows = Math.toIntExact(iv.getNumRows());
     if (numColumns == 0) {
@@ -384,7 +384,7 @@ public class ColumnarBatches {
     return getIndicatorVector(batch).handle();
   }
 
-  public static ExecutionCtx getExecutionCtx(ColumnarBatch batch) {
-    return getIndicatorVector(batch).ctx();
+  public static Runtime getRuntime(ColumnarBatch batch) {
+    return getIndicatorVector(batch).runtime();
   }
 }

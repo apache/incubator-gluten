@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #include "VeloxColumnarBatch.h"
-#include "compute/VeloxExecutionCtx.h"
+#include "compute/VeloxRuntime.h"
 #include "velox/row/UnsafeRowFast.h"
 #include "velox/type/Type.h"
 #include "velox/vector/FlatVector.h"

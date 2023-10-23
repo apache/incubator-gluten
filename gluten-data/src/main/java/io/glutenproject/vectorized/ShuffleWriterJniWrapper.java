@@ -16,26 +16,26 @@
  */
 package io.glutenproject.vectorized;
 
-import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.RuntimeAware;
+import io.glutenproject.exec.Runtimes;
 
 import java.io.IOException;
 
-public class ShuffleWriterJniWrapper implements ExecutionCtxAware {
-  private final ExecutionCtx ctx;
+public class ShuffleWriterJniWrapper implements RuntimeAware {
+  private final Runtime runtime;
 
-  private ShuffleWriterJniWrapper(ExecutionCtx ctx) {
-    this.ctx = ctx;
+  private ShuffleWriterJniWrapper(Runtime runtime) {
+    this.runtime = runtime;
   }
 
   public static ShuffleWriterJniWrapper create() {
-    return new ShuffleWriterJniWrapper(ExecutionCtxs.contextInstance());
+    return new ShuffleWriterJniWrapper(Runtimes.contextInstance());
   }
 
   @Override
-  public long ctxHandle() {
-    return ctx.getHandle();
+  public long handle() {
+    return runtime.getHandle();
   }
 
   /**

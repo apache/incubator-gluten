@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "ExecutionCtx.h"
+#include "Runtime.h"
 #include "utils/Print.h"
 
 namespace gluten {
@@ -23,48 +23,46 @@ namespace gluten {
 namespace {
 class FactoryRegistry {
  public:
-  void registerFactory(const std::string& kind, ExecutionCtx::Factory factory) {
+  void registerFactory(const std::string& kind, Runtime::Factory factory) {
     std::lock_guard<std::mutex> l(mutex_);
-    GLUTEN_CHECK(map_.find(kind) == map_.end(), "ExecutionCtx factory already registered for " + kind);
+    GLUTEN_CHECK(map_.find(kind) == map_.end(), "Runtime factory already registered for " + kind);
     map_[kind] = std::move(factory);
   }
 
-  ExecutionCtx::Factory& getFactory(const std::string& kind) {
+  Runtime::Factory& getFactory(const std::string& kind) {
     std::lock_guard<std::mutex> l(mutex_);
-    GLUTEN_CHECK(map_.find(kind) != map_.end(), "ExecutionCtx factory not registered for " + kind);
+    GLUTEN_CHECK(map_.find(kind) != map_.end(), "Runtime factory not registered for " + kind);
     return map_[kind];
   }
 
   bool unregisterFactory(const std::string& kind) {
     std::lock_guard<std::mutex> l(mutex_);
-    GLUTEN_CHECK(map_.find(kind) != map_.end(), "ExecutionCtx factory not registered for " + kind);
+    GLUTEN_CHECK(map_.find(kind) != map_.end(), "Runtime factory not registered for " + kind);
     return map_.erase(kind);
   }
 
  private:
   std::mutex mutex_;
-  std::unordered_map<std::string, ExecutionCtx::Factory> map_;
+  std::unordered_map<std::string, Runtime::Factory> map_;
 };
 
-FactoryRegistry& executionCtxFactories() {
+FactoryRegistry& runtimeFactories() {
   static FactoryRegistry registry;
   return registry;
 }
 } // namespace
 
-void ExecutionCtx::registerFactory(const std::string& kind, ExecutionCtx::Factory factory) {
-  executionCtxFactories().registerFactory(kind, std::move(factory));
+void Runtime::registerFactory(const std::string& kind, Runtime::Factory factory) {
+  runtimeFactories().registerFactory(kind, std::move(factory));
 }
 
-ExecutionCtx* ExecutionCtx::create(
-    const std::string& kind,
-    const std::unordered_map<std::string, std::string>& sessionConf) {
-  auto& factory = executionCtxFactories().getFactory(kind);
+Runtime* Runtime::create(const std::string& kind, const std::unordered_map<std::string, std::string>& sessionConf) {
+  auto& factory = runtimeFactories().getFactory(kind);
   return factory(sessionConf);
 }
 
-void ExecutionCtx::release(ExecutionCtx* executionCtx) {
-  delete executionCtx;
+void Runtime::release(Runtime* runtime) {
+  delete runtime;
 }
 
 } // namespace gluten

@@ -16,9 +16,9 @@
  */
 package io.glutenproject.datasource;
 
-import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.RuntimeAware;
+import io.glutenproject.exec.Runtimes;
 import io.glutenproject.init.JniUtils;
 import io.glutenproject.vectorized.ColumnarBatchInIterator;
 
@@ -28,20 +28,20 @@ import java.util.Map;
 
 /** The jni file is at `cpp/core/jni/JniWrapper.cc` */
 // FIXME: move to module gluten-data?
-public class DatasourceJniWrapper implements ExecutionCtxAware {
-  private final ExecutionCtx ctx;
+public class DatasourceJniWrapper implements RuntimeAware {
+  private final Runtime runtime;
 
-  private DatasourceJniWrapper(ExecutionCtx ctx) {
-    this.ctx = ctx;
+  private DatasourceJniWrapper(Runtime runtime) {
+    this.runtime = runtime;
   }
 
   public static DatasourceJniWrapper create() {
-    return new DatasourceJniWrapper(ExecutionCtxs.contextInstance());
+    return new DatasourceJniWrapper(Runtimes.contextInstance());
   }
 
   @Override
-  public long ctxHandle() {
-    return ctx.getHandle();
+  public long handle() {
+    return runtime.getHandle();
   }
 
   public long nativeInitDatasource(

@@ -23,9 +23,9 @@ import io.glutenproject.init.JniUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.TaskResource
 
-class ExecutionCtx private[exec] () extends TaskResource {
+class Runtime private[exec] () extends TaskResource {
 
-  private val handle = ExecutionCtxJniWrapper.createExecutionCtx(
+  private val handle = RuntimeJniWrapper.createRuntime(
     BackendsApiManager.getBackendName,
     JniUtils.toNativeConf(
       GlutenConfig.getNativeSessionConf(
@@ -35,9 +35,9 @@ class ExecutionCtx private[exec] () extends TaskResource {
 
   def getHandle: Long = handle
 
-  override def release(): Unit = ExecutionCtxJniWrapper.releaseExecutionCtx(handle)
+  override def release(): Unit = RuntimeJniWrapper.releaseRuntime(handle)
 
   override def priority(): Int = 10
 
-  override def resourceName(): String = s"ExecutionCtx_" + handle
+  override def resourceName(): String = s"Runtime_" + handle
 }

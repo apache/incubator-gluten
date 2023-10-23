@@ -14,28 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.exec
+package io.glutenproject.exec;
 
-import org.apache.spark.util.TaskResources
-
-object ExecutionCtxs {
-  private val EXECUTION_CTX_NAME = "ExecutionCtx"
-
-  /** Get or create the execution ctx which bound with Spark TaskContext. */
-  def contextInstance(): ExecutionCtx = {
-    if (!TaskResources.inSparkTask()) {
-      throw new IllegalStateException("This method must be called in a Spark task.")
-    }
-
-    TaskResources.addResourceIfNotRegistered(EXECUTION_CTX_NAME, () => create())
-  }
-
-  /** Create a temporary execution ctx, caller must invoke ExecutionCtx#release manually. */
-  def tmpInstance(): ExecutionCtx = {
-    create()
-  }
-
-  private def create(): ExecutionCtx = {
-    new ExecutionCtx
-  }
+/**
+ * This defines the base abstraction for the contextual objects that can be transmitted to C++ side
+ * for further native processing.
+ */
+public interface RuntimeAware {
+  long handle();
 }

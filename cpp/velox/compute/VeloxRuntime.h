@@ -18,7 +18,7 @@
 #pragma once
 
 #include "WholeStageResultIterator.h"
-#include "compute/ExecutionCtx.h"
+#include "compute/Runtime.h"
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
@@ -31,11 +31,11 @@
 namespace gluten {
 
 // This kind string must be same with VeloxBackend#name in java side.
-inline static const std::string kVeloxExecutionCtxKind{"velox"};
+inline static const std::string kVeloxRuntimeKind{"velox"};
 
-class VeloxExecutionCtx final : public ExecutionCtx {
+class VeloxRuntime final : public Runtime {
  public:
-  explicit VeloxExecutionCtx(const std::unordered_map<std::string, std::string>& confMap);
+  explicit VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap);
 
   static std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
     if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {
@@ -61,68 +61,51 @@ class VeloxExecutionCtx final : public ExecutionCtx {
   }
 
   // FIXME This is not thread-safe?
-  ResourceHandle createResultIterator(
+  std::shared_ptr<ResultIterator> createResultIterator(
       MemoryManager* memoryManager,
       const std::string& spillDir,
       const std::vector<std::shared_ptr<ResultIterator>>& inputs = {},
       const std::unordered_map<std::string, std::string>& sessionConf = {}) override;
-  ResourceHandle addResultIterator(std::shared_ptr<ResultIterator> ptr) override;
-  std::shared_ptr<ResultIterator> getResultIterator(ResourceHandle handle) override;
-  void releaseResultIterator(ResourceHandle handle) override;
 
-  ResourceHandle createColumnar2RowConverter(MemoryManager* memoryManager) override;
-  std::shared_ptr<ColumnarToRowConverter> getColumnar2RowConverter(ResourceHandle handle) override;
-  void releaseColumnar2RowConverter(ResourceHandle handle) override;
+  std::shared_ptr<ColumnarToRowConverter> createColumnar2RowConverter(MemoryManager* memoryManager) override;
 
-  ResourceHandle addBatch(std::shared_ptr<ColumnarBatch> ptr) override;
-  std::shared_ptr<ColumnarBatch> getBatch(ResourceHandle handle) override;
-  ResourceHandle createOrGetEmptySchemaBatch(int32_t numRows) override;
-  void releaseBatch(ResourceHandle handle) override;
-  ResourceHandle select(MemoryManager* memoryManager, ResourceHandle batch, std::vector<int32_t> columnIndices)
-      override;
+  std::shared_ptr<ColumnarBatch> createOrGetEmptySchemaBatch(int32_t numRows) override;
 
-  ResourceHandle createRow2ColumnarConverter(MemoryManager* memoryManager, struct ArrowSchema* cSchema) override;
-  std::shared_ptr<RowToColumnarConverter> getRow2ColumnarConverter(ResourceHandle handle) override;
-  void releaseRow2ColumnarConverter(ResourceHandle handle) override;
+  std::shared_ptr<ColumnarBatch> select(
+      MemoryManager* memoryManager,
+      std::shared_ptr<ColumnarBatch> batch,
+      std::vector<int32_t> columnIndices) override;
 
-  ResourceHandle createShuffleWriter(
+  std::shared_ptr<RowToColumnarConverter> createRow2ColumnarConverter(
+      MemoryManager* memoryManager,
+      struct ArrowSchema* cSchema) override;
+
+  std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
       std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator,
       const ShuffleWriterOptions& options,
       MemoryManager* memoryManager) override;
-  std::shared_ptr<ShuffleWriter> getShuffleWriter(ResourceHandle handle) override;
-  void releaseShuffleWriter(ResourceHandle handle) override;
 
   Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) override {
     auto iter = static_cast<WholeStageResultIterator*>(rawIter);
     return iter->getMetrics(exportNanos);
   }
 
-  ResourceHandle createDatasource(
+  std::shared_ptr<Datasource> createDatasource(
       const std::string& filePath,
       MemoryManager* memoryManager,
       std::shared_ptr<arrow::Schema> schema) override;
-  std::shared_ptr<Datasource> getDatasource(ResourceHandle handle) override;
-  void releaseDatasource(ResourceHandle handle) override;
 
-  ResourceHandle createShuffleReader(
+  std::shared_ptr<ShuffleReader> createShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
       ShuffleReaderOptions options,
       arrow::MemoryPool* pool,
       MemoryManager* memoryManager) override;
-  std::shared_ptr<ShuffleReader> getShuffleReader(ResourceHandle handle) override;
-  void releaseShuffleReader(ResourceHandle handle) override;
 
-  std::unique_ptr<ColumnarBatchSerializer> createTempColumnarBatchSerializer(
+  std::unique_ptr<ColumnarBatchSerializer> createColumnarBatchSerializer(
       MemoryManager* memoryManager,
       arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) override;
-  ResourceHandle createColumnarBatchSerializer(
-      MemoryManager* memoryManager,
-      arrow::MemoryPool* arrowPool,
-      struct ArrowSchema* cSchema) override;
-  std::shared_ptr<ColumnarBatchSerializer> getColumnarBatchSerializer(ResourceHandle handle) override;
-  void releaseColumnarBatchSerializer(ResourceHandle handle) override;
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
     return veloxPlan_;
@@ -136,18 +119,9 @@ class VeloxExecutionCtx final : public ExecutionCtx {
       std::vector<facebook::velox::core::PlanNodeId>& streamIds);
 
  private:
-  ResourceMap<std::shared_ptr<ColumnarBatch>> columnarBatchHolder_;
-  ResourceMap<std::shared_ptr<Datasource>> datasourceHolder_;
-  ResourceMap<std::shared_ptr<ColumnarToRowConverter>> columnarToRowConverterHolder_;
-  ResourceMap<std::shared_ptr<ShuffleReader>> shuffleReaderHolder_;
-  ResourceMap<std::shared_ptr<ShuffleWriter>> shuffleWriterHolder_;
-  ResourceMap<std::shared_ptr<ColumnarBatchSerializer>> columnarBatchSerializerHolder_;
-  ResourceMap<std::shared_ptr<RowToColumnarConverter>> rowToColumnarConverterHolder_;
-  ResourceMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;
-
   std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan_;
 
-  std::unordered_map<int32_t, ResourceHandle> emptySchemaBatchLoopUp_;
+  std::unordered_map<int32_t, std::shared_ptr<ColumnarBatch>> emptySchemaBatchLoopUp_;
 };
 
 } // namespace gluten
