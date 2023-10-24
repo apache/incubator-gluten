@@ -16,17 +16,15 @@
  */
 #pragma once
 
-#include "BenchmarkUtils.h"
+#include <arrow/io/api.h>
+#include <arrow/record_batch.h>
+#include <arrow/util/range.h>
 
+#include "BenchmarkUtils.h"
 #include "compute/ResultIterator.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/ColumnarBatchIterator.h"
 #include "utils/DebugOut.h"
-
-#include <arrow/c/bridge.h>
-#include <arrow/io/api.h>
-#include <arrow/record_batch.h>
-#include <arrow/util/range.h>
 
 namespace gluten {
 
