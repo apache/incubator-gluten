@@ -87,6 +87,8 @@ trait BackendSettingsApi {
   /** Get the config prefix for each backend */
   def getBackendConfigPrefix: String
 
+  def allowDecimalArithmetic: Boolean = true
+
   def rescaleDecimalIntegralExpression(): Boolean = false
 
   def shuffleSupportedCodec(): Set[String]

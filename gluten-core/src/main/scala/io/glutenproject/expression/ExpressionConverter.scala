@@ -402,9 +402,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(expr.children.head, attributeSeq),
           expr)
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
-        if (!conf.decimalOperationsAllowPrecisionLoss) {
+        // PrecisionLoss=true: velox support / ch not support
+        // PrecisionLoss=false: velox not support / ch support
+        // TODO ch support PrecisionLoss=true
+        if (!BackendsApiManager.getSettings.allowDecimalArithmetic) {
           throw new UnsupportedOperationException(
-            s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} false mode")
+            s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} " +
+              s"${conf.decimalOperationsAllowPrecisionLoss} mode")
         }
         val rescaleBinary = if (BackendsApiManager.getSettings.rescaleDecimalLiteral) {
           DecimalArithmeticUtil.rescaleLiteral(b)

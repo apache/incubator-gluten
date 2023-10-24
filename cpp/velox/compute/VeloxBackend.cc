@@ -31,22 +31,15 @@
 #ifdef GLUTEN_ENABLE_IAA
 #include "utils/qpl/qpl_codec.h"
 #endif
-#include "utils/exception.h"
-#include "velox/common/file/FileSystems.h"
-#include "velox/serializers/PrestoSerializer.h"
-#ifdef ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/RegisterHdfsFileSystem.h"
-#endif
-#ifdef ENABLE_S3
-#include "velox/connectors/hive/storage_adapters/s3fs/RegisterS3FileSystem.h"
-#endif
 #include "jni/JniFileSystem.h"
 #include "udf/UdfLoader.h"
 #include "utils/ConfigExtractor.h"
+#include "utils/exception.h"
+#include "velox/common/caching/SsdCache.h"
+#include "velox/common/file/FileSystems.h"
 #include "velox/common/memory/MmapAllocator.h"
 #include "velox/connectors/hive/HiveConnector.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/parquet/RegisterParquetReader.h"
+#include "velox/serializers/PrestoSerializer.h"
 
 DECLARE_int32(split_preload_per_driver);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
@@ -60,6 +53,12 @@ namespace {
 const std::string kEnableUserExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace";
 const std::string kEnableUserExceptionStacktraceDefault = "true";
+
+const std::string kGlogVerboseLevel = "spark.gluten.sql.columnar.backend.velox.glogVerboseLevel";
+const std::string kGlogVerboseLevelDefault = "0";
+
+const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
+const std::string kGlogSeverityLevelDefault = "0";
 
 const std::string kEnableSystemExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace";
@@ -120,6 +119,16 @@ void VeloxBackend::printConf(const std::unordered_map<std::string, std::string>&
 }
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
+  // Init glog and log level.
+  {
+    auto vlogLevel = stoi(getConfigValue(conf, kGlogVerboseLevel, kGlogVerboseLevelDefault));
+    auto severityLogLevel = stoi(getConfigValue(conf, kGlogSeverityLevel, kGlogSeverityLevelDefault));
+    FLAGS_v = vlogLevel;
+    FLAGS_minloglevel = severityLogLevel;
+    FLAGS_logtostderr = true;
+    google::InitGoogleLogging("gluten");
+  }
+
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;
 
@@ -173,14 +182,9 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::filesystems::registerLocalFileSystem();
   initJolFilesystem(conf);
 
-#ifdef ENABLE_HDFS
-  velox::filesystems::registerHdfsFileSystem();
-#endif
-
   std::unordered_map<std::string, std::string> configurationValues;
-#ifdef ENABLE_S3
-  velox::filesystems::registerS3FileSystem();
 
+#ifdef ENABLE_S3
   std::string awsAccessKey = conf.at("spark.hadoop.fs.s3a.access.key");
   std::string awsSecretKey = conf.at("spark.hadoop.fs.s3a.secret.key");
   std::string awsEndpoint = conf.at("spark.hadoop.fs.s3a.endpoint");
@@ -245,14 +249,12 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 #endif
 
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
-  velox::connector::registerConnectorFactory(std::make_shared<velox::connector::hive::HiveConnectorFactory>());
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
 
   registerConnector(hiveConnector);
-  velox::parquet::registerParquetReaderFactory();
-  velox::dwrf::registerDwrfReaderFactory();
+
   // Register Velox functions
   registerAllFunctions();
   if (!facebook::velox::isRegisteredVectorSerde()) {

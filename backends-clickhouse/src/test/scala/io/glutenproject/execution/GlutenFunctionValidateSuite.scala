@@ -457,4 +457,14 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       )(checkOperatorMatch[ProjectExecTransformer])
     }
   }
+
+  test("test round issue: https://github.com/oap-project/gluten/issues/3462") {
+    runQueryAndCompare(
+      "select round(0.41875d * id , 4) from range(10);"
+    )(checkOperatorMatch[ProjectExecTransformer])
+
+    runQueryAndCompare(
+      "select round(0.41875f * id , 4) from range(10);"
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
 }

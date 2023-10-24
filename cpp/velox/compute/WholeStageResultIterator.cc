@@ -81,8 +81,9 @@ const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 WholeStageResultIterator::WholeStageResultIterator(
     std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
     const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
-    const std::unordered_map<std::string, std::string>& confMap)
-    : veloxPlan_(planNode), confMap_(confMap), pool_(pool) {
+    const std::unordered_map<std::string, std::string>& confMap,
+    const SparkTaskInfo& taskInfo)
+    : veloxPlan_(planNode), confMap_(confMap), taskInfo_(taskInfo), pool_(pool) {
 #ifdef ENABLE_HDFS
   updateHdfsTokens();
 #endif
@@ -153,12 +154,12 @@ class ConditionalSuspendedSection {
 int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
   std::string poolName{pool_->root()->name() + "/" + pool_->name()};
   std::string logPrefix{"Spill[" + poolName + "]: "};
-  DLOG(INFO) << logPrefix << "Trying to reclaim " << size << " bytes of data...";
-  DLOG(INFO) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes()
-             << "/" << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
-  DLOG(INFO) << logPrefix << "Shrinking...";
+  VLOG(2) << logPrefix << "Trying to reclaim " << size << " bytes of data...";
+  VLOG(2) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes() << "/"
+          << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
+  VLOG(2) << logPrefix << "Shrinking...";
   int64_t shrunken = pool_->shrinkManaged(pool_.get(), size);
-  DLOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
+  VLOG(2) << logPrefix << shrunken << " bytes released from shrinking.";
 
   // todo return the actual spilled size?
   if (spillStrategy_ == "auto") {
@@ -177,13 +178,13 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     uint64_t spilledOut = pool_->reclaim(remaining, status);
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunken + spilledOut;
-    DLOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
+    VLOG(2) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
     return total;
   } else {
     LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";
   }
 
-  DLOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
+  VLOG(2) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
   return shrunken;
 }
 
@@ -404,8 +405,8 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
     const std::vector<velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
-    const SparkTaskInfo taskInfo)
-    : WholeStageResultIterator(pool, planNode, confMap),
+    const SparkTaskInfo& taskInfo)
+    : WholeStageResultIterator(pool, planNode, confMap, taskInfo),
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
@@ -451,10 +452,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = velox::exec::Task::create(
-      fmt::format("Gluten stage-{} task-{}", taskInfo.stageId, taskInfo.taskId),
-      std::move(planFragment),
-      0,
-      std::move(queryCtx));
+      fmt::format("Gluten {}", taskInfo_.toString()), std::move(planFragment), 0, std::move(queryCtx));
 
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
@@ -500,17 +498,14 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
     const std::vector<velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
-    const SparkTaskInfo taskInfo)
-    : WholeStageResultIterator(pool, planNode, confMap), streamIds_(streamIds) {
+    const SparkTaskInfo& taskInfo)
+    : WholeStageResultIterator(pool, planNode, confMap, taskInfo), streamIds_(streamIds) {
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = velox::exec::Task::create(
-      fmt::format("Gluten stage-{} task-{}", taskInfo.stageId, taskInfo.taskId),
-      std::move(planFragment),
-      0,
-      std::move(queryCtx));
+      fmt::format("Gluten {}", taskInfo_.toString()), std::move(planFragment), 0, std::move(queryCtx));
 
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());

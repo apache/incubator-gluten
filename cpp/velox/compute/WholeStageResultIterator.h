@@ -36,7 +36,8 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   WholeStageResultIterator(
       std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
       const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
-      const std::unordered_map<std::string, std::string>& confMap);
+      const std::unordered_map<std::string, std::string>& confMap,
+      const SparkTaskInfo& taskInfo);
 
   virtual ~WholeStageResultIterator() {
     if (task_ != nullptr && task_->isRunning()) {
@@ -68,6 +69,8 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
 
   /// A map of custom configs.
   std::unordered_map<std::string, std::string> confMap_;
+
+  const SparkTaskInfo taskInfo_;
 
  private:
   /// Get the Spark confs to Velox query context.
@@ -117,7 +120,7 @@ class WholeStageResultIteratorFirstStage final : public WholeStageResultIterator
       const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
       const std::string spillDir,
       const std::unordered_map<std::string, std::string>& confMap,
-      const SparkTaskInfo taskInfo);
+      const SparkTaskInfo& taskInfo);
 
  private:
   std::vector<facebook::velox::core::PlanNodeId> scanNodeIds_;
@@ -139,7 +142,7 @@ class WholeStageResultIteratorMiddleStage final : public WholeStageResultIterato
       const std::vector<facebook::velox::core::PlanNodeId>& streamIds,
       const std::string spillDir,
       const std::unordered_map<std::string, std::string>& confMap,
-      const SparkTaskInfo taskInfo);
+      const SparkTaskInfo& taskInfo);
 
  private:
   bool noMoreSplits_ = false;
