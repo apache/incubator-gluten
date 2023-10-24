@@ -273,6 +273,7 @@ class GlutenClickHouseNativeWriteTableSuite
   test("test insert into partition") {
     withSQLConf(
       ("spark.gluten.sql.native.writer.enabled", "true"),
+      ("spark.sql.orc.compression.codec", "lz4"),
       ("spark.gluten.enabled", "true")) {
 
       val originDF = spark.createDataFrame(genTestData())
@@ -312,6 +313,7 @@ class GlutenClickHouseNativeWriteTableSuite
 
         val files = recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
           .filter(_.getName.endsWith(s".$format"))
+          .filter(_.getName.stripSuffix(s".$format").endsWith(".lz4"))
         assert(files.length == 1)
         assert(files.head.getAbsolutePath.contains("another_date_field=2020-01-01"))
       }
