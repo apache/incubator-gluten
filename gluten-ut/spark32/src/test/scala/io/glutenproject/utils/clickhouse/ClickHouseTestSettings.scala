@@ -287,7 +287,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
-  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffDisableProject].exclude(
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffWSCGOnDisableProject].exclude(
+    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffWSCGOffDisableProject].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
@@ -297,7 +299,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
-  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableProject].exclude(
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffWSCGOnDisableProject].exclude(
+    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffWSCGOffDisableProject].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenExpressionsSchemaSuite]
   enableSuite[GlutenExtraStrategiesSuite]
