@@ -57,11 +57,18 @@ static const std::unordered_set<std::string> kBlackList = {
     "approx_percentile"};
 
 bool validateColNames(const ::substrait::NamedStruct& schema) {
-  for (auto& name : schema.names()) {
+  // Keeps the same logic with 'Tokenizer::isUnquotedPathCharacter' at
+  // https://github.com/oap-project/velox/blob/update/velox/type/Tokenizer.cpp#L154-L157.
+  auto isUnquotedPathCharacter = [](char c) {
+    return c == ':' || c == '$' || c == '-' || c == '/' || c == '@' || c == '|' || c == '#' || c == '.' || c == '-' ||
+        c == '_' || isalnum(c);
+  };
+
+  for (const auto& name : schema.names()) {
     common::Tokenizer token(name, common::Separators::get());
     for (auto i = 0; i < name.size(); i++) {
       auto c = name[i];
-      if (!token.isUnquotedPathCharacter(c)) {
+      if (!isUnquotedPathCharacter(c)) {
         std::cout << "native validation failed due to: Illegal column charactor " << c << "in column " << name
                   << std::endl;
         return false;
