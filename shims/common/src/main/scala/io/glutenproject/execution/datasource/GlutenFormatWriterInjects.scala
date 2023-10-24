@@ -53,7 +53,7 @@ trait GlutenRowSplitter {
   def splitBlockByPartitionAndBucket(
       row: FakeRow,
       partitionColIndice: Array[Int],
-      hasBucket: Boolean): BlockStripes
+      hasBucket: Boolean): Option[BlockStripes]
 }
 
 object GlutenRowSplitter {
