@@ -1472,7 +1472,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
         }
         *size = beforeEvict - afterEvict;
       } else {
-        DLOG(INFO) << "Evicted all partitions. " << std::to_string(beforeEvict) << " bytes released" << std::endl;
+        VLOG(2) << "Evicted all partitions. " << std::to_string(beforeEvict) << " bytes released" << std::endl;
         *size = beforeEvict;
       }
     }
@@ -1584,7 +1584,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
       RETURN_NOT_OK(shrinkPartitionBuffer(pid));
     }
     auto shrunken = beforeShrink - partitionBufferPool_->bytes_allocated();
-    DLOG(INFO) << shrunken << " bytes released from shrinking.";
+    VLOG(2) << shrunken << " bytes released from shrinking.";
     return shrunken;
   }
 

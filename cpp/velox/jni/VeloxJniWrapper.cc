@@ -49,9 +49,6 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
     return JNI_ERR;
   }
 
-  // logging
-  google::InitGoogleLogging("gluten");
-  FLAGS_logtostderr = true;
   gluten::getJniCommonState()->ensureInitialized(env);
   gluten::getJniErrorState()->ensureInitialized(env);
   gluten::initVeloxJniFileSystem(env);
