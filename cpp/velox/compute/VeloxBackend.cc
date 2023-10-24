@@ -249,7 +249,6 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 #endif
 
   auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
-  velox::connector::registerConnectorFactory(std::make_shared<velox::connector::hive::HiveConnectorFactory>());
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
