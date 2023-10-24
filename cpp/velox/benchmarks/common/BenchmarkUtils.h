@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <arrow/c/abi.h>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>

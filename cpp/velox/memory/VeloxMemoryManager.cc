@@ -197,12 +197,12 @@ MemoryUsageStats collectMemoryUsageStatsInternal(const velox::memory::MemoryPool
 int64_t shrinkVeloxMemoryPool(velox::memory::MemoryPool* pool, int64_t size) {
   std::string poolName{pool->root()->name() + "/" + pool->name()};
   std::string logPrefix{"Shrink[" + poolName + "]: "};
-  DLOG(INFO) << logPrefix << "Trying to shrink " << size << " bytes of data...";
-  DLOG(INFO) << logPrefix << "Pool has reserved " << pool->currentBytes() << "/" << pool->root()->reservedBytes() << "/"
-             << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
-  DLOG(INFO) << logPrefix << "Shrinking...";
+  VLOG(2) << logPrefix << "Trying to shrink " << size << " bytes of data...";
+  VLOG(2) << logPrefix << "Pool has reserved " << pool->currentBytes() << "/" << pool->root()->reservedBytes() << "/"
+          << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
+  VLOG(2) << logPrefix << "Shrinking...";
   int64_t shrunken = pool->shrinkManaged(pool, size);
-  DLOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
+  VLOG(2) << logPrefix << shrunken << " bytes released from shrinking.";
   return shrunken;
 }
 } // namespace
