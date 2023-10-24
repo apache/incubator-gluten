@@ -21,6 +21,7 @@ import io.glutenproject.GlutenConfig
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
+import org.apache.spark.sql.internal.StaticSQLConf
 
 class GlutenCachedTableSuite
   extends CachedTableSuite
@@ -31,6 +32,9 @@ class GlutenCachedTableSuite
     super.sparkConf
       .set("spark.sql.shuffle.partitions", "5")
       .set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
+      .set(
+        StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
+        "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
   }
 
   test("GLUTEN - InMemoryRelation statistics") {
