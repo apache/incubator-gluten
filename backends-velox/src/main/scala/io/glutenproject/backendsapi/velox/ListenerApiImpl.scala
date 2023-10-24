@@ -39,7 +39,7 @@ class ListenerApiImpl extends ListenerApi {
 
   override def onDriverStart(conf: SparkConf): Unit = {
     // sql table cache serializer
-    if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = true)) {
+    if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, defaultValue = false)) {
       conf.set(
         StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
         "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
