@@ -25,7 +25,7 @@ import io.glutenproject.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExe
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.ArrowAbiUtil
-import io.glutenproject.vectorized.{CloseableColumnBatchIterator, ColumnarBatchSerializerJniWrapper}
+import io.glutenproject.vectorized.ColumnarBatchSerializerJniWrapper
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -38,7 +38,7 @@ import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.util.TaskResources
+import org.apache.spark.util.Iterators
 
 import org.apache.arrow.c.ArrowSchema
 
@@ -244,33 +244,34 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
             nmm.getNativeInstanceHandle
           )
         cSchema.close()
-        TaskResources.addRecycler(
-          s"ColumnarCachedBatchSerializer_convertCachedBatchToColumnarBatch_$deserializerHandle",
-          50) {
-          ColumnarBatchSerializerJniWrapper.create().close(deserializerHandle)
-        }
 
-        new CloseableColumnBatchIterator(new Iterator[ColumnarBatch] {
-          override def hasNext: Boolean = it.hasNext
+        Iterators
+          .wrap(new Iterator[ColumnarBatch] {
+            override def hasNext: Boolean = it.hasNext
 
-          override def next(): ColumnarBatch = {
-            val cachedBatch = it.next().asInstanceOf[CachedColumnarBatch]
-            val batchHandle =
-              ColumnarBatchSerializerJniWrapper
-                .create()
-                .deserialize(deserializerHandle, cachedBatch.bytes)
-            val batch = ColumnarBatches.create(Runtimes.contextInstance(), batchHandle)
-            if (shouldSelectAttributes) {
-              try {
-                ColumnarBatches.select(nmm, batch, requestedColumnIndices.toArray)
-              } finally {
-                batch.close()
+            override def next(): ColumnarBatch = {
+              val cachedBatch = it.next().asInstanceOf[CachedColumnarBatch]
+              val batchHandle =
+                ColumnarBatchSerializerJniWrapper
+                  .create()
+                  .deserialize(deserializerHandle, cachedBatch.bytes)
+              val batch = ColumnarBatches.create(Runtimes.contextInstance(), batchHandle)
+              if (shouldSelectAttributes) {
+                try {
+                  ColumnarBatches.select(nmm, batch, requestedColumnIndices.toArray)
+                } finally {
+                  batch.close()
+                }
+              } else {
+                batch
               }
-            } else {
-              batch
             }
+          })
+          .recycleIterator {
+            ColumnarBatchSerializerJniWrapper.create().close(deserializerHandle)
           }
-        })
+          .recyclePayload(_.close())
+          .create()
     }
   }
 

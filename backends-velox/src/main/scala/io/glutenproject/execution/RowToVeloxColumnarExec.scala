@@ -34,7 +34,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.unsafe.Platform
-import org.apache.spark.util.TaskResources
+import org.apache.spark.util.{Iterators, TaskResources}
 
 import org.apache.arrow.c.ArrowSchema
 import org.apache.arrow.memory.ArrowBuf
@@ -93,7 +93,6 @@ object RowToVeloxColumnarExec {
     val jniWrapper = NativeRowToColumnarJniWrapper.create()
     val allocator = ArrowBufferAllocators.contextInstance()
     val cSchema = ArrowSchema.allocateNew(allocator)
-    var closed = false
     val r2cHandle =
       try {
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
@@ -106,13 +105,6 @@ object RowToVeloxColumnarExec {
         cSchema.close()
       }
 
-    TaskResources.addRecycler(s"RowToColumnar_$r2cHandle", 100) {
-      if (!closed) {
-        jniWrapper.close(r2cHandle)
-        closed = true
-      }
-    }
-
     val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
       var finished = false
 
@@ -120,12 +112,7 @@ object RowToVeloxColumnarExec {
         if (finished) {
           false
         } else {
-          val itHasNext = it.hasNext
-          if (!itHasNext && !closed) {
-            jniWrapper.close(r2cHandle)
-            closed = true
-          }
-          itHasNext
+          it.hasNext
         }
       }
 
@@ -215,6 +202,12 @@ object RowToVeloxColumnarExec {
         cb
       }
     }
-    new CloseableColumnBatchIterator(res)
+    Iterators
+      .wrap(res)
+      .recycleIterator {
+        jniWrapper.close(r2cHandle)
+      }
+      .recyclePayload(_.close())
+      .create()
   }
 }

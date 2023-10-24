@@ -28,7 +28,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.TaskResources
+import org.apache.spark.util.Iterators
 
 import scala.collection.JavaConverters._
 
@@ -98,26 +98,13 @@ object VeloxColumnarToRowExec {
 
     // TODO:: pass the jni jniWrapper and arrowSchema  and serializeSchema method by broadcast
     val jniWrapper = NativeColumnarToRowJniWrapper.create()
-    var closed = false
     val c2rId = jniWrapper.nativeColumnarToRowInit(
       NativeMemoryManagers.contextInstance("ColumnarToRow").getNativeInstanceHandle)
-
-    TaskResources.addRecycler(s"ColumnarToRow_$c2rId", 100) {
-      if (!closed) {
-        jniWrapper.nativeClose(c2rId)
-        closed = true
-      }
-    }
 
     val res: Iterator[Iterator[InternalRow]] = new Iterator[Iterator[InternalRow]] {
 
       override def hasNext: Boolean = {
-        val hasNext = batches.hasNext
-        if (!hasNext && !closed) {
-          jniWrapper.nativeClose(c2rId)
-          closed = true
-        }
-        hasNext
+        batches.hasNext
       }
 
       override def next(): Iterator[InternalRow] = {
@@ -170,6 +157,11 @@ object VeloxColumnarToRowExec {
         }
       }
     }
-    res.flatten
+    Iterators
+      .wrap(res.flatten)
+      .recycleIterator {
+        jniWrapper.nativeClose(c2rId)
+      }
+      .create()
   }
 }
