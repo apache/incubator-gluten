@@ -452,10 +452,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = velox::exec::Task::create(
-      fmt::format("Gluten stage-{} task-{}", taskInfo_.stageId, taskInfo_.taskId),
-      std::move(planFragment),
-      0,
-      std::move(queryCtx));
+      fmt::format("Gluten {}", taskInfo_.toString()), std::move(planFragment), 0, std::move(queryCtx));
 
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());
@@ -508,10 +505,7 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = velox::exec::Task::create(
-      fmt::format("Gluten stage-{} task-{}", taskInfo_.stageId, taskInfo_.taskId),
-      std::move(planFragment),
-      0,
-      std::move(queryCtx));
+      fmt::format("Gluten {}", taskInfo_.toString()), std::move(planFragment), 0, std::move(queryCtx));
 
   if (!task_->supportsSingleThreadedExecution()) {
     throw std::runtime_error("Task doesn't support single thread execution: " + planNode->toString());

@@ -42,6 +42,10 @@ struct SparkTaskInfo {
   // Same as TID.
   int64_t taskId{0};
 
+  std::string toString() const {
+    return "[Stage: " + std::to_string(stageId) + " TID: " + std::to_string(taskId) + "]";
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const SparkTaskInfo& taskInfo) {
     os << "[Stage: " << taskInfo.stageId << " TID: " << taskInfo.taskId << "]";
     return os;
