@@ -448,6 +448,18 @@ abstract class HashAggregateExecBaseTransformer(
     val mode = exp.mode
     val aggregateFunc = exp.aggregateFunction
     aggregateFunc match {
+      case extendedAggFunc
+          if ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
+            extendedAggFunc.getClass) =>
+        // get attributes from the extended aggregate functions
+        ExpressionMappings.expressionExtensionTransformer
+          .getAttrsForExtensionAggregateExpr(
+            aggregateFunc,
+            mode,
+            exp,
+            aggregateAttributeList,
+            aggregateAttr,
+            index)
       case _: Average | _: First | _: Last =>
         mode match {
           case Partial | PartialMerge =>
@@ -457,9 +469,11 @@ abstract class HashAggregateExecBaseTransformer(
               aggregateAttr += attr
             }
             resIndex += 2
+            resIndex
           case Final =>
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
+            resIndex
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
@@ -474,14 +488,17 @@ abstract class HashAggregateExecBaseTransformer(
               val isEmptyAttr = ConverterUtils.getAttrFromExpr(aggBufferAttr(1))
               aggregateAttr += isEmptyAttr
               resIndex += 2
+              resIndex
             } else {
               val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
               aggregateAttr += attr
               resIndex += 1
+              resIndex
             }
           case Final =>
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
+            resIndex
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
@@ -493,9 +510,11 @@ abstract class HashAggregateExecBaseTransformer(
             val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
             aggregateAttr += attr
             resIndex += 1
+            resIndex
           case Final =>
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
+            resIndex
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
@@ -509,9 +528,11 @@ abstract class HashAggregateExecBaseTransformer(
             val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
             aggregateAttr += attr
             resIndex += 1
+            resIndex
           case Final =>
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
+            resIndex
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
@@ -529,9 +550,11 @@ abstract class HashAggregateExecBaseTransformer(
               aggregateAttr += attr
             }
             resIndex += expectedBufferSize
+            resIndex
           case Final =>
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
+            resIndex
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
@@ -549,9 +572,11 @@ abstract class HashAggregateExecBaseTransformer(
               aggregateAttr += attr
             }
             resIndex += expectedBufferSize
+            resIndex
           case Final =>
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
+            resIndex
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
@@ -564,9 +589,11 @@ abstract class HashAggregateExecBaseTransformer(
               aggregateAttr += attr
             }
             resIndex += 3
+            resIndex
           case Final =>
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
+            resIndex
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
@@ -581,9 +608,11 @@ abstract class HashAggregateExecBaseTransformer(
               aggregateAttr += attr
             }
             resIndex += aggBufferAttr.size
+            resIndex
           case Final =>
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
+            resIndex
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
@@ -596,9 +625,11 @@ abstract class HashAggregateExecBaseTransformer(
               aggregateAttr += attr
             }
             resIndex += aggBufferAttr.size
+            resIndex
           case Final =>
             aggregateAttr += aggregateAttributeList(resIndex)
             resIndex += 1
+            resIndex
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
@@ -606,7 +637,6 @@ abstract class HashAggregateExecBaseTransformer(
         throw new UnsupportedOperationException(
           s"Unsupported aggregate function in getAttrForAggregateExpr")
     }
-    resIndex
   }
 
   protected def modeToKeyWord(aggregateMode: AggregateMode): String = {
