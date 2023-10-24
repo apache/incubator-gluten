@@ -16,10 +16,14 @@
  */
 package org.apache.spark.sql
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.SparkConf
 
 class GlutenCachedTableSuite extends CachedTableSuite with GlutenSQLTestsTrait {
   override def sparkConf: SparkConf = {
-    super.sparkConf.set("spark.sql.shuffle.partitions", "5")
+    super.sparkConf
+      .set("spark.sql.shuffle.partitions", "5")
+      .set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
   }
 }

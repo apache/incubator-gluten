@@ -28,8 +28,9 @@ class GlutenCachedTableSuite
   with AdaptiveSparkPlanHelper {
 
   override def sparkConf: SparkConf = {
-    super.sparkConf.set("spark.sql.shuffle.partitions", "5")
-    super.sparkConf.set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
+    super.sparkConf
+      .set("spark.sql.shuffle.partitions", "5")
+      .set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
   }
 
   test("GLUTEN - InMemoryRelation statistics") {
