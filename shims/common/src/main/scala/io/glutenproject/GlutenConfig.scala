@@ -1204,7 +1204,7 @@ object GlutenConfig {
       .internal()
       .doc("Enable row group max min index for parquet file scan")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
   val MAX_PARTIAL_AGGREGATION_MEMORY_RATIO =
     buildConf("spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio")
