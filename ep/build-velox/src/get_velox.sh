@@ -103,7 +103,7 @@ function process_setup_centos8 {
   sed -i '/^cmake_install_deps fmt/a \install_folly' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
-    sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos8.sh
+    sed -i '/^function cmake_install_deps.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos8.sh
     sed -i '/^cmake_install_deps fmt/a \ \ install_libhdfs3' scripts/setup-centos8.sh
     sed -i '/^dnf_install ninja-build/a\ \ yasm \\' scripts/setup-centos8.sh
   fi
@@ -128,11 +128,12 @@ function process_setup_centos7 {
   sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
 
   if [ $ENABLE_HDFS = "ON" ]; then
-    sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh
+    sed -i '/^function cmake_install_deps.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
     sed -i '/^dnf_install ccache/a\ \ yasm \\' scripts/setup-centos7.sh
   fi
   if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
+    sed -i '/^function cmake_install_deps.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-centos7.sh
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
   fi
   if [ $ENABLE_S3 == "ON" ]; then
