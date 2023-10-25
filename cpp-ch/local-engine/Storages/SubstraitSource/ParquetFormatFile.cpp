@@ -50,8 +50,8 @@ ParquetFormatFile::ParquetFormatFile(
     DB::ContextPtr context_,
     const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
     ReadBufferBuilderPtr read_buffer_builder_,
-    bool useLocalFormat)
-    : FormatFile(context_, file_info_, read_buffer_builder_), use_local_format(useLocalFormat)
+    bool use_local_format_)
+    : FormatFile(context_, file_info_, read_buffer_builder_), use_local_format(use_local_format_)
 {
 }
 
