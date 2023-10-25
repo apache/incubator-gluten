@@ -311,9 +311,8 @@ class GlutenClickHouseNativeWriteTableSuite
             + fields.keys.mkString(",") +
             " from origin_table")
 
-        val files = recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
+        var files = recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
           .filter(_.getName.endsWith(s".$format"))
-
         if (format == "orc") {
           files = files.filter(_.getName.contains(".lz4"))
         }
