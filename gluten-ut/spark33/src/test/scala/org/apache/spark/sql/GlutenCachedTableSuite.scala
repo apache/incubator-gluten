@@ -27,20 +27,18 @@ class GlutenCachedTableSuite
   extends CachedTableSuite
   with GlutenSQLTestsTrait
   with AdaptiveSparkPlanHelper {
+  sys.props.put(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
 
   override def sparkConf: SparkConf = {
     super[GlutenSQLTestsTrait].sparkConf
       .set("spark.sql.shuffle.partitions", "5")
-      .set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
-      .set(
-        StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
-        "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
   }
 
   test("GLUTEN - InMemoryRelation statistics") {
     logWarning(
       "serializer: " +
         s"${spark.sessionState.conf.getConf(StaticSQLConf.SPARK_CACHE_SERIALIZER)}")
+    logWarning(s"plugin: ${spark.sparkContext.conf.getOption("spark.plugins")}")
     sql("CACHE TABLE testData")
     spark.table("testData").queryExecution.withCachedData.collect {
       case cached: InMemoryRelation =>
