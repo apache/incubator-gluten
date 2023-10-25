@@ -226,7 +226,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
     val requestedColumnIndices = selectedAttributes.map {
       a => cacheAttributes.map(_.exprId).indexOf(a.exprId)
     }
-    val shouldPruning = selectedAttributes.size != cacheAttributes.size
+    val shouldSelectAttributes = cacheAttributes != selectedAttributes
     val localSchema = toStructType(cacheAttributes)
     val timezoneId = SQLConf.get.sessionLocalTimeZone
     input.mapPartitions {
@@ -260,7 +260,7 @@ class ColumnarCachedBatchSerializer extends CachedBatchSerializer with SQLConfHe
                 .create()
                 .deserialize(deserializerHandle, cachedBatch.bytes)
             val batch = ColumnarBatches.create(Runtimes.contextInstance(), batchHandle)
-            if (shouldPruning) {
+            if (shouldSelectAttributes) {
               try {
                 ColumnarBatches.select(nmm, batch, requestedColumnIndices.toArray)
               } finally {
