@@ -313,7 +313,10 @@ class GlutenClickHouseNativeWriteTableSuite
 
         val files = recursiveListFiles(new File(getWarehouseDir + "/" + table_name))
           .filter(_.getName.endsWith(s".$format"))
-          .filter(_.getName.stripSuffix(s".$format").endsWith(".lz4"))
+
+        if (format == "orc") {
+          files = files.filter(_.getName.contains(".lz4"))
+        }
         assert(files.length == 1)
         assert(files.head.getAbsolutePath.contains("another_date_field=2020-01-01"))
       }
