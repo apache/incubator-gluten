@@ -2004,6 +2004,14 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("GLUTEN-3501: test json output format with struct contains null value") {
+    val sql =
+      """
+        |select to_json(struct(cast(id as string), null, id, 1.1, 1.1f, 1.1d)) from range(3)
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("GLUTEN-3216: invalid read rel schema in aggregation") {
     val sql =
       """
