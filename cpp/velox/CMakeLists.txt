@@ -274,7 +274,6 @@ target_include_directories(velox PUBLIC
     ${CMAKE_SYSTEM_INCLUDE_PATH}
     ${JNI_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${root_directory}/src
     ${VELOX_HOME}/
     ${VELOX_BUILD_PATH}/
     ${VELOX_BUILD_PATH}/_deps/xsimd-src/include/
