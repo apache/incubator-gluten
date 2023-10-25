@@ -174,7 +174,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.sql.decimalOperations.allowPrecisionLoss", "false")
     /* .set("spark.sql.catalogImplementation", "hive")
