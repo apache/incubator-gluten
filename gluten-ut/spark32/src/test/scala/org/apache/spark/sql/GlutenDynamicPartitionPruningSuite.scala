@@ -721,6 +721,22 @@ class GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan
   }
 }
 
+class GlutenDynamicPartitionPruningV1SuiteAEOffWSCGOnDisableProject
+  extends GlutenDynamicPartitionPruningV2SuiteAEOff {
+  override def sparkConf: SparkConf = {
+    super.sparkConf.set(GlutenConfig.COLUMNAR_PROJECT_ENABLED.key, "false")
+  }
+}
+
+class GlutenDynamicPartitionPruningV1SuiteAEOffWSCGOffDisableProject
+  extends GlutenDynamicPartitionPruningV2SuiteAEOff {
+  override def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(GlutenConfig.COLUMNAR_PROJECT_ENABLED.key, "false")
+      .set(SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, "false")
+  }
+}
+
 // Test DPP with batch scan disabled by user for some reason, which can also mock the situation
 // that scan is not transformable.
 class GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan
@@ -735,5 +751,21 @@ class GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan
   extends GlutenDynamicPartitionPruningV2SuiteAEOff {
   override def sparkConf: SparkConf = {
     super.sparkConf.set(GlutenConfig.COLUMNAR_BATCHSCAN_ENABLED.key, "false")
+  }
+}
+
+class GlutenDynamicPartitionPruningV2SuiteAEOffWSCGOnDisableProject
+  extends GlutenDynamicPartitionPruningV2SuiteAEOff {
+  override def sparkConf: SparkConf = {
+    super.sparkConf.set(GlutenConfig.COLUMNAR_PROJECT_ENABLED.key, "false")
+  }
+}
+
+class GlutenDynamicPartitionPruningV2SuiteAEOffWSCGOffDisableProject
+  extends GlutenDynamicPartitionPruningV2SuiteAEOff {
+  override def sparkConf: SparkConf = {
+    super.sparkConf
+      .set(GlutenConfig.COLUMNAR_PROJECT_ENABLED.key, "false")
+      .set(SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key, "false")
   }
 }
