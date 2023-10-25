@@ -96,7 +96,7 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
   std::shared_ptr<velox::core::QueryCtx> ctx = std::make_shared<velox::core::QueryCtx>(
       nullptr,
-      getQueryContextConf(),
+      facebook::velox::core::QueryConfig{getQueryContextConf()},
       connectorConfigs,
       gluten::VeloxBackend::get()->getAsyncDataCache(),
       pool_,
