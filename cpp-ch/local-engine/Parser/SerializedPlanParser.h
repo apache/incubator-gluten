@@ -126,7 +126,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"starts_with", "startsWithUTF8"},
        {"ends_with", "endsWithUTF8"},
        {"contains", "countSubstrings"},
-       {"substring", "substringUTF8"},
        {"substring_index", "substringIndexUTF8"},
        {"lower", "lowerUTF8"},
        {"upper", "upperUTF8"},
