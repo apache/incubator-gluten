@@ -287,14 +287,14 @@ jobs:
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./get_velox.sh --enable_hdfs=ON && \
+          ./build_velox.sh --enable_hdfs=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec centos8-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --arrow_home=/opt/velox/_build/release/third_party/arrow_ep'
+          ./compile.sh --build_velox_backend=ON --enable_hdfs=ON'
       - name: Build for Spark 3.2.2
         run: |
           docker exec centos8-test-$GITHUB_RUN_ID bash -c '
@@ -336,14 +336,14 @@ jobs:
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./get_velox.sh --enable_hdfs=ON && \
+          ./build_velox.sh --enable_hdfs=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --arrow_home=/opt/velox/_build/release/third_party/arrow_ep'
+          ./compile.sh --build_velox_backend=ON --enable_hdfs=ON '
       - name: Build for Spark 3.2.2
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
