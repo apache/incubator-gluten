@@ -337,7 +337,7 @@ jobs:
           sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON && \
-          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON'
+          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
