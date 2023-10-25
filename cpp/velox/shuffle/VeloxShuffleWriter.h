@@ -95,7 +95,7 @@ namespace gluten {
 
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
-enum SplitState { kInit, kPreAlloc, kSplit, kStop };
+enum SplitState { kInit, kPreAlloc, kSplit, kStop, kUnevictable };
 
 class VeloxShuffleWriter final : public ShuffleWriter {
   enum { kValidityBufferIndex = 0, kLengthBufferIndex = 1, kValueBufferIndex = 2 };
