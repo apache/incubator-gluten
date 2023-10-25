@@ -107,6 +107,37 @@ TEST_F(VeloxSubstraitSignatureTest, fromSubstraitSignature) {
   ASSERT_EQ(fromSubstraitSignature("vbin")->kind(), TypeKind::VARBINARY);
   ASSERT_EQ(fromSubstraitSignature("ts")->kind(), TypeKind::TIMESTAMP);
   ASSERT_EQ(fromSubstraitSignature("date")->kind(), TypeKind::INTEGER);
+  ASSERT_EQ(fromSubstraitSignature("dec<18,2>")->kind(), TypeKind::BIGINT);
+  ASSERT_EQ(fromSubstraitSignature("dec<19,2>")->kind(), TypeKind::HUGEINT);
+
+  // Struct type test.
+  auto type = fromSubstraitSignature("struct<bool,vbin,dec<8,2>>");
+  ASSERT_EQ(type->kind(), TypeKind::ROW);
+  ASSERT_EQ(type->childAt(0)->kind(), TypeKind::BOOLEAN);
+  ASSERT_EQ(type->childAt(1)->kind(), TypeKind::VARBINARY);
+  ASSERT_EQ(type->childAt(2)->kind(), TypeKind::BIGINT);
+  type = fromSubstraitSignature("struct<bool,struct<i8,fp32>>");
+  ASSERT_EQ(type->childAt(1)->kind(), TypeKind::ROW);
+  ASSERT_EQ(type->childAt(1)->childAt(0)->kind(), TypeKind::TINYINT);
+  ASSERT_EQ(type->childAt(1)->childAt(1)->kind(), TypeKind::REAL);
+  type = fromSubstraitSignature("struct<bool,struct<i8,fp32>,vbin,ts,dec<9,2>>");
+  ASSERT_EQ(type->childAt(1)->kind(), TypeKind::ROW);
+  type = fromSubstraitSignature("struct<struct<ts>,i16>");
+  ASSERT_EQ(type->childAt(0)->kind(), TypeKind::ROW);
+  ASSERT_EQ(type->childAt(0)->childAt(0)->kind(), TypeKind::TIMESTAMP);
+  type = fromSubstraitSignature("struct<struct<dec<12,9>>>");
+  ASSERT_EQ(type->childAt(0)->kind(), TypeKind::ROW);
+  ASSERT_EQ(type->childAt(0)->childAt(0)->kind(), TypeKind::BIGINT);
+  type = fromSubstraitSignature("struct<struct<struct<i8>>>");
+  ASSERT_EQ(type->kind(), TypeKind::ROW);
+  ASSERT_EQ(type->childAt(0)->kind(), TypeKind::ROW);
+  ASSERT_EQ(type->childAt(0)->childAt(0)->kind(), TypeKind::ROW);
+  ASSERT_EQ(type->childAt(0)->childAt(0)->childAt(0)->kind(), TypeKind::TINYINT);
+  type = fromSubstraitSignature("struct<struct<struct<i8,str>>>");
+  ASSERT_EQ(type->childAt(0)->childAt(0)->childAt(0)->kind(), TypeKind::TINYINT);
+  ASSERT_EQ(type->childAt(0)->childAt(0)->childAt(1)->kind(), TypeKind::VARCHAR);
+  type = fromSubstraitSignature("struct<struct<struct<i8,dec<19,2>>>>");
+  ASSERT_EQ(type->childAt(0)->childAt(0)->childAt(1)->kind(), TypeKind::HUGEINT);
   ASSERT_ANY_THROW(fromSubstraitSignature("other")->kind());
 }
 

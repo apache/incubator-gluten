@@ -105,8 +105,12 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
     return DATE();
   }
 
-  if (signature.size() > 3 && signature.substr(0, 3) == "dec") {
-    // Decimal info is in the format of dec<precision,scale>.
+  auto startWith = [](const std::string& str, const std::string& prefix) {
+    return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
+  };
+
+  if (startWith(signature, "dec")) {
+    // Decimal type name is in the format of dec<precision,scale>.
     auto precisionStart = signature.find_first_of('<');
     auto tokenIndex = signature.find_first_of(',');
     auto scaleEnd = signature.find_first_of('>');
@@ -115,9 +119,8 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
     return DECIMAL(precision, scale);
   }
 
-  if (signature.size() > 6 && signature.substr(0, 6) == "struct") {
-    // Struct info is in the format of struct<T1,T2,...,Tn>.
-    // TODO: nested struct is not supported.
+  if (startWith(signature, "struct")) {
+    // Struct type name is in the format of struct<T1,T2,...,Tn>.
     auto structStart = signature.find_first_of('<');
     auto structEnd = signature.find_last_of('>');
     VELOX_CHECK(
@@ -130,26 +133,29 @@ TypePtr VeloxSubstraitSignature::fromSubstraitSignature(const std::string& signa
     std::vector<TypePtr> types;
     std::vector<std::string> names;
     while ((pos = childrenTypes.find(delimiter)) != std::string::npos) {
-      const auto& typeStr = childrenTypes.substr(0, pos);
-      if (typeStr.find("dec") != std::string::npos) {
-        std::size_t endPos = childrenTypes.find(">");
-        VELOX_CHECK(endPos >= pos + 1, "Decimal scale is expected.");
-        const auto& decimalStr = typeStr + childrenTypes.substr(pos, endPos - pos) + ">";
-        types.emplace_back(fromSubstraitSignature(decimalStr));
-        names.emplace_back("");
-        childrenTypes.erase(0, endPos + delimiter.length() + 1);
-        continue;
+      auto typeStr = childrenTypes.substr(0, pos);
+      std::size_t endPos = pos;
+      if (startWith(typeStr, "dec") || startWith(typeStr, "struct")) {
+        endPos = childrenTypes.find(">") + 1;
+        if (endPos > pos) {
+          typeStr += childrenTypes.substr(pos, endPos - pos);
+        } else {
+          // For nested case, the end '>' could missing,
+          // so the last position is treated as end.
+          typeStr += childrenTypes.substr(pos);
+          endPos = childrenTypes.size();
+        }
       }
-
       types.emplace_back(fromSubstraitSignature(typeStr));
       names.emplace_back("");
-      childrenTypes.erase(0, pos + delimiter.length());
+      childrenTypes.erase(0, endPos + delimiter.length());
     }
-    types.emplace_back(fromSubstraitSignature(childrenTypes));
-    names.emplace_back("");
+    if (childrenTypes.size() > 0 && !startWith(childrenTypes, ">")) {
+      types.emplace_back(fromSubstraitSignature(childrenTypes));
+      names.emplace_back("");
+    }
     return std::make_shared<RowType>(std::move(names), std::move(types));
   }
-
   VELOX_UNSUPPORTED("Substrait type signature conversion to Velox type not supported for {}.", signature);
 }
 
