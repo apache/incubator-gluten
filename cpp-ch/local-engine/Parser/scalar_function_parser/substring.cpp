@@ -48,6 +48,13 @@ public:
         DB::DataTypePtr start_index_data_type = removeNullable(parsed_args[1]->result_type);
         if (!DB::WhichDataType(start_index_data_type).isInt())
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {}'s second arguments must be int type");
+         /**
+            parse substring(str, start_index, length) as
+            if (start_index == 0)
+                substring(str, start_index+1, length)
+            else
+                substring(str, start_index, length)
+        */
         auto * const_zero_node = addColumnToActionsDAG(actions_dag, start_index_data_type, Field(0));
         auto * const_one_node = addColumnToActionsDAG(actions_dag, start_index_data_type, Field(1));
         auto * equals_zero_node = toFunctionNode(actions_dag, "equals", {parsed_args[1], const_zero_node});
