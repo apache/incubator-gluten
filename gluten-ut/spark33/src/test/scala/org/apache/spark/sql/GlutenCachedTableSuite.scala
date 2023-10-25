@@ -29,7 +29,7 @@ class GlutenCachedTableSuite
   with AdaptiveSparkPlanHelper {
 
   override def sparkConf: SparkConf = {
-    super.sparkConf
+    super[GlutenSQLTestsTrait].sparkConf
       .set("spark.sql.shuffle.partitions", "5")
       .set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
       .set(
@@ -38,9 +38,13 @@ class GlutenCachedTableSuite
   }
 
   test("GLUTEN - InMemoryRelation statistics") {
+    logWarning(
+      "serializer: " +
+        s"${spark.sessionState.conf.getConf(StaticSQLConf.SPARK_CACHE_SERIALIZER)}")
     sql("CACHE TABLE testData")
     spark.table("testData").queryExecution.withCachedData.collect {
       case cached: InMemoryRelation =>
+        logWarning(s"${cached.cacheBuilder.serializer.getClass.getName}")
         assert(cached.stats.sizeInBytes === 1132)
     }
   }
