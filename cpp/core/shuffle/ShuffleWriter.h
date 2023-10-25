@@ -23,6 +23,7 @@
 
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
+#include "memory/Evictable.h"
 #include "shuffle/options.h"
 #include "utils/compression.h"
 
@@ -82,13 +83,9 @@ class ShuffleMemoryPool : public arrow::MemoryPool {
   uint64_t bytesAllocated_ = 0;
 };
 
-class ShuffleWriter {
+class ShuffleWriter : public Evictable {
  public:
   static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;
-  /**
-   * Evict fixed size of partition data from memory
-   */
-  virtual arrow::Status evictFixedSize(int64_t size, int64_t* actual) = 0;
 
   virtual arrow::Status split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 

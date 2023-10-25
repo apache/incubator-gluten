@@ -19,20 +19,19 @@
 #include <arrow/compute/api.h>
 #include <arrow/datum.h>
 #include <arrow/io/api.h>
-#include <arrow/ipc/reader.h>
 #include <arrow/pretty_print.h>
 #include <arrow/record_batch.h>
 #include <arrow/util/io_util.h>
 #include <iostream>
 
 #include "memory/VeloxColumnarBatch.h"
-#include "memory/VeloxMemoryManager.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/VeloxShuffleUtils.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/CelebornPartitionWriter.h"
 #include "shuffle/rss/RssClient.h"
+#include "tests/utils/SelfEvictedMemoryPool.h"
 #include "utils/TestUtils.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
@@ -890,6 +889,29 @@ TEST_P(VeloxShuffleWriterTest, SinglePartitioningNoShrink) {
   ASSERT_NOT_OK(shuffleWriter_->stop());
 }
 
+TEST_P(VeloxShuffleWriterTest, SinglePartitioningEvict) {
+  if (shuffleWriterOptions_.partition_writer_type == PartitionWriterType::kCeleborn) {
+    GTEST_SKIP() << "Celeborn partition writer doesn't cache any payloads.";
+  }
+  shuffleWriterOptions_.partitioning_name = "single";
+  auto pool = SelfEvictedMemoryPool(shuffleWriterOptions_.memory_pool);
+  shuffleWriterOptions_.memory_pool = &pool;
+  ARROW_ASSIGN_OR_THROW(
+      shuffleWriter_, VeloxShuffleWriter::create(1, partitionWriterCreator_, shuffleWriterOptions_, pool_));
+  pool.setEvictable(shuffleWriter_.get());
+
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+
+  // Set limited capacity to trigger spill for the next split.
+  auto capacity = shuffleWriterOptions_.compression_type == arrow::Compression::UNCOMPRESSED
+      ? shuffleWriter_->cachedPayloadSize() * 2 - 1
+      : shuffleWriter_->cachedPayloadSize() * 3;
+  pool.setCapacity(capacity);
+  ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));
+
+  ASSERT_NOT_OK(shuffleWriter_->stop());
+}
+
 TEST_P(VeloxShuffleWriterTest, PreAllocPartitionBuffer1) {
   int32_t numPartitions = 2;
   shuffleWriterOptions_.buffer_size = 2; // Set a small buffer size.
@@ -1026,6 +1048,7 @@ INSTANTIATE_TEST_SUITE_P(
         ShuffleTestParams{PartitionWriterType::kCeleborn, arrow::Compression::LZ4_FRAME, CompressionMode::BUFFER},
         ShuffleTestParams{PartitionWriterType::kCeleborn, arrow::Compression::ZSTD, CompressionMode::BUFFER},
         ShuffleTestParams{PartitionWriterType::kLocal, arrow::Compression::UNCOMPRESSED, CompressionMode::ROWVECTOR},
-        ShuffleTestParams{PartitionWriterType::kCeleborn, arrow::Compression::LZ4_FRAME, CompressionMode::ROWVECTOR}));
+        ShuffleTestParams{PartitionWriterType::kLocal, arrow::Compression::LZ4_FRAME, CompressionMode::ROWVECTOR},
+        ShuffleTestParams{PartitionWriterType::kLocal, arrow::Compression::ZSTD, CompressionMode::ROWVECTOR}));
 
 } // namespace gluten

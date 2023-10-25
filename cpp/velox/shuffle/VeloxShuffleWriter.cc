@@ -1469,7 +1469,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
           // Apart from kPreAlloc and kStop states, spill should not be triggered by allocating payload buffers. All
           // cached data should be evicted.
           return arrow::Status::Invalid(
-              "Not all cached payload evicted." + std::to_string(afterEvict) + " bytes remains.");
+              "Not all cached payload evicted. " + std::to_string(afterEvict) + " bytes remains.");
         }
         *size = beforeEvict - afterEvict;
       } else {
