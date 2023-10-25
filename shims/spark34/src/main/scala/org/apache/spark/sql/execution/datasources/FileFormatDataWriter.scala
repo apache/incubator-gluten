@@ -409,19 +409,19 @@ class DynamicPartitionDataSingleWriter(
   override def write(record: InternalRow): Unit = {
     record match {
       case fakeRow: FakeRow =>
-        val blockStripesOption = GlutenRowSplitter.getInstance
-          .splitBlockByPartitionAndBucket(fakeRow, partitionColIndice, isBucketed)
-        if (blockStripesOption.isEmpty) return
-        val blockStripes = blockStripesOption.get
+        if (fakeRow.batch.numRows() > 0) {
+          val blockStripes = GlutenRowSplitter.getInstance
+            .splitBlockByPartitionAndBucket(fakeRow, partitionColIndice, isBucketed)
 
-        val iter = blockStripes.iterator()
-        while (iter.hasNext) {
-          val blockStripe = iter.next()
-          val headingRow = blockStripe.getHeadingRow
-          beforeWrite(headingRow)
-          writeStripe(new FakeRow(blockStripe.getColumnarBatch))
+          val iter = blockStripes.iterator()
+          while (iter.hasNext) {
+            val blockStripe = iter.next()
+            val headingRow = blockStripe.getHeadingRow
+            beforeWrite(headingRow)
+            writeStripe(new FakeRow(blockStripe.getColumnarBatch))
+          }
+          blockStripes.release()
         }
-        blockStripes.release()
       case _ =>
         beforeWrite(record)
         writeRecord(record)
