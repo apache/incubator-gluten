@@ -1206,7 +1206,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  test("test 'cast null value'") {
+  ignore("test 'cast null value' -- due to https://github.com/ClickHouse/ClickHouse/pull/55146") {
     val sql = "select cast(x as double), cast(x as float), cast(x as string), cast(x as binary)," +
       "cast(x as long), cast(x as int), cast(x as short), cast(x as byte), cast(x as boolean)," +
       "cast(x as date), cast(x as timestamp), cast(x as decimal(10, 2)) from " +
