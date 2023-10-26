@@ -145,31 +145,12 @@ class IteratorApiImpl extends IteratorApi with Logging {
     val resIter: GeneralOutIterator =
       transKernel.createKernelWithBatchIterator(inputPartition.plan, columnarNativeIterators)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-    val iter = new Iterator[ColumnarBatch] {
-      private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
-      var finished = false
-
-      override def hasNext: Boolean = {
-        val res = resIter.hasNext
-        if (!res) {
-          updateNativeMetrics(resIter.getMetrics)
-          updateInputMetrics(inputMetrics)
-          finished = true
-        }
-        res
-      }
-
-      override def next(): ColumnarBatch = {
-        if (finished) {
-          throw new java.util.NoSuchElementException("End of stream.")
-        }
-        resIter.next()
-      }
-    }
 
     Iterators
-      .wrap(iter)
+      .wrap(resIter.asScala)
       .recycleIterator {
+        updateNativeMetrics(resIter.getMetrics)
+        updateInputMetrics(TaskContext.get().taskMetrics().inputMetrics)
         resIter.close()
       }
       .recyclePayload(batch => batch.close())
