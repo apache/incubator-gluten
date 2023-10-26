@@ -26,7 +26,7 @@ import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.internal.SQLConf
 
-import org.apache.commons.io.FileUtils
+import org.apache.commons.io.{FileUtils, IOUtils}
 import org.apache.hadoop.fs.Path
 
 import java.io.File
@@ -971,4 +971,47 @@ class GlutenClickHouseHiveTableSuite()
     spark.sql("DROP TABLE test_tbl_3337")
   }
 
+  test("test hive read recursive dirs") {
+    val create_test_file_recursive =
+      "create table if not exists test_file_recursive (" +
+        "int_field int" +
+        ") row format delimited fields terminated by ' ' stored as textfile"
+    spark.sql(create_test_file_recursive)
+    spark.sql("insert into test_file_recursive values (10)")
+
+    val path = new Path(sparkConf.get("spark.sql.warehouse.dir"))
+    val fs = path.getFileSystem(spark.sessionState.newHadoopConf())
+    val tablePath = path.toUri.getPath + "/test_file_recursive"
+    val recursivePath = tablePath + "/subDir1/subDir2"
+    val recursiveFile = recursivePath + "/file1.txt"
+    val succ = fs.mkdirs(new Path(recursivePath))
+    assert(succ, true)
+    //    val createSucc = fs.createNewFile()
+    //    assert(createSucc, true)
+    val revFileStream = fs.create(new Path(recursiveFile))
+
+    val it = fs.listFiles(new Path(tablePath), false)
+    if (it.hasNext) {
+      val inStream = fs.open(it.next().getPath)
+      IOUtils.copy(inStream, revFileStream)
+      inStream.close()
+    }
+
+    revFileStream.close()
+
+    val sql =
+      s"""
+         | select int_field from test_file_recursive
+         |""".stripMargin
+
+    withSQLConf(("mapreduce.input.fileinputformat.input.dir.recursive", "true")) {
+      compareResultsAgainstVanillaSpark(
+        sql,
+        compareResult = true,
+        df => {
+          assert(df.collect().length == 2)
+        }
+      )
+    }
+  }
 }
