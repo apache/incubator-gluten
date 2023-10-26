@@ -20,11 +20,11 @@ import io.glutenproject.{CH_BRANCH, CH_COMMIT, GlutenConfig, GlutenPlugin}
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{JsonReadFormat, MergeTreeReadFormat, OrcReadFormat, ParquetReadFormat, TextReadFormat}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat._
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Alias, Cast, DenseRank, Lag, Lead, NamedExpression, Rank, RowNumber}
+import org.apache.spark.sql.catalyst.expressions.{Alias, AttributeReference, DenseRank, Lag, Lead, NamedExpression, Rank, RowNumber}
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
@@ -143,13 +143,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
         } else {
           outputPartitioning match {
             case hashPartitioning: HashPartitioning =>
-              hashPartitioning.expressions.foreach(
-                x => {
-                  if (!x.isInstanceOf[Cast]) {
-                    return false
-                  }
-                })
-              true
+              hashPartitioning.expressions.exists(x => !x.isInstanceOf[AttributeReference])
             case _ =>
               false
           }

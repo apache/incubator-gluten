@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.{BackendsApiManager, TransformerApi}
 import io.glutenproject.execution.CHHashAggregateExecTransformer
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.{BooleanLiteralNode, CastNode, ExpressionBuilder, ExpressionNode, SelectionNode}
+import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode, SelectionNode}
 import io.glutenproject.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
 import org.apache.spark.internal.Logging
@@ -62,7 +62,7 @@ class CHTransformerApi extends TransformerApi with Logging {
               val node = ExpressionConverter
                 .replaceWithExpressionTransformer(expr, outputAttributes)
                 .doTransform(substraitContext.registeredFunction)
-              if (!node.isInstanceOf[SelectionNode] && !node.isInstanceOf[CastNode]) {
+              if (!node.isInstanceOf[SelectionNode]) {
                 // This is should not happen.
                 logDebug("Expressions are not supported in HashPartitioning.")
                 false

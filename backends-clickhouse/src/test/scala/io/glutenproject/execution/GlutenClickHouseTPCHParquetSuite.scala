@@ -2159,6 +2159,53 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-3534: Fix incorrect logic of judging whether supports pre-project for the shuffle") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      runQueryAndCompare(
+        s"""
+           |select t1.l_orderkey, t2.o_orderkey, extract(year from t1.l_shipdate), t2.o_year,
+           |t1.l_cnt, t2.o_cnt
+           |from (
+           |  select l_orderkey, l_shipdate, count(1) as l_cnt
+           |  from lineitem
+           |  group by l_orderkey, l_shipdate) t1
+           |join (
+           |  select o_orderkey, extract(year from o_orderdate) as o_year, count(1) as o_cnt
+           |  from orders
+           |  group by o_orderkey, o_orderdate) t2
+           |on t1.l_orderkey = t2.o_orderkey
+           | and extract(year from t1.l_shipdate) = o_year
+           |order by t1.l_orderkey, t2.o_orderkey
+           |limit 100
+           |
+           |""".stripMargin,
+        true,
+        true
+      )(df => {})
+
+      runQueryAndCompare(
+        s"""
+           |select t1.l_orderkey, t2.o_orderkey, extract(year from t1.l_shipdate), t2.o_year
+           |from (
+           |  select l_orderkey, l_shipdate, count(1) as l_cnt
+           |  from lineitem
+           |  group by l_orderkey, l_shipdate) t1
+           |join (
+           |  select o_orderkey, extract(year from o_orderdate) as o_year, count(1) as o_cnt
+           |  from orders
+           |  group by o_orderkey, o_orderdate) t2
+           |on t1.l_orderkey = t2.o_orderkey
+           | and extract(year from t1.l_shipdate) = o_year
+           |order by t1.l_orderkey, t2.o_orderkey
+           |limit 100
+           |
+           |""".stripMargin,
+        true,
+        true
+      )(df => {})
+    }
+  }
+
   test("GLUTEN-3467: Fix 'Names of tuple elements must be unique' error for ch backend") {
     val sql =
       """
