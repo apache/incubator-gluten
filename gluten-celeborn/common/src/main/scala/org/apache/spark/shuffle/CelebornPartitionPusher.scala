@@ -31,13 +31,13 @@ class CelebornPartitionPusher(
     val context: TaskContext,
     val mapId: Int,
     val client: ShuffleClient,
-    val celebornConf: CelebornConf)
+    val clientPushBufferMaxSize: Int)
   extends Logging {
 
   @throws[IOException]
   def pushPartitionData(partitionId: Int, buffer: Array[Byte], length: Int): Int = {
     logDebug(s"Push record, size ${buffer.length}.")
-    if (buffer.length > celebornConf.clientPushBufferMaxSize) {
+    if (buffer.length > clientPushBufferMaxSize) {
       client.pushData(
         shuffleId,
         mapId,
