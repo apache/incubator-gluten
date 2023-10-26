@@ -78,7 +78,7 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
             customizedCompressionCodec,
             bufferCompressThreshold,
             GlutenConfig.getConf.columnarShuffleCompressionMode,
-            celebornConf.clientPushBufferMaxSize,
+            clientPushBufferMaxSize,
             celebornPartitionPusher,
             NativeMemoryManagers
               .create(

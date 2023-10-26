@@ -51,6 +51,8 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
 
   protected val mapId: Int = context.partitionId()
 
+  protected val clientPushBufferMaxSize: Int = celebornConf.clientPushBufferMaxSize
+
   protected val celebornPartitionPusher = new CelebornPartitionPusher(
     shuffleId,
     numMappers,
@@ -58,7 +60,7 @@ abstract class CelebornHashBasedColumnarShuffleWriter[K, V](
     context,
     mapId,
     client,
-    celebornConf)
+    clientPushBufferMaxSize)
 
   protected val blockManager: BlockManager = SparkEnv.get.blockManager
 
