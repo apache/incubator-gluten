@@ -314,6 +314,28 @@ std::shared_ptr<arrow::RecordBatch> makeUncompressedRecordBatch(
   }
   return arrow::RecordBatch::Make(writeSchema, 1, {arrays});
 }
+
+class EvictGuard {
+ public:
+  explicit EvictGuard(SplitState& splitState) : splitState_(splitState) {
+    oldState_ = splitState;
+    splitState_ = SplitState::kUnevictable;
+  }
+
+  ~EvictGuard() {
+    splitState_ = oldState_;
+  }
+
+  // For safety and clarity.
+  EvictGuard(const EvictGuard&) = delete;
+  EvictGuard& operator=(const EvictGuard&) = delete;
+  EvictGuard(EvictGuard&&) = delete;
+  EvictGuard& operator=(EvictGuard&&) = delete;
+
+ private:
+  SplitState& splitState_;
+  SplitState oldState_;
+};
 } // namespace
 
 // VeloxShuffleWriter
@@ -1419,6 +1441,12 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
   }
 
   arrow::Status VeloxShuffleWriter::evictFixedSize(int64_t size, int64_t * actual) {
+    if (splitState_ == SplitState::kUnevictable) {
+      *actual = 0;
+      return arrow::Status::OK();
+    }
+    EvictGuard{splitState_};
+
     int64_t currentEvicted = 0;
 
     // If OOM happens during stop(), the reclaim order is shrink->spill,
