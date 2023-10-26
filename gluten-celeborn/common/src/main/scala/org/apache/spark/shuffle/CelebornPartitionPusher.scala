@@ -20,7 +20,6 @@ import org.apache.spark._
 import org.apache.spark.internal.Logging
 
 import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
 
