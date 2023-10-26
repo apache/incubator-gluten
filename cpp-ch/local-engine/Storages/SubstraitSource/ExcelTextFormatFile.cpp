@@ -101,7 +101,10 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     if (!file_info.text().null_value().empty())
         format_settings.csv.null_representation = file_info.text().null_value();
 
-    format_settings.csv.empty_as_default = true;
+    if (format_settings.csv.null_representation.empty())
+        format_settings.csv.empty_as_default = true;
+    else
+        format_settings.csv.empty_as_default = false;
 
     char quote = *file_info.text().quote().data();
     if (quote == '\'')
