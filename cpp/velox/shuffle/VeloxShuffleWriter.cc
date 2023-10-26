@@ -151,11 +151,6 @@ std::shared_ptr<arrow::Array> makeBinaryArray(
   return arrow::MakeArray(arrow::ArrayData::Make(type, 1, {nullptr, std::move(offsetBuffer), valueBuffer}));
 }
 
-inline void writeInt64(std::shared_ptr<arrow::Buffer> buffer, int64_t& offset, int64_t value) {
-  memcpy(buffer->mutable_data() + offset, &value, sizeof(int64_t));
-  offset += sizeof(int64_t);
-}
-
 int64_t getMaxCompressedBufferSize(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     arrow::util::Codec* codec) {
@@ -1464,11 +1459,12 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const velox::RowVec
     } else {
       RETURN_NOT_OK(partitionWriter_->spill());
       if (auto afterEvict = cachedPayloadSize()) {
-        if (splitState_ != SplitState::kPreAlloc && splitState_ != SplitState::kStop) {
+        if (options_.partitioning_name != "single" && splitState_ != SplitState::kPreAlloc &&
+            splitState_ != SplitState::kStop) {
           // Apart from kPreAlloc and kStop states, spill should not be triggered by allocating payload buffers. All
           // cached data should be evicted.
           return arrow::Status::Invalid(
-              "Not all cached payload evicted." + std::to_string(afterEvict) + " bytes remains.");
+              "Not all cached payload evicted. " + std::to_string(afterEvict) + " bytes remains.");
         }
         *size = beforeEvict - afterEvict;
       } else {
