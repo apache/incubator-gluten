@@ -28,9 +28,10 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.hadoop.hive.ql.metadata.{Partition => HivePartition}
 import org.apache.hadoop.io.compress.CompressionCodecFactory
+import org.apache.hadoop.mapred.FileInputFormat
 
 import java.net.URI
 
@@ -46,6 +47,9 @@ class HivePartitionConverter(hadoopConf: Configuration, session: SparkSession)
 
   lazy val codecFactory: CompressionCodecFactory =
     new CompressionCodecFactory(hadoopConf)
+
+  lazy val recursive: Boolean = hadoopConf.getBoolean(FileInputFormat.INPUT_DIR_RECURSIVE, false)
+
   private def canBeSplit(filePath: Path): Boolean = {
     // Checks if file at path `filePath` can be split.
     // Uncompressed Hive Text files may be split. GZIP compressed files are not.
@@ -92,8 +96,36 @@ class HivePartitionConverter(hadoopConf: Configuration, session: SparkSession)
       case (directory, partValues) =>
         val path = new Path(directory)
         val fs = path.getFileSystem(hadoopConf)
-        val dirContents = fs.listStatus(path).filter(isNonEmptyDataFile)
+        val dirContents = fs
+          .listStatus(path)
+          .flatMap(
+            f => {
+              if (f.isFile) {
+                Seq(f)
+              } else if (recursive) {
+                addInputPathRecursively(fs, f)
+              } else {
+                Seq()
+              }
+            })
+          .filter(isNonEmptyDataFile)
         PartitionDirectory(partValues, dirContents)
+    }
+  }
+
+  private def addInputPathRecursively(fs: FileSystem, files: FileStatus): Seq[FileStatus] = {
+    if (files.isFile) {
+      Seq(files)
+    } else {
+      fs.listStatus(files.getPath)
+        .flatMap(
+          file => {
+            if (file.isFile) {
+              Seq(file)
+            } else {
+              addInputPathRecursively(fs, file)
+            }
+          })
     }
   }
 
