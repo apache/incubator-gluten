@@ -33,7 +33,7 @@ enum SelfDefinedFunctionReference
 class GetJsonObjectFunctionWriter : public RelRewriter
 {
 public:
-    GetJsonObjectFunctionWriter(SerializedPlanParser * parser) : RelRewriter(parser) {}
+    GetJsonObjectFunctionWriter(SerializedPlanParser * parser_) : RelRewriter(parser_) {}
     ~GetJsonObjectFunctionWriter() override = default;
 
     void rewrite(substrait::Rel & rel) override
