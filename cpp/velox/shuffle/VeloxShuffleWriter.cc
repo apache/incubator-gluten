@@ -151,11 +151,6 @@ std::shared_ptr<arrow::Array> makeBinaryArray(
   return arrow::MakeArray(arrow::ArrayData::Make(type, 1, {nullptr, std::move(offsetBuffer), valueBuffer}));
 }
 
-inline void writeInt64(std::shared_ptr<arrow::Buffer> buffer, int64_t& offset, int64_t value) {
-  memcpy(buffer->mutable_data() + offset, &value, sizeof(int64_t));
-  offset += sizeof(int64_t);
-}
-
 int64_t getMaxCompressedBufferSize(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
     arrow::util::Codec* codec) {

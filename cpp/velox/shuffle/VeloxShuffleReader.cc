@@ -263,6 +263,8 @@ void getUncompressedBuffersOneByOne(
             codec->Decompress(
                 compressLength, compressBuffer->data(), uncompressLength, uncompressBuffer->mutable_data()));
         VELOX_DCHECK_EQ(actualDecompressLength, uncompressLength);
+        // Prevent unused variable warning in optimized build.
+        ((void)actualDecompressLength);
       }
       buffers.emplace_back(convertToVeloxBuffer(uncompressBuffer));
     }
