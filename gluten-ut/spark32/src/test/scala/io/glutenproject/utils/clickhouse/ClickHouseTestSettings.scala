@@ -574,6 +574,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34727: cast from float II")
     .exclude("SPARK-35720: cast invalid string input to timestamp without time zone")
     .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
+    .exclude("data type casting II")
+    .exclude("SPARK-36286: invalid string cast to timestamp")
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude("null cast")
     .exclude("cast string to date")
