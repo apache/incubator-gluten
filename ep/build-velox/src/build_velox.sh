@@ -65,6 +65,19 @@ for arg in "$@"; do
   esac
 done
 
+function apply_compilation_fixes {
+  current_dir=$1
+  velox_home=$2
+  sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
+  sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/third_party/
+  cd ${velox_home}
+  git apply modify_velox.patch
+  if [ $? -ne 0 ]; then
+    echo "Failed to apply compilation fixes to Velox: $?."
+    exit 1
+  fi
+}
+
 function compile {
   TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
 
@@ -245,6 +258,7 @@ fi
 echo "Target Velox commit: $TARGET_BUILD_COMMIT"
 
 check_commit
+apply_compilation_fixes $CURRENT_DIR $VELOX_HOME
 compile
 
 echo "Successfully built Velox from Source."
