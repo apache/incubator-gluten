@@ -29,20 +29,12 @@
 #include "velox/vector/FlatVector.h"
 #include "velox/vector/VectorStream.h"
 
-#include <arrow/filesystem/filesystem.h>
-#include <arrow/filesystem/localfs.h>
-#include <arrow/io/api.h>
+#include <arrow/array/util.h>
 #include <arrow/ipc/writer.h>
 #include <arrow/memory_pool.h>
 #include <arrow/record_batch.h>
+#include <arrow/result.h>
 #include <arrow/type.h>
-#include <arrow/type_traits.h>
-#include <arrow/util/bit_util.h>
-#include <arrow/util/checked_cast.h>
-#include "arrow/array/builder_base.h"
-
-#include "arrow/array/util.h"
-#include "arrow/result.h"
 
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/PartitionWriterCreator.h"
@@ -285,11 +277,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status evictPartitionsOnDemand(int64_t* size);
 
-  std::shared_ptr<arrow::RecordBatch> makeRecordBatch(
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeRecordBatch(
       uint32_t numRows,
       const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
 
-  std::shared_ptr<arrow::Buffer> generateComplexTypeBuffers(facebook::velox::RowVectorPtr vector);
+  arrow::Result<std::shared_ptr<arrow::Buffer>> generateComplexTypeBuffers(facebook::velox::RowVectorPtr vector);
 
   arrow::Status resetValidityBuffer(uint32_t partitionId);
 

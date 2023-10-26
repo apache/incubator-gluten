@@ -21,16 +21,10 @@
 
 #include <arrow/memory_pool.h>
 #include <arrow/type.h>
-#include <arrow/util/logging.h>
-#include <sys/mman.h>
-#include <numeric>
-#include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
-#include "utils/macros.h"
+#include "velox/buffer/Buffer.h"
+#include "velox/common/memory/MemoryPool.h"
 #include "velox/type/Type.h"
-
-#include <velox/common/memory/MemoryPool.h>
-#include <iostream>
 
 namespace gluten {
 
@@ -44,6 +38,8 @@ std::shared_ptr<arrow::Schema> toArrowSchema(
     facebook::velox::memory::MemoryPool* pool);
 
 facebook::velox::TypePtr fromArrowSchema(const std::shared_ptr<arrow::Schema>& schema);
+
+arrow::Result<std::shared_ptr<arrow::Buffer>> toArrowBuffer(facebook::velox::BufferPtr buffer, arrow::MemoryPool* pool);
 
 /**
  * For testing.

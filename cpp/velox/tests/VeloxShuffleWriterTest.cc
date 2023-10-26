@@ -16,12 +16,9 @@
  */
 
 #include <arrow/c/bridge.h>
-#include <arrow/compute/api.h>
 #include <arrow/datum.h>
 #include <arrow/io/api.h>
 #include <arrow/pretty_print.h>
-#include <arrow/record_batch.h>
-#include <arrow/util/io_util.h>
 #include <iostream>
 
 #include "memory/VeloxColumnarBatch.h"
@@ -960,7 +957,7 @@ TEST_P(VeloxShuffleWriterTest, PreAllocPartitionBuffer1) {
   ASSERT_NOT_OK(shuffleWriter_->evictFixedSize(cachedPayloadSize, &evicted));
   // Check only cached data being spilled.
   ASSERT_EQ(evicted, cachedPayloadSize);
-  ARROW_CHECK_EQ(shuffleWriter_->partitionBufferSize(), partitionBufferBeforeEvict);
+  VELOX_CHECK_EQ(shuffleWriter_->partitionBufferSize(), partitionBufferBeforeEvict);
 
   // Split more data with null. New buffer size is larger.
   ASSERT_NOT_OK(splitRowVectorStatus(*shuffleWriter_, inputVector1_));

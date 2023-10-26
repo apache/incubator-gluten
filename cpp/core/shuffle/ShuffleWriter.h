@@ -97,10 +97,6 @@ class ShuffleWriter : public Evictable {
 
   virtual arrow::Status stop() = 0;
 
-  virtual std::shared_ptr<arrow::Schema> writeSchema();
-
-  virtual std::shared_ptr<arrow::Schema> compressWriteSchema();
-
   virtual std::shared_ptr<arrow::Schema>& schema() {
     return schema_;
   }
@@ -190,6 +186,10 @@ class ShuffleWriter : public Evictable {
 
   virtual ~ShuffleWriter() = default;
 
+  std::shared_ptr<arrow::Schema> writeSchema();
+
+  std::shared_ptr<arrow::Schema> compressWriteSchema();
+
   int32_t numPartitions_;
 
   std::shared_ptr<PartitionWriterCreator> partitionWriterCreator_;
@@ -204,7 +204,6 @@ class ShuffleWriter : public Evictable {
   int64_t totalWriteTime_ = 0;
   int64_t totalEvictTime_ = 0;
   int64_t totalCompressTime_ = 0;
-  int64_t peakMemoryAllocated_ = 0;
 
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_; // Uncompressed size.
