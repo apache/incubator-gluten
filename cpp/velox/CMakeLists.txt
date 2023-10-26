@@ -74,9 +74,9 @@ function(ADD_VELOX_DEPENDENCY VELOX_DEP_LIB_NAME VELOX_DEP_LIB_PATH)
   target_link_libraries(velox PUBLIC ${VELOX_DEP_LIB})
 endfunction()
 
-macro(IMPORT_VELOX_OBJECTS)
-  add_library(velox_imported OBJECT IMPORTED GLOBAL)
-  set_property(TARGET velox_imported PROPERTY IMPORTED_OBJECTS
+macro(ADD_VELOX_OBJECTS)
+  add_library(velox_objects OBJECT IMPORTED GLOBAL)
+  set_property(TARGET velox_objects PROPERTY IMPORTED_OBJECTS
           "${VELOX_COMPONENTS_PATH}/connectors/hive/CMakeFiles/velox_hive_connector.dir/FileHandle.cpp.o"
           "${VELOX_COMPONENTS_PATH}/connectors/hive/CMakeFiles/velox_hive_connector.dir/HiveConfig.cpp.o"
           "${VELOX_COMPONENTS_PATH}/connectors/hive/CMakeFiles/velox_hive_connector.dir/HiveConnector.cpp.o"
@@ -87,11 +87,11 @@ macro(IMPORT_VELOX_OBJECTS)
           "${VELOX_COMPONENTS_PATH}/connectors/hive/CMakeFiles/velox_hive_connector.dir/SplitReader.cpp.o"
           "${VELOX_COMPONENTS_PATH}/connectors/hive/CMakeFiles/velox_hive_connector.dir/TableHandle.cpp.o"
           )
-  target_link_libraries(velox PUBLIC velox_imported)
+  target_link_libraries(velox PUBLIC velox_objects)
 endmacro()
 
 macro(ADD_VELOX_DEPENDENCIES)
-  import_velox_objects()
+  add_velox_objects()
   add_velox_dependency(functions::sparksql::lib "${VELOX_COMPONENTS_PATH}/functions/sparksql/libvelox_functions_spark.a")
   add_velox_dependency(functions::sparksql::agg "${VELOX_COMPONENTS_PATH}/functions/sparksql/aggregates/libvelox_functions_spark_aggregates.a")
   add_velox_dependency(functions::window::sparksql "${VELOX_COMPONENTS_PATH}/functions/sparksql/window/libvelox_functions_spark_window.a")
