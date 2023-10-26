@@ -286,9 +286,8 @@ void CelebornPartitionWriter::stop()
 
 void Partition::addBlock(DB::Block & block)
 {
-    std::unique_lock<std::mutex> lock(mtx, std::try_to_lock);
-    if (lock.owns_lock())
-        blocks.emplace_back(std::move(block));
+    std::unique_lock<std::mutex> lock(mtx);
+    blocks.emplace_back(std::move(block));
 }
 
 bool Partition::empty() const
@@ -313,6 +312,7 @@ size_t Partition::spill(DB::NativeWriter & writer)
         {
             raw_size += writer.write(block);
         }
+        blocks.clear();
         return raw_size;
     }
     else

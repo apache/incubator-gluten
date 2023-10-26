@@ -17,8 +17,9 @@
 
 #include "utils/VeloxArrowUtils.h"
 
-#include <ComplexVector.h>
-#include <velox/vector/arrow/Bridge.h>
+#include "velox/vector/ComplexVector.h"
+#include "velox/vector/arrow/Bridge.h"
+
 #include "memory/VeloxColumnarBatch.h"
 
 namespace gluten {

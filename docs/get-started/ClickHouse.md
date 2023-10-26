@@ -453,7 +453,7 @@ $spark_cmd \
   --conf spark.gluten.sql.columnar.loadarrow=false \
   --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
   --conf spark.gluten.sql.enable.native.validation=false \
-  --conf spark.gluten.sql.columnar.forceshuffledhashjoin=true \
+  --conf spark.gluten.sql.columnar.forceShuffledHashJoin=true \
   --conf spark.gluten.sql.columnar.backend.ch.runtime_config.hdfs.libhdfs3_conf=$hdfs_conf \
   --conf spark.gluten.sql.columnar.backend.ch.runtime_config.logger.level=debug \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \

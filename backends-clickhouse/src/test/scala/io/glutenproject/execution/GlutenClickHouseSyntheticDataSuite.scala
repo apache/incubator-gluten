@@ -77,7 +77,6 @@ class GlutenClickHouseSyntheticDataSuite
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.sql.legacy.createHiveTableByDefault", "false")
       .set("spark.shuffle.manager", "sort")

@@ -252,7 +252,6 @@ set(VELOX_SRCS
     substrait/SubstraitToVeloxPlan.cc
     substrait/SubstraitToVeloxPlanValidator.cc
     substrait/VariantToVectorConverter.cc
-    substrait/TypeUtils.cc
     substrait/SubstraitExtensionCollector.cc
     substrait/VeloxSubstraitSignature.cc
     substrait/VeloxToSubstraitExpr.cc
@@ -274,13 +273,9 @@ target_include_directories(velox PUBLIC
     ${CMAKE_SYSTEM_INCLUDE_PATH}
     ${JNI_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${root_directory}/src
-    ${VELOX_HOME}
-    ${VELOX_BUILD_PATH}
+    ${VELOX_HOME}/
+    ${VELOX_BUILD_PATH}/
     ${VELOX_BUILD_PATH}/_deps/xsimd-src/include/
-    ${VELOX_HOME}/velox/vector
-    ${VELOX_HOME}/velox/connectors
-    ${VELOX_HOME}/velox/external/xxhash/
     ${VELOX_HOME}/third_party/xsimd/include/)
 
 set_target_properties(velox PROPERTIES
