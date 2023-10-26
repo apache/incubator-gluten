@@ -46,7 +46,7 @@ public:
         if (parsed_args.size() != 2 && parsed_args.size() != 3)
             throw Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires two or three arguments", getName());
         DB::DataTypePtr start_index_data_type = removeNullable(parsed_args[1]->result_type);
-        if (!DB::WhichDataType(start_index_data_type).isInt())
+        if (!isInteger(start_index_data_type))
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Function {}'s second arguments must be int type");
          /**
             parse substring(str, start_index, length) as
@@ -60,10 +60,12 @@ public:
         auto * equals_zero_node = toFunctionNode(actions_dag, "equals", {parsed_args[1], const_zero_node});
         auto * index_plus_node = toFunctionNode(actions_dag, "plus", {parsed_args[1], const_one_node});
         auto * if_node = toFunctionNode(actions_dag, "if", {equals_zero_node, index_plus_node, parsed_args[1]});
+        const DB::ActionsDAG::Node * substring_func_node;
         if (parsed_args.size() == 2)
-            return toFunctionNode(actions_dag, "substringUTF8", {parsed_args[0], if_node});
+            substring_func_node = toFunctionNode(actions_dag, "substringUTF8", {parsed_args[0], if_node});
         else
-            return toFunctionNode(actions_dag, "substringUTF8", {parsed_args[0], if_node, parsed_args[2]});
+            substring_func_node = toFunctionNode(actions_dag, "substringUTF8", {parsed_args[0], if_node, parsed_args[2]});
+        return convertNodeTypeIfNeeded(substrait_func, substring_func_node, actions_dag);
     }
 protected:
     String getCHFunctionName(const substrait::Expression_ScalarFunction & /*substrait_func*/) const override
