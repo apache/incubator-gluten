@@ -215,6 +215,15 @@ const int64_t VeloxMemoryManager::shrink(int64_t size) {
   return shrinkVeloxMemoryPool(veloxAggregatePool_.get(), size);
 }
 
+void VeloxMemoryManager::hold() {
+  const auto& root = veloxAggregatePool_;
+  root->visitChildren([&](velox::memory::MemoryPool* pool) -> bool {
+    auto shared = pool->shared_from_this();
+    heldVeloxPools_.push_back(shared);
+    return true;
+  });
+}
+
 velox::memory::MemoryManager* getDefaultVeloxMemoryManager() {
   return &(facebook::velox::memory::defaultMemoryManager());
 }

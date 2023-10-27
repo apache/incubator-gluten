@@ -1272,6 +1272,16 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_shr
   JNI_METHOD_END(kInvalidResourceHandle)
 }
 
+JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_hold( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong memoryManagerHandle) {
+  JNI_METHOD_START
+  auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
+  delete memoryManager;
+  JNI_METHOD_END()
+}
+
 JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_release( // NOLINT
     JNIEnv* env,
     jclass,
