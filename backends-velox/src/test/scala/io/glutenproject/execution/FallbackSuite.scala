@@ -122,4 +122,17 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
         assert(aqeRead.isDefined)
     }
   }
+
+  test("Do not fallback eagerly with ColumnarToRowExec") {
+    withSQLConf(GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
+      runQueryAndCompare("select count(*) from tmp1") {
+        df =>
+          assert(
+            collect(df.queryExecution.executedPlan) {
+              case h: HashAggregateExecTransformer => h
+            }.size == 2,
+            df.queryExecution.executedPlan)
+      }
+    }
+  }
 }
