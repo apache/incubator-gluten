@@ -34,7 +34,7 @@ struct SpillInfo {
     int64_t length{}; // in Bytes
   };
 
-  bool valid{true};
+  bool empty{true};
   std::string spilledFile{};
   std::vector<PartitionSpillInfo> partitionSpillInfos{};
   std::shared_ptr<arrow::io::MemoryMappedFile> inputStream{};
@@ -44,29 +44,9 @@ struct SpillInfo {
   SpillInfo(std::string spilledFile) : spilledFile(spilledFile) {}
 };
 
-class LocalPartitionWriterBase : public ShuffleWriter::PartitionWriter {
- protected:
-  explicit LocalPartitionWriterBase(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
-
-  arrow::Status setLocalDirs();
-
-  std::string nextSpilledFileDir();
-
-  arrow::Status openDataFile();
-
-  virtual arrow::Status clearResource();
-
-  // configured local dirs for spilled file
-  int32_t dirSelection_ = 0;
-  std::vector<int32_t> subDirSelection_;
-  std::vector<std::string> configuredDirs_;
-
-  std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
-};
-
-class PreferCachePartitionWriter : public LocalPartitionWriterBase {
+class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
  public:
-  explicit PreferCachePartitionWriter(ShuffleWriter* shuffleWriter) : LocalPartitionWriterBase(shuffleWriter) {}
+  explicit LocalPartitionWriter(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
 
   arrow::Status init() override;
 
@@ -95,14 +75,27 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
   /// it will shrink partition buffers to free more memory.
   arrow::Status stop() override;
 
- private:
   class LocalEvictHandle;
 
-  arrow::Status clearResource() override;
+ private:
+  arrow::Status setLocalDirs();
+
+  std::string nextSpilledFileDir();
+
+  arrow::Status openDataFile();
+
+  arrow::Status clearResource();
 
   std::shared_ptr<arrow::fs::LocalFileSystem> fs_{};
   std::shared_ptr<LocalEvictHandle> evictHandle_;
   std::vector<std::shared_ptr<SpillInfo>> spills_;
+
+  // configured local dirs for spilled file
+  int32_t dirSelection_ = 0;
+  std::vector<int32_t> subDirSelection_;
+  std::vector<std::string> configuredDirs_;
+
+  std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
 };
 
 class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {

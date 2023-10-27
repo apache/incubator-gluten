@@ -1685,9 +1685,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     if (!pidToSize.empty()) {
       Timer spillTime;
       spillTime.start();
-      if (auto evictHandle = partitionWriter_->getEvictHandle()) {
-        RETURN_NOT_OK(evictHandle->finish());
-      }
       RETURN_NOT_OK(partitionWriter_->requestNextEvict(true));
       auto evictHandle = partitionWriter_->getEvictHandle();
       spillTime.stop();
