@@ -85,8 +85,8 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Runt
 
   @Override
   public void closeInternal() {
-    nmm.hold(); // to make sure the outputted batches are still accessible after the iterator
-                // is closed
+    nmm.hold(); // to make sure the outputted batches are still accessible after the iterator is
+    // closed
     nativeClose(iterHandle);
   }
 }
