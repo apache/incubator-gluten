@@ -140,6 +140,7 @@ class FlushOnSpillEvictHandle final : public LocalPartitionWriter::LocalEvictHan
   arrow::Status finish() override {
     if (!finished_) {
       if (os_) {
+        RETURN_NOT_OK(os_->Close());
         spillInfo_->empty = false;
       }
       finished_ = true;

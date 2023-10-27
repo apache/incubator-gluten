@@ -283,8 +283,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status resetValidityBuffer(uint32_t partitionId);
 
-  arrow::Result<int64_t> shrinkOrEvictPartitionBuffers(int64_t size);
-
   arrow::Result<int64_t> shrinkPartitionBuffersMinSize(int64_t size);
 
   arrow::Result<int64_t> shrinkPartitionBuffers();
@@ -303,9 +301,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   void stat() const;
 
-  bool shrinkBeforeSpill() const;
+  bool shrinkPartitionBuffersBeforeSpill() const;
 
-  bool shrinkAfterSpill() const;
+  bool shrinkPartitionBuffersAfterSpill() const;
+
+  bool evictPartitionBuffersAfterSpill() const;
 
   arrow::Result<uint32_t> partitionBufferSizeAfterShrink(uint32_t partitionId) const;
 
