@@ -1278,7 +1278,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_hold
     jlong memoryManagerHandle) {
   JNI_METHOD_START
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
-  delete memoryManager;
+  memoryManager->hold();
   JNI_METHOD_END()
 }
 
