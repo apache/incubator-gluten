@@ -15,22 +15,28 @@
  * limitations under the License.
  */
 
-#pragma once
+#include "shuffle/VeloxShuffleUtils.h"
+#include <arrow/buffer.h>
+#include <arrow/util/compression.h>
 
-#include <arrow/type.h>
-
-namespace gluten {
-
-using BinaryArrayLengthBufferType = uint32_t;
-using IpcOffsetBufferType = arrow::LargeStringType::offset_type;
-
-static const size_t kSizeOfBinaryArrayLengthBuffer = sizeof(BinaryArrayLengthBufferType);
-static const size_t kSizeOfIpcOffsetBuffer = sizeof(IpcOffsetBufferType);
-
-int64_t getBuffersSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
-
-int64_t getMaxCompressedBufferSize(
+int64_t gluten::getMaxCompressedBufferSize(
     const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    arrow::util::Codec* codec);
+    arrow::util::Codec* codec) {
+  int64_t totalSize = 0;
+  for (auto& buffer : buffers) {
+    if (buffer != nullptr && buffer->size() != 0) {
+      totalSize += codec->MaxCompressedLen(buffer->size(), nullptr);
+    }
+  }
+  return totalSize;
+}
 
-} // namespace gluten
+int64_t gluten::getBuffersSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
+  int64_t totalSize = 0;
+  for (auto& buffer : buffers) {
+    if (buffer != nullptr) {
+      totalSize += buffer->size();
+    }
+  }
+  return totalSize;
+}

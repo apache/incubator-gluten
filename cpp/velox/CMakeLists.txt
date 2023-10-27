@@ -262,6 +262,7 @@ set(VELOX_SRCS
     operators/serializer/VeloxRowToColumnarConverter.cc
     operators/writer/VeloxParquetDatasource.cc
     shuffle/VeloxShuffleReader.cc
+    shuffle/VeloxShuffleUtils.cc
     shuffle/VeloxShuffleWriter.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
