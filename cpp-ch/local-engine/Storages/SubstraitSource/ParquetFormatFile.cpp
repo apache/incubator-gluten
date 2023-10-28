@@ -30,6 +30,7 @@
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
+#include <Storages/ch_parquet/ArrowParquetBlockInputFormat.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/metadata.h>
 #include <Common/Exception.h>
@@ -59,7 +60,7 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
     auto res = std::make_shared<FormatFile::InputFormat>();
     res->read_buffer = read_buffer_builder->build(file_info);
 
-    std::vector<RowGroupInfomation> required_row_groups;
+    std::vector<RowGroupInformation> required_row_groups;
     int total_row_groups = 0;
     if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(res->read_buffer.get()))
     {
@@ -126,13 +127,13 @@ std::optional<size_t> ParquetFormatFile::getTotalRows()
     }
 }
 
-std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(int & total_row_groups)
+std::vector<RowGroupInformation> ParquetFormatFile::collectRequiredRowGroups(int & total_row_groups)
 {
     auto in = read_buffer_builder->build(file_info);
     return collectRequiredRowGroups(in.get(), total_row_groups);
 }
 
-std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups)
+std::vector<RowGroupInformation> ParquetFormatFile::collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups)
 {
     DB::FormatSettings format_settings{
         .seekable_read = true,
@@ -147,7 +148,7 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
     auto file_meta = reader->parquet_reader()->metadata();
     total_row_groups = file_meta->num_row_groups();
 
-    std::vector<RowGroupInfomation> row_group_metadatas;
+    std::vector<RowGroupInformation> row_group_metadatas;
     row_group_metadatas.reserve(total_row_groups);
 
     auto get_column_start_offset = [&](parquet::ColumnChunkMetaData & metadata_)
@@ -173,7 +174,7 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
         /// Current row group has intersection with the required range.
         if (file_info.start() <= midpoint_offset && midpoint_offset < file_info.start() + file_info.length())
         {
-            RowGroupInfomation info;
+            RowGroupInformation info;
             info.index = i;
             info.num_rows = row_group_meta->num_rows();
             info.start = row_group_meta->file_offset();
