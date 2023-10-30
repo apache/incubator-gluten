@@ -1666,7 +1666,8 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 const auto * trim_string_node = toFunctionNode(actions_dag, "trimLeft", {args[0]});
                 const auto * substr_node = toFunctionNode(actions_dag, "substring", {trim_string_node, substr_offset_node, substr_length_node});
                 const auto * date_format_node = add_column(std::make_shared<DataTypeString>(), "%Y-%m-%d");
-                const auto * parse_date_node = toFunctionNode(actions_dag, "parseDateTimeOrNull", {substr_node, date_format_node});
+                const auto * utc_time_zone_node = add_column(std::make_shared<DataTypeString>(), "UTC");
+                const auto * parse_date_node = toFunctionNode(actions_dag, "parseDateTimeOrNull", {substr_node, date_format_node, utc_time_zone_node});
                 const auto * parse_date_is_not_null_node = toFunctionNode(actions_dag, "isNotNull", {parse_date_node});
 
                 /// toDate32(parseDateTimeOrNull(substring(trimLeft(date), 1, 10), '%Y-%m-%d'))
