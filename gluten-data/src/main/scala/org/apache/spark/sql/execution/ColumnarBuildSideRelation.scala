@@ -21,7 +21,7 @@ import io.glutenproject.exec.Runtimes
 import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
-import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.utils.{ArrowAbiUtil, Iterators}
 import io.glutenproject.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
 
 import org.apache.spark.sql.catalyst.InternalRow
@@ -32,7 +32,6 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.Iterators
 
 import org.apache.arrow.c.ArrowSchema
 

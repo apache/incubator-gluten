@@ -23,6 +23,7 @@ import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized._
 
 import org.apache.spark.{Partition, SparkConf, SparkContext, TaskContext}
@@ -39,7 +40,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{BinaryType, DateType, StructType, TimestampType}
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{ExecutorManager, Iterators}
+import org.apache.spark.util.ExecutorManager
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets

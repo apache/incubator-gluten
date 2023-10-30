@@ -19,6 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.memory.nmm.NativeMemoryManagers
+import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized.NativeColumnarToRowJniWrapper
 
 import org.apache.spark.rdd.RDD
@@ -28,7 +29,6 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.Iterators
 
 import scala.collection.JavaConverters._
 

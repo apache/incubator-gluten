@@ -14,10 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.util
+package io.glutenproject.utils
 
 import org.apache.spark.{InterruptibleIterator, TaskContext}
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.util.TaskResources
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 

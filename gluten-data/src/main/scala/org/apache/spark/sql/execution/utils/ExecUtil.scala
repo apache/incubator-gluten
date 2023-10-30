@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.utils
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
+import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
 
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
@@ -34,7 +35,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{IntegerType, StructType}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-import org.apache.spark.util.{Iterators, MutablePair}
+import org.apache.spark.util.MutablePair
 
 object ExecUtil {
 

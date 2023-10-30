@@ -24,7 +24,7 @@ import io.glutenproject.exec.Runtimes
 import io.glutenproject.execution.{RowToVeloxColumnarExec, VeloxColumnarToRowExec}
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
-import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.utils.{ArrowAbiUtil, Iterators}
 import io.glutenproject.vectorized.ColumnarBatchSerializerJniWrapper
 
 import org.apache.spark.rdd.RDD
@@ -38,7 +38,6 @@ import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.util.Iterators
 
 import org.apache.arrow.c.ArrowSchema
 

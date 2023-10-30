@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.util
+package io.glutenproject.utils
 
+import org.apache.spark.util.{TaskResourceRegistry, TaskResources}
 import org.scalatest.funsuite.AnyFunSuite
 
 class IteratorSuite extends AnyFunSuite {

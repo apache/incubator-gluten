@@ -17,12 +17,12 @@
 package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.datasource.DatasourceJniWrapper
+import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized.ColumnarBatchInIterator
 
 import org.apache.spark.TaskContext
 import org.apache.spark.sql.execution.datasources.VeloxWriteQueue.EOS_BATCH
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.Iterators
 
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
