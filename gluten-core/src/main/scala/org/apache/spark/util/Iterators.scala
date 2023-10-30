@@ -120,7 +120,6 @@ private class PipelineTimeAccumulator[A](in: Iterator[A], pipelineTime: SQLMetri
  * methods.
  */
 private class InvocationFlowProtection[A](in: Iterator[A]) extends Iterator[A] {
-
   private sealed trait State;
   private case object Init extends State;
   private case class HasNextCalled(hasNext: Boolean) extends State;

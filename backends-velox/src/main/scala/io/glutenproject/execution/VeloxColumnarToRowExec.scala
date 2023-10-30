@@ -159,6 +159,8 @@ object VeloxColumnarToRowExec {
     }
     Iterators
       .wrap(res.flatten)
+      .protectInvocationFlow() // Spark may call `hasNext()` again after a false output which
+      // is not allowed by Gluten iterators. E.g. GroupedIterator#fetchNextGroupIterator
       .recycleIterator {
         jniWrapper.nativeClose(c2rId)
       }
