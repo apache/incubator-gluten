@@ -33,6 +33,11 @@ class MemoryManager {
   virtual const MemoryUsageStats collectMemoryUsageStats() const = 0;
 
   virtual const int64_t shrink(int64_t size) = 0;
+
+  // Hold this memory manager. The underlying memory pools will be released as lately as this memory manager gets
+  // destroyed. Which means, a call to this function would make sure the memory blocks directly or indirectly managed
+  // by this manager, be guaranteed safe to access during the period that this manager is alive.
+  virtual void hold() = 0;
 };
 
 } // namespace gluten

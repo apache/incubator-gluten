@@ -230,11 +230,12 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   /**
    * Generate closeable ColumnBatch iterator.
    *
+   * FIXME: This no longer overrides parent's method
+   *
    * @param iter
    * @return
    */
-  override def genCloseableColumnBatchIterator(
-      iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
+  def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     if (iter.isInstanceOf[CloseableCHColumnBatchIterator]) iter
     else new CloseableCHColumnBatchIterator(iter)
   }

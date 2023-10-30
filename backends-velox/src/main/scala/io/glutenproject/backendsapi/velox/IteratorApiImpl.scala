@@ -23,9 +23,10 @@ import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesBuilder
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized._
 
-import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{Partition, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -39,7 +40,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.{BinaryType, DateType, StructType, TimestampType}
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.{ExecutorManager, TaskResources}
+import org.apache.spark.util.ExecutorManager
 
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -125,17 +126,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
   }
 
   /**
-   * Generate closeable ColumnBatch iterator.
-   *
-   * @param iter
-   * @return
-   */
-  override def genCloseableColumnBatchIterator(
-      iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
-    new CloseableColumnBatchIterator(iter)
-  }
-
-  /**
    * Generate Iterator[ColumnarBatch] for first stage.
    *
    * @return
@@ -156,30 +146,18 @@ class IteratorApiImpl extends IteratorApi with Logging {
     val resIter: GeneralOutIterator =
       transKernel.createKernelWithBatchIterator(inputPartition.plan, columnarNativeIterators)
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
-    TaskResources.addRecycler(s"FirstStageIterator_${resIter.getId}", 100)(resIter.close())
-    val iter = new Iterator[ColumnarBatch] {
-      private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
-      var finished = false
 
-      override def hasNext: Boolean = {
-        val res = resIter.hasNext
-        if (!res) {
-          updateNativeMetrics(resIter.getMetrics)
-          updateInputMetrics(inputMetrics)
-          finished = true
-        }
-        res
+    Iterators
+      .wrap(resIter.asScala)
+      .recycleIterator {
+        updateNativeMetrics(resIter.getMetrics)
+        updateInputMetrics(TaskContext.get().taskMetrics().inputMetrics)
+        resIter.close()
       }
-
-      override def next(): ColumnarBatch = {
-        if (finished) {
-          throw new java.util.NoSuchElementException("End of stream.")
-        }
-        resIter.next()
-      }
-    }
-
-    new InterruptibleIterator(context, new CloseableColumnBatchIterator(iter, Some(pipelineTime)))
+      .recyclePayload(batch => batch.close())
+      .addToPipelineTime(pipelineTime)
+      .asInterruptible(context)
+      .create()
   }
 
   // scalastyle:off argcount
@@ -213,25 +191,15 @@ class IteratorApiImpl extends IteratorApi with Logging {
 
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
-    val resIter = new Iterator[ColumnarBatch] {
-      override def hasNext: Boolean = {
-        val res = nativeResultIterator.hasNext
-        if (!res) {
-          updateNativeMetrics(nativeResultIterator.getMetrics)
-        }
-        res
+    Iterators
+      .wrap(nativeResultIterator.asScala)
+      .recycleIterator {
+        updateNativeMetrics(nativeResultIterator.getMetrics)
+        nativeResultIterator.close()
       }
-
-      override def next(): ColumnarBatch = {
-        nativeResultIterator.next
-      }
-    }
-
-    TaskResources.addRecycler(s"FinalStageIterator_${nativeResultIterator.getId}", 100) {
-      nativeResultIterator.close()
-    }
-
-    new CloseableColumnBatchIterator(resIter, Some(pipelineTime))
+      .recyclePayload(batch => batch.close())
+      .addToPipelineTime(pipelineTime)
+      .create()
   }
   // scalastyle:on argcount
 
@@ -254,6 +222,9 @@ class IteratorApiImpl extends IteratorApi with Logging {
       broadcasted: Broadcast[BuildSideRelation],
       broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
     val relation = broadcasted.value.asReadOnlyCopy(broadCastContext)
-    new CloseableColumnBatchIterator(relation.deserialized)
+    Iterators
+      .wrap(relation.deserialized)
+      .recyclePayload(batch => batch.close())
+      .create()
   }
 }
