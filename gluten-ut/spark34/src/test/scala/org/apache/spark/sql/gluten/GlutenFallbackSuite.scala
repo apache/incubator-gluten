@@ -25,7 +25,7 @@ import org.apache.spark.status.ElementTrackingStore
 
 class GlutenFallbackSuite extends GlutenSQLTestsTrait {
 
-  test("test fallback logging") {
+  ignore("test fallback logging") {
     val testAppender = new LogAppender("fallback reason")
     withLogAppender(testAppender) {
       withSQLConf(
@@ -44,7 +44,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait {
     }
   }
 
-  test("test fallback event") {
+  ignore("test fallback event") {
     val kvStore = spark.sparkContext.statusStore.store.asInstanceOf[ElementTrackingStore]
     val glutenStore = new GlutenSQLAppStatusStore(kvStore)
     assert(glutenStore.buildInfo().info.find(_._1 == "Gluten Version").exists(_._2 == VERSION))

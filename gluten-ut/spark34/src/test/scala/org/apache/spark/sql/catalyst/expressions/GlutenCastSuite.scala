@@ -21,8 +21,8 @@ import org.apache.spark.sql.types._
 
 import java.sql.Date
 
-class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
-  override def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): CastBase = {
+class GlutenCastSuite extends CastSuiteBase with GlutenTestsTrait {
+  override def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): Cast = {
     v match {
       case lit: Expression =>
         logDebug(s"Cast from: ${lit.dataType.typeName}, to: ${targetType.typeName}")
@@ -74,4 +74,6 @@ class GlutenCastSuite extends CastSuite with GlutenTestsTrait {
     val d = Date.valueOf("1970-01-01")
     checkEvaluation(cast(d, DateType), d)
   }
+
+  override protected def evalMode: EvalMode.Value = EvalMode.LEGACY
 }

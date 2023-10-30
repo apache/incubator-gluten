@@ -21,7 +21,6 @@ import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.sql.{GlutenTestConstants, QueryTest, SparkSession}
-import org.apache.spark.sql.catalyst.analysis.FunctionRegistry
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, ConvertToLocalRelation, NullPropagation}
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.internal.SQLConf
@@ -92,14 +91,13 @@ class SparkFunctionStatistics extends QueryTest {
     // According to expressionsForTimestampNTZSupport in FunctionRegistry.scala,
     // these functions are registered only for testing, not available for end users.
     // Other functions like current_database is NOT necessarily offloaded to native.
-    val ignoreFunctions = FunctionRegistry.expressionsForTimestampNTZSupport.keySet ++
-      Seq(
-        "get_fake_app_name",
-        "current_catalog",
-        "current_database",
-        "spark_partition_id",
-        "current_user",
-        "current_timezone")
+    val ignoreFunctions = Seq(
+      "get_fake_app_name",
+      "current_catalog",
+      "current_database",
+      "spark_partition_id",
+      "current_user",
+      "current_timezone")
     val supportedFunctions = new java.util.ArrayList[String]()
     val unsupportedFunctions = new java.util.ArrayList[String]()
     val needInspectFunctions = new java.util.ArrayList[String]()

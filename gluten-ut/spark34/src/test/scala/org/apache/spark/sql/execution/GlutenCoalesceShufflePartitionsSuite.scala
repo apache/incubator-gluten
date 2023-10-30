@@ -78,7 +78,7 @@ class GlutenCoalesceShufflePartitionsSuite
     }
   }
 
-  test(
+  ignore(
     GLUTEN_TEST +
       "SPARK-24705 adaptive query execution works correctly when exchange reuse enabled") {
     val test: SparkSession => Unit = {

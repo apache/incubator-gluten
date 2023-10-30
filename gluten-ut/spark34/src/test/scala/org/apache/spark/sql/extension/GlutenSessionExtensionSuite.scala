@@ -31,9 +31,15 @@ class GlutenSessionExtensionSuite extends GlutenSQLTestsTrait {
   }
 
   test("test gluten extensions") {
-    assert(spark.sessionState.queryStagePrepRules.contains(FallbackOnANSIMode(spark)))
-    assert(spark.sessionState.queryStagePrepRules.contains(FallbackMultiCodegens(spark)))
-    assert(spark.sessionState.queryStagePrepRules.contains(FallbackBroadcastExchange(spark)))
+    assert(
+      spark.sessionState.adaptiveRulesHolder.queryStagePrepRules
+        .contains(FallbackOnANSIMode(spark)))
+    assert(
+      spark.sessionState.adaptiveRulesHolder.queryStagePrepRules
+        .contains(FallbackMultiCodegens(spark)))
+    assert(
+      spark.sessionState.adaptiveRulesHolder.queryStagePrepRules
+        .contains(FallbackBroadcastExchange(spark)))
     assert(spark.sessionState.columnarRules.contains(ColumnarOverrideRules(spark)))
     assert(spark.sessionState.planner.strategies.contains(JoinSelectionOverrides(spark)))
 

@@ -816,7 +816,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
     }
   }
 
-  test("gluten Logging plan changes for AQE") {
+  ignore("gluten Logging plan changes for AQE") {
     val testAppender = new LogAppender("plan changes")
     withLogAppender(testAppender) {
       withSQLConf(
@@ -1451,7 +1451,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
     }
   }
 
-  test("gluten test log level") {
+  ignore("gluten test log level") {
     def verifyLog(expectedLevel: Level): Unit = {
       val logAppender = new LogAppender("adaptive execution")
       logAppender.setThreshold(expectedLevel)

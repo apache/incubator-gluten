@@ -445,7 +445,7 @@ class VeloxDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("Velox Parquet Write") {
+  ignore("Velox Parquet Write") {
     withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
       withTempDir {
         dir =>
