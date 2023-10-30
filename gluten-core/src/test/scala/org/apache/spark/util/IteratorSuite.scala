@@ -99,6 +99,38 @@ class IteratorSuite extends AnyFunSuite {
     assert(closeCount == 2) // the second one is closed on task exit
   }
 
+  test("Protect invocation flow") {
+    var hasNextCallCount = 0
+    var nextCallCount = 0
+    val itr = new Iterator[Any] {
+      override def hasNext: Boolean = {
+        hasNextCallCount += 1
+        true
+      }
+
+      override def next(): Any = {
+        nextCallCount += 1
+        new Object
+      }
+    }
+    val wrapped = Iterators
+      .wrap(itr)
+      .protectInvocationFlow()
+      .create()
+    wrapped.hasNext
+    assert(hasNextCallCount == 1)
+    assert(nextCallCount == 0)
+    wrapped.hasNext
+    assert(hasNextCallCount == 1)
+    assert(nextCallCount == 0)
+    wrapped.next
+    assert(hasNextCallCount == 1)
+    assert(nextCallCount == 1)
+    wrapped.next
+    assert(hasNextCallCount == 2)
+    assert(nextCallCount == 2)
+  }
+
   private def withFakeTaskContext(body: => Unit): Unit = {
     TaskResources.setFallbackRegistry(new TaskResourceRegistry)
     try {

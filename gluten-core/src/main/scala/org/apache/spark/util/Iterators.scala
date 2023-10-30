@@ -115,6 +115,48 @@ private class PipelineTimeAccumulator[A](in: Iterator[A], pipelineTime: SQLMetri
   }
 }
 
+/**
+ * To protect the wrapped iterator to avoid undesired order of calls to its `hasNext` and `next`
+ * methods.
+ */
+private class InvocationFlowProtection[A](in: Iterator[A]) extends Iterator[A] {
+
+  private sealed trait State;
+  private case object Init extends State;
+  private case class HasNextCalled(hasNext: Boolean) extends State;
+  private case object NextCalled extends State;
+
+  private var state: State = Init
+
+  override def hasNext: Boolean = {
+    val out = state match {
+      case Init | NextCalled =>
+        in.hasNext
+      case HasNextCalled(lastHasNext) =>
+        lastHasNext
+    }
+    state = HasNextCalled(out)
+    out
+  }
+
+  override def next(): A = {
+    val out = state match {
+      case Init | NextCalled =>
+        if (!in.hasNext) {
+          throw new IllegalStateException("End of stream")
+        }
+        in.next()
+      case HasNextCalled(lastHasNext) =>
+        if (!lastHasNext) {
+          throw new IllegalStateException("End of stream")
+        }
+        in.next()
+    }
+    state = NextCalled
+    out
+  }
+}
+
 class WrapperBuilder[A](in: Iterator[A]) { // FIXME how to make the ctor companion-private?
   private var wrapped: Iterator[A] = in
 
@@ -135,6 +177,11 @@ class WrapperBuilder[A](in: Iterator[A]) { // FIXME how to make the ctor compani
 
   def asInterruptible(context: TaskContext): WrapperBuilder[A] = {
     wrapped = new InterruptibleIterator[A](context, wrapped)
+    this
+  }
+
+  def protectInvocationFlow(): WrapperBuilder[A] = {
+    wrapped = new InvocationFlowProtection[A](wrapped)
     this
   }
 
