@@ -17,6 +17,7 @@
 package io.glutenproject.utils
 
 import org.apache.spark.util.{TaskResourceRegistry, TaskResources}
+
 import org.scalatest.funsuite.AnyFunSuite
 
 class IteratorSuite extends AnyFunSuite {
