@@ -23,7 +23,7 @@ class CelebornEvictHandle final : public EvictHandle {
  public:
   CelebornEvictHandle(
       int64_t bufferSize,
-      const std::shared_ptr<arrow::ipc::IpcWriteOptions>& options,
+      const arrow::ipc::IpcWriteOptions& options,
       arrow::MemoryPool* pool,
       RssClient* client,
       std::vector<int32_t>& bytesEvicted)
@@ -34,7 +34,7 @@ class CelebornEvictHandle final : public EvictHandle {
     ARROW_ASSIGN_OR_RAISE(auto celebornBufferOs, arrow::io::BufferOutputStream::Create(bufferSize_, pool_));
     int32_t metadataLength = 0; // unused
 #ifndef SKIPWRITE
-    RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, *options_, celebornBufferOs.get(), &metadataLength));
+    RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_, celebornBufferOs.get(), &metadataLength));
 #endif
     payload = nullptr; // Invalidate payload immediately.
 
@@ -55,7 +55,7 @@ class CelebornEvictHandle final : public EvictHandle {
 
  private:
   int64_t bufferSize_;
-  std::shared_ptr<arrow::ipc::IpcWriteOptions> options_;
+  arrow::ipc::IpcWriteOptions options_;
   arrow::MemoryPool* pool_;
   RssClient* client_;
 

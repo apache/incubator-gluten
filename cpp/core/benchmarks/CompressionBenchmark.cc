@@ -65,9 +65,9 @@ const int32_t kQplGzip = 2;
 const int32_t kLZ4 = 3;
 const int32_t kZstd = 4;
 
-class MyMemoryPool final : public arrow::MemoryPool {
+class LimitedMemoryPool final : public arrow::MemoryPool {
  public:
-  explicit MyMemoryPool() {}
+  explicit LimitedMemoryPool() {}
 
   Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
     RETURN_NOT_OK(pool_->Allocate(size, out));
@@ -195,7 +195,7 @@ class BenchmarkCompression {
       default:
         throw GlutenException("Codec not supported. Only support LZ4 or QATGzip");
     }
-    std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>();
+    std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LimitedMemoryPool>();
     ipcWriteOptions.memory_pool = pool.get();
 
     int64_t elapseRead = 0;

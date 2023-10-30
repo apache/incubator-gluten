@@ -90,10 +90,10 @@ facebook::velox::RowVectorPtr getStrippedRowVector(const facebook::velox::RowVec
 }
 
 const int32_t* getFirstColumn(const facebook::velox::RowVector& rv) {
-  VELOX_DCHECK(rv.childrenSize() > 0, "RowVector missing partition id column.");
+  VELOX_CHECK(rv.childrenSize() > 0, "RowVector missing partition id column.");
 
   auto& firstChild = rv.childAt(0);
-  VELOX_DCHECK(firstChild->type()->isInteger(), "RecordBatch field 0 should be integer");
+  VELOX_CHECK(firstChild->type()->isInteger(), "RecordBatch field 0 should be integer");
 
   // first column is partition key hash value or pid
   return firstChild->asFlatVector<int32_t>()->rawValues();
@@ -432,11 +432,8 @@ arrow::Status VeloxShuffleWriter::init() {
 }
 
 arrow::Status VeloxShuffleWriter::initIpcWriteOptions() {
-  auto ipcWriteOptions = std::make_shared<arrow::ipc::IpcWriteOptions>();
-  ipcWriteOptions->memory_pool = payloadPool_.get();
-  ipcWriteOptions->use_threads = false;
-  options_.ipc_write_options = std::move(ipcWriteOptions);
-
+  options_.ipc_write_options.memory_pool = payloadPool_.get();
+  options_.ipc_write_options.use_threads = false;
   return arrow::Status::OK();
 }
 
@@ -491,7 +488,7 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> VeloxShuffleWriter::generateComple
 arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) {
   if (options_.partitioning_name == "single") {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
-    VELOX_DCHECK_NOT_NULL(veloxColumnBatch);
+    VELOX_CHECK_NOT_NULL(veloxColumnBatch);
     auto& rv = *veloxColumnBatch->getFlattenedRowVector();
     RETURN_NOT_OK(initFromRowVector(rv));
     std::vector<std::shared_ptr<arrow::Buffer>> buffers;
@@ -522,9 +519,9 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64
     RETURN_NOT_OK(evictPayload(0, std::move(payload)));
   } else if (options_.partitioning_name == "range") {
     auto compositeBatch = std::dynamic_pointer_cast<CompositeColumnarBatch>(cb);
-    VELOX_DCHECK_NOT_NULL(compositeBatch);
+    VELOX_CHECK_NOT_NULL(compositeBatch);
     auto batches = compositeBatch->getBatches();
-    VELOX_DCHECK_EQ(batches.size(), 2);
+    VELOX_CHECK_EQ(batches.size(), 2);
     auto pidBatch = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
     auto pidArr = getFirstColumn(*(pidBatch->getRowVector()));
     START_TIMING(cpuWallTimingList_[CpuWallTimingCompute]);
@@ -536,7 +533,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64
     RETURN_NOT_OK(doSplit(rv, memLimit));
   } else {
     auto veloxColumnBatch = VeloxColumnarBatch::from(veloxPool_.get(), cb);
-    VELOX_DCHECK_NOT_NULL(veloxColumnBatch);
+    VELOX_CHECK_NOT_NULL(veloxColumnBatch);
     facebook::velox::RowVectorPtr rv;
     START_TIMING(cpuWallTimingList_[CpuWallTimingFlattenRV]);
     rv = veloxColumnBatch->getFlattenedRowVector();
@@ -1255,7 +1252,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       const arrow::RecordBatch& rb, bool reuseBuffers) {
     auto payload = std::make_unique<arrow::ipc::IpcPayload>();
     // Extract numRows from header column
-    RETURN_NOT_OK(arrow::ipc::GetRecordBatchPayload(rb, *options_.ipc_write_options, payload.get()));
+    RETURN_NOT_OK(arrow::ipc::GetRecordBatchPayload(rb, options_.ipc_write_options, payload.get()));
     if (codec_ == nullptr) {
       // Without compression, we need to perform a manual copy of the original buffers
       // so that we can reuse them for next split.
@@ -1438,6 +1435,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       ARROW_ASSIGN_OR_RAISE(auto evicted, evictPartitionBuffersMinSize(size - reclaimed));
       reclaimed += evicted;
     }
+    *actual = reclaimed;
     return arrow::Status::OK();
   }
 

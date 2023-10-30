@@ -779,7 +779,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
 
   auto shuffleWriterOptions = ShuffleWriterOptions::defaults();
   shuffleWriterOptions.partitioning_name = partitioningName;
-  shuffleWriterOptions.buffered_write = true;
   if (bufferSize > 0) {
     shuffleWriterOptions.buffer_size = bufferSize;
   }

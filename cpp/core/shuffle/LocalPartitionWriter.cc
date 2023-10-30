@@ -28,13 +28,13 @@ class LocalPartitionWriter::LocalEvictHandle : public EvictHandle {
  public:
   LocalEvictHandle(
       uint32_t numPartitions,
-      const std::shared_ptr<arrow::ipc::IpcWriteOptions>& options,
+      const arrow::ipc::IpcWriteOptions& options,
       const std::shared_ptr<SpillInfo>& spillInfo)
       : numPartitions_(numPartitions), options_(options), spillInfo_(spillInfo) {}
 
   static std::shared_ptr<LocalEvictHandle> create(
       uint32_t numPartitions,
-      const std::shared_ptr<arrow::ipc::IpcWriteOptions>& options,
+      const arrow::ipc::IpcWriteOptions& options,
       const std::shared_ptr<SpillInfo>& spillInfo,
       bool flush);
 
@@ -46,7 +46,7 @@ class LocalPartitionWriter::LocalEvictHandle : public EvictHandle {
 
  protected:
   uint32_t numPartitions_;
-  std::shared_ptr<arrow::ipc::IpcWriteOptions> options_;
+  arrow::ipc::IpcWriteOptions options_;
   std::shared_ptr<SpillInfo> spillInfo_;
 
   std::shared_ptr<arrow::io::FileOutputStream> os_;
@@ -57,7 +57,7 @@ class CacheEvictHandle final : public LocalPartitionWriter::LocalEvictHandle {
  public:
   CacheEvictHandle(
       uint32_t numPartitions,
-      const std::shared_ptr<arrow::ipc::IpcWriteOptions>& options,
+      const arrow::ipc::IpcWriteOptions& options,
       const std::shared_ptr<SpillInfo>& spillInfo)
       : LocalPartitionWriter::LocalEvictHandle(numPartitions, options, spillInfo) {
     partitionCachedPayload_.resize(numPartitions);
@@ -103,7 +103,7 @@ class CacheEvictHandle final : public LocalPartitionWriter::LocalEvictHandle {
     partitionCachedPayload_[partitionId].clear();
     for (auto& payload : payloads) {
 #ifndef SKIPWRITE
-      RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, *options_, os, &metadataLength));
+      RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_, os, &metadataLength));
 #endif
     }
     return arrow::Status::OK();
@@ -117,7 +117,7 @@ class FlushOnSpillEvictHandle final : public LocalPartitionWriter::LocalEvictHan
  public:
   FlushOnSpillEvictHandle(
       uint32_t numPartitions,
-      const std::shared_ptr<arrow::ipc::IpcWriteOptions>& options,
+      const arrow::ipc::IpcWriteOptions& options,
       const std::shared_ptr<SpillInfo>& spillInfo)
       : LocalPartitionWriter::LocalEvictHandle(numPartitions, options, spillInfo) {}
 
@@ -129,7 +129,7 @@ class FlushOnSpillEvictHandle final : public LocalPartitionWriter::LocalEvictHan
 
     ARROW_ASSIGN_OR_RAISE(auto start, os_->Tell());
 #ifndef SKIPWRITE
-    RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, *options_, os_.get(), &metadataLength));
+    RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_, os_.get(), &metadataLength));
 #endif
     ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
     DEBUG_OUT << "Spilled partition " << partitionId << " file start: " << start << ", file end: " << end << std::endl;
@@ -155,7 +155,7 @@ class FlushOnSpillEvictHandle final : public LocalPartitionWriter::LocalEvictHan
 
 std::shared_ptr<LocalPartitionWriter::LocalEvictHandle> LocalPartitionWriter::LocalEvictHandle::create(
     uint32_t numPartitions,
-    const std::shared_ptr<arrow::ipc::IpcWriteOptions>& options,
+    const arrow::ipc::IpcWriteOptions& options,
     const std::shared_ptr<SpillInfo>& spillInfo,
     bool flush) {
   if (flush) {
@@ -195,7 +195,7 @@ arrow::Status LocalPartitionWriter::setLocalDirs() {
 arrow::Status LocalPartitionWriter::openDataFile() {
   // open data file output stream
   std::shared_ptr<arrow::io::FileOutputStream> fout;
-  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(shuffleWriter_->options().data_file, true));
+  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(shuffleWriter_->options().data_file));
   if (shuffleWriter_->options().buffered_write) {
     // Output stream buffer is neither partition buffer memory nor ipc memory.
     ARROW_ASSIGN_OR_RAISE(
@@ -208,6 +208,8 @@ arrow::Status LocalPartitionWriter::openDataFile() {
 
 arrow::Status LocalPartitionWriter::clearResource() {
   RETURN_NOT_OK(dataFileOs_->Close());
+  // When buffered_write = true, dataFileOs_->Close doesn't release underlying buffer.
+  dataFileOs_.reset();
   spills_.clear();
   return arrow::Status::OK();
 }
@@ -269,7 +271,7 @@ arrow::Status LocalPartitionWriter::stop() {
       int32_t metadataLength = 0; // unused
 #ifndef SKIPWRITE
       RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(
-          *lastPayload, *shuffleWriter_->options().ipc_write_options, dataFileOs_.get(), &metadataLength));
+          *lastPayload, shuffleWriter_->options().ipc_write_options, dataFileOs_.get(), &metadataLength));
 #endif
     }
     ARROW_ASSIGN_OR_RAISE(endInFinalFile, dataFileOs_->Tell());
