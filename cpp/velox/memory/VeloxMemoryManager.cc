@@ -215,13 +215,21 @@ const int64_t VeloxMemoryManager::shrink(int64_t size) {
   return shrinkVeloxMemoryPool(veloxAggregatePool_.get(), size);
 }
 
-void VeloxMemoryManager::hold() {
-  const auto& root = veloxAggregatePool_;
-  root->visitChildren([&](velox::memory::MemoryPool* pool) -> bool {
-    auto shared = pool->shared_from_this();
-    heldVeloxPools_.push_back(shared);
+namespace {
+void holdInternal(
+    std::vector<std::shared_ptr<facebook::velox::memory::MemoryPool>>& heldVeloxPools,
+    const velox::memory::MemoryPool* pool) {
+  pool->visitChildren([&](velox::memory::MemoryPool* child) -> bool {
+    auto shared = child->shared_from_this();
+    heldVeloxPools.push_back(shared);
+    holdInternal(heldVeloxPools, child);
     return true;
   });
+}
+} // namespace
+
+void VeloxMemoryManager::hold() {
+  holdInternal(heldVeloxPools_, veloxAggregatePool_.get());
 }
 
 velox::memory::MemoryManager* getDefaultVeloxMemoryManager() {
