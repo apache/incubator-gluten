@@ -41,7 +41,6 @@ import com.google.protobuf.Any
 import java.util
 
 import scala.collection.mutable.ListBuffer
-import scala.util.control.Breaks.{break, breakable}
 
 /** Columnar Based HashAggregateExec. */
 abstract class HashAggregateExecBaseTransformer(
@@ -159,74 +158,48 @@ abstract class HashAggregateExecBaseTransformer(
   // Members declared in org.apache.spark.sql.execution.AliasAwareOutputPartitioning
   override protected def outputExpressions: Seq[NamedExpression] = resultExpressions
 
+  // Check if Pre-Projection is needed before the Aggregation.
   protected def needsPreProjection: Boolean = {
-    var needsProjection = false
-    breakable {
-      for (expr <- groupingExpressions) {
-        if (!expr.isInstanceOf[Attribute]) {
-          needsProjection = true
-          break
-        }
-      }
-    }
-    breakable {
-      for (expr <- aggregateExpressions) {
-        if (
-          expr.filter.isDefined && !expr.filter.get.isInstanceOf[Attribute] &&
-          !expr.filter.get.isInstanceOf[Literal]
-        ) {
-          needsProjection = true
-          break
+    groupingExpressions.exists {
+      case _: Attribute => false
+      case _ => true
+    } || aggregateExpressions.exists {
+      expr =>
+        expr.filter match {
+          case None =>
+          case Some(_: Attribute) =>
+          case Some(_: Literal) =>
+          case _ => return true
         }
         expr.mode match {
           case Partial =>
-            for (aggChild <- expr.aggregateFunction.children) {
-              if (!aggChild.isInstanceOf[Attribute] && !aggChild.isInstanceOf[Literal]) {
-                needsProjection = true
-                break
-              }
+            expr.aggregateFunction.children.exists {
+              case _: Attribute => false
+              case _: Literal => false
+              case _ => true
             }
           // No need to consider pre-projection for PartialMerge and Final Agg.
-          case _ =>
+          case _ => false
         }
-      }
     }
-    needsProjection
   }
 
+  // Check if Post-Projection is needed after the Aggregation.
   protected def needsPostProjection(aggOutAttributes: List[Attribute]): Boolean = {
-    // Check if Post-Projection is needed after the Aggregation.
-    var needsProjection = false
     // If the result expressions has different size with output attribute,
     // post-projection is needed.
-    if (resultExpressions.size != aggOutAttributes.size) {
-      needsProjection = true
-    } else {
-      // Compare each item in result expressions and output attributes.
-      breakable {
-        for (exprIdx <- resultExpressions.indices) {
-          resultExpressions(exprIdx) match {
-            case exprAttr: Attribute =>
-              val resAttr = aggOutAttributes(exprIdx)
-              // If the result attribute and result expression has different name or type,
-              // post-projection is needed.
-              if (
-                exprAttr.name != resAttr.name ||
-                exprAttr.dataType != resAttr.dataType
-              ) {
-                needsProjection = true
-                break
-              }
-            case _ =>
-              // If result expression is not instance of Attribute,
-              // post-projection is needed.
-              needsProjection = true
-              break
-          }
-        }
-      }
+    resultExpressions.size != aggOutAttributes.size ||
+    // Compare each item in result expressions and output attributes.
+    resultExpressions.zip(aggOutAttributes).exists {
+      case (exprAttr: Attribute, resAttr) =>
+        // If the result attribute and result expression has different name or type,
+        // post-projection is needed.
+        exprAttr.name != resAttr.name || exprAttr.dataType != resAttr.dataType
+      case _ =>
+        // If result expression is not instance of Attribute,
+        // post-projection is needed.
+        true
     }
-    needsProjection
   }
 
   protected def getAggRelWithPreProjection(

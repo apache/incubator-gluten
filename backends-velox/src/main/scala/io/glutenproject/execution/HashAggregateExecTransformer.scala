@@ -807,14 +807,8 @@ case class HashAggregateExecTransformer(
    *   whether partial and partial-merge functions coexist.
    */
   def mixedPartialAndMerge: Boolean = {
-    val partialMergeExists = aggregateExpressions.exists(
-      expression => {
-        expression.mode == PartialMerge
-      })
-    val partialExists = aggregateExpressions.exists(
-      expression => {
-        expression.mode == Partial
-      })
+    val partialMergeExists = aggregateExpressions.exists(_.mode == PartialMerge)
+    val partialExists = aggregateExpressions.exists(_.mode == Partial)
     partialMergeExists && partialExists
   }
 
