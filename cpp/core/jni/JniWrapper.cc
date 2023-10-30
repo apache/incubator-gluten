@@ -389,7 +389,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIter
 
   auto iter = ctx->objectStore()->retrieve<ResultIterator>(iterHandle);
   if (iter == nullptr) {
-    std::string errorMessage = "faked to get batch iterator";
+    std::string errorMessage = "failed to get batch iterator";
     throw gluten::GlutenException(errorMessage);
   }
   return iter->hasNext();
