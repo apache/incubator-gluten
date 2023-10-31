@@ -32,9 +32,18 @@ namespace local_engine
 
 bool isFixedSizeStateAggregateFunction(const String& name)
 {
-    // TODO max(String) should exclude, but fallback now
     static const std::set<String> function_set = {"min", "max", "sum", "count", "avg"};
     return function_set.contains(name);
+}
+
+bool isFixedSizeArguments(DataTypes data_types)
+{
+    return data_types.front()->isValueRepresentedByNumber();
+}
+
+bool isFixedSizeAggregateFunction(DB::AggregateFunctionPtr function)
+{
+    return isFixedSizeStateAggregateFunction(function->getName()) && isFixedSizeArguments(function->getArgumentTypes());
 }
 
 DB::ColumnWithTypeAndName convertAggregateStateToFixedString(DB::ColumnWithTypeAndName col)
@@ -45,7 +54,7 @@ DB::ColumnWithTypeAndName convertAggregateStateToFixedString(DB::ColumnWithTypeA
     }
     const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*col.column);
     // only support known fixed size aggregate function
-    if (!isFixedSizeStateAggregateFunction(aggregate_col->getAggregateFunction()->getName()))
+    if (!isFixedSizeAggregateFunction(aggregate_col->getAggregateFunction()))
     {
         return col;
     }
@@ -116,7 +125,18 @@ DB::Block convertAggregateStateInBlock(DB::Block block)
     ColumnsWithTypeAndName columns;
     for (const auto & item : block.getColumnsWithTypeAndName())
     {
-        columns.emplace_back(convertAggregateStateToString(item));
+        if (isAggregateFunction(item.type))
+        {
+            const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*item.column);
+            if (isFixedSizeAggregateFunction(aggregate_col->getAggregateFunction()))
+                columns.emplace_back(convertAggregateStateToFixedString(item));
+            else
+                columns.emplace_back(convertAggregateStateToString(item));
+        }
+        else
+        {
+            columns.emplace_back(item);
+        }
     }
     return columns;
 }

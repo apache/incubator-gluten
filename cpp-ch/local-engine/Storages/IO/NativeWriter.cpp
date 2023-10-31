@@ -20,6 +20,9 @@
 #include <DataTypes/Serializations/ISerialization.h>
 #include <Columns/ColumnSparse.h>
 #include <Columns/ColumnString.h>
+#include <Storages/IO/AggregateSerializationUtils.h>
+#include <Functions/FunctionHelpers.h>
+#include <DataTypes/DataTypeAggregateFunction.h>
 
 
 using namespace DB;
@@ -87,7 +90,8 @@ size_t NativeWriter::write(const DB::Block & block)
         /// Data
         if (rows)    /// Zero items of data is always represented as zero number of bytes.
         {
-            if (is_agg_opt)
+            const auto * agg_type = checkAndGetDataType<DataTypeAggregateFunction>(original_type.get());
+            if (is_agg_opt && agg_type && !isFixedSizeAggregateFunction(agg_type->getFunction()))
             {
                 const auto * str_col = static_cast<const ColumnString *>(column.column.get());
                 const PaddedPODArray<UInt8> & column_chars = str_col->getChars();

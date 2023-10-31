@@ -15,10 +15,13 @@
  * limitations under the License.
  */
 #pragma once
+#include <AggregateFunctions/IAggregateFunction.h>
 #include <Core/Block.h>
 #include <DataTypes/IDataType.h>
 
 namespace local_engine {
+
+bool isFixedSizeAggregateFunction(DB::AggregateFunctionPtr function);
 
 DB::Block convertAggregateStateInBlock(DB::Block block);
 

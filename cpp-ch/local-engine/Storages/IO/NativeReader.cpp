@@ -22,6 +22,7 @@
 #include <Columns/ColumnAggregateFunction.h>
 #include <Common/Arena.h>
 #include <Storages/IO/NativeWriter.h>
+#include <Storages/IO/AggregateSerializationUtils.h>
 
 namespace DB
 {
@@ -73,10 +74,16 @@ void NativeReader::readAggData(const DB::DataTypeAggregateFunction & data_type, 
         AggregateDataPtr place = arena.alignedAlloc(size_of_state, align_of_state);
 
         agg_function->create(place);
-//        UInt64 size;
-//        readVarUInt(size, istr);
-        agg_function->deserialize(place, istr);
-        istr.ignore();
+        if (isFixedSizeAggregateFunction(agg_function))
+        {
+            auto n = istr.read(place, size_of_state);
+            chassert(n == size_of_state);
+        }
+        else
+        {
+            agg_function->deserialize(place, istr, std::nullopt, &arena);
+            istr.ignore();
+        }
         vec.push_back(place);
     }
 }
