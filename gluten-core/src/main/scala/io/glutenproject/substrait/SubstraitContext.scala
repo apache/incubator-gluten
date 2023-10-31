@@ -164,6 +164,25 @@ class SubstraitContext extends Serializable {
     relId += 1
   }
 
+  /** Register a specified rel to certain operator id. */
+  def registerRelToOperator(operatorId: JLong, specifiedRedId: JLong): Unit = {
+    if (operatorToRelsMap.containsKey(operatorId)) {
+      val rels = operatorToRelsMap.get(operatorId)
+      rels.add(specifiedRedId)
+    } else {
+      val rels = new JArrayList[JLong]()
+      rels.add(specifiedRedId)
+      operatorToRelsMap.put(operatorId, rels)
+    }
+  }
+
+  /** Add the relId and register to operator later */
+  def nextRelId(): JLong = {
+    val id = this.relId
+    this.relId += 1
+    id
+  }
+
   /**
    * Register empty rel list to certain operator id. Used when the computing of a Spark transformer
    * is omitted.

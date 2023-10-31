@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.clickhouse
 
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
+
 import java.util
 
 import scala.collection.JavaConverters.mapAsScalaMapConverter
@@ -36,8 +38,10 @@ object ClickHouseConfig {
 
   val CLICKHOUSE_WAREHOUSE_DIR = "spark.gluten.sql.columnar.backend.ch.warehouse.dir"
 
-  /** Validates specified configurations and returns the normalized key -> value map. */
-  def validateConfigurations(allProperties: util.Map[String, String]): Map[String, String] = {
+  /** Create a mergetree configurations and returns the normalized key -> value map. */
+  def createMergeTreeConfigurations(
+      allProperties: util.Map[String, String],
+      buckets: Option[BucketSpec]): Map[String, String] = {
     val configurations = scala.collection.mutable.Map[String, String]()
     allProperties.asScala.foreach(configurations += _)
     if (!configurations.contains("metadata_path")) {
@@ -62,6 +66,13 @@ object ClickHouseConfig {
     }
     if (!configurations.contains("is_distribute")) {
       configurations += ("is_distribute" -> "true")
+    }
+
+    if (buckets.isDefined) {
+      val bucketSpec = buckets.get
+      configurations += ("numBuckets" -> bucketSpec.numBuckets.toString)
+      configurations += ("bucketColumnNames" -> bucketSpec.bucketColumnNames.mkString(","))
+      configurations += ("sortColumnNames" -> bucketSpec.sortColumnNames.mkString(","))
     }
     configurations.toMap
   }

@@ -1,0 +1,10 @@
+columns format version: 1
+8 columns:
+`c_custkey` Int64
+`c_name` String
+`c_address` String
+`c_nationkey` Int64
+`c_phone` String
+`c_acctbal` Float64
+`c_mktsegment` String
+`c_comment` String

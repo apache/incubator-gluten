@@ -31,9 +31,11 @@ object ScanMergeTreePartsUtils extends Logging {
 
   def scanMergeTreePartsToAddFile(
       configuration: Configuration,
-      clickHouseTableV2: ClickHouseTableV2): Seq[AddFile] = {
+      clickHouseTableV2: ClickHouseTableV2,
+      pathFilter: String,
+      isBucketTable: Boolean): Seq[AddFile] = {
     // scan parts dir
-    val scanPath = new Path(clickHouseTableV2.path + "/*_[0-9]*_[0-9]*_[0-9]*")
+    val scanPath = new Path(clickHouseTableV2.path + pathFilter)
     val fs = scanPath.getFileSystem(configuration)
     val fileGlobStatuses = fs.globStatus(scanPath)
     val allDirSummary = fileGlobStatuses
@@ -44,11 +46,26 @@ object ScanMergeTreePartsUtils extends Logging {
           val sum = fs.getContentSummary(p.getPath)
           val pathName = p.getPath.getName
           val pathNameArr = pathName.split("_")
-          val (partitionId, minBlockNum, maxBlockNum, level) = if (pathNameArr.length == 4) {
-            (pathNameArr(0), pathNameArr(1).toLong, pathNameArr(2).toLong, pathNameArr(3).toInt)
-          } else {
-            ("", 0L, 0L, 0)
-          }
+          val (partitionId, bucketNum, minBlockNum, maxBlockNum, level) =
+            if (pathNameArr.length == 4) {
+              if (isBucketTable) {
+                (
+                  pathNameArr(0),
+                  p.getPath.getParent.getName,
+                  pathNameArr(1).toLong,
+                  pathNameArr(2).toLong,
+                  pathNameArr(3).toInt)
+              } else {
+                (
+                  pathNameArr(0),
+                  "",
+                  pathNameArr(1).toLong,
+                  pathNameArr(2).toLong,
+                  pathNameArr(3).toInt)
+              }
+            } else {
+              ("", "", 0L, 0L, 0)
+            }
           (
             pathName,
             partitionId,
@@ -56,7 +73,8 @@ object ScanMergeTreePartsUtils extends Logging {
             maxBlockNum,
             level,
             sum.getLength,
-            p.getModificationTime)
+            p.getModificationTime,
+            bucketNum)
         })
       .filter(!_._2.equals(""))
 
@@ -67,13 +85,20 @@ object ScanMergeTreePartsUtils extends Logging {
     }
     val finalActions = allDirSummary.map(
       dir => {
+        val (filePath, name) = if (isBucketTable) {
+          (
+            clickHouseTableV2.deltaLog.dataPath.toString + "/" + dir._8 + "/" + dir._1,
+            dir._8 + "/" + dir._1)
+        } else {
+          (clickHouseTableV2.deltaLog.dataPath.toString + "/" + dir._1, dir._1)
+        }
         AddFileTags.partsInfoToAddFile(
           clickHouseTableV2.catalogTable.get.identifier.database.get,
           clickHouseTableV2.catalogTable.get.identifier.table,
           clickHouseTableV2.snapshot.metadata.configuration("engine"),
-          clickHouseTableV2.deltaLog.dataPath.toString + "/" + dir._1,
+          filePath,
           "",
-          dir._1,
+          name,
           "",
           0L,
           dir._6,
@@ -85,6 +110,8 @@ object ScanMergeTreePartsUtils extends Logging {
           dir._4,
           dir._5,
           dir._3,
+          dir._8,
+          dir._1,
           dataChange = true
         )
       })

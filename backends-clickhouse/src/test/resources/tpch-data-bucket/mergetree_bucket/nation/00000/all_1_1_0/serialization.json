@@ -1,0 +1,1 @@
+{"columns":[{"kind":"Default","name":"n_comment","num_defaults":0,"num_rows":25},{"kind":"Default","name":"n_name","num_defaults":0,"num_rows":25},{"kind":"Default","name":"n_nationkey","num_defaults":1,"num_rows":25},{"kind":"Default","name":"n_regionkey","num_defaults":5,"num_rows":25}],"version":0}

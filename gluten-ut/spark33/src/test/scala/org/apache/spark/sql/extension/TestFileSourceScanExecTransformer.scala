@@ -52,6 +52,7 @@ class TestFileSourceScanExecTransformer(
       relation,
       selectedPartitions,
       output,
+      bucketedScan,
       optionalBucketSet,
       optionalNumCoalescedBuckets,
       disableBucketedScan)

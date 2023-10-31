@@ -67,6 +67,7 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
 }
 
 object FileSourceScanMetricsUpdater {
-  val INCLUDING_PROCESSORS = Array("MergeTreeInOrder", "SubstraitFileSource")
-  val CH_PLAN_NODE_NAME = Array("MergeTreeInOrder", "SubstraitFileSource")
+  // in mergetree format, the processor name is `MergeTreeSelect(pool: XXX, algorithm: XXX)`
+  val INCLUDING_PROCESSORS = Array("MergeTreeSelect(pool", "SubstraitFileSource")
+  val CH_PLAN_NODE_NAME = Array("MergeTreeSelect(pool", "SubstraitFileSource")
 }

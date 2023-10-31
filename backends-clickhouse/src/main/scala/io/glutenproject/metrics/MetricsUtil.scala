@@ -140,8 +140,8 @@ object MetricsUtil extends Logging {
     relMap
       .get(operatorIdx)
       .forEach(
-        _ => {
-          nodeMetricsList.add(metrics.metricsDataList.get(curMetricsIdx))
+        idx => {
+          nodeMetricsList.add(metrics.metricsDataList.get(idx.toInt))
           curMetricsIdx -= 1
         })
 
@@ -192,10 +192,10 @@ object MetricsUtil extends Logging {
     val processors = MetricsUtil.getAllProcessorList(metricData)
     processors.foreach(
       processor => {
-        if (!includingMetrics.contains(processor.name)) {
+        if (!includingMetrics.exists(processor.name.startsWith(_))) {
           extraTime += (processor.time / 1000L).toLong
         }
-        if (planNodeNames.contains(processor.name)) {
+        if (planNodeNames.exists(processor.name.startsWith(_))) {
           outputRows += processor.outputRows
           outputBytes += processor.outputBytes
           inputRows += processor.inputRows

@@ -33,23 +33,11 @@ case class CHInputPartitionsUtil(
     relation: HadoopFsRelation,
     selectedPartitions: Array[PartitionDirectory],
     output: Seq[Attribute],
+    bucketedScan: Boolean,
     optionalBucketSet: Option[BitSet],
     optionalNumCoalescedBuckets: Option[Int],
     disableBucketedScan: Boolean)
   extends Logging {
-
-  private val bucketedScan: Boolean = {
-    if (
-      relation.sparkSession.sessionState.conf.bucketingEnabled && relation.bucketSpec.isDefined
-      && !disableBucketedScan
-    ) {
-      val spec = relation.bucketSpec.get
-      val bucketColumns = spec.bucketColumnNames.flatMap(n => toAttribute(n))
-      bucketColumns.size == spec.bucketColumnNames.size
-    } else {
-      false
-    }
-  }
 
   def genInputPartitionSeq(): Seq[InputPartition] = {
     if (bucketedScan) {

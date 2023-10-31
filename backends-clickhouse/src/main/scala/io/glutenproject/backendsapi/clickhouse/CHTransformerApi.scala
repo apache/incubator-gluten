@@ -84,18 +84,30 @@ class CHTransformerApi extends TransformerApi with Logging {
       relation: HadoopFsRelation,
       selectedPartitions: Array[PartitionDirectory],
       output: Seq[Attribute],
+      bucketedScan: Boolean,
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean): Seq[InputPartition] = {
     if (relation.location.isInstanceOf[ClickHouseFileIndex]) {
       // Generate NativeMergeTreePartition for MergeTree
-      relation.location.asInstanceOf[ClickHouseFileIndex].partsPartitions
+      relation.location
+        .asInstanceOf[ClickHouseFileIndex]
+        .partsPartitions(
+          relation,
+          selectedPartitions,
+          output,
+          bucketedScan,
+          optionalBucketSet,
+          optionalNumCoalescedBuckets,
+          disableBucketedScan
+        )
     } else {
       // Generate FilePartition for Parquet
       CHInputPartitionsUtil(
         relation,
         selectedPartitions,
         output,
+        bucketedScan,
         optionalBucketSet,
         optionalNumCoalescedBuckets,
         disableBucketedScan).genInputPartitionSeq()
