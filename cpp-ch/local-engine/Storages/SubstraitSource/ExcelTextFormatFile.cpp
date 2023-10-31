@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "Common/CHUtil.h"
 #include "ExcelTextFormatFile.h"
 
 
@@ -101,7 +102,10 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     if (!file_info.text().null_value().empty())
         format_settings.csv.null_representation = file_info.text().null_value();
 
-    if (format_settings.csv.null_representation.empty())
+    bool empty_as_null = context->getSettings().has(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL) &&
+        context->getSettings().getString(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL) == "'true'";
+
+    if (format_settings.csv.null_representation.empty() || empty_as_null)
         format_settings.csv.empty_as_default = true;
     else
         format_settings.csv.empty_as_default = false;

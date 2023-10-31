@@ -153,26 +153,27 @@ class GlutenClickHouseFileFormatSuite
     }
   }
 
-  // TODO: Fix: we need empty read as '' not null,this is defferent with spark
-  ignore("read data from csv file format") {
-    val filePath = basePath + "/csv_test.csv"
-    val csvFileFormat = "csv"
-    val sql =
-      s"""
-         | select *
-         | from $csvFileFormat.`$filePath`
-         |""".stripMargin
-    testFileFormatBase(
-      filePath,
-      csvFileFormat,
-      sql,
-      df => {
-        val csvFileScan = collect(df.queryExecution.executedPlan) {
-          case f: FileSourceScanExecTransformer => f
+  test("read data from csv file format") {
+    withSQLConf(("spark.gluten.sql.columnar.backend.ch.runtime_settings.use_excel_serialization.empty_as_null", "true")) {
+      val filePath = basePath + "/csv_test.csv"
+      val csvFileFormat = "csv"
+      val sql =
+        s"""
+           | select *
+           | from $csvFileFormat.`$filePath`
+           |""".stripMargin
+      testFileFormatBase(
+        filePath,
+        csvFileFormat,
+        sql,
+        df => {
+          val csvFileScan = collect(df.queryExecution.executedPlan) {
+            case f: FileSourceScanExecTransformer => f
+          }
+          assert(csvFileScan.size == 1)
         }
-        assert(csvFileScan.size == 1)
-      }
-    )
+      )
+    }
   }
 
   test("read data from csv file format with filter") {
@@ -197,28 +198,29 @@ class GlutenClickHouseFileFormatSuite
     )
   }
 
-  // TODO: Fix: we need empty read as '' not null,this is defferent with spark
-  ignore("read data from csv file format witsh agg") {
-    val filePath = basePath + "/csv_test_agg.csv"
-    val csvFileFormat = "csv"
-    val sql =
-      s"""
-         | select _c7, count(_c0), sum(_c1), avg(_c2), min(_c3), max(_c4), sum(_c5), sum(_c8)
-         | from $csvFileFormat.`$filePath`
-         | group by _c7
-         |""".stripMargin
-    testFileFormatBase(
-      filePath,
-      csvFileFormat,
-      sql,
-      df => {
-        val csvFileScan = collect(df.queryExecution.executedPlan) {
-          case f: FileSourceScanExecTransformer => f
-        }
-        assert(csvFileScan.size == 1)
-      },
-      noFallBack = false
-    )
+  test("read data from csv file format witsh agg") {
+    withSQLConf(("spark.gluten.sql.columnar.backend.ch.runtime_settings.use_excel_serialization.empty_as_null", "true")) {
+      val filePath = basePath + "/csv_test_agg.csv"
+      val csvFileFormat = "csv"
+      val sql =
+        s"""
+           | select _c7, count(_c0), sum(_c1), avg(_c2), min(_c3), max(_c4), sum(_c5), sum(_c8)
+           | from $csvFileFormat.`$filePath`
+           | group by _c7
+           |""".stripMargin
+      testFileFormatBase(
+        filePath,
+        csvFileFormat,
+        sql,
+        df => {
+          val csvFileScan = collect(df.queryExecution.executedPlan) {
+            case f: FileSourceScanExecTransformer => f
+          }
+          assert(csvFileScan.size == 1)
+        },
+        noFallBack = false
+      )
+    }
   }
 
   test("read normal csv") {
