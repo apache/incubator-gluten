@@ -46,7 +46,6 @@ import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
 
 import scala.collection.JavaConverters._
-import scala.util.control.Breaks.{break, breakable}
 
 trait ColumnarShuffledJoin extends BaseJoinExec {
   def isSkewJoin: Boolean
@@ -420,39 +419,6 @@ abstract class BroadcastHashJoinExecTransformer(
     BackendsApiManager.getBroadcastApiInstance
       .collectExecutionBroadcastHashTableId(executionId, context.buildHashTableId)
 
-    val buildRDD = if (streamedRDD.isEmpty) {
-      // Stream plan itself contains scan and has no input rdd,
-      // so the number of partitions cannot be decided here.
-      BroadcastBuildSideRDD(sparkContext, broadcast, context)
-    } else {
-      // Try to get the number of partitions from a non-broadcast RDD.
-      val nonBroadcastRDD = streamedRDD.find(rdd => !rdd.isInstanceOf[BroadcastBuildSideRDD])
-      if (nonBroadcastRDD.isDefined) {
-        BroadcastBuildSideRDD(
-          sparkContext,
-          broadcast,
-          context,
-          nonBroadcastRDD.orNull.getNumPartitions)
-      } else {
-        // When all stream RDDs are broadcast RDD, the number of partitions can be undecided
-        // because stream plan may contain scan.
-        var partitions = -1
-        breakable {
-          for (rdd <- streamedRDD) {
-            try {
-              partitions = rdd.getNumPartitions
-              break
-            } catch {
-              case _: Throwable =>
-              // The partitions of this RDD is not decided yet.
-            }
-          }
-        }
-        // If all the stream RDDs are broadcast RDD,
-        // the number of partitions will be decided later in whole stage transformer.
-        BroadcastBuildSideRDD(sparkContext, broadcast, context, partitions)
-      }
-    }
-    streamedRDD :+ buildRDD
+    streamedRDD :+ BroadcastBuildSideRDD(sparkContext, broadcast, context)
   }
 }

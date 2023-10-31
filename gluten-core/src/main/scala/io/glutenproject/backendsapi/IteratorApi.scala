@@ -90,8 +90,6 @@ trait IteratorApi {
 
   /** Compute for BroadcastBuildSideRDD */
   def genBroadcastBuildSideIterator(
-      split: Partition,
-      context: TaskContext,
       broadcasted: broadcast.Broadcast[BuildSideRelation],
       broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch]
 }
