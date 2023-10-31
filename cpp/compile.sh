@@ -99,7 +99,11 @@ CURRENT_DIR=$(
 
 #gluten cpp will find arrow/parquet lib from ARROW_HOME
 if [ "$ARROW_HOME" == "" ]; then
-  ARROW_HOME="$CURRENT_DIR/../ep/build-velox/build/velox_ep/_build/release/third_party/arrow_ep"
+  if ["$BUILD_TYPE" == "Debug"] then
+    ARROW_HOME="$CURRENT_DIR/../ep/build-velox/build/velox_ep/_build/debug/third_party/arrow_ep"
+  else
+    ARROW_HOME="$CURRENT_DIR/../ep/build-velox/build/velox_ep/_build/release/third_party/arrow_ep"
+  fi
 fi
 
 #gluten cpp will find velox lib from VELOX_HOME

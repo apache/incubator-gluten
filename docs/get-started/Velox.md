@@ -75,20 +75,13 @@ cd /path/to/gluten
 ./dev/builddeps-veloxbe.sh
 ```
 
-**Build Velox or Arrow separately**
+**Build Velox separately**
 
-Scripts under `/path/to/gluten/ep/build-xxx/src` provide `get_xxx.sh` and `build_xxx.sh` to build Velox or Arrow separately, you could use these scripts with custom repo/branch/location.
+Scripts under `/path/to/gluten/ep/build-xxx/src` provide `get_xxx.sh` and `build_xxx.sh` to build Velox separately, you could use these scripts with custom repo/branch/location.
 
-Velox can use pre-build arrow/parquet lib from ARROW_HOME parsed by --arrow_home to decrease build time.
-Gluten cpp module need a required VELOX_HOME parsed by --velox_home and an optional ARROW_HOME by --arrow_home, if you specify custom ep location, make sure these variables be passed correctly.
+Velox provides arrow/parquet lib. Gluten cpp module need a required VELOX_HOME parsed by --velox_home, if you specify custom ep location, make sure these variables be passed correctly.
 
 ```bash
-## fetch Arrow and compile
-cd /path/to/gluten/ep/build-arrow/src/
-## you could use custom ep location by --arrow_home=custom_path, make sure specify --arrow_home in build_arrow.sh too.
-./get_arrow.sh
-./build_arrow.sh
-
 ## fetch Velox and compile
 cd /path/to/gluten/ep/build-velox/src/
 ## you could use custom ep location by --velox_home=custom_path, make sure specify --velox_home in build_velox.sh too.
