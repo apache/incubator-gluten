@@ -191,7 +191,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
   add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
   add_velox_dependency(velox::parquet::writer "${VELOX_COMPONENTS_PATH}/dwio/parquet/libvelox_dwio_parquet_writer.a")
-  
+
   if(BUILD_TESTS)
     add_velox_dependency(vector::test::util "${VELOX_COMPONENTS_PATH}/vector/tests/utils/libvelox_vector_test_lib.a")
   endif()
@@ -279,6 +279,11 @@ set(VELOX_SRCS
     utils/ConfigExtractor.cc
     utils/Common.cc
     )
+
+if(BUILD_TESTS OR BUILD_BENCHMARKS)
+  list(APPEND VELOX_SRCS utils/tests/MemoryPoolUtils.cc)
+endif()
+
 add_library(velox SHARED ${VELOX_SRCS})
 
 if(ENABLE_GLUTEN_VCPKG)
@@ -351,14 +356,14 @@ if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
 
+if(BUILD_BENCHMARKS)
+  add_subdirectory(benchmarks)
+endif()
+
 if(ENABLE_HDFS)
   add_definitions(-DENABLE_HDFS)
   find_libhdfs3()
   target_link_libraries(velox PUBLIC HDFS::hdfs3)
-endif()
-
-if(BUILD_BENCHMARKS)
-  add_subdirectory(benchmarks)
 endif()
 
 if(ENABLE_S3)

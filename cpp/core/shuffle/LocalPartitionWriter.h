@@ -28,35 +28,33 @@
 
 namespace gluten {
 
-class LocalPartitionWriterBase : public ShuffleWriter::PartitionWriter {
- protected:
-  explicit LocalPartitionWriterBase(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
+struct SpillInfo {
+  struct PartitionSpillInfo {
+    uint32_t partitionId{};
+    int64_t length{}; // in Bytes
+  };
 
-  arrow::Status setLocalDirs();
+  bool empty{true};
+  std::string spilledFile{};
+  std::vector<PartitionSpillInfo> partitionSpillInfos{};
+  std::shared_ptr<arrow::io::MemoryMappedFile> inputStream{};
 
-  std::string nextSpilledFileDir();
+  int32_t mergePos = 0;
 
-  arrow::Status openDataFile();
-
-  virtual arrow::Status clearResource();
-
-  // configured local dirs for spilled file
-  int32_t dirSelection_ = 0;
-  std::vector<int32_t> subDirSelection_;
-  std::vector<std::string> configuredDirs_;
-
-  std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
+  SpillInfo(std::string spilledFile) : spilledFile(spilledFile) {}
 };
 
-class PreferCachePartitionWriter : public LocalPartitionWriterBase {
+class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
  public:
-  explicit PreferCachePartitionWriter(ShuffleWriter* shuffleWriter) : LocalPartitionWriterBase(shuffleWriter) {}
+  explicit LocalPartitionWriter(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
 
   arrow::Status init() override;
 
-  arrow::Status processPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override;
+  arrow::Status requestNextEvict(bool flush) override;
 
-  arrow::Status spill() override;
+  EvictHandle* getEvictHandle() override;
+
+  arrow::Status finishEvict() override;
 
   /// The stop function performs several tasks:
   /// 1. Opens the final data file.
@@ -79,48 +77,27 @@ class PreferCachePartitionWriter : public LocalPartitionWriterBase {
   /// it will shrink partition buffers to free more memory.
   arrow::Status stop() override;
 
+  class LocalEvictHandle;
+
  private:
-  arrow::Status clearResource() override;
+  arrow::Status setLocalDirs();
 
-  arrow::Status flushCachedPayload(
-      arrow::io::OutputStream* os,
-      std::unique_ptr<arrow::ipc::IpcPayload> payload,
-      int32_t* metadataLength) {
-#ifndef SKIPWRITE
-    RETURN_NOT_OK(
-        arrow::ipc::WriteIpcPayload(*payload, shuffleWriter_->options().ipc_write_options, os, metadataLength));
-#endif
-    return arrow::Status::OK();
-  }
+  std::string nextSpilledFileDir();
 
-  arrow::Status flushCachedPayloads(uint32_t partitionId, arrow::io::OutputStream* os) {
-    int32_t metadataLength = 0; // unused
+  arrow::Status openDataFile();
 
-    auto payloads = std::move(partitionCachedPayload_[partitionId]);
-    // Clear cached batches before creating the payloads, to avoid spilling this partition.
-    partitionCachedPayload_[partitionId].clear();
-    for (auto& payload : payloads) {
-      RETURN_NOT_OK(flushCachedPayload(os, std::move(payload), &metadataLength));
-    }
-    return arrow::Status::OK();
-  }
+  arrow::Status clearResource();
 
-  struct PartitionSpillInfo {
-    int32_t partitionId = -1;
-    int64_t length = 0; // in Bytes
-  };
-
-  struct SpillInfo {
-    std::string spilledFile{};
-    std::vector<PartitionSpillInfo> partitionSpillInfos{};
-    std::shared_ptr<arrow::io::MemoryMappedFile> inputStream{};
-
-    int32_t mergePos = 0;
-  };
-
-  std::vector<SpillInfo> spills_;
-  std::vector<std::vector<std::unique_ptr<arrow::ipc::IpcPayload>>> partitionCachedPayload_;
   std::shared_ptr<arrow::fs::LocalFileSystem> fs_{};
+  std::shared_ptr<LocalEvictHandle> evictHandle_;
+  std::vector<std::shared_ptr<SpillInfo>> spills_;
+
+  // configured local dirs for spilled file
+  int32_t dirSelection_ = 0;
+  std::vector<int32_t> subDirSelection_;
+  std::vector<std::string> configuredDirs_;
+
+  std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
 };
 
 class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {

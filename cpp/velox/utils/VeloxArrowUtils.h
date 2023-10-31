@@ -46,34 +46,4 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> toArrowBuffer(facebook::velox::Buf
  */
 arrow::Result<std::shared_ptr<ColumnarBatch>> recordBatch2VeloxColumnarBatch(const arrow::RecordBatch& rb);
 
-/**
- * arrow::MemoryPool instance used by tests and benchmarks
- */
-class MyMemoryPool final : public arrow::MemoryPool {
- public:
-  explicit MyMemoryPool() : capacity_(std::numeric_limits<int64_t>::max()) {}
-  explicit MyMemoryPool(int64_t capacity) : capacity_(capacity) {}
-
-  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
-
-  arrow::Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override;
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override;
-
-  int64_t bytes_allocated() const override;
-
-  int64_t max_memory() const override;
-
-  int64_t total_bytes_allocated() const override;
-
-  int64_t num_allocations() const override;
-
-  std::string backend_name() const override;
-
- private:
-  arrow::MemoryPool* pool_ = arrow::default_memory_pool();
-  int64_t capacity_;
-  arrow::internal::MemoryPoolStats stats_;
-};
-
 } // namespace gluten
