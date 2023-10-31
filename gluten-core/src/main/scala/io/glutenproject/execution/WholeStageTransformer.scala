@@ -334,10 +334,9 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 }
 
 /**
- * This `columnarInputRDDs` would contain [[BroadcastBuildSideRDD]], but the dependency and partition
- * of [[BroadcastBuildSideRDD]] is meaningless.
- * [[BroadcastBuildSideRDD]] should only be used to hold the broadcast value and generate iterator
- * for join.
+ * This `columnarInputRDDs` would contain [[BroadcastBuildSideRDD]], but the dependency and
+ * partition of [[BroadcastBuildSideRDD]] is meaningless. [[BroadcastBuildSideRDD]] should only be
+ * used to hold the broadcast value and generate iterator for join.
  */
 class ColumnarInputRDDsWrapper(columnarInputRDDs: Seq[RDD[ColumnarBatch]]) extends Serializable {
   def getDependencies: Seq[Dependency[ColumnarBatch]] = {
