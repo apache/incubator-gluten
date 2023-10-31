@@ -421,7 +421,8 @@ object GlutenConfig {
       GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
-      SQLConf.LEGACY_SIZE_OF_NULL.key
+      SQLConf.LEGACY_SIZE_OF_NULL.key,
+      "spark.io.compression.codec"
     )
     keys.forEach(
       k => {
