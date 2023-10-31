@@ -15,8 +15,22 @@
  * limitations under the License.
  */
 
+#pragma once
+
+#include <arrow/type.h>
+
 namespace gluten {
 
-using BinaryArrayLengthType = uint32_t;
+using BinaryArrayLengthBufferType = uint32_t;
+using IpcOffsetBufferType = arrow::LargeStringType::offset_type;
+
+static const size_t kSizeOfBinaryArrayLengthBuffer = sizeof(BinaryArrayLengthBufferType);
+static const size_t kSizeOfIpcOffsetBuffer = sizeof(IpcOffsetBufferType);
+
+int64_t getBuffersSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
+
+int64_t getMaxCompressedBufferSize(
+    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    arrow::util::Codec* codec);
 
 } // namespace gluten

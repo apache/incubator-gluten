@@ -62,6 +62,14 @@ public class NativeMemoryManager implements TaskResource {
     return shrink(nativeInstanceHandle, size);
   }
 
+  // Hold this memory manager. The underlying memory pools will be released as lately as this
+  // memory manager gets destroyed. Which means, a call to this function would make sure the
+  // memory blocks directly or indirectly managed by this manager, be guaranteed safe to
+  // access during the period that this manager is alive.
+  public void hold() {
+    hold(nativeInstanceHandle);
+  }
+
   private static native long shrink(long memoryManagerId, long size);
 
   private static native long create(
@@ -74,6 +82,8 @@ public class NativeMemoryManager implements TaskResource {
   private static native void release(long memoryManagerId);
 
   private static native byte[] collectMemoryUsage(long memoryManagerId);
+
+  private static native void hold(long memoryManagerId);
 
   @Override
   public void release() throws Exception {

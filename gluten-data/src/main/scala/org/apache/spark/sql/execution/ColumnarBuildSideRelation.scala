@@ -21,7 +21,7 @@ import io.glutenproject.exec.Runtimes
 import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
-import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.utils.{ArrowAbiUtil, Iterators}
 import io.glutenproject.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
 
 import org.apache.spark.sql.catalyst.InternalRow
@@ -32,7 +32,6 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.TaskResources
 
 import org.apache.arrow.c.ArrowSchema
 
@@ -45,54 +44,46 @@ case class ColumnarBuildSideRelation(
   extends BuildSideRelation {
 
   override def deserialized: Iterator[ColumnarBatch] = {
-    new Iterator[ColumnarBatch] {
-      var batchId = 0
-      var closed = false
-      private var finalBatch: ColumnarBatch = null
-      val serializeHandle: Long = {
-        val allocator = ArrowBufferAllocators.contextInstance()
-        val cSchema = ArrowSchema.allocateNew(allocator)
-        val arrowSchema = SparkArrowUtil.toArrowSchema(
-          StructType.fromAttributes(output),
-          SQLConf.get.sessionLocalTimeZone)
-        ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
-        val handle = ColumnarBatchSerializerJniWrapper
-          .create()
-          .init(
-            cSchema.memoryAddress(),
-            NativeMemoryManagers
-              .contextInstance("BuildSideRelation#BatchSerializer")
-              .getNativeInstanceHandle)
-        cSchema.close()
-        handle
-      }
+    val serializeHandle: Long = {
+      val allocator = ArrowBufferAllocators.contextInstance()
+      val cSchema = ArrowSchema.allocateNew(allocator)
+      val arrowSchema = SparkArrowUtil.toArrowSchema(
+        StructType.fromAttributes(output),
+        SQLConf.get.sessionLocalTimeZone)
+      ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
+      val handle = ColumnarBatchSerializerJniWrapper
+        .create()
+        .init(
+          cSchema.memoryAddress(),
+          NativeMemoryManagers
+            .contextInstance("BuildSideRelation#BatchSerializer")
+            .getNativeInstanceHandle)
+      cSchema.close()
+      handle
+    }
 
-      TaskResources.addRecycler(s"BuildSideRelation_deserialized_$serializeHandle", 50) {
+    Iterators
+      .wrap(new Iterator[ColumnarBatch] {
+        var batchId = 0
+
+        override def hasNext: Boolean = {
+          batchId < batches.length
+        }
+
+        override def next: ColumnarBatch = {
+          val handle =
+            ColumnarBatchSerializerJniWrapper
+              .create()
+              .deserialize(serializeHandle, batches(batchId))
+          batchId += 1
+          ColumnarBatches.create(Runtimes.contextInstance(), handle)
+        }
+      })
+      .recycleIterator {
         ColumnarBatchSerializerJniWrapper.create().close(serializeHandle)
       }
-
-      override def hasNext: Boolean = {
-        val has = batchId < batches.length
-        if (!has && !closed) {
-          if (finalBatch != null) {
-            ColumnarBatches.forceClose(finalBatch)
-          }
-          closed = true
-        }
-        has
-      }
-
-      override def next: ColumnarBatch = {
-        val handle =
-          ColumnarBatchSerializerJniWrapper.create().deserialize(serializeHandle, batches(batchId))
-        batchId += 1
-        val batch = ColumnarBatches.create(Runtimes.contextInstance(), handle)
-        if (batchId == batches.length) {
-          finalBatch = batch
-        }
-        batch
-      }
-    }
+      .recyclePayload(ColumnarBatches.forceClose) // FIXME why force close?
+      .create()
   }
 
   override def asReadOnlyCopy(

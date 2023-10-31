@@ -53,6 +53,8 @@ class VeloxMemoryManager final : public MemoryManager {
 
   const int64_t shrink(int64_t size) override;
 
+  void hold() override;
+
  private:
   std::string name_;
 
@@ -68,6 +70,7 @@ class VeloxMemoryManager final : public MemoryManager {
   std::unique_ptr<facebook::velox::memory::MemoryManager> veloxMemoryManager_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxAggregatePool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxLeafPool_;
+  std::vector<std::shared_ptr<facebook::velox::memory::MemoryPool>> heldVeloxPools_;
 };
 
 /// Not tracked by Spark and should only used in test or validation.

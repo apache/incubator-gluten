@@ -52,21 +52,16 @@ public:
     std::optional<size_t> getTotalRows() override;
 
     bool supportSplit() const override { return true; }
-    DB::String getFileFormat() const override { return "parquet"; }
+
+    DB::String getFileFormat() const override { return "Parquet"; }
 
 private:
     bool use_local_format;
     std::mutex mutex;
     std::optional<size_t> total_rows;
-    bool enable_row_group_maxmin_index;
+
     std::vector<RowGroupInfomation> collectRequiredRowGroups(int & total_row_groups);
     std::vector<RowGroupInfomation> collectRequiredRowGroups(DB::ReadBuffer * read_buffer, int & total_row_groups);
-    bool checkRowGroupIfRequired(parquet::RowGroupMetaData & meta);
-    DB::Range getColumnMaxMin(
-        std::shared_ptr<parquet::Statistics> statistics,
-        parquet::Type::type parquet_data_type,
-        DB::DataTypePtr data_type,
-        Int32 column_type_length);
 };
 
 }

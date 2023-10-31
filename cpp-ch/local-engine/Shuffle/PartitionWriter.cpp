@@ -177,8 +177,8 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
     }
     return partition_length;
 }
-LocalPartitionWriter::LocalPartitionWriter(CachedShuffleWriter * shuffle_writer)
-    : PartitionWriter(shuffle_writer)
+LocalPartitionWriter::LocalPartitionWriter(CachedShuffleWriter * shuffle_writer_)
+    : PartitionWriter(shuffle_writer_)
 {
 }
 String LocalPartitionWriter::getNextSpillFile()

@@ -14,22 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
 
-#include <Storages/SubstraitSource/FormatFile.h>
+#include "shuffle/VeloxShuffleUtils.h"
+#include <arrow/buffer.h>
+#include <arrow/util/compression.h>
 
-namespace local_engine
-{
-class JSONFormatFile : public FormatFile
-{
-public:
-    explicit JSONFormatFile(DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_);
-    ~JSONFormatFile() override = default;
+int64_t gluten::getMaxCompressedBufferSize(
+    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
+    arrow::util::Codec* codec) {
+  int64_t totalSize = 0;
+  for (auto& buffer : buffers) {
+    if (buffer != nullptr && buffer->size() != 0) {
+      totalSize += codec->MaxCompressedLen(buffer->size(), nullptr);
+    }
+  }
+  return totalSize;
+}
 
-    bool supportSplit() const override { return true; }
-
-    FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
-
-    DB::String getFileFormat() const override { return "JSONEachRow"; }
-};
+int64_t gluten::getBuffersSize(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
+  int64_t totalSize = 0;
+  for (auto& buffer : buffers) {
+    if (buffer != nullptr) {
+      totalSize += buffer->size();
+    }
+  }
+  return totalSize;
 }

@@ -21,6 +21,7 @@
 #include <memory>
 #include <numeric>
 #include <utility>
+
 #include <DataTypes/DataTypesNumber.h>
 #include <Formats/FormatFactory.h>
 #include <Formats/FormatSettings.h>
@@ -49,12 +50,11 @@ ParquetFormatFile::ParquetFormatFile(
     DB::ContextPtr context_,
     const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
     ReadBufferBuilderPtr read_buffer_builder_,
-    bool useLocalFormat)
-    : FormatFile(context_, file_info_, read_buffer_builder_)
-    , use_local_format(useLocalFormat)
-    , enable_row_group_maxmin_index(file_info_.parquet().enable_row_group_maxmin_index())
+    bool use_local_format_)
+    : FormatFile(context_, file_info_, read_buffer_builder_), use_local_format(use_local_format_)
 {
 }
+
 FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
@@ -171,9 +171,6 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
             for (int j = 0; j < row_group_meta->num_columns(); ++j)
                 total_bytes += row_group_meta->ColumnChunk(j)->total_compressed_size();
 
-        if (enable_row_group_maxmin_index && !checkRowGroupIfRequired(*row_group_meta))
-            continue;
-
         UInt64 midpoint_offset = static_cast<UInt64>(start_offset + total_bytes / 2);
         /// Current row group has intersection with the required range.
         if (file_info.start() <= midpoint_offset && midpoint_offset < file_info.start() + file_info.length())
@@ -189,119 +186,6 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
     }
     return row_group_metadatas;
 }
-
-bool ParquetFormatFile::checkRowGroupIfRequired(parquet::RowGroupMetaData & meta)
-{
-    std::vector<DB::Range> column_max_mins;
-    DB::DataTypes column_types;
-    const parquet::SchemaDescriptor * schema_desc = meta.schema();
-    bool row_group_required = true;
-    for (size_t i = 0; i < filters.size(); ++i)
-    {
-        std::vector<DB::Range> ranges;
-        auto iter = filters[i].keys.begin();
-
-        for (size_t j = 0; j < filters[i].keys.size(); ++j)
-        {
-            DB::String filter_col_key = iter->name;
-            DB::DataTypePtr filter_col_type = iter->type;
-            int column_index = schema_desc->ColumnIndex(filter_col_key);
-            DB::Range range = DB::Range::createWholeUniverse();
-            if (column_index < 0)
-                ranges.emplace_back(std::move(range));
-            else
-            {
-                const parquet::ColumnDescriptor * desc = schema_desc->Column(column_index);
-                Int32 column_type_length = desc->type_length();
-                auto column_chunk_meta = meta.ColumnChunk(column_index);
-                if (column_chunk_meta->is_stats_set())
-                    range
-                        = getColumnMaxMin(column_chunk_meta->statistics(), column_chunk_meta->type(), filter_col_type, column_type_length);
-
-                ranges.emplace_back(std::move(range));
-            }
-
-            ++iter;
-        }
-        if (ranges.size() > 0 && !filters[i].filter.checkInHyperrectangle(ranges, filters[i].keys.getTypes()).can_be_true)
-        {
-            row_group_required = false;
-            break;
-        }
-    }
-    return row_group_required;
-}
-
-DB::Range ParquetFormatFile::getColumnMaxMin(
-    std::shared_ptr<parquet::Statistics> statistics,
-    parquet::Type::type parquet_data_type,
-    DB::DataTypePtr data_type,
-    Int32 column_type_length)
-{
-    DB::Range maxmin = DB::Range::createWholeUniverse();
-    DB::WhichDataType which_data_type(data_type);
-    if (parquet_data_type == parquet::Type::type::FLOAT)
-    {
-        auto float_stats = std::dynamic_pointer_cast<parquet::FloatStatistics>(statistics);
-        maxmin = float_stats->HasMinMax() && (!float_stats->HasNullCount() || float_stats->null_count() == 0)
-            ? DB::Range(float_stats->min(), true, float_stats->max(), true)
-            : DB::Range::createWholeUniverse();
-    }
-    else if (parquet_data_type == parquet::Type::type::DOUBLE)
-    {
-        auto double_stats = std::dynamic_pointer_cast<parquet::DoubleStatistics>(statistics);
-        maxmin = double_stats->HasMinMax() && (!double_stats->HasNullCount() || double_stats->null_count() == 0)
-            ? DB::Range(double_stats->min(), true, double_stats->max(), true)
-            : DB::Range::createWholeUniverse();
-    }
-    else if (parquet_data_type == parquet::Type::type::INT32)
-    {
-        auto int32_stats = std::dynamic_pointer_cast<parquet::Int32Statistics>(statistics);
-        maxmin = int32_stats->HasMinMax() && (!int32_stats->HasNullCount() || int32_stats->null_count() == 0)
-            ? DB::Range(int32_stats->min(), true, int32_stats->max(), true)
-            : DB::Range::createWholeUniverse();
-    }
-    else if (parquet_data_type == parquet::Type::type::INT64)
-    {
-        auto int64_stats = statistics ? std::dynamic_pointer_cast<parquet::Int64Statistics>(statistics) : nullptr;
-        maxmin = int64_stats && int64_stats->HasMinMax() && (!int64_stats->HasNullCount() || int64_stats->null_count() == 0)
-            ? DB::Range(int64_stats->min(), true, int64_stats->max(), true)
-            : DB::Range::createWholeUniverse();
-    }
-    else if (parquet_data_type == parquet::Type::type::BOOLEAN)
-    {
-        auto bool_stats = std::dynamic_pointer_cast<parquet::BoolStatistics>(statistics);
-        maxmin = bool_stats->HasMinMax() && (!bool_stats->HasNullCount() || bool_stats->null_count() == 0)
-            ? DB::Range(bool_stats->min(), true, bool_stats->max(), true)
-            : DB::Range::createWholeUniverse();
-    }
-    else if (parquet_data_type == parquet::Type::type::BYTE_ARRAY)
-    {
-        auto byte_array_stats = std::dynamic_pointer_cast<parquet::ByteArrayStatistics>(statistics);
-        maxmin = byte_array_stats->HasMinMax() && (!byte_array_stats->HasNullCount() || byte_array_stats->null_count() == 0)
-            ? DB::Range(
-                parquet::ByteArrayToString(byte_array_stats->min()), true, parquet::ByteArrayToString(byte_array_stats->max()), true)
-            : DB::Range::createWholeUniverse();
-    }
-    else if (parquet_data_type == parquet::Type::type::FIXED_LEN_BYTE_ARRAY)
-    {
-        if (which_data_type.isFixedString())
-        {
-            auto fixed_byte_array_stats = std::dynamic_pointer_cast<parquet::FLBAStatistics>(statistics);
-            maxmin = fixed_byte_array_stats->HasMinMax()
-                    && (!fixed_byte_array_stats->HasNullCount() || fixed_byte_array_stats->null_count() == 0)
-                ? DB::Range(
-                    parquet::FixedLenByteArrayToString(fixed_byte_array_stats->min(), column_type_length),
-                    true,
-                    parquet::FixedLenByteArrayToString(fixed_byte_array_stats->max(), column_type_length),
-                    true)
-                : DB::Range::createWholeUniverse();
-        }
-    }
-
-    return maxmin;
-}
-
 
 }
 #endif

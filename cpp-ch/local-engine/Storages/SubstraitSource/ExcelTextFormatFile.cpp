@@ -349,37 +349,37 @@ void ExcelTextFormatReader::skipRowEndDelimiter()
         skipEndOfLine(*buf);
 }
 
-void ExcelTextFormatReader::skipEndOfLine(DB::ReadBuffer & in)
+void ExcelTextFormatReader::skipEndOfLine(DB::ReadBuffer & readBuffer)
 {
     /// \n (Unix) or \r\n (DOS/Windows) or \n\r (Mac OS Classic)
 
-    if (*in.position() == '\n')
+    if (*readBuffer.position() == '\n')
     {
-        ++in.position();
-        if (!in.eof() && *in.position() == '\r')
-            ++in.position();
+        ++readBuffer.position();
+        if (!readBuffer.eof() && *readBuffer.position() == '\r')
+            ++readBuffer.position();
     }
-    else if (*in.position() == '\r')
+    else if (*readBuffer.position() == '\r')
     {
-        ++in.position();
-        if (!in.eof() && *in.position() == '\n')
-            ++in.position();
+        ++readBuffer.position();
+        if (!readBuffer.eof() && *readBuffer.position() == '\n')
+            ++readBuffer.position();
         /// Different with CH master:
         /// removed \r check
     }
-    else if (!in.eof())
+    else if (!readBuffer.eof())
         throw DB::Exception(DB::ErrorCodes::INCORRECT_DATA, "Expected end of line");
 }
 
-inline void ExcelTextFormatReader::skipWhitespacesAndTabs(ReadBuffer & in, bool allow_whitespace_or_tab_as_delimiter)
+inline void ExcelTextFormatReader::skipWhitespacesAndTabs(ReadBuffer & readBuffer, bool allow_whitespace_or_tab_as_delimiter)
 {
     if (allow_whitespace_or_tab_as_delimiter)
     {
         return;
     }
-    /// Skip `whitespace` symbols allowed in CSV.
-    while (!in.eof() && (*in.position() == ' ' || *in.position() == '\t'))
-        ++in.position();
+    /// Skip `whitespace` symbols allowed readBuffer CSV.
+    while (!readBuffer.eof() && (*readBuffer.position() == ' ' || *readBuffer.position() == '\t'))
+        ++readBuffer.position();
 }
 
 

@@ -29,7 +29,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
 
-import java.io.File
+import java.io.{File, PrintWriter}
 import java.sql.Timestamp
 
 case class AllDataTypesWithComplextType(
@@ -971,4 +971,38 @@ class GlutenClickHouseHiveTableSuite()
     spark.sql("DROP TABLE test_tbl_3337")
   }
 
+  test("test hive read recursive dirs") {
+    val path = new Path(sparkConf.get("spark.sql.warehouse.dir"))
+    val create_test_file_recursive =
+      "create external table if not exists test_file_recursive (" +
+        "int_field int" +
+        ") row format delimited fields terminated by ',' stored as textfile " +
+        "LOCATION 'file://" + path + "/test_file_recursive'"
+    spark.sql(create_test_file_recursive)
+
+    val fs = path.getFileSystem(spark.sessionState.newHadoopConf())
+    val tablePath = path.toUri.getPath + "/test_file_recursive"
+    val recursivePath = tablePath + "/subDir1/subDir2"
+    val succ = fs.mkdirs(new Path(recursivePath))
+    assert(succ, true)
+    val recursiveFile = recursivePath + "/file1.txt"
+    val writer = new PrintWriter(new File(recursiveFile))
+    writer.write("10")
+    writer.close()
+
+    val sql =
+      s"""
+         | select int_field from test_file_recursive
+         |""".stripMargin
+
+    withSQLConf(("mapreduce.input.fileinputformat.input.dir.recursive", "true")) {
+      compareResultsAgainstVanillaSpark(
+        sql,
+        compareResult = true,
+        df => {
+          assert(df.collect().length == 1)
+        }
+      )
+    }
+  }
 }

@@ -92,17 +92,6 @@ function compile {
     fi
   fi
 
-  if [ $OS == 'Linux' ]; then
-    # create libvelox_hive_connector.a for VeloxInitializer.cc
-    sed -i 's/OBJECT//' velox/connectors/hive/CMakeLists.txt
-  elif [ $OS == 'Darwin' ]; then
-    # create libvelox_hive_connector.a for VeloxInitializer.cc
-    sed -i '' 's/OBJECT//' velox/connectors/hive/CMakeLists.txt
-  else
-    echo "Unsupport kernel: $OS"
-    exit 1
-  fi
-
   COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON"
   if [ $ENABLE_BENCHMARK == "OFF" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=OFF -DVELOX_BUILD_TEST_UTILS=ON"

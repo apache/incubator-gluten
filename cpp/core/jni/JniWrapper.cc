@@ -389,7 +389,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIter
 
   auto iter = ctx->objectStore()->retrieve<ResultIterator>(iterHandle);
   if (iter == nullptr) {
-    std::string errorMessage = "faked to get batch iterator";
+    std::string errorMessage = "failed to get batch iterator";
     throw gluten::GlutenException(errorMessage);
   }
   return iter->hasNext();
@@ -1270,6 +1270,16 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_shr
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
   return memoryManager->shrink(static_cast<int64_t>(size));
   JNI_METHOD_END(kInvalidResourceHandle)
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_hold( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong memoryManagerHandle) {
+  JNI_METHOD_START
+  auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
+  memoryManager->hold();
+  JNI_METHOD_END()
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_release( // NOLINT

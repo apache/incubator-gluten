@@ -18,14 +18,14 @@ package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.BroadcastHashJoinExecTransformer
+import io.glutenproject.execution.{BasicScanExecTransformer, BroadcastHashJoinExecTransformer}
 import io.glutenproject.extension.columnar.TransformHints
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, RowToColumnarExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, BroadcastQueryStageExec, ColumnarAQEShuffleReadExec, QueryStageExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.command.ExecutedCommandExec
 import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
@@ -67,6 +67,45 @@ import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
 case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkPlan)
   extends Rule[SparkPlan] {
 
+  private def ignoreOneColumnarToRow(plan: SparkPlan): Boolean = {
+    // For native file scan, there is a chance that we can totally fallback to
+    // vanilla Spark file scan, but for a materialized `ColumnarShuffleExchangeExec`
+    // there must be a `ColumnarToRowExec` if we decide to fallback.
+    val hasScan = plan.collectLeaves().exists {
+      case _: BasicScanExecTransformer => true
+      case _ => false
+    }
+
+    // spotless:off
+    // It has no meaning to add ColumnarToRow eagerly if we will add it finally.
+    // So we ignore the ColumnarToRow to avoid fallback eagerly.
+    // For example: 1 is better than 2
+    //
+    // 1. We first run native operator then add ColumnarToRow
+    //      ColumnarExchange
+    //            |
+    //  HashAggregateTransformer
+    //            |
+    //      ColumnarToRow
+    //
+    // 2. We first add ColumnarToRow then run vanilla Spark operator
+    //     ColumnarExchange
+    //            |
+    //      ColumnarToRow
+    //            |
+    //      HashAggregate
+    //
+    // spotless:on
+    var numColumnarToRow = 0
+    var numRowToColumnar = 0
+    plan.foreach {
+      case _: ColumnarToRowExec => numColumnarToRow += 1
+      case _: RowToColumnarExec => numRowToColumnar += 1
+      case _ =>
+    }
+    !hasScan && numColumnarToRow == 1 && numRowToColumnar == 0
+  }
+
   private def countFallbacks(plan: SparkPlan): Int = {
     var fallbacks = 0
     def countFallback(plan: SparkPlan): Unit = {
@@ -87,13 +126,16 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
           logDebug(s"Find a columnar to row for gluten plan:\n$p")
           fallbacks = fallbacks + 1
           countFallback(p)
+        case leafPlan: LeafExecNode if InMemoryTableScanHelper.isGlutenTableCache(leafPlan) =>
         case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[GlutenPlan] =>
           // Possible fallback for leaf node.
           fallbacks = fallbacks + 1
         case p => p.children.foreach(countFallback)
       }
     }
-    countFallback(plan)
+    if (!ignoreOneColumnarToRow(plan)) {
+      countFallback(plan)
+    }
     fallbacks
   }
 

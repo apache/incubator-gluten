@@ -19,6 +19,7 @@ package io.glutenproject.vectorized;
 import io.glutenproject.columnarbatch.ColumnarBatches;
 import io.glutenproject.exec.Runtime;
 import io.glutenproject.exec.RuntimeAware;
+import io.glutenproject.memory.nmm.NativeMemoryManager;
 import io.glutenproject.metrics.IMetrics;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -28,11 +29,14 @@ import java.io.IOException;
 public class ColumnarBatchOutIterator extends GeneralOutIterator implements RuntimeAware {
   private final Runtime runtime;
   private final long iterHandle;
+  private final NativeMemoryManager nmm;
 
-  public ColumnarBatchOutIterator(Runtime runtime, long iterHandle) throws IOException {
+  public ColumnarBatchOutIterator(Runtime runtime, long iterHandle, NativeMemoryManager nmm)
+      throws IOException {
     super();
     this.runtime = runtime;
     this.iterHandle = iterHandle;
+    this.nmm = nmm;
   }
 
   @Override
@@ -81,6 +85,8 @@ public class ColumnarBatchOutIterator extends GeneralOutIterator implements Runt
 
   @Override
   public void closeInternal() {
+    nmm.hold(); // to make sure the outputted batches are still accessible after the iterator is
+    // closed
     nativeClose(iterHandle);
   }
 }

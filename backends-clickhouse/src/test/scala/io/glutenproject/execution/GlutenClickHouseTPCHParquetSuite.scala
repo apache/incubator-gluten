@@ -1206,7 +1206,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  test("test 'cast null value'") {
+  ignore("test 'cast null value' -- due to https://github.com/ClickHouse/ClickHouse/pull/55146") {
     val sql = "select cast(x as double), cast(x as float), cast(x as string), cast(x as binary)," +
       "cast(x as long), cast(x as int), cast(x as short), cast(x as byte), cast(x as boolean)," +
       "cast(x as date), cast(x as timestamp), cast(x as decimal(10, 2)) from " +
@@ -2156,6 +2156,53 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       compareResultsAgainstVanillaSpark(agg_select_sql_4, true, { _ => })
       spark.sql("drop table test_tbl_left_3134")
       spark.sql("drop table test_tbl_right_3134")
+    }
+  }
+
+  test("GLUTEN-3534: Fix incorrect logic of judging whether supports pre-project for the shuffle") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      runQueryAndCompare(
+        s"""
+           |select t1.l_orderkey, t2.o_orderkey, extract(year from t1.l_shipdate), t2.o_year,
+           |t1.l_cnt, t2.o_cnt
+           |from (
+           |  select l_orderkey, l_shipdate, count(1) as l_cnt
+           |  from lineitem
+           |  group by l_orderkey, l_shipdate) t1
+           |join (
+           |  select o_orderkey, extract(year from o_orderdate) as o_year, count(1) as o_cnt
+           |  from orders
+           |  group by o_orderkey, o_orderdate) t2
+           |on t1.l_orderkey = t2.o_orderkey
+           | and extract(year from t1.l_shipdate) = o_year
+           |order by t1.l_orderkey, t2.o_orderkey
+           |limit 100
+           |
+           |""".stripMargin,
+        true,
+        true
+      )(df => {})
+
+      runQueryAndCompare(
+        s"""
+           |select t1.l_orderkey, t2.o_orderkey, extract(year from t1.l_shipdate), t2.o_year
+           |from (
+           |  select l_orderkey, l_shipdate, count(1) as l_cnt
+           |  from lineitem
+           |  group by l_orderkey, l_shipdate) t1
+           |join (
+           |  select o_orderkey, extract(year from o_orderdate) as o_year, count(1) as o_cnt
+           |  from orders
+           |  group by o_orderkey, o_orderdate) t2
+           |on t1.l_orderkey = t2.o_orderkey
+           | and extract(year from t1.l_shipdate) = o_year
+           |order by t1.l_orderkey, t2.o_orderkey
+           |limit 100
+           |
+           |""".stripMargin,
+        true,
+        true
+      )(df => {})
     }
   }
 
