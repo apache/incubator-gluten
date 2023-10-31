@@ -102,9 +102,10 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     if (!file_info.text().null_value().empty())
         format_settings.csv.null_representation = file_info.text().null_value();
 
-    bool empty_as_null = context->getSettings().has(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL) &&
-        context->getSettings().getString(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL) == "'true'";
-
+    bool empty_as_null = true;
+    if (context->getSettings().has(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL))
+        empty_as_null = context->getSettings().getString(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL) == "'true'";
+    
     if (format_settings.csv.null_representation.empty() || empty_as_null)
         format_settings.csv.empty_as_default = true;
     else

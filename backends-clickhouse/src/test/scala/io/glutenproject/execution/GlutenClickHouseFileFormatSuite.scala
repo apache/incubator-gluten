@@ -154,30 +154,24 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("read data from csv file format") {
-    withSQLConf(
-      (
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
-          "use_excel_serialization.empty_as_null",
-        "true")) {
-      val filePath = basePath + "/csv_test.csv"
-      val csvFileFormat = "csv"
-      val sql =
-        s"""
-           | select *
-           | from $csvFileFormat.`$filePath`
-           |""".stripMargin
-      testFileFormatBase(
-        filePath,
-        csvFileFormat,
-        sql,
-        df => {
-          val csvFileScan = collect(df.queryExecution.executedPlan) {
-            case f: FileSourceScanExecTransformer => f
-          }
-          assert(csvFileScan.size == 1)
+    val filePath = basePath + "/csv_test.csv"
+    val csvFileFormat = "csv"
+    val sql =
+      s"""
+         | select *
+         | from $csvFileFormat.`$filePath`
+         |""".stripMargin
+    testFileFormatBase(
+      filePath,
+      csvFileFormat,
+      sql,
+      df => {
+        val csvFileScan = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
         }
-      )
-    }
+        assert(csvFileScan.size == 1)
+      }
+    )
   }
 
   test("read data from csv file format with filter") {
@@ -203,32 +197,26 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("read data from csv file format witsh agg") {
-    withSQLConf(
-      (
-        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
-          "use_excel_serialization.empty_as_null",
-        "true")) {
-      val filePath = basePath + "/csv_test_agg.csv"
-      val csvFileFormat = "csv"
-      val sql =
-        s"""
-           | select _c7, count(_c0), sum(_c1), avg(_c2), min(_c3), max(_c4), sum(_c5), sum(_c8)
-           | from $csvFileFormat.`$filePath`
-           | group by _c7
-           |""".stripMargin
-      testFileFormatBase(
-        filePath,
-        csvFileFormat,
-        sql,
-        df => {
-          val csvFileScan = collect(df.queryExecution.executedPlan) {
-            case f: FileSourceScanExecTransformer => f
-          }
-          assert(csvFileScan.size == 1)
-        },
-        noFallBack = false
-      )
-    }
+    val filePath = basePath + "/csv_test_agg.csv"
+    val csvFileFormat = "csv"
+    val sql =
+      s"""
+         | select _c7, count(_c0), sum(_c1), avg(_c2), min(_c3), max(_c4), sum(_c5), sum(_c8)
+         | from $csvFileFormat.`$filePath`
+         | group by _c7
+         |""".stripMargin
+    testFileFormatBase(
+      filePath,
+      csvFileFormat,
+      sql,
+      df => {
+        val csvFileScan = collect(df.queryExecution.executedPlan) {
+          case f: FileSourceScanExecTransformer => f
+        }
+        assert(csvFileScan.size == 1)
+      },
+      noFallBack = false
+    )
   }
 
   test("read normal csv") {
@@ -904,15 +892,17 @@ class GlutenClickHouseFileFormatSuite
       .csv(csvDataPath + "/escape_without_quote.csv")
       .toDF()
 
-    val result = df.collect()
-
-    assert(result.length == 3)
-    assert(result.apply(0).getString(0) == "1\\")
-    assert(result.apply(0).getString(1) == "656")
-    assert(result.apply(1).getString(0) == "")
-    assert(result.apply(1).getString(1) == "123")
-    assert(result.apply(2).getString(0) == "123456789012345\\\\7")
-    assert(result.apply(2).getString(1) == "123")
+    var expectedAnswer: Seq[Row] = null
+    withSQLConf(vanillaSparkConfs(): _*) {
+      expectedAnswer = spark.read
+        .option("delimiter", ",")
+        .option("escape", "\\")
+        .schema(schema)
+        .csv(csvDataPath + "/escape_without_quote.csv")
+        .toDF()
+        .collect()
+    }
+    checkAnswer(df, expectedAnswer)
 
     val csvFileScan = collect(df.queryExecution.executedPlan) {
       case f: FileSourceScanExecTransformer => f
@@ -1118,32 +1108,38 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("issue-2881 & issue-3542 null string test") {
-    val file_path = csvDataPath + "/null_string.csv"
-    val schema = StructType.apply(
-      Seq(
-        StructField.apply("c1", StringType, nullable = true),
-        StructField.apply("c2", ShortType, nullable = true)
-      ))
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
+          "use_excel_serialization.empty_as_null",
+        "false")) {
+      val file_path = csvDataPath + "/null_string.csv"
+      val schema = StructType.apply(
+        Seq(
+          StructField.apply("c1", StringType, nullable = true),
+          StructField.apply("c2", ShortType, nullable = true)
+        ))
 
-    val options = new util.HashMap[String, String]()
-    options.put("delimiter", ",")
+      val options = new util.HashMap[String, String]()
+      options.put("delimiter", ",")
 
-    val df = spark.read
-      .options(options)
-      .schema(schema)
-      .csv(file_path)
-      .toDF()
+      val df = spark.read
+        .options(options)
+        .schema(schema)
+        .csv(file_path)
+        .toDF()
 
-    val dataCorrect = new util.ArrayList[Row]()
-    dataCorrect.add(Row(null, 1.toShort))
-    dataCorrect.add(Row("", 2.toShort))
-    dataCorrect.add(Row("1", 3.toShort))
+      val dataCorrect = new util.ArrayList[Row]()
+      dataCorrect.add(Row(null, 1.toShort))
+      dataCorrect.add(Row("", 2.toShort))
+      dataCorrect.add(Row("1", 3.toShort))
 
-    var expectedAnswer: Seq[Row] = null
-    withSQLConf(vanillaSparkConfs(): _*) {
-      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+      var expectedAnswer: Seq[Row] = null
+      withSQLConf(vanillaSparkConfs(): _*) {
+        expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+      }
+      checkAnswer(df, expectedAnswer)
     }
-    checkAnswer(df, expectedAnswer)
   }
 
   test("test integer read with sign at the end of line") {
