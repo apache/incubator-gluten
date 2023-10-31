@@ -154,7 +154,11 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("read data from csv file format") {
-    withSQLConf(("spark.gluten.sql.columnar.backend.ch.runtime_settings.use_excel_serialization.empty_as_null", "true")) {
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
+          "use_excel_serialization.empty_as_null",
+        "true")) {
       val filePath = basePath + "/csv_test.csv"
       val csvFileFormat = "csv"
       val sql =
@@ -199,7 +203,11 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("read data from csv file format witsh agg") {
-    withSQLConf(("spark.gluten.sql.columnar.backend.ch.runtime_settings.use_excel_serialization.empty_as_null", "true")) {
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
+          "use_excel_serialization.empty_as_null",
+        "true")) {
       val filePath = basePath + "/csv_test_agg.csv"
       val csvFileFormat = "csv"
       val sql =
