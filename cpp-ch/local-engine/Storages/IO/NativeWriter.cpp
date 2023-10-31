@@ -19,6 +19,8 @@
 #include <IO/WriteHelpers.h>
 #include <DataTypes/Serializations/ISerialization.h>
 #include <Columns/ColumnSparse.h>
+#include <Columns/ColumnString.h>
+
 
 using namespace DB;
 
@@ -69,8 +71,9 @@ size_t NativeWriter::write(const DB::Block & block)
         auto original_type = header.safeGetByPosition(i).type;
         /// Type
         String type_name = original_type->getName();
-        if (isAggregateFunction(original_type)
-            && header.safeGetByPosition(i).column->getDataType() != block.safeGetByPosition(i).column->getDataType())
+        bool is_agg_opt = isAggregateFunction(original_type)
+            && header.safeGetByPosition(i).column->getDataType() != block.safeGetByPosition(i).column->getDataType();
+        if (is_agg_opt)
         {
             writeStringBinary(type_name + AGG_STATE_SUFFIX, ostr);
         }
@@ -83,7 +86,18 @@ size_t NativeWriter::write(const DB::Block & block)
         column.column = recursiveRemoveSparse(column.column);
         /// Data
         if (rows)    /// Zero items of data is always represented as zero number of bytes.
-            writeData(*serialization, column.column, ostr, 0, 0);
+        {
+            if (is_agg_opt)
+            {
+                const auto * str_col = static_cast<const ColumnString *>(column.column.get());
+                const PaddedPODArray<UInt8> & column_chars = str_col->getChars();
+                ostr.write(column_chars.raw_data(), str_col->getOffsets().back());
+            }
+            else
+            {
+                writeData(*serialization, column.column, ostr, 0, 0);
+            }
+        }
     }
 
     size_t written_after = ostr.count();

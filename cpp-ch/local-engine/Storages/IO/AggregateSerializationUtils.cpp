@@ -19,8 +19,10 @@
 
 #include <Columns/ColumnAggregateFunction.h>
 #include <Columns/ColumnFixedString.h>
+#include <Columns/ColumnString.h>
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeFixedString.h>
+#include <DataTypes/DataTypeString.h>
 
 
 using namespace DB;
@@ -58,6 +60,30 @@ DB::ColumnWithTypeAndName convertAggregateStateToFixedString(DB::ColumnWithTypeA
     }
     return DB::ColumnWithTypeAndName(std::move(res_col), res_type, col.name);
 }
+
+DB::ColumnWithTypeAndName convertAggregateStateToString(DB::ColumnWithTypeAndName col)
+{
+    if (!isAggregateFunction(col.type))
+    {
+        return col;
+    }
+    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*col.column);
+    auto res_type = std::make_shared<DataTypeString>();
+    auto res_col = res_type->createColumn();
+    PaddedPODArray<UInt8> & column_chars = assert_cast<ColumnString &>(*res_col).getChars();
+    column_chars.reserve(aggregate_col->size() * 60);
+    IColumn::Offsets & column_offsets = assert_cast<ColumnString &>(*res_col).getOffsets();
+    auto value_writer = WriteBufferFromVector<PaddedPODArray<UInt8>>(column_chars);
+    column_offsets.reserve(aggregate_col->size());
+    for (const auto & item : aggregate_col->getData())
+    {
+        aggregate_col->getAggregateFunction()->serialize(item, value_writer);
+        writeChar('\0', value_writer);
+        column_offsets.emplace_back(value_writer.count());
+    }
+    return DB::ColumnWithTypeAndName(std::move(res_col), res_type, col.name);
+}
+
 DB::ColumnWithTypeAndName convertFixedStringToAggregateState(DB::ColumnWithTypeAndName col, DB::DataTypePtr type)
 {
     chassert(isAggregateFunction(type));
@@ -90,7 +116,7 @@ DB::Block convertAggregateStateInBlock(DB::Block block)
     ColumnsWithTypeAndName columns;
     for (const auto & item : block.getColumnsWithTypeAndName())
     {
-        columns.emplace_back(convertAggregateStateToFixedString(item));
+        columns.emplace_back(convertAggregateStateToString(item));
     }
     return columns;
 }

@@ -48,7 +48,7 @@ public:
     void addBlock(DB::Block & block);
     bool empty() const;
     void clear();
-    size_t spill(DB::NativeWriter & writer);
+    size_t spill(NativeWriter & writer);
 
 private:
     std::vector<DB::Block> blocks;

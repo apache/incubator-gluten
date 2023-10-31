@@ -24,6 +24,8 @@ DB::Block convertAggregateStateInBlock(DB::Block block);
 
 DB::ColumnWithTypeAndName convertAggregateStateToFixedString(DB::ColumnWithTypeAndName col);
 
+DB::ColumnWithTypeAndName convertAggregateStateToString(DB::ColumnWithTypeAndName col);
+
 DB::ColumnWithTypeAndName convertFixedStringToAggregateState(DB::ColumnWithTypeAndName col, DB::DataTypePtr type);
 
 }

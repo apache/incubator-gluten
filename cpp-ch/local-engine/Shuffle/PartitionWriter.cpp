@@ -303,7 +303,7 @@ void Partition::clear()
         blocks.clear();
 }
 
-size_t Partition::spill(DB::NativeWriter & writer)
+size_t Partition::spill(NativeWriter & writer)
 {
     std::unique_lock<std::mutex> lock(mtx, std::try_to_lock);
     if (lock.owns_lock())
