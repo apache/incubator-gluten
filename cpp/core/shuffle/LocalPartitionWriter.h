@@ -54,6 +54,8 @@ class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
 
   EvictHandle* getEvictHandle() override;
 
+  arrow::Status finishEvict() override;
+
   /// The stop function performs several tasks:
   /// 1. Opens the final data file.
   /// 2. Iterates over each partition ID (pid) to:

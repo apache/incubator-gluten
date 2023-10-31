@@ -38,6 +38,8 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
 
   EvictHandle* getEvictHandle() override;
 
+  arrow::Status finishEvict() override;
+
   arrow::Status init() override;
 
   arrow::Status stop() override;

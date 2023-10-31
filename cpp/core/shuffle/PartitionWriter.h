@@ -29,8 +29,6 @@ class EvictHandle {
   virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
 
   virtual arrow::Status finish() = 0;
-
-  virtual bool finished() = 0;
 };
 
 class ShuffleWriter::PartitionWriter {
@@ -54,6 +52,8 @@ class ShuffleWriter::PartitionWriter {
   /// or requestNextEvict has not been called.
   /// \return
   virtual EvictHandle* getEvictHandle() = 0;
+
+  virtual arrow::Status finishEvict() = 0;
 
   ShuffleWriter* shuffleWriter_;
 };

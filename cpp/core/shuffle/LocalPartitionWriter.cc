@@ -38,7 +38,7 @@ class LocalPartitionWriter::LocalEvictHandle : public EvictHandle {
       const std::shared_ptr<SpillInfo>& spillInfo,
       bool flush);
 
-  bool finished() override {
+  bool finished() {
     return finished_;
   };
 
@@ -86,9 +86,9 @@ class CacheEvictHandle final : public LocalPartitionWriter::LocalEvictHandle {
       if (written > 0) {
         spillInfo_->empty = false;
       }
-    }
 
-    finished_ = true;
+      finished_ = true;
+    }
     return arrow::Status::OK();
   }
 
@@ -102,9 +102,7 @@ class CacheEvictHandle final : public LocalPartitionWriter::LocalEvictHandle {
     // Clear cached batches before creating the payloads, to avoid spilling this partition.
     partitionCachedPayload_[partitionId].clear();
     for (auto& payload : payloads) {
-#ifndef SKIPWRITE
       RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_, os, &metadataLength));
-#endif
     }
     return arrow::Status::OK();
   }
@@ -128,9 +126,7 @@ class FlushOnSpillEvictHandle final : public LocalPartitionWriter::LocalEvictHan
     int32_t metadataLength = 0; // unused.
 
     ARROW_ASSIGN_OR_RAISE(auto start, os_->Tell());
-#ifndef SKIPWRITE
     RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_, os_.get(), &metadataLength));
-#endif
     ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
     DEBUG_OUT << "Spilled partition " << partitionId << " file start: " << start << ", file end: " << end << std::endl;
     spillInfo_->partitionSpillInfos.push_back({partitionId, end - start});
@@ -269,10 +265,8 @@ arrow::Status LocalPartitionWriter::stop() {
     writeTimer.start();
     if (lastPayload) {
       int32_t metadataLength = 0; // unused
-#ifndef SKIPWRITE
       RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(
           *lastPayload, shuffleWriter_->options().ipc_write_options, dataFileOs_.get(), &metadataLength));
-#endif
     }
     ARROW_ASSIGN_OR_RAISE(endInFinalFile, dataFileOs_->Tell());
     if (endInFinalFile != startInFinalFile && shuffleWriter_->options().write_eos) {
@@ -312,15 +306,7 @@ arrow::Status LocalPartitionWriter::stop() {
 }
 
 arrow::Status LocalPartitionWriter::requestNextEvict(bool flush) {
-  if (auto handle = getEvictHandle()) {
-    RETURN_NOT_OK(handle->finish());
-    // Discard last SpillInfo if not data spilled.
-    auto lastSpillInfo = spills_.back();
-    if (lastSpillInfo->empty) {
-      RETURN_NOT_OK(fs_->DeleteFile(lastSpillInfo->spilledFile));
-      spills_.pop_back();
-    }
-  }
+  RETURN_NOT_OK(finishEvict());
   ARROW_ASSIGN_OR_RAISE(auto spilledFile, createTempShuffleFile(nextSpilledFileDir()));
   auto spillInfo = std::make_shared<SpillInfo>(spilledFile);
   spills_.push_back(spillInfo);
@@ -334,6 +320,20 @@ EvictHandle* LocalPartitionWriter::getEvictHandle() {
     return evictHandle_.get();
   }
   return nullptr;
+}
+
+arrow::Status LocalPartitionWriter::finishEvict() {
+  if (auto handle = getEvictHandle()) {
+    RETURN_NOT_OK(handle->finish());
+    // The spilled file should not be empty. However, defensively
+    // discard the last SpillInfo to avoid iterating over invalid ones.
+    auto lastSpillInfo = spills_.back();
+    if (lastSpillInfo->empty) {
+      RETURN_NOT_OK(fs_->DeleteFile(lastSpillInfo->spilledFile));
+      spills_.pop_back();
+    }
+  }
+  return arrow::Status::OK();
 }
 
 LocalPartitionWriterCreator::LocalPartitionWriterCreator() : PartitionWriterCreator() {}

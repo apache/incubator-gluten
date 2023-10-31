@@ -60,7 +60,6 @@ namespace gluten {
 #define PREFETCHT1(ptr) __builtin_prefetch(ptr, 0, 2)
 #define PREFETCHT2(ptr) __builtin_prefetch(ptr, 0, 1)
 #endif
-// #define SKIPWRITE
 
 namespace {
 
@@ -622,6 +621,10 @@ arrow::Status VeloxShuffleWriter::updateInputHasNull(const facebook::velox::RowV
   return arrow::Status::OK();
 }
 
+void VeloxShuffleWriter::setSplitState(SplitState state) {
+  splitState_ = state;
+}
+
 arrow::Status VeloxShuffleWriter::doSplit(const facebook::velox::RowVector& rv, int64_t memLimit) {
   auto rowNum = rv.size();
   RETURN_NOT_OK(buildPartition2Row(rowNum));
@@ -1114,8 +1117,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
 
     memLimit += cachedPayloadSize();
     // make sure split buffer uses 128M memory at least, let's hardcode it here for now
-    if (memLimit < kMinMemLimit)
+    if (memLimit < kMinMemLimit) {
       memLimit = kMinMemLimit;
+    }
 
     uint64_t preAllocRowCnt =
         memLimit > 0 && bytesPerRow > 0 ? memLimit / bytesPerRow / numPartitions_ >> 2 : options_.buffer_size;
@@ -1447,9 +1451,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     }
     auto evicted = beforeEvict;
 
-    if (auto evictHandle = partitionWriter_->getEvictHandle()) {
+    {
       ScopedTimer evictTime(totalEvictTime_);
-      RETURN_NOT_OK(evictHandle->finish());
+      RETURN_NOT_OK(partitionWriter_->finishEvict());
     }
 
     if (auto afterEvict = cachedPayloadSize()) {
@@ -1694,7 +1698,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
         }
       }
       spillTime.start();
-      RETURN_NOT_OK(evictHandle->finish());
+      RETURN_NOT_OK(partitionWriter_->finishEvict());
       spillTime.stop();
       totalEvictTime_ += spillTime.realTimeUsed();
     }

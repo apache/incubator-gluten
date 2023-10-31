@@ -33,9 +33,7 @@ class CelebornEvictHandle final : public EvictHandle {
     // Copy payload to arrow buffered os.
     ARROW_ASSIGN_OR_RAISE(auto celebornBufferOs, arrow::io::BufferOutputStream::Create(bufferSize_, pool_));
     int32_t metadataLength = 0; // unused
-#ifndef SKIPWRITE
     RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_, celebornBufferOs.get(), &metadataLength));
-#endif
     payload = nullptr; // Invalidate payload immediately.
 
     // Push.
@@ -47,10 +45,6 @@ class CelebornEvictHandle final : public EvictHandle {
 
   arrow::Status finish() override {
     return arrow::Status::OK();
-  }
-
-  bool finished() override {
-    return true;
   }
 
  private:
@@ -90,6 +84,10 @@ arrow::Status CelebornPartitionWriter::requestNextEvict(bool flush) {
 
 EvictHandle* CelebornPartitionWriter::getEvictHandle() {
   return evictHandle_.get();
+}
+
+arrow::Status CelebornPartitionWriter::finishEvict() {
+  return evictHandle_->finish();
 }
 
 CelebornPartitionWriterCreator::CelebornPartitionWriterCreator(std::shared_ptr<RssClient> client)

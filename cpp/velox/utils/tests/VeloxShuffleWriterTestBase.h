@@ -105,8 +105,20 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
         makeNullableFlatVector<facebook::velox::StringView>({std::nullopt, std::nullopt}),
     };
 
+    childrenNoNull_ = {
+        makeFlatVector<int8_t>({0, 1}),
+        makeFlatVector<int8_t>({0, -1}),
+        makeFlatVector<int32_t>({0, 100}),
+        makeFlatVector<int64_t>({0, 1}),
+        makeFlatVector<float>({0, 0.142857}),
+        makeFlatVector<bool>({false, true}),
+        makeFlatVector<facebook::velox::StringView>({"", "alice"}),
+        makeFlatVector<facebook::velox::StringView>({"alice", ""}),
+    };
+
     inputVector1_ = makeRowVector(children1_);
     inputVector2_ = makeRowVector(children2_);
+    inputVectorNoNull_ = makeRowVector(childrenNoNull_);
   }
 
   arrow::Status splitRowVector(VeloxShuffleWriter& shuffleWriter, facebook::velox::RowVectorPtr vector) {
@@ -126,9 +138,11 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
 
   std::vector<facebook::velox::VectorPtr> children1_;
   std::vector<facebook::velox::VectorPtr> children2_;
+  std::vector<facebook::velox::VectorPtr> childrenNoNull_;
 
   facebook::velox::RowVectorPtr inputVector1_;
   facebook::velox::RowVectorPtr inputVector2_;
+  facebook::velox::RowVectorPtr inputVectorNoNull_;
 };
 
 class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams>, public VeloxShuffleWriterTestBase {

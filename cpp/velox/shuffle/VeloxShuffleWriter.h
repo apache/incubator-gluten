@@ -183,16 +183,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
     VS_PRINT_CONTAINER(input_has_null_);
   }
 
-  // Public for test only.
-  void setSplitState(SplitState state) {
-    splitState_ = state;
-  }
-
-  // For test only.
-  SplitState getSplitState() {
-    return splitState_;
-  }
-
  protected:
   VeloxShuffleWriter(
       uint32_t numPartitions,
@@ -220,6 +210,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   arrow::Status buildPartition2Row(uint32_t rowNum);
 
   arrow::Status updateInputHasNull(const facebook::velox::RowVector& rv);
+
+  void setSplitState(SplitState state);
 
   arrow::Status doSplit(const facebook::velox::RowVector& rv, int64_t memLimit);
 

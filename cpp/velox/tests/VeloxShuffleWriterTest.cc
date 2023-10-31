@@ -284,17 +284,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
   auto shuffleWriter = createShuffleWriter();
 
   // First spilt no null.
-  std::vector<VectorPtr> noNull = {
-      makeFlatVector<int8_t>({0, 1}),
-      makeFlatVector<int8_t>({0, -1}),
-      makeFlatVector<int32_t>({0, 100}),
-      makeFlatVector<int64_t>({0, 1}),
-      makeFlatVector<float>({0, 0.142857}),
-      makeFlatVector<bool>({false, true}),
-      makeFlatVector<velox::StringView>({"", "alice"}),
-      makeFlatVector<velox::StringView>({"alice", ""}),
-  };
-  auto inputNoNull = makeRowVector(noNull);
+  auto inputNoNull = inputVectorNoNull_;
 
   // Second split has null. Continue filling current partition buffers.
   std::vector<VectorPtr> intHasNull = {
@@ -348,31 +338,9 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceReuse) {
   auto shuffleWriter = createShuffleWriter();
 
   // First spilt no null.
-  std::vector<VectorPtr> noNull = {
-      makeFlatVector<int8_t>({0, 1}),
-      makeFlatVector<int8_t>({0, -1}),
-      makeFlatVector<int32_t>({0, 100}),
-      makeFlatVector<int64_t>({0, 1}),
-      makeFlatVector<float>({0, 0.142857}),
-      makeFlatVector<bool>({false, true}),
-      makeFlatVector<velox::StringView>({"", "alice"}),
-      makeFlatVector<velox::StringView>({"alice", ""}),
-  };
-  auto inputNoNull = makeRowVector(noNull);
-
-  // Second split has null int.
-  std::vector<VectorPtr> fixedWithdHasNull = {
-      makeNullableFlatVector<int8_t>({0, 1, std::nullopt, std::nullopt}),
-      makeNullableFlatVector<int8_t>({0, -1, std::nullopt, std::nullopt}),
-      makeNullableFlatVector<int32_t>({0, 100, std::nullopt, std::nullopt}),
-      makeNullableFlatVector<int64_t>({0, 1, std::nullopt, std::nullopt}),
-      makeNullableFlatVector<float>({0, 0.142857, std::nullopt, std::nullopt}),
-      makeNullableFlatVector<bool>({false, true, std::nullopt, std::nullopt}),
-      makeNullableFlatVector<velox::StringView>({"", "alice", "", ""}),
-      makeNullableFlatVector<velox::StringView>({"alice", "", "", ""}),
-  };
-  auto inputFixedWidthHasNull = makeRowVector(fixedWithdHasNull);
-
+  auto inputNoNull = inputVectorNoNull_;
+  // Second split has null int, null string and non-null string,
+  auto inputFixedWidthHasNull = inputVector1_;
   // Third split has null string.
   std::vector<VectorPtr> stringHasNull = {
       makeNullableFlatVector<int8_t>({0, 1}),
