@@ -51,6 +51,7 @@ class TransformerApiImpl extends TransformerApi with Logging {
       relation: HadoopFsRelation,
       selectedPartitions: Array[PartitionDirectory],
       output: Seq[Attribute],
+      bucketedScan: Boolean,
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean): Seq[InputPartition] = {
@@ -58,6 +59,7 @@ class TransformerApiImpl extends TransformerApi with Logging {
       relation,
       selectedPartitions,
       output,
+      bucketedScan,
       optionalBucketSet,
       optionalNumCoalescedBuckets,
       disableBucketedScan)

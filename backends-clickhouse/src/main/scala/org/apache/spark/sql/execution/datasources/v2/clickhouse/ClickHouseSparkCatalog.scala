@@ -92,12 +92,15 @@ class ClickHouseSparkCatalog
       writeOptions: Map[String, String],
       sourceQuery: Option[DataFrame],
       operation: TableCreationModes.CreationMode): Table = {
-    val tableProperties = ClickHouseConfig.validateConfigurations(allTableProperties)
     val (partitionColumns, maybeBucketSpec) =
       SparkShimLoader.getSparkShims.convertPartitionTransforms(partitions)
     var newSchema = schema
     var newPartitionColumns = partitionColumns
     var newBucketSpec = maybeBucketSpec
+
+    // Delta does not support bucket feature, so save the bucket infos into properties if exists.
+    val tableProperties =
+      ClickHouseConfig.createMergeTreeConfigurations(allTableProperties, newBucketSpec)
 
     val isByPath = isPathIdentifier(ident)
     val location = if (isByPath) {
@@ -146,21 +149,30 @@ class ClickHouseSparkCatalog
     loadedNewTable match {
       case v: ClickHouseTableV2 =>
         // TODO: remove this operation after implementing write mergetree into table
-        ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(spark.sessionState.newHadoopConf(), v)
-        v.refresh()
+        scanMergeTreePartsToAddFile(v)
       case _ =>
     }
     loadedNewTable
+  }
+
+  def scanMergeTreePartsToAddFile(clickHouseTableV2: ClickHouseTableV2): Unit = {
+    val (pathFilter, isBucketTable) = if (clickHouseTableV2.bucketOption.isDefined) {
+      ("/[0-9]*/*_[0-9]*_[0-9]*_[0-9]*", true)
+    } else {
+      ("/*_[0-9]*_[0-9]*_[0-9]*", false)
+    }
+    ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(
+      spark.sessionState.newHadoopConf(),
+      clickHouseTableV2,
+      pathFilter,
+      isBucketTable)
+    clickHouseTableV2.refresh()
   }
 
   /** Performs checks on the parameters provided for table creation for a ClickHouse table. */
   private def verifyTableAndSolidify(
       tableDesc: CatalogTable,
       query: Option[LogicalPlan]): CatalogTable = {
-
-    if (tableDesc.bucketSpec.isDefined) {
-      throw new UnsupportedOperationException("Do not support Bucketing")
-    }
 
     val schema = query
       .map {
@@ -215,8 +227,7 @@ class ClickHouseSparkCatalog
     try {
       loadTable(ident) match {
         case v: ClickHouseTableV2 =>
-          ScanMergeTreePartsUtils.scanMergeTreePartsToAddFile(spark.sessionState.newHadoopConf(), v)
-          v.refresh()
+          scanMergeTreePartsToAddFile(v)
       }
       super.invalidateTable(ident)
     } catch {

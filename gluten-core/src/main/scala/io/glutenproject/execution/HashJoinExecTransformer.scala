@@ -219,27 +219,29 @@ trait HashJoinLikeExecTransformer
 
   override def doTransform(substraitContext: SubstraitContext): TransformContext = {
 
-    def transformAndGetOutput(plan: SparkPlan): (RelNode, Seq[Attribute], Boolean) = {
+    def transformAndGetOutput(plan: SparkPlan): (RelNode, Seq[Attribute], Boolean, JLong) = {
       plan match {
         case p: TransformSupport =>
           val transformContext = p.doTransform(substraitContext)
-          (transformContext.root, transformContext.outputAttributes, false)
+          (transformContext.root, transformContext.outputAttributes, false, -1L)
         case _ =>
           val readRel = RelBuilder.makeReadRel(
             plan.output.asJava,
             substraitContext,
             -1
           ) /* A special handling in Join to delay the rel registration. */
-          (readRel, plan.output, true)
+          // Make sure create a new read relId for the stream side first
+          // before the one of the build side, when there is no shuffle on the build side
+          (readRel, plan.output, true, substraitContext.nextRelId())
       }
     }
 
     val joinParams = new JoinParams
-    val (inputStreamedRelNode, inputStreamedOutput, isStreamedReadRel) =
+    val (inputStreamedRelNode, inputStreamedOutput, isStreamedReadRel, streamdReadRelId) =
       transformAndGetOutput(streamedPlan)
     joinParams.isStreamedReadRel = isStreamedReadRel
 
-    val (inputBuildRelNode, inputBuildOutput, isBuildReadRel) =
+    val (inputBuildRelNode, inputBuildOutput, isBuildReadRel, buildReadRelId) =
       transformAndGetOutput(buildPlan)
     joinParams.isBuildReadRel = isBuildReadRel
 
@@ -248,10 +250,10 @@ trait HashJoinLikeExecTransformer
 
     // Register the ReadRel to correct operator Id.
     if (joinParams.isStreamedReadRel) {
-      substraitContext.registerRelToOperator(operatorId)
+      substraitContext.registerRelToOperator(operatorId, streamdReadRelId)
     }
     if (joinParams.isBuildReadRel) {
-      substraitContext.registerRelToOperator(operatorId)
+      substraitContext.registerRelToOperator(operatorId, buildReadRelId)
     }
 
     if (JoinUtils.preProjectionNeeded(streamedKeyExprs)) {

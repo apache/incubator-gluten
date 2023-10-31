@@ -45,6 +45,7 @@ trait TransformerApi {
       relation: HadoopFsRelation,
       selectedPartitions: Array[PartitionDirectory],
       output: Seq[Attribute],
+      bucketedScan: Boolean,
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean): Seq[InputPartition]

@@ -24,7 +24,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 
 import java.lang.{Long => JLong}
-import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
+import java.util.{ArrayList => JArrayList, Collections => JCollections, List => JList, Map => JMap}
 
 import scala.collection.JavaConverters._
 
@@ -143,11 +143,12 @@ object MetricsUtil extends Logging {
     relMap
       .get(operatorIdx)
       .forEach(
-        _ => {
-          nodeMetricsList.add(metrics.metricsDataList.get(curMetricsIdx))
+        idx => {
+          nodeMetricsList.add(metrics.metricsDataList.get(idx.toInt))
           curMetricsIdx -= 1
         })
 
+    JCollections.reverse(nodeMetricsList)
     val operatorMetrics = new OperatorMetrics(
       nodeMetricsList,
       joinParamsMap.getOrDefault(operatorIdx, null),
@@ -195,10 +196,10 @@ object MetricsUtil extends Logging {
     val processors = MetricsUtil.getAllProcessorList(metricData)
     processors.foreach(
       processor => {
-        if (!includingMetrics.contains(processor.name)) {
+        if (!includingMetrics.exists(processor.name.startsWith(_))) {
           extraTime += (processor.time / 1000L).toLong
         }
-        if (planNodeNames.contains(processor.name)) {
+        if (planNodeNames.exists(processor.name.startsWith(_))) {
           outputRows += processor.outputRows
           outputBytes += processor.outputBytes
           inputRows += processor.inputRows
