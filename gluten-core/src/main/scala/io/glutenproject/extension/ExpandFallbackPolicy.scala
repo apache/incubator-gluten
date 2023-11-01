@@ -27,6 +27,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, BroadcastQueryStageExec, ColumnarAQEShuffleReadExec, QueryStageExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.ExecutedCommandExec
 import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
 
@@ -135,17 +136,33 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     var stageFallbackCost = 0
 
     /**
+     * 1) Find a Gluten plan whose child is InMemoryTableScanExec. Then, increase stageFallbackCost
+     * if InMemoryTableScanExec is gluten's table cache and decrease stageFallbackCost if not. 2)
      * Find a Gluten plan whose child is QueryStageExec. Then, increase stageFallbackCost if the
      * last query stage's plan is GlutenPlan and decrease stageFallbackCost if not.
      */
     def countStageFallbackCostInternal(plan: SparkPlan): Unit = {
       plan match {
-        case p: GlutenPlan if p.children.find(_.isInstanceOf[QueryStageExec]).isDefined =>
-          p.children
+        case _: GlutenPlan if plan.children.find(_.isInstanceOf[InMemoryTableScanExec]).isDefined =>
+          plan.children
+            .filter(_.isInstanceOf[InMemoryTableScanExec])
+            .foreach {
+              // For this case, table cache will internally execute ColumnarToRow if
+              // we make the stage fall back.
+              case child if InMemoryTableScanHelper.isGlutenTableCache(child) =>
+                stageFallbackCost = stageFallbackCost + 1
+              // For other case, table cache will save internal RowToColumnar if we make
+              // the stage fall back.
+              case _ =>
+                stageFallbackCost = stageFallbackCost - 1
+            }
+        case _: GlutenPlan if plan.children.find(_.isInstanceOf[QueryStageExec]).isDefined =>
+          plan.children
             .filter(_.isInstanceOf[QueryStageExec])
             .foreach {
               case stage: QueryStageExec
                   if stage.plan.isInstanceOf[GlutenPlan] ||
+                    // For TableCacheQueryStageExec since spark 3.5.
                     InMemoryTableScanHelper.isGlutenTableCache(stage) =>
                 stageFallbackCost = stageFallbackCost + 1
               // For other cases, RowToColumnar will be removed if stage falls back, so reduce
@@ -153,7 +170,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
               case _ =>
                 stageFallbackCost = stageFallbackCost - 1
             }
-        case p => p.children.foreach(countStageFallbackCostInternal)
+        case _ => plan.children.foreach(countStageFallbackCostInternal)
       }
     }
     countStageFallbackCostInternal(plan)
