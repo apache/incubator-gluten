@@ -711,19 +711,5 @@ abstract class HashAggregateExecBaseTransformer(
       operatorId: Long,
       aggParams: AggregationParams,
       input: RelNode = null,
-      validation: Boolean = false): RelNode = {
-    val originalInputAttributes = child.output
-    val aggRel = if (needsPreProjection) {
-      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
-    } else {
-      getAggRelWithoutPreProjection(context, originalInputAttributes, operatorId, input, validation)
-    }
-    // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
-    // AggregateRel.
-    if (!needsPostProjection(allAggregateResultAttributes)) {
-      aggRel
-    } else {
-      applyPostProjection(context, aggRel, operatorId, validation)
-    }
-  }
+      validation: Boolean = false): RelNode
 }
