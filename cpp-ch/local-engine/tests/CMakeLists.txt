@@ -56,8 +56,9 @@ if (ENABLE_TESTS)
 
     add_executable(unit_tests_local_engine ${local_engine_gtest_sources} ${local_engine_udf_sources} ${local_engine_function_parser_sources})
     target_include_directories(unit_tests_local_engine PRIVATE
-        ${GTEST_INCLUDE_DIRS}/include
-        ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine)
+        ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
     # no-unreachable-code for GTEST_SKIP
     target_compile_options(unit_tests_local_engine PRIVATE -Wno-unreachable-code)
     target_link_libraries(unit_tests_local_engine PRIVATE gluten_clickhouse_backend_libs ch_contrib::gtest clickhouse_parsers loggers)

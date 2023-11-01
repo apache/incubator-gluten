@@ -20,9 +20,9 @@
 
 #if USE_PARQUET
 #include <Common/ChunkBuffer.h>
-#include "ch_parquet/OptimizedArrowColumnToCHColumn.h"
-#include "ch_parquet/OptimizedParquetBlockInputFormat.h"
-#include "ch_parquet/arrow/reader.h"
+#include "OptimizedArrowColumnToCHColumn.h"
+#include "OptimizedParquetBlockInputFormat.h"
+#include "arrow/reader.h"
 
 namespace arrow
 {

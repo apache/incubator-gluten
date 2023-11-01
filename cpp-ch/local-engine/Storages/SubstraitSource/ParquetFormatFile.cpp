@@ -30,7 +30,7 @@
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
 #include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
-#include <Storages/ch_parquet/ArrowParquetBlockInputFormat.h>
+#include <Storages/ch_parquet/VectorizedParquetRecordReader.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/metadata.h>
 #include <Common/Exception.h>
@@ -74,36 +74,26 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
 
     auto format_settings = DB::getFormatSettings(context);
 
+    std::vector<int> total_row_group_indices(total_row_groups);
+    std::iota(total_row_group_indices.begin(), total_row_group_indices.end(), 0);
+
+    std::vector<int> required_row_group_indices(required_row_groups.size());
+    for (size_t i = 0; i < required_row_groups.size(); ++i)
+        required_row_group_indices[i] = required_row_groups[i].index;
+
+    std::vector<int> skip_row_group_indices;
+    std::set_difference(
+        total_row_group_indices.begin(),
+        total_row_group_indices.end(),
+        required_row_group_indices.begin(),
+        required_row_group_indices.end(),
+        std::back_inserter(skip_row_group_indices));
+
+    format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
     if (use_local_format)
-    {
-        std::vector<int> row_group_indices;
-        row_group_indices.reserve(required_row_groups.size());
-        for (const auto & row_group : required_row_groups)
-            row_group_indices.emplace_back(row_group.index);
-
-        res->input
-            = std::make_shared<local_engine::ArrowParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, row_group_indices);
-    }
+        res->input = std::make_shared<local_engine::VectorizedParquetBlockInputFormat>(*(res->read_buffer), header, format_settings);
     else
-    {
-        std::vector<int> total_row_group_indices(total_row_groups);
-        std::iota(total_row_group_indices.begin(), total_row_group_indices.end(), 0);
-
-        std::vector<int> required_row_group_indices(required_row_groups.size());
-        for (size_t i = 0; i < required_row_groups.size(); ++i)
-            required_row_group_indices[i] = required_row_groups[i].index;
-
-        std::vector<int> skip_row_group_indices;
-        std::set_difference(
-            total_row_group_indices.begin(),
-            total_row_group_indices.end(),
-            required_row_group_indices.begin(),
-            required_row_group_indices.end(),
-            std::back_inserter(skip_row_group_indices));
-
-        format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
         res->input = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, 1, 8192);
-    }
     return res;
 }
 

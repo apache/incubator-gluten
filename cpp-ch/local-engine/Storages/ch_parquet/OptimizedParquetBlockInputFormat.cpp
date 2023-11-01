@@ -21,24 +21,16 @@
 #include <DataTypes/NestedUtils.h>
 #include <Formats/FormatFactory.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#include <Storages/ch_parquet/ArrowUtils.h>
 #include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
 #include <Storages/ch_parquet/arrow/reader.h>
 
 namespace DB
 {
-
 namespace ErrorCodes
 {
-extern const int BAD_ARGUMENTS;
 extern const int CANNOT_READ_ALL_DATA;
 }
-
-#define THROW_ARROW_NOT_OK(status) \
-    do \
-    { \
-        if (::arrow::Status _s = (status); !_s.ok()) \
-            throw Exception::createRuntime(ErrorCodes::BAD_ARGUMENTS, _s.ToString()); \
-    } while (false)
 
 OptimizedParquetBlockInputFormat::OptimizedParquetBlockInputFormat(ReadBuffer & in_, Block header_, const FormatSettings & format_settings_)
     : IInputFormat(std::move(header_), &in_), format_settings(format_settings_)
