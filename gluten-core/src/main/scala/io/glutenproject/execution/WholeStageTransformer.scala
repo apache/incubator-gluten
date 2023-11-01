@@ -28,7 +28,7 @@ import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.utils.SubstraitPlanPrinterUtil
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{Dependency, OneToOneDependency, Partition, SparkConf, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
@@ -230,10 +230,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     val pipelineTime: SQLMetric = longMetric("pipelineTime")
-
-    val buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch] = mutable.ListBuffer()
-
-    val inputRDDs = columnarInputRDDs
+    val inputRDDs = new ColumnarInputRDDsWrapper(columnarInputRDDs)
     // Check if BatchScan exists.
     val basicScanExecTransformers = findAllScanTransformers()
 
@@ -273,7 +270,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       new GlutenWholeStageColumnarRDD(
         sparkContext,
         substraitPlanPartitions,
-        genFirstNewRDDsForBroadcast(inputRDDs, partitionLength),
+        inputRDDs,
         pipelineTime,
         leafMetricsUpdater().updateInputMetrics,
         BackendsApiManager.getMetricsApiInstance.metricsUpdatingFunction(
@@ -284,6 +281,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
         )
       )
     } else {
+      val buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch] = mutable.ListBuffer()
 
       /**
        * the whole stage contains NO BasicScanExecTransformer. this the default case for:
@@ -297,7 +295,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       }
       new WholeStageZippedPartitionsRDD(
         sparkContext,
-        genFinalNewRDDsForBroadcast(inputRDDs),
+        inputRDDs,
         numaBindingInfo,
         sparkConf,
         resCtx,
@@ -331,42 +329,53 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       .getOrElse(NoopMetricsUpdater)
   }
 
-  // Recreate the broadcast build side rdd with matched partition number.
-  // Used when whole stage transformer contains scan.
-  def genFirstNewRDDsForBroadcast(
-      rddSeq: Seq[RDD[ColumnarBatch]],
-      partitions: Int): Seq[RDD[ColumnarBatch]] = {
-    rddSeq.map {
-      case rdd: BroadcastBuildSideRDD =>
-        rdd.copy(numPartitions = partitions)
-      case inputRDD =>
-        inputRDD
-    }
-  }
-
-  // Recreate the broadcast build side rdd with matched partition number.
-  // Used when whole stage transformer does not contain scan.
-  def genFinalNewRDDsForBroadcast(rddSeq: Seq[RDD[ColumnarBatch]]): Seq[RDD[ColumnarBatch]] = {
-    // Get the number of partitions from a non-broadcast RDD.
-    val nonBroadcastRDD = rddSeq.find(rdd => !rdd.isInstanceOf[BroadcastBuildSideRDD])
-    if (nonBroadcastRDD.isEmpty) {
-      throw new GlutenException("At least one RDD should not being BroadcastBuildSideRDD")
-    }
-    rddSeq.map {
-      case broadcastRDD: BroadcastBuildSideRDD =>
-        try {
-          broadcastRDD.getNumPartitions
-          broadcastRDD
-        } catch {
-          case _: Throwable =>
-            // Recreate the broadcast build side rdd with matched partition number.
-            broadcastRDD.copy(numPartitions = nonBroadcastRDD.orNull.getNumPartitions)
-        }
-      case rdd =>
-        rdd
-    }
-  }
-
   override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformer =
     copy(child = newChild, materializeInput = materializeInput)(transformStageId)
+}
+
+/**
+ * This `columnarInputRDDs` would contain [[BroadcastBuildSideRDD]], but the dependency and
+ * partition of [[BroadcastBuildSideRDD]] is meaningless. [[BroadcastBuildSideRDD]] should only be
+ * used to hold the broadcast value and generate iterator for join.
+ */
+class ColumnarInputRDDsWrapper(columnarInputRDDs: Seq[RDD[ColumnarBatch]]) extends Serializable {
+  def getDependencies: Seq[Dependency[ColumnarBatch]] = {
+    assert(
+      columnarInputRDDs
+        .filterNot(_.isInstanceOf[BroadcastBuildSideRDD])
+        .map(_.partitions.length)
+        .toSet
+        .size <= 1)
+
+    columnarInputRDDs.flatMap {
+      case _: BroadcastBuildSideRDD => Nil
+      case rdd => new OneToOneDependency[ColumnarBatch](rdd) :: Nil
+    }
+  }
+
+  def getPartitions(index: Int): Seq[Partition] = {
+    columnarInputRDDs.filterNot(_.isInstanceOf[BroadcastBuildSideRDD]).map(_.partitions(index))
+  }
+
+  def getPartitionLength: Int = {
+    assert(columnarInputRDDs.nonEmpty)
+    val nonBroadcastRDD = columnarInputRDDs.find(!_.isInstanceOf[BroadcastBuildSideRDD])
+    assert(nonBroadcastRDD.isDefined)
+    nonBroadcastRDD.get.partitions.length
+  }
+
+  def getIterators(
+      inputColumnarRDDPartitions: Seq[Partition],
+      context: TaskContext): Seq[Iterator[ColumnarBatch]] = {
+    var index = 0
+    columnarInputRDDs.map {
+      case broadcast: BroadcastBuildSideRDD =>
+        BackendsApiManager.getIteratorApiInstance
+          .genBroadcastBuildSideIterator(broadcast.broadcasted, broadcast.broadCastContext)
+      case rdd =>
+        val it = rdd.iterator(inputColumnarRDDPartitions(index), context)
+        index += 1
+        it
+    }
+  }
 }
