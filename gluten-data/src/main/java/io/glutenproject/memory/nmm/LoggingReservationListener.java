@@ -34,8 +34,9 @@ public class LoggingReservationListener implements ReservationListener {
     long before = getUsedBytes();
     long reserved = delegated.reserve(size);
     long after = getUsedBytes();
-    LOGGER.info(String.format("Reservation[%s]: %d + %d(%d) = %d",
-        this.toString(), before, reserved, size, after));
+    LOGGER.info(
+        String.format(
+            "Reservation[%s]: %d + %d(%d) = %d", this.toString(), before, reserved, size, after));
     return reserved;
   }
 
@@ -44,8 +45,10 @@ public class LoggingReservationListener implements ReservationListener {
     long before = getUsedBytes();
     long unreserved = delegated.unreserve(size);
     long after = getUsedBytes();
-    LOGGER.info(String.format("Unreservationp[%s]: %d - %d(%d) = %d",
-        this.toString(), before, unreserved, size, after));
+    LOGGER.info(
+        String.format(
+            "Unreservationp[%s]: %d - %d(%d) = %d",
+            this.toString(), before, unreserved, size, after));
     return unreserved;
   }
 
