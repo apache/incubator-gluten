@@ -892,16 +892,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
-    // FIXME: yan
-    .exclude("determining the number of reducers: aggregate operator")
-    .exclude("determining the number of reducers: join operator")
-    .exclude("determining the number of reducers: complex query 1")
-    .exclude("determining the number of reducers: complex query 2")
-    .exclude("Gluten - determining the number of reducers: aggregate operator")
-    .exclude("Gluten - determining the number of reducers: join operator")
-    .exclude("Gluten - determining the number of reducers: complex query 1")
-    .exclude("Gluten - determining the number of reducers: complex query 2")
-    .exclude("Union two datasets with different pre-shuffle partition number")
+    .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeExec does not support doExecute() method
     .exclude("shuffling UnsafeRows in exchange")
@@ -1111,7 +1102,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
   enableSuite[GlutenInjectRuntimeFilterSuite]
-    // FIXME: yan
     .exclude("Merge runtime bloom filters")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenJoinSuite]
