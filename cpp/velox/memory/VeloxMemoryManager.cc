@@ -63,24 +63,28 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   void reserveMemory(velox::memory::MemoryPool* pool, uint64_t) override {
-    growPool(pool, memoryPoolInitCapacity_);
+    std::lock_guard<std::mutex> l(mutex_);
+    growPool0(pool, memoryPoolInitCapacity_);
   }
 
   void releaseMemory(velox::memory::MemoryPool* pool) override {
-    uint64_t freeBytes = pool->shrink(0);
-    listener_->allocationChanged(-freeBytes);
+    std::lock_guard<std::mutex> l(mutex_);
+    releaseMemory0(pool);
   }
 
   uint64_t shrinkMemory(const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools, uint64_t targetBytes)
       override {
     facebook::velox::exec::MemoryReclaimer::Stats status;
     GLUTEN_CHECK(pools.size() == 1, "Should shrink a single pool at a time");
+    std::lock_guard<std::mutex> l(mutex_); // FIXME: Do we have recursive locking for this mutex?
     auto pool = pools.at(0);
     const uint64_t oldCapacity = pool->capacity();
     uint64_t spilledOut = pool->reclaim(targetBytes, status); // ignore the output
-    releaseMemory(pool.get());
+    uint64_t shrunken = pool->shrink(0);
     const uint64_t newCapacity = pool->capacity();
-    return oldCapacity - newCapacity;
+    uint64_t total = oldCapacity - newCapacity;
+    listener_->allocationChanged(-total);
+    return total;
   }
 
   bool growMemory(
@@ -90,7 +94,10 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     GLUTEN_CHECK(candidatePools.size() == 1, "ListenableArbitrator should only be used within a single root pool");
     auto candidate = candidatePools.back();
     GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
-    growPool(pool, targetBytes);
+    {
+      std::lock_guard<std::mutex> l(mutex_);
+      growPool0(pool, targetBytes);
+    }
     return true;
   }
 
@@ -104,12 +111,18 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
  private:
-  void growPool(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  void growPool0(velox::memory::MemoryPool* pool, uint64_t bytes) {
     listener_->allocationChanged(bytes);
     pool->grow(bytes);
   }
 
+  void releaseMemory0(velox::memory::MemoryPool* pool) {
+    uint64_t freeBytes = pool->shrink(0);
+    listener_->allocationChanged(-freeBytes);
+  }
+
   gluten::AllocationListener* listener_;
+  std::mutex mutex_;
   inline static std::string kind_ = "GLUTEN";
 };
 
