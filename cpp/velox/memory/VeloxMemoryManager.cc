@@ -122,7 +122,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   gluten::AllocationListener* listener_;
-  std::mutex mutex_;
+  std::recursive_mutex mutex_;
   inline static std::string kind_ = "GLUTEN";
 };
 
