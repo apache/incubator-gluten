@@ -310,6 +310,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   SplitState splitState_{kInit};
 
+  SplitState evictState_{kUnevictable};
+
   bool supportAvx512_ = false;
 
   // store arrow column types
