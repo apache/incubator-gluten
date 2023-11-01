@@ -89,15 +89,16 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   // Separate the scan ids and stream ids, and get the scan infos.
   getInfoAndIds(veloxPlanConverter.splitInfos(), veloxPlan_->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
+  auto* vmm = toVeloxMemoryManager(memoryManager);
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter = std::make_unique<WholeStageResultIteratorMiddleStage>(
-        memoryManager, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
+        vmm, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
     auto resultIter = std::make_shared<ResultIterator>(std::move(wholestageIter), this);
     return resultIter;
   } else {
     auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        memoryManager, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
+        vmm, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
     auto resultIter = std::make_shared<ResultIterator>(std::move(wholestageIter), this);
     return resultIter;
   }

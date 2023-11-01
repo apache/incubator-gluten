@@ -38,18 +38,18 @@ class VeloxRuntime final : public Runtime {
   explicit VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap);
 
   static std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
-    if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {
-      return veloxMemoryManager->getAggregateMemoryPool();
-    } else {
-      GLUTEN_CHECK(false, "Should use VeloxMemoryManager here.");
-    }
+    return toVeloxMemoryManager(memoryManager)->getAggregateMemoryPool();
   }
 
   static std::shared_ptr<facebook::velox::memory::MemoryPool> getLeafVeloxPool(MemoryManager* memoryManager) {
+    return toVeloxMemoryManager(memoryManager)->getLeafMemoryPool();
+  }
+
+  static VeloxMemoryManager* toVeloxMemoryManager(MemoryManager* memoryManager) {
     if (auto veloxMemoryManager = dynamic_cast<VeloxMemoryManager*>(memoryManager)) {
-      return veloxMemoryManager->getLeafMemoryPool();
+      return veloxMemoryManager;
     } else {
-      GLUTEN_CHECK(false, "Should use VeloxMemoryManager here.");
+      GLUTEN_CHECK(false, "Velox memory manager should be used for Velox runtime.");
     }
   }
 
