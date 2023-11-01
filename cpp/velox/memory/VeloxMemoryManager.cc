@@ -63,12 +63,12 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
   void reserveMemory(velox::memory::MemoryPool* pool, uint64_t) override {
-    std::lock_guard<std::mutex> l(mutex_);
+    std::lock_guard<std::recursive_mutex> l(mutex_);
     growPoolLocked(pool, memoryPoolInitCapacity_);
   }
 
   void releaseMemory(velox::memory::MemoryPool* pool) override {
-    std::lock_guard<std::mutex> l(mutex_);
+    std::lock_guard<std::recursive_mutex> l(mutex_);
     releaseMemoryLocked(pool);
   }
 
@@ -76,7 +76,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
       override {
     facebook::velox::exec::MemoryReclaimer::Stats status;
     GLUTEN_CHECK(pools.size() == 1, "Should shrink a single pool at a time");
-    std::lock_guard<std::mutex> l(mutex_); // FIXME: Do we have recursive locking for this mutex?
+    std::lock_guard<std::recursive_mutex> l(mutex_); // FIXME: Do we have recursive locking for this mutex?
     auto pool = pools.at(0);
     const uint64_t oldCapacity = pool->capacity();
     uint64_t spilledOut = pool->reclaim(targetBytes, status); // ignore the output
@@ -95,7 +95,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     auto candidate = candidatePools.back();
     GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
     {
-      std::lock_guard<std::mutex> l(mutex_);
+      std::lock_guard<std::recursive_mutex> l(mutex_);
       growPoolLocked(pool, targetBytes);
     }
     return true;
