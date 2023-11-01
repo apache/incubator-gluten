@@ -18,6 +18,7 @@
 #include "VeloxMemoryManager.h"
 #include "velox/common/memory/MallocAllocator.h"
 #include "velox/common/memory/MemoryPool.h"
+#include "velox/exec/MemoryReclaimer.h"
 
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
@@ -65,23 +66,21 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     growPool(pool, memoryPoolInitCapacity_);
   }
 
-  uint64_t releaseMemory(velox::memory::MemoryPool* pool, uint64_t bytes) override {
-    uint64_t freeBytes = pool->shrink(bytes);
+  void releaseMemory(velox::memory::MemoryPool* pool) override {
+    uint64_t freeBytes = pool->shrink(0);
     listener_->allocationChanged(-freeBytes);
-    if (bytes == 0 && pool->capacity() != 0) {
-      // So far only MemoryManager::dropPool() calls with 0 bytes. Let's assert the pool
-      //   gives all capacity back to Spark
-      //
-      // We are likely in destructor, do not throw. INFO log is fine since we have leak checks from Spark's memory
-      //   manager
-      LOG(INFO) << "Memory pool " << pool->name() << " not completely shrunken when Memory::dropPool() is called";
-    }
-    return freeBytes;
   }
 
   uint64_t shrinkMemory(const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools, uint64_t targetBytes)
       override {
-    GLUTEN_CHECK(false, "Not implemented");
+    facebook::velox::exec::MemoryReclaimer::Stats status;
+    GLUTEN_CHECK(pools.size() == 1, "Should shrink a single pool at a time");
+    auto pool = pools.at(0);
+    const uint64_t oldCapacity = pool->capacity();
+    uint64_t spilledOut = pool->reclaim(targetBytes, status); // ignore the output
+    releaseMemory(pool.get());
+    const uint64_t newCapacity = pool->capacity();
+    return oldCapacity - newCapacity;
   }
 
   bool growMemory(
@@ -194,14 +193,17 @@ MemoryUsageStats collectMemoryUsageStatsInternal(const velox::memory::MemoryPool
   return stats;
 }
 
-int64_t shrinkVeloxMemoryPool(velox::memory::MemoryPool* pool, int64_t size) {
+int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::MemoryPool* pool, int64_t size) {
   std::string poolName{pool->root()->name() + "/" + pool->name()};
   std::string logPrefix{"Shrink[" + poolName + "]: "};
   VLOG(2) << logPrefix << "Trying to shrink " << size << " bytes of data...";
   VLOG(2) << logPrefix << "Pool has reserved " << pool->currentBytes() << "/" << pool->root()->reservedBytes() << "/"
           << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
   VLOG(2) << logPrefix << "Shrinking...";
-  int64_t shrunken = pool->shrinkManaged(pool, size);
+  const uint64_t oldCapacity = pool->capacity();
+  mm->arbitrator()->releaseMemory(pool);
+  const uint64_t newCapacity = pool->capacity();
+  int64_t shrunken = oldCapacity - newCapacity;
   VLOG(2) << logPrefix << shrunken << " bytes released from shrinking.";
   return shrunken;
 }
@@ -212,7 +214,7 @@ const MemoryUsageStats VeloxMemoryManager::collectMemoryUsageStats() const {
 }
 
 const int64_t VeloxMemoryManager::shrink(int64_t size) {
-  return shrinkVeloxMemoryPool(veloxAggregatePool_.get(), size);
+  return shrinkVeloxMemoryPool(veloxMemoryManager_.get(), veloxAggregatePool_.get(), size);
 }
 
 namespace {

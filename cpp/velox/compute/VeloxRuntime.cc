@@ -78,8 +78,6 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   printSessionConf(sessionConf);
 #endif
 
-  auto veloxPool = getAggregateVeloxPool(memoryManager);
-
   VeloxPlanConverter veloxPlanConverter(inputs, getLeafVeloxPool(memoryManager).get(), sessionConf);
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
 
@@ -94,12 +92,12 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
   if (scanInfos.size() == 0) {
     // Source node is not required.
     auto wholestageIter = std::make_unique<WholeStageResultIteratorMiddleStage>(
-        veloxPool, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
+        memoryManager, veloxPlan_, streamIds, spillDir, sessionConf, taskInfo_);
     auto resultIter = std::make_shared<ResultIterator>(std::move(wholestageIter), this);
     return resultIter;
   } else {
     auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-        veloxPool, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
+        memoryManager, veloxPlan_, scanIds, scanInfos, streamIds, spillDir, sessionConf, taskInfo_);
     auto resultIter = std::make_shared<ResultIterator>(std::move(wholestageIter), this);
     return resultIter;
   }
