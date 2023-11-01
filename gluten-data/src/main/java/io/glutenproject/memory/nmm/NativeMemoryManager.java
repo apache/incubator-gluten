@@ -92,7 +92,8 @@ public class NativeMemoryManager implements TaskResource {
       LOGGER.warn(
           name
               + " Reservation listener "
-              + listener.toString() + " "
+              + listener.toString()
+              + " "
               + "still reserved non-zero bytes, which may cause "
               + "memory leak, size: "
               + Utils.bytesToString(listener.getUsedBytes()));
