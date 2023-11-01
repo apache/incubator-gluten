@@ -47,7 +47,7 @@ public class LoggingReservationListener implements ReservationListener {
     long after = getUsedBytes();
     LOGGER.info(
         String.format(
-            "Unreservationp[%s]: %d - %d(%d) = %d",
+            "Unreservation[%s]: %d - %d(%d) = %d",
             this.toString(), before, unreserved, size, after));
     return unreserved;
   }
