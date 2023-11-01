@@ -43,6 +43,16 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     auto path = filePath_.substr(5);
     auto localWriteFile = std::make_unique<LocalWriteFile>(path, true, false);
     sink_ = std::make_unique<WriteFileSink>(std::move(localWriteFile), path);
+  } else if (strncmp(filePath_.c_str(), "s3a:", 4) == 0) {
+#ifdef ENABLE_S3
+    auto fileSystem = getFileSystem(filePath_, nullptr);
+    auto* s3FileSystem = dynamic_cast<filesystems::S3FileSystem*>(fileSystem.get());
+    sink_ = std::make_unique<dwio::common::WriteFileSink>(
+        s3FileSystem->openFileForWrite(filePath_, {{}, s3SinkPool_.get()}), filePath_);
+#else
+    throw std::runtime_error(
+        "The write path is S3 path but the S3 haven't been enabled when writing parquet data in velox runtime!");
+#endif
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
 #ifdef ENABLE_HDFS
     std::string pathSuffix = getHdfsPath(filePath_, HdfsFileSystem::kScheme);
