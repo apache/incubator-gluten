@@ -437,16 +437,14 @@ case class HashAggregateExecTransformer(
   // Return whether the outputs partial aggregation should be combined for Velox computing.
   // When the partial outputs are multiple-column, row construct is needed.
   private def rowConstructNeeded: Boolean = {
-    for (aggregateExpression <- aggregateExpressions) {
-      aggregateExpression.mode match {
-        case PartialMerge | Final =>
-          if (aggregateExpression.aggregateFunction.inputAggBufferAttributes.size > 1) {
-            return true
-          }
-        case _ =>
-      }
+    aggregateExpressions.exists {
+      aggExpr =>
+        aggExpr.mode match {
+          case PartialMerge | Final =>
+            aggExpr.aggregateFunction.inputAggBufferAttributes.size > 1
+          case _ => false
+        }
     }
-    false
   }
 
   // Return a scalar function node representing row construct function in Velox.
