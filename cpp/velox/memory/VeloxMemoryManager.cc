@@ -64,12 +64,12 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
 
   void reserveMemory(velox::memory::MemoryPool* pool, uint64_t) override {
     std::lock_guard<std::mutex> l(mutex_);
-    growPool0(pool, memoryPoolInitCapacity_);
+    growPoolLocked(pool, memoryPoolInitCapacity_);
   }
 
   void releaseMemory(velox::memory::MemoryPool* pool) override {
     std::lock_guard<std::mutex> l(mutex_);
-    releaseMemory0(pool);
+    releaseMemoryLocked(pool);
   }
 
   uint64_t shrinkMemory(const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools, uint64_t targetBytes)
@@ -96,7 +96,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
     {
       std::lock_guard<std::mutex> l(mutex_);
-      growPool0(pool, targetBytes);
+      growPoolLocked(pool, targetBytes);
     }
     return true;
   }
@@ -111,12 +111,12 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
  private:
-  void growPool0(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  void growPoolLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
     listener_->allocationChanged(bytes);
     pool->grow(bytes);
   }
 
-  void releaseMemory0(velox::memory::MemoryPool* pool) {
+  void releaseMemoryLocked(velox::memory::MemoryPool* pool) {
     uint64_t freeBytes = pool->shrink(0);
     listener_->allocationChanged(-freeBytes);
   }
