@@ -87,7 +87,8 @@ namespace gluten {
 
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
-enum SplitState { kInit, kPreAlloc, kSplit, kStop, kUnevictable };
+enum SplitState { kInit, kPreAlloc, kSplit, kStop };
+enum EvictState { kEvictable, kUnevictable };
 
 class VeloxShuffleWriter final : public ShuffleWriter {
   enum { kValidityBufferIndex = 0, kLengthBufferIndex = 1, kValueBufferIndex = 2 };
@@ -309,6 +310,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   std::shared_ptr<PartitionWriter> partitionWriter_;
 
   SplitState splitState_{kInit};
+
+  EvictState evictState_{kEvictable};
 
   bool supportAvx512_ = false;
 

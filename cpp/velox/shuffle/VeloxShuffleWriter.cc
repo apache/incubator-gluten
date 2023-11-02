@@ -283,13 +283,12 @@ arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeUncompressedRecordBatch(
 
 class EvictGuard {
  public:
-  explicit EvictGuard(SplitState& splitState) : splitState_(splitState) {
-    oldState_ = splitState;
-    splitState_ = SplitState::kUnevictable;
+  explicit EvictGuard(EvictState& evictState) : evictState_(evictState) {
+    evictState_ = EvictState::kUnevictable;
   }
 
   ~EvictGuard() {
-    splitState_ = oldState_;
+    evictState_ = EvictState::kEvictable;
   }
 
   // For safety and clarity.
@@ -299,8 +298,7 @@ class EvictGuard {
   EvictGuard& operator=(EvictGuard&&) = delete;
 
  private:
-  SplitState& splitState_;
-  SplitState oldState_;
+  EvictState& evictState_;
 };
 
 template <facebook::velox::TypeKind kind>
@@ -1416,11 +1414,11 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
   }
 
   arrow::Status VeloxShuffleWriter::evictFixedSize(int64_t size, int64_t * actual) {
-    if (splitState_ == SplitState::kUnevictable) {
+    if (evictState_ == EvictState::kUnevictable) {
       *actual = 0;
       return arrow::Status::OK();
     }
-    EvictGuard{splitState_};
+    EvictGuard evictGuard{evictState_};
 
     int64_t reclaimed = 0;
     if (reclaimed < size && shrinkPartitionBuffersBeforeSpill()) {
