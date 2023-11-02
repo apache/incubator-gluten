@@ -27,24 +27,29 @@
 
 namespace gluten {
 
-class CelebornPartitionWriter : public RemotePartitionWriter {
+class CelebornPartitionWriter final : public RemotePartitionWriter {
  public:
   CelebornPartitionWriter(ShuffleWriter* shuffleWriter, std::shared_ptr<RssClient> celebornClient)
       : RemotePartitionWriter(shuffleWriter) {
     celebornClient_ = celebornClient;
   }
 
+  arrow::Status requestNextEvict(bool flush /*unused*/) override;
+
+  EvictHandle* getEvictHandle() override;
+
+  arrow::Status finishEvict() override;
+
   arrow::Status init() override;
-
-  arrow::Status processPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override;
-
-  arrow::Status spill() override;
 
   arrow::Status stop() override;
 
-  arrow::Status pushPartition(int32_t partitionId, char* data, int64_t size);
-
+ private:
   std::shared_ptr<RssClient> celebornClient_;
+
+  std::shared_ptr<EvictHandle> evictHandle_;
+
+  std::vector<int32_t> bytesEvicted_;
 };
 
 class CelebornPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {

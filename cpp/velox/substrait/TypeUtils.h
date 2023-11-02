@@ -22,30 +22,6 @@
 using namespace facebook::velox;
 
 namespace gluten {
-
-#ifndef TOVELOXTYPE_H
-#define TOVELOXTYPE_H
-
-/// Return the Velox type according to the typename.
-TypePtr toVeloxType(const std::string& typeName, bool asLowerCase = false);
-
-/// Return the Velox type according to substrait type string.
-TypePtr substraitTypeToVeloxType(const std::string& substraitType);
-
-/// Return the Velox type according to substrait type.
-TypePtr substraitTypeToVeloxType(const ::substrait::Type& substraitType);
-
-/// Create RowType based on the type information in string.
-TypePtr getRowType(const std::string& structType);
-
-/// Create DecimalType based on the type information in string.
-TypePtr getDecimalType(const std::string& decimalType);
-
-std::vector<TypePtr> sigToTypes(const std::string& functionSig);
-
-#endif /* TOVELOXTYPE_H */
-
-std::string_view getNameBeforeDelimiter(const std::string& compoundName, const std::string& delimiter);
 #ifndef RANGETRAITS_H
 #define RANGETRAITS_H
 

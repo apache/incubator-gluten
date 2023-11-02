@@ -96,6 +96,7 @@ object ExpressionNames {
   final val SUBSTRING = "substring"
   final val SUBSTRING_INDEX = "substring_index"
   final val CONCAT_WS = "concat_ws"
+  final val LEFT = "left"
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
   final val SPACE = "space"

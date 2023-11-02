@@ -41,7 +41,7 @@ public:
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
 
     bool supportSplit() const override { return true; }
-    DB::String getFileFormat() const override { return "exceltext"; }
+    DB::String getFileFormat() const override { return "ExcelText"; }
 
 private:
     DB::FormatSettings createFormatSettings();
@@ -79,8 +79,8 @@ public:
 private:
     void preSkipNullValue();
     bool isEndOfLine();
-    static void skipEndOfLine(DB::ReadBuffer & in);
-    static void skipWhitespacesAndTabs(DB::ReadBuffer & in, bool allow_whitespace_or_tab_as_delimiter);
+    static void skipEndOfLine(DB::ReadBuffer & readBuffer);
+    static void skipWhitespacesAndTabs(DB::ReadBuffer & readBuffer, bool allow_whitespace_or_tab_as_delimiter);
 
 
     std::vector<String> input_field_names;

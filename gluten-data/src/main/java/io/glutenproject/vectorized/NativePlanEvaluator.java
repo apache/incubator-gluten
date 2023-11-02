@@ -19,6 +19,7 @@ package io.glutenproject.vectorized;
 import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.exec.Runtime;
 import io.glutenproject.exec.Runtimes;
+import io.glutenproject.memory.nmm.NativeMemoryManager;
 import io.glutenproject.memory.nmm.NativeMemoryManagers;
 import io.glutenproject.utils.DebugUtil;
 import io.glutenproject.validate.NativePlanValidationInfo;
@@ -59,22 +60,22 @@ public class NativePlanEvaluator {
   public GeneralOutIterator createKernelWithBatchIterator(
       Plan wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
-    final long memoryManagerHandle =
+    final NativeMemoryManager nmm =
         NativeMemoryManagers.create(
-                "WholeStageIterator",
-                (self, size) -> {
-                  ColumnarBatchOutIterator instance =
-                      Optional.of(outIterator.get())
-                          .orElseThrow(
-                              () ->
-                                  new IllegalStateException(
-                                      "Fatal: spill() called before a output iterator "
-                                          + "is created. This behavior should be optimized "
-                                          + "by moving memory allocations from create() to "
-                                          + "hasNext()/next()"));
-                  return instance.spill(size);
-                })
-            .getNativeInstanceHandle();
+            "WholeStageIterator",
+            (self, size) -> {
+              ColumnarBatchOutIterator instance =
+                  Optional.of(outIterator.get())
+                      .orElseThrow(
+                          () ->
+                              new IllegalStateException(
+                                  "Fatal: spill() called before a output iterator "
+                                      + "is created. This behavior should be optimized "
+                                      + "by moving memory allocations from create() to "
+                                      + "hasNext()/next()"));
+              return instance.spill(size);
+            });
+    final long memoryManagerHandle = nmm.getNativeInstanceHandle();
 
     final String spillDirPath =
         SparkDirectoryUtil.namespace("gluten-spill")
@@ -91,13 +92,13 @@ public class NativePlanEvaluator {
             TaskContext.get().taskAttemptId(),
             DebugUtil.saveInputToFile(),
             BackendsApiManager.getSparkPlanExecApiInstance().rewriteSpillPath(spillDirPath));
-    outIterator.set(createOutIterator(Runtimes.contextInstance(), iterHandle));
+    outIterator.set(createOutIterator(Runtimes.contextInstance(), iterHandle, nmm));
     return outIterator.get();
   }
 
-  private ColumnarBatchOutIterator createOutIterator(Runtime runtime, long iterHandle)
-      throws IOException {
-    return new ColumnarBatchOutIterator(runtime, iterHandle);
+  private ColumnarBatchOutIterator createOutIterator(
+      Runtime runtime, long iterHandle, NativeMemoryManager nmm) throws IOException {
+    return new ColumnarBatchOutIterator(runtime, iterHandle, nmm);
   }
 
   private byte[] getPlanBytesBuf(Plan planNode) {

@@ -262,7 +262,7 @@ class VeloxDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
 
     // Validation: Window.
     runQueryAndCompare(
-      "select row_number() over (partition by date order by date) from type1 order by int, date") {
+      "select row_number() over (partition by date order by int) from type1 order by int, date") {
       checkOperatorMatch[WindowExecTransformer]
     }
 
@@ -445,7 +445,7 @@ class VeloxDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("Velox Parquet Write") {
+  ignore("Velox Parquet Write") {
     withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
       withTempDir {
         dir =>

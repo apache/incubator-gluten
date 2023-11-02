@@ -29,20 +29,12 @@
 #include "velox/vector/FlatVector.h"
 #include "velox/vector/VectorStream.h"
 
-#include <arrow/filesystem/filesystem.h>
-#include <arrow/filesystem/localfs.h>
-#include <arrow/io/api.h>
+#include <arrow/array/util.h>
 #include <arrow/ipc/writer.h>
 #include <arrow/memory_pool.h>
 #include <arrow/record_batch.h>
+#include <arrow/result.h>
 #include <arrow/type.h>
-#include <arrow/type_traits.h>
-#include <arrow/util/bit_util.h>
-#include <arrow/util/checked_cast.h>
-#include "arrow/array/builder_base.h"
-
-#include "arrow/array/util.h"
-#include "arrow/result.h"
 
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/PartitionWriterCreator.h"
@@ -95,7 +87,7 @@ namespace gluten {
 
 #endif // end of VELOX_SHUFFLE_WRITER_PRINT
 
-enum SplitState { kInit, kPreAlloc, kSplit, kStop };
+enum SplitState { kInit, kPreAlloc, kSplit, kStop, kUnevictable };
 
 class VeloxShuffleWriter final : public ShuffleWriter {
   enum { kValidityBufferIndex = 0, kLengthBufferIndex = 1, kValueBufferIndex = 2 };
@@ -191,16 +183,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
     VS_PRINT_CONTAINER(input_has_null_);
   }
 
-  // Public for test only.
-  void setSplitState(SplitState state) {
-    splitState_ = state;
-  }
-
-  // For test only.
-  SplitState getSplitState() {
-    return splitState_;
-  }
-
  protected:
   VeloxShuffleWriter(
       uint32_t numPartitions,
@@ -228,6 +210,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   arrow::Status buildPartition2Row(uint32_t rowNum);
 
   arrow::Status updateInputHasNull(const facebook::velox::RowVector& rv);
+
+  void setSplitState(SplitState state);
 
   arrow::Status doSplit(const facebook::velox::RowVector& rv, int64_t memLimit);
 
@@ -260,9 +244,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       uint32_t partitionId,
       bool reuseBuffers);
 
-  arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createArrowIpcPayload(
-      const arrow::RecordBatch& rb,
-      bool reuseBuffers);
+  arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createPayload(const arrow::RecordBatch& rb, bool reuseBuffers);
 
   template <typename T>
   arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
@@ -283,21 +265,25 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       const facebook::velox::FlatVector<facebook::velox::StringView>& src,
       std::vector<BinaryBuf>& dst);
 
-  arrow::Status evictPartitionsOnDemand(int64_t* size);
+  arrow::Result<int64_t> evictCachedPayload();
 
-  std::shared_ptr<arrow::RecordBatch> makeRecordBatch(
+  arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeRecordBatch(
       uint32_t numRows,
       const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
 
-  std::shared_ptr<arrow::Buffer> generateComplexTypeBuffers(facebook::velox::RowVectorPtr vector);
+  arrow::Result<std::shared_ptr<arrow::Buffer>> generateComplexTypeBuffers(facebook::velox::RowVectorPtr vector);
 
   arrow::Status resetValidityBuffer(uint32_t partitionId);
 
+  arrow::Result<int64_t> shrinkPartitionBuffersMinSize(int64_t size);
+
   arrow::Result<int64_t> shrinkPartitionBuffers();
 
-  arrow::Status resetPartitionBuffer(uint32_t partitionId);
+  arrow::Result<int64_t> evictPartitionBuffersMinSize(int64_t size);
 
   arrow::Status shrinkPartitionBuffer(uint32_t partitionId);
+
+  arrow::Status resetPartitionBuffer(uint32_t partitionId);
 
   arrow::Status resizePartitionBuffer(uint32_t partitionId, int64_t newSize);
 
@@ -307,11 +293,13 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   void stat() const;
 
-  bool shrinkBeforeSpill() const;
+  bool shrinkPartitionBuffersBeforeSpill() const;
 
-  bool shrinkAfterSpill() const;
+  bool shrinkPartitionBuffersAfterSpill() const;
 
-  arrow::Result<uint32_t> sizeAfterShrink(uint32_t partitionId) const;
+  bool evictPartitionBuffersAfterSpill() const;
+
+  arrow::Result<uint32_t> partitionBufferSizeAfterShrink(uint32_t partitionId) const;
 
  protected:
   // Memory Pool used to track memory allocation of Arrow IPC payloads.

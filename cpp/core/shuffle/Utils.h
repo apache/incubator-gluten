@@ -45,6 +45,6 @@ int64_t getBufferSizes(const std::shared_ptr<arrow::Array>& array);
 
 int64_t getBufferSizes(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
 
-arrow::Status writeEos(arrow::io::OutputStream* os);
+arrow::Status writeEos(arrow::io::OutputStream* os, int64_t* bytes);
 
 } // namespace gluten

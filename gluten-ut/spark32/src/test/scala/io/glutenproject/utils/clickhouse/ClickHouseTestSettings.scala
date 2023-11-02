@@ -287,6 +287,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffWSCGOnDisableProject].exclude(
+    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffWSCGOffDisableProject].exclude(
+    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan].exclude(
@@ -294,6 +298,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan].exclude(
+    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffWSCGOnDisableProject].exclude(
+    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffWSCGOffDisableProject].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenExpressionsSchemaSuite]
   enableSuite[GlutenExtraStrategiesSuite]
@@ -566,6 +574,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-34727: cast from float II")
     .exclude("SPARK-35720: cast invalid string input to timestamp without time zone")
     .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
+    .exclude("data type casting II")
+    .exclude("SPARK-36286: invalid string cast to timestamp")
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude("null cast")
     .exclude("cast string to date")

@@ -474,10 +474,12 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     val data_insert_sql = "insert into test_tbl_3271 values(1, 'ab')"
     val select_sql_1 = "select id, split(data, ',')[1] from test_tbl_3271 where id = 1"
     val select_sql_2 = "select id, element_at(split(data, ','), 2) from test_tbl_3271 where id = 1"
+    val select_sql_3 = "select id, element_at(map(id, data), 1) from test_tbl_3271 where id = 1"
     spark.sql(table_create_sql);
     spark.sql(data_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql_1, true, { _ => })
     compareResultsAgainstVanillaSpark(select_sql_2, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_3, true, { _ => })
 
     spark.sql(table_drop_sql)
   }

@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanBuilder
 
-import org.apache.spark.{OneToOneDependency, Partition, SparkContext, SparkException, TaskContext}
+import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.PartitionedFile
@@ -31,8 +31,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
 
 import io.substrait.proto.Plan
-
-import java.io.Serializable
 
 import scala.collection.mutable
 
@@ -88,82 +86,54 @@ case class GlutenMergeTreePartition(
 }
 
 case class FirstZippedPartitionsPartition(
-    idx: Int,
+    index: Int,
     inputPartition: InputPartition,
-    @transient private val rdds: Seq[RDD[_]] = Seq())
+    inputColumnarRDDPartitions: Seq[Partition] = Seq.empty)
   extends Partition
-  with Serializable {
-
-  override val index: Int = idx
-  var partitionValues = rdds.map(rdd => rdd.partitions(idx))
-
-  def partitions: Seq[Partition] = partitionValues
-}
 
 class GlutenWholeStageColumnarRDD(
     @transient sc: SparkContext,
     @transient private val inputPartitions: Seq[InputPartition],
-    var rdds: Seq[RDD[ColumnarBatch]],
+    var rdds: ColumnarInputRDDsWrapper,
     pipelineTime: SQLMetric,
     updateInputMetrics: (InputMetricsWrapper) => Unit,
     updateNativeMetrics: IMetrics => Unit)
-  extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
+  extends RDD[ColumnarBatch](sc, rdds.getDependencies) {
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     ExecutorManager.tryTaskSet(numaBindingInfo)
-
-    val inputPartition = castNativePartition(split)
-    if (rdds.isEmpty) {
-      BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
-        inputPartition,
-        context,
-        pipelineTime,
-        updateInputMetrics,
-        updateNativeMetrics)
-    } else {
-      val partitions = split.asInstanceOf[FirstZippedPartitionsPartition].partitions
-      val inputIterators =
-        (rdds.zip(partitions)).map { case (rdd, partition) => rdd.iterator(partition, context) }
-      BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
-        inputPartition,
-        context,
-        pipelineTime,
-        updateInputMetrics,
-        updateNativeMetrics,
-        inputIterators
-      )
-    }
+    val (inputPartition, inputColumnarRDDPartitions) = castNativePartition(split)
+    val inputIterators = rdds.getIterators(inputColumnarRDDPartitions, context)
+    BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
+      inputPartition,
+      context,
+      pipelineTime,
+      updateInputMetrics,
+      updateNativeMetrics,
+      inputIterators
+    )
   }
 
-  private def castNativePartition(split: Partition): BaseGlutenPartition = split match {
-    case FirstZippedPartitionsPartition(_, p: BaseGlutenPartition, _) => p
-    case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
+  private def castNativePartition(split: Partition): (BaseGlutenPartition, Seq[Partition]) = {
+    split match {
+      case FirstZippedPartitionsPartition(_, g: BaseGlutenPartition, p) => (g, p)
+      case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
+    }
   }
 
   override def getPreferredLocations(split: Partition): Seq[String] = {
-    castPartition(split).inputPartition.preferredLocations()
-  }
-
-  private def castPartition(split: Partition): FirstZippedPartitionsPartition = split match {
-    case p: FirstZippedPartitionsPartition => p
-    case _ => throw new SparkException(s"[BUG] Not a NativeSubstraitPartition: $split")
+    castNativePartition(split)._1.preferredLocations()
   }
 
   override protected def getPartitions: Array[Partition] = {
-    if (rdds.isEmpty) {
-      inputPartitions.zipWithIndex.map {
-        case (inputPartition, index) => FirstZippedPartitionsPartition(index, inputPartition)
-      }.toArray
-    } else {
-      val numParts = inputPartitions.size
-      if (!rdds.forall(rdd => rdd.partitions.length == numParts)) {
-        throw new IllegalArgumentException(
-          s"Can't zip RDDs with unequal numbers of partitions: ${rdds.map(_.partitions.length)}")
-      }
-      Array.tabulate[Partition](numParts) {
-        i => FirstZippedPartitionsPartition(i, inputPartitions(i), rdds)
-      }
+    Array.tabulate[Partition](inputPartitions.size) {
+      i => FirstZippedPartitionsPartition(i, inputPartitions(i), rdds.getPartitions(i))
     }
+  }
+
+  override protected def clearDependencies(): Unit = {
+    super.clearDependencies()
+    rdds = null
   }
 }

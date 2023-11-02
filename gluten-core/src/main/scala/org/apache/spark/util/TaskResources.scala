@@ -36,6 +36,20 @@ object TaskResources extends TaskListener with Logging {
   }
   val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
 
+  // For testing purpose only
+  private var fallbackRegistry: Option[TaskResourceRegistry] = None
+
+  // For testing purpose only
+  def setFallbackRegistry(r: TaskResourceRegistry): Unit = {
+    fallbackRegistry = Some(r)
+  }
+
+  // For testing purpose only
+  def unsetFallbackRegistry(): Unit = {
+    fallbackRegistry.foreach(r => r.releaseAll())
+    fallbackRegistry = None
+  }
+
   private val RESOURCE_REGISTRIES =
     new java.util.IdentityHashMap[TaskContext, TaskResourceRegistry]()
 
@@ -52,7 +66,11 @@ object TaskResources extends TaskListener with Logging {
       logWarning(
         "Using the fallback instance of TaskResourceRegistry. " +
           "This should only happen when call is not from Spark task.")
-      throw new IllegalStateException("Found a caller not in Spark task scope.")
+      return fallbackRegistry match {
+        case Some(r) => r
+        case _ =>
+          throw new IllegalStateException("No fallback instance of TaskResourceRegistry found.")
+      }
     }
     val tc = getLocalTaskContext()
     RESOURCE_REGISTRIES.synchronized {

@@ -28,29 +28,24 @@
 
 #include <google/protobuf/wrappers.pb.h>
 
+#include "velox/type/Type.h"
+
 namespace gluten {
 
 /// This class contains some common functions used to parse Substrait
 /// components, and convert them into recognizable representations.
 class SubstraitParser {
  public:
-  /// Stores the type name and nullability.
-  struct SubstraitType {
-    std::string type;
-    bool nullable;
-  };
-
   /// Used to parse Substrait NamedStruct.
-  static std::vector<std::shared_ptr<SubstraitType>> parseNamedStruct(const ::substrait::NamedStruct& namedStruct);
+  static std::vector<facebook::velox::TypePtr> parseNamedStruct(
+      const ::substrait::NamedStruct& namedStruct,
+      bool asLowerCase = false);
 
   /// Used to parse partition columns from Substrait NamedStruct.
   static std::vector<bool> parsePartitionColumns(const ::substrait::NamedStruct& namedStruct);
 
-  /// Parse Substrait Type.
-  static SubstraitType parseType(const ::substrait::Type& substraitType);
-
-  // Parse substraitType type such as i32.
-  static std::string parseType(const std::string& substraitType);
+  /// Parse Substrait Type to Velox type.
+  static facebook::velox::TypePtr parseType(const ::substrait::Type& substraitType, bool asLowerCase = false);
 
   /// Parse Substrait ReferenceSegment.
   static int32_t parseReferenceSegment(const ::substrait::Expression::ReferenceSegment& refSegment);
@@ -74,12 +69,11 @@ class SubstraitParser {
   /// specifications in Substrait yaml files.
   static std::string findFunctionSpec(const std::unordered_map<uint64_t, std::string>& functionMap, uint64_t id);
 
-  /// Extracts the function name for a function from specified compound name.
-  /// When the input is a simple name, it will be returned.
-  static std::string getSubFunctionName(const std::string& functionSpec);
+  /// Extracts the name of a function by splitting signature with delimiter.
+  static std::string getNameBeforeDelimiter(const std::string& signature, const std::string& delimiter = ":");
 
   /// This function is used get the types from the compound name.
-  static void getSubFunctionTypes(const std::string& subFuncSpec, std::vector<std::string>& types);
+  static std::vector<std::string> getSubFunctionTypes(const std::string& subFuncSpec);
 
   /// Used to find the Velox function name according to the function id
   /// from a pre-constructed function map.
@@ -94,6 +88,9 @@ class SubstraitParser {
   /// @param config the key string of a config.
   /// @return Whether the config is set as true.
   static bool configSetInOptimization(const ::substrait::extensions::AdvancedExtension&, const std::string& config);
+
+  /// Extract input types from Substrait function signature.
+  static std::vector<facebook::velox::TypePtr> sigToTypes(const std::string& functionSig);
 
  private:
   /// A map used for mapping Substrait function keywords into Velox functions'

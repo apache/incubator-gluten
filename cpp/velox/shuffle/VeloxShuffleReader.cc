@@ -121,7 +121,7 @@ VectorPtr readFlatVectorStringView(
   auto nulls = buffers[bufferIdx++];
   auto lengthBuffer = buffers[bufferIdx++];
   auto valueBuffer = buffers[bufferIdx++];
-  const auto* rawLength = lengthBuffer->as<BinaryArrayLengthType>();
+  const auto* rawLength = lengthBuffer->as<BinaryArrayLengthBufferType>();
 
   std::vector<BufferPtr> stringBuffers;
   auto values = AlignedBuffer::allocate<char>(sizeof(StringView) * length, pool);
@@ -263,6 +263,8 @@ void getUncompressedBuffersOneByOne(
             codec->Decompress(
                 compressLength, compressBuffer->data(), uncompressLength, uncompressBuffer->mutable_data()));
         VELOX_DCHECK_EQ(actualDecompressLength, uncompressLength);
+        // Prevent unused variable warning in optimized build.
+        ((void)actualDecompressLength);
       }
       buffers.emplace_back(convertToVeloxBuffer(uncompressBuffer));
     }

@@ -17,7 +17,8 @@
 package org.apache.spark.sql.execution.datasources
 
 import io.glutenproject.datasource.DatasourceJniWrapper
-import io.glutenproject.vectorized.{CloseableColumnBatchIterator, ColumnarBatchInIterator}
+import io.glutenproject.utils.Iterators
+import io.glutenproject.vectorized.ColumnarBatchInIterator
 
 import org.apache.spark.TaskContext
 import org.apache.spark.sql.execution.datasources.VeloxWriteQueue.EOS_BATCH
@@ -50,7 +51,8 @@ class VeloxWriteQueue(
       try {
         datasourceJniWrapper.write(
           dsHandle,
-          new ColumnarBatchInIterator(new CloseableColumnBatchIterator(scanner).asJava))
+          new ColumnarBatchInIterator(
+            Iterators.wrap(scanner).recyclePayload(_.close()).create().asJava))
       } catch {
         case e: Exception =>
           writeException.set(e)

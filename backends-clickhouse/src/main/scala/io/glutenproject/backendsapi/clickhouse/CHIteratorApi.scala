@@ -26,7 +26,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
-import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -230,11 +230,12 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   /**
    * Generate closeable ColumnBatch iterator.
    *
+   * FIXME: This no longer overrides parent's method
+   *
    * @param iter
    * @return
    */
-  override def genCloseableColumnBatchIterator(
-      iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
+  def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     if (iter.isInstanceOf[CloseableCHColumnBatchIterator]) iter
     else new CloseableCHColumnBatchIterator(iter)
   }
@@ -266,8 +267,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
 
   /** Compute for BroadcastBuildSideRDD */
   override def genBroadcastBuildSideIterator(
-      split: Partition,
-      context: TaskContext,
       broadcasted: Broadcast[BuildSideRelation],
       broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
     CHBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadCastContext)

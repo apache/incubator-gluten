@@ -78,6 +78,7 @@ private class ColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
+  private lazy val nmm = NativeMemoryManagers.contextInstance("ShuffleReader")
   private lazy val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
       .contextInstance()
@@ -98,7 +99,7 @@ private class ColumnarBatchSerializerInstance(
     val jniWrapper = ShuffleReaderJniWrapper.create()
     val shuffleReaderHandle = jniWrapper.make(
       cSchema.memoryAddress(),
-      NativeMemoryManagers.contextInstance("ShuffleReader").getNativeInstanceHandle,
+      nmm.getNativeInstanceHandle,
       compressionCodec,
       compressionCodecBackend
     )
@@ -128,7 +129,8 @@ private class ColumnarBatchSerializerInstance(
         Runtimes.contextInstance(),
         ShuffleReaderJniWrapper
           .create()
-          .readStream(shuffleReaderHandle, byteIn))
+          .readStream(shuffleReaderHandle, byteIn),
+        nmm)
 
       private var cb: ColumnarBatch = _
 

@@ -70,14 +70,4 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
       boolean saveInputToFile,
       String spillDir)
       throws RuntimeException;
-
-  /** Create a native compute kernel and return a row iterator. */
-  native long nativeCreateKernelWithRowIterator(byte[] wsPlan) throws RuntimeException;
-
-  /**
-   * Closes the projector referenced by nativeHandler.
-   *
-   * @param nativeHandler nativeHandler that needs to be closed
-   */
-  native void nativeClose(long nativeHandler);
 }

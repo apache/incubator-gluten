@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-find_arrow_lib(${PARQUET_LIB_NAME})
 function(add_velox_test TEST_EXEC)
   set(options)
   set(one_value_args)
@@ -33,7 +32,7 @@ function(add_velox_test TEST_EXEC)
   endif()
   add_executable(${TEST_EXEC} ${SOURCES})
   target_include_directories(${TEST_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
-  target_link_libraries(${TEST_EXEC} gflags Arrow::parquet velox GTest::gtest GTest::gtest_main glog::glog benchmark::benchmark simdjson)
+  target_link_libraries(${TEST_EXEC} gflags velox GTest::gtest GTest::gtest_main glog::glog benchmark::benchmark simdjson)
   gtest_discover_tests(${TEST_EXEC} DISCOVERY_MODE PRE_TEST)
 endfunction()
 

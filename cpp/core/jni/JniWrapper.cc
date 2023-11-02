@@ -40,8 +40,6 @@
 
 using namespace gluten;
 
-static jclass serializableObjBuilderClass;
-
 static jclass javaReservationListenerClass;
 
 static jmethodID reserveMemoryMethod;
@@ -237,9 +235,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   gluten::getJniCommonState()->ensureInitialized(env);
   gluten::getJniErrorState()->ensureInitialized(env);
 
-  serializableObjBuilderClass =
-      createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/NativeSerializableObject;");
-
   byteArrayClass = createGlobalClassReferenceOrError(env, "[B");
 
   jniByteInputStreamClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/JniByteInputStream;");
@@ -298,7 +293,6 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 void JNI_OnUnload(JavaVM* vm, void* reserved) {
   JNIEnv* env;
   vm->GetEnv(reinterpret_cast<void**>(&env), jniVersion);
-  env->DeleteGlobalRef(serializableObjBuilderClass);
   env->DeleteGlobalRef(jniByteInputStreamClass);
   env->DeleteGlobalRef(splitResultClass);
   env->DeleteGlobalRef(columnarBatchSerializeResultClass);
@@ -395,7 +389,7 @@ JNIEXPORT jboolean JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutIter
 
   auto iter = ctx->objectStore()->retrieve<ResultIterator>(iterHandle);
   if (iter == nullptr) {
-    std::string errorMessage = "faked to get batch iterator";
+    std::string errorMessage = "failed to get batch iterator";
     throw gluten::GlutenException(errorMessage);
   }
   return iter->hasNext();
@@ -785,7 +779,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
 
   auto shuffleWriterOptions = ShuffleWriterOptions::defaults();
   shuffleWriterOptions.partitioning_name = partitioningName;
-  shuffleWriterOptions.buffered_write = true;
   if (bufferSize > 0) {
     shuffleWriterOptions.buffer_size = bufferSize;
   }
@@ -1276,6 +1269,16 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_shr
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
   return memoryManager->shrink(static_cast<int64_t>(size));
   JNI_METHOD_END(kInvalidResourceHandle)
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_hold( // NOLINT
+    JNIEnv* env,
+    jclass,
+    jlong memoryManagerHandle) {
+  JNI_METHOD_START
+  auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
+  memoryManager->hold();
+  JNI_METHOD_END()
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_release( // NOLINT

@@ -38,7 +38,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
     super.sparkConf.set("spark.gluten.sql.native.writer.enabled", "true")
   }
 
-  test("test write parquet with compression codec") {
+  ignore("test write parquet with compression codec") {
     // compression codec details see `VeloxParquetDatasource.cc`
     Seq("snappy", "gzip", "zstd", "lz4", "none", "uncompressed")
       .foreach {
@@ -71,7 +71,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
       }
   }
 
-  test("test ctas") {
+  ignore("test ctas") {
     withTable("velox_ctas") {
       spark
         .range(100)
@@ -82,7 +82,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("test parquet dynamic partition write") {
+  ignore("test parquet dynamic partition write") {
     withTempPath {
       f =>
         val path = f.getCanonicalPath

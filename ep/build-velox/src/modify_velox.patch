@@ -1,0 +1,152 @@
+diff --git a/CMake/Findlz4.cmake b/CMake/Findlz4.cmake
+index d49115f12..1aaa8e532 100644
+--- a/CMake/Findlz4.cmake
++++ b/CMake/Findlz4.cmake
+@@ -21,18 +21,19 @@ find_package_handle_standard_args(lz4 DEFAULT_MSG LZ4_LIBRARY LZ4_INCLUDE_DIR)
+ 
+ mark_as_advanced(LZ4_LIBRARY LZ4_INCLUDE_DIR)
+ 
+-get_filename_component(liblz4_ext ${LZ4_LIBRARY} EXT)
+-if(liblz4_ext STREQUAL ".a")
+-  set(liblz4_type STATIC)
+-else()
+-  set(liblz4_type SHARED)
+-endif()
+-
+ if(NOT TARGET lz4::lz4)
+-  add_library(lz4::lz4 ${liblz4_type} IMPORTED)
+-  set_target_properties(lz4::lz4 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+-                                            "${LZ4_INCLUDE_DIR}")
+-  set_target_properties(
+-    lz4::lz4 PROPERTIES IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+-                        IMPORTED_LOCATION "${LZ4_LIBRARIES}")
++  add_library(lz4::lz4 UNKNOWN IMPORTED)
++  set_target_properties(lz4::lz4 PROPERTIES
++    INTERFACE_INCLUDE_DIRECTORIES "${LZ4_INCLUDE_DIR}"
++    IMPORTED_LINK_INTERFACE_LANGUAGES "C"
++    IMPORTED_LOCATION_RELEASE "${LZ4_LIBRARY_RELEASE}")
++  set_property(TARGET lz4::lz4 APPEND PROPERTY
++      IMPORTED_CONFIGURATIONS RELEASE)
++
++  if(LZ4_LIBRARY_DEBUG)
++      set_property(TARGET lz4::lz4 APPEND PROPERTY
++          IMPORTED_CONFIGURATIONS DEBUG)
++      set_property(TARGET lz4::lz4 PROPERTY
++          IMPORTED_LOCATION_DEBUG "${LZ4_LIBRARY_DEBUG}")
++  endif()
+ endif()
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b34966b7a..1999a50f0 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -211,10 +211,15 @@ if(VELOX_ENABLE_ABFS)
+ endif()
+ 
+ if(VELOX_ENABLE_HDFS)
+-  find_library(
+-    LIBHDFS3
+-    NAMES libhdfs3.so libhdfs3.dylib
+-    HINTS "${CMAKE_SOURCE_DIR}/hawq/depends/libhdfs3/_build/src/" REQUIRED)
++  find_package(libhdfs3)
++  if(libhdfs3_FOUND AND TARGET HDFS::hdfs3)
++    set(LIBHDFS3 HDFS::hdfs3)
++  else()
++    find_library(
++      LIBHDFS3
++      NAMES libhdfs3.so libhdfs3.dylib
++      HINTS "${CMAKE_SOURCE_DIR}/hawq/depends/libhdfs3/_build/src/" REQUIRED)
++  endif()
+   add_definitions(-DVELOX_ENABLE_HDFS3)
+ endif()
+ 
+@@ -380,7 +385,7 @@ resolve_dependency(Boost 1.66.0 COMPONENTS ${BOOST_INCLUDE_LIBRARIES})
+ # for reference. find_package(range-v3)
+ 
+ set_source(gflags)
+-resolve_dependency(gflags COMPONENTS shared)
++resolve_dependency(gflags)
+ if(NOT TARGET gflags::gflags)
+   # This is a bit convoluted, but we want to be able to use gflags::gflags as a
+   # target even when velox is built as a subproject which uses
+diff --git a/scripts/setup-ubuntu.sh b/scripts/setup-ubuntu.sh
+index a1dda4b6c..dc423c826 100755
+--- a/scripts/setup-ubuntu.sh
++++ b/scripts/setup-ubuntu.sh
+@@ -31,7 +31,7 @@ export CMAKE_BUILD_TYPE=Release
+ # Install all velox and folly dependencies. 
+ # The is an issue on 22.04 where a version conflict prevents glog install,
+ # installing libunwind first fixes this.
+-sudo --preserve-env apt update && sudo --preserve-env apt install -y libunwind-dev && \
++sudo --preserve-env apt update && \
+   sudo --preserve-env apt install -y \
+   g++ \
+   cmake \
+diff --git a/third_party/CMakeLists.txt b/third_party/CMakeLists.txt
+index 570af4593..6b20e7908 100644
+--- a/third_party/CMakeLists.txt
++++ b/third_party/CMakeLists.txt
+@@ -27,6 +27,7 @@ if(VELOX_ENABLE_ARROW)
+   set(ARROW_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/arrow_ep")
+   set(ARROW_CMAKE_ARGS
+       -DARROW_PARQUET=ON
++      -DARROW_FILESYSTEM=ON
+       -DARROW_WITH_LZ4=ON
+       -DARROW_WITH_SNAPPY=ON
+       -DARROW_WITH_ZLIB=ON
+@@ -68,6 +69,7 @@ if(VELOX_ENABLE_ARROW)
+     arrow_ep
+     PREFIX ${ARROW_PREFIX}
+     URL ${VELOX_ARROW_SOURCE_URL}
++    PATCH_COMMAND patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/modify_arrow.patch
+     URL_HASH ${VELOX_ARROW_BUILD_SHA256_CHECKSUM}
+     SOURCE_SUBDIR cpp
+     CMAKE_ARGS ${ARROW_CMAKE_ARGS}
+diff --git a/velox/common/process/tests/CMakeLists.txt b/velox/common/process/tests/CMakeLists.txt
+index d64466568..52927c4a5 100644
+--- a/velox/common/process/tests/CMakeLists.txt
++++ b/velox/common/process/tests/CMakeLists.txt
+@@ -17,4 +17,4 @@ add_executable(velox_process_test TraceContextTest.cpp)
+ add_test(velox_process_test velox_process_test)
+ 
+ target_link_libraries(velox_process_test PRIVATE velox_process fmt::fmt gtest
+-                                                 gtest_main)
++                                                 gtest_main glog::glog gflags::gflags)
+diff --git a/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp b/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp
+index 10ee508ba..027a58ecc 100644
+--- a/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp
++++ b/velox/connectors/hive/storage_adapters/hdfs/tests/HdfsMiniCluster.cpp
+@@ -72,7 +72,7 @@ HdfsMiniCluster::HdfsMiniCluster() {
+         "Failed to find minicluster executable {}'", miniClusterExecutableName);
+   }
+   boost::filesystem::path hadoopHomeDirectory = exePath_;
+-  hadoopHomeDirectory.remove_leaf().remove_leaf();
++  hadoopHomeDirectory.remove_filename().remove_filename();
+   setupEnvironment(hadoopHomeDirectory.string());
+ }
+ 
+diff --git a/velox/dwio/common/CMakeLists.txt b/velox/dwio/common/CMakeLists.txt
+index c4b767317..8bcf766e7 100644
+--- a/velox/dwio/common/CMakeLists.txt
++++ b/velox/dwio/common/CMakeLists.txt
+@@ -73,4 +73,5 @@ target_link_libraries(
+   velox_exec
+   Boost::regex
+   Folly::folly
+-  glog::glog)
++  glog::glog
++  protobuf::libprotobuf)
+diff --git a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
+index ce1bc6782..3139314b4 100644
+--- a/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
++++ b/velox/dwio/parquet/writer/arrow/tests/CMakeLists.txt
+@@ -40,7 +40,9 @@ target_link_libraries(
+   gtest_main
+   parquet
+   arrow
+-  arrow_testing)
++  arrow_testing
++  glog::glog
++  gflags::gflags)
+ 
+ add_library(
+   velox_dwio_arrow_parquet_writer_test_lib

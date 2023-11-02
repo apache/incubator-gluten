@@ -50,8 +50,8 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     if (filePath.startsWith(hdfsSchema)) {
       val fs = FileSystem.get(context.getConfiguration)
       val hdfsPath = new Path(filePath)
-      if (!fs.exists(hdfsPath)) {
-        fs.mkdirs(hdfsPath)
+      if (!fs.exists(hdfsPath.getParent)) {
+        fs.mkdirs(hdfsPath.getParent)
       }
     }
 

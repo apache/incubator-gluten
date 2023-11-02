@@ -421,7 +421,8 @@ object GlutenConfig {
       GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
-      SQLConf.LEGACY_SIZE_OF_NULL.key
+      SQLConf.LEGACY_SIZE_OF_NULL.key,
+      "spark.io.compression.codec"
     )
     keys.forEach(
       k => {
@@ -483,7 +484,8 @@ object GlutenConfig {
       ("spark.hadoop.input.connect.timeout", "180000"),
       ("spark.hadoop.input.read.timeout", "180000"),
       ("spark.hadoop.input.write.timeout", "180000"),
-      ("spark.hadoop.dfs.client.log.severity", "INFO")
+      ("spark.hadoop.dfs.client.log.severity", "INFO"),
+      ("spark.sql.orc.compression.codec", "snappy")
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
