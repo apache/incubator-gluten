@@ -834,8 +834,9 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     env->ReleaseStringUTFChars(dataFileJstr, dataFileC);
 
     auto localDirs = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
-    setenv(gluten::kGlutenSparkLocalDirs.c_str(), localDirs, 1);
+    shuffleWriterOptions.local_dirs = std::string(localDirs);
     env->ReleaseStringUTFChars(localDirsJstr, localDirs);
+
     partitionWriterCreator = std::make_shared<LocalPartitionWriterCreator>();
   } else if (partitionWriterType == "celeborn") {
     shuffleWriterOptions.partition_writer_type = PartitionWriterType::kCeleborn;

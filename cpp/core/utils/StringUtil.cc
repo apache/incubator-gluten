@@ -24,6 +24,9 @@
 #include "exception.h"
 
 std::vector<std::string> gluten::splitByDelim(const std::string& s, const char delimiter) {
+  if (s.empty()) {
+    return {};
+  }
   std::vector<std::string> result;
   size_t start = 0;
   size_t end = s.find(delimiter);
@@ -39,6 +42,9 @@ std::vector<std::string> gluten::splitByDelim(const std::string& s, const char d
 }
 
 std::vector<std::string> gluten::splitPaths(const std::string& s) {
+  if (s.empty()) {
+    return {};
+  }
   auto splits = splitByDelim(s, ',');
   std::vector<std::string> paths;
   for (auto i = 0; i < splits.size(); ++i) {

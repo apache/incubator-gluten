@@ -30,6 +30,8 @@
 
 namespace gluten {
 
+namespace {} // namespace
+
 struct ShuffleTestParams {
   PartitionWriterType partition_writer_type;
   arrow::Compression::type compression_type;
@@ -46,16 +48,10 @@ struct ShuffleTestParams {
 class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase {
  protected:
   void setUp() {
-    const std::string tmpDirPrefix = "columnar-shuffle-test";
-    GLUTEN_ASSIGN_OR_THROW(tmpDir1_, arrow::internal::TemporaryDir::Make(tmpDirPrefix))
-    GLUTEN_ASSIGN_OR_THROW(tmpDir2_, arrow::internal::TemporaryDir::Make(tmpDirPrefix))
-    auto configDirs = tmpDir1_->path().ToString() + "," + tmpDir2_->path().ToString();
-
-    setenv(kGlutenSparkLocalDirs.c_str(), configDirs.c_str(), 1);
-
     shuffleWriterOptions_ = ShuffleWriterOptions::defaults();
     shuffleWriterOptions_.compression_threshold = 0;
     shuffleWriterOptions_.memory_pool = defaultArrowMemoryPool().get();
+    GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFile());
 
     // Set up test data.
     children1_ = {
@@ -126,15 +122,33 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
     return shuffleWriter.split(cb, ShuffleWriter::kMinMemLimit);
   }
 
-  virtual std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() = 0;
+  // Create multiple local dirs and join with comma.
+  arrow::Status setLocalDirsAndDataFile() {
+    auto& localDirs = shuffleWriterOptions_.local_dirs;
+    static const std::string kTestLocalDirsPrefix = "columnar-shuffle-test-";
 
-  // Temporary local directories to mock multiple SPARK_LOCAL_DIRS for local spilled files.
-  std::shared_ptr<arrow::internal::TemporaryDir> tmpDir1_;
-  std::shared_ptr<arrow::internal::TemporaryDir> tmpDir2_;
+    // Create first tmp dir and create data file.
+    // To prevent tmpDirs from being deleted in the dtor, we need to store them.
+    tmpDirs_.emplace_back();
+    ARROW_ASSIGN_OR_RAISE(tmpDirs_.back(), arrow::internal::TemporaryDir::Make(kTestLocalDirsPrefix))
+    ARROW_ASSIGN_OR_RAISE(shuffleWriterOptions_.data_file, createTempShuffleFile(tmpDirs_.back()->path().ToString()));
+    localDirs += tmpDirs_.back()->path().ToString();
+    localDirs.push_back(',');
+
+    // Create second tmp dir.
+    tmpDirs_.emplace_back();
+    ARROW_ASSIGN_OR_RAISE(tmpDirs_.back(), arrow::internal::TemporaryDir::Make(kTestLocalDirsPrefix))
+    localDirs += tmpDirs_.back()->path().ToString();
+    return arrow::Status::OK();
+  }
+
+  virtual std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() = 0;
 
   ShuffleWriterOptions shuffleWriterOptions_;
 
   std::shared_ptr<ShuffleWriter::PartitionWriterCreator> partitionWriterCreator_;
+
+  std::vector<std::unique_ptr<arrow::internal::TemporaryDir>> tmpDirs_;
 
   std::vector<facebook::velox::VectorPtr> children1_;
   std::vector<facebook::velox::VectorPtr> children2_;
@@ -152,11 +166,8 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
 
     ShuffleTestParams params = GetParam();
     if (params.partition_writer_type == PartitionWriterType::kCeleborn) {
-      auto configuredDirs = getConfiguredLocalDirs().ValueOrDie();
-      auto dataFile = createTempShuffleFile(configuredDirs[0]).ValueOrDie();
-      shuffleWriterOptions_.data_file = dataFile;
-      partitionWriterCreator_ =
-          std::make_shared<CelebornPartitionWriterCreator>(std::make_shared<LocalRssClient>(dataFile));
+      partitionWriterCreator_ = std::make_shared<CelebornPartitionWriterCreator>(
+          std::make_shared<LocalRssClient>(shuffleWriterOptions_.data_file));
       shuffleWriterOptions_.partition_writer_type = kCeleborn;
     } else {
       partitionWriterCreator_ = std::make_shared<LocalPartitionWriterCreator>();

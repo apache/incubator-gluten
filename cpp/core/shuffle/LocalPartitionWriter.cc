@@ -20,6 +20,7 @@
 #include <thread>
 #include "shuffle/Utils.h"
 #include "utils/DebugOut.h"
+#include "utils/StringUtil.h"
 #include "utils/Timer.h"
 
 namespace gluten {
@@ -169,22 +170,12 @@ std::string LocalPartitionWriter::nextSpilledFileDir() {
 }
 
 arrow::Status LocalPartitionWriter::setLocalDirs() {
-  ARROW_ASSIGN_OR_RAISE(configuredDirs_, getConfiguredLocalDirs());
+  configuredDirs_ = splitPaths(shuffleWriter_->options().local_dirs);
   // Shuffle the configured local directories. This prevents each task from using the same directory for spilled files.
   std::random_device rd;
   std::default_random_engine engine(rd());
   std::shuffle(configuredDirs_.begin(), configuredDirs_.end(), engine);
-
   subDirSelection_.assign(configuredDirs_.size(), 0);
-
-  // Both data_file and shuffle_index_file should be set through jni.
-  // For test purpose, Create a temporary subdirectory in the system temporary
-  // dir with prefix "columnar-shuffle"
-  if (shuffleWriter_->options().data_file.length() == 0) {
-    std::string dataFileTemp;
-    size_t id = std::hash<std::thread::id>{}(std::this_thread::get_id()) % configuredDirs_.size();
-    ARROW_ASSIGN_OR_RAISE(shuffleWriter_->options().data_file, createTempShuffleFile(configuredDirs_[id]));
-  }
   return arrow::Status::OK();
 }
 
