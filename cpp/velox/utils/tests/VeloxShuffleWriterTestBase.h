@@ -30,8 +30,6 @@
 
 namespace gluten {
 
-namespace {} // namespace
-
 struct ShuffleTestParams {
   PartitionWriterType partition_writer_type;
   arrow::Compression::type compression_type;
