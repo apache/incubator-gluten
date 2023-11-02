@@ -24,7 +24,6 @@ import io.glutenproject.memory.nmm.NativeMemoryManagers;
 import io.glutenproject.utils.DebugUtil;
 import io.glutenproject.validate.NativePlanValidationInfo;
 
-import io.substrait.proto.Plan;
 import org.apache.spark.TaskContext;
 import org.apache.spark.util.SparkDirectoryUtil;
 
@@ -58,7 +57,7 @@ public class NativePlanEvaluator {
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
-      Plan wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
+      byte[] wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
     final NativeMemoryManager nmm =
         NativeMemoryManagers.create(
@@ -85,7 +84,7 @@ public class NativePlanEvaluator {
     long iterHandle =
         jniWrapper.nativeCreateKernelWithIterator(
             memoryManagerHandle,
-            getPlanBytesBuf(wsPlan),
+            wsPlan,
             iterList.toArray(new GeneralInIterator[0]),
             TaskContext.get().stageId(),
             TaskContext.getPartitionId(),
@@ -99,9 +98,5 @@ public class NativePlanEvaluator {
   private ColumnarBatchOutIterator createOutIterator(
       Runtime runtime, long iterHandle, NativeMemoryManager nmm) throws IOException {
     return new ColumnarBatchOutIterator(runtime, iterHandle, nmm);
-  }
-
-  private byte[] getPlanBytesBuf(Plan planNode) {
-    return planNode.toByteArray();
   }
 }

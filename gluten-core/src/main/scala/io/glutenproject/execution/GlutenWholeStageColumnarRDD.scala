@@ -30,21 +30,22 @@ import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
 
-import io.substrait.proto.Plan
-
 import scala.collection.mutable
 
 trait BaseGlutenPartition extends Partition with InputPartition {
-  def plan: Plan
+  def plan: Array[Byte]
 }
 
-case class GlutenPartition(index: Int, plan: Plan, locations: Array[String] = Array.empty[String])
+case class GlutenPartition(
+    index: Int,
+    plan: Array[Byte],
+    locations: Array[String] = Array.empty[String])
   extends BaseGlutenPartition {
 
   override def preferredLocations(): Array[String] = locations
 }
 
-case class GlutenFilePartition(index: Int, files: Array[PartitionedFile], plan: Plan)
+case class GlutenFilePartition(index: Int, files: Array[PartitionedFile], plan: Array[Byte])
   extends BaseGlutenPartition {
   override def preferredLocations(): Array[String] = {
     // Computes total number of bytes can be retrieved from each host.
@@ -74,14 +75,10 @@ case class GlutenMergeTreePartition(
     tablePath: String,
     minParts: Long,
     maxParts: Long,
-    plan: Plan = PlanBuilder.empty().toProtobuf)
+    plan: Array[Byte] = PlanBuilder.EMPTY_PLAN)
   extends BaseGlutenPartition {
   override def preferredLocations(): Array[String] = {
     Array.empty[String]
-  }
-
-  def copySubstraitPlan(newSubstraitPlan: Plan): GlutenMergeTreePartition = {
-    this.copy(plan = newSubstraitPlan)
   }
 }
 

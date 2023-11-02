@@ -265,7 +265,11 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
               .genFilePartition(i, currentPartitions, allScanPartitionSchemas, fileFormats, wsCxt)
           })
         (wsCxt, substraitPlanPartitions)
-      }(t => logOnLevel(substraitPlanLogLevel, s"Generating the Substrait plan took: $t ms."))
+      }(
+        t =>
+          logOnLevel(
+            substraitPlanLogLevel,
+            s"$nodeName generating the substrait plan took: $t ms."))
 
       new GlutenWholeStageColumnarRDD(
         sparkContext,
@@ -291,7 +295,8 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
        *      result, genFinalStageIterator rather than genFirstStageIterator will be invoked
        */
       val resCtx = GlutenTimeMetric.withMillisTime(doWholeStageTransform()) {
-        t => logOnLevel(substraitPlanLogLevel, s"Generating the Substrait plan took: $t ms.")
+        t =>
+          logOnLevel(substraitPlanLogLevel, s"$nodeName generating the substrait plan took: $t ms.")
       }
       new WholeStageZippedPartitionsRDD(
         sparkContext,
