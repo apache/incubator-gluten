@@ -29,6 +29,7 @@ public:
     NativeReader(DB::ReadBuffer & istr_) : istr(istr_) {}
 
     static void readData(const DB::ISerialization & serialization, DB::ColumnPtr & column, DB::ReadBuffer & istr, size_t rows, double avg_value_size_hint);
+    template <bool FIXED>
     static void readAggData(const DB::DataTypeAggregateFunction & data_type, DB::ColumnPtr & column, DB::ReadBuffer & istr, size_t rows);
 
     DB::Block getHeader() const;

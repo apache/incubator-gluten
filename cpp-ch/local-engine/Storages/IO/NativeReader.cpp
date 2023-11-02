@@ -58,6 +58,7 @@ void NativeReader::readData(const ISerialization & serialization, ColumnPtr & co
                         "Cannot read all data in NativeReader. Rows read: {}. Rows expected: {}", column->size(), rows);
 }
 
+template <bool FIXED>
 void NativeReader::readAggData(const DB::DataTypeAggregateFunction & data_type, DB::ColumnPtr & column, DB::ReadBuffer & istr, size_t rows)
 {
     ColumnAggregateFunction & real_column = typeid_cast<ColumnAggregateFunction &>(*column->assumeMutable());
@@ -72,9 +73,8 @@ void NativeReader::readAggData(const DB::DataTypeAggregateFunction & data_type, 
     for (size_t i = 0; i < rows; ++i)
     {
         AggregateDataPtr place = arena.alignedAlloc(size_of_state, align_of_state);
-
         agg_function->create(place);
-        if (isFixedSizeAggregateFunction(agg_function))
+        if constexpr (FIXED)
         {
             auto n = istr.read(place, size_of_state);
             chassert(n == size_of_state);
@@ -84,6 +84,7 @@ void NativeReader::readAggData(const DB::DataTypeAggregateFunction & data_type, 
             agg_function->deserialize(place, istr, std::nullopt, &arena);
             istr.ignore();
         }
+
         vec.push_back(place);
     }
 }
@@ -149,7 +150,15 @@ Block NativeReader::read()
             if (is_agg_state_type && agg_opt_column)
             {
                 const DataTypeAggregateFunction * agg_type = checkAndGetDataType<DataTypeAggregateFunction>(column.type.get());
-                readAggData(*agg_type, read_column, istr, rows);
+                bool fixed = isFixedSizeAggregateFunction(agg_type->getFunction());
+                if (fixed)
+                {
+                    readAggData<true>(*agg_type, read_column, istr, rows);
+                }
+                else
+                {
+                    readAggData<false>(*agg_type, read_column, istr, rows);
+                }
             }
             else
             {
