@@ -4,7 +4,7 @@ title: Gluten with Velox Backend
 nav_order: 1
 parent: Getting-Started
 ---
-Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
+Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox. Our nightly build still use Velox under oap-project. 
 
 # Prerequisite
 
@@ -61,7 +61,7 @@ cd /path/to/gluten
 ./dev/buildbundle-veloxbe.sh
 
 ## After a complete build, if you need to re-build the project and only some gluten code is changed,
-## you can use the following command to skip building arrow, velox and protobuf.
+## you can use the following command to skip building velox and protobuf.
 # ./dev/buildbundle-veloxbe.sh --skip_build_ep=ON --build_protobuf=OFF
 ```
 
@@ -86,12 +86,12 @@ Velox provides arrow/parquet lib. Gluten cpp module need a required VELOX_HOME p
 cd /path/to/gluten/ep/build-velox/src/
 ## you could use custom ep location by --velox_home=custom_path, make sure specify --velox_home in build_velox.sh too.
 ./get_velox.sh
-## make sure specify --arrow_home or --velox_home if you have specified it in get_xxx.sh.
+## make sure specify --velox_home if you have specified it in get_xxx.sh.
 ./build_velox.sh
 
 ## compile Gluten cpp module
 cd /path/to/gluten/cpp
-## if you use custom velox_home or arrow_home, make sure specified here by --arrow_home or --velox_home 
+## if you use custom velox_home, make sure specified here by --velox_home 
 ./compile.sh --build_velox_backend=ON
 
 ## compile Gluten java module and create package jar
