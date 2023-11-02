@@ -20,12 +20,13 @@ import io.substrait.proto.Expression;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class SelectionNode implements ExpressionNode, Serializable {
   private final Integer fieldIndex;
 
   // The nested indices of child field. For case like a.b.c, the index of c is put at last.
-  private final ArrayList<Integer> nestedChildIndices = new ArrayList<>();
+  private final List<Integer> nestedChildIndices = new ArrayList<>();
 
   SelectionNode(Integer fieldIndex) {
     this.fieldIndex = fieldIndex;

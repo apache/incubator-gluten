@@ -27,28 +27,26 @@ import io.substrait.proto.RelRoot;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class PlanNode implements Serializable {
-  private final ArrayList<FunctionMappingNode> mappingNodes = new ArrayList<>();
-  private final ArrayList<RelNode> relNodes = new ArrayList<>();
-  private final ArrayList<String> outNames = new ArrayList<>();
+  private final List<FunctionMappingNode> mappingNodes = new ArrayList<>();
+  private final List<RelNode> relNodes = new ArrayList<>();
+  private final List<String> outNames = new ArrayList<>();
 
   private TypeNode outputSchema = null;
   private AdvancedExtensionNode extension = null;
 
-  PlanNode(
-      ArrayList<FunctionMappingNode> mappingNodes,
-      ArrayList<RelNode> relNodes,
-      ArrayList<String> outNames) {
+  PlanNode(List<FunctionMappingNode> mappingNodes, List<RelNode> relNodes, List<String> outNames) {
     this.mappingNodes.addAll(mappingNodes);
     this.relNodes.addAll(relNodes);
     this.outNames.addAll(outNames);
   }
 
   PlanNode(
-      ArrayList<FunctionMappingNode> mappingNodes,
-      ArrayList<RelNode> relNodes,
-      ArrayList<String> outNames,
+      List<FunctionMappingNode> mappingNodes,
+      List<RelNode> relNodes,
+      List<String> outNames,
       TypeNode outputSchema,
       AdvancedExtensionNode extension) {
     this.mappingNodes.addAll(mappingNodes);

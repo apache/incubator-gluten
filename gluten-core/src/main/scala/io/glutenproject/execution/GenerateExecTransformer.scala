@@ -21,7 +21,7 @@ import io.glutenproject.exception.GlutenException
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
@@ -32,7 +32,7 @@ import org.apache.spark.sql.execution.SparkPlan
 
 import com.google.protobuf.Any
 
-import java.util
+import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConverters._
 
@@ -105,7 +105,7 @@ case class GenerateExecTransformer(
     val generatorExpr =
       ExpressionConverter.replaceWithExpressionTransformer(generator, child.output)
     val generatorNode = generatorExpr.doTransform(args)
-    val requiredChildOutputNodes = new java.util.ArrayList[ExpressionNode]
+    val requiredChildOutputNodes = new JArrayList[ExpressionNode]
     for (target <- requiredChildOutput) {
       val found = child.output.zipWithIndex.filter(_._1.name == target.name)
       if (found.nonEmpty) {
@@ -119,11 +119,7 @@ case class GenerateExecTransformer(
     val inputRel = if (childCtx != null) {
       childCtx.root
     } else {
-      val attrList = new java.util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
       readRel
     }
     val projRel =
@@ -131,7 +127,7 @@ case class GenerateExecTransformer(
         BackendsApiManager.getSettings.insertPostProjectForGenerate() && needsProjection(generator)
       ) {
         // need to insert one projection node for velox backend
-        val projectExpressions = new util.ArrayList[ExpressionNode]()
+        val projectExpressions = new JArrayList[ExpressionNode]()
         val childOutputNodes = child.output.indices
           .map(i => ExpressionBuilder.makeSelection(i).asInstanceOf[ExpressionNode])
           .asJava
@@ -174,16 +170,14 @@ case class GenerateExecTransformer(
       inputAttributes: Seq[Attribute],
       input: RelNode,
       generator: ExpressionNode,
-      childOutput: util.ArrayList[ExpressionNode],
+      childOutput: JList[ExpressionNode],
       validation: Boolean): RelNode = {
     if (!validation) {
       RelBuilder.makeGenerateRel(input, generator, childOutput, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- inputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList =
+        inputAttributes.map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)).asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeGenerateRel(input, generator, childOutput, extensionNode, context, operatorId)

@@ -20,6 +20,7 @@ import io.substrait.proto.Type;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class MapNode implements TypeNode, Serializable {
   private final Boolean nullable;
@@ -34,7 +35,7 @@ public class MapNode implements TypeNode, Serializable {
 
   // It's used in ExplodeTransformer to determine output datatype from children.
   public TypeNode getNestedType() {
-    ArrayList<TypeNode> types = new ArrayList<>();
+    List<TypeNode> types = new ArrayList<>();
     types.add(keyType);
     types.add(valType);
     return TypeBuilder.makeStruct(false, types);

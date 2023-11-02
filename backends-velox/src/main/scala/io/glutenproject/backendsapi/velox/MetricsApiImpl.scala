@@ -25,14 +25,15 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
-import java.{lang, util}
+import java.lang.{Long => JLong}
+import java.util.{List => JList, Map => JMap}
 
 class MetricsApiImpl extends MetricsApi with Logging {
   override def metricsUpdatingFunction(
       child: SparkPlan,
-      relMap: util.HashMap[lang.Long, util.ArrayList[lang.Long]],
-      joinParamsMap: util.HashMap[lang.Long, JoinParams],
-      aggParamsMap: util.HashMap[lang.Long, AggregationParams]): IMetrics => Unit = {
+      relMap: JMap[JLong, JList[JLong]],
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
     MetricsUtil.updateNativeMetrics(child, relMap, joinParamsMap, aggParamsMap)
   }
 

@@ -17,7 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
@@ -30,8 +30,6 @@ import org.apache.spark.sql.types.DataType
 import com.google.protobuf.Any
 import io.substrait.proto.JoinRel
 
-import java.util
-
 import scala.collection.JavaConverters._
 
 object JoinUtils {
@@ -43,7 +41,7 @@ object JoinUtils {
     // is also used in execution phase. In this case an empty typeUrlPrefix need to be passed,
     // so that it can be correctly parsed into json string on the cpp side.
     Any.pack(
-      TypeBuilder.makeStruct(false, new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf,
+      TypeBuilder.makeStruct(false, inputTypeNodes.asJava).toProtobuf,
       /* typeUrlPrefix */ "")
   }
 

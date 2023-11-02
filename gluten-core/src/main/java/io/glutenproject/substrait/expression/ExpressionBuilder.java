@@ -24,7 +24,6 @@ import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.catalyst.util.MapData;
 import org.apache.spark.sql.types.*;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -239,7 +238,7 @@ public class ExpressionBuilder {
 
   public static AggregateFunctionNode makeAggregateFunction(
       Long functionId,
-      ArrayList<ExpressionNode> expressionNodes,
+      List<ExpressionNode> expressionNodes,
       String phase,
       TypeNode outputTypeNode) {
     return new AggregateFunctionNode(functionId, expressionNodes, phase, outputTypeNode);
@@ -261,7 +260,7 @@ public class ExpressionBuilder {
 
   public static WindowFunctionNode makeWindowFunction(
       Integer functionId,
-      ArrayList<ExpressionNode> expressionNodes,
+      List<ExpressionNode> expressionNodes,
       String columnName,
       TypeNode outputTypeNode,
       String upperBound,

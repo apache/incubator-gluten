@@ -31,7 +31,7 @@ case class GetStructFieldTransformer(
     original: GetStructField)
   extends ExpressionTransformer {
 
-  override def doTransform(args: Object): ExpressionNode = {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode = childTransformer.doTransform(args)
     childNode match {
       case node: StructLiteralNode =>

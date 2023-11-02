@@ -23,6 +23,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
+
 import scala.collection.JavaConverters._
 
 object MetricsUtil extends Logging {
@@ -56,9 +59,9 @@ object MetricsUtil extends Logging {
    */
   def updateNativeMetrics(
       child: SparkPlan,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): IMetrics => Unit = {
+      relMap: JMap[JLong, JList[JLong]],
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
 
     val mut: MetricsUpdaterTree = treeifyMetricsUpdaters(child)
 
@@ -90,10 +93,10 @@ object MetricsUtil extends Logging {
    */
   def updateTransformerMetrics(
       mutNode: MetricsUpdaterTree,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      operatorIdx: java.lang.Long,
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): IMetrics => Unit = {
+      relMap: JMap[JLong, JList[JLong]],
+      operatorIdx: JLong,
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
     imetrics =>
       try {
         val metrics = imetrics.asInstanceOf[NativeMetrics]
@@ -129,13 +132,13 @@ object MetricsUtil extends Logging {
    */
   def updateTransformerMetricsInternal(
       mutNode: MetricsUpdaterTree,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      operatorIdx: java.lang.Long,
+      relMap: JMap[JLong, JList[JLong]],
+      operatorIdx: JLong,
       metrics: NativeMetrics,
       metricsIdx: Int,
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): (java.lang.Long, Int) = {
-    val nodeMetricsList = new java.util.ArrayList[MetricsData]()
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): (JLong, Int) = {
+    val nodeMetricsList = new JArrayList[MetricsData]()
     var curMetricsIdx = metricsIdx
     relMap
       .get(operatorIdx)

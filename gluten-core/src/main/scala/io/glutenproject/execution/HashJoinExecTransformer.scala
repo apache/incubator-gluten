@@ -43,7 +43,7 @@ import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.JoinRel
 
 import java.lang.{Long => JLong}
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
+import java.util.{Map => JMap}
 
 import scala.collection.JavaConverters._
 
@@ -226,7 +226,7 @@ trait HashJoinLikeExecTransformer
           (transformContext.root, transformContext.outputAttributes, false)
         case _ =>
           val readRel = RelBuilder.makeReadRel(
-            new JArrayList[Attribute](plan.output.asJava),
+            plan.output.asJava,
             substraitContext,
             -1
           ) /* A special handling in Join to delay the rel registration. */
@@ -335,7 +335,7 @@ object HashJoinLikeExecTransformer {
       leftType: DataType,
       rightNode: ExpressionNode,
       rightType: DataType,
-      functionMap: JHashMap[String, JLong]): ExpressionNode = {
+      functionMap: JMap[String, JLong]): ExpressionNode = {
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName(ExpressionNames.EQUAL, Seq(leftType, rightType)))
@@ -349,7 +349,7 @@ object HashJoinLikeExecTransformer {
   def makeAndExpression(
       leftNode: ExpressionNode,
       rightNode: ExpressionNode,
-      functionMap: JHashMap[String, JLong]): ExpressionNode = {
+      functionMap: JMap[String, JLong]): ExpressionNode = {
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName(ExpressionNames.AND, Seq(BooleanType, BooleanType)))

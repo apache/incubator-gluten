@@ -20,18 +20,17 @@ import io.substrait.proto.Expression;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class IfThenNode implements ExpressionNode, Serializable {
 
-  private final ArrayList<ExpressionNode> ifNodes = new ArrayList<>();
-  private final ArrayList<ExpressionNode> thenNodes = new ArrayList<>();
+  private final List<ExpressionNode> ifNodes = new ArrayList<>();
+  private final List<ExpressionNode> thenNodes = new ArrayList<>();
 
   private final ExpressionNode elseValue;
 
   public IfThenNode(
-      ArrayList<ExpressionNode> ifNodes,
-      ArrayList<ExpressionNode> thenNodes,
-      ExpressionNode elseValue) {
+      List<ExpressionNode> ifNodes, List<ExpressionNode> thenNodes, ExpressionNode elseValue) {
     this.ifNodes.addAll(ifNodes);
     this.thenNodes.addAll(thenNodes);
     this.elseValue = elseValue;

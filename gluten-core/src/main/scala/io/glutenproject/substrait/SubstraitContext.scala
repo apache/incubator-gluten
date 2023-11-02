@@ -22,7 +22,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.security.InvalidParameterException
-import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, Map => JMap}
 
 case class JoinParams() {
   // Whether the input of streamed side is a ReadRel represented iterator.
@@ -69,7 +69,7 @@ class SubstraitContext extends Serializable {
   private val iteratorNodes = new JHashMap[JLong, LocalFilesNode]()
 
   // A map stores the relationship between Spark operator id and its respective Substrait Rel ids.
-  private val operatorToRelsMap = new JHashMap[JLong, JArrayList[JLong]]()
+  private val operatorToRelsMap: JMap[JLong, JList[JLong]] = new JHashMap[JLong, JList[JLong]]()
 
   // Only for debug conveniently
   private val operatorToPlanNameMap = new JHashMap[JLong, String]()
@@ -181,7 +181,7 @@ class SubstraitContext extends Serializable {
    * Return the registered map.
    * @return
    */
-  def registeredRelMap: JHashMap[JLong, JArrayList[JLong]] = operatorToRelsMap
+  def registeredRelMap: JMap[JLong, JList[JLong]] = operatorToRelsMap
 
   /**
    * Register the join params to certain operator id.

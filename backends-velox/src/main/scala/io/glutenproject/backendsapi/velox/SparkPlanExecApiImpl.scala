@@ -56,6 +56,9 @@ import org.apache.commons.lang3.ClassUtils
 
 import javax.ws.rs.core.UriBuilder
 
+import java.lang.{Long => JLong}
+import java.util.{Map => JMap}
+
 import scala.collection.mutable.ArrayBuffer
 
 class SparkPlanExecApiImpl extends SparkPlanExecApi {
@@ -67,7 +70,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    */
   override def genGetArrayItemExpressionNode(
       substraitExprName: String,
-      functionMap: java.util.HashMap[String, java.lang.Long],
+      functionMap: JMap[String, JLong],
       leftNode: ExpressionNode,
       rightNode: ExpressionNode,
       original: GetArrayItem): ExpressionNode = {

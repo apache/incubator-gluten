@@ -34,8 +34,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.Any
 
-import java.util
+import java.util.{ArrayList => JArrayList, List => JList}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 case class ExpandExecTransformer(
@@ -76,9 +77,9 @@ case class ExpandExecTransformer(
       val preExprs = ArrayBuffer.empty[Expression]
       val selectionMaps = ArrayBuffer.empty[Seq[Int]]
       var preExprIndex = 0
-      for (i <- 0 until projections.size) {
+      for (i <- projections.indices) {
         val selections = ArrayBuffer.empty[Int]
-        for (j <- 0 until projections(i).size) {
+        for (j <- projections(i).indices) {
           val proj = projections(i)(j)
           if (!proj.isInstanceOf[Literal]) {
             val exprIdx = preExprs.indexWhere(expr => expr.semanticEquals(proj))
@@ -96,14 +97,12 @@ case class ExpandExecTransformer(
         selectionMaps += selections
       }
       // make project
-      val preExprNodes = new util.ArrayList[ExpressionNode]()
-      preExprs.foreach {
-        expr =>
-          val exprNode = ExpressionConverter
-            .replaceWithExpressionTransformer(expr, originalInputAttributes)
-            .doTransform(args)
-          preExprNodes.add(exprNode)
-      }
+      val preExprNodes = preExprs
+        .map(
+          ExpressionConverter
+            .replaceWithExpressionTransformer(_, originalInputAttributes)
+            .doTransform(args))
+        .asJava
 
       val emitStartIndex = originalInputAttributes.size
       val inputRel = if (!validation) {
@@ -126,10 +125,10 @@ case class ExpandExecTransformer(
       }
 
       // make expand
-      val projectSetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
-      for (i <- 0 until projections.size) {
-        val projectExprNodes = new util.ArrayList[ExpressionNode]()
-        for (j <- 0 until projections(i).size) {
+      val projectSetExprNodes = new JArrayList[JList[ExpressionNode]]()
+      for (i <- projections.indices) {
+        val projectExprNodes = new JArrayList[ExpressionNode]()
+        for (j <- projections(i).indices) {
           val projectExprNode = projections(i)(j) match {
             case l: Literal =>
               LiteralTransformer(l).doTransform(args)
@@ -143,10 +142,10 @@ case class ExpandExecTransformer(
       }
       RelBuilder.makeExpandRel(inputRel, projectSetExprNodes, context, operatorId)
     } else {
-      val projectSetExprNodes = new util.ArrayList[util.ArrayList[ExpressionNode]]()
+      val projectSetExprNodes = new JArrayList[JList[ExpressionNode]]()
       projections.foreach {
         projectSet =>
-          val projectExprNodes = new util.ArrayList[ExpressionNode]()
+          val projectExprNodes = new JArrayList[ExpressionNode]()
           projectSet.foreach {
             project =>
               val projectExprNode = ExpressionConverter
@@ -218,11 +217,7 @@ case class ExpandExecTransformer(
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
       (
         getRelNode(context, projections, child.output, operatorId, readRel, validation = false),
         child.output)
