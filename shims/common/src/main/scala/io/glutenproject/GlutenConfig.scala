@@ -83,6 +83,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarTableCacheEnabled: Boolean = conf.getConf(COLUMNAR_TABLE_CACHE_ENABLED)
 
+  def enableDateTimestampComparison: Boolean = conf.getConf(ENABLE_DATE_TIMESTAMP_COMPARISON)
+
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
     conf
@@ -1267,4 +1269,12 @@ object GlutenConfig {
         + "partial aggregation may be early abandoned.")
       .intConf
       .createOptional
+
+  val ENABLE_DATE_TIMESTAMP_COMPARISON =
+    buildConf("spark.gluten.sql.rewrite.dateTimestampComparison")
+      .internal()
+      .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
+        + "For example `fron_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
+      .booleanConf
+      .createWithDefault(true)
 }

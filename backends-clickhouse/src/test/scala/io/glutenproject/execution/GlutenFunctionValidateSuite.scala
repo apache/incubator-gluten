@@ -113,26 +113,27 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
     val dateSchema = StructType(
       Array(
+        StructField("ts", IntegerType, true),
         StructField("day", DateType, true),
         StructField("weekday_abbr", StringType, true)
       )
     )
     val dateRows = sparkContext.parallelize(
       Seq(
-        Row(Date.valueOf("2019-01-01"), "MO"),
-        Row(Date.valueOf("2019-01-01"), "TU"),
-        Row(Date.valueOf("2019-01-01"), "TH"),
-        Row(Date.valueOf("2019-01-01"), "WE"),
-        Row(Date.valueOf("2019-01-01"), "FR"),
-        Row(Date.valueOf("2019-01-01"), "SA"),
-        Row(Date.valueOf("2019-01-01"), "SU"),
-        Row(Date.valueOf("2019-01-01"), "MO"),
-        Row(Date.valueOf("2019-01-02"), "MM"),
-        Row(Date.valueOf("2019-01-03"), "TH"),
-        Row(Date.valueOf("2019-01-04"), "WE"),
-        Row(Date.valueOf("2019-01-05"), "FR"),
-        Row(null, "SA"),
-        Row(Date.valueOf("2019-01-07"), null)
+        Row(1546309380, Date.valueOf("2019-01-01"), "MO"),
+        Row(1546273380, Date.valueOf("2019-01-01"), "TU"),
+        Row(1546358340, Date.valueOf("2019-01-01"), "TH"),
+        Row(1546311540, Date.valueOf("2019-01-01"), "WE"),
+        Row(1546308540, Date.valueOf("2019-01-01"), "FR"),
+        Row(1546319340, Date.valueOf("2019-01-01"), "SA"),
+        Row(1546319940, Date.valueOf("2019-01-01"), "SU"),
+        Row(1546323545, Date.valueOf("2019-01-01"), "MO"),
+        Row(1546409940, Date.valueOf("2019-01-02"), "MM"),
+        Row(1546496340, Date.valueOf("2019-01-03"), "TH"),
+        Row(1546586340, Date.valueOf("2019-01-04"), "WE"),
+        Row(1546676341, Date.valueOf("2019-01-05"), "FR"),
+        Row(null, null, "SA"),
+        Row(1546849141, Date.valueOf("2019-01-07"), null)
       )
     )
     val dateTableFile = Files.createTempFile("", ".parquet").toFile
@@ -465,5 +466,23 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     runQueryAndCompare(
       "select round(0.41875f * id , 4) from range(10);"
     )(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test date comparision expression override") {
+    runQueryAndCompare(
+      "select * from date_table where to_date(from_unixtime(ts)) < '2019-01-02'",
+      noFallBack = true) { _ => }
+    runQueryAndCompare(
+      "select * from date_table where to_date(from_unixtime(ts)) <= '2019-01-02'",
+      noFallBack = true) { _ => }
+    runQueryAndCompare(
+      "select * from date_table where to_date(from_unixtime(ts)) > '2019-01-02'",
+      noFallBack = true) { _ => }
+    runQueryAndCompare(
+      "select * from date_table where to_date(from_unixtime(ts)) >= '2019-01-02'",
+      noFallBack = true) { _ => }
+    runQueryAndCompare(
+      "select * from date_table where to_date(from_unixtime(ts)) = '2019-01-01'",
+      noFallBack = true) { _ => }
   }
 }
