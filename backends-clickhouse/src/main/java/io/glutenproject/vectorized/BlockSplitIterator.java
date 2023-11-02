@@ -33,7 +33,8 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseabl
             options.getExpr(),
             options.getRequiredFields(),
             options.getPartitionNum(),
-            options.getBufferSize());
+            options.getBufferSize(),
+            options.getHashAlgorithm());
   }
 
   private native long nativeCreate(
@@ -42,7 +43,8 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseabl
       String expr,
       String schema,
       int partitionNum,
-      int bufferSize);
+      int bufferSize,
+      String hashAlgorithm);
 
   private native void nativeClose(long instance);
 
@@ -79,6 +81,8 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseabl
     private int bufferSize;
     private String expr;
     private String requiredFields;
+
+    private String hashAlgorithm;
 
     public int getPartitionNum() {
       return partitionNum;
@@ -118,6 +122,14 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseabl
 
     public void setRequiredFields(String requiredFields) {
       this.requiredFields = requiredFields;
+    }
+
+    public String getHashAlgorithm() {
+      return hashAlgorithm;
+    }
+
+    public void setHashAlgorithm(String hashAlgorithm) {
+      this.hashAlgorithm = hashAlgorithm;
     }
   }
 }

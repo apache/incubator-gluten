@@ -17,6 +17,7 @@
 package org.apache.spark.sql.execution.utils
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.row.SparkRowInfo
 import io.glutenproject.vectorized._
@@ -210,6 +211,7 @@ object CHExecUtil extends Logging {
     options.setName(nativePartitioning.getShortName)
     options.setPartitionNum(nativePartitioning.getNumPartitions)
     options.setExpr(new String(nativePartitioning.getExprList))
+    options.setHashAlgorithm(CHBackendSettings.shuffleHashAlgorithm)
     options.setRequiredFields(if (nativePartitioning.getRequiredFields != null) {
       new String(nativePartitioning.getRequiredFields)
     } else {
