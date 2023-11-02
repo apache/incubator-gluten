@@ -187,7 +187,9 @@ class IteratorApiImpl extends IteratorApi with Logging {
         iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val nativeResultIterator =
-      transKernel.createKernelWithBatchIterator(rootNode.toProtobuf.toByteArray, columnarNativeIterator)
+      transKernel.createKernelWithBatchIterator(
+        rootNode.toProtobuf.toByteArray,
+        columnarNativeIterator)
 
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
