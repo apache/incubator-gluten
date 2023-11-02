@@ -313,8 +313,10 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
 
   /** Inserts a transformable tag on top of those that are not supported. */
   private def addTransformableTags(plan: SparkPlan): SparkPlan = {
-    addTransformableTag(plan)
-    plan.withNewChildren(plan.children.map(addTransformableTags))
+    // Walk the tree with post-order
+    val out = plan.withNewChildren(plan.children.map(addTransformableTags))
+    addTransformableTag(out)
+    out
   }
 
   private def addTransformableTag(plan: SparkPlan): Unit = {
@@ -551,7 +553,9 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             maybeExchange match {
               case Some(exchange @ BroadcastExchangeExec(mode, child)) =>
                 TransformHints.tag(bhj, isBhjTransformable.toTransformHint)
-                TransformHints.tagNotTransformable(exchange, isBhjTransformable)
+                if (!isBhjTransformable.isValid) {
+                  TransformHints.tagNotTransformable(exchange, isBhjTransformable)
+                }
               case None =>
                 // we are in AQE, find the hidden exchange
                 // FIXME did we consider the case that AQE: OFF && Reuse: ON ?
