@@ -166,16 +166,13 @@ abstract class HashAggregateExecBaseTransformer(
     } || aggregateExpressions.exists {
       expr =>
         expr.filter match {
-          case None =>
-          case Some(_: Attribute) =>
-          case Some(_: Literal) =>
+          case None | Some(_: Attribute) | Some(_: Literal) =>
           case _ => return true
         }
         expr.mode match {
           case Partial =>
             expr.aggregateFunction.children.exists {
-              case _: Attribute => false
-              case _: Literal => false
+              case _: Attribute | _: Literal => false
               case _ => true
             }
           // No need to consider pre-projection for PartialMerge and Final Agg.
