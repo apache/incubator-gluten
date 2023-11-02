@@ -27,7 +27,6 @@ import io.glutenproject.substrait.plan.PlanBuilder;
 import io.glutenproject.substrait.plan.PlanNode;
 
 import com.google.protobuf.Any;
-import io.substrait.proto.Plan;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.internal.SQLConf;
 
@@ -80,12 +79,12 @@ public class CHNativeExpressionEvaluator {
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
-      Plan wsPlan, List<GeneralInIterator> iterList, boolean materializeInput) {
+      byte[] wsPlan, List<GeneralInIterator> iterList, boolean materializeInput) {
     long allocId = CHNativeMemoryAllocators.contextInstance().getNativeInstanceId();
     long handle =
         jniWrapper.nativeCreateKernelWithIterator(
             allocId,
-            getPlanBytesBuf(wsPlan),
+            wsPlan,
             iterList.toArray(new GeneralInIterator[0]),
             buildNativeConfNode(
                     GlutenConfig.getNativeBackendConf(
@@ -113,10 +112,6 @@ public class CHNativeExpressionEvaluator {
                 .toByteArray(),
             false);
     return createOutIterator(handle);
-  }
-
-  private byte[] getPlanBytesBuf(Plan planNode) {
-    return planNode.toByteArray();
   }
 
   private GeneralOutIterator createOutIterator(long nativeHandle) {

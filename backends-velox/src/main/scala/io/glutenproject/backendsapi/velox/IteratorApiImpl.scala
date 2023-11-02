@@ -122,7 +122,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
     val substraitPlan = wsCxt.root.toProtobuf
-    GlutenPartition(index, substraitPlan, localFilesNodesWithLocations.head._2)
+    GlutenPartition(index, substraitPlan.toByteArray, localFilesNodesWithLocations.head._2)
   }
 
   /**
@@ -187,7 +187,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
         iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val nativeResultIterator =
-      transKernel.createKernelWithBatchIterator(rootNode.toProtobuf, columnarNativeIterator)
+      transKernel.createKernelWithBatchIterator(rootNode.toProtobuf.toByteArray, columnarNativeIterator)
 
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
