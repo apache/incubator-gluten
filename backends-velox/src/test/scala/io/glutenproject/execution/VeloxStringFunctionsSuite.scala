@@ -585,13 +585,16 @@ class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
   }
 
   test("left") {
-    runQueryAndCompare(s"select l_orderkey, left(l_comment, 1) " +
-      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(
+      s"select l_orderkey, left(l_comment, 1) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
 
-    runQueryAndCompare(s"select l_orderkey, left($NULL_STR_COL, 1) " +
-      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(
+      s"select l_orderkey, left($NULL_STR_COL, 1) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
 
-    runQueryAndCompare(s"select l_orderkey, left(l_comment, $NULL_STR_COL) " +
-      s"from $LINEITEM_TABLE limit $LENGTH") { checkOperatorMatch[ProjectExecTransformer] }
+    runQueryAndCompare(
+      s"select l_orderkey, left(l_comment, $NULL_STR_COL) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
   }
 }
