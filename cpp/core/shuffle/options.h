@@ -27,6 +27,8 @@ static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
 static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
+static constexpr bool kEnableBufferedWrite = true;
+static constexpr bool kWriteEos = true;
 
 enum PartitionWriterType { kLocal, kCeleborn };
 
@@ -47,20 +49,20 @@ struct ShuffleWriterOptions {
   arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
   CodecBackend codec_backend = CodecBackend::NONE;
   CompressionMode compression_mode = CompressionMode::BUFFER;
-  bool buffered_write = false;
-  bool write_eos = true;
+  bool buffered_write = kEnableBufferedWrite;
+  bool write_eos = kWriteEos;
 
-  std::string data_file;
   PartitionWriterType partition_writer_type = kLocal;
 
   int64_t thread_id = -1;
   int64_t task_attempt_id = -1;
 
-  arrow::MemoryPool* memory_pool;
-
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 
-  std::string partitioning_name;
+  std::string partitioning_name{};
+  std::string data_file{};
+  std::string local_dirs{};
+  arrow::MemoryPool* memory_pool{};
 
   static ShuffleWriterOptions defaults();
 };

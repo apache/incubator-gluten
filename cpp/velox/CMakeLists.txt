@@ -101,7 +101,6 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(functions::lib::window "${VELOX_COMPONENTS_PATH}/functions/lib/window/libvelox_functions_window.a")
   add_velox_dependency(velox::buffer "${VELOX_COMPONENTS_PATH}/buffer/libvelox_buffer.a")
 
-  add_velox_dependency(exec "${VELOX_COMPONENTS_PATH}/exec/libvelox_exec.a")
   add_velox_dependency(functions::isnull "${VELOX_COMPONENTS_PATH}/functions/lib/libvelox_is_null_functions.a")
   add_velox_dependency(functions::prestosql "${VELOX_COMPONENTS_PATH}/functions/prestosql/registration/libvelox_functions_prestosql.a")
   add_velox_dependency(functions::prestosql::impl "${VELOX_COMPONENTS_PATH}/functions/prestosql/libvelox_functions_prestosql_impl.a")
@@ -113,6 +112,7 @@ macro(ADD_VELOX_DEPENDENCIES)
     add_velox_dependency(temp::path "${VELOX_COMPONENTS_PATH}/exec/tests/utils/libvelox_temp_path.a")
     add_velox_dependency(dwio::common::test::utils "${VELOX_COMPONENTS_PATH}/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a")
   endif()
+  add_velox_dependency(exec "${VELOX_COMPONENTS_PATH}/exec/libvelox_exec.a")
   add_velox_dependency(common::test_util "${VELOX_COMPONENTS_PATH}/common/testutil/libvelox_test_util.a")
   add_velox_dependency(parse::parser "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
   if(BUILD_TESTS)
@@ -191,7 +191,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
   add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
   add_velox_dependency(velox::parquet::writer "${VELOX_COMPONENTS_PATH}/dwio/parquet/libvelox_dwio_parquet_writer.a")
-  
+
   if(BUILD_TESTS)
     add_velox_dependency(vector::test::util "${VELOX_COMPONENTS_PATH}/vector/tests/utils/libvelox_vector_test_lib.a")
   endif()
@@ -279,6 +279,11 @@ set(VELOX_SRCS
     utils/ConfigExtractor.cc
     utils/Common.cc
     )
+
+if(BUILD_TESTS OR BUILD_BENCHMARKS)
+  list(APPEND VELOX_SRCS utils/tests/MemoryPoolUtils.cc)
+endif()
+
 add_library(velox SHARED ${VELOX_SRCS})
 
 if(ENABLE_GLUTEN_VCPKG)
@@ -351,14 +356,14 @@ if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
 
+if(BUILD_BENCHMARKS)
+  add_subdirectory(benchmarks)
+endif()
+
 if(ENABLE_HDFS)
   add_definitions(-DENABLE_HDFS)
   find_libhdfs3()
   target_link_libraries(velox PUBLIC HDFS::hdfs3)
-endif()
-
-if(BUILD_BENCHMARKS)
-  add_subdirectory(benchmarks)
 endif()
 
 if(ENABLE_S3)

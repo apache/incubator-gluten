@@ -19,6 +19,8 @@
 #include "compute/VeloxBackend.h"
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
+#include "shuffle/Utils.h"
+#include "utils/StringUtil.h"
 #include "velox/dwio/common/Options.h"
 
 using namespace facebook;
@@ -149,4 +151,28 @@ void setCpu(uint32_t cpuindex) {
     std::cerr << "Error binding CPU " << std::to_string(cpuindex) << std::endl;
     exit(EXIT_FAILURE);
   }
+}
+
+arrow::Status setLocalDirsAndDataFileFromEnv(gluten::ShuffleWriterOptions& options) {
+  auto joinedDirsC = std::getenv(gluten::kGlutenSparkLocalDirs.c_str());
+  if (joinedDirsC != nullptr && strcmp(joinedDirsC, "") > 0) {
+    // Set local dirs.
+    auto joinedDirs = std::string(joinedDirsC);
+    options.local_dirs = joinedDirs;
+    // Split local dirs and use thread id to choose one directory for data file.
+    auto localDirs = gluten::splitPaths(joinedDirs);
+    size_t id = std::hash<std::thread::id>{}(std::this_thread::get_id()) % localDirs.size();
+    ARROW_ASSIGN_OR_RAISE(options.data_file, gluten::createTempShuffleFile(localDirs[id]));
+  } else {
+    // Otherwise create 1 temp dir and data file.
+    static const std::string kBenchmarkDirsPrefix = "columnar-shuffle-benchmark-";
+    {
+      // Because tmpDir will be deleted in the dtor, allow it to be deleted upon exiting the block and then recreate it
+      // in createTempShuffleFile.
+      ARROW_ASSIGN_OR_RAISE(auto tmpDir, arrow::internal::TemporaryDir::Make(kBenchmarkDirsPrefix))
+      options.local_dirs = tmpDir->path().ToString();
+    }
+    ARROW_ASSIGN_OR_RAISE(options.data_file, gluten::createTempShuffleFile(options.local_dirs));
+  }
+  return arrow::Status::OK();
 }

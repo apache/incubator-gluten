@@ -79,7 +79,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     logDebug(
-      s"replaceWithExpressionTransformer expr: $expr class: ${expr.getClass}} " +
+      s"replaceWithExpressionTransformer expr: $expr class: ${expr.getClass} " +
         s"name: ${expr.prettyName}")
 
     expr match {

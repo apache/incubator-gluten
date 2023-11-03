@@ -26,7 +26,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
-import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -91,19 +91,19 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 fileFormats(i)),
               SoftAffinityUtil.getFilePartitionLocations(f))
           case _ =>
-            throw new UnsupportedOperationException(s"Unsupport operators.")
+            throw new UnsupportedOperationException(s"Unsupported input partition.")
         })
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
     val substraitPlan = wsCxt.root.toProtobuf
-    if (index < 3) {
+    if (index == 0) {
       logOnLevel(
         GlutenConfig.getConf.substraitPlanLogLevel,
         s"The substrait plan for partition $index:\n${SubstraitPlanPrinterUtil
             .substraitPlanToJson(substraitPlan)}"
       )
     }
-    GlutenPartition(index, substraitPlan, localFilesNodesWithLocations.head._2)
+    GlutenPartition(index, substraitPlan.toByteArray, localFilesNodesWithLocations.head._2)
   }
 
   /**
@@ -185,7 +185,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           }.asJava)
         // we need to complete dependency RDD's firstly
         transKernel.createKernelWithBatchIterator(
-          rootNode.toProtobuf,
+          rootNode.toProtobuf.toByteArray,
           columnarNativeIterator,
           materializeInput)
     }
@@ -267,8 +267,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
 
   /** Compute for BroadcastBuildSideRDD */
   override def genBroadcastBuildSideIterator(
-      split: Partition,
-      context: TaskContext,
       broadcasted: Broadcast[BuildSideRelation],
       broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
     CHBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadCastContext)

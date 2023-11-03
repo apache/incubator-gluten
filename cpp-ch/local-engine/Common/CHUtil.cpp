@@ -17,7 +17,7 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
-#include <AggregateFunctions/AggregateFunctionCombinatorFactory.h>
+#include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnConst.h>

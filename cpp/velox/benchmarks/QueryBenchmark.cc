@@ -34,13 +34,10 @@ const std::string getFilePath(const std::string& fileName) {
 
 // Used by unit test and benchmark.
 std::shared_ptr<ResultIterator> getResultIterator(
-    std::shared_ptr<velox::memory::MemoryPool> veloxPool,
+    VeloxMemoryManager* memoryManager,
     Runtime* runtime,
     const std::vector<std::shared_ptr<SplitInfo>>& setScanInfos,
     std::shared_ptr<const facebook::velox::core::PlanNode>& veloxPlan) {
-  auto ctxPool = veloxPool->addAggregateChild(
-      "query_benchmark_result_iterator", facebook::velox::memory::MemoryReclaimer::create());
-
   std::vector<std::shared_ptr<ResultIterator>> inputIter;
   std::unordered_map<std::string, std::string> sessionConf = {};
   auto veloxPlanConverter =
@@ -57,7 +54,7 @@ std::shared_ptr<ResultIterator> getResultIterator(
       veloxPlanConverter->splitInfos(), veloxPlan->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-      ctxPool,
+      memoryManager,
       veloxPlan,
       scanIds,
       setScanInfos,
@@ -78,7 +75,6 @@ auto BM = [](::benchmark::State& state,
 
   auto memoryManager = getDefaultMemoryManager();
   auto runtime = Runtime::create(kVeloxRuntimeKind);
-  auto veloxPool = memoryManager->getAggregateMemoryPool();
 
   std::vector<std::shared_ptr<SplitInfo>> scanInfos;
   scanInfos.reserve(datasetPaths.size());
@@ -96,7 +92,7 @@ auto BM = [](::benchmark::State& state,
 
     runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
     std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan;
-    auto resultIter = getResultIterator(veloxPool, runtime, scanInfos, veloxPlan);
+    auto resultIter = getResultIterator(memoryManager.get(), runtime, scanInfos, veloxPlan);
     auto outputSchema = toArrowSchema(veloxPlan->outputType(), defaultLeafVeloxMemoryPool().get());
     while (resultIter->hasNext()) {
       auto array = resultIter->next()->exportArrowArray();

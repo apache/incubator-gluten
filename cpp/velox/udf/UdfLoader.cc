@@ -20,6 +20,7 @@
 #include <velox/expression/SignatureBinder.h>
 #include <velox/expression/VectorFunction.h>
 #include <velox/type/fbhive/HiveTypeParser.h>
+#include <filesystem>
 #include <vector>
 #include "substrait/VeloxToSubstraitType.h"
 
@@ -42,7 +43,7 @@ void* loadSymFromLibrary(void* handle, const std::string& libPath, const std::st
 } // namespace
 
 void gluten::UdfLoader::loadUdfLibraries(const std::string& libPaths) {
-  const auto& paths = splitPaths(libPaths);
+  const auto& paths = splitPaths(libPaths, /*checkExists=*/true);
   loadUdfLibraries0(paths);
 }
 

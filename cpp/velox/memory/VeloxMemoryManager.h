@@ -45,6 +45,10 @@ class VeloxMemoryManager final : public MemoryManager {
     return veloxLeafPool_;
   }
 
+  facebook::velox::memory::MemoryManager* getMemoryManager() const {
+    return veloxMemoryManager_.get();
+  }
+
   arrow::MemoryPool* getArrowMemoryPool() override {
     return arrowPool_.get();
   }

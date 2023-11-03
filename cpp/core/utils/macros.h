@@ -99,14 +99,6 @@
   }                                    \
   std::cout << std::endl;
 
-#define THROW_NOT_OK(expr)                  \
-  do {                                      \
-    auto __s = (expr);                      \
-    if (!__s.ok()) {                        \
-      throw GlutenException(__s.message()); \
-    }                                       \
-  } while (false);
-
 #define TIME_TO_STRING(time) (time > 10000 ? time / 1000 : time) << (time > 10000 ? " ms" : " us")
 
 #define TIME_NANO_TO_STRING(time) \

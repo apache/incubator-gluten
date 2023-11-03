@@ -26,7 +26,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized._
 
-import org.apache.spark.{Partition, SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -122,7 +122,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
     val substraitPlan = wsCxt.root.toProtobuf
-    GlutenPartition(index, substraitPlan, localFilesNodesWithLocations.head._2)
+    GlutenPartition(index, substraitPlan.toByteArray, localFilesNodesWithLocations.head._2)
   }
 
   /**
@@ -187,7 +187,9 @@ class IteratorApiImpl extends IteratorApi with Logging {
         iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val nativeResultIterator =
-      transKernel.createKernelWithBatchIterator(rootNode.toProtobuf, columnarNativeIterator)
+      transKernel.createKernelWithBatchIterator(
+        rootNode.toProtobuf.toByteArray,
+        columnarNativeIterator)
 
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
@@ -217,8 +219,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
 
   /** Compute for BroadcastBuildSideRDD */
   override def genBroadcastBuildSideIterator(
-      split: Partition,
-      context: TaskContext,
       broadcasted: Broadcast[BuildSideRelation],
       broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
     val relation = broadcasted.value.asReadOnlyCopy(broadCastContext)
