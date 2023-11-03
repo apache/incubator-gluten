@@ -41,6 +41,7 @@ public:
         size_t partition_nums;
         std::string exprs_buffer;
         std::string schema_buffer;
+        std::string hash_algorithm;
     };
 
     struct Holder

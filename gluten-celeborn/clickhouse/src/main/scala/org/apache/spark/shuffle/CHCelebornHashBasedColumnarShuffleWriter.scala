@@ -21,6 +21,7 @@ import io.glutenproject.memory.alloc.CHNativeMemoryAllocators
 import io.glutenproject.memory.memtarget.MemoryTarget
 import io.glutenproject.memory.memtarget.Spiller
 import io.glutenproject.vectorized._
+import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 
 import org.apache.spark._
 import org.apache.spark.scheduler.MapStatus
@@ -68,6 +69,7 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
         nativeBufferSize,
         customizedCompressCodec,
         GlutenConfig.getConf.chColumnarShuffleSpillThreshold,
+        CHBackendSettings.shuffleHashAlgorithm,
         celebornPartitionPusher
       )
       CHNativeMemoryAllocators.createSpillable(

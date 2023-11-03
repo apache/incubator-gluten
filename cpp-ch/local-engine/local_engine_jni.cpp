@@ -653,7 +653,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jstring local_dirs,
     jint num_sub_dirs,
     jboolean prefer_spill,
-    jlong spill_threshold)
+    jlong spill_threshold,
+    jstring hash_algorithm)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -694,7 +695,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
-        .spill_threshold = static_cast<size_t>(spill_threshold)};
+        .spill_threshold = static_cast<size_t>(spill_threshold),
+        .hash_algorithm = jstring2string(env, hash_algorithm)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     if (prefer_spill)
@@ -721,6 +723,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jint split_size,
     jstring codec,
     jlong spill_threshold,
+    jstring hash_algorithm,
     jobject pusher)
 {
     LOCAL_ENGINE_JNI_METHOD_START
@@ -753,7 +756,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
-        .spill_threshold = static_cast<size_t>(spill_threshold)};
+        .spill_threshold = static_cast<size_t>(spill_threshold),
+        .hash_algorithm = jstring2string(env, hash_algorithm)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options, pusher)};
@@ -1060,12 +1064,14 @@ Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeCleanBuildHashTable(JN
 
 // BlockSplitIterator
 JNIEXPORT jlong Java_io_glutenproject_vectorized_BlockSplitIterator_nativeCreate(
-    JNIEnv * env, jobject, jobject in, jstring name, jstring expr, jstring schema, jint partition_num, jint buffer_size)
+    JNIEnv * env, jobject, jobject in, jstring name, jstring expr, jstring schema, jint partition_num, jint buffer_size, jstring hash_algorithm)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::NativeSplitter::Options options;
     options.partition_nums = partition_num;
     options.buffer_size = buffer_size;
+    auto hash_algorithm_str = jstring2string(env, hash_algorithm);
+    options.hash_algorithm.swap(hash_algorithm_str);
     auto expr_str = jstring2string(env, expr);
     std::string schema_str;
     if (schema)

@@ -383,7 +383,7 @@ HashSplitter::HashSplitter(SplitOptions options_) : ShuffleSplitter(std::move(op
         output_columns_indicies.push_back(std::stoi(*iter));
     }
 
-    selector_builder = std::make_unique<HashSelectorBuilder>(options.partition_nums, hash_fields, "cityHash64");
+    selector_builder = std::make_unique<HashSelectorBuilder>(options.partition_nums, hash_fields, options_.hash_algorithm);
 }
 std::unique_ptr<ShuffleSplitter> HashSplitter::create(SplitOptions && options_)
 {

@@ -61,6 +61,7 @@ struct ShuffleWriterOptions {
 
   std::string partitioning_name{};
   std::string data_file{};
+  std::string local_dirs{};
   arrow::MemoryPool* memory_pool{};
 
   static ShuffleWriterOptions defaults();

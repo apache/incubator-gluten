@@ -21,6 +21,6 @@ namespace gluten {
 
 std::vector<std::string> splitByDelim(const std::string& s, const char delimiter);
 
-std::vector<std::string> splitPaths(const std::string& s);
+std::vector<std::string> splitPaths(const std::string& s, bool checkExists = false);
 
 } // namespace gluten
