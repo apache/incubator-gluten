@@ -43,6 +43,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.sql.adaptive.enabled", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "murmurHash3_32")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
