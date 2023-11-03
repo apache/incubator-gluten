@@ -47,17 +47,17 @@ namespace ErrorCodes
 namespace local_engine
 {
 
-void skipErrorChars(DB::ReadBuffer & buf, bool has_quote, char maybe_quote, const DB::FormatSettings & settings)
+void skipErrorChars(DB::ReadBuffer & buf, bool has_quote, char quote, String & escape, const DB::FormatSettings & settings)
 {
-    char skip_before_char = has_quote ? maybe_quote : settings.csv.delimiter;
-
-    /// skip all chars before quote/delimiter exclude line delimiter
-    while (!buf.eof() && *buf.position() != skip_before_char && *buf.position() != '\n' && *buf.position() != '\r')
-        ++buf.position();
-
-    /// if char is quote, skip it
-    if (has_quote && !buf.eof() && *buf.position() == maybe_quote)
-        ++buf.position();
+    if (has_quote)
+    {
+        ColumnString::Chars data;
+        readExcelCSVQuoteString(data, buf, settings.csv.delimiter, escape, quote);
+    }
+    else
+        /// skip all chars before quote/delimiter exclude line delimiter
+        while (!buf.eof() && *buf.position() != settings.csv.delimiter && *buf.position() != '\n' && *buf.position() != '\r')
+            ++buf.position();
 }
 
 FormatFile::InputFormatPtr ExcelTextFormatFile::createInputFormat(const DB::Block & header)
@@ -278,7 +278,7 @@ bool ExcelTextFormatReader::readField(
         if (!isParseError(e.code()))
             throw;
 
-        skipErrorChars(*buf, has_quote, maybe_quote, format_settings);
+        skipErrorChars(*buf, has_quote, maybe_quote, escape, format_settings);
         column_back_func(column);
         column.insertDefault();
 
@@ -287,7 +287,7 @@ bool ExcelTextFormatReader::readField(
 
     if (column_size == column.size())
     {
-        skipErrorChars(*buf, has_quote, maybe_quote, format_settings);
+        skipErrorChars(*buf, has_quote, maybe_quote, escape, format_settings);
         column_back_func(column);
         column.insertDefault();
         return false;

@@ -53,57 +53,39 @@ inline void appendToStringOrVector(PaddedPODArray<UInt8> & s, ReadBuffer & rb, c
         s.insert(rb.position(), end);
 }
 
-template <typename Vector, bool include_quotes>
-void readExcelCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::CSV & settings, const String & escape_value)
+template <typename Vector>
+void readExcelCSVQuoteString(Vector & s, ReadBuffer & buf, const char /*delimiter*/, const String & escape_value, const char & quote)
 {
-    /// Empty string
-    if (buf.eof())
-        return;
-
-    const char delimiter = settings.delimiter;
-    const char maybe_quote = *buf.position();
-    const String & custom_delimiter = settings.custom_delimiter;
-
-    /// Emptiness and not even in quotation marks.
-    if (custom_delimiter.empty() && maybe_quote == delimiter)
-        return;
-
-    if ((settings.allow_single_quotes && maybe_quote == '\'') || (settings.allow_double_quotes && maybe_quote == '"'))
+    /// The quoted case. We are looking for the next quotation mark.
+    while (!buf.eof())
     {
-        if constexpr (include_quotes)
-            s.push_back(maybe_quote);
+        char * next_pos = buf.position();
 
-        ++buf.position();
-
-        /// The quoted case. We are looking for the next quotation mark.
-        while (!buf.eof())
+        [&]()
         {
-            char * next_pos = buf.position();
-
-            [&]()
-            {
 #ifdef __SSE2__
-                auto rc = _mm_set1_epi8('\r');
-                auto nc = _mm_set1_epi8('\n');
-                auto dc = _mm_set1_epi8(delimiter);
-                auto qe = _mm_set1_epi8(maybe_quote);
-                for (; next_pos + 15 < buf.buffer().end(); next_pos += 16)
+            auto rc = _mm_set1_epi8('\r');
+            auto nc = _mm_set1_epi8('\n');
+//            auto dc = _mm_set1_epi8(delimiter);
+            auto qe = _mm_set1_epi8(quote);
+            for (; next_pos + 15 < buf.buffer().end(); next_pos += 16)
+            {
+                __m128i bytes = _mm_loadu_si128(reinterpret_cast<const __m128i *>(next_pos));
+                auto eq = _mm_or_si128(
+                    _mm_or_si128(_mm_cmpeq_epi8(bytes, rc), _mm_cmpeq_epi8(bytes, nc)),
+                    _mm_cmpeq_epi8(bytes, qe));
+                if (!escape_value.empty())
                 {
-                    __m128i bytes = _mm_loadu_si128(reinterpret_cast<const __m128i *>(next_pos));
-                    auto eq = _mm_or_si128(
-                        _mm_or_si128(_mm_or_si128(_mm_cmpeq_epi8(bytes, rc), _mm_cmpeq_epi8(bytes, nc)), _mm_cmpeq_epi8(bytes, dc)),
-                        _mm_cmpeq_epi8(bytes, qe));
-                    if (!escape_value.empty()){
-                        eq = _mm_or_si128(eq, _mm_cmpeq_epi8(bytes, _mm_set1_epi8(escape_value[0])));
-                    }
-
-                    uint16_t bit_mask = _mm_movemask_epi8(eq);
-                    if (bit_mask)
-                    {
-                        next_pos += std::countr_zero(bit_mask);
-                        return;
-                    }
+                    eq = _mm_or_si128(eq, _mm_cmpeq_epi8(bytes, _mm_set1_epi8(escape_value[0])));
                 }
+
+                uint16_t bit_mask = _mm_movemask_epi8(eq);
+                if (bit_mask)
+                {
+                    next_pos += std::countr_zero(bit_mask);
+                    return;
+                }
+            }
 //#elif defined(__aarch64__) && defined(__ARM_NEON)
 //                auto rc = vdupq_n_u8('\r');
 //                auto nc = vdupq_n_u8('\n');
@@ -123,50 +105,73 @@ void readExcelCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::
 //                    }
 //                }
 #endif
-                while (next_pos < buf.buffer().end() && *next_pos != delimiter && *next_pos != '\r' && *next_pos != '\n'
-                       && *next_pos != maybe_quote)
-                {
-                    if (!escape_value.empty())
-                        if (*next_pos == escape_value[0])
-                            break;
-
-                    ++next_pos;
-                }
-            }();
-
-            appendToStringOrVector(s, buf, next_pos);
-
-
-            if (!escape_value.empty() && escape_value[0] == *next_pos) {
-                next_pos++;
-
-                if (next_pos < buf.buffer().end())
-                {
-                    if (*next_pos == maybe_quote || *next_pos == escape_value[0])
-                        s.push_back(*next_pos);
-                    else
-                    {
-                        s.push_back(escape_value[0]);
-                        s.push_back(*next_pos);
-                    }
-                    next_pos++;
-                    buf.position() = next_pos;
-                    continue;
-                }
-            }
-
-            buf.position() = next_pos;
-            if (!buf.hasPendingData())
-                continue;
-
-            if (!buf.eof() && *buf.position() == maybe_quote)
+            while (next_pos < buf.buffer().end() && *next_pos != '\r' && *next_pos != '\n' && *next_pos != quote)
             {
-                buf.position()++;
-                return;
-            }
+                if (!escape_value.empty())
+                    if (*next_pos == escape_value[0])
+                        break;
 
+                ++next_pos;
+            }
+        }();
+
+        //        if (buf.position() != next_pos)
+        //        {
+        appendToStringOrVector(s, buf, next_pos);
+        //        }
+
+        if (!escape_value.empty() && escape_value[0] == *next_pos)
+        {
+            next_pos++;
+
+            if (next_pos < buf.buffer().end())
+            {
+                if (*next_pos == quote || *next_pos == escape_value[0])
+                    s.push_back(*next_pos);
+                else
+                {
+                    s.push_back(escape_value[0]);
+                    s.push_back(*next_pos);
+                }
+                next_pos++;
+                buf.position() = next_pos;
+                continue;
+            }
+        }
+
+        buf.position() = next_pos;
+        if (!buf.hasPendingData())
+            continue;
+
+        if (!buf.eof() && *buf.position() == quote)
+        {
+            buf.position()++;
             return;
         }
+
+        return;
+    }
+}
+
+template <typename Vector>
+void readExcelCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::CSV & settings, const String & escape_value)
+{
+    /// Empty string
+    if (buf.eof())
+        return;
+
+    const char delimiter = settings.delimiter;
+    const char maybe_quote = *buf.position();
+    const String & custom_delimiter = settings.custom_delimiter;
+
+    /// Emptiness and not even in quotation marks.
+    if (custom_delimiter.empty() && maybe_quote == delimiter)
+        return;
+
+    if ((settings.allow_single_quotes && maybe_quote == '\'') || (settings.allow_double_quotes && maybe_quote == '"'))
+    {
+        ++buf.position();
+        readExcelCSVQuoteString(s, buf, delimiter, escape_value, maybe_quote);
     }
     else
     {
