@@ -354,7 +354,7 @@ jobs:
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON && \
+          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON'
       - name: Build Gluten CPP library
         run: |
