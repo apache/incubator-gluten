@@ -333,6 +333,7 @@ inline bool readExcelFloatTextFastImpl(T & x, DB::ReadBuffer & in, bool has_quot
 template <typename T>
 bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB::FormatSettings & settings)
 {
+    bool number_force = settings.try_infer_integers==1;
     const UInt8 MAX_HEAD_SKIP = 2;
     const UInt8 MAX_TAIL_SKIP = 2;
     UInt8 head_skip=0;
@@ -400,7 +401,10 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
                 {
                     if (!(*buf.position() >= '0' && *buf.position() <= '9'))
                     {
-                        break;
+                        if (number_force)
+                            break;
+                        else
+                            return false;
                     }
                     else
                     {
@@ -448,7 +452,7 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
         {
             continue;
         }
-        else if (has_number && !(*buf.position() >= '0' && *buf.position() <= '9')) // process suffix
+        else if (has_number && !(*buf.position() >= '0' && *buf.position() <= '9') && number_force) // process suffix
         {
             while (!buf.eof())
             {
@@ -467,7 +471,7 @@ bool readExcelIntTextImpl(T & x, DB::ReadBuffer & buf, bool has_quote, const DB:
             }
             break;
         }
-        else if (!has_number && !(*buf.position() >= '0' && *buf.position() <= '9')) // process prefix
+        else if (!has_number && !(*buf.position() >= '0' && *buf.position() <= '9') && number_force) // process prefix
         {
             if(*buf.position() == settings.csv.delimiter || *buf.position() == '\n' || *buf.position() == '\r')
             {
