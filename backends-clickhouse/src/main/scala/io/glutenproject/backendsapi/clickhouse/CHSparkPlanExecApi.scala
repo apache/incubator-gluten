@@ -39,7 +39,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.ColumnarAQEShuffleReadExec
+import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -286,10 +286,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
               Seq(ProjectExecTransformer(child.output ++ appendedProjections, wt.child)))
           case w: WholeStageCodegenExec =>
             w.withNewChildren(Seq(ProjectExec(child.output ++ appendedProjections, w.child)))
-          case columnarAQEShuffleReadExec: ColumnarAQEShuffleReadExec =>
+          case r: AQEShuffleReadExec if r.supportsColumnar =>
             // when aqe is open
             // TODO: remove this after pushdowning preprojection
-            wrapChild(columnarAQEShuffleReadExec)
+            wrapChild(r)
           case r2c: RowToCHNativeColumnarExec =>
             wrapChild(r2c)
           case union: UnionExecTransformer =>

@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.CoalescedPartitionSpec
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 import org.apache.spark.sql.internal.SQLConf
 
 case class TestData(id: Int)
@@ -52,7 +52,7 @@ class GlutenClickHouseRSSColumnarShuffleAQESuite
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
 
         val colCustomShuffleReaderExecs = collect(df.queryExecution.executedPlan) {
-          case csr: ColumnarAQEShuffleReadExec => csr
+          case csr: AQEShuffleReadExec => csr
         }
         assert(colCustomShuffleReaderExecs.size == 2)
         val coalescedPartitionSpec0 = colCustomShuffleReaderExecs(0)

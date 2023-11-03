@@ -893,9 +893,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Gluten - determining the number of reducers: join operator")
     .exclude("Gluten - determining the number of reducers: complex query 1")
     .exclude("Gluten - determining the number of reducers: complex query 2")
-    .exclude("SPARK-24705 adaptive query execution works correctly when exchange reuse enabled")
     .exclude("Union two datasets with different pre-shuffle partition number")
-    .exclude("SPARK-34790: enable IO encryption in AQE partition coalescing")
   enableSuite[GlutenExchangeSuite]
     // ColumnarShuffleExchangeExec does not support doExecute() method
     .exclude("shuffling UnsafeRows in exchange")

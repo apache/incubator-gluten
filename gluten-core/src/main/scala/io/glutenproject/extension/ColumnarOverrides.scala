@@ -477,18 +477,6 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
             left,
             right,
             isNullAwareAntiJoin = plan.isNullAwareAntiJoin)
-      case plan: AQEShuffleReadExec
-          if BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
-        plan.child match {
-          case ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _) =>
-            logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs)
-          case ShuffleQueryStageExec(_, ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec), _) =>
-            logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-            ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs)
-          case _ =>
-            plan
-        }
       case plan: WindowExec =>
         WindowExecTransformer(
           plan.windowExpression,
