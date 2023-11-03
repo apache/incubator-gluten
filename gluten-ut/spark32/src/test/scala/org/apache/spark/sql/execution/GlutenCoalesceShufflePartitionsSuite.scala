@@ -19,10 +19,11 @@ package org.apache.spark.sql.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config.IO_ENCRYPTION_ENABLED
 import org.apache.spark.internal.config.UI.UI_ENABLED
-import org.apache.spark.sql.{GlutenTestsCommonTrait, QueryTest, SparkSession}
+import org.apache.spark.sql.{GlutenTestsCommonTrait, QueryTest, Row, SparkSession}
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
+import org.apache.spark.sql.functions.{col, max}
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenCoalesceShufflePartitionsSuite
@@ -69,6 +70,80 @@ class GlutenCoalesceShufflePartitionsSuite
     finally {
       spark.stop()
     }
+  }
+
+  test(
+    GLUTEN_TEST +
+      "SPARK-24705 adaptive query execution works correctly when exchange reuse enabled") {
+    val test: SparkSession => Unit = {
+      spark: SparkSession =>
+        spark.sql("SET spark.sql.exchange.reuse=true")
+        val df = spark.range(0, 6, 1).selectExpr("id AS key", "id AS value")
+
+        // test case 1: a query stage has 3 child stages but they are the same stage.
+        // Final Stage 1
+        //   ShuffleQueryStage 0
+        //   ReusedQueryStage 0
+        //   ReusedQueryStage 0
+        val resultDf = df.join(df, "key").join(df, "key")
+        QueryTest.checkAnswer(resultDf, (0 to 5).map(i => Row(i, i, i, i)))
+        val finalPlan = resultDf.queryExecution.executedPlan
+          .asInstanceOf[AdaptiveSparkPlanExec]
+          .executedPlan
+        assert(finalPlan.collect {
+          case ShuffleQueryStageExec(_, r: ReusedExchangeExec, _) => r
+        }.length == 2)
+        assert(finalPlan.collect { case r @ CoalescedShuffleRead() => r }.length == 3)
+
+        // test case 2: a query stage has 2 parent stages.
+        // Final Stage 3
+        //   ShuffleQueryStage 1
+        //     ShuffleQueryStage 0
+        //   ShuffleQueryStage 2
+        //     ReusedQueryStage 0
+        val grouped = df.groupBy("key").agg(max("value").as("value"))
+        val resultDf2 = grouped
+          .groupBy(col("key") + 1)
+          .max("value")
+          .union(grouped.groupBy(col("key") + 2).max("value"))
+        QueryTest.checkAnswer(
+          resultDf2,
+          Row(1, 0) :: Row(2, 0) :: Row(2, 1) :: Row(3, 1) ::
+            Row(3, 2) :: Row(4, 2) :: Row(4, 3) :: Row(5, 3) :: Row(5, 4) :: Row(6, 4) :: Row(
+              6,
+              5) ::
+            Row(7, 5) :: Nil)
+
+        val finalPlan2 = resultDf2.queryExecution.executedPlan
+          .asInstanceOf[AdaptiveSparkPlanExec]
+          .executedPlan
+
+        // The result stage has 2 children
+        val level1Stages = finalPlan2.collect { case q: QueryStageExec => q }
+        assert(level1Stages.length == 2)
+        level1Stages.foreach(
+          qs =>
+            assert(
+              qs.plan.collect { case r @ CoalescedShuffleRead() => r }.length == 1,
+              "Wrong CoalescedShuffleRead below " + qs.simpleString(3)
+            ))
+
+        val leafStages = level1Stages.flatMap {
+          stage =>
+            // All of the child stages of result stage have only one child stage.
+            val children = stage.plan.collect { case q: QueryStageExec => q }
+            assert(children.length == 1)
+            children
+        }
+        assert(leafStages.length == 2)
+
+        val reusedStages = level1Stages.flatMap {
+          stage =>
+            stage.plan.collect { case ShuffleQueryStageExec(_, r: ReusedExchangeExec, _) => r }
+        }
+        assert(reusedStages.length == 1)
+    }
+    withSparkSession(test, 400, None)
   }
 
   Seq(Some(5), None).foreach {
