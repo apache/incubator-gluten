@@ -125,6 +125,7 @@ public:
 
     // use excel text parser
     inline static const std::string USE_EXCEL_PARSER = "use_excel_serialization";
+    inline static const std::string EXCEL_EMPTY_AS_NULL = "use_excel_serialization.empty_as_null";
     inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
 
     inline static const String CH_RUNTIME_CONFIG = "runtime_config";
