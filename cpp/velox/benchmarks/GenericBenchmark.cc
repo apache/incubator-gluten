@@ -75,6 +75,8 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(VeloxMemoryManager* memo
     options.compression_type = arrow::Compression::GZIP;
   }
 
+  GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(options));
+
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter,
       VeloxShuffleWriter::create(
