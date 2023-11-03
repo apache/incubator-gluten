@@ -228,6 +228,13 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSpillFileSystem: String = conf.getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
 
+  def veloxBloomFilterExpectedNumItems: Long =
+    conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS)
+
+  def veloxBloomFilterNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS)
+
+  def veloxBloomFilterMaxNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS)
+
   def chColumnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED)
 
   def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
@@ -424,7 +431,10 @@ object GlutenConfig {
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
       SQLConf.LEGACY_SIZE_OF_NULL.key,
-      "spark.io.compression.codec"
+      "spark.io.compression.codec",
+      COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
+      COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
+      COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key
     )
     keys.forEach(
       k => {
@@ -1277,4 +1287,28 @@ object GlutenConfig {
         + "For example `fron_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")
+      .internal()
+      .doc("The default number of expected items for the velox bloomfilter: " +
+        "'spark.bloom_filter.expected_num_items'")
+      .longConf
+      .createWithDefault(1000000L)
+
+  val COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits")
+      .internal()
+      .doc("The default number of bits to use for the velox bloom filter: " +
+        "'spark.bloom_filter.num_bits'")
+      .longConf
+      .createWithDefault(8388608L)
+
+  val COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits")
+      .internal()
+      .doc("The max number of bits to use for the velox bloom filter: " +
+        "'spark.bloom_filter.max_num_bits'")
+      .longConf
+      .createWithDefault(4194304L)
 }

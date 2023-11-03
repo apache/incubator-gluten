@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenBloomFilterAggregateQuerySuite
@@ -25,9 +27,12 @@ class GlutenBloomFilterAggregateQuerySuite
 
   test("Test bloom_filter_agg with big RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS") {
     val table = "bloom_filter_test"
-    withSQLConf(SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS.key -> "5000000") {
+    withSQLConf(
+      SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_ITEMS.key -> "5000000",
+      GlutenConfig.COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key -> "4194304"
+    ) {
       val numEstimatedItems = 5000000L
-      val numBits = SQLConf.get.getConf(SQLConf.RUNTIME_BLOOM_FILTER_MAX_NUM_BITS)
+      val numBits = GlutenConfig.getConf.veloxBloomFilterMaxNumBits
       val sqlString = s"""
                          |SELECT every(might_contain(
                          |            (SELECT bloom_filter_agg(col,
