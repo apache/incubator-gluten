@@ -1107,7 +1107,42 @@ class GlutenClickHouseFileFormatSuite
     assert(df.collect().isEmpty)
   }
 
-  test("issue-2881 & issue-3542 null string test") {
+  test("issue-2881 null string test") {
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
+          "use_excel_serialization.empty_as_null",
+        "true")) {
+      val file_path = csvDataPath + "/null_string.csv"
+      val schema = StructType.apply(
+        Seq(
+          StructField.apply("c1", StringType, nullable = true),
+          StructField.apply("c2", ShortType, nullable = true)
+        ))
+
+      val options = new util.HashMap[String, String]()
+      options.put("delimiter", ",")
+
+      val df = spark.read
+        .options(options)
+        .schema(schema)
+        .csv(file_path)
+        .toDF()
+
+      val dataCorrect = new util.ArrayList[Row]()
+      dataCorrect.add(Row(null, 1.toShort))
+      dataCorrect.add(Row(null, 2.toShort))
+      dataCorrect.add(Row("1", 3.toShort))
+
+      var expectedAnswer: Seq[Row] = null
+      withSQLConf(vanillaSparkConfs(): _*) {
+        expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+      }
+      checkAnswer(df, expectedAnswer)
+    }
+  }
+
+  test("issue-3542 null string test") {
     withSQLConf(
       (
         "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
