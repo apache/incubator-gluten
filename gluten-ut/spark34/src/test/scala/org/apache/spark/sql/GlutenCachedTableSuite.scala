@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
@@ -24,9 +26,11 @@ class GlutenCachedTableSuite
   extends CachedTableSuite
   with GlutenSQLTestsTrait
   with AdaptiveSparkPlanHelper {
-
+  // for temporarily disable the columnar table cache globally.
+  sys.props.put(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
   override def sparkConf: SparkConf = {
     super.sparkConf.set("spark.sql.shuffle.partitions", "5")
+    super.sparkConf.set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
   }
 
   test("GLUTEN - InMemoryRelation statistics") {
