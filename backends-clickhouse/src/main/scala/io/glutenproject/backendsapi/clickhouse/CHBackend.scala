@@ -94,14 +94,14 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM: String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".shuffle.hash.algorithm"
-  // valid values are: cityHash64 or murmurHash3_32
+  // valid values are: cityHash64 or sparkMurmurHash3_32
   private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM_DEFAULT = "cityHash64"
-  lazy val shuffleHashAlgorithm: String = {
+  def shuffleHashAlgorithm: String = {
     val algorithm = SparkEnv.get.conf.get(
       CHBackendSettings.GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM,
       CHBackendSettings.GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM_DEFAULT
     )
-    if (!algorithm.equals("cityHash64") && !algorithm.equals("murmurHash3_32")) {
+    if (!algorithm.equals("cityHash64") && !algorithm.equals("sparkMurmurHash3_32")) {
       CHBackendSettings.GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM_DEFAULT
     } else {
       algorithm
