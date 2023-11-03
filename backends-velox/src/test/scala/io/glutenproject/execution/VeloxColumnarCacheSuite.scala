@@ -40,6 +40,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.shuffle.partitions", "3")
+      .set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
   }
 
   private def checkColumnarTableCache(plan: SparkPlan): Unit = {
