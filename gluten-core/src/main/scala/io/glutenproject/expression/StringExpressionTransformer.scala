@@ -136,8 +136,9 @@ case class ConcatWsTransformer(
   extends ExpressionTransformer {
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
-    if (!children.head.isInstanceOf[StringLiteralNode]) {
-      throw new UnsupportedOperationException(s"$original not supported yet.")
+    if (!children.head.isInstanceOf[LiteralTransformer]) {
+      throw new UnsupportedOperationException(
+        s"$original only supports literal separator as its first argument.")
     }
     GenericExpressionTransformer(substraitExprName, children, original)
       .doTransform(args)
