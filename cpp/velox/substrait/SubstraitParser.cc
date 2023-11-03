@@ -237,18 +237,18 @@ std::string SubstraitParser::findVeloxFunction(
 std::string SubstraitParser::mapToVeloxFunction(const std::string& substraitFunction, bool isDecimal) {
   auto it = substraitVeloxFunctionMap_.find(substraitFunction);
   if (isDecimal) {
-    if (substraitFunction == "round" || substraitFunction == "lt" || substraitFunction == "lte" ||
-        substraitFunction == "gt" || substraitFunction == "gte") {
-      return "decimal_" + substraitFunction;
+    if (substraitFunction == "lt" || substraitFunction == "lte" || substraitFunction == "gt" ||
+        substraitFunction == "gte" || substraitFunction == "equal") {
+      VELOX_CHECK_NE(it, substraitVeloxFunctionMap_.end());
+      return "decimal_" + it->second;
     }
-    if (substraitFunction == "equal") {
-      return "decimal_eq";
+    if (substraitFunction == "round") {
+      return "decimal_round";
     }
   }
   if (it != substraitVeloxFunctionMap_.end()) {
     return it->second;
   }
-
   // If not finding the mapping from Substrait function name to Velox function
   // name, the original Substrait function name will be used.
   return substraitFunction;
