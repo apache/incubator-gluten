@@ -25,7 +25,7 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/VeloxShuffleReader.h"
-#include "utils/compression.h"
+#include "utils/Compression.h"
 #include "velox/vector/tests/VectorTestUtils.h"
 
 namespace gluten {
@@ -237,7 +237,7 @@ class SinglePartitioningShuffleWriter : public VeloxShuffleWriterTest {
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() override {
     shuffleWriterOptions_.buffer_size = 10;
-    shuffleWriterOptions_.partitioning_name = "single";
+    shuffleWriterOptions_.partitioning = Partitioning::kSingle;
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter, VeloxShuffleWriter::create(1, partitionWriterCreator_, shuffleWriterOptions_, pool_))
     return shuffleWriter;
@@ -304,7 +304,7 @@ class HashPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() override {
     shuffleWriterOptions_.buffer_size = 4;
-    shuffleWriterOptions_.partitioning_name = "hash";
+    shuffleWriterOptions_.partitioning = Partitioning::kHash;
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter, VeloxShuffleWriter::create(2, partitionWriterCreator_, shuffleWriterOptions_, pool_))
     return shuffleWriter;
@@ -334,7 +334,7 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() override {
     shuffleWriterOptions_.buffer_size = 4;
-    shuffleWriterOptions_.partitioning_name = "range";
+    shuffleWriterOptions_.partitioning = Partitioning::kRange;
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter, VeloxShuffleWriter::create(2, partitionWriterCreator_, shuffleWriterOptions_, pool_))
     return shuffleWriter;
@@ -360,7 +360,6 @@ class RoundRobinPartitioningShuffleWriter : public MultiplePartitioningShuffleWr
  protected:
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() override {
     shuffleWriterOptions_.buffer_size = 4;
-    shuffleWriterOptions_.partitioning_name = "rr";
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter, VeloxShuffleWriter::create(2, partitionWriterCreator_, shuffleWriterOptions_, pool_))
     return shuffleWriter;

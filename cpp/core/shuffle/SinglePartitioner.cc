@@ -15,21 +15,17 @@
  * limitations under the License.
  */
 
-#pragma once
-
-#include "shuffle/Partitioner.h"
+#include "shuffle/SinglePartitioner.h"
 
 namespace gluten {
 
-class HashPartitioner final : public Partitioner {
- public:
-  HashPartitioner(int32_t numPartitions) : Partitioner(numPartitions, true) {}
-
-  arrow::Status compute(
-      const int32_t* pidArr,
-      const int64_t numRows,
-      std::vector<uint16_t>& row2partition,
-      std::vector<uint32_t>& partition2RowCount) override;
-};
+arrow::Status gluten::SinglePartitioner::compute(
+    const int32_t* pidArr,
+    const int64_t numRows,
+    std::vector<uint16_t>& row2partition,
+    std::vector<uint32_t>& partition2RowCount) {
+  // nothing is need do here
+  return arrow::Status::OK();
+}
 
 } // namespace gluten

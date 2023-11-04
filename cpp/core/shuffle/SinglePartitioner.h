@@ -15,11 +15,19 @@
  * limitations under the License.
  */
 
-#include "options.h"
-gluten::ShuffleReaderOptions gluten::ShuffleReaderOptions::defaults() {
-  return {};
-}
+#pragma once
 
-gluten::ShuffleWriterOptions gluten::ShuffleWriterOptions::defaults() {
-  return {};
-}
+#include "shuffle/Partitioner.h"
+
+namespace gluten {
+class SinglePartitioner final : public Partitioner {
+ public:
+  SinglePartitioner() : Partitioner(1, false) {}
+
+  arrow::Status compute(
+      const int32_t* pidArr,
+      const int64_t numRows,
+      std::vector<uint16_t>& row2partition,
+      std::vector<uint32_t>& partition2RowCount) override;
+};
+} // namespace gluten

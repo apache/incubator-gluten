@@ -19,28 +19,22 @@
 #include "shuffle/FallbackRangePartitioner.h"
 #include "shuffle/HashPartitioner.h"
 #include "shuffle/RoundRobinPartitioner.h"
-#include "shuffle/SinglePartPartitioner.h"
+#include "shuffle/SinglePartitioner.h"
 
 namespace gluten {
 
-arrow::Result<std::shared_ptr<ShuffleWriter::Partitioner>> ShuffleWriter::Partitioner::make(
-    const std::string& name,
-    int32_t numPartitions) {
-  std::shared_ptr<ShuffleWriter::Partitioner> partitioner = nullptr;
-  if (name == "hash") {
-    partitioner = ShuffleWriter::Partitioner::create<HashPartitioner>(numPartitions, true);
-  } else if (name == "rr") {
-    partitioner = ShuffleWriter::Partitioner::create<RoundRobinPartitioner>(numPartitions, false);
-  } else if (name == "range") {
-    partitioner = ShuffleWriter::Partitioner::create<FallbackRangePartitioner>(numPartitions, true);
-  } else if (name == "single") {
-    partitioner = ShuffleWriter::Partitioner::create<SinglePartPartitioner>(numPartitions, false);
-  }
-
-  if (!partitioner) {
-    return arrow::Status::NotImplemented("Partitioning " + name + " not supported yet.");
-  } else {
-    return partitioner;
+arrow::Result<std::shared_ptr<Partitioner>> Partitioner::make(Partitioning partitioning, int32_t numPartitions) {
+  switch (partitioning) {
+    case Partitioning::kHash:
+      return std::make_shared<HashPartitioner>(numPartitions);
+    case Partitioning::kRoundRobin:
+      return std::make_shared<RoundRobinPartitioner>(numPartitions);
+    case Partitioning::kSingle:
+      return std::make_shared<SinglePartitioner>();
+    case Partitioning::kRange:
+      return std::make_shared<FallbackRangePartitioner>(numPartitions);
+    default:
+      return arrow::Status::Invalid("Unsupported partitioning type: " + std::to_string(partitioning));
   }
 }
 

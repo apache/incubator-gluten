@@ -27,8 +27,8 @@
 #include "config/GlutenConfig.h"
 #include "memory/AllocationListener.h"
 #include "shuffle/rss/RssClient.h"
+#include "utils/Compression.h"
 #include "utils/DebugOut.h"
-#include "utils/compression.h"
 #include "utils/exception.h"
 
 static jint jniVersion = JNI_VERSION_1_8;

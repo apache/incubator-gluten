@@ -22,9 +22,9 @@
 #include <arrow/ipc/message.h>
 #include <arrow/ipc/options.h>
 
+#include "Options.h"
 #include "compute/ResultIterator.h"
-#include "options.h"
-#include "utils/compression.h"
+#include "utils/Compression.h"
 
 namespace gluten {
 

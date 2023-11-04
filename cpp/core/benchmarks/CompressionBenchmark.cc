@@ -34,7 +34,7 @@
 #include <utility>
 
 #include "shuffle/ShuffleWriter.h"
-#include "utils/compression.h"
+#include "utils/Compression.h"
 #include "utils/macros.h"
 
 void printTrace(void) {

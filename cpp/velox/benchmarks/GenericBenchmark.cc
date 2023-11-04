@@ -60,7 +60,7 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(VeloxMemoryManager* memo
 
   auto options = ShuffleWriterOptions::defaults();
   options.memory_pool = memoryManager->getArrowMemoryPool();
-  options.partitioning_name = FLAGS_partitioning;
+  options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
   if (FLAGS_zstd) {
     options.codec_backend = CodecBackend::NONE;
     options.compression_type = arrow::Compression::ZSTD;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-#include "utils/compression.h"
+#include "utils/Compression.h"
 
 #include "exception.h"
 

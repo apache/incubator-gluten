@@ -16,7 +16,7 @@
  */
 
 #include "shuffle/Utils.h"
-#include "options.h"
+#include "Options.h"
 #include "utils/StringUtil.h"
 
 #include <boost/uuid/uuid_generators.hpp>

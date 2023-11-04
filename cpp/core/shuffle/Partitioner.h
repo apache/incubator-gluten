@@ -17,22 +17,18 @@
 
 #pragma once
 
-#include "shuffle/ShuffleWriter.h"
+#include <arrow/result.h>
+#include <memory>
+#include <vector>
+#include "shuffle/Partitioning.h"
 
 namespace gluten {
 
-class ShuffleWriter::Partitioner {
+class Partitioner {
  public:
-  template <typename Partitioner>
-  static std::shared_ptr<Partitioner> create(int32_t numPartitions, bool hasPid) {
-    return std::make_shared<Partitioner>(numPartitions, hasPid);
-  }
+  static arrow::Result<std::shared_ptr<Partitioner>> make(Partitioning partitioning, int32_t numPartitions);
 
-  static arrow::Result<std::shared_ptr<ShuffleWriter::Partitioner>> make(
-      const std::string& name,
-      int32_t numPartitions);
-
-  // whether the first column is partition key
+  // Whether the first column is partition key.
   bool hasPid() const {
     return hasPid_;
   }
@@ -46,11 +42,11 @@ class ShuffleWriter::Partitioner {
  protected:
   Partitioner(int32_t numPartitions, bool hasPid) : numPartitions_(numPartitions), hasPid_(hasPid) {}
 
+  Partitioner() : numPartitions_(1), hasPid_(false) {}
+
   virtual ~Partitioner() = default;
 
   int32_t numPartitions_;
-
-  // if the first column is partition key
   bool hasPid_;
 };
 
