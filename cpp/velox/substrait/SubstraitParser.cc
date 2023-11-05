@@ -239,7 +239,6 @@ std::string SubstraitParser::mapToVeloxFunction(const std::string& substraitFunc
   if (isDecimal) {
     if (substraitFunction == "lt" || substraitFunction == "lte" || substraitFunction == "gt" ||
         substraitFunction == "gte" || substraitFunction == "equal") {
-      VELOX_CHECK_NE(it, substraitVeloxFunctionMap_.end());
       return "decimal_" + it->second;
     }
     if (substraitFunction == "round") {
