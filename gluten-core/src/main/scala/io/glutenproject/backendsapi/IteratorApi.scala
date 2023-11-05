@@ -46,13 +46,6 @@ trait IteratorApi {
       wsCxt: WholeStageTransformContext): BaseGlutenPartition
 
   /**
-   * Generate closeable ColumnBatch iterator.
-   *
-   * @return
-   */
-  def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch]
-
-  /**
    * Generate Iterator[ColumnarBatch] for first stage. ("first" means it does not depend on other
    * SCAN inputs)
    *
@@ -97,8 +90,6 @@ trait IteratorApi {
 
   /** Compute for BroadcastBuildSideRDD */
   def genBroadcastBuildSideIterator(
-      split: Partition,
-      context: TaskContext,
       broadcasted: broadcast.Broadcast[BuildSideRelation],
       broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch]
 }

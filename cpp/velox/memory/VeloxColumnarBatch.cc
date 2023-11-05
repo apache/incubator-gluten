@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 #include "VeloxColumnarBatch.h"
-#include "compute/VeloxExecutionCtx.h"
+#include "compute/VeloxRuntime.h"
 #include "velox/row/UnsafeRowFast.h"
 #include "velox/type/Type.h"
 #include "velox/vector/FlatVector.h"
@@ -146,6 +146,7 @@ std::pair<char*, int> VeloxColumnarBatch::getRowBytes(int32_t rowId) const {
   auto fast = std::make_unique<facebook::velox::row::UnsafeRowFast>(rowVector_);
   auto size = fast->rowSize(rowId);
   char* rowBytes = new char[size];
+  std::memset(rowBytes, 0, size);
   fast->serialize(0, rowBytes);
   return std::make_pair(rowBytes, size);
 }

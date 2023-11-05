@@ -26,7 +26,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
-import org.apache.spark.{InterruptibleIterator, Partition, SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -91,19 +91,19 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 fileFormats(i)),
               SoftAffinityUtil.getFilePartitionLocations(f))
           case _ =>
-            throw new UnsupportedOperationException(s"Unsupport operators.")
+            throw new UnsupportedOperationException(s"Unsupported input partition.")
         })
     wsCxt.substraitContext.initLocalFilesNodesIndex(0)
     wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
     val substraitPlan = wsCxt.root.toProtobuf
-    if (index < 3) {
+    if (index == 0) {
       logOnLevel(
         GlutenConfig.getConf.substraitPlanLogLevel,
         s"The substrait plan for partition $index:\n${SubstraitPlanPrinterUtil
             .substraitPlanToJson(substraitPlan)}"
       )
     }
-    GlutenPartition(index, substraitPlan, localFilesNodesWithLocations.head._2)
+    GlutenPartition(index, substraitPlan.toByteArray, localFilesNodesWithLocations.head._2)
   }
 
   /**
@@ -132,14 +132,17 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
       private var outputRowCount = 0L
       private var outputVectorCount = 0L
+      private var metricsUpdated = false
 
       override def hasNext: Boolean = {
         val res = resIter.hasNext
-        if (!res) {
+        // avoid to collect native metrics more than once, 'hasNext' is a idempotent operation
+        if (!res && !metricsUpdated) {
           val nativeMetrics = resIter.getMetrics.asInstanceOf[NativeMetrics]
           nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
           updateNativeMetrics(nativeMetrics)
           updateInputMetrics(inputMetrics)
+          metricsUpdated = true
         }
         res
       }
@@ -182,7 +185,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           }.asJava)
         // we need to complete dependency RDD's firstly
         transKernel.createKernelWithBatchIterator(
-          rootNode.toProtobuf,
+          rootNode.toProtobuf.toByteArray,
           columnarNativeIterator,
           materializeInput)
     }
@@ -190,13 +193,16 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val resIter = new Iterator[ColumnarBatch] {
       private var outputRowCount = 0L
       private var outputVectorCount = 0L
+      private var metricsUpdated = false
 
       override def hasNext: Boolean = {
         val res = nativeIterator.hasNext
-        if (!res) {
+        // avoid to collect native metrics more than once, 'hasNext' is a idempotent operation
+        if (!res && !metricsUpdated) {
           val nativeMetrics = nativeIterator.getMetrics.asInstanceOf[NativeMetrics]
           nativeMetrics.setFinalOutputMetrics(outputRowCount, outputVectorCount)
           updateNativeMetrics(nativeMetrics)
+          metricsUpdated = true
         }
         res
       }
@@ -224,11 +230,12 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   /**
    * Generate closeable ColumnBatch iterator.
    *
+   * FIXME: This no longer overrides parent's method
+   *
    * @param iter
    * @return
    */
-  override def genCloseableColumnBatchIterator(
-      iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
+  def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch] = {
     if (iter.isInstanceOf[CloseableCHColumnBatchIterator]) iter
     else new CloseableCHColumnBatchIterator(iter)
   }
@@ -260,8 +267,6 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
 
   /** Compute for BroadcastBuildSideRDD */
   override def genBroadcastBuildSideIterator(
-      split: Partition,
-      context: TaskContext,
       broadcasted: Broadcast[BuildSideRelation],
       broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch] = {
     CHBroadcastBuildSideCache.getOrBuildBroadcastHashTable(broadcasted, broadCastContext)

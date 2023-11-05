@@ -22,13 +22,13 @@
 #include <execinfo.h>
 #include <jni.h>
 
-#include "compute/ExecutionCtx.h"
 #include "compute/ProtobufUtils.h"
+#include "compute/Runtime.h"
 #include "config/GlutenConfig.h"
 #include "memory/AllocationListener.h"
 #include "shuffle/rss/RssClient.h"
+#include "utils/Compression.h"
 #include "utils/DebugOut.h"
-#include "utils/compression.h"
 #include "utils/exception.h"
 
 static jint jniVersion = JNI_VERSION_1_8;
@@ -132,13 +132,13 @@ class JniCommonState {
 
   void close();
 
-  jmethodID executionCtxAwareCtxHandle();
+  jmethodID runtimeAwareCtxHandle();
 
  private:
   void initialize(JNIEnv* env);
 
-  jclass executionCtxAwareClass_;
-  jmethodID executionCtxAwareCtxHandle_;
+  jclass runtimeAwareClass_;
+  jmethodID runtimeAwareCtxHandle_;
 
   JavaVM* vm_;
   bool initialized_{false};
@@ -151,7 +151,7 @@ inline JniCommonState* getJniCommonState() {
   return &jniCommonState;
 }
 
-ExecutionCtx* getExecutionCtx(JNIEnv* env, jobject executionCtxAware);
+Runtime* getRuntime(JNIEnv* env, jobject runtimeAware);
 } // namespace gluten
 
 // TODO: Move the static functions to namespace gluten

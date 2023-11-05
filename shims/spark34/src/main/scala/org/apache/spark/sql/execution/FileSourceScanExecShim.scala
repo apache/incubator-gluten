@@ -84,8 +84,7 @@ class FileSourceScanExecShim(
     }
   }
 
-  @transient override protected lazy val dynamicallySelectedPartitions
-      : Array[PartitionDirectory] = {
+  @transient override lazy val dynamicallySelectedPartitions: Array[PartitionDirectory] = {
     val dynamicPartitionFilters =
       partitionFilters.filter(isDynamicPruningFilter)
     val selected = if (dynamicPartitionFilters.nonEmpty) {

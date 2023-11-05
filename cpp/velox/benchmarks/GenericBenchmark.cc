@@ -26,8 +26,8 @@
 
 #include "benchmarks/common/BenchmarkUtils.h"
 #include "benchmarks/common/FileReaderIterator.h"
-#include "compute/VeloxExecutionCtx.h"
 #include "compute/VeloxPlanConverter.h"
+#include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
@@ -60,7 +60,7 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(VeloxMemoryManager* memo
 
   auto options = ShuffleWriterOptions::defaults();
   options.memory_pool = memoryManager->getArrowMemoryPool();
-  options.partitioning_name = FLAGS_partitioning;
+  options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
   if (FLAGS_zstd) {
     options.codec_backend = CodecBackend::NONE;
     options.compression_type = arrow::Compression::ZSTD;
@@ -74,6 +74,8 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(VeloxMemoryManager* memo
     options.codec_backend = CodecBackend::IAA;
     options.compression_type = arrow::Compression::GZIP;
   }
+
+  GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(options));
 
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter,
@@ -121,7 +123,7 @@ auto BM_Generic = [](::benchmark::State& state,
     setCpu(state.thread_index());
   }
   auto memoryManager = getDefaultMemoryManager();
-  auto executionCtx = ExecutionCtx::create(kVeloxExecutionCtxKind);
+  auto runtime = Runtime::create(kVeloxRuntimeKind);
   const auto& filePath = getExampleFilePath(substraitJsonFile);
   auto plan = getPlanFromFile(filePath);
   auto startTime = std::chrono::steady_clock::now();
@@ -144,11 +146,10 @@ auto BM_Generic = [](::benchmark::State& state,
           });
     }
 
-    executionCtx->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
-    auto iterHandle =
-        executionCtx->createResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
-    auto resultIter = executionCtx->getResultIterator(iterHandle);
-    auto veloxPlan = dynamic_cast<gluten::VeloxExecutionCtx*>(executionCtx)->getVeloxPlan();
+    runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
+    auto resultIter =
+        runtime->createResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
+    auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
     if (FLAGS_with_shuffle) {
       int64_t shuffleWriteTime;
       TIME_NANO_START(shuffleWriteTime);
@@ -204,7 +205,7 @@ auto BM_Generic = [](::benchmark::State& state,
     auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
     std::cout << statsStr << std::endl;
   }
-  ExecutionCtx::release(executionCtx);
+  Runtime::release(runtime);
 
   auto endTime = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();

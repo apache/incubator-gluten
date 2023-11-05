@@ -43,6 +43,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.sql.adaptive.enabled", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -63,6 +64,9 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         assert(plans(2).metrics("pruningTime").value === -1)
         assert(plans(2).metrics("filesSize").value === 17777735)
 
+        assert(plans(1).metrics("inputRows").value === 591673)
+        assert(plans(1).metrics("resizeInputRows").value === 4)
+        assert(plans(1).metrics("resizeOutputRows").value === 4)
         assert(plans(1).metrics("outputRows").value === 4)
         assert(plans(1).metrics("outputVectors").value === 1)
 
@@ -87,6 +91,9 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           assert(plans(2).metrics("pruningTime").value === -1)
           assert(plans(2).metrics("filesSize").value === 17777735)
 
+          assert(plans(1).metrics("inputRows").value === 591673)
+          assert(plans(1).metrics("resizeInputRows").value === 4)
+          assert(plans(1).metrics("resizeOutputRows").value === 4)
           assert(plans(1).metrics("outputRows").value === 4)
           assert(plans(1).metrics("outputVectors").value === 1)
 
@@ -246,7 +253,17 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   }
 
   test("TPCH Q21") {
-    runTPCHQuery(21, noFallBack = false) { df => }
+    runTPCHQuery(21, noFallBack = false) {
+      df =>
+        val plans = collect(df.queryExecution.executedPlan) {
+          case scanExec: BasicScanExecTransformer => scanExec
+          case filterExec: FilterExecTransformerBase => filterExec
+        }
+        assert(plans(2).metrics("inputRows").value === 600572)
+        assert(plans(2).metrics("outputRows").value === 379809)
+
+        assert(plans(3).metrics("outputRows").value === 600572)
+    }
   }
 
   test("TPCH Q22") {

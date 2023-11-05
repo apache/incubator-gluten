@@ -92,5 +92,8 @@ std::unique_ptr<MergeTreeSettings> CustomStorageMergeTree::getDefaultSettings() 
 {
     throw std::runtime_error("not implement");
 }
-
+std::map<std::string, MutationCommands> CustomStorageMergeTree::getUnfinishedMutationCommands() const
+{
+    throw std::runtime_error("not implement");
+}
 }

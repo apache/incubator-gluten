@@ -16,24 +16,24 @@
  */
 package io.glutenproject.vectorized;
 
-import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.RuntimeAware;
+import io.glutenproject.exec.Runtimes;
 
-public class ShuffleReaderJniWrapper implements ExecutionCtxAware {
-  private final ExecutionCtx ctx;
+public class ShuffleReaderJniWrapper implements RuntimeAware {
+  private final Runtime runtime;
 
-  private ShuffleReaderJniWrapper(ExecutionCtx ctx) {
-    this.ctx = ctx;
+  private ShuffleReaderJniWrapper(Runtime runtime) {
+    this.runtime = runtime;
   }
 
   public static ShuffleReaderJniWrapper create() {
-    return new ShuffleReaderJniWrapper(ExecutionCtxs.contextInstance());
+    return new ShuffleReaderJniWrapper(Runtimes.contextInstance());
   }
 
   @Override
-  public long ctxHandle() {
-    return ctx.getHandle();
+  public long handle() {
+    return runtime.getHandle();
   }
 
   public native long make(

@@ -38,6 +38,7 @@ public:
     explicit FileReaderWrapper(FormatFilePtr file_) : file(file_) { }
     virtual ~FileReaderWrapper() = default;
     virtual bool pull(DB::Chunk & chunk) = 0;
+    virtual void applyKeyCondition(std::shared_ptr<const DB::KeyCondition> /*key_condition*/) { }
 
 protected:
     FormatFilePtr file;
@@ -52,7 +53,13 @@ class NormalFileReader : public FileReaderWrapper
 public:
     NormalFileReader(FormatFilePtr file_, DB::ContextPtr context_, const DB::Block & to_read_header_, const DB::Block & output_header_);
     ~NormalFileReader() override = default;
+
     bool pull(DB::Chunk & chunk) override;
+
+    void applyKeyCondition(std::shared_ptr<const DB::KeyCondition> key_condition) override
+    {
+        input_format->input->setKeyCondition(key_condition);
+    }
 
 private:
     DB::ContextPtr context;
@@ -87,7 +94,7 @@ private:
     size_t block_size;
 };
 
-class SubstraitFileSource : public DB::ISource
+class SubstraitFileSource : public DB::SourceWithKeyCondition
 {
 public:
     SubstraitFileSource(DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos);
@@ -95,7 +102,8 @@ public:
 
     String getName() const override { return "SubstraitFileSource"; }
 
-    void applyFilters(std::vector<SourceFilter> filters) const;
+    void setKeyCondition(const DB::ActionsDAG::NodeRawConstPtrs & nodes, DB::ContextPtr context_) override;
+
     std::vector<String> getPartitionKeys() const;
     DB::String getFileFormat() const;
 
@@ -115,7 +123,6 @@ private:
     /// E.g. if parquet file schema is `info struct<name string, age int>`, and output_header is `info Tuple(name String, age Int32)`
     /// then there is not need to flatten `info` column, because null value of `info` column will be represented as null value of `info.name` and `info.age`, which is obviously wrong.
     std::unordered_set<size_t> columns_to_skip_flatten;
-    std::vector<DB::KeyCondition> filters;
 
     UInt32 current_file_index = 0;
     std::unique_ptr<FileReaderWrapper> file_reader;

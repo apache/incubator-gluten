@@ -22,7 +22,7 @@
 #include <exception>
 #include "JniUdf.h"
 #include "compute/VeloxBackend.h"
-#include "compute/VeloxExecutionCtx.h"
+#include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniError.h"
 #include "jni/JniFileSystem.h"
@@ -34,8 +34,8 @@
 using namespace facebook;
 
 namespace {
-gluten::ExecutionCtx* veloxExecutionCtxFactory(const std::unordered_map<std::string, std::string>& sessionConf) {
-  return new gluten::VeloxExecutionCtx(sessionConf);
+gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::string>& sessionConf) {
+  return new gluten::VeloxRuntime(sessionConf);
 }
 } // namespace
 
@@ -49,9 +49,6 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
     return JNI_ERR;
   }
 
-  // logging
-  google::InitGoogleLogging("gluten");
-  FLAGS_logtostderr = true;
   gluten::getJniCommonState()->ensureInitialized(env);
   gluten::getJniErrorState()->ensureInitialized(env);
   gluten::initVeloxJniFileSystem(env);
@@ -78,7 +75,7 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_NativeBackendInitializer_initi
     jbyteArray conf) {
   JNI_METHOD_START
   auto sparkConf = gluten::parseConfMap(env, conf);
-  gluten::ExecutionCtx::registerFactory(gluten::kVeloxExecutionCtxKind, veloxExecutionCtxFactory);
+  gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
   gluten::VeloxBackend::create(sparkConf);
   JNI_METHOD_END()
 }

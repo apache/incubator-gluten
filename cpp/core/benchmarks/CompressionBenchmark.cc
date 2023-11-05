@@ -34,7 +34,7 @@
 #include <utility>
 
 #include "shuffle/ShuffleWriter.h"
-#include "utils/compression.h"
+#include "utils/Compression.h"
 #include "utils/macros.h"
 
 void printTrace(void) {
@@ -64,62 +64,6 @@ const int32_t kQatZstd = 1;
 const int32_t kQplGzip = 2;
 const int32_t kLZ4 = 3;
 const int32_t kZstd = 4;
-
-class MyMemoryPool final : public arrow::MemoryPool {
- public:
-  explicit MyMemoryPool() {}
-
-  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
-    RETURN_NOT_OK(pool_->Allocate(size, out));
-    stats_.UpdateAllocatedBytes(size);
-    // std::cout << "Allocate: size = " << size << " addr = " << std::hex <<
-    // (uint64_t)*out << std::dec << std::endl; print_trace();
-    return arrow::Status::OK();
-  }
-
-  Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override {
-    // auto old_ptr = *ptr;
-    RETURN_NOT_OK(pool_->Reallocate(oldSize, newSize, ptr));
-    stats_.UpdateAllocatedBytes(newSize - oldSize);
-    // std::cout << "Reallocate: old_size = " << old_size << " old_ptr = " <<
-    // std::hex << (uint64_t)old_ptr << std::dec << " new_size = " << new_size
-    // << " addr = " << std::hex << (uint64_t)*ptr << std::dec << std::endl;
-    // print_trace();
-    return arrow::Status::OK();
-  }
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
-    pool_->Free(buffer, size);
-    stats_.UpdateAllocatedBytes(-size);
-    // std::cout << "Free: size = " << size << " addr = " << std::hex <<
-    // (uint64_t)buffer
-    // << std::dec << std::endl; print_trace();
-  }
-
-  int64_t bytes_allocated() const override {
-    return stats_.bytes_allocated();
-  }
-
-  int64_t max_memory() const override {
-    return pool_->max_memory();
-  }
-
-  std::string backend_name() const override {
-    return pool_->backend_name();
-  }
-
-  int64_t total_bytes_allocated() const override {
-    return pool_->total_bytes_allocated();
-  }
-
-  int64_t num_allocations() const override {
-    throw pool_->num_allocations();
-  }
-
- private:
-  arrow::MemoryPool* pool_ = arrow::default_memory_pool();
-  arrow::internal::MemoryPoolStats stats_;
-};
 
 class BenchmarkCompression {
  public:
@@ -195,8 +139,7 @@ class BenchmarkCompression {
       default:
         throw GlutenException("Codec not supported. Only support LZ4 or QATGzip");
     }
-    std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<MyMemoryPool>();
-    ipcWriteOptions.memory_pool = pool.get();
+    ipcWriteOptions.memory_pool = arrow::default_memory_pool();
 
     int64_t elapseRead = 0;
     int64_t numBatches = 0;

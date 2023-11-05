@@ -62,7 +62,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
-    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
+    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
     assertResult(Set("host-1", "host-2", "host-3")) {
       nativePartition.preferredLocations().toSet
     }
@@ -91,7 +91,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
-    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
+    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
 
     assertResult(Set("host-1", "host-4", "host-5")) {
       nativePartition.preferredLocations().toSet
@@ -121,7 +121,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
-    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
+    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
 
     assertResult(Set("executor_host-2_2", "executor_host-1_0")) {
       nativePartition.preferredLocations().toSet
@@ -133,7 +133,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val locations = SoftAffinityUtil.getNativeMergeTreePartitionLocations(partition)
 
-    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
+    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
 
     assertResult(Set("executor_host-1_1")) {
       nativePartition.preferredLocations().toSet
@@ -163,7 +163,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
 
-    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
+    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
 
     assertResult(Set("host-1", "host-5", "host-6")) {
       nativePartition.preferredLocations().toSet

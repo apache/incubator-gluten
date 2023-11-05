@@ -117,6 +117,7 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
           .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
           .config("spark.unsafe.exceptionOnMemoryLeak", "true")
           .config(GlutenConfig.UT_STATISTIC.key, "true")
+          .config("spark.sql.decimalOperations.allowPrecisionLoss", "false")
           .getOrCreate()
       } else {
         sparkBuilder

@@ -23,14 +23,14 @@
 
 namespace gluten {
 
-class ExecutionCtx;
+class Runtime;
 
 // FIXME the code is tightly coupled with Velox plan execution. Should cleanup the abstraction for uses from
 //  other places.
 class ResultIterator {
  public:
-  explicit ResultIterator(std::unique_ptr<ColumnarBatchIterator> iter, ExecutionCtx* executionCtx = nullptr)
-      : iter_(std::move(iter)), next_(nullptr), executionCtx_(executionCtx) {}
+  explicit ResultIterator(std::unique_ptr<ColumnarBatchIterator> iter, Runtime* runtime = nullptr)
+      : iter_(std::move(iter)), next_(nullptr), runtime_(runtime) {}
 
   // copy constructor and copy assignment (deleted)
   ResultIterator(const ResultIterator& in) = delete;
@@ -86,7 +86,7 @@ class ResultIterator {
 
   std::unique_ptr<ColumnarBatchIterator> iter_;
   std::shared_ptr<ColumnarBatch> next_;
-  ExecutionCtx* executionCtx_;
+  Runtime* runtime_;
   int64_t exportNanos_;
 };
 

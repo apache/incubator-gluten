@@ -31,7 +31,8 @@ public class CHShuffleSplitterJniWrapper {
       String localDirs,
       int subDirsPerLocalDir,
       boolean preferSpill,
-      long spillThreshold) {
+      long spillThreshold,
+      String hashAlgorithm) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
@@ -45,7 +46,8 @@ public class CHShuffleSplitterJniWrapper {
         localDirs,
         subDirsPerLocalDir,
         preferSpill,
-        spillThreshold);
+        spillThreshold,
+        hashAlgorithm);
   }
 
   public long makeForRSS(
@@ -55,6 +57,7 @@ public class CHShuffleSplitterJniWrapper {
       int bufferSize,
       String codec,
       long spillThreshold,
+      String hashAlgorithm,
       Object pusher) {
     return nativeMakeForRSS(
         part.getShortName(),
@@ -66,6 +69,7 @@ public class CHShuffleSplitterJniWrapper {
         bufferSize,
         codec,
         spillThreshold,
+        hashAlgorithm,
         pusher);
   }
 
@@ -82,7 +86,8 @@ public class CHShuffleSplitterJniWrapper {
       String localDirs,
       int subDirsPerLocalDir,
       boolean preferSpill,
-      long spillThreshold);
+      long spillThreshold,
+      String hashAlgorithm);
 
   public native long nativeMakeForRSS(
       String shortName,
@@ -94,6 +99,7 @@ public class CHShuffleSplitterJniWrapper {
       int bufferSize,
       String codec,
       long spillThreshold,
+      String hashAlgorithm,
       Object pusher);
 
   public native void split(long splitterId, long block);

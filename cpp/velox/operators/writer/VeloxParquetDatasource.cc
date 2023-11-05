@@ -22,7 +22,7 @@
 #include <string>
 
 #include "arrow/c/bridge.h"
-#include "compute/VeloxExecutionCtx.h"
+#include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 
 #include "utils/VeloxArrowUtils.h"
@@ -51,12 +51,12 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     sink_ = std::make_unique<WriteFileSink>(hdfsFileSystem->openFileForWrite(pathSuffix), filePath_);
 #else
     throw std::runtime_error(
-        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox executionCtx!");
+        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox runtime!");
 #endif
 
   } else {
     throw std::runtime_error(
-        "The file path is not local or hdfs when writing data with parquet format in velox executionCtx!");
+        "The file path is not local or hdfs when writing data with parquet format in velox runtime!");
   }
 
   ArrowSchema cSchema{};

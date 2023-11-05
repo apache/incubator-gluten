@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <arrow/c/abi.h>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -28,6 +29,7 @@
 #include "compute/ProtobufUtils.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
+#include "shuffle/Options.h"
 #include "utils/exception.h"
 #include "velox/common/memory/Memory.h"
 #include "velox/dwio/common/tests/utils/DataFiles.h"
@@ -104,3 +106,5 @@ inline std::shared_ptr<gluten::ColumnarBatch> convertBatch(std::shared_ptr<glute
 bool endsWith(const std::string& data, const std::string& suffix);
 
 void setCpu(uint32_t cpuindex);
+
+arrow::Status setLocalDirsAndDataFileFromEnv(gluten::ShuffleWriterOptions& options);

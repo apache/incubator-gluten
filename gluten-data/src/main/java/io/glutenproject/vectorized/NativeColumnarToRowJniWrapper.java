@@ -16,28 +16,28 @@
  */
 package io.glutenproject.vectorized;
 
-import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.RuntimeAware;
+import io.glutenproject.exec.Runtimes;
 
-public class NativeColumnarToRowJniWrapper implements ExecutionCtxAware {
-  private final ExecutionCtx ctx;
+public class NativeColumnarToRowJniWrapper implements RuntimeAware {
+  private final Runtime runtime;
 
-  private NativeColumnarToRowJniWrapper(ExecutionCtx ctx) {
-    this.ctx = ctx;
+  private NativeColumnarToRowJniWrapper(Runtime runtime) {
+    this.runtime = runtime;
   }
 
   public static NativeColumnarToRowJniWrapper create() {
-    return new NativeColumnarToRowJniWrapper(ExecutionCtxs.contextInstance());
+    return new NativeColumnarToRowJniWrapper(Runtimes.contextInstance());
   }
 
-  public static NativeColumnarToRowJniWrapper forCtx(ExecutionCtx ctx) {
-    return new NativeColumnarToRowJniWrapper(ctx);
+  public static NativeColumnarToRowJniWrapper forRuntime(Runtime runtime) {
+    return new NativeColumnarToRowJniWrapper(runtime);
   }
 
   @Override
-  public long ctxHandle() {
-    return ctx.getHandle();
+  public long handle() {
+    return runtime.getHandle();
   }
 
   public native long nativeColumnarToRowInit(long memoryManagerHandle) throws RuntimeException;

@@ -16,28 +16,28 @@
  */
 package io.glutenproject.vectorized;
 
-import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.RuntimeAware;
+import io.glutenproject.exec.Runtimes;
 
-public class ColumnarBatchSerializerJniWrapper implements ExecutionCtxAware {
-  private final ExecutionCtx ctx;
+public class ColumnarBatchSerializerJniWrapper implements RuntimeAware {
+  private final Runtime runtime;
 
-  private ColumnarBatchSerializerJniWrapper(ExecutionCtx ctx) {
-    this.ctx = ctx;
+  private ColumnarBatchSerializerJniWrapper(Runtime runtime) {
+    this.runtime = runtime;
   }
 
   public static ColumnarBatchSerializerJniWrapper create() {
-    return new ColumnarBatchSerializerJniWrapper(ExecutionCtxs.contextInstance());
+    return new ColumnarBatchSerializerJniWrapper(Runtimes.contextInstance());
   }
 
-  public static ColumnarBatchSerializerJniWrapper forCtx(ExecutionCtx ctx) {
-    return new ColumnarBatchSerializerJniWrapper(ctx);
+  public static ColumnarBatchSerializerJniWrapper forRuntime(Runtime runtime) {
+    return new ColumnarBatchSerializerJniWrapper(runtime);
   }
 
   @Override
-  public long ctxHandle() {
-    return ctx.getHandle();
+  public long handle() {
+    return runtime.getHandle();
   }
 
   public native ColumnarBatchSerializeResult serialize(long[] handles, long memoryManagerHandle);

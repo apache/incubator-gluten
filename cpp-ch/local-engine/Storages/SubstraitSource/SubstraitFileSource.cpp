@@ -68,7 +68,7 @@ static DB::Block getRealHeader(const DB::Block & header)
 
 SubstraitFileSource::SubstraitFileSource(
     DB::ContextPtr context_, const DB::Block & header_, const substrait::ReadRel::LocalFiles & file_infos)
-    : DB::ISource(getRealHeader(header_), false), context(context_), output_header(header_)
+    : DB::SourceWithKeyCondition(getRealHeader(header_), false), context(context_), output_header(header_)
 {
     if (file_infos.items_size())
     {
@@ -123,13 +123,20 @@ SubstraitFileSource::SubstraitFileSource(
     }
 }
 
-void SubstraitFileSource::applyFilters(std::vector<SourceFilter> filters_) const
+void SubstraitFileSource::setKeyCondition(const DB::ActionsDAG::NodeRawConstPtrs & nodes, DB::ContextPtr context_)
 {
-    for (size_t i = 0; i < files.size(); ++i)
-    {
-        FormatFilePtr file = files[i];
-        file->setFilters(filters_);
-    }
+    const auto & keys = to_read_header;
+    std::unordered_map<std::string, DB::ColumnWithTypeAndName> node_name_to_input_column;
+    for (const auto & column : keys.getColumnsWithTypeAndName())
+        node_name_to_input_column.insert({column.name, column});
+
+    auto filter_actions_dag = DB::ActionsDAG::buildFilterActionsDAG(nodes, node_name_to_input_column, context);
+    key_condition = std::make_shared<const DB::KeyCondition>(
+        filter_actions_dag,
+        context_,
+        keys.getNames(),
+        std::make_shared<DB::ExpressionActions>(std::make_shared<DB::ActionsDAG>(keys.getColumnsWithTypeAndName())),
+        DB::NameSet{});
 }
 
 std::vector<String> SubstraitFileSource::getPartitionKeys() const
@@ -139,7 +146,7 @@ std::vector<String> SubstraitFileSource::getPartitionKeys() const
 
 DB::String SubstraitFileSource::getFileFormat() const
 {
-    return files.size() > 0 ? files[0]->getFileFormat() : "unknown";
+    return files.size() > 0 ? files[0]->getFileFormat() : "Unknown";
 }
 
 DB::Chunk SubstraitFileSource::generate()
@@ -208,6 +215,8 @@ bool SubstraitFileSource::tryPrepareReader()
     }
     else
         file_reader = std::make_unique<NormalFileReader>(current_file, context, to_read_header, flatten_output_header);
+
+    file_reader->applyKeyCondition(key_condition);
     return true;
 }
 
@@ -465,7 +474,6 @@ NormalFileReader::NormalFileReader(
     pipeline = std::make_unique<DB::QueryPipeline>(std::move(pipe));
     reader = std::make_unique<DB::PullingPipelineExecutor>(*pipeline);
 }
-
 
 bool NormalFileReader::pull(DB::Chunk & chunk)
 {

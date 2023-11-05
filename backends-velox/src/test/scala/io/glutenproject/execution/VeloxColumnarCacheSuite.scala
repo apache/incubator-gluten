@@ -40,6 +40,7 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.shuffle.partitions", "3")
+      .set(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, "true")
   }
 
   private def checkColumnarTableCache(plan: SparkPlan): Unit = {
@@ -162,6 +163,26 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
       } finally {
         cached.unpersist()
       }
+    }
+  }
+
+  test("Fix cache output if selectedAttributes has wrong ordering with cacheAttributes") {
+    withTempPath {
+      path =>
+        spark
+          .range(10)
+          .selectExpr("id as c1", "id % 3 as c2", "id % 5 as c3")
+          .write
+          .parquet(path.getCanonicalPath)
+
+        val df = spark.read.parquet(path.getCanonicalPath)
+        val expected = df.select("c3", "c2", "c1").collect()
+        try {
+          val result = df.cache().select("c3", "c2", "c1")
+          checkAnswer(result, expected)
+        } finally {
+          df.unpersist()
+        }
     }
   }
 }

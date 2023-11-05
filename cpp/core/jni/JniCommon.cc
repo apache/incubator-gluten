@@ -32,14 +32,14 @@ void gluten::JniCommonState::assertInitialized() {
   }
 }
 
-jmethodID gluten::JniCommonState::executionCtxAwareCtxHandle() {
+jmethodID gluten::JniCommonState::runtimeAwareCtxHandle() {
   assertInitialized();
-  return executionCtxAwareCtxHandle_;
+  return runtimeAwareCtxHandle_;
 }
 
 void gluten::JniCommonState::initialize(JNIEnv* env) {
-  executionCtxAwareClass_ = createGlobalClassReference(env, "Lio/glutenproject/exec/ExecutionCtxAware;");
-  executionCtxAwareCtxHandle_ = getMethodIdOrError(env, executionCtxAwareClass_, "ctxHandle", "()J");
+  runtimeAwareClass_ = createGlobalClassReference(env, "Lio/glutenproject/exec/RuntimeAware;");
+  runtimeAwareCtxHandle_ = getMethodIdOrError(env, runtimeAwareClass_, "handle", "()J");
   JavaVM* vm;
   if (env->GetJavaVM(&vm) != JNI_OK) {
     throw gluten::GlutenException("Unable to get JavaVM instance");
@@ -54,14 +54,14 @@ void gluten::JniCommonState::close() {
   }
   JNIEnv* env;
   attachCurrentThreadAsDaemonOrThrow(vm_, &env);
-  env->DeleteGlobalRef(executionCtxAwareClass_);
+  env->DeleteGlobalRef(runtimeAwareClass_);
   closed_ = true;
 }
 
-gluten::ExecutionCtx* gluten::getExecutionCtx(JNIEnv* env, jobject executionCtxAware) {
-  int64_t ctxHandle = env->CallLongMethod(executionCtxAware, getJniCommonState()->executionCtxAwareCtxHandle());
+gluten::Runtime* gluten::getRuntime(JNIEnv* env, jobject runtimeAware) {
+  int64_t ctxHandle = env->CallLongMethod(runtimeAware, getJniCommonState()->runtimeAwareCtxHandle());
   checkException(env);
-  auto ctx = reinterpret_cast<ExecutionCtx*>(ctxHandle);
+  auto ctx = reinterpret_cast<Runtime*>(ctxHandle);
   GLUTEN_CHECK(ctx != nullptr, "FATAL: resource instance should not be null.");
   return ctx;
 }

@@ -250,6 +250,8 @@
                     <ignoreClass>org.apache.spark.sql.execution.datasources.EmptyDirectoryDataWriter$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand$</ignoreClass>
 
                   </ignoreClasses>
                   <scopes>

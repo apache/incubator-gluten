@@ -17,7 +17,7 @@
 package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.exec.ExecutionCtxs
+import io.glutenproject.exec.Runtimes
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.ArrowAbiUtil
@@ -62,6 +62,8 @@ private class CelebornColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
+  private lazy val nmm = NativeMemoryManagers.contextInstance("ShuffleReader")
+
   private lazy val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
       .contextInstance()
@@ -83,7 +85,7 @@ private class CelebornColumnarBatchSerializerInstance(
       .create()
       .make(
         cSchema.memoryAddress(),
-        NativeMemoryManagers.contextInstance("ShuffleReader").getNativeInstanceHandle,
+        nmm.getNativeInstanceHandle,
         compressionCodec,
         compressionCodecBackend
       )
@@ -103,10 +105,11 @@ private class CelebornColumnarBatchSerializerInstance(
     new DeserializationStream {
       private lazy val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
       private lazy val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
-        ExecutionCtxs.contextInstance(),
+        Runtimes.contextInstance(),
         ShuffleReaderJniWrapper
           .create()
-          .readStream(shuffleReaderHandle, byteIn))
+          .readStream(shuffleReaderHandle, byteIn),
+        nmm)
 
       private var cb: ColumnarBatch = _
 

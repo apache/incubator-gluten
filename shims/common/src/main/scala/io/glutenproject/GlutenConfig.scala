@@ -256,6 +256,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableVeloxUserExceptionStacktrace: Boolean =
     conf.getConf(COLUMNAR_VELOX_ENABLE_USER_EXCEPTION_STACKTRACE)
 
+  def memoryUseHugePages: Boolean =
+    conf.getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
+
   def debug: Boolean = conf.getConf(DEBUG_LEVEL_ENABLED)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
   def taskPartitionId: Int = conf.getConf(BENCHMARK_TASK_PARTITIONID)
@@ -418,7 +421,8 @@ object GlutenConfig {
       GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
       GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
-      SQLConf.LEGACY_SIZE_OF_NULL.key
+      SQLConf.LEGACY_SIZE_OF_NULL.key,
+      "spark.io.compression.codec"
     )
     keys.forEach(
       k => {
@@ -480,7 +484,8 @@ object GlutenConfig {
       ("spark.hadoop.input.connect.timeout", "180000"),
       ("spark.hadoop.input.read.timeout", "180000"),
       ("spark.hadoop.input.write.timeout", "180000"),
-      ("spark.hadoop.dfs.client.log.severity", "INFO")
+      ("spark.hadoop.dfs.client.log.severity", "INFO"),
+      ("spark.sql.orc.compression.codec", "snappy")
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -698,7 +703,7 @@ object GlutenConfig {
       .internal()
       .doc("Enable or disable columnar table cache.")
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE =
     buildConf("spark.gluten.sql.columnar.physicalJoinOptimizationLevel")
@@ -1012,6 +1017,20 @@ object GlutenConfig {
       .intConf
       .createWithDefault(2)
 
+  val COLUMNAR_VELOX_GLOG_VERBOSE_LEVEL =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.glogVerboseLevel")
+      .internal()
+      .doc("Set glog verbose level in Velox backend, same as FLAGS_v.")
+      .intConf
+      .createWithDefault(0)
+
+  val COLUMNAR_VELOX_GLOG_SEVERITY_LEVEL =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel")
+      .internal()
+      .doc("Set glog severity level in Velox backend, same as FLAGS_minloglevel.")
+      .intConf
+      .createWithDefault(0)
+
   val COLUMNAR_VELOX_SPILL_STRATEGY =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
       .internal()
@@ -1177,6 +1196,13 @@ object GlutenConfig {
       .doc("Enable the stacktrace for user type of VeloxException")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.memoryUseHugePages")
+      .internal()
+      .doc("Use explicit huge pages for Velox memory allocation.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_VELOX_ENABLE_SYSTEM_EXCEPTION_STACKTRACE =
     buildConf("spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace")

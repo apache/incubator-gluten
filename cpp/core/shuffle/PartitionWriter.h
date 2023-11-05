@@ -17,10 +17,19 @@
 
 #pragma once
 
+#include "shuffle/Options.h"
 #include "shuffle/ShuffleWriter.h"
-#include "shuffle/options.h"
 
 namespace gluten {
+
+class EvictHandle {
+ public:
+  virtual ~EvictHandle() = default;
+
+  virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
+
+  virtual arrow::Status finish() = 0;
+};
 
 class ShuffleWriter::PartitionWriter {
  public:
@@ -29,11 +38,22 @@ class ShuffleWriter::PartitionWriter {
 
   virtual arrow::Status init() = 0;
 
-  virtual arrow::Status processPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
-
-  virtual arrow::Status spill() = 0;
-
   virtual arrow::Status stop() = 0;
+
+  /// Request next evict. The caller can use `requestNextEvict` to start a evict, and choose to call
+  /// `getEvictHandle()->evict()` immediately, or to call it latter somewhere else.
+  /// The caller can start new evict multiple times. Once it's called, the last `EvictHandle`
+  /// will be finished automatically.
+  /// \param flush Whether to flush the evicted data immediately. If it's false,
+  /// the data can be cached first.
+  virtual arrow::Status requestNextEvict(bool flush) = 0;
+
+  /// Get the current managed EvictHandle. Returns nullptr if the current EvictHandle was finished,
+  /// or requestNextEvict has not been called.
+  /// \return
+  virtual EvictHandle* getEvictHandle() = 0;
+
+  virtual arrow::Status finishEvict() = 0;
 
   ShuffleWriter* shuffleWriter_;
 };

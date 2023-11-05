@@ -87,7 +87,7 @@ public class Parameterized implements Callable<Integer> {
         // matcher2.matches
         dimName = matcher2.group(1);
         dimValueName = matcher2.group(0);
-        confText = matcher1.group(2).substring(1); // trim leading ","
+        confText = matcher2.group(2).substring(1); // trim leading ","
       }
 
       final List<Map.Entry<String, String>> options = new ArrayList<>();

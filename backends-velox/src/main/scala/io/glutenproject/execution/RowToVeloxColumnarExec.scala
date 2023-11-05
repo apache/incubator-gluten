@@ -18,10 +18,10 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.velox.ValidatorApiImpl
 import io.glutenproject.columnarbatch.ColumnarBatches
-import io.glutenproject.exec.ExecutionCtxs
+import io.glutenproject.exec.Runtimes
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
-import io.glutenproject.utils.ArrowAbiUtil
+import io.glutenproject.utils.{ArrowAbiUtil, Iterators}
 import io.glutenproject.vectorized._
 
 import org.apache.spark.rdd.RDD
@@ -93,7 +93,6 @@ object RowToVeloxColumnarExec {
     val jniWrapper = NativeRowToColumnarJniWrapper.create()
     val allocator = ArrowBufferAllocators.contextInstance()
     val cSchema = ArrowSchema.allocateNew(allocator)
-    var closed = false
     val r2cHandle =
       try {
         ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
@@ -106,22 +105,15 @@ object RowToVeloxColumnarExec {
         cSchema.close()
       }
 
-    TaskResources.addRecycler(s"RowToColumnar_$r2cHandle", 100) {
-      if (!closed) {
-        jniWrapper.close(r2cHandle)
-        closed = true
-      }
-    }
-
     val res: Iterator[ColumnarBatch] = new Iterator[ColumnarBatch] {
+      var finished = false
 
       override def hasNext: Boolean = {
-        val itHasNext = it.hasNext
-        if (!itHasNext && !closed) {
-          jniWrapper.close(r2cHandle)
-          closed = true
+        if (finished) {
+          false
+        } else {
+          it.hasNext
         }
-        itHasNext
       }
 
       def nativeConvert(row: UnsafeRow): ColumnarBatch = {
@@ -154,31 +146,36 @@ object RowToVeloxColumnarExec {
         rowLength += sizeInBytes.toLong
         rowCount += 1
 
-        while (rowCount < columnBatchSize && it.hasNext) {
-          val row = it.next()
-          val unsafeRow = convertToUnsafeRow(row)
-          val sizeInBytes = unsafeRow.getSizeInBytes
-          if ((offset + sizeInBytes) > arrowBuf.capacity()) {
-            val tmpBuf = allocator.buffer(((offset + sizeInBytes) * 2).toLong)
-            tmpBuf.setBytes(0, arrowBuf, 0, offset)
-            arrowBuf.close()
-            arrowBuf = tmpBuf
+        while (rowCount < columnBatchSize && !finished) {
+          val iterHasNext = it.hasNext
+          if (!iterHasNext) {
+            finished = true
+          } else {
+            val row = it.next()
+            val unsafeRow = convertToUnsafeRow(row)
+            val sizeInBytes = unsafeRow.getSizeInBytes
+            if ((offset + sizeInBytes) > arrowBuf.capacity()) {
+              val tmpBuf = allocator.buffer(((offset + sizeInBytes) * 2).toLong)
+              tmpBuf.setBytes(0, arrowBuf, 0, offset)
+              arrowBuf.close()
+              arrowBuf = tmpBuf
+            }
+            Platform.copyMemory(
+              unsafeRow.getBaseObject,
+              unsafeRow.getBaseOffset,
+              null,
+              arrowBuf.memoryAddress() + offset,
+              sizeInBytes)
+            offset += sizeInBytes
+            rowLength += sizeInBytes.toLong
+            rowCount += 1
           }
-          Platform.copyMemory(
-            unsafeRow.getBaseObject,
-            unsafeRow.getBaseOffset,
-            null,
-            arrowBuf.memoryAddress() + offset,
-            sizeInBytes)
-          offset += sizeInBytes
-          rowLength += sizeInBytes.toLong
-          rowCount += 1
         }
         numInputRows += rowCount
         try {
           val handle = jniWrapper
             .nativeConvertRowToColumnar(r2cHandle, rowLength.toArray, arrowBuf.memoryAddress())
-          ColumnarBatches.create(ExecutionCtxs.contextInstance(), handle)
+          ColumnarBatches.create(Runtimes.contextInstance(), handle)
         } finally {
           arrowBuf.close()
           arrowBuf = null
@@ -205,6 +202,12 @@ object RowToVeloxColumnarExec {
         cb
       }
     }
-    new CloseableColumnBatchIterator(res)
+    Iterators
+      .wrap(res)
+      .recycleIterator {
+        jniWrapper.close(r2cHandle)
+      }
+      .recyclePayload(_.close())
+      .create()
   }
 }

@@ -124,13 +124,13 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
 
   // Get the input schema of this iterator.
   uint64_t colNum = 0;
-  std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> subTypeList;
+  std::vector<velox::TypePtr> veloxTypeList;
   if (sread.has_base_schema()) {
     const auto& baseSchema = sread.base_schema();
     // Input names is not used. Instead, new input/output names will be created
     // because the ValueStreamNode in Velox does not support name change.
     colNum = baseSchema.names().size();
-    subTypeList = SubstraitParser::parseNamedStruct(baseSchema);
+    veloxTypeList = SubstraitParser::parseNamedStruct(baseSchema);
   }
 
   std::vector<std::string> outNames;
@@ -140,10 +140,6 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
     outNames.emplace_back(colName);
   }
 
-  std::vector<velox::TypePtr> veloxTypeList;
-  for (auto subType : subTypeList) {
-    veloxTypeList.push_back(toVeloxType(subType->type));
-  }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
   auto vectorStream = std::make_shared<RowVectorStream>(pool_, std::move(inputIters_[iterIdx]), outputType);
   auto valuesNode = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(vectorStream));

@@ -16,7 +16,7 @@
  */
 
 #include <benchmark/benchmark.h>
-#include <compute/VeloxExecutionCtx.h>
+#include <compute/VeloxRuntime.h>
 
 #include "benchmarks/common/BenchmarkUtils.h"
 #include "compute/VeloxPlanConverter.h"
@@ -34,18 +34,15 @@ const std::string getFilePath(const std::string& fileName) {
 
 // Used by unit test and benchmark.
 std::shared_ptr<ResultIterator> getResultIterator(
-    std::shared_ptr<velox::memory::MemoryPool> veloxPool,
-    ExecutionCtx* executionCtx,
+    VeloxMemoryManager* memoryManager,
+    Runtime* runtime,
     const std::vector<std::shared_ptr<SplitInfo>>& setScanInfos,
     std::shared_ptr<const facebook::velox::core::PlanNode>& veloxPlan) {
-  auto ctxPool = veloxPool->addAggregateChild(
-      "query_benchmark_result_iterator", facebook::velox::memory::MemoryReclaimer::create());
-
   std::vector<std::shared_ptr<ResultIterator>> inputIter;
   std::unordered_map<std::string, std::string> sessionConf = {};
   auto veloxPlanConverter =
       std::make_unique<VeloxPlanConverter>(inputIter, defaultLeafVeloxMemoryPool().get(), sessionConf);
-  veloxPlan = veloxPlanConverter->toVeloxPlan(executionCtx->getPlan());
+  veloxPlan = veloxPlanConverter->toVeloxPlan(runtime->getPlan());
 
   // In test, use setScanInfos to replace the one got from Substrait.
   std::vector<std::shared_ptr<SplitInfo>> scanInfos;
@@ -53,21 +50,20 @@ std::shared_ptr<ResultIterator> getResultIterator(
   std::vector<velox::core::PlanNodeId> streamIds;
 
   // Separate the scan ids and stream ids, and get the scan infos.
-  VeloxExecutionCtx::getInfoAndIds(
+  VeloxRuntime::getInfoAndIds(
       veloxPlanConverter->splitInfos(), veloxPlan->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-      ctxPool,
+      memoryManager,
       veloxPlan,
       scanIds,
       setScanInfos,
       streamIds,
       "/tmp/test-spill",
-      executionCtx->getConfMap(),
-      executionCtx->getSparkTaskInfo());
-  auto iter = std::make_shared<ResultIterator>(std::move(wholestageIter), executionCtx);
-  auto handle = executionCtx->addResultIterator(iter);
-  return executionCtx->getResultIterator(handle);
+      runtime->getConfMap(),
+      runtime->getSparkTaskInfo());
+  auto iter = std::make_shared<ResultIterator>(std::move(wholestageIter), runtime);
+  return iter;
 }
 
 auto BM = [](::benchmark::State& state,
@@ -78,8 +74,7 @@ auto BM = [](::benchmark::State& state,
   auto plan = getPlanFromFile(filePath);
 
   auto memoryManager = getDefaultMemoryManager();
-  auto executionCtx = ExecutionCtx::create(kVeloxExecutionCtxKind);
-  auto veloxPool = memoryManager->getAggregateMemoryPool();
+  auto runtime = Runtime::create(kVeloxRuntimeKind);
 
   std::vector<std::shared_ptr<SplitInfo>> scanInfos;
   scanInfos.reserve(datasetPaths.size());
@@ -95,9 +90,9 @@ auto BM = [](::benchmark::State& state,
     state.PauseTiming();
     state.ResumeTiming();
 
-    executionCtx->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
+    runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
     std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan;
-    auto resultIter = getResultIterator(veloxPool, executionCtx, scanInfos, veloxPlan);
+    auto resultIter = getResultIterator(memoryManager.get(), runtime, scanInfos, veloxPlan);
     auto outputSchema = toArrowSchema(veloxPlan->outputType(), defaultLeafVeloxMemoryPool().get());
     while (resultIter->hasNext()) {
       auto array = resultIter->next()->exportArrowArray();
@@ -109,7 +104,7 @@ auto BM = [](::benchmark::State& state,
       std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
     }
   }
-  ExecutionCtx::release(executionCtx);
+  Runtime::release(runtime);
 };
 
 #define orc_reader_decimal 1

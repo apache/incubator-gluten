@@ -16,6 +16,8 @@
  */
 
 #include "shuffle/Utils.h"
+#include "Options.h"
+#include "utils/StringUtil.h"
 
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -37,31 +39,6 @@ std::string gluten::getSpilledShuffleFileDir(const std::string& configuredDir, i
   ss << std::setfill('0') << std::setw(2) << std::hex << subDirId;
   auto dir = arrow::fs::internal::ConcatAbstractPath(configuredDir, ss.str());
   return dir;
-}
-
-arrow::Result<std::vector<std::string>> gluten::getConfiguredLocalDirs() {
-  auto joinedDirsC = std::getenv(kGlutenSparkLocalDirs.c_str());
-  if (joinedDirsC != nullptr && strcmp(joinedDirsC, "") > 0) {
-    auto joinedDirs = std::string(joinedDirsC);
-    std::string delimiter = ",";
-
-    size_t pos;
-    std::vector<std::string> res;
-    while ((pos = joinedDirs.find(delimiter)) != std::string::npos) {
-      auto dir = joinedDirs.substr(0, pos);
-      if (dir.length() > 0) {
-        res.push_back(std::move(dir));
-      }
-      joinedDirs.erase(0, pos + delimiter.length());
-    }
-    if (joinedDirs.length() > 0) {
-      res.push_back(std::move(joinedDirs));
-    }
-    return res;
-  } else {
-    ARROW_ASSIGN_OR_RAISE(auto arrow_tmp_dir, arrow::internal::TemporaryDir::Make("columnar-shuffle-"));
-    return std::vector<std::string>{arrow_tmp_dir->path().ToString()};
-  }
 }
 
 arrow::Result<std::string> gluten::createTempShuffleFile(const std::string& dir) {
@@ -139,11 +116,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> gluten::toShuffleWr
 }
 
 int64_t gluten::getBufferSizes(const std::shared_ptr<arrow::Array>& array) {
-  const auto& buffers = array->data()->buffers;
-  return std::accumulate(
-      std::cbegin(buffers), std::cend(buffers), 0LL, [](int64_t sum, const std::shared_ptr<arrow::Buffer>& buf) {
-        return buf == nullptr ? sum : sum + buf->size();
-      });
+  return gluten::getBufferSizes(array->data()->buffers);
 }
 
 int64_t gluten::getBufferSizes(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
@@ -153,11 +126,13 @@ int64_t gluten::getBufferSizes(const std::vector<std::shared_ptr<arrow::Buffer>>
       });
 }
 
-arrow::Status gluten::writeEos(arrow::io::OutputStream* os) {
+arrow::Status gluten::writeEos(arrow::io::OutputStream* os, int64_t* bytes) {
   // write EOS
-  constexpr int32_t kIpcContinuationToken = -1;
-  constexpr int32_t kZeroLength = 0;
-  RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(int32_t)));
-  RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(int32_t)));
+  static constexpr int32_t kIpcContinuationToken = -1;
+  static constexpr int32_t kZeroLength = 0;
+  static const int64_t kSizeOfEos = sizeof(kIpcContinuationToken) + sizeof(kZeroLength);
+  RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(kIpcContinuationToken)));
+  RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(kZeroLength)));
+  *bytes = kSizeOfEos;
   return arrow::Status::OK();
 }

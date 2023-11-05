@@ -78,13 +78,9 @@ class CHRowSplitter extends GlutenRowSplitter {
       row: FakeRow,
       partitionColIndice: Array[Int],
       hasBucket: Boolean): CHBlockStripes = {
-    val nextBatch = row.batch
-
-    if (nextBatch.numRows > 0) {
-      val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
-      new CHBlockStripes(
-        CHDatasourceJniWrapper
-          .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket))
-    } else throw new IllegalStateException
+    val col = row.batch.column(0).asInstanceOf[CHColumnVector]
+    new CHBlockStripes(
+      CHDatasourceJniWrapper
+        .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket))
   }
 }

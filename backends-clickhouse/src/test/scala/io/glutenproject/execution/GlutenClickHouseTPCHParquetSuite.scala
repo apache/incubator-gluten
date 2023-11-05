@@ -1206,7 +1206,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  test("test 'cast null value'") {
+  ignore("test 'cast null value' -- due to https://github.com/ClickHouse/ClickHouse/pull/55146") {
     val sql = "select cast(x as double), cast(x as float), cast(x as string), cast(x as binary)," +
       "cast(x as long), cast(x as int), cast(x as short), cast(x as byte), cast(x as boolean)," +
       "cast(x as date), cast(x as timestamp), cast(x as decimal(10, 2)) from " +
@@ -2004,6 +2004,14 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("GLUTEN-3501: test json output format with struct contains null value") {
+    val sql =
+      """
+        |select to_json(struct(cast(id as string), null, id, 1.1, 1.1f, 1.1d)) from range(3)
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("GLUTEN-3216: invalid read rel schema in aggregation") {
     val sql =
       """
@@ -2067,6 +2075,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
                 |     select n_regionkey, cast(n_nationkey as float) as x from  nation
                 |   )t1
                 | )t2""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test in-filter contains null value (bigint)") {
+    val sql = "select s_nationkey from supplier where s_nationkey in (null, 1, 2)"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test in-filter contains null value (string)") {
+    val sql = "select n_name from nation where n_name in ('CANADA', null, 'BRAZIL')"
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
@@ -2139,6 +2157,62 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       spark.sql("drop table test_tbl_left_3134")
       spark.sql("drop table test_tbl_right_3134")
     }
+  }
+
+  test("GLUTEN-3534: Fix incorrect logic of judging whether supports pre-project for the shuffle") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      runQueryAndCompare(
+        s"""
+           |select t1.l_orderkey, t2.o_orderkey, extract(year from t1.l_shipdate), t2.o_year,
+           |t1.l_cnt, t2.o_cnt
+           |from (
+           |  select l_orderkey, l_shipdate, count(1) as l_cnt
+           |  from lineitem
+           |  group by l_orderkey, l_shipdate) t1
+           |join (
+           |  select o_orderkey, extract(year from o_orderdate) as o_year, count(1) as o_cnt
+           |  from orders
+           |  group by o_orderkey, o_orderdate) t2
+           |on t1.l_orderkey = t2.o_orderkey
+           | and extract(year from t1.l_shipdate) = o_year
+           |order by t1.l_orderkey, t2.o_orderkey
+           |limit 100
+           |
+           |""".stripMargin,
+        true,
+        true
+      )(df => {})
+
+      runQueryAndCompare(
+        s"""
+           |select t1.l_orderkey, t2.o_orderkey, extract(year from t1.l_shipdate), t2.o_year
+           |from (
+           |  select l_orderkey, l_shipdate, count(1) as l_cnt
+           |  from lineitem
+           |  group by l_orderkey, l_shipdate) t1
+           |join (
+           |  select o_orderkey, extract(year from o_orderdate) as o_year, count(1) as o_cnt
+           |  from orders
+           |  group by o_orderkey, o_orderdate) t2
+           |on t1.l_orderkey = t2.o_orderkey
+           | and extract(year from t1.l_shipdate) = o_year
+           |order by t1.l_orderkey, t2.o_orderkey
+           |limit 100
+           |
+           |""".stripMargin,
+        true,
+        true
+      )(df => {})
+    }
+  }
+
+  test("GLUTEN-3467: Fix 'Names of tuple elements must be unique' error for ch backend") {
+    val sql =
+      """
+        |select named_struct('a', r_regionkey, 'b', r_name, 'a', r_comment) as mergedValue
+        |from region
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 }
 // scalastyle:on line.size.limit

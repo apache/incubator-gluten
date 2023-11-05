@@ -14,26 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <Parser/aggregate_function_parser/CommonAggregateFunctionParser.h>
 #include <Parser/AggregateFunctionParser.h>
 
 
 namespace local_engine
 {
-
-#define REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(cls_name, substait_name, ch_name) \
-    class AggregateFunctionParser##cls_name : public AggregateFunctionParser \
-    { \
-    public: \
-        AggregateFunctionParser##cls_name(SerializedPlanParser * plan_parser_) : AggregateFunctionParser(plan_parser_) \
-        { \
-        } \
-        ~AggregateFunctionParser##cls_name() override = default; \
-        String getName() const override { return  #substait_name; } \
-        static constexpr auto name = #substait_name; \
-        String getCHFunctionName(const CommonFunctionInfo &) const override { return #ch_name; } \
-        String getCHFunctionName(const DB::DataTypes &) const override { return #ch_name; } \
-    }; \
-    static const AggregateFunctionParserRegister<AggregateFunctionParser##cls_name> register_##cls_name = AggregateFunctionParserRegister<AggregateFunctionParser##cls_name>();
 
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Sum, sum, sum)
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(Avg, avg, avg)

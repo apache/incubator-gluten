@@ -23,8 +23,11 @@
 
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
-#include "shuffle/options.h"
-#include "utils/compression.h"
+#include "memory/Evictable.h"
+#include "shuffle/Options.h"
+#include "shuffle/Partitioner.h"
+#include "shuffle/Partitioning.h"
+#include "utils/Compression.h"
 
 namespace gluten {
 
@@ -82,13 +85,9 @@ class ShuffleMemoryPool : public arrow::MemoryPool {
   uint64_t bytesAllocated_ = 0;
 };
 
-class ShuffleWriter {
+class ShuffleWriter : public Evictable {
  public:
   static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;
-  /**
-   * Evict fixed size of partition data from memory
-   */
-  virtual arrow::Status evictFixedSize(int64_t size, int64_t* actual) = 0;
 
   virtual arrow::Status split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 
@@ -99,10 +98,6 @@ class ShuffleWriter {
   virtual arrow::Status evictPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
 
   virtual arrow::Status stop() = 0;
-
-  virtual std::shared_ptr<arrow::Schema> writeSchema();
-
-  virtual std::shared_ptr<arrow::Schema> compressWriteSchema();
 
   virtual std::shared_ptr<arrow::Schema>& schema() {
     return schema_;
@@ -176,8 +171,6 @@ class ShuffleWriter {
 
   class PartitionWriter;
 
-  class Partitioner;
-
   class PartitionWriterCreator;
 
  protected:
@@ -193,6 +186,10 @@ class ShuffleWriter {
 
   virtual ~ShuffleWriter() = default;
 
+  std::shared_ptr<arrow::Schema> writeSchema();
+
+  std::shared_ptr<arrow::Schema> compressWriteSchema();
+
   int32_t numPartitions_;
 
   std::shared_ptr<PartitionWriterCreator> partitionWriterCreator_;
@@ -207,7 +204,6 @@ class ShuffleWriter {
   int64_t totalWriteTime_ = 0;
   int64_t totalEvictTime_ = 0;
   int64_t totalCompressTime_ = 0;
-  int64_t peakMemoryAllocated_ = 0;
 
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_; // Uncompressed size.

@@ -19,10 +19,10 @@ package org.apache.spark.sql.execution.utils
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
+import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToRowInfo, NativeColumnarToRowJniWrapper, NativePartitioning}
 
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
-import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.ColumnarShuffleDependency
@@ -35,7 +35,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{IntegerType, StructType}
 import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
-import org.apache.spark.util.{MutablePair, TaskResources}
+import org.apache.spark.util.MutablePair
 
 object ExecUtil {
 
@@ -49,35 +49,27 @@ object ExecUtil {
         .getNativeInstanceHandle)
     info = jniWrapper.nativeColumnarToRowConvert(batchHandle, c2rHandle)
 
-    new Iterator[InternalRow] {
-      var rowId = 0
-      val row = new UnsafeRow(batch.numCols())
-      var closed = false
+    Iterators
+      .wrap(new Iterator[InternalRow] {
+        var rowId = 0
+        val row = new UnsafeRow(batch.numCols())
 
-      TaskResources.addRecycler(s"ColumnarToRow_$c2rHandle", 100) {
-        if (!closed) {
-          jniWrapper.nativeClose(c2rHandle)
-          closed = true
+        override def hasNext: Boolean = {
+          rowId < batch.numRows()
         }
-      }
 
-      override def hasNext: Boolean = {
-        val result = rowId < batch.numRows()
-        if (!result && !closed) {
-          jniWrapper.nativeClose(c2rHandle)
-          closed = true
+        override def next: UnsafeRow = {
+          if (rowId >= batch.numRows()) throw new NoSuchElementException
+          val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
+          row.pointTo(null, info.memoryAddress + offset, length.toInt)
+          rowId += 1
+          row
         }
-        result
+      })
+      .recycleIterator {
+        jniWrapper.nativeClose(c2rHandle)
       }
-
-      override def next: UnsafeRow = {
-        if (rowId >= batch.numRows()) throw new NoSuchElementException
-        val (offset, length) = (info.offsets(rowId), info.lengths(rowId))
-        row.pointTo(null, info.memoryAddress + offset, length.toInt)
-        rowId += 1
-        row
-      }
-    }
+      .create()
   }
 
   // scalastyle:off argcount
@@ -125,29 +117,31 @@ object ExecUtil {
     // only used for fallback range partitioning
     def computeAndAddPartitionId(
         cbIter: Iterator[ColumnarBatch],
-        partitionKeyExtractor: InternalRow => Any): CloseablePairedColumnarBatchIterator = {
-      CloseablePairedColumnarBatchIterator {
-        cbIter
-          .filter(cb => cb.numRows != 0 && cb.numCols != 0)
-          .map {
-            cb =>
-              val pidVec = ArrowWritableColumnVector
-                .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
-                .head
-              convertColumnarToRow(cb).zipWithIndex.foreach {
-                case (row, i) =>
-                  val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
-                  pidVec.putInt(i, pid)
-              }
-              val pidBatch = ColumnarBatches.ensureOffloaded(
-                ArrowBufferAllocators.contextInstance(),
-                new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows))
-              val newHandle = ColumnarBatches.compose(pidBatch, cb)
-              // Composed batch already hold pidBatch's shared ref, so close is safe.
-              ColumnarBatches.forceClose(pidBatch)
-              (0, ColumnarBatches.create(ColumnarBatches.getExecutionCtx(cb), newHandle))
-          }
-      }
+        partitionKeyExtractor: InternalRow => Any): Iterator[(Int, ColumnarBatch)] = {
+      Iterators
+        .wrap(
+          cbIter
+            .filter(cb => cb.numRows != 0 && cb.numCols != 0)
+            .map {
+              cb =>
+                val pidVec = ArrowWritableColumnVector
+                  .allocateColumns(cb.numRows, new StructType().add("pid", IntegerType))
+                  .head
+                convertColumnarToRow(cb).zipWithIndex.foreach {
+                  case (row, i) =>
+                    val pid = rangePartitioner.get.getPartition(partitionKeyExtractor(row))
+                    pidVec.putInt(i, pid)
+                }
+                val pidBatch = ColumnarBatches.ensureOffloaded(
+                  ArrowBufferAllocators.contextInstance(),
+                  new ColumnarBatch(Array[ColumnVector](pidVec), cb.numRows))
+                val newHandle = ColumnarBatches.compose(pidBatch, cb)
+                // Composed batch already hold pidBatch's shared ref, so close is safe.
+                ColumnarBatches.forceClose(pidBatch)
+                (0, ColumnarBatches.create(ColumnarBatches.getRuntime(cb), newHandle))
+            })
+        .recyclePayload(p => ColumnarBatches.forceClose(p._2)) // FIXME why force close?
+        .create()
     }
 
     val nativePartitioning: NativePartitioning = newPartitioning match {
@@ -181,11 +175,6 @@ object ExecUtil {
               row => projection(row)
             }
             val newIter = computeAndAddPartitionId(cbIter, partitionKeyExtractor)
-
-            TaskResources.addRecycler("RangePartitioningIter", 100) {
-              newIter.closeColumnBatch()
-            }
-
             newIter
           },
           isOrderSensitive = isOrderSensitive
@@ -211,35 +200,4 @@ object ExecUtil {
 }
 private[spark] class PartitionIdPassthrough(override val numPartitions: Int) extends Partitioner {
   override def getPartition(key: Any): Int = key.asInstanceOf[Int]
-}
-case class CloseablePairedColumnarBatchIterator(iter: Iterator[(Int, ColumnarBatch)])
-  extends Iterator[(Int, ColumnarBatch)]
-  with Logging {
-
-  private var cur: (Int, ColumnarBatch) = _
-
-  override def hasNext: Boolean = {
-    iter.hasNext
-  }
-
-  override def next(): (Int, ColumnarBatch) = {
-    closeColumnBatch()
-    if (iter.hasNext) {
-      cur = iter.next()
-      cur
-    } else {
-      closeColumnBatch()
-      Iterator.empty.next()
-    }
-  }
-
-  def closeColumnBatch(): Unit = {
-    if (cur != null) {
-      logDebug("Close appended partition id vector")
-      cur match {
-        case (_, cb: ColumnarBatch) => ColumnarBatches.forceClose(cb)
-      }
-      cur = null
-    }
-  }
 }

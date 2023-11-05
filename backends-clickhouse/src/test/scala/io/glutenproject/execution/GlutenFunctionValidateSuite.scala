@@ -68,7 +68,6 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.shuffle.manager", "sort")
       .set("spark.io.compression.codec", "snappy")
@@ -444,6 +443,27 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   test("test cast float string to int") {
     runQueryAndCompare(
       "select cast(concat(cast(id as string), '.1') as int) from range(10)"
+    )(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("test cast string to float") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
+        (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select cast('7.921901' as float), cast('7.921901' as double)",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test round issue: https://github.com/oap-project/gluten/issues/3462") {
+    runQueryAndCompare(
+      "select round(0.41875d * id , 4) from range(10);"
+    )(checkOperatorMatch[ProjectExecTransformer])
+
+    runQueryAndCompare(
+      "select round(0.41875f * id , 4) from range(10);"
     )(checkOperatorMatch[ProjectExecTransformer])
   }
 }

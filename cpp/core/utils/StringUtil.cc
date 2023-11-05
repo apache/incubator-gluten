@@ -24,6 +24,9 @@
 #include "exception.h"
 
 std::vector<std::string> gluten::splitByDelim(const std::string& s, const char delimiter) {
+  if (s.empty()) {
+    return {};
+  }
   std::vector<std::string> result;
   size_t start = 0;
   size_t end = s.find(delimiter);
@@ -38,13 +41,16 @@ std::vector<std::string> gluten::splitByDelim(const std::string& s, const char d
   return result;
 }
 
-std::vector<std::string> gluten::splitPaths(const std::string& s) {
+std::vector<std::string> gluten::splitPaths(const std::string& s, bool checkExists) {
+  if (s.empty()) {
+    return {};
+  }
   auto splits = splitByDelim(s, ',');
   std::vector<std::string> paths;
   for (auto i = 0; i < splits.size(); ++i) {
     if (!splits[i].empty()) {
       std::filesystem::path path(splits[i]);
-      if (!std::filesystem::exists(path)) {
+      if (checkExists && !std::filesystem::exists(path)) {
         throw gluten::GlutenException("File path not exists: " + splits[i]);
       }
       if (path.is_relative()) {

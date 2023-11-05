@@ -17,6 +17,7 @@
 package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocators
 import io.glutenproject.memory.memtarget.{MemoryTarget, Spiller}
 import io.glutenproject.vectorized._
@@ -100,7 +101,8 @@ class CHColumnarShuffleWriter[K, V](
         localDirs,
         subDirsPerLocalDir,
         preferSpill,
-        spillThreshold
+        spillThreshold,
+        CHBackendSettings.shuffleHashAlgorithm
       )
       CHNativeMemoryAllocators.createSpillable(
         "ShuffleWriter",

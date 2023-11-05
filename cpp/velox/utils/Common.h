@@ -22,6 +22,7 @@
 #include <string>
 
 #include "velox/common/base/SimdUtil.h"
+#include "velox/common/time/CpuWallTimer.h"
 
 namespace gluten {
 
@@ -34,15 +35,17 @@ static inline void fastCopy(void* dst, const void* src, size_t n) {
   facebook::velox::simd::memcpy(dst, src, n);
 }
 
-#define START_TIMING(timing) \
-  {                          \
-    auto ptiming = &timing;  \
-    facebook::velox::DeltaCpuWallTimer timer{[ptiming](const CpuWallTiming& delta) { ptiming->add(delta); }};
+#define START_TIMING(timing)                  \
+  {                                           \
+    auto ptiming = &timing;                   \
+    facebook::velox::DeltaCpuWallTimer timer{ \
+        [ptiming](const facebook::velox::CpuWallTiming& delta) { ptiming->add(delta); }};
 
 #define END_TIMING() }
 
-#define SCOPED_TIMER(timing) \
-  auto ptiming = &timing;    \
-  facebook::velox::DeltaCpuWallTimer timer{[ptiming](const CpuWallTiming& delta) { ptiming->add(delta); }};
+#define SCOPED_TIMER(timing)                \
+  auto ptiming = &timing;                   \
+  facebook::velox::DeltaCpuWallTimer timer{ \
+      [ptiming](const facebook::velox::CpuWallTiming& delta) { ptiming->add(delta); }};
 
 } // namespace gluten

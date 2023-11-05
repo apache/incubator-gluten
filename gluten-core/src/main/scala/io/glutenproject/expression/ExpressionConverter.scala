@@ -19,6 +19,7 @@ package io.glutenproject.expression
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{ColumnarToRowExecBase, WholeStageTransformer}
+import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.test.TestStats
 import io.glutenproject.utils.DecimalArithmeticUtil
 
@@ -78,7 +79,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
     logDebug(
-      s"replaceWithExpressionTransformer expr: $expr class: ${expr.getClass}} " +
+      s"replaceWithExpressionTransformer expr: $expr class: ${expr.getClass} " +
         s"name: ${expr.prettyName}")
 
     expr match {
@@ -402,9 +403,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(expr.children.head, attributeSeq),
           expr)
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
-        if (!conf.decimalOperationsAllowPrecisionLoss) {
+        // PrecisionLoss=true: velox support / ch not support
+        // PrecisionLoss=false: velox not support / ch support
+        // TODO ch support PrecisionLoss=true
+        if (!BackendsApiManager.getSettings.allowDecimalArithmetic) {
           throw new UnsupportedOperationException(
-            s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} false mode")
+            s"Not support ${SQLConf.DECIMAL_OPERATIONS_ALLOW_PREC_LOSS.key} " +
+              s"${conf.decimalOperationsAllowPrecisionLoss} mode")
         }
         val rescaleBinary = if (BackendsApiManager.getSettings.rescaleDecimalLiteral) {
           DecimalArithmeticUtil.rescaleLiteral(b)
@@ -460,16 +465,16 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         // get WholeStageTransformer directly
         case c2r: ColumnarToRowExecBase => c2r.child
         // in fallback case
-        case codeGen: WholeStageCodegenExec =>
-          if (codeGen.child.isInstanceOf[ColumnarToRowExec]) {
+        case plan: UnaryExecNode if !plan.isInstanceOf[GlutenPlan] =>
+          if (plan.child.isInstanceOf[ColumnarToRowExec]) {
             val wholeStageTransformer = exchange.find(_.isInstanceOf[WholeStageTransformer])
             if (wholeStageTransformer.nonEmpty) {
               wholeStageTransformer.get
             } else {
-              BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(codeGen)
+              BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(plan)
             }
           } else {
-            BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(codeGen)
+            BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(plan)
           }
       }
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
