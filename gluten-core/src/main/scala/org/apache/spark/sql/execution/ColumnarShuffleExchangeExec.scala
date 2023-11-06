@@ -129,7 +129,7 @@ case class ColumnarShuffleExchangeExec(
   }
 
   override def getShuffleRDD(partitionSpecs: Array[ShufflePartitionSpec]): RDD[ColumnarBatch] = {
-    cachedShuffleRDD
+    new ShuffledColumnarBatchRDD(columnarShuffleDependency, readMetrics, partitionSpecs)
   }
 
   override def stringArgs: Iterator[Any] =

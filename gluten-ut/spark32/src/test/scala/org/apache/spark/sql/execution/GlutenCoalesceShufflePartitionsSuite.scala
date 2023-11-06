@@ -21,7 +21,7 @@ import org.apache.spark.internal.config.IO_ENCRYPTION_ENABLED
 import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.sql.{GlutenTestsCommonTrait, QueryTest, Row, SparkSession}
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ColumnarAQEShuffleReadExec, QueryStageExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, QueryStageExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 import org.apache.spark.sql.functions.{col, max}
 import org.apache.spark.sql.internal.SQLConf
@@ -29,12 +29,6 @@ import org.apache.spark.sql.internal.SQLConf
 class GlutenCoalesceShufflePartitionsSuite
   extends CoalesceShufflePartitionsSuite
   with GlutenTestsCommonTrait {
-
-  object ColumnarCoalescedShuffleRead {
-    def unapply(read: ColumnarAQEShuffleReadExec): Boolean = {
-      !read.isLocalRead && !read.hasSkewedPartition && read.hasCoalescedPartition
-    }
-  }
 
   override protected def afterAll(): Unit = {}
 
@@ -99,10 +93,7 @@ class GlutenCoalesceShufflePartitionsSuite
         assert(finalPlan.collect {
           case ShuffleQueryStageExec(_, r: ReusedExchangeExec, _) => r
         }.length == 2)
-        assert(finalPlan.collect {
-          case r @ CoalescedShuffleRead() => r
-          case c @ ColumnarCoalescedShuffleRead() => c
-        }.length == 3)
+        assert(finalPlan.collect { case r @ CoalescedShuffleRead() => r }.length == 3)
 
         // test case 2: a query stage has 2 parent stages.
         // Final Stage 3
@@ -133,10 +124,7 @@ class GlutenCoalesceShufflePartitionsSuite
         level1Stages.foreach(
           qs =>
             assert(
-              qs.plan.collect {
-                case r @ CoalescedShuffleRead() => r
-                case c @ ColumnarCoalescedShuffleRead() => c
-              }.length == 1,
+              qs.plan.collect { case r @ CoalescedShuffleRead() => r }.length == 1,
               "Wrong CoalescedShuffleRead below " + qs.simpleString(3)
             ))
 
@@ -156,31 +144,6 @@ class GlutenCoalesceShufflePartitionsSuite
         assert(reusedStages.length == 1)
     }
     withSparkSession(test, 400, None)
-  }
-
-  test(GLUTEN_TEST + "SPARK-34790: enable IO encryption in AQE partition coalescing") {
-    val test: SparkSession => Unit = {
-      spark: SparkSession =>
-        val ds = spark.range(0, 100, 1, numInputPartitions)
-        val resultDf = ds.repartition(ds.col("id"))
-        resultDf.collect()
-
-        val finalPlan = resultDf.queryExecution.executedPlan
-          .asInstanceOf[AdaptiveSparkPlanExec]
-          .executedPlan
-        assert(
-          finalPlan
-            .collect {
-              case r @ CoalescedShuffleRead() => r
-              case c @ ColumnarCoalescedShuffleRead() => c
-            }
-            .isDefinedAt(0))
-    }
-    Seq(true, false).foreach {
-      enableIOEncryption =>
-        // Before SPARK-34790, it will throw an exception when io encryption enabled.
-        withSparkSession(test, Int.MaxValue, None, enableIOEncryption)
-    }
   }
 
   Seq(Some(5), None).foreach {
@@ -208,11 +171,7 @@ class GlutenCoalesceShufflePartitionsSuite
             val finalPlan = agg.queryExecution.executedPlan
               .asInstanceOf[AdaptiveSparkPlanExec]
               .executedPlan
-            val shuffleReads = finalPlan.collect {
-              case r @ CoalescedShuffleRead() => r
-              // Added for gluten.
-              case r @ ColumnarCoalescedShuffleRead() => r
-            }
+            val shuffleReads = finalPlan.collect { case r @ CoalescedShuffleRead() => r }
 
             minNumPostShufflePartitions match {
               case Some(numPartitions) =>
@@ -255,11 +214,7 @@ class GlutenCoalesceShufflePartitionsSuite
             val finalPlan = join.queryExecution.executedPlan
               .asInstanceOf[AdaptiveSparkPlanExec]
               .executedPlan
-            val shuffleReads = finalPlan.collect {
-              case r @ CoalescedShuffleRead() => r
-              // Added for gluten.
-              case r @ ColumnarCoalescedShuffleRead() => r
-            }
+            val shuffleReads = finalPlan.collect { case r @ CoalescedShuffleRead() => r }
 
             minNumPostShufflePartitions match {
               case Some(numPartitions) =>
@@ -308,11 +263,7 @@ class GlutenCoalesceShufflePartitionsSuite
             val finalPlan = join.queryExecution.executedPlan
               .asInstanceOf[AdaptiveSparkPlanExec]
               .executedPlan
-            val shuffleReads = finalPlan.collect {
-              case r @ CoalescedShuffleRead() => r
-              // Added for gluten.
-              case r @ ColumnarCoalescedShuffleRead() => r
-            }
+            val shuffleReads = finalPlan.collect { case r @ CoalescedShuffleRead() => r }
 
             minNumPostShufflePartitions match {
               case Some(numPartitions) =>
@@ -362,11 +313,7 @@ class GlutenCoalesceShufflePartitionsSuite
             val finalPlan = join.queryExecution.executedPlan
               .asInstanceOf[AdaptiveSparkPlanExec]
               .executedPlan
-            val shuffleReads = finalPlan.collect {
-              case r @ CoalescedShuffleRead() => r
-              // Added for gluten.
-              case r @ ColumnarCoalescedShuffleRead() => r
-            }
+            val shuffleReads = finalPlan.collect { case r @ CoalescedShuffleRead() => r }
 
             minNumPostShufflePartitions match {
               case Some(numPartitions) =>
@@ -411,11 +358,7 @@ class GlutenCoalesceShufflePartitionsSuite
               val finalPlan = join.queryExecution.executedPlan
                 .asInstanceOf[AdaptiveSparkPlanExec]
                 .executedPlan
-              val shuffleReads = finalPlan.collect {
-                case r @ CoalescedShuffleRead() => r
-                // Added for gluten.
-                case r @ ColumnarCoalescedShuffleRead() => r
-              }
+              val shuffleReads = finalPlan.collect { case r @ CoalescedShuffleRead() => r }
               assert(shuffleReads.length === 0)
             } finally {
               spark.sql("drop table t")

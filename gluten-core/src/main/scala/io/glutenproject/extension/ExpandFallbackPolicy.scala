@@ -17,7 +17,6 @@
 package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.BroadcastHashJoinExecTransformer
 import io.glutenproject.extension.columnar.TransformHints
 
@@ -25,11 +24,11 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarShuffleExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, SparkPlan, UnaryExecNode}
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, BroadcastQueryStageExec, ColumnarAQEShuffleReadExec, QueryStageExec, ShuffleQueryStageExec}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, BroadcastQueryStageExec, QueryStageExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.ExecutedCommandExec
-import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
+import org.apache.spark.sql.execution.exchange.Exchange
 
 // spotless:off
 /**
@@ -229,23 +228,11 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
 
   private def fallbackToRowBasedPlan(): SparkPlan = {
     val transformPostOverrides = TransformPostOverrides(isAdaptiveContext)
-    val planWithReplacedAQERead = originalPlan.transform {
-      case plan: AQEShuffleReadExec
-          if BackendsApiManager.getSettings.supportColumnarShuffleExec() =>
-        plan.child match {
-          case ShuffleQueryStageExec(_, _: ColumnarShuffleExchangeExec, _) =>
-            ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs)
-          case ShuffleQueryStageExec(_, ReusedExchangeExec(_, _: ColumnarShuffleExchangeExec), _) =>
-            ColumnarAQEShuffleReadExec(plan.child, plan.partitionSpecs)
-          case _ =>
-            plan
-        }
-    }
-    val planWithColumnarToRow = InsertTransitions.insertTransitions(planWithReplacedAQERead, false)
+    val planWithColumnarToRow = InsertTransitions.insertTransitions(originalPlan, false)
     planWithColumnarToRow.transform {
       case c2r @ ColumnarToRowExec(_: ShuffleQueryStageExec) =>
         transformPostOverrides.transformColumnarToRowExec(c2r)
-      case c2r @ ColumnarToRowExec(_: ColumnarAQEShuffleReadExec) =>
+      case c2r @ ColumnarToRowExec(_: AQEShuffleReadExec) =>
         transformPostOverrides.transformColumnarToRowExec(c2r)
       // `InMemoryTableScanExec` itself supports columnar to row
       case ColumnarToRowExec(child: SparkPlan)
