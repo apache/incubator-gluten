@@ -89,7 +89,7 @@ case class RandomParquetDataGenerator(initialSeed: Long = 0L) {
       schema: StructType,
       numRows: Int,
       outputPath: String): Unit = {
-    val data = (0 until numRows).map(_ => generateRow(schema, 0))
+    val data = (0 until numRows).map(_ => generateRow(schema, faker.random().nextDouble()))
     val df = spark.createDataFrame(spark.sparkContext.parallelize(data), schema)
     df.coalesce(1)
       .write
@@ -119,7 +119,7 @@ case class RandomParquetDataGenerator(initialSeed: Long = 0L) {
     () => StructField(fieldName, FloatType, nullable = true),
     () => StructField(fieldName, DoubleType, nullable = true),
     () => StructField(fieldName, DateType, nullable = true),
-    //    () => StructField(fieldName, TimestampType, nullable = true),
+//    () => StructField(fieldName, TimestampType, nullable = true),
     () => StructField(fieldName, DecimalType(10, 2), nullable = true)
   )
 
