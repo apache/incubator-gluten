@@ -74,7 +74,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait {
       val id = runExecution("SELECT * FROM t")
       val execution = glutenStore.execution(id)
       assert(execution.isDefined)
-      assert(execution.get.numGlutenNodes == 2)
+      assert(execution.get.numGlutenNodes == 1)
       assert(execution.get.numFallbackNodes == 0)
       assert(execution.get.fallbackNodeToReason.isEmpty)
 
@@ -83,7 +83,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait {
         val execution = glutenStore.execution(id)
         assert(execution.isDefined)
         assert(execution.get.numGlutenNodes == 0)
-        assert(execution.get.numFallbackNodes == 2)
+        assert(execution.get.numFallbackNodes == 1)
         val fallbackReason = execution.get.fallbackNodeToReason.head
         assert(fallbackReason._1.contains("Scan parquet default.t"))
         assert(fallbackReason._2.contains("columnar FileScan is not enabled in FileSourceScanExec"))

@@ -2014,6 +2014,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SELECT structFieldSimple.key, arrayFieldSimple[1] FROM tableWithSchema a where int_Field=1")
     .exclude("SELECT structFieldComplex.Value.`value_(2)` FROM tableWithSchema")
   enableSuite[SparkFunctionStatistics]
-
+  enableSuite[GlutenImplicitsTest]
+    .exclude("fallbackSummary with shuffle")
+    .exclude("fallbackSummary with cache")
+    .exclude("fallbackSummary with cached data and shuffle")
 }
 // scalastyle:on line.size.limit
