@@ -32,41 +32,4 @@ case class CustomAggExpressionTransformer() extends ExpressionExtensionTrait {
 
   /** Generate the extension expressions list, format: Sig[XXXExpression]("XXXExpressionName") */
   override def expressionSigList: Seq[Sig] = expressionSigs
-
-  /** Get the attribute index of the extension aggregate functions. */
-  override def getAttrsForExtensionAggregateExpr(
-      aggregateFunc: AggregateFunction,
-      mode: AggregateMode,
-      exp: AggregateExpression,
-      aggregateAttributeList: Seq[Attribute],
-      aggregateAttr: ListBuffer[Attribute],
-      resIndex: Int): Int = {
-    var reIndex = resIndex
-    aggregateFunc match {
-      case CustomSum(_, _) =>
-        mode match {
-          case Partial | PartialMerge =>
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            if (aggBufferAttr.size == 2) {
-              // decimal sum check sum.resultType
-              aggregateAttr += ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-              val isEmptyAttr = ConverterUtils.getAttrFromExpr(aggBufferAttr(1))
-              aggregateAttr += isEmptyAttr
-              reIndex += 2
-              reIndex
-            } else {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-              aggregateAttr += attr
-              reIndex += 1
-              reIndex
-            }
-          case Final =>
-            aggregateAttr += aggregateAttributeList(reIndex)
-            reIndex += 1
-            reIndex
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-    }
-  }
 }

@@ -34,7 +34,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.sketch.BloomFilter
 
 import com.google.protobuf.Any
 
@@ -417,195 +416,47 @@ abstract class HashAggregateExecBaseTransformer(
     var resIndex = index
     val mode = exp.mode
     val aggregateFunc = exp.aggregateFunction
-    aggregateFunc match {
-      case extendedAggFunc
-          if ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
-            extendedAggFunc.getClass) =>
-        // get attributes from the extended aggregate functions
-        ExpressionMappings.expressionExtensionTransformer
-          .getAttrsForExtensionAggregateExpr(
-            aggregateFunc,
-            mode,
-            exp,
-            aggregateAttributeList,
-            aggregateAttr,
-            index)
-      case _: Average | _: First | _: Last =>
-        mode match {
-          case Partial | PartialMerge =>
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += 2
-            resIndex
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-            resIndex
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+    if (!checkAggFuncModeSupport(aggregateFunc, mode)) {
+      throw new UnsupportedOperationException(
+        s"Unsupported aggregate mode: $mode for ${aggregateFunc.prettyName}")
+    }
+    mode match {
+      case Partial | PartialMerge =>
+        val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
+        for (index <- aggBufferAttr.indices) {
+          val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+          aggregateAttr += attr
         }
-      case Sum(_, _) =>
-        mode match {
-          case Partial | PartialMerge =>
-            val sum = aggregateFunc.asInstanceOf[Sum]
-            val aggBufferAttr = sum.inputAggBufferAttributes
-            if (aggBufferAttr.size == 2) {
-              // decimal sum check sum.resultType
-              aggregateAttr += ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-              val isEmptyAttr = ConverterUtils.getAttrFromExpr(aggBufferAttr(1))
-              aggregateAttr += isEmptyAttr
-              resIndex += 2
-              resIndex
-            } else {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-              aggregateAttr += attr
-              resIndex += 1
-              resIndex
-            }
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-            resIndex
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case Count(_) =>
-        mode match {
-          case Partial | PartialMerge =>
-            val count = aggregateFunc.asInstanceOf[Count]
-            val aggBufferAttr = count.inputAggBufferAttributes
-            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-            aggregateAttr += attr
-            resIndex += 1
-            resIndex
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-            resIndex
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case _: Max | _: Min | _: BitAndAgg | _: BitOrAgg | _: BitXorAgg =>
-        mode match {
-          case Partial | PartialMerge =>
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            assert(
-              aggBufferAttr.size == 1,
-              s"Aggregate function $aggregateFunc expects one buffer attribute.")
-            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-            aggregateAttr += attr
-            resIndex += 1
-            resIndex
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-            resIndex
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case _: Corr =>
-        mode match {
-          case Partial | PartialMerge =>
-            val expectedBufferSize = 6
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            assert(
-              aggBufferAttr.size == expectedBufferSize,
-              s"Aggregate function $aggregateFunc" +
-                s" expects $expectedBufferSize buffer attribute.")
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += expectedBufferSize
-            resIndex
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-            resIndex
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case _: CovPopulation | _: CovSample =>
-        mode match {
-          case Partial | PartialMerge =>
-            val expectedBufferSize = 4
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            assert(
-              aggBufferAttr.size == expectedBufferSize,
-              s"Aggregate function $aggregateFunc" +
-                s" expects $expectedBufferSize buffer attributes.")
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += expectedBufferSize
-            resIndex
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-            resIndex
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
-        mode match {
-          case Partial | PartialMerge =>
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += 3
-            resIndex
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-            resIndex
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case bloom if bloom.getClass.getSimpleName.equals("BloomFilterAggregate") =>
-        // for spark33
-        mode match {
-          case Partial =>
-            val bloom = aggregateFunc.asInstanceOf[TypedImperativeAggregate[BloomFilter]]
-            val aggBufferAttr = bloom.inputAggBufferAttributes
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += aggBufferAttr.size
-            resIndex
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-            resIndex
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
+        resIndex += aggBufferAttr.size
+        resIndex
+      case Final =>
+        aggregateAttr += aggregateAttributeList(resIndex)
+        resIndex += 1
+        resIndex
+      case other =>
+        throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+    }
+  }
+
+  protected def checkAggFuncModeSupport(
+      aggFunc: AggregateFunction,
+      mode: AggregateMode): Boolean = {
+    aggFunc match {
       case _: CollectList | _: CollectSet =>
         mode match {
-          case Partial =>
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += aggBufferAttr.size
-            resIndex
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-            resIndex
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+          case Partial | Final => true
+          case _ => false
         }
-      case other =>
-        throw new UnsupportedOperationException(
-          s"Unsupported aggregate function in getAttrForAggregateExpr")
+      case bloom if bloom.getClass.getSimpleName.equals("BloomFilterAggregate") =>
+        mode match {
+          case Partial | Final => true
+          case _ => false
+        }
+      case _ =>
+        mode match {
+          case Partial | PartialMerge | Final => true
+          case _ => false
+        }
     }
   }
 
