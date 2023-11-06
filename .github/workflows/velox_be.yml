@@ -437,6 +437,18 @@ jobs:
             -d=OFFHEAP_SIZE:3g,spark.memory.offHeap.size=3g \
             -d=OVER_ACQUIRE:0.3,spark.gluten.memory.overAcquiredMemoryRatio=0.3 \
             -d=OVER_ACQUIRE:0.5,spark.gluten.memory.overAcquiredMemoryRatio=0.5' || true
+      - name: (To be fixed) TPC-DS SF30.0 Parquet local spark3.2 Q23A/Q23B low memory
+        run: |
+          docker exec centos7-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
+          GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh parameterized \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a -s=30.0 --threads=8 --shuffle-partitions=72 --iterations=1 \
+            --skip-data-gen -m=OffHeapExecutionMemory \
+            -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
+            -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
+            -d=OFFHEAP_SIZE:2g,spark.memory.offHeap.size=2g \
+            -d=PARTIAL_MODE:ABANDONED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
+            -d=PARTIAL_MODE:CACHED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=1.0,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 \
+            -d=PARTIAL_MODE:FLUSHED,spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio=0.05,spark.gluten.sql.columnar.backend.velox.maxExtendedPartialAggregationMemoryRatio=0.1,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct=100,spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows=0 || true
       - name: Exit docker container
         if: ${{ always() }}
         run: |
