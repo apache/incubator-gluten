@@ -19,10 +19,7 @@ package io.glutenproject.execution.extension
 import io.glutenproject.expression._
 import io.glutenproject.extension.ExpressionExtensionTrait
 
-import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-
-import scala.collection.mutable.ListBuffer
 
 case class CustomAggExpressionTransformer() extends ExpressionExtensionTrait {
 
