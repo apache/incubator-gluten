@@ -1005,4 +1005,27 @@ class GlutenClickHouseHiveTableSuite()
       )
     }
   }
+
+  test("GLUTEN-3552: Bug fix csv field whitespaces") {
+    val data_path = rootPath + "/text-data/field_whitespaces"
+    spark.sql(s"""
+                 | CREATE TABLE test_tbl_3552(
+                 | a string,
+                 | b string,
+                 | c string)
+                 | ROW FORMAT SERDE
+                 |  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
+                 |WITH SERDEPROPERTIES (
+                 |   'field.delim'=','
+                 | )
+                 | STORED AS INPUTFORMAT
+                 |  'org.apache.hadoop.mapred.TextInputFormat'
+                 |OUTPUTFORMAT
+                 |  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+                 |LOCATION '$data_path'
+                 |""".stripMargin)
+    val select_sql = "select * from test_tbl_3552"
+    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    spark.sql("DROP TABLE test_tbl_3552")
+  }
 }
