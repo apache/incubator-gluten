@@ -1160,71 +1160,45 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
   arrow::Status VeloxShuffleWriter::allocatePartitionBuffer(uint32_t partitionId, uint32_t newSize) {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingAllocateBuffer]);
 
-    // try to allocate new
-    auto numFields = schema_->num_fields();
-    assert(numFields == arrowColumnTypes_.size());
+    for (auto i = 0; i < simpleColumnIndices_.size(); ++i) {
+      auto columnType = schema_->field(simpleColumnIndices_[i])->type()->id();
+      auto& buffers = partitionBuffers_[i][partitionId];
 
-    auto fixedWidthIdx = 0;
-    auto binaryIdx = 0;
-    for (auto i = 0; i < numFields; ++i) {
-      switch (arrowColumnTypes_[i]->id()) {
+      std::shared_ptr<arrow::ResizableBuffer> validityBuffer{};
+      ARROW_ASSIGN_OR_RAISE(validityBuffer, allocateValidityBuffer(i, partitionId, newSize));
+      switch (columnType) {
+        // binary types
         case arrow::BinaryType::type_id:
         case arrow::StringType::type_id: {
-          std::shared_ptr<arrow::ResizableBuffer> validityBuffer{};
+          auto binaryIdx = i - fixedWidthColumnCount_;
+
           std::shared_ptr<arrow::ResizableBuffer> lengthBuffer{};
-          std::shared_ptr<arrow::ResizableBuffer> valueBuffer{};
-
-          auto columnIdx = fixedWidthColumnCount_ + binaryIdx;
-          ARROW_ASSIGN_OR_RAISE(validityBuffer, allocateValidityBuffer(columnIdx, partitionId, newSize));
-
-          auto valueBufferSize = valueBufferSizeForBinaryArray(binaryIdx, newSize);
           auto lengthBufferSize = newSize * kSizeOfBinaryArrayLengthBuffer;
-
-          auto& buffers = partitionBuffers_[columnIdx][partitionId];
-          ARROW_ASSIGN_OR_RAISE(
-              valueBuffer, arrow::AllocateResizableBuffer(valueBufferSize, partitionBufferPool_.get()));
           ARROW_ASSIGN_OR_RAISE(
               lengthBuffer, arrow::AllocateResizableBuffer(lengthBufferSize, partitionBufferPool_.get()));
+
+          std::shared_ptr<arrow::ResizableBuffer> valueBuffer{};
+          auto valueBufferSize = valueBufferSizeForBinaryArray(binaryIdx, newSize);
+          ARROW_ASSIGN_OR_RAISE(
+              valueBuffer, arrow::AllocateResizableBuffer(valueBufferSize, partitionBufferPool_.get()));
+
           partitionBinaryAddrs_[binaryIdx][partitionId] =
               BinaryBuf(valueBuffer->mutable_data(), lengthBuffer->mutable_data(), valueBufferSize);
           buffers = {std::move(validityBuffer), std::move(lengthBuffer), std::move(valueBuffer)};
-
-          binaryIdx++;
           break;
         }
-        case arrow::StructType::type_id:
-        case arrow::MapType::type_id:
-        case arrow::ListType::type_id:
-          break;
-        default: {
-          std::shared_ptr<arrow::ResizableBuffer> validityBuffer{};
+        default: { // fixed-width types
           std::shared_ptr<arrow::ResizableBuffer> valueBuffer{};
-
-          ARROW_ASSIGN_OR_RAISE(validityBuffer, allocateValidityBuffer(fixedWidthIdx, partitionId, newSize));
-
-          int64_t valueBufferSize = 0;
-          if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
-            valueBufferSize = arrow::bit_util::BytesForBits(newSize);
-          } else if (veloxColumnTypes_[i]->isShortDecimal()) {
-            valueBufferSize = newSize * (arrow::bit_width(arrow::Int64Type::type_id) >> 3);
-          } else if (veloxColumnTypes_[i]->kind() == facebook::velox::TypeKind::TIMESTAMP) {
-            valueBufferSize = facebook::velox::BaseVector::byteSize<facebook::velox::Timestamp>(newSize);
-          } else {
-            valueBufferSize = newSize * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3);
-          }
-
-          auto& buffers = partitionBuffers_[fixedWidthIdx][partitionId];
           ARROW_ASSIGN_OR_RAISE(
-              valueBuffer, arrow::AllocateResizableBuffer(valueBufferSize, partitionBufferPool_.get()));
-          partitionFixedWidthValueAddrs_[fixedWidthIdx][partitionId] = valueBuffer->mutable_data();
+              valueBuffer,
+              arrow::AllocateResizableBuffer(
+                  valueBufferSizeForFixedWidthArray(i, newSize), partitionBufferPool_.get()));
+          partitionFixedWidthValueAddrs_[i][partitionId] = valueBuffer->mutable_data();
           buffers = {std::move(validityBuffer), std::move(valueBuffer)};
-
-          fixedWidthIdx++;
           break;
         }
       }
     }
-
     partition2BufferSize_[partitionId] = newSize;
     return arrow::Status::OK();
   }
