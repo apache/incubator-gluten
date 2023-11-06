@@ -24,6 +24,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFor
 
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
+import org.apache.spark.sql.catalyst.plans.{LeftOuter, LeftSemi, RightOuter}
 import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
@@ -209,7 +210,7 @@ object BackendSettings extends BackendSettingsApi {
           //  The file should be removed and we temporarily disable the improvement
           //  introduced by OPPRO-266 by commenting out the following prerequisite
           //  condition.
-//          case LeftOuter | LeftSemi => true
+          case LeftOuter | LeftSemi => true
           case _ => false
         }
       }
@@ -226,7 +227,7 @@ object BackendSettings extends BackendSettingsApi {
           //  The file should be removed and we temporarily disable the improvement
           //  introduced by OPPRO-266 by commenting out the following prerequisite
           //  condition.
-//          case RightOuter => true
+          case RightOuter => true
           case _ => false
         }
       }
