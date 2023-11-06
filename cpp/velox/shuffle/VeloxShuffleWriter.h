@@ -279,7 +279,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> generateComplexTypeBuffers(facebook::velox::RowVectorPtr vector);
 
-  arrow::Status resetValidityBuffer(uint32_t buffers);
+  arrow::Status resetValidityBuffer(uint32_t partitionId);
 
   arrow::Result<int64_t> shrinkPartitionBuffersMinSize(int64_t size);
 
