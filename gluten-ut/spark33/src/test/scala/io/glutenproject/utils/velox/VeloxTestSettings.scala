@@ -1164,5 +1164,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHiveSQLQuerySuite]
     // ReaderFactory is not registered for format orc.
     .exclude("hive orc scan")
+  enableSuite[GlutenImplicitsTest]
 }
 // scalastyle:on line.size.limit
