@@ -53,9 +53,12 @@ inline void appendToStringOrVector(PaddedPODArray<UInt8> & s, ReadBuffer & rb, c
         s.insert(rb.position(), end);
 }
 
-template <typename Vector>
-void readExcelCSVQuoteString(Vector & s, ReadBuffer & buf, const char /*delimiter*/, const String & escape_value, const char & quote)
+template <typename Vector, bool include_quotes>
+void readExcelCSVQuoteString(Vector & s, ReadBuffer & buf, const char delimiter, const String & escape_value, const char & quote)
 {
+    if constexpr (include_quotes)
+        s.push_back(quote);
+
     /// The quoted case. We are looking for the next quotation mark.
     while (!buf.eof())
     {
@@ -64,16 +67,11 @@ void readExcelCSVQuoteString(Vector & s, ReadBuffer & buf, const char /*delimite
         [&]()
         {
 #ifdef __SSE2__
-            auto rc = _mm_set1_epi8('\r');
-            auto nc = _mm_set1_epi8('\n');
-//            auto dc = _mm_set1_epi8(delimiter);
             auto qe = _mm_set1_epi8(quote);
             for (; next_pos + 15 < buf.buffer().end(); next_pos += 16)
             {
                 __m128i bytes = _mm_loadu_si128(reinterpret_cast<const __m128i *>(next_pos));
-                auto eq = _mm_or_si128(
-                    _mm_or_si128(_mm_cmpeq_epi8(bytes, rc), _mm_cmpeq_epi8(bytes, nc)),
-                    _mm_cmpeq_epi8(bytes, qe));
+                auto eq = _mm_cmpeq_epi8(bytes, qe);
                 if (!escape_value.empty())
                 {
                     eq = _mm_or_si128(eq, _mm_cmpeq_epi8(bytes, _mm_set1_epi8(escape_value[0])));
@@ -105,26 +103,25 @@ void readExcelCSVQuoteString(Vector & s, ReadBuffer & buf, const char /*delimite
 //                    }
 //                }
 #endif
-            while (next_pos < buf.buffer().end() && *next_pos != '\r' && *next_pos != '\n' && *next_pos != quote)
+            while (next_pos < buf.buffer().end() && *next_pos != quote)
             {
-                if (!escape_value.empty())
-                    if (*next_pos == escape_value[0])
-                        break;
+                if (!escape_value.empty() && *next_pos == escape_value[0])
+                    break;
 
                 ++next_pos;
             }
         }();
 
-        //        if (buf.position() != next_pos)
-        //        {
-        appendToStringOrVector(s, buf, next_pos);
-        //        }
+        if (buf.position() != next_pos)
+        {
+            appendToStringOrVector(s, buf, next_pos);
+        }
 
         if (!escape_value.empty() && escape_value[0] == *next_pos)
         {
             next_pos++;
 
-            if (next_pos < buf.buffer().end())
+            if (next_pos != buf.buffer().end())
             {
                 if (*next_pos == quote || *next_pos == escape_value[0])
                     s.push_back(*next_pos);
@@ -143,11 +140,21 @@ void readExcelCSVQuoteString(Vector & s, ReadBuffer & buf, const char /*delimite
         if (!buf.hasPendingData())
             continue;
 
-        if (!buf.eof() && *buf.position() == quote)
+        if (!buf.eof())
         {
-            buf.position()++;
-            return;
+            auto end_char = *buf.position();
+            if (end_char == quote)
+                buf.position()++;
+
+            if (!buf.eof() && *buf.position() != delimiter && *buf.position() != '\r' && *buf.position() != '\n')
+            {
+                s.push_back(end_char);
+                continue;
+            }
         }
+
+        if constexpr (include_quotes)
+            s.push_back(quote);
 
         return;
     }
@@ -171,7 +178,10 @@ void readExcelCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::
     if ((settings.allow_single_quotes && maybe_quote == '\'') || (settings.allow_double_quotes && maybe_quote == '"'))
     {
         ++buf.position();
-        readExcelCSVQuoteString(s, buf, delimiter, escape_value, maybe_quote);
+        if (!buf.eof() && *buf.position() == '{' && *(buf.position() + 1) == maybe_quote)
+            readExcelCSVQuoteString<Vector, true>(s, buf, delimiter, escape_value, maybe_quote);
+        else
+            readExcelCSVQuoteString(s, buf, delimiter, escape_value, maybe_quote);
     }
     else
     {

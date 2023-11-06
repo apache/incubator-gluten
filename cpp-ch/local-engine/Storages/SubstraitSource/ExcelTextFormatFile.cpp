@@ -237,7 +237,7 @@ bool ExcelTextFormatReader::readField(
 
     /// Note: Tuples are serialized in CSV as separate columns, but with empty_as_default or null_as_default
     /// only one empty or NULL column will be expected
-    if (format_settings.csv.empty_as_default && (at_delimiter || at_last_column_line_end))
+    if ((at_delimiter || at_last_column_line_end) && (format_settings.csv.empty_as_default || !isStringOrFixedString(removeNullable(type))))
     {
         /// Treat empty unquoted column value as default value, if
         /// specified in the settings. Tuple columns might seem
