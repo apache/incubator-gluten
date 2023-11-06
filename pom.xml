@@ -219,6 +219,15 @@
       </modules>
     </profile>
     <profile>
+      <id>delta</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>gluten-delta</module>
+      </modules>
+    </profile>
+    <profile>
       <id>backends-velox</id>
       <activation>
         <activeByDefault>false</activeByDefault>

@@ -810,6 +810,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => FallbackEmptySchemaRelation(),
         (_: SparkSession) => AddTransformHintRule(),
         (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
+        (spark: SparkSession) => RewriteTransformer(spark),
         (_: SparkSession) => EnsureLocalSortRequirements
       ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::

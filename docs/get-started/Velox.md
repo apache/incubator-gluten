@@ -254,6 +254,26 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 spark.dynamicAllocation.enabled false
 ```
 
+## DeltaLake Support
+
+Gluten with velox backend supports [DeltaLake](https://delta.io/) table.
+
+### How to use
+
+First of all, compile gluten-delta module by a `delta` profile, as follows:
+
+```
+mvn clean package -Pbackends-velox -Pspark-3.3 -Pdelta -DskipTests
+```
+
+Then, put the additional gluten-delta jar to the class path (usually it's `$SPARK_HOME/jars`).
+The gluten-delta jar is in `gluten-delta/target` directory.
+
+After the two steps, you can query delta table by gluten/velox without scan's fallback.
+
+Gluten with velox backends also support the column mapping of delta tables.
+About column mapping, see more [here](https://docs.delta.io/latest/delta-column-mapping.html).
+
 # Coverage
 Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 94 functions and 14 operators, more details refer to [Velox Backend's Supported Operators & Functions](../velox-backend-support-progress.md).
 

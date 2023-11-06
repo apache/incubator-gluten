@@ -39,6 +39,9 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   protected val fileFormat: String
   protected val logLevel: String = "WARN"
 
+  protected val TPCHTableNames: Seq[String] =
+    Seq("customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier")
+
   protected var TPCHTables: Map[String, DataFrame] = _
 
   private val isFallbackCheckDisabled0 = new AtomicBoolean(false)
@@ -61,15 +64,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   }
 
   protected def createTPCHNotNullTables(): Unit = {
-    TPCHTables = Seq(
-      "customer",
-      "lineitem",
-      "nation",
-      "orders",
-      "part",
-      "partsupp",
-      "region",
-      "supplier").map {
+    TPCHTables = TPCHTableNames.map {
       table =>
         val tableDir = getClass.getResource(resourcePath).getFile
         val tablePath = new File(tableDir, table).getAbsolutePath
