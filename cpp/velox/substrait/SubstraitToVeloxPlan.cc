@@ -1116,7 +1116,7 @@ void SubstraitToVeloxPlanConverter::extractJoinKeys(
       if (funcName == "and") {
         expressions.push_back(&args[0].value());
         expressions.push_back(&args[1].value());
-      } else if (funcName == "eq" || funcName == "equalto" || funcName == "decimal_eq") {
+      } else if (funcName == "eq" || funcName == "equalto" || funcName == "decimal_equalto") {
         VELOX_CHECK(std::all_of(args.cbegin(), args.cend(), [](const ::substrait::FunctionArgument& arg) {
           return arg.value().has_selection();
         }));
