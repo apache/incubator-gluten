@@ -198,6 +198,9 @@
                     <ignoreClass>org.apache.spark.unused.UnusedStubClass</ignoreClass>
                     <!-- jdo -->
                     <ignoreClass>javax.jdo.*</ignoreClass>
+                    <!-- javax -->
+                    <ignoreClass>javax.transaction.*</ignoreClass>
+                    <ignoreClass>javax.xml.*</ignoreClass>
                     <!-- log4j -->
                     <ignoreClass>org.apache.commons.logging.*</ignoreClass>
                     <!-- hive -->
