@@ -441,7 +441,7 @@ jobs:
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
           GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh parameterized \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a -s=30.0 --threads=8 --shuffle-partitions=72 --iterations=1 \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --queries=q23a,q23b -s=30.0 --threads=8 --shuffle-partitions=72 --iterations=1 \
             --skip-data-gen -m=OffHeapExecutionMemory \
             -d=ISOLATION:OFF,spark.gluten.memory.isolation=false \
             -d=ISOLATION:ON,spark.gluten.memory.isolation=true,spark.memory.storageFraction=0.1 \
