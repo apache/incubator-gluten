@@ -70,7 +70,7 @@ cd /path/to/gluten
 
 **Build Velox separately**
 
-Scripts under `/path/to/gluten/ep/build-xxx/src` provide `get_xxx.sh` and `build_xxx.sh` to build Velox separately, you could use these scripts with custom repo/branch/location.
+Scripts under `/path/to/gluten/ep/build-velox/src` provide `get_velox.sh` and `build_velox.sh` to build Velox separately, you could use these scripts with custom repo/branch/location.
 
 Velox provides arrow/parquet lib. Gluten cpp module need a required VELOX_HOME parsed by --velox_home, if you specify custom ep location, make sure these variables be passed correctly.
 
@@ -79,7 +79,7 @@ Velox provides arrow/parquet lib. Gluten cpp module need a required VELOX_HOME p
 cd /path/to/gluten/ep/build-velox/src/
 ## you could use custom ep location by --velox_home=custom_path, make sure specify --velox_home in build_velox.sh too.
 ./get_velox.sh
-## make sure specify --velox_home if you have specified it in get_xxx.sh.
+## make sure specify --velox_home if you have specified it in get_velox.sh.
 ./build_velox.sh
 
 ## compile Gluten cpp module
