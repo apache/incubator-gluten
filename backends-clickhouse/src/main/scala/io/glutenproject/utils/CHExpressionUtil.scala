@@ -153,6 +153,8 @@ case class EncodeDecodeValidator() extends FunctionValidator {
 object CHExpressionUtil {
 
   final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
+    MAX_BY -> DefaultValidator(),
+    MIN_BY -> DefaultValidator()
   )
 
   final val CH_BLACKLIST_SCALAR_FUNCTION: Map[String, FunctionValidator] = Map(
