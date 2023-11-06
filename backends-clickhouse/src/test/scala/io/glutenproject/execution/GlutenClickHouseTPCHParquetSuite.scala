@@ -2214,5 +2214,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test("GLUTEN-3521: Bug fix substring index start from 1") {
+    val tbl_create_sql = "create table test_tbl_3521(id bigint, name string) using parquet";
+    val data_insert_sql = "insert into test_tbl_3521 values(1, 'abcdefghijk'), (2, '2023-10-32')";
+    val select_sql =
+      "select id, substring(name, 0), substring(name, 0, 3), substring(name from 0), substring(name from 0 for 100) from test_tbl_3521"
+    spark.sql(tbl_create_sql)
+    spark.sql(data_insert_sql)
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_3521")
+  }
 }
 // scalastyle:on line.size.limit
