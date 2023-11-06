@@ -785,3 +785,17 @@ If you want to disable Gluten UI, add a config when submitting `--conf spark.glu
 ## History server
 
 Gluten UI also supports Spark history server. Add gluten-ui jar into the history server classpath, e.g., $SPARK_HOME/jars, then restart history server.
+
+# Gluten Implicits
+
+Gluten provides a helper class to get the fallback summary from a Spark Dataset. 
+
+```
+import org.apache.spark.sql.execution.GlutenImplicits._
+val df = spark.sql("SELECT * FROM t")
+df.fallbackSummary
+```
+
+Note that, if AQE is enabled, but the query is not materialized, then it will re-plan
+the query execution with disabled AQE. It is a workaround to get the final plan, and it may
+cause the inconsistent results with a materialized query. However, we have no choice.
