@@ -213,7 +213,7 @@ bool ExcelTextFormatReader::readField(
     bool is_last_file_column,
     const String &)
 {
-    if (isEndOfLine())
+    if (isEndOfLine() && format_settings.csv.empty_as_default)
     {
         column.insertDefault();
         return false;

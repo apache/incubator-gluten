@@ -1117,7 +1117,8 @@ class GlutenClickHouseFileFormatSuite
       val schema = StructType.apply(
         Seq(
           StructField.apply("c1", StringType, nullable = true),
-          StructField.apply("c2", ShortType, nullable = true)
+          StructField.apply("c2", ShortType, nullable = true),
+          StructField.apply("c3", StringType, nullable = true)
         ))
 
       val options = new util.HashMap[String, String]()
@@ -1130,9 +1131,10 @@ class GlutenClickHouseFileFormatSuite
         .toDF()
 
       val dataCorrect = new util.ArrayList[Row]()
-      dataCorrect.add(Row(null, 1.toShort))
-      dataCorrect.add(Row(null, 2.toShort))
-      dataCorrect.add(Row("1", 3.toShort))
+      dataCorrect.add(Row(null, 1.toShort, null))
+      dataCorrect.add(Row(null, 2.toShort, "2"))
+      dataCorrect.add(Row("1", null, null))
+      dataCorrect.add(Row(null, null, null))
 
       var expectedAnswer: Seq[Row] = null
       withSQLConf(vanillaSparkConfs(): _*) {
@@ -1152,7 +1154,8 @@ class GlutenClickHouseFileFormatSuite
       val schema = StructType.apply(
         Seq(
           StructField.apply("c1", StringType, nullable = true),
-          StructField.apply("c2", ShortType, nullable = true)
+          StructField.apply("c2", ShortType, nullable = true),
+          StructField.apply("c3", StringType, nullable = true)
         ))
 
       val options = new util.HashMap[String, String]()
@@ -1165,9 +1168,10 @@ class GlutenClickHouseFileFormatSuite
         .toDF()
 
       val dataCorrect = new util.ArrayList[Row]()
-      dataCorrect.add(Row(null, 1.toShort))
-      dataCorrect.add(Row("", 2.toShort))
-      dataCorrect.add(Row("1", 3.toShort))
+      dataCorrect.add(Row(null, 1.toShort, ""))
+      dataCorrect.add(Row("", 2.toShort, "2"))
+      dataCorrect.add(Row("1", null, null))
+      dataCorrect.add(Row("", null, ""))
 
       var expectedAnswer: Seq[Row] = null
       withSQLConf(vanillaSparkConfs(): _*) {
