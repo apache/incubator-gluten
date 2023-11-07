@@ -123,6 +123,8 @@ find_package(Threads REQUIRED)
 
 find_package(JNI REQUIRED)
 
+find_package(glog REQUIRED)
+
 if(BUILD_TESTS)
   set(GLUTEN_GTEST_MIN_VERSION "1.13.0")
   find_package(GTest ${GLUTEN_GTEST_MIN_VERSION} CONFIG)
@@ -179,7 +181,6 @@ if(BUILD_TESTS OR BUILD_BENCHMARKS)
   if(NOT benchmark_FOUND)
     include(BuildGoogleBenchmark)
   endif()
-  find_package(glog REQUIRED)
 endif()
 
 if(ENABLE_QAT)
