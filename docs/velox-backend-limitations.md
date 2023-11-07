@@ -92,10 +92,7 @@ spark.range(100).selectExpr("id as c1", "id % 7 as p")
   .save(f.getCanonicalPath)
 ```
 
-#### NaN support
-Velox does NOT support NaN. So unexpected result can be obtained for a few cases, e.g., comparing a number with NaN.
-
-#### CTAS
+#### CTAS write
 
 Velox does not create table as select. It may raise exception. e.g.,
 
@@ -105,6 +102,10 @@ spark.range(100).toDF("id")
   .format("parquet")
   .saveAsTable("velox_ctas")
 ```
+
+#### NaN support
+Velox does NOT support NaN. So unexpected result can be obtained for a few cases, e.g., comparing a number with NaN.
+
 
 
 #### Configuration
