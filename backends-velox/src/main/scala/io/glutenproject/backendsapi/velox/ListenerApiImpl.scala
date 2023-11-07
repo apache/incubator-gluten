@@ -35,7 +35,7 @@ import org.apache.commons.lang3.StringUtils
 import scala.sys.process._
 
 class ListenerApiImpl extends ListenerApi {
-  private val ARROW_VERSION = "1300"
+  private val ARROW_VERSION = "1400"
 
   override def onDriverStart(conf: SparkConf): Unit = {
     // sql table cache serializer
