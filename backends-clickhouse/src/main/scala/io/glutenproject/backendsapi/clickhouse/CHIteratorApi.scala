@@ -41,7 +41,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
 import java.net.URI
-import java.util
+import java.util.{ArrayList => JArrayList}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -68,9 +68,9 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
                 .makeExtensionTable(p.minParts, p.maxParts, p.database, p.table, p.tablePath),
               SoftAffinityUtil.getNativeMergeTreePartitionLocations(p))
           case f: FilePartition =>
-            val paths = new util.ArrayList[String]()
-            val starts = new util.ArrayList[JLong]()
-            val lengths = new util.ArrayList[JLong]()
+            val paths = new JArrayList[String]()
+            val starts = new JArrayList[JLong]()
+            val lengths = new JArrayList[JLong]()
             val partitionColumns = mutable.ArrayBuffer.empty[Map[String, String]]
             f.files.foreach {
               file =>
@@ -122,7 +122,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
     val resIter: GeneralOutIterator = GlutenTimeMetric.millis(pipelineTime) {
       _ =>
         val transKernel = new CHNativeExpressionEvaluator()
-        val inBatchIters = new util.ArrayList[GeneralInIterator](inputIterators.map {
+        val inBatchIters = new JArrayList[GeneralInIterator](inputIterators.map {
           iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
         }.asJava)
         transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters, false)
@@ -180,7 +180,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       _ =>
         val transKernel = new CHNativeExpressionEvaluator()
         val columnarNativeIterator =
-          new java.util.ArrayList[GeneralInIterator](inputIterators.map {
+          new JArrayList[GeneralInIterator](inputIterators.map {
             iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
           }.asJava)
         // we need to complete dependency RDD's firstly

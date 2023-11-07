@@ -31,7 +31,7 @@ import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDi
 import org.apache.spark.sql.types._
 import org.apache.spark.util.collection.BitSet
 
-import java.util
+import java.util.{Map => JMap}
 
 class TransformerApiImpl extends TransformerApi with Logging {
 
@@ -65,7 +65,7 @@ class TransformerApiImpl extends TransformerApi with Logging {
   }
 
   override def postProcessNativeConfig(
-      nativeConfMap: util.Map[String, String],
+      nativeConfMap: JMap[String, String],
       backendPrefix: String): Unit = {
     // TODO: IMPLEMENT SPECIAL PROCESS FOR VELOX BACKEND
   }

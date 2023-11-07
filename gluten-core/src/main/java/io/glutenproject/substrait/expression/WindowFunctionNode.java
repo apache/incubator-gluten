@@ -24,10 +24,11 @@ import io.substrait.proto.WindowType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class WindowFunctionNode implements Serializable {
   private final Integer functionId;
-  private final ArrayList<ExpressionNode> expressionNodes = new ArrayList<>();
+  private final List<ExpressionNode> expressionNodes = new ArrayList<>();
 
   private final String columnName;
   private final TypeNode outputTypeNode;
@@ -40,7 +41,7 @@ public class WindowFunctionNode implements Serializable {
 
   WindowFunctionNode(
       Integer functionId,
-      ArrayList<ExpressionNode> expressionNodes,
+      List<ExpressionNode> expressionNodes,
       String columnName,
       TypeNode outputTypeNode,
       String upperBound,

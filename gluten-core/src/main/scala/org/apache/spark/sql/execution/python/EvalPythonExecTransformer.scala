@@ -36,7 +36,7 @@ import org.apache.spark.sql.types.StructType
 
 import com.google.protobuf.Any
 
-import java.util.ArrayList
+import java.util.{ArrayList => JArrayList, List => JList}
 
 case class EvalPythonExecTransformer(
     udfs: Seq[PythonUDF],
@@ -72,7 +72,7 @@ case class EvalPythonExecTransformer(
     val args = context.registeredFunction
     val operatorId = context.nextOperatorId(this.nodeName)
 
-    val expressionNodes = new java.util.ArrayList[ExpressionNode]
+    val expressionNodes = new JArrayList[ExpressionNode]
     child.output.zipWithIndex.foreach(
       x => expressionNodes.add(ExpressionBuilder.makeSelection(x._2)))
     udfs.foreach(
@@ -94,7 +94,7 @@ case class EvalPythonExecTransformer(
 
     val args = context.registeredFunction
     val operatorId = context.nextOperatorId(this.nodeName)
-    val expressionNodes = new java.util.ArrayList[ExpressionNode]
+    val expressionNodes = new JArrayList[ExpressionNode]
     child.output.zipWithIndex.foreach(
       x => expressionNodes.add(ExpressionBuilder.makeSelection(x._2)))
     udfs.foreach(
@@ -106,7 +106,7 @@ case class EvalPythonExecTransformer(
     val relNode = if (childCtx != null) {
       getRelNode(childCtx.root, expressionNodes, context, operatorId, child.output, false)
     } else {
-      val attrList = new java.util.ArrayList[Attribute]()
+      val attrList = new JArrayList[Attribute]()
       for (attr <- child.output) {
         attrList.add(attr)
       }
@@ -119,7 +119,7 @@ case class EvalPythonExecTransformer(
 
   def getRelNode(
       input: RelNode,
-      expressionNodes: ArrayList[ExpressionNode],
+      expressionNodes: JList[ExpressionNode],
       context: SubstraitContext,
       operatorId: Long,
       inputAttributes: Seq[Attribute],
@@ -128,7 +128,7 @@ case class EvalPythonExecTransformer(
       RelBuilder.makeProjectRel(input, expressionNodes, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      val inputTypeNodeList = new JArrayList[TypeNode]()
       for (attr <- inputAttributes) {
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }

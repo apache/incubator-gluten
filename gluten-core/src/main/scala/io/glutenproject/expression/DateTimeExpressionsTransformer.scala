@@ -25,6 +25,9 @@ import org.apache.spark.sql.types._
 
 import com.google.common.collect.Lists
 
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
+
 import scala.collection.JavaConverters._
 
 /** The extract trait for 'GetDateField' from Date */
@@ -37,7 +40,7 @@ case class ExtractDateTransformer(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode = child.doTransform(args)
 
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
     val functionName = ConverterUtils.makeFuncName(
       substraitExprName,
       original.children.map(_.dataType),
@@ -67,7 +70,7 @@ case class DateDiffTransformer(
     val endDateNode = endDate.doTransform(args)
     val startDateNode = startDate.doTransform(args)
 
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
     val functionName = ConverterUtils.makeFuncName(
       substraitExprName,
       Seq(StringType, original.startDate.dataType, original.endDate.dataType),
@@ -96,20 +99,20 @@ case class FromUnixTimeTransformer(
     val secNode = sec.doTransform(args)
     val formatNode = format.doTransform(args)
 
-    val dataTypes = if (timeZoneId != None) {
+    val dataTypes = if (timeZoneId.isDefined) {
       Seq(original.sec.dataType, original.format.dataType, StringType)
     } else {
       Seq(original.sec.dataType, original.format.dataType)
     }
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName(substraitExprName, dataTypes))
 
-    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
+    val expressionNodes = new JArrayList[ExpressionNode]()
     expressionNodes.add(secNode)
     expressionNodes.add(formatNode)
-    if (timeZoneId != None) {
+    if (timeZoneId.isDefined) {
       expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
     }
 
@@ -133,12 +136,12 @@ case class ToUnixTimestampTransformer(
 
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val dataTypes = Seq(original.timeExp.dataType, StringType)
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
     val functionId = ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName(substraitExprName, dataTypes))
 
-    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
+    val expressionNodes = new JArrayList[ExpressionNode]()
     val timeExpNode = timeExp.doTransform(args)
     expressionNodes.add(timeExpNode)
     val formatNode = format.doTransform(args)
@@ -160,8 +163,8 @@ case class TruncTimestampTransformer(
     val timestampNode = timestamp.doTransform(args)
     val formatNode = format.doTransform(args)
 
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val dataTypes = if (timeZoneId != None) {
+    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
+    val dataTypes = if (timeZoneId.isDefined) {
       Seq(original.format.dataType, original.timestamp.dataType, StringType)
     } else {
       Seq(original.format.dataType, original.timestamp.dataType)
@@ -171,10 +174,10 @@ case class TruncTimestampTransformer(
       functionMap,
       ConverterUtils.makeFuncName(substraitExprName, dataTypes))
 
-    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
+    val expressionNodes = new JArrayList[ExpressionNode]()
     expressionNodes.add(formatNode)
     expressionNodes.add(timestampNode)
-    if (timeZoneId != None) {
+    if (timeZoneId.isDefined) {
       expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
     }
 
@@ -197,8 +200,8 @@ case class MonthsBetweenTransformer(
     val data2Node = date2.doTransform(args)
     val roundOffNode = roundOff.doTransform(args)
 
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val dataTypes = if (timeZoneId != None) {
+    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
+    val dataTypes = if (timeZoneId.isDefined) {
       Seq(original.date1.dataType, original.date2.dataType, original.roundOff.dataType, StringType)
     } else {
       Seq(original.date1.dataType, original.date2.dataType, original.roundOff.dataType)
@@ -208,11 +211,11 @@ case class MonthsBetweenTransformer(
       functionMap,
       ConverterUtils.makeFuncName(substraitExprName, dataTypes))
 
-    val expressionNodes = new java.util.ArrayList[ExpressionNode]()
+    val expressionNodes = new JArrayList[ExpressionNode]()
     expressionNodes.add(date1Node)
     expressionNodes.add(data2Node)
     expressionNodes.add(roundOffNode)
-    if (timeZoneId != None) {
+    if (timeZoneId.isDefined) {
       expressionNodes.add(ExpressionBuilder.makeStringLiteral(timeZoneId.get))
     }
 

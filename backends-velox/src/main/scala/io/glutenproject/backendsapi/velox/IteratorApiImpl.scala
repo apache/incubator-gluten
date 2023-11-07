@@ -42,10 +42,11 @@ import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.ExecutorManager
 
+import java.lang.{Long => JLong}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
-import java.util
+import java.util.{ArrayList => JArrayList}
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
@@ -67,14 +68,14 @@ class IteratorApiImpl extends IteratorApi with Logging {
 
     def constructSplitInfo(schema: StructType, files: Array[PartitionedFile]) = {
       val paths = mutable.ArrayBuffer.empty[String]
-      val starts = mutable.ArrayBuffer.empty[java.lang.Long]
-      val lengths = mutable.ArrayBuffer.empty[java.lang.Long]
+      val starts = mutable.ArrayBuffer.empty[JLong]
+      val lengths = mutable.ArrayBuffer.empty[JLong]
       val partitionColumns = mutable.ArrayBuffer.empty[Map[String, String]]
       files.foreach {
         file =>
           paths.append(URLDecoder.decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
-          starts.append(java.lang.Long.valueOf(file.start))
-          lengths.append(java.lang.Long.valueOf(file.length))
+          starts.append(JLong.valueOf(file.start))
+          lengths.append(JLong.valueOf(file.length))
 
           val partitionColumn = mutable.Map.empty[String, String]
           for (i <- 0 until file.partitionValues.numFields) {
@@ -90,7 +91,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
                 case _: TimestampType =>
                   TimestampFormatter
                     .getFractionFormatter(ZoneOffset.UTC)
-                    .format(pn.asInstanceOf[java.lang.Long])
+                    .format(pn.asInstanceOf[JLong])
                 case _ => pn.toString
               }
             }
@@ -139,7 +140,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
     val beforeBuild = System.nanoTime()
     val columnarNativeIterators =
-      new util.ArrayList[GeneralInIterator](inputIterators.map {
+      new JArrayList[GeneralInIterator](inputIterators.map {
         iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val transKernel = NativePlanEvaluator.create()
@@ -183,7 +184,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
 
     val transKernel = NativePlanEvaluator.create()
     val columnarNativeIterator =
-      new util.ArrayList[GeneralInIterator](inputIterators.map {
+      new JArrayList[GeneralInIterator](inputIterators.map {
         iter => new ColumnarBatchInIterator(iter.asJava)
       }.asJava)
     val nativeResultIterator =

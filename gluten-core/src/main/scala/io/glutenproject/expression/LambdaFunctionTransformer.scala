@@ -20,8 +20,6 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 
 import org.apache.spark.sql.catalyst.expressions.LambdaFunction
 
-import java.util.ArrayList
-
 case class LambdaFunctionTransformer(
     substraitExprName: String,
     function: ExpressionTransformer,
@@ -42,7 +40,7 @@ case class LambdaFunctionTransformer(
         substraitExprName,
         Seq(original.dataType),
         ConverterUtils.FunctionConfig.OPT))
-    val expressionNodes = new ArrayList[ExpressionNode]
+    val expressionNodes = new java.util.ArrayList[ExpressionNode]
     expressionNodes.add(function.doTransform(args))
     arguments.foreach(argument => expressionNodes.add(argument.doTransform(args)))
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)

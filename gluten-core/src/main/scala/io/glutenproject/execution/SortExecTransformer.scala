@@ -35,7 +35,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import com.google.protobuf.Any
 import io.substrait.proto.SortField
 
-import java.util
+import java.util.{ArrayList => JArrayList}
 
 import scala.collection.JavaConverters._
 import scala.util.control.Breaks.{break, breakable}
@@ -72,13 +72,13 @@ case class SortExecTransformer(
       validation: Boolean): RelNode = {
     val args = context.registeredFunction
 
-    val sortFieldList = new util.ArrayList[SortField]()
-    val projectExpressions = new util.ArrayList[ExpressionNode]()
-    val sortExprArttributes = new util.ArrayList[AttributeReference]()
+    val sortFieldList = new JArrayList[SortField]()
+    val projectExpressions = new JArrayList[ExpressionNode]()
+    val sortExprAttributes = new JArrayList[AttributeReference]()
 
     val selectOrigins =
-      originalInputAttributes.indices.map(ExpressionBuilder.makeSelection(_))
-    projectExpressions.addAll(selectOrigins.asJava)
+      originalInputAttributes.indices.map(ExpressionBuilder.makeSelection(_)).asJava
+    projectExpressions.addAll(selectOrigins)
 
     var colIdx = originalInputAttributes.size
     sortOrder.foreach(
@@ -90,7 +90,7 @@ case class SortExecTransformer(
         projectExpressions.add(projectExprNode)
 
         val exprNode = ExpressionBuilder.makeSelection(colIdx)
-        sortExprArttributes.add(AttributeReference(s"col_$colIdx", order.child.dataType)())
+        sortExprAttributes.add(AttributeReference(s"col_$colIdx", order.child.dataType)())
         colIdx += 1
         builder.setExpr(exprNode.toProtobuf)
 
@@ -109,7 +109,7 @@ case class SortExecTransformer(
       for (attr <- originalInputAttributes) {
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
-      sortExprArttributes.forEach {
+      sortExprAttributes.forEach {
         attr => inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
 
@@ -133,7 +133,7 @@ case class SortExecTransformer(
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
 
-      sortExprArttributes.forEach {
+      sortExprAttributes.forEach {
         attr => inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
 
       }
@@ -147,7 +147,7 @@ case class SortExecTransformer(
     if (!validation) {
       RelBuilder.makeProjectRel(
         sortRel,
-        new java.util.ArrayList[ExpressionNode](selectOrigins.asJava),
+        new JArrayList[ExpressionNode](selectOrigins),
         context,
         operatorId,
         originalInputAttributes.size + sortFieldList.size)
@@ -162,7 +162,7 @@ case class SortExecTransformer(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
         sortRel,
-        new java.util.ArrayList[ExpressionNode](selectOrigins.asJava),
+        new JArrayList[ExpressionNode](selectOrigins),
         extensionNode,
         context,
         operatorId,
@@ -178,9 +178,8 @@ case class SortExecTransformer(
       input: RelNode,
       validation: Boolean): RelNode = {
     val args = context.registeredFunction
-    val sortFieldList = new util.ArrayList[SortField]()
-    sortOrder.foreach(
-      order => {
+    val sortFieldList = sortOrder.map {
+      order =>
         val builder = SortField.newBuilder()
         val exprNode = ExpressionConverter
           .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
@@ -189,20 +188,18 @@ case class SortExecTransformer(
 
         builder.setDirectionValue(
           SortExecTransformer.transformSortDirection(order.direction.sql, order.nullOrdering.sql))
-        sortFieldList.add(builder.build())
-      })
+        builder.build()
+    }
     if (!validation) {
-      RelBuilder.makeSortRel(input, sortFieldList, context, operatorId)
+      RelBuilder.makeSortRel(input, sortFieldList.asJava, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList = originalInputAttributes.map(
+        attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList.asJava).toProtobuf))
 
-      RelBuilder.makeSortRel(input, sortFieldList, extensionNode, context, operatorId)
+      RelBuilder.makeSortRel(input, sortFieldList.asJava, extensionNode, context, operatorId)
     }
   }
 
@@ -263,11 +260,7 @@ case class SortExecTransformer(
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
       (
         getRelNode(context, sortOrder, child.output, operatorId, readRel, validation = false),
         child.output)

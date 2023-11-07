@@ -20,9 +20,9 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.{ExpressionNode, WindowFunctionNode}
+import io.glutenproject.substrait.expression.WindowFunctionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
@@ -36,7 +36,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import com.google.protobuf.Any
 import io.substrait.proto.SortField
 
-import java.util
+import java.util.{ArrayList => JArrayList}
+
+import scala.collection.JavaConverters._
 
 case class WindowExecTransformer(
     windowExpression: Seq[NamedExpression],
@@ -89,7 +91,7 @@ case class WindowExecTransformer(
       validation: Boolean): RelNode = {
     val args = context.registeredFunction
     // WindowFunction Expressions
-    val windowExpressions = new util.ArrayList[WindowFunctionNode]()
+    val windowExpressions = new JArrayList[WindowFunctionNode]()
     BackendsApiManager.getSparkPlanExecApiInstance.genWindowFunctionsNode(
       windowExpression,
       windowExpressions,
@@ -98,39 +100,37 @@ case class WindowExecTransformer(
     )
 
     // Partition By Expressions
-    val partitionsExpressions = new util.ArrayList[ExpressionNode]()
-    partitionSpec.map {
-      partitionExpr =>
-        val exprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(partitionExpr, attributeSeq = child.output)
-          .doTransform(args)
-        partitionsExpressions.add(exprNode)
-    }
+    val partitionsExpressions = partitionSpec
+      .map(
+        ExpressionConverter
+          .replaceWithExpressionTransformer(_, attributeSeq = child.output)
+          .doTransform(args))
+      .asJava
 
     // Sort By Expressions
-    val sortFieldList = new util.ArrayList[SortField]()
-    sortOrder.map(
-      order => {
-        val builder = SortField.newBuilder()
-        val exprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
-          .doTransform(args)
-        builder.setExpr(exprNode.toProtobuf)
+    val sortFieldList =
+      sortOrder.map {
+        order =>
+          val builder = SortField.newBuilder()
+          val exprNode = ExpressionConverter
+            .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
+            .doTransform(args)
+          builder.setExpr(exprNode.toProtobuf)
 
-        (order.direction.sql, order.nullOrdering.sql) match {
-          case ("ASC", "NULLS FIRST") =>
-            builder.setDirectionValue(1);
-          case ("ASC", "NULLS LAST") =>
-            builder.setDirectionValue(2);
-          case ("DESC", "NULLS FIRST") =>
-            builder.setDirectionValue(3);
-          case ("DESC", "NULLS LAST") =>
-            builder.setDirectionValue(4);
-          case _ =>
-            builder.setDirectionValue(0);
-        }
-        sortFieldList.add(builder.build())
-      })
+          (order.direction.sql, order.nullOrdering.sql) match {
+            case ("ASC", "NULLS FIRST") =>
+              builder.setDirectionValue(1);
+            case ("ASC", "NULLS LAST") =>
+              builder.setDirectionValue(2);
+            case ("DESC", "NULLS FIRST") =>
+              builder.setDirectionValue(3);
+            case ("DESC", "NULLS LAST") =>
+              builder.setDirectionValue(4);
+            case _ =>
+              builder.setDirectionValue(0);
+          }
+          builder.build()
+      }.asJava
     if (!validation) {
       RelBuilder.makeWindowRel(
         input,
@@ -141,10 +141,9 @@ case class WindowExecTransformer(
         operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList = originalInputAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
 
@@ -210,11 +209,7 @@ case class WindowExecTransformer(
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
       (
         getRelNode(
           context,

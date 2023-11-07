@@ -33,8 +33,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import com.google.protobuf.StringValue
 import io.substrait.proto.JoinRel
 
-import java.util.{ArrayList => JArrayList}
-
 import scala.collection.JavaConverters._
 
 /** Performs a sort merge join of two child relations. */
@@ -258,7 +256,7 @@ case class SortMergeJoinExecTransformer(
           (transformContext.root, transformContext.outputAttributes, false)
         case _ =>
           val readRel = RelBuilder.makeReadRel(
-            new JArrayList[Attribute](plan.output.asJava),
+            plan.output.asJava,
             context,
             -1
           ) /* A special handling in Join to delay the rel registration. */

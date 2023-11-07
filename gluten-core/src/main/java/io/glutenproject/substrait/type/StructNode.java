@@ -20,24 +20,25 @@ import io.substrait.proto.Type;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class StructNode implements TypeNode, Serializable {
   private final Boolean nullable;
-  private final ArrayList<TypeNode> types = new ArrayList<>();
-  private final ArrayList<String> names = new ArrayList<>();
+  private final List<TypeNode> types = new ArrayList<>();
+  private final List<String> names = new ArrayList<>();
 
-  public StructNode(Boolean nullable, ArrayList<TypeNode> types, ArrayList<String> names) {
+  public StructNode(Boolean nullable, List<TypeNode> types, List<String> names) {
     this.nullable = nullable;
     this.types.addAll(types);
     this.names.addAll(names);
   }
 
-  public StructNode(Boolean nullable, ArrayList<TypeNode> types) {
+  public StructNode(Boolean nullable, List<TypeNode> types) {
     this.nullable = nullable;
     this.types.addAll(types);
   }
 
-  public ArrayList<TypeNode> getFieldTypes() {
+  public List<TypeNode> getFieldTypes() {
     return types;
   }
 

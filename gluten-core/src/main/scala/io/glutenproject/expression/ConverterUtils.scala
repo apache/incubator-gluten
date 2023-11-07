@@ -104,32 +104,30 @@ object ConverterUtils extends Logging {
     getShortAttributeName(attr) + "#" + attr.exprId.id
   }
 
-  def collectAttributeTypeNodes(attributes: JList[Attribute]): JArrayList[TypeNode] = {
+  def collectAttributeTypeNodes(attributes: JList[Attribute]): JList[TypeNode] = {
     collectAttributeTypeNodes(attributes.asScala)
   }
 
-  def collectAttributeTypeNodes(attributes: Seq[Attribute]): JArrayList[TypeNode] = {
-    val typeList = new JArrayList[TypeNode]()
-    attributes.foreach(attr => typeList.add(getTypeNode(attr.dataType, attr.nullable)))
-    typeList
+  def collectAttributeTypeNodes(attributes: Seq[Attribute]): JList[TypeNode] = {
+    attributes.map(attr => getTypeNode(attr.dataType, attr.nullable)).asJava
   }
 
-  def collectAttributeNamesWithExprId(attributes: JList[Attribute]): JArrayList[String] = {
+  def collectAttributeNamesWithExprId(attributes: JList[Attribute]): JList[String] = {
     collectAttributeNamesWithExprId(attributes.asScala)
   }
 
-  def collectAttributeNamesWithExprId(attributes: Seq[Attribute]): JArrayList[String] = {
+  def collectAttributeNamesWithExprId(attributes: Seq[Attribute]): JList[String] = {
     collectAttributeNamesDFS(attributes)(genColumnNameWithExprId)
   }
 
   // TODO: This is used only by `BasicScanExecTransformer`,
   //  perhaps we can remove this in the future and use `withExprId` version consistently.
-  def collectAttributeNamesWithoutExprId(attributes: Seq[Attribute]): JArrayList[String] = {
+  def collectAttributeNamesWithoutExprId(attributes: Seq[Attribute]): JList[String] = {
     collectAttributeNamesDFS(attributes)(genColumnNameWithoutExprId)
   }
 
   private def collectAttributeNamesDFS(attributes: Seq[Attribute])(
-      f: Attribute => String): JArrayList[String] = {
+      f: Attribute => String): JList[String] = {
     val nameList = new JArrayList[String]()
     attributes.foreach(
       attr => {
@@ -146,7 +144,7 @@ object ConverterUtils extends Logging {
     nameList
   }
 
-  def collectStructFieldNames(dataType: DataType): JArrayList[String] = {
+  def collectStructFieldNames(dataType: DataType): JList[String] = {
     val nameList = new JArrayList[String]()
     dataType match {
       case structType: StructType =>
@@ -196,10 +194,10 @@ object ConverterUtils extends Logging {
         (DecimalType(precision, scale), isNullable(decimal.getNullability))
       case Type.KindCase.STRUCT =>
         val struct_ = substraitType.getStruct
-        val fields = new JArrayList[StructField]
-        for (typ <- struct_.getTypesList.asScala) {
-          val (field, nullable) = parseFromSubstraitType(typ)
-          fields.add(StructField("", field, nullable))
+        val fields = struct_.getTypesList.asScala.map {
+          typ =>
+            val (field, nullable) = parseFromSubstraitType(typ)
+            StructField("", field, nullable)
         }
         (StructType(fields), isNullable(substraitType.getStruct.getNullability))
       case Type.KindCase.LIST =>

@@ -55,7 +55,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import com.google.common.collect.Lists
 import org.apache.commons.lang3.ClassUtils
 
-import java.{lang, util}
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -64,7 +65,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   /** Transform GetArrayItem to Substrait. */
   override def genGetArrayItemExpressionNode(
       substraitExprName: String,
-      functionMap: java.util.HashMap[String, java.lang.Long],
+      functionMap: JMap[String, JLong],
       leftNode: ExpressionNode,
       rightNode: ExpressionNode,
       original: GetArrayItem): ExpressionNode = {
@@ -436,9 +437,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   /** Generate window function node */
   override def genWindowFunctionsNode(
       windowExpression: Seq[NamedExpression],
-      windowExpressionNodes: util.ArrayList[WindowFunctionNode],
+      windowExpressionNodes: JList[WindowFunctionNode],
       originalInputAttributes: Seq[Attribute],
-      args: util.HashMap[String, lang.Long]): Unit = {
+      args: JMap[String, JLong]): Unit = {
 
     windowExpression.map {
       windowExpr =>
@@ -451,7 +452,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
-              new util.ArrayList[ExpressionNode](),
+              new JArrayList[ExpressionNode](),
               columnName,
               ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
               WindowExecTransformer.getFrameBound(frame.upper),
@@ -467,7 +468,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
               throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
             }
 
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            val childrenNodeList = new JArrayList[ExpressionNode]()
             aggregateFunc.children.foreach(
               expr =>
                 childrenNodeList.add(
@@ -505,7 +506,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
                 }
             }
 
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            val childrenNodeList = new JArrayList[ExpressionNode]()
             childrenNodeList.add(
               ExpressionConverter
                 .replaceWithExpressionTransformer(

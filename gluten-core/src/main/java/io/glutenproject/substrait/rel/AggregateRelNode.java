@@ -26,20 +26,21 @@ import io.substrait.proto.RelCommon;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class AggregateRelNode implements RelNode, Serializable {
   private final RelNode input;
-  private final ArrayList<ExpressionNode> groupings = new ArrayList<>();
-  private final ArrayList<AggregateFunctionNode> aggregateFunctionNodes = new ArrayList<>();
+  private final List<ExpressionNode> groupings = new ArrayList<>();
+  private final List<AggregateFunctionNode> aggregateFunctionNodes = new ArrayList<>();
 
-  private final ArrayList<ExpressionNode> filters = new ArrayList<>();
+  private final List<ExpressionNode> filters = new ArrayList<>();
   private final AdvancedExtensionNode extensionNode;
 
   AggregateRelNode(
       RelNode input,
-      ArrayList<ExpressionNode> groupings,
-      ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-      ArrayList<ExpressionNode> filters) {
+      List<ExpressionNode> groupings,
+      List<AggregateFunctionNode> aggregateFunctionNodes,
+      List<ExpressionNode> filters) {
     this.input = input;
     this.groupings.addAll(groupings);
     this.aggregateFunctionNodes.addAll(aggregateFunctionNodes);
@@ -49,9 +50,9 @@ public class AggregateRelNode implements RelNode, Serializable {
 
   AggregateRelNode(
       RelNode input,
-      ArrayList<ExpressionNode> groupings,
-      ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-      ArrayList<ExpressionNode> filters,
+      List<ExpressionNode> groupings,
+      List<AggregateFunctionNode> aggregateFunctionNodes,
+      List<ExpressionNode> filters,
       AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.groupings.addAll(groupings);

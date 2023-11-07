@@ -22,6 +22,9 @@ import io.glutenproject.substrait.{AggregationParams, JoinParams}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
+
 object MetricsUtil extends Logging {
 
   /**
@@ -38,9 +41,9 @@ object MetricsUtil extends Logging {
    */
   def updateNativeMetrics(
       child: SparkPlan,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): IMetrics => Unit = {
+      relMap: JMap[JLong, JList[JLong]],
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
     def treeifyMetricsUpdaters(plan: SparkPlan): MetricsUpdaterTree = {
       plan match {
         case j: HashJoinLikeExecTransformer =>
@@ -59,7 +62,7 @@ object MetricsUtil extends Logging {
     updateTransformerMetrics(
       mut,
       relMap,
-      java.lang.Long.valueOf(relMap.size() - 1),
+      JLong.valueOf(relMap.size() - 1),
       joinParamsMap,
       aggParamsMap)
   }
@@ -72,8 +75,7 @@ object MetricsUtil extends Logging {
    * @return
    *   the merged metrics
    */
-  private def mergeMetrics(
-      operatorMetrics: java.util.ArrayList[OperatorMetrics]): OperatorMetrics = {
+  private def mergeMetrics(operatorMetrics: JList[OperatorMetrics]): OperatorMetrics = {
     if (operatorMetrics.size() == 0) {
       return null
     }
@@ -165,13 +167,13 @@ object MetricsUtil extends Logging {
    */
   def updateTransformerMetricsInternal(
       mutNode: MetricsUpdaterTree,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      operatorIdx: java.lang.Long,
+      relMap: JMap[JLong, JList[JLong]],
+      operatorIdx: JLong,
       metrics: Metrics,
       metricsIdx: Int,
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): (java.lang.Long, Int) = {
-    val operatorMetrics = new java.util.ArrayList[OperatorMetrics]()
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): (JLong, Int) = {
+    val operatorMetrics = new JArrayList[OperatorMetrics]()
     var curMetricsIdx = metricsIdx
     relMap
       .get(operatorIdx)
@@ -205,7 +207,7 @@ object MetricsUtil extends Logging {
         u.updateNativeMetrics(opMetrics)
     }
 
-    var newOperatorIdx: java.lang.Long = operatorIdx - 1
+    var newOperatorIdx: JLong = operatorIdx - 1
     var newMetricsIdx: Int =
       if (
         mutNode.updater.isInstanceOf[LimitMetricsUpdater] &&
@@ -256,10 +258,10 @@ object MetricsUtil extends Logging {
    */
   def updateTransformerMetrics(
       mutNode: MetricsUpdaterTree,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      operatorIdx: java.lang.Long,
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): IMetrics => Unit = {
+      relMap: JMap[JLong, JList[JLong]],
+      operatorIdx: JLong,
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
     imetrics =>
       try {
         val metrics = imetrics.asInstanceOf[Metrics]

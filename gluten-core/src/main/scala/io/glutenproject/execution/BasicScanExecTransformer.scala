@@ -34,6 +34,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
 
+import scala.collection.JavaConverters._
+
 trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
 
   // The key of merge schema option in Parquet reader.
@@ -58,10 +60,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
     val scanTime = longMetric("scanTime")
     val substraitContext = new SubstraitContext
     val transformContext = doTransform(substraitContext)
-    val outNames = new java.util.ArrayList[String]()
-    for (attr <- outputAttributes()) {
-      outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
-    }
+    val outNames = outputAttributes().map(ConverterUtils.genColumnNameWithExprId).asJava
     val planNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(transformContext.root), outNames)
     val fileFormat = ConverterUtils.getFileFormat(this)
@@ -102,14 +101,14 @@ trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val partitionSchemas = getPartitionSchemas
-    val columnTypeNodes = new java.util.ArrayList[ColumnTypeNode]()
-    for (attr <- output) {
-      if (partitionSchemas.exists(_.name.equals(attr.name))) {
-        columnTypeNodes.add(new ColumnTypeNode(1))
-      } else {
-        columnTypeNodes.add(new ColumnTypeNode(0))
-      }
-    }
+    val columnTypeNodes = output.map {
+      attr =>
+        if (partitionSchemas.exists(_.name.equals(attr.name))) {
+          new ColumnTypeNode(1)
+        } else {
+          new ColumnTypeNode(0)
+        }
+    }.asJava
     // Will put all filter expressions into an AND expression
     val transformer = filterExprs()
       .reduceLeftOption(And)

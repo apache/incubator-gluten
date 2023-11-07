@@ -29,7 +29,7 @@ import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedC
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
 
-import java.util.{IdentityHashMap, Set}
+import java.util
 import java.util.Collections.newSetFromMap
 
 import scala.collection.mutable
@@ -148,7 +148,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
     try {
       // Initialize a reference-unique set of Operators to avoid accdiental overwrites and to allow
       // intentional overwriting of IDs generated in previous AQE iteration
-      val operators = newSetFromMap[QueryPlan[_]](new IdentityHashMap())
+      val operators = newSetFromMap[QueryPlan[_]](new util.IdentityHashMap())
       // Initialize an array of ReusedExchanges to help find Adaptively Optimized Out
       // Exchanges as part of SPARK-42753
       val reusedExchanges = ArrayBuffer.empty[ReusedExchangeExec]
@@ -252,7 +252,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
   private def generateOperatorIDs(
       plan: QueryPlan[_],
       startOperatorID: Int,
-      visited: Set[QueryPlan[_]],
+      visited: util.Set[QueryPlan[_]],
       reusedExchanges: ArrayBuffer[ReusedExchangeExec],
       addReusedExchanges: Boolean): Int = {
     var currentOperationID = startOperatorID

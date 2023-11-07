@@ -20,7 +20,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
@@ -37,8 +37,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.Any
 
-import java.util
+import java.util.{ArrayList => JArrayList, List => JList}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
 /** Columnar Based HashAggregateExec. */
@@ -102,10 +103,10 @@ abstract class HashAggregateExecBaseTransformer(
       case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
           StringType | TimestampType | DateType | BinaryType =>
         true
-      case d: DecimalType => true
-      case a: ArrayType => true
-      case n: NullType => true
-      case other => false
+      case _: DecimalType => true
+      case _: ArrayType => true
+      case _: NullType => true
+      case _ => false
     }
   }
 
@@ -144,11 +145,7 @@ abstract class HashAggregateExecBaseTransformer(
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       aggParams.isReadRel = true
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
       (getAggRel(context, operatorId, aggParams, readRel), child.output, output)
     }
     TransformContext(inputAttributes, outputAttributes, relNode)
@@ -252,22 +249,20 @@ abstract class HashAggregateExecBaseTransformer(
       })
 
     // Create the expression nodes needed by Project node.
-    val preExprNodes = new util.ArrayList[ExpressionNode]()
-    for (expr <- preExpressions) {
-      preExprNodes.add(
+    val preExprNodes = preExpressions
+      .map(
         ExpressionConverter
-          .replaceWithExpressionTransformer(expr, originalInputAttributes)
+          .replaceWithExpressionTransformer(_, originalInputAttributes)
           .doTransform(args))
-    }
+      .asJava
     val emitStartIndex = originalInputAttributes.size
     val inputRel = if (!validation) {
       RelBuilder.makeProjectRel(input, preExprNodes, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for a validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList = originalInputAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
@@ -290,7 +285,7 @@ abstract class HashAggregateExecBaseTransformer(
       filterSelections: Seq[Int],
       inputRel: RelNode,
       operatorId: Long): RelNode = {
-    val groupingList = new util.ArrayList[ExpressionNode]()
+    val groupingList = new JArrayList[ExpressionNode]()
     var colIdx = 0
     while (colIdx < groupingExpressions.size) {
       val groupingExpr: ExpressionNode = ExpressionBuilder.makeSelection(selections(colIdx))
@@ -299,11 +294,11 @@ abstract class HashAggregateExecBaseTransformer(
     }
 
     // Create Aggregation functions.
-    val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
+    val aggregateFunctionList = new JArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(
       aggExpr => {
         val aggregateFunc = aggExpr.aggregateFunction
-        val childrenNodeList = new util.ArrayList[ExpressionNode]()
+        val childrenNodeList = new JArrayList[ExpressionNode]()
         val childrenNodes = aggregateFunc.children.toList.map(
           _ => {
             val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
@@ -321,7 +316,7 @@ abstract class HashAggregateExecBaseTransformer(
           aggregateFunctionList)
       })
 
-    val aggFilterList = new util.ArrayList[ExpressionNode]()
+    val aggFilterList = new JArrayList[ExpressionNode]()
     aggregateExpressions.foreach(
       aggExpr => {
         if (aggExpr.filter.isDefined) {
@@ -345,9 +340,9 @@ abstract class HashAggregateExecBaseTransformer(
   protected def addFunctionNode(
       args: java.lang.Object,
       aggregateFunction: AggregateFunction,
-      childrenNodeList: util.ArrayList[ExpressionNode],
+      childrenNodeList: JList[ExpressionNode],
       aggregateMode: AggregateMode,
-      aggregateNodeList: util.ArrayList[AggregateFunctionNode]): Unit = {
+      aggregateNodeList: JList[AggregateFunctionNode]): Unit = {
     aggregateNodeList.add(
       ExpressionBuilder.makeAggregateFunction(
         AggregateFunctionsBuilder.create(args, aggregateFunction),
@@ -365,23 +360,20 @@ abstract class HashAggregateExecBaseTransformer(
     val args = context.registeredFunction
 
     // Will add an projection after Agg.
-    val resExprNodes = new util.ArrayList[ExpressionNode]()
-    resultExpressions.foreach(
-      expr => {
-        resExprNodes.add(
-          ExpressionConverter
-            .replaceWithExpressionTransformer(expr, allAggregateResultAttributes)
-            .doTransform(args))
-      })
+    val resExprNodes = resultExpressions
+      .map(
+        ExpressionConverter
+          .replaceWithExpressionTransformer(_, allAggregateResultAttributes)
+          .doTransform(args))
+      .asJava
     val emitStartIndex = allAggregateResultAttributes.size
     if (!validation) {
       RelBuilder.makeProjectRel(aggRel, resExprNodes, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- allAggregateResultAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList = allAggregateResultAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
@@ -398,7 +390,7 @@ abstract class HashAggregateExecBaseTransformer(
   protected def getAttrForAggregateExprs(
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
-    var aggregateAttr = new ListBuffer[Attribute]()
+    val aggregateAttr = new ListBuffer[Attribute]()
     val size = aggregateExpressions.size
     var resIndex = 0
     for (expIdx <- 0 until size) {
@@ -478,19 +470,17 @@ abstract class HashAggregateExecBaseTransformer(
       validation: Boolean): RelNode = {
     val args = context.registeredFunction
     // Get the grouping nodes.
-    val groupingList = new util.ArrayList[ExpressionNode]()
-    groupingExpressions.foreach(
-      expr => {
-        // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
-        // may be different for each backend.
-        val exprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(expr, child.output)
-          .doTransform(args)
-        groupingList.add(exprNode)
-      })
+    // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
+    // may be different for each backend.
+    val groupingList = groupingExpressions
+      .map(
+        ExpressionConverter
+          .replaceWithExpressionTransformer(_, child.output)
+          .doTransform(args))
+      .asJava
     // Get the aggregate function nodes.
-    val aggFilterList = new util.ArrayList[ExpressionNode]()
-    val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
+    val aggFilterList = new JArrayList[ExpressionNode]()
+    val aggregateFunctionList = new JArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(
       aggExpr => {
         if (aggExpr.filter.isDefined) {
@@ -503,7 +493,6 @@ abstract class HashAggregateExecBaseTransformer(
           aggFilterList.add(null)
         }
         val aggregateFunc = aggExpr.aggregateFunction
-        val childrenNodeList = new util.ArrayList[ExpressionNode]()
         val childrenNodes = aggExpr.mode match {
           case Partial =>
             aggregateFunc.children.toList.map(
@@ -522,10 +511,12 @@ abstract class HashAggregateExecBaseTransformer(
           case other =>
             throw new UnsupportedOperationException(s"$other not supported.")
         }
-        for (node <- childrenNodes) {
-          childrenNodeList.add(node)
-        }
-        addFunctionNode(args, aggregateFunc, childrenNodeList, aggExpr.mode, aggregateFunctionList)
+        addFunctionNode(
+          args,
+          aggregateFunc,
+          childrenNodes.asJava,
+          aggExpr.mode,
+          aggregateFunctionList)
       })
     if (!validation) {
       RelBuilder.makeAggregateRel(
@@ -537,10 +528,9 @@ abstract class HashAggregateExecBaseTransformer(
         operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList = originalInputAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeAggregateRel(

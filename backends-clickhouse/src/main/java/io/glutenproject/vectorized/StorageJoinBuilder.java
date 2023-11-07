@@ -28,7 +28,6 @@ import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
 import org.apache.spark.storage.CHShuffleReadStreamFactory;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -88,8 +87,8 @@ public class StorageJoinBuilder {
 
   /** create table named struct */
   private static NamedStruct toNameStruct(List<Attribute> output) {
-    ArrayList<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(output);
-    ArrayList<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(output);
+    List<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(output);
+    List<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(output);
     Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
     for (TypeNode typeNode : typeList) {
       structBuilder.addTypes(typeNode.toProtobuf());

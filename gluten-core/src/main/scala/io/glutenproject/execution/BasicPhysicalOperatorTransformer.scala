@@ -22,9 +22,8 @@ import io.glutenproject.extension.{GlutenPlan, ValidationResult}
 import io.glutenproject.extension.columnar.TransformHints
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
@@ -38,8 +37,6 @@ import org.apache.spark.sql.utils.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.Any
-
-import java.util
 
 import scala.collection.JavaConverters._
 
@@ -94,10 +91,9 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
       RelBuilder.makeFilterRel(input, condExprNode, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList = originalInputAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeFilterRel(input, condExprNode, extensionNode, context, operatorId)
@@ -160,13 +156,12 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute](child.output.asJava)
       getRelNode(
         context,
         cond,
         child.output,
         operatorId,
-        RelBuilder.makeReadRel(attrList, context, operatorId),
+        RelBuilder.makeReadRel(child.output.asJava, context, operatorId),
         validation = false)
     }
     assert(currRel != null, "Filter rel should be valid.")
@@ -241,11 +236,7 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
     } else {
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
       (
         getRelNode(context, projectList, child.output, operatorId, readRel, validation = false),
         child.output)
@@ -268,23 +259,18 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
       validation: Boolean): RelNode = {
     val args = context.registeredFunction
     val columnarProjExprs: Seq[ExpressionTransformer] = projectList.map(
-      expr => {
+      expr =>
         ExpressionConverter
-          .replaceWithExpressionTransformer(expr, attributeSeq = originalInputAttributes)
-      })
-    val projExprNodeList = new java.util.ArrayList[ExpressionNode]()
-    for (expr <- columnarProjExprs) {
-      projExprNodeList.add(expr.doTransform(args))
-    }
+          .replaceWithExpressionTransformer(expr, attributeSeq = originalInputAttributes))
+    val projExprNodeList = columnarProjExprs.map(_.doTransform(args)).asJava
     val emitStartIndex = originalInputAttributes.size
     if (!validation) {
       RelBuilder.makeProjectRel(input, projExprNodeList, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList = originalInputAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
@@ -317,28 +303,24 @@ object ProjectExecTransformer {
     // after executing the MergeScalarSubqueries.
     var needToReplace = false
     val newProjectList = projectList.map {
-      pro =>
-        pro match {
-          case alias @ Alias(cns @ CreateNamedStruct(children: Seq[Expression]), "mergedValue") =>
-            // check whether there are some duplicate names
-            if (cns.nameExprs.distinct.size == cns.nameExprs.size) {
-              alias
-            } else {
-              val newChildren = children
-                .grouped(2)
-                .map {
-                  case Seq(name: Literal, value: NamedExpression) =>
-                    val newLiteral = Literal(name.toString() + "#" + value.exprId.id)
-                    Seq(newLiteral, value)
-                  case Seq(name, value) => Seq(name, value)
-                }
-                .flatten
-                .toSeq
-              needToReplace = true
-              Alias.apply(CreateNamedStruct(newChildren), "mergedValue")(alias.exprId)
+      case alias @ Alias(cns @ CreateNamedStruct(children: Seq[Expression]), "mergedValue") =>
+        // check whether there are some duplicate names
+        if (cns.nameExprs.distinct.size == cns.nameExprs.size) {
+          alias
+        } else {
+          val newChildren = children
+            .grouped(2)
+            .flatMap {
+              case Seq(name: Literal, value: NamedExpression) =>
+                val newLiteral = Literal(name.toString() + "#" + value.exprId.id)
+                Seq(newLiteral, value)
+              case Seq(name, value) => Seq(name, value)
             }
-          case other: NamedExpression => other
+            .toSeq
+          needToReplace = true
+          Alias.apply(CreateNamedStruct(newChildren), "mergedValue")(alias.exprId)
         }
+      case other: NamedExpression => other
     }
 
     if (!needToReplace) {

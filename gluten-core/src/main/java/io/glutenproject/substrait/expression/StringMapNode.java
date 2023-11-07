@@ -23,7 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class StringMapNode implements ExpressionNode, Serializable {
-  private final Map<String, String> values = new HashMap();
+  private final Map<String, String> values = new HashMap<>();
 
   public StringMapNode(Map<String, String> values) {
     this.values.putAll(values);

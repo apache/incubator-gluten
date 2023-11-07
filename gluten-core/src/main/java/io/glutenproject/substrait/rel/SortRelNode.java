@@ -25,20 +25,20 @@ import io.substrait.proto.SortRel;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class SortRelNode implements RelNode, Serializable {
   private final RelNode input;
-  private final ArrayList<SortField> sorts = new ArrayList<>();
+  private final List<SortField> sorts = new ArrayList<>();
   private final AdvancedExtensionNode extensionNode;
 
-  public SortRelNode(
-      RelNode input, ArrayList<SortField> sorts, AdvancedExtensionNode extensionNode) {
+  public SortRelNode(RelNode input, List<SortField> sorts, AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.sorts.addAll(sorts);
     this.extensionNode = extensionNode;
   }
 
-  public SortRelNode(RelNode input, ArrayList<SortField> sorts) {
+  public SortRelNode(RelNode input, List<SortField> sorts) {
     this.input = input;
     this.sorts.addAll(sorts);
     this.extensionNode = null;
