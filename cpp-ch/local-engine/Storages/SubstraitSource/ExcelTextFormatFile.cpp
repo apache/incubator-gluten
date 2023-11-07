@@ -105,6 +105,13 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     bool empty_as_null = true;
     if (context->getSettings().has(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL))
         empty_as_null = context->getSettings().getString(BackendInitializerUtil::EXCEL_EMPTY_AS_NULL) == "'true'";
+
+    format_settings.try_infer_integers = 0;
+    if (!context->getSettings().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE))
+        format_settings.try_infer_integers = 1;
+    if (context->getSettings().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE) &&
+        context->getSettings().getString(BackendInitializerUtil::EXCEL_NUMBER_FORCE) == "'true'")
+        format_settings.try_infer_integers = 1;
     
     if (format_settings.csv.null_representation.empty() || empty_as_null)
         format_settings.csv.empty_as_default = true;

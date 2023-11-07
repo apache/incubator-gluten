@@ -1233,6 +1233,74 @@ class GlutenClickHouseFileFormatSuite
     )
   }
 
+  test("issues-3609 int read test") {
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
+          "use_excel_serialization.number_force",
+        "false")) {
+      val csv_path = csvDataPath + "/int_special.csv"
+      val options = new util.HashMap[String, String]()
+      options.put("delimiter", ",")
+      options.put("header", "false")
+      val schema = StructType.apply(
+        Seq(
+          StructField.apply("a", IntegerType, nullable = true),
+          StructField.apply("b", IntegerType, nullable = true),
+          StructField.apply("c", IntegerType, nullable = true),
+          StructField.apply("d", IntegerType, nullable = true)
+        ))
+
+      val df = spark.read
+        .options(options)
+        .schema(schema)
+        .csv(csv_path)
+        .toDF()
+
+      val dataCorrect = new util.ArrayList[Row]()
+      dataCorrect.add(Row(null, null, null, 15))
+
+      var expectedAnswer: Seq[Row] = null
+      withSQLConf(vanillaSparkConfs(): _*) {
+        expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+      }
+      checkAnswer(df, expectedAnswer)
+    }
+
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
+          "use_excel_serialization.number_force",
+        "true")) {
+      val csv_path = csvDataPath + "/int_special.csv"
+      val options = new util.HashMap[String, String]()
+      options.put("delimiter", ",")
+      options.put("header", "false")
+      val schema = StructType.apply(
+        Seq(
+          StructField.apply("a", IntegerType, nullable = true),
+          StructField.apply("b", IntegerType, nullable = true),
+          StructField.apply("c", IntegerType, nullable = true),
+          StructField.apply("d", IntegerType, nullable = true)
+        ))
+
+      val df = spark.read
+        .options(options)
+        .schema(schema)
+        .csv(csv_path)
+        .toDF()
+
+      val dataCorrect = new util.ArrayList[Row]()
+      dataCorrect.add(Row(15, -1, 85, 15))
+
+      var expectedAnswer: Seq[Row] = null
+      withSQLConf(vanillaSparkConfs(): _*) {
+        expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+      }
+      checkAnswer(df, expectedAnswer)
+    }
+  }
+
   def createEmptyParquet(): String = {
     val data = spark.sparkContext.emptyRDD[Row]
     val schema = new StructType()
