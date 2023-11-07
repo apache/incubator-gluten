@@ -35,7 +35,7 @@
     <module>package</module>
     <module>shims</module>
     <module>shims/common</module>
-    <module>shims/${spark.shim.version}</module>
+    <module>shims/${spark.shim.module}</module>
     <module>substrait/substrait-spark</module>
   </modules>
 
@@ -47,9 +47,10 @@
     <scala.version>2.12.15</scala.version>
     <spark.major.version>3</spark.major.version>
     <sparkbundle.version>3.2</sparkbundle.version>
-    <spark.shim.version>spark32</spark.shim.version>
+    <spark.shim.module>spark32</spark.shim.module>
+    <spark.test.module>spark32</spark.test.module>
     <spark.version>3.2.2</spark.version>
-    <sparkshim.artifactId>spark-sql-columnar-shims-${spark.shim.version}</sparkshim.artifactId>
+    <sparkshim.artifactId>spark-sql-columnar-shims-${spark.shim.module}</sparkshim.artifactId>
     <celeborn.version>0.3.0-incubating</celeborn.version>
     <arrow.version>12.0.0</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
@@ -109,7 +110,8 @@
       </activation>
       <properties>
         <sparkbundle.version>3.2</sparkbundle.version>
-        <spark.shim.version>spark32</spark.shim.version>
+        <spark.shim.module>spark32</spark.shim.module>
+        <spark.test.module>spark32</spark.test.module>
         <spark.version>3.2.2</spark.version>
         <delta.version>2.0.1</delta.version>
         <delta.binary.version>20</delta.binary.version>
@@ -119,7 +121,8 @@
       <id>spark-3.3</id>
       <properties>
         <sparkbundle.version>3.3</sparkbundle.version>
-        <spark.shim.version>spark33</spark.shim.version>
+        <spark.shim.module>spark33</spark.shim.module>
+        <spark.test.module>spark33</spark.test.module>
         <spark.version>3.3.1</spark.version>
         <delta.version>2.2.0</delta.version>
         <delta.binary.version>22</delta.binary.version>
@@ -129,7 +132,8 @@
       <id>spark-3.4</id>
       <properties>
         <sparkbundle.version>3.4</sparkbundle.version>
-        <spark.shim.version>spark34</spark.shim.version>
+        <spark.shim.module>spark34</spark.shim.module>
+        <spark.test.module>spark34</spark.test.module>
         <spark.version>3.4.1</spark.version>
         <delta.version>2.2.0</delta.version>
         <delta.binary.version>22</delta.binary.version>
@@ -217,7 +221,7 @@
       <modules>
         <module>gluten-ut</module>
         <module>gluten-ut/common</module>
-        <module>gluten-ut/${spark.shim.version}</module>
+        <module>gluten-ut/${spark.test.module}</module>
       </modules>
     </profile>
   </profiles>
