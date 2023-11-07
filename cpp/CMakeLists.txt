@@ -54,6 +54,11 @@ option(ENABLE_ORC "Enable ORC" OFF)
 set(root_directory ${PROJECT_BINARY_DIR})
 get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
 
+if (NOT DEFINED VELOX_HOME)
+  set(VELOX_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep)
+  message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
+endif()
+
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   set(ARROW_HOME ${VELOX_HOME}/_build/debug/third_party/arrow_ep)
 else()
