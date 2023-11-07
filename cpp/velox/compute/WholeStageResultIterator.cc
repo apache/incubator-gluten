@@ -357,8 +357,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         getConfigValue(confMap_, kMinSpillRunSize, std::to_string(256 << 20));
     configs[velox::core::QueryConfig::kSpillStartPartitionBit] =
         getConfigValue(confMap_, kSpillStartPartitionBit, "29");
-    configs[velox::core::QueryConfig::kAggregationSpillPartitionBits] =
-        getConfigValue(confMap_, kSpillPartitionBits, "2");
     configs[velox::core::QueryConfig::kJoinSpillPartitionBits] = getConfigValue(confMap_, kSpillPartitionBits, "2");
     configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
         getConfigValue(confMap_, kSpillableReservationGrowthPct, "25");
