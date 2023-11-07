@@ -309,12 +309,6 @@ set_target_properties(velox PROPERTIES
 ## It is also applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
 
-if(ENABLE_GLUTEN_VCPKG)
-  find_package(gflags REQUIRED COMPONENTS static CONFIG)
-else()
-  find_package(gflags REQUIRED COMPONENTS shared CONFIG)
-endif()
-
 target_include_directories(velox PUBLIC
         ${GTEST_INCLUDE_DIRS}
         ${PROTOBUF_INCLUDE})
