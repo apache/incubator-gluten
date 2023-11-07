@@ -37,7 +37,6 @@ import com.google.protobuf.Any
 import java.util
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable.ListBuffer
 
 case class HashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
@@ -56,34 +55,18 @@ case class HashAggregateExecTransformer(
     resultExpressions,
     child) {
 
-  override protected def getAttrForAggregateExpr(
-      exp: AggregateExpression,
-      aggregateAttributeList: Seq[Attribute],
-      aggregateAttr: ListBuffer[Attribute],
-      index: Int): Int = {
-    var resIndex = index
-    val mode = exp.mode
-    val aggregateFunc = exp.aggregateFunction
-    aggregateFunc match {
-      case hllAdapter: HLLAdapter =>
+  override protected def checkAggFuncModeSupport(
+      aggFunc: AggregateFunction,
+      mode: AggregateMode): Boolean = {
+    aggFunc match {
+      case _: HLLAdapter =>
         mode match {
-          case Partial =>
-            val aggBufferAttr = hllAdapter.inputAggBufferAttributes
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += aggBufferAttr.size
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-          case other =>
-            throw new UnsupportedOperationException(s"not currently supported: $other.")
+          case Partial | Final => true
+          case _ => false
         }
       case _ =>
-        resIndex = super.getAttrForAggregateExpr(exp, aggregateAttributeList, aggregateAttr, index)
+        super.checkAggFuncModeSupport(aggFunc, mode)
     }
-    resIndex
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
