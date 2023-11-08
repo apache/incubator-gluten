@@ -18,7 +18,7 @@ find_arrow_lib(${PARQUET_LIB_NAME})
 set(VELOX_BENCHMARK_COMMON_SRCS common/FileReaderIterator.cc common/BenchmarkUtils.cc)
 add_library(velox_benchmark_common STATIC ${VELOX_BENCHMARK_COMMON_SRCS})
 target_include_directories(velox_benchmark_common PUBLIC ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/core)
-target_link_libraries(velox_benchmark_common PUBLIC Arrow::parquet velox benchmark::benchmark gflags simdjson)
+target_link_libraries(velox_benchmark_common PUBLIC Arrow::parquet velox benchmark::benchmark google::glog simdjson)
 
 function(add_velox_benchmark BM_EXEC BM_FILE)
   add_executable(${BM_EXEC} ${BM_FILE})
