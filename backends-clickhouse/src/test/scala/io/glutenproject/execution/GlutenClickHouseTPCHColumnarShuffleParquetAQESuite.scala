@@ -63,6 +63,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         assert(plans(2).metrics("numFiles").value === 1)
         assert(plans(2).metrics("pruningTime").value === -1)
         assert(plans(2).metrics("filesSize").value === 17777735)
+        assert(plans(2).metrics("outputRows").value === 600572)
 
         assert(plans(1).metrics("inputRows").value === 591673)
         assert(plans(1).metrics("resizeInputRows").value === 4)

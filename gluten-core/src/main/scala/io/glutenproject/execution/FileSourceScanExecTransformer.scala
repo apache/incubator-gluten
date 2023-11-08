@@ -84,6 +84,7 @@ class FileSourceScanExecTransformer(
       relation,
       dynamicallySelectedPartitions,
       output,
+      bucketedScan,
       optionalBucketSet,
       optionalNumCoalescedBuckets,
       disableBucketedScan)
@@ -107,12 +108,6 @@ class FileSourceScanExecTransformer(
   override def hashCode(): Int = super.hashCode()
 
   override protected def doValidateInternal(): ValidationResult = {
-    // Bucketing table has `bucketId` in filename, should apply this in backends
-    // TODO Support bucketed scan
-    if (bucketedScan && !BackendsApiManager.getSettings.supportBucketScan()) {
-      throw new UnsupportedOperationException("Bucketed scan is unsupported for now.")
-    }
-
     if (hasMetadataColumns) {
       return ValidationResult.notOk(s"Unsupported metadataColumns scan in native.")
     }

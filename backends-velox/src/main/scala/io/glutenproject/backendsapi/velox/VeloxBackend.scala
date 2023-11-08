@@ -306,8 +306,6 @@ object BackendSettings extends BackendSettingsApi {
     UDFResolver.resolveUdfConf(nativeConf)
   }
 
-  override def supportBucketScan(): Boolean = true
-
   override def insertPostProjectForGenerate(): Boolean = true
 
   override def skipNativeCtas(ctas: CreateDataSourceTableAsSelectCommand): Boolean = true
