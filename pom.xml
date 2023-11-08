@@ -34,7 +34,6 @@
     <module>gluten-ui</module>
     <module>package</module>
     <module>shims</module>
-    <module>shims/common</module>
     <module>substrait/substrait-spark</module>
   </modules>
 
@@ -115,9 +114,6 @@
         <delta.version>2.0.1</delta.version>
         <delta.binary.version>20</delta.binary.version>
       </properties>
-      <modules>
-        <module>shims/spark32</module>
-      </modules>
     </profile>
     <profile>
       <id>spark-3.3</id>
@@ -129,9 +125,6 @@
         <delta.version>2.2.0</delta.version>
         <delta.binary.version>22</delta.binary.version>
       </properties>
-      <modules>
-        <module>shims/spark33</module>
-      </modules>
     </profile>
     <profile>
       <id>spark-3.4</id>
@@ -143,9 +136,6 @@
         <delta.version>2.2.0</delta.version>
         <delta.binary.version>22</delta.binary.version>
       </properties>
-      <modules>
-        <module>shims/spark34</module>
-      </modules>
     </profile>
     <profile>
       <id>hadoop-2.7.4</id>
