@@ -4,6 +4,9 @@ We need using gpertools to find the memory or CPU issue. That's what this docume
 Install gperftools as described in https://github.com/gperftools/gperftools.
 We get the library and the command line tools.
 
+## Compiler libch.so
+Disable jemalloc `-DENABLE_JEMALLOC=OFF` in cpp-ch/CMakeLists.txt, and recompile libch.so.
+
 ## Run Gluten with gperftools
 For Spark on Yarn, we can change the submit script to run Gluten with gperftools.
 Add the following to the submit script:
