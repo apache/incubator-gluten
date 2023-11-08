@@ -19,7 +19,10 @@ package io.glutenproject.execution.extension
 import io.glutenproject.expression._
 import io.glutenproject.extension.ExpressionExtensionTrait
 
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
+
+import scala.collection.mutable.ListBuffer
 
 case class CustomAggExpressionTransformer() extends ExpressionExtensionTrait {
 
@@ -29,4 +32,33 @@ case class CustomAggExpressionTransformer() extends ExpressionExtensionTrait {
 
   /** Generate the extension expressions list, format: Sig[XXXExpression]("XXXExpressionName") */
   override def expressionSigList: Seq[Sig] = expressionSigs
+
+  /** Get the attribute index of the extension aggregate functions. */
+  override def getAttrsIndexForExtensionAggregateExpr(
+      aggregateFunc: AggregateFunction,
+      mode: AggregateMode,
+      exp: AggregateExpression,
+      aggregateAttributeList: Seq[Attribute],
+      aggregateAttr: ListBuffer[Attribute],
+      resIndex: Int): Int = {
+    var reIndex = resIndex
+    aggregateFunc match {
+      case CustomSum(_, _) =>
+        mode match {
+          case Partial =>
+            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
+            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
+            aggregateAttr += attr
+            reIndex += 1
+            reIndex
+          // custom logic: can not support 'Final'
+          /* case Final =>
+            aggregateAttr += aggregateAttributeList(reIndex)
+            reIndex += 1
+            reIndex */
+          case other =>
+            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+        }
+    }
+  }
 }
