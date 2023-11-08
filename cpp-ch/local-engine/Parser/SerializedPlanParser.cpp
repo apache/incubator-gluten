@@ -61,9 +61,11 @@
 #include <Parsers/ExpressionListParsers.h>
 #include <Processors/Executors/PullingAsyncPipelineExecutor.h>
 #include <Processors/Formats/Impl/ArrowBlockOutputFormat.h>
+#include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/FilterStep.h>
 #include <Processors/QueryPlan/LimitStep.h>
+#include <Processors/QueryPlan/MergingAggregatedStep.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Processors/QueryPlan/ReadFromPreparedSource.h>
@@ -2232,29 +2234,42 @@ bool LocalExecutor::checkAndSetDefaultBlock(size_t current_block_columns, bool h
     {
         return has_next_blocks;
     }
-    auto cols = currentBlock().getColumnsWithTypeAndName();
-    for (const auto & col : cols)
+    bool should_set_default_value = false;
+    for (auto p :  query_pipeline.getProcessors())
     {
-        String col_name = col.name;
-        DataTypePtr col_type = col.type;
-        if (col_name.compare(0, 4, "sum#") != 0 && col_name.compare(0, 4, "max#") != 0 && col_name.compare(0, 4, "min#") != 0
-            && col_name.compare(0, 6, "count#") != 0)
+        if (p->getName() == "MergingAggregatedTransform")
         {
-            return false;
+            DB::MergingAggregatedStep * agg_step = static_cast<DB::MergingAggregatedStep *>(p->getQueryPlanStep());
+            auto query_params = agg_step->getParams();
+            should_set_default_value = query_params.keys_size == 0;
+            std::cout << "agg_size:" << query_params.aggregates_size << std::endl;
         }
-        if (!isInteger(col_type) && !col_type->isNullable())
+        else if (p->getName() == "AggregatingTransform")
         {
-            return false;
+            DB::AggregatingStep * agg_step = static_cast<DB::AggregatingStep *>(p->getQueryPlanStep());
+            auto query_params = agg_step->getParams();
+            should_set_default_value = query_params.keys_size == 0;
         }
     }
+    if (!should_set_default_value)
+        return false;
+    auto cols = currentBlock().getColumnsWithTypeAndName();
     for (size_t i = 0; i < cols.size(); i++)
     {
         const DB::ColumnWithTypeAndName col = cols[i];
-        String col_name = col.name;
-        DataTypePtr col_type = col.type;
-        const DB::ColumnPtr & default_col_ptr = col_type->createColumnConst(1, col_type->getDefault());
-        const DB::ColumnWithTypeAndName default_col(default_col_ptr, col_type, col_name);
-        currentBlock().setColumn(i, default_col);
+        if (isColumnConst(*col.column))
+        {
+            const DB::ColumnConst * col_string = checkAndGetColumnConst<const DB::ColumnString>(col.column.get());
+            std::cout << "col_string.size:" << col_string->size() << std::endl;
+        }
+        else
+        {
+            String col_name = col.name;
+            DataTypePtr col_type = col.type;
+            const DB::ColumnPtr & default_col_ptr = col_type->createColumnConst(1, col_type->getDefault());
+            const DB::ColumnWithTypeAndName default_col(default_col_ptr, col_type, col_name);
+            currentBlock().setColumn(i, default_col);
+        }
     }
     if (cols.size() > 0)
         return true;
