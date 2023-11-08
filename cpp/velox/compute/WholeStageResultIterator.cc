@@ -62,6 +62,9 @@ const std::string kAbandonPartialAggregationMinPct =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct";
 const std::string kAbandonPartialAggregationMinRows =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows";
+const std::string kBloomFilterExpectedNumItems = "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems";
+const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits";
+const std::string kBloomFilterMaxNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits";
 
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
@@ -361,6 +364,12 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
         getConfigValue(confMap_, kSpillableReservationGrowthPct, "25");
     configs[velox::core::QueryConfig::kSpillCompressionKind] = getConfigValue(confMap_, kSpillCompressionKind, "lz4");
+    configs[velox::core::QueryConfig::kSparkBloomFilterExpectedNumItems] =
+        getConfigValue(confMap_, kBloomFilterExpectedNumItems, "1000000");
+    configs[velox::core::QueryConfig::kSparkBloomFilterNumBits] =
+        getConfigValue(confMap_, kBloomFilterNumBits, "8388608");
+    configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] =
+        getConfigValue(confMap_, kBloomFilterMaxNumBits, "4194304");
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();
     throw std::runtime_error("Invalid conf arg: " + errDetails);
