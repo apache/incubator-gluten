@@ -16,17 +16,15 @@
  */
 package io.glutenproject.execution.extension
 
-import io.glutenproject.execution.{GlutenClickHouseTPCHAbstractSuite, HashAggregateExecBaseTransformer}
+import io.glutenproject.execution.{GlutenClickHouseTPCHAbstractSuite, WholeStageTransformerSuite}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistryBase
 import org.apache.spark.sql.catalyst.expressions.aggregate.CustomSum
-import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
+import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 
-class GlutenCustomAggExpressionSuite
-  extends GlutenClickHouseTPCHAbstractSuite
-  with AdaptiveSparkPlanHelper {
+class GlutenCustomAggExpressionSuite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val resourcePath: String =
     "../../../../gluten-core/src/test/resources/tpch-data"
@@ -77,19 +75,13 @@ class GlutenCustomAggExpressionSuite
          |    l_returnflag,
          |    l_linestatus;
          |""".stripMargin
-    compareResultsAgainstVanillaSpark(
-      sql,
-      true,
-      {
-        df =>
-          val hashAggExec = collect(df.queryExecution.executedPlan) {
-            case hash: HashAggregateExecBaseTransformer => hash
-          }
-          assert(hashAggExec.size == 2)
+    val df = spark.sql(sql)
+    // Final stage is not supported, it will be fallback
+    WholeStageTransformerSuite.checkFallBack(df, false)
 
-          assert(hashAggExec(0).aggregateExpressions(0).aggregateFunction.isInstanceOf[CustomSum])
-          assert(hashAggExec(1).aggregateExpressions(0).aggregateFunction.isInstanceOf[CustomSum])
-      }
-    )
+    val fallbackAggExec = df.queryExecution.executedPlan.collect {
+      case agg: HashAggregateExec => agg
+    }
+    assert(fallbackAggExec.size == 1)
   }
 }

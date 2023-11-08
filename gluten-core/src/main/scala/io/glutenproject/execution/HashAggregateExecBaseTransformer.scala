@@ -408,25 +408,40 @@ abstract class HashAggregateExecBaseTransformer(
     var resIndex = index
     val mode = exp.mode
     val aggregateFunc = exp.aggregateFunction
-    if (!checkAggFuncModeSupport(aggregateFunc, mode)) {
-      throw new UnsupportedOperationException(
-        s"Unsupported aggregate mode: $mode for ${aggregateFunc.prettyName}")
-    }
-    mode match {
-      case Partial | PartialMerge =>
-        val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-        for (index <- aggBufferAttr.indices) {
-          val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-          aggregateAttr += attr
-        }
-        resIndex += aggBufferAttr.size
-        resIndex
-      case Final =>
-        aggregateAttr += aggregateAttributeList(resIndex)
-        resIndex += 1
-        resIndex
-      case other =>
-        throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+    // First handle the custom aggregate functions
+    if (
+      ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
+        aggregateFunc.getClass)
+    ) {
+      ExpressionMappings.expressionExtensionTransformer
+        .getAttrsIndexForExtensionAggregateExpr(
+          aggregateFunc,
+          mode,
+          exp,
+          aggregateAttributeList,
+          aggregateAttr,
+          index)
+    } else {
+      if (!checkAggFuncModeSupport(aggregateFunc, mode)) {
+        throw new UnsupportedOperationException(
+          s"Unsupported aggregate mode: $mode for ${aggregateFunc.prettyName}")
+      }
+      mode match {
+        case Partial | PartialMerge =>
+          val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
+          for (index <- aggBufferAttr.indices) {
+            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+            aggregateAttr += attr
+          }
+          resIndex += aggBufferAttr.size
+          resIndex
+        case Final =>
+          aggregateAttr += aggregateAttributeList(resIndex)
+          resIndex += 1
+          resIndex
+        case other =>
+          throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+      }
     }
   }
 
