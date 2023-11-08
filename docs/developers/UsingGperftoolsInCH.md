@@ -18,6 +18,8 @@ export LD_PRELOAD=$tcmalloc_path,libch.so # load the library in the driver
 --conf spark.executorEnv.HEAPPROFILE=/tmp/gluten_heap_perf # set the heap profile path, you can change to CPUPROFILE for CPU profiling
 ```
 
+For thrift server on local machine, note using `export LD_PRELOAD="$tcmalloc_path libch.so" # load the library in the driver` to preload dynamic libraries.
+
 ## Analyze the result
 We can get the result in the path we set in the previous step. For example, we can get the result in `/tmp/gluten_heap_perf`. We can use the following website to analyze the result:
 https://gperftools.github.io/gperftools/heapprofile.html
