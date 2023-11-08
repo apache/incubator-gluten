@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.metrics.{GlutenTimeMetric, IMetrics, NativeMetrics}
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder}
+import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder, ReadSplit}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
@@ -41,10 +41,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.lang.{Long => JLong}
 import java.net.URI
-import java.util.{ArrayList => JArrayList}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
 
@@ -53,57 +52,47 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
    *
    * @return
    */
-  override def genFilePartition(
-      index: Int,
-      partitions: Seq[InputPartition],
-      partitionSchemas: Seq[StructType],
-      fileFormats: Seq[ReadFileFormat],
-      wsCxt: WholeStageTransformContext): BaseGlutenPartition = {
-    val localFilesNodesWithLocations = partitions.indices.map(
-      i =>
-        partitions(i) match {
-          case p: GlutenMergeTreePartition =>
-            (
-              ExtensionTableBuilder
-                .makeExtensionTable(p.minParts, p.maxParts, p.database, p.table, p.tablePath),
-              SoftAffinityUtil.getNativeMergeTreePartitionLocations(p))
-          case f: FilePartition =>
-            val paths = new JArrayList[String]()
-            val starts = new JArrayList[JLong]()
-            val lengths = new JArrayList[JLong]()
-            val partitionColumns = mutable.ArrayBuffer.empty[Map[String, String]]
-            f.files.foreach {
-              file =>
-                paths.add(new URI(file.filePath).toASCIIString)
-                starts.add(JLong.valueOf(file.start))
-                lengths.add(JLong.valueOf(file.length))
-                // TODO: Support custom partition location
-                val partitionColumn = mutable.Map.empty[String, String]
-                partitionColumns.append(partitionColumn.toMap)
-            }
-            (
-              LocalFilesBuilder.makeLocalFiles(
-                f.index,
-                paths,
-                starts,
-                lengths,
-                partitionColumns.map(_.asJava).asJava,
-                fileFormats(i)),
-              SoftAffinityUtil.getFilePartitionLocations(f))
-          case _ =>
-            throw new UnsupportedOperationException(s"Unsupported input partition.")
-        })
-    wsCxt.substraitContext.initLocalFilesNodesIndex(0)
-    wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
-    val substraitPlan = wsCxt.root.toProtobuf
-    if (index == 0) {
-      logOnLevel(
-        GlutenConfig.getConf.substraitPlanLogLevel,
-        s"The substrait plan for partition $index:\n${SubstraitPlanPrinterUtil
-            .substraitPlanToJson(substraitPlan)}"
-      )
+  override def genReadSplit(
+      partition: InputPartition,
+      partitionSchemas: StructType,
+      fileFormat: ReadFileFormat): ReadSplit = {
+    partition match {
+      case p: GlutenMergeTreePartition =>
+        ExtensionTableBuilder
+          .makeExtensionTable(
+            p.minParts,
+            p.maxParts,
+            p.database,
+            p.table,
+            p.tablePath,
+            SoftAffinityUtil.getNativeMergeTreePartitionLocations(p).toList.asJava)
+      case f: FilePartition =>
+        val paths = new JArrayList[String]()
+        val starts = new JArrayList[JLong]()
+        val lengths = new JArrayList[JLong]()
+        val partitionColumns = new JArrayList[JMap[String, String]]
+        f.files.foreach {
+          file =>
+            paths.add(new URI(file.filePath).toASCIIString)
+            starts.add(JLong.valueOf(file.start))
+            lengths.add(JLong.valueOf(file.length))
+            // TODO: Support custom partition location
+            val partitionColumn = new JHashMap[String, String]()
+            partitionColumns.add(partitionColumn)
+        }
+        val preferredLocations =
+          SoftAffinityUtil.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
+        LocalFilesBuilder.makeLocalFiles(
+          f.index,
+          paths,
+          starts,
+          lengths,
+          partitionColumns,
+          fileFormat,
+          preferredLocations.toList.asJava)
+      case _ =>
+        throw new UnsupportedOperationException(s"Unsupported input partition.")
     }
-    GlutenPartition(index, substraitPlan.toByteArray, localFilesNodesWithLocations.head._2)
   }
 
   /**
@@ -244,17 +233,28 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   override def genNativeFileScanRDD(
       sparkContext: SparkContext,
       wsCxt: WholeStageTransformContext,
-      fileFormat: ReadFileFormat,
-      inputPartitions: Seq[InputPartition],
+      readSplits: Seq[ReadSplit],
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {
     val substraitPlanPartition = GlutenTimeMetric.withMillisTime {
-      // generate each partition of all scan exec
-      inputPartitions.indices.map(
-        i => {
-          genFilePartition(i, Seq(inputPartitions(i)), null, Seq(fileFormat), wsCxt)
-        })
+      readSplits.zipWithIndex.map {
+        case (readSplit, index) =>
+          wsCxt.substraitContext.initReadSplitsIndex(0)
+          wsCxt.substraitContext.setReadSplits(Seq(readSplit))
+          val substraitPlan = wsCxt.root.toProtobuf
+          if (index == 0) {
+            logOnLevel(
+              GlutenConfig.getConf.substraitPlanLogLevel,
+              s"The substrait plan for partition $index:\n${SubstraitPlanPrinterUtil
+                  .substraitPlanToJson(substraitPlan)}"
+            )
+          }
+          GlutenPartition(
+            index,
+            substraitPlan.toByteArray,
+            readSplit.preferredLocations().asScala.toArray)
+      }
     }(t => logInfo(s"Generating the Substrait plan took: $t ms."))
 
     new NativeFileScanColumnarRDD(

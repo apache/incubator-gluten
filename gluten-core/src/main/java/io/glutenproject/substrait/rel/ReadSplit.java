@@ -16,19 +16,12 @@
  */
 package io.glutenproject.substrait.rel;
 
+import com.google.protobuf.MessageOrBuilder;
+
 import java.util.List;
 
-public class ExtensionTableBuilder {
-  private ExtensionTableBuilder() {}
+public interface ReadSplit {
+  List<String> preferredLocations();
 
-  public static ExtensionTableNode makeExtensionTable(
-      Long minPartsNum,
-      Long maxPartsNum,
-      String database,
-      String tableName,
-      String relativePath,
-      List<String> preferredLocations) {
-    return new ExtensionTableNode(
-        minPartsNum, maxPartsNum, database, tableName, relativePath, preferredLocations);
-  }
+  MessageOrBuilder toProtobuf();
 }

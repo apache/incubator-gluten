@@ -25,7 +25,7 @@ import io.glutenproject.metrics.{GlutenTimeMetric, MetricsUpdater, NoopMetricsUp
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
-import io.glutenproject.substrait.rel.RelNode
+import io.glutenproject.substrait.rel.{ReadSplit, RelNode}
 import io.glutenproject.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark.{Dependency, OneToOneDependency, Partition, SparkConf, TaskContext}
@@ -39,6 +39,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 case class TransformContext(
@@ -242,28 +243,21 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
        * rather than genFinalStageIterator will be invoked
        */
 
-      // If these are two scan transformers, they must have same partitions,
-      // otherwise, exchange will be inserted.
-      val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
-      val allScanPartitionSchemas = basicScanExecTransformers.map(_.getPartitionSchemas)
-      val partitionLength = allScanPartitions.head.size
-      if (allScanPartitions.exists(_.size != partitionLength)) {
-        throw new GlutenException(
-          "The partition length of all the scan transformer are not the same.")
-      }
+      val allScanReadSplits = getReadSplitFromScanTransformer(basicScanExecTransformers)
       val (wsCxt, substraitPlanPartitions) = GlutenTimeMetric.withMillisTime {
         val wsCxt = doWholeStageTransform()
 
-        // the file format for each scan exec
-        val fileFormats = basicScanExecTransformers.map(ConverterUtils.getFileFormat)
-
         // generate each partition of all scan exec
-        val substraitPlanPartitions = (0 until partitionLength).map(
-          i => {
-            val currentPartitions = allScanPartitions.map(_(i))
-            BackendsApiManager.getIteratorApiInstance
-              .genFilePartition(i, currentPartitions, allScanPartitionSchemas, fileFormats, wsCxt)
-          })
+        val substraitPlanPartitions = allScanReadSplits.zipWithIndex.map {
+          case (readSplits, index) =>
+            wsCxt.substraitContext.initReadSplitsIndex(0)
+            wsCxt.substraitContext.setReadSplits(readSplits)
+            val substraitPlan = wsCxt.root.toProtobuf
+            GlutenPartition(
+              index,
+              substraitPlan.toByteArray,
+              readSplits.head.preferredLocations().asScala.toArray)
+        }
         (wsCxt, substraitPlanPartitions)
       }(
         t =>
@@ -336,6 +330,32 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformer =
     copy(child = newChild, materializeInput = materializeInput)(transformStageId)
+
+  private def getReadSplitFromScanTransformer(
+      basicScanExecTransformers: Seq[BasicScanExecTransformer]): Seq[Seq[ReadSplit]] = {
+    // If these are two scan transformers, they must have same partitions,
+    // otherwise, exchange will be inserted. We should combine the two scan
+    // transformers' partitions with same index, and set them together in
+    // the substraitContext. We use transpose to do that, You can refer to
+    // the diagram below.
+    // scan1  p11 p12 p13 p14 ... p1n
+    // scan2  p21 p22 p23 p24 ... p2n
+    // transpose =>
+    // scan1 | scan2
+    //  p11  |  p21    => substraitContext.setReadSplits([p11, p21])
+    //  p12  |  p22    => substraitContext.setReadSplits([p11, p22])
+    //  p13  |  p23    ...
+    //  p14  |  p24
+    //      ...
+    //  p1n  |  p2n    => substraitContext.setReadSplits([p1n, p2n])
+    val allScanReadSplits = basicScanExecTransformers.map(_.getReadSplits)
+    val partitionLength = allScanReadSplits.head.size
+    if (allScanReadSplits.exists(_.size != partitionLength)) {
+      throw new GlutenException(
+        "The partition length of all the scan transformer are not the same.")
+    }
+    allScanReadSplits.transpose
+  }
 }
 
 /**

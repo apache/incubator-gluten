@@ -17,7 +17,7 @@
 package io.glutenproject.substrait
 
 import io.glutenproject.substrait.ddlplan.InsertOutputNode
-import io.glutenproject.substrait.rel.LocalFilesNode
+import io.glutenproject.substrait.rel.{LocalFilesNode, ReadSplit}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import java.lang.{Integer => JInt, Long => JLong}
@@ -80,8 +80,8 @@ class SubstraitContext extends Serializable {
   // A map stores the relationship between aggregation operator id and its param.
   private val aggregationParamsMap = new JHashMap[JLong, AggregationParams]()
 
-  private var localFilesNodesIndex: JInt = 0
-  private var localFilesNodes: Seq[java.io.Serializable] = _
+  private var readSplitsIndex: JInt = 0
+  private var readSplits: Seq[ReadSplit] = _
   private var iteratorIndex: JLong = 0L
   private var fileFormat: JList[ReadFileFormat] = new JArrayList[ReadFileFormat]()
   private var insertOutputNode: InsertOutputNode = _
@@ -95,28 +95,28 @@ class SubstraitContext extends Serializable {
     iteratorNodes.put(index, localFilesNode)
   }
 
-  def initLocalFilesNodesIndex(localFilesNodesIndex: JInt): Unit = {
-    this.localFilesNodesIndex = localFilesNodesIndex
+  def initReadSplitsIndex(readSplitsIndex: JInt): Unit = {
+    this.readSplitsIndex = readSplitsIndex
   }
 
-  def getLocalFilesNodes: Seq[java.io.Serializable] = localFilesNodes
+  def getReadSplits: Seq[ReadSplit] = readSplits
 
   // FIXME Hongze 22/11/28
   // This makes calls to ReadRelNode#toProtobuf non-idempotent which doesn't seem to be
   // optimal in regard to the method name "toProtobuf".
-  def getCurrentLocalFileNode: java.io.Serializable = {
-    if (getLocalFilesNodes != null && getLocalFilesNodes.size > localFilesNodesIndex) {
-      val res = getLocalFilesNodes(localFilesNodesIndex)
-      localFilesNodesIndex += 1
+  def getCurrentReadSplit: ReadSplit = {
+    if (getReadSplits != null && getReadSplits.size > readSplitsIndex) {
+      val res = getReadSplits(readSplitsIndex)
+      readSplitsIndex += 1
       res
     } else {
       throw new IllegalStateException(
-        s"LocalFilesNodes index $localFilesNodesIndex exceeds the size of the LocalFilesNodes.")
+        s"LocalFilesNodes index $readSplitsIndex exceeds the size of the LocalFilesNodes.")
     }
   }
 
-  def setLocalFilesNodes(localFilesNodes: Seq[java.io.Serializable]): Unit = {
-    this.localFilesNodes = localFilesNodes
+  def setReadSplits(readSplits: Seq[ReadSplit]): Unit = {
+    this.readSplits = readSplits
   }
 
   def getInputIteratorNode(index: JLong): LocalFilesNode = {

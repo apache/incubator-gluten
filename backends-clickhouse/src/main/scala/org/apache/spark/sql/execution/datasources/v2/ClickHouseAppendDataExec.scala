@@ -239,13 +239,14 @@ case class ClickHouseAppendDataExec(
               starts,
               lengths,
               partitionColumns.map(_.asJava).asJava,
-              ReadFileFormat.UnknownFormat)
+              ReadFileFormat.UnknownFormat,
+              List.empty.asJava)
         val insertOutputNode = InsertOutputBuilder.makeInsertOutputNode(
           SnowflakeIdWorker.getInstance().nextId(),
           database,
           tableName,
           tablePath)
-        dllCxt.substraitContext.setLocalFilesNodes(Seq(localFilesNode))
+        dllCxt.substraitContext.setReadSplits(Seq(localFilesNode))
         dllCxt.substraitContext.setInsertOutputNode(insertOutputNode)
         val substraitPlan = dllCxt.root.toProtobuf
         logWarning(dllCxt.root.toProtobuf.toString)

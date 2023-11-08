@@ -30,12 +30,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class LocalFilesNode implements Serializable {
+public class LocalFilesNode implements ReadSplit, Serializable {
   private final Integer index;
   private final List<String> paths = new ArrayList<>();
   private final List<Long> starts = new ArrayList<>();
   private final List<Long> lengths = new ArrayList<>();
   private final List<Map<String, String>> partitionColumns = new ArrayList<>();
+  private final List<String> preferredLocations = new ArrayList<>();
 
   // The format of file to read.
   public enum ReadFileFormat {
@@ -60,13 +61,15 @@ public class LocalFilesNode implements Serializable {
       List<Long> starts,
       List<Long> lengths,
       List<Map<String, String>> partitionColumns,
-      ReadFileFormat fileFormat) {
+      ReadFileFormat fileFormat,
+      List<String> preferredLocations) {
     this.index = index;
     this.paths.addAll(paths);
     this.starts.addAll(starts);
     this.lengths.addAll(lengths);
     this.fileFormat = fileFormat;
     this.partitionColumns.addAll(partitionColumns);
+    this.preferredLocations.addAll(preferredLocations);
   }
 
   LocalFilesNode(String iterPath) {
@@ -96,6 +99,11 @@ public class LocalFilesNode implements Serializable {
 
   public void setFileReadProperties(Map<String, String> fileReadProperties) {
     this.fileReadProperties = fileReadProperties;
+  }
+
+  @Override
+  public List<String> preferredLocations() {
+    return this.preferredLocations;
   }
 
   public ReadRel.LocalFiles toProtobuf() {
