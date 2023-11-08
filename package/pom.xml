@@ -50,7 +50,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
+      <artifactId>spark-hive_${scala.binary.version}</artifactId>
       <scope>provided</scope>
     </dependency>
   </dependencies>
@@ -198,6 +198,9 @@
                     <ignoreClass>org.apache.spark.unused.UnusedStubClass</ignoreClass>
                     <!-- jdo -->
                     <ignoreClass>javax.jdo.*</ignoreClass>
+                    <!-- javax -->
+                    <ignoreClass>javax.transaction.*</ignoreClass>
+                    <ignoreClass>javax.xml.*</ignoreClass>
                     <!-- log4j -->
                     <ignoreClass>org.apache.commons.logging.*</ignoreClass>
                     <!-- hive -->

@@ -11,7 +11,7 @@
 
   <artifactId>gluten-celeborn-package</artifactId>
   <packaging>jar</packaging>
-  <name>Gluten Celeborn Common</name>
+  <name>Gluten Celeborn Package</name>
 
   <profiles>
     <profile>
