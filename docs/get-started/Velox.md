@@ -4,7 +4,7 @@ title: Gluten with Velox Backend
 nav_order: 1
 parent: Getting-Started
 ---
-Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
+Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox. Our nightly build still use Velox under oap-project. 
 
 # Prerequisite
 
@@ -13,14 +13,7 @@ common OS and conda env deployment.
 
 Gluten builds with Spark3.2.x and Spark3.3.x now but only fully tested in CI with 3.2.2 and 3.3.1. We will add/update supported/tested versions according to the upstream changes. 
 
-Velox uses the script `scripts/setup-xxx.sh` to install all dependency libraries, but Arrow's dependency libraries are not installed. Velox also requires ninja for compilation.
-So we need to install all of them manually. Also, we need to set up the `JAVA_HOME` env. Currently, **java 8** is required and the support for java 11/17 is not ready.
-
-```bash
-## run as root
-## install gcc and libraries to build arrow
-apt-get update && apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev openjdk-8-jdk maven
-```
+we need to set up the `JAVA_HOME` env. Currently, **java 8** is required and the support for java 11/17 is not ready.
 
 **For x86_64**
 
@@ -61,7 +54,7 @@ cd /path/to/gluten
 ./dev/buildbundle-veloxbe.sh
 
 ## After a complete build, if you need to re-build the project and only some gluten code is changed,
-## you can use the following command to skip building arrow, velox and protobuf.
+## you can use the following command to skip building velox and protobuf.
 # ./dev/buildbundle-veloxbe.sh --skip_build_ep=ON --build_protobuf=OFF
 ```
 
@@ -75,30 +68,23 @@ cd /path/to/gluten
 ./dev/builddeps-veloxbe.sh
 ```
 
-**Build Velox or Arrow separately**
+**Build Velox separately**
 
-Scripts under `/path/to/gluten/ep/build-xxx/src` provide `get_xxx.sh` and `build_xxx.sh` to build Velox or Arrow separately, you could use these scripts with custom repo/branch/location.
+Scripts under `/path/to/gluten/ep/build-velox/src` provide `get_velox.sh` and `build_velox.sh` to build Velox separately, you could use these scripts with custom repo/branch/location.
 
-Velox can use pre-build arrow/parquet lib from ARROW_HOME parsed by --arrow_home to decrease build time.
-Gluten cpp module need a required VELOX_HOME parsed by --velox_home and an optional ARROW_HOME by --arrow_home, if you specify custom ep location, make sure these variables be passed correctly.
+Velox provides arrow/parquet lib. Gluten cpp module need a required VELOX_HOME parsed by --velox_home, if you specify custom ep location, make sure these variables be passed correctly.
 
 ```bash
-## fetch Arrow and compile
-cd /path/to/gluten/ep/build-arrow/src/
-## you could use custom ep location by --arrow_home=custom_path, make sure specify --arrow_home in build_arrow.sh too.
-./get_arrow.sh
-./build_arrow.sh
-
 ## fetch Velox and compile
 cd /path/to/gluten/ep/build-velox/src/
 ## you could use custom ep location by --velox_home=custom_path, make sure specify --velox_home in build_velox.sh too.
 ./get_velox.sh
-## make sure specify --arrow_home or --velox_home if you have specified it in get_xxx.sh.
+## make sure specify --velox_home if you have specified it in get_velox.sh.
 ./build_velox.sh
 
 ## compile Gluten cpp module
 cd /path/to/gluten/cpp
-## if you use custom velox_home or arrow_home, make sure specified here by --arrow_home or --velox_home 
+## if you use custom velox_home, make sure specified here by --velox_home 
 ./compile.sh --build_velox_backend=ON
 
 ## compile Gluten java module and create package jar
