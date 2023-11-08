@@ -24,6 +24,11 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <modules>
+    <module>common</module>
+    <module>${spark.test.module}</module>
+  </modules>
+
   <artifactId>gluten-ut</artifactId>
   <packaging>pom</packaging>
   <name>Gluten Unit Test</name>
