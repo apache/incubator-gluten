@@ -28,6 +28,11 @@
   <name>Gluten Shims</name>
   <packaging>pom</packaging>
 
+  <modules>
+    <module>common</module>
+    <module>${spark.shim.module}</module>
+  </modules>
+
   <dependencies>
     <dependency>
       <groupId>org.scalatest</groupId>

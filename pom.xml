@@ -34,8 +34,6 @@
     <module>gluten-ui</module>
     <module>package</module>
     <module>shims</module>
-    <module>shims/common</module>
-    <module>shims/${spark.shim.module}</module>
     <module>substrait/substrait-spark</module>
   </modules>
 
@@ -220,8 +218,6 @@
       <id>spark-ut</id>
       <modules>
         <module>gluten-ut</module>
-        <module>gluten-ut/common</module>
-        <module>gluten-ut/${spark.test.module}</module>
       </modules>
     </profile>
   </profiles>
