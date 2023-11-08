@@ -150,6 +150,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
 
     Iterators
       .wrap(resIter.asScala)
+      .protectInvocationFlow()
       .recycleIterator {
         updateNativeMetrics(resIter.getMetrics)
         updateInputMetrics(TaskContext.get().taskMetrics().inputMetrics)
