@@ -17,6 +17,25 @@ name: Velox backend
 
 on:
   pull_request:
+    paths:
+      - '.github/**'
+      - 'pom.xml'
+      - 'backends-velox/**'
+      - 'gluten-celeborn/**'
+      - 'gluten-core/**'
+      - 'gluten-data/**'
+      - 'gluten-ut/**'
+      - 'shims/**'
+      - 'tools/gluten-it/**'
+      - 'tools/gluten-te/**'
+      - 'ep/build-arrow/**'
+      - 'ep/build-velox/**'
+      - 'cpp/*'
+      - 'cpp/CMake/**'
+      - 'cpp/velox/**'
+      - 'cpp/core/**'
+      - 'dev**'
+#      - 'substrait/substrait-spark/**'
 
 
 concurrency:
