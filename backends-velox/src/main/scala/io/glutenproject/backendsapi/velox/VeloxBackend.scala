@@ -97,7 +97,10 @@ object BackendSettings extends BackendSettingsApi {
       case DwrfReadFormat => true
       case OrcReadFormat =>
         val unsupportedDataTypes =
-          fields.map(_.dataType).collect { case _: TimestampType => "TimestampType" }
+          fields.map(_.dataType).collect {
+            case _: TimestampType => "TimestampType"
+            case _: CharType => "CharType"
+          }
         for (unsupportedDataType <- unsupportedDataTypes) {
           // scalastyle:off println
           println(
