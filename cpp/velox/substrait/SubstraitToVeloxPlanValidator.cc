@@ -358,6 +358,34 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchR
     logValidateMsg("native validation failed due to: Offset and count should be valid in FetchRel.");
     return false;
   }
+
+  core::PlanNodePtr childNode;
+  // Check the input of fetchRel, if it's sortRel, we need to check whether the sorting key is duplicated.
+  ::substrait::SortRel sortRel;
+  bool topNFlag = false;
+  if (fetchRel.has_input()) {
+    topNFlag = fetchRel.input().has_sort();
+    if (topNFlag) {
+      sortRel = fetchRel.input().sort();
+      childNode = planConverter_.toVeloxPlan(sortRel.input());
+    } else {
+      childNode = planConverter_.toVeloxPlan(fetchRel.input());
+    }
+  }
+
+  if (topNFlag) {
+    auto [sortingKeys, sortingOrders] = planConverter_.processSortField(sortRel.sorts(), childNode->outputType());
+
+    folly::F14FastSet<std::string> sortingKeyNames;
+    for (const auto& sortingKey : sortingKeys) {
+      auto result = sortingKeyNames.insert(sortingKey->name());
+      if (!result.second) {
+        logValidateMsg(
+            "native validation failed due to: if the input of fetchRel is a SortRel, we will convert it to a TopNNode. In Velox, it is important to ensure unique sorting keys. However, duplicate keys were found in this case.");
+        return false;
+      }
+    }
+  }
   return true;
 }
 

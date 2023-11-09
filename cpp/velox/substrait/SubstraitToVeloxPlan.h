@@ -152,6 +152,12 @@ class SubstraitToVeloxPlanConverter {
   /// Get aggregation step from AggregateRel.
   core::AggregationNode::Step toAggregationStep(const ::substrait::AggregateRel& sAgg);
 
+  /// Helper Function to convert Substrait sortField to Velox sortingKeys and
+  /// sortingOrders.
+  std::pair<std::vector<core::FieldAccessTypedExprPtr>, std::vector<core::SortOrder>> processSortField(
+      const ::google::protobuf::RepeatedPtrField<::substrait::SortField>& sortField,
+      const RowTypePtr& inputType);
+
  private:
   /// Integrate Substrait emit feature. Here a given 'substrait::RelCommon'
   /// is passed and check if emit is defined for this relation. Basically a
@@ -327,12 +333,6 @@ class SubstraitToVeloxPlanConverter {
     // The list of values used in 'in' expression.
     std::vector<variant> values_;
   };
-
-  /// Helper Function to convert Substrait sortField to Velox sortingKeys and
-  /// sortingOrders.
-  std::pair<std::vector<core::FieldAccessTypedExprPtr>, std::vector<core::SortOrder>> processSortField(
-      const ::google::protobuf::RepeatedPtrField<::substrait::SortField>& sortField,
-      const RowTypePtr& inputType);
 
   /// Returns unique ID to use for plan node. Produces sequential numbers
   /// starting from zero.
