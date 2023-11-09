@@ -46,7 +46,6 @@
     <spark.major.version>3</spark.major.version>
     <sparkbundle.version>3.2</sparkbundle.version>
     <spark.shim.module>spark32</spark.shim.module>
-    <spark.test.module>spark32</spark.test.module>
     <spark.version>3.2.2</spark.version>
     <sparkshim.artifactId>spark-sql-columnar-shims-${spark.shim.module}</sparkshim.artifactId>
     <celeborn.version>0.3.0-incubating</celeborn.version>
@@ -109,7 +108,6 @@
       <properties>
         <sparkbundle.version>3.2</sparkbundle.version>
         <spark.shim.module>spark32</spark.shim.module>
-        <spark.test.module>spark32</spark.test.module>
         <spark.version>3.2.2</spark.version>
         <delta.version>2.0.1</delta.version>
         <delta.binary.version>20</delta.binary.version>
@@ -120,7 +118,6 @@
       <properties>
         <sparkbundle.version>3.3</sparkbundle.version>
         <spark.shim.module>spark33</spark.shim.module>
-        <spark.test.module>spark33</spark.test.module>
         <spark.version>3.3.1</spark.version>
         <delta.version>2.2.0</delta.version>
         <delta.binary.version>22</delta.binary.version>
@@ -131,7 +128,6 @@
       <properties>
         <sparkbundle.version>3.4</sparkbundle.version>
         <spark.shim.module>spark34</spark.shim.module>
-        <spark.test.module>spark34</spark.test.module>
         <spark.version>3.4.1</spark.version>
         <delta.version>2.2.0</delta.version>
         <delta.binary.version>22</delta.binary.version>
