@@ -24,6 +24,8 @@ object ExpressionNames {
   final val COUNT = "count"
   final val MIN = "min"
   final val MAX = "max"
+  final val MAX_BY = "max_by"
+  final val MIN_BY = "min_by"
   final val STDDEV_SAMP = "stddev_samp"
   final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"

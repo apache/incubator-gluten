@@ -246,6 +246,8 @@ object ExpressionMappings {
     Sig[Count](COUNT),
     Sig[Min](MIN),
     Sig[Max](MAX),
+    Sig[MaxBy](MAX_BY),
+    Sig[MinBy](MIN_BY),
     Sig[StddevSamp](STDDEV_SAMP),
     Sig[StddevPop](STDDEV_POP),
     Sig[CollectList](COLLECT_LIST),
