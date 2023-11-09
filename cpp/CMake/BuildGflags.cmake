@@ -22,6 +22,8 @@ string(CONCAT GLUTEN_GFLAGS_SOURCE_URL
   "https://github.com/gflags/gflags/archive/refs/tags/"
   "v${GLUTEN_GFLAGS_VERSION}.tar.gz")
 
+resolve_dependency_url(GFLAGS)
+
 message(STATUS "Building gflags from source")
 FetchContent_Declare(
   gflags
