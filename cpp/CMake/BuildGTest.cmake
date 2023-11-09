@@ -8,9 +8,7 @@ set(GLUTEN_GTEST_SOURCE_URL
     "https://github.com/google/googletest/archive/refs/tags/v${GLUTEN_GTEST_VERSION}.tar.gz"
     )
 
-if(DEFINED ENV{GLUTEN_GTEST_SOURCE_URL})
-  set(GLUTEN_GTEST_SOURCE_URL "$ENV{GLUTEN_GTEST_SOURCE_URL}")
-endif()
+resolve_dependency_url(GTEST)
 
 message(STATUS "Building gtest from source")
 FetchContent_Declare(

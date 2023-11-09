@@ -66,6 +66,8 @@ else()
   set(ARROW_HOME ${VELOX_HOME}/_build/release/third_party/arrow_ep)
 endif()
 
+include(ResolveDependency)
+
 #
 # Compiler flags
 #

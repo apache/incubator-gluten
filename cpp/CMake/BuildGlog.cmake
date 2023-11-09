@@ -19,6 +19,8 @@ set(GLUTEN_GLOG_SOURCE_URL
   "https://github.com/google/glog/archive/refs/tags/v${GLUTEN_GLOG_VERSION}.tar.gz"
   )
 
+resolve_dependency_url(GLOG)
+
 message(STATUS "Building glog from source")
 FetchContent_Declare(
   glog
