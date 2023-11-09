@@ -339,15 +339,6 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   }
 
   /**
-   * Generate extended Optimizers.
-   *
-   * @return
-   */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List.empty
-  }
-
-  /**
    * Generate extended columnar pre-rules.
    *
    * @return

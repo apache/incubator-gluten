@@ -804,21 +804,11 @@ case class HashAggregateExecTransformer(
       validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
 
-    var aggRel = if (needsPreProjection) {
+    var aggRel = if (rowConstructNeeded) {
       aggParams.preProjectionNeeded = true
-      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
+      getAggRelWithRowConstruct(context, originalInputAttributes, operatorId, input, validation)
     } else {
-      if (rowConstructNeeded) {
-        aggParams.preProjectionNeeded = true
-        getAggRelWithRowConstruct(context, originalInputAttributes, operatorId, input, validation)
-      } else {
-        getAggRelWithoutPreProjection(
-          context,
-          originalInputAttributes,
-          operatorId,
-          input,
-          validation)
-      }
+      getAggRelWithoutPreProjection(context, originalInputAttributes, operatorId, input, validation)
     }
 
     if (extractStructNeeded()) {

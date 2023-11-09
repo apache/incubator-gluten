@@ -18,6 +18,7 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
 import io.glutenproject.expression._
+import io.glutenproject.extension.PullOutPreProject
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
 import org.apache.spark.ShuffleDependency
@@ -200,7 +201,9 @@ trait SparkPlanExecApi {
    *
    * @return
    */
-  def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]]
+  def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
+    List(PullOutPreProject)
+  }
 
   /**
    * Generate extended Strategies

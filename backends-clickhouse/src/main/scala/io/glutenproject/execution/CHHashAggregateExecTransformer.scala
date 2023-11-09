@@ -174,18 +174,12 @@ case class CHHashAggregateExecTransformer(
       aggParams: AggregationParams,
       input: RelNode = null,
       validation: Boolean = false): RelNode = {
-    val originalInputAttributes = child.output
-    val aggRel = if (needsPreProjection) {
-      aggParams.preProjectionNeeded = true
-      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
-    } else {
-      getAggRelWithoutPreProjection(
-        context,
-        aggregateResultAttributes,
-        operatorId,
-        input,
-        validation)
-    }
+    val aggRel = getAggRelWithoutPreProjection(
+      context,
+      aggregateResultAttributes,
+      operatorId,
+      input,
+      validation)
     // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
     // AggregateRel.
     val resRel = if (!needsPostProjection(allAggregateResultAttributes)) {

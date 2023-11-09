@@ -447,8 +447,9 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] =
-    List(AggregateFunctionRewriteRule)
+  override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
+    super.genExtendedOptimizers ++ List(AggregateFunctionRewriteRule)
+  }
 
   /**
    * Generate extended columnar pre-rules.
