@@ -26,7 +26,7 @@ import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -677,12 +677,17 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               "columnar topK is not enabled in TakeOrderedAndProjectExec")
           } else {
             var tagged: ValidationResult = null
-            val limitPlan = LimitTransformer(plan.child, 0, plan.limit)
-            tagged = limitPlan.doValidate()
-            if (tagged.isValid) {
+            val orderingSatisfies =
+              SortOrder.orderingSatisfies(plan.child.outputOrdering, plan.sortOrder)
+            if (orderingSatisfies) {
+              val limitPlan = LimitTransformer(plan.child, 0, plan.limit)
+              tagged = limitPlan.doValidate()
+            } else {
               val sortPlan = SortExecTransformer(plan.sortOrder, false, plan.child)
-              tagged = sortPlan.doValidate()
+              val limitPlan = LimitTransformer(sortPlan, 0, plan.limit)
+              tagged = limitPlan.doValidate()
             }
+
             if (tagged.isValid) {
               val projectPlan = ProjectExecTransformer(plan.projectList, plan.child)
               tagged = projectPlan.doValidate()
