@@ -196,7 +196,7 @@ class GlutenClickHouseFileFormatSuite
     )
   }
 
-  test("read data from csv file format witsh agg") {
+  test("read data from csv file format with agg") {
     val filePath = basePath + "/csv_test_agg.csv"
     val csvFileFormat = "csv"
     val sql =
@@ -214,8 +214,7 @@ class GlutenClickHouseFileFormatSuite
           case f: FileSourceScanExecTransformer => f
         }
         assert(csvFileScan.size == 1)
-      },
-      noFallBack = false
+      }
     )
   }
 
