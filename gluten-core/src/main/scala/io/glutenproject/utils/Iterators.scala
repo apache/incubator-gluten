@@ -20,6 +20,7 @@ import org.apache.spark.{InterruptibleIterator, TaskContext}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.util.TaskResources
 
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 private class PayloadCloser[A](in: Iterator[A])(closeCallback: A => Unit) extends Iterator[A] {
@@ -110,8 +111,10 @@ private class PipelineTimeAccumulator[A](in: Iterator[A], pipelineTime: SQLMetri
   }
 
   private def tryFinish(): Unit = {
-    pipelineTime += accumulatedTime.getAndSet(
-      0L
+    pipelineTime += TimeUnit.NANOSECONDS.toMillis(
+      accumulatedTime.getAndSet(
+        0L
+      )
     ) // make sure the accumulated time is submitted once
   }
 }
