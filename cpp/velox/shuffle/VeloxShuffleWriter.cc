@@ -302,6 +302,20 @@ class EvictGuard {
   EvictState& evictState_;
 };
 
+class BinaryArrayResizeGuard {
+ public:
+  explicit BinaryArrayResizeGuard(BinaryArrayResizeState& state) : state_(state) {
+    state_.inResize = true;
+  }
+
+  ~BinaryArrayResizeGuard() {
+    state_.inResize = false;
+  }
+
+ private:
+  BinaryArrayResizeState& state_;
+};
+
 template <facebook::velox::TypeKind kind>
 arrow::Status collectFlatVectorBuffer(
     facebook::velox::BaseVector* vector,
@@ -936,10 +950,12 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
           capacity = capacity + std::max((capacity >> multiply), (uint64_t)stringLen);
           multiply = std::min(3, multiply + 1);
 
-          auto valueBuffer = std::static_pointer_cast<arrow::ResizableBuffer>(
-              partitionBuffers_[fixedWidthColumnCount_ + binaryIdx][pid][kBinaryValueBufferIndex]);
-
-          RETURN_NOT_OK(valueBuffer->Reserve(capacity));
+          const auto& valueBuffer = partitionBuffers_[fixedWidthColumnCount_ + binaryIdx][pid][kBinaryValueBufferIndex];
+          {
+            binaryArrayResizeState_ = BinaryArrayResizeState{pid, binaryIdx};
+            BinaryArrayResizeGuard guard(binaryArrayResizeState_);
+            RETURN_NOT_OK(valueBuffer->Reserve(capacity));
+          }
 
           binaryBuf.valuePtr = valueBuffer->mutable_data();
           binaryBuf.valueCapacity = capacity;
@@ -1466,13 +1482,20 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
         case arrow::BinaryType::type_id:
         case arrow::StringType::type_id: {
           // Resize length buffer.
+          auto binaryIdx = i - fixedWidthColumnCount_;
+          auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][partitionId];
           auto& lengthBuffer = buffers[kBinaryLengthBufferIndex];
           ARROW_RETURN_IF(!lengthBuffer, arrow::Status::Invalid("Offset buffer of binary array is null."));
           RETURN_NOT_OK(lengthBuffer->Resize(newSize * kSizeOfBinaryArrayLengthBuffer));
 
+          // Skip Resize value buffer if the spill is triggered by resizing this split binary buffer.
+          if (binaryArrayResizeState_.inResize && partitionId == binaryArrayResizeState_.partitionId &&
+              binaryIdx == binaryArrayResizeState_.binaryIdx) {
+            binaryBuf.offsetPtr = lengthBuffer->mutable_data();
+            break;
+          }
+
           // Resize value buffer.
-          auto binaryIdx = i - fixedWidthColumnCount_;
-          auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][partitionId];
           auto& valueBuffer = buffers[kBinaryValueBufferIndex];
           ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of binary array is null."));
           // Determine the new Size for value buffer.

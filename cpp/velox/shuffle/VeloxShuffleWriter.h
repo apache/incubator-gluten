@@ -90,6 +90,16 @@ namespace gluten {
 enum SplitState { kInit, kPreAlloc, kSplit, kStop };
 enum EvictState { kEvictable, kUnevictable };
 
+struct BinaryArrayResizeState {
+  bool inResize;
+  uint32_t partitionId;
+  uint32_t binaryIdx;
+
+  BinaryArrayResizeState() : inResize(false) {}
+  BinaryArrayResizeState(uint32_t partitionId, uint32_t binaryIdx)
+      : inResize(false), partitionId(partitionId), binaryIdx(binaryIdx) {}
+};
+
 class VeloxShuffleWriter final : public ShuffleWriter {
   enum {
     kValidityBufferIndex = 0,
@@ -322,6 +332,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   SplitState splitState_{kInit};
 
   EvictState evictState_{kEvictable};
+
+  BinaryArrayResizeState binaryArrayResizeState_{};
 
   bool supportAvx512_ = false;
 
