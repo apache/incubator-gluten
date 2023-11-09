@@ -61,7 +61,6 @@ class OrcStreamReaderIterator final : public OrcReaderIterator {
   std::shared_ptr<gluten::ColumnarBatch> next() override {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
-    DEBUG_OUT << "OrcStreamReaderIterator get a batch, num rows: " << (batch ? batch->num_rows() : 0) << std::endl;
     collectBatchTime_ +=
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime).count();
     if (batch == nullptr) {
@@ -76,16 +75,7 @@ class OrcBufferedReaderIterator final : public OrcReaderIterator {
   explicit OrcBufferedReaderIterator(const std::string& path) : OrcReaderIterator(path) {
     createReader();
     collectBatches();
-
     iter_ = batches_.begin();
-#ifdef GLUTEN_PRINT_DEBUG
-    DEBUG_OUT << "OrcBufferedReaderIterator open file: " << path << std::endl;
-    DEBUG_OUT << "Number of input batches: " << std::to_string(batches_.size()) << std::endl;
-    if (iter_ != batches_.cend()) {
-      DEBUG_OUT << "columns: " << (*iter_)->num_columns() << std::endl;
-      DEBUG_OUT << "rows: " << (*iter_)->num_rows() << std::endl;
-    }
-#endif
   }
 
   std::shared_ptr<gluten::ColumnarBatch> next() override {

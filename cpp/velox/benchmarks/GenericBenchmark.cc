@@ -184,7 +184,7 @@ auto BM_Generic = [](::benchmark::State& state,
           return;
         }
         if (FLAGS_print_result) {
-          std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
+          LOG(INFO) << maybeBatch.ValueOrDie()->ToString();
         }
       }
 
@@ -204,7 +204,7 @@ auto BM_Generic = [](::benchmark::State& state,
     const auto& task = rawIter->task_;
     const auto& planNode = rawIter->veloxPlan_;
     auto statsStr = facebook::velox::exec::printPlanWithStats(*planNode, task->taskStats(), true);
-    std::cout << statsStr << std::endl;
+    LOG(INFO) << statsStr;
   }
   Runtime::release(runtime);
 
@@ -239,11 +239,10 @@ int main(int argc, char** argv) {
 
   try {
     if (argc < 2) {
-      std::cout
+      LOG(INFO)
           << "No input args. Usage: " << std::endl
-          << "./generic_benchmark /absolute-path/to/substrait_json_file /absolute-path/to/data_file_1 /absolute-path/to/data_file_2 ..."
-          << std::endl;
-      std::cout << "Running example..." << std::endl;
+          << "./generic_benchmark /absolute-path/to/substrait_json_file /absolute-path/to/data_file_1 /absolute-path/to/data_file_2 ...";
+      LOG(INFO) << "Running example...";
       inputFiles.resize(2);
       substraitJsonFile = getGeneratedFilePath("example.json");
       inputFiles[0] = getGeneratedFilePath("example_orders");
@@ -251,16 +250,16 @@ int main(int argc, char** argv) {
     } else {
       substraitJsonFile = argv[1];
       abortIfFileNotExists(substraitJsonFile);
-      std::cout << "Using substrait json file: " << std::endl << substraitJsonFile << std::endl;
-      std::cout << "Using " << argc - 2 << " input data file(s): " << std::endl;
+      LOG(INFO) << "Using substrait json file: " << std::endl << substraitJsonFile;
+      LOG(INFO) << "Using " << argc - 2 << " input data file(s): ";
       for (auto i = 2; i < argc; ++i) {
         inputFiles.emplace_back(argv[i]);
         abortIfFileNotExists(inputFiles.back());
-        std::cout << inputFiles.back() << std::endl;
+        LOG(INFO) << inputFiles.back();
       }
     }
   } catch (const std::exception& e) {
-    std::cout << "Failed to run benchmark: " << e.what() << std::endl;
+    LOG(INFO) << "Failed to run benchmark: " << e.what();
     ::benchmark::Shutdown();
     std::exit(EXIT_FAILURE);
   }
@@ -281,12 +280,12 @@ int main(int argc, char** argv) {
   } while (0)
 
 #if 0
-  std::cout << "FLAGS_threads:" << FLAGS_threads << std::endl;
-  std::cout << "FLAGS_iterations:" << FLAGS_iterations << std::endl;
-  std::cout << "FLAGS_cpu:" << FLAGS_cpu << std::endl;
-  std::cout << "FLAGS_print_result:" << FLAGS_print_result << std::endl;
-  std::cout << "FLAGS_write_file:" << FLAGS_write_file << std::endl;
-  std::cout << "FLAGS_batch_size:" << FLAGS_batch_size << std::endl;
+  LOG(INFO) << "FLAGS_threads:" << FLAGS_threads ;
+  LOG(INFO) << "FLAGS_iterations:" << FLAGS_iterations ;
+  LOG(INFO) << "FLAGS_cpu:" << FLAGS_cpu ;
+  LOG(INFO) << "FLAGS_print_result:" << FLAGS_print_result ;
+  LOG(INFO) << "FLAGS_write_file:" << FLAGS_write_file ;
+  LOG(INFO) << "FLAGS_batch_size:" << FLAGS_batch_size ;
 #endif
 
   if (FLAGS_skip_input) {

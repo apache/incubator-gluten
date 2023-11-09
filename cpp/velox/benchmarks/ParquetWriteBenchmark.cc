@@ -141,7 +141,7 @@ class GoogleBenchmarkArrowParquetWriteCacheScanBenchmark : public GoogleBenchmar
     localSchema = std::make_shared<arrow::Schema>(*schema_.get());
 
     if (state.thread_index() == 0)
-      std::cout << localSchema->ToString() << std::endl;
+      LOG(INFO) << localSchema->ToString();
 
     std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
     std::shared_ptr<RecordBatchReader> recordBatchReader;
@@ -160,7 +160,7 @@ class GoogleBenchmarkArrowParquetWriteCacheScanBenchmark : public GoogleBenchmar
       }
     } while (recordBatch);
 
-    std::cout << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows << std::endl;
+    LOG(INFO) << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows;
 
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "arrow_parquet_write.parquet";
@@ -234,7 +234,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     localSchema = std::make_shared<arrow::Schema>(*schema_.get());
 
     if (state.thread_index() == 0)
-      std::cout << localSchema->ToString() << std::endl;
+      LOG(INFO) << localSchema->ToString();
 
     std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
     std::shared_ptr<RecordBatchReader> recordBatchReader;
@@ -253,7 +253,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
       }
     } while (recordBatch);
 
-    std::cout << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows << std::endl;
+    LOG(INFO) << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows;
 
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "velox_parquet_write.parquet";
@@ -329,11 +329,11 @@ int main(int argc, char** argv) {
       output = (argv[i + 1]);
     }
   }
-  std::cout << "iterations = " << iterations << std::endl;
-  std::cout << "threads = " << threads << std::endl;
-  std::cout << "datafile = " << datafile << std::endl;
-  std::cout << "cpu = " << cpu << std::endl;
-  std::cout << "output = " << output << std::endl;
+  LOG(INFO) << "iterations = " << iterations;
+  LOG(INFO) << "threads = " << threads;
+  LOG(INFO) << "datafile = " << datafile;
+  LOG(INFO) << "cpu = " << cpu;
+  LOG(INFO) << "output = " << output;
 
   gluten::GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark bck(datafile, output);
 

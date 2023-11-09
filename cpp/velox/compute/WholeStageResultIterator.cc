@@ -237,8 +237,8 @@ void WholeStageResultIterator::collectMetrics() {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
       if (omittedNodeIds_.find(nodeId) == omittedNodeIds_.end()) {
-        DEBUG_OUT << "Not found node id: " << nodeId << std::endl;
-        DEBUG_OUT << "Plan Node: " << std::endl << veloxPlan_->toString(true, true) << std::endl;
+        LOG(WARNING) << "Not found node id: " << nodeId;
+        LOG(WARNING) << "Plan Node: " << std::endl << veloxPlan_->toString(true, true);
         throw std::runtime_error("Node id cannot be found in plan status.");
       }
       // Special handing for Filter over Project case. Filter metrics are

@@ -209,7 +209,6 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/rss/CelebornPartitionWriter.cc
         shuffle/Utils.cc
         utils/Compression.cc
-        utils/DebugOut.cc
         utils/StringUtil.cc
         utils/ObjectStore.cc
         jni/JniError.cc

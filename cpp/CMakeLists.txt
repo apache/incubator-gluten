@@ -74,13 +74,7 @@ include(ResolveDependency)
 # Compiler flags
 #
 
-if (${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
-# keep this original logic
-  add_definitions(-DGLUTEN_PRINT_DEBUG)
-  message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
-elseif (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-  add_definitions(-DGLUTEN_PRINT_DEBUG)
-  message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
   message(STATUS "CMAKE_CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG}")
 else ()

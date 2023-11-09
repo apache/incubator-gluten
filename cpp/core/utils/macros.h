@@ -20,6 +20,7 @@
 #include <time.h>
 
 #include <arrow/status.h>
+#include <glog/logging.h>
 #include <chrono>
 
 #include "utils/exception.h"
