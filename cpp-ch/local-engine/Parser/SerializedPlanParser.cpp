@@ -2161,10 +2161,6 @@ bool LocalExecutor::hasNext()
             auto empty_block = header.cloneEmpty();
             setCurrentBlock(empty_block);
             has_next = executor->pull(currentBlock());
-            if (!has_next)
-            {
-                has_next = checkAndSetDefaultBlock(columns, has_next);
-            }
             produce();
         }
         else
@@ -2228,53 +2224,52 @@ LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_)
 {
 }
 
-bool LocalExecutor::checkAndSetDefaultBlock(size_t current_block_columns, bool has_next_blocks)
-{
-    if (current_block_columns > 0 || has_next_blocks)
-    {
-        return has_next_blocks;
-    }
-    bool should_set_default_value = false;
-    for (auto p :  query_pipeline.getProcessors())
-    {
-        if (p->getName() == "MergingAggregatedTransform")
-        {
-            DB::MergingAggregatedStep * agg_step = static_cast<DB::MergingAggregatedStep *>(p->getQueryPlanStep());
-            auto query_params = agg_step->getParams();
-            should_set_default_value = query_params.keys_size == 0;
-            std::cout << "agg_size:" << query_params.aggregates_size << std::endl;
-        }
-        else if (p->getName() == "AggregatingTransform")
-        {
-            DB::AggregatingStep * agg_step = static_cast<DB::AggregatingStep *>(p->getQueryPlanStep());
-            auto query_params = agg_step->getParams();
-            should_set_default_value = query_params.keys_size == 0;
-        }
-    }
-    if (!should_set_default_value)
-        return false;
-    auto cols = currentBlock().getColumnsWithTypeAndName();
-    for (size_t i = 0; i < cols.size(); i++)
-    {
-        const DB::ColumnWithTypeAndName col = cols[i];
-        if (isColumnConst(*col.column))
-        {
-            const DB::ColumnConst * col_string = checkAndGetColumnConst<const DB::ColumnString>(col.column.get());
-            std::cout << "col_string.size:" << col_string->size() << std::endl;
-        }
-        else
-        {
-            String col_name = col.name;
-            DataTypePtr col_type = col.type;
-            const DB::ColumnPtr & default_col_ptr = col_type->createColumnConst(1, col_type->getDefault());
-            const DB::ColumnWithTypeAndName default_col(default_col_ptr, col_type, col_name);
-            currentBlock().setColumn(i, default_col);
-        }
-    }
-    if (cols.size() > 0)
-        return true;
-    return false;
-}
+// bool LocalExecutor::checkAndSetDefaultBlock(size_t current_block_columns, bool has_next_blocks)
+// {
+//     if (current_block_columns > 0 || has_next_blocks)
+//     {
+//         return has_next_blocks;
+//     }
+//     bool should_set_default_value = false;
+//     for (auto p :  query_pipeline.getProcessors())
+//     {
+//         if (p->getName() == "MergingAggregatedTransform")
+//         {
+//             DB::MergingAggregatedStep * agg_step = static_cast<DB::MergingAggregatedStep *>(p->getQueryPlanStep());
+//             auto query_params = agg_step->getParams();
+//             should_set_default_value = query_params.keys_size == 0;
+//         }
+//         else if (p->getName() == "AggregatingTransform")
+//         {
+//             DB::AggregatingStep * agg_step = static_cast<DB::AggregatingStep *>(p->getQueryPlanStep());
+//             auto query_params = agg_step->getParams();
+//             should_set_default_value = query_params.keys_size == 0;
+//         }
+//     }
+//     if (!should_set_default_value)
+//         return false;
+//     auto cols = currentBlock().getColumnsWithTypeAndName();
+//     for (size_t i = 0; i < cols.size(); i++)
+//     {
+//         const DB::ColumnWithTypeAndName col = cols[i];
+//         if (isColumnConst(*col.column))
+//         {
+//             const DB::ColumnConst * col_string = checkAndGetColumnConst<const DB::ColumnString>(col.column.get());
+//             std::cout << "col_string.size:" << col_string->size() << std::endl;
+//         }
+//         else
+//         {
+//             String col_name = col.name;
+//             DataTypePtr col_type = col.type;
+//             const DB::ColumnPtr & default_col_ptr = col_type->createColumnConst(1, col_type->getDefault());
+//             const DB::ColumnWithTypeAndName default_col(default_col_ptr, col_type, col_name);
+//             currentBlock().setColumn(i, default_col);
+//         }
+//     }
+//     if (cols.size() > 0)
+//         return true;
+//     return false;
+// }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(
     const DB::Block & header_, SerializedPlanParser & parser_, const substrait::Expression & cond_rel_)
