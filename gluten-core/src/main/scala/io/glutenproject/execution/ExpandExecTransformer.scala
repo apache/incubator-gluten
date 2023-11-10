@@ -50,7 +50,10 @@ case class ExpandExecTransformer(
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genExpandTransformerMetrics(sparkContext)
 
-  val originalInputAttributes: Seq[Attribute] = child.output
+  @transient
+  override lazy val references: AttributeSet = {
+    AttributeSet.fromAttributeSets(projections.flatten.map(_.references))
+  }
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genExpandTransformerMetricsUpdater(metrics)
