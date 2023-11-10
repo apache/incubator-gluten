@@ -60,7 +60,7 @@ public:
         const auto * divide_node = toFunctionNode(actions_dag, "divide", {left_arg, right_arg});
         DataTypePtr result_type = divide_node->result_type;
 
-        const auto * zero_node = addColumnToActionsDAG(actions_dag, result_type, 0.0);
+        const auto * zero_node = addColumnToActionsDAG(actions_dag, result_type, removeNullable(result_type)->getDefault());
         const auto * null_node = addColumnToActionsDAG(actions_dag, makeNullable(result_type), Field{});
         const auto * is_zero_node = toFunctionNode(actions_dag, "equals", {right_arg, zero_node});
         const auto * result_node = toFunctionNode(actions_dag, "if", {is_zero_node, null_node, divide_node});

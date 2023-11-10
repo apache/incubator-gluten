@@ -292,6 +292,20 @@ class GlutenClickHouseDecimalSuite
     spark.sql(s"use default")
   }
 
+  override protected def runTPCHQuery(
+      queryNum: Int,
+      tpchQueries: String = tpchQueries,
+      queriesResults: String = queriesResults,
+      compareResult: Boolean = true,
+      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
+    compareTPCHQueryAgainstVanillaSpark(
+      queryNum,
+      tpchQueries,
+      compareResult = compareResult,
+      customCheck = customCheck,
+      noFallBack = noFallBack)
+  }
+
   Range
     .inclusive(1, 22)
     .foreach(
