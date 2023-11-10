@@ -56,7 +56,11 @@ case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
   override protected def doValidateInternal(): ValidationResult = {
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId(this.nodeName)
-    val relNode = getRelNode(context, operatorId, offset, count, child.output, null, true)
+    val input = child match {
+      case c: TransformSupport => c.doTransform(context).root
+      case _ => null
+    }
+    val relNode = getRelNode(context, operatorId, offset, count, child.output, input, true)
 
     doNativeValidation(context, relNode)
   }

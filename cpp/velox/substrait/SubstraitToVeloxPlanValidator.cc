@@ -347,11 +347,23 @@ bool SubstraitToVeloxPlanValidator::validateExpression(
 }
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchRel) {
-  const auto& extension = fetchRel.advanced_extension();
-  std::vector<TypePtr> types;
-  if (!validateInputTypes(extension, types)) {
-    logValidateMsg("native validation failed due to: unsupported input types in FetchRel.");
-    return false;
+  RowTypePtr rowType = nullptr;
+  // Get and validate the input types from extension.
+  if (fetchRel.has_advanced_extension()) {
+    const auto& extension = fetchRel.advanced_extension();
+    std::vector<TypePtr> types;
+    if (!validateInputTypes(extension, types)) {
+      logValidateMsg("native validation failed due to: unsupported input types in ExpandRel.");
+      return false;
+    }
+
+    int32_t inputPlanNodeId = 0;
+    std::vector<std::string> names;
+    names.reserve(types.size());
+    for (auto colIdx = 0; colIdx < types.size(); colIdx++) {
+      names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
+    }
+    rowType = std::make_shared<RowType>(std::move(names), std::move(types));
   }
 
   if (fetchRel.offset() < 0 || fetchRel.count() < 0) {
@@ -359,33 +371,25 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchR
     return false;
   }
 
-  core::PlanNodePtr childNode;
   // Check the input of fetchRel, if it's sortRel, we need to check whether the sorting key is duplicated.
-  ::substrait::SortRel sortRel;
   bool topNFlag = false;
   if (fetchRel.has_input()) {
     topNFlag = fetchRel.input().has_sort();
     if (topNFlag) {
-      sortRel = fetchRel.input().sort();
-      childNode = planConverter_.toVeloxPlan(sortRel.input());
-    } else {
-      childNode = planConverter_.toVeloxPlan(fetchRel.input());
-    }
-  }
-
-  if (topNFlag) {
-    auto [sortingKeys, sortingOrders] = planConverter_.processSortField(sortRel.sorts(), childNode->outputType());
-
-    folly::F14FastSet<std::string> sortingKeyNames;
-    for (const auto& sortingKey : sortingKeys) {
-      auto result = sortingKeyNames.insert(sortingKey->name());
-      if (!result.second) {
-        logValidateMsg(
-            "native validation failed due to: if the input of fetchRel is a SortRel, we will convert it to a TopNNode. In Velox, it is important to ensure unique sorting keys. However, duplicate keys were found in this case.");
-        return false;
+      ::substrait::SortRel sortRel = fetchRel.input().sort();
+      auto [sortingKeys, sortingOrders] = planConverter_.processSortField(sortRel.sorts(), rowType);
+      folly::F14FastSet<std::string> sortingKeyNames;
+      for (const auto& sortingKey : sortingKeys) {
+        auto result = sortingKeyNames.insert(sortingKey->name());
+        if (!result.second) {
+          logValidateMsg(
+              "native validation failed due to: if the input of fetchRel is a SortRel, we will convert it to a TopNNode. In Velox, it is important to ensure unique sorting keys. However, duplicate keys were found in this case.");
+          return false;
+        }
       }
     }
   }
+
   return true;
 }
 
