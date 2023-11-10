@@ -2102,7 +2102,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  test("GLUTEN-3135: Bug fix to_date") {
+  // ISSUE-3668, revert first
+  ignore("GLUTEN-3135: Bug fix to_date") {
     val create_table_sql =
       """
         | create table test_tbl_3135(id bigint, data string) using parquet
