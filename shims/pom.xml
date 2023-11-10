@@ -30,7 +30,6 @@
 
   <modules>
     <module>common</module>
-    <module>${spark.shim.module}</module>
   </modules>
 
   <dependencies>
@@ -69,4 +68,25 @@
       </plugins>
     </pluginManagement>
   </build>
+
+  <profiles>
+    <profile>
+      <id>spark-3.2</id>
+      <modules>
+        <module>spark32</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>spark-3.3</id>
+      <modules>
+        <module>spark33</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <modules>
+        <module>spark34</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>
