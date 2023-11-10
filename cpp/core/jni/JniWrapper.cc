@@ -785,8 +785,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     shuffleWriterOptions.buffer_size = bufferSize;
   }
 
+  shuffleWriterOptions.compression_type = getCompressionType(env, codecJstr);
   if (codecJstr != NULL) {
-    shuffleWriterOptions.compression_type = getCompressionType(env, codecJstr);
     shuffleWriterOptions.codec_backend = getCodecBackend(env, codecBackendJstr);
     shuffleWriterOptions.compression_mode = getCompressionMode(env, compressionModeJstr);
   }
