@@ -423,7 +423,7 @@ jobs:
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx50G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=50g -s=30.0 --threads=32 --iterations=1'
-      - name: (To be fixed) TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
+      - name: TPC-DS SF30.0 Parquet local spark3.2 Q67/Q95 low memory, memory isolation off
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
           mvn clean install -Pspark-3.2 \
