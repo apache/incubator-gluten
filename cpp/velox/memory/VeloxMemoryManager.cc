@@ -172,6 +172,7 @@ VeloxMemoryManager::VeloxMemoryManager(
       velox::memory::MemoryAllocator::kMaxAlignment,
       velox::memory::kMaxMemory,
       velox::memory::kMaxMemory,
+      velox::memory::kDefaultGrowthQuantum,
       true, // memory usage tracking
       true, // leak check
       false, // debug
