@@ -19,6 +19,7 @@ package io.glutenproject.memory.memtarget;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.memtarget.spark.TreeMemoryConsumers;
+
 import org.apache.spark.memory.TaskMemoryManager;
 
 import java.util.Map;
