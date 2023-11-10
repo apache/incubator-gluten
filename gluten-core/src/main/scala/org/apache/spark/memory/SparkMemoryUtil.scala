@@ -58,6 +58,7 @@ object SparkMemoryUtil {
           overAcquire.getTarget.accept(this)
         }
 
+        @scala.annotation.nowarn
         override def visit(regularMemoryConsumer: RegularMemoryConsumer): KnownNameAndStats = {
           collectFromTaskMemoryManager(regularMemoryConsumer.getTaskMemoryManager)
         }
