@@ -808,6 +808,46 @@ class GlutenClickHouseFileFormatSuite
       case f: FileSourceScanExecTransformer => f
     }
     assert(csvFileScan.size == 1)
+
+    val no_quote_path = csvDataPath + "/no_quote.csv"
+    val no_quote_option = new util.HashMap[String, String]()
+    no_quote_option.put("delimiter", ",")
+    no_quote_option.put("header", "false")
+    no_quote_option.put("quote", "")
+
+    val no_quote_schema = StructType.apply(
+      Seq(
+        StructField.apply("a", StringType, nullable = true),
+        StructField.apply("b", StringType, nullable = true)
+      ))
+
+    val data = new util.ArrayList[Row]()
+    data.add(Row("\'abc\'de\'", "\"abc\"de\""))
+
+    spark
+      .createDataFrame(data, schema)
+      .write
+      .mode("overwrite")
+      .format("csv")
+      .options(no_quote_option)
+      .save(no_quote_path)
+
+    spark.read
+      .options(no_quote_option)
+      .schema(no_quote_schema)
+      .csv(no_quote_path)
+      .toDF()
+      .createTempView("no_quote_table")
+
+    withSQLConf((
+      "spark.gluten.sql.columnar.backend.ch.runtime_settings.use_excel_serialization.quote_strict",
+      "true"
+    )) {
+      compareResultsAgainstVanillaSpark(
+        "select * from no_quote_table",
+        compareResult = true,
+        _ => {})
+    }
   }
 
   test("test read excel with header") {

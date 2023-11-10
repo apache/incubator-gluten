@@ -109,26 +109,37 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     format_settings.try_infer_integers = 0;
     if (!context->getSettings().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE))
         format_settings.try_infer_integers = 1;
-    if (context->getSettings().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE) &&
-        context->getSettings().getString(BackendInitializerUtil::EXCEL_NUMBER_FORCE) == "'true'")
+    if (context->getSettings().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE)
+        && context->getSettings().getString(BackendInitializerUtil::EXCEL_NUMBER_FORCE) == "'true'")
         format_settings.try_infer_integers = 1;
-    
+
     if (format_settings.csv.null_representation.empty() || empty_as_null)
         format_settings.csv.empty_as_default = true;
     else
         format_settings.csv.empty_as_default = false;
 
     char quote = *file_info.text().quote().data();
+
     if (quote == '\'')
     {
         format_settings.csv.allow_single_quotes = true;
         format_settings.csv.allow_double_quotes = false;
     }
-    else
+    else if (quote == '\"')
     {
         /// quote == '"' and default
         format_settings.csv.allow_single_quotes = false;
         format_settings.csv.allow_double_quotes = true;
+    }
+    else
+    {
+        format_settings.csv.allow_single_quotes = false;
+
+        if (context->getSettings().has(BackendInitializerUtil::EXCEL_QUOTE_STRICT)
+            && context->getSettings().getString(BackendInitializerUtil::EXCEL_QUOTE_STRICT) == "'true'")
+            format_settings.csv.allow_double_quotes = false;
+        else
+            format_settings.csv.allow_double_quotes = true;
     }
 
     return format_settings;
