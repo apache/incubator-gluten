@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.execution.VeloxAggregateFunctionsBuilder.{veloxCorrIntermediateTypes, veloxCovarIntermediateTypes, veloxVarianceIntermediateTypes}
+import io.glutenproject.execution.VeloxAggregateFunctionsBuilder._
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
