@@ -63,10 +63,15 @@ std::unordered_map<String, String> TypeParser::type_names_mapping
 
 String TypeParser::getCHTypeName(const String & spark_type_name)
 {
-    auto it = type_names_mapping.find(spark_type_name);
-    if (it == type_names_mapping.end())
-        throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported substrait type: {}", spark_type_name);
-    return it->second;
+    if (startsWith(spark_type_name, "DecimalType"))
+        return "Decimal" + spark_type_name.substr(strlen("DecimalType"));
+    else
+    {
+        auto it = type_names_mapping.find(spark_type_name);
+        if (it == type_names_mapping.end())
+            throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported substrait type: {}", spark_type_name);
+        return it->second;
+    }
 }
 
 DB::DataTypePtr TypeParser::getCHTypeByName(const String & spark_type_name)

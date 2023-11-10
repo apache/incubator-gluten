@@ -277,6 +277,21 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
                     int val = field_value.convert<DB::Int32>();
                     col->insert(val);
                 }
+                else if (const auto * decimal32 = dynamic_cast<const DB::DataTypeDecimal<DB::Decimal32> *>(type_info.inner_type.get()))
+                {
+                    auto value = decimal32->parseFromString(field_value.convert<std::string>());
+                    col->insert(DB::DecimalField<DB::Decimal32>(value, decimal32->getScale()));
+                }
+                else if (const auto * decimal64 = dynamic_cast<const DB::DataTypeDecimal<DB::Decimal64> *>(type_info.inner_type.get()))
+                {
+                    auto value = decimal64->parseFromString(field_value.convert<std::string>());
+                    col->insert(DB::DecimalField<DB::Decimal64>(value, decimal64->getScale()));
+                }
+                else if (const auto * decimal128 = dynamic_cast<const DB::DataTypeDecimal<DB::Decimal128> *>(type_info.inner_type.get()))
+                {
+                    auto value = decimal128->parseFromString(field_value.convert<std::string>());
+                    col->insert(DB::DecimalField<DB::Decimal128>(value, decimal128->getScale()));
+                }
                 else
                 {
                     throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupported data type: {}", type_info.inner_type->getName());

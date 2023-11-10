@@ -151,15 +151,23 @@ const DB::ActionsDAG::Node * AggregateFunctionParser::convertNodeTypeIfNeeded(
     const auto & output_type = func_info.output_type;
     if (!TypeParser::isTypeMatched(output_type, func_node->result_type))
     {
-        auto ret_node = ActionsDAGUtil::convertNodeType(
+        func_node = ActionsDAGUtil::convertNodeType(
             actions_dag, func_node, TypeParser::parseType(output_type)->getName(), func_node->result_name);
-        actions_dag->addOrReplaceInOutputs(*ret_node);
-        return ret_node;
+        actions_dag->addOrReplaceInOutputs(*func_node);
     }
-    else
+
+    if (output_type.has_decimal())
     {
-        return func_node;
+        String checkDecimalOverflowSparkOrNull = "checkDecimalOverflowSparkOrNull";
+        DB::ActionsDAG::NodeRawConstPtrs overflow_args
+            = {func_node,
+               plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), output_type.decimal().precision()),
+               plan_parser->addColumn(actions_dag, std::make_shared<DataTypeInt32>(), output_type.decimal().scale())};
+        func_node = toFunctionNode(actions_dag, checkDecimalOverflowSparkOrNull, func_node->result_name, overflow_args);
+        actions_dag->addOrReplaceInOutputs(*func_node);
     }
+
+    return func_node;
 }
 
 AggregateFunctionParserFactory & AggregateFunctionParserFactory::instance()

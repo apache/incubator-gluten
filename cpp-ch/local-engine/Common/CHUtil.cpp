@@ -400,7 +400,7 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     const auto * left_arg = node;
     DB::CastDiagnostic diagnostic = {node->result_name, node->result_name};
     DB::FunctionOverloadResolverPtr func_builder_cast
-        = DB::createInternalCastOverloadResolver(DB::CastType::nonAccurate, std::move(diagnostic));
+        = DB::createInternalCastOverloadResolver(DB::CastType::accurateOrNull, std::move(diagnostic));
 
     DB::ActionsDAG::NodeRawConstPtrs children = {left_arg, right_arg};
     return &actions_dag->addFunction(func_builder_cast, std::move(children), result_name);
