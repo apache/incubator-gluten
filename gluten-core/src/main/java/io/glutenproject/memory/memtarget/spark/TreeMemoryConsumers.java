@@ -56,7 +56,7 @@ public final class TreeMemoryConsumers {
       synchronized (MAP) {
         return MAP.computeIfAbsent(tmm, m -> {
           TreeMemoryTarget tmc = new TreeMemoryConsumer(m);
-          return tmc.newChild("root", GlutenConfig.getConf().conservativeTaskOffHeapMemorySize(), Spiller.NO_OP, Collections.emptyMap());
+          return tmc.newChild("root", perTaskCapacity, Spiller.NO_OP, Collections.emptyMap());
         });
       }
     }
