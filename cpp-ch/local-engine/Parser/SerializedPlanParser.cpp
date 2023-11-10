@@ -367,7 +367,7 @@ DB::QueryPlanPtr SerializedPlanParser::parseMergeTreeTable(const substrait::Read
         query_context.storage_snapshot,
         *query_info,
         context,
-        4096 * 2,
+        context->getSettingsRef().max_block_size,
         1);
     QueryPlanPtr query = std::make_unique<QueryPlan>();
     steps.emplace_back(read_step.get());
