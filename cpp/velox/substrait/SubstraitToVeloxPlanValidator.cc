@@ -335,8 +335,7 @@ bool SubstraitToVeloxPlanValidator::validateIfThen(
     const ::substrait::Expression_IfThen& ifThen,
     const RowTypePtr& inputType) {
   for (const auto& ifThen : ifThen.ifs()) {
-    return validateExpression(ifThen.if_(), inputType) &&
-      validateExpression(ifThen.then(), inputType);
+    return validateExpression(ifThen.if_(), inputType) && validateExpression(ifThen.then(), inputType);
   }
 }
 
@@ -404,7 +403,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchR
 
   return true;
 }
-
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::GenerateRel& generateRel) {
   if (generateRel.has_input() && !validate(generateRel.input())) {
