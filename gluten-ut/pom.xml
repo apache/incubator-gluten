@@ -42,6 +42,11 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
+      <groupId>org.scala-lang.modules</groupId>
+      <artifactId>scala-collection-compat_${scala.binary.version}</artifactId>
+      <version>2.11.0</version>
+    </dependency>
+    <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.binary.version}</artifactId>
       <scope>provided</scope>
@@ -137,13 +142,13 @@
     </dependency>
     <dependency>
       <groupId>org.scalatestplus</groupId>
-      <artifactId>scalatestplus-mockito_2.12</artifactId>
+      <artifactId>scalatestplus-mockito_${scala.binary.version}</artifactId>
       <version>1.0.0-M2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.scalatestplus</groupId>
-      <artifactId>scalatestplus-scalacheck_2.12</artifactId>
+      <artifactId>scalatestplus-scalacheck_${scala.binary.version}</artifactId>
       <version>3.1.0.0-RC2</version>
       <scope>test</scope>
     </dependency>

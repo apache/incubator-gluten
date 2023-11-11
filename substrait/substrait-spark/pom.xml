@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>io.glutenproject</groupId>
@@ -15,6 +15,11 @@
   <name>Gluten Substrait Spark</name>
 
   <dependencies>
+    <dependency>
+      <groupId>org.scala-lang.modules</groupId>
+      <artifactId>scala-collection-compat_${scala.binary.version}</artifactId>
+      <version>2.11.0</version>
+    </dependency>
     <dependency>
       <groupId>io.glutenproject</groupId>
       <artifactId>${sparkshim.artifactId}</artifactId>
@@ -83,61 +88,61 @@
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <plugins>
       <plugin>
-        <groupId>net.alchim31.maven</groupId>
-        <artifactId>scala-maven-plugin</artifactId>
+	<groupId>net.alchim31.maven</groupId>
+	<artifactId>scala-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>com.diffplug.spotless</groupId>
-        <artifactId>spotless-maven-plugin</artifactId>
-        <version>${spotless.version}</version>
-        <configuration>
-          <scala>
-            <includes>
-              <include>src/main/scala/**/*.scala</include>
-              <include>src/test/scala/**/*.scala</include>
-              <include>src/main/spark-${sparkbundle.version}/**/*.scala</include>
-              <include>src/test/spark-${sparkbundle.version}/**/*.scala</include>
-            </includes>
-          </scala>
-        </configuration>
+	<groupId>com.diffplug.spotless</groupId>
+	<artifactId>spotless-maven-plugin</artifactId>
+	<version>${spotless.version}</version>
+	<configuration>
+	  <scala>
+	    <includes>
+	      <include>src/main/scala/**/*.scala</include>
+	      <include>src/test/scala/**/*.scala</include>
+	      <include>src/main/spark-${sparkbundle.version}/**/*.scala</include>
+	      <include>src/test/spark-${sparkbundle.version}/**/*.scala</include>
+	    </includes>
+	  </scala>
+	</configuration>
       </plugin>
       <plugin>
-        <groupId>org.scalatest</groupId>
-        <artifactId>scalatest-maven-plugin</artifactId>
+	<groupId>org.scalatest</groupId>
+	<artifactId>scalatest-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
+	<groupId>org.scalastyle</groupId>
+	<artifactId>scalastyle-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>add-sources</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>src/main/spark-${sparkbundle.version}</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>add-test-source</id>
-            <phase>generate-test-sources</phase>
-            <goals>
-              <goal>add-test-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>src/test/spark-${sparkbundle.version}</source>
-              </sources>
-            </configuration>
-          </execution>
-        </executions>
+	<groupId>org.codehaus.mojo</groupId>
+	<artifactId>build-helper-maven-plugin</artifactId>
+	<executions>
+	  <execution>
+	    <id>add-sources</id>
+	    <phase>generate-sources</phase>
+	    <goals>
+	      <goal>add-source</goal>
+	    </goals>
+	    <configuration>
+	      <sources>
+		<source>src/main/spark-${sparkbundle.version}</source>
+	      </sources>
+	    </configuration>
+	  </execution>
+	  <execution>
+	    <id>add-test-source</id>
+	    <phase>generate-test-sources</phase>
+	    <goals>
+	      <goal>add-test-source</goal>
+	    </goals>
+	    <configuration>
+	      <sources>
+		<source>src/test/spark-${sparkbundle.version}</source>
+	      </sources>
+	    </configuration>
+	  </execution>
+	</executions>
       </plugin>
     </plugins>
   </build>

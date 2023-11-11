@@ -71,7 +71,7 @@
     <custom.protobuf.version>3.23.4-0</custom.protobuf.version>
     <guava.version>32.0.1-jre</guava.version>
     <!--spotless-->
-    <spotless.version>2.27.2</spotless.version>
+    <spotless.version>2.40.0</spotless.version>
     <spotless.scalafmt.version>3.5.9</spotless.scalafmt.version>
     <spotless.delimiter>package</spotless.delimiter>
     <spotless.license.header>
@@ -251,6 +251,11 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+	<groupId>org.scala-lang.modules</groupId>
+	<artifactId>scala-collection-compat_${scala.binary.version}</artifactId>
+	<version>2.11.0</version>
+      </dependency>
       <dependency>
 	<groupId>com.github.ben-manes.caffeine</groupId>
 	<artifactId>caffeine</artifactId>
@@ -716,7 +721,7 @@
 	    <java>
 	      <toggleOffOn />
 	      <googleJavaFormat>
-		<version>1.7</version>
+		<version>1.8</version>
 	      </googleJavaFormat>
 
 	      <!-- \# refers to the static imports -->

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>io.glutenproject</groupId>
@@ -18,28 +18,28 @@
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <plugins>
       <plugin>
-        <groupId>net.alchim31.maven</groupId>
-        <artifactId>scala-maven-plugin</artifactId>
+	<groupId>net.alchim31.maven</groupId>
+	<artifactId>scala-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-compiler-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
+	<groupId>org.scalastyle</groupId>
+	<artifactId>scalastyle-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>com.diffplug.spotless</groupId>
-        <artifactId>spotless-maven-plugin</artifactId>
+	<groupId>com.diffplug.spotless</groupId>
+	<artifactId>spotless-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-jar-plugin</artifactId>
       </plugin>
     </plugins>
   </build>
@@ -50,6 +50,11 @@
       <artifactId>gluten-core</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.scala-lang.modules</groupId>
+      <artifactId>scala-collection-compat_${scala.binary.version}</artifactId>
+      <version>2.11.0</version>
     </dependency>
     <dependency>
       <groupId>io.glutenproject</groupId>
@@ -96,14 +101,14 @@
       <version>${arrow.version}</version>
       <scope>compile</scope>
       <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-common</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-buffer</artifactId>
-        </exclusion>
+	<exclusion>
+	  <groupId>io.netty</groupId>
+	  <artifactId>netty-common</artifactId>
+	</exclusion>
+	<exclusion>
+	  <groupId>io.netty</groupId>
+	  <artifactId>netty-buffer</artifactId>
+	</exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -111,14 +116,14 @@
       <artifactId>arrow-vector</artifactId>
       <version>${arrow.version}</version>
       <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-common</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-buffer</artifactId>
-        </exclusion>
+	<exclusion>
+	  <groupId>io.netty</groupId>
+	  <artifactId>netty-common</artifactId>
+	</exclusion>
+	<exclusion>
+	  <groupId>io.netty</groupId>
+	  <artifactId>netty-buffer</artifactId>
+	</exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -126,14 +131,14 @@
       <artifactId>arrow-c-data</artifactId>
       <version>${arrow.version}</version>
       <exclusions>
-        <exclusion>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>arrow-vector</artifactId>
-        </exclusion>
-        <exclusion>
-          <artifactId>protobuf-java</artifactId>
-          <groupId>com.google.protobuf</groupId>
-        </exclusion>
+	<exclusion>
+	  <groupId>org.apache.arrow</groupId>
+	  <artifactId>arrow-vector</artifactId>
+	</exclusion>
+	<exclusion>
+	  <artifactId>protobuf-java</artifactId>
+	  <groupId>com.google.protobuf</groupId>
+	</exclusion>
       </exclusions>
       <scope>compile</scope>
     </dependency>
