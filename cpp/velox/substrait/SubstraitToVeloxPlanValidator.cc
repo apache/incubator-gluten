@@ -436,13 +436,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::GenerateRel& gen
     logValidateMsg("native validation failed due to: input validation fails in GenerateRel.");
     return false;
   }
-
-  try {
-    planConverter_.toVeloxPlan(generateRel);
-  } catch (const VeloxException& err) {
-    logValidateMsg("native validation failed due to: in GenerateRel, " + err.message());
-    return false;
-  }
   return true;
 }
 
