@@ -41,6 +41,7 @@ static const std::unordered_set<std::string> kBlackList = {
     "split_part",
     "factorial",
     "concat_ws",
+    "from_json",
     "rand",
     "json_array_length",
     "from_unixtime",
@@ -330,6 +331,15 @@ bool SubstraitToVeloxPlanValidator::validateCast(
   return true;
 }
 
+bool SubstraitToVeloxPlanValidator::validateIfThen(
+    const ::substrait::Expression_IfThen& ifThen,
+    const RowTypePtr& inputType) {
+  for (const auto& ifThen : ifThen.ifs()) {
+    return validateExpression(ifThen.if_(), inputType) &&
+      validateExpression(ifThen.then(), inputType);
+  }
+}
+
 bool SubstraitToVeloxPlanValidator::validateExpression(
     const ::substrait::Expression& expression,
     const RowTypePtr& inputType) {
@@ -341,6 +351,8 @@ bool SubstraitToVeloxPlanValidator::validateExpression(
       return validateLiteral(expression.literal(), inputType);
     case ::substrait::Expression::RexTypeCase::kCast:
       return validateCast(expression.cast(), inputType);
+    case ::substrait::Expression::RexTypeCase::kIfThen:
+      return validateIfThen(expression.if_then(), inputType);
     default:
       return true;
   }
@@ -393,8 +405,45 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchR
   return true;
 }
 
+
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::GenerateRel& generateRel) {
-  // TODO(yuan): add check
+  if (generateRel.has_input() && !validate(generateRel.input())) {
+    logValidateMsg("native validation failed due to: input validation fails in GenerateRel.");
+    return false;
+  }
+
+  // Get and validate the input types from extension.
+  if (!generateRel.has_advanced_extension()) {
+    logValidateMsg("native validation failed due to: Input types are expected in GenerateRel.");
+    return false;
+  }
+  const auto& extension = generateRel.advanced_extension();
+  std::vector<TypePtr> types;
+  if (!validateInputTypes(extension, types)) {
+    logValidateMsg("native validation failed due to: Validation failed for input types in GenerateRel.");
+    return false;
+  }
+
+  int32_t inputPlanNodeId = 0;
+  // Create the fake input names to be used in row type.
+  std::vector<std::string> names;
+  names.reserve(types.size());
+  for (uint32_t colIdx = 0; colIdx < types.size(); colIdx++) {
+    names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
+  }
+  auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
+
+  if (generateRel.has_generator() && !validateExpression(generateRel.generator(), rowType)) {
+    logValidateMsg("native validation failed due to: input validation fails in GenerateRel.");
+    return false;
+  }
+
+  try {
+    planConverter_.toVeloxPlan(generateRel);
+  } catch (const VeloxException& err) {
+    logValidateMsg("native validation failed due to: in GenerateRel, " + err.message());
+    return false;
+  }
   return true;
 }
 
