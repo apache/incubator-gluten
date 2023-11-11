@@ -337,6 +337,7 @@ bool SubstraitToVeloxPlanValidator::validateIfThen(
   for (const auto& ifThen : ifThen.ifs()) {
     return validateExpression(ifThen.if_(), inputType) && validateExpression(ifThen.then(), inputType);
   }
+  return true;
 }
 
 bool SubstraitToVeloxPlanValidator::validateExpression(
