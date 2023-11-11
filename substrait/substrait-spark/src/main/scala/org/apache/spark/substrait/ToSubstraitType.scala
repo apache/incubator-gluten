@@ -119,6 +119,7 @@ class ToSubstraitType {
       .zip(namedStruct.names().asScala)
       .map { case ((t, d), name) => StructField(name, d, t.nullable()) }
       .map(f => AttributeReference(f.name, f.dataType, f.nullable, f.metadata)())
+      .toSeq()
   }
 }
 

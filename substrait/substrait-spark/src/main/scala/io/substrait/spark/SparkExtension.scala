@@ -39,6 +39,9 @@ object SparkExtension {
     ret.toSeq
   }
 
-  val toAggregateFunction: ToAggregateFunction = ToAggregateFunction(
-    JavaConverters.asScalaBuffer(EXTENSION_COLLECTION.aggregateFunctions()))
+  val toAggregateFunction: ToAggregateFunction = {
+    ToAggregateFunction(
+      JavaConverters.asScalaBuffer(EXTENSION_COLLECTION.aggregateFunctions()).toSeq
+    )
+  }
 }

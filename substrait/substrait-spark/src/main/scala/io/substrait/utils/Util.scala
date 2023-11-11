@@ -17,6 +17,7 @@
 package io.substrait.utils
 
 import scala.annotation.tailrec
+import scala.collection.compat._
 import scala.collection.mutable.ArrayBuffer
 
 object Util {
@@ -31,20 +32,20 @@ object Util {
   def crossProduct[T](lists: Seq[Seq[T]]): Seq[Seq[T]] = {
 
     /** list [a, b], element 1 =>  list + element => [a, b, 1] */
-    val appendElementToList: (Seq[T], T) => Seq[T] =
+    val appendElementToList: (ArrayBuffer[T], T) => ArrayBuffer[T] =
       (list, element) => list :+ element
 
     /** ([a, b], [1, 2]) ==> [a, b, 1], [a, b, 2] */
-    val appendAndGen: (Seq[T], Seq[T]) => Seq[Seq[T]] =
+    val appendAndGen: (ArrayBuffer[T], Seq[T]) => Seq[ArrayBuffer[T]] =
       (list, elemsToAppend) => elemsToAppend.map(e => appendElementToList(list, e))
 
     val firstListToJoin = lists.head
     val startProduct = appendAndGen(new ArrayBuffer[T], firstListToJoin)
 
     /** ([ [a, b], [c, d] ], [1, 2]) -> [a, b, 1], [a, b, 2], [c, d, 1], [c, d, 2] */
-    val appendAndGenLists: (Seq[Seq[T]], Seq[T]) => Seq[Seq[T]] =
-      (products, toJoin) => products.flatMap(product => appendAndGen(product, toJoin))
-    lists.tail.foldLeft(startProduct)(appendAndGenLists)
+    val appendAndGenLists: (Seq[ArrayBuffer[T]], Seq[T]) => Seq[Seq[T]] =
+      (products, toJoin) => products.flatMap(product => appendAndGen(product, toJoin).toSeq)
+    lists.tail.foldLeft(startProduct)(appendAndGenLists).map(_.toSeq)
   }
 
   def seqToOption[T](s: Seq[Option[T]]): Option[Seq[T]] = {
