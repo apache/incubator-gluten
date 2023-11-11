@@ -73,7 +73,9 @@ abstract class FunctionConverter[F <: SimpleExtension.Function, T](functions: Se
                   val implList = alm.get(key)
                   if (implList != null && !implList.isEmpty) {
                     matcherMap
-                      .put(sig.expClass, createFinder(key, JavaConverters.asScalaBuffer(implList).toSeq))
+                      .put(
+                        sig.expClass,
+                        createFinder(key, JavaConverters.asScalaBuffer(implList).toSeq))
                   }
                 })
           }

@@ -48,10 +48,15 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
 
   private def fromMeasure(measure: relation.Aggregate.Measure): AggregateExpression = {
     // this functions is called in createParentwithChild
-    val arguments = measure.getFunction.arguments().asScala.zipWithIndex.map {
-      case (arg, i) =>
-        arg.accept(measure.getFunction.declaration(), i, expressionConverter)
-    }.toSeq
+    val arguments = measure.getFunction
+      .arguments()
+      .asScala
+      .zipWithIndex
+      .map {
+        case (arg, i) =>
+          arg.accept(measure.getFunction.declaration(), i, expressionConverter)
+      }
+      .toSeq
 
     val aggregateFunction = SparkExtension.toAggregateFunction
       .getSparkExpressionFromSubstraitFunc(
@@ -165,7 +170,8 @@ class ToLogicalPlan(spark: SparkSession) extends DefaultRelVisitor[LogicalPlan] 
       val projectList =
         project.getExpressions.asScala
           .map(expr => expr.accept(expressionConverter))
-          .map(toNamedExpression).toSeq
+          .map(toNamedExpression)
+          .toSeq
       if (createProject) {
         Project(projectList, child)
       } else {
