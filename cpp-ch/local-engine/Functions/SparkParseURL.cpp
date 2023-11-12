@@ -17,12 +17,12 @@
 #include <algorithm>
 #include <string.h>
 #include <Columns/ColumnFixedString.h>
+#include <Columns/ColumnNullable.h>
 #include <Columns/IColumn.h>
 #include <Core/ColumnsWithTypeAndName.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionStringToString.h>
-#include <Functions/FunctionsStringArray.h>
 #include <Functions/FunctionsStringSearchToString.h>
 #include <Functions/IFunction.h>
 // #include <Functions/URL/FunctionsURL.h>
