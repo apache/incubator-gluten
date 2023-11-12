@@ -14,23 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <algorithm>
-#include <string.h>
 #include <Columns/ColumnFixedString.h>
+#include <Columns/ColumnNullable.h>
 #include <Columns/IColumn.h>
-#include <Core/ColumnsWithTypeAndName.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionStringToString.h>
-#include <Functions/FunctionsStringArray.h>
 #include <Functions/FunctionsStringSearchToString.h>
 #include <Functions/IFunction.h>
-// #include <Functions/URL/FunctionsURL.h>
 #include <Functions/URL/domain.h>
-#include <base/find_symbols.h>
-#include <sys/types.h>
 #include <Poco/Logger.h>
-#include <Common/logger_useful.h>
 #include <memory>
 
 namespace DB
