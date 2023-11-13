@@ -109,9 +109,7 @@ class Spark34Shims extends SparkShims {
   override def filesGroupedToBuckets(
       selectedPartitions: Array[PartitionDirectory]): Map[Int, Array[PartitionedFile]] = {
     selectedPartitions
-      .flatMap {
-        p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, f.getPath, p.values))
-      }
+      .flatMap(p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, p.values)))
       .groupBy {
         f =>
           BucketingUtils
