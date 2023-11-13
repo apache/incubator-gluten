@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.execution.RDDScanExec
+import org.apache.spark.sql.execution.{GenerateExec, RDDScanExec}
 import org.apache.spark.sql.functions.{avg, col}
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
@@ -563,9 +563,10 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
 
       // Testing unsupported case
       runQueryAndCompare("SELECT explode(from_json(cast(c1 as string),'ARRAY<STRING>')) from t;") {
-        df => {
-          getExecutedPlan(df).exists(plan => plan.exists(_.isInstanceOf[GenerateExec]))
-        }
+        df =>
+          {
+            getExecutedPlan(df).exists(plan => plan.exists(_.isInstanceOf[GenerateExec]))
+          }
       }
 
       // Testing unsupported case in case when
@@ -574,9 +575,10 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           |SELECT explode(case when size(from_json(cast(c1 as string),'ARRAY<STRING>')) > 0
           |then array(c1) else array(c2) end) from t;
           |""".stripMargin) {
-        df => {
-          getExecutedPlan(df).exists(plan => plan.exists(_.isInstanceOf[GenerateExec]))
-        }
+        df =>
+          {
+            getExecutedPlan(df).exists(plan => plan.exists(_.isInstanceOf[GenerateExec]))
+          }
       }
     }
   }
