@@ -25,7 +25,7 @@ object SparkShimProvider {
 
 class SparkShimProvider extends io.glutenproject.sql.shims.SparkShimProvider {
   def createShim: SparkShims = {
-    new Spark34Shims()
+    new Spark35Shims()
   }
 
   def matches(version: String): Boolean = {

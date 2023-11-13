@@ -30,7 +30,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Dist
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
-import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
@@ -132,5 +132,21 @@ class Spark33Shims extends SparkShims {
       errorClass = "INVALID_BUCKET_FILE",
       messageParameters = Array(path),
       cause = null)
+  }
+
+  override def splitFiles(
+       sparkSession: SparkSession,
+       file: FileStatusWithMetadata,
+       filePath: Path,
+       isSplitable: Boolean,
+       maxSplitBytes: Long,
+       partitionValues: InternalRow): Seq[PartitionedFile] = {
+    PartitionedFileUtil.splitFiles(
+      sparkSession,
+      file,
+      filePath,
+      isSplitable,
+      maxSplitBytes,
+      partitionValues)
   }
 }

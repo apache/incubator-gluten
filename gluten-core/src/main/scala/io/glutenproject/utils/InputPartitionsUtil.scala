@@ -63,7 +63,7 @@ case class InputPartitionsUtil(
               val filePath = file.getPath
               val isSplitable =
                 relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
-              PartitionedFileUtil.splitFiles(
+              SparkShimLoader.getSparkShims.splitFiles(
                 sparkSession = relation.sparkSession,
                 file = file,
                 filePath = filePath,

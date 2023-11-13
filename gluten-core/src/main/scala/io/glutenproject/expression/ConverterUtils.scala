@@ -104,7 +104,7 @@ object ConverterUtils extends Logging {
     getShortAttributeName(attr) + "#" + attr.exprId.id
   }
 
-  def collectAttributeTypeNodes(attributes: JList[Attribute]): JArrayList[TypeNode] = {
+  def collectAttributeTypeNodes(attributes: JList[Attribute]): JList[TypeNode] = {
     collectAttributeTypeNodes(attributes.asScala.toSeq)
   }
 
@@ -112,7 +112,7 @@ object ConverterUtils extends Logging {
     attributes.map(attr => getTypeNode(attr.dataType, attr.nullable)).asJava
   }
 
-  def collectAttributeNamesWithExprId(attributes: JList[Attribute]): JArrayList[String] = {
+  def collectAttributeNamesWithExprId(attributes: JList[Attribute]): JList[String] = {
     collectAttributeNamesWithExprId(attributes.asScala.toSeq)
   }
 
@@ -198,7 +198,7 @@ object ConverterUtils extends Logging {
           typ =>
             val (field, nullable) = parseFromSubstraitType(typ)
             StructField("", field, nullable)
-        }
+        }.asJava
         (StructType(fields), isNullable(substraitType.getStruct.getNullability))
       case Type.KindCase.LIST =>
         val list = substraitType.getList
