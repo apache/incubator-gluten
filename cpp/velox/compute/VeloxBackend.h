@@ -26,6 +26,7 @@
 
 #include "velox/common/caching/AsyncDataCache.h"
 #include "velox/common/memory/MemoryPool.h"
+#include "velox/core/config.h"
 
 namespace gluten {
 /// As a static instance in per executor, initialized at executor startup.
