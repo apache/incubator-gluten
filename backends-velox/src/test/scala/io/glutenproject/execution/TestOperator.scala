@@ -565,7 +565,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare("SELECT explode(from_json(cast(c1 as string),'ARRAY<STRING>')) from t;") {
         df =>
           {
-            getExecutedPlan(df).exists(plan => plan.exists(_.isInstanceOf[GenerateExec]))
+            getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[GenerateExec]).isDefined)
           }
       }
 
@@ -577,7 +577,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           |""".stripMargin) {
         df =>
           {
-            getExecutedPlan(df).exists(plan => plan.exists(_.isInstanceOf[GenerateExec]))
+            getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[GenerateExec]).isDefined)
           }
       }
     }
