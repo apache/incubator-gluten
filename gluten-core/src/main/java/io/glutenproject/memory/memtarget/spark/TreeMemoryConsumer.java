@@ -48,7 +48,7 @@ import java.util.stream.Collectors;
  * registered as a Spark memory consumer.
  *
  * <p>Typically used by utility class {@link
- * io.glutenproject.memory.memtarget.spark.IsolatedMemoryConsumers}.
+ * io.glutenproject.memory.memtarget.spark.TreeMemoryConsumers}.
  */
 public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarget {
 

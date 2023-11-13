@@ -18,8 +18,7 @@ package io.glutenproject.memory.memtarget;
 
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
-import io.glutenproject.memory.memtarget.spark.IsolatedMemoryConsumers;
-import io.glutenproject.memory.memtarget.spark.RegularMemoryConsumer;
+import io.glutenproject.memory.memtarget.spark.TreeMemoryConsumers;
 
 import org.apache.spark.memory.TaskMemoryManager;
 
@@ -48,9 +47,12 @@ public final class MemoryTargets {
       String name,
       Spiller spiller,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
+    final TreeMemoryConsumers.Factory factory;
     if (GlutenConfig.getConf().memoryIsolation()) {
-      return IsolatedMemoryConsumers.newConsumer(tmm, name, spiller, virtualChildren);
+      factory = TreeMemoryConsumers.isolated();
+    } else {
+      factory = TreeMemoryConsumers.shared();
     }
-    return new RegularMemoryConsumer(tmm, name, spiller, virtualChildren);
+    return factory.newConsumer(tmm, name, spiller, virtualChildren);
   }
 }
