@@ -154,8 +154,6 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::filesystems::registerLocalFileSystem();
   initJolFilesystem(veloxcfg);
 
-  std::unordered_map<std::string, std::string> configurationValues;
-
 #ifdef ENABLE_S3
   std::string awsAccessKey = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.access.key", "");
   std::string awsSecretKey = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.secret.key", "");
