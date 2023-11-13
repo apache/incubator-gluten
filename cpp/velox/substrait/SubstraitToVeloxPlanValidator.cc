@@ -45,6 +45,7 @@ static const std::unordered_set<std::string> kBlackList = {
     "json_array_length",
     "from_unixtime",
     "repeat",
+    "date_format",
     "trunc",
     "sequence",
     "posexplode",
