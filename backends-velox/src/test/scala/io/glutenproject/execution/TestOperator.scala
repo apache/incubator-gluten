@@ -545,6 +545,39 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       runQueryAndCompare("SELECT c1, explode(array(c2)) FROM t") {
         checkOperatorMatch[GenerateExecTransformer]
       }
+
+      runQueryAndCompare("SELECT c1, explode(c3) FROM (SELECT c1, array(c2) as c3 FROM t)") {
+        checkOperatorMatch[GenerateExecTransformer]
+      }
+    }
+  }
+
+  test("Add the missing Generate validation check") {
+    withTable("t") {
+      spark
+        .range(10)
+        .selectExpr("id as c1", "id as c2")
+        .write
+        .format("parquet")
+        .saveAsTable("t")
+
+      // Testing unsupported case
+      runQueryAndCompare("SELECT explode(from_json(cast(c1 as string),'ARRAY<STRING>')) from t;") {
+        df => {
+          getExecutedPlan(df).exists(plan => plan.exists(_.isInstanceOf[GenerateExec]))
+        }
+      }
+
+      // Testing unsupported case in case when
+      runQueryAndCompare(
+        """
+          |SELECT explode(case when size(from_json(cast(c1 as string),'ARRAY<STRING>')) > 0
+          |then array(c1) else array(c2) end) from t;
+          |""".stripMargin) {
+        df => {
+          getExecutedPlan(df).exists(plan => plan.exists(_.isInstanceOf[GenerateExec]))
+        }
+      }
     }
   }
 }
