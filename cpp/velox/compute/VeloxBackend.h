@@ -56,11 +56,11 @@ class VeloxBackend {
   }
 
   void init(const std::unordered_map<std::string, std::string>& conf);
-  void initCache(const std::unordered_map<std::string, std::string>& conf);
-  void initIOExecutor(const std::unordered_map<std::string, std::string>& conf);
-  void initUdf(const std::unordered_map<std::string, std::string>& conf);
+  void initCache(const velox::Config* conf);
+  void initIOExecutor(const velox::Config* conf);
+  void initUdf(const velox::Config* conf);
 
-  void initJolFilesystem(const std::unordered_map<std::string, std::string>& conf);
+  void initJolFilesystem(const velox::Config* conf);
 
   void printConf(const std::unordered_map<std::string, std::string>& conf);
 
