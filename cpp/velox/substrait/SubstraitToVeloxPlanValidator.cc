@@ -45,15 +45,10 @@ static const std::unordered_set<std::string> kBlackList = {
     "json_array_length",
     "from_unixtime",
     "repeat",
-    "translate",
-    "add_months",
-    "date_format",
     "trunc",
     "sequence",
     "posexplode",
     "arrays_overlap",
-    "array_min",
-    "array_max",
     "approx_percentile"};
 
 bool validateColNames(const ::substrait::NamedStruct& schema) {
