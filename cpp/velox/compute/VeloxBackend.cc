@@ -89,7 +89,7 @@ const std::string kVeloxIOThreads = "spark.gluten.sql.columnar.backend.velox.IOT
 const std::string kVeloxIOThreadsDefault = "0";
 
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
-const std::string kVeloxSplitPreloadPerDriverDefault = "2";
+const std::string kVeloxSplitPreloadPerDriverDefault = "0";
 
 // udf
 const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.velox.udfLibraryPaths";
@@ -347,13 +347,10 @@ void VeloxBackend::initIOExecutor(const std::unordered_map<std::string, std::str
   int32_t splitPreloadPerDriver =
       std::stoi(getConfigValue(conf, kVeloxSplitPreloadPerDriver, kVeloxSplitPreloadPerDriverDefault));
   if (ioThreads > 0) {
-    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
+    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads, ioThreads);
     FLAGS_split_preload_per_driver = splitPreloadPerDriver;
-  }
-
-  if (splitPreloadPerDriver > 0 && ioThreads > 0) {
-    LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
-              << ", IO threads: " << ioThreads;
+    LOG(INFO) << "STARTUP: Initalize connector IO thread executor with " << ioThreads
+              << " threads, Split preload per driver: " << splitPreloadPerDriver;
   }
 }
 

@@ -1018,7 +1018,7 @@ object GlutenConfig {
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
-      .doc("The IO threads for connector split preloading")
+      .doc("The IO threads of connector to preload split or prefetching")
       .intConf
       .createWithDefault(0)
 
@@ -1027,7 +1027,7 @@ object GlutenConfig {
       .internal()
       .doc("The split preload per task")
       .intConf
-      .createWithDefault(2)
+      .createWithDefault(0)
 
   val COLUMNAR_VELOX_GLOG_VERBOSE_LEVEL =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.glogVerboseLevel")
