@@ -785,8 +785,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     shuffleWriterOptions.buffer_size = bufferSize;
   }
 
+  shuffleWriterOptions.compression_type = getCompressionType(env, codecJstr);
   if (codecJstr != NULL) {
-    shuffleWriterOptions.compression_type = getCompressionType(env, codecJstr);
     shuffleWriterOptions.codec_backend = getCodecBackend(env, codecBackendJstr);
     shuffleWriterOptions.compression_mode = getCompressionMode(env, compressionModeJstr);
   }
@@ -991,8 +991,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
   ShuffleReaderOptions options = ShuffleReaderOptions::defaults();
   options.ipc_read_options.memory_pool = pool;
   options.ipc_read_options.use_threads = false;
+  options.compression_type = getCompressionType(env, compressionType);
   if (compressionType != nullptr) {
-    options.compression_type = getCompressionType(env, compressionType);
     options.codec_backend = getCodecBackend(env, compressionBackend);
   }
   std::shared_ptr<arrow::Schema> schema =
