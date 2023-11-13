@@ -311,6 +311,18 @@
       </dependency>
       <dependency>
 	<groupId>org.apache.spark</groupId>
+	<artifactId>spark-hivethriftserver_${scala.binary.version}</artifactId>
+	<version>${spark.version}</version>
+	<scope>provided</scope>
+	<exclusions>
+	  <exclusion>
+	    <groupId>org.apache.hadoop</groupId>
+	    <artifactId>hadoop-client-runtime</artifactId>
+	  </exclusion>
+	</exclusions>
+      </dependency>
+      <dependency>
+	<groupId>org.apache.spark</groupId>
 	<artifactId>spark-catalyst_${scala.binary.version}</artifactId>
 	<version>${spark.version}</version>
 	<exclusions>

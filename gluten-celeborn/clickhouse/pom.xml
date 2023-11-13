@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	 xmlns="http://maven.apache.org/POM/4.0.0"
+	 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <artifactId>gluten-celeborn</artifactId>
     <groupId>io.glutenproject</groupId>
@@ -84,18 +84,18 @@
       <version>2.3.9</version>
       <scope>test</scope>
       <exclusions>
-        <exclusion>
-          <groupId>org.pentaho</groupId>
-          <artifactId>pentaho-aggdesigner-algorithm</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>net.minidev</groupId>
-          <artifactId>json-smart</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hive</groupId>
-          <artifactId>hive-exec</artifactId>
-        </exclusion>
+	<exclusion>
+	  <groupId>org.pentaho</groupId>
+	  <artifactId>pentaho-aggdesigner-algorithm</artifactId>
+	</exclusion>
+	<exclusion>
+	  <groupId>net.minidev</groupId>
+	  <artifactId>json-smart</artifactId>
+	</exclusion>
+	<exclusion>
+	  <groupId>org.apache.hive</groupId>
+	  <artifactId>hive-exec</artifactId>
+	</exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -143,73 +143,73 @@
     <testOutputDirectory>target/scala-${scala.binary.version}/test-classes</testOutputDirectory>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-resources-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>net.alchim31.maven</groupId>
-        <artifactId>scala-maven-plugin</artifactId>
+	<groupId>net.alchim31.maven</groupId>
+	<artifactId>scala-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-compiler-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
+	<groupId>org.scalastyle</groupId>
+	<artifactId>scalastyle-maven-plugin</artifactId>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-checkstyle-plugin</artifactId>
       </plugin>
       <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.3.0</version>
-        <configuration>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
-        </configuration>
-        <executions>
-          <execution>
-            <id>make-assembly</id>
-            <phase>package</phase>
-            <goals>
-              <goal>single</goal>
-            </goals>
-          </execution>
-        </executions>
+	<artifactId>maven-assembly-plugin</artifactId>
+	<version>3.3.0</version>
+	<configuration>
+	  <descriptorRefs>
+	    <descriptorRef>jar-with-dependencies</descriptorRef>
+	  </descriptorRefs>
+	</configuration>
+	<executions>
+	  <execution>
+	    <id>make-assembly</id>
+	    <phase>package</phase>
+	    <goals>
+	      <goal>single</goal>
+	    </goals>
+	  </execution>
+	</executions>
       </plugin>
       <plugin>
-        <groupId>org.scalatest</groupId>
-        <artifactId>scalatest-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>test</id>
-            <goals>
-              <goal>test</goal>
-            </goals>
-            <configuration>
-              <systemProperties>
-                <clickhouse.lib.path>${clickhouse.lib.path}</clickhouse.lib.path>
-                <tpcds.data.path>${tpcds.data.path}</tpcds.data.path>
-              </systemProperties>
-            </configuration>
-          </execution>
-        </executions>
+	<groupId>org.scalatest</groupId>
+	<artifactId>scalatest-maven-plugin</artifactId>
+	<executions>
+	  <execution>
+	    <id>test</id>
+	    <goals>
+	      <goal>test</goal>
+	    </goals>
+	    <configuration>
+	      <systemProperties>
+		<clickhouse.lib.path>${clickhouse.lib.path}</clickhouse.lib.path>
+		<tpcds.data.path>${tpcds.data.path}</tpcds.data.path>
+	      </systemProperties>
+	    </configuration>
+	  </execution>
+	</executions>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>prepare-test-jar</id>
-            <phase>test-compile</phase>
-            <goals>
-              <goal>test-jar</goal>
-            </goals>
-          </execution>
-        </executions>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-jar-plugin</artifactId>
+	<executions>
+	  <execution>
+	    <id>prepare-test-jar</id>
+	    <phase>test-compile</phase>
+	    <goals>
+	      <goal>test-jar</goal>
+	    </goals>
+	  </execution>
+	</executions>
       </plugin>
     </plugins>
   </build>
