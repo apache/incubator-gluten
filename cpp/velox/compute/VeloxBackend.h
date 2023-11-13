@@ -26,7 +26,7 @@
 
 #include "velox/common/caching/AsyncDataCache.h"
 #include "velox/common/memory/MemoryPool.h"
-#include "velox/core/config.h"
+#include "velox/core/Config.h"
 
 namespace gluten {
 /// As a static instance in per executor, initialized at executor startup.
@@ -57,11 +57,11 @@ class VeloxBackend {
   }
 
   void init(const std::unordered_map<std::string, std::string>& conf);
-  void initCache(const velox::Config* conf);
-  void initIOExecutor(const velox::Config* conf);
-  void initUdf(const velox::Config* conf);
+  void initCache(const facebook::velox::Config* conf);
+  void initIOExecutor(const facebook::velox::Config* conf);
+  void initUdf(const facebook::velox::Config* conf);
 
-  void initJolFilesystem(const velox::Config* conf);
+  void initJolFilesystem(const facebook::velox::Config* conf);
 
   void printConf(const std::unordered_map<std::string, std::string>& conf);
 

@@ -120,8 +120,8 @@ void VeloxBackend::printConf(const std::unordered_map<std::string, std::string>&
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
   // Init glog and log level.
-  auto veloxmmecfg = std::make_shared<velox::core::MemConfigMutable>(conf);
-  const velox::Config* veloxcfg = veloxmmecfg.get();
+  auto veloxmmecfg = std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
+  const facebook::velox::Config* veloxcfg = veloxmmecfg.get();
 
   uint32_t vlogLevel = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
   uint32_t severityLogLevel = veloxcfg->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
@@ -203,7 +203,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   initIOExecutor(veloxcfg);
 
 #ifdef GLUTEN_PRINT_DEBUG
-  printConf(conf);
+  printConf(veloxcfg);
 #endif
 
   auto hiveConnector =
@@ -220,7 +220,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   }
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
-  initUdf(conf);
+  initUdf(veloxcfg);
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
@@ -228,7 +228,7 @@ facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const 
 }
 
 // JNI-or-local filesystem, for spilling-to-heap if we have extra JVM heap spaces
-void VeloxBackend::initJolFilesystem(const velox::Config* conf) {
+void VeloxBackend::initJolFilesystem(const facebook::velox::Config* conf) {
   int64_t maxSpillFileSize = conf->get<int64_t>(kMaxSpillFileSize, kMaxSpillFileSizeDefault);
 
   // FIXME It's known that if spill compression is disabled, the actual spill file size may
@@ -237,7 +237,7 @@ void VeloxBackend::initJolFilesystem(const velox::Config* conf) {
   gluten::registerJolFileSystem(maxSpillFileSize);
 }
 
-void VeloxBackend::initCache(const velox::Config* conf) {
+void VeloxBackend::initCache(const facebook::velox::Config* conf) {
   bool veloxCacheEnabled = conf->get<bool>(kVeloxCacheEnabled, false);
   if (veloxCacheEnabled) {
     FLAGS_ssd_odirect = true;
@@ -284,7 +284,7 @@ void VeloxBackend::initCache(const velox::Config* conf) {
   }
 }
 
-void VeloxBackend::initIOExecutor(const velox::Config* conf) {
+void VeloxBackend::initIOExecutor(const facebook::velox::Config* conf) {
   int32_t ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   int32_t splitPreloadPerDriver = conf->get<int32_t>(kVeloxSplitPreloadPerDriver, kVeloxSplitPreloadPerDriverDefault);
   if (ioThreads > 0) {
@@ -298,7 +298,7 @@ void VeloxBackend::initIOExecutor(const velox::Config* conf) {
   }
 }
 
-void VeloxBackend::initUdf(const velox::Config* conf) {
+void VeloxBackend::initUdf(const facebook::velox::Config* conf) {
   auto got = conf->get<std::string>(kVeloxUdfLibraryPaths, "");
   if (!got.empty()) {
     auto udfLoader = gluten::UdfLoader::getInstance();
