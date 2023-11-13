@@ -72,11 +72,11 @@ const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.
 
 // memory cache
 const std::string kVeloxMemCacheSize = "spark.gluten.sql.columnar.backend.velox.memCacheSize";
-const uint64_t kVeloxMemCacheSizeDefault = 1073741824; // 128 MB
+const uint64_t kVeloxMemCacheSizeDefault = 1073741824; // 1G
 
 // ssd cache
 const std::string kVeloxSsdCacheSize = "spark.gluten.sql.columnar.backend.velox.ssdCacheSize";
-const uint64_t kVeloxSsdCacheSizeDefault = 1073741824; // 128 MB
+const uint64_t kVeloxSsdCacheSizeDefault = 1073741824; // 1G
 const std::string kVeloxSsdCachePath = "spark.gluten.sql.columnar.backend.velox.ssdCachePath";
 const std::string kVeloxSsdCachePathDefault = "/tmp/";
 const std::string kVeloxSsdCacheShards = "spark.gluten.sql.columnar.backend.velox.ssdCacheShards";
