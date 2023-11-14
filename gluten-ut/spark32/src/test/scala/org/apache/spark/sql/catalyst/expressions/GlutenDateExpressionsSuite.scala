@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.util.DateTimeTestUtils._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.{getZoneId, TimeZoneUTC}
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DateType, IntegerType, StringType}
+import org.apache.spark.sql.types.{DateType, IntegerType, StringType, TimestampType}
 import org.apache.spark.unsafe.types.UTF8String
 
 import java.sql.{Date, Timestamp}
@@ -284,5 +284,63 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
     // Test escaping of format
     GenerateUnsafeProjection.generate(
       ToUnixTimestamp(Literal("2015-07-24"), Literal("\""), UTC_OPT) :: Nil)
+  }
+
+  // Modified based on vanilla spark to explicitly set timezone in config.
+  test(GlutenTestConstants.GLUTEN_TEST + "DateFormat") {
+    val PST_OPT = Option(PST.getId)
+    val JST_OPT = Option(JST.getId)
+
+    Seq("legacy", "corrected").foreach {
+      legacyParserPolicy =>
+        withSQLConf(
+          SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy,
+          SQLConf.SESSION_LOCAL_TIMEZONE.key -> UTC_OPT.get) {
+          checkEvaluation(
+            DateFormatClass(Literal.create(null, TimestampType), Literal("y"), UTC_OPT),
+            null)
+          checkEvaluation(
+            DateFormatClass(
+              Cast(Literal(d), TimestampType, UTC_OPT),
+              Literal.create(null, StringType),
+              UTC_OPT),
+            null)
+
+          checkEvaluation(
+            DateFormatClass(Cast(Literal(d), TimestampType, UTC_OPT), Literal("y"), UTC_OPT),
+            "2015")
+          checkEvaluation(DateFormatClass(Literal(ts), Literal("y"), UTC_OPT), "2013")
+          checkEvaluation(
+            DateFormatClass(Cast(Literal(d), TimestampType, UTC_OPT), Literal("H"), UTC_OPT),
+            "0")
+          checkEvaluation(DateFormatClass(Literal(ts), Literal("H"), UTC_OPT), "13")
+        }
+
+        withSQLConf(
+          SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy,
+          SQLConf.SESSION_LOCAL_TIMEZONE.key -> PST_OPT.get) {
+          checkEvaluation(
+            DateFormatClass(Cast(Literal(d), TimestampType, PST_OPT), Literal("y"), PST_OPT),
+            "2015")
+          checkEvaluation(DateFormatClass(Literal(ts), Literal("y"), PST_OPT), "2013")
+          checkEvaluation(
+            DateFormatClass(Cast(Literal(d), TimestampType, PST_OPT), Literal("H"), PST_OPT),
+            "0")
+          checkEvaluation(DateFormatClass(Literal(ts), Literal("H"), PST_OPT), "5")
+        }
+
+        withSQLConf(
+          SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy,
+          SQLConf.SESSION_LOCAL_TIMEZONE.key -> PST_OPT.get) {
+          checkEvaluation(
+            DateFormatClass(Cast(Literal(d), TimestampType, JST_OPT), Literal("y"), JST_OPT),
+            "2015")
+          checkEvaluation(DateFormatClass(Literal(ts), Literal("y"), JST_OPT), "2013")
+          checkEvaluation(
+            DateFormatClass(Cast(Literal(d), TimestampType, JST_OPT), Literal("H"), JST_OPT),
+            "0")
+          checkEvaluation(DateFormatClass(Literal(ts), Literal("H"), JST_OPT), "22")
+        }
+    }
   }
 }

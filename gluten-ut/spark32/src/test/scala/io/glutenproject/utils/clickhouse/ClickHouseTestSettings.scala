@@ -678,6 +678,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("WeekDay")
     .exclude("WeekOfYear")
     .exclude("DateFormat")
+    .exclude("Gluten - DateFormat")
     .exclude("Hour")
     .exclude("Minute")
     .exclude("date add interval")
