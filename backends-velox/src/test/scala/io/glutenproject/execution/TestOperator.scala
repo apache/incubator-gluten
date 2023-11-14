@@ -18,8 +18,8 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.execution.RDDScanExec
-import org.apache.spark.sql.functions.{avg, col}
+import org.apache.spark.sql.execution.{GenerateExec, RDDScanExec}
+import org.apache.spark.sql.functions.{avg, col, udf}
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
 import scala.collection.JavaConverters
@@ -544,6 +544,44 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
 
       runQueryAndCompare("SELECT c1, explode(array(c2)) FROM t") {
         checkOperatorMatch[GenerateExecTransformer]
+      }
+
+      runQueryAndCompare("SELECT c1, explode(c3) FROM (SELECT c1, array(c2) as c3 FROM t)") {
+        checkOperatorMatch[GenerateExecTransformer]
+      }
+    }
+  }
+
+  test("Validation should fail if unsupported expression is used for Generate.") {
+    withTable("t") {
+      spark
+        .range(10)
+        .selectExpr("id as c1", "id as c2")
+        .write
+        .format("parquet")
+        .saveAsTable("t")
+
+      // Add a simple UDF to generate the unsupported case
+      val intToArrayFunc = udf((s: Int) => Array(s))
+      spark.udf.register("intToArray", intToArrayFunc)
+
+      // Testing unsupported case
+      runQueryAndCompare("SELECT explode(intToArray(c1)) from t;") {
+        df =>
+          {
+            getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[GenerateExec]).isDefined)
+          }
+      }
+
+      // Testing unsupported case in case when
+      runQueryAndCompare("""
+                           |SELECT explode(case when size(intToArray(c1)) > 0
+                           |then array(c1) else array(c2) end) from t;
+                           |""".stripMargin) {
+        df =>
+          {
+            getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[GenerateExec]).isDefined)
+          }
       }
     }
   }
