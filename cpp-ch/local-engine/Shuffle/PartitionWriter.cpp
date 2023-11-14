@@ -57,7 +57,7 @@ void local_engine::PartitionWriter::write(const PartitionInfo& partition_info, D
         if (buffer.size() >= shuffle_writer->options.split_size)
         {
             Block block = buffer.releaseColumns();
-            auto bytes = block.bytes();
+            auto bytes = block.allocatedBytes();
             total_partition_buffer_size += bytes;
             shuffle_writer->split_result.raw_partition_length[i] += bytes;
             partition_buffer[i].addBlock(block);
@@ -131,7 +131,8 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
     spill_inputs.reserve(spill_infos.size());
     for (const auto & spill : spill_infos)
     {
-        spill_inputs.emplace_back(std::make_shared<ReadBufferFromFile>(spill.spilled_file, shuffle_writer->options.io_buffer_size));
+        // only use readBig
+        spill_inputs.emplace_back(std::make_shared<ReadBufferFromFile>(spill.spilled_file, 0));
     }
 
     Stopwatch write_time_watch;
