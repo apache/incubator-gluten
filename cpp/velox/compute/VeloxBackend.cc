@@ -120,8 +120,8 @@ void VeloxBackend::printConf(const std::unordered_map<std::string, std::string>&
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
   // Init glog and log level.
-  auto veloxmmecfg = std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
-  const facebook::velox::Config* veloxcfg = veloxmmecfg.get();
+  auto veloxmemcfg = std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
+  const facebook::velox::Config* veloxcfg = veloxmemcfg.get();
 
   uint32_t vlogLevel = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
   uint32_t severityLogLevel = veloxcfg->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
@@ -179,22 +179,22 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   std::unordered_map<std::string, std::string> s3Config({});
   if (useInstanceCredentials) {
-    veloxmmecfg->setValue("hive.s3.use-instance-credentials", "true");
+    veloxmemcfg->setValue("hive.s3.use-instance-credentials", "true");
   } else if (!iamRole.empty()) {
-    veloxmmecfg->setValue("hive.s3.iam-role", iamRole);
+    veloxmemcfg->setValue("hive.s3.iam-role", iamRole);
     if (!iamRoleSessionName.empty()) {
-      veloxmmecfg->setValue("hive.s3.iam-role-session-name", iamRoleSessionName);
+      veloxmemcfg->setValue("hive.s3.iam-role-session-name", iamRoleSessionName);
     }
   } else {
-    veloxmmecfg->setValue("hive.s3.aws-access-key", awsAccessKey);
-    veloxmmecfg->setValue("hive.s3.aws-secret-key", awsSecretKey);
+    veloxmemcfg->setValue("hive.s3.aws-access-key", awsAccessKey);
+    veloxmemcfg->setValue("hive.s3.aws-secret-key", awsSecretKey);
   }
   // Only need to set s3 endpoint when not use instance credentials.
   if (!useInstanceCredentials) {
-    veloxmmecfg->setValue("hive.s3.endpoint", awsEndpoint);
+    veloxmemcfg->setValue("hive.s3.endpoint", awsEndpoint);
   }
-  veloxmmecfg->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
-  veloxmmecfg->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
+  veloxmemcfg->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
+  veloxmemcfg->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
 #endif
 
   initCache(veloxcfg);
@@ -206,7 +206,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
-          ->newConnector(kHiveConnectorId, veloxmmecfg, ioExecutor_.get());
+          ->newConnector(kHiveConnectorId, veloxmemcfg, ioExecutor_.get());
 
   registerConnector(hiveConnector);
 
