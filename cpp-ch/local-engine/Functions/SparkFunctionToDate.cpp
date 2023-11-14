@@ -44,7 +44,7 @@ public:
     ~SparkFunctionConvertToDate() override = default;
     DB::String getName() const override { return name; }
 
-    std::pair<bool, LocalDate> checkAndGetDateValue(DB::ReadBuffer & buf) const
+    bool checkDateFormat(DB::ReadBuffer & buf) const
     {
         auto checkNumbericASCII = [&](DB::ReadBuffer & rb, size_t start, size_t length) -> bool
         {
@@ -68,28 +68,19 @@ public:
             || !checkNumbericASCII(buf, 5, 2) 
             || !checkDelimiter(buf, 7) 
             || !checkNumbericASCII(buf, 8, 2))
-            result.first = false;
+            return false;
         else
         {
             char month = (*(buf.position() + 5) - '0') * 10 + (*(buf.position() + 6) - '0');
             if (month < 0 || month > 12)
-            {
-                result.first = false;
-                return result;
-            }
+                return false;
             char day = (*(buf.position() + 8) - '0') * 10 + (*(buf.position() + 9) - '0');
             if (day < 0 || day > 31)
-            {
-                result.first = false;
-            }
+                return false;
             else if (day == 31 && (month == 2 || month == 4 || month == 6 || month == 9 || month == 11))
-            {
-                result.first = false;
-            }
+                return false;
             else if (day == 30 && month == 2)
-            {
-                result.first = false;
-            }
+                return false;
             else
             {
                 short year = (*(buf.position() + 0) - '0') * 1000 + 
@@ -97,16 +88,11 @@ public:
                     (*(buf.position() + 2) - '0') * 10 + 
                     (*(buf.position() + 3) - '0');
                 if (day == 29 && month == 2 && year % 4 != 0)
-                    result.first = false;
+                    return false;
                 else
-                {
-                    result.first = true;
-                    LocalDate date(year, month, day);
-                    result.second = std::move(date);
-                }
+                    return true;
             }
         }
-        return result;
     }
 
     DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t) const override
@@ -129,6 +115,7 @@ public:
         typename ColVecTo::Container & result_container = result_column->getData();
         DB::ColumnUInt8::MutablePtr null_map = DB::ColumnUInt8::create(size);
         typename DB::ColumnUInt8::Container & null_container = null_map->getData();
+        const DateLUTImpl * utc_time_zone = &DateLUT::instance("UTC");
 
         for (size_t i = 0; i < size; ++i)
         {
@@ -152,17 +139,15 @@ public:
                     result_container[i] = 0;
                     continue;
                 }
-                std::pair<bool, LocalDate> p = checkAndGetDateValue(buf);
-                if (!p.first)
+                if (!checkDateFormat(buf))
                 {
                     null_container[i] = true;
                     result_container[i] = 0;
                 }
                 else
                 {
-                    null_container[i] = false;
-                    Int32 dayNum = p.second.getDayNum();
-                    result_container[i] = dayNum;
+                    bool parsed = tryParseImpl<DB::DataTypeDate32>(result_container[i], buf, utc_time_zone, false);
+                    null_container[i] = !parsed;
                 }
             }
         }
