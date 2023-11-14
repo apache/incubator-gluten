@@ -58,12 +58,8 @@ You can just refer to [build-gluten-with-velox-backend](../get-started/Velox.md#
 If you need to debug cpp code, please compile the backend code and gluten cpp code with debug mode.
 
 ```bash
-## compile velox
-./build_velox.sh --build_type=Debug
-## compile arrow with tests required library
-./build_arrow.sh
-## compile gluten cpp with benchmark and tests to debug
-cmake -DBUILD_VELOX_BACKEND=ON -DBUILD_TESTS=ON -DBUILD_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=Debug ..
+## compile velox backend with benchmark and tests to debug
+gluten_home/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --build_type=Debug
 ```
 
 If you need to debug the tests in <gluten>/gluten-ut, You need to compile java code with `-P spark-ut`.
