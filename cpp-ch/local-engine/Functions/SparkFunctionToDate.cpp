@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 #include <Common/LocalDate.h>
+#include <Common/DateLUT.h>
+#include <Common/DateLUTImpl.h>
 #include <Core/Field.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <Functions/FunctionsConversion.h>
@@ -42,7 +44,7 @@ public:
     ~SparkFunctionConvertToDate() override = default;
     DB::String getName() const override { return name; }
 
-    bool checkDateFormat(DB::ReadBuffer & buf) const
+    std::pair<bool, LocalDate> checkAndGetDateValue(DB::ReadBuffer & buf) const
     {
         auto checkNumbericASCII = [&](DB::ReadBuffer & rb, size_t start, size_t length) -> bool
         {
@@ -60,62 +62,82 @@ public:
             else
                 return true;
         };
-        auto checkMonthDay = [&](DB::ReadBuffer &rb) -> bool
+        std::pair<bool, LocalDate> result;
+        if (!checkNumbericASCII(buf, 0, 4) 
+            || !checkDelimiter(buf, 4) 
+            || !checkNumbericASCII(buf, 5, 2) 
+            || !checkDelimiter(buf, 7) 
+            || !checkNumbericASCII(buf, 8, 2))
+            result.first = false;
+        else
         {
-            int month = (*(rb.position() + 5) - '0') * 10 + (*(rb.position() + 6) - '0');
-            if (month > 12 || month < 0)
-                return false;
-            int day = (*(rb.position() + 8) - '0') * 10 + (*(rb.position() + 9) - '0');
-            if (day < 0 || day > 31)
-                return false;
-            else if (day == 31 && (month == 2 || month == 4 || month == 6 || month == 9 || month == 11))
-                return false;
-            else if (day == 30 && month == 2)
-                return false;
-            else if (day == 29 && month == 2)
+            char month = (*(buf.position() + 5) - '0') * 10 + (*(buf.position() + 6) - '0');
+            if (month < 0 || month > 12)
             {
-                int year = (*(rb.position() + 0) - '0') * 1000 + 
-                    (*(rb.position() + 1) - '0') * 100 + 
-                    (*(rb.position() + 2) - '0') * 10 + 
-                    (*(rb.position() + 3) - '0');
-                if (year % 4 != 0)
-                    return false;
-                else
-                    return true;
+                result.first = false;
+                return result;
+            }
+            char day = (*(buf.position() + 8) - '0') * 10 + (*(buf.position() + 9) - '0');
+            if (day < 0 || day > 31)
+            {
+                result.first = false;
+            }
+            else if (day == 31 && (month == 2 || month == 4 || month == 6 || month == 9 || month == 11))
+            {
+                result.first = false;
+            }
+            else if (day == 30 && month == 2)
+            {
+                result.first = false;
             }
             else
-                return true;
-
-        };
-        if (!checkNumbericASCII(buf, 0, 4))
-            return false;
-        if (!checkDelimiter(buf, 4))
-            return false;
-        if (!checkNumbericASCII(buf, 5, 2))
-            return false;
-        if (!checkDelimiter(buf, 7))
-            return false;
-        if (!checkNumbericASCII(buf, 8, 2))
-            return false;
-        if (!checkMonthDay(buf))
-            return false;
-        return true;
+            {
+                short year = (*(buf.position() + 0) - '0') * 1000 + 
+                    (*(buf.position() + 1) - '0') * 100 + 
+                    (*(buf.position() + 2) - '0') * 10 + 
+                    (*(buf.position() + 3) - '0');
+                if (day == 29 && month == 2 && year % 4 != 0)
+                    result.first = false;
+                else
+                {
+                    result.first = true;
+                    LocalDate date(year, month, day);
+                    result.second = std::move(date);
+                }
+            }
+        }
+        return result;
     }
 
     DB::ColumnPtr executeImpl(const DB::ColumnsWithTypeAndName & arguments, const DB::DataTypePtr & result_type, size_t) const override
     {
-        auto result_column = result_type->createColumn();
         if (arguments.size() != 1)
             throw DB::Exception(DB::ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {}'s arguments number must be 1.", name);
         
         const DB::ColumnWithTypeAndName arg1 = arguments[0];
         const auto * src_col = checkAndGetColumn<DB::ColumnString>(arg1.column.get());
-        for (size_t i = 0; i < src_col->size(); ++i)
+        size_t size = src_col->size();
+
+        if (!result_type->isNullable())
+            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be nullable", name);
+        
+        if (!std::dynamic_pointer_cast<const DB::DataTypeDate32>(removeNullable(result_type)))
+            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be data32.", name);
+        
+        using ColVecTo = DB::DataTypeDate32::ColumnType;
+        typename ColVecTo::MutablePtr result_column = ColVecTo::create(size);
+        typename ColVecTo::Container & result_container = result_column->getData();
+        DB::ColumnUInt8::MutablePtr null_map = DB::ColumnUInt8::create(size);
+        typename DB::ColumnUInt8::Container & null_container = null_map->getData();
+
+        for (size_t i = 0; i < size; ++i)
         {
             auto str = src_col->getDataAt(i);
             if (str.size < 10)
             {
-                result_column->insert(DB::Field());
+                null_container[i] = true;
+                result_container[i] = 0;
+                continue;
             }
             else
             {
@@ -126,22 +148,25 @@ public:
                 }
                 if(buf.buffer().end() - buf.position() < 10)
                 {
-                    result_column->insert(DB::Field());
+                    null_container[i] = true;
+                    result_container[i] = 0;
                     continue;
                 }
-                if (!checkDateFormat(buf))
+                std::pair<bool, LocalDate> p = checkAndGetDateValue(buf);
+                if (!p.first)
                 {
-                    result_column->insert(DB::Field());
-                    continue;
+                    null_container[i] = true;
+                    result_container[i] = 0;
                 }
-                LocalDate date;
-                if (readDateTextImpl<bool>(date, buf))
-                    result_column->insert(date.getDayNum());
                 else
-                    result_column->insert(DB::Field());
+                {
+                    null_container[i] = false;
+                    Int32 dayNum = p.second.getDayNum();
+                    result_container[i] = dayNum;
+                }
             }
         }
-        return result_column;
+        return DB::ColumnNullable::create(std::move(result_column), std::move(null_map));
     }
 };
 
