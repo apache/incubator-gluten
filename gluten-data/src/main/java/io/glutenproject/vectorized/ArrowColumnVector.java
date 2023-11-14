@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
 import org.apache.arrow.vector.*;
@@ -31,16 +30,16 @@ import org.apache.spark.sql.vectorized.ColumnarArray;
 import org.apache.spark.sql.vectorized.ColumnarMap;
 import org.apache.spark.unsafe.types.UTF8String;
 
-/**
- * A column vector from Spark-3.3.1 backed by Apache Arrow.
- */
+/** A column vector from Spark-3.3.1 backed by Apache Arrow. */
 @DeveloperApi
 public class ArrowColumnVector extends ColumnVector {
 
   ArrowVectorAccessor accessor;
   ArrowColumnVector[] childColumns;
 
-  public ValueVector getValueVector() { return accessor.vector; }
+  public ValueVector getValueVector() {
+    return accessor.vector;
+  }
 
   @Override
   public boolean hasNull() {
@@ -135,10 +134,12 @@ public class ArrowColumnVector extends ColumnVector {
   }
 
   @Override
-  public ArrowColumnVector getChild(int ordinal) { return childColumns[ordinal]; }
+  public ArrowColumnVector getChild(int ordinal) {
+    return childColumns[ordinal];
+  }
 
   ArrowColumnVector(DataType type) {
-     super(type);
+    super(type);
   }
 
   public ArrowColumnVector(ValueVector vector) {
@@ -405,9 +406,10 @@ public class ArrowColumnVector extends ColumnVector {
       if (stringResult.isSet == 0) {
         return null;
       } else {
-        return UTF8String.fromAddress(null,
-          stringResult.buffer.memoryAddress() + stringResult.start,
-          stringResult.end - stringResult.start);
+        return UTF8String.fromAddress(
+            null,
+            stringResult.buffer.memoryAddress() + stringResult.start,
+            stringResult.end - stringResult.start);
       }
     }
   }
@@ -504,10 +506,9 @@ public class ArrowColumnVector extends ColumnVector {
   /**
    * Any call to "get" method will throw UnsupportedOperationException.
    *
-   * Access struct values in a ArrowColumnVector doesn't use this accessor. Instead, it uses
-   * getStruct() method defined in the parent class. Any call to "get" method in this class is a
-   * bug in the code.
-   *
+   * <p>Access struct values in a ArrowColumnVector doesn't use this accessor. Instead, it uses
+   * getStruct() method defined in the parent class. Any call to "get" method in this class is a bug
+   * in the code.
    */
   static class StructAccessor extends ArrowVectorAccessor {
 

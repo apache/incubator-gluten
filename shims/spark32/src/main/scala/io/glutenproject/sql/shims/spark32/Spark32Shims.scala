@@ -16,7 +16,7 @@
  */
 package io.glutenproject.sql.shims.spark32
 
-import io.glutenproject.expression.Sig
+import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
 import org.apache.spark.sql.SparkSession
@@ -24,10 +24,16 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
+import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
+import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil}
+import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 class Spark32Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -38,7 +44,7 @@ class Spark32Shims extends SparkShims {
     HashClusteredDistribution(leftKeys) :: HashClusteredDistribution(rightKeys) :: Nil
   }
 
-  override def expressionMappings: Seq[Sig] = Seq.empty
+  override def expressionMappings: Seq[Sig] = Seq(Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
 
   override def convertPartitionTransforms(
       partitions: Seq[Transform]): (Seq[String], Option[BucketSpec]) = {
@@ -52,4 +58,47 @@ class Spark32Shims extends SparkShims {
       fileSourceScanExec: FileSourceScanExec): FileScanRDD = {
     new FileScanRDD(sparkSession, readFunction, filePartitions)
   }
+
+  override def getTextScan(
+      sparkSession: SparkSession,
+      fileIndex: PartitioningAwareFileIndex,
+      dataSchema: StructType,
+      readDataSchema: StructType,
+      readPartitionSchema: StructType,
+      options: CaseInsensitiveStringMap,
+      partitionFilters: Seq[Expression],
+      dataFilters: Seq[Expression]): TextScan = {
+    new TextScan(
+      sparkSession,
+      fileIndex,
+      readDataSchema,
+      readPartitionSchema,
+      options,
+      partitionFilters,
+      dataFilters)
+  }
+
+  override def filesGroupedToBuckets(
+      selectedPartitions: Array[PartitionDirectory]): Map[Int, Array[PartitionedFile]] = {
+    selectedPartitions
+      .flatMap {
+        p => p.files.map(f => PartitionedFileUtil.getPartitionedFile(f, f.getPath, p.values))
+      }
+      .groupBy {
+        f =>
+          BucketingUtils
+            .getBucketId(f.filePath)
+            .getOrElse(throw new IllegalStateException(s"Invalid bucket file ${f.filePath}"))
+      }
+  }
+
+  override def getBatchScanExecTable(batchScan: BatchScanExec): Table = null
+
+  override def generatePartitionedFile(
+      partitionValues: InternalRow,
+      filePath: String,
+      start: Long,
+      length: Long,
+      @transient locations: Array[String] = Array.empty): PartitionedFile =
+    PartitionedFile(partitionValues, filePath, start, length, locations)
 }

@@ -16,11 +16,11 @@
  */
 package org.apache.spark.sql.execution.datasources.v2
 
-import io.glutenproject.GlutenConfig
-
 import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.connector.catalog.Table
+import org.apache.spark.sql.connector.expressions.aggregate.Aggregation
 import org.apache.spark.sql.connector.read.{InputPartition, Scan, SupportsRuntimeFiltering}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -29,13 +29,12 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 class BatchScanExecShim(
     output: Seq[AttributeReference],
     @transient scan: Scan,
-    runtimeFilters: Seq[Expression])
+    runtimeFilters: Seq[Expression],
+    @transient table: Table)
   extends BatchScanExec(output, scan, runtimeFilters) {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
-
-  override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException("Need to implement this method")
@@ -82,5 +81,11 @@ class BatchScanExecShim(
     } else {
       partitions.map(Seq(_))
     }
+  }
+
+  @transient lazy val pushedAggregate: Option[Aggregation] = None
+
+  final override protected def otherCopyArgs: Seq[AnyRef] = {
+    output :: scan :: runtimeFilters :: Nil
   }
 }

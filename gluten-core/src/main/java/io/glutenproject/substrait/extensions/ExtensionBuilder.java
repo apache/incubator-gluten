@@ -14,14 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.extensions;
 
 import com.google.protobuf.Any;
 
 public class ExtensionBuilder {
-  private ExtensionBuilder() {
-  }
+  private ExtensionBuilder() {}
 
   public static FunctionMappingNode makeFunctionMapping(String name, Long functionId) {
     return new FunctionMappingNode(name, functionId);

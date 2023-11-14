@@ -16,14 +16,13 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.utils.CHJoinValidateUtil
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.execution.SparkPlan
-
-import io.substrait.proto.JoinRel
 
 case class CHShuffledHashJoinExecTransformer(
     leftKeys: Seq[Expression],
@@ -34,7 +33,7 @@ case class CHShuffledHashJoinExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
     isSkewJoin: Boolean)
-  extends ShuffledHashJoinExecTransformer(
+  extends ShuffledHashJoinExecTransformerBase(
     leftKeys,
     rightKeys,
     joinType,
@@ -48,13 +47,11 @@ case class CHShuffledHashJoinExecTransformer(
       newRight: SparkPlan): CHShuffledHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 
-  override def doValidateInternal(): Boolean = {
-    var shouldFallback = false
-    if (substraitJoinType != JoinRel.JoinType.JOIN_TYPE_INNER) {
-      shouldFallback = CHJoinValidateUtil.doValidate(condition)
-    }
+  override protected def doValidateInternal(): ValidationResult = {
+    val shouldFallback =
+      CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
     if (shouldFallback) {
-      return false
+      return ValidationResult.notOk("ch join validate fail")
     }
     super.doValidateInternal()
   }
@@ -84,19 +81,15 @@ case class CHBroadcastHashJoinExecTransformer(
       newRight: SparkPlan): CHBroadcastHashJoinExecTransformer =
     copy(left = newLeft, right = newRight)
 
-  /*
+  override protected def doValidateInternal(): ValidationResult = {
+    val shouldFallback =
+      CHJoinValidateUtil.shouldFallback(joinType, left.outputSet, right.outputSet, condition)
 
-   */
-  override def doValidateInternal(): Boolean = {
-    var shouldFallback = false
-    if (substraitJoinType != JoinRel.JoinType.JOIN_TYPE_INNER) {
-      shouldFallback = CHJoinValidateUtil.doValidate(condition)
-    }
-    if (isNullAwareAntiJoin == true) {
-      shouldFallback = true
-    }
     if (shouldFallback) {
-      return false
+      return ValidationResult.notOk("ch join validate fail")
+    }
+    if (isNullAwareAntiJoin) {
+      return ValidationResult.notOk("ch does not support NAAJ")
     }
     super.doValidateInternal()
   }

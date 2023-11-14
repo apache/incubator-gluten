@@ -14,12 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import io.glutenproject.execution.HashAggregateExecBaseTransformer
+
 import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.test.SQLTestData.DecimalData
 
 class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenSQLTestsTrait {
 
@@ -56,9 +57,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   test(GlutenTestConstants.GLUTEN_TEST + "groupBy") {
     checkAnswer(testData2.groupBy("a").agg(sum($"b")), Seq(Row(1, 3), Row(2, 3), Row(3, 3)))
     checkAnswer(testData2.groupBy("a").agg(sum($"b").as("totB")).agg(sum($"totB")), Row(9))
-    checkAnswer(
-      testData2.groupBy("a").agg(count("*")),
-      Row(1, 2) :: Row(2, 2) :: Row(3, 2) :: Nil)
+    checkAnswer(testData2.groupBy("a").agg(count("*")), Row(1, 2) :: Row(2, 2) :: Row(3, 2) :: Nil)
     checkAnswer(
       testData2.groupBy("a").agg(Map("*" -> "count")),
       Row(1, 2) :: Row(2, 2) :: Row(3, 2) :: Nil)
@@ -102,7 +101,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
     checkAnswer(testData2.agg(avg($"a"), mean($"a")), Row(2.0, 2.0))
 
     checkAnswer(
-      testData2.agg(avg($"a"), sumDistinct($"a")), // non-partial and test deprecated version
+      testData2.agg(avg($"a"), sum_distinct($"a")), // non-partial and test deprecated version
       Row(2.0, 6.0) :: Nil)
 
     // [wishlist] does not support decimal
@@ -126,7 +125,8 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
 
   ignore("gluten SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate") {
     withTempView("view") {
-      Seq(("mithunr", Float.NaN),
+      Seq(
+        ("mithunr", Float.NaN),
         ("mithunr", Float.NaN),
         ("mithunr", Float.NaN),
         ("abellina", 1.0f),
@@ -141,9 +141,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
     checkAnswer(
       testData2.agg(var_samp($"a"), var_pop($"a"), variance($"a")),
       Row(0.8, 2.0 / 3.0, 0.8))
-    checkAnswer(
-      testData2.agg(var_samp("a"), var_pop("a"), variance("a")),
-      Row(0.8, 2.0 / 3.0, 0.8))
+    checkAnswer(testData2.agg(var_samp("a"), var_pop("a"), variance("a")), Row(0.8, 2.0 / 3.0, 0.8))
   }
 
   test("aggregation with filter") {
@@ -153,7 +151,8 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       ("mithunr", 19.8f, 3.0f, false, 35.6f),
       ("abellina", 20.1f, 2.0f, true, 98.0f),
       ("abellina", 20.1f, 1.0f, true, 0.5f),
-      ("abellina", 23.6f, 2.0f, true, 3.9f))
+      ("abellina", 23.6f, 2.0f, true, 3.9f)
+    )
       .toDF("uid", "time", "score", "pass", "rate")
       .createOrReplaceTempView("view")
     var df = spark.sql("select count(score) filter (where pass) from view group by time")
@@ -172,15 +171,16 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
   test(GlutenTestConstants.GLUTEN_TEST + "extend with cast expression") {
     checkAnswer(
       decimalData.agg(
-          sum($"a".cast("double")),
-          avg($"b".cast("double")),
-          count_distinct($"a"),
-          count_distinct($"b")),
+        sum($"a".cast("double")),
+        avg($"b".cast("double")),
+        count_distinct($"a"),
+        count_distinct($"b")),
       Row(12.0, 1.5, 3, 2))
   }
 
   // This test is applicable to velox backend. For CH backend, the replacement is disabled.
-  test(GlutenTestConstants.GLUTEN_TEST
+  test(
+    GlutenTestConstants.GLUTEN_TEST
       + "use gluten hash agg to replace vanilla spark sort agg") {
 
     withSQLConf(("spark.gluten.sql.columnar.force.hashagg", "false")) {
@@ -188,8 +188,7 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       // SortAggregateExec is expected to be used for string type input.
       val df = spark.sql("select max(col1) from t1")
       checkAnswer(df, Row("D") :: Nil)
-      assert(find(df.queryExecution.executedPlan)(
-        _.isInstanceOf[SortAggregateExec]).isDefined)
+      assert(find(df.queryExecution.executedPlan)(_.isInstanceOf[SortAggregateExec]).isDefined)
     }
 
     withSQLConf(("spark.gluten.sql.columnar.force.hashagg", "true")) {
@@ -197,8 +196,108 @@ class GlutenDataFrameAggregateSuite extends DataFrameAggregateSuite with GlutenS
       val df = spark.sql("select max(col1) from t1")
       checkAnswer(df, Row("D") :: Nil)
       // Sort agg is expected to be replaced by gluten's hash agg.
-      assert(find(df.queryExecution.executedPlan)(
-        _.isInstanceOf[HashAggregateExecBaseTransformer]).isDefined)
+      assert(
+        find(df.queryExecution.executedPlan)(
+          _.isInstanceOf[HashAggregateExecBaseTransformer]).isDefined)
     }
   }
+
+  test("gluten issues 3221") {
+    val df = spark.sparkContext
+      .parallelize(DecimalData(-32.82, 1)
+        :: Nil)
+      .toDF()
+    df.createOrReplaceTempView("decimal_negative")
+
+    checkAnswer(df.agg(sum($"a".cast("double"))), Row(-32.82))
+  }
+
+  test("gluten 3213") {
+    Seq(
+      (
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5",
+        "c6",
+        "c7",
+        "c8",
+        "c9",
+        "c10",
+        "c11",
+        "c12",
+        "c13",
+        "c14",
+        "c15",
+        "c16",
+        null)
+    )
+      .toDF(
+        "c1",
+        "c2",
+        "c3",
+        "c4",
+        "c5",
+        "c6",
+        "c7",
+        "c8",
+        "c9",
+        "c10",
+        "c11",
+        "c12",
+        "c13",
+        "c14",
+        "c15",
+        "c16",
+        "c17")
+      .createOrReplaceTempView("view")
+
+    val df = spark.sql(
+      "select min(c1),max(c1),min(c2),max(c2),min(c3),max(c3),min(c4),max(c4)," +
+        "min(c5),max(c5),min(c6),max(c6),min(c7),max(c7),min(c8),max(c8)," +
+        "min(c9),max(c9),min(c10),max(c10),min(c11),max(c11),min(c12),max(c12)," +
+        "min(c13),max(c13),min(c14),max(c14),min(c15),max(c15),min(c16),max(c16)," +
+        "min(c17) from view"
+    )
+    checkAnswer(
+      df,
+      Row(
+        "c1",
+        "c1",
+        "c2",
+        "c2",
+        "c3",
+        "c3",
+        "c4",
+        "c4",
+        "c5",
+        "c5",
+        "c6",
+        "c6",
+        "c7",
+        "c7",
+        "c8",
+        "c8",
+        "c9",
+        "c9",
+        "c10",
+        "c10",
+        "c11",
+        "c11",
+        "c12",
+        "c12",
+        "c13",
+        "c13",
+        "c14",
+        "c14",
+        "c15",
+        "c15",
+        "c16",
+        "c16",
+        null
+      ) :: Nil
+    )
+  }
+
 }

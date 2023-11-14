@@ -14,14 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
 import java.io.IOException;
 
 public class CHShuffleSplitterJniWrapper {
-  public CHShuffleSplitterJniWrapper() {
-  }
+  public CHShuffleSplitterJniWrapper() {}
 
   public long make(
       NativePartitioning part,
@@ -31,7 +29,10 @@ public class CHShuffleSplitterJniWrapper {
       String codec,
       String dataFile,
       String localDirs,
-      int subDirsPerLocalDir) {
+      int subDirsPerLocalDir,
+      boolean preferSpill,
+      long spillThreshold,
+      String hashAlgorithm) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
@@ -43,7 +44,33 @@ public class CHShuffleSplitterJniWrapper {
         codec,
         dataFile,
         localDirs,
-        subDirsPerLocalDir);
+        subDirsPerLocalDir,
+        preferSpill,
+        spillThreshold,
+        hashAlgorithm);
+  }
+
+  public long makeForRSS(
+      NativePartitioning part,
+      int shuffleId,
+      long mapId,
+      int bufferSize,
+      String codec,
+      long spillThreshold,
+      String hashAlgorithm,
+      Object pusher) {
+    return nativeMakeForRSS(
+        part.getShortName(),
+        part.getNumPartitions(),
+        part.getExprList(),
+        part.getRequiredFields(),
+        shuffleId,
+        mapId,
+        bufferSize,
+        codec,
+        spillThreshold,
+        hashAlgorithm,
+        pusher);
   }
 
   public native long nativeMake(
@@ -57,11 +84,29 @@ public class CHShuffleSplitterJniWrapper {
       String codec,
       String dataFile,
       String localDirs,
-      int subDirsPerLocalDir);
+      int subDirsPerLocalDir,
+      boolean preferSpill,
+      long spillThreshold,
+      String hashAlgorithm);
 
-  public native void split(long splitterId, int numRows, long block);
+  public native long nativeMakeForRSS(
+      String shortName,
+      int numPartitions,
+      byte[] exprList,
+      byte[] exprIndexList,
+      int shuffleId,
+      long mapId,
+      int bufferSize,
+      String codec,
+      long spillThreshold,
+      String hashAlgorithm,
+      Object pusher);
 
-  public native SplitResult stop(long splitterId) throws IOException;
+  public native void split(long splitterId, long block);
+
+  public native long evict(long splitterId);
+
+  public native CHSplitResult stop(long splitterId) throws IOException;
 
   public native void close(long splitterId);
 }

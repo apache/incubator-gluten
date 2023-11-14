@@ -14,34 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
+
 import io.substrait.proto.ExpandRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class ExpandRelNode implements RelNode, Serializable {
   private final RelNode input;
-  private final ArrayList<ArrayList<ExpressionNode>> projections = new ArrayList<>();
+  private final List<List<ExpressionNode>> projections = new ArrayList<>();
 
   private final AdvancedExtensionNode extensionNode;
 
-  public ExpandRelNode(RelNode input,
-                        ArrayList<ArrayList<ExpressionNode>> projections,
-                        AdvancedExtensionNode extensionNode) {
+  public ExpandRelNode(
+      RelNode input, List<List<ExpressionNode>> projections, AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.projections.addAll(projections);
     this.extensionNode = extensionNode;
   }
 
-  public ExpandRelNode(RelNode input,
-                    ArrayList<ArrayList<ExpressionNode>> projections) {
+  public ExpandRelNode(RelNode input, List<List<ExpressionNode>> projections) {
     this.input = input;
     this.projections.addAll(projections);
     this.extensionNode = null;
@@ -59,13 +58,11 @@ public class ExpandRelNode implements RelNode, Serializable {
       expandBuilder.setInput(input.toProtobuf());
     }
 
-    for (ArrayList<ExpressionNode> projectList: projections) {
-      ExpandRel.ExpandField.Builder expandFieldBuilder =
-        ExpandRel.ExpandField.newBuilder();
-      ExpandRel.SwitchingField.Builder switchingField =
-        ExpandRel.SwitchingField.newBuilder();
+    for (List<ExpressionNode> projectList : projections) {
+      ExpandRel.ExpandField.Builder expandFieldBuilder = ExpandRel.ExpandField.newBuilder();
+      ExpandRel.SwitchingField.Builder switchingField = ExpandRel.SwitchingField.newBuilder();
       for (ExpressionNode exprNode : projectList) {
-          switchingField.addDuplicates(exprNode.toProtobuf());
+        switchingField.addDuplicates(exprNode.toProtobuf());
       }
       expandFieldBuilder.setSwitchingField(switchingField.build());
       expandBuilder.addFields(expandFieldBuilder.build());

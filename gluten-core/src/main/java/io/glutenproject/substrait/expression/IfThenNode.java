@@ -14,24 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.expression;
 
 import io.substrait.proto.Expression;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class IfThenNode implements ExpressionNode, Serializable {
 
-  private final ArrayList<ExpressionNode> ifNodes = new ArrayList<>();
-  private final ArrayList<ExpressionNode> thenNodes = new ArrayList<>();
+  private final List<ExpressionNode> ifNodes = new ArrayList<>();
+  private final List<ExpressionNode> thenNodes = new ArrayList<>();
 
   private final ExpressionNode elseValue;
 
-  public IfThenNode(ArrayList<ExpressionNode> ifNodes,
-                    ArrayList<ExpressionNode> thenNodes,
-                    ExpressionNode elseValue) {
+  public IfThenNode(
+      List<ExpressionNode> ifNodes, List<ExpressionNode> thenNodes, ExpressionNode elseValue) {
     this.ifNodes.addAll(ifNodes);
     this.thenNodes.addAll(thenNodes);
     this.elseValue = elseValue;

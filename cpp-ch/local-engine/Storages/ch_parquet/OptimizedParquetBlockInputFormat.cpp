@@ -1,31 +1,47 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "OptimizedParquetBlockInputFormat.h"
 #include <boost/algorithm/string/case_conv.hpp>
 
-#if USE_PARQUET && USE_LOCAL_FORMATS
-// clang-format off
+#if USE_PARQUET
 #include <DataTypes/NestedUtils.h>
 #include <Formats/FormatFactory.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
 #include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
 #include <Storages/ch_parquet/arrow/reader.h>
-// clang-format on
+
 namespace DB
 {
+
 namespace ErrorCodes
 {
-    extern const int BAD_ARGUMENTS;
-    extern const int CANNOT_READ_ALL_DATA;
+extern const int BAD_ARGUMENTS;
+extern const int CANNOT_READ_ALL_DATA;
 }
-// clang-format off
-#define THROW_ARROW_NOT_OK(status)                                     \
-    do                                                                 \
-    {                                                                  \
-        if (::arrow::Status _s = (status); !_s.ok())                   \
+
+#define THROW_ARROW_NOT_OK(status) \
+    do \
+    { \
+        if (::arrow::Status _s = (status); !_s.ok()) \
             throw Exception::createRuntime(ErrorCodes::BAD_ARGUMENTS, _s.ToString()); \
     } while (false)
-// clang-format on
+
 OptimizedParquetBlockInputFormat::OptimizedParquetBlockInputFormat(ReadBuffer & in_, Block header_, const FormatSettings & format_settings_)
-    : IInputFormat(std::move(header_), in_), format_settings(format_settings_)
+    : IInputFormat(std::move(header_), &in_), format_settings(format_settings_)
 {
 }
 
@@ -142,12 +158,10 @@ void OptimizedParquetBlockInputFormat::prepareReader()
     row_group_current = 0;
 
     arrow_column_to_ch_column = std::make_unique<OptimizedArrowColumnToCHColumn>(
-        getPort().getHeader(), "Parquet", format_settings.parquet.import_nested, format_settings.parquet.allow_missing_columns);
+        getPort().getHeader(), "Parquet", true, format_settings.parquet.allow_missing_columns);
     missing_columns = arrow_column_to_ch_column->getMissingColumns(*schema);
 
     std::unordered_set<String> nested_table_names;
-    if (format_settings.parquet.import_nested)
-        nested_table_names = Nested::getAllTableNames(getPort().getHeader());
 
     int index = 0;
     for (int i = 0; i < schema->num_fields(); ++i)

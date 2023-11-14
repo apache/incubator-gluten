@@ -18,6 +18,7 @@ package org.apache.spark.sql.extension
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.FileSourceScanExecTransformer
+
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.connector.read.InputPartition
@@ -25,18 +26,17 @@ import org.apache.spark.sql.execution.datasources.HadoopFsRelation
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
 
-/**
- * Test for customer column rules
- */
-class TestFileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
-                                        output: Seq[Attribute],
-                                        requiredSchema: StructType,
-                                        partitionFilters: Seq[Expression],
-                                        optionalBucketSet: Option[BitSet],
-                                        optionalNumCoalescedBuckets: Option[Int],
-                                        dataFilters: Seq[Expression],
-                                        tableIdentifier: Option[TableIdentifier],
-                                        disableBucketedScan: Boolean = false)
+/** Test for customer column rules */
+class TestFileSourceScanExecTransformer(
+    @transient relation: HadoopFsRelation,
+    output: Seq[Attribute],
+    requiredSchema: StructType,
+    partitionFilters: Seq[Expression],
+    optionalBucketSet: Option[BitSet],
+    optionalNumCoalescedBuckets: Option[Int],
+    dataFilters: Seq[Expression],
+    tableIdentifier: Option[TableIdentifier],
+    disableBucketedScan: Boolean = false)
   extends FileSourceScanExecTransformer(
     relation,
     output,
@@ -48,13 +48,15 @@ class TestFileSourceScanExecTransformer(@transient relation: HadoopFsRelation,
     tableIdentifier,
     disableBucketedScan) {
 
-  override def getPartitions: Seq[Seq[InputPartition]] =
+  override def getPartitions: Seq[InputPartition] =
     BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
-      relation, selectedPartitions).map(Seq(_))
-
-  override def getFlattenPartitions: Seq[InputPartition] =
-    BackendsApiManager.getTransformerApiInstance.genInputPartitionSeq(
-      relation, selectedPartitions)
+      relation,
+      selectedPartitions,
+      output,
+      bucketedScan,
+      optionalBucketSet,
+      optionalNumCoalescedBuckets,
+      disableBucketedScan)
 
   override val nodeNamePrefix: String = "TestNativeFile"
 }

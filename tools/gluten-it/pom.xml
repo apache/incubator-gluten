@@ -6,7 +6,12 @@
 
   <groupId>io.glutenproject</groupId>
   <artifactId>gluten-it</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <modules>
+    <module>common</module>
+    <module>package</module>
+  </modules>
 
   <properties>
     <maven.compiler.source>8</maven.compiler.source>
@@ -14,9 +19,77 @@
     <scala.library.version>2.12.15</scala.library.version>
     <spark32.version>3.2.2</spark32.version>
     <spark33.version>3.3.1</spark33.version>
+    <spark34.version>3.4.1</spark34.version>
+    <spark.version>${spark32.version}</spark.version>
     <scala.binary.version>2.12</scala.binary.version>
-    <gluten.version>0.5.0-SNAPSHOT</gluten.version>
+    <spark.major.version>3</spark.major.version>
+    <celeborn.version>0.3.0-incubating</celeborn.version>
+    <gluten.version>1.1.0-SNAPSHOT</gluten.version>
+    <guava.version>32.0.1-jre</guava.version>
+    <tpch.version>1.1</tpch.version>
+    <tpcds.version>1.4</tpcds.version>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.glutenproject</groupId>
+        <artifactId>gluten-package</artifactId>
+        <version>${gluten.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>io.glutenproject</groupId>
+            <artifactId>gluten-core</artifactId>
+          </exclusion>
+        </exclusions>
+        <scope>runtime</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-core_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-repl_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-hive_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-core_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+        <type>test-jar</type>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
+        <version>${spark.version}</version>
+        <scope>provided</scope>
+        <type>test-jar</type>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <profiles>
     <profile>
@@ -72,122 +145,30 @@
         </dependency>
       </dependencies>
     </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <properties>
+        <spark.version>${spark34.version}</spark.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-sql_${scala.binary.version}</artifactId>
+          <version>${spark.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>com.google.protobuf</groupId>
+              <artifactId>protobuf-java</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-sql_${scala.binary.version}</artifactId>
+          <version>${spark.version}</version>
+          <type>test-jar</type>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
-
-  <dependencies>
-    <dependency>
-      <groupId>io.glutenproject</groupId>
-      <artifactId>gluten-package</artifactId>
-      <version>${gluten.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scala-library</artifactId>
-      <version>${scala.library.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-core_${scala.binary.version}</artifactId>
-      <version>${spark.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-repl_${scala.binary.version}</artifactId>
-      <version>${spark.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
-      <version>${spark.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-core_${scala.binary.version}</artifactId>
-      <version>${spark.version}</version>
-      <type>test-jar</type>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
-      <version>${spark.version}</version>
-      <type>test-jar</type>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.arrow</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>io.trino.tpch</groupId>
-      <artifactId>tpch</artifactId>
-      <version>1.1</version>
-    </dependency>
-    <dependency>
-      <groupId>io.trino.tpcds</groupId>
-      <artifactId>tpcds</artifactId>
-      <version>1.4</version>
-    </dependency>
-    <dependency>
-      <groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId>
-      <version>4.6.3</version>
-    </dependency>
-  </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>net.alchim31.maven</groupId>
-        <artifactId>scala-maven-plugin</artifactId>
-        <version>4.8.0</version>
-        <configuration>
-          <recompileMode>all</recompileMode>
-        </configuration>
-        <executions>
-          <execution>
-            <id>scala-compile-first</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>add-source</goal>
-              <goal>compile</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>scala-test-compile</id>
-            <phase>process-test-resources</phase>
-            <goals>
-              <goal>testCompile</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>3.3.0</version>
-        <configuration>
-          <descriptors>
-            <descriptor>assembly.xml</descriptor>
-          </descriptors>
-        </configuration>
-        <executions>
-          <execution>
-            <id>make-assembly</id>
-            <phase>package</phase>
-            <goals>
-              <goal>single</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
-
 </project>

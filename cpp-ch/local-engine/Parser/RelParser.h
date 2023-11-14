@@ -1,7 +1,24 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #pragma once
 #include <map>
 #include <optional>
 #include <unordered_map>
+#include <AggregateFunctions/AggregateFunctionFactory.h>
 #include <AggregateFunctions/IAggregateFunction.h>
 #include <Core/Field.h>
 #include <DataTypes/IDataType.h>
@@ -23,28 +40,47 @@ public:
     virtual DB::QueryPlanPtr
     parse(DB::QueryPlanPtr current_plan_, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack_)
         = 0;
+    virtual DB::QueryPlanPtr parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack);
+    virtual const substrait::Rel & getSingleInput(const substrait::Rel & rel) = 0;
+    const std::vector<IQueryPlanStep *> & getSteps() const { return steps; }
 
     static AggregateFunctionPtr getAggregateFunction(
-        DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters = {});
-
-public:
-    static DB::DataTypePtr parseType(const substrait::Type & type) { return SerializedPlanParser::parseType(type); }
+        const DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters = {});
 
 protected:
+    inline SerializedPlanParser * getPlanParser() { return plan_parser; }
     inline ContextPtr getContext() { return plan_parser->context; }
+
     inline String getUniqueName(const std::string & name) { return plan_parser->getUniqueName(name); }
+
     inline const std::unordered_map<std::string, std::string> & getFunctionMapping() { return plan_parser->function_mapping; }
-    std::optional<String> parseFunctionName(UInt32 function_ref);
-    static DB::DataTypes
-    parseFunctionArgumentTypes(const Block & header, const google::protobuf::RepeatedPtrField<substrait::FunctionArgument> & func_args);
-    static DB::DataTypePtr parseExpressionType(const Block & header, const substrait::Expression & expr);
-    static DB::Names
-    parseFunctionArgumentNames(const Block & header, const google::protobuf::RepeatedPtrField<substrait::FunctionArgument> & func_args);
+    // Get function signature name.
+    std::optional<String> parseSignatureFunctionName(UInt32 function_ref);
+    // Get coresponding function name in ClickHouse.
+    std::optional<String> parseFunctionName(UInt32 function_ref, const substrait::Expression_ScalarFunction & function);
+
     const DB::ActionsDAG::Node * parseArgument(ActionsDAGPtr action_dag, const substrait::Expression & rel)
     {
         return plan_parser->parseExpression(action_dag, rel);
     }
+
+    const DB::ActionsDAG::Node * parseExpression(ActionsDAGPtr action_dag, const substrait::Expression & rel)
+    {
+        return plan_parser->parseExpression(action_dag, rel);
+    }
+    DB::ActionsDAGPtr expressionsToActionsDAG(const std::vector<substrait::Expression> & expressions, const DB::Block & header)
+    {
+        return plan_parser->expressionsToActionsDAG(expressions, header, header);
+    }
     std::pair<DataTypePtr, Field> parseLiteral(const substrait::Expression_Literal & literal) { return plan_parser->parseLiteral(literal); }
+    // collect all steps for metrics
+    std::vector<IQueryPlanStep *> steps;
+
+    const ActionsDAG::Node *
+    buildFunctionNode(ActionsDAGPtr action_dag, const String & function, const DB::ActionsDAG::NodeRawConstPtrs & args)
+    {
+        return plan_parser->toFunctionNode(action_dag, function, args);
+    }
 
 private:
     SerializedPlanParser * plan_parser;

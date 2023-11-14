@@ -14,29 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
-import java.util.Locale
-
-import io.glutenproject.execution.{BasicScanExecTransformer, BatchScanExecTransformer, FileSourceScanExecTransformer}
+import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.execution.BasicScanExecTransformer
 import io.glutenproject.substrait.`type`._
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.substrait.proto.Type
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer._
-import org.apache.spark.sql.catalyst.plans.{FullOuter, Inner, JoinType, LeftAnti, LeftOuter, LeftSemi, RightOuter}
+import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
+import io.substrait.proto.Type
+
+import java.util.{ArrayList => JArrayList, List => JList}
+import java.util.Locale
+
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
-import scala.util.control.Breaks.{break, breakable}
 
 object ConverterUtils extends Logging {
 
+  @tailrec
   def getAttrFromExpr(fieldExpr: Expression, skipAlias: Boolean = false): AttributeReference = {
     fieldExpr match {
       case a: Cast =>
@@ -52,7 +56,6 @@ object ConverterUtils extends Logging {
           a.toAttribute.asInstanceOf[AttributeReference]
         }
       case a: KnownFloatingPointNormalized =>
-        logInfo(s"$a")
         getAttrFromExpr(a.child)
       case a: NormalizeNaNAndZero =>
         getAttrFromExpr(a.child)
@@ -78,12 +81,13 @@ object ConverterUtils extends Logging {
     }
   }
 
+  def normalizeColName(name: String): String = {
+    val caseSensitive = SQLConf.get.caseSensitiveAnalysis
+    if (caseSensitive) name else name.toLowerCase(Locale.ROOT)
+  }
+
   def getShortAttributeName(attr: Attribute): String = {
-    val name = if (SQLConf.get.caseSensitiveAnalysis) {
-      attr.name
-    } else {
-      attr.name.toLowerCase(Locale.ROOT)
-    }
+    val name = normalizeColName(attr.name)
     val subIndex = name.indexOf("(")
     if (subIndex != -1) {
       name.substring(0, subIndex)
@@ -92,8 +96,67 @@ object ConverterUtils extends Logging {
     }
   }
 
+  def genColumnNameWithoutExprId(attr: Attribute): String = {
+    getShortAttributeName(attr)
+  }
+
   def genColumnNameWithExprId(attr: Attribute): String = {
-    ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id
+    getShortAttributeName(attr) + "#" + attr.exprId.id
+  }
+
+  def collectAttributeTypeNodes(attributes: JList[Attribute]): JList[TypeNode] = {
+    collectAttributeTypeNodes(attributes.asScala)
+  }
+
+  def collectAttributeTypeNodes(attributes: Seq[Attribute]): JList[TypeNode] = {
+    attributes.map(attr => getTypeNode(attr.dataType, attr.nullable)).asJava
+  }
+
+  def collectAttributeNamesWithExprId(attributes: JList[Attribute]): JList[String] = {
+    collectAttributeNamesWithExprId(attributes.asScala)
+  }
+
+  def collectAttributeNamesWithExprId(attributes: Seq[Attribute]): JList[String] = {
+    collectAttributeNamesDFS(attributes)(genColumnNameWithExprId)
+  }
+
+  // TODO: This is used only by `BasicScanExecTransformer`,
+  //  perhaps we can remove this in the future and use `withExprId` version consistently.
+  def collectAttributeNamesWithoutExprId(attributes: Seq[Attribute]): JList[String] = {
+    collectAttributeNamesDFS(attributes)(genColumnNameWithoutExprId)
+  }
+
+  private def collectAttributeNamesDFS(attributes: Seq[Attribute])(
+      f: Attribute => String): JList[String] = {
+    val nameList = new JArrayList[String]()
+    attributes.foreach(
+      attr => {
+        nameList.add(f(attr))
+        if (BackendsApiManager.getSettings.supportStructType()) {
+          attr.dataType match {
+            case struct: StructType =>
+              val nestedNames = collectStructFieldNames(struct)
+              nameList.addAll(nestedNames)
+            case _ =>
+          }
+        }
+      })
+    nameList
+  }
+
+  def collectStructFieldNames(dataType: DataType): JList[String] = {
+    val nameList = new JArrayList[String]()
+    dataType match {
+      case structType: StructType =>
+        structType.fields.foreach(
+          field => {
+            nameList.add(normalizeColName(field.name))
+            val nestedNames = collectStructFieldNames(field.dataType)
+            nameList.addAll(nestedNames)
+          })
+      case _ =>
+    }
+    nameList
   }
 
   def isNullable(nullability: Type.Nullability): Boolean = {
@@ -131,23 +194,22 @@ object ConverterUtils extends Logging {
         (DecimalType(precision, scale), isNullable(decimal.getNullability))
       case Type.KindCase.STRUCT =>
         val struct_ = substraitType.getStruct
-        val fields = new java.util.ArrayList[StructField]
-        for (typ <- struct_.getTypesList.asScala) {
-          val (field, nullable) = parseFromSubstraitType(typ)
-          fields.add(StructField("", field, nullable))
+        val fields = struct_.getTypesList.asScala.map {
+          typ =>
+            val (field, nullable) = parseFromSubstraitType(typ)
+            StructField("", field, nullable)
         }
-        (StructType(fields),
-          isNullable(substraitType.getStruct.getNullability))
+        (StructType(fields), isNullable(substraitType.getStruct.getNullability))
       case Type.KindCase.LIST =>
         val list = substraitType.getList
         val (elementType, containsNull) = parseFromSubstraitType(list.getType)
-        (ArrayType(elementType, containsNull),
-          isNullable(substraitType.getList.getNullability))
+        (ArrayType(elementType, containsNull), isNullable(substraitType.getList.getNullability))
       case Type.KindCase.MAP =>
         val map = substraitType.getMap
         val (keyType, _) = parseFromSubstraitType(map.getKey)
-        val (valueType, valueContainsNull) = parseFromSubstraitType(map.getValue())
-        (MapType(keyType, valueType, valueContainsNull),
+        val (valueType, valueContainsNull) = parseFromSubstraitType(map.getValue)
+        (
+          MapType(keyType, valueType, valueContainsNull),
           isNullable(substraitType.getMap.getNullability))
       case Type.KindCase.NOTHING =>
         (NullType, true)
@@ -186,29 +248,25 @@ object ConverterUtils extends Logging {
       case TimestampType =>
         TypeBuilder.makeTimestamp(nullable)
       case m: MapType =>
-        TypeBuilder.makeMap(nullable, getTypeNode(m.keyType, false),
+        TypeBuilder.makeMap(
+          nullable,
+          getTypeNode(m.keyType, nullable = false),
           getTypeNode(m.valueType, m.valueContainsNull))
       case a: ArrayType =>
         TypeBuilder.makeList(nullable, getTypeNode(a.elementType, a.containsNull))
       case s: StructType =>
-        val fieldNodes = new java.util.ArrayList[TypeNode]
+        val fieldNodes = new JArrayList[TypeNode]
+        val fieldNames = new JArrayList[String]
         for (structField <- s.fields) {
           fieldNodes.add(getTypeNode(structField.dataType, structField.nullable))
+          fieldNames.add(structField.name)
         }
-        TypeBuilder.makeStruct(nullable, fieldNodes)
-      case n: NullType =>
+        TypeBuilder.makeStruct(nullable, fieldNodes, fieldNames)
+      case _: NullType =>
         TypeBuilder.makeNothing()
       case unknown =>
         throw new UnsupportedOperationException(s"Type $unknown not supported.")
     }
-  }
-
-  def getTypeNodeFromAttributes(attributes: Seq[Attribute]): java.util.ArrayList[TypeNode] = {
-    val typeNodes = new java.util.ArrayList[TypeNode]()
-    for (attr <- attributes) {
-      typeNodes.add(getTypeNode(attr.dataType, attr.nullable))
-    }
-    typeNodes
   }
 
   def printBatch(cb: ColumnarBatch): Unit = {
@@ -273,7 +331,8 @@ object ConverterUtils extends Logging {
       ("1000000000000000000000000000000000", 34, 0),
       ("10000000000000000000000000000000000", 35, 0),
       ("100000000000000000000000000000000000", 36, 0),
-      ("1000000000000000000000000000000000000", 37, 0))
+      ("1000000000000000000000000000000000000", 37, 0)
+    )
     POWERS_OF_10(pow)
   }
 
@@ -286,8 +345,10 @@ object ConverterUtils extends Logging {
   /**
    * Get the signature name of a type based on Substrait's definition in
    * https://substrait.io/extensions/#function-signature-compound-names.
-   * @param dataType: the input data type.
-   * @return the corresponding signature name.
+   * @param dataType:
+   *   the input data type.
+   * @return
+   *   the corresponding signature name.
    */
   def getTypeSigName(dataType: DataType): String = {
     dataType match {
@@ -315,11 +376,12 @@ object ConverterUtils extends Logging {
         // TODO: different with Substrait due to more details here.
         var sigName = "struct<"
         var index = 0
-        fields.foreach(field => {
-          sigName = sigName.concat(getTypeSigName(field.dataType))
-          sigName = sigName.concat(if (index < fields.length - 1) "," else "")
-          index += 1
-        })
+        fields.foreach(
+          field => {
+            sigName = sigName.concat(getTypeSigName(field.dataType))
+            sigName = sigName.concat(if (index < fields.length - 1) "," else "")
+            index += 1
+          })
         sigName = sigName.concat(">")
         sigName
       case MapType(_, _, _) =>
@@ -337,8 +399,10 @@ object ConverterUtils extends Logging {
   // The format would be aligned with that specified in Substrait.
   // The function name Format:
   // <function name>:<short_arg_type0>_<short_arg_type1>_..._<short_arg_typeN>
-  def makeFuncName(funcName: String, datatypes: Seq[DataType],
-                   config: FunctionConfig.Config = FunctionConfig.NON): String = {
+  def makeFuncName(
+      funcName: String,
+      datatypes: Seq[DataType],
+      config: FunctionConfig.Config = FunctionConfig.NON): String = {
     var typedFuncName = config match {
       case FunctionConfig.REQ =>
         funcName.concat(":req_")
@@ -349,6 +413,7 @@ object ConverterUtils extends Logging {
       case other =>
         throw new UnsupportedOperationException(s"$other is not supported.")
     }
+
     for (idx <- datatypes.indices) {
       typedFuncName = typedFuncName.concat(getTypeSigName(datatypes(idx)))
       // For the last item, no need to append _.
@@ -371,30 +436,12 @@ object ConverterUtils extends Logging {
         "Semi"
       case LeftAnti =>
         "Anti"
+      case other =>
+        throw new UnsupportedOperationException(s"Unsupported join type: $other")
     }
   }
 
-  def getFileFormat(scan: BasicScanExecTransformer): ReadFileFormat = {
-    scan match {
-      case f: BatchScanExecTransformer =>
-        f.scan.getClass.getSimpleName match {
-          case "OrcScan" => ReadFileFormat.OrcReadFormat
-          case "ParquetScan" => ReadFileFormat.ParquetReadFormat
-          case "DwrfScan" => ReadFileFormat.DwrfReadFormat
-          case "ClickHouseScan" => ReadFileFormat.MergeTreeReadFormat
-          case _ => ReadFileFormat.UnknownFormat
-        }
-      case f: FileSourceScanExecTransformer =>
-        f.relation.fileFormat.getClass.getSimpleName match {
-          case "OrcFileFormat" => ReadFileFormat.OrcReadFormat
-          case "ParquetFileFormat" => ReadFileFormat.ParquetReadFormat
-          case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
-          case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
-          case _ => ReadFileFormat.UnknownFormat
-        }
-      case _ => ReadFileFormat.UnknownFormat
-    }
-  }
+  def getFileFormat(scan: BasicScanExecTransformer): ReadFileFormat = scan.fileFormat
 
   // A prefix used in the iterator path.
   final val ITERATOR_PREFIX = "iterator:"

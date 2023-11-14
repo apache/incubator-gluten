@@ -1,0 +1,174 @@
+[{
+  "id": 6,
+  "name": "kProject",
+  "time": 5,
+  "input_wait_time": 14196,
+  "output_wait_time": 7,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 5,
+      "output_rows": 9717,
+      "output_bytes": 1003328,
+      "input_rows": 9717,
+      "input_bytes": 1090781
+    }]
+  }]
+}, {
+  "id": 5,
+  "name": "kFilter",
+  "time": 564,
+  "input_wait_time": 27876,
+  "output_wait_time": 41,
+  "steps": [{
+    "name": "Filter",
+    "description": "WHERE",
+    "processors": [{
+      "name": "FilterTransform",
+      "time": 555,
+      "output_rows": 9717,
+      "output_bytes": 1110215,
+      "input_rows": 10717,
+      "input_bytes": 1224479
+    }]
+  }, {
+    "name": "Expression",
+    "description": "Remove nullable properties",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 9,
+      "output_rows": 9717,
+      "output_bytes": 1090781,
+      "input_rows": 9717,
+      "input_bytes": 1110215
+    }]
+  }]
+}, {
+  "id": 4,
+  "name": "kWindow",
+  "time": 2856,
+  "input_wait_time": 12884,
+  "output_wait_time": 583,
+  "steps": [{
+    "name": "Window",
+    "description": "Window step for window 'partition by i_category#527 ASC, i_brand#523 ASC, s_store_name#593 ASC, s_company_name#605 ASC, d_year#566 ASC order by  ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING'",
+    "processors": [{
+      "name": "WindowTransform",
+      "time": 2856,
+      "output_rows": 10717,
+      "output_bytes": 1224479,
+      "input_rows": 10717,
+      "input_bytes": 1128026
+    }]
+  }]
+}, {
+  "id": 3,
+  "name": "kFilter",
+  "time": 500,
+  "input_wait_time": 25297,
+  "output_wait_time": 1729,
+  "steps": [{
+    "name": "Filter",
+    "description": "WHERE",
+    "processors": [{
+      "name": "FilterTransform",
+      "time": 492,
+      "output_rows": 10717,
+      "output_bytes": 1138743,
+      "input_rows": 12333,
+      "input_bytes": 1311152
+    }]
+  }, {
+    "name": "Expression",
+    "description": "Remove nullable properties",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 8,
+      "output_rows": 10717,
+      "output_bytes": 1128026,
+      "input_rows": 10717,
+      "input_bytes": 1138743
+    }]
+  }]
+}, {
+  "id": 2,
+  "name": "kWindow",
+  "time": 2228,
+  "input_wait_time": 23678,
+  "output_wait_time": 2773,
+  "steps": [{
+    "name": "Window",
+    "description": "Window step for window 'partition by i_category#527 ASC, i_brand#523 ASC, s_store_name#593 ASC, s_company_name#605 ASC order by d_year#566 ASC, d_moy#568 ASC RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW'",
+    "processors": [{
+      "name": "WindowTransform",
+      "time": 1189,
+      "output_rows": 12333,
+      "output_bytes": 1360484,
+      "input_rows": 12333,
+      "input_bytes": 1261820
+    }]
+  }, {
+    "name": "Expression",
+    "description": "Convert window Output",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 1039,
+      "output_rows": 12333,
+      "output_bytes": 1311152,
+      "input_rows": 12333,
+      "input_bytes": 1360484
+    }]
+  }]
+}, {
+  "id": 1,
+  "name": "kSort",
+  "time": 3322,
+  "input_wait_time": 30463,
+  "output_wait_time": 1202,
+  "steps": [{
+    "name": "Sorting",
+    "description": "Sorting step",
+    "processors": [{
+      "name": "PartialSortingTransform",
+      "time": 3311,
+      "output_rows": 12333,
+      "output_bytes": 1261820,
+      "input_rows": 12333,
+      "input_bytes": 1261820
+    }, {
+      "name": "LimitsCheckingTransform",
+      "time": 0,
+      "output_rows": 12333,
+      "output_bytes": 1261820,
+      "input_rows": 12333,
+      "input_bytes": 1261820
+    }, {
+      "name": "MergeSortingTransform",
+      "time": 11,
+      "output_rows": 12333,
+      "output_bytes": 1261820,
+      "input_rows": 12333,
+      "input_bytes": 1261820
+    }]
+  }]
+}, {
+  "id": 0,
+  "name": "kRead",
+  "time": 2876,
+  "input_wait_time": 5725,
+  "output_wait_time": 3326,
+  "steps": [{
+    "name": "ReadFromPreparedSource",
+    "description": "Read From Java Iter",
+    "processors": [{
+      "name": "SourceFromJavaIter",
+      "time": 2876,
+      "output_rows": 12333,
+      "output_bytes": 1261820,
+      "input_rows": 0,
+      "input_bytes": 0
+    }]
+  }]
+}]

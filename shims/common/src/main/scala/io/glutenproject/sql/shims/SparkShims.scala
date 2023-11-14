@@ -21,11 +21,17 @@ import io.glutenproject.expression.Sig
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Expression, PlanExpression}
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
+import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionedFile}
+import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.datasources.v2.text.TextScan
+import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 sealed abstract class ShimDescriptor
 
@@ -51,4 +57,28 @@ trait SparkShims {
       readFunction: (PartitionedFile) => Iterator[InternalRow],
       filePartitions: Seq[FilePartition],
       fileSourceScanExec: FileSourceScanExec): FileScanRDD
+
+  def getTextScan(
+      sparkSession: SparkSession,
+      fileIndex: PartitioningAwareFileIndex,
+      dataSchema: StructType,
+      readDataSchema: StructType,
+      readPartitionSchema: StructType,
+      options: CaseInsensitiveStringMap,
+      partitionFilters: Seq[Expression] = Seq.empty,
+      dataFilters: Seq[Expression] = Seq.empty): TextScan
+
+  def filesGroupedToBuckets(
+      selectedPartitions: Array[PartitionDirectory]): Map[Int, Array[PartitionedFile]]
+
+  // Spark3.4 new add table parameter in BatchScanExec.
+  def getBatchScanExecTable(batchScan: BatchScanExec): Table
+
+  // The PartitionedFile API changed in spark 3.4
+  def generatePartitionedFile(
+      partitionValues: InternalRow,
+      filePath: String,
+      start: Long,
+      length: Long,
+      @transient locations: Array[String] = Array.empty): PartitionedFile
 }

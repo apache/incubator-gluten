@@ -14,23 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.memory;
 
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.memory.alloc.CHManagedCHReservationListener;
+import io.glutenproject.memory.alloc.CHNativeMemoryAllocator;
+import io.glutenproject.memory.alloc.CHNativeMemoryAllocatorManagerImpl;
+import io.glutenproject.memory.memtarget.MemoryTargets;
+import io.glutenproject.memory.memtarget.Spiller;
+
+import org.apache.spark.SparkConf;
+import org.apache.spark.internal.config.package$;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import io.glutenproject.memory.GlutenMemoryConsumer;
-import io.glutenproject.memory.TaskMemoryMetrics;
-import io.glutenproject.memory.alloc.CHManagedReservationListener;
-import io.glutenproject.memory.alloc.CHMemoryAllocatorManager;
-import io.glutenproject.memory.alloc.NativeMemoryAllocator;
-import io.glutenproject.memory.alloc.Spiller;
-
-import org.apache.spark.SparkConf;
-import org.apache.spark.internal.config.package$;
+import java.util.Collections;
 
 public class TestTaskMemoryManagerSuite {
   static {
@@ -39,29 +39,24 @@ public class TestTaskMemoryManagerSuite {
   }
 
   protected TaskMemoryManager taskMemoryManager;
-  protected CHManagedReservationListener listener;
-  protected CHMemoryAllocatorManager manager;
+  protected CHManagedCHReservationListener listener;
+  protected CHNativeMemoryAllocatorManagerImpl manager;
 
   @Before
   public void initMemoryManager() {
-    final SparkConf conf = new SparkConf()
-        .set(package$.MODULE$.MEMORY_OFFHEAP_ENABLED(), true)
-        .set(package$.MODULE$.MEMORY_OFFHEAP_SIZE(), 1000L);
-    taskMemoryManager = new TaskMemoryManager(
-        new UnifiedMemoryManager(
-            conf,
-            1000L,
-            500L,
-            1),
-        0);
+    final SparkConf conf =
+        new SparkConf()
+            .set(package$.MODULE$.MEMORY_OFFHEAP_ENABLED(), true)
+            .set(package$.MODULE$.MEMORY_OFFHEAP_SIZE(), 1000L);
+    taskMemoryManager = new TaskMemoryManager(new UnifiedMemoryManager(conf, 1000L, 500L, 1), 0);
 
-    listener = new CHManagedReservationListener(
-        new GlutenMemoryConsumer(taskMemoryManager, Spiller.NO_OP),
-        new TaskMemoryMetrics()
-    );
+    listener =
+        new CHManagedCHReservationListener(
+            MemoryTargets.newConsumer(
+                taskMemoryManager, "test", Spiller.NO_OP, Collections.emptyMap()),
+            new SimpleMemoryUsageRecorder());
 
-    manager = new CHMemoryAllocatorManager(
-        new NativeMemoryAllocator(-1L, listener));
+    manager = new CHNativeMemoryAllocatorManagerImpl(new CHNativeMemoryAllocator(-1L, listener));
   }
 
   @After

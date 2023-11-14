@@ -1,0 +1,10 @@
+string_field,int_field,long_field,float_field,double_field,short_field,byte_field,boolean_field,decimal_field,date_field,timestamp_field
+null,null,null,null,null,null,null,null,null,null,null
+1,,,,,,,,,,
+2,0,0,0,0,0,0,,0,0,0
+3,0,0,0,0,0,0,true,123456789.234,1950-01-01,1950-01-01 00:00:00
+4,0,0,0,0,0,0,false,123456.234,,2023-02-29 00:00:00
+ 5,0,0, 0, 0,0,0, ,0, 0, 0
+6,1234567890123456789,1234567890123456789,null,null,1234567890123456789,1234567890123456789,x,1234567890123456789,null,null
+7,abcdefg,0,0,0,0,0,,0,0,0
+8,int_field,long_field,float_field,double_field,short_field,byte_field,boolean_field,123456.789012,date_field,1950-01-01T00:00:00

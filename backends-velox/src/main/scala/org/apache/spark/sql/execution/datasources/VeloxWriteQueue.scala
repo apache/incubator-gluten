@@ -14,36 +14,52 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources
 
+import io.glutenproject.datasource.DatasourceJniWrapper
+import io.glutenproject.utils.Iterators
+import io.glutenproject.vectorized.ColumnarBatchInIterator
+
+import org.apache.spark.TaskContext
 import org.apache.spark.sql.execution.datasources.VeloxWriteQueue.EOS_BATCH
-import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
+import org.apache.spark.sql.vectorized.ColumnarBatch
+
 import org.apache.arrow.memory.BufferAllocator
 import org.apache.arrow.vector.types.pojo.Schema
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 import java.util.regex.Pattern
 
-class VeloxWriteQueue(instanceId: Long,
-                      schema: Schema,
-                      allocator: BufferAllocator,
-                      datasourceJniWrapper: DatasourceJniWrapper,
-                      outputFileURI: String)
+import scala.collection.JavaConverters._
+
+// TODO: This probably can be removed: Velox's Parquet writer already supports push-based write.
+class VeloxWriteQueue(
+    tc: TaskContext,
+    dsHandle: Long,
+    schema: Schema,
+    allocator: BufferAllocator,
+    datasourceJniWrapper: DatasourceJniWrapper,
+    outputFileURI: String)
   extends AutoCloseable {
   private val scanner = new VeloxColumnarBatchIterator(schema, allocator)
   private val writeException = new AtomicReference[Throwable]
 
-  private val writeThread = new Thread(() => {
-    try {
-      datasourceJniWrapper.write(instanceId, scanner)
-    } catch {
-      case e: Throwable =>
-        writeException.set(e)
-    }
-  }, "VeloxWriteQueue - " + UUID.randomUUID().toString)
+  private val writeThread = new Thread(
+    () => {
+      TaskContext.setTaskContext(tc)
+      try {
+        datasourceJniWrapper.write(
+          dsHandle,
+          new ColumnarBatchInIterator(
+            Iterators.wrap(scanner).recyclePayload(_.close()).create().asJava))
+      } catch {
+        case e: Exception =>
+          writeException.set(e)
+      }
+    },
+    "VeloxWriteQueue - " + UUID.randomUUID().toString
+  )
 
   writeThread.start()
 

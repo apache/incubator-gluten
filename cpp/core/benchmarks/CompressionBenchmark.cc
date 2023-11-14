@@ -15,23 +15,26 @@
  * limitations under the License.
  */
 
+#include <arrow/extension_type.h>
 #include <arrow/filesystem/filesystem.h>
 #include <arrow/io/interfaces.h>
+#include <arrow/ipc/options.h>
 #include <arrow/memory_pool.h>
 #include <arrow/record_batch.h>
 #include <arrow/type.h>
+#include <arrow/type_fwd.h>
 #include <benchmark/benchmark.h>
 #include <execinfo.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/file_reader.h>
 #include <sched.h>
-#include <sys/mman.h>
 
 #include <chrono>
+#include <iostream>
 #include <utility>
 
-#include "shuffle/ArrowShuffleWriter.h"
-#include "utils/compression.h"
+#include "shuffle/ShuffleWriter.h"
+#include "utils/Compression.h"
 #include "utils/macros.h"
 
 void printTrace(void) {
@@ -49,7 +52,6 @@ void printTrace(void) {
 
 using arrow::RecordBatchReader;
 using arrow::Status;
-using gluten::ArrowShuffleWriter;
 using gluten::GlutenException;
 using gluten::ShuffleWriterOptions;
 
@@ -58,133 +60,20 @@ namespace gluten {
 #define ALIGNMENT 2 * 1024 * 1024
 
 const int32_t kQatGzip = 0;
-const int32_t kQplGzip = 1;
-const int32_t kLZ4 = 2;
-
-class MyMemoryPool final : public arrow::MemoryPool {
- public:
-  explicit MyMemoryPool() {}
-
-  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
-    RETURN_NOT_OK(pool_->Allocate(size, out));
-    stats_.UpdateAllocatedBytes(size);
-    // std::cout << "Allocate: size = " << size << " addr = " << std::hex <<
-    // (uint64_t)*out << std::dec << std::endl; print_trace();
-    return arrow::Status::OK();
-  }
-
-  Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override {
-    // auto old_ptr = *ptr;
-    RETURN_NOT_OK(pool_->Reallocate(oldSize, newSize, ptr));
-    stats_.UpdateAllocatedBytes(newSize - oldSize);
-    // std::cout << "Reallocate: old_size = " << old_size << " old_ptr = " <<
-    // std::hex << (uint64_t)old_ptr << std::dec << " new_size = " << new_size
-    // << " addr = " << std::hex << (uint64_t)*ptr << std::dec << std::endl;
-    // print_trace();
-    return arrow::Status::OK();
-  }
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
-    pool_->Free(buffer, size);
-    stats_.UpdateAllocatedBytes(-size);
-    // std::cout << "Free: size = " << size << " addr = " << std::hex <<
-    // (uint64_t)buffer
-    // << std::dec << std::endl; print_trace();
-  }
-
-  int64_t bytes_allocated() const override {
-    return stats_.bytes_allocated();
-  }
-
-  int64_t max_memory() const override {
-    return pool_->max_memory();
-  }
-
-  std::string backend_name() const override {
-    return pool_->backend_name();
-  }
-
- private:
-  arrow::MemoryPool* pool_ = arrow::default_memory_pool();
-  arrow::internal::MemoryPoolStats stats_;
-};
-
-// #define ENABLELARGEPAGE
-
-class LargePageMemoryPool final : public arrow::MemoryPool {
- public:
-  explicit LargePageMemoryPool() {}
-
-  ~LargePageMemoryPool() override = default;
-
-  Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
-#ifdef ENABLELARGEPAGE
-    if (size < 2 * 1024 * 1024) {
-      return pool_->Allocate(size, out);
-    } else {
-      Status st = pool_->AlignAllocate(size, out, ALIGNMENT);
-      madvise(*out, size, /*MADV_HUGEPAGE */ 14);
-      //std::cout << "Allocate: size = " << size << " addr = "  \
-         << std::hex << (uint64_t)*out  << " end = " << std::hex << (uint64_t)(*out+size) << std::dec << std::endl;
-      return st;
-    }
-#else
-    return pool_->Allocate(size, out);
-#endif
-  }
-
-  Status Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) override {
-    return pool_->Reallocate(oldSize, newSize, ptr);
-#ifdef ENABLELARGEPAGE
-    if (new_size < 2 * 1024 * 1024) {
-      return pool_->Reallocate(old_size, new_size, ptr);
-    } else {
-      Status st = pool_->AlignReallocate(old_size, new_size, ptr, ALIGNMENT);
-      madvise(*ptr, new_size, /*MADV_HUGEPAGE */ 14);
-      return st;
-    }
-#else
-    return pool_->Reallocate(oldSize, newSize, ptr);
-#endif
-  }
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
-#ifdef ENABLELARGEPAGE
-    if (size < 2 * 1024 * 1024) {
-      pool_->Free(buffer, size);
-    } else {
-      pool_->Free(buffer, size, ALIGNMENT);
-    }
-#else
-    pool_->Free(buffer, size);
-#endif
-  }
-
-  int64_t bytes_allocated() const override {
-    return pool_->bytes_allocated();
-  }
-
-  int64_t max_memory() const override {
-    return pool_->max_memory();
-  }
-
-  std::string backend_name() const override {
-    return "LargePageMemoryPool";
-  }
-
- private:
-  MemoryPool* pool_ = arrow::default_memory_pool();
-};
+const int32_t kQatZstd = 1;
+const int32_t kQplGzip = 2;
+const int32_t kLZ4 = 3;
+const int32_t kZstd = 4;
 
 class BenchmarkCompression {
  public:
-  explicit BenchmarkCompression(const std::string& fileName, uint32_t splitBufferSize) {
-    getRecordBatchReader(fileName, splitBufferSize);
+  explicit BenchmarkCompression(const std::string& fileName, uint32_t compressBufferSize) {
+    getRecordBatchReader(fileName, compressBufferSize);
   }
 
   virtual std::string name() const = 0;
 
-  void getRecordBatchReader(const std::string& inputFile, uint32_t splitBufferSize) {
+  void getRecordBatchReader(const std::string& inputFile, uint32_t compressBufferSize) {
     std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
     std::shared_ptr<RecordBatchReader> recordBatchReader;
 
@@ -194,7 +83,7 @@ class BenchmarkCompression {
 
     GLUTEN_ASSIGN_OR_THROW(file_, fs->OpenInputFile(fileName));
 
-    properties_.set_batch_size(splitBufferSize);
+    properties_.set_batch_size(compressBufferSize);
     properties_.set_pre_buffer(false);
     properties_.set_use_threads(false);
 
@@ -219,43 +108,59 @@ class BenchmarkCompression {
     setCpu(state.range(2) + state.thread_index());
     auto ipcWriteOptions = arrow::ipc::IpcWriteOptions::Defaults();
     ipcWriteOptions.use_threads = false;
-    auto splitBufferSize = (uint32_t)state.range(1);
+    auto compressBufferSize = (uint32_t)state.range(1);
     auto compressionType = state.range(0);
     switch (compressionType) {
       case gluten::kLZ4: {
-        GLUTEN_ASSIGN_OR_THROW(ipcWriteOptions.codec, createArrowIpcCodec(arrow::Compression::LZ4_FRAME));
+        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::LZ4_FRAME, CodecBackend::NONE);
+        break;
+      }
+      case gluten::kZstd: {
+        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::ZSTD, CodecBackend::NONE);
         break;
       }
 #ifdef GLUTEN_ENABLE_QAT
-      case gluten::QAT_GZIP: {
-        qat::EnsureQatCodecRegistered("gzip");
-        GLUTEN_ASSIGN_OR_THROW(ipcWriteOptions.codec, createArrowIpcCodec(arrow::Compression::CUSTOM));
+      case gluten::kQatGzip: {
+        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::GZIP, CodecBackend::QAT);
+        break;
+      }
+      case gluten::kQatZstd: {
+        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::ZSTD, CodecBackend::QAT);
+        std::cout << "load qatzstd" << std::endl;
         break;
       }
 #endif
 #ifdef GLUTEN_ENABLE_IAA
-      case gluten::QPL_GZIP: {
-        qpl::EnsureQplCodecRegistered("gzip");
-        GLUTEN_ASSIGN_OR_THROW(ipcWriteOptions.codec, createArrowIpcCodec(arrow::Compression::CUSTOM));
+      case gluten::kQplGzip: {
+        ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::ZSTD, CodecBackend::IAA);
         break;
       }
 #endif
       default:
         throw GlutenException("Codec not supported. Only support LZ4 or QATGzip");
     }
-    std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LargePageMemoryPool>();
-    ipcWriteOptions.memory_pool = pool.get();
+    ipcWriteOptions.memory_pool = arrow::default_memory_pool();
 
     int64_t elapseRead = 0;
     int64_t numBatches = 0;
     int64_t numRows = 0;
     int64_t compressTime = 0;
+    int64_t decompressTime = 0;
     int64_t uncompressedSize = 0;
     int64_t compressedSize = 0;
 
     auto startTime = std::chrono::steady_clock::now();
 
-    doCompress(elapseRead, numBatches, numRows, compressTime, uncompressedSize, compressedSize, ipcWriteOptions, state);
+    doCompress(
+        elapseRead,
+        numBatches,
+        numRows,
+        compressTime,
+        decompressTime,
+        uncompressedSize,
+        compressedSize,
+        ipcWriteOptions,
+        state);
     auto endTime = std::chrono::steady_clock::now();
     auto totalTime = (endTime - startTime).count();
     std::cout << "Thread " << state.thread_index() << " took " << (1.0 * totalTime / 1e9) << "s" << std::endl;
@@ -273,13 +178,16 @@ class BenchmarkCompression {
         benchmark::Counter(numRows, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
     state.counters["batch_buffer_size"] =
-        benchmark::Counter(splitBufferSize, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
+        benchmark::Counter(compressBufferSize, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1024);
 
     state.counters["parquet_parse"] =
         benchmark::Counter(elapseRead, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
     state.counters["compress_time"] =
         benchmark::Counter(compressTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
+
+    state.counters["decompress_time"] =
+        benchmark::Counter(decompressTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
 
     state.counters["total_time"] =
         benchmark::Counter(totalTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
@@ -316,10 +224,35 @@ class BenchmarkCompression {
       int64_t& numBatches,
       int64_t& numRows,
       int64_t& compressTime,
+      int64_t& decompressTime,
       int64_t& uncompressedSize,
       int64_t& compressedSize,
       arrow::ipc::IpcWriteOptions& ipcWriteOptions,
       benchmark::State& state) {}
+
+  void decompress(
+      const arrow::ipc::IpcWriteOptions& ipcWriteOptions,
+      const std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>& payloads,
+      const std::vector<std::vector<int64_t>>& uncompressedBufferSize,
+      int64_t& decompressTime) {
+    TIME_NANO_START(decompressTime);
+    auto codec = ipcWriteOptions.codec;
+    for (auto i = 0; i < payloads.size(); ++i) {
+      auto& buffers = payloads[i]->body_buffers;
+      for (auto j = 0; j < buffers.size(); ++j) {
+        auto outputSize = uncompressedBufferSize[i][j];
+        if (buffers[j] && outputSize >= 0) {
+          GLUTEN_ASSIGN_OR_THROW(auto out, arrow::AllocateResizableBuffer(outputSize, ipcWriteOptions.memory_pool));
+          // Exclude the first 8-byte buffer metadata.
+          GLUTEN_ASSIGN_OR_THROW(
+              auto len,
+              codec->Decompress(buffers[j]->size() - 8, buffers[j]->data() + 8, outputSize, out->mutable_data()));
+          (void)len;
+        }
+      }
+    }
+    TIME_NANO_END(decompressTime);
+  }
 
  protected:
   std::shared_ptr<arrow::io::RandomAccessFile> file_;
@@ -331,8 +264,8 @@ class BenchmarkCompression {
 
 class BenchmarkCompressionCacheScanBenchmark final : public BenchmarkCompression {
  public:
-  explicit BenchmarkCompressionCacheScanBenchmark(const std::string& filename, uint32_t splitBufferSize)
-      : BenchmarkCompression(filename, splitBufferSize) {}
+  explicit BenchmarkCompressionCacheScanBenchmark(const std::string& filename, uint32_t compressBufferSize)
+      : BenchmarkCompression(filename, compressBufferSize) {}
 
   std::string name() const override {
     return "CacheScan";
@@ -344,6 +277,7 @@ class BenchmarkCompressionCacheScanBenchmark final : public BenchmarkCompression
       int64_t& numBatches,
       int64_t& numRows,
       int64_t& compressTime,
+      int64_t& decompressTime,
       int64_t& uncompressedSize,
       int64_t& compressedSize,
       arrow::ipc::IpcWriteOptions& ipcWriteOptions,
@@ -369,13 +303,24 @@ class BenchmarkCompressionCacheScanBenchmark final : public BenchmarkCompression
 
     std::cout << "parquet parse done elapsed time " << elapseRead / 1e6 << " ms " << std::endl;
     std::cout << "batches = " << numBatches << " rows = " << numRows << std::endl;
+
+    std::vector<std::shared_ptr<arrow::ipc::IpcPayload>> payloads(batches.size());
+    std::vector<std::vector<int64_t>> uncompressedBufferSize(batches.size());
+
     for (auto _ : state) {
       auto it = batches.begin();
-      auto processedBatches = 0;
+      auto pos = 0;
       while (it != batches.end()) {
         recordBatch = *it++;
         for (auto i = 0; i < recordBatch->num_columns(); ++i) {
           recordBatch->column(i)->data()->buffers[0] = nullptr;
+          for (auto& buffer : recordBatch->column(i)->data()->buffers) {
+            if (buffer) {
+              uncompressedBufferSize[pos].push_back(buffer->size());
+            } else {
+              uncompressedBufferSize[pos].push_back(-1);
+            }
+          }
         }
         auto payload = std::make_shared<arrow::ipc::IpcPayload>();
 
@@ -383,17 +328,20 @@ class BenchmarkCompressionCacheScanBenchmark final : public BenchmarkCompression
             compressTime, arrow::ipc::GetRecordBatchPayload(*recordBatch, ipcWriteOptions, payload.get()));
         uncompressedSize += payload->raw_body_length;
         compressedSize += payload->body_length;
-        std::cout << "Compressed " << processedBatches++ << " batches" << std::endl;
         TIME_NANO_OR_THROW(elapseRead, recordBatchReader->ReadNext(&recordBatch));
+        payloads[pos] = std::move(payload);
+        pos++;
       }
+
+      decompress(ipcWriteOptions, payloads, uncompressedBufferSize, decompressTime);
     }
   }
 };
 
 class BenchmarkCompressionIterateScanBenchmark final : public BenchmarkCompression {
  public:
-  explicit BenchmarkCompressionIterateScanBenchmark(const std::string& filename, uint32_t splitBufferSize)
-      : BenchmarkCompression(filename, splitBufferSize) {}
+  explicit BenchmarkCompressionIterateScanBenchmark(const std::string& filename, uint32_t compressBufferSize)
+      : BenchmarkCompression(filename, compressBufferSize) {}
 
   std::string name() const override {
     return "IterateScan";
@@ -405,6 +353,7 @@ class BenchmarkCompressionIterateScanBenchmark final : public BenchmarkCompressi
       int64_t& numBatches,
       int64_t& numRows,
       int64_t& compressTime,
+      int64_t& decompressTime,
       int64_t& uncompressedSize,
       int64_t& compressedSize,
       arrow::ipc::IpcWriteOptions& ipcWriteOptions,
@@ -419,11 +368,22 @@ class BenchmarkCompressionIterateScanBenchmark final : public BenchmarkCompressi
     for (auto _ : state) {
       GLUTEN_THROW_NOT_OK(parquetReader->GetRecordBatchReader(rowGroupIndices_, columnIndices_, &recordBatchReader));
       TIME_NANO_OR_THROW(elapseRead, recordBatchReader->ReadNext(&recordBatch));
+      std::vector<std::shared_ptr<arrow::ipc::IpcPayload>> payloads;
+      std::vector<std::vector<int64_t>> uncompressedBufferSize;
       while (recordBatch) {
         numBatches += 1;
+        uncompressedBufferSize.resize(numBatches);
+
         numRows += recordBatch->num_rows();
         for (auto i = 0; i < recordBatch->num_columns(); ++i) {
           recordBatch->column(i)->data()->buffers[0] = nullptr;
+          for (auto& buffer : recordBatch->column(i)->data()->buffers) {
+            if (buffer) {
+              uncompressedBufferSize.back().push_back(buffer->size());
+            } else {
+              uncompressedBufferSize.back().push_back(-1);
+            }
+          }
         }
         auto payload = std::make_shared<arrow::ipc::IpcPayload>();
 
@@ -431,9 +391,11 @@ class BenchmarkCompressionIterateScanBenchmark final : public BenchmarkCompressi
             compressTime, arrow::ipc::GetRecordBatchPayload(*recordBatch, ipcWriteOptions, payload.get()));
         uncompressedSize += payload->raw_body_length;
         compressedSize += payload->body_length;
-        //        std::cout << "Compressed " << num_batches << " batches" << std::endl;
         TIME_NANO_OR_THROW(elapseRead, recordBatchReader->ReadNext(&recordBatch));
+        payloads.push_back(std::move(payload));
       }
+
+      decompress(ipcWriteOptions, payloads, uncompressedBufferSize, decompressTime);
     }
   }
 };
@@ -446,7 +408,7 @@ int main(int argc, char** argv) {
   uint32_t cpuOffset = 0;
   std::string datafile;
   auto codec = gluten::kLZ4;
-  uint32_t splitBufferSize = 8192;
+  uint32_t compressBufferSize = 4096;
 
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--iterations") == 0) {
@@ -458,13 +420,17 @@ int main(int argc, char** argv) {
     } else if (strcmp(argv[i], "--qat-gzip") == 0) {
       std::cout << "QAT gzip is used as codec" << std::endl;
       codec = gluten::kQatGzip;
+    } else if (strcmp(argv[i], "--qat-zstd") == 0) {
+      std::cout << "QAT zstd is used as codec" << std::endl;
+      codec = gluten::kQatZstd;
     } else if (strcmp(argv[i], "--qpl-gzip") == 0) {
       std::cout << "QPL gzip is used as codec" << std::endl;
       codec = gluten::kQplGzip;
-    } else if (strcmp(argv[i], "--busy") == 0) {
-      GLUTEN_THROW_NOT_OK(arrow::internal::SetEnvVar("QZ_POLLING_MODE", "BUSY"));
+    } else if (strcmp(argv[i], "--zstd") == 0) {
+      std::cout << "CPU zstd is used as codec" << std::endl;
+      codec = gluten::kZstd;
     } else if (strcmp(argv[i], "--buffer-size") == 0) {
-      splitBufferSize = atol(argv[i + 1]);
+      compressBufferSize = atol(argv[i + 1]);
     } else if (strcmp(argv[i], "--cpu-offset") == 0) {
       cpuOffset = atol(argv[i + 1]);
     }
@@ -473,14 +439,14 @@ int main(int argc, char** argv) {
   std::cout << "threads = " << threads << std::endl;
   std::cout << "datafile = " << datafile << std::endl;
 
-  gluten::BenchmarkCompressionIterateScanBenchmark bmIterateScan(datafile, splitBufferSize);
-  gluten::BenchmarkCompressionCacheScanBenchmark bmCacheScan(datafile, splitBufferSize);
+  gluten::BenchmarkCompressionIterateScanBenchmark bmIterateScan(datafile, compressBufferSize);
+  gluten::BenchmarkCompressionCacheScanBenchmark bmCacheScan(datafile, compressBufferSize);
 
   benchmark::RegisterBenchmark(bmIterateScan.name().c_str(), bmIterateScan)
       ->Iterations(iterations)
       ->Args({
           codec,
-          splitBufferSize,
+          compressBufferSize,
           cpuOffset,
       })
       ->Threads(threads)
@@ -492,7 +458,8 @@ int main(int argc, char** argv) {
       ->Iterations(iterations)
       ->Args({
           codec,
-          splitBufferSize,
+          compressBufferSize,
+          cpuOffset,
       })
       ->Threads(threads)
       ->ReportAggregatesOnly(false)

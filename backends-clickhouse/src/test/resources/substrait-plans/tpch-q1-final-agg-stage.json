@@ -1,0 +1,507 @@
+{
+  "extensions": [{
+    "extensionFunction": {
+      "functionAnchor": 1,
+      "name": "avg:req_fp64"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 4,
+      "name": "alias:req_i64"
+    }
+  }, {
+    "extensionFunction": {
+      "name": "sum:req_fp64"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 2,
+      "name": "count:req_i32"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 3,
+      "name": "alias:req_fp64"
+    }
+  }],
+  "relations": [{
+    "root": {
+      "input": {
+        "project": {
+          "common": {
+            "emit": {
+              "outputMapping": [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+            }
+          },
+          "input": {
+            "aggregate": {
+              "common": {
+                "direct": {
+                }
+              },
+              "input": {
+                "read": {
+                  "common": {
+                    "direct": {
+                    }
+                  },
+                  "baseSchema": {
+                    "names": ["l_returnflag#27", "l_linestatus#28", "sum#35#Partial#sum", "anonymousField0", "sum#36#Partial#sum", "anonymousField1", "sum#40#Partial#sum", "anonymousField2", "sum#41#Partial#sum", "anonymousField3", "avg#37#Partial#avg", "anonymousField4", "avg#38#Partial#avg", "anonymousField5", "avg#39#Partial#avg", "anonymousField6", "count#18#Partial#count", "anonymousField7"],
+                    "struct": {
+                      "types": [{
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }, {
+                        "string": {
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }, {
+                        "struct": {
+                          "types": [{
+                            "fp64": {
+                              "nullability": "NULLABILITY_NULLABLE"
+                            }
+                          }],
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }, {
+                        "struct": {
+                          "types": [{
+                            "fp64": {
+                              "nullability": "NULLABILITY_NULLABLE"
+                            }
+                          }],
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }, {
+                        "struct": {
+                          "types": [{
+                            "fp64": {
+                              "nullability": "NULLABILITY_NULLABLE"
+                            }
+                          }],
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }, {
+                        "struct": {
+                          "types": [{
+                            "fp64": {
+                              "nullability": "NULLABILITY_NULLABLE"
+                            }
+                          }],
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }, {
+                        "struct": {
+                          "types": [{
+                            "fp64": {
+                              "nullability": "NULLABILITY_NULLABLE"
+                            }
+                          }],
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }, {
+                        "struct": {
+                          "types": [{
+                            "fp64": {
+                              "nullability": "NULLABILITY_NULLABLE"
+                            }
+                          }],
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }, {
+                        "struct": {
+                          "types": [{
+                            "fp64": {
+                              "nullability": "NULLABILITY_NULLABLE"
+                            }
+                          }],
+                          "nullability": "NULLABILITY_NULLABLE"
+                        }
+                      }, {
+                        "struct": {
+                          "types": [{
+                            "i64": {
+                              "nullability": "NULLABILITY_REQUIRED"
+                            }
+                          }],
+                          "nullability": "NULLABILITY_REQUIRED"
+                        }
+                      }]
+                    }
+                  },
+                  "localFiles": {
+                    "items": [{
+                      "uriFile": "iterator:0"
+                    }]
+                  }
+                }
+              },
+              "groupings": [{
+                "groupingExpressions": [{
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                      }
+                    }
+                  }
+                }, {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 1
+                      }
+                    }
+                  }
+                }]
+              }],
+              "measures": [{
+                "measure": {
+                  "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
+                  "outputType": {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  "arguments": [{
+                    "value": {
+                      "selection": {
+                        "directReference": {
+                          "structField": {
+                            "field": 2
+                          }
+                        }
+                      }
+                    }
+                  }]
+                }
+              }, {
+                "measure": {
+                  "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
+                  "outputType": {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  "arguments": [{
+                    "value": {
+                      "selection": {
+                        "directReference": {
+                          "structField": {
+                            "field": 3
+                          }
+                        }
+                      }
+                    }
+                  }]
+                }
+              }, {
+                "measure": {
+                  "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
+                  "outputType": {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  "arguments": [{
+                    "value": {
+                      "selection": {
+                        "directReference": {
+                          "structField": {
+                            "field": 4
+                          }
+                        }
+                      }
+                    }
+                  }]
+                }
+              }, {
+                "measure": {
+                  "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
+                  "outputType": {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  "arguments": [{
+                    "value": {
+                      "selection": {
+                        "directReference": {
+                          "structField": {
+                            "field": 5
+                          }
+                        }
+                      }
+                    }
+                  }]
+                }
+              }, {
+                "measure": {
+                  "functionReference": 1,
+                  "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
+                  "outputType": {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  "arguments": [{
+                    "value": {
+                      "selection": {
+                        "directReference": {
+                          "structField": {
+                            "field": 6
+                          }
+                        }
+                      }
+                    }
+                  }]
+                }
+              }, {
+                "measure": {
+                  "functionReference": 1,
+                  "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
+                  "outputType": {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  "arguments": [{
+                    "value": {
+                      "selection": {
+                        "directReference": {
+                          "structField": {
+                            "field": 7
+                          }
+                        }
+                      }
+                    }
+                  }]
+                }
+              }, {
+                "measure": {
+                  "functionReference": 1,
+                  "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
+                  "outputType": {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  "arguments": [{
+                    "value": {
+                      "selection": {
+                        "directReference": {
+                          "structField": {
+                            "field": 8
+                          }
+                        }
+                      }
+                    }
+                  }]
+                }
+              }, {
+                "measure": {
+                  "functionReference": 2,
+                  "phase": "AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT",
+                  "outputType": {
+                    "i64": {
+                      "nullability": "NULLABILITY_REQUIRED"
+                    }
+                  },
+                  "arguments": [{
+                    "value": {
+                      "selection": {
+                        "directReference": {
+                          "structField": {
+                            "field": 9
+                          }
+                        }
+                      }
+                    }
+                  }]
+                }
+              }]
+            }
+          },
+          "expressions": [{
+            "selection": {
+              "directReference": {
+                "structField": {
+                }
+              }
+            }
+          }, {
+            "selection": {
+              "directReference": {
+                "structField": {
+                  "field": 1
+                }
+              }
+            }
+          }, {
+            "scalarFunction": {
+              "functionReference": 3,
+              "outputType": {
+                "fp64": {
+                  "nullability": "NULLABILITY_NULLABLE"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 2
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }, {
+            "scalarFunction": {
+              "functionReference": 3,
+              "outputType": {
+                "fp64": {
+                  "nullability": "NULLABILITY_NULLABLE"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 3
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }, {
+            "scalarFunction": {
+              "functionReference": 3,
+              "outputType": {
+                "fp64": {
+                  "nullability": "NULLABILITY_NULLABLE"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 4
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }, {
+            "scalarFunction": {
+              "functionReference": 3,
+              "outputType": {
+                "fp64": {
+                  "nullability": "NULLABILITY_NULLABLE"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 5
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }, {
+            "scalarFunction": {
+              "functionReference": 3,
+              "outputType": {
+                "fp64": {
+                  "nullability": "NULLABILITY_NULLABLE"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 6
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }, {
+            "scalarFunction": {
+              "functionReference": 3,
+              "outputType": {
+                "fp64": {
+                  "nullability": "NULLABILITY_NULLABLE"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 7
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }, {
+            "scalarFunction": {
+              "functionReference": 3,
+              "outputType": {
+                "fp64": {
+                  "nullability": "NULLABILITY_NULLABLE"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 8
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }, {
+            "scalarFunction": {
+              "functionReference": 4,
+              "outputType": {
+                "i64": {
+                  "nullability": "NULLABILITY_REQUIRED"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 9
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }]
+        }
+      },
+      "names": ["l_returnflag#27", "l_linestatus#28", "sum_qty#10", "sum_base_price#11", "sum_disc_price#12", "sum_charge#13", "avg_qty#14", "avg_price#15", "avg_disc#16", "count_order#17"]
+    }
+  }]
+}

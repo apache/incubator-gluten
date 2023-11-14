@@ -14,34 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import io.glutenproject.backendsapi.BackendsApiManager
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-private final case class BroadcastBuildSideRDDPartition(index: Int) extends Partition
-
 case class BroadcastBuildSideRDD(
-                                  @transient private val sc: SparkContext,
-                                  broadcasted: broadcast.Broadcast[BuildSideRelation],
-                                  broadCastContext: BroadCastHashJoinContext,
-                                  numPartitions: Int = -1)
+    @transient private val sc: SparkContext,
+    broadcasted: broadcast.Broadcast[BuildSideRelation],
+    broadCastContext: BroadCastHashJoinContext)
   extends RDD[ColumnarBatch](sc, Nil) {
 
   override def getPartitions: Array[Partition] = {
-    if (numPartitions < 0) {
-      throw new RuntimeException(s"Invalid number of partitions: $numPartitions.")
-    }
-    Array.tabulate(numPartitions)(i => BroadcastBuildSideRDDPartition(i))
+    throw new IllegalStateException("Never reach here")
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
-    BackendsApiManager.getIteratorApiInstance
-      .genBroadcastBuildSideIterator(split, context, broadcasted, broadCastContext)
+    throw new IllegalStateException("Never reach here")
   }
 }

@@ -14,32 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.parquet
 
-import java.io.File
-import java.util.concurrent.TimeUnit
-
-import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.parquet.hadoop.ParquetOutputFormat
-
-import org.apache.spark.{DebugFilesystem, SparkConf, SparkException}
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.{InternalRow, TableIdentifier}
-import org.apache.spark.sql.catalyst.expressions.SpecificInternalRow
-import org.apache.spark.sql.execution.FileSourceScanExec
-import org.apache.spark.sql.execution.datasources.{SchemaColumnConvertNotSupportedException, SQLHadoopMapReduceCommitProtocol}
-import org.apache.spark.sql.execution.datasources.parquet.TestingUDT.{NestedStruct, NestedStructUDT, SingleElement}
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
-import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.test.SharedSparkSession
-import org.apache.spark.sql.types._
-import org.apache.spark.util.Utils
 
-/**
- * A test suite that tests various Parquet queries.
- */
+/** A test suite that tests various Parquet queries. */
 class GlutenParquetV1QuerySuite extends ParquetV1QuerySuite with GlutenSQLTestsBaseTrait {
   override def withAllParquetReaders(code: => Unit): Unit = {
     // test the row-based reader
@@ -47,6 +27,22 @@ class GlutenParquetV1QuerySuite extends ParquetV1QuerySuite with GlutenSQLTestsB
     // Disabled: We don't yet support this case as of now
     // test the vectorized reader
 //    withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true")(code)
+  }
+
+  import testImplicits._
+
+  test(
+    GlutenTestConstants.GLUTEN_TEST +
+      "SPARK-26677: negated null-safe equality comparison should not filter matched row groups") {
+    withAllParquetReaders {
+      withTempPath {
+        path =>
+          // Repeated values for dictionary encoding.
+          Seq(Some("A"), Some("A"), None).toDF.repartition(1).write.parquet(path.getAbsolutePath)
+          val df = spark.read.parquet(path.getAbsolutePath)
+          checkAnswer(stripSparkFilter(df.where("NOT (value <=> 'A')")), Seq(null: String).toDF)
+      }
+    }
   }
 }
 
@@ -57,5 +53,21 @@ class GlutenParquetV2QuerySuite extends ParquetV2QuerySuite with GlutenSQLTestsB
     // Disabled: We don't yet support this case as of now
     // test the vectorized reader
     //    withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true")(code)
+  }
+
+  import testImplicits._
+
+  test(
+    GlutenTestConstants.GLUTEN_TEST +
+      "SPARK-26677: negated null-safe equality comparison should not filter matched row groups") {
+    withAllParquetReaders {
+      withTempPath {
+        path =>
+          // Repeated values for dictionary encoding.
+          Seq(Some("A"), Some("A"), None).toDF.repartition(1).write.parquet(path.getAbsolutePath)
+          val df = spark.read.parquet(path.getAbsolutePath)
+          checkAnswer(stripSparkFilter(df.where("NOT (value <=> 'A')")), Seq(null: String).toDF)
+      }
+    }
   }
 }

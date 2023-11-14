@@ -14,11 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
-
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
 
 object SystemParameters {
 

@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.metrics;
+
+import io.glutenproject.exception.GlutenException;
 
 public class Metrics implements IMetrics {
   public long[] inputRows;
@@ -39,11 +40,13 @@ public class Metrics implements IMetrics {
   public long[] numDynamicFiltersAccepted;
   public long[] numReplacedWithDynamicFilterRows;
   public long[] flushRowCount;
+  public long[] skippedSplits;
+  public long[] processedSplits;
+  public long[] skippedStrides;
+  public long[] processedStrides;
   public SingleMetric singleMetric = new SingleMetric();
 
-  /**
-   * Create an instance for native metrics.
-   */
+  /** Create an instance for native metrics. */
   public Metrics(
       long[] inputRows,
       long[] inputVectors,
@@ -66,7 +69,11 @@ public class Metrics implements IMetrics {
       long[] numDynamicFiltersAccepted,
       long[] numReplacedWithDynamicFilterRows,
       long[] flushRowCount,
-      long[] scanTime) {
+      long[] scanTime,
+      long[] skippedSplits,
+      long[] processedSplits,
+      long[] skippedStrides,
+      long[] processedStrides) {
     this.inputRows = inputRows;
     this.inputVectors = inputVectors;
     this.inputBytes = inputBytes;
@@ -89,11 +96,15 @@ public class Metrics implements IMetrics {
     this.numDynamicFiltersAccepted = numDynamicFiltersAccepted;
     this.numReplacedWithDynamicFilterRows = numReplacedWithDynamicFilterRows;
     this.flushRowCount = flushRowCount;
+    this.skippedSplits = skippedSplits;
+    this.processedSplits = processedSplits;
+    this.skippedStrides = skippedStrides;
+    this.processedStrides = processedStrides;
   }
 
   public OperatorMetrics getOperatorMetrics(int index) {
     if (index >= inputRows.length) {
-      throw new RuntimeException("Invalid index.");
+      throw new GlutenException("Invalid index.");
     }
 
     return new OperatorMetrics(
@@ -117,7 +128,11 @@ public class Metrics implements IMetrics {
         numDynamicFiltersAccepted[index],
         numReplacedWithDynamicFilterRows[index],
         flushRowCount[index],
-        scanTime[index]);
+        scanTime[index],
+        skippedSplits[index],
+        processedSplits[index],
+        skippedStrides[index],
+        processedStrides[index]);
   }
 
   public SingleMetric getSingleMetrics() {

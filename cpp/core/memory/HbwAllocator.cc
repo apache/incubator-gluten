@@ -46,7 +46,7 @@ bool HbwMemoryAllocator::allocateZeroFilled(int64_t nmemb, int64_t size, void** 
   return true;
 }
 
-bool HbwMemoryAllocator::allocateAligned(uint16_t alignment, int64_t size, void** out) {
+bool HbwMemoryAllocator::allocateAligned(uint64_t alignment, int64_t size, void** out) {
   if (hbw_posix_memalign(out, alignment, size) != 0) {
     return false;
   }
@@ -60,7 +60,7 @@ bool HbwMemoryAllocator::reallocate(void* p, int64_t size, int64_t newSize, void
   return true;
 }
 
-bool HbwMemoryAllocator::reallocateAligned(void* p, uint16_t alignment, int64_t size, int64_t newSize, void** out) {
+bool HbwMemoryAllocator::reallocateAligned(void* p, uint64_t alignment, int64_t size, int64_t newSize, void** out) {
   if (newSize <= 0) {
     return false;
   }
@@ -77,16 +77,6 @@ bool HbwMemoryAllocator::reallocateAligned(void* p, uint16_t alignment, int64_t 
 
 bool HbwMemoryAllocator::free(void* p, int64_t size) {
   hbw_free(p);
-  bytes_ -= size;
-  return true;
-}
-
-bool HbwMemoryAllocator::reserveBytes(int64_t size) {
-  bytes_ += size;
-  return true;
-}
-
-bool HbwMemoryAllocator::unreserveBytes(int64_t size) {
   bytes_ -= size;
   return true;
 }

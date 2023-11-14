@@ -14,28 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
+import io.glutenproject.substrait.type.FP32TypeNode;
+import io.glutenproject.substrait.type.TypeNode;
 
-import java.io.Serializable;
+import io.substrait.proto.Expression.Literal.Builder;
 
-public class FloatLiteralNode implements ExpressionNode, Serializable {
-  private final Float value;
-
+public class FloatLiteralNode extends LiteralNodeWithValue<Float> {
   public FloatLiteralNode(Float value) {
-    this.value = value;
+    super(value, new FP32TypeNode(true));
+  }
+
+  public FloatLiteralNode(Float value, TypeNode typeNode) {
+    super(value, typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
-    Expression.Literal.Builder floatBuilder =
-        Expression.Literal.newBuilder();
-    floatBuilder.setFp32(value);
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(floatBuilder.build());
-    return builder.build();
+  protected void updateLiteralBuilder(Builder literalBuilder, Float value) {
+    literalBuilder.setFp32(value);
   }
 }

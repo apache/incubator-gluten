@@ -20,11 +20,11 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 
 /**
- * Note: "val metrics" is made transient to avoid sending driver-side metrics to tasks,
- * e.g. "pruning time" from scan.
+ * Note: "val metrics" is made transient to avoid sending driver-side metrics to tasks, e.g.
+ * "pruning time" from scan.
  */
-class FileSourceScanMetricsUpdater(
-    @transient val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric])
+  extends MetricsUpdater {
 
   val rawInputRows: SQLMetric = metrics("rawInputRows")
   val rawInputBytes: SQLMetric = metrics("rawInputBytes")
@@ -39,6 +39,10 @@ class FileSourceScanMetricsUpdater(
 
   // Number of dynamic filters received.
   val numDynamicFiltersAccepted: SQLMetric = metrics("numDynamicFiltersAccepted")
+  val skippedSplits: SQLMetric = metrics("skippedSplits")
+  val processedSplits: SQLMetric = metrics("processedSplits")
+  val skippedStrides: SQLMetric = metrics("skippedStrides")
+  val processedStrides: SQLMetric = metrics("processedStrides")
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     inputMetrics.bridgeIncBytesRead(rawInputBytes.value)
@@ -60,6 +64,10 @@ class FileSourceScanMetricsUpdater(
       numMemoryAllocations += operatorMetrics.numMemoryAllocations
       // Number of dynamic filters received.
       numDynamicFiltersAccepted += operatorMetrics.numDynamicFiltersAccepted
+      skippedSplits += operatorMetrics.skippedSplits
+      processedSplits += operatorMetrics.processedSplits
+      skippedStrides += operatorMetrics.skippedStrides
+      processedStrides += operatorMetrics.processedStrides
     }
   }
 }

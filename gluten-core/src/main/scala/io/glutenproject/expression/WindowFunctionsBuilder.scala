@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
+
 import org.apache.spark.sql.catalyst.expressions.{Expression, WindowExpression, WindowFunction}
 
 import scala.util.control.Breaks.{break, breakable}
@@ -26,17 +26,15 @@ import scala.util.control.Breaks.{break, breakable}
 object WindowFunctionsBuilder {
   def create(args: java.lang.Object, windowFunc: WindowFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
-    val substraitFunc = ExpressionMappings.window_functions_map.get(windowFunc.getClass)
-    if (substraitFunc.isDefined) {
-      val functionName = ConverterUtils.makeFuncName(
-        substraitFunc.get,
-        Seq(windowFunc.dataType),
-        FunctionConfig.OPT)
-      ExpressionBuilder.newScalarFunction(functionMap, functionName)
-    } else {
+    val substraitFunc = ExpressionMappings.expressionsMap.get(windowFunc.getClass)
+    if (substraitFunc.isEmpty) {
       throw new UnsupportedOperationException(
         s"not currently supported: ${windowFunc.getClass.getName}.")
     }
+
+    val functionName =
+      ConverterUtils.makeFuncName(substraitFunc.get, Seq(windowFunc.dataType), FunctionConfig.OPT)
+    ExpressionBuilder.newScalarFunction(functionMap, functionName)
   }
 
   def extractWindowExpression(expr: Expression): WindowExpression = {

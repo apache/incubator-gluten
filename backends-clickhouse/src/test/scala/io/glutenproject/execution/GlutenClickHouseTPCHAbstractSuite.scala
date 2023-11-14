@@ -25,10 +25,13 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
 
 import org.apache.commons.io.FileUtils
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import java.io.File
 
-abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSuite with Logging {
+abstract class GlutenClickHouseTPCHAbstractSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
+  with Logging {
 
   protected val createNullableTables = false
 
@@ -57,7 +60,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
     FileUtils.forceMkdir(new File(metaStorePathAbsolute))
     FileUtils.copyDirectory(new File(rootPath + resourcePath), new File(tablesPath))
     super.beforeAll()
-    spark.sparkContext.setLogLevel("WARN")
+    spark.sparkContext.setLogLevel(logLevel)
     if (createNullableTables) {
       createTPCHNullableTables()
     } else {
@@ -212,7 +215,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.size == 8)
+    assert(result.length == 8)
   }
 
   protected def createTPCHNullableTables(): Unit = {
@@ -366,7 +369,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.size == 8)
+    assert(result.length == 8)
   }
 
   protected def createTPCHParquetTables(parquetTablePath: String): Unit = {
@@ -492,7 +495,7 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.size == 8)
+    assert(result.length == 8)
   }
 
   override protected def sparkConf: SparkConf = {
@@ -515,14 +518,23 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
       .set("spark.sql.warehouse.dir", warehouse)
+      .set("spark.sql.decimalOperations.allowPrecisionLoss", "false")
     /* .set("spark.sql.catalogImplementation", "hive")
       .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
         metaStorePathAbsolute + "/metastore_db"};create=true") */
   }
 
   override protected def afterAll(): Unit = {
+    // guava cache invalidate event trigger remove operation may in seconds delay, so wait a bit
+    // normally this doesn't take more than 1s
+    eventually(timeout(60.seconds), interval(1.seconds)) {
+      // Spark listener message was not sent in time with ci env.
+      // In tpch case, there are more then 10 hbj data has build.
+      // Let's just verify it was cleaned ever.
+      assert(CHBroadcastBuildSideCache.size() <= 10)
+    }
+
     ClickHouseLog.clearCache()
     super.afterAll()
     // init GlutenConfig in the next beforeAll
@@ -533,8 +545,10 @@ abstract class GlutenClickHouseTPCHAbstractSuite extends WholeStageTransformerSu
       queryNum: Int,
       tpchQueries: String = tpchQueries,
       queriesResults: String = queriesResults,
-      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult)(customCheck)
+      compareResult: Boolean = true,
+      noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
+    super.runTPCHQuery(queryNum, tpchQueries, queriesResults, compareResult, noFallBack)(
+      customCheck)
   }
 
 }

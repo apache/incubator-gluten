@@ -14,21 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.type;
 
 import io.substrait.proto.Type;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class StructNode implements TypeNode, Serializable {
   private final Boolean nullable;
-  private final ArrayList<TypeNode> types = new ArrayList<>();
+  private final List<TypeNode> types = new ArrayList<>();
+  private final List<String> names = new ArrayList<>();
 
-  StructNode(Boolean nullable, ArrayList<TypeNode> types) {
+  public StructNode(Boolean nullable, List<TypeNode> types, List<String> names) {
     this.nullable = nullable;
     this.types.addAll(types);
+    this.names.addAll(names);
+  }
+
+  public StructNode(Boolean nullable, List<TypeNode> types) {
+    this.nullable = nullable;
+    this.types.addAll(types);
+  }
+
+  public List<TypeNode> getFieldTypes() {
+    return types;
   }
 
   @Override
@@ -39,7 +50,9 @@ public class StructNode implements TypeNode, Serializable {
     for (TypeNode typeNode : types) {
       structBuilder.addTypes(typeNode.toProtobuf());
     }
-
+    for (String name : names) {
+      structBuilder.addNames(name);
+    }
     Type.Builder builder = Type.newBuilder();
     builder.setStruct(structBuilder.build());
     return builder.build();

@@ -14,33 +14,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
-
-import java.io.Serializable;
-import java.util.ArrayList;
 
 import io.glutenproject.substrait.SubstraitContext;
 import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.type.ColumnTypeNode;
 import io.glutenproject.substrait.type.TypeNode;
+
 import io.substrait.proto.NamedStruct;
-import io.substrait.proto.PartitionColumns;
 import io.substrait.proto.ReadRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
 import io.substrait.proto.Type;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class ReadRelNode implements RelNode, Serializable {
-  private final ArrayList<TypeNode> types = new ArrayList<>();
-  private final ArrayList<String> names = new ArrayList<>();
-  private final ArrayList<ColumnTypeNode> columnTypeNodes = new ArrayList<>();
+  private final List<TypeNode> types = new ArrayList<>();
+  private final List<String> names = new ArrayList<>();
+  private final List<ColumnTypeNode> columnTypeNodes = new ArrayList<>();
   private final SubstraitContext context;
   private final ExpressionNode filterNode;
   private final Long iteratorIndex;
+  private StructType dataSchema;
+  private Map<String, String> properties;
 
-  ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
-              SubstraitContext context, ExpressionNode filterNode, Long iteratorIndex) {
+  ReadRelNode(
+      List<TypeNode> types,
+      List<String> names,
+      SubstraitContext context,
+      ExpressionNode filterNode,
+      Long iteratorIndex) {
     this.types.addAll(types);
     this.names.addAll(names);
     this.context = context;
@@ -48,15 +57,44 @@ public class ReadRelNode implements RelNode, Serializable {
     this.iteratorIndex = iteratorIndex;
   }
 
-  ReadRelNode(ArrayList<TypeNode> types, ArrayList<String> names,
-              SubstraitContext context, ExpressionNode filterNode, Long iteratorIndex,
-              ArrayList<ColumnTypeNode> columnTypeNodes) {
+  ReadRelNode(
+      List<TypeNode> types,
+      List<String> names,
+      SubstraitContext context,
+      ExpressionNode filterNode,
+      Long iteratorIndex,
+      List<ColumnTypeNode> columnTypeNodes) {
     this.types.addAll(types);
     this.names.addAll(names);
     this.context = context;
     this.filterNode = filterNode;
     this.iteratorIndex = iteratorIndex;
     this.columnTypeNodes.addAll(columnTypeNodes);
+  }
+
+  public void setDataSchema(StructType schema) {
+    this.dataSchema = new StructType();
+    for (StructField field : schema.fields()) {
+      Boolean found = false;
+      for (int i = 0; i < names.size(); i++) {
+        // Case-insensitive schema matching
+        if (field.name().equalsIgnoreCase(names.get(i))) {
+          this.dataSchema =
+              this.dataSchema.add(
+                  names.get(i), field.dataType(), field.nullable(), field.metadata());
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        this.dataSchema = this.dataSchema.add(field);
+      }
+    }
+  }
+
+  public void setProperties(Map<String, String> properties) {
+    this.properties = properties;
   }
 
   @Override
@@ -68,18 +106,19 @@ public class ReadRelNode implements RelNode, Serializable {
     for (TypeNode typeNode : types) {
       structBuilder.addTypes(typeNode.toProtobuf());
     }
+
     NamedStruct.Builder nStructBuilder = NamedStruct.newBuilder();
     nStructBuilder.setStruct(structBuilder.build());
     for (String name : names) {
       nStructBuilder.addNames(name);
     }
+
     if (!columnTypeNodes.isEmpty()) {
-      PartitionColumns.Builder partitionColumnsBuilder = PartitionColumns.newBuilder();
       for (ColumnTypeNode columnTypeNode : columnTypeNodes) {
-        partitionColumnsBuilder.addColumnType(columnTypeNode.toProtobuf());
+        nStructBuilder.addColumnTypes(columnTypeNode.toProtobuf());
       }
-      nStructBuilder.setPartitionColumns(partitionColumnsBuilder.build());
     }
+
     ReadRel.Builder readBuilder = ReadRel.newBuilder();
     readBuilder.setCommon(relCommonBuilder.build());
     readBuilder.setBaseSchema(nStructBuilder.build());
@@ -87,13 +126,23 @@ public class ReadRelNode implements RelNode, Serializable {
       readBuilder.setFilter(filterNode.toProtobuf());
     }
     if (this.iteratorIndex != null) {
-      readBuilder.setLocalFiles(context.getInputIteratorNode(iteratorIndex).toProtobuf());
+      LocalFilesNode filesNode = context.getInputIteratorNode(iteratorIndex);
+      if (dataSchema != null) {
+        filesNode.setFileSchema(dataSchema);
+        filesNode.setFileReadProperties(properties);
+      }
+      readBuilder.setLocalFiles(filesNode.toProtobuf());
     } else if (context.getLocalFilesNodes() != null && !context.getLocalFilesNodes().isEmpty()) {
       Serializable currentLocalFileNode = context.getCurrentLocalFileNode();
       if (currentLocalFileNode instanceof LocalFilesNode) {
-        readBuilder.setLocalFiles(((LocalFilesNode)currentLocalFileNode).toProtobuf());
+        LocalFilesNode filesNode = (LocalFilesNode) currentLocalFileNode;
+        if (dataSchema != null) {
+          filesNode.setFileSchema(dataSchema);
+          filesNode.setFileReadProperties(properties);
+        }
+        readBuilder.setLocalFiles(((LocalFilesNode) currentLocalFileNode).toProtobuf());
       } else if (currentLocalFileNode instanceof ExtensionTableNode) {
-        readBuilder.setExtensionTable(((ExtensionTableNode)currentLocalFileNode).toProtobuf());
+        readBuilder.setExtensionTable(((ExtensionTableNode) currentLocalFileNode).toProtobuf());
       }
     }
     Rel.Builder builder = Rel.newBuilder();

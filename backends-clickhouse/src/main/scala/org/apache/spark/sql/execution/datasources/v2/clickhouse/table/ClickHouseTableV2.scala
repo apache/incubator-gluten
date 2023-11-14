@@ -17,7 +17,7 @@
 package org.apache.spark.sql.execution.datasources.v2.clickhouse.table
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.{DataFrame, Encoder, SaveMode, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogUtils}
 import org.apache.spark.sql.catalyst.expressions.Expression
@@ -33,7 +33,7 @@ import org.apache.spark.sql.delta.schema.SchemaUtils
 import org.apache.spark.sql.delta.sources.{DeltaDataSource, DeltaSQLConf}
 import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation}
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.{ClickHouseConfig, ClickHouseLog}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.{ClickHouseConfig, ClickHouseLog, DeltaLogAdapter}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.metadata.{AddFileTags, AddMergeTreeParts}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.{ClickHouseScanBuilder, ClickHouseWriteBuilder, DeltaMergeTreeFileFormat}
 import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation}
@@ -86,15 +86,16 @@ case class ClickHouseTableV2(
             deltaLog,
             s"delta.timeTravel.$source",
             data = Map(
-              "tableVersion" -> deltaLog.snapshot.version,
+              "tableVersion" -> DeltaLogAdapter.snapshot(deltaLog).version,
               "queriedVersion" -> version,
-              "accessType" -> accessType))
+              "accessType" -> accessType)
+          )
           deltaLog.getSnapshotAt(version)
       }
       .getOrElse(updateSnapshot())
   }
 
-  protected def metadata = if (snapshot == null) Metadata() else snapshot.metadata
+  protected def metadata: Metadata = if (snapshot == null) Metadata() else snapshot.metadata
 
   private lazy val (rootPath, partitionFilters, timeTravelByPath) = {
     if (catalogTable.isDefined) {
@@ -161,6 +162,20 @@ case class ClickHouseTableV2(
     new ClickHouseScanBuilder(spark, this, tableSchema, options)
   }
 
+  lazy val bucketOption: Option[BucketSpec] = {
+    val tableProperties = properties()
+    if (tableProperties.containsKey("numBuckets")) {
+      val numBuckets = tableProperties.get("numBuckets").toInt
+      val bucketColumnNames: Seq[String] =
+        tableProperties.get("bucketColumnNames").split(",").toSeq
+      val sortColumnNames: Seq[String] =
+        tableProperties.get("sortColumnNames").split(",").toSeq
+      Some(BucketSpec(numBuckets, bucketColumnNames, sortColumnNames))
+    } else {
+      None
+    }
+  }
+
   /** Return V1Table. */
   override def v1Table: CatalogTable = {
     if (catalogTable.isEmpty) {
@@ -197,7 +212,7 @@ case class ClickHouseTableV2(
       snapshotToUseOpt: Option[Snapshot] = None,
       isTimeTravelQuery: Boolean = false,
       cdcOptions: CaseInsensitiveStringMap = CaseInsensitiveStringMap.empty): BaseRelation = {
-    val snapshotToUse = snapshotToUseOpt.getOrElse(deltaLog.snapshot)
+    val snapshotToUse = snapshotToUseOpt.getOrElse(DeltaLogAdapter.snapshot(deltaLog))
     if (snapshotToUse.version < 0) {
       // A negative version here means the dataPath is an empty directory. Read query should error
       // out in this case.
@@ -205,7 +220,6 @@ case class ClickHouseTableV2(
     }
     val fileIndex =
       ClickHouseFileIndex(spark, deltaLog, deltaLog.dataPath, this, snapshotToUse, partitionFilters)
-    var bucketSpec: Option[BucketSpec] = None
     new HadoopFsRelation(
       fileIndex,
       partitionSchema =
@@ -216,7 +230,7 @@ case class ClickHouseTableV2(
       dataSchema = DeltaColumnMapping.dropColumnMappingMetadata(
         ColumnWithDefaultExprUtils.removeDefaultExpressions(
           SchemaUtils.dropNullTypeColumns(snapshotToUse.metadata.schema))),
-      bucketSpec = bucketSpec,
+      bucketSpec = bucketOption,
       fileFormat(snapshotToUse.metadata),
       // `metadata.format.options` is not set today. Even if we support it in future, we shouldn't
       // store any file system options since they may contain credentials. Hence, it will never
@@ -258,7 +272,7 @@ case class ClickHouseTableV2(
       ClickHouseTableV2.lastUpdateTimestamp = System.currentTimeMillis()
       snapshotUpdated
     } else {
-      deltaLog.snapshot
+      DeltaLogAdapter.snapshot(deltaLog)
     }
   }
 
@@ -283,12 +297,12 @@ object ClickHouseTableV2 extends Logging {
         getTableParts(tablePath)
       }
     }
-  val fileStatusCache = CacheBuilder.newBuilder
+  private val fileStatusCache = CacheBuilder.newBuilder
     .maximumSize(1000)
     .expireAfterAccess(3600L, TimeUnit.SECONDS)
     .recordStats
     .build[Path, Seq[AddMergeTreeParts]](fileStatusCacheLoader)
-  protected val stalenessLimit = SparkSession.active.sessionState.conf
+  protected val stalenessLimit: Long = SparkSession.active.sessionState.conf
     .getConf(DeltaSQLConf.DELTA_ASYNC_UPDATE_STALENESS_TIME_LIMIT)
   protected var lastUpdateTimestamp: Long = -1L
 
@@ -298,15 +312,23 @@ object ClickHouseTableV2 extends Logging {
   }
 
   def getTableParts(tablePath: Path): Seq[AddMergeTreeParts] = {
-    implicit val enc = SingleAction.addFileEncoder
+    implicit val enc: Encoder[AddFile] = SingleAction.addFileEncoder
     val start = System.currentTimeMillis()
-    val snapshot = ClickHouseLog.forTable(SparkSession.active, tablePath).snapshot
+    val snapshot = DeltaLogAdapter.snapshot(ClickHouseLog.forTable(SparkSession.active, tablePath))
     val allParts = DeltaLog
       .filterFileList(snapshot.metadata.partitionSchema, snapshot.allFiles.toDF(), Seq.empty)
       .as[AddFile]
       .collect()
-      .map(AddFileTags.partsMapToParts(_))
-      .sortWith(_.minBlockNumber < _.minBlockNumber)
+      .map(AddFileTags.partsMapToParts)
+      .sortWith(
+        (a, b) => {
+          if (a.bucketNum.nonEmpty) {
+            (Integer.parseInt(a.bucketNum) < Integer.parseInt(b.bucketNum)) ||
+            (a.minBlockNumber < b.minBlockNumber)
+          } else {
+            a.minBlockNumber < b.minBlockNumber
+          }
+        })
       .toSeq
     logInfo(
       s"Get ${allParts.size} parts from path ${tablePath.toString} " +

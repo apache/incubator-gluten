@@ -14,12 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
-/**
- * POJO to hold native split result
- */
+/** POJO to hold native split result */
 public class SplitResult {
   private final long totalComputePidTime;
   private final long totalWriteTime;

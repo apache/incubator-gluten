@@ -16,22 +16,25 @@
  */
 package org.apache.spark.storage;
 
+import io.glutenproject.exception.GlutenException;
+
 import com.github.luben.zstd.ZstdOutputStreamNoFinalizer;
 import com.ning.compress.lzf.LZFOutputStream;
 import net.jpountz.lz4.LZ4BlockOutputStream;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xerial.snappy.SnappyOutputStream;
 
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
 
 public final class CHShuffleWriteStreamFactory {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(CHShuffleReadStreamFactory.class);
+  private CHShuffleWriteStreamFactory() {}
+
+  private static final Logger LOG = LoggerFactory.getLogger(CHShuffleWriteStreamFactory.class);
 
   public static final Field FIELD_SnappyOutputStream_out;
   public static final Field FIELD_LZ4BlockOutputStream_out;
@@ -52,27 +55,21 @@ public final class CHShuffleWriteStreamFactory {
       FIELD_ZstdOutputStreamNoFinalizer_out =
           ZstdOutputStreamNoFinalizer.class.getSuperclass().getDeclaredField("out");
       FIELD_ZstdOutputStreamNoFinalizer_out.setAccessible(true);
-      FIELD_LZFOutputStream_out =
-          LZFOutputStream.class.getSuperclass().getDeclaredField("out");
+      FIELD_LZFOutputStream_out = LZFOutputStream.class.getSuperclass().getDeclaredField("out");
       FIELD_LZFOutputStream_out.setAccessible(true);
     } catch (NoSuchFieldException e) {
-      LOG.error("Can not get the field of the class: ", e);
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
-  /**
-   * Unwrap Spark compression output stream.
-   */
+  /** Unwrap Spark compression output stream. */
   public static OutputStream unwrapSparkCompressionOutputStream(
-      OutputStream os,
-      boolean isCustomizedShuffleCodec) {
+      OutputStream os, boolean isCustomizedShuffleCodec) {
     if (!isCustomizedShuffleCodec) return os;
     OutputStream out = null;
     try {
       if (os instanceof BufferedOutputStream) {
-        final OutputStream cos =
-            (OutputStream) FIELD_BufferedOutputStream_out.get(os);
+        final OutputStream cos = (OutputStream) FIELD_BufferedOutputStream_out.get(os);
         if (cos instanceof ZstdOutputStreamNoFinalizer) {
           out = (OutputStream) FIELD_ZstdOutputStreamNoFinalizer_out.get(cos);
         }
@@ -83,10 +80,12 @@ public final class CHShuffleWriteStreamFactory {
         out = (OutputStream) FIELD_LZ4BlockOutputStream_out.get(os);
       } else if (os instanceof LZFOutputStream) {
         out = (OutputStream) FIELD_LZFOutputStream_out.get(os);
+      } else if (os instanceof ByteArrayOutputStream) {
+        out = os;
       }
     } catch (IllegalAccessException e) {
       LOG.error("Can not get the field 'out' from compression output stream: ", e);
-      return out;
+      return null;
     }
     return out;
   }

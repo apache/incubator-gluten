@@ -16,10 +16,12 @@
  */
 
 #include <benchmark/benchmark.h>
-#include <compute/VeloxBackend.h>
+#include <compute/VeloxRuntime.h>
 
-#include "BenchmarkUtils.h"
+#include "benchmarks/common/BenchmarkUtils.h"
 #include "compute/VeloxPlanConverter.h"
+#include "memory/VeloxMemoryManager.h"
+#include "utils/VeloxArrowUtils.h"
 
 using namespace facebook;
 using namespace gluten;
@@ -32,56 +34,66 @@ const std::string getFilePath(const std::string& fileName) {
 
 // Used by unit test and benchmark.
 std::shared_ptr<ResultIterator> getResultIterator(
-    MemoryAllocator* allocator,
-    std::shared_ptr<Backend> backend,
-    const std::vector<std::shared_ptr<velox::substrait::SplitInfo>>& setScanInfos) {
-  auto ctxPool = getDefaultVeloxLeafMemoryPool()->addAggregateChild("query_benchmark_result_iterator");
-  auto resultPool = ctxPool->addLeafChild("query_benchmark_result_vector");
+    VeloxMemoryManager* memoryManager,
+    Runtime* runtime,
+    const std::vector<std::shared_ptr<SplitInfo>>& setScanInfos,
+    std::shared_ptr<const facebook::velox::core::PlanNode>& veloxPlan) {
   std::vector<std::shared_ptr<ResultIterator>> inputIter;
-  auto veloxPlanConverter = std::make_unique<VeloxPlanConverter>(inputIter, ctxPool);
-  auto veloxPlan = veloxPlanConverter->toVeloxPlan(backend->getPlan());
+  std::unordered_map<std::string, std::string> sessionConf = {};
+  auto veloxPlanConverter =
+      std::make_unique<VeloxPlanConverter>(inputIter, defaultLeafVeloxMemoryPool().get(), sessionConf);
+  veloxPlan = veloxPlanConverter->toVeloxPlan(runtime->getPlan());
 
   // In test, use setScanInfos to replace the one got from Substrait.
-  std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
+  std::vector<std::shared_ptr<SplitInfo>> scanInfos;
   std::vector<velox::core::PlanNodeId> scanIds;
   std::vector<velox::core::PlanNodeId> streamIds;
 
   // Separate the scan ids and stream ids, and get the scan infos.
-  VeloxBackend::getInfoAndIds(
+  VeloxRuntime::getInfoAndIds(
       veloxPlanConverter->splitInfos(), veloxPlan->leafPlanNodeIds(), scanInfos, scanIds, streamIds);
 
   auto wholestageIter = std::make_unique<WholeStageResultIteratorFirstStage>(
-      ctxPool, resultPool, veloxPlan, scanIds, setScanInfos, streamIds, "/tmp/test-spill", backend->getConfMap());
-  return std::make_shared<ResultIterator>(std::move(wholestageIter), backend);
+      memoryManager,
+      veloxPlan,
+      scanIds,
+      setScanInfos,
+      streamIds,
+      "/tmp/test-spill",
+      runtime->getConfMap(),
+      runtime->getSparkTaskInfo());
+  auto iter = std::make_shared<ResultIterator>(std::move(wholestageIter), runtime);
+  return iter;
 }
 
-auto bm = [](::benchmark::State& state,
+auto BM = [](::benchmark::State& state,
              const std::vector<std::string>& datasetPaths,
              const std::string& jsonFile,
              const std::string& fileFormat) {
   const auto& filePath = getFilePath("plan/" + jsonFile);
-  auto maybePlan = getPlanFromFile(filePath);
-  if (!maybePlan.ok()) {
-    state.SkipWithError(maybePlan.status().message().c_str());
-    return;
-  }
-  auto plan = std::move(maybePlan).ValueOrDie();
+  auto plan = getPlanFromFile(filePath);
 
-  std::vector<std::shared_ptr<velox::substrait::SplitInfo>> scanInfos;
+  auto memoryManager = getDefaultMemoryManager();
+  auto runtime = Runtime::create(kVeloxRuntimeKind);
+
+  std::vector<std::shared_ptr<SplitInfo>> scanInfos;
   scanInfos.reserve(datasetPaths.size());
   for (const auto& datasetPath : datasetPaths) {
-    scanInfos.emplace_back(getSplitInfos(datasetPath, fileFormat));
+    if (std::filesystem::is_directory(datasetPath)) {
+      scanInfos.emplace_back(getSplitInfos(datasetPath, fileFormat));
+    } else {
+      scanInfos.emplace_back(getSplitInfosFromFile(datasetPath, fileFormat));
+    }
   }
 
   for (auto _ : state) {
     state.PauseTiming();
-    auto backend = std::dynamic_pointer_cast<gluten::VeloxBackend>(gluten::createBackend());
     state.ResumeTiming();
 
-    backend->parsePlan(plan->data(), plan->size());
-    auto resultIter = getResultIterator(gluten::defaultMemoryAllocator().get(), backend, scanInfos);
-    auto veloxPlan = std::dynamic_pointer_cast<gluten::VeloxBackend>(backend)->getVeloxPlan();
-    auto outputSchema = getOutputSchema(veloxPlan);
+    runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
+    std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan;
+    auto resultIter = getResultIterator(memoryManager.get(), runtime, scanInfos, veloxPlan);
+    auto outputSchema = toArrowSchema(veloxPlan->outputType(), defaultLeafVeloxMemoryPool().get());
     while (resultIter->hasNext()) {
       auto array = resultIter->next()->exportArrowArray();
       auto maybeBatch = arrow::ImportRecordBatch(array.get(), outputSchema);
@@ -92,7 +104,10 @@ auto bm = [](::benchmark::State& state,
       std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
     }
   }
+  Runtime::release(runtime);
 };
+
+#define orc_reader_decimal 1
 
 int main(int argc, char** argv) {
   initVeloxBackend();
@@ -112,12 +127,21 @@ int main(int argc, char** argv) {
   }
 #else
   // For ORC debug.
-  const auto& lineitemOrcPath = getFilePath("bm_lineitem/orc/");
   if (argc < 2) {
-    ::benchmark::RegisterBenchmark("select", bm, std::vector<std::string>{lineitemOrcPath}, "select.json", "orc");
+    auto lineitemOrcPath = getFilePath("bm_lineitem/orc/");
+#if orc_reader_decimal == 0
+    ::benchmark::RegisterBenchmark("select", BM, std::vector<std::string>{lineitemOrcPath}, "select.json", "orc");
+#else
+    auto fileName1 = lineitemOrcPath + "short_decimal_nonull.orc";
+    ::benchmark::RegisterBenchmark(
+        "select", BM, std::vector<std::string>{fileName1}, "select_short_decimal.json", "orc");
+    auto fileName2 = lineitemOrcPath + "long_decimal_nonull.orc";
+    ::benchmark::RegisterBenchmark(
+        "select", BM, std::vector<std::string>{fileName2}, "select_long_decimal.json", "orc");
+#endif
   } else {
     ::benchmark::RegisterBenchmark(
-        "select", bm, std::vector<std::string>{std::string(argv[1]) + "/"}, "select.json", "orc");
+        "select", BM, std::vector<std::string>{std::string(argv[1]) + "/"}, "select.json", "orc");
   }
 #endif
 

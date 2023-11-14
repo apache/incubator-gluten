@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.derivation;
 
 import io.substrait.proto.DerivationExpression;
@@ -26,8 +25,7 @@ public class BinaryOPNode implements DerivationExpressionNode, Serializable {
   private final DerivationExpressionNode arg1;
   private final DerivationExpressionNode arg2;
 
-  BinaryOPNode(String op, DerivationExpressionNode arg1,
-               DerivationExpressionNode arg2) {
+  BinaryOPNode(String op, DerivationExpressionNode arg1, DerivationExpressionNode arg2) {
     this.op = op;
     this.arg1 = arg1;
     this.arg2 = arg2;
@@ -39,12 +37,10 @@ public class BinaryOPNode implements DerivationExpressionNode, Serializable {
         DerivationExpression.BinaryOp.newBuilder();
     switch (op) {
       case "multiply":
-        binaryBuilder.setOpType(
-            DerivationExpression.BinaryOp.BinaryOpType.BINARY_OP_TYPE_MULTIPLY);
+        binaryBuilder.setOpType(DerivationExpression.BinaryOp.BinaryOpType.BINARY_OP_TYPE_MULTIPLY);
         break;
       case "divide":
-        binaryBuilder.setOpType(
-            DerivationExpression.BinaryOp.BinaryOpType.BINARY_OP_TYPE_DIVIDE);
+        binaryBuilder.setOpType(DerivationExpression.BinaryOp.BinaryOpType.BINARY_OP_TYPE_DIVIDE);
         break;
       default:
         System.out.println("Not supported.");

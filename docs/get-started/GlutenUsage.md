@@ -5,38 +5,24 @@ nav_order: 4
 parent: Getting-Started
 ---
 # Build parameters
-## Parameters for builddeps-veloxbe.sh
+## Parameters for buildbundle-veloxbe.sh or builddeps-veloxbe.sh
 Please set them via `--`, e.g. `--build_type=Release`.
 
-| Parameters | Description | Default value |
-| ---------- | ----------- | ------------- |
-| build_type | Gluten build type(for arrow/velox/cpp), CMAKE_BUILD_TYPE  | Release |
-| build_tests | build test code in cpp folder and arrow | OFF |
-| build_benchmarks | build benchmark code in cpp folder and arrow| OFF |
-| build_jemalloc   | build with jemalloc | ON |
-| build_protobuf | build protobuf lib    | ON|
-| enable_qat | enable QAT for shuffle data de/compression| OFF|
-| enable_iaa | enable IAA for shuffle data de/compression| OFF|
-| enable_hbm | enable HBM allocator      | OFF|
-| enable_s3   | build with s3 lib        | OFF|
-| enable_hdfs | build with hdfs lib      | OFF|
-| enable_ep_cache | enable caching for external project build (Arrow and Velox) | OFF |
-
-## Parameters for get_arrow.sh
-Please set them via `--`, e.g., `--enable_custom_codec=ON`.
-
-| Parameters | Description | Default value |
-| ---------- | ----------- | ------------- |
-| enable_custom_codec | Apply patch to plugin custom codec (used by QAT/IAA) in Arrow cpp IPC module. | OFF |
-
-## Parameters for build_arrow.sh
-Please set them via `--`, e.g., `--arrow_home=/YOUR/PATH`.
-
-| Parameters | Description | Default value |
-| ---------- | ----------- | ------------- |
-| arrow_home | Arrow build path                          | GLUTEN_DIR/ep/build-arrow/build|
-| build_type | ARROW build type, CMAKE_BUILD_TYPE        | Release|
-| build_tests | Build arrow with -DARROW_JSON=ON          | OFF           |
+| Parameters       | Description                                         | Default value |
+|------------------|-----------------------------------------------------|---------------|
+| build_type       | build type for velox & gluten cpp, CMAKE_BUILD_TYPE | Release       |
+| build_tests      | build test code in cpp folder                       | OFF           |
+| build_benchmarks | build benchmark code in cpp folder                  | OFF           |
+| build_jemalloc   | build with jemalloc                                 | ON            |
+| build_protobuf   | build protobuf lib                                  | ON            |
+| enable_qat       | enable QAT for shuffle data de/compression          | OFF           |
+| enable_iaa       | enable IAA for shuffle data de/compression          | OFF           |
+| enable_hbm       | enable HBM allocator                                | OFF           |
+| enable_s3        | build with s3 lib                                   | OFF           |
+| enable_hdfs      | build with hdfs lib                                 | OFF           |
+| enable_ep_cache  | enable caching for external project build (Velox)   | OFF           |
+| skip_build_ep    | skip the build of external projects (velox)         | OFF           |
+| enable_vcpkg     | enable vcpkg for static build                       | OFF           |
 
 ## Parameters for build_velox.sh
 Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
@@ -53,10 +39,11 @@ Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 ## Maven building parameters
 To build different backends, there are 3 parameters can be set via `-P` for mvn.
 
-| Parameters               | Description                                                                                      | Activation state by default |
-|--------------------------|--------------------------------------------------------------------------------------------------|-----------------------------|
-| backends-velox           | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                  | disabled                    |
-| backends-clickhouse      | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.        | disabled                    |
+| Parameters          | Description                                                                                    | Activation state by default |
+|---------------------|------------------------------------------------------------------------------------------------|-----------------------------|
+| backends-velox      | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                | disabled                    |
+| backends-clickhouse | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.      | disabled                    |
+| rss                 | Add -Prss in maven command to compile the JVM part of rss, current only support Velox backend. | disabled                    |
 
 # Gluten jar for deployment
 

@@ -1,2 +1,3 @@
 /.vcpkg
 /vcpkg_installed
+!/Makefile

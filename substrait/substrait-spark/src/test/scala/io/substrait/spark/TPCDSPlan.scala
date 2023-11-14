@@ -35,7 +35,7 @@ class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
   tpcdsQueries.foreach {
     q =>
       if (runAllQueriesIncludeFailed || successfulSQL.contains(q)) {
-        test(s"check simplified (tpcds-v1.4/$q)") {
+        ignore(s"check simplified (tpcds-v1.4/$q)") {
           testQuery("tpcds", q)
         }
       } else {

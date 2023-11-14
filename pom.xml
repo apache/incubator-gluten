@@ -16,7 +16,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.glutenproject</groupId>
   <artifactId>gluten-parent</artifactId>
-  <version>0.5.0-SNAPSHOT</version>
+  <version>1.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
@@ -30,49 +30,42 @@
   </licenses>
 
   <modules>
-    <module>shims</module>
     <module>gluten-core</module>
+    <module>gluten-ui</module>
     <module>package</module>
+    <module>shims</module>
     <module>substrait/substrait-spark</module>
   </modules>
 
   <properties>
-    <spark32.version>3.2.2</spark32.version>
-    <spark32.scala>2.12.15</spark32.scala>
-    <spark32bundle.version>3.2</spark32bundle.version>
-    <spark33.version>3.3.1</spark33.version>
-    <spark33.scala>2.12.15</spark33.scala>
-    <spark33bundle.version>3.3</spark33bundle.version>
-    <delta20.version>2.0.1</delta20.version>
-    <delta22.version>2.2.0</delta22.version>
-    <delta.version>${delta20.version}</delta.version>
+    <caffeine.version.java8>2.9.3</caffeine.version.java8>
+    <delta.version>2.0.1</delta.version>
     <delta.binary.version>20</delta.binary.version>
     <scala.binary.version>2.12</scala.binary.version>
-    <scala.version>${spark32.scala}</scala.version>
-    <spark.version>${spark32.version}</spark.version>
+    <scala.version>2.12.15</scala.version>
     <spark.major.version>3</spark.major.version>
-    <celeborn.version>0.2.1-incubating</celeborn.version>
-    <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-    <arrow.version>11.0.0-gluten</arrow.version>
+    <sparkbundle.version>3.2</sparkbundle.version>
+    <spark.version>3.2.2</spark.version>
+    <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
+    <celeborn.version>0.3.0-incubating</celeborn.version>
+    <arrow.version>12.0.0</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
-    <hadoop.version>${hadoop.version}</hadoop.version>
+    <hadoop.version>2.7.4</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.prefix>spark-sql-columnar</project.prefix>
     <jar.assembly.name.prefix>gluten</jar.assembly.name.prefix>
+    <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <!-- To build built-in backend c++ codes -->
     <scala.recompile.mode>all</scala.recompile.mode>
     <!-- For unit tests -->
     <clickhouse.lib.path>/usr/local/clickhouse/lib/libch.so</clickhouse.lib.path>
     <tpcds.data.path>/data/tpcds-data-sf1</tpcds.data.path>
-    <fasterxml.spark33.version>2.13.3</fasterxml.spark33.version>
-    <fasterxml.version>${fasterxml.spark33.version}</fasterxml.version>
+    <fasterxml.version>2.13.5</fasterxml.version>
     <junit.version>4.13.1</junit.version>
 
     <substrait.version>0.5.0</substrait.version>
-    <guava.version>31.1-jre</guava.version>
-    <protobuf.version>3.16.3</protobuf.version>
-    <protobuf.substrait.version>3.21.7</protobuf.substrait.version>
+    <protobuf.version>3.23.4</protobuf.version>
     <!--spotless-->
     <spotless.version>2.27.2</spotless.version>
     <spotless.scalafmt.version>3.5.9</spotless.scalafmt.version>
@@ -103,8 +96,6 @@
     <maven.jar.plugin>3.2.2</maven.jar.plugin>
     <scalastyle.version>1.0.0</scalastyle.version>
     <scalatest-maven-plugin.version>2.2.0</scalatest-maven-plugin.version>
-    <spark32.shim.version>spark-sql-columnar-shims-spark32</spark32.shim.version>
-    <spark33.shim.version>spark-sql-columnar-shims-spark33</spark33.shim.version>
   </properties>
 
   <profiles>
@@ -114,34 +105,35 @@
         <activeByDefault>true</activeByDefault>
       </activation>
       <properties>
-        <scala.version>${spark32.scala}</scala.version>
-        <spark.major.version>3</spark.major.version>
-        <spark.version>${spark32.version}</spark.version>
-        <delta.version>${delta20.version}</delta.version>
+        <sparkbundle.version>3.2</sparkbundle.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
+        <spark.version>3.2.2</spark.version>
+        <delta.version>2.0.1</delta.version>
         <delta.binary.version>20</delta.binary.version>
-        <sparkbundle.version>${spark32bundle.version}</sparkbundle.version>
-        <sparkshim.artifactId>${spark32.shim.version}</sparkshim.artifactId>
       </properties>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <properties>
-        <scala.version>${spark33.scala}</scala.version>
-        <spark.major.version>3</spark.major.version>
-        <spark.version>${spark33.version}</spark.version>
-        <delta.version>${delta22.version}</delta.version>
+        <sparkbundle.version>3.3</sparkbundle.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-spark33</sparkshim.artifactId>
+        <spark.version>3.3.1</spark.version>
+        <delta.version>2.2.0</delta.version>
         <delta.binary.version>22</delta.binary.version>
-        <sparkbundle.version>${spark33bundle.version}</sparkbundle.version>
-        <sparkshim.artifactId>${spark33.shim.version}</sparkshim.artifactId>
+      </properties>
+    </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <properties>
+        <sparkbundle.version>3.4</sparkbundle.version>
+        <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
+        <spark.version>3.4.1</spark.version>
+        <delta.version>2.2.0</delta.version>
+        <delta.binary.version>22</delta.binary.version>
       </properties>
     </profile>
     <profile>
       <id>hadoop-2.7.4</id>
-      <activation>
-        <property>
-          <name>!hadoop.version</name>
-        </property>
-      </activation>
       <properties>
         <hadoop.version>2.7.4</hadoop.version>
       </properties>
@@ -150,6 +142,12 @@
       <id>hadoop-3.2</id>
       <properties>
         <hadoop.version>3.2.0</hadoop.version>
+      </properties>
+    </profile>
+    <profile>
+      <id>hadoop-3.3</id>
+      <properties>
+        <hadoop.version>3.3.1</hadoop.version>
       </properties>
     </profile>
     <profile>
@@ -188,33 +186,35 @@
       </properties>
     </profile>
     <profile>
+      <id>rss</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>gluten-celeborn</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>delta</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <modules>
+        <module>gluten-delta</module>
+      </modules>
+    </profile>
+    <profile>
       <id>backends-velox</id>
       <activation>
         <activeByDefault>false</activeByDefault>
       </activation>
       <modules>
         <module>gluten-data</module>
-        <module>gluten-celeborn</module>
         <module>backends-velox</module>
       </modules>
       <properties>
         <backend_type>velox</backend_type>
-        <arrow.version>11.0.0-gluten</arrow.version>
-        <build_velox_backend>ON</build_velox_backend>
-      </properties>
-    </profile>
-    <profile>
-      <id>backends-velox-without-rss</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <modules>
-        <module>gluten-data</module>
-        <module>backends-velox</module>
-      </modules>
-      <properties>
-        <backend_type>velox</backend_type>
-        <arrow.version>11.0.0-gluten</arrow.version>
+        <arrow.version>12.0.0</arrow.version>
         <build_velox_backend>ON</build_velox_backend>
       </properties>
     </profile>
@@ -228,6 +228,11 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>com.github.ben-manes.caffeine</groupId>
+        <artifactId>caffeine</artifactId>
+        <version>${caffeine.version.java8}</version>
+      </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-sql_${scala.binary.version}</artifactId>
@@ -266,7 +271,7 @@
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
-        <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
+        <artifactId>spark-hive_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
         <scope>provided</scope>
         <exclusions>
@@ -320,12 +325,6 @@
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-yarn_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
-        <scope>provided</scope>
-      </dependency>
-      <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava</artifactId>
-        <version>${guava.version}</version>
         <scope>provided</scope>
       </dependency>
       <dependency>
@@ -503,6 +502,14 @@
   </dependencyManagement>
 
   <build>
+    <extensions>
+      <!-- provides os.detected.classifier (i.e. linux-x86_64, osx-x86_64) property -->
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>${os-maven-plugin.version}</version>
+      </extension>
+    </extensions>
     <pluginManagement>
       <plugins>
         <plugin>
@@ -560,7 +567,11 @@
           <configuration>
             <recompileMode>${scala.recompile.mode}</recompileMode>
             <args>
+              <arg>-Wconf:msg=While parsing annotations in:silent</arg>
               <arg>-Ywarn-unused:imports</arg>
+              <arg>-Xfatal-warnings</arg>
+              <arg>-deprecation</arg>
+              <arg>-feature</arg>
             </args>
           </configuration>
           <executions>
@@ -629,6 +640,7 @@
             <testSourceDirectory>${project.basedir}/src/test/scala</testSourceDirectory>
             <outputFile>${project.basedir}/scalastyle-output.xml</outputFile>
             <outputEncoding>UTF-8</outputEncoding>
+            <configLocation>dev/scalastyle-config.xml</configLocation>
           </configuration>
           <executions>
             <execution>
@@ -654,6 +666,11 @@
           <version>3.0.1</version>
         </plugin>
         <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>3.1.0</version>
+        </plugin>
+        <plugin>
           <artifactId>maven-shade-plugin</artifactId>
           <version>3.4.1</version>
           <configuration>
@@ -670,20 +687,26 @@
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
           <configuration>
-            <!--            <java>-->
-            <!--              <googleJavaFormat>-->
-            <!--                <version>1.7</version>-->
-            <!--                <style>AOSP</style>-->
-            <!--              </googleJavaFormat>-->
+            <java>
+              <toggleOffOn />
+              <googleJavaFormat>
+                <version>1.7</version>
+              </googleJavaFormat>
 
-            <!--              &lt;!&ndash; \# refers to the static imports &ndash;&gt;-->
-            <!--              <importOrder>-->
-            <!--                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>-->
-            <!--              </importOrder>-->
+              <!-- \# refers to the static imports -->
+              <importOrder>
+                <order>io.glutenproject,io.substrait.spark,,javax,java,scala,\#</order>
+              </importOrder>
 
-            <!--              <removeUnusedImports />-->
-            <!--            </java>-->
+              <removeUnusedImports />
+              <licenseHeader>
+                <content>${spotless.license.header}</content>
+                <delimiter>${spotless.delimiter}</delimiter>
+              </licenseHeader>
+            </java>
             <scala>
+              <!--  make it works `// spotless:off `  -->
+              <toggleOffOn />
               <scalafmt>
                 <version>${spotless.scalafmt.version}</version>
                 <scalaMajorVersion>${scala.binary.version}</scalaMajorVersion>
@@ -709,6 +732,11 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
           <version>${build-helper-maven-plugin.version}</version>
+        </plugin>
+        <plugin>
+          <groupId>org.xolstice.maven.plugins</groupId>
+          <artifactId>protobuf-maven-plugin</artifactId>
+          <version>0.5.1</version>
         </plugin>
       </plugins>
     </pluginManagement>

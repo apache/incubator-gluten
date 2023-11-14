@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
 import org.apache.spark.sql.vectorized.ColumnarBatch;
@@ -27,12 +26,25 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseabl
   private long instance = 0;
 
   public BlockSplitIterator(Iterator<Long> in, IteratorOptions options) {
-    this.instance = nativeCreate(new IteratorWrapper(in), options.getName(), options.getExpr(),
-        options.getRequiredFields(), options.getPartitionNum(), options.getBufferSize());
+    this.instance =
+        nativeCreate(
+            new IteratorWrapper(in),
+            options.getName(),
+            options.getExpr(),
+            options.getRequiredFields(),
+            options.getPartitionNum(),
+            options.getBufferSize(),
+            options.getHashAlgorithm());
   }
 
-  private native long nativeCreate(IteratorWrapper in, String name, String expr, String schema,
-                                   int partitionNum, int bufferSize);
+  private native long nativeCreate(
+      IteratorWrapper in,
+      String name,
+      String expr,
+      String schema,
+      int partitionNum,
+      int bufferSize,
+      String hashAlgorithm);
 
   private native void nativeClose(long instance);
 
@@ -70,6 +82,8 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseabl
     private String expr;
     private String requiredFields;
 
+    private String hashAlgorithm;
+
     public int getPartitionNum() {
       return partitionNum;
     }
@@ -102,7 +116,20 @@ public class BlockSplitIterator implements Iterator<ColumnarBatch>, AutoCloseabl
       this.expr = expr;
     }
 
-    public String getRequiredFields() { return requiredFields; }
-    public void setRequiredFields(String requiredFields) { this.requiredFields = requiredFields; }
+    public String getRequiredFields() {
+      return requiredFields;
+    }
+
+    public void setRequiredFields(String requiredFields) {
+      this.requiredFields = requiredFields;
+    }
+
+    public String getHashAlgorithm() {
+      return hashAlgorithm;
+    }
+
+    public void setHashAlgorithm(String hashAlgorithm) {
+      this.hashAlgorithm = hashAlgorithm;
+    }
   }
 }

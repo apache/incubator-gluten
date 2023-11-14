@@ -14,31 +14,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
+import io.glutenproject.exception.GlutenException;
 import io.glutenproject.metrics.IMetrics;
-import org.apache.spark.sql.catalyst.expressions.Attribute;
+
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.io.Serializable;
-import java.util.List;
+import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class GeneralOutIterator implements AutoCloseable, Serializable {
+public abstract class GeneralOutIterator
+    implements AutoCloseable, Serializable, Iterator<ColumnarBatch> {
   protected final AtomicBoolean closed = new AtomicBoolean(false);
-  protected final transient List<Attribute> outAttrs;
 
-  public GeneralOutIterator(List<Attribute> outAttrs) {
-    this.outAttrs = outAttrs;
+  public GeneralOutIterator() {}
+
+  @Override
+  public final boolean hasNext() {
+    try {
+      return hasNextInternal();
+    } catch (Exception e) {
+      throw new GlutenException(e);
+    }
   }
 
-  public final boolean hasNext() throws Exception {
-    return hasNextInternal();
-  }
-
-  public final ColumnarBatch next() throws Exception {
-    return nextInternal();
+  @Override
+  public final ColumnarBatch next() {
+    try {
+      return nextInternal();
+    } catch (Exception e) {
+      throw new GlutenException(e);
+    }
   }
 
   public final IMetrics getMetrics() throws Exception {
@@ -52,6 +60,8 @@ public abstract class GeneralOutIterator implements AutoCloseable, Serializable 
     }
   }
 
+  public abstract String getId();
+
   protected abstract void closeInternal();
 
   protected abstract boolean hasNextInternal() throws Exception;
@@ -59,5 +69,4 @@ public abstract class GeneralOutIterator implements AutoCloseable, Serializable 
   protected abstract ColumnarBatch nextInternal() throws Exception;
 
   protected abstract IMetrics getMetricsInternal() throws Exception;
-
 }

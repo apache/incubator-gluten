@@ -23,21 +23,27 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 
-import java.util
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JArrayList, Collections => JCollections, List => JList, Map => JMap}
+
+import scala.collection.JavaConverters._
 
 object MetricsUtil extends Logging {
 
-  val COMMON_METRICS = Map(
-    "outputRows" -> "outputRows",
-    "outputVectors" -> "outputVectors",
-    "extra_elapsed" -> "extraTime",
-    "NullSource_elapsed" -> "extraNullSourceTime",
-    "ExpressionTransform_elapsed" -> "extraExpressionTransformTime",
-    "SourceFromJavaIter_elapsed" -> "extraSourceFromJavaIterTime",
-    "ConvertingAggregatedToChunksTransform_elapsed" ->
-      "extraConvertingAggregatedToChunksTransformTime",
-    "ConvertingAggregatedToChunksSource_elapsed" -> "extraConvertingAggregatedToChunksSourceTime"
-  )
+  /** Generate metrics updaters tree by SparkPlan */
+  def treeifyMetricsUpdaters(plan: SparkPlan): MetricsUpdaterTree = {
+    plan match {
+      case j: HashJoinLikeExecTransformer =>
+        MetricsUpdaterTree(
+          j.metricsUpdater(),
+          // must put the buildPlan first
+          Seq(treeifyMetricsUpdaters(j.buildPlan), treeifyMetricsUpdaters(j.streamedPlan)))
+      case t: TransformSupport =>
+        MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
+      case _ =>
+        MetricsUpdaterTree(NoopMetricsUpdater, Seq())
+    }
+  }
 
   /**
    * Update metrics fetched from certain iterator to transformers.
@@ -53,65 +59,65 @@ object MetricsUtil extends Logging {
    */
   def updateNativeMetrics(
       child: SparkPlan,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): IMetrics => Unit = {
+      relMap: JMap[JLong, JList[JLong]],
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
 
-    var mutList = new util.ArrayList[MetricsUpdater]()
-    def treeifyMetricsUpdaters(plan: SparkPlan): Unit = {
-      plan match {
-        case j: CHShuffledHashJoinExecTransformer =>
-          val updater = j.metricsUpdater()
-          // Update JoiningTransform
-          mutList.add(updater)
-          // Update FillingRightJoinSide
-          mutList.add(updater)
-          if (!j.condition.isEmpty) {
-            // Update FilterTransform of the join
-            mutList.add(updater)
-          }
-          treeifyMetricsUpdaters(j.streamedPlan)
-        case bhj: CHBroadcastHashJoinExecTransformer =>
-          val updater = bhj.metricsUpdater()
-          // Update JoiningTransform
-          mutList.add(updater)
-          if (!bhj.condition.isEmpty) {
-            // Update FilterTransform of the join
-            mutList.add(updater)
-          }
-          treeifyMetricsUpdaters(bhj.streamedPlan)
-        case b: BasicScanExecTransformer =>
-          mutList.add(b.metricsUpdater())
-        case f: FilterExecTransformer =>
-          mutList.add(f.metricsUpdater())
-          f.children.map(treeifyMetricsUpdaters)
-        case agg: HashAggregateExecBaseTransformer =>
-          mutList.add(agg.metricsUpdater())
-          treeifyMetricsUpdaters(agg.child)
-        case t: TransformSupport => t.children.map(treeifyMetricsUpdaters)
-        case _ =>
-      }
-    }
-    treeifyMetricsUpdaters(child)
+    val mut: MetricsUpdaterTree = treeifyMetricsUpdaters(child)
 
-    updateTransformerMetrics(mutList, relMap, joinParamsMap, aggParamsMap)
+    updateTransformerMetrics(
+      mut,
+      relMap,
+      java.lang.Long.valueOf(relMap.size() - 1),
+      joinParamsMap,
+      aggParamsMap)
   }
 
-  /** A recursive function updating the metrics of one transformer and its child. */
+  /**
+   * A recursive function updating the metrics of one transformer and its child.
+   *
+   * @param mut
+   *   the metrics updater tree built from the original plan
+   * @param relMap
+   *   the map between operator index and its rels
+   * @param operatorIdx
+   *   the index of operator
+   * @param metrics
+   *   the metrics fetched from native
+   * @param metricsIdx
+   *   the index of metrics
+   * @param joinParamsMap
+   *   the map between operator index and join parameters
+   * @param aggParamsMap
+   *   the map between operator index and aggregation parameters
+   */
   def updateTransformerMetrics(
-      mutList: util.ArrayList[MetricsUpdater],
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): IMetrics => Unit = {
+      mutNode: MetricsUpdaterTree,
+      relMap: JMap[JLong, JList[JLong]],
+      operatorIdx: JLong,
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
     imetrics =>
       try {
         val metrics = imetrics.asInstanceOf[NativeMetrics]
-        if (metrics.metrics.size() == 0) {
+        val numNativeMetrics = metrics.metricsDataList.size()
+        val relSize = relMap.values().asScala.flatMap(l => l.asScala).size
+        if (numNativeMetrics == 0 || numNativeMetrics != relSize) {
+          logWarning(
+            s"Updating native metrics failed due to the wrong size of metrics data: " +
+              s"$numNativeMetrics")
           ()
-        } else if (mutList.isEmpty) {
+        } else if (mutNode.updater == NoopMetricsUpdater) {
           ()
         } else {
-          updateTransformerMetricsInternal(mutList, relMap, metrics, joinParamsMap, aggParamsMap)
+          updateTransformerMetricsInternal(
+            mutNode,
+            relMap,
+            operatorIdx,
+            metrics,
+            numNativeMetrics - 1,
+            joinParamsMap,
+            aggParamsMap)
         }
       } catch {
         case e: Throwable =>
@@ -120,47 +126,85 @@ object MetricsUtil extends Logging {
       }
   }
 
+  /**
+   * @return
+   *   operator index and metrics index
+   */
   def updateTransformerMetricsInternal(
-      mutList: util.ArrayList[MetricsUpdater],
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
+      mutNode: MetricsUpdaterTree,
+      relMap: JMap[JLong, JList[JLong]],
+      operatorIdx: JLong,
       metrics: NativeMetrics,
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): Unit = {
-    val mutLength = mutList.size()
-    for (idx <- 0 until mutLength) {
-      val metricsIdx = mutLength - idx - 1
-      mutList.get(idx).updateNativeMetrics(metrics.getOperatorMetric("", metricsIdx))
-      if (idx == 0) {
-        // TODO: currently place the below metrics in the last operator,
-        for (key <- MetricsUtil.COMMON_METRICS.keySet) {
-          metrics.metrics.remove(key)
+      metricsIdx: Int,
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): (JLong, Int) = {
+    val nodeMetricsList = new JArrayList[MetricsData]()
+    var curMetricsIdx = metricsIdx
+    relMap
+      .get(operatorIdx)
+      .forEach(
+        idx => {
+          nodeMetricsList.add(metrics.metricsDataList.get(idx.toInt))
+          curMetricsIdx -= 1
+        })
+
+    JCollections.reverse(nodeMetricsList)
+    val operatorMetrics = new OperatorMetrics(
+      nodeMetricsList,
+      joinParamsMap.getOrDefault(operatorIdx, null),
+      aggParamsMap.getOrDefault(operatorIdx, null))
+    mutNode.updater.updateNativeMetrics(operatorMetrics)
+
+    var newOperatorIdx: java.lang.Long = operatorIdx - 1
+
+    mutNode.children.foreach {
+      child =>
+        if (child.updater != NoopMetricsUpdater) {
+          val result = updateTransformerMetricsInternal(
+            child,
+            relMap,
+            newOperatorIdx,
+            metrics,
+            curMetricsIdx,
+            joinParamsMap,
+            aggParamsMap)
+          newOperatorIdx = result._1
+          curMetricsIdx = result._2
         }
-      }
     }
+    (newOperatorIdx, curMetricsIdx)
   }
 
-  /** Set the metrics for each operator */
-  def updateOperatorMetrics(
-      metrics: Map[String, SQLMetric],
-      metricsMap: Map[String, String],
-      operatorMetrics: OperatorMetrics): Unit = {
-    for (keyValue <- metricsMap) {
-      if (metrics.contains(keyValue._2)) {
-        val metricKey = keyValue._1 + "_" + operatorMetrics.currMetricIdx.toString + "_elapsed"
-        metrics(keyValue._2) +=
-          (operatorMetrics.metric.getOrDefault(metricKey, 0L) / 1000L).toLong
-      }
-    }
-    for (keyValue <- MetricsUtil.COMMON_METRICS) {
-      if (metrics.contains(keyValue._2)) {
-        val value = if (keyValue._1.endsWith("_elapsed")) {
-          (operatorMetrics.metric.getOrDefault(keyValue._1, 0L) / 1000L).toLong
-        } else {
-          operatorMetrics.metric.getOrDefault(keyValue._1, 0L).toLong
-        }
-        metrics(keyValue._2) += value
-      }
-    }
+  /** Get all processors */
+  def getAllProcessorList(metricData: MetricsData): Seq[MetricsProcessor] = {
+    metricData.steps.asScala.flatMap(
+      step => {
+        step.processors.asScala
+      })
   }
 
+  /** Update extral time metric by the processors */
+  def updateExtraTimeMetric(
+      metricData: MetricsData,
+      extraTime: SQLMetric,
+      outputRows: SQLMetric,
+      outputBytes: SQLMetric,
+      inputRows: SQLMetric,
+      inputBytes: SQLMetric,
+      includingMetrics: Array[String],
+      planNodeNames: Array[String]): Unit = {
+    val processors = MetricsUtil.getAllProcessorList(metricData)
+    processors.foreach(
+      processor => {
+        if (!includingMetrics.exists(processor.name.startsWith(_))) {
+          extraTime += (processor.time / 1000L).toLong
+        }
+        if (planNodeNames.exists(processor.name.startsWith(_))) {
+          outputRows += processor.outputRows
+          outputBytes += processor.outputBytes
+          inputRows += processor.inputRows
+          inputBytes += processor.inputBytes
+        }
+      })
+  }
 }

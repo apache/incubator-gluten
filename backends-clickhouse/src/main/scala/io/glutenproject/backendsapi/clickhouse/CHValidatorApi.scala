@@ -19,19 +19,24 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.backendsapi.ValidatorApi
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.CHExpressionUtil
+import io.glutenproject.validate.NativePlanValidationInfo
 import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.execution.{CommandResultExec, FileSourceScanExec, RDDScanExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 
 class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
-  override def doValidate(plan: PlanNode): Boolean = {
+
+  override def doNativeValidateWithFailureReason(plan: PlanNode): NativePlanValidationInfo = {
     val validator = new CHNativeExpressionEvaluator()
-    validator.doValidate(plan.toProtobuf.toByteArray)
+    if (validator.doValidate(plan.toProtobuf.toByteArray)) {
+      new NativePlanValidationInfo(1, "")
+    } else {
+      new NativePlanValidationInfo(0, "CH native check failed.")
+    }
   }
 
   /**
@@ -43,52 +48,15 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
    *   true by default
    */
   override def doExprValidate(substraitExprName: String, expr: Expression): Boolean = {
-    CHExpressionUtil.CH_EXPR_BLACKLIST_TYPE_EXISTS.get(substraitExprName) match {
-      case Some(unsupportedTypeSet) =>
-        if (unsupportedTypeSet.contains(CHExpressionUtil.EMPTY_TYPE)) {
-          return false
-        }
-        if (expr.children.map(_.dataType.typeName).exists(unsupportedTypeSet.contains)) {
-          return false
-        }
+    CHExpressionUtil.CH_BLACKLIST_SCALAR_FUNCTION.get(substraitExprName) match {
+      case Some(validator) =>
+        return validator.doValidate(expr)
       case _ =>
     }
-
-    CHExpressionUtil.CH_EXPR_BLACKLIST_TYPE_MATCH.get(substraitExprName) match {
-      case Some(unsupportedTypeSeq) =>
-        if (expr.children.map(_.dataType.typeName).equals(unsupportedTypeSeq)) {
-          return false
-        }
+    CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST.get(substraitExprName) match {
+      case Some(validator) =>
+        return validator.doValidate(expr)
       case _ =>
-    }
-
-    true
-  }
-
-  /**
-   * Validate aggregate function for specific backend. If the aggregate function isn't implemented
-   * by the backend, it will fall back to Vanilla Spark.
-   */
-  override def doAggregateFunctionValidate(
-      substraitFuncName: String,
-      func: AggregateFunction): Boolean = {
-    if (CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST.isEmpty) return true
-    val value = CHExpressionUtil.CH_AGGREGATE_FUNC_BLACKLIST.get(substraitFuncName)
-    if (value.isEmpty) {
-      return true
-    }
-    val inputTypeNames = value.get
-    inputTypeNames.foreach {
-      inputTypeName =>
-        if (inputTypeName.equals(CHExpressionUtil.EMPTY_TYPE)) {
-          return false
-        } else {
-          for (input <- func.children) {
-            if (inputTypeName.equals(input.dataType.typeName)) {
-              return false
-            }
-          }
-        }
     }
     true
   }
@@ -118,5 +86,10 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
     }
 
     !includedUnsupportedPlans.contains(true)
+  }
+
+  /** Validate whether the compression method support splittable at clickhouse backend. */
+  override def doCompressionSplittableValidate(compressionMethod: String): Boolean = {
+    false
   }
 }

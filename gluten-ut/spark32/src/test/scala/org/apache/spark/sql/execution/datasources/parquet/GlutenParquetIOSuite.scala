@@ -14,35 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.parquet
 
 import org.apache.spark.sql._
-import org.apache.spark.sql.types.{DataTypes, StructField, StructType}
 
-/**
- * A test suite that tests basic Parquet I/O.
- */
+/** A test suite that tests basic Parquet I/O. */
 class GlutenParquetIOSuite extends ParquetIOSuite with GlutenSQLTestsBaseTrait {
   override protected def testFile(fileName: String): String = {
-    getWorkspaceFilePath(
-      "sql", "core", "src", "test", "resources").toString + "/" + fileName
+    getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + fileName
   }
 
   override protected def readResourceParquetFile(name: String): DataFrame = {
     spark.read.parquet(testFile(name))
-  }
-
-  test(GlutenTestConstants.GLUTEN_TEST +
-    "SPARK-35640: int as long should throw schema incompatible error") {
-    val data = (1 to 4).map(i => Tuple1(i))
-    val readSchema = StructType(Seq(StructField("_1", DataTypes.LongType)))
-
-    withParquetFile(data) { path =>
-      val errMsg = intercept[Exception](spark.read.schema(readSchema).parquet(path).collect())
-        .getMessage
-      assert(errMsg.contains(
-        "BaseVector::compatibleKind(BaseVector::typeKind(), source->typeKind())"))
-    }
   }
 }

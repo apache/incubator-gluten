@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "SparkRowToCHColumn.h"
 #include <memory>
 #include <Columns/ColumnNullable.h>
@@ -32,15 +48,15 @@ jmethodID SparkRowToCHColumn::spark_row_interator_hasNext = nullptr;
 jmethodID SparkRowToCHColumn::spark_row_interator_next = nullptr;
 jmethodID SparkRowToCHColumn::spark_row_iterator_nextBatch = nullptr;
 
-ALWAYS_INLINE static void writeRowToColumns(std::vector<MutableColumnPtr> & columns, const SparkRowReader & spark_row_reader)
+ALWAYS_INLINE static void writeRowToColumns(const std::vector<MutableColumnPtr> & columns, const SparkRowReader & spark_row_reader)
 {
     auto num_fields = columns.size();
-    const auto & field_types = spark_row_reader.getFieldTypes();
+
     for (size_t i = 0; i < num_fields; i++)
     {
         if (spark_row_reader.supportRawData(i))
         {
-            const StringRef str_ref{std::move(spark_row_reader.getStringRef(i))};
+            const StringRef str_ref{spark_row_reader.getStringRef(i)};
             if (str_ref.data == nullptr)
                 columns[i]->insertData(nullptr, str_ref.size);
             else if (!spark_row_reader.isBigEndianInSparkRow(i))
@@ -59,16 +75,17 @@ std::unique_ptr<Block> SparkRowToCHColumn::convertSparkRowInfoToCHColumn(const S
     const auto num_rows = spark_row_info.getNumRows();
     if (header.columns())
     {
-        *block = std::move(header.cloneEmpty());
-        MutableColumns mutable_columns{std::move(block->mutateColumns())};
+        *block = header.cloneEmpty();
+        MutableColumns mutable_columns{block->mutateColumns()};
         for (size_t col_i = 0; col_i < header.columns(); ++col_i)
             mutable_columns[col_i]->reserve(num_rows);
 
-        DataTypes types{std::move(header.getDataTypes())};
+        DataTypes types{header.getDataTypes()};
         SparkRowReader row_reader(types);
         for (int64_t i = 0; i < num_rows; i++)
         {
-            row_reader.pointTo(spark_row_info.getBufferAddress() + spark_row_info.getOffsets()[i], spark_row_info.getLengths()[i]);
+            row_reader.pointTo(
+                spark_row_info.getBufferAddress() + spark_row_info.getOffsets()[i], static_cast<int32_t>(spark_row_info.getLengths()[i]));
             writeRowToColumns(mutable_columns, row_reader);
         }
         block->setColumns(std::move(mutable_columns));
@@ -78,7 +95,7 @@ std::unique_ptr<Block> SparkRowToCHColumn::convertSparkRowInfoToCHColumn(const S
         // This is a special case for count(1)/count(*)
         *block = BlockUtil::buildRowCountBlock(num_rows);
     }
-    return std::move(block);
+    return block;
 }
 
 void SparkRowToCHColumn::appendSparkRowToCHColumn(SparkRowToCHColumnHelper & helper, char * buffer, int32_t length)
@@ -94,7 +111,7 @@ Block * SparkRowToCHColumn::getBlock(SparkRowToCHColumnHelper & helper)
     auto * block = new Block();
     if (helper.header.columns())
     {
-        *block = std::move(helper.header.cloneEmpty());
+        *block = helper.header.cloneEmpty();
         block->setColumns(std::move(helper.mutable_columns));
     }
     else
@@ -120,19 +137,19 @@ VariableLengthDataReader::VariableLengthDataReader(const DataTypePtr & type_)
 Field VariableLengthDataReader::read(const char * buffer, size_t length) const
 {
     if (which.isStringOrFixedString())
-        return std::move(readString(buffer, length));
+        return readString(buffer, length);
 
     if (which.isDecimal128())
-        return std::move(readDecimal(buffer, length));
+        return readDecimal(buffer, length);
 
     if (which.isArray())
-        return std::move(readArray(buffer, length));
+        return readArray(buffer, length);
 
     if (which.isMap())
-        return std::move(readMap(buffer, length));
+        return readMap(buffer, length);
 
     if (which.isTuple())
-        return std::move(readStruct(buffer, length));
+        return readStruct(buffer, length);
 
     throw Exception(ErrorCodes::UNKNOWN_TYPE, "VariableLengthDataReader doesn't support type {}", type->getName());
 }
@@ -144,22 +161,28 @@ StringRef VariableLengthDataReader::readUnalignedBytes(const char * buffer, size
 
 Field VariableLengthDataReader::readDecimal(const char * buffer, size_t length) const
 {
-    assert(sizeof(Decimal128) <= length);
+    assert(sizeof(Decimal128) >= length);
 
     char decimal128_fix_data[sizeof(Decimal128)] = {};
+
+    if (Int8 (buffer[0]) < 0)
+    {
+        memset(decimal128_fix_data, int('\xff'), sizeof(Decimal128));
+    }
+
     memcpy(decimal128_fix_data + sizeof(Decimal128) - length, buffer, length); // padding
     String buf(decimal128_fix_data, sizeof(Decimal128));
     BackingDataLengthCalculator::swapDecimalEndianBytes(buf); // Big-endian to Little-endian
 
     auto * decimal128 = reinterpret_cast<Decimal128 *>(buf.data());
     const auto * decimal128_type = typeid_cast<const DataTypeDecimal128 *>(type_without_nullable.get());
-    return std::move(DecimalField<Decimal128>(std::move(*decimal128), decimal128_type->getScale()));
+    return DecimalField<Decimal128>(std::move(*decimal128), decimal128_type->getScale());
 }
 
 Field VariableLengthDataReader::readString(const char * buffer, size_t length) const
 {
     String str(buffer, length);
-    return std::move(Field(std::move(str)));
+    return Field(std::move(str));
 }
 
 Field VariableLengthDataReader::readArray(const char * buffer, [[maybe_unused]] size_t length) const
@@ -178,7 +201,7 @@ Field VariableLengthDataReader::readArray(const char * buffer, [[maybe_unused]] 
     const auto * array_type = typeid_cast<const DataTypeArray *>(type_without_nullable.get());
     const auto & nested_type = array_type->getNestedType();
     const auto elem_size = BackingDataLengthCalculator::getArrayElementSize(nested_type);
-    const auto len_values = roundNumberOfBytesToNearestWord(elem_size * num_elems);
+
     Array array;
     array.reserve(num_elems);
 
@@ -189,7 +212,7 @@ Field VariableLengthDataReader::readArray(const char * buffer, [[maybe_unused]] 
         {
             if (isBitSet(buffer + 8, i))
             {
-                array.emplace_back(std::move(Null{}));
+                array.emplace_back(Null{});
             }
             else
             {
@@ -205,7 +228,7 @@ Field VariableLengthDataReader::readArray(const char * buffer, [[maybe_unused]] 
         {
             if (isBitSet(buffer + 8, i))
             {
-                array.emplace_back(std::move(Null{}));
+                array.emplace_back(Null{});
             }
             else
             {
@@ -232,7 +255,7 @@ Field VariableLengthDataReader::readMap(const char * buffer, size_t length) cons
     int64_t key_array_size = 0;
     memcpy(&key_array_size, buffer, 8);
     if (key_array_size == 0 || length == 0)
-        return std::move(Map());
+        return Map();
 
     /// Read UnsafeArrayData of keys
     const auto * map_type = typeid_cast<const DataTypeMap *>(type_without_nullable.get());
@@ -271,7 +294,7 @@ Field VariableLengthDataReader::readStruct(const char * buffer, size_t /*length*
     const auto & field_types = tuple_type->getElements();
     const auto num_fields = field_types.size();
     if (num_fields == 0)
-        return std::move(Tuple());
+        return Tuple();
 
     const auto len_null_bitmap = calculateBitSetWidthInBytes(num_fields);
 
@@ -281,14 +304,14 @@ Field VariableLengthDataReader::readStruct(const char * buffer, size_t /*length*
         const auto & field_type = field_types[i];
         if (isBitSet(buffer, i))
         {
-            tuple[i] = std::move(Null{});
+            tuple[i] = Null{};
             continue;
         }
 
         if (BackingDataLengthCalculator::isFixedLengthDataType(removeNullable(field_type)))
         {
             FixedLengthDataReader reader(field_type);
-            tuple[i] = std::move(reader.read(buffer + len_null_bitmap + i * 8));
+            tuple[i] = reader.read(buffer + len_null_bitmap + i * 8);
         }
         else if (BackingDataLengthCalculator::isVariableLengthDataType(removeNullable(field_type)))
         {
@@ -298,7 +321,7 @@ Field VariableLengthDataReader::readStruct(const char * buffer, size_t /*length*
             const int64_t size = BackingDataLengthCalculator::extractSize(offset_and_size);
 
             VariableLengthDataReader reader(field_type);
-            tuple[i] = std::move(reader.read(buffer + offset, size));
+            tuple[i] = reader.read(buffer + offset, size);
         }
         else
             throw Exception(ErrorCodes::UNKNOWN_TYPE, "VariableLengthDataReader doesn't support type {}", field_type->getName());
@@ -403,7 +426,7 @@ Field FixedLengthDataReader::read(const char * buffer) const
         memcpy(&value, buffer, 4);
 
         const auto * decimal32_type = typeid_cast<const DataTypeDecimal32 *>(type_without_nullable.get());
-        return std::move(DecimalField{value, decimal32_type->getScale()});
+        return DecimalField{value, decimal32_type->getScale()};
     }
 
     if (which.isDecimal64() || which.isDateTime64())
@@ -413,7 +436,7 @@ Field FixedLengthDataReader::read(const char * buffer) const
 
         UInt32 scale = which.isDecimal64() ? typeid_cast<const DataTypeDecimal64 *>(type_without_nullable.get())->getScale()
                                            : typeid_cast<const DataTypeDateTime64 *>(type_without_nullable.get())->getScale();
-        return std::move(DecimalField{value, scale});
+        return DecimalField{value, scale};
     }
     throw Exception(ErrorCodes::UNKNOWN_TYPE, "FixedLengthDataReader doesn't support type {}", type->getName());
 }

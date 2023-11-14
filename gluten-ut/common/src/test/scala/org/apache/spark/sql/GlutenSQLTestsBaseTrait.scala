@@ -14,29 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.utils.SystemParameters
-import org.scalactic.source.Position
-import org.scalatest.Tag
+import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.test.SharedSparkSession
 
-/**
- * Basic trait for Gluten SQL test cases.
- */
+import org.scalactic.source.Position
+import org.scalatest.Tag
+
+/** Basic trait for Gluten SQL test cases. */
 trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTrait {
 
-  override protected def test(testName: String,
-                              testTags: Tag*)(testFun: => Any)(implicit pos: Position): Unit = {
+  override protected def test(testName: String, testTags: Tag*)(testFun: => Any)(implicit
+      pos: Position): Unit = {
     if (shouldRun(testName)) {
       super.test(testName, testTags: _*)(testFun)
     } else {
-      logInfo(s"Ignore test case: ${testName}")
+      logInfo(s"Ignore test case: $testName")
     }
   }
 
@@ -53,14 +50,13 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.warehouse.dir", warehouse)
-      // Avoid static evaluation by spark catalyst. But there are some UT issues
-      // coming from spark, e.g., expecting SparkException is thrown, but the wrapped
-      // exception is thrown.
-      // .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
-      //     NullPropagation.ruleName)
+    // Avoid static evaluation by spark catalyst. But there are some UT issues
+    // coming from spark, e.g., expecting SparkException is thrown, but the wrapped
+    // exception is thrown.
+    // .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
+    //     NullPropagation.ruleName)
 
-    if (BackendsApiManager.getBackendName.equalsIgnoreCase(
-      GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)) {
+    if (BackendTestUtils.isCHBackendLoaded()) {
       conf
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")

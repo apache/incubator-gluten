@@ -14,28 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.OutputStream;
 
 import org.apache.spark.sql.execution.metric.SQLMetric;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 import org.apache.spark.storage.CHShuffleWriteStreamFactory;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.OutputStream;
+
 public class BlockOutputStream implements Closeable {
   private final long instance;
   private final OutputStream outputStream;
 
-  private final byte[] buffer;
-
-  private final int bufferSize;
-
-  private final String defaultCompressionCodec;
-
-  private SQLMetric dataSize;
+  private final SQLMetric dataSize;
 
   private boolean isClosed = false;
 
@@ -45,26 +38,19 @@ public class BlockOutputStream implements Closeable {
       SQLMetric dataSize,
       boolean compressionEnable,
       String defaultCompressionCodec,
-      int bufferSize
-      ) {
+      int bufferSize) {
     OutputStream unwrapOutputStream =
-        CHShuffleWriteStreamFactory
-            .unwrapSparkCompressionOutputStream(outputStream, compressionEnable);
+        CHShuffleWriteStreamFactory.unwrapSparkCompressionOutputStream(
+            outputStream, compressionEnable);
     if (unwrapOutputStream != null) {
       this.outputStream = unwrapOutputStream;
     } else {
       this.outputStream = outputStream;
       compressionEnable = false;
     }
-    this.defaultCompressionCodec = defaultCompressionCodec;
-    this.buffer = buffer;
-    this.bufferSize = bufferSize;
     this.instance =
-        nativeCreate(this.outputStream,
-            this.buffer,
-            this.defaultCompressionCodec,
-            compressionEnable,
-            this.bufferSize);
+        nativeCreate(
+            this.outputStream, buffer, defaultCompressionCodec, compressionEnable, bufferSize);
     this.dataSize = dataSize;
   }
 
@@ -82,10 +68,9 @@ public class BlockOutputStream implements Closeable {
   private native void nativeFlush(long instance);
 
   public void write(ColumnarBatch cb) {
-    CHNativeBlock.fromColumnarBatch(cb).ifPresent(block -> {
-      dataSize.add(block.totalBytes());
-      nativeWrite(instance, block.blockAddress());
-    });
+    CHNativeBlock block = CHNativeBlock.fromColumnarBatch(cb);
+    dataSize.add(block.totalBytes());
+    nativeWrite(instance, block.blockAddress());
   }
 
   public void flush() throws IOException {
@@ -105,6 +90,7 @@ public class BlockOutputStream implements Closeable {
 
   @Override
   protected void finalize() throws Throwable {
+    // FIXME: finalize
     close();
   }
 }

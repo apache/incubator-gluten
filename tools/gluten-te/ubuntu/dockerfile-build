@@ -47,7 +47,8 @@ RUN ccache -M 128G
 RUN ccache -s
 
 # Default Gluten Maven build options (empty as of now)
-ENV GLUTEN_MAVEN_OPTIONS=""
+ENV GLUTEN_MAVEN_OPTIONS=
+RUN set-login-env "GLUTEN_MAVEN_OPTIONS="
 
 ARG BUILD_BACKEND_TYPE
 
@@ -59,6 +60,7 @@ RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
       DEPS_INSTALL_SCRIPT="bash /opt/gluten/dev/builddeps-veloxbe.sh --build_type=$GLUTEN_BUILD_TYPE --enable_ep_cache=ON"; \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                            -Pbackends-velox \
+                           -Prss \
                            -DskipTests \
                            -Dscalastyle.skip=true \
                            -Dcheckstyle.skip=true"; \

@@ -24,16 +24,19 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseLog
+import org.apache.spark.sql.types.{StructField, StructType}
 
 import org.apache.commons.io.FileUtils
 
 import java.io.File
+import java.util
 
 import scala.io.Source
-import scala.language.postfixOps
 
-abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
-  private var _spark: SparkSession = null
+abstract class GlutenClickHouseTPCDSAbstractSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
+  with Logging {
+  private var _spark: SparkSession = _
 
   override protected def spark: SparkSession = _spark
   override protected val backend: String = "ch"
@@ -50,57 +53,63 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
   protected val tpcdsQueries: String
   protected val queriesResults: String
 
-  protected val tpcdsAllQueries: Seq[String] =
+  /** Return values: (sql num, is fall back, skip fall back assert) */
+  def tpcdsAllQueries(isAqe: Boolean): Seq[(String, Boolean, Boolean)] =
     Range
       .inclusive(1, 99)
       .flatMap(
         queryNum => {
-          if (queryNum == 14 || queryNum == 23 || queryNum == 24 || queryNum == 39) {
+          val sqlNums = if (queryNum == 14 || queryNum == 23 || queryNum == 24 || queryNum == 39) {
             Seq("q" + "%d".format(queryNum) + "a", "q" + "%d".format(queryNum) + "b")
           } else {
             Seq("q" + "%d".format(queryNum))
           }
+          val noFallBack = queryNum match {
+            case i
+                if i == 10 || i == 16 || i == 28 || i == 35 || i == 45 || i == 77 ||
+                  i == 88 || i == 90 || i == 94 =>
+              // Q10 BroadcastHashJoin, ExistenceJoin
+              // Q16 ShuffledHashJoin, NOT condition
+              // Q28 BroadcastNestedLoopJoin
+              // Q35 BroadcastHashJoin, ExistenceJoin
+              // Q45 BroadcastHashJoin, ExistenceJoin
+              // Q77 CartesianProduct
+              // Q88 BroadcastNestedLoopJoin
+              // Q90 BroadcastNestedLoopJoin
+              // Q94 BroadcastHashJoin, LeftSemi, NOT condition
+              (false, false)
+            case j if j == 38 || j == 87 =>
+              // Q38 and Q87 : Hash shuffle is not supported for expression in some case
+              if (isAqe) {
+                (true, true)
+              } else {
+                (false, true)
+              }
+            case other => (true, false)
+          }
+          sqlNums.map((_, noFallBack._1, noFallBack._2))
         })
 
-  protected val excludedTpcdsQueries: Set[String] = Set(
-    "q4",
-    "q5",
-    "q8",
-    "q14a",
-    "q14b",
-    "q16",
-    "q17",
-    "q18",
-    "q24a",
-    "q24b",
-    "q27",
-    "q31",
-    "q32",
-    "q36",
-    "q39a",
-    "q39b",
-    "q47",
-    "q49",
-    "q57",
-    "q61",
-    "q64",
-    "q67",
-    "q70",
-    "q71",
-    "q74",
-    "q75",
-    "q77",
-    "q78",
-    "q80",
-    "q83",
-    "q86",
-    "q90",
-    "q92",
-    "q94",
-    "q99"
+  // FIXME "q17", stddev_samp inconsistent results, CH return NaN, Spark return null
+  protected def excludedTpcdsQueries: Set[String] = Set(
+    "q18", // inconsistent results
+    "q61", // inconsistent results
+    "q67" // inconsistent results
   )
 
-  protected val independentTestTpcdsQueries: Set[String] = Set("q9", "q21")
+  def executeTPCDSTest(isAqe: Boolean): Unit = {
+    tpcdsAllQueries(isAqe).foreach(
+      s =>
+        if (excludedTpcdsQueries.contains(s._1)) {
+          ignore(s"TPCDS ${s._1.toUpperCase()}") {
+            runTPCDSQuery(s._1, noFallBack = s._2, skipFallBackAssert = s._3) { df => }
+          }
+        } else {
+          test(s"TPCDS ${s._1.toUpperCase()}") {
+            runTPCDSQuery(s._1, noFallBack = s._2, skipFallBackAssert = s._3) { df => }
+          }
+        })
+  }
 
   override def beforeAll(): Unit = {
     // prepare working paths
@@ -121,7 +130,6 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       _spark = SparkSession
         .builder()
         .appName("Gluten-UT-TPC_DS")
-        .master(s"local[8]")
         .config(sparkConf)
         .getOrCreate()
     }
@@ -142,11 +150,12 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.size == 24)
+    assert(result.length == 24)
   }
 
   override protected def sparkConf: SparkConf = {
     super.sparkConf
+      .setMaster("local[8]")
       .set("spark.sql.files.maxPartitionBytes", "1g")
       .set("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
       .set("spark.sql.shuffle.partitions", "5")
@@ -165,8 +174,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
       .set("spark.sql.warehouse.dir", warehouse)
+      .set("spark.sql.decimalOperations.allowPrecisionLoss", "false")
     /* .set("spark.sql.catalogImplementation", "hive")
     .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
       metaStorePathAbsolute + "/metastore_db"};create=true") */
@@ -202,24 +211,42 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       queryNum: String,
       tpcdsQueries: String = tpcdsQueries,
       queriesResults: String = queriesResults,
-      compareResult: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
+      compareResult: Boolean = true,
+      noFallBack: Boolean = true,
+      skipFallBackAssert: Boolean = false)(customCheck: DataFrame => Unit): Unit = {
 
     val sqlFile = tpcdsQueries + "/" + queryNum + ".sql"
     val df = spark.sql(Source.fromFile(new File(sqlFile), "UTF-8").mkString)
 
     if (compareResult) {
+      val fields = new util.ArrayList[StructField]()
+      for (elem <- df.schema) {
+        fields.add(
+          StructField
+            .apply(elem.name + fields.size().toString, elem.dataType, elem.nullable, elem.metadata))
+      }
+
       var expectedAnswer: Seq[Row] = null
       withSQLConf(vanillaSparkConfs(): _*) {
         expectedAnswer = spark.read
           .option("delimiter", "|-|")
           .option("nullValue", "null")
-          .schema(df.schema)
+          .schema(StructType.apply(fields))
           .csv(queriesResults + "/" + queryNum + ".out")
           .toDF()
           .collect()
       }
       checkAnswer(df, expectedAnswer)
+      // using WARN to guarantee printed
+      log.warn(s"query: $queryNum, finish comparing with saved result")
+    } else {
+      val start = System.currentTimeMillis();
+      val ret = df.collect()
+      // using WARN to guarantee printed
+      log.warn(s"query: $queryNum skipped comparing, time cost to collect: ${System
+          .currentTimeMillis() - start} ms, ret size: ${ret.length}")
     }
+    WholeStageTransformerSuite.checkFallBack(df, noFallBack, skipFallBackAssert)
     customCheck(df)
   }
 }

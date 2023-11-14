@@ -14,27 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
+import io.glutenproject.substrait.type.I64TypeNode;
+import io.glutenproject.substrait.type.TypeNode;
 
-import java.io.Serializable;
+import io.substrait.proto.Expression.Literal.Builder;
 
-public class LongLiteralNode implements ExpressionNode, Serializable {
-  private final Long value;
-
+public class LongLiteralNode extends LiteralNodeWithValue<Long> {
   public LongLiteralNode(Long value) {
-    this.value = value;
+    super(value, new I64TypeNode(true));
+  }
+
+  public LongLiteralNode(Long value, TypeNode typeNode) {
+    super(value, typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
-    Expression.Literal.Builder longBuilder = Expression.Literal.newBuilder();
-    longBuilder.setI64(value);
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(longBuilder.build());
-    return builder.build();
+  protected void updateLiteralBuilder(Builder literalBuilder, Long value) {
+    literalBuilder.setI64(value);
   }
 }

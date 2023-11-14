@@ -33,13 +33,18 @@ import org.apache.spark.sql.execution.datasources.text.{GlutenTextV1Suite, Glute
 import org.apache.spark.sql.execution.datasources.v2.GlutenFileTableSuite
 import org.apache.spark.sql.execution.exchange.GlutenEnsureRequirementsSuite
 import org.apache.spark.sql.execution.joins.{GlutenBroadcastJoinSuite, GlutenExistenceJoinSuite, GlutenInnerJoinSuite, GlutenOuterJoinSuite}
-import org.apache.spark.sql.extension.{GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
+import org.apache.spark.sql.extension.{GlutenCustomerExpressionTransformerSuite, GlutenCustomerExtensionSuite, GlutenSessionExtensionSuite}
+import org.apache.spark.sql.hive.execution.GlutenHiveSQLQuerySuite
 import org.apache.spark.sql.sources.{GlutenBucketedReadWithoutHiveSupportSuite, GlutenBucketedWriteWithoutHiveSupportSuite, GlutenCreateTableAsSelectSuite, GlutenDDLSourceLoadSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuite, GlutenDisableUnnecessaryBucketedScanWithoutHiveSupportSuiteAE, GlutenExternalCommandRunnerSuite, GlutenFilteredScanSuite, GlutenFiltersSuite, GlutenInsertSuite, GlutenPartitionedWriteSuite, GlutenPathOptionSuite, GlutenPrunedScanSuite, GlutenResolvedDataSourceSuite, GlutenSaveLoadSuite, GlutenTableScanSuite}
+
+// Some settings' line length exceeds 100
+// scalastyle:off line.size.limit
 
 class VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenSessionExtensionSuite]
   enableSuite[GlutenCustomerExtensionSuite]
+  enableSuite[GlutenCustomerExpressionTransformerSuite]
 
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude(
@@ -53,41 +58,39 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("cast from float")
-    .exclude("cast from double")
-    .exclude("from decimal")
-    .exclude("cast string to date #2")
-    .exclude("casting to fixed-precision decimals")
-    .exclude("cast from date")
+    // User defined type.
     .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
-    .exclude("Fast fail for cast string type to decimal type")
-    .exclude("missing cases - from boolean")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOff]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
   enableSuite[GlutenAnsiCastSuiteWithAnsiModeOn]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
 
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude(
       "Process Infinity, -Infinity, NaN in case insensitive manner" // +inf not supported in folly.
     )
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
 
   enableSuite[GlutenTryCastSuite]
     .exclude(
@@ -97,9 +100,10 @@ class VeloxTestSettings extends BackendTestSettings {
       "cast from map II",
       "cast from struct II"
     )
+    // Timezone.
     .exclude("SPARK-35711: cast timestamp without time zone to timestamp with local time zone")
+    // Timezone.
     .exclude("SPARK-35719: cast timestamp with local time zone to timestamp without timezone")
-    .exclude("Fast fail for cast string type to decimal type in ansi mode")
 
   enableSuite[GlutenDataFrameSuite]
     // Rewrite these tests because it checks Spark's physical operators.
@@ -118,12 +122,11 @@ class VeloxTestSettings extends BackendTestSettings {
       "NaN is greater than all other non-NaN numeric values",
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
-      // The describe issue is just fixed by https://github.com/apache/spark/pull/40914.
-      // We can enable the below test for spark 3.4 and higher versions.
-      "Gluten - describe",
-      // decimal failed ut.
-      "SPARK-22271: mean overflows and returns null for some decimal variables"
+      // Not supported for approx_count_distinct
+      "SPARK-34165: Add count_distinct to summary"
     )
+    // Double precision loss: https://github.com/facebookincubator/velox/pull/6051#issuecomment-1731028215.
+    .exclude("SPARK-22271: mean overflows and returns null for some decimal variables")
 
   enableSuite[GlutenDataFrameNaFunctionsSuite]
     .exclude(
@@ -134,8 +137,16 @@ class VeloxTestSettings extends BackendTestSettings {
 
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffWSCGOnDisableProject]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffWSCGOffDisableProject]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffWSCGOnDisableProject]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffWSCGOffDisableProject]
 
   enableSuite[GlutenAdaptiveQueryExecSuite]
     .includeByPrefix(
@@ -171,58 +182,51 @@ class VeloxTestSettings extends BackendTestSettings {
     )
 
   enableSuite[GlutenLiteralExpressionSuite]
+    // Rewrite to exclude user-defined type case.
     .exclude("default")
-    .exclude("decimal")
+
   enableSuite[GlutenIntervalExpressionsSuite]
-    .exclude("seconds")
-    .exclude("ANSI: extract days, hours, minutes and seconds")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenHashExpressionsSuite]
-    .exclude("SPARK-30633: xxHash with different type seeds")
   enableSuite[GlutenCollectionExpressionsSuite]
+    // Random.
     .exclude("Map Concat")
+    // Random.
     .exclude("Shuffle")
+    // TODO: ArrayDistinct should handle duplicated Double.NaN
+    .excludeByPrefix("SPARK-36741")
+    // TODO: ArrayIntersect should handle duplicated Double.NaN
+    .excludeByPrefix("SPARK-36754")
+    .exclude("Concat")
   enableSuite[GlutenDateExpressionsSuite]
-    // Has exception in fallback execution when we use resultDF.collect in evaluation.
-    .exclude("DATE_FROM_UNIX_DATE", "TIMESTAMP_MICROS")
-    .exclude("DayOfYear")
-    .exclude("Year")
-    .exclude("Quarter")
-    .exclude("Month")
-    .exclude("Day / DayOfMonth")
-    .exclude("DayOfWeek")
-    .exclude("extract the seconds part with fraction from timestamps")
+    // Rewrite because Spark collect causes long overflow.
+    .exclude("TIMESTAMP_MICROS")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("unix_timestamp")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("to_unix_timestamp")
+    // Unsupported format: yyyy-MM-dd HH:mm:ss.SSS
+    .exclude("SPARK-33498: GetTimestamp,UnixTimestamp,ToUnixTimestamp with parseError")
+    // Replaced by a gluten test to pass timezone through config.
+    .exclude("DateFormat")
   enableSuite[GlutenDecimalExpressionSuite]
-    .exclude("MakeDecimal")
   enableSuite[GlutenStringFunctionsSuite]
   enableSuite[GlutenRegexpExpressionsSuite]
+  enableSuite[GlutenNullExpressionsSuite]
   enableSuite[GlutenPredicateSuite]
-    .exclude("BinaryComparison: lessThan")
-    .exclude("BinaryComparison: LessThanOrEqual")
-    .exclude("BinaryComparison: GreaterThan")
-    .exclude("BinaryComparison: GreaterThanOrEqual")
-    .exclude("SPARK-32764: compare special double/float values")
   enableSuite[GlutenMathExpressionsSuite]
-    .exclude("cos")
-    .exclude("cosh")
-    .exclude("toDegrees")
-    .exclude("toRadians")
-    .exclude("cbrt")
-    .exclude("exp")
-    .exclude("log10")
-    .exclude("log2")
-    .exclude("pow")
-    .exclude("atan2")
+    // Spark round UT for round(3.1415,3) is not correct.
+    .exclude("round/bround")
   enableSuite[GlutenMathFunctionsSuite]
   enableSuite[GlutenSortOrderExpressionsSuite]
   enableSuite[GlutenBitwiseExpressionsSuite]
   enableSuite[GlutenStringExpressionsSuite]
-    .exclude("Substring")
-    .exclude("string for ascii")
-    .exclude("replace")
+    .exclude("concat")
   enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
+    // No need due to testing framework change.
     .exclude("MonotonicallyIncreasingID")
+    // No need due to testing framework change.
     .exclude("SparkPartitionID")
   enableSuite[GlutenRandomSuite]
     .exclude("random")
@@ -235,16 +239,21 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameWindowFunctionsSuite]
     // Spill not supported yet.
     .exclude("Window spill with more than the inMemoryThreshold and spillThreshold")
+    .exclude("SPARK-21258: complex object in combination with spilling")
     .exclude("NaN and -0.0 in window partition keys") // NaN case
     // Rewrite with NaN test cases excluded.
     .exclude("covar_samp, var_samp (variance), stddev_samp (stddev) functions in specific window")
     .exclude("corr, covar_pop, stddev_pop functions in specific window")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
-    .exclude("CreateMap")
-    .exclude("MapFromArrays")
   enableSuite[GlutenDateFunctionsSuite]
+    // The below two are replaced by two modified versions.
+    .exclude("unix_timestamp")
+    .exclude("to_unix_timestamp")
   enableSuite[GlutenDataFrameFunctionsSuite]
+    // blocked by Velox-5768
+    .exclude("aggregate function - array for primitive type containing null")
+    .exclude("aggregate function - array for non-primitive type")
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]
   enableSuite[GlutenDataFrameStatSuite]
@@ -260,6 +269,12 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.
     )
   enableSuite[GlutenDataFrameWindowFramesSuite]
+    // Local window fixes are not added.
+    .exclude("range between should accept int/long values as boundary")
+    .exclude("unbounded preceding/following range between with aggregation")
+    .exclude("sliding range between with aggregation")
+    .exclude("store and retrieve column stats in different time zones")
+    .exclude("rows between should accept int/long values as boundary")
   enableSuite[GlutenColumnExpressionSuite]
   enableSuite[GlutenDataFrameImplicitsSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
@@ -267,6 +282,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameSessionWindowingSuite]
   enableSuite[GlutenBroadcastExchangeSuite]
   enableSuite[GlutenDataFramePivotSuite]
+    // substring issue
+    .exclude("pivot with column definition in groupby")
   enableSuite[GlutenReuseExchangeAndSubquerySuite]
   enableSuite[GlutenSameResultSuite]
   // spill not supported yet.
@@ -299,9 +316,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite from ORC scan to Parquet scan because ORC is not well supported.
     .exclude("SPARK-28156: self-join should not miss cached view")
     .exclude("SPARK-33338: GROUP BY using literal map should not fail")
-    // Rewrite from ORC scan to Parquet scan because ORC is not well supported. Also disabled
-    // Spark vectorized reading because Spark's columnar output is not compatible with Velox's.
-    .exclude("SPARK-33593: Vector reader got incorrect data with binary partition value")
     // Rewrite to disable plan check for SMJ because SHJ is preferred in Gluten.
     .exclude("SPARK-11111 null-safe join should not use cartesian product")
     // Rewrite to change the information of a caught exception.
@@ -314,6 +328,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not useful and time consuming.
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
+    // ReaderFactory is not registered for format orc.
+    .exclude("SPARK-33593: Vector reader got incorrect data with binary partition value")
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]
@@ -348,13 +364,19 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Return correct results when data columns overlap with partition " +
       "columns (nested data)")
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
+    // ReaderFactory is not registered for format orc.
+    .exclude("SPARK-15474 Write and read back non-empty schema with empty dataframe - orc")
+    .exclude("SPARK-23271 empty RDD when saved should write a metadata only file - orc")
+    .exclude("SPARK-22146 read files containing special characters using orc")
+    .exclude("Do not use cache on overwrite")
+    .exclude("Do not use cache on append")
+    .exclude("File source v2: support partition pruning")
+    .exclude("File source v2: support passing data filters to FileScan without partitionFilters")
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")
   enableSuite[GlutenCoalesceShufflePartitionsSuite]
-    // Rewrite with columnar operators
     .excludeByPrefix("SPARK-24705")
-    .excludeByPrefix("SPARK-34790")
     .excludeByPrefix("determining the number of reducers")
   enableSuite[GlutenFileSourceCharVarcharTestSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
@@ -368,8 +390,15 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCSVv2Suite]
   enableSuite[GlutenCSVLegacyTimeParserSuite]
   enableSuite[GlutenJsonV1Suite]
+    // FIXME: Array direct selection fails
+    .exclude("Complex field and type inferring")
+    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonV2Suite]
+    .exclude("Complex field and type inferring")
+    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonLegacyTimeParserSuite]
+    .exclude("Complex field and type inferring")
+    .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenTextV1Suite]
   enableSuite[GlutenTextV2Suite]
   enableSuite[GlutenOrcColumnarBatchReaderSuite]
@@ -378,11 +407,13 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenOrcPartitionDiscoverySuite]
     .exclude("read partitioned table - normal case")
     .exclude("read partitioned table - with nulls")
+    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcV1PartitionDiscoverySuite]
     .exclude("read partitioned table - normal case")
     .exclude("read partitioned table - with nulls")
     .exclude("read partitioned table - partition key included in orc file")
     .exclude("read partitioned table - with nulls and partition keys are included in Orc file")
+    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcV1QuerySuite]
     // Rewrite to disable Spark's columnar reader.
     .exclude("Simple selection form ORC table")
@@ -425,6 +456,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-37463: read/write Timestamp ntz to Orc with different time zone")
     .exclude("SPARK-39381: Make vectorized orc columar writer batch size configurable")
     .exclude("SPARK-39830: Reading ORC table that requires type promotion may throw AIOOBE")
+    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcV2QuerySuite]
     .exclude("Read/write binary data")
     .exclude("Read/write all types with non-primitive type")
@@ -466,6 +498,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-5309 strings stored using dictionary compression in orc")
     // For exception test.
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
+    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcSourceSuite]
     // Rewrite to disable Spark's columnar reader.
     .exclude("SPARK-31238: compatibility with Spark 2.4 in reading dates")
@@ -483,6 +516,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Gluten - SPARK-31238: compatibility with Spark 2.4 in reading dates")
     .exclude("Gluten - SPARK-31238, SPARK-31423: rebasing dates in write")
     .exclude("Gluten - SPARK-34862: Support ORC vectorized reader for nested column")
+    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcV1FilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcV1SchemaPruningSuite]
@@ -625,6 +659,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcV2SchemaPruningSuite]
     .exclude(
       "Spark vectorized reader - without partition data column - select only top-level fields")
@@ -760,6 +795,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
+    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenParquetColumnIndexSuite]
   enableSuite[GlutenParquetCompressionCodecPrecedenceSuite]
   enableSuite[GlutenParquetEncodingSuite]
@@ -810,40 +846,52 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-34817: Read UINT_8/UINT_16/UINT_32 from parquet")
     // Exception.
     .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
-    // Rewrite to align exception msg.
+    // Exception msg.
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
+    // Timestamp is read as INT96.
+    .exclude("read dictionary and plain encoded timestamp_millis written as INT64")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
-    .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
-    .exclude(
-      "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
+    // Timezone is not supported yet.
+    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
   enableSuite[GlutenParquetV2PartitionDiscoverySuite]
-    .exclude("SPARK-7847: Dynamic partition directory path escaping and unescaping")
-    .exclude(
-      "SPARK-22109: Resolve type conflicts between strings and timestamps in partition column")
+    // Timezone is not supported yet.
+    .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
+    // Only for testing a type mismatch issue caused by hive (before hive 2.2).
+    // Only reproducible when spark.sql.parquet.enableVectorizedReader=true.
     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("returning batch for wide table")
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
+    // Timestamp is read as INT96.
+    .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
+    .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
+    .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
+    // Rewrite because the filter after datasource is not needed.
+    .exclude(
+      "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
   enableSuite[GlutenParquetV2QuerySuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
+    // Only for testing a type mismatch issue caused by hive (before hive 2.2).
+    // Only reproducible when spark.sql.parquet.enableVectorizedReader=true.
     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
     .exclude("Enabling/disabling ignoreCorruptFiles")
     .exclude("returning batch for wide table")
     // decimal failed ut
     .exclude("SPARK-34212 Parquet should read decimals correctly")
+    // Timestamp is read as INT96.
+    .exclude("SPARK-10634 timestamp written and read as INT64 - truncation")
+    .exclude("Migration from INT96 to TIMESTAMP_MICROS timestamp type")
+    .exclude("SPARK-10365 timestamp written and read as INT64 - TIMESTAMP_MICROS")
+    // Rewrite because the filter after datasource is not needed.
+    .exclude(
+      "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
   // requires resource files from Vanilla spark jar
   // enableSuite[GlutenParquetRebaseDatetimeV1Suite]
   // enableSuite[GlutenParquetRebaseDatetimeV2Suite]
   enableSuite[GlutenParquetV1SchemaPruningSuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
-    .excludeByPrefix("Spark vectorized reader - ")
   enableSuite[GlutenParquetV2SchemaPruningSuite]
-    // spark.sql.parquet.enableVectorizedReader=true not supported
-    .excludeByPrefix("Spark vectorized reader - ")
   enableSuite[GlutenParquetRebaseDatetimeV1Suite]
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
     .excludeByPrefix("SPARK-31159")
@@ -871,6 +919,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // Unsupported compression codec.
     .exclude("write and read - file source parquet - codec: lz4")
   enableSuite[GlutenOrcCodecSuite]
+    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenFileSourceStrategySuite]
     // Plan comparison.
     .exclude("partitioned table - after scan filters")
@@ -904,6 +953,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("hide a nested column in the middle of the leaf struct column")
     .exclude("hide a nested column at the end of the middle struct column")
     .exclude("hide a nested column in the middle of the middle struct column")
+    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenVectorizedOrcReadSchemaSuite]
     // Rewrite to disable Spark's vectorized reading.
     .exclude("change column position")
@@ -925,6 +975,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("change column type from float to double")
     .exclude("Gluten - read byte, int, short, long together")
     .exclude("Gluten - read float and double together")
+    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenMergedOrcReadSchemaSuite]
     .exclude("append column into middle")
     .exclude("add a nested column at the end of the leaf struct column")
@@ -942,6 +993,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("read byte, int, short, long together")
     .exclude("change column type from float to double")
     .exclude("read float and double together")
+    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenParquetReadSchemaSuite]
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenMergedParquetReadSchemaSuite]
@@ -996,13 +1048,11 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSaveLoadSuite]
   enableSuite[GlutenTableScanSuite]
   enableSuite[GlutenDataSourceV2Suite]
-    // Gluten does not support the convert from spark columnar data
-    // to velox columnar data.
-    .exclude("columnar batch scan implementation")
     // Rewrite the following test in GlutenDataSourceV2Suite.
     .exclude("partitioning reporting")
   enableSuite[GlutenApproxCountDistinctForIntervalsQuerySuite]
   enableSuite[GlutenCachedTableSuite]
+    .exclude("InMemoryRelation statistics")
   enableSuite[GlutenConfigBehaviorSuite]
     // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
     .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
@@ -1030,5 +1080,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
   enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
+    .exclude("SPARK-33687: analyze all tables in a specific database")
   enableSuite[FallbackStrategiesSuite]
+  enableSuite[GlutenHiveSQLQuerySuite]
+    // ReaderFactory is not registered for format orc.
+    .exclude("hive orc scan")
 }
+// scalastyle:on line.size.limit

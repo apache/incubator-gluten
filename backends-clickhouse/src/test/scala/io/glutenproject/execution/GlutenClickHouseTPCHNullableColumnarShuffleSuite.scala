@@ -63,7 +63,7 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
       runTPCHQuery(3) {
         df =>
           val shjBuildLeft = df.queryExecution.executedPlan.collect {
-            case shj: ShuffledHashJoinExecTransformer if shj.joinBuildSide == BuildLeft => shj
+            case shj: ShuffledHashJoinExecTransformerBase if shj.joinBuildSide == BuildLeft => shj
           }
           assert(shjBuildLeft.size == 2)
       }
@@ -148,7 +148,7 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
   }
 
   test("TPCH Q16") {
-    runTPCHQuery(16) { df => }
+    runTPCHQuery(16, noFallBack = false) { df => }
   }
 
   test("TPCH Q17") {
@@ -171,38 +171,33 @@ class GlutenClickHouseTPCHNullableColumnarShuffleSuite extends GlutenClickHouseT
     runTPCHQuery(20) { df => }
   }
 
+  test("TPCH Q21") {
+    runTPCHQuery(21, noFallBack = false) { df => }
+  }
+
   test("TPCH Q22") {
     runTPCHQuery(22) { df => }
   }
 
   test("test 'select count(*) from table'") {
-    val df = spark.sql("""
-                         |select count(*) from lineitem
-                         |""".stripMargin)
-    val result = df.collect()
+    val result = runSql("""
+                          |select count(*) from lineitem
+                          |""".stripMargin) { _ => }
   }
 
   test("test 'select count(*)'") {
-    val df = spark.sql("""
-                         |select count(*) from lineitem
-                         |where l_quantity < 24
-                         |""".stripMargin)
-    val result = df.collect()
+    val result = runSql("""
+                          |select count(*) from lineitem
+                          |where l_quantity < 24
+                          |""".stripMargin) { _ => }
     assert(result(0).getLong(0) == 275436L)
   }
 
   test("test 'select count(1)'") {
-    val df = spark.sql("""
-                         |select count(1) from lineitem
-                         |where l_quantity < 20
-                         |""".stripMargin)
-    val result = df.collect()
+    val result = runSql("""
+                          |select count(1) from lineitem
+                          |where l_quantity < 20
+                          |""".stripMargin) { _ => }
     assert(result(0).getLong(0) == 227302L)
-  }
-
-  ignore("TPCH Q21") {
-    withSQLConf(
-      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")) {}
   }
 }

@@ -20,9 +20,13 @@
   <parent>
     <groupId>io.glutenproject</groupId>
     <artifactId>gluten-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>1.1.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
+
+  <modules>
+    <module>common</module>
+  </modules>
 
   <artifactId>gluten-ut</artifactId>
   <packaging>pom</packaging>
@@ -54,7 +58,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
+      <artifactId>spark-hive_${scala.binary.version}</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -151,24 +155,48 @@
     </dependency>
   </dependencies>
 
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>net.alchim31.maven</groupId>
+          <artifactId>scala-maven-plugin</artifactId>
+          <configuration>
+            <displayCmd>true</displayCmd>
+            <jvmArgs>
+              <jvmArg>-Xss128m</jvmArg>
+            </jvmArgs>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.scalastyle</groupId>
+          <artifactId>scalastyle-maven-plugin</artifactId>
+        </plugin>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
   <profiles>
     <profile>
       <id>spark-3.2</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <properties>
-      </properties>
       <modules>
         <module>spark32</module>
-        <module>common</module>
       </modules>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <modules>
         <module>spark33</module>
-        <module>common</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <modules>
+        <module>spark34</module>
       </modules>
     </profile>
   </profiles>

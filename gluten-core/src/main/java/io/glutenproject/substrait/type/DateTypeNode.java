@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.type;
 
 import io.substrait.proto.Type;
@@ -24,7 +23,7 @@ import java.io.Serializable;
 public class DateTypeNode implements TypeNode, Serializable {
   private final Boolean nullable;
 
-  DateTypeNode(Boolean nullable) {
+  public DateTypeNode(Boolean nullable) {
     this.nullable = nullable;
   }
 

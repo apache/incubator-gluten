@@ -1,45 +1,67 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "ParquetFormatFile.h"
-// clang-format off
+
 #if USE_PARQUET
 
 #include <memory>
-#include <string>
+#include <numeric>
 #include <utility>
 
-#include <parquet/arrow/reader.h>
-#include <Common/Config.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Formats/FormatFactory.h>
 #include <Formats/FormatSettings.h>
 #include <IO/SeekableReadBuffer.h>
-#include <Storages/ArrowParquetBlockInputFormat.h>
 #include <Processors/Formats/Impl/ArrowBufferedStreams.h>
-#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
 #include <Processors/Formats/Impl/ArrowColumnToCHColumn.h>
+#include <Processors/Formats/Impl/ParquetBlockInputFormat.h>
+#include <Storages/ArrowParquetBlockInputFormat.h>
+#include <Storages/SubstraitSource/SubstraitFileSourceStep.h>
+#include <parquet/arrow/reader.h>
+#include <parquet/metadata.h>
+#include <Common/Exception.h>
 
-// clang-format on
 namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int BAD_ARGUMENTS;
+extern const int BAD_ARGUMENTS;
+extern const int UNKNOWN_TYPE;
 }
 }
 
 namespace local_engine
 {
 ParquetFormatFile::ParquetFormatFile(
-    DB::ContextPtr context_, const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_, ReadBufferBuilderPtr read_buffer_builder_)
-    : FormatFile(context_, file_info_, read_buffer_builder_)
+    DB::ContextPtr context_,
+    const substrait::ReadRel::LocalFiles::FileOrFiles & file_info_,
+    ReadBufferBuilderPtr read_buffer_builder_,
+    bool use_local_format_)
+    : FormatFile(context_, file_info_, read_buffer_builder_), use_local_format(use_local_format_)
 {
 }
 
 FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block & header)
 {
     auto res = std::make_shared<FormatFile::InputFormat>();
-    res->read_buffer = std::move(read_buffer_builder->build(file_info));
+    res->read_buffer = read_buffer_builder->build(file_info);
 
     std::vector<RowGroupInfomation> required_row_groups;
-    [[maybe_unused]] int total_row_groups = 0;
+    int total_row_groups = 0;
     if (auto * seekable_in = dynamic_cast<DB::SeekableReadBuffer *>(res->read_buffer.get()))
     {
         // reuse the read_buffer to avoid opening the file twice.
@@ -51,42 +73,37 @@ FormatFile::InputFormatPtr ParquetFormatFile::createInputFormat(const DB::Block 
         required_row_groups = collectRequiredRowGroups(total_row_groups);
 
     auto format_settings = DB::getFormatSettings(context);
-// clang-format off
-#if USE_LOCAL_FORMATS
-    // clang-format on
-    format_settings.parquet.import_nested = true;
 
-    std::vector<int> row_group_indices;
-    row_group_indices.reserve(required_row_groups.size());
-    for (const auto & row_group : required_row_groups)
-        row_group_indices.emplace_back(row_group.index);
+    if (use_local_format)
+    {
+        std::vector<int> row_group_indices;
+        row_group_indices.reserve(required_row_groups.size());
+        for (const auto & row_group : required_row_groups)
+            row_group_indices.emplace_back(row_group.index);
 
-    auto input_format
-        = std::make_shared<local_engine::ArrowParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, row_group_indices);
-// clang-format off
-#else
-    // clang-format on
-    std::vector<int> total_row_group_indices(total_row_groups);
-    std::iota(total_row_group_indices.begin(), total_row_group_indices.end(), 0);
+        res->input
+            = std::make_shared<local_engine::ArrowParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, row_group_indices);
+    }
+    else
+    {
+        std::vector<int> total_row_group_indices(total_row_groups);
+        std::iota(total_row_group_indices.begin(), total_row_group_indices.end(), 0);
 
-    std::vector<int> required_row_group_indices(required_row_groups.size());
-    for (size_t i = 0; i < required_row_groups.size(); ++i)
-        required_row_group_indices[i] = required_row_groups[i].index;
+        std::vector<int> required_row_group_indices(required_row_groups.size());
+        for (size_t i = 0; i < required_row_groups.size(); ++i)
+            required_row_group_indices[i] = required_row_groups[i].index;
 
-    std::vector<int> skip_row_group_indices;
-    std::set_difference(
-        total_row_group_indices.begin(),
-        total_row_group_indices.end(),
-        required_row_group_indices.begin(),
-        required_row_group_indices.end(),
-        std::back_inserter(skip_row_group_indices));
+        std::vector<int> skip_row_group_indices;
+        std::set_difference(
+            total_row_group_indices.begin(),
+            total_row_group_indices.end(),
+            required_row_group_indices.begin(),
+            required_row_group_indices.end(),
+            std::back_inserter(skip_row_group_indices));
 
-    format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
-    auto input_format = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings);
-// clang-format off
-#endif
-    // clang-format on
-    res->input = input_format;
+        format_settings.parquet.skip_row_groups = std::unordered_set<int>(skip_row_group_indices.begin(), skip_row_group_indices.end());
+        res->input = std::make_shared<DB::ParquetBlockInputFormat>(*(res->read_buffer), header, format_settings, 1, 8192);
+    }
     return res;
 }
 
@@ -134,16 +151,29 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
 
     std::vector<RowGroupInfomation> row_group_metadatas;
     row_group_metadatas.reserve(total_row_groups);
+
+    auto get_column_start_offset = [&](parquet::ColumnChunkMetaData & metadata_)
+    {
+        Int64 offset = metadata_.data_page_offset();
+        if (metadata_.has_dictionary_page() && offset > metadata_.dictionary_page_offset())
+            offset = metadata_.dictionary_page_offset();
+        return offset;
+    };
+
     for (int i = 0; i < total_row_groups; ++i)
     {
         auto row_group_meta = file_meta->RowGroup(i);
+        Int64 start_offset = 0;
+        Int64 total_bytes = 0;
+        start_offset = get_column_start_offset(*row_group_meta->ColumnChunk(0));
+        total_bytes = row_group_meta->total_compressed_size();
+        if (!total_bytes)
+            for (int j = 0; j < row_group_meta->num_columns(); ++j)
+                total_bytes += row_group_meta->ColumnChunk(j)->total_compressed_size();
 
-        auto offset = static_cast<UInt64>(row_group_meta->file_offset());
-        if (!offset)
-            offset = static_cast<UInt64>(row_group_meta->ColumnChunk(0)->file_offset());
-
+        UInt64 midpoint_offset = static_cast<UInt64>(start_offset + total_bytes / 2);
         /// Current row group has intersection with the required range.
-        if (file_info.start() <= offset && offset < file_info.start() + file_info.length())
+        if (file_info.start() <= midpoint_offset && midpoint_offset < file_info.start() + file_info.length())
         {
             RowGroupInfomation info;
             info.index = i;
@@ -156,5 +186,6 @@ std::vector<RowGroupInfomation> ParquetFormatFile::collectRequiredRowGroups(DB::
     }
     return row_group_metadatas;
 }
+
 }
 #endif

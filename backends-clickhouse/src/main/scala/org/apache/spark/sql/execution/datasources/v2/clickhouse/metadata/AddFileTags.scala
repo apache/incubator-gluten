@@ -36,6 +36,8 @@ case class AddMergeTreeParts(
     maxBlockNumber: Long,
     level: Int,
     dataVersion: Long,
+    bucketNum: String,
+    dirName: String,
     dataChange: Boolean,
     partition: String = "",
     defaultCompressionCodec: String = "LZ4",
@@ -93,6 +95,8 @@ object AddFileTags {
       maxBlockNumber: Long,
       level: Int,
       dataVersion: Long,
+      bucketNum: String,
+      dirName: String,
       dataChange: Boolean,
       partition: String = "",
       defaultCompressionCodec: String = "LZ4",
@@ -117,7 +121,9 @@ object AddFileTags {
       "maxBlockNumber" -> maxBlockNumber.toString,
       "level" -> level.toString,
       "dataVersion" -> dataVersion.toString,
-      "defaultCompressionCodec" -> defaultCompressionCodec
+      "defaultCompressionCodec" -> defaultCompressionCodec,
+      "bucketNum" -> bucketNum,
+      "dirName" -> dirName
     )
     AddFile(name, partitionValues, bytesOnDisk, modificationTime, dataChange, stats, tags)
   }
@@ -142,6 +148,8 @@ object AddFileTags {
       addFile.tags.get("maxBlockNumber").get.toLong,
       addFile.tags.get("level").get.toInt,
       addFile.tags.get("dataVersion").get.toLong,
+      addFile.tags.get("bucketNum").get,
+      addFile.tags.get("dirName").get,
       addFile.dataChange,
       addFile.tags.get("partition").get,
       addFile.tags.get("defaultCompressionCodec").get,

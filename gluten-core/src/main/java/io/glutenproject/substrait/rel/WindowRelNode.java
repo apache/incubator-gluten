@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.ExpressionNode;
@@ -28,18 +27,20 @@ import io.substrait.proto.WindowRel;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class WindowRelNode implements RelNode, Serializable {
   private final RelNode input;
-  private final ArrayList<WindowFunctionNode> windowFunctionNodes = new ArrayList<>();
-  private final ArrayList<ExpressionNode> partitionExpressions = new ArrayList<>();
-  private final ArrayList<SortField> sorts = new ArrayList<>();
+  private final List<WindowFunctionNode> windowFunctionNodes = new ArrayList<>();
+  private final List<ExpressionNode> partitionExpressions = new ArrayList<>();
+  private final List<SortField> sorts = new ArrayList<>();
   private final AdvancedExtensionNode extensionNode;
 
-  public WindowRelNode(RelNode input,
-                       ArrayList<WindowFunctionNode> windowFunctionNodes,
-                       ArrayList<ExpressionNode> partitionExpressions,
-                       ArrayList<SortField> sorts) {
+  public WindowRelNode(
+      RelNode input,
+      List<WindowFunctionNode> windowFunctionNodes,
+      List<ExpressionNode> partitionExpressions,
+      List<SortField> sorts) {
     this.input = input;
     this.windowFunctionNodes.addAll(windowFunctionNodes);
     this.partitionExpressions.addAll(partitionExpressions);
@@ -47,11 +48,12 @@ public class WindowRelNode implements RelNode, Serializable {
     this.extensionNode = null;
   }
 
-  public WindowRelNode(RelNode input,
-                       ArrayList<WindowFunctionNode> windowFunctionNodes,
-                       ArrayList<ExpressionNode> partitionExpressions,
-                       ArrayList<SortField> sorts,
-                       AdvancedExtensionNode extensionNode) {
+  public WindowRelNode(
+      RelNode input,
+      List<WindowFunctionNode> windowFunctionNodes,
+      List<ExpressionNode> partitionExpressions,
+      List<SortField> sorts,
+      AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.windowFunctionNodes.addAll(windowFunctionNodes);
     this.partitionExpressions.addAll(partitionExpressions);
@@ -76,11 +78,11 @@ public class WindowRelNode implements RelNode, Serializable {
       windowBuilder.addMeasures(measureBuilder.build());
     }
 
-    for(int i = 0; i < partitionExpressions.size(); i ++) {
+    for (int i = 0; i < partitionExpressions.size(); i++) {
       windowBuilder.addPartitionExpressions(i, partitionExpressions.get(i).toProtobuf());
     }
 
-    for(int i = 0; i < sorts.size(); i ++) {
+    for (int i = 0; i < sorts.size(); i++) {
       windowBuilder.addSorts(i, sorts.get(i));
     }
 

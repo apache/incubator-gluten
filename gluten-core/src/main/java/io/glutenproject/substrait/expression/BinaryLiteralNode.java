@@ -14,30 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.expression;
 
-import io.substrait.proto.Expression;
-
-import java.io.Serializable;
+import io.glutenproject.substrait.type.BinaryTypeNode;
+import io.glutenproject.substrait.type.TypeNode;
 
 import com.google.protobuf.ByteString;
+import io.substrait.proto.Expression.Literal.Builder;
 
-public class BinaryLiteralNode implements ExpressionNode, Serializable {
-  private final ByteString value;
-
+public class BinaryLiteralNode extends LiteralNodeWithValue<byte[]> {
   public BinaryLiteralNode(byte[] value) {
-    this.value = ByteString.copyFrom(value);
+    super(value, new BinaryTypeNode(true));
+  }
+
+  public BinaryLiteralNode(byte[] value, TypeNode typeNode) {
+    super(value, typeNode);
   }
 
   @Override
-  public Expression toProtobuf() {
-    Expression.Literal.Builder binaryBuilder =
-        Expression.Literal.newBuilder();
-    binaryBuilder.setBinary(value);
-
-    Expression.Builder builder = Expression.newBuilder();
-    builder.setLiteral(binaryBuilder.build());
-    return builder.build();
+  protected void updateLiteralBuilder(Builder literalBuilder, byte[] value) {
+    literalBuilder.setBinary(ByteString.copyFrom(value));
   }
 }

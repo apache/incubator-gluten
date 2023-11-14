@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi
+
+import io.glutenproject.GlutenPlugin
 
 import java.util.ServiceLoader
 
@@ -23,21 +24,10 @@ import scala.collection.JavaConverters
 
 object BackendsApiManager {
 
-  private case class Wrapper(
-      glutenBackendName: String,
-      initializerApiInstance: InitializerApi,
-      shutdownApiInstance: ShutdownApi,
-      iteratorApiInstance: IteratorApi,
-      sparkPlanExecApiInstance: SparkPlanExecApi,
-      transformerApiInstance: TransformerApi,
-      validatorApiInstance: ValidatorApi,
-      metricsApi: MetricsApi,
-      settings: BackendSettings)
-
-  private lazy val manager: Wrapper = initializeInternal()
+  private lazy val backend: Backend = initializeInternal()
 
   /** Initialize all backends api. */
-  private def initializeInternal(): Wrapper = {
+  private def initializeInternal(): Backend = {
     val discoveredBackends =
       JavaConverters.iterableAsScalaIterable(ServiceLoader.load(classOf[Backend])).toSeq
     if (discoveredBackends.isEmpty) {
@@ -49,16 +39,7 @@ object BackendsApiManager {
           s"${discoveredBackends.map(_.name()).toList}")
     }
     val backend = discoveredBackends.head
-    Wrapper(
-      backend.name(),
-      backend.initializerApi(),
-      backend.shutdownApi(),
-      backend.iteratorApi(),
-      backend.sparkPlanExecApi(),
-      backend.transformerApi(),
-      backend.validatorApi(),
-      backend.metricsApi(),
-      backend.settings())
+    backend
   }
 
   /**
@@ -69,39 +50,46 @@ object BackendsApiManager {
     getBackendName
   }
 
+  // Note: Do not make direct if-else checks based on output of the method.
+  // Any form of backend-specific code should be avoided from appearing in common module
+  // (e.g. gluten-core, gluten-data)
   def getBackendName: String = {
-    manager.glutenBackendName
+    backend.name()
   }
 
-  def getInitializerApiInstance: InitializerApi = {
-    manager.initializerApiInstance
+  def getBuildInfo: GlutenPlugin.BackendBuildInfo = {
+    backend.buildInfo()
   }
 
-  def getShutdownApiInstance: ShutdownApi = {
-    manager.shutdownApiInstance
+  def getListenerApiInstance: ListenerApi = {
+    backend.listenerApi()
   }
 
   def getIteratorApiInstance: IteratorApi = {
-    manager.iteratorApiInstance
+    backend.iteratorApi()
   }
 
   def getSparkPlanExecApiInstance: SparkPlanExecApi = {
-    manager.sparkPlanExecApiInstance
+    backend.sparkPlanExecApi()
   }
 
   def getTransformerApiInstance: TransformerApi = {
-    manager.transformerApiInstance
+    backend.transformerApi()
   }
 
   def getValidatorApiInstance: ValidatorApi = {
-    manager.validatorApiInstance
+    backend.validatorApi()
   }
 
   def getMetricsApiInstance: MetricsApi = {
-    manager.metricsApi
+    backend.metricsApi()
   }
 
-  def getSettings: BackendSettings = {
-    manager.settings
+  def getBroadcastApiInstance: BroadcastApi = {
+    backend.broadcastApi()
+  }
+
+  def getSettings: BackendSettingsApi = {
+    backend.settings
   }
 }

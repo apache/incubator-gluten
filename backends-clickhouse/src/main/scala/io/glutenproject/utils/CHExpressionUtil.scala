@@ -16,39 +16,161 @@
  */
 package io.glutenproject.utils
 
-import io.glutenproject.expression.ExpressionMappings._
+import io.glutenproject.expression.ExpressionNames._
+import io.glutenproject.utils.FunctionValidator._
+
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types._
+import org.apache.spark.unsafe.types.UTF8String
+
+trait FunctionValidator {
+  def doValidate(expr: Expression): Boolean
+}
+
+object FunctionValidator {
+  def isDateTimeType(dataType: DataType): Boolean = dataType match {
+    case DateType | TimestampType => true
+    case _ => false
+  }
+}
+
+case class DefaultValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = false
+}
+
+case class SequenceValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    !expr.children.exists(x => isDateTimeType(x.dataType))
+  }
+}
+
+case class UnixTimeStampValidator() extends FunctionValidator {
+  final val DATE_TYPE = "date"
+
+  override def doValidate(expr: Expression): Boolean = expr match {
+    // CH backend does not support non-const format
+    case t: ToUnixTimestamp => t.format.isInstanceOf[Literal]
+    case u: UnixTimestamp => u.format.isInstanceOf[Literal]
+    case _ => true
+  }
+}
+
+case class GetJsonObjectValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val path = expr.asInstanceOf[GetJsonObject].path
+    if (!path.isInstanceOf[Literal]) {
+      return false
+    }
+    val pathStr = path.asInstanceOf[Literal].toString()
+    // Not supported: double dot and filter expression
+    if (pathStr.contains("..") || pathStr.contains("?(")) {
+      return false
+    }
+    true
+  }
+}
+
+case class StringSplitValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val split = expr.asInstanceOf[StringSplit]
+    if (!split.regex.isInstanceOf[Literal] || !split.limit.isInstanceOf[Literal]) {
+      return false
+    }
+
+    // TODO: When limit is positive, CH result is wrong, fix it later
+    val limitLiteral = split.limit.asInstanceOf[Literal]
+    if (limitLiteral.value.asInstanceOf[Int] > 0) {
+      return false
+    }
+
+    true
+  }
+}
+
+case class SubstringIndexValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val substringIndex = expr.asInstanceOf[SubstringIndex]
+
+    // TODO: CH substringIndexUTF8 function only support string literal as delimiter
+    if (!substringIndex.delimExpr.isInstanceOf[Literal]) {
+      return false
+    }
+
+    // TODO: CH substringIndexUTF8 function only support single character as delimiter
+    val delim = substringIndex.delimExpr.asInstanceOf[Literal]
+    if (delim.value.asInstanceOf[UTF8String].toString.length != 1) {
+      return false
+    }
+
+    true
+  }
+}
+
+case class StringLPadValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val lpad = expr.asInstanceOf[StringLPad]
+    if (!lpad.pad.isInstanceOf[Literal]) {
+      return false
+    }
+
+    true
+  }
+}
+
+case class StringRPadValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val rpad = expr.asInstanceOf[StringRPad]
+    if (!rpad.pad.isInstanceOf[Literal]) {
+      return false
+    }
+
+    true
+  }
+}
+
+case class DateFormatClassValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = {
+    val dateFormatClass = expr.asInstanceOf[DateFormatClass]
+
+    // TODO: CH formatDateTimeInJodaSyntax/fromUnixTimestampInJodaSyntax only support
+    // string literal as format
+    if (!dateFormatClass.right.isInstanceOf[Literal]) {
+      return false
+    }
+
+    true
+  }
+}
+
+case class EncodeDecodeValidator() extends FunctionValidator {
+  override def doValidate(expr: Expression): Boolean = expr match {
+    case d: StringDecode => d.charset.isInstanceOf[Literal]
+    case e: Encode => e.charset.isInstanceOf[Literal]
+    case _ => true
+  }
+}
 
 object CHExpressionUtil {
 
-  /**
-   * The blacklist for Clickhouse unsupported or mismatched expression / aggregate function with
-   * specific input type.
-   */
-  final val EMPTY_TYPE = ""
-  final val ARRAY_TYPE = "array"
-  final val MAP_TYPE = "map"
-  final val STRUCT_TYPE = "struct"
-  final val DATE_TYPE = "date"
-  final val STRING_TYPE = "string"
-
-  final val CH_EXPR_BLACKLIST_TYPE_EXISTS: Map[String, Set[String]] = Map(
-    SPLIT_PART -> Set(EMPTY_TYPE),
-    TO_UNIX_TIMESTAMP -> Set(DATE_TYPE),
-    UNIX_TIMESTAMP -> Set(DATE_TYPE),
-    MIGHT_CONTAIN -> Set(EMPTY_TYPE),
-    MAKE_DECIMAL -> Set(EMPTY_TYPE),
-    UNSCALED_VALUE -> Set(EMPTY_TYPE)
+  final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, FunctionValidator] = Map(
+    MAX_BY -> DefaultValidator(),
+    MIN_BY -> DefaultValidator()
   )
 
-  final val CH_EXPR_BLACKLIST_TYPE_MATCH: Map[String, Seq[String]] = Map()
-
-  final val CH_AGGREGATE_FUNC_BLACKLIST: Map[String, Set[String]] = Map(
-    STDDEV -> Set(EMPTY_TYPE),
-    VAR_SAMP -> Set(EMPTY_TYPE),
-    VAR_POP -> Set(EMPTY_TYPE),
-    BLOOM_FILTER_AGG -> Set(EMPTY_TYPE),
-    CORR -> Set(EMPTY_TYPE),
-    COVAR_POP -> Set(EMPTY_TYPE),
-    COVAR_SAMP -> Set(EMPTY_TYPE)
+  final val CH_BLACKLIST_SCALAR_FUNCTION: Map[String, FunctionValidator] = Map(
+    ARRAY_JOIN -> DefaultValidator(),
+    SPLIT_PART -> DefaultValidator(),
+    TO_UNIX_TIMESTAMP -> UnixTimeStampValidator(),
+    UNIX_TIMESTAMP -> UnixTimeStampValidator(),
+    SEQUENCE -> SequenceValidator(),
+    GET_JSON_OBJECT -> GetJsonObjectValidator(),
+    ARRAYS_OVERLAP -> DefaultValidator(),
+    SPLIT -> StringSplitValidator(),
+    SUBSTRING_INDEX -> SubstringIndexValidator(),
+    LPAD -> StringLPadValidator(),
+    RPAD -> StringRPadValidator(),
+    DATE_FORMAT -> DateFormatClassValidator(),
+    DECODE -> EncodeDecodeValidator(),
+    ENCODE -> EncodeDecodeValidator()
   )
 }

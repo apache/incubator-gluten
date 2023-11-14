@@ -17,32 +17,91 @@
 
 #pragma once
 
+#include <arrow/ipc/writer.h>
+#include <numeric>
 #include <utility>
 
+#include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
-#include "shuffle/type.h"
+#include "memory/Evictable.h"
+#include "shuffle/Options.h"
+#include "shuffle/Partitioner.h"
+#include "shuffle/Partitioning.h"
+#include "utils/Compression.h"
 
 namespace gluten {
 
-class ShuffleWriter {
+class ShuffleMemoryPool : public arrow::MemoryPool {
  public:
-  /**
-   * Evict fixed size of partition data from memory
-   */
-  virtual arrow::Status evictFixedSize(int64_t size, int64_t* actual) = 0;
+  ShuffleMemoryPool(arrow::MemoryPool* pool) : pool_(pool) {}
 
-  virtual arrow::Status split(ColumnarBatch* cb) = 0;
+  arrow::MemoryPool* delegated() {
+    return pool_;
+  }
 
-  // Cache the partition buffer/builder as compressed record batch. If reset
-  // buffers, the partition buffer/builder will be set to nullptr. Two cases for
-  // caching the partition buffers as record batch:
-  // 1. Split record batch. It first calculate whether the partition
-  // buffer can hold all data according to partition id. If not, call this
-  // method and allocate new buffers. Spill will happen if OOM.
-  // 2. Stop the shuffle writer. The record batch will be written to disk immediately.
-  virtual arrow::Status createRecordBatchFromBuffer(uint32_t partitionId, bool resetBuffers) = 0;
+  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
+    auto status = pool_->Allocate(size, alignment, out);
+    if (status.ok()) {
+      bytesAllocated_ += size;
+    }
+    return status;
+  }
+
+  arrow::Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
+    auto status = pool_->Reallocate(old_size, new_size, alignment, ptr);
+    if (status.ok()) {
+      bytesAllocated_ += (new_size - old_size);
+    }
+    return status;
+  }
+
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
+    pool_->Free(buffer, size, alignment);
+    bytesAllocated_ -= size;
+  }
+
+  int64_t bytes_allocated() const override {
+    return bytesAllocated_;
+  }
+
+  int64_t max_memory() const override {
+    return pool_->max_memory();
+  }
+
+  std::string backend_name() const override {
+    return pool_->backend_name();
+  }
+
+  int64_t total_bytes_allocated() const override {
+    return pool_->total_bytes_allocated();
+  }
+
+  int64_t num_allocations() const override {
+    throw pool_->num_allocations();
+  }
+
+ private:
+  arrow::MemoryPool* pool_;
+  uint64_t bytesAllocated_ = 0;
+};
+
+class ShuffleWriter : public Evictable {
+ public:
+  static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;
+
+  virtual arrow::Status split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
+
+  virtual arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createPayloadFromBuffer(
+      uint32_t partitionId,
+      bool reuseBuffers) = 0;
+
+  virtual arrow::Status evictPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
 
   virtual arrow::Status stop() = 0;
+
+  virtual std::shared_ptr<arrow::Schema>& schema() {
+    return schema_;
+  }
 
   int32_t numPartitions() const {
     return numPartitions_;
@@ -54,6 +113,10 @@ class ShuffleWriter {
 
   int64_t totalBytesEvicted() const {
     return totalBytesEvicted_;
+  }
+
+  int64_t partitionBufferSize() const {
+    return partitionBufferPool_->bytes_allocated();
   }
 
   int64_t totalWriteTime() const {
@@ -76,32 +139,16 @@ class ShuffleWriter {
     return rawPartitionLengths_;
   }
 
-  const std::vector<int64_t>& partitionCachedRecordbatchSize() const {
-    return partitionCachedRecordbatchSize_;
-  }
-
-  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>>& partitionCachedRecordbatch() {
-    return partitionCachedRecordbatch_;
-  }
-
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>>& partitionBuffer() {
-    return partitionBuffers_;
-  }
-
-  std::shared_ptr<arrow::ResizableBuffer>& combineBuffer() {
-    return combineBuffer_;
-  }
-
   ShuffleWriterOptions& options() {
     return options_;
   }
 
-  std::shared_ptr<arrow::Schema>& schema() {
-    return schema_;
-  }
-
   void setPartitionLengths(int32_t index, int64_t length) {
     partitionLengths_[index] = length;
+  }
+
+  void setRawPartitionLength(int32_t index, int64_t length) {
+    rawPartitionLengths_[index] = length;
   }
 
   void setTotalWriteTime(int64_t totalWriteTime) {
@@ -120,13 +167,9 @@ class ShuffleWriter {
     totalBytesEvicted_ = totalBytesEvicted;
   }
 
-  void setPartitionCachedRecordbatchSize(int32_t index, int64_t size) {
-    partitionCachedRecordbatchSize_[index] = size;
-  }
+  virtual const uint64_t cachedPayloadSize() const = 0;
 
   class PartitionWriter;
-
-  class Partitioner;
 
   class PartitionWriterCreator;
 
@@ -134,41 +177,45 @@ class ShuffleWriter {
   ShuffleWriter(
       int32_t numPartitions,
       std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
-      ShuffleWriterOptions options)
+      const ShuffleWriterOptions& options)
       : numPartitions_(numPartitions),
         partitionWriterCreator_(std::move(partitionWriterCreator)),
-        options_(std::move(options)) {}
+        options_(std::move(options)),
+        partitionBufferPool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)),
+        codec_(createArrowIpcCodec(options_.compression_type, options_.codec_backend)) {}
+
   virtual ~ShuffleWriter() = default;
+
+  std::shared_ptr<arrow::Schema> writeSchema();
+
+  std::shared_ptr<arrow::Schema> compressWriteSchema();
 
   int32_t numPartitions_;
 
   std::shared_ptr<PartitionWriterCreator> partitionWriterCreator_;
-  // options
+
   ShuffleWriterOptions options_;
+  // Memory Pool used to track memory usage of partition buffers.
+  // The actual allocation is delegated to options_.memory_pool.
+  std::shared_ptr<ShuffleMemoryPool> partitionBufferPool_;
 
   int64_t totalBytesWritten_ = 0;
   int64_t totalBytesEvicted_ = 0;
   int64_t totalWriteTime_ = 0;
   int64_t totalEvictTime_ = 0;
   int64_t totalCompressTime_ = 0;
-  int64_t peakMemoryAllocated_ = 0;
 
   std::vector<int64_t> partitionLengths_;
-  std::vector<int64_t> rawPartitionLengths_;
+  std::vector<int64_t> rawPartitionLengths_; // Uncompressed size.
+
+  std::unique_ptr<arrow::util::Codec> codec_;
 
   std::shared_ptr<arrow::Schema> schema_;
-
-  std::vector<int64_t> partitionCachedRecordbatchSize_; // in bytes
-  std::vector<std::vector<std::shared_ptr<arrow::ipc::IpcPayload>>> partitionCachedRecordbatch_;
+  std::shared_ptr<arrow::Schema> writeSchema_;
+  std::shared_ptr<arrow::Schema> compressWriteSchema_;
 
   // col partid
-  std::vector<std::vector<std::vector<std::shared_ptr<arrow::Buffer>>>> partitionBuffers_;
-
-  // slice the buffer for each reducer's column, in this way we can combine into
-  // large page
-  std::shared_ptr<arrow::ResizableBuffer> combineBuffer_;
-
-  std::shared_ptr<PartitionWriter> partitionWriter_;
+  std::vector<std::vector<std::vector<std::shared_ptr<arrow::ResizableBuffer>>>> partitionBuffers_;
 
   std::shared_ptr<Partitioner> partitioner_;
 };

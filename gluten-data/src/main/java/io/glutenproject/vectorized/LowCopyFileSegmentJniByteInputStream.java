@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
+
+import io.glutenproject.exception.GlutenException;
 
 import io.netty.util.internal.PlatformDependent;
 import org.apache.spark.network.util.LimitedInputStream;
@@ -29,9 +30,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 /**
- * This implementation is targeted to optimize against Spark's
- * {@link org.apache.spark.network.buffer.FileSegmentManagedBuffer} to make sure shuffle data
- * is shared over JNI without unnecessary copy.
+ * This implementation is targeted to optimize against Spark's {@link
+ * org.apache.spark.network.buffer.FileSegmentManagedBuffer} to make sure shuffle data is shared
+ * over JNI without unnecessary copy.
  */
 public class LowCopyFileSegmentJniByteInputStream implements JniByteInputStream {
   private static final Field FIELD_FilterInputStream_in;
@@ -44,7 +45,7 @@ public class LowCopyFileSegmentJniByteInputStream implements JniByteInputStream 
       FIELD_LimitedInputStream_left = LimitedInputStream.class.getDeclaredField("left");
       FIELD_LimitedInputStream_left.setAccessible(true);
     } catch (NoSuchFieldException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -61,13 +62,13 @@ public class LowCopyFileSegmentJniByteInputStream implements JniByteInputStream 
     try {
       left = ((long) FIELD_LimitedInputStream_left.get(lin));
     } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
     final FileInputStream fin;
     try {
       fin = (FileInputStream) FIELD_FilterInputStream_in.get(lin);
     } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
     channel = fin.getChannel();
   }
@@ -81,7 +82,7 @@ public class LowCopyFileSegmentJniByteInputStream implements JniByteInputStream 
     try {
       wrapped = (InputStream) FIELD_FilterInputStream_in.get(lin);
     } catch (IllegalAccessException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
     if (!(wrapped instanceof FileInputStream)) {
       return false;
@@ -106,7 +107,7 @@ public class LowCopyFileSegmentJniByteInputStream implements JniByteInputStream 
       left -= bytes;
       return bytes;
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
@@ -121,7 +122,7 @@ public class LowCopyFileSegmentJniByteInputStream implements JniByteInputStream 
       channel.close();
       in.close();
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 }

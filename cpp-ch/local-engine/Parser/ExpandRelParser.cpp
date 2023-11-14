@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "ExpandRelParser.h"
 #include <vector>
 #include <Core/Block.h>
@@ -33,7 +49,7 @@ void updateType(DB::DataTypePtr & type, const DB::DataTypePtr & new_type)
 }
 
 DB::QueryPlanPtr
-ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
+ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
 {
     const auto & expand_rel = rel.expand();
     const auto & header = query_plan->getCurrentDataStream().header;
@@ -106,6 +122,7 @@ ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
     ExpandField expand_field(names, types, expand_kinds, expand_fields);
     auto expand_step = std::make_unique<ExpandStep>(query_plan->getCurrentDataStream(), std::move(expand_field));
     expand_step->setStepDescription("Expand Step");
+    steps.emplace_back(expand_step.get());
     query_plan->addStep(std::move(expand_step));
     return query_plan;
 }

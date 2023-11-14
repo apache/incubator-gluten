@@ -14,38 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
 import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
+
 import io.substrait.proto.ProjectRel;
 import io.substrait.proto.Rel;
 import io.substrait.proto.RelCommon;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class ProjectRelNode implements RelNode, Serializable {
   private final RelNode input;
-  private final ArrayList<ExpressionNode> expressionNodes =
-      new ArrayList<>();
+  private final List<ExpressionNode> expressionNodes = new ArrayList<>();
   private final AdvancedExtensionNode extensionNode;
   private final int emitStartIndex;
 
-  ProjectRelNode(RelNode input,
-                 ArrayList<ExpressionNode> expressionNodes,
-                 int emitStartIndex) {
+  ProjectRelNode(RelNode input, List<ExpressionNode> expressionNodes, int emitStartIndex) {
     this.input = input;
     this.expressionNodes.addAll(expressionNodes);
     this.extensionNode = null;
     this.emitStartIndex = emitStartIndex;
   }
 
-  ProjectRelNode(RelNode input,
-                 ArrayList<ExpressionNode> expressionNodes,
-                 AdvancedExtensionNode extensionNode,
-                 int emitStartIndex) {
+  ProjectRelNode(
+      RelNode input,
+      List<ExpressionNode> expressionNodes,
+      AdvancedExtensionNode extensionNode,
+      int emitStartIndex) {
     this.input = input;
     this.expressionNodes.addAll(expressionNodes);
     this.extensionNode = extensionNode;

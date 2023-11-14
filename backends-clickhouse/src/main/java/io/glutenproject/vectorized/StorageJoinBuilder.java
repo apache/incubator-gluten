@@ -14,81 +14,81 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
 
-import java.util.ArrayList;
+import io.glutenproject.execution.BroadCastHashJoinContext;
+import io.glutenproject.expression.ConverterUtils;
+import io.glutenproject.expression.ConverterUtils$;
+import io.glutenproject.substrait.type.TypeNode;
+import io.glutenproject.utils.SubstraitUtil;
+
+import io.substrait.proto.NamedStruct;
+import io.substrait.proto.Type;
+import org.apache.spark.sql.catalyst.expressions.Attribute;
+import org.apache.spark.sql.catalyst.expressions.Expression;
+import org.apache.spark.storage.CHShuffleReadStreamFactory;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
 import scala.collection.JavaConverters;
 
-import io.glutenproject.execution.BroadCastHashJoinContext;
-import io.glutenproject.expression.ConverterUtils$;
-import io.glutenproject.substrait.type.TypeNode;
-import io.substrait.proto.NamedStruct;
-import io.substrait.proto.Type;
+public class StorageJoinBuilder {
 
-import org.apache.spark.sql.catalyst.expressions.Attribute;
-import org.apache.spark.sql.catalyst.expressions.Expression;
+  public static native void nativeCleanBuildHashTable(String hashTableId, long hashTableData);
 
-public class StorageJoinBuilder implements AutoCloseable {
-  private ShuffleInputStream in;
+  public static native long nativeCloneBuildHashTable(long hashTableData);
 
-  private int customizeBufferSize;
+  private static native long nativeBuild(
+      String buildHashTableId,
+      ShuffleInputStream in,
+      String joinKeys,
+      int joinType,
+      byte[] namedStruct);
 
-  private BroadCastHashJoinContext broadCastContext;
+  private StorageJoinBuilder() {}
 
-  private List<Expression> newBuildKeys;
-
-  private List<Attribute> newOutput;
-
-  public StorageJoinBuilder(ShuffleInputStream in,
-                            BroadCastHashJoinContext broadCastContext,
-                            int customizeBufferSize,
-                            List<Attribute> newOutput,
-                            List<Expression> newBuildKeys) {
-    this.in = in;
-    this.broadCastContext = broadCastContext;
-    this.newOutput = newOutput;
-    this.newBuildKeys = newBuildKeys;
-    this.customizeBufferSize = customizeBufferSize;
+  /** build storage join object */
+  public static long build(
+      byte[] batches,
+      BroadCastHashJoinContext broadCastContext,
+      List<Expression> newBuildKeys,
+      List<Attribute> newOutput) {
+    ShuffleInputStream in = CHShuffleReadStreamFactory.create(batches, true);
+    try {
+      ConverterUtils$ converter = ConverterUtils$.MODULE$;
+      List<Expression> keys;
+      List<Attribute> output;
+      if (newBuildKeys.isEmpty()) {
+        keys = JavaConverters.<Expression>seqAsJavaList(broadCastContext.buildSideJoinKeys());
+        output = JavaConverters.<Attribute>seqAsJavaList(broadCastContext.buildSideStructure());
+      } else {
+        keys = newBuildKeys;
+        output = newOutput;
+      }
+      String joinKey =
+          keys.stream()
+              .map(
+                  (Expression key) -> {
+                    Attribute attr = converter.getAttrFromExpr(key, false);
+                    return converter.genColumnNameWithExprId(attr);
+                  })
+              .collect(Collectors.joining(","));
+      return nativeBuild(
+          broadCastContext.buildHashTableId(),
+          in,
+          joinKey,
+          SubstraitUtil.toSubstrait(broadCastContext.joinType()).ordinal(),
+          toNameStruct(output).toByteArray());
+    } finally {
+      in.close();
+    }
   }
 
-  private native void nativeBuild(String buildHashTableId,
-                                  ShuffleInputStream in,
-                                  int customizeBufferSize,
-                                  String joinKeys,
-                                  String joinType,
-                                  byte[] namedStruct);
-
-  /**
-   * build storage join object
-   */
-  public void build() {
-    ConverterUtils$ converter = ConverterUtils$.MODULE$;
-    String join = converter.convertJoinType(broadCastContext.joinType());
-    List<Expression> keys = null;
-    List<Attribute> output = null;
-    if (newBuildKeys.isEmpty()) {
-      keys = JavaConverters.<Expression>seqAsJavaList(broadCastContext.buildSideJoinKeys());
-      output = JavaConverters.<Attribute>seqAsJavaList(broadCastContext.buildSideStructure());
-    } else {
-      keys = newBuildKeys;
-      output = newOutput;
-    }
-    String joinKey = keys.stream().map((Expression key) -> {
-      Attribute attr = converter.getAttrFromExpr(key, false);
-      return converter.genColumnNameWithExprId(attr);
-    }).collect(Collectors.joining(","));
-
-    // create table named struct
-    ArrayList<TypeNode> typeList = new ArrayList<>();
-    ArrayList<String> nameList = new ArrayList<>();
-    for (Attribute attr : output) {
-      typeList.add(converter.getTypeNode(attr.dataType(), attr.nullable()));
-      nameList.add(converter.genColumnNameWithExprId(attr));
-    }
+  /** create table named struct */
+  private static NamedStruct toNameStruct(List<Attribute> output) {
+    List<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(output);
+    List<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(output);
     Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
     for (TypeNode typeNode : typeList) {
       structBuilder.addTypes(typeNode.toProtobuf());
@@ -98,22 +98,6 @@ public class StorageJoinBuilder implements AutoCloseable {
     for (String name : nameList) {
       nStructBuilder.addNames(name);
     }
-    byte[] structure = nStructBuilder.build().toByteArray();
-    nativeBuild(
-        broadCastContext.buildHashTableId(),
-        in,
-        this.customizeBufferSize,
-        joinKey,
-        join,
-        structure);
-  }
-
-  @Override
-  public void close() throws Exception {
-    try {
-      in.close();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    return nStructBuilder.build();
   }
 }

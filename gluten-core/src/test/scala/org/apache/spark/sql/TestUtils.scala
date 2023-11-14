@@ -14,17 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql
+
+import io.glutenproject.exception.GlutenException
 
 import org.apache.spark.sql.test.SQLTestUtils
 
 object TestUtils {
-  def compareAnswers(actual: Seq[Row], expected: Seq[Row],
-                     sort: Boolean = false): Unit = {
+  def compareAnswers(actual: Seq[Row], expected: Seq[Row], sort: Boolean = false): Unit = {
     val result = SQLTestUtils.compareAnswers(actual, expected, sort)
     if (result.isDefined) {
-      throw new RuntimeException("Failed to compare answer" + result.get)
+      throw new GlutenException("Failed to compare answer" + result.get)
     }
   }
 }

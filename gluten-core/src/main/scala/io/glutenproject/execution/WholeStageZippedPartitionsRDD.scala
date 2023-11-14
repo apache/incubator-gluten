@@ -14,69 +14,56 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution
-
-import scala.collection.mutable
 
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.metrics.IMetrics
 
-import org.apache.spark.{OneToOneDependency, Partition, SparkConf, SparkContext, TaskContext}
+import org.apache.spark.{Partition, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-private[glutenproject] class ZippedPartitionsPartition(idx: Int,
-                                                       @transient private val rdds: Seq[RDD[_]])
-  extends Partition {
+import scala.collection.mutable
 
-  override val index: Int = idx
-  var partitionValues = rdds.map(rdd => rdd.partitions(idx))
+private[glutenproject] class ZippedPartitionsPartition(
+    override val index: Int,
+    val inputColumnarRDDPartitions: Seq[Partition])
+  extends Partition {}
 
-  def partitions: Seq[Partition] = partitionValues
-}
-
-class WholeStageZippedPartitionsRDD(@transient private val sc: SparkContext,
-    var rdds: Seq[RDD[ColumnarBatch]],
+class WholeStageZippedPartitionsRDD(
+    @transient private val sc: SparkContext,
+    var rdds: ColumnarInputRDDsWrapper,
     numaBindingInfo: GlutenNumaBindingInfo,
     sparkConf: SparkConf,
-    resCtx: WholestageTransformContext,
+    resCtx: WholeStageTransformContext,
     pipelineTime: SQLMetric,
     buildRelationBatchHolder: mutable.ListBuffer[ColumnarBatch],
-    updateNativeMetrics: IMetrics => Unit)
-  extends RDD[ColumnarBatch](sc, rdds.map(x => new OneToOneDependency(x))) {
+    updateNativeMetrics: IMetrics => Unit,
+    materializeInput: Boolean)
+  extends RDD[ColumnarBatch](sc, rdds.getDependencies) {
 
-  val genFinalStageIterator = (inputIterators: Seq[Iterator[ColumnarBatch]]) => {
+  override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
+    val partitions = split.asInstanceOf[ZippedPartitionsPartition].inputColumnarRDDPartitions
+    val inputIterators: Seq[Iterator[ColumnarBatch]] = rdds.getIterators(partitions, context)
     BackendsApiManager.getIteratorApiInstance
       .genFinalStageIterator(
         inputIterators,
         numaBindingInfo,
         sparkConf,
-        resCtx.outputAttributes,
         resCtx.root,
         pipelineTime,
         updateNativeMetrics,
-        buildRelationBatchHolder
+        buildRelationBatchHolder,
+        materializeInput
       )
   }
 
-  override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
-    val partitions = split.asInstanceOf[ZippedPartitionsPartition].partitions
-    val inputIterators: Seq[Iterator[ColumnarBatch]] = (rdds zip partitions).map {
-      case (rdd, partition) => rdd.iterator(partition, context)
-    }
-    genFinalStageIterator(inputIterators)
-  }
-
   override def getPartitions: Array[Partition] = {
-    val numParts = rdds.head.partitions.length
-    if (!rdds.forall(rdd => rdd.partitions.length == numParts)) {
-      throw new IllegalArgumentException(
-        s"Can't zip RDDs with unequal numbers of partitions: ${rdds.map(_.partitions.length)}")
+    Array.tabulate[Partition](rdds.getPartitionLength) {
+      i => new ZippedPartitionsPartition(i, rdds.getPartitions(i))
     }
-    Array.tabulate[Partition](numParts) { i => new ZippedPartitionsPartition(i, rdds) }
   }
 
   override def clearDependencies(): Unit = {

@@ -21,7 +21,6 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 class SortMergeJoinMetricsUpdater(val metrics: Map[String, SQLMetric]) extends MetricsUpdater {
 
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
-    if (opMetrics != null) {
-    }
+    if (opMetrics != null) {}
   }
 }

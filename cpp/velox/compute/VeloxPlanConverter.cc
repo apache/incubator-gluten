@@ -18,17 +18,22 @@
 #include "VeloxPlanConverter.h"
 #include <filesystem>
 
-#include "ArrowTypeUtils.h"
-#include "VeloxBridge.h"
 #include "arrow/c/bridge.h"
 #include "compute/ResultIterator.h"
-#include "compute/RowVectorStream.h"
 #include "config/GlutenConfig.h"
+#include "operators/plannodes/RowVectorStream.h"
+#include "utils/DebugOut.h"
 #include "velox/common/file/FileSystems.h"
+
+namespace gluten {
 
 using namespace facebook;
 
-namespace gluten {
+VeloxPlanConverter::VeloxPlanConverter(
+    const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
+    velox::memory::MemoryPool* veloxPool,
+    const std::unordered_map<std::string, std::string>& confMap)
+    : inputIters_(inputIters), substraitVeloxPlanConverter_(veloxPool, confMap), pool_(veloxPool) {}
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {
@@ -41,6 +46,14 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::FetchRel& fetchRel)
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::ExpandRel& sexpand) {
   if (sexpand.has_input()) {
     setInputPlanNode(sexpand.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
+}
+
+void VeloxPlanConverter::setInputPlanNode(const ::substrait::GenerateRel& sGenerate) {
+  if (sGenerate.has_input()) {
+    setInputPlanNode(sGenerate.input());
   } else {
     throw std::runtime_error("Child expected");
   }
@@ -101,40 +114,36 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::JoinRel& sjoin) {
 }
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
-  int32_t iterIdx = subVeloxPlanConverter_->streamIsInput(sread);
+  int32_t iterIdx = substraitVeloxPlanConverter_.getStreamIndex(sread);
   if (iterIdx == -1) {
     return;
   }
   if (inputIters_.size() == 0) {
     throw std::runtime_error("Invalid input iterator.");
   }
+
   // Get the input schema of this iterator.
   uint64_t colNum = 0;
-  std::vector<std::shared_ptr<velox::substrait::SubstraitParser::SubstraitType>> subTypeList;
+  std::vector<velox::TypePtr> veloxTypeList;
   if (sread.has_base_schema()) {
     const auto& baseSchema = sread.base_schema();
     // Input names is not used. Instead, new input/output names will be created
     // because the ValueStreamNode in Velox does not support name change.
     colNum = baseSchema.names().size();
-    subTypeList = subParser_->parseNamedStruct(baseSchema);
+    veloxTypeList = SubstraitParser::parseNamedStruct(baseSchema);
   }
 
   std::vector<std::string> outNames;
   outNames.reserve(colNum);
   for (int idx = 0; idx < colNum; idx++) {
-    auto colName = subParser_->makeNodeName(planNodeId_, idx);
+    auto colName = SubstraitParser::makeNodeName(planNodeId_, idx);
     outNames.emplace_back(colName);
   }
 
-  std::vector<velox::TypePtr> veloxTypeList;
-  for (auto subType : subTypeList) {
-    veloxTypeList.push_back(velox::substrait::toVeloxType(subType->type));
-  }
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
   auto vectorStream = std::make_shared<RowVectorStream>(pool_, std::move(inputIters_[iterIdx]), outputType);
-  auto valuesNode =
-      std::make_shared<velox::core::ValueStreamNode>(nextPlanNodeId(), outputType, std::move(vectorStream));
-  subVeloxPlanConverter_->insertInputNode(iterIdx, valuesNode, planNodeId_);
+  auto valuesNode = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(vectorStream));
+  substraitVeloxPlanConverter_.insertInputNode(iterIdx, valuesNode, planNodeId_);
 }
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
@@ -156,6 +165,8 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.fetch());
   } else if (srel.has_window()) {
     setInputPlanNode(srel.window());
+  } else if (srel.has_generate()) {
+    setInputPlanNode(srel.generate());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }
@@ -181,10 +192,8 @@ std::shared_ptr<const facebook::velox::core::PlanNode> VeloxPlanConverter::toVel
       setInputPlanNode(srel.rel());
     }
   }
-  auto veloxPlan = subVeloxPlanConverter_->toVeloxPlan(substraitPlan);
-#ifdef GLUTEN_PRINT_DEBUG
-  std::cout << "Plan Node: " << std::endl << veloxPlan->toString(true, true) << std::endl;
-#endif
+  auto veloxPlan = substraitVeloxPlanConverter_.toVeloxPlan(substraitPlan);
+  DEBUG_OUT << "Plan Node: " << std::endl << veloxPlan->toString(true, true) << std::endl;
   return veloxPlan;
 }
 

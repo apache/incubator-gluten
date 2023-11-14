@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.extension.ValidationResult
+
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
@@ -35,11 +36,13 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.concurrent.Future
 
-case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitioning,
-                                       child: SparkPlan,
-                                       shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
-                                       projectOutputAttributes: Seq[Attribute])
-  extends ShuffleExchangeLike with GlutenPlan{
+case class ColumnarShuffleExchangeExec(
+    override val outputPartitioning: Partitioning,
+    child: SparkPlan,
+    shuffleOrigin: ShuffleOrigin = ENSURE_REQUIREMENTS,
+    projectOutputAttributes: Seq[Attribute])
+  extends ShuffleExchangeLike
+  with GlutenPlan {
   private[sql] lazy val writeMetrics =
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
 
@@ -63,9 +66,9 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   }
 
   /**
-   * A [[ShuffleDependency]] that will partition rows of its child based on
-   * the partitioning scheme defined in `newPartitioning`. Those partitions of
-   * the returned ShuffleDependency will be the input of shuffle.
+   * A [[ShuffleDependency]] that will partition rows of its child based on the partitioning scheme
+   * defined in `newPartitioning`. Those partitions of the returned ShuffleDependency will be the
+   * input of shuffle.
    */
   @transient
   lazy val columnarShuffleDependency: ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
@@ -83,29 +86,33 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   // Columnar shuffle will use 'columnarShuffleDependency'
   @transient
   lazy val shuffleDependency: ShuffleDependency[Int, InternalRow, InternalRow] =
-  new ShuffleDependency[Int, InternalRow, InternalRow](
-    _rdd = new ColumnarShuffleExchangeExec.DummyPairRDDWithPartitions(
-      sparkContext,
-      inputColumnarRDD.getNumPartitions),
-    partitioner = columnarShuffleDependency.partitioner) {
+    new ShuffleDependency[Int, InternalRow, InternalRow](
+      _rdd = new ColumnarShuffleExchangeExec.DummyPairRDDWithPartitions(
+        sparkContext,
+        inputColumnarRDD.getNumPartitions),
+      partitioner = columnarShuffleDependency.partitioner
+    ) {
 
-    override val shuffleId: Int = columnarShuffleDependency.shuffleId
+      override val shuffleId: Int = columnarShuffleDependency.shuffleId
 
-    override val shuffleHandle: ShuffleHandle = columnarShuffleDependency.shuffleHandle
-  }
+      override val shuffleHandle: ShuffleHandle = columnarShuffleDependency.shuffleHandle
+    }
 
   // super.stringArgs ++ Iterator(output.map(o => s"${o}#${o.dataType.simpleString}"))
   val serializer: Serializer = BackendsApiManager.getSparkPlanExecApiInstance
-    .createColumnarBatchSerializer(schema,
-      longMetric("avgReadBatchNumRows"),
-      longMetric("numOutputRows"),
-      longMetric("dataSize"))
+    .createColumnarBatchSerializer(schema, metrics)
 
   var cachedShuffleRDD: ShuffledColumnarBatchRDD = _
 
-  def doValidate(): Boolean = {
-    BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
-      outputPartitioning, child)
+  override protected def doValidateInternal(): ValidationResult = {
+    if (
+      !BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
+        outputPartitioning,
+        child)
+    ) {
+      return ValidationResult.notOk("Found schema check failure in shuffle exchange.")
+    }
+    ValidationResult.ok
   }
 
   override def nodeName: String = "ColumnarExchange"
@@ -122,7 +129,7 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   }
 
   override def getShuffleRDD(partitionSpecs: Array[ShufflePartitionSpec]): RDD[ColumnarBatch] = {
-    cachedShuffleRDD
+    new ShuffledColumnarBatchRDD(columnarShuffleDependency, readMetrics, partitionSpecs)
   }
 
   override def stringArgs: Iterator[Any] =
@@ -144,13 +151,10 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
   override def simpleString(maxFields: Int): String = toString(super.simpleString(maxFields))
 
   private def toString(original: String): String = {
-    original + ", [OUTPUT] " + output.map {
-      attr =>
-        attr.name + ":" + attr.dataType
-    }.toString()
+    original + ", [OUTPUT] " + output.map(attr => attr.name + ":" + attr.dataType).toString()
   }
 
-  override  def output: Seq[Attribute] = if (projectOutputAttributes != null) {
+  override def output: Seq[Attribute] = if (projectOutputAttributes != null) {
     projectOutputAttributes
   } else {
     child.output
@@ -162,16 +166,18 @@ case class ColumnarShuffleExchangeExec(override val outputPartitioning: Partitio
 
 object ColumnarShuffleExchangeExec extends Logging {
   // scalastyle:off argcount
-  def prepareShuffleDependency(rdd: RDD[ColumnarBatch],
-                               childOutputAttributes: Seq[Attribute],
-                               projectOutputAttributes: Seq[Attribute],
-                               newPartitioning: Partitioning,
-                               serializer: Serializer,
-                               writeMetrics: Map[String, SQLMetric],
-                               metrics: Map[String, SQLMetric])
+  def prepareShuffleDependency(
+      rdd: RDD[ColumnarBatch],
+      childOutputAttributes: Seq[Attribute],
+      projectOutputAttributes: Seq[Attribute],
+      newPartitioning: Partitioning,
+      serializer: Serializer,
+      writeMetrics: Map[String, SQLMetric],
+      metrics: Map[String, SQLMetric])
   // scalastyle:on argcount
-  : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
-    BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(rdd,
+      : ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+    BackendsApiManager.getSparkPlanExecApiInstance.genShuffleDependency(
+      rdd,
       childOutputAttributes,
       projectOutputAttributes,
       newPartitioning: Partitioning,
@@ -187,8 +193,8 @@ object ColumnarShuffleExchangeExec extends Logging {
       Array.tabulate(numPartitions)(i => EmptyPartition(i))
 
     override def compute(
-                          split: Partition,
-                          context: TaskContext): Iterator[Product2[Int, InternalRow]] = {
+        split: Partition,
+        context: TaskContext): Iterator[Product2[Int, InternalRow]] = {
       throw new UnsupportedOperationException
     }
   }

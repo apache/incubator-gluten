@@ -1,0 +1,135 @@
+[{
+  "id": 6,
+  "name": "kProject",
+  "time": 4,
+  "input_wait_time": 7736,
+  "output_wait_time": 33,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 4,
+      "output_rows": 292,
+      "output_bytes": 16644,
+      "input_rows": 292,
+      "input_bytes": 14308
+    }]
+  }]
+}, {
+  "id": 5,
+  "name": "kProject",
+  "time": 6,
+  "input_wait_time": 7725,
+  "output_wait_time": 48,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 6,
+      "output_rows": 292,
+      "output_bytes": 14308,
+      "input_rows": 292,
+      "input_bytes": 16644
+    }]
+  }]
+}, {
+  "id": 4,
+  "name": "kProject",
+  "time": 4,
+  "input_wait_time": 7715,
+  "output_wait_time": 64,
+  "steps": [{
+    "name": "Expression",
+    "description": "Project",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 4,
+      "output_rows": 292,
+      "output_bytes": 16644,
+      "input_rows": 292,
+      "input_bytes": 16644
+    }]
+  }]
+}, {
+  "id": 3,
+  "name": "kJoin",
+  "time": 1716,
+  "input_wait_time": 6972,
+  "output_wait_time": 112,
+  "steps": [{
+    "name": "Expression",
+    "description": "Rename Broadcast Table Name",
+    "processors": []
+  }, {
+    "name": "FilledJoin",
+    "description": "JOIN",
+    "processors": [{
+      "name": "JoiningTransform",
+      "time": 1716,
+      "output_rows": 292,
+      "output_bytes": 16644,
+      "input_rows": 80000,
+      "input_bytes": 1920000
+    }]
+  }]
+}, {
+  "id": 2,
+  "name": "kRead",
+  "time": 0,
+  "input_wait_time": 0,
+  "output_wait_time": 0,
+  "steps": [{
+    "name": "ReadFromPreparedSource",
+    "description": "Read From Java Iter",
+    "processors": []
+  }]
+}, {
+  "id": 1,
+  "name": "kFilter",
+  "time": 1196,
+  "input_wait_time": 13719,
+  "output_wait_time": 1724,
+  "steps": [{
+    "name": "Filter",
+    "description": "WHERE",
+    "processors": [{
+      "name": "FilterTransform",
+      "time": 179,
+      "output_rows": 80000,
+      "output_bytes": 2160000,
+      "input_rows": 80000,
+      "input_bytes": 2160000
+    }]
+  }, {
+    "name": "Expression",
+    "description": "Remove nullable properties",
+    "processors": [{
+      "name": "ExpressionTransform",
+      "time": 1017,
+      "output_rows": 80000,
+      "output_bytes": 1920000,
+      "input_rows": 80000,
+      "input_bytes": 2160000
+    }]
+  }]
+}, {
+  "id": 0,
+  "name": "kRead",
+  "time": 2067,
+  "input_wait_time": 3399,
+  "output_wait_time": 1071,
+  "steps": [{
+    "name": "ReadFromStorage",
+    "description": "read local files",
+    "processors": [{
+      "name": "SubstraitFileSource",
+      "time": 2067,
+      "output_rows": 80000,
+      "output_bytes": 2160000,
+      "input_rows": 0,
+      "input_bytes": 0
+    }]
+  }]
+}]

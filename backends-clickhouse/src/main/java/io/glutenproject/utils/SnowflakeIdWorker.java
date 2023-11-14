@@ -14,21 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils;
+
+import io.glutenproject.exception.GlutenException;
 
 import org.apache.spark.SparkEnv;
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig;
 
 /**
- * An object that generates IDs.
- * This is broken into a separate class in case
- * we ever want to support multiple worker threads per process.
- * Refer to twitter-archive Snowflake.
+ * An object that generates IDs. This is broken into a separate class in case we ever want to
+ * support multiple worker threads per process. Refer to twitter-archive Snowflake.
  */
 public class SnowflakeIdWorker {
 
-  //==============================Singleton=====================================
+  // ==============================Singleton=====================================
   private static volatile SnowflakeIdWorker INSTANCE;
   // ==============================Fields===========================================
   private final long twepoch = 1640966400L;
@@ -50,19 +49,19 @@ public class SnowflakeIdWorker {
     this.workerId = workerId;
   }
 
-  //==============================Constructors=====================================
+  // ==============================Constructors=====================================
 
   public static SnowflakeIdWorker getInstance() {
     if (INSTANCE == null) {
       synchronized (SnowflakeIdWorker.class) {
         if (INSTANCE == null) {
           if (!SparkEnv.get().conf().contains(ClickHouseConfig.CLICKHOUSE_WORKER_ID())) {
-            throw new IllegalArgumentException("Please set an unique value to " +
-                ClickHouseConfig.CLICKHOUSE_WORKER_ID());
+            throw new IllegalArgumentException(
+                "Please set an unique value to " + ClickHouseConfig.CLICKHOUSE_WORKER_ID());
           }
-          INSTANCE = new SnowflakeIdWorker(
-              SparkEnv.get().conf()
-                  .getLong(ClickHouseConfig.CLICKHOUSE_WORKER_ID(), 0));
+          INSTANCE =
+              new SnowflakeIdWorker(
+                  SparkEnv.get().conf().getLong(ClickHouseConfig.CLICKHOUSE_WORKER_ID(), 0));
         }
       }
     }
@@ -74,8 +73,9 @@ public class SnowflakeIdWorker {
     long timestamp = timeGen();
 
     if (timestamp < lastTimestamp) {
-      throw new RuntimeException(
-          String.format("Clock moved backwards.  Refusing to generate id for %d milliseconds",
+      throw new GlutenException(
+          String.format(
+              "Clock moved backwards.  Refusing to generate id for %d milliseconds",
               lastTimestamp - timestamp));
     }
 

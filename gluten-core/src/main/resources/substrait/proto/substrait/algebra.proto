@@ -7,7 +7,6 @@ import "google/protobuf/any.proto";
 import "substrait/extensions/extensions.proto";
 import "substrait/type.proto";
 
-option cc_enable_arenas = true;
 option csharp_namespace = "Substrait.Protobuf";
 option go_package = "github.com/substrait-io/substrait-go/proto";
 option java_multiple_files = true;
@@ -122,25 +121,54 @@ message ReadRel {
       // The index of the partition this item belongs to
       uint64 partition_index = 6;
 
+      
+
       // The start position in byte to read from this item
       uint64 start = 7;
 
       // The length in byte to read from this item
       uint64 length = 8;
 
-      message ParquetReadOptions {}
+      message ParquetReadOptions {
+        bool enable_row_group_maxmin_index = 1;
+      }
       message ArrowReadOptions {}
       message OrcReadOptions {}
       message DwrfReadOptions {}
+      message TextReadOptions {
+        string field_delimiter = 1;
+        uint64 max_block_size = 2;
+        NamedStruct schema = 3 [deprecated=true];
+        string quote = 4;
+        uint64 header = 5;
+        string escape = 6;
+        string null_value = 7;
+        bool empty_as_default = 8;
+      }
+      message JsonReadOptions {
+        uint64 max_block_size = 1;
+        NamedStruct schema = 2 [deprecated=true];
+      }
 
-      // The format of the files.
+      // File reading options
       oneof file_format {
         ParquetReadOptions parquet = 9;
         ArrowReadOptions arrow = 10;
         OrcReadOptions orc = 11;
         google.protobuf.Any extension = 12;
         DwrfReadOptions dwrf = 13;
-      }
+        TextReadOptions text = 14;
+        JsonReadOptions json = 15;
+     }
+
+     message partitionColumn {
+        string key = 1;
+        string value = 2;
+     }
+     repeated partitionColumn partition_columns = 16;
+
+     /// File schema
+     NamedStruct schema = 17;
     }
   }
 }
@@ -392,6 +420,7 @@ message RelRoot {
   Rel input = 1;
   // Field names in depth-first order
   repeated string names = 2;
+  Type.Struct output_schema = 3;
 }
 
 // A relation (used internally in a plan)

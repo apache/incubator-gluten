@@ -14,38 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
-import io.glutenproject.execution.CoalesceBatchesExec
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.{ColumnarShuffleExchangeExec, SparkPlan}
-import org.apache.spark.sql.execution.exchange.{ShuffleExchangeExec}
+import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 
 object ColumnarShuffleUtil {
 
   /**
    * Generate a columnar plan for shuffle exchange.
    *
-   * @param plan             the spark plan of shuffle exchange.
-   * @param child            the child of shuffle exchange.
-   * @param removeHashColumn whether the hash column should be removed.
-   * @return a columnar shuffle exchange.
+   * @param plan
+   *   the spark plan of shuffle exchange.
+   * @param child
+   *   the child of shuffle exchange.
+   * @return
+   *   a columnar shuffle exchange.
    */
-  def genColumnarShuffleExchange(plan: ShuffleExchangeExec,
-                                 child: SparkPlan,
-                                 isAdaptiveContextOrTopParentExchange: Boolean,
-                                 shuffleOutputAttributes: Seq[Attribute],
-                                 enableCoalesceBatches: Boolean): SparkPlan = {
-    if (isAdaptiveContextOrTopParentExchange) {
-      ColumnarShuffleExchangeExec(plan.outputPartitioning, child,
-        plan.shuffleOrigin, shuffleOutputAttributes)
-    } else if (enableCoalesceBatches) {
-      CoalesceBatchesExec(ColumnarShuffleExchangeExec(
-        plan.outputPartitioning, child, plan.shuffleOrigin, shuffleOutputAttributes))
-    } else {
-      ColumnarShuffleExchangeExec(
-        plan.outputPartitioning, child, plan.shuffleOrigin, shuffleOutputAttributes)
-    }
+  def genColumnarShuffleExchange(
+      plan: ShuffleExchangeExec,
+      child: SparkPlan,
+      shuffleOutputAttributes: Seq[Attribute]): SparkPlan = {
+    ColumnarShuffleExchangeExec(
+      plan.outputPartitioning,
+      child,
+      plan.shuffleOrigin,
+      shuffleOutputAttributes)
   }
 }

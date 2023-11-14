@@ -45,24 +45,28 @@
           "features": ["zstd", "lz4", "lzma", "snappy"]
         },
         "boost-atomic",
-        "boost-process",
         "boost-context",
+        "boost-circular-buffer",
         "boost-date-time",
+        "boost-format",
         "boost-filesystem",
         "boost-program-options",
+        "boost-process",
         "boost-regex",
         "boost-system",
+        "boost-stacktrace",
+        "boost-sort",
         "boost-thread",
         "boost-multiprecision",
-        "boost-stacktrace",
         "boost-uuid",
-        "boost-circular-buffer",
-        "boost-format",
         "gtest",
         "xsimd",
+        "xxhash",
         "protobuf",
         "benchmark",
-        "jemalloc"
+        "jemalloc",
+        "icu",
+        "simdjson"
       ]
     },
     "velox-s3": {
@@ -93,6 +97,7 @@
     }
   },
   "overrides": [
-    { "name": "fmt", "version": "8.0.1" }
+    { "name": "fmt", "version": "8.0.1" },
+    { "name": "simdjson", "version": "3.1.5" }
   ]
 }

@@ -20,11 +20,13 @@
 .bloop
 .metals
 
+# clangd
+.clangd
+
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
 # Package Files #
-*.jar
 *.war
 *.ear
 
@@ -36,6 +38,7 @@ target/
 *.iml
 
 **/target/**
+**/dependency-reduced-pom.xml
 
 # logs
 *.log
@@ -66,6 +69,7 @@ scalastyle-output.xml
 
 # Generated C++ benchmark data
 backends-velox/generated-native-benchmark/
+backends-velox/spark-warehouse/
 
 # Generated C++ benchmark executables
 cpp/**/benchmarks/**/*
@@ -81,3 +85,8 @@ cpp/**/example/**/*
 /cpp-ch/cmake-build-*
 /cpp-ch/local-engine/tests/testConfig.h
 /cpp-ch/build_ch
+
+dist/
+
+/cpp-ch/local-engine/Parser/*_udf
+!/cpp-ch/local-engine/Parser/example_udf

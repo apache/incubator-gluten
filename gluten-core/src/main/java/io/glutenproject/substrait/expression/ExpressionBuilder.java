@@ -14,22 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.expression;
 
 import io.glutenproject.expression.ConverterUtils;
-import io.glutenproject.substrait.type.TypeBuilder;
-import io.glutenproject.substrait.type.TypeNode;
-import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.catalyst.util.GenericArrayData;
-import org.apache.spark.sql.types.*;
-import org.apache.spark.unsafe.types.UTF8String;
+import io.glutenproject.substrait.type.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import org.apache.spark.sql.catalyst.InternalRow;
+import org.apache.spark.sql.catalyst.util.ArrayData;
+import org.apache.spark.sql.catalyst.util.MapData;
+import org.apache.spark.sql.types.*;
+
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /** Contains helper functions for constructing substrait relations. */
 public class ExpressionBuilder {
@@ -49,225 +45,186 @@ public class ExpressionBuilder {
     return new NullLiteralNode(typeNode);
   }
 
-  public static BooleanLiteralNode makeBooleanLiteral(Boolean booleanConstant) {
-    return new BooleanLiteralNode(booleanConstant);
+  public static BooleanLiteralNode makeBooleanLiteral(Boolean vBool) {
+    return new BooleanLiteralNode(vBool);
   }
 
-  public static IntLiteralNode makeIntLiteral(Integer intConstant) {
-    return new IntLiteralNode(intConstant);
+  public static BooleanLiteralNode makeBooleanLiteral(Boolean vBool, TypeNode typeNode) {
+    return new BooleanLiteralNode(vBool, typeNode);
   }
 
-  public static IntListNode makeIntList(ArrayList<Integer> intConstants) {
-    return new IntListNode(intConstants);
+  public static IntLiteralNode makeIntLiteral(Integer vInt) {
+    return new IntLiteralNode(vInt);
   }
 
-  public static ByteLiteralNode makeByteLiteral(Byte byteConstant) {
-    return new ByteLiteralNode(byteConstant);
+  public static IntLiteralNode makeIntLiteral(Integer vInt, TypeNode typeNode) {
+    return new IntLiteralNode(vInt, typeNode);
   }
 
-  public static ShortLiteralNode makeShortLiteral(Short shortConstant) {
-    return new ShortLiteralNode(shortConstant);
+  public static ByteLiteralNode makeByteLiteral(Byte vByte) {
+    return new ByteLiteralNode(vByte);
   }
 
-  public static LongLiteralNode makeLongLiteral(Long longConstant) {
-    return new LongLiteralNode(longConstant);
+  public static ByteLiteralNode makeByteLiteral(Byte vByte, TypeNode typeNode) {
+    return new ByteLiteralNode(vByte, typeNode);
   }
 
-  public static LongListNode makeLongList(ArrayList<Long> longConstants) {
-    return new LongListNode(longConstants);
+  public static ShortLiteralNode makeShortLiteral(Short vShort) {
+    return new ShortLiteralNode(vShort);
   }
 
-  public static DoubleLiteralNode makeDoubleLiteral(Double doubleConstant) {
-    return new DoubleLiteralNode(doubleConstant);
+  public static ShortLiteralNode makeShortLiteral(Short vShort, TypeNode typeNode) {
+    return new ShortLiteralNode(vShort, typeNode);
   }
 
-  public static DoubleListNode makeDoubleList(ArrayList<Double> doubleConstants) {
-    return new DoubleListNode(doubleConstants);
+  public static LongLiteralNode makeLongLiteral(Long vLong) {
+    return new LongLiteralNode(vLong);
   }
 
-  public static FloatLiteralNode makeFloatLiteral(Float floatConstant) {
-    return new FloatLiteralNode(floatConstant);
+  public static LongLiteralNode makeLongLiteral(Long vLong, TypeNode typeNode) {
+    return new LongLiteralNode(vLong, typeNode);
   }
 
-  public static DateLiteralNode makeDateLiteral(Integer dateConstant) {
-    return new DateLiteralNode(dateConstant);
+  public static DoubleLiteralNode makeDoubleLiteral(Double vDouble) {
+    return new DoubleLiteralNode(vDouble);
   }
 
-  public static DateListNode makeDateList(ArrayList<Integer> dateConstants) {
-    return new DateListNode(dateConstants);
+  public static DoubleLiteralNode makeDoubleLiteral(Double vDouble, TypeNode typeNode) {
+    return new DoubleLiteralNode(vDouble, typeNode);
   }
 
-  public static TimestampLiteralNode makeTimestampLiteral(Long tsConstants) {
-    return new TimestampLiteralNode(tsConstants);
+  public static FloatLiteralNode makeFloatLiteral(Float vFloat) {
+    return new FloatLiteralNode(vFloat);
   }
 
-  public static StringLiteralNode makeStringLiteral(String strConstant) {
-    return new StringLiteralNode(strConstant);
+  public static FloatLiteralNode makeFloatLiteral(Float vFloat, TypeNode typeNode) {
+    return new FloatLiteralNode(vFloat, typeNode);
   }
 
-  public static StringListNode makeStringList(ArrayList<String> strConstants) {
-    return new StringListNode(strConstants);
+  public static DateLiteralNode makeDateLiteral(Integer vDate) {
+    return new DateLiteralNode(vDate);
   }
 
-  public static BinaryStructNode makeBinaryStruct(byte[][] binary, StructType type) {
-    return new BinaryStructNode(binary, type);
+  public static DateLiteralNode makeDateLiteral(Integer vDate, TypeNode typeNode) {
+    return new DateLiteralNode(vDate, typeNode);
   }
 
-  public static BinaryLiteralNode makeBinaryLiteral(byte[] bytesConstant) {
-    return new BinaryLiteralNode(bytesConstant);
+  public static TimestampLiteralNode makeTimestampLiteral(Long vTimestamp) {
+    return new TimestampLiteralNode(vTimestamp);
   }
 
-  public static DecimalLiteralNode makeDecimalLiteral(Decimal decimalConstant) {
-    return new DecimalLiteralNode(decimalConstant);
+  public static TimestampLiteralNode makeTimestampLiteral(Long vTimestamp, TypeNode typeNode) {
+    return new TimestampLiteralNode(vTimestamp, typeNode);
   }
 
-  public static ExpressionNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
-    if (dataType instanceof BooleanType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeBoolean(nullable));
-      } else {
-        return makeBooleanLiteral((Boolean) obj);
-      }
-    } else if (dataType instanceof ByteType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeI8(nullable));
-      } else {
-        return makeByteLiteral((Byte) obj);
-      }
-    } else if (dataType instanceof ShortType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeI16(nullable));
-      } else {
-        return makeShortLiteral((Short) obj);
-      }
-    } else if (dataType instanceof IntegerType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeI32(nullable));
-      } else {
-        return makeIntLiteral((Integer) obj);
-      }
-    } else if (dataType instanceof LongType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeI64(nullable));
-      } else {
-        return makeLongLiteral((Long) obj);
-      }
-    } else if (dataType instanceof FloatType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeFP32(nullable));
-      } else {
-        return makeFloatLiteral((Float) obj);
-      }
-    } else if (dataType instanceof DoubleType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeFP64(nullable));
-      } else {
-        return makeDoubleLiteral((Double) obj);
-      }
-    } else if (dataType instanceof DateType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeDate(nullable));
-      } else {
-        return makeDateLiteral((Integer) obj);
-      }
-    } else if (dataType instanceof TimestampType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeTimestamp(nullable));
-      } else {
-        return makeTimestampLiteral((Long) obj);
-      }
-    } else if (dataType instanceof StringType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeString(nullable));
-      } else {
-        return makeStringLiteral(obj.toString());
-      }
-    } else if (dataType instanceof BinaryType) {
-      if (obj == null) {
-        return makeNullLiteral(TypeBuilder.makeBinary(nullable));
-      } else {
-        return makeBinaryLiteral((byte[]) obj);
-      }
-    } else if (dataType instanceof DecimalType) {
-      if (obj == null) {
-        DecimalType decimal = (DecimalType)dataType;
-        checkDecimalScale(decimal.scale());
-        return makeNullLiteral(TypeBuilder.makeDecimal(nullable, decimal.precision(),
-          decimal.scale()));
-      } else {
-        Decimal decimal = (Decimal) obj;
-        checkDecimalScale(decimal.scale());
-        return makeDecimalLiteral(decimal);
-      }
-    } else if (dataType instanceof ArrayType) {
-      if (obj == null) {
-        ArrayType arrayType = (ArrayType)dataType;
-        return makeNullLiteral(TypeBuilder.makeList(nullable,
-                ConverterUtils.getTypeNode(arrayType.elementType(), nullable)));
-      } else {
-        Object[] elements = ((GenericArrayData) obj).array();
-        ArrayList<String> list = new ArrayList<>();
-        for (Object element : elements) {
-          if (element instanceof UTF8String) {
-            list.add(element.toString());
-          } else {
-            throw new UnsupportedOperationException(
-                    String.format("Type not supported: %s.", dataType.toString()));
-          }
-        }
-        return makeStringList(list);
-      }
-    } else if (dataType instanceof MapType) {
-      if (obj == null) {
-        MapType mapType = (MapType) dataType;
-        TypeNode keyType = ConverterUtils.getTypeNode(mapType.keyType(), false);
-        TypeNode valType = ConverterUtils.getTypeNode(mapType.valueType(),
-         mapType.valueContainsNull());
-        return makeNullLiteral(TypeBuilder.makeMap(nullable, keyType, valType));
-      } else {
-          throw new UnsupportedOperationException(
-            String.format("Type not supported: %s.", dataType.toString()));
-      }
-    } else if (dataType instanceof NullType) {
-        return makeNullLiteral(TypeBuilder.makeNothing());
-    } else  if (dataType instanceof StructType) {
-      StructType type = (StructType) dataType;
-      if (obj == null) {
-        List<TypeNode> typeNodes = Arrays.stream(type.fields())
-            .map(f -> ConverterUtils.getTypeNode(f.dataType(), f.nullable()))
-            .collect(Collectors.toList());
-        return makeNullLiteral(TypeBuilder.makeStruct(nullable, new ArrayList<>(typeNodes)));
-      } else {
-        if (Arrays.stream(type.fields()).anyMatch(f -> !(f.dataType() instanceof BinaryType))) {
-          throw new UnsupportedOperationException(
-              String.format("Type not supported in struct: %s, obj: %s, class: %s",
-                  dataType, obj, obj.getClass().toString()));
-        }
-        InternalRow row = (InternalRow) obj;
-        byte[][] binarys = new byte[row.numFields()][];
-        for (int i = 0; i < row.numFields(); i++) {
-          binarys[i] = row.getBinary(i);
-        }
-        return makeBinaryStruct(binarys, type);
-      }
-    } else {
-      /// TODO(taiyang-li) implement Literal Node for Struct/Map/Array
-      throw new UnsupportedOperationException(
-          String.format("Type not supported: %s, obj: %s, class: %s",
-          dataType.toString(), obj.toString(), obj.getClass().toString()));
+  public static StringLiteralNode makeStringLiteral(String vString) {
+    return new StringLiteralNode(vString);
+  }
+
+  public static StringLiteralNode makeStringLiteral(String vString, TypeNode typeNode) {
+    return new StringLiteralNode(vString, typeNode);
+  }
+
+  public static BinaryLiteralNode makeBinaryLiteral(byte[] vBytes) {
+    return new BinaryLiteralNode(vBytes);
+  }
+
+  public static BinaryLiteralNode makeBinaryLiteral(byte[] vBytes, TypeNode typeNode) {
+    return new BinaryLiteralNode(vBytes, typeNode);
+  }
+
+  public static DecimalLiteralNode makeDecimalLiteral(Decimal vDecimal) {
+    return new DecimalLiteralNode(vDecimal);
+  }
+
+  public static DecimalLiteralNode makeDecimalLiteral(Decimal vDecimal, TypeNode typeNode) {
+    return new DecimalLiteralNode(vDecimal, typeNode);
+  }
+
+  public static ListLiteralNode makeListLiteral(ArrayData array, TypeNode typeNode) {
+    return new ListLiteralNode(array, typeNode);
+  }
+
+  public static MapLiteralNode makeMapLiteral(MapData map, TypeNode typeNode) {
+    return new MapLiteralNode(map, typeNode);
+  }
+
+  public static StructLiteralNode makeStructLiteral(InternalRow row, TypeNode typeNode) {
+    return new StructLiteralNode(row, typeNode);
+  }
+
+  public static LiteralNode makeLiteral(Object obj, TypeNode typeNode) {
+    if (obj == null) {
+      return makeNullLiteral(typeNode);
     }
+    if (typeNode instanceof BooleanTypeNode) {
+      return makeBooleanLiteral((Boolean) obj, typeNode);
+    }
+    if (typeNode instanceof I8TypeNode) {
+      return makeByteLiteral((Byte) obj, typeNode);
+    }
+    if (typeNode instanceof I16TypeNode) {
+      return makeShortLiteral((Short) obj, typeNode);
+    }
+    if (typeNode instanceof I32TypeNode) {
+      return makeIntLiteral((Integer) obj, typeNode);
+    }
+    if (typeNode instanceof I64TypeNode) {
+      return makeLongLiteral((Long) obj, typeNode);
+    }
+    if (typeNode instanceof FP32TypeNode) {
+      return makeFloatLiteral((Float) obj, typeNode);
+    }
+    if (typeNode instanceof FP64TypeNode) {
+      return makeDoubleLiteral((Double) obj, typeNode);
+    }
+    if (typeNode instanceof DateTypeNode) {
+      return makeDateLiteral((Integer) obj, typeNode);
+    }
+    if (typeNode instanceof TimestampTypeNode) {
+      return makeTimestampLiteral((Long) obj, typeNode);
+    }
+    if (typeNode instanceof StringTypeNode) {
+      return makeStringLiteral(obj.toString(), typeNode);
+    }
+    if (typeNode instanceof BinaryTypeNode) {
+      return makeBinaryLiteral((byte[]) obj, typeNode);
+    }
+    if (typeNode instanceof DecimalTypeNode) {
+      Decimal decimal = (Decimal) obj;
+      checkDecimalScale(decimal.scale());
+      return makeDecimalLiteral(decimal, typeNode);
+    }
+    if (typeNode instanceof ListNode) {
+      return makeListLiteral((ArrayData) obj, typeNode);
+    }
+    if (typeNode instanceof MapNode) {
+      return makeMapLiteral((MapData) obj, typeNode);
+    }
+    if (typeNode instanceof StructNode) {
+      return makeStructLiteral((InternalRow) obj, typeNode);
+    }
+    throw new UnsupportedOperationException(
+        String.format(
+            "Type not supported: %s, obj: %s, class: %s",
+            typeNode.toString(), obj.toString(), obj.getClass().toString()));
+  }
+
+  public static LiteralNode makeLiteral(Object obj, DataType dataType, Boolean nullable) {
+    TypeNode typeNode = ConverterUtils.getTypeNode(dataType, nullable);
+    return makeLiteral(obj, typeNode);
   }
 
   public static void checkDecimalScale(int scale) {
     if (scale < 0) {
       // Substrait don't support decimal type with negative scale.
-      throw new UnsupportedOperationException(String.format(
-        "DecimalType with negative scale not supported: %s.", scale));
+      throw new UnsupportedOperationException(
+          String.format("DecimalType with negative scale not supported: %s.", scale));
     }
   }
 
   public static ScalarFunctionNode makeScalarFunction(
-      Long functionId, ArrayList<ExpressionNode> expressionNodes, TypeNode typeNode) {
+      Long functionId, List<ExpressionNode> expressionNodes, TypeNode typeNode) {
     return new ScalarFunctionNode(functionId, expressionNodes, typeNode);
   }
 
@@ -281,14 +238,14 @@ public class ExpressionBuilder {
 
   public static AggregateFunctionNode makeAggregateFunction(
       Long functionId,
-      ArrayList<ExpressionNode> expressionNodes,
+      List<ExpressionNode> expressionNodes,
       String phase,
       TypeNode outputTypeNode) {
     return new AggregateFunctionNode(functionId, expressionNodes, phase, outputTypeNode);
   }
 
-  public static CastNode makeCast(TypeNode typeNode, ExpressionNode expressionNode,
-                                  boolean ansiEnabled) {
+  public static CastNode makeCast(
+      TypeNode typeNode, ExpressionNode expressionNode, boolean ansiEnabled) {
     return new CastNode(typeNode, expressionNode, ansiEnabled);
   }
 
@@ -296,20 +253,20 @@ public class ExpressionBuilder {
     return new StringMapNode(values);
   }
 
-  public static SingularOrListNode makeSingularOrListNode(ExpressionNode value,
-                                                          List<ExpressionNode> expressionNodes) {
+  public static SingularOrListNode makeSingularOrListNode(
+      ExpressionNode value, List<ExpressionNode> expressionNodes) {
     return new SingularOrListNode(value, expressionNodes);
   }
 
   public static WindowFunctionNode makeWindowFunction(
       Integer functionId,
-      ArrayList<ExpressionNode> expressionNodes,
+      List<ExpressionNode> expressionNodes,
       String columnName,
       TypeNode outputTypeNode,
       String upperBound,
       String lowerBound,
-      String windowType) {
-    return new WindowFunctionNode(functionId, expressionNodes, columnName,
-        outputTypeNode, upperBound, lowerBound, windowType);
+      String frameType) {
+    return new WindowFunctionNode(
+        functionId, expressionNodes, columnName, outputTypeNode, upperBound, lowerBound, frameType);
   }
 }

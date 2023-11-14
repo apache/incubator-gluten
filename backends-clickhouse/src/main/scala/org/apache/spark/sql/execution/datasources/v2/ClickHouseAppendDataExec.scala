@@ -41,6 +41,7 @@ import org.apache.spark.sql.delta.schema.ImplicitMetadataOperation
 import org.apache.spark.sql.delta.sources.DeltaSQLConf
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{BasicWriteJobStatsTracker, FileFormatWriter, WriteJobStatsTracker}
+import org.apache.spark.sql.execution.datasources.v2.clickhouse.DeltaLogAdapter
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.files.ClickHouseCommitProtocol
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.source.ClickHouseBatchWrite
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
@@ -74,7 +75,7 @@ case class ClickHouseAppendDataExec(
 
   private val sparkSession = clickhouseTableV2.spark
 
-  private val configuration = deltaLog.snapshot.metadata.configuration
+  private val configuration = DeltaLogAdapter.snapshot(deltaLog).metadata.configuration
 
   private val mode = SaveMode.Append
 
@@ -115,8 +116,8 @@ case class ClickHouseAppendDataExec(
             schema,
             Nil,
             configuration,
-            false,
-            deltaOptions.rearrangeOnly)
+            isOverwriteMode = false,
+            rearrangeOnly = deltaOptions.rearrangeOnly)
 
           // Validate partition predicates
           // val replaceWhere = deltaOptions.replaceWhere
@@ -192,9 +193,9 @@ case class ClickHouseAppendDataExec(
 
     val database = clickhouseTableV2.catalogTable.get.identifier.database.get
     val tableName = clickhouseTableV2.catalogTable.get.identifier.table
-    val engine = deltaLog.snapshot.metadata.configuration.get("engine").get
+    val engine = DeltaLogAdapter.snapshot(deltaLog).metadata.configuration("engine")
     val tablePath = deltaLog.dataPath.toString.substring(6)
-    val partitionSchema = deltaLog.snapshot.metadata.partitionSchema
+    val partitionSchema = DeltaLogAdapter.snapshot(deltaLog).metadata.partitionSchema
     val outputPath = deltaLog.dataPath
     val committer = new ClickHouseCommitProtocol("clickhouse", outputPath.toString, queryId, None)
     val outputSpec = FileFormatWriter.OutputSpec(outputPath.toString, Map.empty, output)
@@ -210,45 +211,49 @@ case class ClickHouseAppendDataExec(
     // Generate insert substrait plan for per partition
     val substraitContext = new SubstraitContext
     val dllCxt = genInsertPlan(substraitContext, queryOutput)
-    val substraitPlanPartition = partitions.map(
-      p => {
-        p match {
-          case FirstZippedPartitionsPartition(index: Int, inputPartition: GlutenFilePartition, _) =>
-            val files = inputPartition.files
-            if (files.length > 1) {
-              throw new SparkException(
-                s"Writing job failed: " +
-                  s"can not support multiple input files in one partition.")
-            }
-            if (files.head.start != 0) {
-              throw new SparkException(
-                s"Writing job failed: " +
-                  s"can not read a parquet file from non-zero start.")
-            }
-            val paths = new java.util.ArrayList[String]()
-            val starts = new java.util.ArrayList[java.lang.Long]()
-            val lengths = new java.util.ArrayList[java.lang.Long]()
-            paths.add(files.head.filePath)
-            starts.add(files.head.start)
-            lengths.add(files.head.length)
-            val localFilesNode =
-              LocalFilesBuilder
-                .makeLocalFiles(index, paths, starts, lengths, ReadFileFormat.UnknownFormat)
-            val insertOutputNode = InsertOutputBuilder.makeInsertOutputNode(
-              SnowflakeIdWorker.getInstance().nextId(),
-              database,
-              tableName,
-              tablePath)
-            dllCxt.substraitContext.setLocalFilesNodes(Seq(localFilesNode))
-            dllCxt.substraitContext.setInsertOutputNode(insertOutputNode)
-            val substraitPlan = dllCxt.root.toProtobuf
-            logWarning(dllCxt.root.toProtobuf.toString)
-          case _ =>
-            throw new SparkException(
-              s"Writing job failed: " +
-                s"can not support input partition.")
+    val substraitPlanPartition = partitions.map {
+      case FirstZippedPartitionsPartition(index: Int, inputPartition: GlutenFilePartition, _) =>
+        val files = inputPartition.files
+        if (files.length > 1) {
+          throw new SparkException(
+            s"Writing job failed: " +
+              s"can not support multiple input files in one partition.")
         }
-      })
+        if (files.head.start != 0) {
+          throw new SparkException(
+            s"Writing job failed: " +
+              s"can not read a parquet file from non-zero start.")
+        }
+        val paths = new java.util.ArrayList[String]()
+        val starts = new java.util.ArrayList[java.lang.Long]()
+        val lengths = new java.util.ArrayList[java.lang.Long]()
+        val partitionColumns = mutable.ArrayBuffer.empty[Map[String, String]]
+        paths.add(files.head.filePath)
+        starts.add(files.head.start)
+        lengths.add(files.head.length)
+        val localFilesNode =
+          LocalFilesBuilder
+            .makeLocalFiles(
+              index,
+              paths,
+              starts,
+              lengths,
+              partitionColumns.map(_.asJava).asJava,
+              ReadFileFormat.UnknownFormat)
+        val insertOutputNode = InsertOutputBuilder.makeInsertOutputNode(
+          SnowflakeIdWorker.getInstance().nextId(),
+          database,
+          tableName,
+          tablePath)
+        dllCxt.substraitContext.setLocalFilesNodes(Seq(localFilesNode))
+        dllCxt.substraitContext.setInsertOutputNode(insertOutputNode)
+        val substraitPlan = dllCxt.root.toProtobuf
+        logWarning(dllCxt.root.toProtobuf.toString)
+      case _ =>
+        throw new SparkException(
+          s"Writing job failed: " +
+            s"can not support input partition.")
+    }
 
     // committer.setupJob(jobContext = )
     val newFiles = Nil
@@ -273,17 +278,14 @@ case class ClickHouseAppendDataExec(
   def genInsertPlan(
       substraitContext: SubstraitContext,
       queryOutput: Seq[Attribute]): DllTransformContext = {
-    val typeNodes = ConverterUtils.getTypeNodeFromAttributes(queryOutput)
-    val nameList = new java.util.ArrayList[String]()
-    for (attr <- queryOutput) {
-      nameList.add(ConverterUtils.getShortAttributeName(attr) + "#" + attr.exprId.id)
-    }
+    val typeNodes = ConverterUtils.collectAttributeTypeNodes(queryOutput)
+    val nameList = ConverterUtils.collectAttributeNamesWithExprId(queryOutput)
     val relNode = RelBuilder.makeReadRel(
       typeNodes,
       nameList,
       null,
       substraitContext,
-      substraitContext.nextOperatorId)
+      substraitContext.nextOperatorId(this.nodeName))
 
     val inputPlanNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(relNode), nameList)

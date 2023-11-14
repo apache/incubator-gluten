@@ -18,8 +18,12 @@ package io.glutenproject.metrics
 
 import io.glutenproject.execution._
 import io.glutenproject.substrait.{AggregationParams, JoinParams}
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
+
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 
 object MetricsUtil extends Logging {
 
@@ -27,28 +31,29 @@ object MetricsUtil extends Logging {
    * Update metrics fetched from certain iterator to transformers.
    *
    * @param child
-   * the child spark plan
+   *   the child spark plan
    * @param relMap
-   * the map between operator index and its rels
+   *   the map between operator index and its rels
    * @param joinParamsMap
-   * the map between operator index and join parameters
+   *   the map between operator index and join parameters
    * @param aggParamsMap
-   * the map between operator index and aggregation parameters
+   *   the map between operator index and aggregation parameters
    */
   def updateNativeMetrics(
       child: SparkPlan,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): IMetrics => Unit = {
+      relMap: JMap[JLong, JList[JLong]],
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
     def treeifyMetricsUpdaters(plan: SparkPlan): MetricsUpdaterTree = {
       plan match {
         case j: HashJoinLikeExecTransformer =>
-          MetricsUpdaterTree(j.metricsUpdater(),
+          MetricsUpdaterTree(
+            j.metricsUpdater(),
             Seq(treeifyMetricsUpdaters(j.buildPlan), treeifyMetricsUpdaters(j.streamedPlan)))
         case t: TransformSupport =>
           MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
         case _ =>
-          MetricsUpdaterTree(new NoopMetricsUpdater, Seq())
+          MetricsUpdaterTree(NoopMetricsUpdater, Seq())
       }
     }
 
@@ -57,22 +62,20 @@ object MetricsUtil extends Logging {
     updateTransformerMetrics(
       mut,
       relMap,
-      new java.lang.Long(relMap.size() - 1),
+      JLong.valueOf(relMap.size() - 1),
       joinParamsMap,
       aggParamsMap)
   }
 
-
   /**
    * Merge several suites of metrics together.
    *
-   * @param operatorMetrics  :
-   *                        a list of metrics to merge
+   * @param operatorMetrics
+   *   : a list of metrics to merge
    * @return
-   * the merged metrics
+   *   the merged metrics
    */
-  private def mergeMetrics(
-      operatorMetrics: java.util.ArrayList[OperatorMetrics]): OperatorMetrics = {
+  private def mergeMetrics(operatorMetrics: JList[OperatorMetrics]): OperatorMetrics = {
     if (operatorMetrics.size() == 0) {
       return null
     }
@@ -102,6 +105,10 @@ object MetricsUtil extends Logging {
     var numReplacedWithDynamicFilterRows: Long = 0
     var flushRowCount: Long = 0
     var scanTime: Long = 0
+    var skippedSplits: Long = 0
+    var processedSplits: Long = 0
+    var skippedStrides: Long = 0
+    var processedStrides: Long = 0
 
     val metricsIterator = operatorMetrics.iterator()
     while (metricsIterator.hasNext) {
@@ -119,6 +126,10 @@ object MetricsUtil extends Logging {
       numReplacedWithDynamicFilterRows += metrics.numReplacedWithDynamicFilterRows
       flushRowCount += metrics.flushRowCount
       scanTime += metrics.scanTime
+      skippedSplits += metrics.skippedSplits
+      processedSplits += metrics.processedSplits
+      skippedStrides += metrics.skippedStrides
+      processedStrides += metrics.processedStrides
     }
 
     new OperatorMetrics(
@@ -142,23 +153,27 @@ object MetricsUtil extends Logging {
       numDynamicFiltersAccepted,
       numReplacedWithDynamicFilterRows,
       flushRowCount,
-      scanTime
+      scanTime,
+      skippedSplits,
+      processedSplits,
+      skippedStrides,
+      processedStrides
     )
   }
 
   /**
    * @return
-   * operator index and metrics index
+   *   operator index and metrics index
    */
   def updateTransformerMetricsInternal(
       mutNode: MetricsUpdaterTree,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      operatorIdx: java.lang.Long,
+      relMap: JMap[JLong, JList[JLong]],
+      operatorIdx: JLong,
       metrics: Metrics,
       metricsIdx: Int,
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): (java.lang.Long, Int) = {
-    val operatorMetrics = new java.util.ArrayList[OperatorMetrics]()
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): (JLong, Int) = {
+    val operatorMetrics = new JArrayList[OperatorMetrics]()
     var curMetricsIdx = metricsIdx
     relMap
       .get(operatorIdx)
@@ -179,9 +194,7 @@ object MetricsUtil extends Logging {
           metrics.getSingleMetrics,
           joinParamsMap.get(operatorIdx))
       case hau: HashAggregateMetricsUpdater =>
-        hau.updateAggregationMetrics(
-          operatorMetrics,
-          aggParamsMap.get(operatorIdx))
+        hau.updateAggregationMetrics(operatorMetrics, aggParamsMap.get(operatorIdx))
       case lu: LimitMetricsUpdater =>
         // Limit over Sort is converted to TopN node in Velox, so there is only one suite of metrics
         // for the two transformers. We do not update metrics for limit and leave it for sort.
@@ -194,28 +207,32 @@ object MetricsUtil extends Logging {
         u.updateNativeMetrics(opMetrics)
     }
 
-    var newOperatorIdx: java.lang.Long = operatorIdx - 1
-    var newMetricsIdx: Int = if (mutNode.updater.isInstanceOf[LimitMetricsUpdater] &&
-      mutNode.children.head.updater.isInstanceOf[SortMetricsUpdater]) {
-      // This suite of metrics is not consumed.
-      metricsIdx
-    } else {
-      curMetricsIdx
-    }
-
-    mutNode.children.foreach { child =>
-      if (!child.updater.isInstanceOf[NoopMetricsUpdater]) {
-        val result = updateTransformerMetricsInternal(
-          child,
-          relMap,
-          newOperatorIdx,
-          metrics,
-          newMetricsIdx,
-          joinParamsMap,
-          aggParamsMap)
-        newOperatorIdx = result._1
-        newMetricsIdx = result._2
+    var newOperatorIdx: JLong = operatorIdx - 1
+    var newMetricsIdx: Int =
+      if (
+        mutNode.updater.isInstanceOf[LimitMetricsUpdater] &&
+        mutNode.children.head.updater.isInstanceOf[SortMetricsUpdater]
+      ) {
+        // This suite of metrics is not consumed.
+        metricsIdx
+      } else {
+        curMetricsIdx
       }
+
+    mutNode.children.foreach {
+      child =>
+        if (child.updater != NoopMetricsUpdater) {
+          val result = updateTransformerMetricsInternal(
+            child,
+            relMap,
+            newOperatorIdx,
+            metrics,
+            newMetricsIdx,
+            joinParamsMap,
+            aggParamsMap)
+          newOperatorIdx = result._1
+          newMetricsIdx = result._2
+        }
     }
 
     (newOperatorIdx, newMetricsIdx)
@@ -225,48 +242,48 @@ object MetricsUtil extends Logging {
    * A recursive function updating the metrics of one transformer and its child.
    *
    * @param mut
-   * the metrics updater tree built from the original plan
+   *   the metrics updater tree built from the original plan
    * @param relMap
-   * the map between operator index and its rels
+   *   the map between operator index and its rels
    * @param operatorIdx
-   * the index of operator
+   *   the index of operator
    * @param metrics
-   * the metrics fetched from native
+   *   the metrics fetched from native
    * @param metricsIdx
-   * the index of metrics
+   *   the index of metrics
    * @param joinParamsMap
-   * the map between operator index and join parameters
+   *   the map between operator index and join parameters
    * @param aggParamsMap
-   * the map between operator index and aggregation parameters
+   *   the map between operator index and aggregation parameters
    */
   def updateTransformerMetrics(
       mutNode: MetricsUpdaterTree,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      operatorIdx: java.lang.Long,
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams])
-  : IMetrics => Unit = { imetrics =>
-    try {
-      val metrics = imetrics.asInstanceOf[Metrics]
-      val numNativeMetrics = metrics.inputRows.length
-      if (numNativeMetrics == 0) {
-        ()
-      } else if (mutNode.updater.isInstanceOf[NoopMetricsUpdater]) {
-        ()
-      } else {
-        updateTransformerMetricsInternal(
-          mutNode,
-          relMap,
-          operatorIdx,
-          metrics,
-          numNativeMetrics - 1,
-          joinParamsMap,
-          aggParamsMap)
+      relMap: JMap[JLong, JList[JLong]],
+      operatorIdx: JLong,
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
+    imetrics =>
+      try {
+        val metrics = imetrics.asInstanceOf[Metrics]
+        val numNativeMetrics = metrics.inputRows.length
+        if (numNativeMetrics == 0) {
+          ()
+        } else if (mutNode.updater == NoopMetricsUpdater) {
+          ()
+        } else {
+          updateTransformerMetricsInternal(
+            mutNode,
+            relMap,
+            operatorIdx,
+            metrics,
+            numNativeMetrics - 1,
+            joinParamsMap,
+            aggParamsMap)
+        }
+      } catch {
+        case e: Throwable =>
+          logWarning(s"Updating native metrics failed due to ${e.getCause}.")
+          ()
       }
-    } catch {
-      case e: Throwable =>
-        logWarning(s"Updating native metrics failed due to ${e.getCause}.")
-        ()
-    }
   }
 }

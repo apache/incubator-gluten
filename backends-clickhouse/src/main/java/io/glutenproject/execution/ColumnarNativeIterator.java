@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution;
 
 import io.glutenproject.vectorized.CHColumnVector;
 import io.glutenproject.vectorized.GeneralInIterator;
+
 import org.apache.spark.sql.vectorized.ColumnarBatch;
 
 import java.util.Iterator;
@@ -29,17 +29,35 @@ public class ColumnarNativeIterator extends GeneralInIterator implements Iterato
     super(delegated);
   }
 
+  private transient ColumnarBatch nextBatch = null;
+
   private static byte[] longtoBytes(long data) {
-    return new byte[]{
-        (byte) ((data >> 56) & 0xff),
-        (byte) ((data >> 48) & 0xff),
-        (byte) ((data >> 40) & 0xff),
-        (byte) ((data >> 32) & 0xff),
-        (byte) ((data >> 24) & 0xff),
-        (byte) ((data >> 16) & 0xff),
-        (byte) ((data >> 8) & 0xff),
-        (byte) ((data >> 0) & 0xff),
+    return new byte[] {
+      (byte) ((data >> 56) & 0xff),
+      (byte) ((data >> 48) & 0xff),
+      (byte) ((data >> 40) & 0xff),
+      (byte) ((data >> 32) & 0xff),
+      (byte) ((data >> 24) & 0xff),
+      (byte) ((data >> 16) & 0xff),
+      (byte) ((data >> 8) & 0xff),
+      (byte) ((data >> 0) & 0xff),
     };
+  }
+
+  @Override
+  public boolean hasNext() {
+    while (delegated.hasNext()) {
+      nextBatch = delegated.next();
+      if (nextBatch.numRows() > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public ColumnarBatch nextColumnarBatch() {
+    return nextBatch;
   }
 
   @Override

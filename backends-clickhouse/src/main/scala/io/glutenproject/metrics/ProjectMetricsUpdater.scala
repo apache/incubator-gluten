@@ -23,13 +23,29 @@ class ProjectMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metrics
   override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
     if (opMetrics != null) {
       val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
-      MetricsUtil.updateOperatorMetrics(metrics, Map.empty, operatorMetrics)
+      if (!operatorMetrics.metricsList.isEmpty) {
+        val metricsData = operatorMetrics.metricsList.get(0)
+        metrics("totalTime") += (metricsData.time / 1000L).toLong
+        metrics("inputWaitTime") += (metricsData.inputWaitTime / 1000L).toLong
+        metrics("outputWaitTime") += (metricsData.outputWaitTime / 1000L).toLong
+        metrics("outputVectors") += metricsData.outputVectors
+
+        MetricsUtil.updateExtraTimeMetric(
+          metricsData,
+          metrics("extraTime"),
+          metrics("outputRows"),
+          metrics("outputBytes"),
+          metrics("inputRows"),
+          metrics("inputBytes"),
+          ProjectMetricsUpdater.INCLUDING_PROCESSORS,
+          ProjectMetricsUpdater.CH_PLAN_NODE_NAME
+        )
+      }
     }
   }
 }
 
 object ProjectMetricsUpdater {
-  val METRICS_MAP = Map(
-    "ExpressionTransform" -> "totalTime"
-  )
+  val INCLUDING_PROCESSORS = Array("ExpressionTransform")
+  val CH_PLAN_NODE_NAME = Array("ExpressionTransform")
 }

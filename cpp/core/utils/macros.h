@@ -19,9 +19,15 @@
 
 #include <time.h>
 
+#include <arrow/status.h>
 #include <chrono>
 
 #include "utils/exception.h"
+
+#define GLUTEN_EXPAND(x) x
+#define GLUTEN_STRINGIFY(x) #x
+#define GLUTEN_TOSTRING(x) GLUTEN_STRINGIFY(x)
+#define GLUTEN_CONCAT(x, y) x##y
 
 #define TIME_NANO_DIFF(finish, start) (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec)
 
@@ -55,6 +61,12 @@
     time += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count(); \
   } while (false);
 
+#define TIME_NANO_START(time) auto time##Start = std::chrono::steady_clock::now();
+
+#define TIME_NANO_END(time)                          \
+  auto time##End = std::chrono::steady_clock::now(); \
+  time += std::chrono::duration_cast<std::chrono::nanoseconds>(time##End - time##Start).count();
+
 #define TIME_NANO_OR_RAISE(time, expr)                                                 \
   do {                                                                                 \
     auto start = std::chrono::steady_clock::now();                                     \
@@ -87,15 +99,9 @@
   }                                    \
   std::cout << std::endl;
 
-#define THROW_NOT_OK(expr)                  \
-  do {                                      \
-    auto __s = (expr);                      \
-    if (!__s.ok()) {                        \
-      throw GlutenException(__s.message()); \
-    }                                       \
-  } while (false);
-
 #define TIME_TO_STRING(time) (time > 10000 ? time / 1000 : time) << (time > 10000 ? " ms" : " us")
 
 #define TIME_NANO_TO_STRING(time) \
   (time > 1e7 ? time / 1e6 : ((time > 1e4) ? time / 1e3 : time)) << (time > 1e7 ? "ms" : (time > 1e4 ? "us" : "ns"))
+
+#define ROUND_TO_LINE(n, round) (((n) + (round)-1) & ~((round)-1))

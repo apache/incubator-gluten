@@ -5,7 +5,7 @@
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>io.glutenproject</groupId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>1.1.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -14,6 +14,23 @@
   <name>Gluten Backends ClickHouse</name>
 
   <dependencies>
+    <dependency>
+      <groupId>io.glutenproject</groupId>
+      <artifactId>gluten-core</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.glutenproject</groupId>
+      <artifactId>gluten-core</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql_${scala.binary.version}</artifactId>
@@ -36,7 +53,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
+      <artifactId>spark-hive_${scala.binary.version}</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -58,19 +75,6 @@
       <groupId>io.delta</groupId>
       <artifactId>delta-core_${scala.binary.version}</artifactId>
       <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.glutenproject</groupId>
-      <artifactId>gluten-core</artifactId>
-      <version>${project.version}</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.glutenproject</groupId>
-      <artifactId>gluten-core</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.scalacheck</groupId>
@@ -110,6 +114,26 @@
       <artifactId>scalatestplus-scalacheck_2.12</artifactId>
       <version>3.1.0.0-RC2</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+       <groupId>org.apache.hive.hcatalog</groupId>
+       <artifactId>hive-hcatalog-core</artifactId>
+	    <version>2.3.9</version>
+	    <scope>test</scope>
+	    <exclusions>
+          <exclusion>
+            <groupId>org.pentaho</groupId>
+            <artifactId>pentaho-aggdesigner-algorithm</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>net.minidev</groupId>
+            <artifactId>json-smart</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-exec</artifactId>
+          </exclusion>
+	    </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -180,9 +204,9 @@
         <configuration>
           <finalName>${jar.assembly.name.prefix}-${project.version}-spark-${sparkbundle.version}
           </finalName>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
+          <descriptors>
+            <descriptor>src/main/resources/gluten-source-exclude-sparkshims.xml</descriptor>
+          </descriptors>
         </configuration>
         <executions>
           <execution>

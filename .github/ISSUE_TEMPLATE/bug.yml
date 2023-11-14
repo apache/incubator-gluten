@@ -1,0 +1,76 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Bug Report
+description: Report a bug or unexpected behavior.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please add as much relevant information to the form below as you can.
+        This will help us reproduce and solve the issue. Thank you!
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      description: Which backend are you running?
+      options:
+        - VL (Velox)
+        - CH (ClickHouse)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: Please describe the issue and the expected behavior.
+      value: "[Expected behavior] and [actual behavior]."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: version
+    attributes:
+      label: Spark version
+      description: Please provide the spark version in your environment.
+      options:
+        - Spark-3.2.x
+        - Spark-3.3.x
+    validations:
+      required: false
+
+  - type: textarea
+    id: configurations
+    attributes:
+      label: Spark configurations
+      description: Please provide the spark configurations in your environment.
+    validations:
+      required: false
+
+  - type: textarea
+    id: info
+    attributes:
+      label: System information
+      description: Please run `dev/info.sh` and paste the output here if you think helpful.
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: bash

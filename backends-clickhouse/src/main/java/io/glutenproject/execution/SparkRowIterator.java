@@ -14,71 +14,70 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.execution;
 
-import java.util.Iterator;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Iterator;
 
 public class SparkRowIterator implements Iterator<byte[]> {
-    private final scala.collection.Iterator<byte[]> delegated;
-    private final int defaultBufSize = 4096;
-    private byte[] lastRowBuf;
+  private final scala.collection.Iterator<byte[]> delegated;
+  private final int defaultBufSize = 4096;
+  private byte[] lastRowBuf;
 
-    public SparkRowIterator(scala.collection.Iterator<byte[]> delegated) {
-        this.delegated = delegated;
-        lastRowBuf = null;
+  public SparkRowIterator(scala.collection.Iterator<byte[]> delegated) {
+    this.delegated = delegated;
+    lastRowBuf = null;
+  }
+
+  @Override
+  public boolean hasNext() {
+    return lastRowBuf != null || delegated.hasNext();
+  }
+
+  @Override
+  public byte[] next() {
+    return delegated.next();
+  }
+
+  protected ByteBuffer createByteBuffer(int bufSize) {
+    ByteBuffer buf;
+    // 8: one length and one end flag
+    if (bufSize + 8 > defaultBufSize) {
+      buf = ByteBuffer.allocateDirect(bufSize + 8);
+    } else {
+      buf = ByteBuffer.allocateDirect(defaultBufSize);
     }
+    buf.order(ByteOrder.LITTLE_ENDIAN);
+    return buf;
+  }
 
-    @Override
-    public boolean hasNext() {
-        return lastRowBuf != null || delegated.hasNext();
-    }
-
-    @Override
-    public byte[] next() {
-        return delegated.next();
-    }
-
-    protected ByteBuffer createByteBuffer(int bufSize) {
-        ByteBuffer buf;
-        // 8: one length and one end flag
-        if (bufSize + 8 > defaultBufSize) {
-            buf = ByteBuffer.allocateDirect(bufSize + 8);
-        } else {
-            buf = ByteBuffer.allocateDirect(defaultBufSize);
+  public ByteBuffer nextBatch() {
+    ByteBuffer buf = null;
+    if (lastRowBuf != null) {
+      buf = createByteBuffer(lastRowBuf.length);
+      buf.putInt(lastRowBuf.length);
+      buf.put(lastRowBuf);
+      // make the end flag
+      buf.putInt(-1);
+      lastRowBuf = null;
+      return buf;
+    } else {
+      while (delegated.hasNext()) {
+        lastRowBuf = delegated.next();
+        if (buf == null) {
+          buf = createByteBuffer(lastRowBuf.length);
         }
-        buf.order(ByteOrder.LITTLE_ENDIAN);
-        return buf;
-    }
-
-    public ByteBuffer nextBatch() {
-        ByteBuffer buf = null;
-        if (lastRowBuf != null) {
-            buf = createByteBuffer(lastRowBuf.length);
-            buf.putInt(lastRowBuf.length);
-            buf.put(lastRowBuf);
-            // make the end flag
-            buf.putInt(-1);
-            lastRowBuf = null;
-            return buf;
+        if (buf.remaining() < lastRowBuf.length + 8) {
+          break;
         } else {
-            while (delegated.hasNext()) {
-                lastRowBuf = delegated.next();
-                if (buf == null) {
-                    buf = createByteBuffer(lastRowBuf.length);
-                }
-                if (buf.remaining() < lastRowBuf.length + 8) {
-                    break;
-                } else {
-                    buf.putInt(lastRowBuf.length);
-                    buf.put(lastRowBuf);
-                    lastRowBuf = null;
-                }
-            }
-            buf.putInt(-1);
-            return buf;
+          buf.putInt(lastRowBuf.length);
+          buf.put(lastRowBuf);
+          lastRowBuf = null;
         }
+      }
+      buf.putInt(-1);
+      return buf;
     }
+  }
 }

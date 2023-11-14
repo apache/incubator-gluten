@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.derivation;
 
 import io.substrait.proto.DerivationExpression;
@@ -31,16 +30,14 @@ public class DerivationFP64TypeNode implements DerivationExpressionNode, Seriali
 
   @Override
   public DerivationExpression toProtobuf() {
-    Type.FP64.Builder doubleBuilder =
-        Type.FP64.newBuilder();
+    Type.FP64.Builder doubleBuilder = Type.FP64.newBuilder();
     if (nullable) {
       doubleBuilder.setNullability(Type.Nullability.NULLABILITY_NULLABLE);
     } else {
       doubleBuilder.setNullability(Type.Nullability.NULLABILITY_REQUIRED);
     }
 
-    DerivationExpression.Builder builder =
-        DerivationExpression.newBuilder();
+    DerivationExpression.Builder builder = DerivationExpression.newBuilder();
     builder.setFp64(doubleBuilder.build());
     return builder.build();
   }

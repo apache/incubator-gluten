@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
+
+import io.glutenproject.exception.GlutenException;
 
 import org.apache.spark.util.GlutenShutdownManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.runtime.BoxedUnit;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -48,23 +48,24 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import scala.runtime.BoxedUnit;
+
 /**
- * LoadXXX methods in the utility prevents reloading of a library internally.
- * It's not necessary for caller
- * to manage a loaded library list.
+ * LoadXXX methods in the utility prevents reloading of a library internally. It's not necessary for
+ * caller to manage a loaded library list.
  */
 public class JniLibLoader {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(JniLibLoader.class);
+  private static final Logger LOG = LoggerFactory.getLogger(JniLibLoader.class);
 
-  public static Set<String> LOADED_LIBRARY_PATHS = new HashSet<>();
-  public static Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = new LinkedHashSet<>();
+  private static final Set<String> LOADED_LIBRARY_PATHS = new HashSet<>();
+  private static final Set<String> REQUIRE_UNLOAD_LIBRARY_PATHS = new LinkedHashSet<>();
 
   static {
-    GlutenShutdownManager.addHookForLibUnloading(() -> {
-      forceUnloadAll();
-      return BoxedUnit.UNIT;
-    });
+    GlutenShutdownManager.addHookForLibUnloading(
+        () -> {
+          forceUnloadAll();
+          return BoxedUnit.UNIT;
+        });
   }
 
   private final String workDir;
@@ -76,9 +77,9 @@ public class JniLibLoader {
   }
 
   public static synchronized void forceUnloadAll() {
-      List<String> loaded = new ArrayList<>(REQUIRE_UNLOAD_LIBRARY_PATHS);
-      Collections.reverse(loaded); // use reversed order to unload
-      loaded.forEach(JniLibLoader::unloadFromPath);
+    List<String> loaded = new ArrayList<>(REQUIRE_UNLOAD_LIBRARY_PATHS);
+    Collections.reverse(loaded); // use reversed order to unload
+    loaded.forEach(JniLibLoader::unloadFromPath);
   }
 
   private static synchronized void loadFromPath0(String libPath, boolean requireUnload) {
@@ -97,28 +98,21 @@ public class JniLibLoader {
   public static void loadFromPath(String libPath, boolean requireUnload) {
     final File file = new File(libPath);
     if (!file.isFile() || !file.exists()) {
-      throw new RuntimeException("library at path: " + libPath
-          + " is not a file or does not exist");
+      throw new GlutenException("library at path: " + libPath + " is not a file or does not exist");
     }
     loadFromPath0(file.getAbsolutePath(), requireUnload);
   }
 
   public void mapAndLoad(String unmappedLibName, boolean requireUnload) {
-    newTransaction()
-        .mapAndLoad(unmappedLibName, requireUnload)
-        .commit();
+    newTransaction().mapAndLoad(unmappedLibName, requireUnload).commit();
   }
 
   public void load(String libName, boolean requireUnload) {
-    newTransaction()
-        .load(libName, requireUnload)
-        .commit();
+    newTransaction().load(libName, requireUnload).commit();
   }
 
   public void loadAndCreateLink(String libName, String linkName, boolean requireUnload) {
-    newTransaction()
-        .loadAndCreateLink(libName, linkName, requireUnload)
-        .commit();
+    newTransaction().loadAndCreateLink(libName, linkName, requireUnload).commit();
   }
 
   public JniLoadTransaction newTransaction() {
@@ -214,7 +208,7 @@ public class JniLibLoader {
         return this;
       } catch (Exception e) {
         abort();
-        throw new RuntimeException(e);
+        throw new GlutenException(e);
       }
     }
 
@@ -224,7 +218,7 @@ public class JniLibLoader {
         return this;
       } catch (Exception e) {
         abort();
-        throw new RuntimeException(e);
+        throw new GlutenException(e);
       }
     }
 
@@ -235,7 +229,7 @@ public class JniLibLoader {
         return this;
       } catch (Exception e) {
         abort();
-        throw new RuntimeException(e);
+        throw new GlutenException(e);
       }
     }
 
@@ -243,32 +237,34 @@ public class JniLibLoader {
       try {
         terminate();
         toLoad.entrySet().stream()
-            .flatMap(e -> {
-              try {
-                final LoadRequest req = e.getValue();
-                if (loadedLibraries.contains(req.libName)) {
-                  LOG.debug("Library {} has already been loaded, skipping", req.libName);
-                  return Stream.empty();
-                }
-                // load only libraries not loaded yet
-                final File file = moveToWorkDir(workDir, req.libName);
-                return Stream.of(
-                    new LoadAction(req.libName, req.linkName, req.requireUnload, file));
-              } catch (IOException ex) {
-                throw new RuntimeException(ex);
-              }
-            })
+            .flatMap(
+                e -> {
+                  try {
+                    final LoadRequest req = e.getValue();
+                    if (loadedLibraries.contains(req.libName)) {
+                      LOG.debug("Library {} has already been loaded, skipping", req.libName);
+                      return Stream.empty();
+                    }
+                    // load only libraries not loaded yet
+                    final File file = moveToWorkDir(workDir, req.libName);
+                    return Stream.of(
+                        new LoadAction(req.libName, req.linkName, req.requireUnload, file));
+                  } catch (IOException ex) {
+                    throw new GlutenException(ex);
+                  }
+                })
             .collect(Collectors.toList())
-            .forEach(e -> {
-              try {
-                LOG.info("Trying to load library {}", e.libName);
-                loadWithLink(workDir, e);
-                loadedLibraries.add(e.libName);
-                LOG.info("Successfully loaded library {}", e.libName);
-              } catch (Exception ex) {
-                throw new RuntimeException(ex);
-              }
-            });
+            .forEach(
+                e -> {
+                  try {
+                    LOG.info("Trying to load library {}", e.libName);
+                    loadWithLink(workDir, e);
+                    loadedLibraries.add(e.libName);
+                    LOG.info("Successfully loaded library {}", e.libName);
+                  } catch (Exception ex) {
+                    throw new GlutenException(ex);
+                  }
+                });
       } finally {
         JniLibLoader.this.sync.unlock();
       }
@@ -296,15 +292,15 @@ public class JniLibLoader {
         Files.delete(libPath);
       }
       final File temp = new File(workDir + "/" + libraryToLoad);
-      try (InputStream is = JniLibLoader.class.getClassLoader()
-          .getResourceAsStream(libraryToLoad)) {
+      try (InputStream is =
+          JniLibLoader.class.getClassLoader().getResourceAsStream(libraryToLoad)) {
         if (is == null) {
           throw new FileNotFoundException(libraryToLoad);
         }
         try {
           Files.copy(is, temp.toPath());
         } catch (Exception e) {
-          throw new RuntimeException(e);
+          throw new GlutenException(e);
         }
       }
       return temp;
@@ -328,7 +324,5 @@ public class JniLibLoader {
       Files.createSymbolicLink(link, target);
       LOG.info("Symbolic link {} created for library {}", link, libPath);
     }
-
   }
-
 }

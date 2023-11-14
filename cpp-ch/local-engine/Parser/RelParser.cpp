@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "RelParser.h"
 #include <string>
 #include <AggregateFunctions/AggregateFunctionFactory.h>
@@ -16,13 +32,13 @@ namespace ErrorCodes
 namespace local_engine
 {
 AggregateFunctionPtr RelParser::getAggregateFunction(
-    DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters)
+    const DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters)
 {
     auto & factory = AggregateFunctionFactory::instance();
     return factory.get(name, arg_types, parameters, properties);
 }
 
-std::optional<String> RelParser::parseFunctionName(UInt32 function_ref)
+std::optional<String> RelParser::parseSignatureFunctionName(UInt32 function_ref)
 {
     const auto & function_mapping = getFunctionMapping();
     auto it = function_mapping.find(std::to_string(function_ref));
@@ -35,69 +51,22 @@ std::optional<String> RelParser::parseFunctionName(UInt32 function_ref)
     return function_name;
 }
 
-DB::DataTypes RelParser::parseFunctionArgumentTypes(
-    const Block & header, const google::protobuf::RepeatedPtrField<substrait::FunctionArgument> & func_args)
+std::optional<String> RelParser::parseFunctionName(UInt32 function_ref, const substrait::Expression_ScalarFunction & function)
 {
-    DB::DataTypes res;
-    for (const auto & arg : func_args)
+    auto sigature_name = parseSignatureFunctionName(function_ref);
+    if (!sigature_name)
     {
-        if (!arg.has_value())
-        {
-            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Expect a FunctionArgument with value field");
-        }
-        res.emplace_back(parseExpressionType(header, arg.value()));
+        return {};
     }
-    return res;
+    return plan_parser->getFunctionName(*sigature_name, function);
 }
-
-DB::DataTypePtr RelParser::parseExpressionType(const Block & header, const substrait::Expression & expr)
+DB::QueryPlanPtr RelParser::parseOp(const substrait::Rel & rel, std::list<const substrait::Rel *> & rel_stack)
 {
-    DB::DataTypePtr res;
-    if (expr.has_selection())
-    {
-        auto pos = expr.selection().direct_reference().struct_field().field();
-        res = header.getByPosition(pos).type;
-    }
-    else if (expr.has_literal())
-    {
-        auto [data_type, _] = SerializedPlanParser::parseLiteral(expr.literal());
-        res = data_type;
-    }
-    else
-    {
-        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unknow FunctionArgument: {}", expr.DebugString());
-    }
-    return res;
-}
-
-
-DB::Names RelParser::parseFunctionArgumentNames(
-    const Block & header, const google::protobuf::RepeatedPtrField<substrait::FunctionArgument> & func_args)
-{
-    DB::Names res;
-    for (const auto & arg : func_args)
-    {
-        if (!arg.has_value())
-        {
-            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Expect a FunctionArgument with value field");
-        }
-        const auto & value = arg.value();
-        if (value.has_selection())
-        {
-            auto pos = value.selection().direct_reference().struct_field().field();
-            res.push_back(header.getByPosition(pos).name);
-        }
-        else if (value.has_literal())
-        {
-            auto [_, field] = SerializedPlanParser::parseLiteral(value.literal());
-            res.push_back(field.dump());
-        }
-        else
-        {
-            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unknow FunctionArgument: {}", arg.DebugString());
-        }
-    }
-    return res;
+    SerializedPlanParser & planParser = *getPlanParser();
+    rel_stack.push_back(&rel);
+    auto query_plan = planParser.parseOp(getSingleInput(rel), rel_stack);
+    rel_stack.pop_back();
+    return parse(std::move(query_plan), rel, rel_stack);
 }
 
 RelParserFactory & RelParserFactory::instance()
@@ -129,6 +98,10 @@ RelParserFactory::RelParserBuilder RelParserFactory::getBuilder(DB::UInt32 k)
 void registerWindowRelParser(RelParserFactory & factory);
 void registerSortRelParser(RelParserFactory & factory);
 void registerExpandRelParser(RelParserFactory & factory);
+void registerAggregateParser(RelParserFactory & factory);
+void registerProjectRelParser(RelParserFactory & factory);
+void registerJoinRelParser(RelParserFactory & factory);
+void registerFilterRelParser(RelParserFactory & factory);
 
 void registerRelParsers()
 {
@@ -136,5 +109,9 @@ void registerRelParsers()
     registerWindowRelParser(factory);
     registerSortRelParser(factory);
     registerExpandRelParser(factory);
+    registerAggregateParser(factory);
+    registerProjectRelParser(factory);
+    registerJoinRelParser(factory);
+    registerFilterRelParser(factory);
 }
 }

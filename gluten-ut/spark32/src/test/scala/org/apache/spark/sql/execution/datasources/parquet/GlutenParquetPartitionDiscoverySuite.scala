@@ -14,15 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.parquet
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql._
 
-class GlutenParquetV1PartitionDiscoverySuite extends ParquetV1PartitionDiscoverySuite
+class GlutenParquetV1PartitionDiscoverySuite
+  extends ParquetV1PartitionDiscoverySuite
   with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf = {
+    // Timezone is not supported yet.
+    super.sparkConf.set("spark.sql.session.timeZone", "UTC")
+  }
 }
 
-class GlutenParquetV2PartitionDiscoverySuite extends ParquetV2PartitionDiscoverySuite
+class GlutenParquetV2PartitionDiscoverySuite
+  extends ParquetV2PartitionDiscoverySuite
   with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf = {
+    // Timezone is not supported yet.
+    super.sparkConf.set("spark.sql.session.timeZone", "UTC")
+  }
 }

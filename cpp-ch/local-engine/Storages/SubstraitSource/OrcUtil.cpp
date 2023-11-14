@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "OrcUtil.h"
 #include <IO/Operators.h>
 #include <IO/WriteBufferFromString.h>
@@ -7,7 +23,6 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Common/Exception.h>
 
-// clang-format off
 
 #define ORC_THROW_NOT_OK(s)                   \
   do {                                        \
@@ -45,7 +60,6 @@
   ORC_BEGIN_CATCH_NOT_OK(_s); \
   ORC_END_CATCH_NOT_OK
 
-// clang-format on
 namespace DB
 {
 namespace ErrorCodes
@@ -58,7 +72,7 @@ namespace local_engine
 {
 uint64_t ArrowInputFile::getLength() const
 {
-    ORC_ASSIGN_OR_THROW(int64_t size, file->GetSize());
+    ORC_ASSIGN_OR_THROW(int64_t size, file->GetSize())
     return static_cast<uint64_t>(size);
 }
 
@@ -69,7 +83,7 @@ uint64_t ArrowInputFile::getNaturalReadSize() const
 
 void ArrowInputFile::read(void * buf, uint64_t length, uint64_t offset)
 {
-    ORC_ASSIGN_OR_THROW(int64_t bytes_read, file->ReadAt(offset, length, buf));
+    ORC_ASSIGN_OR_THROW(int64_t bytes_read, file->ReadAt(offset, length, buf))
 
     if (static_cast<uint64_t>(bytes_read) != length)
     {
@@ -87,7 +101,7 @@ arrow::Status innerCreateOrcReader(std::shared_ptr<arrow::io::RandomAccessFile> 
 {
     std::unique_ptr<ArrowInputFile> io_wrapper(new ArrowInputFile(file_));
     orc::ReaderOptions options;
-    ORC_CATCH_NOT_OK(*orc_reader = std::move(orc::createReader(std::move(io_wrapper), options)));
+    ORC_CATCH_NOT_OK(*orc_reader = orc::createReader(std::move(io_wrapper), options))
 
     return arrow::Status::OK();
 }

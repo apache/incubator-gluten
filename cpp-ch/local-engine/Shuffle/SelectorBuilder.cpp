@@ -1,8 +1,34 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "SelectorBuilder.h"
+#include <limits>
 #include <memory>
 #include <mutex>
+#include <Common/CHUtil.h>
+#include <Columns/ColumnArray.h>
+#include <Columns/ColumnMap.h>
+#include <Columns/ColumnNullable.h>
+#include <Columns/ColumnTuple.h>
+#include <DataTypes/DataTypeArray.h>
+#include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeTuple.h>
 #include <Functions/FunctionFactory.h>
 #include <Parser/SerializedPlanParser.h>
+#include <Parser/TypeParser.h>
 #include <Processors/QueryPlan/Optimizations/QueryPlanOptimizationSettings.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <Poco/Base64Decoder.h>
@@ -19,7 +45,6 @@ namespace ErrorCodes
     extern const int LOGICAL_ERROR;
 }
 }
-
 namespace local_engine
 {
 PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t partition_num)
@@ -68,11 +93,12 @@ HashSelectorBuilder::HashSelectorBuilder(
 PartitionInfo HashSelectorBuilder::build(DB::Block & block)
 {
     ColumnsWithTypeAndName args;
-    auto rows = block.rows();
     for (size_t i = 0; i < exprs_index.size(); i++)
     {
-        args.emplace_back(block.getByPosition(exprs_index.at(i)));
+        args.emplace_back(block.safeGetByPosition(exprs_index.at(i)));
     }
+    auto flatten_block = BlockUtil::flattenBlock(DB::Block(args), BlockUtil::FLAT_STRUCT_FORCE | BlockUtil::FLAT_NESTED_TABLE, true);
+    args = flatten_block.getColumnsWithTypeAndName();
 
     if (!hash_function) [[unlikely]]
     {
@@ -81,14 +107,24 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
 
         hash_function = function->build(args);
     }
+
+    auto rows = block.rows();
     DB::IColumn::Selector partition_ids;
     partition_ids.reserve(rows);
     auto result_type = hash_function->getResultType();
     auto hash_column = hash_function->execute(args, result_type, rows, false);
 
-    for (size_t i = 0; i < block.rows(); i++)
+    if (isNothing(removeNullable(result_type)))
     {
-        partition_ids.emplace_back(static_cast<UInt64>(hash_column->get64(i) % parts_num));
+        /// TODO: implement new hash function sparkCityHash64 like sparkXxHash64 to process null literal as column more gracefully.
+        /// Current implementation may cause partition skew.
+        for (size_t i = 0; i < rows; i++)
+            partition_ids.emplace_back(0);
+    }
+    else
+    {
+        for (size_t i = 0; i < rows; i++)
+            partition_ids.emplace_back(static_cast<UInt64>(hash_column->get64(i) % parts_num));
     }
     return PartitionInfo::fromSelector(std::move(partition_ids), parts_num);
 }
@@ -115,7 +151,7 @@ PartitionInfo RangeSelectorBuilder::build(DB::Block & block)
 
 void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)
 {
-    for (size_t i = 0; i < orderings->size(); ++i)
+    for (uint32_t i = 0; i < orderings->size(); ++i)
     {
         auto ordering = orderings->get(i).extract<Poco::JSON::Object::Ptr>();
         auto col_pos = ordering->get("column_ref").convert<DB::Int32>();
@@ -131,7 +167,7 @@ void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)
         sort_descriptions.emplace_back(ch_col_sort_descr);
 
         auto type_name = ordering->get("data_type").convert<std::string>();
-        auto type = SerializedPlanParser::parseType(type_name);
+        auto type = TypeParser::getCHTypeByName(type_name);
         SortFieldTypeInfo info;
         info.inner_type = type;
         info.is_nullable = ordering->get("is_nullable").convert<bool>();
@@ -140,10 +176,30 @@ void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)
     }
 }
 
+template <typename T>
+void RangeSelectorBuilder::safeInsertFloatValue(const Poco::Dynamic::Var & field_value, DB::MutableColumnPtr & col)
+{
+    try {
+        col->insert(field_value.convert<T>());
+    } catch (const std::exception &) {
+        String val = Poco::toLower(field_value.convert<std::string>());
+        T res;
+        if (val == "nan")
+            res = std::numeric_limits<T>::quiet_NaN();
+        else if (val == "infinity")
+            res = std::numeric_limits<T>::infinity();
+        else if (val == "-infinity")
+            res = -std::numeric_limits<T>::infinity();
+        else
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupported value: {}", val);
+        col->insert(res);
+    }
+}
+
 void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
 {
     DB::ColumnsWithTypeAndName columns;
-    for (size_t i = 0; i < sort_field_types.size(); ++i)
+    for (uint32_t i = 0; i < sort_field_types.size(); ++i)
     {
         auto & type_info = sort_field_types[i];
         auto inner_col = type_info.inner_type->createColumn();
@@ -154,7 +210,7 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
             col = ColumnNullable::create(std::move(col), DB::ColumnUInt8::create(0, 0));
             data_type = std::make_shared<DB::DataTypeNullable>(data_type);
         }
-        for (size_t r = 0; r < range_bounds->size(); ++r)
+        for (uint32_t r = 0; r < range_bounds->size(); ++r)
         {
             auto row = range_bounds->get(r).extract<Poco::JSON::Array::Ptr>();
             auto field_info = row->get(i).extract<Poco::JSON::Object::Ptr>();
@@ -188,19 +244,19 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
                 }
                 else if (type_name == "Float32")
                 {
-                    col->insert(field_value.convert<DB::Float32>());
+                    safeInsertFloatValue<DB::Float32>(field_value, col);
                 }
                 else if (type_name == "Float64")
                 {
-                    col->insert(field_value.convert<DB::Float64>());
+                    safeInsertFloatValue<DB::Float64>(field_value, col);
                 }
                 else if (type_name == "String")
                 {
                     col->insert(field_value.convert<std::string>());
                 }
-                else if (type_name == "Date")
+                else if (type_name == "Date32")
                 {
-                    int val = field_value.convert<DB::UInt16>();
+                    int val = field_value.convert<DB::Int32>();
                     col->insert(val);
                 }
                 else

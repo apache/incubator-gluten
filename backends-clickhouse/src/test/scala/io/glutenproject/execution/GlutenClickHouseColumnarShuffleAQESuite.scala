@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.CoalescedPartitionSpec
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 
 class GlutenClickHouseColumnarShuffleAQESuite
   extends GlutenClickHouseTPCHAbstractSuite
@@ -45,7 +45,7 @@ class GlutenClickHouseColumnarShuffleAQESuite
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
 
         val colCustomShuffleReaderExecs = collect(df.queryExecution.executedPlan) {
-          case csr: ColumnarAQEShuffleReadExec => csr
+          case csr: AQEShuffleReadExec => csr
         }
         assert(colCustomShuffleReaderExecs.size == 2)
         val coalescedPartitionSpec0 = colCustomShuffleReaderExecs(0)
@@ -63,12 +63,6 @@ class GlutenClickHouseColumnarShuffleAQESuite
 
   test("TPCH Q2") {
     runTPCHQuery(2) { df => }
-  }
-
-  test("TPCH Q2 with coalesce batch true") {
-    withSQLConf(("spark.gluten.sql.columnar.coalesce.batches", "true")) {
-      runTPCHQuery(2) { df => }
-    }
   }
 
   test("TPCH Q3") {
@@ -93,12 +87,6 @@ class GlutenClickHouseColumnarShuffleAQESuite
 
   test("TPCH Q8") {
     runTPCHQuery(8) { df => }
-  }
-
-  test("TPCH Q8 with coalesce batch true") {
-    withSQLConf(("spark.gluten.sql.columnar.coalesce.batches", "true")) {
-      runTPCHQuery(8) { df => }
-    }
   }
 
   test("TPCH Q9") {
@@ -144,7 +132,7 @@ class GlutenClickHouseColumnarShuffleAQESuite
   }
 
   test("TPCH Q16") {
-    runTPCHQuery(16) { df => }
+    runTPCHQuery(16, noFallBack = false) { df => }
   }
 
   test("TPCH Q17") {
@@ -161,6 +149,10 @@ class GlutenClickHouseColumnarShuffleAQESuite
 
   test("TPCH Q20") {
     runTPCHQuery(20) { df => }
+  }
+
+  test("TPCH Q21") {
+    runTPCHQuery(21, noFallBack = false) { df => }
   }
 
   test("TPCH Q22") {

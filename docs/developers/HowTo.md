@@ -45,7 +45,7 @@ You can generate the example files by the following steps:
 ```
 cd gluten_home/ep/build-arrow/src
 ./get_arrow.sh
-./build_arrow.sh --build_tests=ON --build_benchmarks=ON
+./build_arrow.sh
 ```
 
 2. get and build Velox
@@ -69,8 +69,8 @@ make -j
 4. build Gluten and generate the example files
 ```
 cd gluten_home
-mvn clean package -Pspark-3.2 -Pbackends-velox
-mvn test -Pspark-3.2 -Pbackends-velox -pl backends-velox -am -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=11.0.0-gluten -Dexec.skip
+mvn clean package -Pspark-3.2 -Pbackends-velox -Prss
+mvn test -Pspark-3.2 -Pbackends-velox -Prss -pl backends-velox -am -DtagsToInclude="io.glutenproject.tags.GenerateExample" -Dtest=none -DfailIfNoTests=false -Darrow.version=11.0.0-gluten -Dexec.skip
 ```
 - After the above operations, the examples files are generated under `gluten_home/backends-velox`
 - You can check it by the command `tree gluten_home/backends-velox/generated-native-benchmark/`
@@ -154,3 +154,13 @@ Here will explain how to run TPC-H on Velox backend with the Parquet file format
 
 # How to run TPC-DS
 wait to add
+
+# How to track the memory exhaust problem
+When your gluten spark jobs failed because of OOM, you can track the memory allocation's call stack by configuring `spark.gluten.backtrace.allocation = true`.
+The above configuration will use `BacktraceAllocationListener` wrapping from `SparkAllocationListener` to create `VeloxMemoryManager`.
+
+`BacktraceAllocationListener` will check every allocation, if a single allocation bytes exceeds a fixed value or the accumulative allocation bytes exceeds 1/2/3...G,
+the call stack of memory allocation will be outputted to standard output, you can check the backtrace and get some valuable information about tracking the memory exhaust issues.
+
+You can also adjust the policy to decide when to backtrace, such as the fixed value.
+

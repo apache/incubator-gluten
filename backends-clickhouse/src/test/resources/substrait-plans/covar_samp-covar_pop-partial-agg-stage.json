@@ -1,0 +1,506 @@
+{
+  "extensions": [{
+    "extensionFunction": {
+      "functionAnchor": 7,
+      "name": "avg:req_fp64"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 6,
+      "name": "covar_pop:req_fp64_fp64"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 1,
+      "name": "lte:opt_date_date"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 2,
+      "name": "and:opt_bool_bool"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 3,
+      "name": "subtract:opt_fp64_fp64"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 5,
+      "name": "covar_samp:req_fp64_fp64"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 4,
+      "name": "sum:req_fp64"
+    }
+  }, {
+    "extensionFunction": {
+      "functionAnchor": 8,
+      "name": "count:req_i32"
+    }
+  }, {
+    "extensionFunction": {
+      "name": "is_not_null:opt_date"
+    }
+  }],
+  "relations": [{
+    "root": {
+      "input": {
+        "aggregate": {
+          "common": {
+            "direct": {
+            }
+          },
+          "input": {
+            "project": {
+              "common": {
+                "emit": {
+                  "outputMapping": [5, 6, 7, 8, 9, 10, 11]
+                }
+              },
+              "input": {
+                "project": {
+                  "common": {
+                    "emit": {
+                      "outputMapping": [6, 7, 8, 9, 10]
+                    }
+                  },
+                  "input": {
+                    "filter": {
+                      "common": {
+                        "direct": {
+                        }
+                      },
+                      "input": {
+                        "read": {
+                          "common": {
+                            "direct": {
+                            }
+                          },
+                          "baseSchema": {
+                            "names": ["l_quantity", "l_extendedprice", "l_discount", "l_returnflag", "l_linestatus", "l_shipdate"],
+                            "struct": {
+                              "types": [{
+                                "fp64": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              }, {
+                                "fp64": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              }, {
+                                "fp64": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              }, {
+                                "string": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              }, {
+                                "string": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              }, {
+                                "date": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              }]
+                            }
+                          },
+                          "filter": {
+                            "scalarFunction": {
+                              "functionReference": 2,
+                              "outputType": {
+                                "bool": {
+                                  "nullability": "NULLABILITY_NULLABLE"
+                                }
+                              },
+                              "arguments": [{
+                                "value": {
+                                  "scalarFunction": {
+                                    "outputType": {
+                                      "bool": {
+                                        "nullability": "NULLABILITY_REQUIRED"
+                                      }
+                                    },
+                                    "arguments": [{
+                                      "value": {
+                                        "selection": {
+                                          "directReference": {
+                                            "structField": {
+                                              "field": 5
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }]
+                                  }
+                                }
+                              }, {
+                                "value": {
+                                  "scalarFunction": {
+                                    "functionReference": 1,
+                                    "outputType": {
+                                      "bool": {
+                                        "nullability": "NULLABILITY_NULLABLE"
+                                      }
+                                    },
+                                    "arguments": [{
+                                      "value": {
+                                        "selection": {
+                                          "directReference": {
+                                            "structField": {
+                                              "field": 5
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }, {
+                                      "value": {
+                                        "literal": {
+                                          "date": 10470
+                                        }
+                                      }
+                                    }]
+                                  }
+                                }
+                              }]
+                            }
+                          },
+                          "localFiles": {
+                            "items": [{
+                              "uriFile": "file:///basePath/tpch-data/lineitem/part-00000-d08071cb-0dfa-42dc-9198-83cb334ccda3-c000.snappy.parquet",
+                              "length": "17777735",
+                              "parquet": {
+                              }
+                            }]
+                          }
+                        }
+                      },
+                      "condition": {
+                        "scalarFunction": {
+                          "functionReference": 2,
+                          "outputType": {
+                            "bool": {
+                              "nullability": "NULLABILITY_NULLABLE"
+                            }
+                          },
+                          "arguments": [{
+                            "value": {
+                              "scalarFunction": {
+                                "outputType": {
+                                  "bool": {
+                                    "nullability": "NULLABILITY_REQUIRED"
+                                  }
+                                },
+                                "arguments": [{
+                                  "value": {
+                                    "selection": {
+                                      "directReference": {
+                                        "structField": {
+                                          "field": 5
+                                        }
+                                      }
+                                    }
+                                  }
+                                }]
+                              }
+                            }
+                          }, {
+                            "value": {
+                              "scalarFunction": {
+                                "functionReference": 1,
+                                "outputType": {
+                                  "bool": {
+                                    "nullability": "NULLABILITY_NULLABLE"
+                                  }
+                                },
+                                "arguments": [{
+                                  "value": {
+                                    "selection": {
+                                      "directReference": {
+                                        "structField": {
+                                          "field": 5
+                                        }
+                                      }
+                                    }
+                                  }
+                                }, {
+                                  "value": {
+                                    "literal": {
+                                      "date": 10470
+                                    }
+                                  }
+                                }]
+                              }
+                            }
+                          }]
+                        }
+                      }
+                    }
+                  },
+                  "expressions": [{
+                    "selection": {
+                      "directReference": {
+                        "structField": {
+                        }
+                      }
+                    }
+                  }, {
+                    "selection": {
+                      "directReference": {
+                        "structField": {
+                          "field": 1
+                        }
+                      }
+                    }
+                  }, {
+                    "selection": {
+                      "directReference": {
+                        "structField": {
+                          "field": 2
+                        }
+                      }
+                    }
+                  }, {
+                    "selection": {
+                      "directReference": {
+                        "structField": {
+                          "field": 3
+                        }
+                      }
+                    }
+                  }, {
+                    "selection": {
+                      "directReference": {
+                        "structField": {
+                          "field": 4
+                        }
+                      }
+                    }
+                  }]
+                }
+              },
+              "expressions": [{
+                "selection": {
+                  "directReference": {
+                    "structField": {
+                      "field": 3
+                    }
+                  }
+                }
+              }, {
+                "selection": {
+                  "directReference": {
+                    "structField": {
+                      "field": 4
+                    }
+                  }
+                }
+              }, {
+                "selection": {
+                  "directReference": {
+                    "structField": {
+                    }
+                  }
+                }
+              }, {
+                "selection": {
+                  "directReference": {
+                    "structField": {
+                      "field": 1
+                    }
+                  }
+                }
+              }, {
+                "selection": {
+                  "directReference": {
+                    "structField": {
+                      "field": 2
+                    }
+                  }
+                }
+              }, {
+                "scalarFunction": {
+                  "functionReference": 3,
+                  "outputType": {
+                    "fp64": {
+                      "nullability": "NULLABILITY_NULLABLE"
+                    }
+                  },
+                  "arguments": [{
+                    "value": {
+                      "literal": {
+                        "fp64": 1.0
+                      }
+                    }
+                  }, {
+                    "value": {
+                      "selection": {
+                        "directReference": {
+                          "structField": {
+                            "field": 2
+                          }
+                        }
+                      }
+                    }
+                  }]
+                }
+              }, {
+                "literal": {
+                  "i32": 1
+                }
+              }]
+            }
+          },
+          "groupings": [{
+            "groupingExpressions": [{
+              "selection": {
+                "directReference": {
+                  "structField": {
+                  }
+                }
+              }
+            }, {
+              "selection": {
+                "directReference": {
+                  "structField": {
+                    "field": 1
+                  }
+                }
+              }
+            }]
+          }],
+          "measures": [{
+            "measure": {
+              "functionReference": 4,
+              "phase": "AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE",
+              "outputType": {
+                "fp64": {
+                  "nullability": "NULLABILITY_NULLABLE"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 2
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }, {
+            "measure": {
+              "functionReference": 5,
+              "phase": "AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE",
+              "outputType": {
+                "fp64": {
+                  "nullability": "NULLABILITY_NULLABLE"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 3
+                      }
+                    }
+                  }
+                }
+              }, {
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 4
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }, {
+            "measure": {
+              "functionReference": 6,
+              "phase": "AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE",
+              "outputType": {
+                "fp64": {
+                  "nullability": "NULLABILITY_NULLABLE"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 3
+                      }
+                    }
+                  }
+                }
+              }, {
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 5
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }, {
+            "measure": {
+              "functionReference": 7,
+              "phase": "AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE",
+              "outputType": {
+                "fp64": {
+                  "nullability": "NULLABILITY_NULLABLE"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 3
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }, {
+            "measure": {
+              "functionReference": 8,
+              "phase": "AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE",
+              "outputType": {
+                "i64": {
+                  "nullability": "NULLABILITY_REQUIRED"
+                }
+              },
+              "arguments": [{
+                "value": {
+                  "selection": {
+                    "directReference": {
+                      "structField": {
+                        "field": 6
+                      }
+                    }
+                  }
+                }
+              }]
+            }
+          }]
+        }
+      },
+      "names": ["l_returnflag#24", "l_linestatus#25", "sum#32", "covar_samp#41", "covar_pop#51", "avg#42", "count#15"]
+    }
+  }]
+}

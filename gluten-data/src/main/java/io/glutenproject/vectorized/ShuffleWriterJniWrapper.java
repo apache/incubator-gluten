@@ -14,14 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
+
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.RuntimeAware;
+import io.glutenproject.exec.Runtimes;
 
 import java.io.IOException;
 
-public class ShuffleWriterJniWrapper {
+public class ShuffleWriterJniWrapper implements RuntimeAware {
+  private final Runtime runtime;
 
-  public ShuffleWriterJniWrapper() throws IOException {
+  private ShuffleWriterJniWrapper(Runtime runtime) {
+    this.runtime = runtime;
+  }
+
+  public static ShuffleWriterJniWrapper create() {
+    return new ShuffleWriterJniWrapper(Runtimes.contextInstance());
+  }
+
+  @Override
+  public long handle() {
+    return runtime.getHandle();
   }
 
   /**
@@ -30,21 +44,46 @@ public class ShuffleWriterJniWrapper {
    * @param part contains the partitioning parameter needed by native splitter
    * @param bufferSize size of native buffers held by each partition writer
    * @param codec compression codec
+   * @param codecBackend HW backend for offloading compression
    * @param dataFile acquired from spark IndexShuffleBlockResolver
    * @param subDirsPerLocalDir SparkConf spark.diskStore.subDirectories
    * @param localDirs configured local directories where Spark can write files
-   * @param preferEvict
-   * @param memoryPoolId
-   * @return native shuffle writer instance id if created successfully.
+   * @return native shuffle writer instance handle if created successfully.
    */
-  public long make(NativePartitioning part, long offheapPerTask, int bufferSize, String codec,
-                   int batchCompressThreshold, String dataFile, int subDirsPerLocalDir,
-                   String localDirs, boolean preferEvict, long memoryPoolId, boolean writeSchema,
-                   long handle, long taskAttemptId) {
-      return nativeMake(part.getShortName(), part.getNumPartitions(),
-          offheapPerTask, bufferSize, codec, batchCompressThreshold, dataFile,
-          subDirsPerLocalDir, localDirs, preferEvict, memoryPoolId,
-          writeSchema, handle, taskAttemptId, 0, null, "local");
+  public long make(
+      NativePartitioning part,
+      int bufferSize,
+      String codec,
+      String codecBackend,
+      int bufferCompressThreshold,
+      String compressionMode,
+      String dataFile,
+      int subDirsPerLocalDir,
+      String localDirs,
+      long memoryManagerHandle,
+      boolean writeEOS,
+      double reallocThreshold,
+      long handle,
+      long taskAttemptId) {
+    return nativeMake(
+        part.getShortName(),
+        part.getNumPartitions(),
+        bufferSize,
+        codec,
+        codecBackend,
+        bufferCompressThreshold,
+        compressionMode,
+        dataFile,
+        subDirsPerLocalDir,
+        localDirs,
+        memoryManagerHandle,
+        writeEOS,
+        reallocThreshold,
+        handle,
+        taskAttemptId,
+        0,
+        null,
+        "local");
   }
 
   /**
@@ -53,67 +92,100 @@ public class ShuffleWriterJniWrapper {
    * @param part contains the partitioning parameter needed by native shuffle writer
    * @param bufferSize size of native buffers hold by partition writer
    * @param codec compression codec
-   * @param memoryPoolId
-   * @return native shuffle writer instance id if created successfully.
+   * @return native shuffle writer instance handle if created successfully.
    */
-  public long makeForRSS(NativePartitioning part, long offheapPerTask,
-                         int bufferSize, String codec, int batchCompressThreshold,
-                         int pushBufferMaxSize, Object pusher,
-                         long memoryPoolId, long handle,
-                         long taskAttemptId, String partitionWriterType) {
-      return nativeMake(part.getShortName(), part.getNumPartitions(),
-          offheapPerTask, bufferSize, codec, batchCompressThreshold, null,
-          0, null, true, memoryPoolId,
-          false, handle, taskAttemptId, pushBufferMaxSize, pusher, partitionWriterType);
+  public long makeForRSS(
+      NativePartitioning part,
+      int bufferSize,
+      String codec,
+      int bufferCompressThreshold,
+      String compressionMode,
+      int pushBufferMaxSize,
+      Object pusher,
+      long memoryManagerHandle,
+      long handle,
+      long taskAttemptId,
+      String partitionWriterType,
+      double reallocThreshold) {
+    return nativeMake(
+        part.getShortName(),
+        part.getNumPartitions(),
+        bufferSize,
+        codec,
+        null,
+        bufferCompressThreshold,
+        compressionMode,
+        null,
+        0,
+        null,
+        memoryManagerHandle,
+        true,
+        reallocThreshold,
+        handle,
+        taskAttemptId,
+        pushBufferMaxSize,
+        pusher,
+        partitionWriterType);
   }
 
-  public native long nativeMake(String shortName, int numPartitions,
-                                long offheapPerTask, int bufferSize,
-                                String codec, int batchCompressThreshold, String dataFile,
-                                int subDirsPerLocalDir, String localDirs, boolean preferEvict,
-                                long memoryPoolId, boolean writeSchema,
-                                long handle, long taskAttemptId, int pushBufferMaxSize,
-                                Object pusher, String partitionWriterType);
+  public native long nativeMake(
+      String shortName,
+      int numPartitions,
+      int bufferSize,
+      String codec,
+      String codecBackend,
+      int bufferCompressThreshold,
+      String compressionMode,
+      String dataFile,
+      int subDirsPerLocalDir,
+      String localDirs,
+      long memoryManagerHandle,
+      boolean writeEOS,
+      double reallocThreshold,
+      long handle,
+      long taskAttemptId,
+      int pushBufferMaxSize,
+      Object pusher,
+      String partitionWriterType);
 
   /**
    * Evict partition data.
    *
-   * @param shuffleWriterId shuffle writer instance id
+   * @param shuffleWriterHandle shuffle writer instance handle
    * @param size expected size to Evict (in bytes)
-   * @param callBySelf whether the caller is the shuffle shuffle writer itself, true
-   * when running out of off-heap memory due to allocations from
-   * the evaluator itself
+   * @param callBySelf whether the caller is the shuffle writer itself, true when running out of
+   *     off-heap memory due to allocations from the evaluator itself
    * @return actual spilled size
    */
-  public native long nativeEvict(
-      long shuffleWriterId, long size, boolean callBySelf) throws RuntimeException;
+  public native long nativeEvict(long shuffleWriterHandle, long size, boolean callBySelf)
+      throws RuntimeException;
 
   /**
    * Split one record batch represented by bufAddrs and bufSizes into several batches. The batch is
-   * split according to the first column as partition id. During splitting, the data in native
-   * buffers will be write to disk when the buffers are full.
+   * split according to the first column as partition id.
    *
-   * @param shuffleWriterId shuffle writer instance id
+   * @param shuffleWriterHandle shuffle writer instance handle
    * @param numRows Rows per batch
    * @param handler handler of Velox Vector
+   * @param memLimit memory usage limit for the split operation FIXME setting a cap to pool /
+   *     allocator instead
    * @return batch bytes.
    */
-  public native long split(
-      long shuffleWriterId, int numRows, long handler) throws IOException;
+  public native long split(long shuffleWriterHandle, int numRows, long handler, long memLimit);
 
   /**
    * Write the data remained in the buffers hold by native shuffle writer to each partition's
    * temporary file. And stop processing splitting
    *
-   * @param shuffleWriterId shuffle writer instance id
-   * @return SplitResult
+   * @param shuffleWriterHandle shuffle writer instance handle
+   * @return GlutenSplitResult
    */
-  public native SplitResult stop(long shuffleWriterId) throws IOException;
+  public native GlutenSplitResult stop(long shuffleWriterHandle) throws IOException;
 
   /**
    * Release resources associated with designated shuffle writer instance.
    *
-   * @param shuffleWriterId shuffle writer instance id
+   * @param shuffleWriterHandle shuffle writer instance handle
    */
-  public native void close(long shuffleWriterId);
+  public native void close(long shuffleWriterHandle);
 }

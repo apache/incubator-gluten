@@ -14,16 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.metrics
 
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.utils.OASPackageBridge.InputMetricsWrapper
 
 /**
- * A minimized controller for updating operator's metrics, which means it never
- * persists the SparkPlan instance of the operator then the serialized RDD's size
- * can be therefore minimized.
+ * A minimized controller for updating operator's metrics, which means it never persists the
+ * SparkPlan instance of the operator then the serialized RDD's size can be therefore minimized.
  *
  * TODO: place it to some other where since it's used not only by whole stage facilities
  */
@@ -38,7 +36,6 @@ trait MetricsUpdater extends Serializable {
 
 final case class MetricsUpdaterTree(updater: MetricsUpdater, children: Seq[MetricsUpdaterTree])
 
-class NoopMetricsUpdater extends MetricsUpdater {
+object NoopMetricsUpdater extends MetricsUpdater {
   override def metrics: Map[String, SQLMetric] = Map.empty
 }
-

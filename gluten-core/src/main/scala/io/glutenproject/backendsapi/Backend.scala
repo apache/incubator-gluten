@@ -14,15 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.backendsapi
+
+import io.glutenproject.GlutenPlugin
 
 trait Backend {
   def name(): String
 
-  def initializerApi(): InitializerApi
-
-  def shutdownApi(): ShutdownApi
+  def buildInfo(): GlutenPlugin.BackendBuildInfo
 
   def iteratorApi(): IteratorApi
 
@@ -34,5 +33,9 @@ trait Backend {
 
   def metricsApi(): MetricsApi
 
-  def settings(): BackendSettings
+  def listenerApi(): ListenerApi
+
+  def broadcastApi(): BroadcastApi
+
+  def settings(): BackendSettingsApi
 }

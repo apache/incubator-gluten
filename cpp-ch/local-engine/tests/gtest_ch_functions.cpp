@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <Columns/ColumnSet.h>
 #include <DataTypes/DataTypeSet.h>
 #include <Functions/FunctionFactory.h>
@@ -62,8 +78,8 @@ TEST(TestFunction, In)
     set->setHeader(col1_set_block.getColumnsWithTypeAndName());
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
-
-    auto arg = ColumnSet::create(set->getTotalRowCount(), set);
+    auto future_set = std::make_shared<FutureSetFromStorage>(std::move(set));
+    auto arg = ColumnSet::create(1, future_set);
 
     ColumnsWithTypeAndName columns
         = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
@@ -104,8 +120,8 @@ TEST(TestFunction, NotIn1)
     set->setHeader(col1_set_block.getColumnsWithTypeAndName());
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
-
-    auto arg = ColumnSet::create(set->getTotalRowCount(), set);
+    auto future_set = std::make_shared<FutureSetFromStorage>(std::move(set));
+    auto arg = ColumnSet::create(1,future_set);
 
     ColumnsWithTypeAndName columns
         = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};
@@ -145,8 +161,8 @@ TEST(TestFunction, NotIn2)
     set->setHeader(col1_set_block.getColumnsWithTypeAndName());
     set->insertFromBlock(col1_set_block.getColumnsWithTypeAndName());
     set->finishInsert();
-
-    auto arg = ColumnSet::create(set->getTotalRowCount(), set);
+    auto future_set = std::make_shared<FutureSetFromStorage>(std::move(set));
+    auto arg = ColumnSet::create(1,future_set);
 
     ColumnsWithTypeAndName columns
         = {ColumnWithTypeAndName(std::move(column1), type0, "string0"), ColumnWithTypeAndName(std::move(arg), type_set, "__set")};

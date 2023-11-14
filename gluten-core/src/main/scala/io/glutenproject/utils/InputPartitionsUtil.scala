@@ -14,19 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.utils
 
+import io.glutenproject.sql.shims.SparkShimLoader
+
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.PartitionedFileUtil
 import org.apache.spark.sql.execution.datasources.{FilePartition, HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.util.collection.BitSet
 
-object InputPartitionsUtil extends Logging {
+case class InputPartitionsUtil(
+    relation: HadoopFsRelation,
+    selectedPartitions: Array[PartitionDirectory],
+    output: Seq[Attribute],
+    bucketedScan: Boolean,
+    optionalBucketSet: Option[BitSet],
+    optionalNumCoalescedBuckets: Option[Int],
+    disableBucketedScan: Boolean)
+  extends Logging {
 
-  def genInputPartitionSeq(relation: HadoopFsRelation,
-                           selectedPartitions: Array[PartitionDirectory]): Seq[InputPartition] = {
-    // TODO: Support bucketed reads
+  def genInputPartitionSeq(): Seq[InputPartition] = {
+    if (bucketedScan) {
+      genBucketedInputPartitionSeq()
+    } else {
+      genNonBuckedInputPartitionSeq()
+    }
+  }
+
+  private def genNonBuckedInputPartitionSeq(): Seq[InputPartition] = {
     val openCostInBytes = relation.sparkSession.sessionState.conf.filesOpenCostInBytes
     val maxSplitBytes =
       FilePartition.maxSplitBytes(relation.sparkSession, selectedPartitions)
@@ -35,23 +52,66 @@ object InputPartitionsUtil extends Logging {
         s"open cost is considered as scanning $openCostInBytes bytes.")
 
     val splitFiles = selectedPartitions
-      .flatMap { partition =>
-        partition.files.flatMap { file =>
-          // getPath() is very expensive so we only want to call it once in this block:
-          val filePath = file.getPath
-          val isSplitable =
-            relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
-          PartitionedFileUtil.splitFiles(
-            sparkSession = relation.sparkSession,
-            file = file,
-            filePath = filePath,
-            isSplitable = isSplitable,
-            maxSplitBytes = maxSplitBytes,
-            partitionValues = partition.values)
-        }
+      .flatMap {
+        partition =>
+          partition.files.flatMap {
+            file =>
+              // getPath() is very expensive so we only want to call it once in this block:
+              val filePath = file.getPath
+              val isSplitable =
+                relation.fileFormat.isSplitable(relation.sparkSession, relation.options, filePath)
+              PartitionedFileUtil.splitFiles(
+                sparkSession = relation.sparkSession,
+                file = file,
+                filePath = filePath,
+                isSplitable = isSplitable,
+                maxSplitBytes = maxSplitBytes,
+                partitionValues = partition.values)
+          }
       }
       .sortBy(_.length)(implicitly[Ordering[Long]].reverse)
 
     FilePartition.getFilePartitions(relation.sparkSession, splitFiles, maxSplitBytes)
+  }
+
+  private def genBucketedInputPartitionSeq(): Seq[InputPartition] = {
+    val bucketSpec = relation.bucketSpec.get
+    logInfo(s"Planning with ${bucketSpec.numBuckets} buckets")
+    val filesGroupedToBuckets =
+      SparkShimLoader.getSparkShims.filesGroupedToBuckets(selectedPartitions)
+
+    val prunedFilesGroupedToBuckets = if (optionalBucketSet.isDefined) {
+      val bucketSet = optionalBucketSet.get
+      filesGroupedToBuckets.filter(f => bucketSet.get(f._1))
+    } else {
+      filesGroupedToBuckets
+    }
+
+    optionalNumCoalescedBuckets
+      .map {
+        numCoalescedBuckets =>
+          logInfo(s"Coalescing to $numCoalescedBuckets buckets")
+          val coalescedBuckets = prunedFilesGroupedToBuckets.groupBy(_._1 % numCoalescedBuckets)
+          Seq.tabulate(numCoalescedBuckets) {
+            bucketId =>
+              val partitionedFiles = coalescedBuckets
+                .get(bucketId)
+                .map {
+                  _.values.flatten.toArray
+                }
+                .getOrElse(Array.empty)
+              FilePartition(bucketId, partitionedFiles)
+          }
+      }
+      .getOrElse {
+        Seq.tabulate(bucketSpec.numBuckets) {
+          bucketId =>
+            FilePartition(bucketId, prunedFilesGroupedToBuckets.getOrElse(bucketId, Array.empty))
+        }
+      }
+  }
+
+  private def toAttribute(colName: String): Option[Attribute] = {
+    output.find(_.name == colName)
   }
 }

@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.row;
 
 public class SparkRowInfo {
@@ -25,8 +24,8 @@ public class SparkRowInfo {
   public long totalSize;
   public long fieldsNum;
 
-  public SparkRowInfo(long[] offsets, long[] lengths, long memoryAddress, long fieldsNum,
-                      long totalSize) {
+  public SparkRowInfo(
+      long[] offsets, long[] lengths, long memoryAddress, long fieldsNum, long totalSize) {
     this.offsets = offsets;
     this.lengths = lengths;
     this.memoryAddress = memoryAddress;

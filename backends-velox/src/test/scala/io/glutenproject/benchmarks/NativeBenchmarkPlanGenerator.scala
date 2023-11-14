@@ -14,10 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.benchmarks
 
-import io.glutenproject.execution.{WholeStageTransformerExec, WholeStageTransformerSuite}
+import io.glutenproject.execution.{VeloxWholeStageTransformerSuite, WholeStageTransformer}
 
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.internal.SQLConf
@@ -33,7 +32,7 @@ import scala.collection.JavaConverters._
 
 object GenerateExample extends Tag("io.glutenproject.tags.GenerateExample")
 
-class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
+class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
@@ -51,23 +50,26 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
   }
 
   test("Test plan json non-empty - AQE off") {
+    spark.sparkContext.setLogLevel("DEBUG")
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
       val df = spark
         .sql("""
                |select * from lineitem
                |""".stripMargin)
       val executedPlan = df.queryExecution.executedPlan
-      val lastStageTransformer = executedPlan.find(_.isInstanceOf[WholeStageTransformerExec])
+      val lastStageTransformer = executedPlan.find(_.isInstanceOf[WholeStageTransformer])
       assert(lastStageTransformer.nonEmpty)
-      var planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformerExec].getPlanJson
+      var planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson
       assert(planJson.isEmpty)
       executedPlan.execute()
-      planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformerExec].getPlanJson
+      planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson
       assert(planJson.nonEmpty)
     }
+    spark.sparkContext.setLogLevel(logLevel)
   }
 
   test("Test plan json non-empty - AQE on") {
+    spark.sparkContext.setLogLevel("DEBUG")
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
       val df = spark
         .sql("""
@@ -78,15 +80,17 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
       executedPlan.execute()
 
       val finalPlan = executedPlan.asInstanceOf[AdaptiveSparkPlanExec].executedPlan
-      val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformerExec])
+      val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformer])
       assert(lastStageTransformer.nonEmpty)
-      val planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformerExec].getPlanJson
+      val planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson
       assert(planJson.nonEmpty)
     }
+    spark.sparkContext.setLogLevel(logLevel)
   }
 
   test("generate example", GenerateExample) {
     import testImplicits._
+    spark.sparkContext.setLogLevel("DEBUG")
     withSQLConf(
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",
       SQLConf.SHUFFLE_PARTITIONS.key -> "2"
@@ -134,13 +138,14 @@ class NativeBenchmarkPlanGenerator extends WholeStageTransformerSuite {
             }
           case plan => plan
         }
-      val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformerExec])
+      val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformer])
       assert(lastStageTransformer.nonEmpty)
       val plan =
-        lastStageTransformer.get.asInstanceOf[WholeStageTransformerExec].getPlanJson.split('\n')
+        lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson.split('\n')
 
       val exampleJsonFile = Paths.get(generatedPlanDir, "example.json")
       Files.write(exampleJsonFile, plan.toList.asJava, StandardCharsets.UTF_8)
     }
+    spark.sparkContext.setLogLevel(logLevel)
   }
 }

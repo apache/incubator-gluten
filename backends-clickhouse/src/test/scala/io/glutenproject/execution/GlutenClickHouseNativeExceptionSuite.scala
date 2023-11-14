@@ -17,12 +17,12 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.memory.alloc.{NativeMemoryAllocator, ReservationListener}
+import io.glutenproject.memory.alloc.{CHNativeMemoryAllocator, CHReservationListener}
 import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
 
-class GlutenClickHouseNativeExceptionSuite extends WholeStageTransformerSuite {
+class GlutenClickHouseNativeExceptionSuite extends GlutenClickHouseWholeStageTransformerSuite {
 
   override protected val backend: String = "ch"
   override protected val fileFormat: String = "parquet"
@@ -35,7 +35,7 @@ class GlutenClickHouseNativeExceptionSuite extends WholeStageTransformerSuite {
 
   test("native exception caught by jvm") {
     try {
-      val x = new NativeMemoryAllocator(100, ReservationListener.NOOP)
+      val x = new CHNativeMemoryAllocator(100, CHReservationListener.NOOP)
       x.close() // this will incur a native exception
       assert(false)
     } catch {

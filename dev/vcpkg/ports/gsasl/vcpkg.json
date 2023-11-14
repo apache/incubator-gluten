@@ -2,6 +2,7 @@
   "name": "gsasl",
   "version": "2.2.0",
   "dependencies": [
-    "krb5"
+    "krb5",
+    "libntlm"
   ]
 }

@@ -14,19 +14,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.rel;
 
+import io.glutenproject.GlutenConfig;
+import io.glutenproject.expression.ConverterUtils;
+
+import io.substrait.proto.NamedStruct;
 import io.substrait.proto.ReadRel;
+import io.substrait.proto.Type;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class LocalFilesNode implements Serializable {
   private final Integer index;
-  private final ArrayList<String> paths = new ArrayList<>();
-  private final ArrayList<Long> starts = new ArrayList<>();
-  private final ArrayList<Long> lengths = new ArrayList<>();
+  private final List<String> paths = new ArrayList<>();
+  private final List<Long> starts = new ArrayList<>();
+  private final List<Long> lengths = new ArrayList<>();
+  private final List<Map<String, String>> partitionColumns = new ArrayList<>();
 
   // The format of file to read.
   public enum ReadFileFormat {
@@ -35,26 +44,58 @@ public class LocalFilesNode implements Serializable {
     OrcReadFormat(),
     DwrfReadFormat(),
     MergeTreeReadFormat(),
+    TextReadFormat(),
+    JsonReadFormat(),
     UnknownFormat()
   }
 
   private ReadFileFormat fileFormat = ReadFileFormat.UnknownFormat;
   private Boolean iterAsInput = false;
+  private StructType fileSchema;
+  private Map<String, String> fileReadProperties;
 
-  LocalFilesNode(Integer index, ArrayList<String> paths,
-                 ArrayList<Long> starts, ArrayList<Long> lengths,
-                 ReadFileFormat fileFormat) {
+  LocalFilesNode(
+      Integer index,
+      List<String> paths,
+      List<Long> starts,
+      List<Long> lengths,
+      List<Map<String, String>> partitionColumns,
+      ReadFileFormat fileFormat) {
     this.index = index;
     this.paths.addAll(paths);
     this.starts.addAll(starts);
     this.lengths.addAll(lengths);
     this.fileFormat = fileFormat;
+    this.partitionColumns.addAll(partitionColumns);
   }
 
   LocalFilesNode(String iterPath) {
     this.index = null;
     this.paths.add(iterPath);
     this.iterAsInput = true;
+  }
+
+  public void setFileSchema(StructType schema) {
+    this.fileSchema = schema;
+  }
+
+  private NamedStruct buildNamedStruct() {
+    NamedStruct.Builder namedStructBuilder = NamedStruct.newBuilder();
+
+    if (fileSchema != null) {
+      Type.Struct.Builder structBuilder = Type.Struct.newBuilder();
+      for (StructField field : fileSchema.fields()) {
+        structBuilder.addTypes(
+            ConverterUtils.getTypeNode(field.dataType(), field.nullable()).toProtobuf());
+        namedStructBuilder.addNames(field.name());
+      }
+      namedStructBuilder.setStruct(structBuilder.build());
+    }
+    return namedStructBuilder.build();
+  }
+
+  public void setFileReadProperties(Map<String, String> fileReadProperties) {
+    this.fileReadProperties = fileReadProperties;
   }
 
   public ReadRel.LocalFiles toProtobuf() {
@@ -77,12 +118,29 @@ public class LocalFilesNode implements Serializable {
       if (index != null) {
         fileBuilder.setPartitionIndex(index);
       }
+      Map<String, String> partitionColumn = partitionColumns.get(i);
+      if (!partitionColumn.isEmpty()) {
+        partitionColumn.forEach(
+            (key, value) -> {
+              ReadRel.LocalFiles.FileOrFiles.partitionColumn.Builder pcBuilder =
+                  ReadRel.LocalFiles.FileOrFiles.partitionColumn.newBuilder();
+              pcBuilder.setKey(key).setValue(value);
+              fileBuilder.addPartitionColumns(pcBuilder.build());
+            });
+      }
       fileBuilder.setLength(lengths.get(i));
       fileBuilder.setStart(starts.get(i));
+
+      NamedStruct namedStruct = buildNamedStruct();
+      fileBuilder.setSchema(namedStruct);
+
       switch (fileFormat) {
         case ParquetReadFormat:
           ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions parquetReadOptions =
-              ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder().build();
+              ReadRel.LocalFiles.FileOrFiles.ParquetReadOptions.newBuilder()
+                  .setEnableRowGroupMaxminIndex(
+                      GlutenConfig.getConf().enableParquetRowGroupMaxMinIndex())
+                  .build();
           fileBuilder.setParquet(parquetReadOptions);
           break;
         case OrcReadFormat:
@@ -94,6 +152,31 @@ public class LocalFilesNode implements Serializable {
           ReadRel.LocalFiles.FileOrFiles.DwrfReadOptions dwrfReadOptions =
               ReadRel.LocalFiles.FileOrFiles.DwrfReadOptions.newBuilder().build();
           fileBuilder.setDwrf(dwrfReadOptions);
+          break;
+        case TextReadFormat:
+          String field_delimiter = fileReadProperties.getOrDefault("field_delimiter", ",");
+          String quote = fileReadProperties.getOrDefault("quote", "");
+          String header = fileReadProperties.getOrDefault("header", "0");
+          String escape = fileReadProperties.getOrDefault("escape", "");
+          String nullValue = fileReadProperties.getOrDefault("nullValue", "");
+          ReadRel.LocalFiles.FileOrFiles.TextReadOptions textReadOptions =
+              ReadRel.LocalFiles.FileOrFiles.TextReadOptions.newBuilder()
+                  .setFieldDelimiter(field_delimiter)
+                  .setQuote(quote)
+                  .setHeader(Long.parseLong(header))
+                  .setEscape(escape)
+                  .setNullValue(nullValue)
+                  .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
+                  .setEmptyAsDefault(GlutenConfig.getConf().textIputEmptyAsDefault())
+                  .build();
+          fileBuilder.setText(textReadOptions);
+          break;
+        case JsonReadFormat:
+          ReadRel.LocalFiles.FileOrFiles.JsonReadOptions jsonReadOptions =
+              ReadRel.LocalFiles.FileOrFiles.JsonReadOptions.newBuilder()
+                  .setMaxBlockSize(GlutenConfig.getConf().textInputMaxBlockSize())
+                  .build();
+          fileBuilder.setJson(jsonReadOptions);
           break;
         default:
           break;

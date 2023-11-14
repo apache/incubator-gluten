@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.expression
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.expression.ExpressionBuilder
+
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.types.DataType
 
@@ -27,25 +27,46 @@ object AggregateFunctionsBuilder {
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
-    val substraitAggFuncName = ExpressionMappings.aggregate_functions_map.getOrElse(
-      aggregateFunc.getClass, ExpressionMappings.getAggSigOther(aggregateFunc.prettyName))
-    // Check whether Gluten supports this aggregate function.
-    if (substraitAggFuncName.isEmpty) {
-      throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
-    }
+    var substraitAggFuncName = getSubstraitFunctionName(aggregateFunc)
+
     // Check whether each backend supports this aggregate function.
-    if (!BackendsApiManager.getValidatorApiInstance.doAggregateFunctionValidate(
-      substraitAggFuncName, aggregateFunc)) {
-      throw new UnsupportedOperationException(s"not currently supported: $aggregateFunc.")
+    if (
+      !BackendsApiManager.getValidatorApiInstance.doExprValidate(
+        substraitAggFuncName.get,
+        aggregateFunc)
+    ) {
+      throw new UnsupportedOperationException(
+        s"Aggregate function not supported for $aggregateFunc.")
     }
 
     val inputTypes: Seq[DataType] = aggregateFunc.children.map(child => child.dataType)
 
     ExpressionBuilder.newScalarFunction(
       functionMap,
-      ConverterUtils.makeFuncName(
-        substraitAggFuncName,
-        inputTypes,
-        FunctionConfig.REQ))
+      ConverterUtils.makeFuncName(substraitAggFuncName.get, inputTypes, FunctionConfig.REQ))
+  }
+
+  def getSubstraitFunctionName(aggregateFunc: AggregateFunction): Option[String] = {
+    val substraitAggFuncName = aggregateFunc match {
+      case first @ First(_, ignoreNull) =>
+        if (ignoreNull) {
+          Some(ExpressionNames.FIRST_IGNORE_NULL)
+        } else {
+          Some(ExpressionNames.FIRST)
+        }
+      case last @ Last(_, ignoreNulls) =>
+        if (ignoreNulls) {
+          Some(ExpressionNames.LAST_IGNORE_NULL)
+        } else {
+          Some(ExpressionNames.LAST)
+        }
+      case _ =>
+        ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
+    }
+    if (substraitAggFuncName.isEmpty) {
+      throw new UnsupportedOperationException(
+        s"Could not find valid a substrait mapping name for $aggregateFunc.")
+    }
+    substraitAggFuncName
   }
 }

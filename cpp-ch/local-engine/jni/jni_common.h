@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #pragma once
 #include <exception>
 #include <stdexcept>
@@ -60,7 +76,7 @@ jboolean safeCallBooleanMethod(JNIEnv * env, jobject obj, jmethodID method_id, A
 {
     LOCAL_ENGINE_JNI_JMETHOD_START
     auto ret = env->CallBooleanMethod(obj, method_id, args...);
-    LOCAL_ENGINE_JNI_JMETHOD_END(env);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env)
     return ret;
 }
 
@@ -69,7 +85,7 @@ jlong safeCallLongMethod(JNIEnv * env, jobject obj, jmethodID method_id, Args...
 {
     LOCAL_ENGINE_JNI_JMETHOD_START
     auto ret = env->CallLongMethod(obj, method_id, args...);
-    LOCAL_ENGINE_JNI_JMETHOD_END(env);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env)
     return ret;
 }
 
@@ -78,7 +94,7 @@ jint safeCallIntMethod(JNIEnv * env, jobject obj, jmethodID method_id, Args... a
 {
     LOCAL_ENGINE_JNI_JMETHOD_START
     auto ret = env->CallIntMethod(obj, method_id, args...);
-    LOCAL_ENGINE_JNI_JMETHOD_END(env);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env)
     return ret;
 }
 
@@ -87,6 +103,15 @@ void safeCallVoidMethod(JNIEnv * env, jobject obj, jmethodID method_id, Args... 
 {
     LOCAL_ENGINE_JNI_JMETHOD_START
     env->CallVoidMethod(obj, method_id, args...);
-    LOCAL_ENGINE_JNI_JMETHOD_END(env);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env)
+}
+
+template <typename... Args>
+jlong safeCallStaticLongMethod(JNIEnv * env, jclass clazz, jmethodID method_id, Args... args)
+{
+    LOCAL_ENGINE_JNI_JMETHOD_START
+    auto ret = env->CallStaticLongMethod(clazz, method_id, args...);
+    LOCAL_ENGINE_JNI_JMETHOD_END(env)
+    return ret;
 }
 }

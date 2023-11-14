@@ -8,6 +8,8 @@ set(GLUTEN_GTEST_SOURCE_URL
     "https://github.com/google/googletest/archive/refs/tags/v${GLUTEN_GTEST_VERSION}.tar.gz"
     )
 
+resolve_dependency_url(GTEST)
+
 message(STATUS "Building gtest from source")
 FetchContent_Declare(
     gtest

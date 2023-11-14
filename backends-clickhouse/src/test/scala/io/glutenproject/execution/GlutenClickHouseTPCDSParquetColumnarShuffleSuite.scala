@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.DynamicPruningExpression
-import org.apache.spark.sql.execution.{ReusedSubqueryExec, ScalarSubquery, SubqueryExec}
+import org.apache.spark.sql.execution.{ColumnarSubqueryBroadcastExec, ReusedSubqueryExec, ScalarSubquery, SubqueryExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseTPCDSAbstractSuite {
@@ -41,48 +41,32 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
       .set("spark.memory.offHeap.size", "4g")
   }
 
-  tpcdsAllQueries.foreach(
-    sql =>
-      if (!independentTestTpcdsQueries.contains(sql)) {
-        if (excludedTpcdsQueries.contains(sql)) {
-          ignore(s"TPCDS ${sql.toUpperCase()}") {
-            runTPCDSQuery(sql) { df => }
-          }
-        } else {
-          test(s"TPCDS ${sql.toUpperCase()}") {
-            runTPCDSQuery(sql) { df => }
-          }
-        }
-      })
+  executeTPCDSTest(false)
 
   test("test reading from partitioned table") {
-    val df = spark.sql("""
-                         |select count(*)
-                         |  from store_sales
-                         |  where ss_quantity between 1 and 20
-                         |""".stripMargin)
-    val result = df.collect()
+    val result = runSql("""
+                          |select count(*)
+                          |  from store_sales
+                          |  where ss_quantity between 1 and 20
+                          |""".stripMargin) { _ => }
     assert(result(0).getLong(0) == 550458L)
   }
 
   test("test reading from partitioned table with partition column filter") {
-    val df = spark.sql("""
-                         |select avg(ss_net_paid_inc_tax)
-                         |  from store_sales
-                         |  where ss_quantity between 1 and 20
-                         |  and ss_sold_date_sk = 2452635
-                         |""".stripMargin)
-    val result = df.collect()
+    val result = runSql("""
+                          |select avg(ss_net_paid_inc_tax)
+                          |  from store_sales
+                          |  where ss_quantity between 1 and 20
+                          |  and ss_sold_date_sk = 2452635
+                          |""".stripMargin) { _ => }
     assert(result(0).getDouble(0) == 379.21313271604936)
   }
 
   test("test select avg(int), avg(long)") {
-    val testSql =
-      """
-        |select avg(cs_item_sk), avg(cs_order_number)
-        |  from catalog_sales
-        |""".stripMargin
-    val result = spark.sql(testSql).collect()
+    val result = runSql("""
+                          |select avg(cs_item_sk), avg(cs_order_number)
+                          |  from catalog_sales
+                          |""".stripMargin) { _ => }
     assert(result(0).getDouble(0) == 8998.463336886734)
     assert(result(0).getDouble(1) == 80037.12727449503)
   }
@@ -123,44 +107,51 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
     )
   }
 
-  test("TPCDS Q9") {
-    withSQLConf(("spark.gluten.sql.columnar.columnarToTow", "true")) {
-      runTPCDSQuery("q9") {
-        df =>
-          var countSubqueryExec = 0
-          df.queryExecution.executedPlan.transformAllExpressions {
-            case s @ ScalarSubquery(_: SubqueryExec, _) =>
-              countSubqueryExec = countSubqueryExec + 1
-              s
-            case s @ ScalarSubquery(_: ReusedSubqueryExec, _) =>
-              countSubqueryExec = countSubqueryExec + 1
-              s
-          }
-          assert(countSubqueryExec == 15)
-      }
+  test("TPCDS Q9 - ScalarSubquery check") {
+    runTPCDSQuery("q9") {
+      df =>
+        var countSubqueryExec = 0
+        df.queryExecution.executedPlan.transformAllExpressions {
+          case s @ ScalarSubquery(_: SubqueryExec, _) =>
+            countSubqueryExec = countSubqueryExec + 1
+            s
+          case s @ ScalarSubquery(_: ReusedSubqueryExec, _) =>
+            countSubqueryExec = countSubqueryExec + 1
+            s
+        }
+        assert(countSubqueryExec == 15)
     }
   }
 
-  test("TPCDS Q21") {
-    withSQLConf(("spark.gluten.sql.columnar.columnarToRow", "true")) {
-      runTPCDSQuery("q21") {
-        df =>
-          val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
-            case f: FileSourceScanExecTransformer =>
-              f.partitionFilters.exists {
-                case _: DynamicPruningExpression => true
-                case _ => false
-              }
-            case _ => false
-          }
-          assert(foundDynamicPruningExpr.nonEmpty == true)
+  test("GLUTEN-1848: Fix execute subquery repeatedly issue with ReusedSubquery") {
+    runTPCDSQuery("q5") {
+      df =>
+        val subqueriesId = df.queryExecution.executedPlan.collectWithSubqueries {
+          case s: ColumnarSubqueryBroadcastExec => s.id
+          case r: ReusedSubqueryExec => r.child.id
+        }
+        assert(subqueriesId.distinct.size == 1)
+    }
+  }
 
-          val reuseExchange = df.queryExecution.executedPlan.find {
-            case r: ReusedExchangeExec => true
-            case _ => false
-          }
-          assert(reuseExchange.nonEmpty == true)
-      }
+  test("TPCDS Q21 - DPP check") {
+    runTPCDSQuery("q21") {
+      df =>
+        val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
+          case f: FileSourceScanExecTransformer =>
+            f.partitionFilters.exists {
+              case _: DynamicPruningExpression => true
+              case _ => false
+            }
+          case _ => false
+        }
+        assert(foundDynamicPruningExpr.nonEmpty == true)
+
+        val reuseExchange = df.queryExecution.executedPlan.find {
+          case r: ReusedExchangeExec => true
+          case _ => false
+        }
+        assert(reuseExchange.nonEmpty == true)
     }
   }
 
@@ -185,29 +176,6 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
             case _ => false
           }
           assert(reuseExchange.isEmpty)
-      }
-    }
-  }
-
-  test("TPCDS Q21 with non-separated scan rdd") {
-    withSQLConf(("spark.gluten.sql.columnar.separate.scan.rdd.for.ch", "false")) {
-      runTPCDSQuery("q21") {
-        df =>
-          val foundDynamicPruningExpr = df.queryExecution.executedPlan.find {
-            case f: FileSourceScanExecTransformer =>
-              f.partitionFilters.exists {
-                case _: DynamicPruningExpression => true
-                case _ => false
-              }
-            case _ => false
-          }
-          assert(foundDynamicPruningExpr.nonEmpty == true)
-
-          val reuseExchange = df.queryExecution.executedPlan.find {
-            case r: ReusedExchangeExec => true
-            case _ => false
-          }
-          assert(reuseExchange.nonEmpty == true)
       }
     }
   }

@@ -21,15 +21,15 @@
 
 namespace gluten {
 
-class HashPartitioner final : public ShuffleWriter::Partitioner {
+class HashPartitioner final : public Partitioner {
  public:
-  HashPartitioner(int32_t numPartitions, bool hasPid) : Partitioner(numPartitions, hasPid) {}
+  HashPartitioner(int32_t numPartitions) : Partitioner(numPartitions, true) {}
 
   arrow::Status compute(
       const int32_t* pidArr,
       const int64_t numRows,
-      std::vector<uint16_t>& partitionId,
-      std::vector<uint32_t>& partitionIdCnt) override;
+      std::vector<uint16_t>& row2partition,
+      std::vector<uint32_t>& partition2RowCount) override;
 };
 
 } // namespace gluten

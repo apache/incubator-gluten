@@ -1,44 +1,61 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include <filesystem>
 #include <memory>
 #include <optional>
-#include <AggregateFunctions/AggregateFunctionCombinatorFactory.h>
+#include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnConst.h>
+#include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnTuple.h>
 #include <Columns/IColumn.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
-#include <Core/ColumnsWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
-#include <DataTypes/IDataType.h>
 #include <DataTypes/NestedUtils.h>
-#include <DataTypes/Serializations/ISerialization.h>
 #include <Functions/CastOverloadResolver.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsConversion.h>
 #include <Functions/registerFunctions.h>
 #include <IO/ReadBufferFromFile.h>
+#include <IO/SharedThreadPools.h>
 #include <Interpreters/JIT/CompiledExpressionCache.h>
-#include <Interpreters/castColumn.h>
 #include <Parser/RelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Processors/Chunk.h>
 #include <Processors/QueryPlan/QueryPlan.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <QueryPipeline/printPipeline.h>
+#include <Storages/Output/WriteBufferBuilder.h>
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
-#include <substrait/algebra.pb.h>
-#include <substrait/plan.pb.h>
+#include <google/protobuf/util/json_util.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/Config/ConfigProcessor.h>
+#include <Common/GlutenSignalHandler.h>
 #include <Common/Logger.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
@@ -46,6 +63,7 @@
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 
+#include <regex>
 #include "CHUtil.h"
 
 namespace DB
@@ -58,17 +76,17 @@ namespace ErrorCodes
 
 namespace local_engine
 {
-constexpr auto VIRTUAL_ROW_COUNT_COLOUMN = "__VIRTUAL_ROW_COUNT_COLOUMNOUMN__";
+constexpr auto VIRTUAL_ROW_COUNT_COLUMN = "__VIRTUAL_ROW_COUNT_COLUMN__";
 
 namespace fs = std::filesystem;
 
 DB::Block BlockUtil::buildRowCountHeader()
 {
     DB::Block header;
-    auto uint8_ty = std::make_shared<DB::DataTypeUInt8>();
-    auto col = uint8_ty->createColumn();
-    DB::ColumnWithTypeAndName named_col(std::move(col), uint8_ty, VIRTUAL_ROW_COUNT_COLOUMN);
-    header.insert(named_col);
+    auto type = std::make_shared<DB::DataTypeUInt8>();
+    auto col = type->createColumn();
+    DB::ColumnWithTypeAndName named_col(std::move(col), type, VIRTUAL_ROW_COUNT_COLUMN);
+    header.insert(std::move(named_col));
     return header.cloneEmpty();
 }
 
@@ -86,7 +104,7 @@ DB::Block BlockUtil::buildRowCountBlock(UInt64 rows)
     DB::Block block;
     auto uint8_ty = std::make_shared<DB::DataTypeUInt8>();
     auto col = uint8_ty->createColumnConst(rows, 0);
-    DB::ColumnWithTypeAndName named_col(col, uint8_ty, VIRTUAL_ROW_COUNT_COLOUMN);
+    DB::ColumnWithTypeAndName named_col(col, uint8_ty, VIRTUAL_ROW_COUNT_COLUMN);
     block.insert(named_col);
     return block;
 }
@@ -106,27 +124,31 @@ DB::Block BlockUtil::buildHeader(const DB::NamesAndTypesList & names_types_list)
  * There is a special case with which we need be careful. In spark, struct/map/list are always
  * wrapped in Nullable, but this should not happen in clickhouse.
  */
-DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively)
+DB::Block
+BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively, const std::unordered_set<size_t> & columns_to_skip_flatten)
 {
     DB::Block res;
 
-    for (const auto & elem : block)
+    for (size_t col_i = 0; col_i < block.columns(); ++col_i)
     {
-        DB::DataTypePtr nested_type = nullptr;
-        DB::ColumnPtr nested_col = nullptr;
+        const auto & elem = block.getByPosition(col_i);
+
+        if (columns_to_skip_flatten.contains(col_i))
+        {
+            res.insert(elem);
+            continue;
+        }
+
+        DB::DataTypePtr nested_type = removeNullable(elem.type);
+        DB::ColumnPtr nested_col = elem.column;
         DB::ColumnPtr null_map_col = nullptr;
         if (elem.type->isNullable())
         {
-            nested_type = typeid_cast<const DB::DataTypeNullable *>(elem.type.get())->getNestedType();
-            const auto * null_col = typeid_cast<const DB::ColumnNullable *>(elem.column->getPtr().get());
-            nested_col = null_col->getNestedColumnPtr();
-            null_map_col = null_col->getNullMapColumnPtr();
+            const auto * nullable_col = typeid_cast<const DB::ColumnNullable *>(elem.column->getPtr().get());
+            nested_col = nullable_col->getNestedColumnPtr();
+            null_map_col = nullable_col->getNullMapColumnPtr();
         }
-        else
-        {
-            nested_type = elem.type;
-            nested_col = elem.column;
-        }
+
         if (const DB::DataTypeArray * type_arr = typeid_cast<const DB::DataTypeArray *>(nested_type.get()))
         {
             const DB::DataTypeTuple * type_tuple = typeid_cast<const DB::DataTypeTuple *>(type_arr->getNestedType().get());
@@ -156,6 +178,7 @@ DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool re
                         is_const ? DB::ColumnConst::create(std::move(column_array_of_element), block.rows()) : column_array_of_element,
                         std::make_shared<DB::DataTypeArray>(element_types[i]),
                         nested_name);
+
                     if (null_map_col)
                     {
                         // Should all field columns have the same null map ?
@@ -164,41 +187,45 @@ DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool re
                             = DB::ColumnNullable::create(named_column_array_of_element.column, null_map_col);
                         named_column_array_of_element.type = null_type;
                     }
+
                     if (recursively)
                     {
                         auto flatten_one_col_block = flattenBlock({named_column_array_of_element}, flags, recursively);
                         for (const auto & named_col : flatten_one_col_block.getColumnsWithTypeAndName())
-                        {
                             res.insert(named_col);
-                        }
                     }
                     else
-                    {
                         res.insert(named_column_array_of_element);
-                    }
                 }
             }
             else
-            {
                 res.insert(elem);
-            }
         }
         else if (const DB::DataTypeTuple * type_tuple = typeid_cast<const DB::DataTypeTuple *>(nested_type.get()))
         {
-            if (type_tuple->haveExplicitNames() && (flags & FLAT_STRUCT))
+            if ((flags & FLAT_STRUCT_FORCE) || (type_tuple->haveExplicitNames() && (flags & FLAT_STRUCT)))
             {
                 const DB::DataTypes & element_types = type_tuple->getElements();
-                const DB::Strings & names = type_tuple->getElementNames();
+                DB::Strings element_names = type_tuple->getElementNames();
+                if (element_names.empty())
+                {
+                    // This is a struct without named fields, we should flatten it.
+                    // But we can't get the field names, so we use the field index as the field name.
+                    for (size_t i = 0; i < element_types.size(); ++i)
+                        element_names.push_back(elem.name + "_filed_" + std::to_string(i));
+                }
+
                 const DB::ColumnTuple * column_tuple;
                 if (isColumnConst(*nested_col))
                     column_tuple = typeid_cast<const DB::ColumnTuple *>(&assert_cast<const DB::ColumnConst &>(*nested_col).getDataColumn());
                 else
                     column_tuple = typeid_cast<const DB::ColumnTuple *>(nested_col.get());
+
                 size_t tuple_size = column_tuple->tupleSize();
                 for (size_t i = 0; i < tuple_size; ++i)
                 {
                     const auto & element_column = column_tuple->getColumn(i);
-                    String nested_name = DB::Nested::concatenateName(elem.name, names[i]);
+                    String nested_name = DB::Nested::concatenateName(elem.name, element_names[i]);
                     auto new_element_col = DB::ColumnWithTypeAndName(element_column.getPtr(), element_types[i], nested_name);
                     if (null_map_col && !element_types[i]->isNullable())
                     {
@@ -206,30 +233,23 @@ DB::Block BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool re
                         new_element_col.column = DB::ColumnNullable::create(new_element_col.column, null_map_col);
                         new_element_col.type = std::make_shared<DB::DataTypeNullable>(new_element_col.type);
                     }
+
                     if (recursively)
                     {
                         DB::Block one_col_block({new_element_col});
                         auto flatten_one_col_block = flattenBlock(one_col_block, flags, recursively);
                         for (const auto & named_col : flatten_one_col_block.getColumnsWithTypeAndName())
-                        {
                             res.insert(named_col);
-                        }
                     }
                     else
-                    {
                         res.insert(std::move(new_element_col));
-                    }
                 }
             }
             else
-            {
                 res.insert(elem);
-            }
         }
         else
-        {
             res.insert(elem);
-        }
     }
 
     return res;
@@ -378,9 +398,9 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     type_name_col.type = std::make_shared<DB::DataTypeString>();
     const auto * right_arg = &actions_dag->addColumn(std::move(type_name_col));
     const auto * left_arg = node;
-    DB::FunctionCastBase::Diagnostic diagnostic = {node->result_name, node->result_name};
+    DB::CastDiagnostic diagnostic = {node->result_name, node->result_name};
     DB::FunctionOverloadResolverPtr func_builder_cast
-        = DB::CastInternalOverloadResolver<DB::CastType::nonAccurate>::createImpl(std::move(diagnostic));
+        = DB::createInternalCastOverloadResolver(DB::CastType::nonAccurate, std::move(diagnostic));
 
     DB::ActionsDAG::NodeRawConstPtrs children = {left_arg, right_arg};
     return &actions_dag->addFunction(func_builder_cast, std::move(children), result_name);
@@ -396,17 +416,31 @@ String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
 
 using namespace DB;
 
-std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(const std::string & plan)
+std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std::string * plan)
 {
     std::map<std::string, std::string> ch_backend_conf;
+    if (plan == nullptr)
+    {
+        return ch_backend_conf;
+    }
+
 
     /// Parse backend configs from plan extensions
     do
     {
         auto plan_ptr = std::make_unique<substrait::Plan>();
-        auto success = plan_ptr->ParseFromString(plan);
+        auto success = plan_ptr->ParseFromString(*plan);
         if (!success)
             break;
+
+        if (logger && logger->debug())
+        {
+            namespace pb_util = google::protobuf::util;
+            pb_util::JsonOptions options;
+            std::string json;
+            pb_util::MessageToJsonString(*plan_ptr, &json, options);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Update Config Map Plan:\n{}", json);
+        }
 
         if (!plan_ptr->has_advanced_extensions() || !plan_ptr->advanced_extensions().has_enhancement())
             break;
@@ -444,41 +478,46 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(con
     return ch_backend_conf;
 }
 
-void BackendInitializerUtil::initConfig(const std::string & plan)
+DB::Context::ConfigurationPtr BackendInitializerUtil::initConfig(std::map<std::string, std::string> & backend_conf_map)
 {
+    DB::Context::ConfigurationPtr config;
+
     /// Parse input substrait plan, and get native conf map from it.
-    backend_conf_map = getBackendConfMap(plan);
     if (backend_conf_map.count(CH_RUNTIME_CONFIG_FILE))
     {
-        if (fs::exists(CH_RUNTIME_CONFIG_FILE) && fs::is_regular_file(CH_RUNTIME_CONFIG_FILE))
+        auto config_file = backend_conf_map[CH_RUNTIME_CONFIG_FILE];
+        if (fs::exists(config_file) && fs::is_regular_file(config_file))
         {
-            ConfigProcessor config_processor(CH_RUNTIME_CONFIG_FILE, false, true);
-            config_processor.setConfigPath(fs::path(CH_RUNTIME_CONFIG_FILE).parent_path());
+            ConfigProcessor config_processor(config_file, false, true);
+            config_processor.setConfigPath(fs::path(config_file).parent_path());
             auto loaded_config = config_processor.loadConfig(false);
             config = loaded_config.configuration;
         }
         else
-            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "{} is not a valid configure file.", CH_RUNTIME_CONFIG_FILE);
+            throw DB::Exception(DB::ErrorCodes::BAD_ARGUMENTS, "{} is not a valid configure file.", config_file);
     }
     else
         config = Poco::AutoPtr(new Poco::Util::MapConfiguration());
 
-    /// Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
     for (const auto & kv : backend_conf_map)
     {
         const auto & key = kv.first;
         const auto & value = kv.second;
+        // std::cout << "set config key:" << key << ", value:" << value << std::endl;
 
         if (key.starts_with(CH_RUNTIME_CONFIG_PREFIX) && key != CH_RUNTIME_CONFIG_FILE)
+        {
+            // Apply spark.gluten.sql.columnar.backend.ch.runtime_config.* to config
             config->setString(key.substr(CH_RUNTIME_CONFIG_PREFIX.size()), value);
-        else if (S3_CONFIGS.find(key) != S3_CONFIGS.end())
-            config->setString(S3_CONFIGS.at(key), value);
+        }
     }
+    return config;
 }
 
-void BackendInitializerUtil::initLoggers()
+
+void BackendInitializerUtil::initLoggers(DB::Context::ConfigurationPtr config)
 {
-    auto level = config->getString("logger.level", "error");
+    auto level = config->getString("logger.level", "warning");
     if (config->has("logger.log"))
         local_engine::Logger::initFileLogger(*config, "ClickHouseBackend");
     else
@@ -487,7 +526,7 @@ void BackendInitializerUtil::initLoggers()
     logger = &Poco::Logger::get("ClickHouseBackend");
 }
 
-void BackendInitializerUtil::initEnvs()
+void BackendInitializerUtil::initEnvs(DB::Context::ConfigurationPtr config)
 {
     /// Set environment variable TZ if possible
     if (config->has("timezone"))
@@ -506,27 +545,46 @@ void BackendInitializerUtil::initEnvs()
         std::string libhdfs3_conf = config->getString(LIBHDFS3_CONF_KEY, "");
         setenv("LIBHDFS3_CONF", libhdfs3_conf.c_str(), true); /// NOLINT
     }
+
+    /// Enable logging in libhdfs3, logs will be written to stderr
+    setenv("HDFS_ENABLE_LOGGING", "true", true); /// NOLINT
+
+    /// Get environment varaible SPARK_USER if possible
+    const char * spark_user_c_str = std::getenv("SPARK_USER");
+    if (spark_user_c_str)
+        spark_user = spark_user_c_str;
 }
 
-void BackendInitializerUtil::initSettings()
+void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & backend_conf_map, DB::Settings & settings)
 {
-    static const std::string settings_path("local_engine.settings");
+    /// Initialize default setting.
+    settings.set("date_time_input_format", "best_effort");
 
-    settings = Settings();
-    Poco::Util::AbstractConfiguration::Keys config_keys;
-    config->keys(settings_path, config_keys);
-
-    /// Firstly apply section [local_engine.settings] in config file to settings
-    for (const std::string & key : config_keys)
-        settings.set(key, config->getString(settings_path + "." + key));
-
-    /// Secondly apply spark.gluten.sql.columnar.backend.ch.runtime_settings.* to settings
-    for (const auto & kv : backend_conf_map)
+    for (const auto & pair : backend_conf_map)
     {
-        const auto & key = kv.first;
-        const auto & value = kv.second;
-        if (key.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
-            settings.set(key.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), value);
+        // Firstly apply spark.gluten.sql.columnar.backend.ch.runtime_config.local_engine.settings.* to settings
+        if (pair.first.starts_with(CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + "."))
+        {
+            settings.set(pair.first.substr((CH_RUNTIME_CONFIG_PREFIX + SETTINGS_PATH + ".").size()), pair.second);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings from config key:{} value:{}", pair.first, pair.second);
+        }
+        else if (pair.first.starts_with(CH_RUNTIME_SETTINGS_PREFIX))
+        {
+            settings.set(pair.first.substr(CH_RUNTIME_SETTINGS_PREFIX.size()), pair.second);
+            LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Set settings key:{} value:{}", pair.first, pair.second);
+        }
+        else if (pair.first.starts_with(SPARK_HADOOP_PREFIX + S3A_PREFIX))
+        {
+            // Apply general S3 configs, e.g. spark.hadoop.fs.s3a.access.key -> set in fs.s3a.access.key
+            // deal with per bucket S3 configs, e.g. fs.s3a.bucket.bucket_name.assumed.role.arn
+            // for gluten, we require first authenticate with AK/SK(or instance profile), then assume other roles with STS
+            // so only the following per-bucket configs are supported:
+            // 1. fs.s3a.bucket.bucket_name.assumed.role.arn
+            // 2. fs.s3a.bucket.bucket_name.assumed.role.session.name
+            // 3. fs.s3a.bucket.bucket_name.endpoint
+            // 4. fs.s3a.bucket.bucket_name.assumed.role.externalId (non hadoop official)
+            settings.set(pair.first.substr(SPARK_HADOOP_PREFIX.length()), pair.second);
+        }
     }
 
     /// Finally apply some fixed kvs to settings.
@@ -534,14 +592,27 @@ void BackendInitializerUtil::initSettings()
     settings.set("input_format_orc_allow_missing_columns", true);
     settings.set("input_format_orc_case_insensitive_column_matching", true);
     settings.set("input_format_orc_import_nested", true);
+    settings.set("input_format_orc_skip_columns_with_unsupported_types_in_schema_inference", true);
     settings.set("input_format_parquet_allow_missing_columns", true);
     settings.set("input_format_parquet_case_insensitive_column_matching", true);
     settings.set("input_format_parquet_import_nested", true);
+    settings.set("input_format_json_read_numbers_as_strings", true);
+    settings.set("input_format_json_read_bools_as_numbers", false);
+    settings.set("input_format_csv_trim_whitespaces", false);
+    settings.set("output_format_orc_string_as_string", true);
+    settings.set("output_format_parquet_version", "1.0");
+    settings.set("output_format_parquet_compression_method", "snappy");
+    settings.set("output_format_parquet_string_as_string", true);
+    settings.set("output_format_parquet_fixed_string_as_fixed_byte_array", false);
+    settings.set("output_format_json_quote_64bit_integers", false);
+    settings.set("output_format_json_quote_denormals", true);
+    settings.set("output_format_json_skip_null_value_in_named_tuples", true);
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
+    settings.set("precise_float_parsing", true);
 }
 
-void BackendInitializerUtil::initContexts()
+void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
 {
     /// Make sure global_context and shared_context are constructed only once.
     auto & shared_context = SerializedPlanParser::shared_context;
@@ -555,44 +626,59 @@ void BackendInitializerUtil::initContexts()
     {
         global_context = Context::createGlobal(shared_context.get());
         global_context->makeGlobalContext();
-        global_context->setTemporaryStoragePath("/tmp/libch", 0);
+        global_context->setConfig(config);
+
+        auto getDefaultPath = [config] -> auto
+        {
+            bool use_current_directory_as_tmp = config->getBool("use_current_directory_as_tmp", false);
+            char buffer[PATH_MAX];
+            if (use_current_directory_as_tmp && getcwd(buffer, sizeof(buffer)) != nullptr)
+                return std::string(buffer) + "/tmp/libch";
+            else
+                return std::string("/tmp/libch");
+        };
+
+        global_context->setTemporaryStoragePath(config->getString("tmp_path", getDefaultPath()), 0);
         global_context->setPath(config->getString("path", "/"));
     }
 }
 
-void BackendInitializerUtil::applyConfigAndSettings()
+void BackendInitializerUtil::applyGlobalConfigAndSettings(DB::Context::ConfigurationPtr config, DB::Settings & settings)
 {
     auto & global_context = SerializedPlanParser::global_context;
     global_context->setConfig(config);
     global_context->setSettings(settings);
 }
 
+void BackendInitializerUtil::updateNewSettings(DB::ContextMutablePtr context, DB::Settings & settings)
+{
+    context->setSettings(settings);
+}
+
 extern void registerAggregateFunctionCombinatorPartialMerge(AggregateFunctionCombinatorFactory &);
+extern void registerAggregateFunctionsBloomFilter(AggregateFunctionFactory &);
 extern void registerFunctions(FunctionFactory &);
 
 void registerAllFunctions()
 {
     DB::registerFunctions();
+
     DB::registerAggregateFunctions();
+    auto & agg_factory = AggregateFunctionFactory::instance();
+    registerAggregateFunctionsBloomFilter(agg_factory);
 
     {
         /// register aggregate function combinators from local_engine
         auto & factory = AggregateFunctionCombinatorFactory::instance();
         registerAggregateFunctionCombinatorPartialMerge(factory);
     }
-
-    {
-        /// register ordinary functions from local_engine
-        auto & factory = FunctionFactory::instance();
-        registerFunctions(factory);
-    }
 }
-
-extern void registerAllFunctions();
 
 void BackendInitializerUtil::registerAllFactories()
 {
     registerReadBufferBuilders();
+    registerWriteBufferBuilders();
+
     LOG_INFO(logger, "Register read buffer builders.");
 
     registerRelParsers();
@@ -602,7 +688,7 @@ void BackendInitializerUtil::registerAllFactories()
     LOG_INFO(logger, "Register all functions.");
 }
 
-void BackendInitializerUtil::initCompiledExpressionCache()
+void BackendInitializerUtil::initCompiledExpressionCache(DB::Context::ConfigurationPtr config)
 {
 #if USE_EMBEDDED_COMPILER
     /// 128 MB
@@ -617,42 +703,70 @@ void BackendInitializerUtil::initCompiledExpressionCache()
 #endif
 }
 
-void BackendInitializerUtil::init(const std::string & plan)
+void BackendInitializerUtil::init(std::string * plan)
 {
-    initConfig(plan);
-    initLoggers();
+    std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
+    DB::Context::ConfigurationPtr config = initConfig(backend_conf_map);
 
-    initEnvs();
+    initLoggers(config);
+
+    initEnvs(config);
     LOG_INFO(logger, "Init environment variables.");
 
-    initSettings();
+    DB::Settings settings;
+    initSettings(backend_conf_map, settings);
     LOG_INFO(logger, "Init settings.");
 
-    initContexts();
+    initContexts(config);
     LOG_INFO(logger, "Init shared context and global context.");
 
-    applyConfigAndSettings();
+    applyGlobalConfigAndSettings(config, settings);
     LOG_INFO(logger, "Apply configuration and setting for global context.");
+
+    // clean static per_bucket_clients and shared_client before running local engine,
+    // in case of running the multiple gluten ut in one process
+    ReadBufferBuilderFactory::instance().clean();
 
     std::call_once(
         init_flag,
         [&]
         {
+            SignalHandler::instance().init();
+
             registerAllFactories();
             LOG_INFO(logger, "Register all factories.");
 
-            initCompiledExpressionCache();
+            initCompiledExpressionCache(config);
             LOG_INFO(logger, "Init compiled expressions cache factory.");
+
+            GlobalThreadPool::initialize();
+
+            const size_t active_parts_loading_threads = config->getUInt("max_active_parts_loading_thread_pool_size", 64);
+            DB::getActivePartsLoadingThreadPool().initialize(
+                active_parts_loading_threads,
+                0, // We don't need any threads one all the parts will be loaded
+                active_parts_loading_threads);
         });
+}
+
+void BackendInitializerUtil::updateConfig(DB::ContextMutablePtr context, std::string * plan)
+{
+    std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);
+
+    // configs cannot be updated per query
+    // settings can be updated per query
+
+    auto ctx = context->getSettings(); // make a copy
+    initSettings(backend_conf_map, ctx);
+    updateNewSettings(context, ctx);
 }
 
 void BackendFinalizerUtil::finalizeGlobally()
 {
-    local_engine::BroadCastJoinBuilder::clean();
-
+    // Make sure client caches release before ClientCacheRegistry
+    ReadBufferBuilderFactory::instance().clean();
     auto & global_context = SerializedPlanParser::global_context;
     auto & shared_context = SerializedPlanParser::shared_context;
-    auto * logger = BackendInitializerUtil::logger;
     if (global_context)
     {
         global_context->shutdown();
@@ -663,6 +777,11 @@ void BackendFinalizerUtil::finalizeGlobally()
 
 void BackendFinalizerUtil::finalizeSessionally()
 {
+}
+
+Int64 DateTimeUtil::currentTimeMillis()
+{
+    return timeInMilliseconds(std::chrono::system_clock::now());
 }
 
 }

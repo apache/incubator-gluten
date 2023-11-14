@@ -16,25 +16,29 @@
  */
 package io.glutenproject.expression
 
-import com.google.common.collect.Lists
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
-import io.glutenproject.substrait.expression.{BinaryStructNode, ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, StructLiteralNode}
 
 import org.apache.spark.sql.catalyst.expressions.GetStructField
 import org.apache.spark.sql.types.IntegerType
 
-class GetStructFieldTransformer(
+import com.google.common.collect.Lists
+
+case class GetStructFieldTransformer(
     substraitExprName: String,
     childTransformer: ExpressionTransformer,
     ordinal: Int,
     original: GetStructField)
   extends ExpressionTransformer {
 
-  override def doTransform(args: Object): ExpressionNode = {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode = childTransformer.doTransform(args)
-    if (childNode.isInstanceOf[BinaryStructNode]) {
-      return childNode.asInstanceOf[BinaryStructNode].getFieldLiteral(ordinal)
+    childNode match {
+      case node: StructLiteralNode =>
+        return node.getFieldLiteral(ordinal)
+      case _ =>
     }
+
     val ordinalNode = ExpressionBuilder.makeLiteral(ordinal, IntegerType, false)
     val exprNodes = Lists.newArrayList(childNode, ordinalNode)
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]

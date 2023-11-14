@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.type;
 
 import io.substrait.proto.Type;
@@ -25,7 +24,7 @@ public class FixedCharTypeNode implements TypeNode, Serializable {
   private final Boolean nullable;
   private final int length;
 
-  FixedCharTypeNode(Boolean nullable, int length) {
+  public FixedCharTypeNode(Boolean nullable, int length) {
     this.nullable = nullable;
     this.length = length;
   }

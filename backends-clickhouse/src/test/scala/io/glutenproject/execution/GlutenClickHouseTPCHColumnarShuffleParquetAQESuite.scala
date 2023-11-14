@@ -43,6 +43,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.sql.adaptive.enabled", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -53,46 +54,53 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
     runTPCHQuery(1) {
       df =>
         assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-        val scanExec = collect(df.queryExecution.executedPlan) {
+        val plans = collect(df.queryExecution.executedPlan) {
           case scanExec: BasicScanExecTransformer => scanExec
           case hashAggExec: HashAggregateExecBaseTransformer => hashAggExec
         }
-        assert(scanExec.size == 3)
+        assert(plans.size == 3)
 
-        assert(scanExec(2).metrics("numFiles").value === 1)
-        assert(scanExec(2).metrics("pruningTime").value === -1)
-        assert(scanExec(2).metrics("filesSize").value === 17777735)
+        assert(plans(2).metrics("numFiles").value === 1)
+        assert(plans(2).metrics("pruningTime").value === -1)
+        assert(plans(2).metrics("filesSize").value === 17777735)
+        assert(plans(2).metrics("outputRows").value === 600572)
 
-        assert(scanExec(1).metrics("outputRows").value === 4)
-        assert(scanExec(1).metrics("outputVectors").value === 1)
+        assert(plans(1).metrics("inputRows").value === 591673)
+        assert(plans(1).metrics("resizeInputRows").value === 4)
+        assert(plans(1).metrics("resizeOutputRows").value === 4)
+        assert(plans(1).metrics("outputRows").value === 4)
+        assert(plans(1).metrics("outputVectors").value === 1)
 
         // Execute Sort operator, it will read the data twice.
-        assert(scanExec(0).metrics("outputRows").value === 8)
-        assert(scanExec(0).metrics("outputVectors").value === 2)
+        assert(plans(0).metrics("outputRows").value === 8)
+        assert(plans(0).metrics("outputVectors").value === 2)
     }
   }
 
   test("Check the metrics values") {
     withSQLConf(("spark.gluten.sql.columnar.sort", "false")) {
-      runTPCHQuery(1) {
+      runTPCHQuery(1, noFallBack = false) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-          val scanExec = collect(df.queryExecution.executedPlan) {
+          val plans = collect(df.queryExecution.executedPlan) {
             case scanExec: BasicScanExecTransformer => scanExec
             case hashAggExec: HashAggregateExecBaseTransformer => hashAggExec
           }
-          assert(scanExec.size == 3)
+          assert(plans.size == 3)
 
-          assert(scanExec(2).metrics("numFiles").value === 1)
-          assert(scanExec(2).metrics("pruningTime").value === -1)
-          assert(scanExec(2).metrics("filesSize").value === 17777735)
+          assert(plans(2).metrics("numFiles").value === 1)
+          assert(plans(2).metrics("pruningTime").value === -1)
+          assert(plans(2).metrics("filesSize").value === 17777735)
 
-          assert(scanExec(1).metrics("outputRows").value === 4)
-          assert(scanExec(1).metrics("outputVectors").value === 1)
+          assert(plans(1).metrics("inputRows").value === 591673)
+          assert(plans(1).metrics("resizeInputRows").value === 4)
+          assert(plans(1).metrics("resizeOutputRows").value === 4)
+          assert(plans(1).metrics("outputRows").value === 4)
+          assert(plans(1).metrics("outputVectors").value === 1)
 
           // Execute Sort operator, it will read the data twice.
-          assert(scanExec(0).metrics("outputRows").value === 8)
-          assert(scanExec(0).metrics("outputVectors").value === 2)
+          assert(plans(0).metrics("outputRows").value === 8)
+          assert(plans(0).metrics("outputVectors").value === 2)
       }
     }
   }
@@ -108,26 +116,13 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
     }
   }
 
-  test("TPCH Q2 with coalesce batch true") {
-    withSQLConf(("spark.gluten.sql.columnar.coalesce.batches", "true")) {
-      runTPCHQuery(2) {
-        df =>
-          assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
-          val scanExec = collect(df.queryExecution.executedPlan) {
-            case scanExec: BasicScanExecTransformer => scanExec
-          }
-          assert(scanExec.size == 8)
-      }
-    }
-  }
-
   test("TPCH Q3") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(3) {
         df =>
           assert(df.queryExecution.executedPlan.isInstanceOf[AdaptiveSparkPlanExec])
           val shjBuildLeft = collect(df.queryExecution.executedPlan) {
-            case shj: ShuffledHashJoinExecTransformer if shj.joinBuildSide == BuildLeft => shj
+            case shj: ShuffledHashJoinExecTransformerBase if shj.joinBuildSide == BuildLeft => shj
           }
           assert(shjBuildLeft.size == 2)
       }
@@ -160,7 +155,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
    * shuffle.partitions=1 at the same time, because OptimizeOneRowPlan rule will remove Sort
    * operator.
    */
-  ignore("TPCH Q7 - with shuffle.partitions=1") {
+  test("TPCH Q7 - with shuffle.partitions=1") {
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
       ("spark.sql.autoBroadcastJoinThreshold", "-1"),
@@ -235,7 +230,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   }
 
   test("TPCH Q16") {
-    runTPCHQuery(16) { df => }
+    runTPCHQuery(16, noFallBack = false) { df => }
   }
 
   test("TPCH Q17") {
@@ -258,6 +253,20 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
     runTPCHQuery(20) { df => }
   }
 
+  test("TPCH Q21") {
+    runTPCHQuery(21, noFallBack = false) {
+      df =>
+        val plans = collect(df.queryExecution.executedPlan) {
+          case scanExec: BasicScanExecTransformer => scanExec
+          case filterExec: FilterExecTransformerBase => filterExec
+        }
+        assert(plans(2).metrics("inputRows").value === 600572)
+        assert(plans(2).metrics("outputRows").value === 379809)
+
+        assert(plans(3).metrics("outputRows").value === 600572)
+    }
+  }
+
   test("TPCH Q22") {
     runTPCHQuery(22) {
       df =>
@@ -272,7 +281,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
 
   test("Test 'spark.gluten.enabled' false") {
     withSQLConf(("spark.gluten.enabled", "false")) {
-      runTPCHQuery(2) {
+      runTPCHQuery(2, noFallBack = false) {
         df =>
           val glutenPlans = collect(df.queryExecution.executedPlan) {
             case glutenPlan: GlutenPlan => glutenPlan

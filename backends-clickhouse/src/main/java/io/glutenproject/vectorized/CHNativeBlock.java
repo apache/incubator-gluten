@@ -14,14 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.vectorized;
+
+import io.glutenproject.exception.GlutenException;
 
 import org.apache.spark.sql.execution.utils.CHExecUtil;
 import org.apache.spark.sql.vectorized.ColumnVector;
 import org.apache.spark.sql.vectorized.ColumnarBatch;
-
-import java.util.Optional;
 
 public class CHNativeBlock {
   private long blockAddress;
@@ -30,12 +29,16 @@ public class CHNativeBlock {
     this.blockAddress = blockAddress;
   }
 
-  public static Optional<CHNativeBlock> fromColumnarBatch(ColumnarBatch batch) {
+  public static CHNativeBlock fromColumnarBatch(ColumnarBatch batch) {
     if (batch.numCols() == 0 || !(batch.column(0) instanceof CHColumnVector)) {
-      return Optional.empty();
+      throw new GlutenException(
+          "Unexpected ColumnarBatch: "
+              + (batch.numCols() == 0
+                  ? "0 column"
+                  : "expected CHColumnVector, but " + batch.column(0).getClass()));
     }
     CHColumnVector columnVector = (CHColumnVector) batch.column(0);
-    return Optional.of(new CHNativeBlock(columnVector.getBlockAddress()));
+    return new CHNativeBlock(columnVector.getBlockAddress());
   }
 
   private native int nativeNumRows(long blockAddress);
@@ -75,11 +78,22 @@ public class CHNativeBlock {
     }
   }
 
+  public static void closeFromColumnarBatch(ColumnarBatch cb) {
+    if (cb != null) {
+      if (cb.numCols() > 0) {
+        CHColumnVector col = (CHColumnVector) cb.column(0);
+        CHNativeBlock block = new CHNativeBlock(col.getBlockAddress());
+        block.close();
+      }
+      cb.close();
+    }
+  }
+
   public ColumnarBatch toColumnarBatch() {
     ColumnVector[] vectors = new ColumnVector[numColumns()];
     for (int i = 0; i < numColumns(); i++) {
-      vectors[i] = new CHColumnVector(CHExecUtil.inferSparkDataType(
-        getTypeByPosition(i)), blockAddress, i);
+      vectors[i] =
+          new CHColumnVector(CHExecUtil.inferSparkDataType(getTypeByPosition(i)), blockAddress, i);
     }
     int numRows = 0;
     if (numColumns() != 0) {

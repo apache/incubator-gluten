@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.glutenproject.substrait.type;
 
 import io.substrait.proto.Type;
@@ -24,7 +23,7 @@ import java.io.Serializable;
 public class I64TypeNode implements TypeNode, Serializable {
   private final Boolean nullable;
 
-  I64TypeNode(Boolean nullable) {
+  public I64TypeNode(Boolean nullable) {
     this.nullable = nullable;
   }
 

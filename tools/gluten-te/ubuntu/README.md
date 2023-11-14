@@ -1,4 +1,4 @@
-# Portable Test Envrionment of Gluten (gluten-te)
+# Portable Test Environment of Gluten (gluten-te)
 
 Build and run [gluten](https://github.com/oap-project/gluten) and [gluten-it](https://github.com/oap-project/gluten/tree/main/tools/gluten-it) in a portable docker container, from scratch.
 

@@ -16,33 +16,33 @@
  */
 package org.apache.spark.storage;
 
+import io.glutenproject.exception.GlutenException;
+import io.glutenproject.vectorized.LowCopyFileSegmentShuffleInputStream;
+import io.glutenproject.vectorized.LowCopyNettyShuffleInputStream;
+import io.glutenproject.vectorized.OnHeapCopyShuffleInputStream;
+import io.glutenproject.vectorized.ShuffleInputStream;
+
+import com.github.luben.zstd.ZstdInputStreamNoFinalizer;
+import com.ning.compress.lzf.LZFInputStream;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufInputStream;
+import net.jpountz.lz4.LZ4BlockInputStream;
+import org.apache.spark.network.util.LimitedInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.xerial.snappy.SnappyInputStream;
+
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.FilterInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.zip.CheckedInputStream;
 
-import com.github.luben.zstd.ZstdInputStreamNoFinalizer;
-import com.ning.compress.lzf.LZFInputStream;
-import io.glutenproject.vectorized.LowCopyFileSegmentShuffleInputStream;
-import io.glutenproject.vectorized.LowCopyNettyShuffleInputStream;
-import io.glutenproject.vectorized.OnHeapCopyShuffleInputStream;
-import io.glutenproject.vectorized.ShuffleInputStream;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufInputStream;
-import net.jpountz.lz4.LZ4BlockInputStream;
-import org.apache.spark.network.util.LimitedInputStream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.xerial.snappy.SnappyInputStream;
-
 public final class CHShuffleReadStreamFactory {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(CHShuffleReadStreamFactory.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CHShuffleReadStreamFactory.class);
 
   public static final Field FIELD_FilterInputStream_in;
   public static final Field FIELD_ByteBufInputStream_buffer;
@@ -74,79 +74,54 @@ public final class CHShuffleReadStreamFactory {
       FIELD_ZstdInputStreamNoFinalizer_in =
           ZstdInputStreamNoFinalizer.class.getSuperclass().getDeclaredField("in");
       FIELD_ZstdInputStreamNoFinalizer_in.setAccessible(true);
-      FIELD_LZFInputStream_in =
-          LZFInputStream.class.getDeclaredField("_inputStream");
+      FIELD_LZFInputStream_in = LZFInputStream.class.getDeclaredField("_inputStream");
       FIELD_LZFInputStream_in.setAccessible(true);
     } catch (NoSuchFieldException e) {
-      LOG.error("Can not get the field of the class: ", e);
-      throw new RuntimeException(e);
+      throw new GlutenException(e);
     }
   }
 
-  private CHShuffleReadStreamFactory() {
+  private CHShuffleReadStreamFactory() {}
+
+  public static ShuffleInputStream create(byte[] allBatches, boolean compressed) {
+    return new OnHeapCopyShuffleInputStream(new ByteArrayInputStream(allBatches), compressed);
   }
 
   public static ShuffleInputStream create(
-      InputStream in,
-      boolean forceCompress,
-      boolean isCustomizedShuffleCodec,
-      int bufferSize) {
-    // For native shuffle
-    if (forceCompress) {
-      // Unwrap BufferReleasingInputStream and CheckedInputStream
-      final InputStream unwrapped = unwrapSparkInputStream(in);
-      // Unwrap LimitedInputStream and get the FileInputStream
-      LimitedInputStream limitedInputStream = isReadFromFileSegment(unwrapped);
-      if (limitedInputStream != null) {
-        return new LowCopyFileSegmentShuffleInputStream(
-            in,
-            limitedInputStream,
-            bufferSize,
-            forceCompress);
-      }
-      // Unwrap ByteBufInputStream and get the ByteBuf
-      ByteBuf byteBuf = isReadFromNettySupported(unwrapped);
-      if (byteBuf != null) {
-        return new LowCopyNettyShuffleInputStream(in, byteBuf, bufferSize, forceCompress);
-      }
-      // Unwrap failed, use on heap copy method
-      return new OnHeapCopyShuffleInputStream(in, bufferSize, forceCompress);
-    } else if (isCustomizedShuffleCodec) {
-      // For Spark Sort Shuffle.
-      // Unwrap BufferReleasingInputStream and CheckedInputStream,
-      // if there is compression input stream, it will be unwrapped.
-      InputStream unwrapped = unwrapSparkWithCompressedInputStream(in);
-      if (unwrapped != null) {
-        // Unwrap LimitedInputStream and get the FileInputStream
-        LimitedInputStream limitedInputStream = isReadFromFileSegment(unwrapped);
-        if (limitedInputStream != null) {
-          return new LowCopyFileSegmentShuffleInputStream(
-              in,
-              limitedInputStream,
-              bufferSize,
-              isCustomizedShuffleCodec);
-        }
-        // Unwrap ByteBufInputStream and get the ByteBuf
-        ByteBuf byteBuf = isReadFromNettySupported(unwrapped);
-        if (byteBuf != null) {
-          return new LowCopyNettyShuffleInputStream(
-              in,
-              byteBuf,
-              bufferSize,
-              isCustomizedShuffleCodec);
-        }
-        // Unwrap failed, use on heap copy method
-        return new OnHeapCopyShuffleInputStream(unwrapped, bufferSize, isCustomizedShuffleCodec);
-      } else {
-        return new OnHeapCopyShuffleInputStream(in, bufferSize, false);
-      }
+      InputStream in, boolean forceCompress, boolean isCustomizedShuffleCodec) {
+    final InputStream unwrapped = unwrapInputStream(in, forceCompress, isCustomizedShuffleCodec);
+    if (unwrapped != null) {
+      return createCompressedShuffleInputStream(in, unwrapped);
     }
-    return new OnHeapCopyShuffleInputStream(in, bufferSize, false);
+    return new OnHeapCopyShuffleInputStream(in, false);
   }
 
-  /**
-   * Unwrap BufferReleasingInputStream and CheckedInputStream
-   */
+  private static InputStream unwrapInputStream(
+      InputStream in, boolean forceCompress, boolean isCustomizedShuffleCodec) {
+    if (forceCompress) {
+      return unwrapSparkInputStream(in);
+    } else if (isCustomizedShuffleCodec) {
+      return unwrapSparkWithCompressedInputStream(in);
+    }
+    return null;
+  }
+
+  private static ShuffleInputStream createCompressedShuffleInputStream(
+      InputStream in, InputStream unwrapped) {
+    LimitedInputStream limitedInputStream = isReadFromFileSegment(unwrapped);
+    if (limitedInputStream != null) {
+      return new LowCopyFileSegmentShuffleInputStream(in, limitedInputStream, true);
+    }
+    // Unwrap ByteBufInputStream and get the ByteBuf
+    ByteBuf byteBuf = isReadFromNettySupported(unwrapped);
+    if (byteBuf != null) {
+      return new LowCopyNettyShuffleInputStream(in, byteBuf, true);
+    }
+    // Unwrap failed, use on heap copy method
+    return new OnHeapCopyShuffleInputStream(in, true);
+  }
+
+  /** Unwrap BufferReleasingInputStream and CheckedInputStream */
   public static InputStream unwrapSparkInputStream(InputStream in) {
     InputStream unwrapped = in;
     if (unwrapped instanceof BufferReleasingInputStream) {
@@ -165,11 +140,8 @@ public final class CHShuffleReadStreamFactory {
     return unwrapped;
   }
 
-  /**
-   * Unwrap BufferReleasingInputStream, CheckedInputStream and CompressionInputStream
-   */
-  public static InputStream unwrapSparkWithCompressedInputStream(
-      InputStream in) {
+  /** Unwrap BufferReleasingInputStream, CheckedInputStream and CompressionInputStream */
+  public static InputStream unwrapSparkWithCompressedInputStream(InputStream in) {
     InputStream unwrapped = in;
     if (unwrapped instanceof BufferReleasingInputStream) {
       final BufferReleasingInputStream brin = (BufferReleasingInputStream) unwrapped;
@@ -192,18 +164,15 @@ public final class CHShuffleReadStreamFactory {
     return unwrapped;
   }
 
-  /**
-   * Check whether support reading from file segment (local read)
-   */
+  /** Check whether support reading from file segment (local read) */
   public static LimitedInputStream isReadFromFileSegment(InputStream in) {
     if (!(in instanceof LimitedInputStream)) {
       return null;
     }
     LimitedInputStream lin = (LimitedInputStream) in;
-    InputStream wrapped = null;
+    InputStream wrapped;
     try {
       wrapped = (InputStream) FIELD_FilterInputStream_in.get(lin);
-      long left = ((long) FIELD_LimitedInputStream_left.get(lin));
     } catch (IllegalAccessException e) {
       LOG.error("Can not get the fields from LimitedInputStream: ", e);
       return null;
@@ -214,9 +183,7 @@ public final class CHShuffleReadStreamFactory {
     return lin;
   }
 
-  /**
-   * Check whether support reading from netty (remote read)
-   */
+  /** Check whether support reading from netty (remote read) */
   public static ByteBuf isReadFromNettySupported(InputStream in) {
     if (!(in instanceof ByteBufInputStream)) {
       return null;
@@ -234,16 +201,12 @@ public final class CHShuffleReadStreamFactory {
     }
   }
 
-  /**
-   * Unwrap Spark compression input stream.
-   */
-  public static InputStream unwrapCompressionInputStream(
-      InputStream is) {
+  /** Unwrap Spark compression input stream. */
+  public static InputStream unwrapCompressionInputStream(InputStream is) {
     InputStream unwrapped = is;
     try {
       if (unwrapped instanceof BufferedInputStream) {
-        final InputStream cis =
-            (InputStream) FIELD_BufferedInputStream_in.get(unwrapped);
+        final InputStream cis = (InputStream) FIELD_BufferedInputStream_in.get(unwrapped);
         if (cis instanceof ZstdInputStreamNoFinalizer) {
           unwrapped = (InputStream) FIELD_ZstdInputStreamNoFinalizer_in.get(cis);
         }

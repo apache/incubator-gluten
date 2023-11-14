@@ -14,18 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution.datasources.parquet
-
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.tags.ExtendedSQLTest
 
 @ExtendedSQLTest
-class GlutenParquetV1SchemaPruningSuite extends ParquetV1SchemaPruningSuite
+class GlutenParquetV1SchemaPruningSuite
+  extends ParquetV1SchemaPruningSuite
   with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf = {
+    super.sparkConf.set("spark.memory.offHeap.size", "3g")
+  }
 }
 
 @ExtendedSQLTest
-class GlutenParquetV2SchemaPruningSuite extends ParquetV2SchemaPruningSuite
+class GlutenParquetV2SchemaPruningSuite
+  extends ParquetV2SchemaPruningSuite
   with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf = {
+    super.sparkConf.set("spark.memory.offHeap.size", "3g")
+  }
 }

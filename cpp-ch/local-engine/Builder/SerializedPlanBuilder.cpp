@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "SerializedPlanBuilder.h"
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDateTime64.h>
@@ -195,7 +211,7 @@ SerializedPlanBuilder::SerializedPlanBuilder() : plan(std::make_unique<substrait
 }
 
 SerializedPlanBuilder &
-SerializedPlanBuilder::aggregate(std::vector<int32_t> /*keys*/, std::vector<substrait::AggregateRel_Measure *> aggregates)
+SerializedPlanBuilder::aggregate(const std::vector<int32_t> & /*keys*/, const std::vector<substrait::AggregateRel_Measure *> & aggregates)
 {
     substrait::Rel * rel = new substrait::Rel();
     auto * agg = rel->mutable_aggregate();
@@ -210,7 +226,7 @@ SerializedPlanBuilder::aggregate(std::vector<int32_t> /*keys*/, std::vector<subs
     return *this;
 }
 
-SerializedPlanBuilder & SerializedPlanBuilder::project(std::vector<substrait::Expression *> projections)
+SerializedPlanBuilder & SerializedPlanBuilder::project(const std::vector<substrait::Expression *> & projections)
 {
     substrait::Rel * project = new substrait::Rel();
     for (auto * expr : projections)
@@ -303,7 +319,7 @@ std::shared_ptr<substrait::Type> SerializedPlanBuilder::buildType(const DB::Data
     else
         throw Exception(ErrorCodes::UNKNOWN_TYPE, "Spark doesn't support converting from {}", ch_type->getName());
 
-    return std::move(res);
+    return res;
 }
 
 void SerializedPlanBuilder::buildType(const DB::DataTypePtr & ch_type, String & substrait_type)
