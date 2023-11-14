@@ -552,7 +552,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     }
   }
 
-  test("Add the missing Generate validation check") {
+  test("Validation should fail if unsupported expression is used for Generate.") {
     withTable("t") {
       spark
         .range(10)
