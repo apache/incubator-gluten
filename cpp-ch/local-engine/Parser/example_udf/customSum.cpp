@@ -24,4 +24,5 @@ namespace local_engine
 {
 // Only for ut to test custom aggregate function
 REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(CustomSum, custom_sum, sum)
+REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(CustomSumDouble, custom_sum_double, sum)
 }
