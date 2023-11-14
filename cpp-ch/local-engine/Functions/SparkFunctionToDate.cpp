@@ -17,7 +17,6 @@
 #include <Common/LocalDate.h>
 #include <Common/DateLUT.h>
 #include <Common/DateLUTImpl.h>
-#include <Core/Field.h>
 #include <DataTypes/DataTypeDate32.h>
 #include <Functions/FunctionsConversion.h>
 #include <Functions/FunctionFactory.h>
@@ -107,7 +106,7 @@ public:
         if (!result_type->isNullable())
             throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be nullable", name);
         
-        if (!std::dynamic_pointer_cast<const DB::DataTypeDate32>(removeNullable(result_type)))
+        if (!isDate32(removeNullable(result_type)))
             throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be data32.", name);
         
         using ColVecTo = DB::DataTypeDate32::ColumnType;
