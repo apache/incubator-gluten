@@ -58,6 +58,7 @@ void local_engine::PartitionWriter::write(const PartitionInfo& partition_info, D
             Block block = buffer.releaseColumns();
             auto bytes = block.bytes();
             total_partition_buffer_size += bytes;
+            total_partition_allocated_buffer_size += block.allocatedBytes();
             shuffle_writer->split_result.raw_partition_length[i] += bytes;
             partition_buffer[i].addBlock(block);
         }
@@ -81,6 +82,8 @@ void LocalPartitionWriter::evictPartitions(bool for_memory_spill)
         serialization_time_watch.start();
         for (auto & partition : partition_buffer)
         {
+            std::cerr << "xxx local partition id:" << partition_id << " blocks num:" << partition.size()
+                      << " block bytes:" << partition.bytes() << " allocatedBytes:" << partition.allocatedBytes() << std::endl;
             PartitionSpillInfo partition_spill_info;
             partition_spill_info.start = output.count();
             size_t raw_size = partition.spill(writer);
@@ -117,6 +120,7 @@ void LocalPartitionWriter::evictPartitions(bool for_memory_spill)
     }
     shuffle_writer->split_result.total_bytes_spilled += total_partition_buffer_size;
     total_partition_buffer_size = 0;
+    total_partition_allocated_buffer_size = 0;
 }
 std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
 {
@@ -226,6 +230,8 @@ void CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
         {
             auto & partition = partition_buffer[partition_id];
             if (partition.empty()) continue;
+            std::cerr << "xxx celeborn partition id:" << partition_id << " blocks num:" << partition.size()
+                      << " block bytes:" << partition.bytes() << " allocatedBytes:" << partition.allocatedBytes() << std::endl;
             WriteBufferFromOwnString output;
             auto codec = DB::CompressionCodecFactory::instance().get(boost::to_upper_copy(shuffle_writer->options.compress_method), {});
             CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
@@ -265,6 +271,7 @@ void CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
     }
     shuffle_writer->split_result.total_bytes_spilled += total_partition_buffer_size;
     total_partition_buffer_size = 0;
+    total_partition_allocated_buffer_size = 0;
 }
 
 void CelebornPartitionWriter::stop()

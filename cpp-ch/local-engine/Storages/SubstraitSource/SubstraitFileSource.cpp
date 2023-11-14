@@ -78,6 +78,7 @@ SubstraitFileSource::SubstraitFileSource(
             files.emplace_back(FormatFileUtil::createFile(context, read_buffer_builder, item));
 
         /// Decide which tuple type column in output_header should skip flatten.
+        /*
         file_schema = files[0]->getSchema();
         for (size_t i = 0; i < output_header.columns(); ++i)
         {
@@ -99,6 +100,7 @@ SubstraitFileSource::SubstraitFileSource(
                 }
             }
         }
+        */
     }
 
     /**
@@ -110,6 +112,7 @@ SubstraitFileSource::SubstraitFileSource(
      * at the end.
      */
     flatten_output_header = BlockUtil::flattenBlock(output_header, BlockUtil::FLAT_STRUCT, true, columns_to_skip_flatten);
+    std::cout << "flatten output header:" << flatten_output_header.dumpStructure() << std::endl;
     to_read_header = flatten_output_header;
     if (file_infos.items_size())
     {

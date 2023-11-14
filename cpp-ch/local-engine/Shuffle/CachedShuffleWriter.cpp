@@ -147,7 +147,10 @@ size_t CachedShuffleWriter::evictPartitions()
 {
     auto size = partition_writer->totalCacheSize();
     if (size)
+    {
+        std::cerr << "evict total bytes: " << size << ", allocatedBytes:" << partition_writer->totalAllocatedCacheSize() << std::endl;
         partition_writer->evictPartitions(true);
+    }
     return size;
 }
 

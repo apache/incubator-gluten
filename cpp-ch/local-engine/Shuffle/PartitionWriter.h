@@ -48,6 +48,28 @@ public:
     void addBlock(DB::Block & block);
     bool empty() const;
     void clear();
+    size_t size() const { return blocks.size(); }
+
+    size_t bytes() const
+    {
+        size_t res = 0;
+        for (const auto & block : blocks)
+        {
+            res += block.bytes();
+        }
+        return res;
+    }
+
+    size_t allocatedBytes() const
+    {
+        size_t res = 0;
+        for (const auto & block : blocks)
+        {
+            res += block.allocatedBytes();
+        }
+        return res;
+    }
+
     size_t spill(DB::NativeWriter & writer);
 
 private:
@@ -66,9 +88,14 @@ public:
 
     virtual void stop() = 0;
 
-    virtual size_t totalCacheSize()
+    virtual size_t totalCacheSize() const
     {
         return total_partition_buffer_size;
+    }
+
+    virtual size_t totalAllocatedCacheSize() const
+    {
+        return total_partition_allocated_buffer_size;
     }
 
 protected:
@@ -77,6 +104,7 @@ protected:
     SplitOptions * options;
     CachedShuffleWriter * shuffle_writer;
     size_t total_partition_buffer_size = 0;
+    size_t total_partition_allocated_buffer_size = 0;
 };
 
 class LocalPartitionWriter : public PartitionWriter

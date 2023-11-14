@@ -78,12 +78,12 @@ ExpandTransform::Status ExpandTransform::prepare()
 
         if (!input.hasData())
             return Status::NeedData;
-        
+
         input_chunk = input.pull(true);
         has_input = true;
         expand_expr_iterator = 0;
     }
-    
+
     return Status::Ready;
 }
 
