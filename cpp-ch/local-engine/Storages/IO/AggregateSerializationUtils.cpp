@@ -48,7 +48,7 @@ bool isFixedSizeAggregateFunction(DB::AggregateFunctionPtr function)
 
 DB::ColumnWithTypeAndName convertAggregateStateToFixedString(DB::ColumnWithTypeAndName col)
 {
-    if (!isAggregateFunction(col.type))
+    if (!WhichDataType(col.type).isAggregateFunction())
     {
         return col;
     }
@@ -72,7 +72,7 @@ DB::ColumnWithTypeAndName convertAggregateStateToFixedString(DB::ColumnWithTypeA
 
 DB::ColumnWithTypeAndName convertAggregateStateToString(DB::ColumnWithTypeAndName col)
 {
-    if (!isAggregateFunction(col.type))
+    if (!WhichDataType(col.type).isAggregateFunction())
     {
         return col;
     }
@@ -95,7 +95,7 @@ DB::ColumnWithTypeAndName convertAggregateStateToString(DB::ColumnWithTypeAndNam
 
 DB::ColumnWithTypeAndName convertFixedStringToAggregateState(DB::ColumnWithTypeAndName col, DB::DataTypePtr type)
 {
-    chassert(isAggregateFunction(type));
+    chassert(WhichDataType(type).isAggregateFunction());
     auto res_col = type->createColumn();
     const auto * agg_type = checkAndGetDataType<DataTypeAggregateFunction>(type.get());
     ColumnAggregateFunction & real_column = typeid_cast<ColumnAggregateFunction &>(*res_col);
@@ -125,7 +125,7 @@ DB::Block convertAggregateStateInBlock(DB::Block block)
     ColumnsWithTypeAndName columns;
     for (const auto & item : block.getColumnsWithTypeAndName())
     {
-        if (isAggregateFunction(item.type))
+        if (WhichDataType(item.type).isAggregateFunction())
         {
             const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*item.column);
             if (isFixedSizeAggregateFunction(aggregate_col->getAggregateFunction()))
