@@ -39,8 +39,6 @@ public:
 private:
     DB::Pipe pipe;
     DB::ContextPtr context;
-    std::vector<DB::String> partition_keys;
-    DB::String file_format;
 };
 
 }
