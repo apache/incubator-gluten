@@ -56,6 +56,7 @@ include_directories(
         ${ClickHouse_SOURCE_DIR}/src
         ${ClickHouse_SOURCE_DIR}/base
         ${ClickHouse_SOURCE_DIR}/contrib/orc/c++/include
+        ${ClickHouse_SOURCE_DIR}/contrib/arrow-cmake/cpp/src/orc/c++/include
         ${CMAKE_BINARY_DIR}/contrib/orc/c++/include
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/storage/azure-storage-blobs/inc
         ${ClickHouse_SOURCE_DIR}/contrib/azure/sdk/core/azure-core/inc
