@@ -61,7 +61,6 @@ public:
             else
                 return true;
         };
-        std::pair<bool, LocalDate> result;
         if (!checkNumbericASCII(buf, 0, 4) 
             || !checkDelimiter(buf, 4) 
             || !checkNumbericASCII(buf, 5, 2) 
