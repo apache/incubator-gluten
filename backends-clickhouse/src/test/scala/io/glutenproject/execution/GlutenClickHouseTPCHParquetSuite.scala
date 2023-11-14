@@ -2227,5 +2227,28 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     spark.sql("drop table test_tbl_3521")
   }
+
+  test("GLUTEN-3135 revert: Bug fix to_date") {
+    val create_table_sql =
+      """
+        | create table test_tbl_3135(id bigint, data string) using parquet
+        |""".stripMargin
+    val insert_data_sql =
+      """
+        |insert into test_tbl_3135 values
+        |(1, '2023-09-02 23:59:59.299+11'),
+        |(2, '2023-09-02 23:59:59.299-11'),
+        |(3, '2023-09-02 00:00:01.333+11'),
+        |(4, '2023-09-02 00:00:01.333-11'),
+        |(5, '  2023-09-02 agdfegfew'),
+        |(6, 'afe2023-09-02 11:22:33'),
+        |(7, '1970-01-01 00:00:00')
+        |""".stripMargin
+    spark.sql(create_table_sql)
+    spark.sql(insert_data_sql)
+    val select_sql = "select id, to_date(data) from test_tbl_3135"
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_3135")
+  }
 }
 // scalastyle:on line.size.limit
