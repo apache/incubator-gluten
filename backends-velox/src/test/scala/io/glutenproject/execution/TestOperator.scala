@@ -574,11 +574,10 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
       }
 
       // Testing unsupported case in case when
-      runQueryAndCompare(
-        """
-          |SELECT explode(case when size(intToArray(c1)) > 0
-          |then array(c1) else array(c2) end) from t;
-          |""".stripMargin) {
+      runQueryAndCompare("""
+                           |SELECT explode(case when size(intToArray(c1)) > 0
+                           |then array(c1) else array(c2) end) from t;
+                           |""".stripMargin) {
         df =>
           {
             getExecutedPlan(df).exists(plan => plan.exists(_.isInstanceOf[GenerateExec]))
