@@ -32,7 +32,7 @@
 #include <Common/getHashOfLoadedBinary.h>
 #include <Common/logger_useful.h>
 
-#include "config_version.h"
+#include <Common/config_version.h>
 
 using namespace local_engine;
 
