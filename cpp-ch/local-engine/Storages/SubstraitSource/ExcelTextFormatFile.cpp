@@ -33,7 +33,7 @@
 #include <Storages/HDFS/ReadBufferFromHDFS.h>
 #include <Storages/Serializations/ExcelDecimalSerialization.h>
 #include <Storages/Serializations/ExcelSerialization.h>
-
+#include <Storages/Serializations/ExcelStringReader.h>
 
 namespace DB
 {
@@ -47,17 +47,17 @@ namespace ErrorCodes
 namespace local_engine
 {
 
-void skipErrorChars(DB::ReadBuffer & buf, bool has_quote, char maybe_quote, const DB::FormatSettings & settings)
+void skipErrorChars(DB::ReadBuffer & buf, bool has_quote, char quote, String & escape, const DB::FormatSettings & settings)
 {
-    char skip_before_char = has_quote ? maybe_quote : settings.csv.delimiter;
-
-    /// skip all chars before quote/delimiter exclude line delimiter
-    while (!buf.eof() && *buf.position() != skip_before_char && *buf.position() != '\n' && *buf.position() != '\r')
-        ++buf.position();
-
-    /// if char is quote, skip it
-    if (has_quote && !buf.eof() && *buf.position() == maybe_quote)
-        ++buf.position();
+    if (has_quote)
+    {
+        ColumnString::Chars data;
+        readExcelCSVQuoteString(data, buf, settings.csv.delimiter, escape, quote);
+    }
+    else
+        /// skip all chars before quote/delimiter exclude line delimiter
+        while (!buf.eof() && *buf.position() != settings.csv.delimiter && *buf.position() != '\n' && *buf.position() != '\r')
+            ++buf.position();
 }
 
 FormatFile::InputFormatPtr ExcelTextFormatFile::createInputFormat(const DB::Block & header)
@@ -109,26 +109,37 @@ DB::FormatSettings ExcelTextFormatFile::createFormatSettings()
     format_settings.try_infer_integers = 0;
     if (!context->getSettings().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE))
         format_settings.try_infer_integers = 1;
-    if (context->getSettings().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE) &&
-        context->getSettings().getString(BackendInitializerUtil::EXCEL_NUMBER_FORCE) == "'true'")
+    if (context->getSettings().has(BackendInitializerUtil::EXCEL_NUMBER_FORCE)
+        && context->getSettings().getString(BackendInitializerUtil::EXCEL_NUMBER_FORCE) == "'true'")
         format_settings.try_infer_integers = 1;
-    
+
     if (format_settings.csv.null_representation.empty() || empty_as_null)
         format_settings.csv.empty_as_default = true;
     else
         format_settings.csv.empty_as_default = false;
 
     char quote = *file_info.text().quote().data();
+
     if (quote == '\'')
     {
         format_settings.csv.allow_single_quotes = true;
         format_settings.csv.allow_double_quotes = false;
     }
-    else
+    else if (quote == '\"')
     {
         /// quote == '"' and default
         format_settings.csv.allow_single_quotes = false;
         format_settings.csv.allow_double_quotes = true;
+    }
+    else
+    {
+        format_settings.csv.allow_single_quotes = false;
+
+        if (context->getSettings().has(BackendInitializerUtil::EXCEL_QUOTE_STRICT)
+            && context->getSettings().getString(BackendInitializerUtil::EXCEL_QUOTE_STRICT) == "'true'")
+            format_settings.csv.allow_double_quotes = false;
+        else
+            format_settings.csv.allow_double_quotes = true;
     }
 
     return format_settings;
@@ -149,7 +160,7 @@ ExcelRowInputFormat::ExcelRowInputFormat(
         true,
         false,
         format_settings_,
-        std::make_unique<ExcelTextFormatReader>(*buf_, input_field_names_, format_settings_))
+        std::make_unique<ExcelTextFormatReader>(*buf_, input_field_names_, escape_, format_settings_))
     , escape(escape_)
 {
     DB::Serializations gluten_serializations;
@@ -197,8 +208,8 @@ ExcelRowInputFormat::ExcelRowInputFormat(
 
 
 ExcelTextFormatReader::ExcelTextFormatReader(
-    DB::PeekableReadBuffer & buf_, DB::Names & input_field_names_, const DB::FormatSettings & format_settings_)
-    : CSVFormatReader(buf_, format_settings_), input_field_names(input_field_names_)
+    DB::PeekableReadBuffer & buf_, DB::Names & input_field_names_, String escape_, const DB::FormatSettings & format_settings_)
+    : CSVFormatReader(buf_, format_settings_), input_field_names(input_field_names_), escape(escape_)
 {
 }
 
@@ -237,7 +248,7 @@ bool ExcelTextFormatReader::readField(
 
     /// Note: Tuples are serialized in CSV as separate columns, but with empty_as_default or null_as_default
     /// only one empty or NULL column will be expected
-    if (format_settings.csv.empty_as_default && (at_delimiter || at_last_column_line_end))
+    if ((at_delimiter || at_last_column_line_end) && (format_settings.csv.empty_as_default || !isStringOrFixedString(removeNullable(type))))
     {
         /// Treat empty unquoted column value as default value, if
         /// specified in the settings. Tuple columns might seem
@@ -278,7 +289,7 @@ bool ExcelTextFormatReader::readField(
         if (!isParseError(e.code()))
             throw;
 
-        skipErrorChars(*buf, has_quote, maybe_quote, format_settings);
+        skipErrorChars(*buf, has_quote, maybe_quote, escape, format_settings);
         column_back_func(column);
         column.insertDefault();
 
@@ -287,13 +298,20 @@ bool ExcelTextFormatReader::readField(
 
     if (column_size == column.size())
     {
-        skipErrorChars(*buf, has_quote, maybe_quote, format_settings);
+        skipErrorChars(*buf, has_quote, maybe_quote, escape, format_settings);
         column_back_func(column);
         column.insertDefault();
         return false;
     }
 
     return true;
+}
+
+void ExcelTextFormatReader::skipField()
+{
+    skipWhitespacesAndTabs(*buf, format_settings.csv.allow_whitespace_or_tab_as_delimiter);
+    ColumnString::Chars data;
+    readExcelCSVStringInto(data, *buf, format_settings.csv, escape);
 }
 
 void ExcelTextFormatReader::preSkipNullValue()

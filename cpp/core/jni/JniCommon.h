@@ -170,18 +170,15 @@ static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring c
   if (codecJstr == NULL) {
     return arrow::Compression::UNCOMPRESSED;
   }
-  auto codecU = env->GetStringUTFChars(codecJstr, JNI_FALSE);
+  auto codec = env->GetStringUTFChars(codecJstr, JNI_FALSE);
 
-  std::string codecL;
-  std::transform(codecU, codecU + std::strlen(codecU), std::back_inserter(codecL), ::tolower);
+  // Convert codec string into lowercase.
+  std::string codecLower;
+  std::transform(codec, codec + std::strlen(codec), std::back_inserter(codecLower), ::tolower);
+  GLUTEN_ASSIGN_OR_THROW(auto compressionType, arrow::util::Codec::GetCompressionType(codecLower));
 
-  GLUTEN_ASSIGN_OR_THROW(auto compression_type, arrow::util::Codec::GetCompressionType(codecL));
-
-  if (compression_type == arrow::Compression::LZ4) {
-    compression_type = arrow::Compression::LZ4_FRAME;
-  }
-  env->ReleaseStringUTFChars(codecJstr, codecU);
-  return compression_type;
+  env->ReleaseStringUTFChars(codecJstr, codec);
+  return compressionType;
 }
 
 static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecJstr) {
