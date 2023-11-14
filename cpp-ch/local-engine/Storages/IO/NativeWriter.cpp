@@ -74,7 +74,7 @@ size_t NativeWriter::write(const DB::Block & block)
         auto original_type = header.safeGetByPosition(i).type;
         /// Type
         String type_name = original_type->getName();
-        bool is_agg_opt = isAggregateFunction(original_type)
+        bool is_agg_opt = WhichDataType(original_type).isAggregateFunction();
             && header.safeGetByPosition(i).column->getDataType() != block.safeGetByPosition(i).column->getDataType();
         if (is_agg_opt)
         {

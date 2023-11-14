@@ -138,7 +138,7 @@ Block NativeReader::read()
             real_type_name = type_name.substr(0, type_name.length() - NativeWriter::AGG_STATE_SUFFIX.length());
         }
         column.type = data_type_factory.get(real_type_name);
-        bool is_agg_state_type = isAggregateFunction(column.type);
+        bool is_agg_state_type = WhichDataType(column.type).isAggregateFunction();
         SerializationPtr serialization = column.type->getDefaultSerialization();
 
         /// Data
