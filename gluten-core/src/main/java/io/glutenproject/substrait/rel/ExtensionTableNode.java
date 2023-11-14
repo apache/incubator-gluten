@@ -20,11 +20,10 @@ import com.google.protobuf.Any;
 import com.google.protobuf.StringValue;
 import io.substrait.proto.ReadRel;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ExtensionTableNode implements ReadSplit, Serializable {
+public class ExtensionTableNode implements ReadSplit {
   private static final String MERGE_TREE = "MergeTree;";
   private Long minPartsNum;
   private Long maxPartsNum;

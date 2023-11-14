@@ -18,9 +18,16 @@ package io.glutenproject.substrait.rel;
 
 import com.google.protobuf.MessageOrBuilder;
 
+import java.io.Serializable;
 import java.util.List;
 
-public interface ReadSplit {
+/**
+ * A serializable representation of a read split for native engine, including the file path and
+ * other information of the scan table. It is returned by {@link
+ * io.glutenproject.execution.BasicScanExecTransformer#getReadSplits()}.
+ */
+public interface ReadSplit extends Serializable {
+  /** The preferred locations where the table files returned by this read split can run faster. */
   List<String> preferredLocations();
 
   MessageOrBuilder toProtobuf();

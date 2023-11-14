@@ -25,12 +25,11 @@ import io.substrait.proto.Type;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class LocalFilesNode implements ReadSplit, Serializable {
+public class LocalFilesNode implements ReadSplit {
   private final Integer index;
   private final List<String> paths = new ArrayList<>();
   private final List<Long> starts = new ArrayList<>();
