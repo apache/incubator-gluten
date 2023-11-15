@@ -100,10 +100,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
     }
 
     // Check whether each backend supports this expression
-    if (
-      GlutenConfig.getConf.enableAnsiMode ||
-      !BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)
-    ) {
+    if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
       throw new UnsupportedOperationException(s"Not supported: $expr.")
     }
     expr match {

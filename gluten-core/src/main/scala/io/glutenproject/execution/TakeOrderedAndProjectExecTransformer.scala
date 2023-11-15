@@ -17,14 +17,13 @@
 package io.glutenproject.execution
 
 import io.glutenproject.extension.GlutenPlan
-import io.glutenproject.utils.ColumnarShuffleUtil
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.catalyst.util.truncatedString
-import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarInputAdapter, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarInputAdapter, ColumnarShuffleExchangeExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -97,10 +96,8 @@ case class TakeOrderedAndProjectExecTransformer(
         val limitStagePlan =
           WholeStageTransformer(limitBeforeShuffle)(transformStageCounter.incrementAndGet())
         val shuffleExec = ShuffleExchangeExec(SinglePartition, limitStagePlan)
-        val transformedShuffleExec = ColumnarShuffleUtil.genColumnarShuffleExchange(
-          shuffleExec,
-          limitStagePlan,
-          shuffleExec.child.output)
+        val transformedShuffleExec =
+          ColumnarShuffleExchangeExec(shuffleExec, limitStagePlan, shuffleExec.child.output)
         val localSortPlan =
           SortExecTransformer(sortOrder, false, new ColumnarInputAdapter(transformedShuffleExec))
         LimitTransformer(localSortPlan, 0, limit)
