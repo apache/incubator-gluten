@@ -2162,8 +2162,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   // Please see the issue: https://github.com/oap-project/gluten/issues/3731
-  ignore("GLUTEN-3534: Fix incorrect logic of judging whether supports pre-project for the " +
-    "shuffle") {
+  ignore(
+    "GLUTEN-3534: Fix incorrect logic of judging whether supports pre-project for the shuffle") {
     withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runQueryAndCompare(
         s"""
