@@ -327,8 +327,19 @@ case class CHHashAggregateExecTransformer(
       ConverterUtils.genColumnNameWithExprId(resultAttr)
     } else {
       val aggExpr = aggExpressions(columnIndex - groupingExprs.length)
+      val aggregateFunc = aggExpr.aggregateFunction
       var aggFunctionName =
-        AggregateFunctionsBuilder.getSubstraitFunctionName(aggExpr.aggregateFunction).get
+        if (
+          ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
+            aggregateFunc.getClass)
+        ) {
+          ExpressionMappings.expressionExtensionTransformer
+            .buildCustomAggregateFunction(aggregateFunc)
+            ._1
+            .get
+        } else {
+          AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc).get
+        }
       ConverterUtils.genColumnNameWithExprId(resultAttr) + "#Partial#" + aggFunctionName
     }
   }
