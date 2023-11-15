@@ -41,7 +41,7 @@ To debug C++, you have to generate the example files, the example files consist 
 
 You can generate the example files by the following steps:
 
-1. build Velox
+1. build Velox and Gluten CPP
 ```
 gluten_home/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --build_type=Debug
 ```
