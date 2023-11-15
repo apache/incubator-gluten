@@ -165,6 +165,18 @@ case class ColumnarShuffleExchangeExec(
 }
 
 object ColumnarShuffleExchangeExec extends Logging {
+
+  def apply(
+      plan: ShuffleExchangeExec,
+      child: SparkPlan,
+      shuffleOutputAttributes: Seq[Attribute]): ColumnarShuffleExchangeExec = {
+    ColumnarShuffleExchangeExec(
+      plan.outputPartitioning,
+      child,
+      plan.shuffleOrigin,
+      shuffleOutputAttributes)
+  }
+
   // scalastyle:off argcount
   def prepareShuffleDependency(
       rdd: RDD[ColumnarBatch],
