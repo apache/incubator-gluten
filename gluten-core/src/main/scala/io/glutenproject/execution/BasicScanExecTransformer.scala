@@ -37,11 +37,14 @@ import com.google.protobuf.StringValue
 import scala.collection.JavaConverters._
 
 trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource {
+  import org.apache.spark.sql.catalyst.util._
 
   /** Returns the filters that can be pushed down to native file scan */
-  def filterExprs(): Seq[Expression]
+  def filterExprs(hasMetadataColFilters: Boolean = true): Seq[Expression]
 
   def outputAttributes(): Seq[Attribute]
+
+  def getMetadataColumns(): Seq[AttributeReference]
 
   /** This can be used to report FileFormat for a file based scan operator. */
   val fileFormat: ReadFileFormat
@@ -63,7 +66,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   def getSplitInfos: Seq[SplitInfo] = {
     getPartitions.map(
       BackendsApiManager.getIteratorApiInstance
-        .genSplitInfo(_, getPartitionSchema, fileFormat))
+        .genSplitInfo(_, getPartitionSchema, fileFormat, getMetadataColumns.map(_.name)))
   }
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
@@ -112,12 +115,14 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
       attr =>
         if (getPartitionSchema.exists(_.name.equals(attr.name))) {
           new ColumnTypeNode(1)
+        } else if (attr.isMetadataCol) {
+          new ColumnTypeNode(2)
         } else {
           new ColumnTypeNode(0)
         }
     }.asJava
     // Will put all filter expressions into an AND expression
-    val transformer = filterExprs()
+    val transformer = filterExprs(false)
       .map {
         case ar: AttributeReference if ar.dataType == BooleanType =>
           EqualNullSafe(ar, Literal.TrueLiteral)

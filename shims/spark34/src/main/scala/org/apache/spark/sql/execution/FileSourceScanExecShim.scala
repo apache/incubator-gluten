@@ -19,8 +19,8 @@ package org.apache.spark.sql.execution
 import io.glutenproject.metrics.GlutenTimeMetric
 
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, PlanExpression, Predicate}
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceMetadataAttribute, MetadataAttribute, PlanExpression, Predicate}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
@@ -50,11 +50,6 @@ class FileSourceScanExecShim(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
 
-  lazy val metadataColumns = output.collect {
-    case FileSourceConstantMetadataAttribute(attr) => attr
-    case FileSourceGeneratedMetadataAttribute(attr) => attr
-  }
-
   override def equals(other: Any): Boolean = other match {
     case that: FileSourceScanExecShim =>
       (that.canEqual(this)) && super.equals(that)
@@ -65,7 +60,24 @@ class FileSourceScanExecShim(
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
 
-  def hasMetadataColumns: Boolean = metadataColumns.nonEmpty
+  def dataFiltersWithoutMetadataAttr: Seq[Expression] = dataFilters.filterNot(_.references.exists {
+    case FileSourceMetadataAttribute(_) => true
+    case _ => false
+  })
+
+  def metadataColumns: Seq[AttributeReference] = fileConstantMetadataColumns
+
+  def hasUnsupportedColumns: Boolean = {
+    val metadataColumnsNames = metadataColumns.map(_.name)
+    output
+      .filterNot(metadataColumns.toSet)
+      .exists(
+        v =>
+          metadataColumnsNames.contains(v.name) ||
+            v.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) ||
+    // Below name has special meaning in Velox.
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
+  }
 
   def isMetadataColumn(attr: Attribute): Boolean = metadataColumns.contains(attr)
 

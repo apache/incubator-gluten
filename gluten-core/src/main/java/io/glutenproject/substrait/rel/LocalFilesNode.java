@@ -35,6 +35,7 @@ public class LocalFilesNode implements SplitInfo {
   private final List<Long> starts = new ArrayList<>();
   private final List<Long> lengths = new ArrayList<>();
   private final List<Map<String, String>> partitionColumns = new ArrayList<>();
+  private final List<Map<String, String>> metadataColumns = new ArrayList<>();
   private final List<String> preferredLocations = new ArrayList<>();
 
   // The format of file to read.
@@ -60,6 +61,7 @@ public class LocalFilesNode implements SplitInfo {
       List<Long> starts,
       List<Long> lengths,
       List<Map<String, String>> partitionColumns,
+      List<Map<String, String>> metadataColumns,
       ReadFileFormat fileFormat,
       List<String> preferredLocations) {
     this.index = index;
@@ -68,6 +70,7 @@ public class LocalFilesNode implements SplitInfo {
     this.lengths.addAll(lengths);
     this.fileFormat = fileFormat;
     this.partitionColumns.addAll(partitionColumns);
+    this.metadataColumns.addAll(metadataColumns);
     this.preferredLocations.addAll(preferredLocations);
   }
 
@@ -137,7 +140,22 @@ public class LocalFilesNode implements SplitInfo {
       }
       fileBuilder.setLength(lengths.get(i));
       fileBuilder.setStart(starts.get(i));
-
+      if (!metadataColumns.isEmpty()) {
+        Map<String, String> metadataColumn = metadataColumns.get(i);
+        if (!metadataColumn.isEmpty()) {
+          metadataColumn.forEach(
+              (key, value) -> {
+                ReadRel.LocalFiles.FileOrFiles.metadataColumn.Builder mcBuilder =
+                    ReadRel.LocalFiles.FileOrFiles.metadataColumn.newBuilder();
+                mcBuilder.setKey(key).setValue(value);
+                fileBuilder.addMetadataColumns(mcBuilder.build());
+              });
+        }
+      } else {
+        ReadRel.LocalFiles.FileOrFiles.metadataColumn.Builder mcBuilder =
+            ReadRel.LocalFiles.FileOrFiles.metadataColumn.newBuilder();
+        fileBuilder.addMetadataColumns(mcBuilder.build());
+      }
       NamedStruct namedStruct = buildNamedStruct();
       fileBuilder.setSchema(namedStruct);
 

@@ -23,7 +23,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, PlanExpression}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, PlanExpression}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.FileSourceScanExecShim
 import org.apache.spark.sql.execution.datasources.HadoopFsRelation
@@ -60,7 +60,15 @@ class FileSourceScanExecTransformer(
       .genFileSourceScanTransformerMetrics(sparkContext)
       .filter(m => !driverMetricsAlias.contains(m._1)) ++ driverMetricsAlias
 
-  override def filterExprs(): Seq[Expression] = dataFilters
+  override def filterExprs(hasMetadataColFilters: Boolean): Seq[Expression] = {
+    if (hasMetadataColFilters) {
+      dataFilters
+    } else {
+      dataFiltersWithoutMetadataAttr
+    }
+  }
+
+  override def getMetadataColumns(): Seq[AttributeReference] = metadataColumns
 
   override def outputAttributes(): Seq[Attribute] = output
 
@@ -93,8 +101,14 @@ class FileSourceScanExecTransformer(
   override def hashCode(): Int = super.hashCode()
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (hasMetadataColumns) {
-      return ValidationResult.notOk(s"Unsupported metadataColumns scan in native.")
+    if (
+      !metadataColumns.isEmpty && !BackendsApiManager.getSettings.supportNativeMetadataColumns()
+    ) {
+      return ValidationResult.notOk(s"Unsupported metadata columns scan in native.")
+    }
+
+    if (hasUnsupportedColumns) {
+      return ValidationResult.notOk(s"Unsupported columns scan in native.")
     }
 
     if (hasFieldIds) {

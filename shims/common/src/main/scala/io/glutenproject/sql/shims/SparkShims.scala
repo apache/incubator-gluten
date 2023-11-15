@@ -40,6 +40,8 @@ import org.apache.spark.storage.{BlockId, BlockManagerId}
 
 import org.apache.hadoop.fs.{FileStatus, Path}
 
+import java.util.{ArrayList => JArrayList, Map => JMap}
+
 sealed abstract class ShimDescriptor
 
 case class SparkShimDescriptor(major: Int, minor: Int, patch: Int) extends ShimDescriptor {
@@ -142,4 +144,8 @@ trait SparkShims {
   def structFromAttributes(attrs: Seq[Attribute]): StructType
 
   def attributesFromStruct(structType: StructType): Seq[Attribute]
+
+  def generateMetadataColumns(
+      file: PartitionedFile,
+      metadataColumnNames: Seq[String] = Seq.empty): JMap[String, String]
 }

@@ -145,15 +145,31 @@ WholeStageResultIterator::WholeStageResultIterator(
     const auto& lengths = scanInfo->lengths;
     const auto& format = scanInfo->format;
     const auto& partitionColumns = scanInfo->partitionColumns;
+    const auto& metadataColumns = scanInfo->metadataColumns;
 
     std::vector<std::shared_ptr<velox::connector::ConnectorSplit>> connectorSplits;
     connectorSplits.reserve(paths.size());
     for (int idx = 0; idx < paths.size(); idx++) {
       auto partitionColumn = partitionColumns[idx];
+      auto metadataColumn = metadataColumns[idx];
       std::unordered_map<std::string, std::optional<std::string>> partitionKeys;
       constructPartitionColumns(partitionKeys, partitionColumn);
+      const std::unordered_map<std::string, std::string>& customSplitInfo = {};
+      const std::shared_ptr<std::string>& extraFileInfo = {};
+      const std::unordered_map<std::string, std::string>& serdeParameters = {};
       auto split = std::make_shared<velox::connector::hive::HiveConnectorSplit>(
-          kHiveConnectorId, paths[idx], format, starts[idx], lengths[idx], partitionKeys);
+          kHiveConnectorId,
+          paths[idx],
+          format,
+          starts[idx],
+          lengths[idx],
+          partitionKeys,
+          std::nullopt,
+          customSplitInfo,
+          extraFileInfo,
+          serdeParameters,
+          0, // split_weight not used for spark
+          metadataColumn);
       connectorSplits.emplace_back(split);
     }
 

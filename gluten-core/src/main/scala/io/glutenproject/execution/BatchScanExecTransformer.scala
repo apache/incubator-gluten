@@ -68,12 +68,14 @@ class BatchScanExecTransformer(
     pushdownFilters = Some(filters)
   }
 
-  override def filterExprs(): Seq[Expression] = scan match {
+  override def filterExprs(hasMetataColFilters: Boolean): Seq[Expression] = scan match {
     case fileScan: FileScan =>
       pushdownFilters.getOrElse(fileScan.dataFilters)
     case _ =>
       throw new UnsupportedOperationException(s"${scan.getClass.toString} is not supported")
   }
+
+  override def getMetadataColumns(): Seq[AttributeReference] = Seq.empty
 
   override def outputAttributes(): Seq[Attribute] = output
 

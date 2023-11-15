@@ -16,6 +16,7 @@
  */
 package io.glutenproject.substrait.rel;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -58,6 +59,14 @@ public class IcebergLocalFilesNode extends LocalFilesNode {
       List<Map<String, String>> partitionColumns,
       ReadFileFormat fileFormat,
       List<String> preferredLocations) {
-    super(index, paths, starts, lengths, partitionColumns, fileFormat, preferredLocations);
+    super(
+        index,
+        paths,
+        starts,
+        lengths,
+        partitionColumns,
+        new ArrayList<>(),
+        fileFormat,
+        preferredLocations);
   }
 }

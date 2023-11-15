@@ -41,6 +41,7 @@ trait BackendSettingsApi {
       fields: Array[StructField],
       bucketSpec: Option[BucketSpec],
       options: Map[String, String]): ValidationResult = ValidationResult.ok
+  def supportNativeMetadataColumns(): Boolean = false
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true

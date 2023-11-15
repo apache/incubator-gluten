@@ -104,31 +104,41 @@ std::vector<TypePtr> SubstraitParser::parseNamedStruct(const ::substrait::NamedS
   return typeList;
 }
 
-std::vector<bool> SubstraitParser::parsePartitionColumns(const ::substrait::NamedStruct& namedStruct) {
+void SubstraitParser::parsePartitionAndMetadataColumns(
+    const ::substrait::NamedStruct& namedStruct,
+    std::vector<bool>& isPartitionColumns,
+    std::vector<bool>& isMetadataColumns) {
   const auto& columnsTypes = namedStruct.column_types();
-  std::vector<bool> isPartitionColumns;
   if (columnsTypes.size() == 0) {
-    // Regard all columns as non-partitioned columns.
+    // Regard all columns as regular columns.
     isPartitionColumns.resize(namedStruct.names().size(), false);
-    return isPartitionColumns;
+    isMetadataColumns.resize(namedStruct.names().size(), false);
+    return;
   } else {
     VELOX_CHECK_EQ(columnsTypes.size(), namedStruct.names().size(), "Wrong size for column types and column names.");
   }
 
   isPartitionColumns.reserve(columnsTypes.size());
+  isMetadataColumns.reserve(columnsTypes.size());
   for (const auto& columnType : columnsTypes) {
     switch (columnType) {
       case ::substrait::NamedStruct::NORMAL_COL:
         isPartitionColumns.emplace_back(false);
+        isMetadataColumns.emplace_back(false);
         break;
       case ::substrait::NamedStruct::PARTITION_COL:
         isPartitionColumns.emplace_back(true);
+        isMetadataColumns.emplace_back(false);
         break;
+      case ::substrait::NamedStruct::METADATA_COL:
+        isPartitionColumns.emplace_back(false);
+        isMetadataColumns.emplace_back(true);
+        break; 
       default:
         VELOX_FAIL("Unspecified column type.");
     }
   }
-  return isPartitionColumns;
+  return;
 }
 
 int32_t SubstraitParser::parseReferenceSegment(const ::substrait::Expression::ReferenceSegment& refSegment) {

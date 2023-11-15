@@ -40,6 +40,7 @@ import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.storage.{BlockId, BlockManagerId}
+import java.util.{HashMap => JHashMap, Map => JMap}
 
 import org.apache.hadoop.fs.{FileStatus, Path}
 
@@ -166,4 +167,9 @@ class Spark32Shims extends SparkShims {
       field => AttributeReference(field.name, field.dataType, field.nullable, field.metadata)()
     }
   }
+
+  override def generateMetadataColumns(
+      file: PartitionedFile,
+      metadataColumnNames: Seq[String]): JMap[String, String] =
+    new JHashMap[String, String]()
 }
