@@ -69,10 +69,10 @@ public:
             return false;
         else
         {
-            char month = (*(buf.position() + 5) - '0') * 10 + (*(buf.position() + 6) - '0');
+            int month = (*(buf.position() + 5) - '0') * 10 + (*(buf.position() + 6) - '0');
             if (month < 0 || month > 12)
                 return false;
-            char day = (*(buf.position() + 8) - '0') * 10 + (*(buf.position() + 9) - '0');
+            int day = (*(buf.position() + 8) - '0') * 10 + (*(buf.position() + 9) - '0');
             if (day < 0 || day > 31)
                 return false;
             else if (day == 31 && (month == 2 || month == 4 || month == 6 || month == 9 || month == 11))
@@ -81,7 +81,7 @@ public:
                 return false;
             else
             {
-                short year = (*(buf.position() + 0) - '0') * 1000 + 
+                int year = (*(buf.position() + 0) - '0') * 1000 + 
                     (*(buf.position() + 1) - '0') * 100 + 
                     (*(buf.position() + 2) - '0') * 10 + 
                     (*(buf.position() + 3) - '0');
