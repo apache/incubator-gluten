@@ -108,10 +108,10 @@ const std::string kVeloxShuffleReaderPrintFlag = "spark.gluten.velox.shuffleRead
 
 namespace gluten {
 
-void VeloxBackend::printConf(const std::unordered_map<std::string, std::string>& conf) {
+void VeloxBackend::printConf(const facebook::velox::Config& conf) {
   std::ostringstream oss;
   oss << "STARTUP: VeloxBackend conf = {\n";
-  for (auto& [k, v] : conf) {
+  for (auto& [k, v] : conf.values()) {
     oss << " {" << k << ", " << v << "}\n";
   }
   oss << "}\n";
