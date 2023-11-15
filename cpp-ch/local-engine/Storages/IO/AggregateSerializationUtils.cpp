@@ -36,23 +36,23 @@ bool isFixedSizeStateAggregateFunction(const String& name)
     return function_set.contains(name);
 }
 
-bool isFixedSizeArguments(DataTypes data_types)
+bool isFixedSizeArguments(const DataTypes& data_types)
 {
-    return data_types.front()->isValueRepresentedByNumber();
+    return removeNullable(data_types.front())->isValueRepresentedByNumber();
 }
 
-bool isFixedSizeAggregateFunction(DB::AggregateFunctionPtr function)
+bool isFixedSizeAggregateFunction(const DB::AggregateFunctionPtr& function)
 {
     return isFixedSizeStateAggregateFunction(function->getName()) && isFixedSizeArguments(function->getArgumentTypes());
 }
 
-DB::ColumnWithTypeAndName convertAggregateStateToFixedString(DB::ColumnWithTypeAndName col)
+DB::ColumnWithTypeAndName convertAggregateStateToFixedString(const DB::ColumnWithTypeAndName& col)
 {
-    if (!WhichDataType(col.type).isAggregateFunction())
+    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*col.column);
+    if (!aggregate_col)
     {
         return col;
     }
-    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*col.column);
     // only support known fixed size aggregate function
     if (!isFixedSizeAggregateFunction(aggregate_col->getAggregateFunction()))
     {
@@ -70,17 +70,16 @@ DB::ColumnWithTypeAndName convertAggregateStateToFixedString(DB::ColumnWithTypeA
     return DB::ColumnWithTypeAndName(std::move(res_col), res_type, col.name);
 }
 
-DB::ColumnWithTypeAndName convertAggregateStateToString(DB::ColumnWithTypeAndName col)
+DB::ColumnWithTypeAndName convertAggregateStateToString(const DB::ColumnWithTypeAndName& col)
 {
-    if (!WhichDataType(col.type).isAggregateFunction())
+    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*col.column);
+    if (!aggregate_col)
     {
         return col;
     }
-    const auto *aggregate_col = checkAndGetColumn<ColumnAggregateFunction>(*col.column);
     auto res_type = std::make_shared<DataTypeString>();
     auto res_col = res_type->createColumn();
     PaddedPODArray<UInt8> & column_chars = assert_cast<ColumnString &>(*res_col).getChars();
-    column_chars.reserve(aggregate_col->size() * 60);
     IColumn::Offsets & column_offsets = assert_cast<ColumnString &>(*res_col).getOffsets();
     auto value_writer = WriteBufferFromVector<PaddedPODArray<UInt8>>(column_chars);
     column_offsets.reserve(aggregate_col->size());
@@ -93,7 +92,7 @@ DB::ColumnWithTypeAndName convertAggregateStateToString(DB::ColumnWithTypeAndNam
     return DB::ColumnWithTypeAndName(std::move(res_col), res_type, col.name);
 }
 
-DB::ColumnWithTypeAndName convertFixedStringToAggregateState(DB::ColumnWithTypeAndName col, DB::DataTypePtr type)
+DB::ColumnWithTypeAndName convertFixedStringToAggregateState(const DB::ColumnWithTypeAndName & col, const DB::DataTypePtr & type)
 {
     chassert(WhichDataType(type).isAggregateFunction());
     auto res_col = type->createColumn();
@@ -101,7 +100,6 @@ DB::ColumnWithTypeAndName convertFixedStringToAggregateState(DB::ColumnWithTypeA
     ColumnAggregateFunction & real_column = typeid_cast<ColumnAggregateFunction &>(*res_col);
     auto & arena = real_column.createOrGetArena();
     ColumnAggregateFunction::Container & vec = real_column.getData();
-
     vec.reserve(col.column->size());
     auto agg_function = agg_type->getFunction();
     size_t size_of_state = agg_function->sizeOfData();
@@ -120,9 +118,10 @@ DB::ColumnWithTypeAndName convertFixedStringToAggregateState(DB::ColumnWithTypeA
     }
     return DB::ColumnWithTypeAndName(std::move(res_col), type, col.name);
 }
-DB::Block convertAggregateStateInBlock(DB::Block block)
+DB::Block convertAggregateStateInBlock(DB::Block& block)
 {
     ColumnsWithTypeAndName columns;
+    columns.reserve(block.columns());
     for (const auto & item : block.getColumnsWithTypeAndName())
     {
         if (WhichDataType(item.type).isAggregateFunction())

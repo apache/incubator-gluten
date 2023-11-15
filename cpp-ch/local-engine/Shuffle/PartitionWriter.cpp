@@ -310,9 +310,11 @@ size_t Partition::spill(NativeWriter & writer)
     if (lock.owns_lock())
     {
         size_t raw_size = 0;
-        for (const auto & block : blocks)
+        while (!blocks.empty())
         {
+            auto & block = blocks.back();
             raw_size += writer.write(block);
+            blocks.pop_back();
         }
         blocks.clear();
         return raw_size;

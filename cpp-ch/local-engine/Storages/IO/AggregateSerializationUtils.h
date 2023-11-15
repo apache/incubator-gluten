@@ -21,15 +21,15 @@
 
 namespace local_engine {
 
-bool isFixedSizeAggregateFunction(DB::AggregateFunctionPtr function);
+bool isFixedSizeAggregateFunction(const DB::AggregateFunctionPtr & function);
 
-DB::Block convertAggregateStateInBlock(DB::Block block);
+DB::Block convertAggregateStateInBlock(DB::Block& block);
 
-DB::ColumnWithTypeAndName convertAggregateStateToFixedString(DB::ColumnWithTypeAndName col);
+DB::ColumnWithTypeAndName convertAggregateStateToFixedString(const DB::ColumnWithTypeAndName & col);
 
-DB::ColumnWithTypeAndName convertAggregateStateToString(DB::ColumnWithTypeAndName col);
+DB::ColumnWithTypeAndName convertAggregateStateToString(const DB::ColumnWithTypeAndName & col);
 
-DB::ColumnWithTypeAndName convertFixedStringToAggregateState(DB::ColumnWithTypeAndName col, DB::DataTypePtr type);
+DB::ColumnWithTypeAndName convertFixedStringToAggregateState(const DB::ColumnWithTypeAndName & col, const DB::DataTypePtr & type);
 
 }
 
