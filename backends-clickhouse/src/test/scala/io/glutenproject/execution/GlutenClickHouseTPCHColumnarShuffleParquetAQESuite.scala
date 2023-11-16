@@ -290,4 +290,44 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
       }
     }
   }
+
+  test("collect_set") {
+    val sql =
+      """
+        |select a, b from (
+        |select n_regionkey as a, collect_set(if(n_regionkey=0, n_name, null))
+        | as set from nation group by n_regionkey)
+        |lateral view explode(set) as b
+        |order by a, b
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[CHHashAggregateExecTransformer])
+  }
+
+  test("test 'aggregate function collect_list'") {
+    val df = runQueryAndCompare(
+      "select l_orderkey,from_unixtime(l_orderkey, 'yyyy-MM-dd HH:mm:ss') " +
+        "from lineitem order by l_orderkey desc limit 10"
+    )(checkOperatorMatch[ProjectExecTransformer])
+    checkLengthAndPlan(df, 10)
+  }
+
+  test("test max string") {
+    withSQLConf(("spark.gluten.sql.columnar.force.hashagg", "true")) {
+      val sql =
+        """
+          |SELECT
+          |    l_returnflag,
+          |    l_linestatus,
+          |    max(l_comment)
+          |FROM
+          |    lineitem
+          |WHERE
+          |    l_shipdate <= date'1998-09-02' - interval 1 day
+          |GROUP BY
+          |    l_returnflag,
+          |    l_linestatus
+          |""".stripMargin
+      runQueryAndCompare(sql, noFallBack = false) { df => }
+    }
+  }
 }
