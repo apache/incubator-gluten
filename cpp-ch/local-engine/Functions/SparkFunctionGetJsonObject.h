@@ -17,6 +17,7 @@
 #pragma once
 #include <memory>
 #include <string_view>
+#include <stack>
 #include <Columns/ColumnNullable.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
@@ -273,31 +274,40 @@ private:
         JSONParser parser;
         using Element = typename JSONParser::Element;
 
-        auto copyJsonStringExceptCtrlChars = [&](char * dst_chars, const char * src_chars, const size_t & length) -> std::string_view
+        auto handleAbnormalJsonString = [&](char * dst_chars, const char * src_chars, const size_t & length) -> std::string_view
         {
             UInt8 NULL_CHAR = 0x0000;
             UInt8 SPACE_CHAR = 0x0020;
+            std::stack<char> s;
             size_t cursor = 0;
             for (size_t i = 0; i <= length; ++i)
             {
                 if (*(src_chars + i) > NULL_CHAR && *(src_chars + i) < SPACE_CHAR)
                     continue;
                 else
+                {
                     dst_chars[cursor++] = *(src_chars + i);
+                    if (*(src_chars + i) == '{')
+                        s.push('{');
+                    else if (*(src_chars + i) == '}' && s.top() == '{')
+                        s.pop();
+                    else if (s.empty())
+                        break;
+                }
             }
             std::string_view json{dst_chars, cursor - 1};
             return json;
         };
-
         Element document;
         bool document_ok = false;
         if (col_json_const)
         {
             std::string_view json{reinterpret_cast<const char *>(chars.data()), offsets[0] - 1};
             document_ok = parser.parse(json, document);
-            if (!document_ok) {
+            if (!document_ok)
+            {
                 char dst_chars[json.size()];
-                json = copyJsonStringExceptCtrlChars(dst_chars, json.data(), json.size());
+                json = handleAbnormalJsonString(dst_chars, json.data(), json.size());
                 document_ok = parser.parse(json, document);
             }
         }
@@ -319,7 +329,7 @@ private:
                 if (!document_ok)
                 {
                     char dst_chars[json.size()];
-                    json = copyJsonStringExceptCtrlChars(dst_chars, json.data(), json.size());
+                    json = handleAbnormalJsonString(dst_chars, json.data(), json.size());
                     document_ok = parser.parse(json, document);
                 }
             }
