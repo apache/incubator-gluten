@@ -39,8 +39,8 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
-import org.apache.hadoop.hive.ql.plan.TableDesc
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+import org.apache.hadoop.hive.ql.plan.TableDesc
 import org.apache.hadoop.mapred.TextInputFormat
 
 import java.net.URI

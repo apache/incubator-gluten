@@ -641,6 +641,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenParquetColumnIndexSuite]
+    // Rewrite by just removing test timestamp.
+    .exclude("test reading unaligned pages - test all types")
   enableSuite[GlutenParquetCompressionCodecPrecedenceSuite]
   enableSuite[GlutenParquetDeltaByteArrayEncodingSuite]
   enableSuite[GlutenParquetDeltaEncodingInteger]
@@ -661,6 +663,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite.
     .exclude("Filter applied on merged Parquet schema with new column should work")
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
+    // Rewrite for supported INT96 - timestamp.
+    .exclude("filter pushdown - timestamp")
     .exclude("filter pushdown - date")
     // Exception bebaviour.
     .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
@@ -678,6 +682,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite.
     .exclude("Filter applied on merged Parquet schema with new column should work")
     .exclude("SPARK-23852: Broken Parquet push-down for partially-written stats")
+    // Rewrite for supported INT96 - timestamp.
+    .exclude("filter pushdown - timestamp")
     .exclude("filter pushdown - date")
     // Exception bebaviour.
     .exclude("SPARK-25207: exception when duplicate fields in case-insensitive mode")
