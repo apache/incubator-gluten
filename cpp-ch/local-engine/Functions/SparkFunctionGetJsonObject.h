@@ -289,13 +289,16 @@ private:
                     dst_chars[cursor++] = *(src_chars + i);
                     if (*(src_chars + i) == '{')
                         s.push('{');
-                    else if (*(src_chars + i) == '}' && s.top() == '{')
-                        s.pop();
-                    else if (s.empty())
+                    else if (*(src_chars + i) == '}')
+                    {
+                        if (s.top() == '{')
+                            s.pop();
+                    }
+                    if (s.empty())
                         break;
                 }
             }
-            std::string_view json{dst_chars, cursor - 1};
+            std::string_view json{dst_chars, cursor};
             return json;
         };
         Element document;
