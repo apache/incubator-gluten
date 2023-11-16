@@ -38,6 +38,7 @@
 #include "velox/common/caching/SsdCache.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/common/memory/MmapAllocator.h"
+#include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/serializers/PrestoSerializer.h"
 
@@ -103,6 +104,9 @@ const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";
 
 // VeloxShuffleReader print flag.
 const std::string kVeloxShuffleReaderPrintFlag = "spark.gluten.velox.shuffleReaderPrintFlag";
+
+const std::string kVeloxFileHandleCacheEnabled = "spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled";
+const bool kVeloxFileHandleCacheEnabledDefault = false;
 
 } // namespace
 
@@ -204,6 +208,9 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   printConf(veloxcfg);
 #endif
 
+  veloxmemcfg->setValue(
+      HiveConfig::kEnableFileHandleCache,
+      veloxcfg->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault));
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, veloxmemcfg, ioExecutor_.get());

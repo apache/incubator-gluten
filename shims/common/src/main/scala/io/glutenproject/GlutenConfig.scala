@@ -497,7 +497,10 @@ object GlutenConfig {
       ("spark.hadoop.input.read.timeout", "180000"),
       ("spark.hadoop.input.write.timeout", "180000"),
       ("spark.hadoop.dfs.client.log.severity", "INFO"),
-      ("spark.sql.orc.compression.codec", "snappy")
+      ("spark.sql.orc.compression.codec", "snappy"),
+      (
+        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
+        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -1311,4 +1314,12 @@ object GlutenConfig {
         "'spark.bloom_filter.max_num_bits'")
       .longConf
       .createWithDefault(4194304L)
+
+  val COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED =
+    buildConf("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled")
+      .internal()
+      .doc("Disables caching if false. File handle cache should be disabled " +
+        "if files are not immutable, i.e. file content may change while file path stays the same.")
+      .booleanConf
+      .createWithDefault(false)
 }
