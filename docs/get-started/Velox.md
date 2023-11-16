@@ -705,14 +705,13 @@ The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch
 The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original)
 and [TPC-H queries](../../gluten-core/src/test/resources/tpch-queries).
 
-Some other versions of TPC-DS and TPC-H queries are also provided, but are **not** recommended for testing, including:
-- the modified TPC-H queries with "Date-to-String" conversions: [TPC-H non-date queries](../../tools/gluten-it/src/main/resources/tpch-queries-nodate) (outdated).
+Some other versions of TPC-DS queries are also provided, but are **not** recommended for testing, including:
 - the modified TPC-DS queries with "Decimal-to-Double": [TPC-DS non-decimal queries](../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.no-decimal) (outdated).
-- the modified TPC-DS queries with "Decimal-to-Double" and "Date-to-String" conversions: [TPC-DS modified queries](../../tools/gluten-it/src/main/resources/tpcds-queries-nodecimal-nodate) (outdated).
 
 ## Submit the Spark SQL job
 
-Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../../backends-velox/workload/tpch/run_tpch/tpch_parquet.scala) as an example. Please remember to modify the location of TPC-H files as well as TPC-H queries in backends-velox/workload/tpch/run_tpch/tpch_parquet.scala before you run the testing. 
+Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../../tools/workload/tpch/run_tpch/tpch_parquet.scala) as an example. Please remember to modify
+the location of TPC-H files as well as TPC-H queries before you run the testing.
 
 ```
 var parquet_file_path = "/PATH/TO/TPCH_PARQUET_PATH"
