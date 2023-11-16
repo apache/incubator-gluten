@@ -1316,10 +1316,10 @@ object GlutenConfig {
       .createWithDefault(4194304L)
 
   val COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED =
-    buildConf("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled")
       .internal()
       .doc("Disables caching if false. File handle cache should be disabled " +
-        "if files are not immutable, i.e. file content may change while file path stays the same.")
+        "if files are mutable, i.e. file content may change while file path stays the same.")
       .booleanConf
       .createWithDefault(false)
 }
