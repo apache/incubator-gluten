@@ -2029,19 +2029,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     val executedPlan1 = df1.queryExecution.executedPlan
     val lastStageTransformer1 = executedPlan1.find(_.isInstanceOf[WholeStageTransformer])
     executedPlan1.execute()
-    assert(lastStageTransformer1.get.asInstanceOf[WholeStageTransformer].substraitPlanJson.isEmpty)
-
-    withSQLConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT.key -> "true") {
-      val df2 = spark
-        .sql("""
-               | select * from lineitem limit 1
-               | """.stripMargin)
-      val executedPlan2 = df2.queryExecution.executedPlan
-      val lastStageTransformer2 = executedPlan2.find(_.isInstanceOf[WholeStageTransformer])
-      executedPlan2.execute()
-      assert(
-        lastStageTransformer2.get.asInstanceOf[WholeStageTransformer].substraitPlanJson.nonEmpty)
-    }
+    assert(lastStageTransformer1.get.asInstanceOf[WholeStageTransformer].substraitPlanJson.nonEmpty)
   }
 
   test("GLUTEN-3140: Bug fix array_contains return null") {
