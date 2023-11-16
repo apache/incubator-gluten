@@ -15,24 +15,34 @@
  * limitations under the License.
  */
 #pragma once
-#include <jni.h>
-#include <Storages/IO/NativeWriter.h>
+
+#include <Common/PODArray.h>
+#include <Core/Block.h>
+#include <DataTypes/DataTypeAggregateFunction.h>
 
 namespace local_engine
 {
-class ShuffleWriter
+
+class NativeReader
 {
 public:
-    ShuffleWriter(
-        jobject output_stream, jbyteArray buffer, const std::string & codecStr, bool enable_compression, size_t customize_buffer_size);
-    virtual ~ShuffleWriter();
-    void write(const DB::Block & block);
-    void flush();
+    NativeReader(DB::ReadBuffer & istr_) : istr(istr_) {}
+
+    static void readData(const DB::ISerialization & serialization, DB::ColumnPtr & column, DB::ReadBuffer & istr, size_t rows, double avg_value_size_hint);
+    template <bool FIXED>
+    static void readAggData(const DB::DataTypeAggregateFunction & data_type, DB::ColumnPtr & column, DB::ReadBuffer & istr, size_t rows);
+
+    DB::Block getHeader() const;
+
+    DB::Block read();
 
 private:
-    std::unique_ptr<DB::WriteBuffer> compressed_out;
-    std::unique_ptr<DB::WriteBuffer> write_buffer;
-    std::unique_ptr<NativeWriter> native_writer;
-    bool compression_enable;
+    DB::ReadBuffer & istr;
+    DB::Block header;
+
+    DB::PODArray<double> avg_value_size_hints;
+
+    void updateAvgValueSizeHints(const DB::Block & block);
 };
+
 }

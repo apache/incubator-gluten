@@ -15,24 +15,21 @@
  * limitations under the License.
  */
 #pragma once
-#include <jni.h>
-#include <Storages/IO/NativeWriter.h>
+#include <AggregateFunctions/IAggregateFunction.h>
+#include <Core/Block.h>
+#include <DataTypes/IDataType.h>
 
-namespace local_engine
-{
-class ShuffleWriter
-{
-public:
-    ShuffleWriter(
-        jobject output_stream, jbyteArray buffer, const std::string & codecStr, bool enable_compression, size_t customize_buffer_size);
-    virtual ~ShuffleWriter();
-    void write(const DB::Block & block);
-    void flush();
+namespace local_engine {
 
-private:
-    std::unique_ptr<DB::WriteBuffer> compressed_out;
-    std::unique_ptr<DB::WriteBuffer> write_buffer;
-    std::unique_ptr<NativeWriter> native_writer;
-    bool compression_enable;
-};
+bool isFixedSizeAggregateFunction(const DB::AggregateFunctionPtr & function);
+
+DB::Block convertAggregateStateInBlock(DB::Block& block);
+
+DB::ColumnWithTypeAndName convertAggregateStateToFixedString(const DB::ColumnWithTypeAndName & col);
+
+DB::ColumnWithTypeAndName convertAggregateStateToString(const DB::ColumnWithTypeAndName & col);
+
+DB::ColumnWithTypeAndName convertFixedStringToAggregateState(const DB::ColumnWithTypeAndName & col, const DB::DataTypePtr & type);
+
 }
+

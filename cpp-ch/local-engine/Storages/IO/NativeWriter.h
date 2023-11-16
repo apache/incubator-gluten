@@ -15,24 +15,36 @@
  * limitations under the License.
  */
 #pragma once
-#include <jni.h>
-#include <Storages/IO/NativeWriter.h>
+
+#include <base/types.h>
+#include <DataTypes/IDataType.h>
+#include <Core/Block.h>
+
+namespace DB
+{
+class WriteBuffer;
+class CompressedWriteBuffer;
+}
 
 namespace local_engine
 {
-class ShuffleWriter
+
+class NativeWriter
 {
 public:
-    ShuffleWriter(
-        jobject output_stream, jbyteArray buffer, const std::string & codecStr, bool enable_compression, size_t customize_buffer_size);
-    virtual ~ShuffleWriter();
-    void write(const DB::Block & block);
+    static const String AGG_STATE_SUFFIX;
+    NativeWriter(
+        DB::WriteBuffer & ostr_, const DB::Block & header_): ostr(ostr_), header(header_)
+    {}
+
+    DB::Block getHeader() const { return header; }
+    /// Returns the number of bytes written.
+    size_t write(const DB::Block & block);
     void flush();
 
+
 private:
-    std::unique_ptr<DB::WriteBuffer> compressed_out;
-    std::unique_ptr<DB::WriteBuffer> write_buffer;
-    std::unique_ptr<NativeWriter> native_writer;
-    bool compression_enable;
+    DB::WriteBuffer & ostr;
+    DB::Block header;
 };
 }
