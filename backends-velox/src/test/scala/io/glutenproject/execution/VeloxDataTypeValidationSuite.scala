@@ -56,6 +56,16 @@ class VeloxDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
       .set("spark.sql.sources.useV1SourceList", "avro")
   }
 
+  test("Null literal") {
+    runQueryAndCompare("select named_struct('int', int, 'null', null) from type1 limit 10") {
+      df =>
+        {
+          val executedPlan = getExecutedPlan(df)
+          assert(executedPlan.exists(plan => plan.isInstanceOf[ProjectExecTransformer]))
+        }
+    }
+  }
+
   test("Bool type") {
     runQueryAndCompare("select bool from type1 limit 1") { _ => }
 
