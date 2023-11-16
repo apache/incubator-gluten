@@ -30,7 +30,6 @@ import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
-import org.apache.spark.util.TaskResources
 
 import com.google.common.base.Preconditions
 import org.apache.arrow.c.ArrowSchema
@@ -75,25 +74,16 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       cSchema.close()
     }
 
-    val writeQueue =
-      new VeloxWriteQueue(
-        TaskResources.getLocalTaskContext(),
-        dsHandle,
-        arrowSchema,
-        allocator,
-        datasourceJniWrapper,
-        filePath)
-
     new OutputWriter {
       override def write(row: InternalRow): Unit = {
         val batch = row.asInstanceOf[FakeRow].batch
         Preconditions.checkState(ColumnarBatches.isLightBatch(batch))
         ColumnarBatches.retain(batch)
-        writeQueue.enqueue(batch)
+        datasourceJniWrapper.writeColumnBatch(dsHandle, ColumnarBatches.getNativeHandle(batch))
+        ColumnarBatches.release(batch)
       }
 
       override def close(): Unit = {
-        writeQueue.close()
         datasourceJniWrapper.close(dsHandle)
       }
 

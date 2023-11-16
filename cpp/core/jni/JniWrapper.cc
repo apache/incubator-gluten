@@ -1122,6 +1122,19 @@ JNIEXPORT void JNICALL Java_io_glutenproject_datasource_DatasourceJniWrapper_wri
   JNI_METHOD_END()
 }
 
+JNIEXPORT void JNICALL Java_io_glutenproject_datasource_DatasourceJniWrapper_writeColumnBatch( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jlong dsHandle,
+    jlong batchHandle) {
+  JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
+  auto datasource = ctx->objectStore()->retrieve<Datasource>(dsHandle);
+  auto batch = ctx->objectStore()->retrieve<ColumnarBatch>(batchHandle);
+  datasource->write(batch);
+  JNI_METHOD_END()
+}
+
 JNIEXPORT jobject JNICALL
 Java_io_glutenproject_datasource_DatasourceJniWrapper_splitBlockByPartitionAndBucket( // NOLINT
     JNIEnv* env,
