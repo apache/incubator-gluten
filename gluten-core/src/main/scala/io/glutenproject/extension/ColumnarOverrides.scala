@@ -501,9 +501,6 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
         EvalPythonExecTransformer(plan.udfs, plan.resultAttrs, child)
-      case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        BackendsApiManager.getSparkPlanExecApiInstance.genHiveTableScanExecTransformer(plan)
       case p =>
         logDebug(s"Transformation for ${p.getClass} is currently not supported.")
         val children = plan.children.map(replaceWithTransformerPlan)
@@ -589,8 +586,10 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         BackendsApiManager.getSparkPlanExecApiInstance.genHiveTableScanExecTransformer(plan)
       val validateResult = hiveTableScanExecTransformer.doValidate()
       if (validateResult.isValid) {
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         return hiveTableScanExecTransformer
       }
+      logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
       val newSource = HiveTableScanExecTransformer.copyWith(plan, newPartitionFilters)
       TransformHints.tagNotTransformable(newSource, validateResult.reason.get)
       newSource
