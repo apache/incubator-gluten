@@ -123,56 +123,28 @@ case class HashAggregateExecTransformer(
         case _ =>
           throw new UnsupportedOperationException(s"${expr.mode} not supported.")
       }
+      val aggFunc = expr.aggregateFunction
       expr.aggregateFunction match {
-        case _: Average | _: First | _: Last | _: MaxMinBy =>
-          // Select first and second aggregate buffer from Velox Struct.
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 0))
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
-          colIdx += 1
-        case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
-          // Select count from Velox struct with count casted from LongType into DoubleType.
-          expressionNodes.add(
-            ExpressionBuilder
-              .makeCast(
-                ConverterUtils.getTypeNode(DoubleType, nullable = false),
-                ExpressionBuilder.makeSelection(colIdx, 0),
-                SQLConf.get.ansiEnabled))
-          // Select avg from Velox Struct.
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
-          // Select m2 from Velox Struct.
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 2))
-          colIdx += 1
-        case sum: Sum if sum.dataType.isInstanceOf[DecimalType] =>
-          // Select sum from Velox Struct.
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 0))
-          // Select isEmpty from Velox Struct.
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 1))
-          colIdx += 1
-        case _: Corr =>
-          // Select count from Velox struct with count casted from LongType into DoubleType.
-          expressionNodes.add(
-            ExpressionBuilder
-              .makeCast(
-                ConverterUtils.getTypeNode(DoubleType, nullable = false),
-                ExpressionBuilder.makeSelection(colIdx, 1),
-                SQLConf.get.ansiEnabled))
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 4))
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 5))
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 0))
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 2))
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 3))
-          colIdx += 1
-        case _: CovPopulation | _: CovSample =>
-          // Select count from Velox struct with count casted from LongType into DoubleType.
-          expressionNodes.add(
-            ExpressionBuilder
-              .makeCast(
-                ConverterUtils.getTypeNode(DoubleType, nullable = false),
-                ExpressionBuilder.makeSelection(colIdx, 1),
-                SQLConf.get.ansiEnabled))
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 2))
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 3))
-          expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, 0))
+        case _ @VeloxIntermediateData.Type(veloxTypes: Seq[DataType]) =>
+          val (sparkOrders, sparkTypes) =
+            aggFunc.aggBufferAttributes.map(attr => (attr.name, attr.dataType)).unzip
+          val veloxOrders = VeloxIntermediateData.veloxIntermediateDataOrder(aggFunc)
+          val adjustedOrders = sparkOrders.map(veloxOrders.indexOf(_))
+          veloxTypes.zip(sparkTypes).zipWithIndex.foreach {
+            case ((veloxType, sparkType), idx) =>
+              if (veloxType != sparkType) {
+                // Velox and Spark have different type, adding a cast expression
+                expressionNodes.add(
+                  ExpressionBuilder
+                    .makeCast(
+                      ConverterUtils.getTypeNode(sparkType, nullable = false),
+                      ExpressionBuilder.makeSelection(colIdx, adjustedOrders(idx)),
+                      SQLConf.get.ansiEnabled))
+              } else {
+                // Velox and Spark have the same type
+                expressionNodes.add(ExpressionBuilder.makeSelection(colIdx, adjustedOrders(idx)))
+              }
+          }
           colIdx += 1
         case _ =>
           expressionNodes.add(ExpressionBuilder.makeSelection(colIdx))

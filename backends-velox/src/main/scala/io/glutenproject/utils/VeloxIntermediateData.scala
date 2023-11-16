@@ -102,7 +102,7 @@ object VeloxIntermediateData {
     TypeBuilder.makeStruct(false, structTypeNodes.asJava)
   }
 
-  private object Type {
+  object Type {
 
     /**
      * Return the intermediate types of Velox agg functions, with special matching required for some
