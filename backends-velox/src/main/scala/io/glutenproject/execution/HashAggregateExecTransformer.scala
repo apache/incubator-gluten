@@ -130,8 +130,9 @@ case class HashAggregateExecTransformer(
             aggFunc.aggBufferAttributes.map(attr => (attr.name, attr.dataType)).unzip
           val veloxOrders = VeloxIntermediateData.veloxIntermediateDataOrder(aggFunc)
           val adjustedOrders = sparkOrders.map(veloxOrders.indexOf(_))
-          veloxTypes.zip(sparkTypes).zipWithIndex.foreach {
-            case ((veloxType, sparkType), idx) =>
+          sparkTypes.zipWithIndex.foreach {
+            case (sparkType, idx) =>
+              val veloxType = veloxTypes(adjustedOrders(idx))
               if (veloxType != sparkType) {
                 // Velox and Spark have different type, adding a cast expression
                 expressionNodes.add(
