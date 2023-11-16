@@ -70,10 +70,10 @@ public:
         else
         {
             int month = (*(buf.position() + 5) - '0') * 10 + (*(buf.position() + 6) - '0');
-            if (month < 0 || month > 12)
+            if (month <= 0 || month > 12)
                 return false;
             int day = (*(buf.position() + 8) - '0') * 10 + (*(buf.position() + 9) - '0');
-            if (day < 0 || day > 31)
+            if (day <= 0 || day > 31)
                 return false;
             else if (day == 31 && (month == 2 || month == 4 || month == 6 || month == 9 || month == 11))
                 return false;
