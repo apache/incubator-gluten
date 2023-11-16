@@ -190,12 +190,8 @@ case class MakeDecimalTransformer(
         Seq(original.dataType, BooleanType),
         FunctionConfig.OPT))
 
-    // use fake decimal literal, because velox function signature need to get return type
-    // scale and precision by input type variable
-    val toTypeNodes =
-      ExpressionBuilder.makeDecimalLiteral(new Decimal().set(0, original.precision, original.scale))
     val expressionNodes =
-      Lists.newArrayList(childNode, toTypeNodes, new BooleanLiteralNode(original.nullOnOverflow))
+      Lists.newArrayList(childNode, new BooleanLiteralNode(original.nullOnOverflow))
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }

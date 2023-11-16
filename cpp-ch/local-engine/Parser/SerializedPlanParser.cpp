@@ -733,10 +733,10 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
     }
     else if (function_name == "make_decimal")
     {
-        if (args.size() < 3)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 3 args.");
+        if (args.size() < 2)
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 2 args.");
         ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-        auto null_on_overflow = args.at(2).value().literal().boolean();
+        auto null_on_overflow = args.at(1).value().literal().boolean();
         if (null_on_overflow)
             ch_function_name = ch_function_name + "OrNull";
     }
