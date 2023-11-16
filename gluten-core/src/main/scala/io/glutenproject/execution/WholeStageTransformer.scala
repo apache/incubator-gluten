@@ -108,13 +108,28 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.getConf.numaBindingInfo
   val substraitPlanLogLevel: String = GlutenConfig.getConf.substraitPlanLogLevel
 
-  private var planJson: String = ""
+  @transient
+  private var wholeStageTransformerContext: Option[WholeStageTransformContext] = None
 
-  def getPlanJson: String = {
-    if (log.isDebugEnabled() && planJson.isEmpty) {
-      logWarning("Plan in JSON string is empty. This may due to the plan has not been executed.")
+  def substraitPlan: PlanNode = {
+    if (wholeStageTransformerContext.isDefined) {
+      // TODO: remove this work around after we make `RelNode#toProtobuf` idempotent
+      //    see `SubstraitContext#getCurrentLocalFileNode`.
+      wholeStageTransformerContext.get.substraitContext.initLocalFilesNodesIndex(0)
+      wholeStageTransformerContext.get.root
+    } else {
+      generateWholeStageTransformContext().root
     }
-    planJson
+  }
+
+  def substraitPlanJson: String = {
+    SubstraitPlanPrinterUtil.substraitPlanToJson(substraitPlan.toProtobuf)
+  }
+
+  def nativePlanString(details: Boolean = true): String = {
+    BackendsApiManager.getTransformerApiInstance.getNativePlanString(
+      substraitPlan.toProtobuf.toByteArray,
+      details)
   }
 
   override def output: Seq[Attribute] = child.output
@@ -146,9 +161,9 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       maxFields,
       printNodeId = printNodeId,
       indent)
-    if (verbose && planJson.nonEmpty) {
+    if (verbose && wholeStageTransformerContext.isDefined) {
       append(prefix + "Substrait plan:\n")
-      append(planJson)
+      append(substraitPlanJson)
       append("\n")
     }
   }
@@ -158,10 +173,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
   override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
 
-  def doWholeStageTransform(): WholeStageTransformContext = {
-    // invoke SparkPlan.prepare to do subquery preparation etc.
-    super.prepare()
-
+  private def generateWholeStageTransformContext(): WholeStageTransformContext = {
     val substraitContext = new SubstraitContext
     val childCtx = child
       .asInstanceOf[TransformSupport]
@@ -192,11 +204,17 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }
 
-    if (log.isDebugEnabled()) {
-      planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(planNode.toProtobuf)
-    }
-
     WholeStageTransformContext(planNode, substraitContext)
+  }
+
+  def doWholeStageTransform(): WholeStageTransformContext = {
+    // invoke SparkPlan.prepare to do subquery preparation etc.
+    super.prepare()
+    val context = generateWholeStageTransformContext()
+    if (conf.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
+      wholeStageTransformerContext = Some(context)
+    }
+    context
   }
 
   /** Find all BasicScanExecTransformers in one WholeStageTransformer */

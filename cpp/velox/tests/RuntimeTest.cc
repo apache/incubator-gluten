@@ -84,6 +84,9 @@ class DummyRuntime final : public Runtime {
   std::shared_ptr<ColumnarBatch> select(MemoryManager*, std::shared_ptr<ColumnarBatch>, std::vector<int32_t>) override {
     throw GlutenException("Not yet implemented");
   }
+  std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) override {
+    throw GlutenException("Not yet implemented");
+  }
 
  private:
   ResourceMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;

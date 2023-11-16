@@ -263,4 +263,8 @@ class CHTransformerApi extends TransformerApi with Logging {
     val typeNode = ConverterUtils.getTypeNode(dataType, nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
+
+  override def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String = {
+    throw new UnsupportedOperationException("CH backend does not support this method")
+  }
 }

@@ -83,4 +83,6 @@ trait TransformerApi {
       dataType: DecimalType,
       nullable: Boolean,
       nullOnOverflow: Boolean): ExpressionNode
+
+  def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String
 }
