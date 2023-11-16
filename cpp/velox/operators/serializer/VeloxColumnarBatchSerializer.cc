@@ -31,10 +31,10 @@ using namespace facebook::velox;
 namespace gluten {
 
 namespace {
-std::unique_ptr<ByteStream> toByteStream(uint8_t* data, int32_t size) {
-  auto byteStream = std::make_unique<ByteStream>();
-  ByteRange byteRange{data, size, 0};
-  byteStream->resetInput({byteRange});
+std::unique_ptr<ByteInputStream> toByteStream(uint8_t* data, int32_t size) {
+  std::vector<ByteRange> byteRanges;
+  byteRanges.push_back(ByteRange{data, size, 0});
+  auto byteStream = std::make_unique<ByteInputStream>(byteRanges);
   return byteStream;
 }
 } // namespace
