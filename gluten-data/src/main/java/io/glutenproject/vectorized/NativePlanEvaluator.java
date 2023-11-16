@@ -45,9 +45,9 @@ public class NativePlanEvaluator {
     return new NativePlanEvaluator(Runtimes.contextInstance());
   }
 
-  public static NativePlanEvaluator createForValidation() {
+  public static NativePlanEvaluator createForValidation(Runtime runtime) {
     // Driver side doesn't have context instance of Runtime
-    return new NativePlanEvaluator(Runtimes.tmpInstance());
+    return new NativePlanEvaluator(runtime);
   }
 
   public NativePlanValidationInfo doNativeValidateWithFailureReason(byte[] subPlan) {
