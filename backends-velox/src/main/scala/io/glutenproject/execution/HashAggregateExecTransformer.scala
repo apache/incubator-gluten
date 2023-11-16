@@ -199,8 +199,6 @@ case class HashAggregateExecTransformer(
     }
   }
 
-
-
   override protected def modeToKeyWord(aggregateMode: AggregateMode): String = {
     super.modeToKeyWord(if (mixedPartialAndMerge) Partial else aggregateMode)
   }
@@ -223,7 +221,8 @@ case class HashAggregateExecTransformer(
             VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
             childrenNodeList,
             modeKeyWord,
-            VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction))
+            VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
+          )
           aggregateNodeList.add(partialNode)
         case PartialMerge =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
