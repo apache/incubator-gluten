@@ -1166,7 +1166,7 @@ object GlutenConfig {
       .createWithDefault("DEBUG")
 
   val DEBUG_LEVEL_ENABLED =
-    buildConf("spark.gluten.sql.debug")
+    buildConf(GLUTEN_DEBUG_MODE)
       .internal()
       .booleanConf
       .createWithDefault(false)

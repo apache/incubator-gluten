@@ -17,8 +17,6 @@
 
 #include "VeloxRuntime.h"
 
-#include <utils/ConfigExtractor.h>
-
 #include <filesystem>
 
 #include "VeloxBackend.h"
@@ -29,6 +27,7 @@
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
 #include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/VeloxShuffleWriter.h"
+#include "utils/ConfigExtractor.h"
 
 using namespace facebook;
 
