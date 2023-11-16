@@ -34,6 +34,7 @@
 #ifdef ENABLE_GCS
 #include <fstream>
 #endif
+#include "config/GlutenConfig.h"
 #include "jni/JniFileSystem.h"
 #include "udf/UdfLoader.h"
 #include "utils/ConfigExtractor.h"
@@ -114,16 +115,6 @@ const bool kVeloxFileHandleCacheEnabledDefault = false;
 } // namespace
 
 namespace gluten {
-
-void VeloxBackend::printConf(const facebook::velox::Config& conf) {
-  std::ostringstream oss;
-  oss << "STARTUP: VeloxBackend conf = {\n";
-  for (auto& [k, v] : conf.valuesCopy()) {
-    oss << " {" << k << ", " << v << "}\n";
-  }
-  oss << "}\n";
-  LOG(INFO) << oss.str();
-}
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
   // Init glog and log level.
@@ -257,10 +248,6 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   initCache(veloxcfg);
   initIOExecutor(veloxcfg);
 
-#ifdef GLUTEN_PRINT_DEBUG
-  printConf(*veloxcfg);
-#endif
-
   veloxmemcfg->setValue(
       velox::connector::hive::HiveConfig::kEnableFileHandleCache,
       veloxcfg->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
@@ -279,6 +266,10 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
   initUdf(veloxcfg);
+
+  if (veloxcfg->get<bool>(kDebugModeEnabled, false)) {
+    LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
+  }
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
