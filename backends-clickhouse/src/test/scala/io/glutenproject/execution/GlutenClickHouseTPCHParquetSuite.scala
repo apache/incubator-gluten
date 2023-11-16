@@ -16,7 +16,6 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.{SparkConf, SparkException}
