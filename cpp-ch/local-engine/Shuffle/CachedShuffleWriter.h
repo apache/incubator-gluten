@@ -35,8 +35,10 @@ public:
     friend class PartitionWriter;
     friend class LocalPartitionWriter;
     friend class CelebornPartitionWriter;
-    explicit CachedShuffleWriter(const String & short_name, SplitOptions & options, jobject rss_pusher = nullptr);
+
+    explicit CachedShuffleWriter(const String & short_name, const SplitOptions & options, jobject rss_pusher = nullptr);
     ~CachedShuffleWriter() override = default;
+
     void split(DB::Block & block) override;
     size_t evictPartitions() override;
     SplitResult stop() override;
@@ -45,7 +47,7 @@ private:
     void initOutputIfNeeded(DB::Block & block);
 
     bool stopped = false;
-    PartitionInfo partition_info;
+    // PartitionInfo partition_info;
     DB::Block output_header;
     SplitOptions options;
     SplitResult split_result;

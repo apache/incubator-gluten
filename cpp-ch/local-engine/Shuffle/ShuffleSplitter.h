@@ -40,10 +40,9 @@ struct SplitOptions
     int num_sub_dirs;
     int shuffle_id;
     int map_id;
-    size_t partition_nums;
+    size_t partition_num;
     std::string hash_exprs;
     std::string out_exprs;
-    // std::vector<std::string> exprs;
     std::string compress_method = "zstd";
     int compress_level;
     size_t spill_threshold = 300 * 1024 * 1024;
@@ -53,18 +52,40 @@ struct SplitOptions
 class ColumnsBuffer
 {
 public:
-    explicit ColumnsBuffer(size_t prefer_buffer_size = DEFAULT_BLOCK_SIZE);
+    ColumnsBuffer(size_t prefer_buffer_size = 8192);
+    ~ColumnsBuffer() = default;
+
     void add(DB::Block & columns, int start, int end);
     void appendSelective(size_t column_idx, const DB::Block & source, const DB::IColumn::Selector & selector, size_t from, size_t length);
+
     size_t size() const;
+    bool empty() const;
+
     DB::Block releaseColumns();
     DB::Block getHeader();
+
+    size_t bytes() const
+    {
+        size_t res = 0;
+        for (const auto & col : accumulated_columns)
+            res += col->byteSize();
+        return res;
+    }
+
+    size_t allocatedBytes() const
+    {
+        size_t res = 0;
+        for (const auto & col : accumulated_columns)
+            res += col->allocatedBytes();
+        return res;
+    }
 
 private:
     DB::MutableColumns accumulated_columns;
     DB::Block header;
     size_t prefer_buffer_size;
 };
+using ColumnsBufferPtr = std::shared_ptr<ColumnsBuffer>;
 
 struct SplitResult
 {
@@ -81,18 +102,23 @@ struct SplitResult
     Int64 total_serialize_time = 0;
 };
 
+class ShuffleSplitter;
+using ShuffleSplitterPtr = std::unique_ptr<ShuffleSplitter>;
 class ShuffleSplitter : public ShuffleWriterBase
 {
+private:
+    inline const static std::vector<std::string> compress_methods =  {"", "ZSTD", "LZ4"};
+
 public:
-    static const std::vector<std::string> compress_methods;
-    using Ptr = std::unique_ptr<ShuffleSplitter>;
-    static Ptr create(const std::string & short_name, SplitOptions options_);
-    explicit ShuffleSplitter(SplitOptions && options);
+    static ShuffleSplitterPtr create(const std::string & short_name, const SplitOptions & options_);
+
+    explicit ShuffleSplitter(const SplitOptions & options);
     virtual ~ShuffleSplitter() override
     {
         if (!stopped)
             stop();
     }
+
     void split(DB::Block & block) override;
     virtual void computeAndCountPartitionId(DB::Block &) { }
     std::vector<int64_t> getPartitionLength() const { return split_result.partition_length; }
@@ -111,7 +137,7 @@ private:
 protected:
     bool stopped = false;
     PartitionInfo partition_info;
-    std::vector<ColumnsBuffer> partition_buffer;
+    std::vector<ColumnsBufferPtr> partition_buffer;
     std::vector<std::unique_ptr<local_engine::NativeWriter>> partition_outputs;
     std::vector<std::unique_ptr<DB::WriteBuffer>> partition_write_buffers;
     std::vector<std::unique_ptr<DB::WriteBuffer>> partition_cached_write_buffers;
@@ -125,11 +151,11 @@ protected:
 class RoundRobinSplitter : public ShuffleSplitter
 {
 public:
-    static std::unique_ptr<ShuffleSplitter> create(SplitOptions && options);
+    static ShuffleSplitterPtr create(const SplitOptions & options);
 
-    explicit RoundRobinSplitter(SplitOptions options_);
+    explicit RoundRobinSplitter(const SplitOptions & options_);
+    virtual ~RoundRobinSplitter() override = default;
 
-    ~RoundRobinSplitter() override = default;
     void computeAndCountPartitionId(DB::Block & block) override;
 
 private:
@@ -139,11 +165,11 @@ private:
 class HashSplitter : public ShuffleSplitter
 {
 public:
-    static std::unique_ptr<ShuffleSplitter> create(SplitOptions && options);
+    static ShuffleSplitterPtr create(const SplitOptions & options);
 
     explicit HashSplitter(SplitOptions options_);
+    virtual ~HashSplitter() override = default;
 
-    ~HashSplitter() override = default;
     void computeAndCountPartitionId(DB::Block & block) override;
 
 private:
@@ -153,8 +179,11 @@ private:
 class RangeSplitter : public ShuffleSplitter
 {
 public:
-    static std::unique_ptr<ShuffleSplitter> create(SplitOptions && options);
-    explicit RangeSplitter(SplitOptions options_);
+    static ShuffleSplitterPtr create(const SplitOptions & options);
+
+    explicit RangeSplitter(const SplitOptions & options_);
+    virtual ~RangeSplitter() override = default;
+
     void computeAndCountPartitionId(DB::Block & block) override;
 
 private:

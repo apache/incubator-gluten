@@ -691,7 +691,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .num_sub_dirs = num_sub_dirs,
         .shuffle_id = shuffle_id,
         .map_id = static_cast<int>(map_id),
-        .partition_nums = static_cast<size_t>(num_partitions),
+        .partition_num = static_cast<size_t>(num_partitions),
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
@@ -752,7 +752,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .io_buffer_size = DBMS_DEFAULT_BUFFER_SIZE,
         .shuffle_id = shuffle_id,
         .map_id = static_cast<int>(map_id),
-        .partition_nums = static_cast<size_t>(num_partitions),
+        .partition_num = static_cast<size_t>(num_partitions),
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
@@ -1068,7 +1068,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_BlockSplitIterator_nativeCreate
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::NativeSplitter::Options options;
-    options.partition_nums = partition_num;
+    options.partition_num = partition_num;
     options.buffer_size = buffer_size;
     auto hash_algorithm_str = jstring2string(env, hash_algorithm);
     options.hash_algorithm.swap(hash_algorithm_str);

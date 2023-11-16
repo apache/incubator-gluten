@@ -35,13 +35,14 @@ namespace ErrorCodes
 
 namespace local_engine
 {
+
 using namespace DB;
-CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions & options_, jobject rss_pusher)
+
+CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitOptions & options_, jobject rss_pusher) : options(options_)
 {
-    options = options_;
     if (short_name == "rr")
     {
-        partitioner = std::make_unique<RoundRobinSelectorBuilder>(options.partition_nums);
+        partitioner = std::make_unique<RoundRobinSelectorBuilder>(options.partition_num);
     }
     else if (short_name == "hash")
     {
@@ -51,16 +52,16 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions
         {
             hash_fields.push_back(std::stoi(expr));
         }
-        partitioner = std::make_unique<HashSelectorBuilder>(options.partition_nums, hash_fields, options_.hash_algorithm);
+        partitioner = std::make_unique<HashSelectorBuilder>(options.partition_num, hash_fields, options_.hash_algorithm);
     }
     else if (short_name == "single")
     {
-        options.partition_nums = 1;
-        partitioner = std::make_unique<RoundRobinSelectorBuilder>(options.partition_nums);
+        options.partition_num = 1;
+        partitioner = std::make_unique<RoundRobinSelectorBuilder>(options.partition_num);
     }
     else if (short_name == "range")
     {
-        partitioner = std::make_unique<RangeSelectorBuilder>(options.hash_exprs, options.partition_nums);
+        partitioner = std::make_unique<RangeSelectorBuilder>(options.hash_exprs, options.partition_num);
     }
     else
     {
@@ -72,6 +73,7 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions
     {
         output_columns_indicies.push_back(std::stoi(iter));
     }
+
     if (rss_pusher)
     {
         GET_JNIENV(env)
@@ -87,44 +89,45 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, SplitOptions
     {
         partition_writer = std::make_unique<LocalPartitionWriter>(this);
     }
-    split_result.partition_length.resize(options.partition_nums, 0);
-    split_result.raw_partition_length.resize(options.partition_nums, 0);
+
+    split_result.partition_length.resize(options.partition_num, 0);
+    split_result.raw_partition_length.resize(options.partition_num, 0);
 }
 
 
 void CachedShuffleWriter::split(DB::Block & block)
 {
     initOutputIfNeeded(block);
+
     Stopwatch split_time_watch;
-    split_time_watch.start();
     block = convertAggregateStateInBlock(block);
     split_result.total_split_time += split_time_watch.elapsedNanoseconds();
 
     Stopwatch compute_pid_time_watch;
-    compute_pid_time_watch.start();
-    partition_info = partitioner->build(block);
+    PartitionInfo partition_info = partitioner->build(block);
     split_result.total_compute_pid_time += compute_pid_time_watch.elapsedNanoseconds();
 
     DB::Block out_block;
-    for (size_t col = 0; col < output_header.columns(); ++col)
+    for (size_t col_i = 0; col_i < output_header.columns(); ++col_i)
     {
-        out_block.insert(block.getByPosition(output_columns_indicies[col]));
+        out_block.insert(block.getByPosition(output_columns_indicies[col_i]));
     }
     partition_writer->write(partition_info, out_block);
 
     if (options.spill_threshold > 0 && partition_writer->totalCacheSize() > options.spill_threshold)
     {
-        partition_writer->evictPartitions();
+        partition_writer->evictPartitions(false);
     }
 }
 
 void CachedShuffleWriter::initOutputIfNeeded(Block & block)
 {
-    if (output_header.columns() == 0) [[unlikely]]
+    if (!output_header)
     {
         output_header = block.cloneEmpty();
         if (output_columns_indicies.empty())
         {
+            /// TODO 这里逻辑有问题？output_header被赋值了两遍
             output_header = block.cloneEmpty();
             for (size_t i = 0; i < block.columns(); ++i)
             {
@@ -135,18 +138,19 @@ void CachedShuffleWriter::initOutputIfNeeded(Block & block)
         {
             ColumnsWithTypeAndName cols;
             for (const auto & index : output_columns_indicies)
-            {
                 cols.push_back(block.getByPosition(index));
-            }
-            output_header = DB::Block(cols);
+
+            output_header = DB::Block(std::move(cols));
         }
     }
 }
+
 SplitResult CachedShuffleWriter::stop()
 {
     partition_writer->stop();
     return split_result;
 }
+
 size_t CachedShuffleWriter::evictPartitions()
 {
     auto size = partition_writer->totalCacheSize();

@@ -136,7 +136,11 @@ DB::Block convertAggregateStateInBlock(DB::Block& block)
         {
             columns.emplace_back(item);
         }
+
+        std::cout << "column " << item.name << " from " << item.type->getName() << " with bytes " << item.column->allocatedBytes() << " to "
+                  << columns.back().type->getName() << " with bytes " << columns.back().column->allocatedBytes() << std::endl;
     }
+
     return columns;
 }
 }

@@ -37,25 +37,26 @@ struct SpillInfo {
     std::vector<PartitionSpillInfo> partition_spill_infos;
 };
 
-class CachedShuffleWriter;
 
 class Partition
 {
 public:
-    Partition() {}
-    Partition(const Partition & p) : blocks(p.blocks) {}
+    Partition() = default;
     ~Partition() = default;
-    void addBlock(DB::Block & block);
-    bool empty() const;
-    void clear();
+
+    Partition(Partition && other) noexcept : blocks(std::move(other.blocks)) { }
+
+    void addBlock(DB::Block block);
     size_t spill(NativeWriter & writer);
 
 private:
     std::vector<DB::Block> blocks;
-    std::mutex mtx;
 };
 
-class PartitionWriter {
+class CachedShuffleWriter;
+using PartitionPtr = std::shared_ptr<Partition>;
+class PartitionWriter : boost::noncopyable
+{
 public:
     explicit PartitionWriter(CachedShuffleWriter* shuffle_writer_);
     virtual ~PartitionWriter() = default;
@@ -72,10 +73,18 @@ public:
     }
 
 protected:
-    std::vector<ColumnsBuffer> partition_block_buffer;
-    std::vector<Partition> partition_buffer;
-    SplitOptions * options;
     CachedShuffleWriter * shuffle_writer;
+    SplitOptions * options;
+
+    /// The mutex is used to protect partition_block_buffer and partition_buffer
+    /// It may be accessed by multiple threads in which "CachedShuffleWriter::split" and "CachedShuffleWriter::spill" are invoked simutanously.
+    ///
+    /// Notice: the mutex must support being recursively acquired by the same thread, which happens during memory spilling.
+    /// For more details, pls refer to https://github.com/oap-project/gluten/issues/3722
+    mutable std::vector<std::recursive_mutex> mtxs;
+    std::vector<ColumnsBufferPtr> partition_block_buffer;
+    std::vector<PartitionPtr> partition_buffer;
+
     size_t total_partition_buffer_size = 0;
 };
 
@@ -98,7 +107,6 @@ public:
     CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client);
     void evictPartitions(bool for_memory_spill) override;
     void stop() override;
-
 
 private:
     std::unique_ptr<CelebornClient> celeborn_client;
