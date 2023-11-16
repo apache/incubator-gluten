@@ -254,6 +254,18 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
 
+  def genStringTranslateTransformer(
+      substraitExprName: String,
+      srcExpr: ExpressionTransformer,
+      matchingExpr: ExpressionTransformer,
+      replaceExpr: ExpressionTransformer,
+      original: StringTranslate): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(srcExpr, matchingExpr, replaceExpr),
+      original)
+  }
+
   def genStringLocateTransformer(
       substraitExprName: String,
       first: ExpressionTransformer,
