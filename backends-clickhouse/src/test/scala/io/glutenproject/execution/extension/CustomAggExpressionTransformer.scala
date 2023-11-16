@@ -46,17 +46,17 @@ case class CustomAggExpressionTransformer() extends ExpressionExtensionTrait {
     aggregateFunc match {
       case CustomSum(_, _) =>
         mode match {
-          case Partial =>
+          // custom logic: can not support 'Partial'
+          /* case Partial =>
             val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
             val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
             aggregateAttr += attr
             reIndex += 1
-            reIndex
-          // custom logic: can not support 'Final'
-          /* case Final =>
+            reIndex */
+          case Final =>
             aggregateAttr += aggregateAttributeList(reIndex)
             reIndex += 1
-            reIndex */
+            reIndex
           case other =>
             throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
         }
@@ -74,10 +74,12 @@ case class CustomAggExpressionTransformer() extends ExpressionExtensionTrait {
           Some("custom_sum_double")
         }
       case _ =>
-        throw new UnsupportedOperationException(
-          s"Aggregate function ${aggregateFunc.getClass} is not supported.")
+        extensionExpressionsMapping.get(aggregateFunc.getClass)
     }
-
+    if (substraitAggFuncName.isEmpty) {
+      throw new UnsupportedOperationException(
+        s"Aggregate function ${aggregateFunc.getClass} is not supported.")
+    }
     (substraitAggFuncName, aggregateFunc.children.map(child => child.dataType))
   }
 }

@@ -16,8 +16,9 @@
  */
 package io.glutenproject.execution.extension
 
-import io.glutenproject.execution.{CHHashAggregateExecTransformer, GlutenClickHouseTPCHAbstractSuite, HashAggregateExecBaseTransformer, WholeStageTransformerSuite}
+import io.glutenproject.execution._
 import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.FunctionIdentifier
@@ -81,18 +82,27 @@ class GlutenCustomAggExpressionSuite extends GlutenClickHouseTPCHAbstractSuite {
     // Final stage is not supported, it will be fallback
     WholeStageTransformerSuite.checkFallBack(df, false)
 
-    val aggExecs = df.queryExecution.executedPlan.collect {
+    val planExecs = df.queryExecution.executedPlan.collect {
       case agg: HashAggregateExec => agg
       case aggTransformer: HashAggregateExecBaseTransformer => aggTransformer
+      case wholeStage: WholeStageTransformer => wholeStage
     }
 
-    assert(aggExecs(0).isInstanceOf[HashAggregateExec])
+    // First stage fallback
+    assert(planExecs(3).isInstanceOf[HashAggregateExec])
+
     val substraitContext = new SubstraitContext
-    aggExecs(1).asInstanceOf[CHHashAggregateExecTransformer].doTransform(substraitContext)
+    planExecs(2).asInstanceOf[CHHashAggregateExecTransformer].doTransform(substraitContext)
 
     // Check the functions
     assert(substraitContext.registeredFunction.containsKey("custom_sum_double:req_fp64"))
     assert(substraitContext.registeredFunction.containsKey("custom_sum:req_i64"))
     assert(substraitContext.registeredFunction.containsKey("sum:req_fp64"))
+
+    val wx = planExecs(1).asInstanceOf[WholeStageTransformer].doWholeStageTransform()
+    val planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(wx.root.toProtobuf)
+    assert(planJson.contains("#Partial#custom_sum_double"))
+    assert(planJson.contains("#Partial#custom_sum"))
+    assert(planJson.contains("#Partial#sum"))
   }
 }
