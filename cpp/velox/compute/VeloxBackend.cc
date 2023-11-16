@@ -209,8 +209,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 #endif
 
   veloxmemcfg->setValue(
-      HiveConfig::kEnableFileHandleCache,
-      veloxcfg->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault));
+      velox::connector::hive::HiveConfig::kEnableFileHandleCache,
+      veloxcfg->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, veloxmemcfg, ioExecutor_.get());
