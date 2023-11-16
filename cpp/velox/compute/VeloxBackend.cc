@@ -68,6 +68,7 @@ const std::string kMemoryUseHugePages = "spark.gluten.sql.columnar.backend.velox
 const bool kMemoryUseHugePagesDefault = false;
 
 const std::string kHiveConnectorId = "test-hive";
+const std::string kNumCacheFileHandles = "num_cached_file_handles";
 const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
 
 // memory cache
@@ -204,6 +205,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   printConf(veloxcfg);
 #endif
 
+  veloxmemcfg->setValue(kNumCacheFileHandles, "100");
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, veloxmemcfg, ioExecutor_.get());
