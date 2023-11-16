@@ -30,6 +30,7 @@
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
+#include <Storages/IO/AggregateSerializationUtils.h>
 
 namespace local_engine
 {

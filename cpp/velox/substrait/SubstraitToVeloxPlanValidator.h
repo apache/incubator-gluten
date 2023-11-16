@@ -121,6 +121,9 @@ class SubstraitToVeloxPlanValidator {
   /// Validate Substrait literal.
   bool validateLiteral(const ::substrait::Expression_Literal& literal, const RowTypePtr& inputType);
 
+  /// Validate Substrait if-then expression.
+  bool validateIfThen(const ::substrait::Expression_IfThen& ifThen, const RowTypePtr& inputType);
+
   /// Add necessary log for fallback
   void logValidateMsg(const std::string& log) {
     validateLog_.emplace_back(log);

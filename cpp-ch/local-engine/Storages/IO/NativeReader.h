@@ -14,15 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Parser/FunctionParser.h>
+#pragma once
 
-#include <Parser/aggregate_function_parser/CommonAggregateFunctionParser.h>
-#include <Parser/AggregateFunctionParser.h>
-
+#include <Common/PODArray.h>
+#include <Core/Block.h>
+#include <DataTypes/DataTypeAggregateFunction.h>
 
 namespace local_engine
 {
-// Only for ut to test custom aggregate function
-REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(CustomSum, custom_sum, sum)
-REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(CustomSumDouble, custom_sum_double, sum)
+
+class NativeReader
+{
+public:
+    NativeReader(DB::ReadBuffer & istr_) : istr(istr_) {}
+
+    static void readData(const DB::ISerialization & serialization, DB::ColumnPtr & column, DB::ReadBuffer & istr, size_t rows, double avg_value_size_hint);
+    template <bool FIXED>
+    static void readAggData(const DB::DataTypeAggregateFunction & data_type, DB::ColumnPtr & column, DB::ReadBuffer & istr, size_t rows);
+
+    DB::Block getHeader() const;
+
+    DB::Block read();
+
+private:
+    DB::ReadBuffer & istr;
+    DB::Block header;
+
+    DB::PODArray<double> avg_value_size_hints;
+
+    void updateAvgValueSizeHints(const DB::Block & block);
+};
+
 }

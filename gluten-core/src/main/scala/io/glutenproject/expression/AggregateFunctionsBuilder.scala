@@ -27,19 +27,30 @@ object AggregateFunctionsBuilder {
   def create(args: java.lang.Object, aggregateFunc: AggregateFunction): Long = {
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
-    var substraitAggFuncName = getSubstraitFunctionName(aggregateFunc)
+    // First handle the custom aggregate functions
+    val (substraitAggFuncName, inputTypes) =
+      if (
+        ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
+          aggregateFunc.getClass)
+      ) {
+        ExpressionMappings.expressionExtensionTransformer.buildCustomAggregateFunction(
+          aggregateFunc)
+      } else {
+        val substraitAggFuncName = getSubstraitFunctionName(aggregateFunc)
 
-    // Check whether each backend supports this aggregate function.
-    if (
-      !BackendsApiManager.getValidatorApiInstance.doExprValidate(
-        substraitAggFuncName.get,
-        aggregateFunc)
-    ) {
-      throw new UnsupportedOperationException(
-        s"Aggregate function not supported for $aggregateFunc.")
-    }
+        // Check whether each backend supports this aggregate function.
+        if (
+          !BackendsApiManager.getValidatorApiInstance.doExprValidate(
+            substraitAggFuncName.get,
+            aggregateFunc)
+        ) {
+          throw new UnsupportedOperationException(
+            s"Aggregate function not supported for $aggregateFunc.")
+        }
 
-    val inputTypes: Seq[DataType] = aggregateFunc.children.map(child => child.dataType)
+        val inputTypes: Seq[DataType] = aggregateFunc.children.map(child => child.dataType)
+        (substraitAggFuncName, inputTypes)
+      }
 
     ExpressionBuilder.newScalarFunction(
       functionMap,

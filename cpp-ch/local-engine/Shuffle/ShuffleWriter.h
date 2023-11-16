@@ -16,7 +16,7 @@
  */
 #pragma once
 #include <jni.h>
-#include <Formats/NativeWriter.h>
+#include <Storages/IO/NativeWriter.h>
 
 namespace local_engine
 {
@@ -32,7 +32,7 @@ public:
 private:
     std::unique_ptr<DB::WriteBuffer> compressed_out;
     std::unique_ptr<DB::WriteBuffer> write_buffer;
-    std::unique_ptr<DB::NativeWriter> native_writer;
+    std::unique_ptr<NativeWriter> native_writer;
     bool compression_enable;
 };
 }

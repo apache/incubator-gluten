@@ -259,7 +259,7 @@ std::shared_ptr<substrait::Type> SerializedPlanBuilder::buildType(const DB::Data
         res->mutable_i32()->set_nullability(type_nullability);
     else if (which.isInt64())
         res->mutable_i64()->set_nullability(type_nullability);
-    else if (which.isString() || which.isAggregateFunction())
+    else if (which.isStringOrFixedString() || which.isAggregateFunction())
         res->mutable_binary()->set_nullability(type_nullability); /// Spark Binary type is more similiar to CH String type
     else if (which.isFloat32())
         res->mutable_fp32()->set_nullability(type_nullability);

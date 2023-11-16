@@ -17,6 +17,7 @@
 package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.ValidatorApi
+import io.glutenproject.exec.Runtimes
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidationInfo
 import io.glutenproject.vectorized.NativePlanEvaluator
@@ -31,8 +32,13 @@ class ValidatorApiImpl extends ValidatorApi {
     doExprValidate(Map(), substraitExprName, expr)
 
   override def doNativeValidateWithFailureReason(plan: PlanNode): NativePlanValidationInfo = {
-    val validator = NativePlanEvaluator.createForValidation()
-    validator.doNativeValidateWithFailureReason(plan.toProtobuf.toByteArray)
+    val tmpRuntime = Runtimes.tmpInstance()
+    try {
+      val validator = NativePlanEvaluator.createForValidation(tmpRuntime)
+      validator.doNativeValidateWithFailureReason(plan.toProtobuf.toByteArray)
+    } finally {
+      tmpRuntime.release()
+    }
   }
 
   override def doSparkPlanValidate(plan: SparkPlan): Boolean = true

@@ -50,8 +50,9 @@ static inline void excelRead(IColumn & column, Reader && reader)
     }
 }
 
-
 template <typename Vector, bool include_quotes = false>
+void readExcelCSVQuoteString(Vector & s, ReadBuffer & buf, const char delimiter, const String & escape_value, const char & quote);
+template <typename Vector>
 void readExcelCSVStringInto(Vector & s, ReadBuffer & buf, const FormatSettings::CSV & settings, const String & escape_value);
 
 

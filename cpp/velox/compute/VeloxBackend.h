@@ -26,6 +26,7 @@
 
 #include "velox/common/caching/AsyncDataCache.h"
 #include "velox/common/memory/MemoryPool.h"
+#include "velox/core/Config.h"
 
 namespace gluten {
 /// As a static instance in per executor, initialized at executor startup.
@@ -56,13 +57,13 @@ class VeloxBackend {
   }
 
   void init(const std::unordered_map<std::string, std::string>& conf);
-  void initCache(const std::unordered_map<std::string, std::string>& conf);
-  void initIOExecutor(const std::unordered_map<std::string, std::string>& conf);
-  void initUdf(const std::unordered_map<std::string, std::string>& conf);
+  void initCache(const facebook::velox::Config* conf);
+  void initIOExecutor(const facebook::velox::Config* conf);
+  void initUdf(const facebook::velox::Config* conf);
 
-  void initJolFilesystem(const std::unordered_map<std::string, std::string>& conf);
+  void initJolFilesystem(const facebook::velox::Config* conf);
 
-  void printConf(const std::unordered_map<std::string, std::string>& conf);
+  void printConf(const facebook::velox::Config& conf);
 
   std::string getCacheFilePrefix() {
     return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";

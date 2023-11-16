@@ -14,15 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <Parser/FunctionParser.h>
+#pragma once
 
-#include <Parser/aggregate_function_parser/CommonAggregateFunctionParser.h>
-#include <Parser/AggregateFunctionParser.h>
+#include <base/types.h>
+#include <DataTypes/IDataType.h>
+#include <Core/Block.h>
 
+namespace DB
+{
+class WriteBuffer;
+class CompressedWriteBuffer;
+}
 
 namespace local_engine
 {
-// Only for ut to test custom aggregate function
-REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(CustomSum, custom_sum, sum)
-REGISTER_COMMON_AGGREGATE_FUNCTION_PARSER(CustomSumDouble, custom_sum_double, sum)
+
+class NativeWriter
+{
+public:
+    static const String AGG_STATE_SUFFIX;
+    NativeWriter(
+        DB::WriteBuffer & ostr_, const DB::Block & header_): ostr(ostr_), header(header_)
+    {}
+
+    DB::Block getHeader() const { return header; }
+    /// Returns the number of bytes written.
+    size_t write(const DB::Block & block);
+    void flush();
+
+
+private:
+    DB::WriteBuffer & ostr;
+    DB::Block header;
+};
 }

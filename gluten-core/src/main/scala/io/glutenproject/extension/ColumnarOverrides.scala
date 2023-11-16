@@ -23,7 +23,7 @@ import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.metrics.GlutenTimeMetric
 import io.glutenproject.sql.shims.SparkShimLoader
-import io.glutenproject.utils.{ColumnarShuffleUtil, LogLevelUtil, PhysicalPlanSelector}
+import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
@@ -395,15 +395,12 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
               case HashPartitioning(exprs, _) =>
                 val projectChild = getProjectWithHash(exprs, child)
                 if (projectChild.supportsColumnar) {
-                  ColumnarShuffleUtil.genColumnarShuffleExchange(
-                    plan,
-                    projectChild,
-                    projectChild.output.drop(1))
+                  ColumnarShuffleExchangeExec(plan, projectChild, projectChild.output.drop(1))
                 } else {
                   plan.withNewChildren(Seq(child))
                 }
               case _ =>
-                ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child, null)
+                ColumnarShuffleExchangeExec(plan, child, null)
             }
           } else if (
             BackendsApiManager.getSettings.supportShuffleWithProject(
@@ -417,7 +414,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
               if (newChild.supportsColumnar) {
                 val newPlan = ShuffleExchangeExec(newPartitioning, newChild, plan.shuffleOrigin)
                 // the new projections columns are appended at the end.
-                ColumnarShuffleUtil.genColumnarShuffleExchange(
+                ColumnarShuffleExchangeExec(
                   newPlan,
                   newChild,
                   newChild.output.dropRight(projectColumnNumber))
@@ -426,10 +423,10 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
                 plan.withNewChildren(Seq(child))
               }
             } else {
-              ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child, null)
+              ColumnarShuffleExchangeExec(plan, child, null)
             }
           } else {
-            ColumnarShuffleUtil.genColumnarShuffleExchange(plan, child, null)
+            ColumnarShuffleExchangeExec(plan, child, null)
           }
         } else {
           plan.withNewChildren(Seq(child))

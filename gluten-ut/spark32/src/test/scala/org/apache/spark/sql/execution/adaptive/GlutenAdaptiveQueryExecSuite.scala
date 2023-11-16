@@ -437,8 +437,10 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Exchange reuse") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100",
-      SQLConf.SHUFFLE_PARTITIONS.key -> "5") {
+      // magic threshold, ch backend has two bhj when threshold is 100
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "90",
+      SQLConf.SHUFFLE_PARTITIONS.key -> "5"
+    ) {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT value FROM testData join testData2 ON key = a " +
           "join (SELECT value v from testData join testData3 ON key = a) on value = v")

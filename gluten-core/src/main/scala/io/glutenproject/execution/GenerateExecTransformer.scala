@@ -123,9 +123,7 @@ case class GenerateExecTransformer(
       readRel
     }
     val projRel =
-      if (
-        BackendsApiManager.getSettings.insertPostProjectForGenerate() && needsProjection(generator)
-      ) {
+      if (BackendsApiManager.getSettings.insertPostProjectForGenerate()) {
         // need to insert one projection node for velox backend
         val projectExpressions = new JArrayList[ExpressionNode]()
         val childOutputNodes = child.output.indices
@@ -158,10 +156,6 @@ case class GenerateExecTransformer(
       validation = false)
 
     TransformContext(child.output, output, relNode)
-  }
-
-  def needsProjection(generator: Generator): Boolean = {
-    !generator.asInstanceOf[Explode].child.isInstanceOf[AttributeReference]
   }
 
   def getRelNode(
