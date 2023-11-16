@@ -335,6 +335,39 @@ case class CHTruncTimestampTransformer(
   }
 }
 
+case class CHStringTranslateTransformer(
+    substraitExprName: String,
+    srcExpr: ExpressionTransformer,
+    matchingExpr: ExpressionTransformer,
+    replaceExpr: ExpressionTransformer,
+    original: StringTranslate)
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    // In CH, translateUTF8 requires matchingExpr and replaceExpr argument have the same length
+    val matchingNode = matchingExpr.doTransform(args)
+    val replaceNode = replaceExpr.doTransform(args)
+    if (
+      !matchingNode.isInstanceOf[StringLiteralNode] ||
+      !replaceNode.isInstanceOf[StringLiteralNode]
+    ) {
+      throw new UnsupportedOperationException(s"$original not supported yet.")
+    }
+
+    val matchingLiteral = matchingNode.asInstanceOf[StringLiteralNode].getValue
+    val replaceLiteral = replaceNode.asInstanceOf[StringLiteralNode].getValue
+    if (matchingLiteral.length() != replaceLiteral.length()) {
+      throw new UnsupportedOperationException(s"$original not supported yet.")
+    }
+
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(srcExpr, matchingExpr, replaceExpr),
+      original)
+      .doTransform(args)
+  }
+}
+
 case class CHStringLocateTransformer(
     substraitExprName: String,
     substrExpr: ExpressionTransformer,

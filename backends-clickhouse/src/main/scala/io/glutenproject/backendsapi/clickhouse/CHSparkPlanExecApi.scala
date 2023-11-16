@@ -378,6 +378,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHEqualNullSafeTransformer(substraitExprName, left, right, original)
   }
 
+  override def genStringTranslateTransformer(
+      substraitExprName: String,
+      srcExpr: ExpressionTransformer,
+      matchingExpr: ExpressionTransformer,
+      replaceExpr: ExpressionTransformer,
+      original: StringTranslate): ExpressionTransformer = {
+    CHStringTranslateTransformer(substraitExprName, srcExpr, matchingExpr, replaceExpr, original)
+  }
+
   override def genStringLocateTransformer(
       substraitExprName: String,
       first: ExpressionTransformer,
