@@ -63,7 +63,7 @@ public:
 
     virtual void write(const PartitionInfo& info, DB::Block & data);
 
-    virtual void evictPartitions(bool for_memory_spill = false) = 0;
+    virtual size_t evictPartitions(bool for_memory_spill = false) = 0;
 
     virtual void stop() = 0;
 
@@ -92,7 +92,7 @@ class LocalPartitionWriter : public PartitionWriter
 {
 public:
     explicit LocalPartitionWriter(CachedShuffleWriter * shuffle_writer);
-    void evictPartitions(bool for_memory_spill) override;
+    size_t evictPartitions(bool for_memory_spill) override;
     void stop() override;
     std::vector<Int64> mergeSpills(DB::WriteBuffer& data_file);
 
@@ -105,7 +105,7 @@ class CelebornPartitionWriter : public PartitionWriter
 {
 public:
     CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client);
-    void evictPartitions(bool for_memory_spill) override;
+    size_t evictPartitions(bool for_memory_spill) override;
     void stop() override;
 
 private:

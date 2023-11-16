@@ -127,8 +127,6 @@ void ShuffleSplitter::splitBlockByPartition(DB::Block & block)
         auto & buffer = partition_buffer[i];
         if (buffer->size() >= options.split_size)
         {
-            std::cout << "split_size:" << options.split_size << " buffer size:" << buffer->size() << " buffer bytes:" << buffer->bytes()
-                      << " buffer allocatedBytes:" << buffer->allocatedBytes() << std::endl;
             spillPartition(i);
         }
     }

@@ -118,6 +118,7 @@ DB::ColumnWithTypeAndName convertFixedStringToAggregateState(const DB::ColumnWit
     }
     return DB::ColumnWithTypeAndName(std::move(res_col), type, col.name);
 }
+
 DB::Block convertAggregateStateInBlock(DB::Block& block)
 {
     ColumnsWithTypeAndName columns;
@@ -136,12 +137,10 @@ DB::Block convertAggregateStateInBlock(DB::Block& block)
         {
             columns.emplace_back(item);
         }
-
-        std::cout << "column " << item.name << " from " << item.type->getName() << " with bytes " << item.column->allocatedBytes() << " to "
-                  << columns.back().type->getName() << " with bytes " << columns.back().column->allocatedBytes() << std::endl;
     }
 
     return columns;
 }
+
 }
 

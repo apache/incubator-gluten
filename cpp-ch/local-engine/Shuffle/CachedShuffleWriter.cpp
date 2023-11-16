@@ -153,10 +153,7 @@ SplitResult CachedShuffleWriter::stop()
 
 size_t CachedShuffleWriter::evictPartitions()
 {
-    auto size = partition_writer->totalCacheSize();
-    if (size)
-        partition_writer->evictPartitions(true);
-    return size;
+    return partition_writer->evictPartitions(true);
 }
 
 }
