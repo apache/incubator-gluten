@@ -32,19 +32,19 @@ object Util {
   def crossProduct[T](lists: Seq[Seq[T]]): Seq[Seq[T]] = {
 
     /** list [a, b], element 1 =>  list + element => [a, b, 1] */
-    val appendElementToList: (ArrayBuffer[T], T) => ArrayBuffer[T] =
+    val appendElementToList: (Seq[T], T) => Seq[T] =
       (list, element) => list :+ element
 
     /** ([a, b], [1, 2]) ==> [a, b, 1], [a, b, 2] */
-    val appendAndGen: (ArrayBuffer[T], Seq[T]) => Seq[ArrayBuffer[T]] =
+    val appendAndGen: (Seq[T], Seq[T]) => Seq[Seq[T]] =
       (list, elemsToAppend) => elemsToAppend.map(e => appendElementToList(list, e))
 
     val firstListToJoin = lists.head
-    val startProduct = appendAndGen(new ArrayBuffer[T], firstListToJoin)
+    val startProduct = appendAndGen(new ArrayBuffer[T].toSeq, firstListToJoin)
 
     /** ([ [a, b], [c, d] ], [1, 2]) -> [a, b, 1], [a, b, 2], [c, d, 1], [c, d, 2] */
-    val appendAndGenLists: (Seq[ArrayBuffer[T]], Seq[T]) => Seq[Seq[T]] =
-      (products, toJoin) => products.flatMap(product => appendAndGen(product, toJoin).toSeq)
+    val appendAndGenLists: (Seq[Seq[T]], Seq[T]) => Seq[Seq[T]] =
+      (products, toJoin) => products.flatMap(product => appendAndGen(product, toJoin).toSeq).toSeq
     lists.tail.foldLeft(startProduct)(appendAndGenLists).map(_.toSeq)
   }
 
