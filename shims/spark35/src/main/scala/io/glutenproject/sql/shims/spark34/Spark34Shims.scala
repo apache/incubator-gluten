@@ -40,7 +40,7 @@ import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs._
 
 class Spark35Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -179,11 +179,16 @@ class Spark35Shims extends SparkShims {
 
   override def splitFiles(
       sparkSession: SparkSession,
-      file: FileStatusWithMetadata,
+      file: Object,
       filePath: Path,
       isSplitable: Boolean,
       maxSplitBytes: Long,
       partitionValues: InternalRow): Seq[PartitionedFile] = {
-    PartitionedFileUtil.splitFiles(sparkSession, file, isSplitable, maxSplitBytes, partitionValues)
+    PartitionedFileUtil.splitFiles(
+      sparkSession,
+      file.asInstanceOf[FileStatusWithMetadata],
+      isSplitable,
+      maxSplitBytes,
+      partitionValues)
   }
 }

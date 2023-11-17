@@ -64,7 +64,8 @@ trait SparkShims {
 
   def splitFiles(
       sparkSession: SparkSession,
-      file: FileStatusWithMetadata,
+      // Hack -- the type changes in a non-backwards compatible way
+      file: Object,
       filePath: Path,
       isSplitable: Boolean,
       maxSplitBytes: Long,
