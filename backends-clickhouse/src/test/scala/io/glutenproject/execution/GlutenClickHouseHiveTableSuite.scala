@@ -1028,4 +1028,27 @@ class GlutenClickHouseHiveTableSuite()
     compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
     spark.sql("DROP TABLE test_tbl_3552")
   }
+
+  test("GLUTEN-3548: Bug fix csv allow cr end of line") {
+    val data_path = rootPath + "/text-data/cr_end_of_line"
+    spark.sql(s"""
+                 | CREATE TABLE test_tbl_3548(
+                 | a string,
+                 | b string,
+                 | c string)
+                 | ROW FORMAT SERDE
+                 |  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
+                 |WITH SERDEPROPERTIES (
+                 |   'field.delim'=','
+                 | )
+                 | STORED AS INPUTFORMAT
+                 |  'org.apache.hadoop.mapred.TextInputFormat'
+                 |OUTPUTFORMAT
+                 |  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+                 |LOCATION '$data_path'
+                 |""".stripMargin)
+    val select_sql = "select * from test_tbl_3548"
+    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    spark.sql("DROP TABLE test_tbl_3548")
+  }
 }
