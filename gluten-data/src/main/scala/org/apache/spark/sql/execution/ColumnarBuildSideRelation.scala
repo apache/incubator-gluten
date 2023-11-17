@@ -21,6 +21,7 @@ import io.glutenproject.exec.Runtimes
 import io.glutenproject.execution.BroadCastHashJoinContext
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
+import io.glutenproject.sql.shims._
 import io.glutenproject.utils.{ArrowAbiUtil, Iterators}
 import io.glutenproject.vectorized.{ColumnarBatchSerializerJniWrapper, NativeColumnarToRowJniWrapper}
 
@@ -48,7 +49,7 @@ case class ColumnarBuildSideRelation(
       val allocator = ArrowBufferAllocators.contextInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
       val arrowSchema = SparkArrowUtil.toArrowSchema(
-        StructType.fromAttributes(output),
+        SparkShimLoader.getSparkShims.structFromAttributes(output),
         SQLConf.get.sessionLocalTimeZone)
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
       val handle = ColumnarBatchSerializerJniWrapper
@@ -102,7 +103,7 @@ case class ColumnarBuildSideRelation(
       val allocator = ArrowBufferAllocators.globalInstance()
       val cSchema = ArrowSchema.allocateNew(allocator)
       val arrowSchema = SparkArrowUtil.toArrowSchema(
-        StructType.fromAttributes(output),
+        SparkShimLoader.getSparkShims.structFromAttributes(output),
         SQLConf.get.sessionLocalTimeZone)
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
       val handle = serializerJniWrapper

@@ -22,7 +22,7 @@ import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
@@ -43,6 +43,11 @@ class Spark32Shims extends SparkShims {
       leftKeys: Seq[Expression],
       rightKeys: Seq[Expression]): Seq[Distribution] = {
     HashClusteredDistribution(leftKeys) :: HashClusteredDistribution(rightKeys) :: Nil
+  }
+
+  override def structFromAttributes(
+      attrs: Seq[Attribute]): StructType = {
+    StructType.fromAttributes(attrs)
   }
 
   override def expressionMappings: Seq[Sig] = Seq(Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
