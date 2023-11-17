@@ -26,6 +26,8 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.collection.BitSet
 
+import scala.collection.mutable
+
 class FileSourceScanExecShim(
     @transient relation: HadoopFsRelation,
     output: Seq[Attribute],
@@ -50,6 +52,29 @@ class FileSourceScanExecShim(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
 
+  val unsupportedColumns: Seq[String] = {
+    // Below name has special meaning in Velox.
+    val columns = mutable.ArrayBuffer.empty[String]
+    if (output.exists(a => a.name == "$path")) {
+      columns.append("$path")
+    }
+
+    if (output.exists(a => a.name == "$bucket")) {
+      columns.append("$bucket")
+    }
+
+    if (output.exists(_.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME)) {
+      columns.append(s"${FileFormat.METADATA_NAME}.${FileFormat.ROW_INDEX}")
+    }
+
+    if (fileConstantMetadataColumns.nonEmpty) {
+      fileConstantMetadataColumns.foreach(
+        m => columns.append(s"${FileFormat.METADATA_NAME}.${m.name}"))
+    }
+
+    columns
+  }
+
   override def equals(other: Any): Boolean = other match {
     case that: FileSourceScanExecShim =>
       (that.canEqual(this)) && super.equals(that)
@@ -59,13 +84,6 @@ class FileSourceScanExecShim(
   override def hashCode(): Int = super.hashCode()
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
-
-  def hasUnsupportedColumns: Boolean = {
-    fileConstantMetadataColumns.nonEmpty ||
-    output.exists(_.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) ||
-    // Below name has special meaning in Velox.
-    output.exists(a => a.name == "$path" || a.name == "$bucket")
-  }
 
   def hasFieldIds: Boolean = ParquetUtils.hasFieldIds(requiredSchema)
 

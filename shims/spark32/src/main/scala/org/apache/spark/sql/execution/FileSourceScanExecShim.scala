@@ -53,6 +53,20 @@ class FileSourceScanExecShim(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
 
+  val unsupportedColumns: Seq[String] = {
+    // Below name has special meaning in Velox.
+    val columns = mutable.ArrayBuffer.empty[String]
+    if (output.exists(a => a.name == "$path")) {
+      columns.append("$path")
+    }
+
+    if (output.exists(a => a.name == "$bucket")) {
+      columns.append("$bucket")
+    }
+
+    columns
+  }
+
   override def equals(other: Any): Boolean = other match {
     case that: FileSourceScanExecShim =>
       (that.canEqual(this)) && super.equals(that)
@@ -62,11 +76,6 @@ class FileSourceScanExecShim(
   override def hashCode(): Int = super.hashCode()
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
-
-  def hasUnsupportedColumns: Boolean = {
-    // Below name has special meaning in Velox.
-    output.exists(a => a.name == "$path" || a.name == "$bucket")
-  }
 
   def hasFieldIds: Boolean = false
 

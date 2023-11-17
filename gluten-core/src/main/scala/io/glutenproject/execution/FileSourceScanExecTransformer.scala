@@ -108,8 +108,9 @@ class FileSourceScanExecTransformer(
   override def hashCode(): Int = super.hashCode()
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (hasUnsupportedColumns) {
-      return ValidationResult.notOk(s"Unsupported columns in native scan.")
+    if (!unsupportedColumns.isEmpty) {
+      return ValidationResult.notOk(
+        s"Unsupported columns in native scan: ${unsupportedColumns.mkString(",")}")
     }
 
     if (hasFieldIds) {
