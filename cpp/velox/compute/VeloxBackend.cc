@@ -201,7 +201,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   initIOExecutor(veloxcfg);
 
 #ifdef GLUTEN_PRINT_DEBUG
-  printConf(veloxcfg);
+  printConf(*veloxcfg);
 #endif
 
   auto hiveConnector =
