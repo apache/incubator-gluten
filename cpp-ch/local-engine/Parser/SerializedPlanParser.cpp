@@ -438,7 +438,9 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
         namespace pb_util = google::protobuf::util;
         pb_util::JsonOptions options;
         std::string json;
-        pb_util::MessageToJsonString(*plan, &json, options);
+        auto s = pb_util::MessageToJsonString(*plan, &json, options);
+        if (!s.ok())
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert Substrait Plan to Json");
         LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "substrait plan:\n{}", json);
     }
     parseExtensions(plan->extensions());
@@ -1849,7 +1851,9 @@ QueryPlanPtr SerializedPlanParser::parse(const std::string & plan)
 QueryPlanPtr SerializedPlanParser::parseJson(const std::string & json_plan)
 {
     auto plan_ptr = std::make_unique<substrait::Plan>();
-    google::protobuf::util::JsonStringToMessage(google::protobuf::stringpiece_internal::StringPiece(json_plan.c_str()), plan_ptr.get());
+    auto s = google::protobuf::util::JsonStringToMessage(absl::string_view(json_plan.c_str()), plan_ptr.get());
+    if (!s.ok())
+        throw Exception(ErrorCodes::CANNOT_PARSE_PROTOBUF_SCHEMA, "Parse substrait::Plan from json string failed: {}", s.ToString());
     return parse(std::move(plan_ptr));
 }
 

@@ -438,7 +438,9 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std
             namespace pb_util = google::protobuf::util;
             pb_util::JsonOptions options;
             std::string json;
-            pb_util::MessageToJsonString(*plan_ptr, &json, options);
+            auto s = pb_util::MessageToJsonString(*plan_ptr, &json, options);
+            if (!s.ok())
+                throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert Substrait Plan to Json");
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Update Config Map Plan:\n{}", json);
         }
 
