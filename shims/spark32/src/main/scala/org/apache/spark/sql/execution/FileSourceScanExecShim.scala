@@ -63,7 +63,10 @@ class FileSourceScanExecShim(
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
 
-  def hasMetadataColumns: Boolean = false
+  def hasUnsupportedColumns: Boolean = {
+    // Below name has special meaning in Velox.
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
+  }
 
   def hasFieldIds: Boolean = false
 

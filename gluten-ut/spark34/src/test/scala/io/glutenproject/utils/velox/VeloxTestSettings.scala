@@ -808,8 +808,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileMetadataStructSuite]
-    .exclude("SPARK-41896: Filter on row_index and a stored column at the same time")
-    .exclude("SPARK-43450: Filter on aliased _metadata.row_index")
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
   enableSuite[GlutenParquetV2AggregatePushDownSuite]
   enableSuite[GlutenOrcV1AggregatePushDownSuite]

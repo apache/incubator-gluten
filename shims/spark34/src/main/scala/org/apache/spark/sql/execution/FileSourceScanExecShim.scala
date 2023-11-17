@@ -20,7 +20,7 @@ import io.glutenproject.metrics.GlutenTimeMetric
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
-import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
+import org.apache.spark.sql.execution.datasources.{FileFormat, HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
@@ -60,7 +60,12 @@ class FileSourceScanExecShim(
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
 
-  def hasMetadataColumns: Boolean = fileConstantMetadataColumns.nonEmpty
+  def hasUnsupportedColumns: Boolean = {
+    fileConstantMetadataColumns.nonEmpty ||
+    output.exists(_.name == FileFormat.ROW_INDEX_TEMPORARY_COLUMN_NAME) ||
+    // Below name has special meaning in Velox.
+    output.exists(a => a.name == "$path" || a.name == "$bucket")
+  }
 
   def hasFieldIds: Boolean = ParquetUtils.hasFieldIds(requiredSchema)
 
