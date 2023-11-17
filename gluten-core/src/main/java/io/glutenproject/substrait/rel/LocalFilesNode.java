@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class LocalFilesNode implements ReadSplit {
+public class LocalFilesNode implements SplitInfo {
   private final Integer index;
   private final List<String> paths = new ArrayList<>();
   private final List<Long> starts = new ArrayList<>();

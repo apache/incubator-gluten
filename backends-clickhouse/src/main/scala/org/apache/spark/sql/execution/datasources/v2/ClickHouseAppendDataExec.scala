@@ -246,7 +246,7 @@ case class ClickHouseAppendDataExec(
           database,
           tableName,
           tablePath)
-        dllCxt.substraitContext.setReadSplits(Seq(localFilesNode))
+        dllCxt.substraitContext.setSplitInfos(Seq(localFilesNode))
         dllCxt.substraitContext.setInsertOutputNode(insertOutputNode)
         val substraitPlan = dllCxt.root.toProtobuf
         logWarning(dllCxt.root.toProtobuf.toString)

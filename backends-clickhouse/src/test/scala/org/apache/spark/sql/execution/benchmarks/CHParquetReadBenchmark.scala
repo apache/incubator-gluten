@@ -115,7 +115,7 @@ object CHParquetReadBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
     val nativeFileScanRDD = BackendsApiManager.getIteratorApiInstance.genNativeFileScanRDD(
       spark.sparkContext,
       WholeStageTransformContext(planNode, substraitContext),
-      chFileScan.getReadSplits,
+      chFileScan.getSplitInfos,
       numOutputRows,
       numOutputVectors,
       scanTime

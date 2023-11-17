@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.metrics.{GlutenTimeMetric, IMetrics, NativeMetrics}
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder, ReadSplit}
+import io.glutenproject.substrait.rel.{ExtensionTableBuilder, LocalFilesBuilder, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
@@ -52,10 +52,10 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
    *
    * @return
    */
-  override def genReadSplit(
+  override def genSplitInfo(
       partition: InputPartition,
       partitionSchemas: StructType,
-      fileFormat: ReadFileFormat): ReadSplit = {
+      fileFormat: ReadFileFormat): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
         ExtensionTableBuilder
@@ -233,15 +233,15 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   override def genNativeFileScanRDD(
       sparkContext: SparkContext,
       wsCxt: WholeStageTransformContext,
-      readSplits: Seq[ReadSplit],
+      splitInfos: Seq[SplitInfo],
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {
     val substraitPlanPartition = GlutenTimeMetric.withMillisTime {
-      readSplits.zipWithIndex.map {
-        case (readSplit, index) =>
-          wsCxt.substraitContext.initReadSplitsIndex(0)
-          wsCxt.substraitContext.setReadSplits(Seq(readSplit))
+      splitInfos.zipWithIndex.map {
+        case (splitInfo, index) =>
+          wsCxt.substraitContext.initSplitInfosIndex(0)
+          wsCxt.substraitContext.setSplitInfos(Seq(splitInfo))
           val substraitPlan = wsCxt.root.toProtobuf
           if (index == 0) {
             logOnLevel(
@@ -253,7 +253,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           GlutenPartition(
             index,
             substraitPlan.toByteArray,
-            readSplit.preferredLocations().asScala.toArray)
+            splitInfo.preferredLocations().asScala.toArray)
       }
     }(t => logInfo(s"Generating the Substrait plan took: $t ms."))
 

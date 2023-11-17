@@ -21,7 +21,7 @@ import io.glutenproject.execution.{BaseGlutenPartition, BroadCastHashJoinContext
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
-import io.glutenproject.substrait.rel.ReadSplit
+import io.glutenproject.substrait.rel.SplitInfo
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
@@ -39,10 +39,10 @@ trait IteratorApi {
    *
    * @return
    */
-  def genReadSplit(
+  def genSplitInfo(
       partition: InputPartition,
       partitionSchemas: StructType,
-      fileFormat: ReadFileFormat): ReadSplit
+      fileFormat: ReadFileFormat): SplitInfo
 
   /**
    * Generate Iterator[ColumnarBatch] for first stage. ("first" means it does not depend on other
@@ -81,7 +81,7 @@ trait IteratorApi {
   def genNativeFileScanRDD(
       sparkContext: SparkContext,
       wsCxt: WholeStageTransformContext,
-      readSplits: Seq[ReadSplit],
+      splitInfos: Seq[SplitInfo],
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch]

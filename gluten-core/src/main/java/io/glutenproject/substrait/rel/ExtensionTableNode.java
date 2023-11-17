@@ -23,7 +23,7 @@ import io.substrait.proto.ReadRel;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ExtensionTableNode implements ReadSplit {
+public class ExtensionTableNode implements SplitInfo {
   private static final String MERGE_TREE = "MergeTree;";
   private Long minPartsNum;
   private Long maxPartsNum;

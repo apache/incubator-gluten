@@ -22,7 +22,7 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.ColumnTypeNode
 import io.glutenproject.substrait.{SubstraitContext, SupportFormat}
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.substrait.rel.{ReadRelNode, ReadSplit, RelBuilder}
+import io.glutenproject.substrait.rel.{ReadRelNode, SplitInfo, RelBuilder}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -53,10 +53,10 @@ trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
   // TODO: Remove this expensive call when CH support scan custom partition location.
   def getInputFilePaths: Seq[String]
 
-  def getReadSplits: Seq[ReadSplit] =
+  def getSplitInfos: Seq[SplitInfo] =
     getPartitions.map(
       BackendsApiManager.getIteratorApiInstance
-        .genReadSplit(_, getPartitionSchemas, fileFormat))
+        .genSplitInfo(_, getPartitionSchemas, fileFormat))
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("outputRows")
@@ -71,7 +71,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
     BackendsApiManager.getIteratorApiInstance.genNativeFileScanRDD(
       sparkContext,
       WholeStageTransformContext(planNode, substraitContext),
-      getReadSplits,
+      getSplitInfos,
       numOutputRows,
       numOutputVectors,
       scanTime

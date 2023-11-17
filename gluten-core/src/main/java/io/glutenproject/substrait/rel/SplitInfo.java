@@ -24,9 +24,9 @@ import java.util.List;
 /**
  * A serializable representation of a read split for native engine, including the file path and
  * other information of the scan table. It is returned by {@link
- * io.glutenproject.execution.BasicScanExecTransformer#getReadSplits()}.
+ * io.glutenproject.execution.BasicScanExecTransformer#getSplitInfos()}.
  */
-public interface ReadSplit extends Serializable {
+public interface SplitInfo extends Serializable {
   /** The preferred locations where the table files returned by this read split can run faster. */
   List<String> preferredLocations();
 

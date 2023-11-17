@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.substrait.rel.{LocalFilesBuilder, ReadSplit}
+import io.glutenproject.substrait.rel.{LocalFilesBuilder, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized._
@@ -58,10 +58,10 @@ class IteratorApiImpl extends IteratorApi with Logging {
    *
    * @return
    */
-  override def genReadSplit(
+  override def genSplitInfo(
       partition: InputPartition,
       partitionSchemas: StructType,
-      fileFormat: ReadFileFormat): ReadSplit = {
+      fileFormat: ReadFileFormat): SplitInfo = {
     partition match {
       case f: FilePartition =>
         val (paths, starts, lengths, partitionColumns) =
@@ -200,7 +200,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
   override def genNativeFileScanRDD(
       sparkContext: SparkContext,
       wsCxt: WholeStageTransformContext,
-      readSplits: Seq[ReadSplit],
+      splitInfos: Seq[SplitInfo],
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {
