@@ -256,7 +256,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
             GlutenPartition(
               index,
               substraitPlan.toByteArray,
-              splitInfos.head.preferredLocations().asScala.toArray)
+              splitInfos.flatMap(_.preferredLocations().asScala).distinct.toArray)
         }
         (wsCxt, substraitPlanPartitions)
       }(
