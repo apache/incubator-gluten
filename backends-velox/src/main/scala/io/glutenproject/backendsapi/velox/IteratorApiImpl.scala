@@ -21,7 +21,7 @@ import io.glutenproject.backendsapi.IteratorApi
 import io.glutenproject.execution._
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
-import io.glutenproject.substrait.rel.LocalFilesBuilder
+import io.glutenproject.substrait.rel.{LocalFilesBuilder, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.utils.Iterators
 import io.glutenproject.vectorized._
@@ -46,11 +46,10 @@ import java.lang.{Long => JLong}
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
-import java.util.{ArrayList => JArrayList}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 class IteratorApiImpl extends IteratorApi with Logging {
 
@@ -59,71 +58,63 @@ class IteratorApiImpl extends IteratorApi with Logging {
    *
    * @return
    */
-  override def genFilePartition(
-      index: Int,
-      partitions: Seq[InputPartition],
-      partitionSchemas: Seq[StructType],
-      fileFormats: Seq[ReadFileFormat],
-      wsCxt: WholeStageTransformContext): BaseGlutenPartition = {
-
-    def constructSplitInfo(schema: StructType, files: Array[PartitionedFile]) = {
-      val paths = mutable.ArrayBuffer.empty[String]
-      val starts = mutable.ArrayBuffer.empty[JLong]
-      val lengths = mutable.ArrayBuffer.empty[JLong]
-      val partitionColumns = mutable.ArrayBuffer.empty[Map[String, String]]
-      files.foreach {
-        file =>
-          paths.append(URLDecoder.decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
-          starts.append(JLong.valueOf(file.start))
-          lengths.append(JLong.valueOf(file.length))
-
-          val partitionColumn = mutable.Map.empty[String, String]
-          for (i <- 0 until file.partitionValues.numFields) {
-            val partitionColumnValue = if (file.partitionValues.isNullAt(i)) {
-              ExternalCatalogUtils.DEFAULT_PARTITION_NAME
-            } else {
-              val pn = file.partitionValues.get(i, schema.fields(i).dataType)
-              schema.fields(i).dataType match {
-                case _: BinaryType =>
-                  new String(pn.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
-                case _: DateType =>
-                  DateFormatter.apply().format(pn.asInstanceOf[Integer])
-                case _: TimestampType =>
-                  TimestampFormatter
-                    .getFractionFormatter(ZoneOffset.UTC)
-                    .format(pn.asInstanceOf[JLong])
-                case _ => pn.toString
-              }
-            }
-            partitionColumn.put(schema.names(i), partitionColumnValue)
-          }
-          partitionColumns.append(partitionColumn.toMap)
-      }
-      (paths, starts, lengths, partitionColumns)
+  override def genSplitInfo(
+      partition: InputPartition,
+      partitionSchemas: StructType,
+      fileFormat: ReadFileFormat): SplitInfo = {
+    partition match {
+      case f: FilePartition =>
+        val (paths, starts, lengths, partitionColumns) =
+          constructSplitInfo(partitionSchemas, f.files)
+        val preferredLocations =
+          SoftAffinityUtil.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
+        LocalFilesBuilder.makeLocalFiles(
+          f.index,
+          paths,
+          starts,
+          lengths,
+          partitionColumns,
+          fileFormat,
+          preferredLocations.toList.asJava)
+      case _ =>
+        throw new UnsupportedOperationException(s"Unsupported input partition.")
     }
+  }
 
-    val localFilesNodesWithLocations = partitions.indices.map(
-      i =>
-        partitions(i) match {
-          case f: FilePartition =>
-            val fileFormat = fileFormats(i)
-            val partitionSchema = partitionSchemas(i)
-            val (paths, starts, lengths, partitionColumns) =
-              constructSplitInfo(partitionSchema, f.files)
-            (
-              LocalFilesBuilder.makeLocalFiles(
-                f.index,
-                paths.asJava,
-                starts.asJava,
-                lengths.asJava,
-                partitionColumns.map(_.asJava).asJava,
-                fileFormat),
-              SoftAffinityUtil.getFilePartitionLocations(f))
-        })
-    wsCxt.substraitContext.initLocalFilesNodesIndex(0)
-    wsCxt.substraitContext.setLocalFilesNodes(localFilesNodesWithLocations.map(_._1))
-    val substraitPlan = wsCxt.root.toProtobuf
-    GlutenPartition(index, substraitPlan.toByteArray, localFilesNodesWithLocations.head._2)
+  private def constructSplitInfo(schema: StructType, files: Array[PartitionedFile]) = {
+    val paths = new JArrayList[String]()
+    val starts = new JArrayList[JLong]
+    val lengths = new JArrayList[JLong]()
+    val partitionColumns = new JArrayList[JMap[String, String]]
+    files.foreach {
+      file =>
+        paths.add(URLDecoder.decode(file.filePath.toString, StandardCharsets.UTF_8.name()))
+        starts.add(JLong.valueOf(file.start))
+        lengths.add(JLong.valueOf(file.length))
+
+        val partitionColumn = new JHashMap[String, String]()
+        for (i <- 0 until file.partitionValues.numFields) {
+          val partitionColumnValue = if (file.partitionValues.isNullAt(i)) {
+            ExternalCatalogUtils.DEFAULT_PARTITION_NAME
+          } else {
+            val pn = file.partitionValues.get(i, schema.fields(i).dataType)
+            schema.fields(i).dataType match {
+              case _: BinaryType =>
+                new String(pn.asInstanceOf[Array[Byte]], StandardCharsets.UTF_8)
+              case _: DateType =>
+                DateFormatter.apply().format(pn.asInstanceOf[Integer])
+              case _: TimestampType =>
+                TimestampFormatter
+                  .getFractionFormatter(ZoneOffset.UTC)
+                  .format(pn.asInstanceOf[java.lang.Long])
+              case _ => pn.toString
+            }
+          }
+          partitionColumn.put(schema.names(i), partitionColumnValue)
+        }
+        partitionColumns.add(partitionColumn)
+    }
+    (paths, starts, lengths, partitionColumns)
   }
 
   /**
@@ -211,8 +202,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
   override def genNativeFileScanRDD(
       sparkContext: SparkContext,
       wsCxt: WholeStageTransformContext,
-      fileFormat: ReadFileFormat,
-      inputPartitions: Seq[InputPartition],
+      splitInfos: Seq[SplitInfo],
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch] = {

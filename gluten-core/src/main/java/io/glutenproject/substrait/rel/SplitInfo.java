@@ -16,19 +16,19 @@
  */
 package io.glutenproject.substrait.rel;
 
+import com.google.protobuf.MessageOrBuilder;
+
+import java.io.Serializable;
 import java.util.List;
 
-public class ExtensionTableBuilder {
-  private ExtensionTableBuilder() {}
+/**
+ * A serializable representation of a read split for native engine, including the file path and
+ * other information of the scan table. It is returned by {@link
+ * io.glutenproject.execution.BasicScanExecTransformer#getSplitInfos()}.
+ */
+public interface SplitInfo extends Serializable {
+  /** The preferred locations where the table files returned by this read split can run faster. */
+  List<String> preferredLocations();
 
-  public static ExtensionTableNode makeExtensionTable(
-      Long minPartsNum,
-      Long maxPartsNum,
-      String database,
-      String tableName,
-      String relativePath,
-      List<String> preferredLocations) {
-    return new ExtensionTableNode(
-        minPartsNum, maxPartsNum, database, tableName, relativePath, preferredLocations);
-  }
+  MessageOrBuilder toProtobuf();
 }
