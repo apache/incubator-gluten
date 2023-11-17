@@ -76,6 +76,8 @@ class IteratorApiImpl extends IteratorApi with Logging {
           partitionColumns,
           fileFormat,
           preferredLocations.toList.asJava)
+      case _ =>
+        throw new UnsupportedOperationException(s"Unsupported input partition.")
     }
   }
 
