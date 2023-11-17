@@ -22,7 +22,7 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.ColumnTypeNode
 import io.glutenproject.substrait.{SubstraitContext, SupportFormat}
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.substrait.rel.{ReadRelNode, SplitInfo, RelBuilder}
+import io.glutenproject.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._

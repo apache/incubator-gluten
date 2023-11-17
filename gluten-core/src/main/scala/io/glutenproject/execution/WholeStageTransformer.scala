@@ -25,7 +25,7 @@ import io.glutenproject.metrics.{GlutenTimeMetric, MetricsUpdater, NoopMetricsUp
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
-import io.glutenproject.substrait.rel.{SplitInfo, RelNode}
+import io.glutenproject.substrait.rel.{RelNode, SplitInfo}
 import io.glutenproject.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark.{Dependency, OneToOneDependency, Partition, SparkConf, TaskContext}
