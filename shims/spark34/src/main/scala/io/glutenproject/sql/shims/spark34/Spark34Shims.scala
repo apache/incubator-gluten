@@ -37,10 +37,10 @@ import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs._
 
 class Spark34Shims extends SparkShims {
   override def getShimDescriptor: ShimDescriptor = SparkShimProvider.DESCRIPTOR
@@ -51,9 +51,8 @@ class Spark34Shims extends SparkShims {
     ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
   }
 
-  override def structFromAttributes(
-      attrs: Seq[Attribute]): StructType = {
-    StructType.fromAttributes(attrs)
+  override def structFromAttributes(attrs: Seq[Attribute]): StructType = {
+    StructType(attrs.map(a => StructField(a.name, a.dataType, a.nullable, a.metadata)))
   }
 
   override def expressionMappings: Seq[Sig] = {
@@ -142,15 +141,15 @@ class Spark34Shims extends SparkShims {
       cause = null)
   }
   override def splitFiles(
-       sparkSession: SparkSession,
-       file: FileStatusWithMetadata,
-       filePath: Path,
-       isSplitable: Boolean,
-       maxSplitBytes: Long,
-       partitionValues: InternalRow): Seq[PartitionedFile] = {
+      sparkSession: SparkSession,
+      file: Object,
+      filePath: Path,
+      isSplitable: Boolean,
+      maxSplitBytes: Long,
+      partitionValues: InternalRow): Seq[PartitionedFile] = {
     PartitionedFileUtil.splitFiles(
       sparkSession,
-      file,
+      file.asInstanceOf[FileStatus],
       filePath,
       isSplitable,
       maxSplitBytes,

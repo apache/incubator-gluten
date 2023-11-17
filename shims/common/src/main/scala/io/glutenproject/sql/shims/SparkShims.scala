@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, PlanExp
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -64,7 +65,8 @@ trait SparkShims {
 
   def splitFiles(
       sparkSession: SparkSession,
-      file: FileStatusWithMetadata,
+      // Hack -- the type changes in a non-backwards compatible way
+      file: Object,
       filePath: Path,
       isSplitable: Boolean,
       maxSplitBytes: Long,

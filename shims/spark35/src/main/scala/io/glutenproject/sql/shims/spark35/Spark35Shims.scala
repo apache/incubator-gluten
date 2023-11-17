@@ -138,11 +138,16 @@ class Spark35Shims extends SparkShims {
   }
   override def splitFiles(
       sparkSession: SparkSession,
-      file: FileStatusWithMetadata,
+      file: Object,
       filePath: Path,
       isSplitable: Boolean,
       maxSplitBytes: Long,
       partitionValues: InternalRow): Seq[PartitionedFile] = {
-    PartitionedFileUtil.splitFiles(sparkSession, file, isSplitable, maxSplitBytes, partitionValues)
+    PartitionedFileUtil.splitFiles(
+      sparkSession,
+      file.asInstanceOf[FileStatusWithMetadata],
+      isSplitable,
+      maxSplitBytes,
+      partitionValues)
   }
 }
