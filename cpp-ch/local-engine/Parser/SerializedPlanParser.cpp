@@ -1656,7 +1656,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 /// FIXME. Now we treet '1900-01-01' as null value. Not realy good.
                 /// Updating `toDate32OrNull` to return null if the string is invalid is not acceptable by
                 /// ClickHouse (https://github.com/ClickHouse/ClickHouse/issues/47120).
-                String function_name = "toDate32OrNull";
+                String function_name = "spark_to_date";
                 const auto * date_node = toFunctionNode(actions_dag, function_name, args);
                 const auto * zero_date_col_node = add_column(std::make_shared<DataTypeString>(), "1900-01-01");
                 const auto * zero_date_node = toFunctionNode(actions_dag, function_name, {zero_date_col_node});
