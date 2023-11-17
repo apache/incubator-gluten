@@ -29,6 +29,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
+import org.apache.spark.sql.catalyst.types.DataTypeUtils
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanLike, PartitionedFileUtil, SparkPlan}
@@ -49,6 +50,10 @@ class Spark35Shims extends SparkShims {
       leftKeys: Seq[Expression],
       rightKeys: Seq[Expression]): Seq[Distribution] = {
     ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
+  }
+
+  override def structFromAttributes(attrs: Seq[Attribute]): StructType = {
+    DataTypeUtils.fromAttributes(attrs)
   }
 
   override def expressionMappings: Seq[Sig] = {

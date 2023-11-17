@@ -51,6 +51,11 @@ class Spark33Shims extends SparkShims {
     ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
   }
 
+  override def structFromAttributes(
+      attrs: Seq[Attribute]): StructType = {
+    StructType.fromAttributes(attrs)
+  }
+
   override def expressionMappings: Seq[Sig] = {
     val list = if (GlutenConfig.getConf.enableNativeBloomFilter) {
       Seq(

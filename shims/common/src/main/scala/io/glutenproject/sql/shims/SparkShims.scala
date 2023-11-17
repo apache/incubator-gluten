@@ -23,7 +23,7 @@ import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, PlanExpression}
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
@@ -51,6 +51,8 @@ trait SparkShims {
   // for this purpose, change HashClusteredDistribution to ClusteredDistribution
   // https://github.com/apache/spark/pull/32875
   def getDistribution(leftKeys: Seq[Expression], rightKeys: Seq[Expression]): Seq[Distribution]
+
+  def structFromAttributes(attrs: Seq[Attribute]): StructType
 
   def expressionMappings: Seq[Sig]
 
