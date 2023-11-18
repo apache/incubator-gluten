@@ -35,7 +35,9 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.hive.execution.{CreateHiveTableAsSelectCommand, InsertIntoHiveDirCommand, InsertIntoHiveTable}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import scala.collection.immutable
+import scala.collection.compat._
+import scala.collection.compat.immutable.ArraySeq
+import scala.language.implicitConversions
 
 private case class FakeRowLogicAdaptor(child: LogicalPlan) extends OrderPreservingUnaryNode {
   override def output: Seq[Attribute] = child.output
@@ -159,7 +161,7 @@ object GlutenWriterColumnarRules {
             // if the child is columnar, we can just wrap&transfer the columnar data
             case c2r: ColumnarToRowExecBase =>
               rc.withNewChildren(
-                immutable.ArraySeq.unsafeWrapArray(Array(FakeRowAdaptor(c2r.child)))
+                ArraySeq.unsafeWrapArray(Array(FakeRowAdaptor(c2r.child)))
               )
             // If the child is aqe, we make aqe "support columnar",
             // then aqe itself will guarantee to generate columnar outputs.
@@ -167,7 +169,7 @@ object GlutenWriterColumnarRules {
             // thus avoiding the case of c2r->aqe->r2c->writer
             case aqe: AdaptiveSparkPlanExec =>
               rc.withNewChildren(
-                immutable.ArraySeq.unsafeWrapArray(
+                ArraySeq.unsafeWrapArray(
                   Array(
                     FakeRowAdaptor(
                       AdaptiveSparkPlanExec(
@@ -178,7 +180,7 @@ object GlutenWriterColumnarRules {
                         supportsColumnar = true
                       )))))
             case other =>
-              rc.withNewChildren(immutable.ArraySeq.unsafeWrapArray(Array(FakeRowAdaptor(other))))
+              rc.withNewChildren(ArraySeq.unsafeWrapArray(Array(FakeRowAdaptor(other))))
           }
         } else {
           rc.withNewChildren(rc.children.map(apply))

@@ -32,7 +32,10 @@ import org.apache.spark.util.ExecutorManager
 
 import java.io.Serializable
 
-import scala.collection.{immutable, mutable}
+import scala.collection.compat._
+import scala.collection.compat.immutable.ArraySeq
+import scala.collection.mutable
+import scala.language.implicitConversions
 
 trait BaseGlutenPartition extends Partition with InputPartition {
   def plan: Array[Byte]
@@ -125,7 +128,7 @@ class GlutenWholeStageColumnarRDD(
   }
 
   override def getPreferredLocations(split: Partition): Seq[String] = {
-    immutable.ArraySeq.unsafeWrapArray(castNativePartition(split)._1.preferredLocations())
+    ArraySeq.unsafeWrapArray(castNativePartition(split)._1.preferredLocations())
   }
 
   override protected def getPartitions: Array[Partition] = {

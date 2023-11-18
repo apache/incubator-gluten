@@ -26,6 +26,8 @@ import org.apache.commons.lang3.StringUtils
 import java.io.{File, IOException}
 import java.nio.file.Paths
 
+import scala.collection.compat.immutable.LazyList
+
 /**
  * Manages Gluten's local directories, for storing jars, libs, spill files, or other temporary
  * stuffs.
