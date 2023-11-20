@@ -246,6 +246,12 @@ macro(find_awssdk)
   find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
 endmacro()
 
+macro(find_gcssdk)
+  set (CMAKE_FIND_LIBRARY_SUFFIXES ".so")
+  find_package(google_cloud_cpp_storage REQUIRED)
+endmacro()
+
+
 
 # Build Velox backend.
 set(VELOX_SRCS
@@ -371,7 +377,7 @@ endif()
 
 if(ENABLE_GCS)
   add_definitions(-DENABLE_GCS)
-  find_package(google_cloud_cpp_storage REQUIRED)
+  find_gcssdk()
   target_link_libraries(velox PUBLIC google-cloud-cpp::storage)
 endif()
 
