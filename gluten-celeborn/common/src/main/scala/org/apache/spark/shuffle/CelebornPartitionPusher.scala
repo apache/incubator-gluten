@@ -35,8 +35,8 @@ class CelebornPartitionPusher(
 
   @throws[IOException]
   def pushPartitionData(partitionId: Int, buffer: Array[Byte], length: Int): Int = {
-    logDebug(s"Push record, size ${buffer.length}.")
-    if (buffer.length > clientPushBufferMaxSize) {
+    if (length > clientPushBufferMaxSize) {
+      logDebug(s"Push Data, size $length.")
       client.pushData(
         shuffleId,
         mapId,
@@ -48,6 +48,7 @@ class CelebornPartitionPusher(
         numMappers,
         numPartitions)
     } else {
+      logDebug(s"Merge Data, size $length.")
       client.mergeData(
         shuffleId,
         mapId,
