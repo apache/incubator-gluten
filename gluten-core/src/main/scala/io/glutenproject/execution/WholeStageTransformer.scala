@@ -115,7 +115,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     if (wholeStageTransformerContext.isDefined) {
       // TODO: remove this work around after we make `RelNode#toProtobuf` idempotent
       //    see `SubstraitContext#getCurrentLocalFileNode`.
-      wholeStageTransformerContext.get.substraitContext.initLocalFilesNodesIndex(0)
+      wholeStageTransformerContext.get.substraitContext.initSplitInfosIndex(0)
       wholeStageTransformerContext.get.root
     } else {
       generateWholeStageTransformContext().root

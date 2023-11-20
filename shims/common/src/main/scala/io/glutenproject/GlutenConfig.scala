@@ -1327,7 +1327,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.cacheWholeStageTransformerContext")
       .internal()
       .doc("When true, `WholeStageTransformer` will cache the `WholeStageTransformerContext` " +
-        "when executing")
+        "when executing. It is used to get substrait plan node and native plan string.")
       .booleanConf
       .createWithDefault(false)
 }
