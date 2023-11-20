@@ -47,7 +47,6 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
-import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
