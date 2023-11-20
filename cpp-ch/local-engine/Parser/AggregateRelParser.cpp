@@ -20,17 +20,18 @@
 #include <DataTypes/DataTypeAggregateFunction.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/IDataType.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionHelpers.h>
+#include <Operator/DefaultHashAggregateResult.h>
+#include <Operator/GraceMergingAggregatedStep.h>
+#include <Operator/StreamingAggregatingStep.h>
 #include <Parser/AggregateFunctionParser.h>
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/MergingAggregatedStep.h>
 #include "Common/PODArray.h"
 #include <Common/StringUtils/StringUtils.h>
-#include "DataTypes/IDataType.h"
-
-#include <Operator/DefaultHashAggregateResult.h>
 
 namespace DB
 {
@@ -237,20 +238,30 @@ void AggregateRelParser::addMergingAggregatedStep()
     buildAggregateDescriptions(aggregate_descriptions);
     auto settings = getContext()->getSettingsRef();
     Aggregator::Params params(grouping_keys, aggregate_descriptions, false, settings.max_threads, settings.max_block_size);
-    auto merging_step = std::make_unique<DB::MergingAggregatedStep>(
-        plan->getCurrentDataStream(),
-        params,
-        true,
-        false,
-        1,
-        1,
-        false,
-        settings.max_block_size,
-        settings.aggregation_in_order_max_block_bytes,
-        SortDescription(),
-        settings.enable_memory_bound_merging_of_aggregation_results);
-    steps.emplace_back(merging_step.get());
-    plan->addStep(std::move(merging_step));
+    
+    if (settings.distributed_aggregation_memory_efficient)
+    {
+        auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params);
+        steps.emplace_back(merging_step.get());
+        plan->addStep(std::move(merging_step));
+    }
+    else
+    {
+        auto merging_step = std::make_unique<DB::MergingAggregatedStep>(
+            plan->getCurrentDataStream(),
+            params,
+            true,
+            false,
+            1,
+            1,
+            false,
+            settings.max_block_size,
+            settings.aggregation_in_order_max_block_bytes,
+            SortDescription(),
+            settings.enable_memory_bound_merging_of_aggregation_results);
+        steps.emplace_back(merging_step.get());
+        plan->addStep(std::move(merging_step));
+    }
 }
 
 void AggregateRelParser::addAggregatingStep()
@@ -258,44 +269,74 @@ void AggregateRelParser::addAggregatingStep()
     AggregateDescriptions aggregate_descriptions;
     buildAggregateDescriptions(aggregate_descriptions);
     auto settings = getContext()->getSettingsRef();
-    Aggregator::Params params(
-        grouping_keys,
-        aggregate_descriptions,
-        false,
-        settings.max_rows_to_group_by,
-        settings.group_by_overflow_mode,
-        settings.group_by_two_level_threshold,
-        settings.group_by_two_level_threshold_bytes,
-        settings.max_bytes_before_external_group_by,
-        settings.empty_result_for_aggregation_by_empty_set,
-        getContext()->getTempDataOnDisk(),
-        settings.max_threads,
-        settings.min_free_disk_space_for_temporary_data,
-        true,
-        3,
-        settings.max_block_size,
-        /*enable_prefetch*/ true,
-        /*only_merge*/ false,
-        settings.optimize_group_by_constant_keys);
 
-    auto aggregating_step = std::make_unique<AggregatingStep>(
-        plan->getCurrentDataStream(),
-        params,
-        GroupingSetsParamsList(),
-        false,
-        settings.max_block_size,
-        settings.aggregation_in_order_max_block_bytes,
-        1,
-        1,
-        false,
-        false,
-        SortDescription(),
-        SortDescription(),
-        false,
-        false,
-        false);
-    steps.emplace_back(aggregating_step.get());
-    plan->addStep(std::move(aggregating_step));
+    if (settings.distributed_aggregation_memory_efficient)
+    {
+        // Disable spilling to disk.
+        Aggregator::Params params(
+            grouping_keys,
+            aggregate_descriptions,
+            false,
+            settings.max_rows_to_group_by,
+            settings.group_by_overflow_mode,
+            settings.group_by_two_level_threshold,
+            settings.group_by_two_level_threshold_bytes,
+            0,
+            settings.empty_result_for_aggregation_by_empty_set,
+            nullptr,
+            settings.max_threads,
+            settings.min_free_disk_space_for_temporary_data,
+            true,
+            3,
+            settings.max_block_size,
+            /*enable_prefetch*/ true,
+            /*only_merge*/ false,
+            settings.optimize_group_by_constant_keys);
+        auto aggregating_step = std::make_unique<StreamingAggregatingStep>(getContext(), plan->getCurrentDataStream(), params);
+        steps.emplace_back(aggregating_step.get());
+        plan->addStep(std::move(aggregating_step));
+    }
+    else
+    {
+        Aggregator::Params params(
+            grouping_keys,
+            aggregate_descriptions,
+            false,
+            settings.max_rows_to_group_by,
+            settings.group_by_overflow_mode,
+            settings.group_by_two_level_threshold,
+            settings.group_by_two_level_threshold_bytes,
+            settings.max_bytes_before_external_group_by,
+            settings.empty_result_for_aggregation_by_empty_set,
+            getContext()->getTempDataOnDisk(),
+            settings.max_threads,
+            settings.min_free_disk_space_for_temporary_data,
+            true,
+            3,
+            settings.max_block_size,
+            /*enable_prefetch*/ true,
+            /*only_merge*/ false,
+            settings.optimize_group_by_constant_keys);
+
+        auto aggregating_step = std::make_unique<AggregatingStep>(
+            plan->getCurrentDataStream(),
+            params,
+            GroupingSetsParamsList(),
+            false,
+            settings.max_block_size,
+            settings.aggregation_in_order_max_block_bytes,
+            1,
+            1,
+            false,
+            false,
+            SortDescription(),
+            SortDescription(),
+            false,
+            false,
+            false);
+        steps.emplace_back(aggregating_step.get());
+        plan->addStep(std::move(aggregating_step));
+    }
 }
 
 // Only be called in final stage.

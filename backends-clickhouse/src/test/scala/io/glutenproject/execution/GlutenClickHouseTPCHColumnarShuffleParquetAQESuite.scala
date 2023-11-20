@@ -66,8 +66,6 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
         assert(plans(2).metrics("outputRows").value === 600572)
 
         assert(plans(1).metrics("inputRows").value === 591673)
-        assert(plans(1).metrics("resizeInputRows").value === 4)
-        assert(plans(1).metrics("resizeOutputRows").value === 4)
         assert(plans(1).metrics("outputRows").value === 4)
         assert(plans(1).metrics("outputVectors").value === 1)
 
@@ -93,8 +91,6 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           assert(plans(2).metrics("filesSize").value === 17777735)
 
           assert(plans(1).metrics("inputRows").value === 591673)
-          assert(plans(1).metrics("resizeInputRows").value === 4)
-          assert(plans(1).metrics("resizeOutputRows").value === 4)
           assert(plans(1).metrics("outputRows").value === 4)
           assert(plans(1).metrics("outputVectors").value === 1)
 

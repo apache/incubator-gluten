@@ -434,6 +434,7 @@ DataTypePtr wrapNullableType(bool nullable, DataTypePtr nested_type)
 QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
 {
     auto * logger = &Poco::Logger::get("SerializedPlanParser");
+
     if (logger->debug())
     {
         namespace pb_util = google::protobuf::util;
