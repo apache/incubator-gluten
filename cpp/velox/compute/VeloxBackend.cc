@@ -115,7 +115,7 @@ namespace gluten {
 void VeloxBackend::printConf(const facebook::velox::Config* conf) {
   std::ostringstream oss;
   oss << "STARTUP: VeloxBackend conf = {\n";
-  for (const auto& [k, v] : conf.valuesCopy()) {
+  for (const auto& [k, v] : conf->valuesCopy()) {
     oss << " {" << k << ", " << v << "}\n";
   }
   oss << "}\n";
