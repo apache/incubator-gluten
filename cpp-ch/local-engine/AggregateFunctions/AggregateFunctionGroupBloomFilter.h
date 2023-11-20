@@ -126,6 +126,11 @@ public:
 
     void merge(AggregateDataPtr __restrict place, ConstAggregateDataPtr rhs, Arena *) const override
     {
+        // Skip un-initted values
+        if (!this->data(rhs).initted)
+        {
+            return;
+        }
         const auto & bloom_other = this->data(rhs).bloom_filter;
         const auto & filter_other = bloom_other.getFilter();
         if (!this->data(place).initted)
