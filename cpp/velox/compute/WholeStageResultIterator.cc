@@ -18,11 +18,11 @@
 #include "VeloxBackend.h"
 #include "VeloxRuntime.h"
 #include "config/GlutenConfig.h"
+#include "operators/plannodes/RowVectorStream.h"
+#include "utils/ConfigExtractor.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/exec/PlanNodeStats.h"
-
-#include "utils/ConfigExtractor.h"
 
 #ifdef ENABLE_HDFS
 #include <hdfs/hdfs.h>
@@ -191,16 +191,25 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
 void WholeStageResultIterator::getOrderedNodeIds(
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     std::vector<velox::core::PlanNodeId>& nodeIds) {
-  bool isProjectNode = (std::dynamic_pointer_cast<const velox::core::ProjectNode>(planNode) != nullptr);
   const auto& sourceNodes = planNode->sources();
-  for (const auto& sourceNode : sourceNodes) {
-    // Filter over Project are mapped into FilterProject operator in Velox.
-    // Metrics are all applied on Project node, and the metrics for Filter node
-    // do not exist.
-    if (isProjectNode && std::dynamic_pointer_cast<const velox::core::FilterNode>(sourceNode)) {
-      omittedNodeIds_.insert(sourceNode->id());
+  if (std::dynamic_pointer_cast<const velox::core::HashJoinNode>(planNode) &&
+      std::dynamic_pointer_cast<const ValueStreamNode>(sourceNodes[0]) &&
+      !std::dynamic_pointer_cast<const ValueStreamNode>(sourceNodes[1])) {
+    // If the build side of join if not from shuffle output, put the node id of stream input node together with join
+    // node id.
+    getOrderedNodeIds(sourceNodes[1], nodeIds);
+    getOrderedNodeIds(sourceNodes[0], nodeIds);
+  } else {
+    bool isProjectNode = std::dynamic_pointer_cast<const velox::core::ProjectNode>(planNode) != nullptr;
+    for (const auto& sourceNode : sourceNodes) {
+      // Filter over Project are mapped into FilterProject operator in Velox.
+      // Metrics are all applied on Project node, and the metrics for Filter node
+      // do not exist.
+      if (isProjectNode && std::dynamic_pointer_cast<const velox::core::FilterNode>(sourceNode)) {
+        omittedNodeIds_.insert(sourceNode->id());
+      }
+      getOrderedNodeIds(sourceNode, nodeIds);
     }
-    getOrderedNodeIds(sourceNode, nodeIds);
   }
   nodeIds.emplace_back(planNode->id());
 }
