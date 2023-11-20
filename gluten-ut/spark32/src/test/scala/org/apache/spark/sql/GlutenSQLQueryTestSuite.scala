@@ -157,7 +157,7 @@ class GlutenSQLQueryTestSuite
   protected val testDataPath = new File(resourcesPath, "test-data").getAbsolutePath
 
   protected val overwriteResourcePath =
-    BackendsApiManager.getTestApiInstance.getOverwriteSQLQueryResourcePath
+    getClass.getResource("/").getPath + "../../../src/test/resources/sql-tests"
 
   protected val overwriteInputFilePath = new File(overwriteResourcePath, "inputs").getAbsolutePath
   protected val overwriteGoldenFilePath = new File(overwriteResourcePath, "results").getAbsolutePath
@@ -611,10 +611,12 @@ class GlutenSQLQueryTestSuite
       }
     }
 
-    listFilesRecursively(new File(inputFilePath))
-      .flatMap(createTestCase(_, inputFilePath, goldenFilePath)) ++ listFilesRecursively(
-      new File(overwriteInputFilePath))
+    val overwriteTestCases = listFilesRecursively(new File(overwriteInputFilePath))
       .flatMap(createTestCase(_, overwriteInputFilePath, overwriteGoldenFilePath))
+    val overwriteTestCaseNames = overwriteTestCases.map(_.name)
+    listFilesRecursively(new File(inputFilePath))
+      .flatMap(createTestCase(_, inputFilePath, goldenFilePath))
+      .filterNot(testCase => overwriteTestCaseNames.contains(testCase.name)) ++ overwriteTestCases
   }
 
   /** Returns all the files (not directories) in a directory, recursively. */

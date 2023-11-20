@@ -20,6 +20,4 @@ trait TestApi {
   def getSupportedSQLQueryTests: Set[String]
 
   def getOverwriteSQLQueryTests: Set[String]
-
-  def getOverwriteSQLQueryResourcePath: String
 }

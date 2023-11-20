@@ -22,7 +22,4 @@ class CHTestApi extends TestApi {
   override def getSupportedSQLQueryTests: Set[String] = Set[String]()
 
   override def getOverwriteSQLQueryTests: Set[String] = Set[String]()
-
-  override def getOverwriteSQLQueryResourcePath: String =
-    getClass.getResource("/") + "../../test/resources/resources/sql-tests"
 }

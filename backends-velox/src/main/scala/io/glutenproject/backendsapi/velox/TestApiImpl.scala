@@ -210,7 +210,4 @@ class TestApiImpl extends TestApi {
     // Remove corr in udf/udf-group-by.sql
     "udf/udf-group-by.sql"
   )
-
-  override def getOverwriteSQLQueryResourcePath: String =
-    getClass.getResource("/") + "../../test/resources/resources/sql-tests"
 }
