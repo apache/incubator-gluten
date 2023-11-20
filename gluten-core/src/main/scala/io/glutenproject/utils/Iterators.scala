@@ -87,16 +87,15 @@ private class IteratorCompleter[A](in: Iterator[A])(completionCallback: => Unit)
 
 private class PipelineTimeAccumulator[A](in: Iterator[A], pipelineTime: SQLMetric)
   extends Iterator[A] {
-  private val accumulatedTime: AtomicLong = new AtomicLong(0L)
+  private var closed = false
+  private val startTime = System.nanoTime()
 
   TaskResources.addRecycler("Iterators#PipelineTimeAccumulator", 100) {
     tryFinish()
   }
 
   override def hasNext: Boolean = {
-    val prev = System.nanoTime()
     val out = in.hasNext
-    accumulatedTime.addAndGet(System.nanoTime() - prev)
     if (!out) {
       tryFinish()
     }
@@ -104,18 +103,17 @@ private class PipelineTimeAccumulator[A](in: Iterator[A], pipelineTime: SQLMetri
   }
 
   override def next(): A = {
-    val prev = System.nanoTime()
-    val out = in.next()
-    accumulatedTime.addAndGet(System.nanoTime() - prev)
-    out
+    in.next()
   }
 
   private def tryFinish(): Unit = {
-    pipelineTime += TimeUnit.NANOSECONDS.toMillis(
-      accumulatedTime.getAndSet(
-        0L
+    if (!closed) {
+      // pipeline metric should only be calculate once.
+      pipelineTime += TimeUnit.NANOSECONDS.toMillis(
+        System.nanoTime() - startTime
       )
-    ) // make sure the accumulated time is submitted once
+      closed = true;
+    }
   }
 }
 
