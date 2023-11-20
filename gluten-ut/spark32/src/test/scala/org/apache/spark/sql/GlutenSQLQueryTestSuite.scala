@@ -223,18 +223,6 @@ class GlutenSQLQueryTestSuite
     "udf/udf-window.sql" // Local window fixes are not added.
   ) ++ otherIgnoreList
 
-  /**
-<<<<<<< HEAD
-   * List of supported cases to run with Velox backend, in lower case. Please add to the supported
-   * list after enabling a sql test.
-   */
-
-  /**
-   * List of supported cases to run with Clickhouse backend, in lower case. Please add to the
-   * supported list after enabling a sql test.
-   */
-  private val CHSupportedList: Set[String] = Set()
-
   // List of supported cases to run with a certain backend, in lower case.
   private val supportedList: Set[String] =
     BackendsApiManager.getTestApiInstance.getSupportedSQLQueryTests ++
