@@ -129,7 +129,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
       updateInputMetrics: (InputMetricsWrapper) => Unit,
       updateNativeMetrics: IMetrics => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
-    val startTime = System.nanoTime()
     val columnarNativeIterators =
       new JArrayList[GeneralInIterator](inputIterators.map {
         iter => new ColumnarBatchInIterator(iter.asJava)
@@ -171,8 +170,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
-    val beforeBuild = System.nanoTime()
-
     val transKernel = NativePlanEvaluator.create()
     val columnarNativeIterator =
       new JArrayList[GeneralInIterator](inputIterators.map {
@@ -182,8 +179,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
       transKernel.createKernelWithBatchIterator(
         rootNode.toProtobuf.toByteArray,
         columnarNativeIterator)
-
-    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
     Iterators
       .wrap(nativeResultIterator.asScala)
