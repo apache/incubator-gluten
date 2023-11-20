@@ -115,7 +115,7 @@ namespace gluten {
 void VeloxBackend::printConf(const facebook::velox::Config& conf) {
   std::ostringstream oss;
   oss << "STARTUP: VeloxBackend conf = {\n";
-  for (auto& [k, v] : conf.values()) {
+  for (auto& [k, v] : conf.valuesCopy()) {
     oss << " {" << k << ", " << v << "}\n";
   }
   oss << "}\n";
@@ -205,7 +205,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   initIOExecutor(veloxcfg);
 
 #ifdef GLUTEN_PRINT_DEBUG
-  printConf(veloxcfg);
+  printConf(*veloxcfg);
 #endif
 
   veloxmemcfg->setValue(
