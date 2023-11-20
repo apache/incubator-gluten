@@ -49,7 +49,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
       "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of batch scan"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-      "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time"),
+      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "scan time"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
