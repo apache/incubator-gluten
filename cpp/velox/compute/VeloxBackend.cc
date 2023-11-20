@@ -19,6 +19,7 @@
 #include "VeloxBackend.h"
 
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <fstream>
 
 #include "operators/functions/RegistrationAllFunctions.h"
 #include "operators/plannodes/RowVectorStream.h"
@@ -45,6 +46,9 @@
 #include "velox/common/memory/MmapAllocator.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnector.h"
+#include "velox/connectors/hive/HiveDataSource.h"
+#include "velox/dwio/dwrf/reader/DwrfReader.h"
+#include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/serializers/PrestoSerializer.h"
 
 DECLARE_int32(split_preload_per_driver);
@@ -122,6 +126,10 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   auto veloxmemcfg = std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
   const facebook::velox::Config* veloxcfg = veloxmemcfg.get();
 
+  if (veloxcfg->get<bool>(kDebugModeEnabled, false)) {
+    LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
+  }
+
   uint32_t vlogLevel = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
   uint32_t severityLogLevel = veloxcfg->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
   FLAGS_v = vlogLevel;
@@ -152,111 +160,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
   initJolFilesystem(veloxcfg);
-
-#ifdef ENABLE_S3
-  std::string awsAccessKey = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.access.key", "");
-  std::string awsSecretKey = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.secret.key", "");
-  std::string awsEndpoint = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.endpoint", "");
-  bool sslEnabled = veloxcfg->get<bool>("spark.hadoop.fs.s3a.connection.ssl.enabled", false);
-  bool pathStyleAccess = veloxcfg->get<bool>("spark.hadoop.fs.s3a.path.style.access", false);
-  bool useInstanceCredentials = veloxcfg->get<bool>("spark.hadoop.fs.s3a.use.instance.credentials", false);
-  std::string iamRole = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.iam.role", "");
-  std::string iamRoleSessionName = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.iam.role.session.name", "");
-
-  const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
-  if (envAwsAccessKey != nullptr) {
-    awsAccessKey = std::string(envAwsAccessKey);
-  }
-  const char* envAwsSecretKey = std::getenv("AWS_SECRET_ACCESS_KEY");
-  if (envAwsSecretKey != nullptr) {
-    awsSecretKey = std::string(envAwsSecretKey);
-  }
-  const char* envAwsEndpoint = std::getenv("AWS_ENDPOINT");
-  if (envAwsEndpoint != nullptr) {
-    awsEndpoint = std::string(envAwsEndpoint);
-  }
-
-  std::unordered_map<std::string, std::string> s3Config({});
-  if (useInstanceCredentials) {
-    veloxmemcfg->setValue("hive.s3.use-instance-credentials", "true");
-  } else if (!iamRole.empty()) {
-    veloxmemcfg->setValue("hive.s3.iam-role", iamRole);
-    if (!iamRoleSessionName.empty()) {
-      veloxmemcfg->setValue("hive.s3.iam-role-session-name", iamRoleSessionName);
-    }
-  } else {
-    veloxmemcfg->setValue("hive.s3.aws-access-key", awsAccessKey);
-    veloxmemcfg->setValue("hive.s3.aws-secret-key", awsSecretKey);
-  }
-  // Only need to set s3 endpoint when not use instance credentials.
-  if (!useInstanceCredentials) {
-    veloxmemcfg->setValue("hive.s3.endpoint", awsEndpoint);
-  }
-  veloxmemcfg->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
-  veloxmemcfg->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
-#endif
-#ifdef ENABLE_GCS
-  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
-  std::string gsStorageRootUrl;
-  if (auto got = conf.find("spark.hadoop.fs.gs.storage.root.url"); got != conf.end()) {
-    gsStorageRootUrl = got->second;
-  }
-  if (!gsStorageRootUrl.empty()) {
-    std::string gcsScheme;
-    std::string gcsEndpoint;
-
-    const auto sep = std::string("://");
-    const auto pos = gsStorageRootUrl.find_first_of(sep);
-    if (pos != std::string::npos) {
-      gcsScheme = gsStorageRootUrl.substr(0, pos);
-      gcsEndpoint = gsStorageRootUrl.substr(pos + sep.length());
-    }
-
-    if (!gcsEndpoint.empty() && !gcsScheme.empty()) {
-      veloxmemcfg->setValue("hive.gcs.scheme", gcsScheme);
-      veloxmemcfg->setValue("hive.gcs.endpoint", gcsEndpoint);
-    }
-  }
-
-  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
-  std::string gsAuthType;
-  if (auto got = conf.find("spark.hadoop.fs.gs.auth.type"); got != conf.end()) {
-    gsAuthType = got->second;
-  }
-  if (gsAuthType == "SERVICE_ACCOUNT_JSON_KEYFILE") {
-    std::string gsAuthServiceAccountJsonKeyfile;
-    if (auto got = conf.find("spark.hadoop.fs.gs.auth.service.account.json.keyfile"); got != conf.end()) {
-      gsAuthServiceAccountJsonKeyfile = got->second;
-    }
-
-    std::string gsAuthServiceAccountJson;
-    if (!gsAuthServiceAccountJsonKeyfile.empty()) {
-      auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile);
-      stream.exceptions(std::ios::badbit);
-      gsAuthServiceAccountJson = std::string(std::istreambuf_iterator<char>(stream.rdbuf()), {});
-    } else {
-      LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
-                      "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
-      throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
-    }
-
-    if (!gsAuthServiceAccountJson.empty()) {
-      veloxmemcfg->setValue("hive.gcs.credentials", gsAuthServiceAccountJson);
-    }
-  }
-#endif
-
   initCache(veloxcfg);
-  initIOExecutor(veloxcfg);
-
-  veloxmemcfg->setValue(
-      velox::connector::hive::HiveConfig::kEnableFileHandleCache,
-      veloxcfg->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
-  auto hiveConnector =
-      velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
-          ->newConnector(kHiveConnectorId, veloxmemcfg, ioExecutor_.get());
-
-  registerConnector(hiveConnector);
+  initConnector(veloxcfg);
 
   // Register Velox functions
   registerAllFunctions();
@@ -267,10 +172,6 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
   initUdf(veloxcfg);
-
-  if (veloxcfg->get<bool>(kDebugModeEnabled, false)) {
-    LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
-  }
   registerSparkTokenizer();
 }
 
@@ -335,17 +236,157 @@ void VeloxBackend::initCache(const facebook::velox::Config* conf) {
   }
 }
 
-void VeloxBackend::initIOExecutor(const facebook::velox::Config* conf) {
-  int32_t ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
-  int32_t splitPreloadPerDriver = conf->get<int32_t>(kVeloxSplitPreloadPerDriver, kVeloxSplitPreloadPerDriverDefault);
-  if (ioThreads > 0) {
-    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
-    FLAGS_split_preload_per_driver = splitPreloadPerDriver;
+namespace {
+class MemoryPoolReplacedHiveConnector : public velox::connector::hive::HiveConnector {
+ public:
+  MemoryPoolReplacedHiveConnector(
+      velox::memory::MemoryPool* pool,
+      const std::string& id,
+      std::shared_ptr<const velox::Config> properties,
+      folly::Executor* FOLLY_NULLABLE executor)
+      : velox::connector::hive::HiveConnector(id, properties, executor), pool_{pool} {}
+
+  std::unique_ptr<velox::connector::DataSource> createDataSource(
+      const velox::RowTypePtr& outputType,
+      const std::shared_ptr<velox::connector::ConnectorTableHandle>& tableHandle,
+      const std::unordered_map<std::string, std::shared_ptr<velox::connector::ColumnHandle>>& columnHandles,
+      velox::connector::ConnectorQueryCtx* connectorQueryCtx) override {
+    velox::dwio::common::ReaderOptions options(pool_);
+    options.setMaxCoalesceBytes(velox::connector::hive::HiveConfig::maxCoalescedBytes(connectorQueryCtx->config()));
+    options.setMaxCoalesceDistance(
+        velox::connector::hive::HiveConfig::maxCoalescedDistanceBytes(connectorQueryCtx->config()));
+    options.setFileColumnNamesReadAsLowerCase(
+        velox::connector::hive::HiveConfig::isFileColumnNamesReadAsLowerCase(connectorQueryCtx->config()));
+    options.setUseColumnNamesForColumnMapping(
+        velox::connector::hive::HiveConfig::isOrcUseColumnNames(connectorQueryCtx->config()));
+
+    return std::make_unique<velox::connector::hive::HiveDataSource>(
+        outputType,
+        tableHandle,
+        columnHandles,
+        &fileHandleFactory_,
+        connectorQueryCtx->expressionEvaluator(),
+        connectorQueryCtx->cache(),
+        connectorQueryCtx->scanId(),
+        executor_,
+        options);
   }
 
-  if (splitPreloadPerDriver > 0 && ioThreads > 0) {
-    LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
-              << ", IO threads: " << ioThreads;
+ private:
+  velox::memory::MemoryPool* pool_;
+};
+} // namespace
+
+void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
+  int32_t ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
+  int32_t splitPreloadPerDriver = conf->get<int32_t>(kVeloxSplitPreloadPerDriver, kVeloxSplitPreloadPerDriverDefault);
+
+  auto mutableConf = std::make_shared<facebook::velox::core::MemConfigMutable>(conf->valuesCopy());
+
+#ifdef ENABLE_S3
+  std::string awsAccessKey = conf->get<std::string>("spark.hadoop.fs.s3a.access.key", "");
+  std::string awsSecretKey = conf->get<std::string>("spark.hadoop.fs.s3a.secret.key", "");
+  std::string awsEndpoint = conf->get<std::string>("spark.hadoop.fs.s3a.endpoint", "");
+  bool sslEnabled = conf->get<bool>("spark.hadoop.fs.s3a.connection.ssl.enabled", false);
+  bool pathStyleAccess = conf->get<bool>("spark.hadoop.fs.s3a.path.style.access", false);
+  bool useInstanceCredentials = conf->get<bool>("spark.hadoop.fs.s3a.use.instance.credentials", false);
+  std::string iamRole = conf->get<std::string>("spark.hadoop.fs.s3a.iam.role", "");
+  std::string iamRoleSessionName = conf->get<std::string>("spark.hadoop.fs.s3a.iam.role.session.name", "");
+
+  const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
+  if (envAwsAccessKey != nullptr) {
+    awsAccessKey = std::string(envAwsAccessKey);
+  }
+  const char* envAwsSecretKey = std::getenv("AWS_SECRET_ACCESS_KEY");
+  if (envAwsSecretKey != nullptr) {
+    awsSecretKey = std::string(envAwsSecretKey);
+  }
+  const char* envAwsEndpoint = std::getenv("AWS_ENDPOINT");
+  if (envAwsEndpoint != nullptr) {
+    awsEndpoint = std::string(envAwsEndpoint);
+  }
+
+  std::unordered_map<std::string, std::string> s3Config({});
+  if (useInstanceCredentials) {
+    mutableConf->setValue("hive.s3.use-instance-credentials", "true");
+  } else if (!iamRole.empty()) {
+    mutableConf->setValue("hive.s3.iam-role", iamRole);
+    if (!iamRoleSessionName.empty()) {
+      mutableConf->setValue("hive.s3.iam-role-session-name", iamRoleSessionName);
+    }
+  } else {
+    mutableConf->setValue("hive.s3.aws-access-key", awsAccessKey);
+    mutableConf->setValue("hive.s3.aws-secret-key", awsSecretKey);
+  }
+  // Only need to set s3 endpoint when not use instance credentials.
+  if (!useInstanceCredentials) {
+    mutableConf->setValue("hive.s3.endpoint", awsEndpoint);
+  }
+  mutableConf->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
+  mutableConf->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
+#endif
+
+#ifdef ENABLE_GCS
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
+  auto gsStorageRootUrl = conf->get("spark.hadoop.fs.gs.storage.root.url");
+  if (gsStorageRootUrl.hasValue()) {
+    std::string url = gsStorageRootUrl.value();
+    std::string gcsScheme;
+    std::string gcsEndpoint;
+
+    const auto sep = std::string("://");
+    const auto pos = url.find_first_of(sep);
+    if (pos != std::string::npos) {
+      gcsScheme = url.substr(0, pos);
+      gcsEndpoint = url.substr(pos + sep.length());
+    }
+
+    if (!gcsEndpoint.empty() && !gcsScheme.empty()) {
+      mutableConf->setValue("hive.gcs.scheme", gcsScheme);
+      mutableConf->setValue("hive.gcs.endpoint", gcsEndpoint);
+    }
+  }
+
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
+  auto gsAuthType = conf->get("spark.hadoop.fs.gs.auth.type");
+  if (gsAuthType.hasValue()) {
+    std::string type = gsAuthType.value();
+    if (type == "SERVICE_ACCOUNT_JSON_KEYFILE") {
+      auto gsAuthServiceAccountJsonKeyfile = conf->get("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
+      if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
+        auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile.value());
+        stream.exceptions(std::ios::badbit);
+        std::string gsAuthServiceAccountJson = std::string(std::istreambuf_iterator<char>(stream.rdbuf()), {});
+        mutableConf->setValue("hive.gcs.credentials", gsAuthServiceAccountJson);
+      } else {
+        LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
+                        "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
+        throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
+      }
+    }
+  }
+#endif
+
+  mutableConf->setValue(
+      velox::connector::hive::HiveConfig::kEnableFileHandleCache,
+      conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
+
+  if (ioThreads > 0) {
+    if (splitPreloadPerDriver > 0) {
+      // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
+      // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
+      LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
+                << ", IO threads: " << ioThreads;
+      FLAGS_split_preload_per_driver = splitPreloadPerDriver;
+    }
+    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
+    // Use global memory pool for hive connector if IO threads is set. Otherwise, the allocated memory
+    // blocks might cause unexpected behavior (e.g. crash) since the allocations were proceed in background IO threads.
+    velox::connector::registerConnector(std::make_shared<MemoryPoolReplacedHiveConnector>(
+        gluten::defaultLeafVeloxMemoryPool().get(), kHiveConnectorId, mutableConf, ioExecutor_.get()));
+  } else {
+    velox::connector::registerConnector(
+        std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, mutableConf, ioExecutor_.get()));
   }
 }
 
