@@ -47,6 +47,8 @@ class VeloxBackend extends Backend {
   override def listenerApi(): ListenerApi = new ListenerApiImpl
   override def broadcastApi(): BroadcastApi = new BroadcastApiImpl
   override def settings(): BackendSettingsApi = BackendSettings
+
+  override def testApi(): TestApi = new TestApiImpl
 }
 
 object VeloxBackend {

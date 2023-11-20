@@ -46,6 +46,8 @@ class CHBackend extends Backend {
   override def listenerApi(): ListenerApi = new CHListenerApi
   override def broadcastApi(): BroadcastApi = new CHBroadcastApi
   override def settings(): BackendSettingsApi = CHBackendSettings
+
+  override def testApi(): TestApi = new CHTestApi
 }
 
 object CHBackend {

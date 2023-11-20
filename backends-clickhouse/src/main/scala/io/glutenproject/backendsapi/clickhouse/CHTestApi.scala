@@ -14,30 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi
+package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.GlutenPlugin
+import io.glutenproject.backendsapi.TestApi
 
-trait Backend {
-  def name(): String
+class CHTestApi extends TestApi {
+  override def getSupportedSQLQueryTests: Set[String] = Set[String]()
 
-  def buildInfo(): GlutenPlugin.BackendBuildInfo
+  override def getOverwriteSQLQueryTests: Set[String] = Set[String]()
 
-  def iteratorApi(): IteratorApi
-
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def listenerApi(): ListenerApi
-
-  def broadcastApi(): BroadcastApi
-
-  def settings(): BackendSettingsApi
-
-  def testApi(): TestApi
+  override def getOverwriteSQLQueryResourcePath: String =
+    getClass.getResource("/") + "../../test/resources/resources/sql-tests"
 }

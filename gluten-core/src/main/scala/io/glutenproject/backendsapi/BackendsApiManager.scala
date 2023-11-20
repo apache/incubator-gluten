@@ -92,4 +92,8 @@ object BackendsApiManager {
   def getSettings: BackendSettingsApi = {
     backend.settings
   }
+
+  def getTestApiInstance: TestApi = {
+    backend.testApi()
+  }
 }

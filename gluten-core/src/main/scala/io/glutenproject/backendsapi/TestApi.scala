@@ -16,28 +16,10 @@
  */
 package io.glutenproject.backendsapi
 
-import io.glutenproject.GlutenPlugin
+trait TestApi {
+  def getSupportedSQLQueryTests: Set[String]
 
-trait Backend {
-  def name(): String
+  def getOverwriteSQLQueryTests: Set[String]
 
-  def buildInfo(): GlutenPlugin.BackendBuildInfo
-
-  def iteratorApi(): IteratorApi
-
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def listenerApi(): ListenerApi
-
-  def broadcastApi(): BroadcastApi
-
-  def settings(): BackendSettingsApi
-
-  def testApi(): TestApi
+  def getOverwriteSQLQueryResourcePath: String
 }
