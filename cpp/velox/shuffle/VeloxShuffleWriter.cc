@@ -924,7 +924,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       auto& binaryBuf = dst[pid];
 
       // use 32bit offset
-      auto dstOffsetBase = (BinaryArrayLengthBufferType*)(binaryBuf.offsetPtr) + partitionBufferIdxBase_[pid];
+      auto dstOffsetBase = (BinaryArrayLengthBufferType*)(binaryBuf.lengthPtr) + partitionBufferIdxBase_[pid];
 
       auto valueOffset = binaryBuf.valueOffset;
       auto dstValuePtr = binaryBuf.valuePtr + valueOffset;
@@ -1116,7 +1116,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       auto stringViewColumn = column->asFlatVector<facebook::velox::StringView>();
       assert(stringViewColumn);
 
-      uint64_t binarySizeBytes = stringViewColumn->values()->size();
+      //      uint64_t binarySizeBytes = stringViewColumn->values()->size();
+      uint64_t binarySizeBytes = 0;
       for (auto& buffer : stringViewColumn->stringBuffers()) {
         binarySizeBytes += buffer->size();
       }
@@ -1489,9 +1490,10 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
           RETURN_NOT_OK(lengthBuffer->Resize(newSize * kSizeOfBinaryArrayLengthBuffer));
 
           // Skip Resize value buffer if the spill is triggered by resizing this split binary buffer.
+          // Only update length buffer ptr.
           if (binaryArrayResizeState_.inResize && partitionId == binaryArrayResizeState_.partitionId &&
               binaryIdx == binaryArrayResizeState_.binaryIdx) {
-            binaryBuf.offsetPtr = lengthBuffer->mutable_data();
+            binaryBuf.lengthPtr = lengthBuffer->mutable_data();
             break;
           }
 
@@ -1500,6 +1502,13 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
           ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of binary array is null."));
           // Determine the new Size for value buffer.
           auto valueBufferSize = valueBufferSizeForBinaryArray(binaryIdx, newSize);
+          // If shrink is triggered by spill, and binary new size is larger, do not resize the buffer to avoid issuing
+          // another spill. Only update length buffer ptr.
+          if (evictState_ == EvictState::kUnevictable && newSize <= partition2BufferSize_[partitionId] &&
+              valueBufferSize >= valueBuffer->size()) {
+            binaryBuf.lengthPtr = lengthBuffer->mutable_data();
+            break;
+          }
           auto valueOffset = 0;
           // If preserve data, the new valueBufferSize should not be smaller than the current offset.
           if (preserveData) {

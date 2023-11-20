@@ -18,6 +18,8 @@
 #include <arrow/c/bridge.h>
 #include <arrow/io/api.h>
 
+#include <boost/stacktrace.hpp>
+
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
 #include "shuffle/rss/CelebornPartitionWriter.h"
@@ -634,6 +636,30 @@ TEST_F(VeloxShuffleWriterMemoryTest, kUnevictableSingle) {
   // Evict again. Single partitioning doesn't have partition buffers, so the evicted size is 0.
   ASSERT_NOT_OK(shuffleWriter->evictFixedSize(shuffleWriter->partitionBufferSize(), &evicted));
   ASSERT_EQ(evicted, 0);
+}
+
+TEST_F(VeloxShuffleWriterMemoryTest, resizeBinaryBufferTriggerSpill) {
+  shuffleWriterOptions_.buffer_realloc_threshold = 1;
+  auto delegated = shuffleWriterOptions_.memory_pool;
+  auto pool = SelfEvictedMemoryPool(delegated, false);
+  shuffleWriterOptions_.memory_pool = &pool;
+  auto shuffleWriter = createShuffleWriter();
+
+  pool.setEvictable(shuffleWriter.get());
+
+  // Split first input vector. Large average string length.
+  ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVectorLargeBinary1_));
+
+  // Evict cached payloads.
+  int64_t evicted;
+  ASSERT_NOT_OK(shuffleWriter->evictFixedSize(shuffleWriter->cachedPayloadSize(), &evicted));
+  ASSERT_EQ(shuffleWriter->cachedPayloadSize(), 0);
+  // Set limited capacity.
+  ASSERT_TRUE(pool.checkEvict(pool.bytes_allocated(), [&] {
+    // Split second input vector. Large average string length.
+    ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVectorLargeBinary2_));
+  }));
+  ASSERT_NOT_OK(shuffleWriter->stop());
 }
 
 INSTANTIATE_TEST_SUITE_P(
