@@ -69,6 +69,14 @@ void VeloxRuntime::getInfoAndIds(
   }
 }
 
+std::string VeloxRuntime::planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) {
+  std::vector<std::shared_ptr<ResultIterator>> inputs;
+  auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
+  VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), sessionConf, true);
+  auto veloxPlan = veloxPlanConverter.toVeloxPlan(substraitPlan_);
+  return veloxPlan->toString(details, true);
+}
+
 std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     MemoryManager* memoryManager,
     const std::string& spillDir,

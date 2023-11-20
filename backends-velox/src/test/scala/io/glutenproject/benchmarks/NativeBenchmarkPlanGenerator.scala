@@ -16,6 +16,7 @@
  */
 package io.glutenproject.benchmarks
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{VeloxWholeStageTransformerSuite, WholeStageTransformer}
 
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
@@ -50,8 +51,9 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
   }
 
   test("Test plan json non-empty - AQE off") {
-    spark.sparkContext.setLogLevel("DEBUG")
-    withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false",
+      GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT.key -> "true") {
       val df = spark
         .sql("""
                |select * from lineitem
@@ -59,18 +61,19 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
       val executedPlan = df.queryExecution.executedPlan
       val lastStageTransformer = executedPlan.find(_.isInstanceOf[WholeStageTransformer])
       assert(lastStageTransformer.nonEmpty)
-      var planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson
-      assert(planJson.isEmpty)
+      var planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].substraitPlanJson
+      assert(planJson.nonEmpty)
       executedPlan.execute()
-      planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson
+      planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].substraitPlanJson
       assert(planJson.nonEmpty)
     }
     spark.sparkContext.setLogLevel(logLevel)
   }
 
   test("Test plan json non-empty - AQE on") {
-    spark.sparkContext.setLogLevel("DEBUG")
-    withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
+      GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT.key -> "true") {
       val df = spark
         .sql("""
                |select * from lineitem join orders on l_orderkey = o_orderkey
@@ -82,7 +85,7 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
       val finalPlan = executedPlan.asInstanceOf[AdaptiveSparkPlanExec].executedPlan
       val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformer])
       assert(lastStageTransformer.nonEmpty)
-      val planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson
+      val planJson = lastStageTransformer.get.asInstanceOf[WholeStageTransformer].substraitPlanJson
       assert(planJson.nonEmpty)
     }
     spark.sparkContext.setLogLevel(logLevel)
@@ -90,10 +93,10 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
 
   test("generate example", GenerateExample) {
     import testImplicits._
-    spark.sparkContext.setLogLevel("DEBUG")
     withSQLConf(
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",
-      SQLConf.SHUFFLE_PARTITIONS.key -> "2"
+      SQLConf.SHUFFLE_PARTITIONS.key -> "2",
+      GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT.key -> "true"
     ) {
       val q4_lineitem = spark
         .sql(s"""
@@ -141,7 +144,7 @@ class NativeBenchmarkPlanGenerator extends VeloxWholeStageTransformerSuite {
       val lastStageTransformer = finalPlan.find(_.isInstanceOf[WholeStageTransformer])
       assert(lastStageTransformer.nonEmpty)
       val plan =
-        lastStageTransformer.get.asInstanceOf[WholeStageTransformer].getPlanJson.split('\n')
+        lastStageTransformer.get.asInstanceOf[WholeStageTransformer].substraitPlanJson.split('\n')
 
       val exampleJsonFile = Paths.get(generatedPlanDir, "example.json")
       Files.write(exampleJsonFile, plan.toList.asJava, StandardCharsets.UTF_8)

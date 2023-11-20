@@ -1322,4 +1322,12 @@ object GlutenConfig {
         "if files are mutable, i.e. file content may change while file path stays the same.")
       .booleanConf
       .createWithDefault(false)
+
+  val CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT =
+    buildConf("spark.gluten.sql.cacheWholeStageTransformerContext")
+      .internal()
+      .doc("When true, `WholeStageTransformer` will cache the `WholeStageTransformerContext` " +
+        "when executing. It is used to get substrait plan node and native plan string.")
+      .booleanConf
+      .createWithDefault(false)
 }

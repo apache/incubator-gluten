@@ -19,12 +19,13 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.{GenerateExec, RDDScanExec}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{avg, col, udf}
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
 import scala.collection.JavaConverters
 
-class TestOperator extends VeloxWholeStageTransformerSuite {
+class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
@@ -583,6 +584,19 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
             getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[GenerateExec]).isDefined)
           }
       }
+    }
+  }
+
+  test("Support get native plan tree string") {
+    runQueryAndCompare("select l_partkey + 1, count(*) from lineitem group by l_partkey + 1") {
+      df =>
+        val wholeStageTransformers = collect(df.queryExecution.executedPlan) {
+          case w: WholeStageTransformer => w
+        }
+        val nativePlanString = wholeStageTransformers.head.nativePlanString()
+        assert(nativePlanString.contains("Aggregation[FINAL"))
+        assert(nativePlanString.contains("Aggregation[PARTIAL"))
+        assert(nativePlanString.contains("TableScan"))
     }
   }
 }

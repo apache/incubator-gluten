@@ -107,6 +107,8 @@ class VeloxRuntime final : public Runtime {
       arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) override;
 
+  std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) override;
+
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
     return veloxPlan_;
   }

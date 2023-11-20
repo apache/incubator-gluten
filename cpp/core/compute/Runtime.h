@@ -84,6 +84,8 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
     GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
   }
 
+  virtual std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) = 0;
+
   // Just for benchmark
   ::substrait::Plan& getPlan() {
     return substraitPlan_;
