@@ -16,37 +16,39 @@
  */
 
 #include "VeloxRuntime.h"
+
 #include <filesystem>
 
-#include "arrow/c/bridge.h"
+#include "VeloxBackend.h"
 #include "compute/ResultIterator.h"
 #include "compute/Runtime.h"
 #include "compute/VeloxPlanConverter.h"
 #include "config/GlutenConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
+#include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/VeloxShuffleWriter.h"
+#include "utils/ConfigExtractor.h"
 
 using namespace facebook;
 
 namespace gluten {
 
-namespace {
-
-#ifdef GLUTEN_PRINT_DEBUG
-void printSessionConf(const std::unordered_map<std::string, std::string>& conf) {
-  std::ostringstream oss;
-  oss << "session conf = {\n";
-  for (auto& [k, v] : conf) {
-    oss << " {" << k << " = " << v << "}\n";
-  }
-  oss << "}\n";
-  LOG(INFO) << oss.str();
-}
-#endif
-
-} // namespace
-
 VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap) : Runtime(confMap) {}
+
+void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) {
+  taskInfo_ = taskInfo;
+  if (getConfigValue(confMap_, kDebugModeEnabled, "false") == "true") {
+    try {
+      auto jsonPlan = substraitFromPbToJson("Plan", data, size);
+      LOG(INFO) << std::string(50, '#') << " received substrait::Plan:";
+      LOG(INFO) << taskInfo_ << std::endl << jsonPlan;
+    } catch (const std::exception& e) {
+      LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
+    }
+  }
+
+  GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
+}
 
 void VeloxRuntime::getInfoAndIds(
     const std::unordered_map<velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfoMap,
@@ -82,9 +84,9 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
-#ifdef GLUTEN_PRINT_DEBUG
-  printSessionConf(sessionConf);
-#endif
+  if (getConfigValue(confMap_, kDebugModeEnabled, "false") == "true") {
+    LOG(INFO) << "VeloxRuntime session config:" << printConfig(confMap_);
+  }
 
   VeloxPlanConverter veloxPlanConverter(inputs, getLeafVeloxPool(memoryManager).get(), sessionConf);
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
