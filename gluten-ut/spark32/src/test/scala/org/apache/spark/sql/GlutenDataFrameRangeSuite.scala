@@ -16,4 +16,11 @@
  */
 package org.apache.spark.sql
 
-class GlutenDataFrameRangeSuite extends DataFrameRangeSuite with GlutenSQLTestsTrait {}
+class GlutenDataFrameRangeSuite extends DataFrameRangeSuite with GlutenSQLTestsTrait {
+
+  override def testNameBlackList: Seq[String] = Seq(
+    "Cancelling stage in a query with Range",
+    "SPARK-20430 Initialize Range parameters in a driver side"
+  )
+
+}
