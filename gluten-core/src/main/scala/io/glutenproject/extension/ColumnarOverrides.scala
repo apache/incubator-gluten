@@ -751,8 +751,10 @@ case class ColumnarOverrideRules(session: SparkSession)
   private val aqeStackTraceIndex = 14
 
   // Holds the original plan for possible entire fallback.
-  private val localOriginalPlans = new ThreadLocal[ListBuffer[SparkPlan]]
-  private val localIsAdaptiveContextFlags = new ThreadLocal[ListBuffer[Boolean]]
+  private val localOriginalPlans: ThreadLocal[ListBuffer[SparkPlan]] =
+    ThreadLocal.withInitial(() => ListBuffer.empty[SparkPlan])
+  private val localIsAdaptiveContextFlags: ThreadLocal[ListBuffer[Boolean]] =
+    ThreadLocal.withInitial(() => ListBuffer.empty[Boolean])
 
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
@@ -778,9 +780,6 @@ case class ColumnarOverrideRules(session: SparkSession)
     // columnar rule will be applied in adaptive execution context. This part of code
     // needs to be carefully checked when supporting higher versions of spark to make
     // sure the calling stack has not been changed.
-    if (localIsAdaptiveContextFlags.get() == null) {
-      localIsAdaptiveContextFlags.set(ListBuffer.empty[Boolean])
-    }
     localIsAdaptiveContextFlags
       .get()
       .prepend(
@@ -792,9 +791,6 @@ case class ColumnarOverrideRules(session: SparkSession)
     localIsAdaptiveContextFlags.get().remove(0)
 
   private def setOriginalPlan(plan: SparkPlan): Unit = {
-    if (localOriginalPlans.get == null) {
-      localOriginalPlans.set(ListBuffer.empty[SparkPlan])
-    }
     localOriginalPlans.get.prepend(plan)
   }
 
