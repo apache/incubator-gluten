@@ -17,7 +17,7 @@
 package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.backendsapi.{BackendsApiManager, TestApi}
 import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
@@ -158,7 +158,6 @@ class GlutenSQLQueryTestSuite
 
   protected val overwriteResourcePath =
     getClass.getResource("/").getPath + "../../../src/test/resources/sql-tests"
-
   protected val overwriteInputFilePath = new File(overwriteResourcePath, "inputs").getAbsolutePath
   protected val overwriteGoldenFilePath = new File(overwriteResourcePath, "results").getAbsolutePath
 
@@ -225,8 +224,8 @@ class GlutenSQLQueryTestSuite
 
   // List of supported cases to run with a certain backend, in lower case.
   private val supportedList: Set[String] =
-    BackendsApiManager.getTestApiInstance.getSupportedSQLQueryTests ++
-      BackendsApiManager.getTestApiInstance.getOverwriteSQLQueryTests
+    BackendsApiManager.getTestApiInstance.getSupportedSQLQueryTests(TestApi.SparkVersion32()) ++
+      BackendsApiManager.getTestApiInstance.getOverwriteSQLQueryTests(TestApi.SparkVersion32())
   // Create all the test cases.
   listTestCases.foreach(createScalaTestCase)
 

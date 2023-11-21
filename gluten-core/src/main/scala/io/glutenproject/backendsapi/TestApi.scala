@@ -17,7 +17,13 @@
 package io.glutenproject.backendsapi
 
 trait TestApi {
-  def getSupportedSQLQueryTests: Set[String]
+  def getSupportedSQLQueryTests(sparkVersion: TestApi.SparkVersion): Set[String]
 
-  def getOverwriteSQLQueryTests: Set[String]
+  def getOverwriteSQLQueryTests(sparkVersion: TestApi.SparkVersion): Set[String]
+}
+
+object TestApi {
+  trait SparkVersion
+  case class SparkVersion32() extends SparkVersion
+  case class SparkVersion33() extends SparkVersion
 }

@@ -19,7 +19,9 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.backendsapi.TestApi
 
 class CHTestApi extends TestApi {
-  override def getSupportedSQLQueryTests: Set[String] = Set[String]()
+  override def getSupportedSQLQueryTests(sparkVersion: TestApi.SparkVersion): Set[String] =
+    Set[String]()
 
-  override def getOverwriteSQLQueryTests: Set[String] = Set[String]()
+  override def getOverwriteSQLQueryTests(sparkVersion: TestApi.SparkVersion): Set[String] =
+    Set[String]()
 }
