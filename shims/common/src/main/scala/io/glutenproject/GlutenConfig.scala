@@ -61,6 +61,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarWindow: Boolean = conf.getConf(COLUMNAR_WINDOW_ENABLED)
 
+  def veloxColumnarWindowType: String = conf.getConfString(COLUMNAR_VELOX_WINDOW_TYPE.key)
+
   def enableColumnarShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
   def enableNativeColumnarToRow: Boolean = conf.getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
@@ -621,6 +623,21 @@ object GlutenConfig {
       .doc("Enable or disable columnar window.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_VELOX_WINDOW_TYPE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.window.type")
+      .internal()
+      .doc(
+        "Velox backend supports both SortWindow and" +
+          " StreamingWindow operators." +
+          " The StreamingWindow operator skips the sorting step" +
+          " in the input but does not support spill." +
+          " On the other hand, the SortWindow operator is " +
+          "responsible for sorting the input data within the" +
+          " Window operator and also supports spill.")
+      .stringConf
+      .checkValues(Set("streaming", "sort"))
+      .createWithDefault("streaming")
 
   val COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.forceShuffledHashJoin")

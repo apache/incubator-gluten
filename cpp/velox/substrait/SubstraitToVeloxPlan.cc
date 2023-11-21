@@ -636,15 +636,29 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 
   auto [sortingKeys, sortingOrders] = processSortField(windowRel.sorts(), inputType);
-  return std::make_shared<core::WindowNode>(
-      nextPlanNodeId(),
-      partitionKeys,
-      sortingKeys,
-      sortingOrders,
-      windowColumnNames,
-      windowNodeFunctions,
-      true /*inputsSorted*/,
-      childNode);
+
+  if (windowRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(windowRel.advanced_extension(), "isStreaming=")) {
+    return std::make_shared<core::WindowNode>(
+        nextPlanNodeId(),
+        partitionKeys,
+        sortingKeys,
+        sortingOrders,
+        windowColumnNames,
+        windowNodeFunctions,
+        true /*inputsSorted*/,
+        childNode);
+  } else {
+    return std::make_shared<core::WindowNode>(
+        nextPlanNodeId(),
+        partitionKeys,
+        sortingKeys,
+        sortingOrders,
+        windowColumnNames,
+        windowNodeFunctions,
+        false /*inputsSorted*/,
+        childNode);
+  }
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::SortRel& sortRel) {

@@ -194,55 +194,59 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
   }
 
   test("window expression") {
-    runQueryAndCompare(
-      "select row_number() over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+    Seq("sort", "streaming").foreach {
+      windowType =>
+        withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType.toString) {
+          runQueryAndCompare(
+            "select row_number() over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
 
-    runQueryAndCompare(
-      "select rank() over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+          runQueryAndCompare(
+            "select rank() over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
 
-    runQueryAndCompare(
-      "select dense_rank() over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+          runQueryAndCompare(
+            "select dense_rank() over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
 
-    runQueryAndCompare(
-      "select percent_rank() over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+          runQueryAndCompare(
+            "select percent_rank() over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
 
-    runQueryAndCompare(
-      "select cume_dist() over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+          runQueryAndCompare(
+            "select cume_dist() over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
 
-    runQueryAndCompare(
-      "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
-      df =>
-        {
-          assert(
-            getExecutedPlan(df).count(
-              plan => {
-                plan.isInstanceOf[WindowExecTransformer]
-              }) > 0)
+          runQueryAndCompare(
+            "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            df =>
+              {
+                assert(
+                  getExecutedPlan(df).count(
+                    plan => {
+                      plan.isInstanceOf[WindowExecTransformer]
+                    }) > 0)
+              }
+          }
+
+          runQueryAndCompare(
+            "select sum(l_partkey + 1) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem") { _ => }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+
+          runQueryAndCompare(
+            "select min(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+
+          runQueryAndCompare(
+            "select avg(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
         }
     }
-
-    runQueryAndCompare(
-      "select sum(l_partkey + 1) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem") { _ => }
-
-    runQueryAndCompare(
-      "select max(l_partkey) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
-
-    runQueryAndCompare(
-      "select min(l_partkey) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
-
-    runQueryAndCompare(
-      "select avg(l_partkey) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
-
   }
 
   test("chr function") {
