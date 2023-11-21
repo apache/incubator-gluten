@@ -590,6 +590,7 @@
 	  <configuration>
 	    <testFailureIgnore>false</testFailureIgnore>
 	    <junitxml>.</junitxml>
+	    <argLine>-ea --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED -Djdk.reflect.useDirectMethodHandle=false --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true</argLine>
 	  </configuration>
 	  <executions>
 	    <execution>
