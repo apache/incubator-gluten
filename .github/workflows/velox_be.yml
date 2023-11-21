@@ -88,7 +88,7 @@ jobs:
         run: |
           docker stop ubuntu2004-test-$GITHUB_RUN_ID || true
 
-  ubuntu2004-test-slow-spark32:
+  ubuntu2004-test-spark32-slow:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v4
@@ -402,14 +402,14 @@ jobs:
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON && \
+          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox'
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON'
       - name: Build for Spark 3.2.2
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
