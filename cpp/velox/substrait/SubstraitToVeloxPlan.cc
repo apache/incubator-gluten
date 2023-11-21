@@ -636,15 +636,29 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 
   auto [sortingKeys, sortingOrders] = processSortField(windowRel.sorts(), inputType);
-  return std::make_shared<core::WindowNode>(
-      nextPlanNodeId(),
-      partitionKeys,
-      sortingKeys,
-      sortingOrders,
-      windowColumnNames,
-      windowNodeFunctions,
-      true /*inputsSorted*/,
-      childNode);
+
+  if (windowRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(windowRel.advanced_extension(), "isStreaming=")) {
+    return std::make_shared<core::WindowNode>(
+        nextPlanNodeId(),
+        partitionKeys,
+        sortingKeys,
+        sortingOrders,
+        windowColumnNames,
+        windowNodeFunctions,
+        true /*inputsSorted*/,
+        childNode);
+  } else {
+    return std::make_shared<core::WindowNode>(
+        nextPlanNodeId(),
+        partitionKeys,
+        sortingKeys,
+        sortingOrders,
+        windowColumnNames,
+        windowNodeFunctions,
+        false /*inputsSorted*/,
+        childNode);
+  }
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::SortRel& sortRel) {
@@ -1615,9 +1629,8 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
       }
       break;
     case TypeKind::ARRAY:
-      // Doing nothing here can let filter IsNotNull still work.
-      break;
     case TypeKind::MAP:
+    case TypeKind::ROW:
       // Doing nothing here can let filter IsNotNull still work.
       break;
     default:
@@ -1935,59 +1948,61 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
   // Construct the subfield filters based on the filter info map.
   connector::hive::SubfieldFilters filters;
   for (uint32_t colIdx = 0; colIdx < inputNameList.size(); colIdx++) {
-    auto inputType = inputTypeList[colIdx];
-    if (inputType->isDate()) {
-      constructSubfieldFilters<TypeKind::INTEGER, common::BigintRange>(
-          colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-      continue;
-    }
-    switch (inputType->kind()) {
-      case TypeKind::TINYINT:
-        constructSubfieldFilters<TypeKind::TINYINT, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-        break;
-      case TypeKind::SMALLINT:
-        constructSubfieldFilters<TypeKind::SMALLINT, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-        break;
-      case TypeKind::INTEGER:
+    if (columnToFilterInfo[colIdx].isInitialized()) {
+      auto inputType = inputTypeList[colIdx];
+      if (inputType->isDate()) {
         constructSubfieldFilters<TypeKind::INTEGER, common::BigintRange>(
             colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-        break;
-      case TypeKind::BIGINT:
-        constructSubfieldFilters<TypeKind::BIGINT, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-        break;
-      case TypeKind::REAL:
-        constructSubfieldFilters<TypeKind::REAL, common::Filter>(
-            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-        break;
-      case TypeKind::DOUBLE:
-        constructSubfieldFilters<TypeKind::DOUBLE, common::Filter>(
-            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-        break;
-      case TypeKind::BOOLEAN:
-        constructSubfieldFilters<TypeKind::BOOLEAN, common::BigintRange>(
-            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-        break;
-      case TypeKind::VARCHAR:
-        constructSubfieldFilters<TypeKind::VARCHAR, common::Filter>(
-            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-        break;
-      case TypeKind::HUGEINT:
-        constructSubfieldFilters<TypeKind::HUGEINT, common::HugeintRange>(
-            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-        break;
-      case TypeKind::ARRAY:
-        constructSubfieldFilters<TypeKind::ARRAY, common::Filter>(
-            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-        break;
-      case TypeKind::MAP:
-        constructSubfieldFilters<TypeKind::MAP, common::Filter>(
-            colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
-        break;
-      default:
-        VELOX_NYI("Subfield filters creation not supported for input type '{}' in mapToFilters", inputType);
+        continue;
+      }
+      switch (inputType->kind()) {
+        case TypeKind::TINYINT:
+          constructSubfieldFilters<TypeKind::TINYINT, common::BigintRange>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        case TypeKind::SMALLINT:
+          constructSubfieldFilters<TypeKind::SMALLINT, common::BigintRange>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        case TypeKind::INTEGER:
+          constructSubfieldFilters<TypeKind::INTEGER, common::BigintRange>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        case TypeKind::BIGINT:
+          constructSubfieldFilters<TypeKind::BIGINT, common::BigintRange>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        case TypeKind::REAL:
+          constructSubfieldFilters<TypeKind::REAL, common::Filter>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        case TypeKind::DOUBLE:
+          constructSubfieldFilters<TypeKind::DOUBLE, common::Filter>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        case TypeKind::BOOLEAN:
+          constructSubfieldFilters<TypeKind::BOOLEAN, common::BigintRange>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        case TypeKind::VARCHAR:
+          constructSubfieldFilters<TypeKind::VARCHAR, common::Filter>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        case TypeKind::HUGEINT:
+          constructSubfieldFilters<TypeKind::HUGEINT, common::HugeintRange>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        case TypeKind::ARRAY:
+          constructSubfieldFilters<TypeKind::ARRAY, common::Filter>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        case TypeKind::MAP:
+          constructSubfieldFilters<TypeKind::MAP, common::Filter>(
+              colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
+          break;
+        default:
+          VELOX_NYI("Subfield filters creation not supported for input type '{}' in mapToFilters", inputType);
+      }
     }
   }
 

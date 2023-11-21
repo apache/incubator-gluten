@@ -16,11 +16,19 @@
  */
 package io.glutenproject.substrait.rel;
 
+import java.util.List;
+
 public class ExtensionTableBuilder {
   private ExtensionTableBuilder() {}
 
   public static ExtensionTableNode makeExtensionTable(
-      Long minPartsNum, Long maxPartsNum, String database, String tableName, String relativePath) {
-    return new ExtensionTableNode(minPartsNum, maxPartsNum, database, tableName, relativePath);
+      Long minPartsNum,
+      Long maxPartsNum,
+      String database,
+      String tableName,
+      String relativePath,
+      List<String> preferredLocations) {
+    return new ExtensionTableNode(
+        minPartsNum, maxPartsNum, database, tableName, relativePath, preferredLocations);
   }
 }

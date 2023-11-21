@@ -90,7 +90,7 @@ auto BM = [](::benchmark::State& state,
     state.PauseTiming();
     state.ResumeTiming();
 
-    runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
+    runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), {});
     std::shared_ptr<const facebook::velox::core::PlanNode> veloxPlan;
     auto resultIter = getResultIterator(memoryManager.get(), runtime, scanInfos, veloxPlan);
     auto outputSchema = toArrowSchema(veloxPlan->outputType(), defaultLeafVeloxMemoryPool().get());

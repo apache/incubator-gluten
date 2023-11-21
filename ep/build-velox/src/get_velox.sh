@@ -26,6 +26,8 @@ ENABLE_HDFS=OFF
 BUILD_PROTOBUF=ON
 #Set on run gluten on S3
 ENABLE_S3=OFF
+#Set on run gluten on GCS
+ENABLE_GCS=OFF
 
 OS=`uname -s`
 
@@ -53,6 +55,10 @@ for arg in "$@"; do
     ;;
   --enable_s3=*)
     ENABLE_S3=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_gcs=*)
+    ENABLE_GCS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -90,6 +96,9 @@ function process_setup_ubuntu {
     sed -i '/^function install_fmt.*/i function install_awssdk {\n  github_checkout aws/aws-sdk-cpp 1.9.379 --depth 1 --recurse-submodules\n  cmake_install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS:BOOL=OFF -DMINIMIZE_SIZE:BOOL=ON -DENABLE_TESTING:BOOL=OFF -DBUILD_ONLY:STRING="s3;identity-management" \n} \n' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_awssdk' scripts/setup-ubuntu.sh
   fi
+  if [ $ENABLE_GCS == "ON" ]; then
+    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-ubuntu.sh
+  fi
   sed -i 's/run_and_time install_conda/#run_and_time install_conda/' scripts/setup-ubuntu.sh
 
 }
@@ -114,6 +123,9 @@ function process_setup_centos8 {
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^function cmake_install_deps.*/i function install_awssdk {\n  github_checkout aws/aws-sdk-cpp 1.9.379 --depth 1 --recurse-submodules\n  cmake_install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS:BOOL=OFF -DMINIMIZE_SIZE:BOOL=ON -DENABLE_TESTING:BOOL=OFF -DBUILD_ONLY:STRING="s3;identity-management" \n} \n' scripts/setup-centos8.sh
     sed -i '/^cmake_install_deps fmt/a \ \ install_awssdk' scripts/setup-centos8.sh
+  fi
+  if [ $ENABLE_GCS == "ON" ]; then
+    sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos8.sh
   fi
 }
 

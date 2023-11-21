@@ -288,7 +288,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           getStructField.ordinal,
           getStructField)
       case t: StringTranslate =>
-        StringTranslateTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genStringTranslateTransformer(
           substraitExprName,
           replaceWithExpressionTransformer(t.srcExpr, attributeSeq),
           replaceWithExpressionTransformer(t.matchingExpr, attributeSeq),

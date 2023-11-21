@@ -54,6 +54,8 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
    */
   native NativePlanValidationInfo nativeValidateWithFailureReason(byte[] subPlan);
 
+  public native String nativePlanString(byte[] substraitPlan, Boolean details);
+
   /**
    * Create a native compute kernel and return a columnar result iterator.
    *

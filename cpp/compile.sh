@@ -25,6 +25,7 @@ BUILD_JEMALLOC=OFF
 BUILD_PROTOBUF=OFF
 ENABLE_QAT=OFF
 ENABLE_HBM=OFF
+ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
 VELOX_HOME=
@@ -72,6 +73,10 @@ for arg in "$@"; do
     BUILD_PROTOBUF=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+  --enable_gcs=*)
+    ENABLE_GCS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
   --enable_s3=*)
     ENABLE_S3=("${arg#*=}")
     shift # Remove argument name from processing
@@ -108,6 +113,7 @@ echo "BUILD_BENCHMARKS=${BUILD_BENCHMARKS}"
 echo "BUILD_JEMALLOC=${BUILD_JEMALLOC}"
 echo "ENABLE_HBM=${ENABLE_HBM}"
 echo "BUILD_PROTOBUF=${BUILD_PROTOBUF}"
+echo "ENABLE_GCS=${ENABLE_GCS}"
 echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 
@@ -127,6 +133,7 @@ cmake .. \
   -DBUILD_PROTOBUF=${BUILD_PROTOBUF} \
   -DENABLE_QAT=${ENABLE_QAT} \
   -DENABLE_HBM=${ENABLE_HBM} \
+  -DENABLE_GCS=${ENABLE_GCS} \
   -DENABLE_S3=${ENABLE_S3} \
   -DENABLE_HDFS=${ENABLE_HDFS}
 make -j$NPROC

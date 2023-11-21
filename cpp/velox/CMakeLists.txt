@@ -130,6 +130,9 @@ macro(ADD_VELOX_DEPENDENCIES)
   if(ENABLE_HDFS)
     add_velox_dependency(connector::hive::hdfs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/hdfs/libvelox_hdfs.a")
   endif()
+  if(ENABLE_GCS)
+    add_velox_dependency(connector::hive::gcs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/gcs/libvelox_gcs.a")
+  endif()
   if(ENABLE_S3)
     add_velox_dependency(connector::hive::s3fs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/s3fs/libvelox_s3fs.a")
   endif()
@@ -242,6 +245,12 @@ macro(find_awssdk)
   set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
 endmacro()
+
+macro(find_gcssdk)
+  set (CMAKE_FIND_LIBRARY_SUFFIXES ".so")
+  find_package(google_cloud_cpp_storage REQUIRED)
+endmacro()
+
 
 
 # Build Velox backend.
@@ -364,6 +373,12 @@ if(ENABLE_S3)
   add_definitions(-DENABLE_S3)
   find_awssdk()
   target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
+endif()
+
+if(ENABLE_GCS)
+  add_definitions(-DENABLE_GCS)
+  find_gcssdk()
+  target_link_libraries(velox PUBLIC google-cloud-cpp::storage)
 endif()
 
 if(BUILD_EXAMPLES)

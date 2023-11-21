@@ -31,7 +31,6 @@ on:
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'tools/gluten-te/**'
-      - 'ep/build-arrow/**'
       - 'ep/build-velox/**'
       - 'cpp/*'
       - 'cpp/CMake/**'

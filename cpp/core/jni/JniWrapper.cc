@@ -331,6 +331,24 @@ JNIEXPORT void JNICALL Java_io_glutenproject_exec_RuntimeJniWrapper_releaseRunti
   JNI_METHOD_END()
 }
 
+JNIEXPORT jstring JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativePlanString( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jbyteArray planArray,
+    jboolean details) {
+  JNI_METHOD_START
+
+  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  auto planSize = env->GetArrayLength(planArray);
+  auto ctx = gluten::getRuntime(env, wrapper);
+  ctx->parsePlan(planData, planSize, {});
+  auto& conf = ctx->getConfMap();
+  auto planString = ctx->planString(details, conf);
+  return env->NewStringUTF(planString.c_str());
+
+  JNI_METHOD_END(nullptr)
+}
+
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithIterator( // NOLINT
     JNIEnv* env,

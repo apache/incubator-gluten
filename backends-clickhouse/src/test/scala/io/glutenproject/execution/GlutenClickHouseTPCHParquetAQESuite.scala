@@ -349,7 +349,7 @@ class GlutenClickHouseTPCHParquetAQESuite
            |  group by o_orderkey, o_orderdate) t2
            |on t1.l_orderkey = t2.o_orderkey
            | and extract(year from t1.l_shipdate) = o_year
-           |order by t1.l_orderkey, t2.o_orderkey
+           |order by t1.l_orderkey, t2.o_orderkey, t2.o_year, t1.l_cnt, t2.o_cnt
            |limit 100
            |
            |""".stripMargin,
@@ -370,7 +370,7 @@ class GlutenClickHouseTPCHParquetAQESuite
            |  group by o_orderkey, o_orderdate) t2
            |on t1.l_orderkey = t2.o_orderkey
            | and extract(year from t1.l_shipdate) = o_year
-           |order by t1.l_orderkey, t2.o_orderkey
+           |order by t1.l_orderkey, t2.o_orderkey, t2.o_year
            |limit 100
            |
            |""".stripMargin,

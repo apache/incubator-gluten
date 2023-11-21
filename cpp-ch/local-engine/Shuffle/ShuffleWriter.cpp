@@ -41,11 +41,11 @@ void ShuffleWriter::write(const Block & block)
     {
         if (compression_enable)
         {
-            native_writer = std::make_unique<NativeWriter>(*compressed_out, 0, block.cloneEmpty());
+            native_writer = std::make_unique<NativeWriter>(*compressed_out, block.cloneEmpty());
         }
         else
         {
-            native_writer = std::make_unique<NativeWriter>(*write_buffer, 0, block.cloneEmpty());
+            native_writer = std::make_unique<NativeWriter>(*write_buffer, block.cloneEmpty());
         }
     }
     if (block.rows() > 0)

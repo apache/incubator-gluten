@@ -37,11 +37,11 @@ local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool
     {
         compressed_in = std::make_unique<CompressedReadBuffer>(*in);
         configureCompressedReadBuffer(static_cast<DB::CompressedReadBuffer &>(*compressed_in));
-        input_stream = std::make_unique<NativeReader>(*compressed_in, 0);
+        input_stream = std::make_unique<NativeReader>(*compressed_in);
     }
     else
     {
-        input_stream = std::make_unique<NativeReader>(*in, 0);
+        input_stream = std::make_unique<NativeReader>(*in);
     }
 }
 Block * local_engine::ShuffleReader::read()

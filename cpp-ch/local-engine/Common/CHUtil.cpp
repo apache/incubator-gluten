@@ -438,7 +438,9 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std
             namespace pb_util = google::protobuf::util;
             pb_util::JsonOptions options;
             std::string json;
-            pb_util::MessageToJsonString(*plan_ptr, &json, options);
+            auto s = pb_util::MessageToJsonString(*plan_ptr, &json, options);
+            if (!s.ok())
+                throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert Substrait Plan to Json");
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Update Config Map Plan:\n{}", json);
         }
 
@@ -599,6 +601,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("input_format_json_read_numbers_as_strings", true);
     settings.set("input_format_json_read_bools_as_numbers", false);
     settings.set("input_format_csv_trim_whitespaces", false);
+    settings.set("input_format_csv_allow_cr_end_of_line", true);
     settings.set("output_format_orc_string_as_string", true);
     settings.set("output_format_parquet_version", "1.0");
     settings.set("output_format_parquet_compression_method", "snappy");

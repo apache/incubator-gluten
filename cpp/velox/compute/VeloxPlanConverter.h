@@ -32,7 +32,8 @@ class VeloxPlanConverter {
   explicit VeloxPlanConverter(
       const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
       facebook::velox::memory::MemoryPool* veloxPool,
-      const std::unordered_map<std::string, std::string>& confMap);
+      const std::unordered_map<std::string, std::string>& confMap,
+      bool validationMode = false);
 
   std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(::substrait::Plan& substraitPlan);
 
@@ -70,6 +71,8 @@ class VeloxPlanConverter {
   int planNodeId_ = 0;
 
   std::vector<std::shared_ptr<ResultIterator>> inputIters_;
+
+  bool validationMode_;
 
   SubstraitToVeloxPlanConverter substraitVeloxPlanConverter_;
 

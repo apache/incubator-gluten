@@ -123,7 +123,7 @@ auto BM_Generic = [](::benchmark::State& state,
     setCpu(state.thread_index());
   }
   auto memoryManager = getDefaultMemoryManager();
-  auto runtime = Runtime::create(kVeloxRuntimeKind);
+  auto runtime = Runtime::create(kVeloxRuntimeKind, conf);
   const auto& filePath = getExampleFilePath(substraitJsonFile);
   auto plan = getPlanFromFile(filePath);
   auto startTime = std::chrono::steady_clock::now();
@@ -146,7 +146,7 @@ auto BM_Generic = [](::benchmark::State& state,
           });
     }
 
-    runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size());
+    runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), {});
     auto resultIter =
         runtime->createResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
     auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
@@ -233,6 +233,7 @@ int main(int argc, char** argv) {
   std::unordered_map<std::string, std::string> conf;
 
   conf.insert({gluten::kSparkBatchSize, FLAGS_batch_size});
+  conf.insert({kDebugModeEnabled, "true"});
   initVeloxBackend(conf);
 
   try {

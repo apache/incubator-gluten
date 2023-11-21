@@ -16,7 +16,7 @@
  */
 #include "StorageJoinFromReadBuffer.h"
 
-#include <Formats/NativeReader.h>
+#include <Storages/IO/NativeReader.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/HashJoin.h>
 #include <Interpreters/TableJoin.h>
@@ -42,7 +42,7 @@ using namespace DB;
 
 void restore(DB::ReadBuffer & in, IJoin & join, const Block & sample_block)
 {
-    NativeReader block_stream(in, 0);
+    local_engine::NativeReader block_stream(in);
 
     ProfileInfo info;
     {

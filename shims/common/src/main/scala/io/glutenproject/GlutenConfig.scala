@@ -61,6 +61,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarWindow: Boolean = conf.getConf(COLUMNAR_WINDOW_ENABLED)
 
+  def veloxColumnarWindowType: String = conf.getConfString(COLUMNAR_VELOX_WINDOW_TYPE.key)
+
   def enableColumnarShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
   def enableNativeColumnarToRow: Boolean = conf.getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
@@ -360,6 +362,8 @@ object GlutenConfig {
   // Pass through to native conf
   val GLUTEN_SAVE_DIR = "spark.gluten.saveDir"
 
+  val GLUTEN_DEBUG_MODE = "spark.gluten.sql.debug"
+
   // Added back to Spark Conf during executor initialization
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
   val GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY =
@@ -424,6 +428,7 @@ object GlutenConfig {
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     val keys = ImmutableList.of(
+      GLUTEN_DEBUG_MODE,
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
@@ -497,11 +502,15 @@ object GlutenConfig {
       ("spark.hadoop.input.read.timeout", "180000"),
       ("spark.hadoop.input.write.timeout", "180000"),
       ("spark.hadoop.dfs.client.log.severity", "INFO"),
-      ("spark.sql.orc.compression.codec", "snappy")
+      ("spark.sql.orc.compression.codec", "snappy"),
+      (
+        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
+        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
     val keys = ImmutableList.of(
+      GLUTEN_DEBUG_MODE,
       // datasource config
       SPARK_SQL_PARQUET_COMPRESSION_CODEC,
       // datasource config end
@@ -618,6 +627,21 @@ object GlutenConfig {
       .doc("Enable or disable columnar window.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_VELOX_WINDOW_TYPE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.window.type")
+      .internal()
+      .doc(
+        "Velox backend supports both SortWindow and" +
+          " StreamingWindow operators." +
+          " The StreamingWindow operator skips the sorting step" +
+          " in the input but does not support spill." +
+          " On the other hand, the SortWindow operator is " +
+          "responsible for sorting the input data within the" +
+          " Window operator and also supports spill.")
+      .stringConf
+      .checkValues(Set("streaming", "sort"))
+      .createWithDefault("streaming")
 
   val COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.forceShuffledHashJoin")
@@ -1142,7 +1166,7 @@ object GlutenConfig {
       .createWithDefault("DEBUG")
 
   val DEBUG_LEVEL_ENABLED =
-    buildConf("spark.gluten.sql.debug")
+    buildConf(GLUTEN_DEBUG_MODE)
       .internal()
       .booleanConf
       .createWithDefault(false)
@@ -1311,4 +1335,20 @@ object GlutenConfig {
         "'spark.bloom_filter.max_num_bits'")
       .longConf
       .createWithDefault(4194304L)
+
+  val COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled")
+      .internal()
+      .doc("Disables caching if false. File handle cache should be disabled " +
+        "if files are mutable, i.e. file content may change while file path stays the same.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT =
+    buildConf("spark.gluten.sql.cacheWholeStageTransformerContext")
+      .internal()
+      .doc("When true, `WholeStageTransformer` will cache the `WholeStageTransformerContext` " +
+        "when executing. It is used to get substrait plan node and native plan string.")
+      .booleanConf
+      .createWithDefault(false)
 }

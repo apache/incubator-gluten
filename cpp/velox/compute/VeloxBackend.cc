@@ -31,6 +31,10 @@
 #ifdef GLUTEN_ENABLE_IAA
 #include "utils/qpl/qpl_codec.h"
 #endif
+#ifdef ENABLE_GCS
+#include <fstream>
+#endif
+#include "config/GlutenConfig.h"
 #include "jni/JniFileSystem.h"
 #include "udf/UdfLoader.h"
 #include "utils/ConfigExtractor.h"
@@ -38,6 +42,7 @@
 #include "velox/common/caching/SsdCache.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/common/memory/MmapAllocator.h"
+#include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/serializers/PrestoSerializer.h"
 
@@ -104,19 +109,12 @@ const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";
 // VeloxShuffleReader print flag.
 const std::string kVeloxShuffleReaderPrintFlag = "spark.gluten.velox.shuffleReaderPrintFlag";
 
+const std::string kVeloxFileHandleCacheEnabled = "spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled";
+const bool kVeloxFileHandleCacheEnabledDefault = false;
+
 } // namespace
 
 namespace gluten {
-
-void VeloxBackend::printConf(const facebook::velox::Config& conf) {
-  std::ostringstream oss;
-  oss << "STARTUP: VeloxBackend conf = {\n";
-  for (auto& [k, v] : conf.values()) {
-    oss << " {" << k << ", " << v << "}\n";
-  }
-  oss << "}\n";
-  LOG(INFO) << oss.str();
-}
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
   // Init glog and log level.
@@ -196,14 +194,63 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   veloxmemcfg->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
   veloxmemcfg->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
 #endif
+#ifdef ENABLE_GCS
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
+  std::string gsStorageRootUrl;
+  if (auto got = conf.find("spark.hadoop.fs.gs.storage.root.url"); got != conf.end()) {
+    gsStorageRootUrl = got->second;
+  }
+  if (!gsStorageRootUrl.empty()) {
+    std::string gcsScheme;
+    std::string gcsEndpoint;
+
+    const auto sep = std::string("://");
+    const auto pos = gsStorageRootUrl.find_first_of(sep);
+    if (pos != std::string::npos) {
+      gcsScheme = gsStorageRootUrl.substr(0, pos);
+      gcsEndpoint = gsStorageRootUrl.substr(pos + sep.length());
+    }
+
+    if (!gcsEndpoint.empty() && !gcsScheme.empty()) {
+      veloxmemcfg->setValue("hive.gcs.scheme", gcsScheme);
+      veloxmemcfg->setValue("hive.gcs.endpoint", gcsEndpoint);
+    }
+  }
+
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
+  std::string gsAuthType;
+  if (auto got = conf.find("spark.hadoop.fs.gs.auth.type"); got != conf.end()) {
+    gsAuthType = got->second;
+  }
+  if (gsAuthType == "SERVICE_ACCOUNT_JSON_KEYFILE") {
+    std::string gsAuthServiceAccountJsonKeyfile;
+    if (auto got = conf.find("spark.hadoop.fs.gs.auth.service.account.json.keyfile"); got != conf.end()) {
+      gsAuthServiceAccountJsonKeyfile = got->second;
+    }
+
+    std::string gsAuthServiceAccountJson;
+    if (!gsAuthServiceAccountJsonKeyfile.empty()) {
+      auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile);
+      stream.exceptions(std::ios::badbit);
+      gsAuthServiceAccountJson = std::string(std::istreambuf_iterator<char>(stream.rdbuf()), {});
+    } else {
+      LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
+                      "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
+      throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
+    }
+
+    if (!gsAuthServiceAccountJson.empty()) {
+      veloxmemcfg->setValue("hive.gcs.credentials", gsAuthServiceAccountJson);
+    }
+  }
+#endif
 
   initCache(veloxcfg);
   initIOExecutor(veloxcfg);
 
-#ifdef GLUTEN_PRINT_DEBUG
-  printConf(veloxcfg);
-#endif
-
+  veloxmemcfg->setValue(
+      velox::connector::hive::HiveConfig::kEnableFileHandleCache,
+      veloxcfg->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
           ->newConnector(kHiveConnectorId, veloxmemcfg, ioExecutor_.get());
@@ -219,6 +266,10 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
   initUdf(veloxcfg);
+
+  if (veloxcfg->get<bool>(kDebugModeEnabled, false)) {
+    LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
+  }
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
