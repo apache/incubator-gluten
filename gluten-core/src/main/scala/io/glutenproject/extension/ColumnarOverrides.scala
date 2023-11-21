@@ -45,6 +45,8 @@ import org.apache.spark.sql.execution.window.WindowExec
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.util.SparkRuleUtil
 
+import scala.collection.mutable.ListBuffer
+
 // This rule will conduct the conversion from Spark plan to the plan transformer.
 case class TransformPreOverrides(isAdaptiveContext: Boolean)
   extends Rule[SparkPlan]
@@ -749,7 +751,8 @@ case class ColumnarOverrideRules(session: SparkSession)
   private val aqeStackTraceIndex = 14
 
   // Holds the original plan for possible entire fallback.
-  private val localOriginalPlan = new ThreadLocal[SparkPlan]
+  private val localOriginalPlans = new ThreadLocal[ListBuffer[SparkPlan]]
+  private val localIsAdaptiveContextFlags = new ThreadLocal[ListBuffer[Boolean]]
 
   // Do not create rules in class initialization as we should access SQLConf
   // while creating the rules. At this time SQLConf may not be there yet.
@@ -760,7 +763,10 @@ case class ColumnarOverrideRules(session: SparkSession)
   }
 
   def isAdaptiveContext: Boolean =
-    session.sparkContext.getLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT).toBoolean
+    Option(session.sparkContext.getLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT))
+      .getOrElse("false")
+      .toBoolean ||
+      localIsAdaptiveContextFlags.get().head
 
   private def setAdaptiveContext(): Unit = {
     val traceElements = Thread.currentThread.getStackTrace
@@ -772,25 +778,33 @@ case class ColumnarOverrideRules(session: SparkSession)
     // columnar rule will be applied in adaptive execution context. This part of code
     // needs to be carefully checked when supporting higher versions of spark to make
     // sure the calling stack has not been changed.
-    session.sparkContext.setLocalProperty(
-      GLUTEN_IS_ADAPTIVE_CONTEXT,
-      traceElements(aqeStackTraceIndex).getClassName
-        .equals(AdaptiveSparkPlanExec.getClass.getName)
-        .toString)
+    if (localIsAdaptiveContextFlags.get() == null) {
+      localIsAdaptiveContextFlags.set(ListBuffer.empty[Boolean])
+    }
+    localIsAdaptiveContextFlags
+      .get()
+      .prepend(
+        traceElements(aqeStackTraceIndex).getClassName
+          .equals(AdaptiveSparkPlanExec.getClass.getName))
   }
 
   private def resetAdaptiveContext(): Unit =
-    session.sparkContext.setLocalProperty(GLUTEN_IS_ADAPTIVE_CONTEXT, null)
+    localIsAdaptiveContextFlags.get().remove(0)
 
-  private def setOriginalPlan(plan: SparkPlan): Unit = localOriginalPlan.set(plan)
+  private def setOriginalPlan(plan: SparkPlan): Unit = {
+    if (localOriginalPlans.get == null) {
+      localOriginalPlans.set(ListBuffer.empty[SparkPlan])
+    }
+    localOriginalPlans.get.prepend(plan)
+  }
 
   private def originalPlan: SparkPlan = {
-    val plan = localOriginalPlan.get()
+    val plan = localOriginalPlans.get.head
     assert(plan != null)
     plan
   }
 
-  private def resetOriginalPlan(): Unit = localOriginalPlan.remove()
+  private def resetOriginalPlan(): Unit = localOriginalPlans.get.remove(0)
 
   private def preOverrides(): List[SparkSession => Rule[SparkPlan]] = {
     val tagBeforeTransformHitsRules =
