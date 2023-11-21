@@ -1171,7 +1171,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.benchmark_task.stageId")
       .internal()
       .intConf
-      .createWithDefault(1)
+      .createWithDefault(-1)
 
   val BENCHMARK_TASK_PARTITIONID =
     buildConf("spark.gluten.sql.benchmark_task.partitionId")
