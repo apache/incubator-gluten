@@ -38,6 +38,10 @@ using namespace facebook::velox::filesystems;
 
 namespace gluten {
 
+namespace {
+const int32_t kGzipWindowBits4k = 12;
+}
+
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     auto path = filePath_.substr(5);
@@ -73,6 +77,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   if (sparkConfs.find(kParquetBlockRows) != sparkConfs.end()) {
     maxRowGroupRows_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
   }
+  velox::parquet::WriterOptions writeOption;
   auto compressionCodec = CompressionKind::CompressionKind_SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
     auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
@@ -81,6 +86,14 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
       compressionCodec = CompressionKind::CompressionKind_SNAPPY;
     } else if (boost::iequals(compressionCodecStr, "gzip")) {
       compressionCodec = CompressionKind::CompressionKind_GZIP;
+      if (sparkConfs.find(kParquetGzipWindowSize) != sparkConfs.end()) {
+        auto parquetGzipWindowSizeStr = sparkConfs.find(kParquetGzipWindowSize)->second;
+        if (parquetGzipWindowSizeStr == kGzipWindowSize4k) {
+          auto codecOptions = std::make_shared<facebook::velox::parquet::arrow::util::GZipCodecOptions>();
+          codecOptions->window_bits = kGzipWindowBits4k;
+          writeOption.codecOptions = std::move(codecOptions);
+        }
+      }
     } else if (boost::iequals(compressionCodecStr, "lzo")) {
       compressionCodec = CompressionKind::CompressionKind_LZO;
     } else if (boost::iequals(compressionCodecStr, "brotli")) {
@@ -96,8 +109,6 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
       compressionCodec = CompressionKind::CompressionKind_NONE;
     }
   }
-
-  velox::parquet::WriterOptions writeOption;
   writeOption.compression = compressionCodec;
   writeOption.flushPolicyFactory = [&]() {
     return std::make_unique<velox::parquet::LambdaFlushPolicy>(
