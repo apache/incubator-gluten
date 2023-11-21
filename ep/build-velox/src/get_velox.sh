@@ -152,7 +152,7 @@ function process_setup_centos7 {
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_awssdk' scripts/setup-centos7.sh
   fi
   if [ $ENABLE_GCS == "ON" ]; then
-    sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos7.sh
+    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos7.sh
   fi
 }
 
