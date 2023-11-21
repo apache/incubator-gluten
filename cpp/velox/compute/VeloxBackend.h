@@ -63,8 +63,6 @@ class VeloxBackend {
 
   void initJolFilesystem(const facebook::velox::Config* conf);
 
-  void printConf(const facebook::velox::Config& conf);
-
   std::string getCacheFilePrefix() {
     return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";
   }

@@ -63,26 +63,9 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   Runtime(const std::unordered_map<std::string, std::string>& confMap) : confMap_(confMap) {}
   virtual ~Runtime() = default;
 
-  void parsePlan(const uint8_t* data, int32_t size) {
-    parsePlan(data, size, {-1, -1, -1});
-  }
-
   /// Parse and cache the plan.
   /// Return true if parsed successfully.
-  void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) {
-    taskInfo_ = taskInfo;
-#ifdef GLUTEN_PRINT_DEBUG
-    try {
-      auto jsonPlan = substraitFromPbToJson("Plan", data, size);
-      DEBUG_OUT << std::string(50, '#') << " received substrait::Plan:" << std::endl;
-      DEBUG_OUT << "Task stageId: " << taskInfo_.stageId << ", partitionId: " << taskInfo_.partitionId
-                << ", taskId: " << taskInfo_.taskId << "; " << jsonPlan << std::endl;
-    } catch (const std::exception& e) {
-      std::cerr << "Error converting Substrait plan to JSON: " << e.what() << std::endl;
-    }
-#endif
-    GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
-  }
+  virtual void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) = 0;
 
   virtual std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) = 0;
 
