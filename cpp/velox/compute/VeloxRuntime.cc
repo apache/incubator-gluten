@@ -37,7 +37,7 @@ VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& c
 
 void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) {
   taskInfo_ = taskInfo;
-  if (getConfigValue(confMap_, kDebugModeEnabled, "false") == "true") {
+  if (debugModeEnabled(confMap_)) {
     try {
       auto jsonPlan = substraitFromPbToJson("Plan", data, size);
       LOG(INFO) << std::string(50, '#') << " received substrait::Plan:";
@@ -84,7 +84,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
-  if (getConfigValue(confMap_, kDebugModeEnabled, "false") == "true") {
+  if (debugModeEnabled(confMap_)) {
     LOG(INFO) << "VeloxRuntime session config:" << printConfig(confMap_);
   }
 

@@ -1359,11 +1359,4 @@ object GlutenConfig {
         "`WholeStageTransformerContext`.")
       .booleanConf
       .createWithDefault(false)
-
-  val PRINT_NATIVE_PLAN_WITH_STATS =
-    buildConf(s"$GLUTEN_CONFIG_PREFIX.velox.printNativePlanWithStats")
-      .internal()
-      .doc("When true, Gluten will print native plan with stats to executor system output stream.")
-      .booleanConf
-      .createWithDefault(false)
 }

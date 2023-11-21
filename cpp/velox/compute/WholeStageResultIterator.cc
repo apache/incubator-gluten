@@ -65,7 +65,6 @@ const std::string kAbandonPartialAggregationMinRows =
 const std::string kBloomFilterExpectedNumItems = "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems";
 const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits";
 const std::string kBloomFilterMaxNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits";
-const std::string kPrintNativePlanWithStats = "spark.gluten.sql.columnar.backend.velox.printNativePlanWithStats";
 
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
@@ -212,7 +211,7 @@ void WholeStageResultIterator::collectMetrics() {
     return;
   }
 
-  if (folly::to<bool>(getConfigValue(confMap_, kPrintNativePlanWithStats, "false"))) {
+  if (debugModeEnabled(confMap_)) {
     auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), task_->taskStats(), true);
     std::ostringstream oss;
     oss << "Native Plan with stats for: " << taskInfo_;
