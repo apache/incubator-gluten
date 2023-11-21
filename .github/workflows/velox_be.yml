@@ -273,13 +273,13 @@ jobs:
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON && \
-          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON'
+          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON && \
+          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON'
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON'
       - name: Build for Spark 3.2.2
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
@@ -353,14 +353,14 @@ jobs:
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON && \
-          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON'
+          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON && \
+          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec centos8-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON'
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON'
       - name: Build for Spark 3.2.2
         run: |
           docker exec centos8-test-$GITHUB_RUN_ID bash -c '
@@ -491,7 +491,7 @@ jobs:
           cd /opt/gluten && \
           sudo -E ./dev/vcpkg/setup-build-depends.sh && \
           source ./dev/vcpkg/env.sh && \
-          ./dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON --enable_hdfs=ON'
+          ./dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON'
       - name: Build for Spark 3.2.2
         run: |
           docker exec static-build-test-$GITHUB_RUN_ID bash -c '
