@@ -101,7 +101,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   writeOption.compression = compressionCodec;
   writeOption.flushPolicyFactory = [&]() {
     return std::make_unique<velox::parquet::LambdaFlushPolicy>(
-        maxRowGroupRows_, maxRowGroupRows_, [&]() { return false; });
+        maxRowGroupRows_, maxRowGroupBytes_, [&]() { return false; });
   };
   writeOption.schema = gluten::fromArrowSchema(schema_);
 
