@@ -211,6 +211,14 @@ void WholeStageResultIterator::collectMetrics() {
     return;
   }
 
+  if (debugModeEnabled(confMap_)) {
+    auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), task_->taskStats(), true);
+    std::ostringstream oss;
+    oss << "Native Plan with stats for: " << taskInfo_;
+    oss << "\n" << planWithStats << std::endl;
+    LOG(INFO) << oss.str();
+  }
+
   auto planStats = velox::exec::toPlanStats(task_->taskStats());
   // Calculate the total number of metrics.
   int statsNum = 0;

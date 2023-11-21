@@ -114,7 +114,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   def substraitPlan: PlanNode = {
     if (wholeStageTransformerContext.isDefined) {
       // TODO: remove this work around after we make `RelNode#toProtobuf` idempotent
-      //    see `SubstraitContext#getCurrentLocalFileNode`.
+      //    see `SubstraitContext#initSplitInfosIndex`.
       wholeStageTransformerContext.get.substraitContext.initSplitInfosIndex(0)
       wholeStageTransformerContext.get.root
     } else {
@@ -172,6 +172,15 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   // make whole stage transformer clearly plotted in UI, like spark's whole stage codegen.
   // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
   override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
+
+  override def verboseStringWithOperatorId(): String = {
+    val nativePlan = if (conf.getConf(GlutenConfig.INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN)) {
+      s"Native Plan:\n${nativePlanString()}"
+    } else {
+      ""
+    }
+    super.verboseStringWithOperatorId() ++ nativePlan
+  }
 
   private def generateWholeStageTransformContext(): WholeStageTransformContext = {
     val substraitContext = new SubstraitContext

@@ -1351,4 +1351,12 @@ object GlutenConfig {
         "when executing. It is used to get substrait plan node and native plan string.")
       .booleanConf
       .createWithDefault(false)
+
+  val INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN =
+    buildConf("spark.gluten.sql.injectNativePlanStringToExplain")
+      .internal()
+      .doc("When true, Gluten will inject native plan tree to explain string inside " +
+        "`WholeStageTransformerContext`.")
+      .booleanConf
+      .createWithDefault(false)
 }
