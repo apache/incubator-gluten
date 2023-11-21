@@ -809,7 +809,7 @@ Native Plan:
 
 ## Native plan with stats
 
-Gluten supports print native plan with stats to executor system output stream by setting `--conf spark.gluten.sql.columnar.backend.velox.printNativePlanWithStats=true`.
+Gluten supports print native plan with stats to executor system output stream by setting `--conf spark.gluten.sql.debug=true`.
 Note that, the plan string with stats is task level which may cause executor log size big. Here is an example, how Gluten show the native plan string with stats.
 
 ```
