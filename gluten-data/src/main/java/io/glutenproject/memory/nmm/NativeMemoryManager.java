@@ -95,7 +95,7 @@ public class NativeMemoryManager implements TaskResource {
 
   @Override
   public void release() throws Exception {
-    LOGGER.debug(
+    LOGGER.warn(
         "About to release memory manager, usage dump: {}",
         SparkMemoryUtil.prettyPrintStats(
             new KnownNameAndStats() {
