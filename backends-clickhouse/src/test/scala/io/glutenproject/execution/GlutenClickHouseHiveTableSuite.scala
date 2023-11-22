@@ -970,10 +970,12 @@ class GlutenClickHouseHiveTableSuite()
     val select_sql_2 = "select id, get_json_object(data, '$.v') from test_tbl_3337"
     val select_sql_3 = "select id, get_json_object(data, '$.123.234') from test_tbl_3337"
     val select_sql_4 = "select id, get_json_object(data, '$.v111') from test_tbl_3337"
+    val select_sql_5 = "select id, get_json_object(data, 'v112') from test_tbl_3337"
     compareResultsAgainstVanillaSpark(select_sql_1, compareResult = true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_2, compareResult = true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_3, compareResult = true, _ => {})
     compareResultsAgainstVanillaSpark(select_sql_4, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_5, compareResult = true, _ => {})
 
     spark.sql("DROP TABLE test_tbl_3337")
   }
