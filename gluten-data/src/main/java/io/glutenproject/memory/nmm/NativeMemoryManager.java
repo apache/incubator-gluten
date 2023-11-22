@@ -119,6 +119,10 @@ public class NativeMemoryManager implements TaskResource {
               name, listener.toString(), Utils.bytesToString(listener.getUsedBytes())));
       // We are about to leak memory, wait 2s to let possible async task complete
       listener.waitUntilReleased(2000L);
+      if (listener.getUsedBytes() == 0) {
+        LOGGER.info(String.format(
+            "%s Reservation listener %s successfully released.", name, listener.toString()));
+      }
     }
   }
 
