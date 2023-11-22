@@ -56,6 +56,9 @@ DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
 DECLARE_bool(velox_memory_use_hugepages);
 
+// Gluten's flag declarations
+DECLARE_bool(velox_memory_ignore_usage_leak);
+
 using namespace facebook;
 
 namespace {
@@ -236,47 +239,6 @@ void VeloxBackend::initCache(const facebook::velox::Config* conf) {
   }
 }
 
-namespace {
-class MemoryPoolReplacedHiveConnector : public velox::connector::hive::HiveConnector {
- public:
-  MemoryPoolReplacedHiveConnector(
-      velox::memory::MemoryPool* pool,
-      const std::string& id,
-      std::shared_ptr<const velox::Config> properties,
-      folly::Executor* FOLLY_NULLABLE executor)
-      : velox::connector::hive::HiveConnector(id, properties, executor), pool_{pool} {}
-
-  std::unique_ptr<velox::connector::DataSource> createDataSource(
-      const velox::RowTypePtr& outputType,
-      const std::shared_ptr<velox::connector::ConnectorTableHandle>& tableHandle,
-      const std::unordered_map<std::string, std::shared_ptr<velox::connector::ColumnHandle>>& columnHandles,
-      velox::connector::ConnectorQueryCtx* connectorQueryCtx) override {
-    velox::dwio::common::ReaderOptions options(pool_);
-    options.setMaxCoalesceBytes(velox::connector::hive::HiveConfig::maxCoalescedBytes(connectorQueryCtx->config()));
-    options.setMaxCoalesceDistance(
-        velox::connector::hive::HiveConfig::maxCoalescedDistanceBytes(connectorQueryCtx->config()));
-    options.setFileColumnNamesReadAsLowerCase(
-        velox::connector::hive::HiveConfig::isFileColumnNamesReadAsLowerCase(connectorQueryCtx->config()));
-    options.setUseColumnNamesForColumnMapping(
-        velox::connector::hive::HiveConfig::isOrcUseColumnNames(connectorQueryCtx->config()));
-
-    return std::make_unique<velox::connector::hive::HiveDataSource>(
-        outputType,
-        tableHandle,
-        columnHandles,
-        &fileHandleFactory_,
-        connectorQueryCtx->expressionEvaluator(),
-        connectorQueryCtx->cache(),
-        connectorQueryCtx->scanId(),
-        executor_,
-        options);
-  }
-
- private:
-  velox::memory::MemoryPool* pool_;
-};
-} // namespace
-
 void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
   int32_t ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   int32_t splitPreloadPerDriver = conf->get<int32_t>(kVeloxSplitPreloadPerDriver, kVeloxSplitPreloadPerDriverDefault);
@@ -378,16 +340,18 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
       LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
                 << ", IO threads: " << ioThreads;
       FLAGS_split_preload_per_driver = splitPreloadPerDriver;
+      // Split preload may cause fake "memory leak" during the time Velox memory manager is destructed,
+      // because splitting preload requires holding a ref to the task instance which holds a ref to
+      // connector memory pool (see HiveConnector.cpp). Disable leak checking in this case anyway since Velox's
+      // OOM exception is thrown from memory manager's destructor which may cause crash. In the other hand, we have
+      // similar leak checking in Java side which is less fatal for OOM case.
+      LOG(INFO) << "Warning: disabling memory leak checking since split preload is enabled";
+      FLAGS_velox_memory_ignore_usage_leak = false;
     }
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
-    // Use global memory pool for hive connector if IO threads is set. Otherwise, the allocated memory
-    // blocks might cause unexpected behavior (e.g. crash) since the allocations were proceed in background IO threads.
-    velox::connector::registerConnector(std::make_shared<MemoryPoolReplacedHiveConnector>(
-        gluten::defaultLeafVeloxMemoryPool().get(), kHiveConnectorId, mutableConf, ioExecutor_.get()));
-  } else {
-    velox::connector::registerConnector(
-        std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, mutableConf, ioExecutor_.get()));
   }
+  velox::connector::registerConnector(
+      std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, mutableConf, ioExecutor_.get()));
 }
 
 void VeloxBackend::initUdf(const facebook::velox::Config* conf) {
