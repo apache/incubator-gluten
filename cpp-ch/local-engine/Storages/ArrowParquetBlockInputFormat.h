@@ -16,14 +16,13 @@
  */
 #pragma once
 
-#include <Common/Config.h>
 #include "config.h"
 
-#if USE_PARQUET && USE_LOCAL_FORMATS
-#    include <Common/ChunkBuffer.h>
-#    include "ch_parquet/OptimizedArrowColumnToCHColumn.h"
-#    include "ch_parquet/OptimizedParquetBlockInputFormat.h"
-#    include "ch_parquet/arrow/reader.h"
+#if USE_PARQUET
+#include <Common/ChunkBuffer.h>
+#include "ch_parquet/OptimizedArrowColumnToCHColumn.h"
+#include "ch_parquet/OptimizedParquetBlockInputFormat.h"
+#include "ch_parquet/arrow/reader.h"
 
 namespace arrow
 {

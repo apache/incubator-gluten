@@ -45,6 +45,8 @@ class GlutenClickHouseTPCHParquetAQESuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.sql.adaptive.enabled", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.runtime_config.use_local_format", "true")
+      .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
@@ -329,6 +331,53 @@ class GlutenClickHouseTPCHParquetAQESuite
           assert(subqueriesId.distinct.size == 1)
       }
     )
+  }
+
+  test("GLUTEN-3534: Fix incorrect logic of judging whether supports pre-project for the shuffle") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      runQueryAndCompare(
+        s"""
+           |select t1.l_orderkey, t2.o_orderkey, extract(year from t1.l_shipdate), t2.o_year,
+           |t1.l_cnt, t2.o_cnt
+           |from (
+           |  select l_orderkey, l_shipdate, count(1) as l_cnt
+           |  from lineitem
+           |  group by l_orderkey, l_shipdate) t1
+           |join (
+           |  select o_orderkey, extract(year from o_orderdate) as o_year, count(1) as o_cnt
+           |  from orders
+           |  group by o_orderkey, o_orderdate) t2
+           |on t1.l_orderkey = t2.o_orderkey
+           | and extract(year from t1.l_shipdate) = o_year
+           |order by t1.l_orderkey, t2.o_orderkey, t2.o_year, t1.l_cnt, t2.o_cnt
+           |limit 100
+           |
+           |""".stripMargin,
+        true,
+        true
+      )(df => {})
+
+      runQueryAndCompare(
+        s"""
+           |select t1.l_orderkey, t2.o_orderkey, extract(year from t1.l_shipdate), t2.o_year
+           |from (
+           |  select l_orderkey, l_shipdate, count(1) as l_cnt
+           |  from lineitem
+           |  group by l_orderkey, l_shipdate) t1
+           |join (
+           |  select o_orderkey, extract(year from o_orderdate) as o_year, count(1) as o_cnt
+           |  from orders
+           |  group by o_orderkey, o_orderdate) t2
+           |on t1.l_orderkey = t2.o_orderkey
+           | and extract(year from t1.l_shipdate) = o_year
+           |order by t1.l_orderkey, t2.o_orderkey, t2.o_year
+           |limit 100
+           |
+           |""".stripMargin,
+        true,
+        true
+      )(df => {})
+    }
   }
 }
 // scalastyle:off line.size.limit

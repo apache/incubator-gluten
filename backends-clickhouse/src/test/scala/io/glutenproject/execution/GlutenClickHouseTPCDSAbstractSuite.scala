@@ -33,7 +33,9 @@ import java.util
 
 import scala.io.Source
 
-abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerSuite with Logging {
+abstract class GlutenClickHouseTPCDSAbstractSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
+  with Logging {
   private var _spark: SparkSession = _
 
   override protected def spark: SparkSession = _spark
@@ -172,8 +174,8 @@ abstract class GlutenClickHouseTPCDSAbstractSuite extends WholeStageTransformerS
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
       .set("spark.sql.warehouse.dir", warehouse)
+      .set("spark.sql.decimalOperations.allowPrecisionLoss", "false")
     /* .set("spark.sql.catalogImplementation", "hive")
     .set("javax.jdo.option.ConnectionURL", s"jdbc:derby:;databaseName=${
       metaStorePathAbsolute + "/metastore_db"};create=true") */

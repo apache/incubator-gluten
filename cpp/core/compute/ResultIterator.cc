@@ -16,13 +16,13 @@
  */
 
 #include "ResultIterator.h"
-#include "ExecutionCtx.h"
+#include "Runtime.h"
 
 namespace gluten {
 
 Metrics* ResultIterator::getMetrics() {
-  if (executionCtx_) {
-    return executionCtx_->getMetrics(getInputIter(), exportNanos_);
+  if (runtime_) {
+    return runtime_->getMetrics(getInputIter(), exportNanos_);
   }
   return nullptr;
 }

@@ -28,6 +28,10 @@
 
 #include "FilePathGenerator.h"
 
+#include "velox/core/QueryCtx.h"
+
+#include "substrait/SubstraitParser.h"
+
 using namespace facebook::velox;
 using namespace facebook::velox::test;
 
@@ -70,15 +74,15 @@ TEST_F(FunctionTest, getIdxFromNodeName) {
 
 TEST_F(FunctionTest, getNameBeforeDelimiter) {
   std::string functionSpec = "lte:fp64_fp64";
-  std::string_view funcName = getNameBeforeDelimiter(functionSpec, ":");
+  std::string_view funcName = SubstraitParser::getNameBeforeDelimiter(functionSpec);
   ASSERT_EQ(funcName, "lte");
 
   functionSpec = "lte:";
-  funcName = getNameBeforeDelimiter(functionSpec, ":");
+  funcName = SubstraitParser::getNameBeforeDelimiter(functionSpec);
   ASSERT_EQ(funcName, "lte");
 
   functionSpec = "lte";
-  funcName = getNameBeforeDelimiter(functionSpec, ":");
+  funcName = SubstraitParser::getNameBeforeDelimiter(functionSpec);
   ASSERT_EQ(funcName, "lte");
 }
 
@@ -167,9 +171,9 @@ TEST_F(FunctionTest, setVectorFromVariants) {
   ASSERT_EQ("1970-01-01T02:30:20.000000000", resultVec->asFlatVector<Timestamp>()->valueAt(0).toString());
   ASSERT_EQ("1970-01-01T02:27:55.000000000", resultVec->asFlatVector<Timestamp>()->valueAt(1).toString());
 
-  resultVec = setVectorFromVariants(DATE(), {variant(Date(9020)), variant(Date(8875))}, pool_.get());
-  ASSERT_EQ("1994-09-12", resultVec->asFlatVector<Date>()->valueAt(0).toString());
-  ASSERT_EQ("1994-04-20", resultVec->asFlatVector<Date>()->valueAt(1).toString());
+  resultVec = setVectorFromVariants(DATE(), {variant(9020), variant(8875)}, pool_.get());
+  ASSERT_EQ("1994-09-12", DATE()->toString(resultVec->asFlatVector<int32_t>()->valueAt(0)));
+  ASSERT_EQ("1994-04-20", DATE()->toString(resultVec->asFlatVector<int32_t>()->valueAt(1)));
 
   resultVec = setVectorFromVariants(INTERVAL_DAY_TIME(), {variant(9020LL), variant(8875LL)}, pool_.get());
   ASSERT_TRUE(resultVec->type()->isIntervalDayTime());
@@ -178,18 +182,36 @@ TEST_F(FunctionTest, setVectorFromVariants) {
 }
 
 TEST_F(FunctionTest, getFunctionType) {
-  std::vector<std::string> types;
-  SubstraitParser::getSubFunctionTypes("sum:opt_i32", types);
+  std::vector<std::string> types = SubstraitParser::getSubFunctionTypes("sum:opt_i32");
   ASSERT_EQ("i32", types[0]);
 
-  types.clear();
-  SubstraitParser::getSubFunctionTypes("sum:i32", types);
+  types = SubstraitParser::getSubFunctionTypes("sum:i32");
   ASSERT_EQ("i32", types[0]);
 
-  types.clear();
-  SubstraitParser::getSubFunctionTypes("sum:opt_str_str", types);
+  types = SubstraitParser::getSubFunctionTypes("sum:opt_str_str");
   ASSERT_EQ(2, types.size());
   ASSERT_EQ("str", types[0]);
   ASSERT_EQ("str", types[1]);
+}
+
+TEST_F(FunctionTest, sigToTypes) {
+  std::vector<TypePtr> types = SubstraitParser::sigToTypes("sum:opt_i32");
+  ASSERT_EQ(types[0]->kind(), TypeKind::INTEGER);
+
+  types = SubstraitParser::sigToTypes("and:opt_bool_bool");
+  ASSERT_EQ(2, types.size());
+  ASSERT_EQ(types[0]->kind(), TypeKind::BOOLEAN);
+  ASSERT_EQ(types[1]->kind(), TypeKind::BOOLEAN);
+
+  types = SubstraitParser::sigToTypes("sum:dec<12,9>");
+  ASSERT_EQ(getDecimalPrecisionScale(*types[0]).first, 12);
+  ASSERT_EQ(getDecimalPrecisionScale(*types[0]).second, 9);
+
+  types = SubstraitParser::sigToTypes("sum:struct<i32,str,dec<18,6>,bool>");
+  ASSERT_EQ(types[0]->kind(), TypeKind::ROW);
+  ASSERT_EQ(types[0]->childAt(0)->kind(), TypeKind::INTEGER);
+  ASSERT_EQ(types[0]->childAt(1)->kind(), TypeKind::VARCHAR);
+  ASSERT_TRUE(types[0]->childAt(2)->isDecimal());
+  ASSERT_EQ(types[0]->childAt(3)->kind(), TypeKind::BOOLEAN);
 }
 } // namespace gluten

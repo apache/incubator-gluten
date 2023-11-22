@@ -29,7 +29,9 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 import java.time.LocalDate
 
-class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with Logging {
+class GlutenClickHouseSyntheticDataSuite
+  extends GlutenClickHouseWholeStageTransformerSuite
+  with Logging {
 
   override protected val backend: String = "ch"
   override protected val fileFormat: String = "parquet"
@@ -75,7 +77,6 @@ class GlutenClickHouseSyntheticDataSuite extends WholeStageTransformerSuite with
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.columnar.forceShuffledHashJoin", "true")
       .set("spark.sql.warehouse.dir", warehouse)
       .set("spark.sql.legacy.createHiveTableByDefault", "false")
       .set("spark.shuffle.manager", "sort")

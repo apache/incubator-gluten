@@ -17,7 +17,7 @@
 package io.glutenproject.vectorized
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.exec.ExecutionCtxs
+import io.glutenproject.exec.Runtimes
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.utils.ArrowAbiUtil
@@ -78,6 +78,7 @@ private class ColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
+  private lazy val nmm = NativeMemoryManagers.contextInstance("ShuffleReader")
   private lazy val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
       .contextInstance()
@@ -98,10 +99,9 @@ private class ColumnarBatchSerializerInstance(
     val jniWrapper = ShuffleReaderJniWrapper.create()
     val shuffleReaderHandle = jniWrapper.make(
       cSchema.memoryAddress(),
-      NativeMemoryManagers.contextInstance("ShuffleReader").getNativeInstanceHandle,
+      nmm.getNativeInstanceHandle,
       compressionCodec,
-      compressionCodecBackend,
-      GlutenConfig.getConf.columnarShuffleCompressionMode
+      compressionCodecBackend
     )
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that
@@ -126,10 +126,11 @@ private class ColumnarBatchSerializerInstance(
     new DeserializationStream {
       private lazy val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
       private lazy val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
-        ExecutionCtxs.contextInstance(),
+        Runtimes.contextInstance(),
         ShuffleReaderJniWrapper
           .create()
-          .readStream(shuffleReaderHandle, byteIn))
+          .readStream(shuffleReaderHandle, byteIn),
+        nmm)
 
       private var cb: ColumnarBatch = _
 

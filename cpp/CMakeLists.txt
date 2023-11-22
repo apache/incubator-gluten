@@ -43,19 +43,31 @@ option(BUILD_EXAMPLES "Build Examples" OFF)
 option(BUILD_BENCHMARKS "Build Benchmarks" OFF)
 option(BUILD_PROTOBUF "Build Protobuf from Source" OFF)
 option(BUILD_JEMALLOC "Build Jemalloc from Source" OFF)
+option(BUILD_GLOG "Build Glog from Source" OFF)
 option(USE_AVX512 "Build with AVX-512 optimizations" OFF)
 option(ENABLE_HBM "Enable HBM allocator" OFF)
 option(ENABLE_QAT "Enable QAT for de/compression" OFF)
 option(ENABLE_IAA "Enable IAA for de/compression" OFF)
+option(ENABLE_GCS "Enable GCS" OFF)
 option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
+option(ENABLE_ORC "Enable ORC" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
 
-if (NOT DEFINED ARROW_HOME)
-  set(ARROW_HOME ${GLUTEN_HOME}/ep/build-arrow/build)
+if (NOT DEFINED VELOX_HOME)
+  set(VELOX_HOME ${GLUTEN_HOME}/ep/build-velox/build/velox_ep)
+  message(STATUS "Set VELOX_HOME to ${VELOX_HOME}")
 endif()
+
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+  set(ARROW_HOME ${VELOX_HOME}/_build/debug/third_party/arrow_ep)
+else()
+  set(ARROW_HOME ${VELOX_HOME}/_build/release/third_party/arrow_ep)
+endif()
+
+include(ResolveDependency)
 
 #
 # Compiler flags
@@ -86,6 +98,9 @@ add_compile_options(-Wno-error=unused-variable)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
   add_compile_options(-Wno-error=unused-but-set-variable)
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+    add_compile_options(-Wno-error=maybe-uninitialized)
+  endif()
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   # Experimental
   add_compile_options(-Wno-implicit-int-float-conversion)
@@ -100,6 +115,7 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   add_compile_options(-Wno-macro-redefined)
   add_compile_options(-Wno-nullability-completeness)
   add_compile_options(-Wno-pessimizing-move)
+  add_compile_options(-Wno-mismatched-tags)
 endif()
 
 #
@@ -113,6 +129,8 @@ find_package(Threads REQUIRED)
 
 find_package(JNI REQUIRED)
 
+find_package(glog REQUIRED)
+
 if(BUILD_TESTS)
   set(GLUTEN_GTEST_MIN_VERSION "1.13.0")
   find_package(GTest ${GLUTEN_GTEST_MIN_VERSION} CONFIG)
@@ -121,7 +139,6 @@ if(BUILD_TESTS)
   endif()
   include(GoogleTest)
   enable_testing()
-  find_package(glog REQUIRED)
 endif()
 
 function(ADD_TEST_CASE TEST_NAME)
@@ -178,6 +195,10 @@ endif()
 
 if(ENABLE_IAA)
   add_definitions(-DGLUTEN_ENABLE_IAA)
+endif()
+
+if(ENABLE_ORC)
+  add_definitions(-DGLUTEN_ENABLE_ORC)
 endif()
 
 #

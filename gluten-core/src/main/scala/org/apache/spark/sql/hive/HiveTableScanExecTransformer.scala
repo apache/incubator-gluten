@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.hive
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{BasicScanExecTransformer, TransformContext}
 import io.glutenproject.extension.ValidationResult
@@ -33,12 +32,15 @@ import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.hive.HiveTableScanExecTransformer._
+import org.apache.spark.sql.hive.client.HiveClientImpl
 import org.apache.spark.sql.hive.execution.HiveTableScanExec
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
+import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+import org.apache.hadoop.hive.ql.plan.TableDesc
 import org.apache.hadoop.mapred.TextInputFormat
 
 import java.net.URI
@@ -55,6 +57,13 @@ class HiveTableScanExecTransformer(
   @transient override lazy val metrics: Map[String, SQLMetric] =
     BackendsApiManager.getMetricsApiInstance.genHiveTableScanTransformerMetrics(sparkContext)
 
+  @transient private lazy val hiveQlTable = HiveClientImpl.toHiveTable(relation.tableMeta)
+
+  @transient private lazy val tableDesc = new TableDesc(
+    hiveQlTable.getInputFormatClass,
+    hiveQlTable.getOutputFormatClass,
+    hiveQlTable.getMetadata)
+
   override def filterExprs(): Seq[Expression] = Seq.empty
 
   override def outputAttributes(): Seq[Attribute] = output
@@ -66,33 +75,12 @@ class HiveTableScanExecTransformer(
   override def getDataSchemas: StructType = relation.tableMeta.dataSchema
 
   override def getInputFilePaths: Seq[String] = {
-    if (BackendsApiManager.isVeloxBackend) {
-      Seq.empty[String]
-    } else if (BackendsApiManager.isCHBackend) {
-      // We only support reading from text file format, so we can safely return empty.
-      // see CHBackendSettings#supportFileFormatRead
-      Seq.empty[String]
-    } else {
-      throw new UnsupportedOperationException("Unsupported backend")
-    }
-  }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
+    // FIXME how does a hive table expose file paths?
     Seq.empty
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-    Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = {
-    this
   }
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genHiveTableScanTransformerMetricsUpdater(metrics)
-
-  override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     doExecuteColumnarInternal()
@@ -126,6 +114,9 @@ class HiveTableScanExecTransformer(
       case Some(inputFormat)
           if ORC_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
         ReadFileFormat.OrcReadFormat
+      case Some(inputFormat)
+          if PARQUET_INPUT_FORMAT_CLASS.isAssignableFrom(Utils.classForName(inputFormat)) =>
+        ReadFileFormat.ParquetReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
   }
@@ -140,6 +131,7 @@ class HiveTableScanExecTransformer(
       case _ =>
         options += ("field_delimiter" -> DEFAULT_FIELD_DELIMITER.toString)
         options += ("nullValue" -> NULL_VALUE.toString)
+        options += ("escape" -> "\\")
     }
 
     options
@@ -151,7 +143,11 @@ class HiveTableScanExecTransformer(
       transformCtx.root != null
       && transformCtx.root.isInstanceOf[ReadRelNode]
     ) {
-      val properties = relation.tableMeta.storage.properties ++ relation.tableMeta.properties
+      var properties: Map[String, String] = Map()
+      tableDesc.getProperties
+        .entrySet()
+        .forEach(e => properties += (e.getKey.toString -> e.getValue.toString))
+
       var options: Map[String, String] = createDefaultTextOption()
       // property key string read from org.apache.hadoop.hive.serde.serdeConstants
       properties.foreach {
@@ -211,7 +207,8 @@ object HiveTableScanExecTransformer {
     Utils.classForName("org.apache.hadoop.mapred.TextInputFormat")
   val ORC_INPUT_FORMAT_CLASS: Class[OrcInputFormat] =
     Utils.classForName("org.apache.hadoop.hive.ql.io.orc.OrcInputFormat")
-
+  val PARQUET_INPUT_FORMAT_CLASS: Class[MapredParquetInputFormat] =
+    Utils.classForName("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat")
   def isHiveTableScan(plan: SparkPlan): Boolean = {
     plan.isInstanceOf[HiveTableScanExec]
   }

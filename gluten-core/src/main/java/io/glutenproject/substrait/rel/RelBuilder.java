@@ -29,7 +29,7 @@ import io.substrait.proto.JoinRel;
 import io.substrait.proto.SortField;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 
-import java.util.ArrayList;
+import java.util.List;
 
 /** Contains helper functions for constructing substrait relations. */
 public class RelBuilder {
@@ -53,7 +53,7 @@ public class RelBuilder {
 
   public static RelNode makeProjectRel(
       RelNode input,
-      ArrayList<ExpressionNode> expressionNodes,
+      List<ExpressionNode> expressionNodes,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
@@ -62,7 +62,7 @@ public class RelBuilder {
 
   public static RelNode makeProjectRel(
       RelNode input,
-      ArrayList<ExpressionNode> expressionNodes,
+      List<ExpressionNode> expressionNodes,
       SubstraitContext context,
       Long operatorId,
       int emitStartIndex) {
@@ -72,7 +72,7 @@ public class RelBuilder {
 
   public static RelNode makeProjectRel(
       RelNode input,
-      ArrayList<ExpressionNode> expressionNodes,
+      List<ExpressionNode> expressionNodes,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId,
@@ -83,9 +83,9 @@ public class RelBuilder {
 
   public static RelNode makeAggregateRel(
       RelNode input,
-      ArrayList<ExpressionNode> groupings,
-      ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-      ArrayList<ExpressionNode> filters,
+      List<ExpressionNode> groupings,
+      List<AggregateFunctionNode> aggregateFunctionNodes,
+      List<ExpressionNode> filters,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
@@ -94,9 +94,9 @@ public class RelBuilder {
 
   public static RelNode makeAggregateRel(
       RelNode input,
-      ArrayList<ExpressionNode> groupings,
-      ArrayList<AggregateFunctionNode> aggregateFunctionNodes,
-      ArrayList<ExpressionNode> filters,
+      List<ExpressionNode> groupings,
+      List<AggregateFunctionNode> aggregateFunctionNodes,
+      List<ExpressionNode> filters,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId) {
@@ -105,8 +105,8 @@ public class RelBuilder {
   }
 
   public static RelNode makeReadRel(
-      ArrayList<TypeNode> types,
-      ArrayList<String> names,
+      List<TypeNode> types,
+      List<String> names,
       ExpressionNode filter,
       SubstraitContext context,
       Long operatorId) {
@@ -115,9 +115,9 @@ public class RelBuilder {
   }
 
   public static RelNode makeReadRel(
-      ArrayList<TypeNode> types,
-      ArrayList<String> names,
-      ArrayList<ColumnTypeNode> columnTypeNodes,
+      List<TypeNode> types,
+      List<String> names,
+      List<ColumnTypeNode> columnTypeNodes,
       ExpressionNode filter,
       SubstraitContext context,
       Long operatorId) {
@@ -126,8 +126,8 @@ public class RelBuilder {
   }
 
   public static RelNode makeReadRel(
-      ArrayList<TypeNode> types,
-      ArrayList<String> names,
+      List<TypeNode> types,
+      List<String> names,
       ExpressionNode filter,
       Long iteratorIndex,
       SubstraitContext context,
@@ -137,15 +137,15 @@ public class RelBuilder {
   }
 
   public static RelNode makeReadRel(
-      ArrayList<Attribute> attributes, SubstraitContext context, Long operatorId) {
+      List<Attribute> attributes, SubstraitContext context, Long operatorId) {
     if (operatorId >= 0) {
       // If the operator id is negative, will not register the rel to operator.
       // Currently, only for the special handling in join.
       context.registerRelToOperator(operatorId);
     }
 
-    ArrayList<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(attributes);
-    ArrayList<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(attributes);
+    List<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(attributes);
+    List<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(attributes);
 
     // The iterator index will be added in the path of LocalFiles.
     Long iteratorIndex = context.nextIteratorIndex();
@@ -184,7 +184,7 @@ public class RelBuilder {
 
   public static RelNode makeExpandRel(
       RelNode input,
-      ArrayList<ArrayList<ExpressionNode>> projections,
+      List<List<ExpressionNode>> projections,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId) {
@@ -194,7 +194,7 @@ public class RelBuilder {
 
   public static RelNode makeExpandRel(
       RelNode input,
-      ArrayList<ArrayList<ExpressionNode>> projections,
+      List<List<ExpressionNode>> projections,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
@@ -203,7 +203,7 @@ public class RelBuilder {
 
   public static RelNode makeSortRel(
       RelNode input,
-      ArrayList<SortField> sorts,
+      List<SortField> sorts,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId) {
@@ -212,7 +212,7 @@ public class RelBuilder {
   }
 
   public static RelNode makeSortRel(
-      RelNode input, ArrayList<SortField> sorts, SubstraitContext context, Long operatorId) {
+      RelNode input, List<SortField> sorts, SubstraitContext context, Long operatorId) {
     context.registerRelToOperator(operatorId);
     return new SortRelNode(input, sorts);
   }
@@ -236,9 +236,9 @@ public class RelBuilder {
 
   public static RelNode makeWindowRel(
       RelNode input,
-      ArrayList<WindowFunctionNode> windowFunctionNodes,
-      ArrayList<ExpressionNode> partitionExpressions,
-      ArrayList<SortField> sorts,
+      List<WindowFunctionNode> windowFunctionNodes,
+      List<ExpressionNode> partitionExpressions,
+      List<SortField> sorts,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId) {
@@ -249,9 +249,9 @@ public class RelBuilder {
 
   public static RelNode makeWindowRel(
       RelNode input,
-      ArrayList<WindowFunctionNode> windowFunctionNodes,
-      ArrayList<ExpressionNode> partitionExpressions,
-      ArrayList<SortField> sorts,
+      List<WindowFunctionNode> windowFunctionNodes,
+      List<ExpressionNode> partitionExpressions,
+      List<SortField> sorts,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
@@ -263,7 +263,7 @@ public class RelBuilder {
   public static RelNode makeGenerateRel(
       RelNode input,
       ExpressionNode generator,
-      ArrayList<ExpressionNode> childOutput,
+      List<ExpressionNode> childOutput,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
@@ -273,7 +273,7 @@ public class RelBuilder {
   public static RelNode makeGenerateRel(
       RelNode input,
       ExpressionNode generator,
-      ArrayList<ExpressionNode> childOutput,
+      List<ExpressionNode> childOutput,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId) {

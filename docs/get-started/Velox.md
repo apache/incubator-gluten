@@ -4,7 +4,7 @@ title: Gluten with Velox Backend
 nav_order: 1
 parent: Getting-Started
 ---
-Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox and Arrow. Our nightly build still use Velox under oap-project. 
+Currently, the mvn script can automatically fetch and build all dependency libraries incluing Velox. Our nightly build still use Velox under oap-project. 
 
 # Prerequisite
 
@@ -13,14 +13,7 @@ common OS and conda env deployment.
 
 Gluten builds with Spark3.2.x and Spark3.3.x now but only fully tested in CI with 3.2.2 and 3.3.1. We will add/update supported/tested versions according to the upstream changes. 
 
-Velox uses the script `scripts/setup-xxx.sh` to install all dependency libraries, but Arrow's dependency libraries are not installed. Velox also requires ninja for compilation.
-So we need to install all of them manually. Also, we need to set up the `JAVA_HOME` env. Currently, **java 8** is required and the support for java 11/17 is not ready.
-
-```bash
-## run as root
-## install gcc and libraries to build arrow
-apt-get update && apt-get install -y sudo locales wget tar tzdata git ccache cmake ninja-build build-essential llvm-11-dev clang-11 libiberty-dev libdwarf-dev libre2-dev libz-dev libssl-dev libboost-all-dev libcurl4-openssl-dev openjdk-8-jdk maven
-```
+we need to set up the `JAVA_HOME` env. Currently, **java 8** is required and the support for java 11/17 is not ready.
 
 **For x86_64**
 
@@ -61,7 +54,7 @@ cd /path/to/gluten
 ./dev/buildbundle-veloxbe.sh
 
 ## After a complete build, if you need to re-build the project and only some gluten code is changed,
-## you can use the following command to skip building arrow, velox and protobuf.
+## you can use the following command to skip building velox and protobuf.
 # ./dev/buildbundle-veloxbe.sh --skip_build_ep=ON --build_protobuf=OFF
 ```
 
@@ -75,30 +68,23 @@ cd /path/to/gluten
 ./dev/builddeps-veloxbe.sh
 ```
 
-**Build Velox or Arrow separately**
+**Build Velox separately**
 
-Scripts under `/path/to/gluten/ep/build-xxx/src` provide `get_xxx.sh` and `build_xxx.sh` to build Velox or Arrow separately, you could use these scripts with custom repo/branch/location.
+Scripts under `/path/to/gluten/ep/build-velox/src` provide `get_velox.sh` and `build_velox.sh` to build Velox separately, you could use these scripts with custom repo/branch/location.
 
-Velox can use pre-build arrow/parquet lib from ARROW_HOME parsed by --arrow_home to decrease build time.
-Gluten cpp module need a required VELOX_HOME parsed by --velox_home and an optional ARROW_HOME by --arrow_home, if you specify custom ep location, make sure these variables be passed correctly.
+Velox provides arrow/parquet lib. Gluten cpp module need a required VELOX_HOME parsed by --velox_home, if you specify custom ep location, make sure these variables be passed correctly.
 
 ```bash
-## fetch Arrow and compile
-cd /path/to/gluten/ep/build-arrow/src/
-## you could use custom ep location by --arrow_home=custom_path, make sure specify --arrow_home in build_arrow.sh too.
-./get_arrow.sh
-./build_arrow.sh
-
 ## fetch Velox and compile
 cd /path/to/gluten/ep/build-velox/src/
 ## you could use custom ep location by --velox_home=custom_path, make sure specify --velox_home in build_velox.sh too.
 ./get_velox.sh
-## make sure specify --arrow_home or --velox_home if you have specified it in get_xxx.sh.
+## make sure specify --velox_home if you have specified it in get_velox.sh.
 ./build_velox.sh
 
 ## compile Gluten cpp module
 cd /path/to/gluten/cpp
-## if you use custom velox_home or arrow_home, make sure specified here by --arrow_home or --velox_home 
+## if you use custom velox_home, make sure specified here by --velox_home 
 ./compile.sh --build_velox_backend=ON
 
 ## compile Gluten java module and create package jar
@@ -254,6 +240,26 @@ spark.celeborn.storage.hdfs.dir hdfs://<namenode>/celeborn
 spark.dynamicAllocation.enabled false
 ```
 
+## DeltaLake Support
+
+Gluten with velox backend supports [DeltaLake](https://delta.io/) table.
+
+### How to use
+
+First of all, compile gluten-delta module by a `delta` profile, as follows:
+
+```
+mvn clean package -Pbackends-velox -Pspark-3.3 -Pdelta -DskipTests
+```
+
+Then, put the additional gluten-delta jar to the class path (usually it's `$SPARK_HOME/jars`).
+The gluten-delta jar is in `gluten-delta/target` directory.
+
+After the two steps, you can query delta table by gluten/velox without scan's fallback.
+
+Gluten with velox backends also support the column mapping of delta tables.
+About column mapping, see more [here](https://docs.delta.io/latest/delta-column-mapping.html).
+
 # Coverage
 Spark3.3 has 387 functions in total. ~240 are commonly used. Velox's functions have two category, Presto and Spark. Presto has 124 functions implemented. Spark has 62 functions. Spark functions are verified to have the same result as Vanilla Spark. Some Presto functions have the same result as Vanilla Spark but some others have different. Gluten prefer to use Spark functions firstly. If it's not in Spark's list but implemented in Presto, we currently offload to Presto one until we noted some result mismatch, then we need to reimplement the function in Spark category. Gluten currently offloads 94 functions and 14 operators, more details refer to [Velox Backend's Supported Operators & Functions](../velox-backend-support-progress.md).
 
@@ -284,11 +290,14 @@ With above steps, you will get a physical plan output like:
 
 ```
 
-"GlutenRowToArrowColumnar" and "VeloxColumnarToRowExec" indicate there is a fallback and you may find related log with key words "due to" like:
+`GlutenRowToArrowColumnar`/`VeloxColumnarToRowExec` indicates there is a fallback operator before or after it. And you may find fallback reason like below in logs.
 
 ```
 native validation failed due to: in ProjectRel, Scalar function name not registered: get_struct_field, called with arguments: (ROW<col_0:INTEGER,col_1:BIGINT,col_2:BIGINT>, INTEGER).
 ```
+
+In the above, the symbol `^` indicates a plan is offloaded to Velox in a stage. In Spark DAG, all such pipelined plans (consecutive plans marked with `^`) are plotted
+inside an umbrella node named `WholeStageCodegenTransformer` (It's not codegen node. The naming is just for making it well plotted like Spark Whole Stage Codegen).
 
 # Spill (Experimental)
 
@@ -690,20 +699,19 @@ All TPC-H and TPC-DS queries are supported in Gluten Velox backend.
 
 ## Data preparation
 
-The data generation scripts are [TPC-H dategen script](../backends-velox/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
-[TPC-DS dategen script](../backends-velox/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh).
+The data generation scripts are [TPC-H dategen script](../../tools/workload/tpch/gen_data/parquet_dataset/tpch_datagen_parquet.sh) and
+[TPC-DS dategen script](../../tools/workload/tpcds/gen_data/parquet_dataset/tpcds_datagen_parquet.sh).
 
-The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original)
-and [TPC-H queries](../gluten-core/src/test/resources/tpch-queries).
+The used TPC-H and TPC-DS queries are the original ones, and can be accessed from [TPC-DS queries](../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.original)
+and [TPC-H queries](../../gluten-core/src/test/resources/tpch-queries).
 
-Some other versions of TPC-DS and TPC-H queries are also provided, but are **not** recommended for testing, including:
-- the modified TPC-H queries with "Date-to-String" conversions: [TPC-H non-date queries](../tools/gluten-it/src/main/resources/tpch-queries-nodate) (outdated).
-- the modified TPC-DS queries with "Decimal-to-Double": [TPC-DS non-decimal queries](../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.no-decimal) (outdated).
-- the modified TPC-DS queries with "Decimal-to-Double" and "Date-to-String" conversions: [TPC-DS modified queries](../tools/gluten-it/src/main/resources/tpcds-queries-nodecimal-nodate) (outdated).
+Some other versions of TPC-DS queries are also provided, but are **not** recommended for testing, including:
+- the modified TPC-DS queries with "Decimal-to-Double": [TPC-DS non-decimal queries](../../gluten-core/src/test/resources/tpcds-queries/tpcds.queries.no-decimal) (outdated).
 
 ## Submit the Spark SQL job
 
-Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../backends-velox/workload/tpch/run_tpch/tpch_parquet.scala) as an example. Please remember to modify the location of TPC-H files as well as TPC-H queries in backends-velox/workload/tpch/run_tpch/tpch_parquet.scala before you run the testing. 
+Submit test script from spark-shell. You can find the scala code to [Run TPC-H](../../tools/workload/tpch/run_tpch/tpch_parquet.scala) as an example. Please remember to modify
+the location of TPC-H files as well as TPC-H queries before you run the testing.
 
 ```
 var parquet_file_path = "/PATH/TO/TPCH_PARQUET_PATH"
@@ -782,3 +790,95 @@ If you want to disable Gluten UI, add a config when submitting `--conf spark.glu
 ## History server
 
 Gluten UI also supports Spark history server. Add gluten-ui jar into the history server classpath, e.g., $SPARK_HOME/jars, then restart history server.
+
+## Native plan string
+
+Gluten supports inject native plan string into Spark explain with formatted mode by setting `--conf spark.gluten.sql.injectNativePlanStringToExplain=true`.
+Here is an example, how Gluten show the native plan string.
+
+```
+(9) WholeStageCodegenTransformer (2)
+Input [6]: [c1#0L, c2#1L, c3#2L, c1#3L, c2#4L, c3#5L]
+Arguments: false
+Native Plan:
+-- Project[expressions: (n3_6:BIGINT, "n0_0"), (n3_7:BIGINT, "n0_1"), (n3_8:BIGINT, "n0_2"), (n3_9:BIGINT, "n1_0"), (n3_10:BIGINT, "n1_1"), (n3_11:BIGINT, "n1_2")] -> n3_6:BIGINT, n3_7:BIGINT, n3_8:BIGINT, n3_9:BIGINT, n3_10:BIGINT, n3_11:BIGINT
+  -- HashJoin[INNER n1_1=n0_1] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT, n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
+    -- TableScan[table: hive_table, range filters: [(c2, Filter(IsNotNull, deterministic, null not allowed))]] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT
+    -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
+```
+
+## Native plan with stats
+
+Gluten supports print native plan with stats to executor system output stream by setting `--conf spark.gluten.sql.debug=true`.
+Note that, the plan string with stats is task level which may cause executor log size big. Here is an example, how Gluten show the native plan string with stats.
+
+```
+I20231121 10:19:42.348845 90094332 WholeStageResultIterator.cc:220] Native Plan with stats for: [Stage: 1 TID: 16]
+-- Project[expressions: (n3_6:BIGINT, "n0_0"), (n3_7:BIGINT, "n0_1"), (n3_8:BIGINT, "n0_2"), (n3_9:BIGINT, "n1_0"), (n3_10:BIGINT, "n1_1"), (n3_11:BIGINT, "n1_2")] -> n3_6:BIGINT, n3_7:BIGINT, n3_8:BIGINT, n3_9:BIGINT, n3_10:BIGINT, n3_11:BIGINT
+   Output: 27 rows (3.56KB, 3 batches), Cpu time: 10.58us, Blocked wall time: 0ns, Peak memory: 0B, Memory allocations: 0, Threads: 1
+      queuedWallNanos              sum: 2.00us, count: 1, min: 2.00us, max: 2.00us
+      runningAddInputWallNanos     sum: 626ns, count: 1, min: 626ns, max: 626ns
+      runningFinishWallNanos       sum: 0ns, count: 1, min: 0ns, max: 0ns
+      runningGetOutputWallNanos    sum: 5.54us, count: 1, min: 5.54us, max: 5.54us
+  -- HashJoin[INNER n1_1=n0_1] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT, n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
+     Output: 27 rows (3.56KB, 3 batches), Cpu time: 223.00us, Blocked wall time: 0ns, Peak memory: 93.12KB, Memory allocations: 15
+     HashBuild: Input: 10 rows (960B, 10 batches), Output: 0 rows (0B, 0 batches), Cpu time: 185.67us, Blocked wall time: 0ns, Peak memory: 68.00KB, Memory allocations: 2, Threads: 1
+        distinctKey0                 sum: 4, count: 1, min: 4, max: 4
+        hashtable.capacity           sum: 4, count: 1, min: 4, max: 4
+        hashtable.numDistinct        sum: 10, count: 1, min: 10, max: 10
+        hashtable.numRehashes        sum: 1, count: 1, min: 1, max: 1
+        queuedWallNanos              sum: 0ns, count: 1, min: 0ns, max: 0ns
+        rangeKey0                    sum: 4, count: 1, min: 4, max: 4
+        runningAddInputWallNanos     sum: 1.27ms, count: 1, min: 1.27ms, max: 1.27ms
+        runningFinishWallNanos       sum: 0ns, count: 1, min: 0ns, max: 0ns
+        runningGetOutputWallNanos    sum: 1.29us, count: 1, min: 1.29us, max: 1.29us
+     H23/11/21 10:19:42 INFO TaskSetManager: Finished task 3.0 in stage 1.0 (TID 13) in 335 ms on 10.221.97.35 (executor driver) (1/10)
+ashProbe: Input: 9 rows (864B, 3 batches), Output: 27 rows (3.56KB, 3 batches), Cpu time: 37.33us, Blocked wall time: 0ns, Peak memory: 25.12KB, Memory allocations: 13, Threads: 1
+        dynamicFiltersProduced       sum: 1, count: 1, min: 1, max: 1
+        queuedWallNanos              sum: 0ns, count: 1, min: 0ns, max: 0ns
+        runningAddInputWallNanos     sum: 4.54us, count: 1, min: 4.54us, max: 4.54us
+        runningFinishWallNanos       sum: 83ns, count: 1, min: 83ns, max: 83ns
+        runningGetOutputWallNanos    sum: 29.08us, count: 1, min: 29.08us, max: 29.08us
+    -- TableScan[table: hive_table, range filters: [(c2, Filter(IsNotNull, deterministic, null not allowed))]] -> n1_0:BIGINT, n1_1:BIGINT, n1_2:BIGINT
+       Input: 9 rows (864B, 3 batches), Output: 9 rows (864B, 3 batches), Cpu time: 630.75us, Blocked wall time: 0ns, Peak memory: 2.44KB, Memory allocations: 63, Threads: 1, Splits: 3
+          dataSourceWallNanos              sum: 102.00us, count: 1, min: 102.00us, max: 102.00us
+          dynamicFiltersAccepted           sum: 1, count: 1, min: 1, max: 1
+          flattenStringDictionaryValues    sum: 0, count: 1, min: 0, max: 0
+          ioWaitNanos                      sum: 312.00us, count: 1, min: 312.00us, max: 312.00us
+          localReadBytes                   sum: 0B, count: 1, min: 0B, max: 0B
+          numLocalRead                     sum: 0, count: 1, min: 0, max: 0
+          numPrefetch                      sum: 0, count: 1, min: 0, max: 0
+          numRamRead                       sum: 0, count: 1, min: 0, max: 0
+          numStorageRead                   sum: 6, count: 1, min: 6, max: 6
+          overreadBytes                    sum: 0B, count: 1, min: 0B, max: 0B
+          prefetchBytes                    sum: 0B, count: 1, min: 0B, max: 0B
+          queryThreadIoLatency             sum: 12, count: 1, min: 12, max: 12
+          ramReadBytes                     sum: 0B, count: 1, min: 0B, max: 0B
+          runningAddInputWallNanos         sum: 0ns, count: 1, min: 0ns, max: 0ns
+          runningFinishWallNanos           sum: 125ns, count: 1, min: 125ns, max: 125ns
+          runningGetOutputWallNanos        sum: 1.07ms, count: 1, min: 1.07ms, max: 1.07ms
+          skippedSplitBytes                sum: 0B, count: 1, min: 0B, max: 0B
+          skippedSplits                    sum: 0, count: 1, min: 0, max: 0
+          skippedStrides                   sum: 0, count: 1, min: 0, max: 0
+          storageReadBytes                 sum: 3.44KB, count: 1, min: 3.44KB, max: 3.44KB
+          totalScanTime                    sum: 0ns, count: 1, min: 0ns, max: 0ns
+    -- ValueStream[] -> n0_0:BIGINT, n0_1:BIGINT, n0_2:BIGINT
+       Input: 0 rows (0B, 0 batches), Output: 10 rows (960B, 10 batches), Cpu time: 1.03ms, Blocked wall time: 0ns, Peak memory: 0B, Memory allocations: 0, Threads: 1
+          runningAddInputWallNanos     sum: 0ns, count: 1, min: 0ns, max: 0ns
+          runningFinishWallNanos       sum: 54.62us, count: 1, min: 54.62us, max: 54.62us
+          runningGetOutputWallNanos    sum: 1.10ms, count: 1, min: 1.10ms, max: 1.10ms
+```
+
+# Gluten Implicits
+
+Gluten provides a helper class to get the fallback summary from a Spark Dataset. 
+
+```
+import org.apache.spark.sql.execution.GlutenImplicits._
+val df = spark.sql("SELECT * FROM t")
+df.fallbackSummary
+```
+
+Note that, if AQE is enabled, but the query is not materialized, then it will re-plan
+the query execution with disabled AQE. It is a workaround to get the final plan, and it may
+cause the inconsistent results with a materialized query. However, we have no choice.

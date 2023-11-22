@@ -16,12 +16,11 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
@@ -35,14 +34,13 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import org.apache.spark.util.sketch.BloomFilter
 
 import com.google.protobuf.Any
 
-import java.util
+import java.util.{ArrayList => JArrayList, List => JList}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
-import scala.util.control.Breaks.{break, breakable}
 
 /** Columnar Based HashAggregateExec. */
 abstract class HashAggregateExecBaseTransformer(
@@ -54,7 +52,7 @@ abstract class HashAggregateExecBaseTransformer(
     resultExpressions: Seq[NamedExpression],
     child: SparkPlan)
   extends BaseAggregateExec
-  with TransformSupport {
+  with UnaryTransformSupport {
 
   override lazy val allAttributes: AttributeSeq =
     child.output ++ aggregateBufferAttributes ++ aggregateAttributes ++
@@ -63,8 +61,6 @@ abstract class HashAggregateExecBaseTransformer(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genHashAggregateTransformerMetrics(sparkContext)
-
-  val sparkConf = sparkContext.getConf
 
   // The direct outputs of Aggregation.
   protected lazy val allAggregateResultAttributes: List[Attribute] = {
@@ -77,31 +73,8 @@ abstract class HashAggregateExecBaseTransformer(
       aggregateAttributes)
   }
 
-  override def supportsColumnar: Boolean = GlutenConfig.getConf.enableColumnarIterator
-
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      c.getBuildPlans
-    case _ =>
-      Seq()
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
   }
 
   override def metricsUpdater(): MetricsUpdater =
@@ -125,15 +98,15 @@ abstract class HashAggregateExecBaseTransformer(
 
   override def simpleString(maxFields: Int): String = toString(verbose = false, maxFields)
 
-  private def checkType(dataType: DataType): Boolean = {
+  protected def checkType(dataType: DataType): Boolean = {
     dataType match {
       case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
           StringType | TimestampType | DateType | BinaryType =>
         true
-      case d: DecimalType => true
-      case a: ArrayType => true
-      case n: NullType => true
-      case other => false
+      case _: DecimalType => true
+      case _: ArrayType => true
+      case _: NullType => true
+      case _ => false
     }
   }
 
@@ -172,11 +145,7 @@ abstract class HashAggregateExecBaseTransformer(
       // This means the input is just an iterator, so an ReadRel will be created as child.
       // Prepare the input schema.
       aggParams.isReadRel = true
-      val attrList = new util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
       (getAggRel(context, operatorId, aggParams, readRel), child.output, output)
     }
     TransformContext(inputAttributes, outputAttributes, relNode)
@@ -185,79 +154,45 @@ abstract class HashAggregateExecBaseTransformer(
   // Members declared in org.apache.spark.sql.execution.AliasAwareOutputPartitioning
   override protected def outputExpressions: Seq[NamedExpression] = resultExpressions
 
-  // Members declared in org.apache.spark.sql.execution.SparkPlan
-  override protected def doExecute()
-      : org.apache.spark.rdd.RDD[org.apache.spark.sql.catalyst.InternalRow] =
-    throw new UnsupportedOperationException()
-
+  // Check if Pre-Projection is needed before the Aggregation.
   protected def needsPreProjection: Boolean = {
-    var needsProjection = false
-    breakable {
-      for (expr <- groupingExpressions) {
-        if (!expr.isInstanceOf[Attribute]) {
-          needsProjection = true
-          break
-        }
-      }
-    }
-    breakable {
-      for (expr <- aggregateExpressions) {
-        if (
-          expr.filter.isDefined && !expr.filter.get.isInstanceOf[Attribute] &&
-          !expr.filter.get.isInstanceOf[Literal]
-        ) {
-          needsProjection = true
-          break
+    groupingExpressions.exists {
+      case _: Attribute => false
+      case _ => true
+    } || aggregateExpressions.exists {
+      expr =>
+        expr.filter match {
+          case None | Some(_: Attribute) | Some(_: Literal) =>
+          case _ => return true
         }
         expr.mode match {
           case Partial =>
-            for (aggChild <- expr.aggregateFunction.children) {
-              if (!aggChild.isInstanceOf[Attribute] && !aggChild.isInstanceOf[Literal]) {
-                needsProjection = true
-                break
-              }
+            expr.aggregateFunction.children.exists {
+              case _: Attribute | _: Literal => false
+              case _ => true
             }
           // No need to consider pre-projection for PartialMerge and Final Agg.
-          case _ =>
+          case _ => false
         }
-      }
     }
-    needsProjection
   }
 
+  // Check if Post-Projection is needed after the Aggregation.
   protected def needsPostProjection(aggOutAttributes: List[Attribute]): Boolean = {
-    // Check if Post-Projection is needed after the Aggregation.
-    var needsProjection = false
     // If the result expressions has different size with output attribute,
     // post-projection is needed.
-    if (resultExpressions.size != aggOutAttributes.size) {
-      needsProjection = true
-    } else {
-      // Compare each item in result expressions and output attributes.
-      breakable {
-        for (exprIdx <- resultExpressions.indices) {
-          resultExpressions(exprIdx) match {
-            case exprAttr: Attribute =>
-              val resAttr = aggOutAttributes(exprIdx)
-              // If the result attribute and result expression has different name or type,
-              // post-projection is needed.
-              if (
-                exprAttr.name != resAttr.name ||
-                exprAttr.dataType != resAttr.dataType
-              ) {
-                needsProjection = true
-                break
-              }
-            case _ =>
-              // If result expression is not instance of Attribute,
-              // post-projection is needed.
-              needsProjection = true
-              break
-          }
-        }
-      }
+    resultExpressions.size != aggOutAttributes.size ||
+    // Compare each item in result expressions and output attributes.
+    resultExpressions.zip(aggOutAttributes).exists {
+      case (exprAttr: Attribute, resAttr) =>
+        // If the result attribute and result expression has different name or type,
+        // post-projection is needed.
+        exprAttr.name != resAttr.name || exprAttr.dataType != resAttr.dataType
+      case _ =>
+        // If result expression is not instance of Attribute,
+        // post-projection is needed.
+        true
     }
-    needsProjection
   }
 
   protected def getAggRelWithPreProjection(
@@ -314,22 +249,20 @@ abstract class HashAggregateExecBaseTransformer(
       })
 
     // Create the expression nodes needed by Project node.
-    val preExprNodes = new util.ArrayList[ExpressionNode]()
-    for (expr <- preExpressions) {
-      preExprNodes.add(
+    val preExprNodes = preExpressions
+      .map(
         ExpressionConverter
-          .replaceWithExpressionTransformer(expr, originalInputAttributes)
+          .replaceWithExpressionTransformer(_, originalInputAttributes)
           .doTransform(args))
-    }
+      .asJava
     val emitStartIndex = originalInputAttributes.size
     val inputRel = if (!validation) {
       RelBuilder.makeProjectRel(input, preExprNodes, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for a validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList = originalInputAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
@@ -352,7 +285,7 @@ abstract class HashAggregateExecBaseTransformer(
       filterSelections: Seq[Int],
       inputRel: RelNode,
       operatorId: Long): RelNode = {
-    val groupingList = new util.ArrayList[ExpressionNode]()
+    val groupingList = new JArrayList[ExpressionNode]()
     var colIdx = 0
     while (colIdx < groupingExpressions.size) {
       val groupingExpr: ExpressionNode = ExpressionBuilder.makeSelection(selections(colIdx))
@@ -361,11 +294,11 @@ abstract class HashAggregateExecBaseTransformer(
     }
 
     // Create Aggregation functions.
-    val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
+    val aggregateFunctionList = new JArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(
       aggExpr => {
         val aggregateFunc = aggExpr.aggregateFunction
-        val childrenNodeList = new util.ArrayList[ExpressionNode]()
+        val childrenNodeList = new JArrayList[ExpressionNode]()
         val childrenNodes = aggregateFunc.children.toList.map(
           _ => {
             val aggExpr = ExpressionBuilder.makeSelection(selections(colIdx))
@@ -383,7 +316,7 @@ abstract class HashAggregateExecBaseTransformer(
           aggregateFunctionList)
       })
 
-    val aggFilterList = new util.ArrayList[ExpressionNode]()
+    val aggFilterList = new JArrayList[ExpressionNode]()
     aggregateExpressions.foreach(
       aggExpr => {
         if (aggExpr.filter.isDefined) {
@@ -407,9 +340,9 @@ abstract class HashAggregateExecBaseTransformer(
   protected def addFunctionNode(
       args: java.lang.Object,
       aggregateFunction: AggregateFunction,
-      childrenNodeList: util.ArrayList[ExpressionNode],
+      childrenNodeList: JList[ExpressionNode],
       aggregateMode: AggregateMode,
-      aggregateNodeList: util.ArrayList[AggregateFunctionNode]): Unit = {
+      aggregateNodeList: JList[AggregateFunctionNode]): Unit = {
     aggregateNodeList.add(
       ExpressionBuilder.makeAggregateFunction(
         AggregateFunctionsBuilder.create(args, aggregateFunction),
@@ -427,23 +360,20 @@ abstract class HashAggregateExecBaseTransformer(
     val args = context.registeredFunction
 
     // Will add an projection after Agg.
-    val resExprNodes = new util.ArrayList[ExpressionNode]()
-    resultExpressions.foreach(
-      expr => {
-        resExprNodes.add(
-          ExpressionConverter
-            .replaceWithExpressionTransformer(expr, allAggregateResultAttributes)
-            .doTransform(args))
-      })
+    val resExprNodes = resultExpressions
+      .map(
+        ExpressionConverter
+          .replaceWithExpressionTransformer(_, allAggregateResultAttributes)
+          .doTransform(args))
+      .asJava
     val emitStartIndex = allAggregateResultAttributes.size
     if (!validation) {
       RelBuilder.makeProjectRel(aggRel, resExprNodes, context, operatorId, emitStartIndex)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- allAggregateResultAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList = allAggregateResultAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
@@ -460,7 +390,7 @@ abstract class HashAggregateExecBaseTransformer(
   protected def getAttrForAggregateExprs(
       aggregateExpressions: Seq[AggregateExpression],
       aggregateAttributeList: Seq[Attribute]): List[Attribute] = {
-    var aggregateAttr = new ListBuffer[Attribute]()
+    val aggregateAttr = new ListBuffer[Attribute]()
     val size = aggregateExpressions.size
     var resIndex = 0
     for (expIdx <- 0 until size) {
@@ -478,166 +408,63 @@ abstract class HashAggregateExecBaseTransformer(
     var resIndex = index
     val mode = exp.mode
     val aggregateFunc = exp.aggregateFunction
-    aggregateFunc match {
-      case _: Average | _: First | _: Last =>
-        mode match {
-          case Partial | PartialMerge =>
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += 2
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case Sum(_, _) =>
-        mode match {
-          case Partial | PartialMerge =>
-            val sum = aggregateFunc.asInstanceOf[Sum]
-            val aggBufferAttr = sum.inputAggBufferAttributes
-            if (aggBufferAttr.size == 2) {
-              // decimal sum check sum.resultType
-              aggregateAttr += ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-              val isEmptyAttr = ConverterUtils.getAttrFromExpr(aggBufferAttr(1))
-              aggregateAttr += isEmptyAttr
-              resIndex += 2
-            } else {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-              aggregateAttr += attr
-              resIndex += 1
-            }
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case Count(_) =>
-        mode match {
-          case Partial | PartialMerge =>
-            val count = aggregateFunc.asInstanceOf[Count]
-            val aggBufferAttr = count.inputAggBufferAttributes
-            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
+    // First handle the custom aggregate functions
+    if (
+      ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
+        aggregateFunc.getClass)
+    ) {
+      ExpressionMappings.expressionExtensionTransformer
+        .getAttrsIndexForExtensionAggregateExpr(
+          aggregateFunc,
+          mode,
+          exp,
+          aggregateAttributeList,
+          aggregateAttr,
+          index)
+    } else {
+      if (!checkAggFuncModeSupport(aggregateFunc, mode)) {
+        throw new UnsupportedOperationException(
+          s"Unsupported aggregate mode: $mode for ${aggregateFunc.prettyName}")
+      }
+      mode match {
+        case Partial | PartialMerge =>
+          val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
+          for (index <- aggBufferAttr.indices) {
+            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
             aggregateAttr += attr
-            resIndex += 1
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case _: Max | _: Min | _: BitAndAgg | _: BitOrAgg | _: BitXorAgg =>
-        mode match {
-          case Partial | PartialMerge =>
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            assert(
-              aggBufferAttr.size == 1,
-              s"Aggregate function $aggregateFunc expects one buffer attribute.")
-            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr.head)
-            aggregateAttr += attr
-            resIndex += 1
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case _: Corr =>
-        mode match {
-          case Partial | PartialMerge =>
-            val expectedBufferSize = 6
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            assert(
-              aggBufferAttr.size == expectedBufferSize,
-              s"Aggregate function $aggregateFunc" +
-                s" expects $expectedBufferSize buffer attribute.")
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += expectedBufferSize
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case _: CovPopulation | _: CovSample =>
-        mode match {
-          case Partial | PartialMerge =>
-            val expectedBufferSize = 4
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            assert(
-              aggBufferAttr.size == expectedBufferSize,
-              s"Aggregate function $aggregateFunc" +
-                s" expects $expectedBufferSize buffer attributes.")
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += expectedBufferSize
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case _: StddevSamp | _: StddevPop | _: VarianceSamp | _: VariancePop =>
-        mode match {
-          case Partial | PartialMerge =>
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += 3
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
-      case bloom if bloom.getClass.getSimpleName.equals("BloomFilterAggregate") =>
-        // for spark33
-        mode match {
-          case Partial =>
-            val bloom = aggregateFunc.asInstanceOf[TypedImperativeAggregate[BloomFilter]]
-            val aggBufferAttr = bloom.inputAggBufferAttributes
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += aggBufferAttr.size
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
-        }
+          }
+          resIndex += aggBufferAttr.size
+          resIndex
+        case Final =>
+          aggregateAttr += aggregateAttributeList(resIndex)
+          resIndex += 1
+          resIndex
+        case other =>
+          throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+      }
+    }
+  }
+
+  protected def checkAggFuncModeSupport(
+      aggFunc: AggregateFunction,
+      mode: AggregateMode): Boolean = {
+    aggFunc match {
       case _: CollectList | _: CollectSet =>
         mode match {
-          case Partial =>
-            val aggBufferAttr = aggregateFunc.inputAggBufferAttributes
-            for (index <- aggBufferAttr.indices) {
-              val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
-              aggregateAttr += attr
-            }
-            resIndex += aggBufferAttr.size
-          case Final =>
-            aggregateAttr += aggregateAttributeList(resIndex)
-            resIndex += 1
-          case other =>
-            throw new UnsupportedOperationException(s"Unsupported aggregate mode: $other.")
+          case Partial | Final => true
+          case _ => false
         }
-      case other =>
-        throw new UnsupportedOperationException(
-          s"Unsupported aggregate function in getAttrForAggregateExpr")
+      case bloom if bloom.getClass.getSimpleName.equals("BloomFilterAggregate") =>
+        mode match {
+          case Partial | Final => true
+          case _ => false
+        }
+      case _ =>
+        mode match {
+          case Partial | PartialMerge | Final => true
+          case _ => false
+        }
     }
-    resIndex
   }
 
   protected def modeToKeyWord(aggregateMode: AggregateMode): String = {
@@ -658,19 +485,17 @@ abstract class HashAggregateExecBaseTransformer(
       validation: Boolean): RelNode = {
     val args = context.registeredFunction
     // Get the grouping nodes.
-    val groupingList = new util.ArrayList[ExpressionNode]()
-    groupingExpressions.foreach(
-      expr => {
-        // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
-        // may be different for each backend.
-        val exprNode = ExpressionConverter
-          .replaceWithExpressionTransformer(expr, child.output)
-          .doTransform(args)
-        groupingList.add(exprNode)
-      })
+    // Use 'child.output' as based Seq[Attribute], the originalInputAttributes
+    // may be different for each backend.
+    val groupingList = groupingExpressions
+      .map(
+        ExpressionConverter
+          .replaceWithExpressionTransformer(_, child.output)
+          .doTransform(args))
+      .asJava
     // Get the aggregate function nodes.
-    val aggFilterList = new util.ArrayList[ExpressionNode]()
-    val aggregateFunctionList = new util.ArrayList[AggregateFunctionNode]()
+    val aggFilterList = new JArrayList[ExpressionNode]()
+    val aggregateFunctionList = new JArrayList[AggregateFunctionNode]()
     aggregateExpressions.foreach(
       aggExpr => {
         if (aggExpr.filter.isDefined) {
@@ -683,7 +508,6 @@ abstract class HashAggregateExecBaseTransformer(
           aggFilterList.add(null)
         }
         val aggregateFunc = aggExpr.aggregateFunction
-        val childrenNodeList = new util.ArrayList[ExpressionNode]()
         val childrenNodes = aggExpr.mode match {
           case Partial =>
             aggregateFunc.children.toList.map(
@@ -702,10 +526,12 @@ abstract class HashAggregateExecBaseTransformer(
           case other =>
             throw new UnsupportedOperationException(s"$other not supported.")
         }
-        for (node <- childrenNodes) {
-          childrenNodeList.add(node)
-        }
-        addFunctionNode(args, aggregateFunc, childrenNodeList, aggExpr.mode, aggregateFunctionList)
+        addFunctionNode(
+          args,
+          aggregateFunc,
+          childrenNodes.asJava,
+          aggExpr.mode,
+          aggregateFunctionList)
       })
     if (!validation) {
       RelBuilder.makeAggregateRel(
@@ -717,10 +543,9 @@ abstract class HashAggregateExecBaseTransformer(
         operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList = originalInputAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeAggregateRel(
@@ -739,19 +564,5 @@ abstract class HashAggregateExecBaseTransformer(
       operatorId: Long,
       aggParams: AggregationParams,
       input: RelNode = null,
-      validation: Boolean = false): RelNode = {
-    val originalInputAttributes = child.output
-    val aggRel = if (needsPreProjection) {
-      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
-    } else {
-      getAggRelWithoutPreProjection(context, originalInputAttributes, operatorId, input, validation)
-    }
-    // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
-    // AggregateRel.
-    if (!needsPostProjection(allAggregateResultAttributes)) {
-      aggRel
-    } else {
-      applyPostProjection(context, aggRel, operatorId, validation)
-    }
-  }
+      validation: Boolean = false): RelNode
 }

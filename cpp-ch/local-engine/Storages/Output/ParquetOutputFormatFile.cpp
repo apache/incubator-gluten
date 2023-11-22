@@ -28,7 +28,6 @@
 #    include <Processors/Formats/Impl/CHColumnToArrowColumn.h>
 #    include <Processors/Formats/Impl/ParquetBlockOutputFormat.h>
 #    include <parquet/arrow/writer.h>
-#    include <Common/Config.h>
 
 namespace local_engine
 {

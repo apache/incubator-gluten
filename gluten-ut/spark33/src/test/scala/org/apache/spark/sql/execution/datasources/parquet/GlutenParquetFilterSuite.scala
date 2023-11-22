@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.SparkConf
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.catalyst.expressions._
@@ -28,7 +28,8 @@ import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy.CORRECTED
+import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy.{CORRECTED, LEGACY}
+import org.apache.spark.sql.internal.SQLConf.ParquetOutputTimestampType.INT96
 import org.apache.spark.sql.types._
 import org.apache.spark.tags.ExtendedSQLTest
 import org.apache.spark.util.Utils
@@ -41,7 +42,7 @@ import org.apache.parquet.filter2.predicate.Operators.{Column => _, _}
 import org.apache.parquet.hadoop.{ParquetFileReader, ParquetInputFormat, ParquetOutputFormat}
 import org.apache.parquet.hadoop.util.HadoopInputFile
 
-import java.sql.Date
+import java.sql.{Date, Timestamp}
 import java.time.LocalDate
 
 import scala.reflect.ClassTag
@@ -66,9 +67,45 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
     spark.read.parquet(
       getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name)
   }
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-40280: filter pushdown - int with annotation") {}
+
+  test(GlutenTestConstants.GLUTEN_TEST + "filter pushdown - timestamp") {
+    Seq(true, false).foreach {
+      java8Api =>
+        Seq(CORRECTED, LEGACY).foreach {
+          rebaseMode =>
+            val millisData = Seq(
+              "1000-06-14 08:28:53.123",
+              "1582-06-15 08:28:53.001",
+              "1900-06-16 08:28:53.0",
+              "2018-06-17 08:28:53.999")
+            // INT96 doesn't support pushdown
+            withSQLConf(
+              SQLConf.DATETIME_JAVA8API_ENABLED.key -> java8Api.toString,
+              SQLConf.PARQUET_INT96_REBASE_MODE_IN_WRITE.key -> rebaseMode.toString,
+              SQLConf.PARQUET_OUTPUT_TIMESTAMP_TYPE.key -> INT96.toString
+            ) {
+              import testImplicits._
+              withTempPath {
+                file =>
+                  millisData
+                    .map(i => Tuple1(Timestamp.valueOf(i)))
+                    .toDF
+                    .write
+                    .format(dataSourceName)
+                    .save(file.getCanonicalPath)
+                  readParquetFile(file.getCanonicalPath) {
+                    df =>
+                      val schema = new SparkToParquetSchemaConverter(conf).convert(df.schema)
+                      assertResult(None) {
+                        createParquetFilters(schema).createFilter(sources.IsNull("_1"))
+                      }
+                  }
+              }
+            }
+        }
+    }
+  }
+
   test(
     GlutenTestConstants.GLUTEN_TEST +
       "Filter applied on merged Parquet schema with new column should work") {
@@ -225,43 +262,6 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
               assert(df.where("a = null").count() === 0)
               assert(df.where("a is null").count() === 1)
             }
-        }
-    }
-  }
-
-  test(
-    GlutenTestConstants.GLUTEN_TEST +
-      "SPARK-25207: exception when duplicate fields in case-insensitive mode") {
-    withTempPath {
-      dir =>
-        val count = 10
-        val tableName = "spark_25207"
-        val tableDir = dir.getAbsoluteFile + "/table"
-        withTable(tableName) {
-          withSQLConf(SQLConf.CASE_SENSITIVE.key -> "true") {
-            spark
-              .range(count)
-              .selectExpr("id as A", "id as B", "id as b")
-              .write
-              .mode("overwrite")
-              .parquet(tableDir)
-          }
-          sql(s"""
-                 |CREATE TABLE $tableName (A LONG, B LONG) USING PARQUET LOCATION '$tableDir'
-           """.stripMargin)
-
-          withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
-            val e = intercept[SparkException] {
-              sql(s"select a from $tableName where b > 0").collect()
-            }
-            assert(
-              e.getCause.isInstanceOf[RuntimeException] && e.getCause.getMessage.contains(
-                """Found duplicate field(s) b in read lowercase mode"""))
-          }
-
-          withSQLConf(SQLConf.CASE_SENSITIVE.key -> "true") {
-            checkAnswer(sql(s"select A from $tableName where B > 0"), (1 until count).map(Row(_)))
-          }
         }
     }
   }

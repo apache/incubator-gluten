@@ -444,12 +444,12 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
         | create table test_tbl(id bigint, name string) using parquet;
         |""".stripMargin
     )
-    val df = spark.sql("select count(1), sum(id), max(id), min(id) from test_tbl");
-    val result = df.collect()
-    assert(result(0).getLong(0) == 0)
-    assert(result(0).isNullAt(1))
-    assert(result(0).isNullAt(2))
-    assert(result(0).isNullAt(3))
+    val sql1 = "select count(1), sum(id), max(id), min(id) from test_tbl"
+    val sql2 =
+      "select count(1) as cnt, sum(id) as sum, max(id) as max, min(id) as min from test_tbl"
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+    spark.sql("drop table test_tbl")
   }
 
   test("test 'function json_tuple'") {
@@ -463,6 +463,25 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
     assert(result(0).getString(1).equals("world1"))
     assert(result(0).getString(2).equals("[\"a\",\"b\"]"))
     assert(result(0).isNullAt(3))
+  }
+
+  test("GLUTEN-3271: Bug fix arrayElement from split") {
+    val table_create_sql =
+      """
+        | create table test_tbl_3271(id bigint, data string) using parquet;
+        |""".stripMargin
+    val table_drop_sql = "drop table test_tbl_3271";
+    val data_insert_sql = "insert into test_tbl_3271 values(1, 'ab')"
+    val select_sql_1 = "select id, split(data, ',')[1] from test_tbl_3271 where id = 1"
+    val select_sql_2 = "select id, element_at(split(data, ','), 2) from test_tbl_3271 where id = 1"
+    val select_sql_3 = "select id, element_at(map(id, data), 1) from test_tbl_3271 where id = 1"
+    spark.sql(table_create_sql);
+    spark.sql(data_insert_sql)
+    compareResultsAgainstVanillaSpark(select_sql_1, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_2, true, { _ => })
+    compareResultsAgainstVanillaSpark(select_sql_3, true, { _ => })
+
+    spark.sql(table_drop_sql)
   }
 }
 // scalastyle:off line.size.limit

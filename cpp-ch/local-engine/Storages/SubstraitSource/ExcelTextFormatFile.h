@@ -41,7 +41,7 @@ public:
     FormatFile::InputFormatPtr createInputFormat(const DB::Block & header) override;
 
     bool supportSplit() const override { return true; }
-    DB::String getFileFormat() const override { return "exceltext"; }
+    DB::String getFileFormat() const override { return "ExcelText"; }
 
 private:
     DB::FormatSettings createFormatSettings();
@@ -68,21 +68,24 @@ private:
 class ExcelTextFormatReader final : public DB::CSVFormatReader
 {
 public:
-    ExcelTextFormatReader(DB::PeekableReadBuffer & buf_, DB::Names & input_field_names_, const DB::FormatSettings & format_settings_);
+    ExcelTextFormatReader(
+        DB::PeekableReadBuffer & buf_, DB::Names & input_field_names_, String escape_, const DB::FormatSettings & format_settings_);
 
     std::vector<String> readNames() override;
     std::vector<String> readTypes() override;
     void skipFieldDelimiter() override;
     void skipRowEndDelimiter() override;
     bool readField(DB::IColumn & column, const DB::DataTypePtr & type, const DB::SerializationPtr & serialization, bool is_last_file_column, const String & column_name) override;
+    void skipField(size_t /*file_column*/) override { skipField(); }
+    void skipField();
 
 private:
     void preSkipNullValue();
     bool isEndOfLine();
-    static void skipEndOfLine(DB::ReadBuffer & in);
-    static void skipWhitespacesAndTabs(DB::ReadBuffer & in, bool allow_whitespace_or_tab_as_delimiter);
-
+    static void skipEndOfLine(DB::ReadBuffer & readBuffer);
+    static void skipWhitespacesAndTabs(DB::ReadBuffer & readBuffer, bool allow_whitespace_or_tab_as_delimiter);
 
     std::vector<String> input_field_names;
+    String escape;
 };
 }

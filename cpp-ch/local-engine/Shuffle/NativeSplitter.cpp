@@ -30,6 +30,7 @@
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
 #include <Common/logger_useful.h>
+#include <Storages/IO/AggregateSerializationUtils.h>
 
 namespace local_engine
 {
@@ -209,7 +210,7 @@ HashNativeSplitter::HashNativeSplitter(NativeSplitter::Options options_, jobject
         output_columns_indicies.push_back(std::stoi(*iter));
     }
 
-    selector_builder = std::make_unique<HashSelectorBuilder>(options.partition_nums, hash_fields, "cityHash64");
+    selector_builder = std::make_unique<HashSelectorBuilder>(options.partition_nums, hash_fields, options_.hash_algorithm);
 }
 
 void HashNativeSplitter::computePartitionId(Block & block)

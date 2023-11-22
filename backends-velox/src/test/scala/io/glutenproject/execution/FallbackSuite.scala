@@ -20,9 +20,9 @@ import io.glutenproject.GlutenConfig
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec}
 
-class FallbackSuite extends WholeStageTransformerSuite with AdaptiveSparkPlanHelper {
+class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
@@ -116,10 +116,23 @@ class FallbackSuite extends WholeStageTransformerSuite with AdaptiveSparkPlanHel
     ) {
       df =>
         val aqeRead = find(df.queryExecution.executedPlan) {
-          case _: ColumnarAQEShuffleReadExec => true
+          case _: AQEShuffleReadExec => true
           case _ => false
         }
         assert(aqeRead.isDefined)
+    }
+  }
+
+  test("Do not fallback eagerly with ColumnarToRowExec") {
+    withSQLConf(GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
+      runQueryAndCompare("select count(*) from tmp1") {
+        df =>
+          assert(
+            collect(df.queryExecution.executedPlan) {
+              case h: HashAggregateExecTransformer => h
+            }.size == 2,
+            df.queryExecution.executedPlan)
+      }
     }
   }
 }

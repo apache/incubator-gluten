@@ -31,27 +31,25 @@
 #ifdef GLUTEN_ENABLE_IAA
 #include "utils/qpl/qpl_codec.h"
 #endif
-#include "utils/exception.h"
-#include "velox/common/file/FileSystems.h"
-#include "velox/serializers/PrestoSerializer.h"
-#ifdef ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
+#ifdef ENABLE_GCS
+#include <fstream>
 #endif
-#ifdef ENABLE_S3
-#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
-#endif
+#include "config/GlutenConfig.h"
 #include "jni/JniFileSystem.h"
 #include "udf/UdfLoader.h"
 #include "utils/ConfigExtractor.h"
+#include "utils/exception.h"
+#include "velox/common/caching/SsdCache.h"
+#include "velox/common/file/FileSystems.h"
 #include "velox/common/memory/MmapAllocator.h"
+#include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnector.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/parquet/RegisterParquetReader.h"
+#include "velox/serializers/PrestoSerializer.h"
 
 DECLARE_int32(split_preload_per_driver);
-DECLARE_bool(SkipRowSortInWindowOp);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
+DECLARE_bool(velox_memory_use_hugepages);
 
 using namespace facebook;
 
@@ -59,42 +57,51 @@ namespace {
 
 const std::string kEnableUserExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableUserExceptionStacktrace";
-const std::string kEnableUserExceptionStacktraceDefault = "true";
+const bool kEnableUserExceptionStacktraceDefault = true;
+
+const std::string kGlogVerboseLevel = "spark.gluten.sql.columnar.backend.velox.glogVerboseLevel";
+const uint32_t kGlogVerboseLevelDefault = 0;
+
+const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
+const uint32_t kGlogSeverityLevelDefault = 0;
 
 const std::string kEnableSystemExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace";
-const std::string kEnableSystemExceptionStacktraceDefault = "true";
+const bool kEnableSystemExceptionStacktraceDefault = true;
+
+const std::string kMemoryUseHugePages = "spark.gluten.sql.columnar.backend.velox.memoryUseHugePages";
+const bool kMemoryUseHugePagesDefault = false;
 
 const std::string kHiveConnectorId = "test-hive";
 const std::string kVeloxCacheEnabled = "spark.gluten.sql.columnar.backend.velox.cacheEnabled";
 
 // memory cache
 const std::string kVeloxMemCacheSize = "spark.gluten.sql.columnar.backend.velox.memCacheSize";
-const std::string kVeloxMemCacheSizeDefault = "1073741824";
+const uint64_t kVeloxMemCacheSizeDefault = 1073741824; // 1G
 
 // ssd cache
 const std::string kVeloxSsdCacheSize = "spark.gluten.sql.columnar.backend.velox.ssdCacheSize";
-const std::string kVeloxSsdCacheSizeDefault = "1073741824";
+const uint64_t kVeloxSsdCacheSizeDefault = 1073741824; // 1G
 const std::string kVeloxSsdCachePath = "spark.gluten.sql.columnar.backend.velox.ssdCachePath";
 const std::string kVeloxSsdCachePathDefault = "/tmp/";
 const std::string kVeloxSsdCacheShards = "spark.gluten.sql.columnar.backend.velox.ssdCacheShards";
-const std::string kVeloxSsdCacheShardsDefault = "1";
+const uint32_t kVeloxSsdCacheShardsDefault = 1;
 const std::string kVeloxSsdCacheIOThreads = "spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads";
-const std::string kVeloxSsdCacheIOThreadsDefault = "1";
+const uint32_t kVeloxSsdCacheIOThreadsDefault = 1;
 const std::string kVeloxSsdODirectEnabled = "spark.gluten.sql.columnar.backend.velox.ssdODirect";
 
 const std::string kVeloxIOThreads = "spark.gluten.sql.columnar.backend.velox.IOThreads";
-const std::string kVeloxIOThreadsDefault = "0";
+const uint32_t kVeloxIOThreadsDefault = 0;
 
 const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
-const std::string kVeloxSplitPreloadPerDriverDefault = "2";
+const uint32_t kVeloxSplitPreloadPerDriverDefault = 2;
 
 // udf
 const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.velox.udfLibraryPaths";
 
 // spill
 const std::string kMaxSpillFileSize = "spark.gluten.sql.columnar.backend.velox.maxSpillFileSize";
-const std::string kMaxSpillFileSizeDefault = std::to_string(20L * 1024 * 1024);
+const uint64_t kMaxSpillFileSizeDefault = 20L * 1024 * 1024;
 
 // backtrace allocation
 const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";
@@ -102,83 +109,58 @@ const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";
 // VeloxShuffleReader print flag.
 const std::string kVeloxShuffleReaderPrintFlag = "spark.gluten.velox.shuffleReaderPrintFlag";
 
+const std::string kVeloxFileHandleCacheEnabled = "spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled";
+const bool kVeloxFileHandleCacheEnabledDefault = false;
+
 } // namespace
 
 namespace gluten {
 
-void VeloxBackend::printConf(const std::unordered_map<std::string, std::string>& conf) {
-  std::ostringstream oss;
-  oss << "STARTUP: VeloxBackend conf = {\n";
-  for (auto& [k, v] : conf) {
-    oss << " {" << k << ", " << v << "}\n";
-  }
-  oss << "}\n";
-  LOG(INFO) << oss.str();
-}
-
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
-  // In spark, planner takes care the parititioning and sorting, so the rows are sorted.
-  // There is no need to sort the rows in window op again.
-  FLAGS_SkipRowSortInWindowOp = true;
+  // Init glog and log level.
+  auto veloxmemcfg = std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
+  const facebook::velox::Config* veloxcfg = veloxmemcfg.get();
+
+  uint32_t vlogLevel = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
+  uint32_t severityLogLevel = veloxcfg->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
+  FLAGS_v = vlogLevel;
+  FLAGS_minloglevel = severityLogLevel;
+  FLAGS_logtostderr = true;
+  google::InitGoogleLogging("gluten");
+
   // Avoid creating too many shared leaf pools.
   FLAGS_velox_memory_num_shared_leaf_pools = 0;
 
   // Set velox_exception_user_stacktrace_enabled.
-  {
-    auto got = conf.find(kEnableUserExceptionStacktrace);
-    std::string enableUserExceptionStacktrace = kEnableUserExceptionStacktraceDefault;
-    if (got != conf.end()) {
-      enableUserExceptionStacktrace = got->second;
-    }
-    FLAGS_velox_exception_user_stacktrace_enabled = (enableUserExceptionStacktrace == "true");
-  }
+  FLAGS_velox_exception_user_stacktrace_enabled =
+      veloxcfg->get<bool>(kEnableUserExceptionStacktrace, kEnableUserExceptionStacktraceDefault);
 
   // Set velox_exception_system_stacktrace_enabled.
-  {
-    auto got = conf.find(kEnableSystemExceptionStacktrace);
-    std::string enableSystemExceptionStacktrace = kEnableSystemExceptionStacktraceDefault;
-    if (got != conf.end()) {
-      enableSystemExceptionStacktrace = got->second;
-    }
-    FLAGS_velox_exception_system_stacktrace_enabled = (enableSystemExceptionStacktrace == "true");
-  }
+  FLAGS_velox_exception_system_stacktrace_enabled =
+      veloxcfg->get<bool>(kEnableSystemExceptionStacktrace, kEnableSystemExceptionStacktraceDefault);
+
+  // Set velox_memory_use_hugepages.
+  FLAGS_velox_memory_use_hugepages = veloxcfg->get<bool>(kMemoryUseHugePages, kMemoryUseHugePagesDefault);
 
   // Set backtrace_allocation
-  {
-    auto got = conf.find(kBacktraceAllocation);
-    if (got != conf.end()) {
-      gluten::backtrace_allocation = (got->second == "true");
-    }
-  }
+  gluten::backtrace_allocation = veloxcfg->get<bool>(kBacktraceAllocation, false);
 
   // Set veloxShuffleReaderPrintFlag
-  {
-    auto got = conf.find(kVeloxShuffleReaderPrintFlag);
-    if (got != conf.end()) {
-      gluten::veloxShuffleReaderPrintFlag = (got->second == "true");
-    }
-  }
+  gluten::veloxShuffleReaderPrintFlag = veloxcfg->get<bool>(kVeloxShuffleReaderPrintFlag, false);
 
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
-  initJolFilesystem(conf);
+  initJolFilesystem(veloxcfg);
 
-#ifdef ENABLE_HDFS
-  velox::filesystems::registerHdfsFileSystem();
-#endif
-
-  std::unordered_map<std::string, std::string> configurationValues;
 #ifdef ENABLE_S3
-  velox::filesystems::registerS3FileSystem();
-
-  std::string awsAccessKey = conf.at("spark.hadoop.fs.s3a.access.key");
-  std::string awsSecretKey = conf.at("spark.hadoop.fs.s3a.secret.key");
-  std::string awsEndpoint = conf.at("spark.hadoop.fs.s3a.endpoint");
-  std::string sslEnabled = conf.at("spark.hadoop.fs.s3a.connection.ssl.enabled");
-  std::string pathStyleAccess = conf.at("spark.hadoop.fs.s3a.path.style.access");
-  std::string useInstanceCredentials = conf.at("spark.hadoop.fs.s3a.use.instance.credentials");
-  std::string iamRole = conf.at("spark.hadoop.fs.s3a.iam.role");
-  std::string iamRoleSessionName = conf.at("spark.hadoop.fs.s3a.iam.role.session.name");
+  std::string awsAccessKey = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.access.key", "");
+  std::string awsSecretKey = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.secret.key", "");
+  std::string awsEndpoint = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.endpoint", "");
+  bool sslEnabled = veloxcfg->get<bool>("spark.hadoop.fs.s3a.connection.ssl.enabled", false);
+  bool pathStyleAccess = veloxcfg->get<bool>("spark.hadoop.fs.s3a.path.style.access", false);
+  bool useInstanceCredentials = veloxcfg->get<bool>("spark.hadoop.fs.s3a.use.instance.credentials", false);
+  std::string iamRole = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.iam.role", "");
+  std::string iamRoleSessionName = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.iam.role.session.name", "");
 
   const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
   if (envAwsAccessKey != nullptr) {
@@ -194,56 +176,87 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   }
 
   std::unordered_map<std::string, std::string> s3Config({});
-  if (useInstanceCredentials == "true") {
-    s3Config.insert({
-        {"hive.s3.use-instance-credentials", useInstanceCredentials},
-    });
+  if (useInstanceCredentials) {
+    veloxmemcfg->setValue("hive.s3.use-instance-credentials", "true");
   } else if (!iamRole.empty()) {
-    s3Config.insert({
-        {"hive.s3.iam-role", iamRole},
-    });
+    veloxmemcfg->setValue("hive.s3.iam-role", iamRole);
     if (!iamRoleSessionName.empty()) {
-      s3Config.insert({
-          {"hive.s3.iam-role-session-name", iamRoleSessionName},
-      });
+      veloxmemcfg->setValue("hive.s3.iam-role-session-name", iamRoleSessionName);
     }
   } else {
-    s3Config.insert({
-        {"hive.s3.aws-access-key", awsAccessKey},
-        {"hive.s3.aws-secret-key", awsSecretKey},
-    });
+    veloxmemcfg->setValue("hive.s3.aws-access-key", awsAccessKey);
+    veloxmemcfg->setValue("hive.s3.aws-secret-key", awsSecretKey);
   }
   // Only need to set s3 endpoint when not use instance credentials.
-  if (useInstanceCredentials != "true") {
-    s3Config.insert({
-        {"hive.s3.endpoint", awsEndpoint},
-    });
+  if (!useInstanceCredentials) {
+    veloxmemcfg->setValue("hive.s3.endpoint", awsEndpoint);
   }
-  s3Config.insert({
-      {"hive.s3.ssl.enabled", sslEnabled},
-      {"hive.s3.path-style-access", pathStyleAccess},
-  });
+  veloxmemcfg->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
+  veloxmemcfg->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
+#endif
+#ifdef ENABLE_GCS
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
+  std::string gsStorageRootUrl;
+  if (auto got = conf.find("spark.hadoop.fs.gs.storage.root.url"); got != conf.end()) {
+    gsStorageRootUrl = got->second;
+  }
+  if (!gsStorageRootUrl.empty()) {
+    std::string gcsScheme;
+    std::string gcsEndpoint;
 
-  configurationValues.merge(s3Config);
+    const auto sep = std::string("://");
+    const auto pos = gsStorageRootUrl.find_first_of(sep);
+    if (pos != std::string::npos) {
+      gcsScheme = gsStorageRootUrl.substr(0, pos);
+      gcsEndpoint = gsStorageRootUrl.substr(pos + sep.length());
+    }
+
+    if (!gcsEndpoint.empty() && !gcsScheme.empty()) {
+      veloxmemcfg->setValue("hive.gcs.scheme", gcsScheme);
+      veloxmemcfg->setValue("hive.gcs.endpoint", gcsEndpoint);
+    }
+  }
+
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
+  std::string gsAuthType;
+  if (auto got = conf.find("spark.hadoop.fs.gs.auth.type"); got != conf.end()) {
+    gsAuthType = got->second;
+  }
+  if (gsAuthType == "SERVICE_ACCOUNT_JSON_KEYFILE") {
+    std::string gsAuthServiceAccountJsonKeyfile;
+    if (auto got = conf.find("spark.hadoop.fs.gs.auth.service.account.json.keyfile"); got != conf.end()) {
+      gsAuthServiceAccountJsonKeyfile = got->second;
+    }
+
+    std::string gsAuthServiceAccountJson;
+    if (!gsAuthServiceAccountJsonKeyfile.empty()) {
+      auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile);
+      stream.exceptions(std::ios::badbit);
+      gsAuthServiceAccountJson = std::string(std::istreambuf_iterator<char>(stream.rdbuf()), {});
+    } else {
+      LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
+                      "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
+      throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
+    }
+
+    if (!gsAuthServiceAccountJson.empty()) {
+      veloxmemcfg->setValue("hive.gcs.credentials", gsAuthServiceAccountJson);
+    }
+  }
 #endif
 
-  initCache(conf);
-  initIOExecutor(conf);
+  initCache(veloxcfg);
+  initIOExecutor(veloxcfg);
 
-#ifdef GLUTEN_PRINT_DEBUG
-  printConf(conf);
-#endif
-
-  auto properties = std::make_shared<const velox::core::MemConfig>(configurationValues);
-  velox::connector::registerConnectorFactory(std::make_shared<velox::connector::hive::HiveConnectorFactory>());
+  veloxmemcfg->setValue(
+      velox::connector::hive::HiveConfig::kEnableFileHandleCache,
+      veloxcfg->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
   auto hiveConnector =
       velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
-          ->newConnector(kHiveConnectorId, properties, ioExecutor_.get());
+          ->newConnector(kHiveConnectorId, veloxmemcfg, ioExecutor_.get());
 
   registerConnector(hiveConnector);
-  velox::parquet::registerParquetReaderFactory(velox::parquet::ParquetReaderType::NATIVE);
-  velox::dwrf::registerDwrfReaderFactory();
-  velox::dwrf::registerOrcReaderFactory();
+
   // Register Velox functions
   registerAllFunctions();
   if (!facebook::velox::isRegisteredVectorSerde()) {
@@ -252,51 +265,40 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   }
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
-  initUdf(conf);
+  initUdf(veloxcfg);
+
+  if (veloxcfg->get<bool>(kDebugModeEnabled, false)) {
+    LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
+  }
 }
 
-velox::memory::MemoryAllocator* VeloxBackend::getAsyncDataCache() const {
+facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
   return asyncDataCache_.get();
 }
 
 // JNI-or-local filesystem, for spilling-to-heap if we have extra JVM heap spaces
-void VeloxBackend::initJolFilesystem(const std::unordered_map<std::string, std::string>& conf) {
-  int64_t maxSpillFileSize = std::stol(kMaxSpillFileSizeDefault);
-  auto got = conf.find(kMaxSpillFileSize);
-  if (got != conf.end()) {
-    maxSpillFileSize = std::stol(got->second);
-  }
-  // FIMXE It's known that if spill compression is disabled, the actual spill file size may
+void VeloxBackend::initJolFilesystem(const facebook::velox::Config* conf) {
+  int64_t maxSpillFileSize = conf->get<int64_t>(kMaxSpillFileSize, kMaxSpillFileSizeDefault);
+
+  // FIXME It's known that if spill compression is disabled, the actual spill file size may
   //   in crease beyond this limit a little (maximum 64 rows which is by default
   //   one compression page)
   gluten::registerJolFileSystem(maxSpillFileSize);
 }
 
-void VeloxBackend::initCache(const std::unordered_map<std::string, std::string>& conf) {
-  auto key = conf.find(kVeloxCacheEnabled);
-  if (key != conf.end() && boost::algorithm::to_lower_copy(conf.at(kVeloxCacheEnabled)) == "true") {
+void VeloxBackend::initCache(const facebook::velox::Config* conf) {
+  bool veloxCacheEnabled = conf->get<bool>(kVeloxCacheEnabled, false);
+  if (veloxCacheEnabled) {
     FLAGS_ssd_odirect = true;
-    if (conf.find(kVeloxSsdODirectEnabled) != conf.end() &&
-        boost::algorithm::to_lower_copy(conf.at(kVeloxSsdODirectEnabled)) == "false") {
-      FLAGS_ssd_odirect = false;
-    }
-    uint64_t memCacheSize = std::stol(kVeloxMemCacheSizeDefault);
-    uint64_t ssdCacheSize = std::stol(kVeloxSsdCacheSizeDefault);
-    int32_t ssdCacheShards = std::stoi(kVeloxSsdCacheShardsDefault);
-    int32_t ssdCacheIOThreads = std::stoi(kVeloxSsdCacheIOThreadsDefault);
-    std::string ssdCachePathPrefix = kVeloxSsdCachePathDefault;
-    for (auto& [k, v] : conf) {
-      if (k == kVeloxMemCacheSize)
-        memCacheSize = std::stol(v);
-      if (k == kVeloxSsdCacheSize)
-        ssdCacheSize = std::stol(v);
-      if (k == kVeloxSsdCacheShards)
-        ssdCacheShards = std::stoi(v);
-      if (k == kVeloxSsdCachePath)
-        ssdCachePathPrefix = v;
-      if (k == kVeloxSsdCacheIOThreads)
-        ssdCacheIOThreads = std::stoi(v);
-    }
+
+    FLAGS_ssd_odirect = conf->get<bool>(kVeloxSsdODirectEnabled, false);
+
+    uint64_t memCacheSize = conf->get<uint64_t>(kVeloxMemCacheSize, kVeloxMemCacheSizeDefault);
+    uint64_t ssdCacheSize = conf->get<uint64_t>(kVeloxSsdCacheSize, kVeloxSsdCacheSizeDefault);
+    int32_t ssdCacheShards = conf->get<int32_t>(kVeloxSsdCacheShards, kVeloxSsdCacheShardsDefault);
+    int32_t ssdCacheIOThreads = conf->get<int32_t>(kVeloxSsdCacheIOThreads, kVeloxSsdCacheIOThreadsDefault);
+    std::string ssdCachePathPrefix = conf->get<std::string>(kVeloxSsdCachePath, kVeloxSsdCachePathDefault);
+
     cachePathPrefix_ = ssdCachePathPrefix;
     cacheFilePrefix_ = getCacheFilePrefix();
     std::string ssdCachePath = ssdCachePathPrefix + "/" + cacheFilePrefix_;
@@ -317,9 +319,11 @@ void VeloxBackend::initCache(const std::unordered_map<std::string, std::string>&
     auto allocator = std::make_shared<velox::memory::MmapAllocator>(options);
     if (ssdCacheSize == 0) {
       LOG(INFO) << "AsyncDataCache will do memory caching only as ssd cache size is 0";
-      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, nullptr);
+      // TODO: this is not tracked by Spark.
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator.get());
     } else {
-      asyncDataCache_ = std::make_shared<velox::cache::AsyncDataCache>(allocator, memCacheSize, std::move(ssd));
+      // TODO: this is not tracked by Spark.
+      asyncDataCache_ = velox::cache::AsyncDataCache::create(allocator.get(), std::move(ssd));
     }
 
     VELOX_CHECK_NOT_NULL(dynamic_cast<velox::cache::AsyncDataCache*>(asyncDataCache_.get()))
@@ -329,10 +333,9 @@ void VeloxBackend::initCache(const std::unordered_map<std::string, std::string>&
   }
 }
 
-void VeloxBackend::initIOExecutor(const std::unordered_map<std::string, std::string>& conf) {
-  int32_t ioThreads = std::stoi(getConfigValue(conf, kVeloxIOThreads, kVeloxIOThreadsDefault));
-  int32_t splitPreloadPerDriver =
-      std::stoi(getConfigValue(conf, kVeloxSplitPreloadPerDriver, kVeloxSplitPreloadPerDriverDefault));
+void VeloxBackend::initIOExecutor(const facebook::velox::Config* conf) {
+  int32_t ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
+  int32_t splitPreloadPerDriver = conf->get<int32_t>(kVeloxSplitPreloadPerDriver, kVeloxSplitPreloadPerDriverDefault);
   if (ioThreads > 0) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
     FLAGS_split_preload_per_driver = splitPreloadPerDriver;
@@ -344,33 +347,27 @@ void VeloxBackend::initIOExecutor(const std::unordered_map<std::string, std::str
   }
 }
 
-void VeloxBackend::initUdf(const std::unordered_map<std::string, std::string>& conf) {
-  auto got = conf.find(kVeloxUdfLibraryPaths);
-  if (got != conf.end() && !got->second.empty()) {
+void VeloxBackend::initUdf(const facebook::velox::Config* conf) {
+  auto got = conf->get<std::string>(kVeloxUdfLibraryPaths, "");
+  if (!got.empty()) {
     auto udfLoader = gluten::UdfLoader::getInstance();
-    udfLoader->loadUdfLibraries(got->second);
+    udfLoader->loadUdfLibraries(got);
     udfLoader->registerUdf();
   }
 }
 
+std::unique_ptr<VeloxBackend> VeloxBackend::instance_ = nullptr;
+
 void VeloxBackend::create(const std::unordered_map<std::string, std::string>& conf) {
-  std::lock_guard<std::mutex> lockGuard(mutex_);
-  if (instance_ != nullptr) {
-    assert(false);
-    throw gluten::GlutenException("VeloxBackend already set");
-  }
-  instance_.reset(new gluten::VeloxBackend(conf));
+  instance_ = std::unique_ptr<VeloxBackend>(new gluten::VeloxBackend(conf));
 }
 
-std::shared_ptr<VeloxBackend> VeloxBackend::get() {
-  std::lock_guard<std::mutex> lockGuard(mutex_);
-  if (instance_ == nullptr) {
-    LOG(INFO) << "VeloxBackend not set, using default VeloxBackend instance. This should only happen in test code.";
-    static const std::unordered_map<std::string, std::string> kEmptyConf;
-    static std::shared_ptr<VeloxBackend> defaultInstance{new gluten::VeloxBackend(kEmptyConf)};
-    return defaultInstance;
+VeloxBackend* VeloxBackend::get() {
+  if (!instance_) {
+    LOG(WARNING) << "VeloxBackend instance is null, please invoke VeloxBackend#create before use.";
+    throw GlutenException("VeloxBackend instance is null.");
   }
-  return instance_;
+  return instance_.get();
 }
 
 } // namespace gluten

@@ -16,27 +16,28 @@
  */
 package io.glutenproject.columnarbatch;
 
-import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionCtxAware;
-import io.glutenproject.exec.ExecutionCtxs;
-import io.glutenproject.init.JniInitialized;
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.RuntimeAware;
+import io.glutenproject.exec.Runtimes;
 
-public class ColumnarBatchJniWrapper extends JniInitialized implements ExecutionCtxAware {
-  private final ExecutionCtx ctx;
+public class ColumnarBatchJniWrapper implements RuntimeAware {
+  private final Runtime runtime;
 
-  private ColumnarBatchJniWrapper(ExecutionCtx ctx) {
-    this.ctx = ctx;
+  private ColumnarBatchJniWrapper(Runtime runtime) {
+    this.runtime = runtime;
   }
 
   public static ColumnarBatchJniWrapper create() {
-    return new ColumnarBatchJniWrapper(ExecutionCtxs.contextInstance());
+    return new ColumnarBatchJniWrapper(Runtimes.contextInstance());
   }
 
-  public static ColumnarBatchJniWrapper forCtx(ExecutionCtx ctx) {
-    return new ColumnarBatchJniWrapper(ctx);
+  public static ColumnarBatchJniWrapper forRuntime(Runtime runtime) {
+    return new ColumnarBatchJniWrapper(runtime);
   }
 
   public native long createWithArrowArray(long cSchema, long cArray);
+
+  public native long getForEmptySchema(int numRows);
 
   public native String getType(long batchHandle);
 
@@ -58,7 +59,7 @@ public class ColumnarBatchJniWrapper extends JniInitialized implements Execution
   public native void close(long batch);
 
   @Override
-  public long ctxHandle() {
-    return ctx.getHandle();
+  public long handle() {
+    return runtime.getHandle();
   }
 }

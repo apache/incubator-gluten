@@ -19,6 +19,7 @@
 #include <Formats/NativeReader.h>
 #include <IO/BufferWithOwnMemory.h>
 #include <Common/BlockIterator.h>
+#include <Storages/IO/NativeReader.h>
 
 namespace DB
 {
@@ -42,7 +43,7 @@ public:
 private:
     std::unique_ptr<DB::ReadBuffer> in;
     std::unique_ptr<DB::ReadBuffer> compressed_in;
-    std::unique_ptr<DB::NativeReader> input_stream;
+    std::unique_ptr<local_engine::NativeReader> input_stream;
     DB::Block header;
 };
 

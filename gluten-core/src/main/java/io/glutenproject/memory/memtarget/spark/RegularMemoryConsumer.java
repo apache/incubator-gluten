@@ -35,7 +35,12 @@ import org.apache.spark.util.TaskResources;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/** A trivial memory consumer implementation used by Gluten. */
+/**
+ * A trivial memory consumer implementation used by Gluten.
+ *
+ * @deprecated Use {@link TreeMemoryConsumers#shared()} instead.
+ */
+@Deprecated
 public class RegularMemoryConsumer extends MemoryConsumer
     implements MemoryTarget, KnownNameAndStats {
 

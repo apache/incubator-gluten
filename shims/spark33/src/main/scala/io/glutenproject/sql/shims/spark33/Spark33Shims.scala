@@ -27,9 +27,12 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
+import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{BucketingUtils, FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
+import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
 import org.apache.spark.sql.execution.datasources.v2.utils.CatalogUtil
 import org.apache.spark.sql.types.StructType
@@ -55,7 +58,8 @@ class Spark33Shims extends SparkShims {
     list ++ Seq(
       Sig[SplitPart](ExpressionNames.SPLIT_PART),
       Sig[Sec](ExpressionNames.SEC),
-      Sig[Csc](ExpressionNames.CSC))
+      Sig[Csc](ExpressionNames.CSC),
+      Sig[Empty2Null](ExpressionNames.EMPTY2NULL))
   }
 
   override def convertPartitionTransforms(
@@ -112,6 +116,16 @@ class Spark33Shims extends SparkShims {
             .getOrElse(throw invalidBucketFile(f.filePath))
       }
   }
+
+  override def getBatchScanExecTable(batchScan: BatchScanExec): Table = null
+
+  override def generatePartitionedFile(
+      partitionValues: InternalRow,
+      filePath: String,
+      start: Long,
+      length: Long,
+      @transient locations: Array[String] = Array.empty): PartitionedFile =
+    PartitionedFile(partitionValues, filePath, start, length, locations)
 
   private def invalidBucketFile(path: String): Throwable = {
     new SparkException(

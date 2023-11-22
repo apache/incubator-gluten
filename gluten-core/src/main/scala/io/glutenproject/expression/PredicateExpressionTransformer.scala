@@ -90,12 +90,35 @@ case class LikeTransformer(
 
     // CH backend does not support escapeChar, so skip it here.
     val expressionNodes =
-      if (BackendsApiManager.isCHBackend) {
-        Lists.newArrayList(leftNode, rightNode)
-      } else {
-        Lists.newArrayList(leftNode, rightNode, escapeCharNode)
-      }
+      BackendsApiManager.getTransformerApiInstance.createLikeParamList(
+        leftNode,
+        rightNode,
+        escapeCharNode)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, expressionNodes.toList.asJava, typeNode)
+  }
+}
+
+case class DecimalArithmeticExpressionTransformer(
+    substraitExprName: String,
+    left: ExpressionTransformer,
+    right: ExpressionTransformer,
+    resultType: DecimalType,
+    original: Expression)
+  extends ExpressionTransformer {
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val leftNode = left.doTransform(args)
+    val rightNode = right.doTransform(args)
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        substraitExprName,
+        original.children.map(_.dataType),
+        FunctionConfig.OPT))
+
+    val expressionNodes = Lists.newArrayList(leftNode, rightNode)
+    val typeNode = ConverterUtils.getTypeNode(resultType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, expressionNodes, typeNode)
   }
 }

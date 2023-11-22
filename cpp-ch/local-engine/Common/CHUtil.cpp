@@ -17,10 +17,11 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
-#include <AggregateFunctions/AggregateFunctionCombinatorFactory.h>
+#include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnConst.h>
+#include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnTuple.h>
 #include <Columns/IColumn.h>
@@ -29,6 +30,7 @@
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeNullable.h>
+#include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
@@ -201,10 +203,17 @@ BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively,
         }
         else if (const DB::DataTypeTuple * type_tuple = typeid_cast<const DB::DataTypeTuple *>(nested_type.get()))
         {
-            if (type_tuple->haveExplicitNames() && (flags & FLAT_STRUCT))
+            if ((flags & FLAT_STRUCT_FORCE) || (type_tuple->haveExplicitNames() && (flags & FLAT_STRUCT)))
             {
                 const DB::DataTypes & element_types = type_tuple->getElements();
-                const DB::Strings & element_names = type_tuple->getElementNames();
+                DB::Strings element_names = type_tuple->getElementNames();
+                if (element_names.empty())
+                {
+                    // This is a struct without named fields, we should flatten it.
+                    // But we can't get the field names, so we use the field index as the field name.
+                    for (size_t i = 0; i < element_types.size(); ++i)
+                        element_names.push_back(elem.name + "_filed_" + std::to_string(i));
+                }
 
                 const DB::ColumnTuple * column_tuple;
                 if (isColumnConst(*nested_col))
@@ -389,9 +398,9 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     type_name_col.type = std::make_shared<DB::DataTypeString>();
     const auto * right_arg = &actions_dag->addColumn(std::move(type_name_col));
     const auto * left_arg = node;
-    DB::FunctionCastBase::Diagnostic diagnostic = {node->result_name, node->result_name};
+    DB::CastDiagnostic diagnostic = {node->result_name, node->result_name};
     DB::FunctionOverloadResolverPtr func_builder_cast
-        = DB::CastInternalOverloadResolver<DB::CastType::nonAccurate>::createImpl(std::move(diagnostic));
+        = DB::createInternalCastOverloadResolver(DB::CastType::nonAccurate, std::move(diagnostic));
 
     DB::ActionsDAG::NodeRawConstPtrs children = {left_arg, right_arg};
     return &actions_dag->addFunction(func_builder_cast, std::move(children), result_name);
@@ -429,7 +438,9 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std
             namespace pb_util = google::protobuf::util;
             pb_util::JsonOptions options;
             std::string json;
-            pb_util::MessageToJsonString(*plan_ptr, &json, options);
+            auto s = pb_util::MessageToJsonString(*plan_ptr, &json, options);
+            if (!s.ok())
+                throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert Substrait Plan to Json");
             LOG_DEBUG(&Poco::Logger::get("CHUtil"), "Update Config Map Plan:\n{}", json);
         }
 
@@ -589,6 +600,8 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("input_format_parquet_import_nested", true);
     settings.set("input_format_json_read_numbers_as_strings", true);
     settings.set("input_format_json_read_bools_as_numbers", false);
+    settings.set("input_format_csv_trim_whitespaces", false);
+    settings.set("input_format_csv_allow_cr_end_of_line", true);
     settings.set("output_format_orc_string_as_string", true);
     settings.set("output_format_parquet_version", "1.0");
     settings.set("output_format_parquet_compression_method", "snappy");
@@ -596,10 +609,10 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("output_format_parquet_fixed_string_as_fixed_byte_array", false);
     settings.set("output_format_json_quote_64bit_integers", false);
     settings.set("output_format_json_quote_denormals", true);
+    settings.set("output_format_json_skip_null_value_in_named_tuples", true);
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
-
-
+    settings.set("precise_float_parsing", true);
 }
 
 void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)

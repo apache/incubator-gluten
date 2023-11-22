@@ -20,7 +20,6 @@ import org.apache.spark.{TaskContext, TaskFailedReason, TaskKilledException}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
 
-import _root_.io.glutenproject.backendsapi.BackendsApiManager
 import _root_.io.glutenproject.memory.SimpleMemoryUsageRecorder
 import _root_.io.glutenproject.utils.TaskListener
 
@@ -36,6 +35,20 @@ object TaskResources extends TaskListener with Logging {
       .toBoolean
   }
   val ACCUMULATED_LEAK_BYTES = new AtomicLong(0L)
+
+  // For testing purpose only
+  private var fallbackRegistry: Option[TaskResourceRegistry] = None
+
+  // For testing purpose only
+  def setFallbackRegistry(r: TaskResourceRegistry): Unit = {
+    fallbackRegistry = Some(r)
+  }
+
+  // For testing purpose only
+  def unsetFallbackRegistry(): Unit = {
+    fallbackRegistry.foreach(r => r.releaseAll())
+    fallbackRegistry = None
+  }
 
   private val RESOURCE_REGISTRIES =
     new java.util.IdentityHashMap[TaskContext, TaskResourceRegistry]()
@@ -53,7 +66,11 @@ object TaskResources extends TaskListener with Logging {
       logWarning(
         "Using the fallback instance of TaskResourceRegistry. " +
           "This should only happen when call is not from Spark task.")
-      throw new IllegalStateException("Found a caller not in Spark task scope.")
+      return fallbackRegistry match {
+        case Some(r) => r
+        case _ =>
+          throw new IllegalStateException("No fallback instance of TaskResourceRegistry found.")
+      }
     }
     val tc = getLocalTaskContext()
     RESOURCE_REGISTRIES.synchronized {
@@ -141,11 +158,6 @@ object TaskResources extends TaskListener with Logging {
           }
         }
       })
-    }
-    // Register resources from context API
-    val resourceFactories = BackendsApiManager.getContextApiInstance.taskResourceFactories()
-    for (factory <- resourceFactories) {
-      addAnonymousResource(factory.apply())
     }
   }
 

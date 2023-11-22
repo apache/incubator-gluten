@@ -22,34 +22,64 @@
 #include <string>
 
 #include "arrow/c/bridge.h"
-#include "compute/VeloxExecutionCtx.h"
+#include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 
 #include "utils/VeloxArrowUtils.h"
+#include "velox/common/compression/Compression.h"
 #include "velox/core/QueryConfig.h"
 #include "velox/core/QueryCtx.h"
 #include "velox/dwio/common/Options.h"
 
 using namespace facebook;
 using namespace facebook::velox::dwio::common;
+using namespace facebook::velox::common;
+using namespace facebook::velox::filesystems;
 
 namespace gluten {
 
+namespace {
+const int32_t kGzipWindowBits4k = 12;
+}
+
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
-    sink_ = std::make_unique<velox::dwio::common::LocalFileSink>(filePath_.substr(5));
-  } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
-#ifdef ENABLE_HDFS
-    sink_ = std::make_unique<velox::HdfsFileSink>(filePath_);
+    auto path = filePath_.substr(5);
+    auto localWriteFile = std::make_unique<LocalWriteFile>(path, true, false);
+    sink_ = std::make_unique<WriteFileSink>(std::move(localWriteFile), path);
+  } else if (strncmp(filePath_.c_str(), "s3a:", 4) == 0) {
+#ifdef ENABLE_S3
+    auto fileSystem = getFileSystem(filePath_, nullptr);
+    auto* s3FileSystem = dynamic_cast<filesystems::S3FileSystem*>(fileSystem.get());
+    sink_ = std::make_unique<dwio::common::WriteFileSink>(
+        s3FileSystem->openFileForWrite(filePath_, {{}, s3SinkPool_.get()}), filePath_);
 #else
     throw std::runtime_error(
-        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox executionCtx!");
+        "The write path is S3 path but the S3 haven't been enabled when writing parquet data in velox runtime!");
+#endif
+  } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
+#ifdef ENABLE_HDFS
+    std::string pathSuffix = getHdfsPath(filePath_, HdfsFileSystem::kScheme);
+    auto fileSystem = getFileSystem(filePath_, nullptr);
+    auto* hdfsFileSystem = dynamic_cast<filesystems::HdfsFileSystem*>(fileSystem.get());
+    sink_ = std::make_unique<WriteFileSink>(hdfsFileSystem->openFileForWrite(pathSuffix), filePath_);
+#else
+    throw std::runtime_error(
+        "The write path is hdfs path but the HDFS haven't been enabled when writing parquet data in velox runtime!");
 #endif
 
   } else {
     throw std::runtime_error(
-        "The file path is not local or hdfs when writing data with parquet format in velox executionCtx!");
+        "The file path is not local or hdfs when writing data with parquet format in velox runtime!");
   }
+
+  ArrowSchema cSchema{};
+  arrow::Status status = arrow::ExportSchema(*(schema_.get()), &cSchema);
+  if (!status.ok()) {
+    throw std::runtime_error("Failed to export arrow cSchema.");
+  }
+
+  type_ = velox::importFromArrow(cSchema);
 
   if (sparkConfs.find(kParquetBlockSize) != sparkConfs.end()) {
     maxRowGroupBytes_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockSize)->second));
@@ -57,6 +87,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   if (sparkConfs.find(kParquetBlockRows) != sparkConfs.end()) {
     maxRowGroupRows_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
   }
+  velox::parquet::WriterOptions writeOption;
   auto compressionCodec = CompressionKind::CompressionKind_SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
     auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
@@ -65,6 +96,14 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
       compressionCodec = CompressionKind::CompressionKind_SNAPPY;
     } else if (boost::iequals(compressionCodecStr, "gzip")) {
       compressionCodec = CompressionKind::CompressionKind_GZIP;
+      if (sparkConfs.find(kParquetGzipWindowSize) != sparkConfs.end()) {
+        auto parquetGzipWindowSizeStr = sparkConfs.find(kParquetGzipWindowSize)->second;
+        if (parquetGzipWindowSizeStr == kGzipWindowSize4k) {
+          auto codecOptions = std::make_shared<facebook::velox::parquet::arrow::util::GZipCodecOptions>();
+          codecOptions->window_bits = kGzipWindowBits4k;
+          writeOption.codecOptions = std::move(codecOptions);
+        }
+      }
     } else if (boost::iequals(compressionCodecStr, "lzo")) {
       compressionCodec = CompressionKind::CompressionKind_LZO;
     } else if (boost::iequals(compressionCodecStr, "brotli")) {
@@ -80,16 +119,14 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
       compressionCodec = CompressionKind::CompressionKind_NONE;
     }
   }
-
-  velox::parquet::WriterOptions writeOption;
-  writeOption.maxRowGroupLength = maxRowGroupRows_;
-  writeOption.bytesInRowGroup = maxRowGroupBytes_;
   writeOption.compression = compressionCodec;
-  // Setting the ratio to 2 here refers to the grow strategy in the reserve() method of MemoryPool on the arrow side.
-  std::unordered_map<std::string, std::string> configData({{velox::core::QueryConfig::kDataBufferGrowRatio, "2"}});
-  auto queryCtx = std::make_shared<velox::core::QueryCtx>(nullptr, configData);
+  writeOption.flushPolicyFactory = [&]() {
+    return std::make_unique<velox::parquet::LambdaFlushPolicy>(
+        maxRowGroupRows_, maxRowGroupBytes_, [&]() { return false; });
+  };
+  writeOption.schema = gluten::fromArrowSchema(schema_);
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_, schema_);
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_);
 }
 
 void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {

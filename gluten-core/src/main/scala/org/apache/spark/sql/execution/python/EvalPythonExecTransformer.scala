@@ -17,8 +17,7 @@
 package org.apache.spark.api.python
 
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.execution.TransformContext
-import io.glutenproject.execution.TransformSupport
+import io.glutenproject.execution.{TransformContext, TransformSupport, UnaryTransformSupport}
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
@@ -29,24 +28,22 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel._
 
 import org.apache.spark.TaskContext
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.Any
 
-import java.util.ArrayList
+import java.util.{ArrayList => JArrayList, List => JList}
 
 case class EvalPythonExecTransformer(
     udfs: Seq[PythonUDF],
     resultAttrs: Seq[Attribute],
     child: SparkPlan)
   extends EvalPythonExec
-  with TransformSupport {
+  with UnaryTransformSupport {
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
@@ -60,36 +57,8 @@ case class EvalPythonExecTransformer(
     throw new IllegalStateException("EvalPythonExecTransformer doesn't support evaluate")
   }
 
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(s"EvalPythonExecTransformer doesn't support doExecute")
-  }
-
   override protected def withNewChildInternal(newChild: SparkPlan): EvalPythonExecTransformer =
     copy(udfs, resultAttrs, newChild)
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      val childPlans = c.getBuildPlans
-      childPlans :+ (this, null)
-    case _ =>
-      Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
-
-  override def supportsColumnar: Boolean = true
 
   override protected def doValidateInternal(): ValidationResult = {
     // All udfs should be scalar python udf
@@ -103,7 +72,7 @@ case class EvalPythonExecTransformer(
     val args = context.registeredFunction
     val operatorId = context.nextOperatorId(this.nodeName)
 
-    val expressionNodes = new java.util.ArrayList[ExpressionNode]
+    val expressionNodes = new JArrayList[ExpressionNode]
     child.output.zipWithIndex.foreach(
       x => expressionNodes.add(ExpressionBuilder.makeSelection(x._2)))
     udfs.foreach(
@@ -125,7 +94,7 @@ case class EvalPythonExecTransformer(
 
     val args = context.registeredFunction
     val operatorId = context.nextOperatorId(this.nodeName)
-    val expressionNodes = new java.util.ArrayList[ExpressionNode]
+    val expressionNodes = new JArrayList[ExpressionNode]
     child.output.zipWithIndex.foreach(
       x => expressionNodes.add(ExpressionBuilder.makeSelection(x._2)))
     udfs.foreach(
@@ -137,7 +106,7 @@ case class EvalPythonExecTransformer(
     val relNode = if (childCtx != null) {
       getRelNode(childCtx.root, expressionNodes, context, operatorId, child.output, false)
     } else {
-      val attrList = new java.util.ArrayList[Attribute]()
+      val attrList = new JArrayList[Attribute]()
       for (attr <- child.output) {
         attrList.add(attr)
       }
@@ -150,7 +119,7 @@ case class EvalPythonExecTransformer(
 
   def getRelNode(
       input: RelNode,
-      expressionNodes: ArrayList[ExpressionNode],
+      expressionNodes: JList[ExpressionNode],
       context: SubstraitContext,
       operatorId: Long,
       inputAttributes: Seq[Attribute],
@@ -159,7 +128,7 @@ case class EvalPythonExecTransformer(
       RelBuilder.makeProjectRel(input, expressionNodes, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+      val inputTypeNodeList = new JArrayList[TypeNode]()
       for (attr <- inputAttributes) {
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }

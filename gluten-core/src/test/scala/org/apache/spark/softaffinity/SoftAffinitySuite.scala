@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.{GlutenMergeTreePartition, GlutenPartition}
 import io.glutenproject.softaffinity.SoftAffinityManager
 import io.glutenproject.softaffinity.scheduler.SoftAffinityListener
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.plan.PlanBuilder
 
 import org.apache.spark.SparkConf
@@ -28,7 +29,7 @@ import org.apache.spark.scheduler.cluster.ExecutorInfo
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.PredicateHelper
-import org.apache.spark.sql.execution.datasources.{FilePartition, PartitionedFile}
+import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.test.SharedSparkSession
 
 class SoftAffinitySuite extends QueryTest with SharedSparkSession with PredicateHelper {
@@ -42,14 +43,28 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
     val partition = FilePartition(
       0,
       Seq(
-        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-2", "host-3"))
+        SparkShimLoader.getSparkShims.generatePartitionedFile(
+          InternalRow.empty,
+          "fakePath0",
+          0,
+          100,
+          Array("host-1", "host-2")
+        ),
+        SparkShimLoader.getSparkShims.generatePartitionedFile(
+          InternalRow.empty,
+          "fakePath1",
+          0,
+          200,
+          Array("host-2", "host-3")
+        )
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
+    val locations = SoftAffinityUtil.getFilePartitionLocations(
+      partition.files.map(_.filePath.toString),
+      partition.preferredLocations())
 
-    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
+    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
     assertResult(Set("host-1", "host-2", "host-3")) {
       nativePartition.preferredLocations().toSet
     }
@@ -59,14 +74,28 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
     val partition = FilePartition(
       0,
       Seq(
-        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-4", "host-5"))
+        SparkShimLoader.getSparkShims.generatePartitionedFile(
+          InternalRow.empty,
+          "fakePath0",
+          0,
+          100,
+          Array("host-1", "host-2")
+        ),
+        SparkShimLoader.getSparkShims.generatePartitionedFile(
+          InternalRow.empty,
+          "fakePath1",
+          0,
+          200,
+          Array("host-4", "host-5")
+        )
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
+    val locations = SoftAffinityUtil.getFilePartitionLocations(
+      partition.files.map(_.filePath.toString),
+      partition.preferredLocations())
 
-    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
+    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
 
     assertResult(Set("host-1", "host-4", "host-5")) {
       nativePartition.preferredLocations().toSet
@@ -77,14 +106,28 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
     val partition = FilePartition(
       0,
       Seq(
-        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-5", "host-6"))
+        SparkShimLoader.getSparkShims.generatePartitionedFile(
+          InternalRow.empty,
+          "fakePath0",
+          0,
+          100,
+          Array("host-1", "host-2")
+        ),
+        SparkShimLoader.getSparkShims.generatePartitionedFile(
+          InternalRow.empty,
+          "fakePath1",
+          0,
+          200,
+          Array("host-5", "host-6")
+        )
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
+    val locations = SoftAffinityUtil.getFilePartitionLocations(
+      partition.files.map(_.filePath.toString),
+      partition.preferredLocations())
 
-    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
+    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
 
     assertResult(Set("executor_host-2_2", "executor_host-1_0")) {
       nativePartition.preferredLocations().toSet
@@ -96,7 +139,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
 
     val locations = SoftAffinityUtil.getNativeMergeTreePartitionLocations(partition)
 
-    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
+    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
 
     assertResult(Set("executor_host-1_1")) {
       nativePartition.preferredLocations().toSet
@@ -107,14 +150,28 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
     val partition = FilePartition(
       0,
       Seq(
-        PartitionedFile(InternalRow.empty, "fakePath0", 0, 100, Array("host-1", "host-2")),
-        PartitionedFile(InternalRow.empty, "fakePath1", 0, 200, Array("host-5", "host-6"))
+        SparkShimLoader.getSparkShims.generatePartitionedFile(
+          InternalRow.empty,
+          "fakePath0",
+          0,
+          100,
+          Array("host-1", "host-2")
+        ),
+        SparkShimLoader.getSparkShims.generatePartitionedFile(
+          InternalRow.empty,
+          "fakePath1",
+          0,
+          200,
+          Array("host-5", "host-6")
+        )
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(partition)
+    val locations = SoftAffinityUtil.getFilePartitionLocations(
+      partition.files.map(_.filePath.toString),
+      partition.preferredLocations())
 
-    val nativePartition = new GlutenPartition(0, PlanBuilder.empty().toProtobuf, locations)
+    val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
 
     assertResult(Set("host-1", "host-5", "host-6")) {
       nativePartition.preferredLocations().toSet

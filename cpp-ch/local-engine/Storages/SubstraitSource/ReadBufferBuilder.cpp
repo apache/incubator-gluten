@@ -380,35 +380,26 @@ public:
         std::string bucket = file_uri.getHost();
         const auto client = getClient(bucket);
         std::string key = file_uri.getPath().substr(1);
-        size_t object_size = DB::S3::getObjectSize(*client, bucket, key, "");
+        DB::S3::ObjectInfo object_info =  DB::S3::getObjectInfo(*client, bucket, key, "");
+        size_t object_size = object_info.size;
+        Int64 object_modified_time = object_info.last_modification_time;
 
         if (new_settings.enable_filesystem_cache)
         {
-            const auto & settings = context->getSettingsRef();
-            String accept_cache_time_str = getSetting(settings, "", "spark.kylin.local-cache.accept-cache-time");
-            Int64 accept_cache_time;
-            if (accept_cache_time_str.empty())
-            {
-                accept_cache_time = DateTimeUtil::currentTimeMillis();
-            }
-            else
-            {
-                accept_cache_time = std::stoll(accept_cache_time_str);
-            }
 
             auto file_cache_key = DB::FileCacheKey(key);
             auto last_cache_time = files_cache_time_map.get(file_cache_key);
             // quick check
             if (last_cache_time != std::nullopt && last_cache_time.has_value())
             {
-                if (last_cache_time.value() < accept_cache_time)
+                if (last_cache_time.value() < object_modified_time*1000l) //second to milli second
                 {
-                    files_cache_time_map.update_cache_time(file_cache_key, key, accept_cache_time, file_cache);
+                    files_cache_time_map.update_cache_time(file_cache_key, key, object_modified_time*1000l, file_cache);
                 }
             }
             else
             {
-                files_cache_time_map.update_cache_time(file_cache_key, key, accept_cache_time, file_cache);
+                files_cache_time_map.update_cache_time(file_cache_key, key, object_modified_time*1000l, file_cache);
             }
         }
 
@@ -428,7 +419,7 @@ public:
                 /* restricted_seek */ true);
         };
 
-        DB::StoredObjects stored_objects{DB::StoredObject{key, object_size}};
+        DB::StoredObjects stored_objects{DB::StoredObject{key, "", object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
             std::move(read_buffer_creator), stored_objects, new_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
 

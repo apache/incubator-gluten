@@ -29,7 +29,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.commons.io.FileUtils
 import org.apache.hadoop.fs.Path
 
-import java.io.File
+import java.io.{File, PrintWriter}
 import java.sql.Timestamp
 
 case class AllDataTypesWithComplextType(
@@ -92,7 +92,6 @@ class GlutenClickHouseHiveTableSuite()
       .set("spark.gluten.sql.columnar.iterator", "true")
       .set("spark.gluten.sql.columnar.hashagg.enablefinal", "true")
       .set("spark.gluten.sql.enable.native.validation", "false")
-      .set("spark.gluten.sql.columnar.forceshuffledhashjoin", "true")
       .set("spark.gluten.sql.parquet.maxmin.index", "true")
       .set(
         "spark.sql.warehouse.dir",
@@ -958,4 +957,98 @@ class GlutenClickHouseHiveTableSuite()
     spark.sql("DROP TABLE b")
   }
 
+  test("GLUTEN-3337: fix get_json_object ctrl-chars bug") {
+    val data_path = rootPath + "/text-data/ctrl-chars"
+    spark.sql(s"""
+                 |CREATE TABLE test_tbl_3337 (
+                 |  id bigint,
+                 |  data string) stored as textfile
+                 |LOCATION '$data_path'
+      """.stripMargin)
+
+    val select_sql = "select id, get_json_object(data, '$.data.v') from test_tbl_3337"
+    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    spark.sql("DROP TABLE test_tbl_3337")
+  }
+
+  test("test hive read recursive dirs") {
+    val path = new Path(sparkConf.get("spark.sql.warehouse.dir"))
+    val create_test_file_recursive =
+      "create external table if not exists test_file_recursive (" +
+        "int_field int" +
+        ") row format delimited fields terminated by ',' stored as textfile " +
+        "LOCATION 'file://" + path + "/test_file_recursive'"
+    spark.sql(create_test_file_recursive)
+
+    val fs = path.getFileSystem(spark.sessionState.newHadoopConf())
+    val tablePath = path.toUri.getPath + "/test_file_recursive"
+    val recursivePath = tablePath + "/subDir1/subDir2"
+    val succ = fs.mkdirs(new Path(recursivePath))
+    assert(succ, true)
+    val recursiveFile = recursivePath + "/file1.txt"
+    val writer = new PrintWriter(new File(recursiveFile))
+    writer.write("10")
+    writer.close()
+
+    val sql =
+      s"""
+         | select int_field from test_file_recursive
+         |""".stripMargin
+
+    withSQLConf(("mapreduce.input.fileinputformat.input.dir.recursive", "true")) {
+      compareResultsAgainstVanillaSpark(
+        sql,
+        compareResult = true,
+        df => {
+          assert(df.collect().length == 1)
+        }
+      )
+    }
+  }
+
+  test("GLUTEN-3552: Bug fix csv field whitespaces") {
+    val data_path = rootPath + "/text-data/field_whitespaces"
+    spark.sql(s"""
+                 | CREATE TABLE test_tbl_3552(
+                 | a string,
+                 | b string,
+                 | c string)
+                 | ROW FORMAT SERDE
+                 |  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
+                 |WITH SERDEPROPERTIES (
+                 |   'field.delim'=','
+                 | )
+                 | STORED AS INPUTFORMAT
+                 |  'org.apache.hadoop.mapred.TextInputFormat'
+                 |OUTPUTFORMAT
+                 |  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+                 |LOCATION '$data_path'
+                 |""".stripMargin)
+    val select_sql = "select * from test_tbl_3552"
+    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    spark.sql("DROP TABLE test_tbl_3552")
+  }
+
+  test("GLUTEN-3548: Bug fix csv allow cr end of line") {
+    val data_path = rootPath + "/text-data/cr_end_of_line"
+    spark.sql(s"""
+                 | CREATE TABLE test_tbl_3548(
+                 | a string,
+                 | b string,
+                 | c string)
+                 | ROW FORMAT SERDE
+                 |  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
+                 |WITH SERDEPROPERTIES (
+                 |   'field.delim'=','
+                 | )
+                 | STORED AS INPUTFORMAT
+                 |  'org.apache.hadoop.mapred.TextInputFormat'
+                 |OUTPUTFORMAT
+                 |  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+                 |LOCATION '$data_path'
+                 |""".stripMargin)
+    val select_sql = "select * from test_tbl_3548"
+    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    spark.sql("DROP TABLE test_tbl_3548")
+  }
 }

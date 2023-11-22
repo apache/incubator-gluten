@@ -24,7 +24,6 @@ import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical._
@@ -33,8 +32,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.StringValue
 import io.substrait.proto.JoinRel
-
-import java.util.{ArrayList => JArrayList}
 
 import scala.collection.JavaConverters._
 
@@ -55,12 +52,8 @@ case class SortMergeJoinExecTransformer(
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetrics(sparkContext)
 
-  val sparkConf = sparkContext.getConf
-
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
     (rightKeys, leftKeys, right, left)
-
-  override def supportsColumnar: Boolean = true
 
   override def stringArgs: Iterator[Any] = super.stringArgs.toSeq.dropRight(1).iterator
 
@@ -180,34 +173,6 @@ case class SortMergeJoinExecTransformer(
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(bufferedPlan)
   }
 
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-
-    val curbufferedPlan: Seq[(SparkPlan, SparkPlan)] = bufferedPlan match {
-      case s: SortExecTransformer =>
-        Seq((s, this))
-      case c: TransformSupport if !c.isInstanceOf[SortExecTransformer] =>
-        c.getBuildPlans
-      case other =>
-        /* should be InputAdapterTransformer or others */
-        Seq((other, this))
-    }
-    streamedPlan match {
-      case c: TransformSupport if c.isInstanceOf[SortExecTransformer] =>
-        curbufferedPlan ++ Seq((c, this))
-      case c: TransformSupport if !c.isInstanceOf[SortExecTransformer] =>
-        c.getBuildPlans ++ curbufferedPlan
-      case _ =>
-        curbufferedPlan
-    }
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = streamedPlan match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
-
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetricsUpdater(metrics)
 
@@ -291,7 +256,7 @@ case class SortMergeJoinExecTransformer(
           (transformContext.root, transformContext.outputAttributes, false)
         case _ =>
           val readRel = RelBuilder.makeReadRel(
-            new JArrayList[Attribute](plan.output.asJava),
+            plan.output.asJava,
             context,
             -1
           ) /* A special handling in Join to delay the rel registration. */
@@ -349,10 +314,6 @@ case class SortMergeJoinExecTransformer(
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(s"ColumnarSortMergeJoinExec doesn't support doExecute")
   }
 
   override protected def withNewChildrenInternal(

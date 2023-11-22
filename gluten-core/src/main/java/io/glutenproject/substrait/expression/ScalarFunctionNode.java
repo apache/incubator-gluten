@@ -23,14 +23,14 @@ import io.substrait.proto.FunctionArgument;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class ScalarFunctionNode implements ExpressionNode, Serializable {
   private final Long functionId;
-  private final ArrayList<ExpressionNode> expressionNodes = new ArrayList<>();
+  private final List<ExpressionNode> expressionNodes = new ArrayList<>();
   private final TypeNode typeNode;
 
-  ScalarFunctionNode(
-      Long functionId, ArrayList<ExpressionNode> expressionNodes, TypeNode typeNode) {
+  ScalarFunctionNode(Long functionId, List<ExpressionNode> expressionNodes, TypeNode typeNode) {
     this.functionId = functionId;
     this.expressionNodes.addAll(expressionNodes);
     this.typeNode = typeNode;

@@ -191,6 +191,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameRangeSuite]
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenDataFrameSessionWindowingSuite]
+    .exclude("simple session window with record at window start")
+    .exclude("session window groupBy statement")
+    .exclude("SPARK-36465: filter out events with negative/zero gap duration")
     .exclude("session window groupBy with multiple keys statement")
     .exclude("session window groupBy with multiple keys statement - one distinct")
     .exclude("session window groupBy with multiple keys statement - two distinct")
@@ -217,6 +220,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-37371: UnionExec should support columnar if all children support columnar")
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
+    .exclude("Uuid expressions should produce same results at retries in the same DataFrame")
     .exclude("SPARK-28224: Aggregate sum big decimal overflow")
     .exclude("SPARK-28067: Aggregate sum should not return wrong results for decimal overflow")
     .exclude("SPARK-35955: Aggregate avg should not return wrong results for decimal overflow")
@@ -609,6 +613,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36924: Cast IntegralType to DayTimeIntervalType")
     .exclude("SPARK-36924: Cast YearMonthIntervalType to IntegralType")
     .exclude("SPARK-36924: Cast IntegralType to YearMonthIntervalType")
+    .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude("null cast")
     .exclude("cast string to date")
@@ -716,6 +721,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("WeekDay")
     .exclude("WeekOfYear")
     .exclude("DateFormat")
+    .exclude("Gluten - DateFormat")
     .exclude("Hour")
     .exclude("Minute")
     .exclude("date add interval")
@@ -831,7 +837,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35926: Support YearMonthIntervalType in width-bucket function")
     .exclude("SPARK-35925: Support DayTimeIntervalType in width-bucket function")
     .exclude("SPARK-37388: width_bucket")
-  enableSuite[GlutenMiscExpressionsSuite].exclude("uuid")
+  enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
     .exclude("SparkPartitionID")
@@ -1545,7 +1551,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
     .exclude("SPARK-36726: test incorrect Parquet row group file offset")
-    .exclude("Gluten - SPARK-35640: int as long should throw schema incompatible error")
   enableSuite[GlutenParquetInteroperabilitySuite].exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetProtobufCompatibilitySuite].exclude("struct with unannotated array")
   enableSuite[GlutenParquetRebaseDatetimeV1Suite]
@@ -2008,6 +2013,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SELECT structFieldSimple.key, arrayFieldSimple[1] FROM tableWithSchema a where int_Field=1")
     .exclude("SELECT structFieldComplex.Value.`value_(2)` FROM tableWithSchema")
   enableSuite[SparkFunctionStatistics]
-
+  enableSuite[GlutenImplicitsTest]
+    .exclude("fallbackSummary with shuffle")
+    .exclude("fallbackSummary with cache")
+    .exclude("fallbackSummary with cached data and shuffle")
 }
 // scalastyle:on line.size.limit

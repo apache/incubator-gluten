@@ -20,9 +20,9 @@
 
 #if USE_PARQUET
 
-#    include <memory>
-#    include <IO/WriteBuffer.h>
-#    include <Storages/Output/OutputFormatFile.h>
+#include <memory>
+#include <IO/WriteBuffer.h>
+#include <Storages/Output/OutputFormatFile.h>
 
 namespace local_engine
 {

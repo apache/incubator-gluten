@@ -33,8 +33,8 @@
 
 #include <chrono>
 
-#include "BenchmarkUtils.h"
-#include "compute/VeloxExecutionCtx.h"
+#include "benchmarks/common/BenchmarkUtils.h"
+#include "compute/VeloxRuntime.h"
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
@@ -256,16 +256,19 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     // reuse the ParquetWriteConverter for batches caused system % increase a lot
     auto fileName = "velox_parquet_write.parquet";
 
-    auto executionCtx = gluten::createExecutionCtx();
+    auto runtime = Runtime::create(kVeloxRuntimeKind);
     auto memoryManager = getDefaultMemoryManager();
     auto veloxPool = memoryManager->getAggregateMemoryPool();
 
     for (auto _ : state) {
       // Init VeloxParquetDataSource
       auto veloxParquetDatasource = std::make_unique<gluten::VeloxParquetDatasource>(
-          outputPath_ + "/" + fileName, veloxPool->addAggregateChild("writer_benchmark"), localSchema);
+          outputPath_ + "/" + fileName,
+          veloxPool->addAggregateChild("writer_benchmark"),
+          veloxPool->addLeafChild("s3_sink_pool"),
+          localSchema);
 
-      veloxParquetDatasource->init(executionCtx->getConfMap());
+      veloxParquetDatasource->init(runtime->getConfMap());
       auto start = std::chrono::steady_clock::now();
       for (const auto& vector : vectors) {
         veloxParquetDatasource->write(vector);
@@ -292,7 +295,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
         benchmark::Counter(initTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
     state.counters["write_time"] =
         benchmark::Counter(writeTime, benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
-    gluten::releaseExecutionCtx(executionCtx);
+    Runtime::release(runtime);
   }
 };
 

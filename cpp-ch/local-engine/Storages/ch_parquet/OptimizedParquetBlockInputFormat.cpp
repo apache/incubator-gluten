@@ -17,31 +17,31 @@
 #include "OptimizedParquetBlockInputFormat.h"
 #include <boost/algorithm/string/case_conv.hpp>
 
-#if USE_PARQUET && USE_LOCAL_FORMATS
-#    include <DataTypes/NestedUtils.h>
-#    include <Formats/FormatFactory.h>
-#    include <Processors/Formats/Impl/ArrowBufferedStreams.h>
-#    include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
-#    include <Storages/ch_parquet/arrow/reader.h>
+#if USE_PARQUET
+#include <DataTypes/NestedUtils.h>
+#include <Formats/FormatFactory.h>
+#include <Processors/Formats/Impl/ArrowBufferedStreams.h>
+#include <Storages/ch_parquet/OptimizedArrowColumnToCHColumn.h>
+#include <Storages/ch_parquet/arrow/reader.h>
 
 namespace DB
 {
 
 namespace ErrorCodes
 {
-    extern const int BAD_ARGUMENTS;
-    extern const int CANNOT_READ_ALL_DATA;
+extern const int BAD_ARGUMENTS;
+extern const int CANNOT_READ_ALL_DATA;
 }
 
-#    define THROW_ARROW_NOT_OK(status) \
-        do \
-        { \
-            if (::arrow::Status _s = (status); !_s.ok()) \
-                throw Exception::createRuntime(ErrorCodes::BAD_ARGUMENTS, _s.ToString()); \
-        } while (false)
+#define THROW_ARROW_NOT_OK(status) \
+    do \
+    { \
+        if (::arrow::Status _s = (status); !_s.ok()) \
+            throw Exception::createRuntime(ErrorCodes::BAD_ARGUMENTS, _s.ToString()); \
+    } while (false)
 
 OptimizedParquetBlockInputFormat::OptimizedParquetBlockInputFormat(ReadBuffer & in_, Block header_, const FormatSettings & format_settings_)
-    : IInputFormat(std::move(header_), in_), format_settings(format_settings_)
+    : IInputFormat(std::move(header_), &in_), format_settings(format_settings_)
 {
 }
 
@@ -158,12 +158,10 @@ void OptimizedParquetBlockInputFormat::prepareReader()
     row_group_current = 0;
 
     arrow_column_to_ch_column = std::make_unique<OptimizedArrowColumnToCHColumn>(
-        getPort().getHeader(), "Parquet", format_settings.parquet.import_nested, format_settings.parquet.allow_missing_columns);
+        getPort().getHeader(), "Parquet", true, format_settings.parquet.allow_missing_columns);
     missing_columns = arrow_column_to_ch_column->getMissingColumns(*schema);
 
     std::unordered_set<String> nested_table_names;
-    if (format_settings.parquet.import_nested)
-        nested_table_names = Nested::getAllTableNames(getPort().getHeader());
 
     int index = 0;
     for (int i = 0; i < schema->num_fields(); ++i)

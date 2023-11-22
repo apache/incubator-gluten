@@ -31,7 +31,7 @@ using namespace local_engine;
 
 TEST(TestBatchParquetFileSource, blob)
 {
-    GTEST_SKIP() ;
+    GTEST_SKIP();
     auto config = local_engine::SerializedPlanParser::config;
     config->setString("blob.storage_account_url", "http://127.0.0.1:10000/devstoreaccount1");
     config->setString("blob.container_name", "libch");
@@ -99,7 +99,7 @@ TEST(TestBatchParquetFileSource, blob)
 
 TEST(TestBatchParquetFileSource, s3)
 {
-    GTEST_SKIP() ;
+    GTEST_SKIP();
     auto config = local_engine::SerializedPlanParser::config;
     config->setString("s3.endpoint", "http://localhost:9000/tpch/");
     config->setString("s3.region", "us-east-1");
@@ -163,7 +163,7 @@ TEST(TestBatchParquetFileSource, s3)
 
 TEST(TestBatchParquetFileSource, local_file)
 {
-    GTEST_SKIP() ;
+    GTEST_SKIP();
     auto builder = std::make_unique<QueryPipelineBuilder>();
 
     substrait::ReadRel::LocalFiles files;
@@ -229,7 +229,7 @@ TEST(TestBatchParquetFileSource, local_file)
 
 TEST(TestWrite, MergeTreeWriteTest)
 {
-    GTEST_SKIP() ;
+    GTEST_SKIP();
     auto config = local_engine::SerializedPlanParser::config;
     config->setString("s3.endpoint", "http://localhost:9000/tpch/");
     config->setString("s3.region", "us-east-1");
@@ -283,5 +283,5 @@ TEST(TestWrite, MergeTreeWriteTest)
             return std::make_shared<local_engine::CustomMergeTreeSink>(custom_merge_tree, metadata, global_context);
         });
     auto executor = query_pipeline_builder.execute();
-    executor->execute(1);
+    executor->execute(1, false);
 }

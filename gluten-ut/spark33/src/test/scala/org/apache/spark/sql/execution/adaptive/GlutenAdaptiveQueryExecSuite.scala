@@ -146,7 +146,6 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
     val numShuffles = collect(plan) { case s: ShuffleQueryStageExec => s }.length
 
     val numLocalReads = collect(plan) {
-      case read: ColumnarAQEShuffleReadExec if read.isLocalRead => read
       case r: AQEShuffleReadExec if r.isLocalRead => r
     }
     // because columnar local reads cannot execute
@@ -207,7 +206,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       assert(sortMergeJoinSize(plan) == 1)
       assert(broadcastHashJoinSize(adaptivePlan) == 1)
       val localReads = collect(adaptivePlan) {
-        case read: ColumnarAQEShuffleReadExec if read.isLocalRead => read
+        case read: AQEShuffleReadExec if read.isLocalRead => read
       }
       assert(localReads.length == 2)
     }
@@ -225,14 +224,14 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       val bhj = findTopLevelBroadcastHashJoinTransform(adaptivePlan)
       assert(bhj.size == 1)
       val localReads = collect(adaptivePlan) {
-        case read: ColumnarAQEShuffleReadExec if read.isLocalRead => read
+        case read: AQEShuffleReadExec if read.isLocalRead => read
       }
       assert(localReads.length == 2)
       val localShuffleRDD0 = localReads(0)
-        .doExecuteColumnar()
+        .executeColumnar()
         .asInstanceOf[ShuffledColumnarBatchRDD]
       val localShuffleRDD1 = localReads(1)
-        .doExecuteColumnar()
+        .executeColumnar()
         .asInstanceOf[ShuffledColumnarBatchRDD]
       // the final parallelism is math.max(1, numReduces / numMappers): math.max(1, 5/2) = 2
       // and the partitions length is 2 * numMappers = 4
@@ -271,7 +270,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         checkAnswer(testDf, Seq())
         val plan = testDf.queryExecution.executedPlan
         assert(find(plan)(_.isInstanceOf[BroadcastHashJoinExecTransformer]).isDefined)
-        val coalescedReads = collect(plan) { case r: ColumnarAQEShuffleReadExec => r }
+        val coalescedReads = collect(plan) { case r: AQEShuffleReadExec => r }
         assert(coalescedReads.length == 3, s"$plan")
         coalescedReads.foreach(r => assert(r.isLocalRead || r.partitionSpecs.length == 1))
       }
@@ -438,8 +437,10 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten Exchange reuse") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "100",
-      SQLConf.SHUFFLE_PARTITIONS.key -> "5") {
+      // magic threshold, ch backend has two bhj when threshold is 100
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "90",
+      SQLConf.SHUFFLE_PARTITIONS.key -> "5"
+    ) {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
         "SELECT value FROM testData join testData2 ON key = a " +
           "join (SELECT value v from testData join testData3 ON key = a) on value = v")
@@ -673,7 +674,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
               }
               assert(
                 joins.head.left
-                  .collect { case r: ColumnarAQEShuffleReadExec => r }
+                  .collect { case r: AQEShuffleReadExec => r }
                   .head
                   .partitionSpecs
                   .collect { case p: PartialReducerPartitionSpec => p.reducerIndex }
@@ -681,7 +682,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
                   .length == leftSkewNum)
               assert(
                 joins.head.right
-                  .collect { case r: ColumnarAQEShuffleReadExec => r }
+                  .collect { case r: AQEShuffleReadExec => r }
                   .head
                   .partitionSpecs
                   .collect { case p: PartialReducerPartitionSpec => p.reducerIndex }
@@ -717,10 +718,10 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
   test("gluten SPARK-34682: AQEShuffleReadExec operating on canonicalized plan") {
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
       val (_, adaptivePlan) = runAdaptiveAndVerifyResult("SELECT key FROM testData GROUP BY key")
-      val reads = collect(adaptivePlan) { case r: ColumnarAQEShuffleReadExec => r }
+      val reads = collect(adaptivePlan) { case r: AQEShuffleReadExec => r }
       assert(reads.length == 1)
       val read = reads.head
-      val c = read.canonicalized.asInstanceOf[ColumnarAQEShuffleReadExec]
+      val c = read.canonicalized.asInstanceOf[AQEShuffleReadExec]
       // we can't just call execute() because that has separate checks for canonicalized plans
       val ex = intercept[IllegalStateException] {
         val doExecute = PrivateMethod[Unit](Symbol("doExecuteColumnar"))
@@ -735,7 +736,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.SHUFFLE_PARTITIONS.key -> "5") {
       val (_, adaptivePlan) = runAdaptiveAndVerifyResult("SELECT key FROM testData GROUP BY key")
-      val reads = collect(adaptivePlan) { case r: ColumnarAQEShuffleReadExec => r }
+      val reads = collect(adaptivePlan) { case r: AQEShuffleReadExec => r }
       assert(reads.length == 1)
       val read = reads.head
       assert(!read.isLocalRead)
@@ -756,7 +757,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         val join = collect(adaptivePlan) { case j: BroadcastHashJoinExecTransformer => j }.head
         assert(join.joinBuildSide == BuildLeft)
 
-        val reads = collect(join.right) { case r: ColumnarAQEShuffleReadExec => r }
+        val reads = collect(join.right) { case r: AQEShuffleReadExec => r }
         assert(reads.length == 1)
         val read = reads.head
         assert(read.isLocalRead)
@@ -867,17 +868,17 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       assert(bhj.length == 1)
 
       // Build side should do local read.
-      val buildSide = find(bhj.head.left)(_.isInstanceOf[ColumnarAQEShuffleReadExec])
+      val buildSide = find(bhj.head.left)(_.isInstanceOf[AQEShuffleReadExec])
       assert(buildSide.isDefined)
-      assert(buildSide.get.asInstanceOf[ColumnarAQEShuffleReadExec].isLocalRead)
+      assert(buildSide.get.asInstanceOf[AQEShuffleReadExec].isLocalRead)
 
-      val probeSide = find(bhj.head.right)(_.isInstanceOf[ColumnarAQEShuffleReadExec])
+      val probeSide = find(bhj.head.right)(_.isInstanceOf[AQEShuffleReadExec])
       if (probeSideLocalRead || probeSideCoalescedRead) {
         assert(probeSide.isDefined)
         if (probeSideLocalRead) {
-          assert(probeSide.get.asInstanceOf[ColumnarAQEShuffleReadExec].isLocalRead)
+          assert(probeSide.get.asInstanceOf[AQEShuffleReadExec].isLocalRead)
         } else {
-          assert(probeSide.get.asInstanceOf[ColumnarAQEShuffleReadExec].hasCoalescedPartition)
+          assert(probeSide.get.asInstanceOf[AQEShuffleReadExec].hasCoalescedPartition)
         }
       } else {
         assert(probeSide.isEmpty)
@@ -895,7 +896,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       val smj = findTopLevelSortMergeJoin(plan)
       assert(smj.length == 1)
       assert(smj.head.isSkewJoin == optimizeSkewJoin)
-      val aqeReads = collect(smj.head) { case c: ColumnarAQEShuffleReadExec => c }
+      val aqeReads = collect(smj.head) { case c: AQEShuffleReadExec => c }
       if (coalescedRead || optimizeSkewJoin) {
         assert(aqeReads.length == 2)
         if (coalescedRead) assert(aqeReads.forall(_.hasCoalescedPartition))
@@ -1071,7 +1072,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         val (_, adaptive) = runAdaptiveAndVerifyResult("SELECT c1, count(*) FROM t GROUP BY c1")
         assert(
           collect(adaptive) {
-            case c @ ColumnarAQEShuffleReadExec(_, partitionSpecs) if partitionSpecs.length == 1 =>
+            case c @ AQEShuffleReadExec(_, partitionSpecs) if partitionSpecs.length == 1 =>
               assert(c.hasCoalescedPartition)
               c
           }.length == 1
@@ -1180,12 +1181,12 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
           repartition =>
             val query = s"SELECT /*+ $repartition */ * FROM testData"
             val (_, adaptivePlan) = runAdaptiveAndVerifyResult(query)
-            collect(adaptivePlan) { case r: ColumnarAQEShuffleReadExec => r } match {
+            collect(adaptivePlan) { case r: AQEShuffleReadExec => r } match {
               case Seq(aqeShuffleRead) =>
                 assert(aqeShuffleRead.partitionSpecs.size === 1)
                 assert(!aqeShuffleRead.isLocalRead)
               case _ =>
-                fail("There should be a ColumnarAQEShuffleReadExec")
+                fail("There should be a AQEShuffleReadExec")
             }
         }
     }
@@ -1195,7 +1196,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
     withSQLConf(SQLConf.COALESCE_PARTITIONS_ENABLED.key -> "false") {
       val query = "SELECT /*+ REPARTITION */ * FROM testData"
       val (_, adaptivePlan) = runAdaptiveAndVerifyResult(query)
-      collect(adaptivePlan) { case r: ColumnarAQEShuffleReadExec => r } match {
+      collect(adaptivePlan) { case r: AQEShuffleReadExec => r } match {
         case Seq(aqeShuffleRead) =>
           assert(aqeShuffleRead.partitionSpecs.size === 4)
           assert(aqeShuffleRead.isLocalRead)
@@ -1226,7 +1227,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
             skewedPartitionNumber: Int,
             totalNumber: Int): Unit = {
           val (_, adaptive) = runAdaptiveAndVerifyResult(query)
-          val read = collect(adaptive) { case read: ColumnarAQEShuffleReadExec => read }
+          val read = collect(adaptive) { case read: AQEShuffleReadExec => read }
           assert(read.size == 1)
           assert(
             read.head.partitionSpecs.count(_.isInstanceOf[PartialReducerPartitionSpec]) ==
@@ -1263,7 +1264,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
           .createOrReplaceTempView("t2")
         val (_, adaptive) =
           runAdaptiveAndVerifyResult("SELECT * FROM testData2 t1 left semi join t2 ON t1.a=t2.b")
-        val aqeReads = collect(adaptive) { case c: ColumnarAQEShuffleReadExec => c }
+        val aqeReads = collect(adaptive) { case c: AQEShuffleReadExec => c }
         assert(aqeReads.length == 2)
         aqeReads.foreach {
           c =>
@@ -1280,7 +1281,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
       val (_, adaptive) =
         runAdaptiveAndVerifyResult("SELECT sum(id) FROM RANGE(10) GROUP BY id % 3")
       val coalesceRead = collect(adaptive) {
-        case r: ColumnarAQEShuffleReadExec if r.hasCoalescedPartition => r
+        case r: AQEShuffleReadExec if r.hasCoalescedPartition => r
       }
       assert(coalesceRead.length == 1)
       // RANGE(10) is a very small dataset and AQE coalescing should produce one partition.

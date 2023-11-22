@@ -23,6 +23,9 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.SQLMetric
 
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JArrayList, Collections => JCollections, List => JList, Map => JMap}
+
 import scala.collection.JavaConverters._
 
 object MetricsUtil extends Logging {
@@ -38,7 +41,7 @@ object MetricsUtil extends Logging {
       case t: TransformSupport =>
         MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
       case _ =>
-        MetricsUpdaterTree(new NoopMetricsUpdater, Seq())
+        MetricsUpdaterTree(NoopMetricsUpdater, Seq())
     }
   }
 
@@ -56,9 +59,9 @@ object MetricsUtil extends Logging {
    */
   def updateNativeMetrics(
       child: SparkPlan,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): IMetrics => Unit = {
+      relMap: JMap[JLong, JList[JLong]],
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
 
     val mut: MetricsUpdaterTree = treeifyMetricsUpdaters(child)
 
@@ -90,10 +93,10 @@ object MetricsUtil extends Logging {
    */
   def updateTransformerMetrics(
       mutNode: MetricsUpdaterTree,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      operatorIdx: java.lang.Long,
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): IMetrics => Unit = {
+      relMap: JMap[JLong, JList[JLong]],
+      operatorIdx: JLong,
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
     imetrics =>
       try {
         val metrics = imetrics.asInstanceOf[NativeMetrics]
@@ -104,7 +107,7 @@ object MetricsUtil extends Logging {
             s"Updating native metrics failed due to the wrong size of metrics data: " +
               s"$numNativeMetrics")
           ()
-        } else if (mutNode.updater.isInstanceOf[NoopMetricsUpdater]) {
+        } else if (mutNode.updater == NoopMetricsUpdater) {
           ()
         } else {
           updateTransformerMetricsInternal(
@@ -129,22 +132,23 @@ object MetricsUtil extends Logging {
    */
   def updateTransformerMetricsInternal(
       mutNode: MetricsUpdaterTree,
-      relMap: java.util.HashMap[java.lang.Long, java.util.ArrayList[java.lang.Long]],
-      operatorIdx: java.lang.Long,
+      relMap: JMap[JLong, JList[JLong]],
+      operatorIdx: JLong,
       metrics: NativeMetrics,
       metricsIdx: Int,
-      joinParamsMap: java.util.HashMap[java.lang.Long, JoinParams],
-      aggParamsMap: java.util.HashMap[java.lang.Long, AggregationParams]): (java.lang.Long, Int) = {
-    val nodeMetricsList = new java.util.ArrayList[MetricsData]()
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): (JLong, Int) = {
+    val nodeMetricsList = new JArrayList[MetricsData]()
     var curMetricsIdx = metricsIdx
     relMap
       .get(operatorIdx)
       .forEach(
-        _ => {
-          nodeMetricsList.add(metrics.metricsDataList.get(curMetricsIdx))
+        idx => {
+          nodeMetricsList.add(metrics.metricsDataList.get(idx.toInt))
           curMetricsIdx -= 1
         })
 
+    JCollections.reverse(nodeMetricsList)
     val operatorMetrics = new OperatorMetrics(
       nodeMetricsList,
       joinParamsMap.getOrDefault(operatorIdx, null),
@@ -155,7 +159,7 @@ object MetricsUtil extends Logging {
 
     mutNode.children.foreach {
       child =>
-        if (!child.updater.isInstanceOf[NoopMetricsUpdater]) {
+        if (child.updater != NoopMetricsUpdater) {
           val result = updateTransformerMetricsInternal(
             child,
             relMap,
@@ -192,10 +196,10 @@ object MetricsUtil extends Logging {
     val processors = MetricsUtil.getAllProcessorList(metricData)
     processors.foreach(
       processor => {
-        if (!includingMetrics.contains(processor.name)) {
+        if (!includingMetrics.exists(processor.name.startsWith(_))) {
           extraTime += (processor.time / 1000L).toLong
         }
-        if (planNodeNames.contains(processor.name)) {
+        if (planNodeNames.exists(processor.name.startsWith(_))) {
           outputRows += processor.outputRows
           outputBytes += processor.outputBytes
           inputRows += processor.inputRows

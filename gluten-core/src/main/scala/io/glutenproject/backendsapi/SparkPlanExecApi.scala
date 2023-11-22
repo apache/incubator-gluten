@@ -41,7 +41,10 @@ import org.apache.spark.sql.hive.HiveTableScanExecTransformer
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import java.util
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
+
+import scala.collection.JavaConverters._
 
 trait SparkPlanExecApi {
 
@@ -134,7 +137,7 @@ trait SparkPlanExecApi {
   /** Transform GetArrayItem to Substrait. */
   def genGetArrayItemExpressionNode(
       substraitExprName: String,
-      functionMap: java.util.HashMap[String, java.lang.Long],
+      functionMap: JMap[String, JLong],
       leftNode: ExpressionNode,
       rightNode: ExpressionNode,
       original: GetArrayItem): ExpressionNode
@@ -251,6 +254,18 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(child), original)
   }
 
+  def genStringTranslateTransformer(
+      substraitExprName: String,
+      srcExpr: ExpressionTransformer,
+      matchingExpr: ExpressionTransformer,
+      replaceExpr: ExpressionTransformer,
+      original: StringTranslate): ExpressionTransformer = {
+    GenericExpressionTransformer(
+      substraitExprName,
+      Seq(srcExpr, matchingExpr, replaceExpr),
+      original)
+  }
+
   def genStringLocateTransformer(
       substraitExprName: String,
       first: ExpressionTransformer,
@@ -342,9 +357,9 @@ trait SparkPlanExecApi {
   /** default function to generate window function node */
   def genWindowFunctionsNode(
       windowExpression: Seq[NamedExpression],
-      windowExpressionNodes: util.ArrayList[WindowFunctionNode],
+      windowExpressionNodes: JList[WindowFunctionNode],
       originalInputAttributes: Seq[Attribute],
-      args: util.HashMap[String, java.lang.Long]): Unit = {
+      args: JMap[String, JLong]): Unit = {
 
     windowExpression.map {
       windowExpr =>
@@ -357,7 +372,7 @@ trait SparkPlanExecApi {
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
-              new util.ArrayList[ExpressionNode](),
+              new JArrayList[ExpressionNode](),
               columnName,
               ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
               WindowExecTransformer.getFrameBound(frame.upper),
@@ -373,13 +388,12 @@ trait SparkPlanExecApi {
               throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
             }
 
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
-            aggregateFunc.children.foreach(
-              expr =>
-                childrenNodeList.add(
-                  ExpressionConverter
-                    .replaceWithExpressionTransformer(expr, originalInputAttributes)
-                    .doTransform(args)))
+            val childrenNodeList = aggregateFunc.children
+              .map(
+                ExpressionConverter
+                  .replaceWithExpressionTransformer(_, originalInputAttributes)
+                  .doTransform(args))
+              .asJava
 
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               AggregateFunctionsBuilder.create(args, aggExpression.aggregateFunction).toInt,
@@ -394,7 +408,7 @@ trait SparkPlanExecApi {
           case wf @ (Lead(_, _, _, _) | Lag(_, _, _, _)) =>
             val offset_wf = wf.asInstanceOf[FrameLessOffsetWindowFunction]
             val frame = offset_wf.frame.asInstanceOf[SpecifiedWindowFrame]
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            val childrenNodeList = new JArrayList[ExpressionNode]()
             childrenNodeList.add(
               ExpressionConverter
                 .replaceWithExpressionTransformer(
@@ -425,12 +439,12 @@ trait SparkPlanExecApi {
             windowExpressionNodes.add(windowFunctionNode)
           case wf @ NthValue(input, offset: Literal, _) =>
             val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            val childrenNodeList = new JArrayList[ExpressionNode]()
             childrenNodeList.add(
               ExpressionConverter
                 .replaceWithExpressionTransformer(input, attributeSeq = originalInputAttributes)
                 .doTransform(args))
-            childrenNodeList.add(new LiteralTransformer(offset).doTransform(args))
+            childrenNodeList.add(LiteralTransformer(offset).doTransform(args))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               WindowFunctionsBuilder.create(args, wf).toInt,
               childrenNodeList,

@@ -62,7 +62,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"get_timestamp", "parseDateTimeInJodaSyntaxOrNull"}, // for spark function: to_date/to_timestamp
        {"quarter", "toQuarter"},
        {"to_unix_timestamp", "parseDateTimeInJodaSyntaxOrNull"},
-    //    {"unix_timestamp", "toUnixTimestamp"},
+       //    {"unix_timestamp", "toUnixTimestamp"},
        {"date_format", "formatDateTimeInJodaSyntax"},
 
        /// arithmetic functions
@@ -159,6 +159,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"space", "space"},
        {"initcap", "initcapUTF8"},
        {"conv", "sparkConv"},
+       {"uuid", "generateUUIDv4"},
 
        /// hash functions
        {"sha1", "SHA1"},
@@ -188,8 +189,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        // array functions
        {"array", "array"},
        {"size", "length"},
-       {"get_array_item", "arrayElement"},
-       {"element_at", "arrayElement"},
        {"range", "range"}, /// dummy mapping
 
        // map functions
@@ -287,7 +286,8 @@ public:
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);
 
-    void addInputIter(jobject iter, bool materialize_input) {
+    void addInputIter(jobject iter, bool materialize_input)
+    {
         input_iters.emplace_back(iter);
         materialize_inputs.emplace_back(materialize_input);
     }
@@ -298,6 +298,9 @@ public:
     RelMetricPtr getMetric() { return metrics.empty() ? nullptr : metrics.at(0); }
 
     static std::string getFunctionName(const std::string & function_sig, const substrait::Expression_ScalarFunction & function);
+
+    bool convertBinaryArithmeticFunDecimalArgs(
+        ActionsDAGPtr actions_dag, ActionsDAG::NodeRawConstPtrs & args, const substrait::Expression_ScalarFunction & arithmeticFun);
 
     IQueryPlanStep * addRemoveNullableStep(QueryPlan & plan, const std::set<String> & columns);
 
@@ -333,8 +336,6 @@ private:
         DB::ActionsDAGPtr actions_dag = nullptr,
         bool keep_result = false,
         bool position = false);
-    bool convertBinaryArithmeticFunDecimalArgs(
-        ActionsDAGPtr actions_dag, ActionsDAG::NodeRawConstPtrs & args, const substrait::Expression_ScalarFunction & arithmeticFun);
     const ActionsDAG::Node * parseFunctionWithDAG(
         const substrait::Expression & rel, std::string & result_name, DB::ActionsDAGPtr actions_dag = nullptr, bool keep_result = false);
     ActionsDAG::NodeRawConstPtrs parseArrayJoinWithDAG(
@@ -374,7 +375,6 @@ private:
     // for parse rel node, collect steps from a rel node
     std::vector<IQueryPlanStep *> temp_step_collection;
     std::vector<RelMetricPtr> metrics;
-    ContextPtr contextPtr;
 };
 
 struct SparkBuffer

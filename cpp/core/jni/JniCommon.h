@@ -22,13 +22,13 @@
 #include <execinfo.h>
 #include <jni.h>
 
-#include "compute/ExecutionCtx.h"
 #include "compute/ProtobufUtils.h"
+#include "compute/Runtime.h"
 #include "config/GlutenConfig.h"
 #include "memory/AllocationListener.h"
 #include "shuffle/rss/RssClient.h"
+#include "utils/Compression.h"
 #include "utils/DebugOut.h"
-#include "utils/compression.h"
 #include "utils/exception.h"
 
 static jint jniVersion = JNI_VERSION_1_8;
@@ -132,13 +132,13 @@ class JniCommonState {
 
   void close();
 
-  jmethodID executionCtxAwareCtxHandle();
+  jmethodID runtimeAwareCtxHandle();
 
  private:
   void initialize(JNIEnv* env);
 
-  jclass executionCtxAwareClass_;
-  jmethodID executionCtxAwareCtxHandle_;
+  jclass runtimeAwareClass_;
+  jmethodID runtimeAwareCtxHandle_;
 
   JavaVM* vm_;
   bool initialized_{false};
@@ -151,7 +151,7 @@ inline JniCommonState* getJniCommonState() {
   return &jniCommonState;
 }
 
-ExecutionCtx* getExecutionCtx(JNIEnv* env, jobject executionCtxAware);
+Runtime* getRuntime(JNIEnv* env, jobject runtimeAware);
 } // namespace gluten
 
 // TODO: Move the static functions to namespace gluten
@@ -170,18 +170,15 @@ static inline arrow::Compression::type getCompressionType(JNIEnv* env, jstring c
   if (codecJstr == NULL) {
     return arrow::Compression::UNCOMPRESSED;
   }
-  auto codecU = env->GetStringUTFChars(codecJstr, JNI_FALSE);
+  auto codec = env->GetStringUTFChars(codecJstr, JNI_FALSE);
 
-  std::string codecL;
-  std::transform(codecU, codecU + std::strlen(codecU), std::back_inserter(codecL), ::tolower);
+  // Convert codec string into lowercase.
+  std::string codecLower;
+  std::transform(codec, codec + std::strlen(codec), std::back_inserter(codecLower), ::tolower);
+  GLUTEN_ASSIGN_OR_THROW(auto compressionType, arrow::util::Codec::GetCompressionType(codecLower));
 
-  GLUTEN_ASSIGN_OR_THROW(auto compression_type, arrow::util::Codec::GetCompressionType(codecL));
-
-  if (compression_type == arrow::Compression::LZ4) {
-    compression_type = arrow::Compression::LZ4_FRAME;
-  }
-  env->ReleaseStringUTFChars(codecJstr, codecU);
-  return compression_type;
+  env->ReleaseStringUTFChars(codecJstr, codec);
+  return compressionType;
 }
 
 static inline gluten::CodecBackend getCodecBackend(JNIEnv* env, jstring codecJstr) {

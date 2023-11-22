@@ -25,14 +25,15 @@ import io.substrait.proto.RelCommon;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class ProjectRelNode implements RelNode, Serializable {
   private final RelNode input;
-  private final ArrayList<ExpressionNode> expressionNodes = new ArrayList<>();
+  private final List<ExpressionNode> expressionNodes = new ArrayList<>();
   private final AdvancedExtensionNode extensionNode;
   private final int emitStartIndex;
 
-  ProjectRelNode(RelNode input, ArrayList<ExpressionNode> expressionNodes, int emitStartIndex) {
+  ProjectRelNode(RelNode input, List<ExpressionNode> expressionNodes, int emitStartIndex) {
     this.input = input;
     this.expressionNodes.addAll(expressionNodes);
     this.extensionNode = null;
@@ -41,7 +42,7 @@ public class ProjectRelNode implements RelNode, Serializable {
 
   ProjectRelNode(
       RelNode input,
-      ArrayList<ExpressionNode> expressionNodes,
+      List<ExpressionNode> expressionNodes,
       AdvancedExtensionNode extensionNode,
       int emitStartIndex) {
     this.input = input;

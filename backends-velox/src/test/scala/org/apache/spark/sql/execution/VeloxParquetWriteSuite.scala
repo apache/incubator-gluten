@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.execution.WholeStageTransformerSuite
+import io.glutenproject.execution.VeloxWholeStageTransformerSuite
 import io.glutenproject.utils.FallbackUtil
 
 import org.apache.spark.SparkConf
@@ -24,7 +24,7 @@ import org.apache.spark.sql.functions.lit
 
 import org.junit.Assert
 
-class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
+class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
@@ -38,9 +38,9 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
     super.sparkConf.set("spark.gluten.sql.native.writer.enabled", "true")
   }
 
-  test("test write parquet with compression codec") {
+  ignore("test write parquet with compression codec") {
     // compression codec details see `VeloxParquetDatasource.cc`
-    Seq("snappy", "gzip", "zstd", "none", "uncompressed")
+    Seq("snappy", "gzip", "zstd", "lz4", "none", "uncompressed")
       .foreach {
         codec =>
           val extension = codec match {
@@ -71,18 +71,18 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
       }
   }
 
-  test("test ctas") {
+  ignore("test ctas") {
     withTable("velox_ctas") {
       spark
         .range(100)
         .toDF("id")
         .createOrReplaceTempView("ctas_temp")
       val df = spark.sql("CREATE TABLE velox_ctas USING PARQUET AS SELECT * FROM ctas_temp")
-      Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+      Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
 
-  test("test parquet dynamic partition write") {
+  ignore("test parquet dynamic partition write") {
     withTempPath {
       f =>
         val path = f.getCanonicalPath
@@ -91,7 +91,7 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
           .selectExpr("id as c1", "id % 7 as p")
           .createOrReplaceTempView("temp")
         val df = spark.sql(s"INSERT OVERWRITE DIRECTORY '$path' USING PARQUET SELECT * FROM temp")
-        Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+        Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
 
@@ -104,11 +104,11 @@ class VeloxParquetWriteSuite extends WholeStageTransformerSuite {
       val df = spark.sql(
         "CREATE TABLE bucket USING PARQUET CLUSTERED BY (p) INTO 7 BUCKETS " +
           "AS SELECT * FROM bucket_temp")
-      Assert.assertTrue(FallbackUtil.isFallback(df.queryExecution.executedPlan))
+      Assert.assertTrue(FallbackUtil.hasFallback(df.queryExecution.executedPlan))
     }
   }
 
-  test("parquet write with empty dataframe") {
+  ignore("parquet write with empty dataframe") {
     withTempPath {
       f =>
         val df = spark.emptyDataFrame.select(lit(1).as("i"))

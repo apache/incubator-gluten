@@ -162,6 +162,20 @@ case class ClickHouseTableV2(
     new ClickHouseScanBuilder(spark, this, tableSchema, options)
   }
 
+  lazy val bucketOption: Option[BucketSpec] = {
+    val tableProperties = properties()
+    if (tableProperties.containsKey("numBuckets")) {
+      val numBuckets = tableProperties.get("numBuckets").toInt
+      val bucketColumnNames: Seq[String] =
+        tableProperties.get("bucketColumnNames").split(",").toSeq
+      val sortColumnNames: Seq[String] =
+        tableProperties.get("sortColumnNames").split(",").toSeq
+      Some(BucketSpec(numBuckets, bucketColumnNames, sortColumnNames))
+    } else {
+      None
+    }
+  }
+
   /** Return V1Table. */
   override def v1Table: CatalogTable = {
     if (catalogTable.isEmpty) {
@@ -206,7 +220,6 @@ case class ClickHouseTableV2(
     }
     val fileIndex =
       ClickHouseFileIndex(spark, deltaLog, deltaLog.dataPath, this, snapshotToUse, partitionFilters)
-    var bucketSpec: Option[BucketSpec] = None
     new HadoopFsRelation(
       fileIndex,
       partitionSchema =
@@ -217,7 +230,7 @@ case class ClickHouseTableV2(
       dataSchema = DeltaColumnMapping.dropColumnMappingMetadata(
         ColumnWithDefaultExprUtils.removeDefaultExpressions(
           SchemaUtils.dropNullTypeColumns(snapshotToUse.metadata.schema))),
-      bucketSpec = bucketSpec,
+      bucketSpec = bucketOption,
       fileFormat(snapshotToUse.metadata),
       // `metadata.format.options` is not set today. Even if we support it in future, we shouldn't
       // store any file system options since they may contain credentials. Hence, it will never
@@ -307,7 +320,15 @@ object ClickHouseTableV2 extends Logging {
       .as[AddFile]
       .collect()
       .map(AddFileTags.partsMapToParts)
-      .sortWith(_.minBlockNumber < _.minBlockNumber)
+      .sortWith(
+        (a, b) => {
+          if (a.bucketNum.nonEmpty) {
+            (Integer.parseInt(a.bucketNum) < Integer.parseInt(b.bucketNum)) ||
+            (a.minBlockNumber < b.minBlockNumber)
+          } else {
+            a.minBlockNumber < b.minBlockNumber
+          }
+        })
       .toSeq
     logInfo(
       s"Get ${allParts.size} parts from path ${tablePath.toString} " +

@@ -19,6 +19,7 @@
     <scala.library.version>2.12.15</scala.library.version>
     <spark32.version>3.2.2</spark32.version>
     <spark33.version>3.3.1</spark33.version>
+    <spark34.version>3.4.1</spark34.version>
     <spark.version>${spark32.version}</spark.version>
     <scala.binary.version>2.12</scala.binary.version>
     <spark.major.version>3</spark.major.version>
@@ -41,6 +42,7 @@
             <artifactId>gluten-core</artifactId>
           </exclusion>
         </exclusions>
+        <scope>runtime</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
@@ -71,6 +73,12 @@
         <artifactId>spark-hive_${scala.binary.version}</artifactId>
         <version>${spark.version}</version>
         <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>jline</groupId>
+            <artifactId>jline</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.spark</groupId>
@@ -85,12 +93,6 @@
         <version>${spark.version}</version>
         <scope>provided</scope>
         <type>test-jar</type>
-        <exclusions>
-          <exclusion>
-            <groupId>org.apache.arrow</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -128,6 +130,31 @@
       <id>spark-3.3</id>
       <properties>
         <spark.version>${spark33.version}</spark.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-sql_${scala.binary.version}</artifactId>
+          <version>${spark.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>com.google.protobuf</groupId>
+              <artifactId>protobuf-java</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-sql_${scala.binary.version}</artifactId>
+          <version>${spark.version}</version>
+          <type>test-jar</type>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <properties>
+        <spark.version>${spark34.version}</spark.version>
       </properties>
       <dependencies>
         <dependency>

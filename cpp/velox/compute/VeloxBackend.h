@@ -26,6 +26,7 @@
 
 #include "velox/common/caching/AsyncDataCache.h"
 #include "velox/common/memory/MemoryPool.h"
+#include "velox/core/Config.h"
 
 namespace gluten {
 /// As a static instance in per executor, initialized at executor startup.
@@ -46,9 +47,9 @@ class VeloxBackend {
 
   static void create(const std::unordered_map<std::string, std::string>& conf);
 
-  static std::shared_ptr<VeloxBackend> get();
+  static VeloxBackend* get();
 
-  facebook::velox::memory::MemoryAllocator* getAsyncDataCache() const;
+  facebook::velox::cache::AsyncDataCache* getAsyncDataCache() const;
 
  private:
   explicit VeloxBackend(const std::unordered_map<std::string, std::string>& conf) {
@@ -56,24 +57,20 @@ class VeloxBackend {
   }
 
   void init(const std::unordered_map<std::string, std::string>& conf);
-  void initCache(const std::unordered_map<std::string, std::string>& conf);
-  void initIOExecutor(const std::unordered_map<std::string, std::string>& conf);
-  void initUdf(const std::unordered_map<std::string, std::string>& conf);
+  void initCache(const facebook::velox::Config* conf);
+  void initIOExecutor(const facebook::velox::Config* conf);
+  void initUdf(const facebook::velox::Config* conf);
 
-  void initJolFilesystem(const std::unordered_map<std::string, std::string>& conf);
-
-  void printConf(const std::unordered_map<std::string, std::string>& conf);
+  void initJolFilesystem(const facebook::velox::Config* conf);
 
   std::string getCacheFilePrefix() {
     return "cache." + boost::lexical_cast<std::string>(boost::uuids::random_generator()()) + ".";
   }
 
-  inline static std::shared_ptr<VeloxBackend> instance_;
-  inline static std::mutex mutex_;
+  static std::unique_ptr<VeloxBackend> instance_;
 
   // Instance of AsyncDataCache used for all large allocations.
-  std::shared_ptr<facebook::velox::memory::MemoryAllocator> asyncDataCache_ =
-      facebook::velox::memory::MemoryAllocator::createDefaultInstance();
+  std::shared_ptr<facebook::velox::cache::AsyncDataCache> asyncDataCache_;
 
   std::unique_ptr<folly::IOThreadPoolExecutor> ssdCacheExecutor_;
   std::unique_ptr<folly::IOThreadPoolExecutor> ioExecutor_;

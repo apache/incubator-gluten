@@ -32,10 +32,15 @@
 #include "operators/writer/Datasource.h"
 
 #include "velox/common/file/FileSystems.h"
-#ifdef ENABLE_HDFS
-#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSink.h"
+#ifdef ENABLE_S3
+#include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
+#include "velox/connectors/hive/storage_adapters/s3fs/S3Util.h"
 #endif
-#include "velox/dwio/common/DataSink.h"
+#ifdef ENABLE_HDFS
+#include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
+#include "velox/connectors/hive/storage_adapters/hdfs/HdfsUtil.h"
+#endif
+#include "velox/dwio/common/FileSink.h"
 #include "velox/dwio/common/Options.h"
 #include "velox/dwio/dwrf/reader/DwrfReader.h"
 #include "velox/dwio/parquet/writer/Writer.h"
@@ -48,8 +53,13 @@ class VeloxParquetDatasource final : public Datasource {
   VeloxParquetDatasource(
       const std::string& filePath,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> s3SinkPool,
       std::shared_ptr<arrow::Schema> schema)
-      : Datasource(filePath, schema), filePath_(filePath), schema_(schema), pool_(std::move(veloxPool)) {}
+      : Datasource(filePath, schema),
+        filePath_(filePath),
+        schema_(schema),
+        pool_(std::move(veloxPool)),
+        s3SinkPool_(std::move(s3SinkPool)) {}
 
   void init(const std::unordered_map<std::string, std::string>& sparkConfs) override;
   void inspectSchema(struct ArrowSchema* out) override;
@@ -68,7 +78,8 @@ class VeloxParquetDatasource final : public Datasource {
   std::shared_ptr<const facebook::velox::Type> type_;
   std::shared_ptr<facebook::velox::parquet::Writer> parquetWriter_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
-  std::unique_ptr<facebook::velox::dwio::common::DataSink> sink_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> s3SinkPool_;
+  std::unique_ptr<facebook::velox::dwio::common::FileSink> sink_;
 };
 
 } // namespace gluten

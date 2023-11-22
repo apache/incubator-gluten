@@ -808,6 +808,46 @@ class GlutenClickHouseFileFormatSuite
       case f: FileSourceScanExecTransformer => f
     }
     assert(csvFileScan.size == 1)
+
+    val no_quote_path = csvDataPath + "/no_quote.csv"
+    val no_quote_option = new util.HashMap[String, String]()
+    no_quote_option.put("delimiter", ",")
+    no_quote_option.put("header", "false")
+    no_quote_option.put("quote", "")
+
+    val no_quote_schema = StructType.apply(
+      Seq(
+        StructField.apply("a", StringType, nullable = true),
+        StructField.apply("b", StringType, nullable = true)
+      ))
+
+    val data = new util.ArrayList[Row]()
+    data.add(Row("\'abc\'de\'", "\"abc\"de\""))
+
+    spark
+      .createDataFrame(data, schema)
+      .write
+      .mode("overwrite")
+      .format("csv")
+      .options(no_quote_option)
+      .save(no_quote_path)
+
+    spark.read
+      .options(no_quote_option)
+      .schema(no_quote_schema)
+      .csv(no_quote_path)
+      .toDF()
+      .createTempView("no_quote_table")
+
+    withSQLConf((
+      "spark.gluten.sql.columnar.backend.ch.runtime_settings.use_excel_serialization.quote_strict",
+      "true"
+    )) {
+      compareResultsAgainstVanillaSpark(
+        "select * from no_quote_table",
+        compareResult = true,
+        _ => {})
+    }
   }
 
   test("test read excel with header") {
@@ -1108,32 +1148,77 @@ class GlutenClickHouseFileFormatSuite
   }
 
   test("issue-2881 null string test") {
-    val file_path = csvDataPath + "/null_string.csv"
-    val schema = StructType.apply(
-      Seq(
-        StructField.apply("c1", StringType, nullable = true),
-        StructField.apply("c2", ShortType, nullable = true)
-      ))
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
+          "use_excel_serialization.empty_as_null",
+        "true")) {
+      val file_path = csvDataPath + "/null_string.csv"
+      val schema = StructType.apply(
+        Seq(
+          StructField.apply("c1", StringType, nullable = true),
+          StructField.apply("c2", ShortType, nullable = true),
+          StructField.apply("c3", StringType, nullable = true)
+        ))
 
-    val options = new util.HashMap[String, String]()
-    options.put("delimiter", ",")
+      val options = new util.HashMap[String, String]()
+      options.put("delimiter", ",")
 
-    val df = spark.read
-      .options(options)
-      .schema(schema)
-      .csv(file_path)
-      .toDF()
+      val df = spark.read
+        .options(options)
+        .schema(schema)
+        .csv(file_path)
+        .toDF()
 
-    val dataCorrect = new util.ArrayList[Row]()
-    dataCorrect.add(Row(null, 1.toShort))
-    dataCorrect.add(Row(null, 2.toShort))
-    dataCorrect.add(Row("1", 3.toShort))
+      val dataCorrect = new util.ArrayList[Row]()
+      dataCorrect.add(Row(null, 1.toShort, null))
+      dataCorrect.add(Row(null, 2.toShort, "2"))
+      dataCorrect.add(Row("1", null, null))
+      dataCorrect.add(Row(null, null, null))
 
-    var expectedAnswer: Seq[Row] = null
-    withSQLConf(vanillaSparkConfs(): _*) {
-      expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+      var expectedAnswer: Seq[Row] = null
+      withSQLConf(vanillaSparkConfs(): _*) {
+        expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+      }
+      checkAnswer(df, expectedAnswer)
     }
-    checkAnswer(df, expectedAnswer)
+  }
+
+  test("issue-3542 null string test") {
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
+          "use_excel_serialization.empty_as_null",
+        "false")) {
+      val file_path = csvDataPath + "/null_string.csv"
+      val schema = StructType.apply(
+        Seq(
+          StructField.apply("c1", StringType, nullable = true),
+          StructField.apply("c2", ShortType, nullable = true),
+          StructField.apply("c3", StringType, nullable = true)
+        ))
+
+      val options = new util.HashMap[String, String]()
+      options.put("delimiter", ",")
+
+      val df = spark.read
+        .options(options)
+        .schema(schema)
+        .csv(file_path)
+        .toDF()
+
+      val dataCorrect = new util.ArrayList[Row]()
+      dataCorrect.add(Row(null, 1.toShort, ""))
+      dataCorrect.add(Row("", 2.toShort, "2"))
+      dataCorrect.add(Row("1", null, null))
+      dataCorrect.add(Row("", null, ""))
+
+      var expectedAnswer: Seq[Row] = null
+      withSQLConf(vanillaSparkConfs(): _*) {
+        expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+      }
+      checkAnswer(df, expectedAnswer)
+    }
   }
 
   test("test integer read with sign at the end of line") {
@@ -1186,6 +1271,74 @@ class GlutenClickHouseFileFormatSuite
       compareResult = true,
       _ => {}
     )
+  }
+
+  test("issues-3609 int read test") {
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
+          "use_excel_serialization.number_force",
+        "false")) {
+      val csv_path = csvDataPath + "/int_special.csv"
+      val options = new util.HashMap[String, String]()
+      options.put("delimiter", ",")
+      options.put("header", "false")
+      val schema = StructType.apply(
+        Seq(
+          StructField.apply("a", IntegerType, nullable = true),
+          StructField.apply("b", IntegerType, nullable = true),
+          StructField.apply("c", IntegerType, nullable = true),
+          StructField.apply("d", IntegerType, nullable = true)
+        ))
+
+      val df = spark.read
+        .options(options)
+        .schema(schema)
+        .csv(csv_path)
+        .toDF()
+
+      val dataCorrect = new util.ArrayList[Row]()
+      dataCorrect.add(Row(null, null, null, 15))
+
+      var expectedAnswer: Seq[Row] = null
+      withSQLConf(vanillaSparkConfs(): _*) {
+        expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+      }
+      checkAnswer(df, expectedAnswer)
+    }
+
+    withSQLConf(
+      (
+        "spark.gluten.sql.columnar.backend.ch.runtime_settings." +
+          "use_excel_serialization.number_force",
+        "true")) {
+      val csv_path = csvDataPath + "/int_special.csv"
+      val options = new util.HashMap[String, String]()
+      options.put("delimiter", ",")
+      options.put("header", "false")
+      val schema = StructType.apply(
+        Seq(
+          StructField.apply("a", IntegerType, nullable = true),
+          StructField.apply("b", IntegerType, nullable = true),
+          StructField.apply("c", IntegerType, nullable = true),
+          StructField.apply("d", IntegerType, nullable = true)
+        ))
+
+      val df = spark.read
+        .options(options)
+        .schema(schema)
+        .csv(csv_path)
+        .toDF()
+
+      val dataCorrect = new util.ArrayList[Row]()
+      dataCorrect.add(Row(15, -1, 85, 15))
+
+      var expectedAnswer: Seq[Row] = null
+      withSQLConf(vanillaSparkConfs(): _*) {
+        expectedAnswer = spark.createDataFrame(dataCorrect, schema).toDF().collect()
+      }
+      checkAnswer(df, expectedAnswer)
+    }
   }
 
   def createEmptyParquet(): String = {

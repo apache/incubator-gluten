@@ -16,7 +16,7 @@
  */
 #include "WholeStageResultIterator.h"
 #include "VeloxBackend.h"
-#include "VeloxExecutionCtx.h"
+#include "VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
@@ -53,6 +53,7 @@ const std::string kSpillStartPartitionBit = "spark.gluten.sql.columnar.backend.v
 const std::string kSpillPartitionBits = "spark.gluten.sql.columnar.backend.velox.spillPartitionBits";
 const std::string kSpillableReservationGrowthPct =
     "spark.gluten.sql.columnar.backend.velox.spillableReservationGrowthPct";
+const std::string kSpillCompressionKind = "spark.io.compression.codec";
 const std::string kMaxPartialAggregationMemoryRatio =
     "spark.gluten.sql.columnar.backend.velox.maxPartialAggregationMemoryRatio";
 const std::string kMaxExtendedPartialAggregationMemoryRatio =
@@ -61,6 +62,9 @@ const std::string kAbandonPartialAggregationMinPct =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct";
 const std::string kAbandonPartialAggregationMinRows =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows";
+const std::string kBloomFilterExpectedNumItems = "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems";
+const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits";
+const std::string kBloomFilterMaxNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits";
 
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
@@ -79,10 +83,11 @@ const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
 } // namespace
 
 WholeStageResultIterator::WholeStageResultIterator(
-    std::shared_ptr<facebook::velox::memory::MemoryPool> pool,
+    VeloxMemoryManager* memoryManager,
     const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
-    const std::unordered_map<std::string, std::string>& confMap)
-    : veloxPlan_(planNode), confMap_(confMap), pool_(pool) {
+    const std::unordered_map<std::string, std::string>& confMap,
+    const SparkTaskInfo& taskInfo)
+    : veloxPlan_(planNode), confMap_(confMap), taskInfo_(taskInfo), memoryManager_(memoryManager) {
 #ifdef ENABLE_HDFS
   updateHdfsTokens();
 #endif
@@ -95,10 +100,10 @@ std::shared_ptr<velox::core::QueryCtx> WholeStageResultIterator::createNewVeloxQ
   connectorConfigs[kHiveConnectorId] = createConnectorConfig();
   std::shared_ptr<velox::core::QueryCtx> ctx = std::make_shared<velox::core::QueryCtx>(
       nullptr,
-      getQueryContextConf(),
+      facebook::velox::core::QueryConfig{getQueryContextConf()},
       connectorConfigs,
       gluten::VeloxBackend::get()->getAsyncDataCache(),
-      pool_,
+      memoryManager_->getAggregateMemoryPool(),
       nullptr,
       "");
   return ctx;
@@ -151,15 +156,10 @@ class ConditionalSuspendedSection {
 } // namespace
 
 int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
-  std::string poolName{pool_->root()->name() + "/" + pool_->name()};
+  auto pool = memoryManager_->getAggregateMemoryPool();
+  std::string poolName{pool->root()->name() + "/" + pool->name()};
   std::string logPrefix{"Spill[" + poolName + "]: "};
-  DLOG(INFO) << logPrefix << "Trying to reclaim " << size << " bytes of data...";
-  DLOG(INFO) << logPrefix << "Pool has reserved " << pool_->currentBytes() << "/" << pool_->root()->reservedBytes()
-             << "/" << pool_->root()->capacity() << "/" << pool_->root()->maxCapacity() << " bytes.";
-  DLOG(INFO) << logPrefix << "Shrinking...";
-  int64_t shrunken = pool_->shrinkManaged(pool_.get(), size);
-  DLOG(INFO) << logPrefix << shrunken << " bytes released from shrinking.";
-
+  int64_t shrunken = memoryManager_->shrink(size);
   // todo return the actual spilled size?
   if (spillStrategy_ == "auto") {
     int64_t remaining = size - shrunken;
@@ -173,14 +173,18 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     });
     // suspend the driver when we are on it
     ConditionalSuspendedSection noCancel(thisDriver, thisDriver != nullptr);
-    uint64_t spilledOut = pool_->reclaim(remaining);
+    velox::exec::MemoryReclaimer::Stats status;
+    auto* mm = memoryManager_->getMemoryManager();
+    uint64_t spilledOut = mm->arbitrator()->shrinkMemory({pool}, remaining); // this conducts spilling
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunken + spilledOut;
-    DLOG(INFO) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
-    return shrunken + spilledOut;
+    VLOG(2) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
+    return total;
+  } else {
+    LOG(WARNING) << "Spill-to-disk was disabled since " << kSpillStrategy << " was not configured.";
   }
 
-  DLOG(INFO) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
+  VLOG(2) << logPrefix << "Successfully reclaimed total " << shrunken << " bytes.";
   return shrunken;
 }
 
@@ -205,6 +209,14 @@ void WholeStageResultIterator::collectMetrics() {
   if (metrics_) {
     // The metrics has already been created.
     return;
+  }
+
+  if (debugModeEnabled(confMap_)) {
+    auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), task_->taskStats(), true);
+    std::ostringstream oss;
+    oss << "Native Plan with stats for: " << taskInfo_;
+    oss << "\n" << planWithStats << std::endl;
+    LOG(INFO) << oss.str();
   }
 
   auto planStats = velox::exec::toPlanStats(task_->taskStats());
@@ -308,12 +320,14 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   try {
     // To align with Spark's behavior, set casting to int to be truncating.
     configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
-    // To align with Spark's behavior, allow decimal in casting string to int.
-    configs[velox::core::QueryConfig::kCastIntAllowDecimal] = std::to_string(true);
+    // To align with Spark's behavior, unset to support non-ISO8601 standard strings.
+    configs[velox::core::QueryConfig::kCastStringToDateIsIso8601] = std::to_string(false);
     auto defaultTimezone = getConfigValue(confMap_, kDefaultSessionTimezone, "");
     configs[velox::core::QueryConfig::kSessionTimezone] = getConfigValue(confMap_, kSessionTimezone, defaultTimezone);
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = std::to_string(true);
+    // Align Velox size function with Spark.
+    configs[velox::core::QueryConfig::kSparkLegacySizeOfNull] = getConfigValue(confMap_, kLegacySize, "true");
 
     {
       // partial aggregation memory config
@@ -329,7 +343,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
       configs[velox::core::QueryConfig::kAbandonPartialAggregationMinPct] =
           getConfigValue(confMap_, kAbandonPartialAggregationMinPct, "90");
       configs[velox::core::QueryConfig::kAbandonPartialAggregationMinRows] =
-          getConfigValue(confMap_, kAbandonPartialAggregationMinRows, "10000");
+          getConfigValue(confMap_, kAbandonPartialAggregationMinRows, "100000");
     }
     // Spill configs
     if (spillStrategy_ == "none") {
@@ -354,9 +368,16 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         getConfigValue(confMap_, kMinSpillRunSize, std::to_string(256 << 20));
     configs[velox::core::QueryConfig::kSpillStartPartitionBit] =
         getConfigValue(confMap_, kSpillStartPartitionBit, "29");
-    configs[velox::core::QueryConfig::kSpillPartitionBits] = getConfigValue(confMap_, kSpillPartitionBits, "2");
+    configs[velox::core::QueryConfig::kJoinSpillPartitionBits] = getConfigValue(confMap_, kSpillPartitionBits, "2");
     configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
         getConfigValue(confMap_, kSpillableReservationGrowthPct, "25");
+    configs[velox::core::QueryConfig::kSpillCompressionKind] = getConfigValue(confMap_, kSpillCompressionKind, "lz4");
+    configs[velox::core::QueryConfig::kSparkBloomFilterExpectedNumItems] =
+        getConfigValue(confMap_, kBloomFilterExpectedNumItems, "1000000");
+    configs[velox::core::QueryConfig::kSparkBloomFilterNumBits] =
+        getConfigValue(confMap_, kBloomFilterNumBits, "8388608");
+    configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] =
+        getConfigValue(confMap_, kBloomFilterMaxNumBits, "4194304");
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();
     throw std::runtime_error("Invalid conf arg: " + errDetails);
@@ -390,15 +411,15 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
 }
 
 WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
-    std::shared_ptr<velox::memory::MemoryPool> pool,
+    VeloxMemoryManager* memoryManager,
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     const std::vector<velox::core::PlanNodeId>& scanNodeIds,
     const std::vector<std::shared_ptr<SplitInfo>>& scanInfos,
     const std::vector<velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
-    const SparkTaskInfo taskInfo)
-    : WholeStageResultIterator(pool, planNode, confMap),
+    const SparkTaskInfo& taskInfo)
+    : WholeStageResultIterator(memoryManager, planNode, confMap, taskInfo),
       scanNodeIds_(scanNodeIds),
       scanInfos_(scanInfos),
       streamIds_(streamIds) {
@@ -444,7 +465,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = velox::exec::Task::create(
-      fmt::format("Gluten stage-{} task-{}", taskInfo.stageId, taskInfo.taskId),
+      fmt::format("Gluten_Stage_{}_TID_{}", std::to_string(taskInfo_.stageId), std::to_string(taskInfo_.taskId)),
       std::move(planFragment),
       0,
       std::move(queryCtx));
@@ -476,7 +497,7 @@ void WholeStageResultIteratorFirstStage::constructPartitionColumns(
   for (const auto& partitionColumn : map) {
     auto key = partitionColumn.first;
     const auto value = partitionColumn.second;
-    if (!folly::to<bool>(getConfigValue(confMap_, kCaseSensitive, "true"))) {
+    if (!folly::to<bool>(getConfigValue(confMap_, kCaseSensitive, "false"))) {
       folly::toLowerAscii(key);
     }
     if (value == kHiveDefaultPartition) {
@@ -488,19 +509,19 @@ void WholeStageResultIteratorFirstStage::constructPartitionColumns(
 }
 
 WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
-    std::shared_ptr<velox::memory::MemoryPool> pool,
+    VeloxMemoryManager* memoryManager,
     const std::shared_ptr<const velox::core::PlanNode>& planNode,
     const std::vector<velox::core::PlanNodeId>& streamIds,
     const std::string spillDir,
     const std::unordered_map<std::string, std::string>& confMap,
-    const SparkTaskInfo taskInfo)
-    : WholeStageResultIterator(pool, planNode, confMap), streamIds_(streamIds) {
+    const SparkTaskInfo& taskInfo)
+    : WholeStageResultIterator(memoryManager, planNode, confMap, taskInfo), streamIds_(streamIds) {
   std::unordered_set<velox::core::PlanNodeId> emptySet;
   velox::core::PlanFragment planFragment{planNode, velox::core::ExecutionStrategy::kUngrouped, 1, emptySet};
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = velox::exec::Task::create(
-      fmt::format("Gluten stage-{} task-{}", taskInfo.stageId, taskInfo.taskId),
+      fmt::format("Gluten_Stage_{}_TID_{}", std::to_string(taskInfo_.stageId), std::to_string(taskInfo_.taskId)),
       std::move(planFragment),
       0,
       std::move(queryCtx));

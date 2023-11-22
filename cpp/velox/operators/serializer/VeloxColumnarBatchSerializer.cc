@@ -31,10 +31,10 @@ using namespace facebook::velox;
 namespace gluten {
 
 namespace {
-std::unique_ptr<ByteStream> toByteStream(uint8_t* data, int32_t size) {
-  auto byteStream = std::make_unique<ByteStream>();
-  ByteRange byteRange{data, size, 0};
-  byteStream->resetInput({byteRange});
+std::unique_ptr<ByteInputStream> toByteStream(uint8_t* data, int32_t size) {
+  std::vector<ByteRange> byteRanges;
+  byteRanges.push_back(ByteRange{data, size, 0});
+  auto byteStream = std::make_unique<ByteInputStream>(byteRanges);
   return byteStream;
 }
 } // namespace
@@ -55,13 +55,14 @@ VeloxColumnarBatchSerializer::VeloxColumnarBatchSerializer(
 std::shared_ptr<arrow::Buffer> VeloxColumnarBatchSerializer::serializeColumnarBatches(
     const std::vector<std::shared_ptr<ColumnarBatch>>& batches) {
   VELOX_DCHECK(batches.size() != 0, "Should serialize at least 1 vector");
-  auto firstRowVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(batches[0])->getRowVector();
+  const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(veloxPool_.get(), batches[0]);
+  auto firstRowVector = vb->getRowVector();
   auto numRows = firstRowVector->size();
   auto arena = std::make_unique<StreamArena>(veloxPool_.get());
   auto rowType = asRowType(firstRowVector->type());
   auto serializer = serde_->createSerializer(rowType, numRows, arena.get(), /* serdeOptions */ nullptr);
   for (auto& batch : batches) {
-    auto rowVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(batch)->getRowVector();
+    auto rowVector = VeloxColumnarBatch::from(veloxPool_.get(), batch)->getRowVector();
     numRows = rowVector->size();
     std::vector<IndexRange> rows(numRows);
     for (int i = 0; i < numRows; i++) {

@@ -17,9 +17,8 @@
 package org.apache.spark.sql.statistics
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.GlutenPlan
-import io.glutenproject.utils.SystemParameters
+import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.sql.{GlutenTestConstants, QueryTest, SparkSession}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry
@@ -59,24 +58,21 @@ class SparkFunctionStatistics extends QueryTest {
         // Avoid the code size overflow error in Spark code generation.
         .config("spark.sql.codegen.wholeStage", "false")
 
-      spark =
-        if (
-          BackendsApiManager.getBackendName.equalsIgnoreCase(GlutenConfig.GLUTEN_CLICKHOUSE_BACKEND)
-        ) {
-          sparkBuilder
-            .config("spark.io.compression.codec", "LZ4")
-            .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-            .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
-            .config("spark.gluten.sql.enable.native.validation", "false")
-            .config("spark.sql.files.openCostInBytes", "134217728")
-            .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
-            .config("spark.unsafe.exceptionOnMemoryLeak", "true")
-            .getOrCreate()
-        } else {
-          sparkBuilder
-            .config("spark.unsafe.exceptionOnMemoryLeak", "true")
-            .getOrCreate()
-        }
+      spark = if (BackendTestUtils.isCHBackendLoaded()) {
+        sparkBuilder
+          .config("spark.io.compression.codec", "LZ4")
+          .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
+          .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
+          .config("spark.gluten.sql.enable.native.validation", "false")
+          .config("spark.sql.files.openCostInBytes", "134217728")
+          .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
+          .config("spark.unsafe.exceptionOnMemoryLeak", "true")
+          .getOrCreate()
+      } else {
+        sparkBuilder
+          .config("spark.unsafe.exceptionOnMemoryLeak", "true")
+          .getOrCreate()
+      }
     }
   }
 

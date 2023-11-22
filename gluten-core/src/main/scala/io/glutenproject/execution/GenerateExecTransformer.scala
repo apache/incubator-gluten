@@ -18,31 +18,21 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.exception.GlutenException
-import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.expression.ExpressionConverter
-import io.glutenproject.expression.ExpressionTransformer
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
-import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.ExpressionBuilder
-import io.glutenproject.substrait.expression.ExpressionNode
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
-import io.glutenproject.substrait.rel.RelBuilder
-import io.glutenproject.substrait.rel.RelNode
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.UnaryExecNode
-import org.apache.spark.sql.types.MapType
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.Any
 
-import java.util
+import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConverters._
 
@@ -54,69 +44,24 @@ case class GenerateExecTransformer(
     outer: Boolean,
     generatorOutput: Seq[Attribute],
     child: SparkPlan)
-  extends UnaryExecNode
-  with TransformSupport {
+  extends UnaryTransformSupport {
+
+  @transient
+  override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genGenerateTransformerMetrics(sparkContext)
 
   override def output: Seq[Attribute] = requiredChildOutput ++ generatorOutput
 
-  override protected def doExecute(): RDD[InternalRow] = {
-    throw new UnsupportedOperationException(s"GenerateExecTransformer doesn't support doExecute")
-  }
+  override def producedAttributes: AttributeSet = AttributeSet(generatorOutput)
 
   override protected def withNewChildInternal(newChild: SparkPlan): GenerateExecTransformer =
     copy(generator, requiredChildOutput, outer, generatorOutput, newChild)
 
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = child match {
-    case c: TransformSupport =>
-      c.columnarInputRDDs
-    case _ =>
-      Seq(child.executeColumnar())
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = child match {
-    case c: TransformSupport =>
-      val childPlans = c.getBuildPlans
-      childPlans :+ (this, null)
-    case _ =>
-      Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = child match {
-    case c: TransformSupport =>
-      c.getStreamedLeafPlan
-    case _ =>
-      this
-  }
-
-  override def supportsColumnar: Boolean = true
-
   override protected def doValidateInternal(): ValidationResult = {
-    // TODO(yuan): support posexplode and remove this check
-    if (BackendsApiManager.isVeloxBackend) {
-      if (generator.isInstanceOf[JsonTuple]) {
-        return ValidationResult.notOk(s"Velox backend does not support this json_tuple")
-      }
-      if (generator.isInstanceOf[PosExplode]) {
-        return ValidationResult.notOk(s"Velox backend does not support this posexplode")
-      }
-      if (generator.isInstanceOf[Explode]) {
-        // explode(MAP(col1, col2))
-        if (generator.asInstanceOf[Explode].child.isInstanceOf[CreateMap]) {
-          return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
-        }
-        // explode(ARRAY(1, 2, 3))
-        if (generator.asInstanceOf[Explode].child.isInstanceOf[Literal]) {
-          return ValidationResult.notOk(s"Velox backend does not support literal Array datatype")
-        }
-        generator.asInstanceOf[Explode].child.dataType match {
-          case _: MapType =>
-            return ValidationResult.notOk(s"Velox backend does not support MAP datatype")
-          case _ =>
-        }
-        if (outer) {
-          return ValidationResult.notOk(s"Velox backend does not support outer")
-        }
-      }
+    val validationResult =
+      BackendsApiManager.getTransformerApiInstance.validateGenerator(generator, outer)
+    if (!validationResult.isValid) {
+      return validationResult
     }
     val context = new SubstraitContext
     val args = context.registeredFunction
@@ -159,13 +104,13 @@ case class GenerateExecTransformer(
     val operatorId = context.nextOperatorId(this.nodeName)
     val generatorExpr =
       ExpressionConverter.replaceWithExpressionTransformer(generator, child.output)
-    val generatorNode = generatorExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
-    val childOutputNodes = new java.util.ArrayList[ExpressionNode]
+    val generatorNode = generatorExpr.doTransform(args)
+    val requiredChildOutputNodes = new JArrayList[ExpressionNode]
     for (target <- requiredChildOutput) {
       val found = child.output.zipWithIndex.filter(_._1.name == target.name)
       if (found.nonEmpty) {
         val exprNode = ExpressionBuilder.makeSelection(found.head._2)
-        childOutputNodes.add(exprNode)
+        requiredChildOutputNodes.add(exprNode)
       } else {
         throw new GlutenException(s"Can't found column ${target.name} in child output")
       }
@@ -174,37 +119,32 @@ case class GenerateExecTransformer(
     val inputRel = if (childCtx != null) {
       childCtx.root
     } else {
-      val attrList = new java.util.ArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
+      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
       readRel
     }
-    val projRel = if (BackendsApiManager.isVeloxBackend && needsProjection(generator)) {
-      // need to insert one projection node for velox backend
-      val selectOrigins = requiredChildOutput.indices.map(ExpressionBuilder.makeSelection(_))
-      val inputOrigins = child.output.indices.map(ExpressionBuilder.makeSelection(_))
-      val projectExpressions = new util.ArrayList[ExpressionNode]()
-      projectExpressions.addAll((selectOrigins ++ inputOrigins).asJava)
-      val projectExprNode = ExpressionConverter
-        .replaceWithExpressionTransformer(
-          generator.asInstanceOf[Explode].child,
-          requiredChildOutput ++ child.output)
-        .doTransform(args)
+    val projRel =
+      if (BackendsApiManager.getSettings.insertPostProjectForGenerate()) {
+        // need to insert one projection node for velox backend
+        val projectExpressions = new JArrayList[ExpressionNode]()
+        val childOutputNodes = child.output.indices
+          .map(i => ExpressionBuilder.makeSelection(i).asInstanceOf[ExpressionNode])
+          .asJava
+        projectExpressions.addAll(childOutputNodes)
+        val projectExprNode = ExpressionConverter
+          .replaceWithExpressionTransformer(generator.asInstanceOf[Explode].child, child.output)
+          .doTransform(args)
 
-      projectExpressions.add(projectExprNode)
+        projectExpressions.add(projectExprNode)
 
-      RelBuilder.makeProjectRel(
-        inputRel,
-        projectExpressions,
-        context,
-        operatorId,
-        requiredChildOutput.size + inputOrigins.size)
-
-    } else {
-      inputRel
-    }
+        RelBuilder.makeProjectRel(
+          inputRel,
+          projectExpressions,
+          context,
+          operatorId,
+          childOutputNodes.size)
+      } else {
+        inputRel
+      }
 
     val relNode = getRelNode(
       context,
@@ -212,14 +152,10 @@ case class GenerateExecTransformer(
       child.output,
       projRel,
       generatorNode,
-      childOutputNodes,
+      requiredChildOutputNodes,
       validation = false)
 
     TransformContext(child.output, output, relNode)
-  }
-
-  def needsProjection(generator: Generator): Boolean = {
-    !generator.asInstanceOf[Explode].child.isInstanceOf[AttributeReference]
   }
 
   def getRelNode(
@@ -228,21 +164,21 @@ case class GenerateExecTransformer(
       inputAttributes: Seq[Attribute],
       input: RelNode,
       generator: ExpressionNode,
-      childOuput: util.ArrayList[ExpressionNode],
+      childOutput: JList[ExpressionNode],
       validation: Boolean): RelNode = {
     if (!validation) {
-      RelBuilder.makeGenerateRel(input, generator, childOuput, context, operatorId)
+      RelBuilder.makeGenerateRel(input, generator, childOutput, context, operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- inputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
+      val inputTypeNodeList =
+        inputAttributes.map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)).asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
         Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeGenerateRel(input, generator, childOuput, extensionNode, context, operatorId)
+      RelBuilder.makeGenerateRel(input, generator, childOutput, extensionNode, context, operatorId)
     }
   }
 
-  override def metricsUpdater(): MetricsUpdater = new NoopMetricsUpdater
+  override def metricsUpdater(): MetricsUpdater = {
+    BackendsApiManager.getMetricsApiInstance.genGenerateTransformerMetricsUpdater(metrics)
+  }
 }

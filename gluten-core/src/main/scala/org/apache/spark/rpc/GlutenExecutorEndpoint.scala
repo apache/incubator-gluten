@@ -40,7 +40,8 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
   @volatile var driverEndpointRef: RpcEndpointRef = null
 
   rpcEnv.setupEndpoint(GlutenRpcConstants.GLUTEN_EXECUTOR_ENDPOINT_NAME, this)
-
+  // TODO(yuan): get thread cnt from spark context
+  override def threadCount(): Int = 1
   override def onStart(): Unit = {
     rpcEnv
       .asyncSetupEndpointRefByURI(driverUrl)
@@ -59,7 +60,7 @@ class GlutenExecutorEndpoint(val executorId: String, val conf: SparkConf)
 
   override def receive: PartialFunction[Any, Unit] = {
     case GlutenCleanExecutionResource(executionId, hashIds) =>
-      BackendsApiManager.getContextApiInstance
+      BackendsApiManager.getBroadcastApiInstance
         .cleanExecutionBroadcastHashtable(executionId, hashIds)
 
     case e =>

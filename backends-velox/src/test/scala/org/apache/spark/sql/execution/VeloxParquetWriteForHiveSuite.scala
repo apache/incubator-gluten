@@ -87,7 +87,47 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
         _.getMessage.toString.contains("Use Gluten parquet write for hive")) == native)
   }
 
-  test("test hive write table") {
+  private def checkNativeStaticPartitionWrite(sqlStr: String, native: Boolean): Unit = {
+    val testAppender = new LogAppender("native write tracker")
+    withLogAppender(testAppender) {
+      spark.sql(sqlStr)
+    }
+    assert(
+      testAppender.loggingEvents.exists(
+        _.getMessage.toString.contains("Use Gluten partition write for hive")) == native)
+  }
+
+  ignore("test hive static partition write table") {
+    withTable("t") {
+      spark.sql(
+        "CREATE TABLE t (c int, d long, e long)" +
+          " STORED AS PARQUET partitioned by (c, d)")
+      withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "true") {
+        checkNativeStaticPartitionWrite(
+          "INSERT OVERWRITE TABLE t partition(c=1, d=2)" +
+            " SELECT 3 as e",
+          native = true)
+      }
+      checkAnswer(spark.table("t"), Row(3, 1, 2))
+    }
+  }
+
+  test("test hive dynamic and static partition write table") {
+    withTable("t") {
+      spark.sql(
+        "CREATE TABLE t (c int, d long, e long)" +
+          " STORED AS PARQUET partitioned by (c, d)")
+      withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "true") {
+        checkNativeStaticPartitionWrite(
+          "INSERT OVERWRITE TABLE t partition(c=1, d)" +
+            " SELECT 3 as e, 2 as e",
+          native = false)
+      }
+      checkAnswer(spark.table("t"), Row(3, 1, 2))
+    }
+  }
+
+  ignore("test hive write table") {
     withTable("t") {
       spark.sql("CREATE TABLE t (c int) STORED AS PARQUET")
       withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "false") {

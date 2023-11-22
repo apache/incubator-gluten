@@ -50,7 +50,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
+      <artifactId>spark-hive_${scala.binary.version}</artifactId>
       <scope>provided</scope>
     </dependency>
   </dependencies>
@@ -66,6 +66,16 @@
         <dependency>
           <groupId>io.glutenproject</groupId>
           <artifactId>backends-velox</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>rss</id>
+      <dependencies>
+        <dependency>
+          <groupId>io.glutenproject</groupId>
+          <artifactId>gluten-celeborn-package</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -188,6 +198,9 @@
                     <ignoreClass>org.apache.spark.unused.UnusedStubClass</ignoreClass>
                     <!-- jdo -->
                     <ignoreClass>javax.jdo.*</ignoreClass>
+                    <!-- javax -->
+                    <ignoreClass>javax.transaction.*</ignoreClass>
+                    <ignoreClass>javax.xml.*</ignoreClass>
                     <!-- log4j -->
                     <ignoreClass>org.apache.commons.logging.*</ignoreClass>
                     <!-- hive -->
@@ -240,6 +253,8 @@
                     <ignoreClass>org.apache.spark.sql.execution.datasources.EmptyDirectoryDataWriter$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec$</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand</ignoreClass>
+                    <ignoreClass>org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand$</ignoreClass>
 
                   </ignoreClasses>
                   <scopes>

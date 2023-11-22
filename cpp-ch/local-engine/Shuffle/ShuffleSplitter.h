@@ -18,7 +18,7 @@
 #include <memory>
 #include <Columns/IColumn.h>
 #include <Core/Block.h>
-#include <Formats/NativeWriter.h>
+#include <Storages/IO/NativeWriter.h>
 #include <Functions/IFunction.h>
 #include <IO/WriteBufferFromFile.h>
 #include <Shuffle/SelectorBuilder.h>
@@ -47,7 +47,7 @@ struct SplitOptions
     std::string compress_method = "zstd";
     int compress_level;
     size_t spill_threshold = 300 * 1024 * 1024;
-
+    std::string hash_algorithm;
 };
 
 class ColumnsBuffer
@@ -101,6 +101,7 @@ public:
 
 private:
     void init();
+    void initOutputIfNeeded(DB::Block & block);
     void splitBlockByPartition(DB::Block & block);
     void spillPartition(size_t partition_id);
     std::string getPartitionTempFile(size_t partition_id);
@@ -111,7 +112,7 @@ protected:
     bool stopped = false;
     PartitionInfo partition_info;
     std::vector<ColumnsBuffer> partition_buffer;
-    std::vector<std::unique_ptr<DB::NativeWriter>> partition_outputs;
+    std::vector<std::unique_ptr<local_engine::NativeWriter>> partition_outputs;
     std::vector<std::unique_ptr<DB::WriteBuffer>> partition_write_buffers;
     std::vector<std::unique_ptr<DB::WriteBuffer>> partition_cached_write_buffers;
     std::vector<local_engine::CompressedWriteBuffer *> compressed_buffers;

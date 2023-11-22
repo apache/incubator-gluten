@@ -40,6 +40,8 @@ class GlutenDriverEndpoint extends IsolatedRpcEndpoint with Logging {
   private val driverEndpoint: RpcEndpointRef =
     rpcEnv.setupEndpoint(GlutenRpcConstants.GLUTEN_DRIVER_ENDPOINT_NAME, this)
 
+  // TODO(yuan): get thread cnt from spark context
+  override def threadCount(): Int = 1
   override def receive: PartialFunction[Any, Unit] = {
     case GlutenOnExecutionStart(executionId) =>
       if (executionId == null) {

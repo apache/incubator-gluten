@@ -24,6 +24,8 @@ object ExpressionNames {
   final val COUNT = "count"
   final val MIN = "min"
   final val MAX = "max"
+  final val MAX_BY = "max_by"
+  final val MIN_BY = "min_by"
   final val STDDEV_SAMP = "stddev_samp"
   final val STDDEV_POP = "stddev_pop"
   final val COLLECT_LIST = "collect_list"
@@ -96,6 +98,7 @@ object ExpressionNames {
   final val SUBSTRING = "substring"
   final val SUBSTRING_INDEX = "substring_index"
   final val CONCAT_WS = "concat_ws"
+  final val LEFT = "left"
   final val REPEAT = "repeat"
   final val TRANSLATE = "translate"
   final val SPACE = "space"
@@ -106,6 +109,7 @@ object ExpressionNames {
   final val FIND_IN_SET = "find_in_set"
   final val DECODE = "decode"
   final val ENCODE = "encode"
+  final val UUID = "uuid"
 
   // URL functions
   final val PARSE_URL = "parse_url"

@@ -24,6 +24,10 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <modules>
+    <module>common</module>
+  </modules>
+
   <artifactId>gluten-ut</artifactId>
   <packaging>pom</packaging>
   <name>Gluten Unit Test</name>
@@ -54,7 +58,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
+      <artifactId>spark-hive_${scala.binary.version}</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -174,27 +178,25 @@
         </plugin>
       </plugins>
     </pluginManagement>
-
   </build>
 
   <profiles>
     <profile>
       <id>spark-3.2</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <properties>
-      </properties>
       <modules>
         <module>spark32</module>
-        <module>common</module>
       </modules>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <modules>
         <module>spark33</module>
-        <module>common</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <modules>
+        <module>spark34</module>
       </modules>
     </profile>
   </profiles>

@@ -75,9 +75,7 @@
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
-      <artifactId>spark-hive-thriftserver_${scala.binary.version}</artifactId>
-      <version>${spark.version}</version>
-      <type>test-jar</type>
+      <artifactId>spark-hive_${scala.binary.version}</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

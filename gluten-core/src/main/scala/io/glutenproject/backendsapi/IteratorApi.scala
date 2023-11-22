@@ -21,6 +21,7 @@ import io.glutenproject.execution.{BaseGlutenPartition, BroadCastHashJoinContext
 import io.glutenproject.metrics.IMetrics
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.substrait.rel.SplitInfo
 
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
@@ -38,19 +39,10 @@ trait IteratorApi {
    *
    * @return
    */
-  def genFilePartition(
-      index: Int,
-      partitions: Seq[InputPartition],
-      partitionSchema: Seq[StructType],
-      fileFormats: Seq[ReadFileFormat],
-      wsCxt: WholeStageTransformContext): BaseGlutenPartition
-
-  /**
-   * Generate closeable ColumnBatch iterator.
-   *
-   * @return
-   */
-  def genCloseableColumnBatchIterator(iter: Iterator[ColumnarBatch]): Iterator[ColumnarBatch]
+  def genSplitInfo(
+      partition: InputPartition,
+      partitionSchemas: StructType,
+      fileFormat: ReadFileFormat): SplitInfo
 
   /**
    * Generate Iterator[ColumnarBatch] for first stage. ("first" means it does not depend on other
@@ -89,16 +81,13 @@ trait IteratorApi {
   def genNativeFileScanRDD(
       sparkContext: SparkContext,
       wsCxt: WholeStageTransformContext,
-      fileFormat: ReadFileFormat,
-      inputPartitions: Seq[InputPartition],
+      splitInfos: Seq[SplitInfo],
       numOutputRows: SQLMetric,
       numOutputBatches: SQLMetric,
       scanTime: SQLMetric): RDD[ColumnarBatch]
 
   /** Compute for BroadcastBuildSideRDD */
   def genBroadcastBuildSideIterator(
-      split: Partition,
-      context: TaskContext,
       broadcasted: broadcast.Broadcast[BuildSideRelation],
       broadCastContext: BroadCastHashJoinContext): Iterator[ColumnarBatch]
 }

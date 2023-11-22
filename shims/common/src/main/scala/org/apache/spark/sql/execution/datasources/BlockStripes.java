@@ -16,7 +16,6 @@
  */
 package org.apache.spark.sql.execution.datasources;
 
-
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Iterator;
@@ -26,6 +25,7 @@ public class BlockStripes implements Iterable<BlockStripe> {
     public long[] blockAddresses;
     public int[] headingRowIndice;
     public int originBlockNumColumns;
+    public byte[] rowBytes;
 
     public BlockStripes(
             long originBlockAddress,
@@ -36,6 +36,19 @@ public class BlockStripes implements Iterable<BlockStripe> {
         this.blockAddresses = blockAddresses;
         this.headingRowIndice = headingRowIndice;
         this.originBlockNumColumns = originBlockNumColumns;
+    }
+
+    public BlockStripes(
+        long originBlockAddress,
+        long[] blockAddresses,
+        int[] headingRowIndice,
+        int originBlockNumColumns,
+        byte[] rowBytes) {
+        this.originBlockAddress = originBlockAddress;
+        this.blockAddresses = blockAddresses;
+        this.headingRowIndice = headingRowIndice;
+        this.originBlockNumColumns = originBlockNumColumns;
+        this.rowBytes = rowBytes;
     }
 
     public void release() {

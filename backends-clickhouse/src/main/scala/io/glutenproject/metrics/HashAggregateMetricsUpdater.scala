@@ -19,6 +19,8 @@ package io.glutenproject.metrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.metric.SQLMetric
 
+import scala.collection.JavaConverters._
+
 class HashAggregateMetricsUpdater(val metrics: Map[String, SQLMetric])
   extends MetricsUpdater
   with Logging {
@@ -68,6 +70,16 @@ class HashAggregateMetricsUpdater(val metrics: Map[String, SQLMetric])
             HashAggregateMetricsUpdater.INCLUDING_PROCESSORS,
             HashAggregateMetricsUpdater.CH_PLAN_NODE_NAME
           )
+
+          val resizeStep = aggMetricsData.steps.asScala
+            .flatMap(_.processors.asScala)
+            .find(s => s.getName.equalsIgnoreCase("Resize"))
+          if (!resizeStep.isEmpty) {
+            metrics("resizeInputRows") += resizeStep.get.inputRows
+            metrics("resizeOutputRows") += aggMetricsData.getOutputRows
+            // The input rows of the Resize is included in the input rows of the Aggregating
+            metrics("inputRows") += -resizeStep.get.inputRows
+          }
 
           currentIdx -= 1
 

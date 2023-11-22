@@ -17,11 +17,11 @@
 package org.apache.spark.sql.execution.datasources.velox
 
 import io.glutenproject.columnarbatch.ColumnarBatches
+import io.glutenproject.datasource.DatasourceJniWrapper
 import io.glutenproject.exception.GlutenException
 import io.glutenproject.execution.datasource.GlutenRowSplitter
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators
 import io.glutenproject.memory.nmm.NativeMemoryManagers
-import io.glutenproject.spark.sql.execution.datasources.velox.DatasourceJniWrapper
 import io.glutenproject.utils.{ArrowAbiUtil, DatasourceUtil}
 
 import org.apache.spark.sql.SparkSession
@@ -30,21 +30,30 @@ import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.utils.SparkArrowUtil
+import org.apache.spark.util.TaskResources
 
 import com.google.common.base.Preconditions
 import org.apache.arrow.c.ArrowSchema
-import org.apache.hadoop.fs.FileStatus
+import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
 import java.io.IOException
 
 trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
   def createOutputWriter(
-      path: String,
+      filePath: String,
       dataSchema: StructType,
       context: TaskAttemptContext,
       nativeConf: java.util.Map[String, String]): OutputWriter = {
-    val originPath = path
+    // Create the hdfs path if not existed.
+    val hdfsSchema = "hdfs://"
+    if (filePath.startsWith(hdfsSchema)) {
+      val fs = FileSystem.get(context.getConfiguration)
+      val hdfsPath = new Path(filePath)
+      if (!fs.exists(hdfsPath.getParent)) {
+        fs.mkdirs(hdfsPath.getParent)
+      }
+    }
 
     val arrowSchema =
       SparkArrowUtil.toArrowSchema(dataSchema, SQLConf.get.sessionLocalTimeZone)
@@ -55,7 +64,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     try {
       ArrowAbiUtil.exportSchema(allocator, arrowSchema, cSchema)
       dsHandle = datasourceJniWrapper.nativeInitDatasource(
-        originPath,
+        filePath,
         cSchema.memoryAddress(),
         NativeMemoryManagers.contextInstance("VeloxWriter").getNativeInstanceHandle,
         nativeConf)
@@ -67,7 +76,13 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
     }
 
     val writeQueue =
-      new VeloxWriteQueue(dsHandle, arrowSchema, allocator, datasourceJniWrapper, originPath)
+      new VeloxWriteQueue(
+        TaskResources.getLocalTaskContext(),
+        dsHandle,
+        arrowSchema,
+        allocator,
+        datasourceJniWrapper,
+        filePath)
 
     new OutputWriter {
       override def write(row: InternalRow): Unit = {
@@ -84,7 +99,7 @@ trait VeloxFormatWriterInjects extends GlutenFormatWriterInjectsBase {
 
       // Do NOT add override keyword for compatibility on spark 3.1.
       def path(): String = {
-        originPath
+        filePath
       }
     }
   }
@@ -102,7 +117,17 @@ class VeloxRowSplitter extends GlutenRowSplitter {
       row: FakeRow,
       partitionColIndice: Array[Int],
       hasBucket: Boolean): BlockStripes = {
-    throw new UnsupportedOperationException(
-      "VeloxRowSplitter does not support splitBlockByPartitionAndBucket")
+    val handler = ColumnarBatches.getNativeHandle(row.batch)
+    val datasourceJniWrapper = DatasourceJniWrapper.create()
+    val originalColumns: Array[Int] = Array.range(0, row.batch.numCols())
+    val dataColIndice = originalColumns.filterNot(partitionColIndice.contains(_))
+    new VeloxBlockStripes(
+      datasourceJniWrapper
+        .splitBlockByPartitionAndBucket(
+          handler,
+          dataColIndice,
+          hasBucket,
+          NativeMemoryManagers.contextInstance("VeloxPartitionWriter").getNativeInstanceHandle)
+    )
   }
 }

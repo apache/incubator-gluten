@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-find_arrow_lib(${PARQUET_LIB_NAME})
 function(add_velox_test TEST_EXEC)
   set(options)
   set(one_value_args)
@@ -33,12 +32,13 @@ function(add_velox_test TEST_EXEC)
   endif()
   add_executable(${TEST_EXEC} ${SOURCES})
   target_include_directories(${TEST_EXEC} PRIVATE ${CMAKE_SOURCE_DIR}/velox ${CMAKE_SOURCE_DIR}/src)
-  target_link_libraries(${TEST_EXEC} gflags Arrow::parquet velox GTest::gtest GTest::gtest_main glog::glog benchmark::benchmark simdjson)
-  gtest_discover_tests(${TEST_EXEC})
+  target_link_libraries(${TEST_EXEC} velox GTest::gtest GTest::gtest_main google::glog benchmark::benchmark simdjson)
+  gtest_discover_tests(${TEST_EXEC} DISCOVERY_MODE PRE_TEST)
 endfunction()
 
 add_velox_test(velox_shuffle_writer_test SOURCES VeloxShuffleWriterTest.cc)
-add_velox_test(orc_test SOURCES OrcTest.cc)
+# TODO: ORC is not well supported.
+# add_velox_test(orc_test SOURCES OrcTest.cc)
 add_velox_test(velox_operators_test SOURCES VeloxColumnarToRowTest.cc VeloxRowToColumnarTest.cc VeloxColumnarBatchSerializerTest.cc)
 add_velox_test(
   velox_plan_conversion_test
@@ -54,4 +54,4 @@ add_velox_test(
   JsonToProtoConverter.cc
   FilePathGenerator.cc)
 add_velox_test(spark_functions_test SOURCES SparkFunctionTest.cc)
-add_velox_test(execution_ctx_test SOURCES ExecutionCtxTest.cc)
+add_velox_test(execution_ctx_test SOURCES RuntimeTest.cc)

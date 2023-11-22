@@ -25,6 +25,9 @@ import org.apache.spark.sql.types.{IntegerType, LongType}
 
 import com.google.common.collect.Lists
 
+import java.lang.{Integer => JInteger, Long => JLong}
+import java.util.{ArrayList => JArrayList, HashMap => JHashMap}
+
 import scala.language.existentials
 
 case class VeloxAliasTransformer(
@@ -49,7 +52,7 @@ case class VeloxNamedStructTransformer(
       child =>
         expressionNodes.add(
           replaceWithExpressionTransformer(child, attributeSeq).doTransform(args)))
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
     val functionName = ConverterUtils
       .makeFuncName(substraitExprName, Seq(original.dataType), FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)
@@ -71,7 +74,7 @@ case class VeloxGetStructFieldTransformer(
         node.getFieldLiteral(ordinal)
       case node: SelectionNode =>
         // Append the nested index to selection node.
-        node.addNestedChildIdx(java.lang.Integer.valueOf(ordinal))
+        node.addNestedChildIdx(JInteger.valueOf(ordinal))
       case other =>
         throw new UnsupportedOperationException(s"$other is not supported.")
     }
@@ -94,7 +97,7 @@ case class VeloxHashExpressionTransformer(
       case HiveHash(_) =>
         (ExpressionBuilder.makeIntLiteral(0), IntegerType)
     }
-    val nodes = new java.util.ArrayList[ExpressionNode]()
+    val nodes = new JArrayList[ExpressionNode]()
     // Seed as the first argument
     nodes.add(seedNode)
     exps.foreach(
@@ -102,7 +105,7 @@ case class VeloxHashExpressionTransformer(
         nodes.add(expression.doTransform(args))
       })
     val childrenTypes = seedType +: original.children.map(child => child.dataType)
-    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
     val functionName =
       ConverterUtils.makeFuncName(substraitExprName, childrenTypes, FunctionConfig.OPT)
     val functionId = ExpressionBuilder.newScalarFunction(functionMap, functionName)

@@ -16,16 +16,17 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExecShim, FileScan}
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.StructType
@@ -43,8 +44,13 @@ class BatchScanExecTransformer(
     output: Seq[AttributeReference],
     @transient scan: Scan,
     runtimeFilters: Seq[Expression],
-    keyGroupedPartitioning: Option[Seq[Expression]] = None)
-  extends BatchScanExecShim(output, scan, runtimeFilters)
+    keyGroupedPartitioning: Option[Seq[Expression]] = None,
+    ordering: Option[Seq[SortOrder]] = None,
+    @transient table: Table,
+    commonPartitionValues: Option[Seq[(InternalRow, Int)]] = None,
+    applyPartialClustering: Boolean = false,
+    replicatePartitions: Boolean = false)
+  extends BatchScanExecShim(output, scan, runtimeFilters, table)
   with BasicScanExecTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
@@ -73,13 +79,9 @@ class BatchScanExecTransformer(
   }
 
   override def getInputFilePaths: Seq[String] = {
-    if (BackendsApiManager.isVeloxBackend) {
-      Seq.empty[String]
-    } else {
-      scan match {
-        case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
-        case _ => Seq.empty
-      }
+    scan match {
+      case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
+      case _ => Seq.empty
     }
   }
 
@@ -89,8 +91,6 @@ class BatchScanExecTransformer(
     }
     super.doValidateInternal()
   }
-
-  override def supportsColumnar(): Boolean = GlutenConfig.getConf.enableColumnarIterator
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
     doExecuteColumnarInternal()
@@ -105,18 +105,6 @@ class BatchScanExecTransformer(
   override def hashCode(): Int = Objects.hash(batch, runtimeFilters)
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[BatchScanExecTransformer]
-
-  override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
-    Seq()
-  }
-
-  override def getBuildPlans: Seq[(SparkPlan, SparkPlan)] = {
-    Seq((this, null))
-  }
-
-  override def getStreamedLeafPlan: SparkPlan = {
-    this
-  }
 
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genBatchScanTransformerMetricsUpdater(metrics)
@@ -137,7 +125,8 @@ class BatchScanExecTransformer(
     new BatchScanExecTransformer(
       canonicalized.output,
       canonicalized.scan,
-      canonicalized.runtimeFilters
+      canonicalized.runtimeFilters,
+      table = SparkShimLoader.getSparkShims.getBatchScanExecTable(canonicalized)
     )
   }
 }

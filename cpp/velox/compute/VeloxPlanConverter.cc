@@ -32,8 +32,12 @@ using namespace facebook;
 VeloxPlanConverter::VeloxPlanConverter(
     const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
     velox::memory::MemoryPool* veloxPool,
-    const std::unordered_map<std::string, std::string>& confMap)
-    : inputIters_(inputIters), substraitVeloxPlanConverter_(veloxPool, confMap) {}
+    const std::unordered_map<std::string, std::string>& confMap,
+    bool validationMode)
+    : inputIters_(inputIters),
+      validationMode_(validationMode),
+      substraitVeloxPlanConverter_(veloxPool, confMap, validationMode),
+      pool_(veloxPool) {}
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {
@@ -118,19 +122,16 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
   if (iterIdx == -1) {
     return;
   }
-  if (inputIters_.size() == 0) {
-    throw std::runtime_error("Invalid input iterator.");
-  }
 
   // Get the input schema of this iterator.
   uint64_t colNum = 0;
-  std::vector<std::shared_ptr<SubstraitParser::SubstraitType>> subTypeList;
+  std::vector<velox::TypePtr> veloxTypeList;
   if (sread.has_base_schema()) {
     const auto& baseSchema = sread.base_schema();
     // Input names is not used. Instead, new input/output names will be created
     // because the ValueStreamNode in Velox does not support name change.
     colNum = baseSchema.names().size();
-    subTypeList = SubstraitParser::parseNamedStruct(baseSchema);
+    veloxTypeList = SubstraitParser::parseNamedStruct(baseSchema);
   }
 
   std::vector<std::string> outNames;
@@ -140,12 +141,16 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::ReadRel& sread) {
     outNames.emplace_back(colName);
   }
 
-  std::vector<velox::TypePtr> veloxTypeList;
-  for (auto subType : subTypeList) {
-    veloxTypeList.push_back(toVeloxType(subType->type));
+  std::shared_ptr<ResultIterator> iterator;
+  if (!validationMode_) {
+    if (inputIters_.size() == 0) {
+      throw std::runtime_error("Invalid input iterator.");
+    }
+    iterator = inputIters_[iterIdx];
   }
+
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
-  auto vectorStream = std::make_shared<RowVectorStream>(std::move(inputIters_[iterIdx]), outputType);
+  auto vectorStream = std::make_shared<RowVectorStream>(pool_, std::move(iterator), outputType);
   auto valuesNode = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(vectorStream));
   substraitVeloxPlanConverter_.insertInputNode(iterIdx, valuesNode, planNodeId_);
 }

@@ -70,7 +70,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     setPredefinedConfigs(sc, conf)
     // Initialize Backends API
     BackendsApiManager.initialize()
-    BackendsApiManager.getContextApiInstance.initialize(conf, true)
+    BackendsApiManager.getListenerApiInstance.onDriverStart(conf)
     GlutenDriverEndpoint.glutenDriverEndpointRef = (new GlutenDriverEndpoint).self
     GlutenListenerFactory.addToSparkListenerBus(sc)
     ExpressionMappings.expressionExtensionTransformer =
@@ -91,18 +91,11 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
   }
 
   override def shutdown(): Unit = {
-    BackendsApiManager.getContextApiInstance.shutdown()
+    BackendsApiManager.getListenerApiInstance.onDriverShutdown()
   }
 
   private def postBuildInfoEvent(sc: SparkContext): Unit = {
-    val (backend, backendBranch, backendRevision, backendRevisionTime) =
-      if (BackendsApiManager.isVeloxBackend) {
-        ("Velox", VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME)
-      } else if (BackendsApiManager.isCHBackend) {
-        ("ClickHouse", CH_BRANCH, CH_COMMIT, "UNKNOWN")
-      } else {
-        throw new IllegalStateException("Unknown backend")
-      }
+    val buildInfo = BackendsApiManager.getBuildInfo
 
     // export gluten version to property to spark
     System.setProperty("gluten.version", VERSION)
@@ -119,10 +112,10 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     glutenBuildInfo.put("Gluten Revision Time", REVISION_TIME)
     glutenBuildInfo.put("Gluten Build Time", BUILD_DATE)
     glutenBuildInfo.put("Gluten Repo URL", REPO_URL)
-    glutenBuildInfo.put("Backend", backend)
-    glutenBuildInfo.put("Backend Branch", backendBranch)
-    glutenBuildInfo.put("Backend Revision", backendRevision)
-    glutenBuildInfo.put("Backend Revision Time", backendRevisionTime)
+    glutenBuildInfo.put("Backend", buildInfo.backend)
+    glutenBuildInfo.put("Backend Branch", buildInfo.backendBranch)
+    glutenBuildInfo.put("Backend Revision", buildInfo.backendRevision)
+    glutenBuildInfo.put("Backend Revision Time", buildInfo.backendRevisionTime)
     val infoMap = glutenBuildInfo.toMap
     val loggingInfo = infoMap.toSeq
       .sortBy(_._1)
@@ -149,17 +142,6 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     }
     conf.set(SPARK_SESSION_EXTS_KEY, String.format("%s", extensions))
 
-    // sql table cache serializer
-    if (conf.getBoolean(GlutenConfig.COLUMNAR_TABLE_CACHE_ENABLED.key, true)) {
-      if (BackendsApiManager.isVeloxBackend) {
-        conf.set(
-          StaticSQLConf.SPARK_CACHE_SERIALIZER.key,
-          "org.apache.spark.sql.execution.ColumnarCachedBatchSerializer")
-      } else {
-        // TODO, support CH backend
-      }
-    }
-
     // off-heap bytes
     if (!conf.contains(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)) {
       throw new UnsupportedOperationException(s"${GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY} is not set")
@@ -172,11 +154,11 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
 
     // Optimistic off-heap sizes, assuming all storage memory can be borrowed into execution memory
     // pool, regardless of Spark option spark.memory.storageFraction.
-    conf.set(GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
     val offHeapSize = conf.getSizeAsBytes(GlutenConfig.GLUTEN_OFFHEAP_SIZE_KEY)
     conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
     val offHeapPerTask = offHeapSize / taskSlots
     conf.set(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapPerTask.toString)
+    conf.set(GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
 
     // Pessimistic off-heap sizes, with the assumption that all non-borrowable storage memory
     // determined by spark.memory.storageFraction was used.
@@ -227,14 +209,13 @@ private[glutenproject] class GlutenExecutorPlugin extends ExecutorPlugin {
     // Initialize Backends API
     // TODO categorize the APIs by driver's or executor's
     BackendsApiManager.initialize()
-    BackendsApiManager.getContextApiInstance.initialize(conf, false)
-
+    BackendsApiManager.getListenerApiInstance.onExecutorStart(conf)
     executorEndpoint = new GlutenExecutorEndpoint(ctx.executorID(), conf)
   }
 
   /** Clean up and terminate this plugin. For example: close the native engine. */
   override def shutdown(): Unit = {
-    BackendsApiManager.getContextApiInstance.shutdown()
+    BackendsApiManager.getListenerApiInstance.onExecutorShutdown()
     super.shutdown()
   }
 
@@ -291,4 +272,10 @@ private[glutenproject] object GlutenPlugin {
   implicit def sparkConfImplicit(conf: SparkConf): SparkConfImplicits = {
     new SparkConfImplicits(conf)
   }
+
+  case class BackendBuildInfo(
+      backend: String,
+      backendBranch: String,
+      backendRevision: String,
+      backendRevisionTime: String)
 }

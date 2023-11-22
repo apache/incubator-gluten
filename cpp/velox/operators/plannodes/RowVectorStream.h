@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <velox/common/memory/MemoryPool.h>
 #include "compute/ResultIterator.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "velox/exec/Driver.h"
@@ -25,8 +26,11 @@
 namespace gluten {
 class RowVectorStream {
  public:
-  explicit RowVectorStream(std::shared_ptr<ResultIterator> iterator, const facebook::velox::RowTypePtr& outputType)
-      : iterator_(iterator), outputType_(outputType) {}
+  explicit RowVectorStream(
+      facebook::velox::memory::MemoryPool* pool,
+      std::shared_ptr<ResultIterator> iterator,
+      const facebook::velox::RowTypePtr& outputType)
+      : iterator_(iterator), outputType_(outputType), pool_(pool) {}
 
   bool hasNext() {
     return iterator_->hasNext();
@@ -34,7 +38,8 @@ class RowVectorStream {
 
   // Convert arrow batch to rowvector and use new output columns
   facebook::velox::RowVectorPtr next() {
-    auto vp = std::dynamic_pointer_cast<VeloxColumnarBatch>(iterator_->next())->getRowVector();
+    const std::shared_ptr<VeloxColumnarBatch>& vb = VeloxColumnarBatch::from(pool_, iterator_->next());
+    auto vp = vb->getRowVector();
     VELOX_DCHECK(vp != nullptr);
     return std::make_shared<facebook::velox::RowVector>(
         vp->pool(), outputType_, facebook::velox::BufferPtr(0), vp->size(), std::move(vp->children()));
@@ -43,6 +48,7 @@ class RowVectorStream {
  private:
   std::shared_ptr<ResultIterator> iterator_;
   const facebook::velox::RowTypePtr outputType_;
+  facebook::velox::memory::MemoryPool* pool_;
 };
 
 class ValueStreamNode : public facebook::velox::core::PlanNode {

@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.types.StringType
 
-class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
+class VeloxStringFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
@@ -581,6 +581,20 @@ class VeloxStringFunctionsSuite extends WholeStageTransformerSuite {
         s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
     runQueryAndCompare(
       s"select l_orderkey, substring(l_comment, $NULL_STR_COL, 3) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("left") {
+    runQueryAndCompare(
+      s"select l_orderkey, left(l_comment, 1) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+
+    runQueryAndCompare(
+      s"select l_orderkey, left($NULL_STR_COL, 1) " +
+        s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
+
+    runQueryAndCompare(
+      s"select l_orderkey, left(l_comment, $NULL_STR_COL) " +
         s"from $LINEITEM_TABLE limit $LENGTH")(checkOperatorMatch[ProjectExecTransformer])
   }
 }

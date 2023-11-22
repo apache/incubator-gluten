@@ -16,14 +16,15 @@
  */
 package io.glutenproject.backendsapi
 
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.extension.ValidationResult
+import io.glutenproject.substrait.expression.ExpressionNode
 
-import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Generator}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
-import org.apache.spark.sql.types.StructField
+import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.util.collection.BitSet
 
 import java.util
@@ -39,23 +40,12 @@ trait TransformerApi {
       outputPartitioning: Partitioning,
       child: SparkPlan): Boolean
 
-  /**
-   * Used for table scan validation.
-   *
-   * @return
-   *   true if backend supports reading the file format.
-   */
-  def supportsReadFileFormat(
-      fileFormat: ReadFileFormat,
-      fields: Array[StructField],
-      partTable: Boolean,
-      paths: Seq[String]): Boolean
-
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
       relation: HadoopFsRelation,
       selectedPartitions: Array[PartitionDirectory],
       output: Seq[Attribute],
+      bucketedScan: Boolean,
       optionalBucketSet: Option[BitSet],
       optionalNumCoalescedBuckets: Option[Int],
       disableBucketedScan: Boolean): Seq[InputPartition]
@@ -75,4 +65,24 @@ trait TransformerApi {
   def getPlanOutput(plan: SparkPlan): Seq[Attribute] = {
     plan.output
   }
+
+  def validateGenerator(generator: Generator, outer: Boolean): ValidationResult =
+    ValidationResult.ok
+
+  def createDateDiffParamList(start: ExpressionNode, end: ExpressionNode): Iterable[ExpressionNode]
+
+  def createLikeParamList(
+      left: ExpressionNode,
+      right: ExpressionNode,
+      escapeChar: ExpressionNode): Iterable[ExpressionNode]
+
+  def createCheckOverflowExprNode(
+      args: java.lang.Object,
+      substraitExprName: String,
+      childNode: ExpressionNode,
+      dataType: DecimalType,
+      nullable: Boolean,
+      nullOnOverflow: Boolean): ExpressionNode
+
+  def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String
 }

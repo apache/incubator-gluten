@@ -17,8 +17,8 @@
 package io.glutenproject.columnarbatch;
 
 import io.glutenproject.exception.GlutenException;
-import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionCtxs;
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.Runtimes;
 import io.glutenproject.memory.arrowalloc.ArrowBufferAllocators;
 import io.glutenproject.memory.nmm.NativeMemoryManager;
 import io.glutenproject.utils.ArrowAbiUtil;
@@ -57,6 +57,41 @@ public class ColumnarBatches {
 
   private ColumnarBatches() {}
 
+  enum BatchType {
+    LIGHT,
+    HEAVY
+  }
+
+  private static BatchType identifyBatchType(ColumnarBatch batch) {
+    if (batch.numCols() == 0) {
+      // zero-column batch considered as heavy batch
+      return BatchType.HEAVY;
+    }
+
+    final ColumnVector col0 = batch.column(0);
+    if (col0 instanceof IndicatorVector) {
+      // it's likely a light batch
+      for (int i = 1; i < batch.numCols(); i++) {
+        ColumnVector col = batch.column(i);
+        if (!(col instanceof PlaceholderVector)) {
+          throw new IllegalStateException(
+              "Light batch should consist of one indicator vector "
+                  + "and (numCols - 1) placeholder vectors");
+        }
+      }
+      return BatchType.LIGHT;
+    }
+
+    // it's likely a heavy batch
+    for (int i = 0; i < batch.numCols(); i++) {
+      ColumnVector col = batch.column(i);
+      if (!(col instanceof ArrowWritableColumnVector)) {
+        throw new IllegalStateException("Heavy batch should consist of arrow vectors");
+      }
+    }
+    return BatchType.HEAVY;
+  }
+
   private static void transferVectors(ColumnarBatch from, ColumnarBatch target) {
     try {
       if (target.numCols() != from.numCols()) {
@@ -73,17 +108,7 @@ public class ColumnarBatches {
 
   /** Heavy batch: Data is readable from JVM and formatted as Arrow data. */
   public static boolean isHeavyBatch(ColumnarBatch batch) {
-    if (batch.numCols() == 0) {
-      throw new IllegalArgumentException(
-          "Cannot decide if a batch that " + "has no column is Arrow columnar batch or not");
-    }
-    for (int i = 0; i < batch.numCols(); i++) {
-      ColumnVector col = batch.column(i);
-      if (!(col instanceof ArrowWritableColumnVector)) {
-        return false;
-      }
-    }
-    return true;
+    return identifyBatchType(batch) == BatchType.HEAVY;
   }
 
   /**
@@ -91,21 +116,7 @@ public class ColumnarBatches {
    * used to bind the batch to a native side implementation.
    */
   public static boolean isLightBatch(ColumnarBatch batch) {
-    if (batch.numCols() == 0) {
-      throw new IllegalArgumentException(
-          "Cannot decide if a batch that has " + "no column is light columnar batch or not");
-    }
-    ColumnVector col0 = batch.column(0);
-    if (!(col0 instanceof IndicatorVector)) {
-      return false;
-    }
-    for (int i = 1; i < batch.numCols(); i++) {
-      ColumnVector col = batch.column(i);
-      if (!(col instanceof PlaceholderVector)) {
-        return false;
-      }
-    }
-    return true;
+    return identifyBatchType(batch) == BatchType.LIGHT;
   }
 
   /**
@@ -114,11 +125,20 @@ public class ColumnarBatches {
    */
   public static ColumnarBatch select(
       NativeMemoryManager nmm, ColumnarBatch batch, int[] columnIndices) {
-    final IndicatorVector iv = getIndicatorVector(batch);
-    long outputBatchHandle =
-        ColumnarBatchJniWrapper.create()
-            .select(nmm.getNativeInstanceHandle(), iv.handle(), columnIndices);
-    return create(iv.ctx(), outputBatchHandle);
+    switch (identifyBatchType(batch)) {
+      case LIGHT:
+        final IndicatorVector iv = getIndicatorVector(batch);
+        long outputBatchHandle =
+            ColumnarBatchJniWrapper.create()
+                .select(nmm.getNativeInstanceHandle(), iv.handle(), columnIndices);
+        return create(iv.runtime(), outputBatchHandle);
+      case HEAVY:
+        return new ColumnarBatch(
+            Arrays.stream(columnIndices).mapToObj(batch::column).toArray(ColumnVector[]::new),
+            batch.numRows());
+      default:
+        throw new IllegalStateException();
+    }
   }
 
   /**
@@ -138,10 +158,6 @@ public class ColumnarBatches {
    * method will close the input column batch after loaded.
    */
   public static ColumnarBatch ensureLoaded(BufferAllocator allocator, ColumnarBatch batch) {
-    if (batch.numCols() == 0) {
-      // No need to load batch if no column.
-      return batch;
-    }
     if (isHeavyBatch(batch)) {
       return batch;
     }
@@ -163,7 +179,7 @@ public class ColumnarBatches {
         ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema arrowSchema = ArrowSchema.allocateNew(allocator);
         CDataDictionaryProvider provider = new CDataDictionaryProvider()) {
-      ColumnarBatchJniWrapper.forCtx(iv.ctx())
+      ColumnarBatchJniWrapper.forRuntime(iv.runtime())
           .exportToArrow(iv.handle(), cSchema.memoryAddress(), cArray.memoryAddress());
 
       Data.exportSchema(
@@ -196,15 +212,18 @@ public class ColumnarBatches {
     if (!isHeavyBatch(input)) {
       throw new IllegalArgumentException("batch is not Arrow columnar batch");
     }
-    final ExecutionCtx ctx = ExecutionCtxs.contextInstance();
+    if (input.numCols() == 0) {
+      throw new IllegalArgumentException("batch with zero columns cannot be offloaded");
+    }
+    final Runtime runtime = Runtimes.contextInstance();
     try (ArrowArray cArray = ArrowArray.allocateNew(allocator);
         ArrowSchema cSchema = ArrowSchema.allocateNew(allocator)) {
       ArrowAbiUtil.exportFromSparkColumnarBatch(
           ArrowBufferAllocators.contextInstance(), input, cSchema, cArray);
       long handle =
-          ColumnarBatchJniWrapper.forCtx(ctx)
+          ColumnarBatchJniWrapper.forRuntime(runtime)
               .createWithArrowArray(cSchema.memoryAddress(), cArray.memoryAddress());
-      ColumnarBatch output = ColumnarBatches.create(ctx, handle);
+      ColumnarBatch output = ColumnarBatches.create(runtime, handle);
 
       // Follow input's reference count. This might be optimized using
       // automatic clean-up or once the extensibility of ColumnarBatch is enriched
@@ -258,6 +277,10 @@ public class ColumnarBatches {
     if (!isHeavyBatch(input)) {
       throw new UnsupportedOperationException("Input batch is not heavy batch");
     }
+    if (input.numCols() == 0) {
+      throw new IllegalArgumentException(
+          "batch with zero columns doesn't have meaningful " + "reference count");
+    }
     long refCnt = -1L;
     for (int i = 0; i < input.numCols(); i++) {
       ArrowWritableColumnVector col = ((ArrowWritableColumnVector) input.column(i));
@@ -277,13 +300,14 @@ public class ColumnarBatches {
   }
 
   private static long getRefCnt(ColumnarBatch input) {
-    if (isLightBatch(input)) {
-      return getRefCntLight(input);
+    switch (identifyBatchType(input)) {
+      case LIGHT:
+        return getRefCntLight(input);
+      case HEAVY:
+        return getRefCntHeavy(input);
+      default:
+        throw new IllegalStateException();
     }
-    if (isHeavyBatch(input)) {
-      return getRefCntLight(input);
-    }
-    throw new IllegalStateException();
   }
 
   public static void forceClose(ColumnarBatch input) {
@@ -308,22 +332,22 @@ public class ColumnarBatches {
         Arrays.stream(batches)
             .map(ColumnarBatches::getIndicatorVector)
             .toArray(IndicatorVector[]::new);
-    // We assume all input batches should be managed by same ExecutionCtx.
+    // We assume all input batches should be managed by same Runtime.
     // FIXME: The check could be removed to adopt ownership-transfer semantic
-    final ExecutionCtx[] ctxs =
-        Arrays.stream(ivs).map(IndicatorVector::ctx).distinct().toArray(ExecutionCtx[]::new);
+    final Runtime[] ctxs =
+        Arrays.stream(ivs).map(IndicatorVector::runtime).distinct().toArray(Runtime[]::new);
     Preconditions.checkState(
-        ctxs.length == 1, "All input batches should be managed by same ExecutionCtx.");
+        ctxs.length == 1, "All input batches should be managed by same Runtime.");
     final long[] handles = Arrays.stream(ivs).mapToLong(IndicatorVector::handle).toArray();
-    return ColumnarBatchJniWrapper.forCtx(ctxs[0]).compose(handles);
+    return ColumnarBatchJniWrapper.forRuntime(ctxs[0]).compose(handles);
   }
 
-  public static ColumnarBatch create(ExecutionCtx ctx, long nativeHandle) {
-    final IndicatorVector iv = new IndicatorVector(ctx, nativeHandle);
+  public static ColumnarBatch create(Runtime runtime, long nativeHandle) {
+    final IndicatorVector iv = new IndicatorVector(runtime, nativeHandle);
     int numColumns = Math.toIntExact(iv.getNumColumns());
     int numRows = Math.toIntExact(iv.getNumRows());
     if (numColumns == 0) {
-      return new ColumnarBatch(new ColumnVector[] {iv}, numRows);
+      return new ColumnarBatch(new ColumnVector[0], numRows);
     }
     final ColumnVector[] columnVectors = new ColumnVector[numColumns];
     columnVectors[0] = iv;
@@ -336,19 +360,20 @@ public class ColumnarBatches {
   }
 
   public static void retain(ColumnarBatch b) {
-    if (isLightBatch(b)) {
-      IndicatorVector iv = (IndicatorVector) b.column(0);
-      iv.retain();
-      return;
+    switch (identifyBatchType(b)) {
+      case LIGHT:
+        IndicatorVector iv = (IndicatorVector) b.column(0);
+        iv.retain();
+        return;
+      case HEAVY:
+        for (int i = 0; i < b.numCols(); i++) {
+          ArrowWritableColumnVector col = ((ArrowWritableColumnVector) b.column(i));
+          col.retain();
+        }
+        return;
+      default:
+        throw new IllegalStateException();
     }
-    if (isHeavyBatch(b)) {
-      for (int i = 0; i < b.numCols(); i++) {
-        ArrowWritableColumnVector col = ((ArrowWritableColumnVector) b.column(i));
-        col.retain();
-      }
-      return;
-    }
-    throw new IllegalStateException("Unreachable code");
   }
 
   public static void release(ColumnarBatch b) {
@@ -359,7 +384,7 @@ public class ColumnarBatches {
     return getIndicatorVector(batch).handle();
   }
 
-  public static ExecutionCtx getExecutionCtx(ColumnarBatch batch) {
-    return getIndicatorVector(batch).ctx();
+  public static Runtime getRuntime(ColumnarBatch batch) {
+    return getIndicatorVector(batch).runtime();
   }
 }

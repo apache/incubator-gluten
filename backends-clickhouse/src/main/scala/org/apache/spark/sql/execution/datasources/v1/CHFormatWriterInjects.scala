@@ -22,7 +22,7 @@ import io.glutenproject.vectorized.CHColumnVector
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.execution.datasources.FakeRow
+import org.apache.spark.sql.execution.datasources.orc.OrcUtils
 import org.apache.spark.sql.types.StructType
 
 import org.apache.hadoop.fs.FileStatus
@@ -51,7 +51,7 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
         if (nextBatch.numRows > 0) {
           val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
           datasourceJniWrapper.write(instance, col.getBlockAddress)
-        } else throw new IllegalStateException
+        } // else just ignore this empty block
       }
 
       override def close(): Unit = {
@@ -69,7 +69,7 @@ trait CHFormatWriterInjects extends GlutenFormatWriterInjectsBase {
       sparkSession: SparkSession,
       options: Map[String, String],
       files: Seq[FileStatus]): Option[StructType] = {
-    throw new UnsupportedOperationException("CHFormatWriterInjects does not support inferSchema")
+    OrcUtils.inferSchema(sparkSession, files, options)
   }
 }
 
@@ -78,13 +78,9 @@ class CHRowSplitter extends GlutenRowSplitter {
       row: FakeRow,
       partitionColIndice: Array[Int],
       hasBucket: Boolean): CHBlockStripes = {
-    val nextBatch = row.batch
-
-    if (nextBatch.numRows > 0) {
-      val col = nextBatch.column(0).asInstanceOf[CHColumnVector]
-      new CHBlockStripes(
-        CHDatasourceJniWrapper
-          .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket))
-    } else throw new IllegalStateException
+    val col = row.batch.column(0).asInstanceOf[CHColumnVector]
+    new CHBlockStripes(
+      CHDatasourceJniWrapper
+        .splitBlockByPartitionAndBucket(col.getBlockAddress, partitionColIndice, hasBucket))
   }
 }

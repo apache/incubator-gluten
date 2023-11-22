@@ -25,7 +25,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
 import org.apache.spark.sql.execution.ScalarSubquery
-import org.apache.spark.sql.execution.datasources.FileFormatWriter.Empty2Null
 
 object ExpressionMappings {
 
@@ -85,16 +84,17 @@ object ExpressionMappings {
     Sig[Substring](SUBSTRING),
     Sig[SubstringIndex](SUBSTRING_INDEX),
     Sig[ConcatWs](CONCAT_WS),
+    Sig[Left](LEFT),
     Sig[StringRepeat](REPEAT),
     Sig[StringTranslate](TRANSLATE),
     Sig[StringSpace](SPACE),
-    Sig[Empty2Null](EMPTY2NULL),
     Sig[InitCap](INITCAP),
     Sig[Overlay](OVERLAY),
     Sig[Conv](CONV),
     Sig[FindInSet](FIND_IN_SET),
     Sig[StringDecode](DECODE),
     Sig[Encode](ENCODE),
+    Sig[Uuid](UUID),
 
     // URL functions
     Sig[ParseUrl](PARSE_URL),
@@ -246,6 +246,8 @@ object ExpressionMappings {
     Sig[Count](COUNT),
     Sig[Min](MIN),
     Sig[Max](MAX),
+    Sig[MaxBy](MAX_BY),
+    Sig[MinBy](MIN_BY),
     Sig[StddevSamp](STDDEV_SAMP),
     Sig[StddevPop](STDDEV_POP),
     Sig[CollectList](COLLECT_LIST),

@@ -17,15 +17,16 @@
 package org.apache.spark.sql.execution.datasources.v1
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.expressions.{Expression, GenericInternalRow}
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression, GenericInternalRow}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.delta.{DeltaLog, Snapshot}
 import org.apache.spark.sql.delta.actions.AddFile
 import org.apache.spark.sql.delta.files.TahoeFileIndex
-import org.apache.spark.sql.execution.datasources.PartitionDirectory
+import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.utils.MergeTreePartsPartitionsUtil
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.util.collection.BitSet
 
 import org.apache.hadoop.fs.{FileStatus, Path}
 
@@ -80,8 +81,24 @@ abstract class ClickHouseFileIndexBase(
         })
   }
 
-  def partsPartitions: Seq[InputPartition] =
-    MergeTreePartsPartitionsUtil.getPartsPartitions(spark, table)
+  def partsPartitions(
+      relation: HadoopFsRelation,
+      selectedPartitions: Array[PartitionDirectory],
+      output: Seq[Attribute],
+      bucketedScan: Boolean,
+      optionalBucketSet: Option[BitSet],
+      optionalNumCoalescedBuckets: Option[Int],
+      disableBucketedScan: Boolean): Seq[InputPartition] =
+    MergeTreePartsPartitionsUtil.getMergeTreePartsPartitions(
+      relation,
+      selectedPartitions,
+      output,
+      bucketedScan,
+      spark,
+      table,
+      optionalBucketSet,
+      optionalNumCoalescedBuckets,
+      disableBucketedScan)
 
   override def refresh(): Unit = {}
 

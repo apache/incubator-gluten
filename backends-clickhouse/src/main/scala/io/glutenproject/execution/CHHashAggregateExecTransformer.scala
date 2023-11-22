@@ -28,7 +28,7 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
-import org.apache.spark.sql.types.{DataType, StructField, StructType}
+import org.apache.spark.sql.types._
 
 import com.google.protobuf.Any
 
@@ -68,6 +68,19 @@ case class CHHashAggregateExecTransformer(
     getAggregateResultAttributes(groupingExpressions, aggregateExpressions)
 
   protected val modes: Seq[AggregateMode] = aggregateExpressions.map(_.mode).distinct
+
+  override protected def checkType(dataType: DataType): Boolean = {
+    dataType match {
+      case BooleanType | ByteType | ShortType | IntegerType | LongType | FloatType | DoubleType |
+          StringType | TimestampType | DateType | BinaryType =>
+        true
+      case _: StructType => true
+      case d: DecimalType => true
+      case a: ArrayType => true
+      case n: NullType => true
+      case other => false
+    }
+  }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child match {
@@ -110,6 +123,7 @@ case class CHHashAggregateExecTransformer(
           for (attr <- child.output) {
             typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
             nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
+            nameList.addAll(ConverterUtils.collectStructFieldNames(attr.dataType))
           }
           (child.output, output)
         } else if (!modes.contains(Partial)) {
@@ -134,6 +148,7 @@ case class CHHashAggregateExecTransformer(
           for (attr <- child.output) {
             typeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
             nameList.add(ConverterUtils.genColumnNameWithExprId(attr))
+            nameList.addAll(ConverterUtils.collectStructFieldNames(attr.dataType))
           }
 
           (child.output, aggregateResultAttributes)
@@ -312,8 +327,19 @@ case class CHHashAggregateExecTransformer(
       ConverterUtils.genColumnNameWithExprId(resultAttr)
     } else {
       val aggExpr = aggExpressions(columnIndex - groupingExprs.length)
+      val aggregateFunc = aggExpr.aggregateFunction
       var aggFunctionName =
-        AggregateFunctionsBuilder.getSubstraitFunctionName(aggExpr.aggregateFunction).get
+        if (
+          ExpressionMappings.expressionExtensionTransformer.extensionExpressionsMapping.contains(
+            aggregateFunc.getClass)
+        ) {
+          ExpressionMappings.expressionExtensionTransformer
+            .buildCustomAggregateFunction(aggregateFunc)
+            ._1
+            .get
+        } else {
+          AggregateFunctionsBuilder.getSubstraitFunctionName(aggregateFunc).get
+        }
       ConverterUtils.genColumnNameWithExprId(resultAttr) + "#Partial#" + aggFunctionName
     }
   }

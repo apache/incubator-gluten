@@ -20,7 +20,6 @@ import org.apache.spark._
 import org.apache.spark.internal.Logging
 
 import org.apache.celeborn.client.ShuffleClient
-import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
 
@@ -31,13 +30,13 @@ class CelebornPartitionPusher(
     val context: TaskContext,
     val mapId: Int,
     val client: ShuffleClient,
-    val celebornConf: CelebornConf)
+    val clientPushBufferMaxSize: Int)
   extends Logging {
 
   @throws[IOException]
   def pushPartitionData(partitionId: Int, buffer: Array[Byte], length: Int): Int = {
-    logDebug(s"Push record, size ${buffer.length}.")
-    if (buffer.length > celebornConf.clientPushBufferMaxSize) {
+    if (length > clientPushBufferMaxSize) {
+      logDebug(s"Push Data, size $length.")
       client.pushData(
         shuffleId,
         mapId,
@@ -49,6 +48,7 @@ class CelebornPartitionPusher(
         numMappers,
         numPartitions)
     } else {
+      logDebug(s"Merge Data, size $length.")
       client.mergeData(
         shuffleId,
         mapId,

@@ -31,7 +31,6 @@ on:
       - 'shims/**'
       - 'tools/gluten-it/**'
       - 'tools/gluten-te/**'
-      - 'ep/build-arrow/**'
       - 'ep/build-velox/**'
       - 'cpp/*'
       - 'cpp/CMake/**'
@@ -45,7 +44,7 @@ jobs:
     runs-on: velox-self-hosted
     container: ubuntu:22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - run: apt-get update && apt-get install ca-certificates -y && update-ca-certificates
       - run: sed -i 's/http\:\/\/archive.ubuntu.com/https\:\/\/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
       - run: apt-get update

@@ -87,7 +87,6 @@ object GlutenWriterColumnarRules {
   //  2. support detect partition value, partition path, bucket value, bucket path at native side,
   //     see `BaseDynamicPartitionDataWriter`
   def getNativeFormat(cmd: DataWritingCommand): Option[String] = {
-
     val parquetHiveFormat = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
     val orcHiveFormat = "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"
 
@@ -97,7 +96,7 @@ object GlutenWriterColumnarRules {
 
     cmd match {
       case command: CreateDataSourceTableAsSelectCommand =>
-        if (BackendsApiManager.isVeloxBackend) {
+        if (BackendsApiManager.getSettings.skipNativeCtas(command)) {
           return None
         }
         if ("parquet".equals(command.table.provider.get)) {
@@ -110,10 +109,7 @@ object GlutenWriterColumnarRules {
       case command: InsertIntoHadoopFsRelationCommand
           if command.fileFormat.isInstanceOf[ParquetFileFormat] ||
             command.fileFormat.isInstanceOf[OrcFileFormat] =>
-        if (
-          BackendsApiManager.isVeloxBackend
-          && (command.partitionColumns.nonEmpty || command.bucketSpec.nonEmpty)
-        ) {
+        if (BackendsApiManager.getSettings.skipNativeInsertInto(command)) {
           return None
         }
 
@@ -151,6 +147,9 @@ object GlutenWriterColumnarRules {
     override def apply(p: SparkPlan): SparkPlan = p match {
       case rc @ DataWritingCommandExec(cmd, child) =>
         val format = getNativeFormat(cmd)
+        session.sparkContext.setLocalProperty(
+          "staticPartitionWriteOnly",
+          BackendsApiManager.getSettings.staticPartitionWriteOnly().toString)
         session.sparkContext.setLocalProperty("isNativeAppliable", format.isDefined.toString)
         session.sparkContext.setLocalProperty("nativeFormat", format.getOrElse(""))
         if (format.isDefined) {

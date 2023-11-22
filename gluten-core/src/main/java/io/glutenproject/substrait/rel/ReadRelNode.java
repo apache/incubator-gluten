@@ -31,12 +31,13 @@ import org.apache.spark.sql.types.StructType;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class ReadRelNode implements RelNode, Serializable {
-  private final ArrayList<TypeNode> types = new ArrayList<>();
-  private final ArrayList<String> names = new ArrayList<>();
-  private final ArrayList<ColumnTypeNode> columnTypeNodes = new ArrayList<>();
+  private final List<TypeNode> types = new ArrayList<>();
+  private final List<String> names = new ArrayList<>();
+  private final List<ColumnTypeNode> columnTypeNodes = new ArrayList<>();
   private final SubstraitContext context;
   private final ExpressionNode filterNode;
   private final Long iteratorIndex;
@@ -44,8 +45,8 @@ public class ReadRelNode implements RelNode, Serializable {
   private Map<String, String> properties;
 
   ReadRelNode(
-      ArrayList<TypeNode> types,
-      ArrayList<String> names,
+      List<TypeNode> types,
+      List<String> names,
       SubstraitContext context,
       ExpressionNode filterNode,
       Long iteratorIndex) {
@@ -57,12 +58,12 @@ public class ReadRelNode implements RelNode, Serializable {
   }
 
   ReadRelNode(
-      ArrayList<TypeNode> types,
-      ArrayList<String> names,
+      List<TypeNode> types,
+      List<String> names,
       SubstraitContext context,
       ExpressionNode filterNode,
       Long iteratorIndex,
-      ArrayList<ColumnTypeNode> columnTypeNodes) {
+      List<ColumnTypeNode> columnTypeNodes) {
     this.types.addAll(types);
     this.names.addAll(names);
     this.context = context;
@@ -131,17 +132,17 @@ public class ReadRelNode implements RelNode, Serializable {
         filesNode.setFileReadProperties(properties);
       }
       readBuilder.setLocalFiles(filesNode.toProtobuf());
-    } else if (context.getLocalFilesNodes() != null && !context.getLocalFilesNodes().isEmpty()) {
-      Serializable currentLocalFileNode = context.getCurrentLocalFileNode();
-      if (currentLocalFileNode instanceof LocalFilesNode) {
-        LocalFilesNode filesNode = (LocalFilesNode) currentLocalFileNode;
+    } else if (context.getSplitInfos() != null && !context.getSplitInfos().isEmpty()) {
+      SplitInfo currentSplitInfo = context.getCurrentSplitInfo();
+      if (currentSplitInfo instanceof LocalFilesNode) {
+        LocalFilesNode filesNode = (LocalFilesNode) currentSplitInfo;
         if (dataSchema != null) {
           filesNode.setFileSchema(dataSchema);
           filesNode.setFileReadProperties(properties);
         }
-        readBuilder.setLocalFiles(((LocalFilesNode) currentLocalFileNode).toProtobuf());
-      } else if (currentLocalFileNode instanceof ExtensionTableNode) {
-        readBuilder.setExtensionTable(((ExtensionTableNode) currentLocalFileNode).toProtobuf());
+        readBuilder.setLocalFiles(((LocalFilesNode) currentSplitInfo).toProtobuf());
+      } else if (currentSplitInfo instanceof ExtensionTableNode) {
+        readBuilder.setExtensionTable(((ExtensionTableNode) currentSplitInfo).toProtobuf());
       }
     }
     Rel.Builder builder = Rel.newBuilder();

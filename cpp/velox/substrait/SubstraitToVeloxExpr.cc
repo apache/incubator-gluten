@@ -72,11 +72,6 @@ Timestamp getLiteralValue(const ::substrait::Expression::Literal& literal) {
   return Timestamp::fromMicros(literal.timestamp());
 }
 
-template <>
-Date getLiteralValue(const ::substrait::Expression::Literal& literal) {
-  return Date(literal.date());
-}
-
 ArrayVectorPtr makeArrayVector(const VectorPtr& elements) {
   BufferPtr offsets = allocateOffsets(1, elements->pool());
   BufferPtr sizes = allocateOffsets(1, elements->pool());
@@ -142,6 +137,9 @@ void setLiteralValue(const ::substrait::Expression::Literal& literal, FlatVector
     } else {
       VELOX_FAIL("Unexpected string or binary literal");
     }
+  } else if (vector->type()->isDate()) {
+    auto dateVector = vector->template asFlatVector<int32_t>();
+    dateVector->set(index, int(literal.date()));
   } else {
     vector->set(index, getLiteralValue<T>(literal));
   }
@@ -280,7 +278,7 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toLambdaExpr(
         SubstraitParser::findVeloxFunction(functionMap_, arg.scalar_function().function_reference());
     CHECK_EQ(veloxFunction, "namedlambdavariable");
     argumentNames.emplace_back(arg.scalar_function().arguments(0).value().literal().string());
-    argumentTypes.emplace_back(substraitTypeToVeloxType(substraitFunc.output_type()));
+    argumentTypes.emplace_back(SubstraitParser::parseType(substraitFunc.output_type()));
   }
   auto rowType = ROW(std::move(argumentNames), std::move(argumentTypes));
   // Arg[0] -> function.
@@ -298,16 +296,16 @@ core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
     params.emplace_back(toVeloxExpr(sArg.value(), inputType));
   }
   const auto& veloxFunction = SubstraitParser::findVeloxFunction(functionMap_, substraitFunc.function_reference());
-  std::string typeName = SubstraitParser::parseType(substraitFunc.output_type()).type;
+  const auto& outputType = SubstraitParser::parseType(substraitFunc.output_type());
 
   if (veloxFunction == "lambdafunction") {
     return toLambdaExpr(substraitFunc, inputType);
   } else if (veloxFunction == "namedlambdavariable") {
-    return makeFieldAccessExpr(substraitFunc.arguments(0).value().literal().string(), toVeloxType(typeName), nullptr);
+    return makeFieldAccessExpr(substraitFunc.arguments(0).value().literal().string(), outputType, nullptr);
   } else if (veloxFunction == "extract") {
-    return toExtractExpr(std::move(params), toVeloxType(typeName));
+    return toExtractExpr(std::move(params), outputType);
   } else {
-    return std::make_shared<const core::CallTypedExpr>(toVeloxType(typeName), std::move(params), veloxFunction);
+    return std::make_shared<const core::CallTypedExpr>(outputType, std::move(params), veloxFunction);
   }
 }
 
@@ -318,15 +316,15 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::lite
   VELOX_CHECK_GE(literals.size(), 0, "List should have at least one item.");
   std::optional<TypePtr> literalType = std::nullopt;
   for (const auto& literal : literals) {
-    auto veloxVariant = toVeloxExpr(literal)->value();
+    auto veloxVariant = toVeloxExpr(literal);
     if (!literalType.has_value()) {
-      literalType = veloxVariant.inferType();
+      literalType = veloxVariant->type();
     }
-    variants.emplace_back(veloxVariant);
+    variants.emplace_back(veloxVariant->value());
   }
   VELOX_CHECK(literalType.has_value(), "Type expected.");
   auto varArray = variant::array(variants);
-  ArrayVectorPtr arrayVector = variantArrayToVector(varArray.inferType(), varArray.array(), pool_);
+  ArrayVectorPtr arrayVector = variantArrayToVector(ARRAY(literalType.value()), varArray.array(), pool_);
   // Wrap the array vector into constant vector.
   auto constantVector = BaseVector::wrapInConstant(1 /*length*/, 0 /*index*/, arrayVector);
   return std::make_shared<const core::ConstantTypedExpr>(constantVector);
@@ -375,7 +373,7 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
     case ::substrait::Expression_Literal::LiteralTypeCase::kString:
       return std::make_shared<core::ConstantTypedExpr>(VARCHAR(), variant(substraitLit.string()));
     case ::substrait::Expression_Literal::LiteralTypeCase::kDate:
-      return std::make_shared<core::ConstantTypedExpr>(DATE(), variant(Date(substraitLit.date())));
+      return std::make_shared<core::ConstantTypedExpr>(DATE(), variant(int(substraitLit.date())));
     case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
       return std::make_shared<core::ConstantTypedExpr>(
           TIMESTAMP(), variant(Timestamp::fromMicros(substraitLit.timestamp())));
@@ -412,7 +410,7 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
       }
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
-      auto veloxType = substraitTypeToVeloxType(substraitLit.null());
+      auto veloxType = SubstraitParser::parseType(substraitLit.null());
       if (veloxType->isShortDecimal()) {
         return std::make_shared<core::ConstantTypedExpr>(veloxType, variant::null(TypeKind::BIGINT));
       } else if (veloxType->isLongDecimal()) {
@@ -475,12 +473,12 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
     case ::substrait::Expression_Literal::LiteralTypeCase::kVarChar:
       return constructFlatVector<TypeKind::VARCHAR>(elementAtFunc, childSize, VARCHAR(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
-      auto veloxType = substraitTypeToVeloxType(literal.null());
+      auto veloxType = SubstraitParser::parseType(literal.null());
       auto kind = veloxType->kind();
       return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kDate:
-      return constructFlatVector<TypeKind::DATE>(elementAtFunc, childSize, DATE(), pool_);
+      return constructFlatVector<TypeKind::INTEGER>(elementAtFunc, childSize, DATE(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
       return constructFlatVector<TypeKind::TIMESTAMP>(elementAtFunc, childSize, TIMESTAMP(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond:
@@ -539,7 +537,7 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
 core::TypedExprPtr SubstraitVeloxExprConverter::toVeloxExpr(
     const ::substrait::Expression::Cast& castExpr,
     const RowTypePtr& inputType) {
-  auto type = substraitTypeToVeloxType(castExpr.type());
+  auto type = SubstraitParser::parseType(castExpr.type());
   bool nullOnFailure = isNullOnFailure(castExpr.failure_behavior());
 
   std::vector<core::TypedExprPtr> inputs{toVeloxExpr(castExpr.input(), inputType)};
@@ -609,11 +607,11 @@ std::unordered_map<std::string, std::string> SubstraitVeloxExprConverter::extrac
     {"MINUTE", "minute"},
     {"HOUR", "hour"},
     {"DAY", "day"},
-    {"DAY_OF_WEEK", "day_of_week"},
-    {"DAY_OF_YEAR", "day_of_year"},
+    {"DAY_OF_WEEK", "dayofweek"},
+    {"DAY_OF_YEAR", "dayofyear"},
     {"MONTH", "month"},
     {"QUARTER", "quarter"},
     {"YEAR", "year"},
-    {"YEAR_OF_WEEK", "year_of_week"}};
+    {"YEAR_OF_WEEK", "week_of_year"}};
 
 } // namespace gluten

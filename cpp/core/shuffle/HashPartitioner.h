@@ -21,9 +21,9 @@
 
 namespace gluten {
 
-class HashPartitioner final : public ShuffleWriter::Partitioner {
+class HashPartitioner final : public Partitioner {
  public:
-  HashPartitioner(int32_t numPartitions, bool hasPid) : Partitioner(numPartitions, hasPid) {}
+  HashPartitioner(int32_t numPartitions) : Partitioner(numPartitions, true) {}
 
   arrow::Status compute(
       const int32_t* pidArr,

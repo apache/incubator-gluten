@@ -25,6 +25,8 @@ import org.apache.spark.sql.types._
 
 import com.google.common.collect.Lists
 
+import scala.collection.JavaConverters._
+
 case class CreateArrayTransformer(
     substraitExprName: String,
     children: Seq[ExpressionTransformer],
@@ -40,12 +42,7 @@ case class CreateArrayTransformer(
       throw new UnsupportedOperationException(s"$original not supported yet.")
     }
 
-    val childNodes = new java.util.ArrayList[ExpressionNode]()
-    children.foreach(
-      child => {
-        val childNode = child.doTransform(args)
-        childNodes.add(childNode)
-      })
+    val childNodes = children.map(_.doTransform(args)).asJava
 
     val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
     val functionName = ConverterUtils.makeFuncName(
@@ -87,11 +84,11 @@ case class GetArrayItemTransformer(
       ConverterUtils.getTypeNode(original.right.dataType, original.right.nullable))
 
     BackendsApiManager.getSparkPlanExecApiInstance.genGetArrayItemExpressionNode(
-      substraitExprName: String,
-      functionMap: java.util.HashMap[String, java.lang.Long],
-      leftNode: ExpressionNode,
-      rightNode: ExpressionNode,
-      original: GetArrayItem
+      substraitExprName,
+      functionMap,
+      leftNode,
+      rightNode,
+      original
     )
   }
 }

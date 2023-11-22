@@ -24,22 +24,24 @@ import io.glutenproject.substrait.rel.RelNode;
 import io.glutenproject.substrait.type.TypeNode;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class PlanBuilder {
+
+  public static byte[] EMPTY_PLAN = empty().toProtobuf().toByteArray();
+
   private PlanBuilder() {}
 
   public static PlanNode makePlan(
-      ArrayList<FunctionMappingNode> mappingNodes,
-      ArrayList<RelNode> relNodes,
-      ArrayList<String> outNames) {
+      List<FunctionMappingNode> mappingNodes, List<RelNode> relNodes, List<String> outNames) {
     return new PlanNode(mappingNodes, relNodes, outNames);
   }
 
   public static PlanNode makePlan(
-      ArrayList<FunctionMappingNode> mappingNodes,
-      ArrayList<RelNode> relNodes,
-      ArrayList<String> outNames,
+      List<FunctionMappingNode> mappingNodes,
+      List<RelNode> relNodes,
+      List<String> outNames,
       TypeNode outputSchema,
       AdvancedExtensionNode extension) {
     return new PlanNode(mappingNodes, relNodes, outNames, outputSchema, extension);
@@ -50,20 +52,20 @@ public class PlanBuilder {
   }
 
   public static PlanNode makePlan(
-      SubstraitContext subCtx, ArrayList<RelNode> relNodes, ArrayList<String> outNames) {
+      SubstraitContext subCtx, List<RelNode> relNodes, List<String> outNames) {
     return makePlan(subCtx, relNodes, outNames, null, null);
   }
 
   public static PlanNode makePlan(
       SubstraitContext subCtx,
-      ArrayList<RelNode> relNodes,
-      ArrayList<String> outNames,
+      List<RelNode> relNodes,
+      List<String> outNames,
       TypeNode outputSchema,
       AdvancedExtensionNode extension) {
     if (subCtx == null) {
       throw new NullPointerException("ColumnarWholestageTransformer cannot doTansform.");
     }
-    ArrayList<FunctionMappingNode> mappingNodes = new ArrayList<>();
+    List<FunctionMappingNode> mappingNodes = new ArrayList<>();
 
     for (Map.Entry<String, Long> entry : subCtx.registeredFunction().entrySet()) {
       FunctionMappingNode mappingNode =

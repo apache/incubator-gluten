@@ -22,8 +22,7 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.ColumnTypeNode
 import io.glutenproject.substrait.{SubstraitContext, SupportFormat}
 import io.glutenproject.substrait.plan.PlanBuilder
-import io.glutenproject.substrait.rel.ReadRelNode
-import io.glutenproject.substrait.rel.RelBuilder
+import io.glutenproject.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -34,7 +33,9 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
 
-trait BasicScanExecTransformer extends TransformSupport with SupportFormat {
+import scala.collection.JavaConverters._
+
+trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
 
   // The key of merge schema option in Parquet reader.
   protected val mergeSchemaOptionKey = "mergeschema"
@@ -52,25 +53,25 @@ trait BasicScanExecTransformer extends TransformSupport with SupportFormat {
   // TODO: Remove this expensive call when CH support scan custom partition location.
   def getInputFilePaths: Seq[String]
 
+  def getSplitInfos: Seq[SplitInfo] =
+    getPartitions.map(
+      BackendsApiManager.getIteratorApiInstance
+        .genSplitInfo(_, getPartitionSchemas, fileFormat))
+
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("outputRows")
     val numOutputVectors = longMetric("outputVectors")
     val scanTime = longMetric("scanTime")
     val substraitContext = new SubstraitContext
     val transformContext = doTransform(substraitContext)
-    val outNames = new java.util.ArrayList[String]()
-    for (attr <- outputAttributes()) {
-      outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
-    }
+    val outNames = outputAttributes().map(ConverterUtils.genColumnNameWithExprId).asJava
     val planNode =
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(transformContext.root), outNames)
-    val fileFormat = ConverterUtils.getFileFormat(this)
 
     BackendsApiManager.getIteratorApiInstance.genNativeFileScanRDD(
       sparkContext,
       WholeStageTransformContext(planNode, substraitContext),
-      fileFormat,
-      getPartitions,
+      getSplitInfos,
       numOutputRows,
       numOutputVectors,
       scanTime
@@ -80,8 +81,8 @@ trait BasicScanExecTransformer extends TransformSupport with SupportFormat {
   override protected def doValidateInternal(): ValidationResult = {
     val fileFormat = ConverterUtils.getFileFormat(this)
     if (
-      !BackendsApiManager.getTransformerApiInstance
-        .supportsReadFileFormat(
+      !BackendsApiManager.getSettings
+        .supportFileFormatRead(
           fileFormat,
           schema.fields,
           getPartitionSchemas.nonEmpty,
@@ -102,14 +103,14 @@ trait BasicScanExecTransformer extends TransformSupport with SupportFormat {
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
     val partitionSchemas = getPartitionSchemas
-    val columnTypeNodes = new java.util.ArrayList[ColumnTypeNode]()
-    for (attr <- output) {
-      if (partitionSchemas.exists(_.name.equals(attr.name))) {
-        columnTypeNodes.add(new ColumnTypeNode(1))
-      } else {
-        columnTypeNodes.add(new ColumnTypeNode(0))
-      }
-    }
+    val columnTypeNodes = output.map {
+      attr =>
+        if (partitionSchemas.exists(_.name.equals(attr.name))) {
+          new ColumnTypeNode(1)
+        } else {
+          new ColumnTypeNode(0)
+        }
+    }.asJava
     // Will put all filter expressions into an AND expression
     val transformer = filterExprs()
       .reduceLeftOption(And)

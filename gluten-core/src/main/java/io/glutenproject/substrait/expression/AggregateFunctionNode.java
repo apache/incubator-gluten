@@ -24,16 +24,17 @@ import io.substrait.proto.FunctionArgument;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 
 public class AggregateFunctionNode implements Serializable {
   private final Long functionId;
-  private final ArrayList<ExpressionNode> expressionNodes = new ArrayList<>();
+  private final List<ExpressionNode> expressionNodes = new ArrayList<>();
   private final String phase;
   private final TypeNode outputTypeNode;
 
   AggregateFunctionNode(
       Long functionId,
-      ArrayList<ExpressionNode> expressionNodes,
+      List<ExpressionNode> expressionNodes,
       String phase,
       TypeNode outputTypeNode) {
     this.functionId = functionId;

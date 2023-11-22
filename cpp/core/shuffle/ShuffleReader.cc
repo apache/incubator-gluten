@@ -30,7 +30,7 @@ using namespace gluten;
 class ShuffleReaderOutStream : public ColumnarBatchIterator {
  public:
   ShuffleReaderOutStream(
-      const ReaderOptions& options,
+      const ShuffleReaderOptions& options,
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::io::InputStream>& in,
       const std::function<void(int64_t)> ipcTimeAccumulator)
@@ -65,7 +65,7 @@ class ShuffleReaderOutStream : public ColumnarBatchIterator {
   }
 
  private:
-  ReaderOptions options_;
+  ShuffleReaderOptions options_;
   std::shared_ptr<arrow::io::InputStream> in_;
   std::function<void(int64_t)> ipcTimeAccumulator_;
   std::shared_ptr<arrow::Schema> writeSchema_;
@@ -74,11 +74,10 @@ class ShuffleReaderOutStream : public ColumnarBatchIterator {
 
 namespace gluten {
 
-ReaderOptions ReaderOptions::defaults() {
-  return {};
-}
-
-ShuffleReader::ShuffleReader(std::shared_ptr<arrow::Schema> schema, ReaderOptions options, arrow::MemoryPool* pool)
+ShuffleReader::ShuffleReader(
+    std::shared_ptr<arrow::Schema> schema,
+    ShuffleReaderOptions options,
+    arrow::MemoryPool* pool)
     : pool_(pool), options_(std::move(options)), schema_(schema) {}
 
 std::shared_ptr<ResultIterator> ShuffleReader::readStream(std::shared_ptr<arrow::io::InputStream> in) {

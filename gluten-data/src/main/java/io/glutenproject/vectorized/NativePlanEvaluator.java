@@ -16,29 +16,19 @@
  */
 package io.glutenproject.vectorized;
 
-import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
-import io.glutenproject.exec.ExecutionCtx;
-import io.glutenproject.exec.ExecutionCtxs;
+import io.glutenproject.exec.Runtime;
+import io.glutenproject.exec.Runtimes;
+import io.glutenproject.memory.nmm.NativeMemoryManager;
 import io.glutenproject.memory.nmm.NativeMemoryManagers;
-import io.glutenproject.substrait.expression.ExpressionBuilder;
-import io.glutenproject.substrait.expression.StringMapNode;
-import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
-import io.glutenproject.substrait.extensions.ExtensionBuilder;
-import io.glutenproject.substrait.plan.PlanBuilder;
-import io.glutenproject.substrait.plan.PlanNode;
 import io.glutenproject.utils.DebugUtil;
 import io.glutenproject.validate.NativePlanValidationInfo;
 
-import com.google.protobuf.Any;
-import io.substrait.proto.Plan;
 import org.apache.spark.TaskContext;
-import org.apache.spark.sql.internal.SQLConf;
 import org.apache.spark.util.SparkDirectoryUtil;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
@@ -47,51 +37,44 @@ public class NativePlanEvaluator {
 
   private final PlanEvaluatorJniWrapper jniWrapper;
 
-  private NativePlanEvaluator(ExecutionCtx ctx) {
-    jniWrapper = PlanEvaluatorJniWrapper.forCtx(ctx);
+  private NativePlanEvaluator(Runtime runtime) {
+    jniWrapper = PlanEvaluatorJniWrapper.forRuntime(runtime);
   }
 
   public static NativePlanEvaluator create() {
-    return new NativePlanEvaluator(ExecutionCtxs.contextInstance());
+    return new NativePlanEvaluator(Runtimes.contextInstance());
   }
 
-  public static NativePlanEvaluator createForValidation() {
-    // Driver side doesn't have context instance of ExecutionCtx
-    return new NativePlanEvaluator(ExecutionCtxs.tmpInstance());
+  public static NativePlanEvaluator createForValidation(Runtime runtime) {
+    // Driver side doesn't have context instance of Runtime
+    return new NativePlanEvaluator(runtime);
   }
 
   public NativePlanValidationInfo doNativeValidateWithFailureReason(byte[] subPlan) {
     return jniWrapper.nativeValidateWithFailureReason(subPlan);
   }
 
-  private PlanNode buildNativeConfNode(Map<String, String> confs) {
-    StringMapNode stringMapNode = ExpressionBuilder.makeStringMap(confs);
-    AdvancedExtensionNode extensionNode =
-        ExtensionBuilder.makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
-    return PlanBuilder.makePlan(extensionNode);
-  }
-
   // Used by WholeStageTransform to create the native computing pipeline and
   // return a columnar result iterator.
   public GeneralOutIterator createKernelWithBatchIterator(
-      Plan wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
+      byte[] wsPlan, List<GeneralInIterator> iterList) throws RuntimeException, IOException {
     final AtomicReference<ColumnarBatchOutIterator> outIterator = new AtomicReference<>();
-    final long memoryManagerHandle =
+    final NativeMemoryManager nmm =
         NativeMemoryManagers.create(
-                "WholeStageIterator",
-                (self, size) -> {
-                  ColumnarBatchOutIterator instance =
-                      Optional.of(outIterator.get())
-                          .orElseThrow(
-                              () ->
-                                  new IllegalStateException(
-                                      "Fatal: spill() called before a output iterator "
-                                          + "is created. This behavior should be optimized "
-                                          + "by moving memory allocations from create() to "
-                                          + "hasNext()/next()"));
-                  return instance.spill(size);
-                })
-            .getNativeInstanceHandle();
+            "WholeStageIterator",
+            (self, size) -> {
+              ColumnarBatchOutIterator instance =
+                  Optional.of(outIterator.get())
+                      .orElseThrow(
+                          () ->
+                              new IllegalStateException(
+                                  "Fatal: spill() called before a output iterator "
+                                      + "is created. This behavior should be optimized "
+                                      + "by moving memory allocations from create() to "
+                                      + "hasNext()/next()"));
+              return instance.spill(size);
+            });
+    final long memoryManagerHandle = nmm.getNativeInstanceHandle();
 
     final String spillDirPath =
         SparkDirectoryUtil.namespace("gluten-spill")
@@ -101,29 +84,19 @@ public class NativePlanEvaluator {
     long iterHandle =
         jniWrapper.nativeCreateKernelWithIterator(
             memoryManagerHandle,
-            getPlanBytesBuf(wsPlan),
+            wsPlan,
             iterList.toArray(new GeneralInIterator[0]),
             TaskContext.get().stageId(),
             TaskContext.getPartitionId(),
             TaskContext.get().taskAttemptId(),
             DebugUtil.saveInputToFile(),
-            BackendsApiManager.getSparkPlanExecApiInstance().rewriteSpillPath(spillDirPath),
-            buildNativeConfNode(
-                    GlutenConfig.getNativeSessionConf(
-                        BackendsApiManager.getSettings().getBackendConfigPrefix(),
-                        SQLConf.get().getAllConfs()))
-                .toProtobuf()
-                .toByteArray());
-    outIterator.set(createOutIterator(ExecutionCtxs.contextInstance(), iterHandle));
+            BackendsApiManager.getSparkPlanExecApiInstance().rewriteSpillPath(spillDirPath));
+    outIterator.set(createOutIterator(Runtimes.contextInstance(), iterHandle, nmm));
     return outIterator.get();
   }
 
-  private ColumnarBatchOutIterator createOutIterator(ExecutionCtx ctx, long iterHandle)
-      throws IOException {
-    return new ColumnarBatchOutIterator(ctx, iterHandle);
-  }
-
-  private byte[] getPlanBytesBuf(Plan planNode) {
-    return planNode.toByteArray();
+  private ColumnarBatchOutIterator createOutIterator(
+      Runtime runtime, long iterHandle, NativeMemoryManager nmm) throws IOException {
+    return new ColumnarBatchOutIterator(runtime, iterHandle, nmm);
   }
 }

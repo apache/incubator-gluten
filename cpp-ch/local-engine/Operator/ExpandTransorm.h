@@ -46,9 +46,9 @@ private:
     ExpandField project_set_exprs;
     bool has_input = false;
     bool has_output = false;
+    size_t expand_expr_iterator = 0;
 
     DB::Chunk input_chunk;
-    std::list<DB::Chunk> expanded_chunks;
-    DB::Chunk nextChunk();
+    DB::Chunk output_chunk;
 };
 }

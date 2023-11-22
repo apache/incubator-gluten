@@ -17,13 +17,15 @@
 set -exu
 #Set on run gluten on S3
 ENABLE_S3=OFF
+#Set on run gluten on GCS
+ENABLE_GCS=OFF
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
-ARROW_HOME=""
 ENABLE_EP_CACHE=OFF
 ENABLE_BENCHMARK=OFF
+ENABLE_TESTS=OFF
 RUN_SETUP_SCRIPT=ON
 
 OS=`uname -s`
@@ -35,12 +37,12 @@ for arg in "$@"; do
     VELOX_HOME=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --arrow_home=*)
-    ARROW_HOME=("${arg#*=}")
-    shift # Remove argument name from processing
-    ;;
   --enable_s3=*)
     ENABLE_S3=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_gcs=*)
+    ENABLE_GCS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_hdfs=*)
@@ -53,6 +55,10 @@ for arg in "$@"; do
     ;;
   --enable_ep_cache=*)
     ENABLE_EP_CACHE=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --build_tests=*)
+    ENABLE_TESTS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --build_benchmarks=*)
@@ -70,6 +76,19 @@ for arg in "$@"; do
   esac
 done
 
+function apply_compilation_fixes {
+  current_dir=$1
+  velox_home=$2
+  sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
+  sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/third_party/
+  cd ${velox_home}
+  git apply modify_velox.patch
+  if [ $? -ne 0 ]; then
+    echo "Failed to apply compilation fixes to Velox: $?."
+    exit 1
+  fi
+}
+
 function compile {
   TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
 
@@ -84,20 +103,12 @@ function compile {
     fi
   fi
 
-  if [ $OS == 'Linux' ]; then
-    # create libvelox_hive_connector.a for VeloxInitializer.cc
-    sed -i 's/OBJECT//' velox/connectors/hive/CMakeLists.txt
-  elif [ $OS == 'Darwin' ]; then
-    # create libvelox_hive_connector.a for VeloxInitializer.cc
-    sed -i '' 's/OBJECT//' velox/connectors/hive/CMakeLists.txt
-  else
-    echo "Unsupport kernel: $OS"
-    exit 1
+  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_BUILD_TEST_UTILS=OFF -DVELOX_ENABLE_DUCKDB=OFF"
+  if [ $ENABLE_BENCHMARK == "ON" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_BENCHMARKS=ON"
   fi
-
-  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON"
-  if [ $ENABLE_BENCHMARK == "OFF" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=OFF -DVELOX_BUILD_TEST_UTILS=ON"
+  if [ $ENABLE_TESTS == "ON" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=ON "
   fi
   if [ $ENABLE_HDFS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
@@ -105,19 +116,15 @@ function compile {
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
   fi
-
-  # Let Velox use pre-build arrow,parquet,thrift.
-  if [ "$ARROW_HOME" == "" ]; then
-    ARROW_HOME=$CURRENT_DIR/../../build-arrow/build
-  fi
-  if [ -d "$ARROW_HOME" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DArrow_HOME=${ARROW_HOME}"
+  if [ $ENABLE_GCS == "ON" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GCS=ON"
   fi
 
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
   echo "COMPILE_OPTION: "$COMPILE_OPTION
 
+  export simdjson_SOURCE=BUNDLED
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
@@ -144,14 +151,6 @@ function compile {
         sudo cmake --install gtest-build/
       elif [ $OS == 'Darwin' ]; then
         cmake --install gtest-build/
-      fi
-    fi
-    if [ -d simdjson-build ]; then
-      echo "INSTALL simdjson."
-      if [ $OS == 'Linux' ]; then
-        sudo cmake --install simdjson-build/
-      elif [ $OS == 'Darwin' ]; then
-        cmake --install simdjson-build/
       fi
     fi
   fi
@@ -251,8 +250,8 @@ fi
 echo "Start building Velox..."
 echo "CMAKE Arguments:"
 echo "VELOX_HOME=${VELOX_HOME}"
-echo "ARROW_HOME=${ARROW_HOME}"
 echo "ENABLE_S3=${ENABLE_S3}"
+echo "ENABLE_GCS=${ENABLE_GCS}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 
@@ -265,6 +264,7 @@ fi
 echo "Target Velox commit: $TARGET_BUILD_COMMIT"
 
 check_commit
+apply_compilation_fixes $CURRENT_DIR $VELOX_HOME
 compile
 
 echo "Successfully built Velox from Source."

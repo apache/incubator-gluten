@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 
-class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
+class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
@@ -415,6 +415,48 @@ class VeloxAggregateFunctionsSuite extends WholeStageTransformerSuite {
               plan => {
                 plan.isInstanceOf[HashAggregateExecTransformer]
               }) == 0)
+        }
+    }
+  }
+
+  test("max_by") {
+    runQueryAndCompare(s"""
+                          |select max_by(l_linenumber, l_comment) from lineitem;
+                          |""".stripMargin) {
+      checkOperatorMatch[HashAggregateExecTransformer]
+    }
+    runQueryAndCompare(s"""
+                          |select max_by(distinct l_linenumber, l_comment)
+                          |from lineitem
+                          |""".stripMargin) {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+  }
+
+  test("min_by") {
+    runQueryAndCompare(s"""
+                          |select min_by(l_linenumber, l_comment) from lineitem;
+                          |""".stripMargin) {
+      checkOperatorMatch[HashAggregateExecTransformer]
+    }
+    runQueryAndCompare(s"""
+                          |select min_by(distinct l_linenumber, l_comment)
+                          |from lineitem
+                          |""".stripMargin) {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
         }
     }
   }

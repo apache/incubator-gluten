@@ -17,8 +17,7 @@
 package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.utils.SystemParameters
+import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.test.SharedSparkSession
@@ -57,7 +56,7 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
     // .set("spark.sql.optimizer.excludedRules", ConstantFolding.ruleName + "," +
     //     NullPropagation.ruleName)
 
-    if (BackendsApiManager.isCHBackend) {
+    if (BackendTestUtils.isCHBackendLoaded()) {
       conf
         .set("spark.io.compression.codec", "LZ4")
         .set("spark.gluten.sql.columnar.backend.ch.worker.id", "1")

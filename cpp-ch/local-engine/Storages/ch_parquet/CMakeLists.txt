@@ -25,7 +25,7 @@ add_headers_and_sources_including_cc(ch_parquet arrow)
 
 add_library(ch_parquet ${ch_parquet_sources})
 
-target_compile_options(ch_parquet PUBLIC -fPIC
+target_compile_options(ch_parquet PRIVATE -fPIC
     -Wno-shorten-64-to-32
     -Wno-shadow-field-in-constructor
     -Wno-return-type
@@ -44,6 +44,7 @@ target_compile_options(ch_parquet PUBLIC -fPIC
     -Wno-suggest-override
     -Wno-unused-member-function
     -Wno-deprecated-this-capture
+    -Wno-tautological-unsigned-zero-compare
 )
 
 target_link_libraries(ch_parquet PUBLIC

@@ -20,7 +20,7 @@ import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, ColumnarAQEShuffleReadExec, QueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, QueryStageExec}
 import org.apache.spark.sql.execution.exchange.ReusedExchangeExec
 
 /**
@@ -57,14 +57,14 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
         true
       case _: ReusedExchangeExec =>
         true
-      case _: ColumnarAQEShuffleReadExec =>
+      case p: SparkPlan if p.supportsColumnar =>
         true
       case _ =>
         false
     }
   }
 
-  def isFallback(plan: SparkPlan): Boolean = {
+  def hasFallback(plan: SparkPlan): Boolean = {
     var fallbackOperator: Seq[SparkPlan] = null
     if (plan.isInstanceOf[AdaptiveSparkPlanExec]) {
       fallbackOperator = collectWithSubqueries(plan) {

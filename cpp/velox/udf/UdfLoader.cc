@@ -17,9 +17,10 @@
 
 #include <dlfcn.h>
 #include <google/protobuf/arena.h>
-#include <velox/dwio/type/fbhive/HiveTypeParser.h>
 #include <velox/expression/SignatureBinder.h>
 #include <velox/expression/VectorFunction.h>
+#include <velox/type/fbhive/HiveTypeParser.h>
+#include <filesystem>
 #include <vector>
 #include "substrait/VeloxToSubstraitType.h"
 
@@ -42,7 +43,7 @@ void* loadSymFromLibrary(void* handle, const std::string& libPath, const std::st
 } // namespace
 
 void gluten::UdfLoader::loadUdfLibraries(const std::string& libPaths) {
-  const auto& paths = splitPaths(libPaths);
+  const auto& paths = splitPaths(libPaths, /*checkExists=*/true);
   loadUdfLibraries0(paths);
 }
 
@@ -71,7 +72,7 @@ std::unordered_map<std::string, std::string> gluten::UdfLoader::getUdfMap() {
     auto getUdfEntries = reinterpret_cast<void (*)(UdfEntry*)>(getUdfEntriesSym);
     getUdfEntries(udfEntry);
 
-    facebook::velox::dwio::type::fbhive::HiveTypeParser parser;
+    facebook::velox::type::fbhive::HiveTypeParser parser;
     google::protobuf::Arena arena;
     auto typeConverter = VeloxToSubstraitTypeConvertor();
     for (auto i = 0; i < numUdf; ++i) {

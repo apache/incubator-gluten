@@ -28,7 +28,7 @@
 
 #include <chrono>
 
-#include "benchmarks/BenchmarkUtils.h"
+#include "benchmarks/common/BenchmarkUtils.h"
 #include "memory/ColumnarBatch.h"
 #include "shuffle/LocalPartitionWriter.h"
 #include "shuffle/VeloxShuffleWriter.h"
@@ -115,9 +115,9 @@ class BenchmarkShuffleSplit {
 
     auto options = ShuffleWriterOptions::defaults();
     options.buffer_size = kPartitionBufferSize;
-    options.buffered_write = true;
     options.memory_pool = pool.get();
-    options.partitioning_name = "rr";
+    options.partitioning = Partitioning::kRoundRobin;
+    GLUTEN_THROW_NOT_OK(setLocalDirsAndDataFileFromEnv(options));
 
     std::shared_ptr<VeloxShuffleWriter> shuffleWriter;
     int64_t elapseRead = 0;

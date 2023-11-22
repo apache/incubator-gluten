@@ -17,8 +17,7 @@
 package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.utils.SystemParameters
+import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator
@@ -168,7 +167,7 @@ class GlutenSQLQueryTestSuite
     attempt.isSuccess && attempt.get == 0
   }
 
-  private val isCHBackend = BackendsApiManager.isCHBackend
+  private val isCHBackend = BackendTestUtils.isCHBackendLoaded()
 
   override protected def sparkConf: SparkConf = {
     val conf = super.sparkConf
@@ -213,7 +212,8 @@ class GlutenSQLQueryTestSuite
     "explain.sql", // explain
     "group-analytics.sql", // wait velox to fix issue 3357
     "array.sql", // blocked by VELOX-5768
-    "higher-order-functions.sql" // blocked by VELOX-5768
+    "higher-order-functions.sql", // blocked by VELOX-5768
+    "udf/udf-window.sql" // Local window fixes are not added.
   ) ++ otherIgnoreList
 
   /**
@@ -240,8 +240,9 @@ class GlutenSQLQueryTestSuite
     "current_database_catalog.sql",
     "date.sql",
     "datetime-formatting-invalid.sql",
-    "datetime-formatting-legacy.sql",
-    "datetime-formatting.sql",
+    // Velox had different handling for some illegal cases.
+//     "datetime-formatting-legacy.sql",
+//     "datetime-formatting.sql",
     "datetime-legacy.sql",
     "datetime-parsing-invalid.sql",
     "datetime-parsing-legacy.sql",

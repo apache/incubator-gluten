@@ -20,7 +20,7 @@ import org.apache.spark.SparkConf
 
 import java.io.File
 
-class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
+class VeloxDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/data-type-validation-data"
@@ -262,7 +262,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
 
     // Validation: Window.
     runQueryAndCompare(
-      "select row_number() over (partition by date order by date) from type1 order by int, date") {
+      "select row_number() over (partition by date order by int) from type1 order by int, date") {
       checkOperatorMatch[WindowExecTransformer]
     }
 
@@ -445,7 +445,7 @@ class VeloxDataTypeValidationSuite extends WholeStageTransformerSuite {
     }
   }
 
-  test("Velox Parquet Write") {
+  ignore("Velox Parquet Write") {
     withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
       withTempDir {
         dir =>

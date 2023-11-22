@@ -28,6 +28,10 @@
   <name>Gluten Shims</name>
   <packaging>pom</packaging>
 
+  <modules>
+    <module>common</module>
+  </modules>
+
   <dependencies>
     <dependency>
       <groupId>org.scalatest</groupId>
@@ -46,7 +50,6 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-client</artifactId>
-      <version>${hadoop.version}</version>
     </dependency>
   </dependencies>
 
@@ -64,24 +67,25 @@
         </plugin>
       </plugins>
     </pluginManagement>
-
   </build>
+
   <profiles>
     <profile>
       <id>spark-3.2</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
       <modules>
-        <module>common</module>
         <module>spark32</module>
       </modules>
     </profile>
     <profile>
       <id>spark-3.3</id>
       <modules>
-        <module>common</module>
         <module>spark33</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>spark-3.4</id>
+      <modules>
+        <module>spark34</module>
       </modules>
     </profile>
   </profiles>

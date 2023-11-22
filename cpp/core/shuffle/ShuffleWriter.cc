@@ -31,10 +31,6 @@ namespace gluten {
 #define SPLIT_BUFFER_SIZE 16 * 1024 * 1024
 #endif
 
-ShuffleWriterOptions ShuffleWriterOptions::defaults() {
-  return {};
-}
-
 std::shared_ptr<arrow::Schema> ShuffleWriter::writeSchema() {
   if (writeSchema_ != nullptr) {
     return writeSchema_;

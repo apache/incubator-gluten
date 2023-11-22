@@ -17,7 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
@@ -30,8 +30,6 @@ import org.apache.spark.sql.types.DataType
 import com.google.protobuf.Any
 import io.substrait.proto.JoinRel
 
-import java.util
-
 import scala.collection.JavaConverters._
 
 object JoinUtils {
@@ -43,7 +41,7 @@ object JoinUtils {
     // is also used in execution phase. In this case an empty typeUrlPrefix need to be passed,
     // so that it can be correctly parsed into json string on the cpp side.
     Any.pack(
-      TypeBuilder.makeStruct(false, new util.ArrayList[TypeNode](inputTypeNodes.asJava)).toProtobuf,
+      TypeBuilder.makeStruct(false, inputTypeNodes.asJava).toProtobuf,
       /* typeUrlPrefix */ "")
   }
 
@@ -64,7 +62,7 @@ object JoinUtils {
       keyExprs: Seq[Expression],
       inputNode: RelNode,
       inputNodeOutput: Seq[Attribute],
-      joinOutput: Seq[Attribute],
+      partialConstructedJoinOutput: Seq[Attribute],
       substraitContext: SubstraitContext,
       operatorId: java.lang.Long,
       validation: Boolean): (Seq[(ExpressionNode, DataType)], RelNode, Seq[Attribute]) = {
@@ -75,7 +73,7 @@ object JoinUtils {
         expr =>
           (
             ExpressionConverter
-              .replaceWithExpressionTransformer(expr, joinOutput)
+              .replaceWithExpressionTransformer(expr, partialConstructedJoinOutput)
               .asInstanceOf[AttributeReferenceTransformer]
               .doTransform(substraitContext.registeredFunction),
             expr.dataType)
@@ -104,14 +102,14 @@ object JoinUtils {
       )
 
       // Compute index for join keys in join outputs.
-      val offset = joinOutput.size - inputNodeOutput.size + selectOrigins.size
+      val offset = partialConstructedJoinOutput.size
       val appendedKeysAndIndices = appendedKeys.zipWithIndex.iterator
       val keys = keyExprs.map {
         case a: AttributeReference =>
           // The selection index for original AttributeReference is unchanged.
           (
             ExpressionConverter
-              .replaceWithExpressionTransformer(a, joinOutput)
+              .replaceWithExpressionTransformer(a, partialConstructedJoinOutput)
               .asInstanceOf[AttributeReferenceTransformer]
               .doTransform(substraitContext.registeredFunction),
             a.dataType)

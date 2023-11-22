@@ -24,18 +24,25 @@ FOREACH(FIL ${protobuf_files})
     LIST(APPEND SUBSTRAIT_HEADERS "${CMAKE_CURRENT_BINARY_DIR}/${FILE_NAME}.pb.h")
 ENDFOREACH()
 
-add_custom_target(
-        generate_substrait
-        COMMAND ${CMAKE_CURRENT_BINARY_DIR}/../../../contrib/google-protobuf-cmake/protoc -I${CMAKE_CURRENT_SOURCE_DIR} -I${ClickHouse_SOURCE_DIR}/contrib/google-protobuf/src --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/ ${protobuf_files}
-        DEPENDS protoc
+# Generate Substrait headers
+add_custom_command(
+        OUTPUT ${SUBSTRAIT_SRCS} ${SUBSTRAIT_HEADERS}
+        COMMAND
+        $<TARGET_FILE:protoc> --cpp_out ${CMAKE_CURRENT_BINARY_DIR}
+        --proto_path ${CMAKE_CURRENT_SOURCE_DIR}
+        --proto_path ${ClickHouse_SOURCE_DIR}/contrib/google-protobuf/src
+        ${protobuf_files}
+        DEPENDS ${protobuf_files}
         COMMENT "Running cpp protocol buffer compiler"
-        VERBATIM )
-
+        VERBATIM)
+add_custom_target(generate_substrait ALL DEPENDS ${SUBSTRAIT_SRCS} ${SUBSTRAIT_HEADERS})
 set_source_files_properties(${SUBSTRAIT_SRCS} PROPERTIES GENERATED TRUE)
 
 add_library(substrait ${SUBSTRAIT_SRCS})
 add_dependencies(substrait generate_substrait)
-target_compile_options(substrait PUBLIC -fPIC -Wno-reserved-identifier -Wno-deprecated -Wno-shadow-field)
+target_compile_options(substrait PUBLIC -fPIC
+        -Wno-reserved-identifier
+        -Wno-deprecated)
 target_include_directories(substrait SYSTEM BEFORE PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_link_libraries(substrait ch_contrib::protobuf)
 

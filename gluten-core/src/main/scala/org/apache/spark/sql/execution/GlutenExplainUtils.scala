@@ -16,16 +16,20 @@
  */
 package org.apache.spark.sql.execution
 
-import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.execution.WholeStageTransformer
+import io.glutenproject.extension.{GlutenPlan, InMemoryTableScanHelper}
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.expressions.{Expression, PlanExpression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.execution.GlutenFallbackReporter.FALLBACK_REASON_TAG
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, QueryStageExec}
+import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, AQEShuffleReadExec, QueryStageExec}
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
+import org.apache.spark.sql.execution.command.{DataWritingCommandExec, ExecutedCommandExec}
+import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 import org.apache.spark.sql.execution.exchange.{Exchange, ReusedExchangeExec}
 
-import java.util.{IdentityHashMap, Set}
+import java.util
 import java.util.Collections.newSetFromMap
 
 import scala.collection.mutable
@@ -36,37 +40,65 @@ import scala.collection.mutable.{ArrayBuffer, BitSet}
 // 2. remove `plan.verboseStringWithOperatorId`
 // 3. remove codegen id
 object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
-  private def collectFallbackNodes(plan: QueryPlan[_]): (Int, Map[String, String]) = {
+  type FallbackInfo = (Int, Map[String, String])
+
+  def addFallbackNodeWithReason(
+      p: SparkPlan,
+      reason: String,
+      fallbackNodeToReason: mutable.HashMap[String, String]): Unit = {
+    p.getTagValue(QueryPlan.OP_ID_TAG).foreach {
+      opId =>
+        // e.g., 002 project, it is used to help analysis by `substring(4)`
+        val formattedNodeName = f"$opId%03d ${p.nodeName}"
+        fallbackNodeToReason.put(formattedNodeName, reason)
+    }
+  }
+
+  def handleVanillaSparkPlan(
+      p: SparkPlan,
+      fallbackNodeToReason: mutable.HashMap[String, String]
+  ): Unit = {
+    p.logicalLink.flatMap(_.getTagValue(FALLBACK_REASON_TAG)) match {
+      case Some(reason) => addFallbackNodeWithReason(p, reason, fallbackNodeToReason)
+      case _ =>
+        // If the SparkPlan does not have fallback reason, then there are two options:
+        // 1. Gluten ignore that plan and it's a kind of fallback
+        // 2. Gluten does not support it without the fallback reason
+        addFallbackNodeWithReason(
+          p,
+          "Gluten does not touch it or does not support it",
+          fallbackNodeToReason)
+    }
+  }
+
+  private def collectFallbackNodes(plan: QueryPlan[_]): FallbackInfo = {
     var numGlutenNodes = 0
     val fallbackNodeToReason = new mutable.HashMap[String, String]
 
-    def addFallbackNodeWithReason(p: SparkPlan, reason: String): Unit = {
-      p.getTagValue(QueryPlan.OP_ID_TAG).foreach {
-        opId =>
-          // e.g., 002 project, it is used to help analysis by `substring(4)`
-          val formattedNodeName = f"$opId%03d ${p.nodeName}"
-          fallbackNodeToReason.put(formattedNodeName, reason)
-      }
-    }
-
     def collect(tmp: QueryPlan[_]): Unit = {
       tmp.foreachUp {
+        case _: ExecutedCommandExec =>
+        case _: CommandResultExec =>
+        case _: V2CommandExec =>
+        case _: DataWritingCommandExec =>
         case _: WholeStageCodegenExec =>
+        case _: WholeStageTransformer =>
         case _: InputAdapter =>
-        case p: AdaptiveSparkPlanExec => collect(p.executedPlan)
+        case _: ColumnarToRowTransition =>
+        case _: RowToColumnarTransition =>
         case p: QueryStageExec => collect(p.plan)
         case p: GlutenPlan =>
           numGlutenNodes += 1
           p.innerChildren.foreach(collect)
-        case p: SparkPlan =>
-          p.logicalLink.flatMap(_.getTagValue(FALLBACK_REASON_TAG)) match {
-            case Some(reason) => addFallbackNodeWithReason(p, reason)
-            case _ =>
-              // If the SparkPlan does not have fallback reason, then there are two options:
-              // 1. Gluten ignore that plan and it's a kind of fallback
-              // 2. Gluten does not support it without the fallback reason
-              addFallbackNodeWithReason(p, "Gluten does not touch it or does not support it")
+        case i: InMemoryTableScanExec =>
+          if (InMemoryTableScanHelper.isGlutenTableCache(i)) {
+            numGlutenNodes += 1
+          } else {
+            addFallbackNodeWithReason(i, "Columnar table cache is disabled", fallbackNodeToReason)
           }
+        case _: AQEShuffleReadExec => // Ignore
+        case p: SparkPlan =>
+          handleVanillaSparkPlan(p, fallbackNodeToReason)
           p.innerChildren.foreach(collect)
         case _ =>
       }
@@ -111,11 +143,12 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
    */
   def processPlan[T <: QueryPlan[T]](
       plan: T,
-      append: String => Unit): (Int, Map[String, String]) = {
+      append: String => Unit,
+      collectFallbackFunc: Option[QueryPlan[_] => FallbackInfo] = None): FallbackInfo = {
     try {
       // Initialize a reference-unique set of Operators to avoid accdiental overwrites and to allow
       // intentional overwriting of IDs generated in previous AQE iteration
-      val operators = newSetFromMap[QueryPlan[_]](new IdentityHashMap())
+      val operators = newSetFromMap[QueryPlan[_]](new util.IdentityHashMap())
       // Initialize an array of ReusedExchanges to help find Adaptively Optimized Out
       // Exchanges as part of SPARK-42753
       val reusedExchanges = ArrayBuffer.empty[ReusedExchangeExec]
@@ -177,7 +210,11 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
           append("\n")
       }
 
-      collectFallbackNodes(plan)
+      if (collectFallbackFunc.isEmpty) {
+        collectFallbackNodes(plan)
+      } else {
+        collectFallbackFunc.get.apply(plan)
+      }
     } finally {
       removeTags(plan)
     }
@@ -215,7 +252,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
   private def generateOperatorIDs(
       plan: QueryPlan[_],
       startOperatorID: Int,
-      visited: Set[QueryPlan[_]],
+      visited: util.Set[QueryPlan[_]],
       reusedExchanges: ArrayBuffer[ReusedExchangeExec],
       addReusedExchanges: Boolean): Int = {
     var currentOperationID = startOperatorID
@@ -301,11 +338,11 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
    * Returns the operator identifier for the supplied plan by retrieving the `operationId` tag
    * value.
    */
-  def getOpId(plan: QueryPlan[_]): String = {
+  private def getOpId(plan: QueryPlan[_]): String = {
     plan.getTagValue(QueryPlan.OP_ID_TAG).map(v => s"$v").getOrElse("unknown")
   }
 
-  def removeTags(plan: QueryPlan[_]): Unit = {
+  private def removeTags(plan: QueryPlan[_]): Unit = {
     def remove(p: QueryPlan[_], children: Seq[QueryPlan[_]]): Unit = {
       p.unsetTagValue(QueryPlan.OP_ID_TAG)
       children.foreach(removeTags)

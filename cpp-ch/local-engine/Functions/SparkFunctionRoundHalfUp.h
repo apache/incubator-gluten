@@ -19,48 +19,26 @@
 #include <Functions/FunctionsRound.h>
 
 
-namespace  local_engine
+namespace local_engine
 {
 using namespace DB;
-
-
-/// Implementation for round half up. Not vectorized.
-
-inline float roundHalfUp(float x)
-{
-    return roundf(x);
-
-    UNREACHABLE();
-}
-
-inline double roundHalfUp(double x)
-{
-    return round(x);
-
-    UNREACHABLE();
-}
 
 template <typename T>
 class BaseFloatRoundingHalfUpComputation
 {
 public:
     using ScalarType = T;
-    using VectorType = T;
+    using VectorType = Float64;
     static const size_t data_count = 1;
 
-    static VectorType load(const ScalarType * in) { return *in; }
-    static VectorType load1(const ScalarType in) { return in; }
-    static VectorType store(ScalarType * out, ScalarType val) { return *out = val;}
+    static VectorType load(const ScalarType * in) { return static_cast<VectorType>(*in); }
+    static VectorType load1(ScalarType in) { return in; }
+    static ScalarType store(ScalarType * out, VectorType val) { return *out = static_cast<ScalarType>(val); }
     static VectorType multiply(VectorType val, VectorType scale) { return val * scale; }
     static VectorType divide(VectorType val, VectorType scale) { return val / scale; }
-    static VectorType apply(VectorType val){return roundHalfUp(val);}
-
-    static VectorType prepare(size_t scale)
-    {
-        return load1(scale);
-    }
+    static VectorType apply(VectorType val) { return round(val); }
+    static VectorType prepare(size_t scale) { return load1(scale); }
 };
-
 
 
 /** Implementation of low-level round-off functions for floating-point values.
@@ -138,9 +116,6 @@ public:
         }
     }
 };
-
-
-
 
 
 /** Select the appropriate processing algorithm depending on the scale.

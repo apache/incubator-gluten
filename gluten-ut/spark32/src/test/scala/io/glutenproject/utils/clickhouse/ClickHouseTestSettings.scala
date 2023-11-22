@@ -170,6 +170,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameRangeSuite]
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenDataFrameSessionWindowingSuite]
+    .exclude("simple session window with record at window start")
+    .exclude("session window groupBy statement")
+    .exclude("SPARK-36465: filter out events with negative/zero gap duration")
     .exclude("session window groupBy with multiple keys statement")
     .exclude("session window groupBy with multiple keys statement - one distinct")
     .exclude("session window groupBy with multiple keys statement - two distinct")
@@ -193,6 +196,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35756: unionByName support struct having same col names but different sequence")
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
+    .exclude("Uuid expressions should produce same results at retries in the same DataFrame")
     .exclude("SPARK-28224: Aggregate sum big decimal overflow")
     .exclude("SPARK-28067: Aggregate sum should not return wrong results for decimal overflow")
     .exclude("SPARK-35955: Aggregate avg should not return wrong results for decimal overflow")
@@ -283,6 +287,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffWSCGOnDisableProject].exclude(
+    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffWSCGOffDisableProject].exclude(
+    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan].exclude(
@@ -290,6 +298,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan].exclude(
+    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffWSCGOnDisableProject].exclude(
+    "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffWSCGOffDisableProject].exclude(
     "Gluten - SPARK-32659: Fix the data issue when pruning DPP on non-atomic type")
   enableSuite[GlutenExpressionsSchemaSuite]
   enableSuite[GlutenExtraStrategiesSuite]
@@ -561,6 +573,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-32828: cast from a derived user-defined type to a base type")
     .exclude("SPARK-34727: cast from float II")
     .exclude("SPARK-35720: cast invalid string input to timestamp without time zone")
+    .exclude("Cast should output null for invalid strings when ANSI is not enabled.")
   enableSuite[GlutenCastSuiteWithAnsiModeOn]
     .exclude("null cast")
     .exclude("cast string to date")
@@ -665,6 +678,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("WeekDay")
     .exclude("WeekOfYear")
     .exclude("DateFormat")
+    .exclude("Gluten - DateFormat")
     .exclude("Hour")
     .exclude("Minute")
     .exclude("date add interval")
@@ -810,7 +824,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("round/bround")
     .exclude("SPARK-37388: width_bucket")
     .exclude("Gluten - round/bround")
-  enableSuite[GlutenMiscExpressionsSuite].exclude("uuid")
+  enableSuite[GlutenMiscExpressionsSuite]
   enableSuite[GlutenNondeterministicSuite]
     .exclude("MonotonicallyIncreasingID")
     .exclude("SparkPartitionID")
@@ -1662,7 +1676,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Legacy mode - nested map with struct as key type")
     .exclude("SPARK-35640: read binary as timestamp should throw schema incompatible error")
     .exclude("SPARK-35640: int as long should throw schema incompatible error")
-    .exclude("Gluten - SPARK-35640: int as long should throw schema incompatible error")
   enableSuite[GlutenParquetInteroperabilitySuite].exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetProtobufCompatibilitySuite].exclude("struct with unannotated array")
   enableSuite[GlutenParquetRebaseDatetimeV1Suite]

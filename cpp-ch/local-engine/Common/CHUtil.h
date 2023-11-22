@@ -47,6 +47,9 @@ public:
 
     static constexpr UInt64 FLAT_STRUCT = 1;
     static constexpr UInt64 FLAT_NESTED_TABLE = 2;
+    /// If it's a struct without named fields, also force to flatten it.
+    static constexpr UInt64 FLAT_STRUCT_FORCE = 4;
+
     // flatten the struct and array(struct) columns.
     // It's different from Nested::flattend()
     static DB::Block flattenBlock(
@@ -122,6 +125,9 @@ public:
 
     // use excel text parser
     inline static const std::string USE_EXCEL_PARSER = "use_excel_serialization";
+    inline static const std::string EXCEL_EMPTY_AS_NULL = "use_excel_serialization.empty_as_null";
+    inline static const std::string EXCEL_NUMBER_FORCE = "use_excel_serialization.number_force";
+    inline static const std::string EXCEL_QUOTE_STRICT = "use_excel_serialization.quote_strict";
     inline static const String CH_BACKEND_PREFIX = "spark.gluten.sql.columnar.backend.ch";
 
     inline static const String CH_RUNTIME_CONFIG = "runtime_config";

@@ -61,6 +61,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableColumnarWindow: Boolean = conf.getConf(COLUMNAR_WINDOW_ENABLED)
 
+  def veloxColumnarWindowType: String = conf.getConfString(COLUMNAR_VELOX_WINDOW_TYPE.key)
+
   def enableColumnarShuffledHashJoin: Boolean = conf.getConf(COLUMNAR_SHUFFLED_HASH_JOIN_ENABLED)
 
   def enableNativeColumnarToRow: Boolean = conf.getConf(COLUMNAR_COLUMNAR_TO_ROW_ENABLED)
@@ -83,6 +85,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarTableCacheEnabled: Boolean = conf.getConf(COLUMNAR_TABLE_CACHE_ENABLED)
 
+  def enableDateTimestampComparison: Boolean = conf.getConf(ENABLE_DATE_TIMESTAMP_COMPARISON)
+
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
     conf
@@ -100,8 +104,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enablePreferColumnar: Boolean = conf.getConf(COLUMNAR_PREFER_ENABLED)
 
   def enableOneRowRelationColumnar: Boolean = conf.getConf(COLUMNAR_ONE_ROW_RELATION_ENABLED)
-
-  def enableColumnarIterator: Boolean = conf.getConf(COLUMNAR_ITERATOR_ENABLED)
 
   def physicalJoinOptimizationThrottle: Integer =
     conf.getConf(COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE)
@@ -140,8 +142,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def columnarShuffleEnableIaa: Boolean =
     columnarShuffleCodecBackend.contains(GlutenConfig.GLUTEN_IAA_BACKEND_NAME)
 
-  def columnarShuffleBufferCompressThreshold: Int =
-    conf.getConf(COLUMNAR_SHUFFLE_BUFFER_COMPRESS_THRESHOLD)
+  def columnarShuffleCompressionThreshold: Int =
+    conf.getConf(COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD)
 
   def maxBatchSize: Int = conf.getConf(COLUMNAR_MAX_BATCH_SIZE)
 
@@ -228,6 +230,13 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def veloxSpillFileSystem: String = conf.getConf(COLUMNAR_VELOX_SPILL_FILE_SYSTEM)
 
+  def veloxBloomFilterExpectedNumItems: Long =
+    conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS)
+
+  def veloxBloomFilterNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS)
+
+  def veloxBloomFilterMaxNumBits: Long = conf.getConf(COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS)
+
   def chColumnarShufflePreferSpill: Boolean = conf.getConf(COLUMNAR_CH_SHUFFLE_PREFER_SPILL_ENABLED)
 
   def chColumnarShuffleSpillThreshold: Long = conf.getConf(COLUMNAR_CH_SHUFFLE_SPILL_THRESHOLD)
@@ -257,6 +266,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableVeloxUserExceptionStacktrace: Boolean =
     conf.getConf(COLUMNAR_VELOX_ENABLE_USER_EXCEPTION_STACKTRACE)
+
+  def memoryUseHugePages: Boolean =
+    conf.getConf(COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES)
 
   def debug: Boolean = conf.getConf(DEBUG_LEVEL_ENABLED)
   def taskStageId: Int = conf.getConf(BENCHMARK_TASK_STAGEID)
@@ -298,6 +310,7 @@ object GlutenConfig {
   val SPARK_SQL_PARQUET_COMPRESSION_CODEC: String = "spark.sql.parquet.compression.codec"
   val PARQUET_BLOCK_SIZE: String = "parquet.block.size"
   val PARQUET_BLOCK_ROWS: String = "parquet.block.rows"
+  val PARQUET_GZIP_WINDOW_SIZE: String = "parquet.gzip.windowSize"
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
 
@@ -329,10 +342,6 @@ object GlutenConfig {
   val GLUTEN_IAA_BACKEND_NAME = "iaa"
   val GLUTEN_IAA_SUPPORTED_CODEC: Set[String] = Set("gzip")
 
-  // Backends.
-  val GLUTEN_VELOX_BACKEND = "velox"
-  val GLUTEN_CLICKHOUSE_BACKEND = "ch"
-
   val GLUTEN_CONFIG_PREFIX = "spark.gluten.sql.columnar.backend."
 
   // Private Spark configs.
@@ -353,6 +362,8 @@ object GlutenConfig {
 
   // Pass through to native conf
   val GLUTEN_SAVE_DIR = "spark.gluten.saveDir"
+
+  val GLUTEN_DEBUG_MODE = "spark.gluten.sql.debug"
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
@@ -398,15 +409,6 @@ object GlutenConfig {
   val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
 
   var ins: GlutenConfig = _
-  private var current_backend_prefix = ""
-
-  def isCurrentBackendVelox: Boolean = {
-    current_backend_prefix.endsWith(GLUTEN_VELOX_BACKEND)
-  }
-
-  def isCurrentBackendCH: Boolean = {
-    current_backend_prefix.endsWith(GLUTEN_CLICKHOUSE_BACKEND)
-  }
 
   def getConf: GlutenConfig = {
     new GlutenConfig(SQLConf.get)
@@ -421,18 +423,24 @@ object GlutenConfig {
     }
   }
 
-  // TODO Backend-ize this
+  /** Get dynamic configs. */
   def getNativeSessionConf(
       backendPrefix: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
     val nativeConfMap = new util.HashMap[String, String]()
     val keys = ImmutableList.of(
+      GLUTEN_DEBUG_MODE,
       GLUTEN_SAVE_DIR,
       GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       GLUTEN_MAX_BATCH_SIZE_KEY,
       GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE,
       SQLConf.SESSION_LOCAL_TIMEZONE.key,
-      GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY
+      GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY,
+      SQLConf.LEGACY_SIZE_OF_NULL.key,
+      "spark.io.compression.codec",
+      COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
+      COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
+      COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key
     )
     keys.forEach(
       k => {
@@ -446,10 +454,9 @@ object GlutenConfig {
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
-    // FIXME all configs with BE prefix is considered dynamic and static at the same time
-    //   We'd untangle this logic
+    // Backend's dynamic session conf only.
     conf
-      .filter(_._1.startsWith(backendPrefix))
+      .filter(entry => entry._1.startsWith(backendPrefix) && !SQLConf.isStaticConfigKey(entry._1))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // Pass the latest tokens to native
@@ -464,13 +471,13 @@ object GlutenConfig {
     nativeConfMap
   }
 
-  // TODO: some of the config is dynamic in spark, but is static in gluten, because it should be
-  //  used to construct HiveConnector which intends reused in velox
+  /**
+   * Get static and dynamic configs. Some of the config is dynamic in spark, but is static in
+   * gluten, these will be used to construct HiveConnector which intends reused in velox
+   */
   def getNativeBackendConf(
       backendPrefix: String,
       conf: scala.collection.Map[String, String]): util.Map[String, String] = {
-
-    current_backend_prefix = backendPrefix
 
     val nativeConfMap = new util.HashMap[String, String]()
 
@@ -495,11 +502,16 @@ object GlutenConfig {
       ("spark.hadoop.input.connect.timeout", "180000"),
       ("spark.hadoop.input.read.timeout", "180000"),
       ("spark.hadoop.input.write.timeout", "180000"),
-      ("spark.hadoop.dfs.client.log.severity", "INFO")
+      ("spark.hadoop.dfs.client.log.severity", "INFO"),
+      ("spark.sql.orc.compression.codec", "snappy"),
+      (
+        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
+        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
     val keys = ImmutableList.of(
+      GLUTEN_DEBUG_MODE,
       // datasource config
       SPARK_SQL_PARQUET_COMPRESSION_CODEC,
       // datasource config end
@@ -531,7 +543,8 @@ object GlutenConfig {
   val GLUTEN_ENABLED =
     buildConf(GLUTEN_ENABLE_KEY)
       .internal()
-      .doc("Whether to enable gluten. Default value is true.")
+      .doc("Whether to enable gluten. Default value is true. Just an experimental property." +
+        " Recommend to enable/disable Gluten through the setting for spark.plugins.")
       .booleanConf
       .createWithDefault(GLUTEN_ENABLE_BY_DEFAULT)
 
@@ -615,6 +628,21 @@ object GlutenConfig {
       .doc("Enable or disable columnar window.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_VELOX_WINDOW_TYPE =
+    buildConf("spark.gluten.sql.columnar.backend.velox.window.type")
+      .internal()
+      .doc(
+        "Velox backend supports both SortWindow and" +
+          " StreamingWindow operators." +
+          " The StreamingWindow operator skips the sorting step" +
+          " in the input but does not support spill." +
+          " On the other hand, the SortWindow operator is " +
+          "responsible for sorting the input data within the" +
+          " Window operator and also supports spill.")
+      .stringConf
+      .checkValues(Set("streaming", "sort"))
+      .createWithDefault("streaming")
 
   val COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.forceShuffledHashJoin")
@@ -712,15 +740,7 @@ object GlutenConfig {
       .internal()
       .doc("Enable or disable columnar table cache.")
       .booleanConf
-      .createWithDefault(true)
-
-  val COLUMNAR_ITERATOR_ENABLED =
-    buildConf("spark.gluten.sql.columnar.iterator")
-      .internal()
-      .doc(
-        "This config is used for specifying whether to use a columnar iterator in WS transformer.")
-      .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val COLUMNAR_PHYSICAL_JOIN_OPTIMIZATION_THROTTLE =
     buildConf("spark.gluten.sql.columnar.physicalJoinOptimizationLevel")
@@ -812,11 +832,13 @@ object GlutenConfig {
       .checkValues(Set("buffer", "rowvector"))
       .createWithDefault("buffer")
 
-  val COLUMNAR_SHUFFLE_BUFFER_COMPRESS_THRESHOLD =
-    buildConf("spark.gluten.sql.columnar.shuffle.bufferCompressThreshold")
+  val COLUMNAR_SHUFFLE_COMPRESSION_THRESHOLD =
+    buildConf("spark.gluten.sql.columnar.shuffle.compression.threshold")
       .internal()
+      .doc("If number of rows in a batch falls below this threshold," +
+        " will copy all buffers into one buffer to compress.")
       .intConf
-      .createWithDefault(1024)
+      .createWithDefault(100)
 
   val COLUMNAR_MAX_BATCH_SIZE =
     buildConf(GLUTEN_MAX_BATCH_SIZE_KEY)
@@ -970,67 +992,81 @@ object GlutenConfig {
 
   // velox caching options
   val COLUMNAR_VELOX_CACHE_ENABLED =
-    buildConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cacheEnabled")
       .internal()
       .doc("Enable Velox cache, default off")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_VELOX_MEM_CACHE_SIZE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.memCacheSize")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.memCacheSize")
       .internal()
       .doc("The memory cache size")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1GB")
 
   val COLUMNAR_VELOX_SSD_CACHE_PATH =
-    buildConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCachePath")
       .internal()
       .doc("The folder to store the cache files, better on SSD")
       .stringConf
       .createWithDefault("/tmp")
 
   val COLUMNAR_VELOX_SSD_CACHE_SIZE =
-    buildConf("spark.gluten.sql.columnar.backend.velox.ssdCacheSize")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCacheSize")
       .internal()
       .doc("The SSD cache size, will do memory caching only if this value = 0")
       .bytesConf(ByteUnit.BYTE)
       .createWithDefaultString("1GB")
 
   val COLUMNAR_VELOX_SSD_CACHE_SHARDS =
-    buildConf("spark.gluten.sql.columnar.backend.velox.ssdCacheShards")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCacheShards")
       .internal()
       .doc("The cache shards")
       .intConf
       .createWithDefault(1)
 
   val COLUMNAR_VELOX_SSD_CACHE_IO_THREADS =
-    buildConf("spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdCacheIOThreads")
       .internal()
       .doc("The IO threads for cache promoting")
       .intConf
       .createWithDefault(1)
 
   val COLUMNAR_VELOX_SSD_ODIRECT_ENABLED =
-    buildConf("spark.gluten.sql.columnar.backend.velox.ssdODirect")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdODirect")
       .internal()
       .doc("The O_DIRECT flag for cache writing")
       .booleanConf
       .createWithDefault(false)
 
   val COLUMNAR_VELOX_CONNECTOR_IO_THREADS =
-    buildConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.IOThreads")
       .internal()
       .doc("The IO threads for connector split preloading")
       .intConf
       .createWithDefault(0)
 
   val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
-    buildConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
       .internal()
       .doc("The split preload per task")
       .intConf
       .createWithDefault(2)
+
+  val COLUMNAR_VELOX_GLOG_VERBOSE_LEVEL =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.glogVerboseLevel")
+      .internal()
+      .doc("Set glog verbose level in Velox backend, same as FLAGS_v.")
+      .intConf
+      .createWithDefault(0)
+
+  val COLUMNAR_VELOX_GLOG_SEVERITY_LEVEL =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.glogSeverityLevel")
+      .internal()
+      .doc("Set glog severity level in Velox backend, same as FLAGS_minloglevel.")
+      .intConf
+      .createWithDefault(0)
 
   val COLUMNAR_VELOX_SPILL_STRATEGY =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
@@ -1131,7 +1167,7 @@ object GlutenConfig {
       .createWithDefault("DEBUG")
 
   val DEBUG_LEVEL_ENABLED =
-    buildConf("spark.gluten.sql.debug")
+    buildConf(GLUTEN_DEBUG_MODE)
       .internal()
       .booleanConf
       .createWithDefault(false)
@@ -1140,7 +1176,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.benchmark_task.stageId")
       .internal()
       .intConf
-      .createWithDefault(1)
+      .createWithDefault(-1)
 
   val BENCHMARK_TASK_PARTITIONID =
     buildConf("spark.gluten.sql.benchmark_task.partitionId")
@@ -1197,6 +1233,13 @@ object GlutenConfig {
       .doc("Enable the stacktrace for user type of VeloxException")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_VELOX_MEMORY_USE_HUGE_PAGES =
+    buildConf("spark.gluten.sql.columnar.backend.velox.memoryUseHugePages")
+      .internal()
+      .doc("Use explicit huge pages for Velox memory allocation.")
+      .booleanConf
+      .createWithDefault(false)
 
   val COLUMNAR_VELOX_ENABLE_SYSTEM_EXCEPTION_STACKTRACE =
     buildConf("spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace")
@@ -1261,4 +1304,60 @@ object GlutenConfig {
         + "partial aggregation may be early abandoned.")
       .intConf
       .createOptional
+
+  val ENABLE_DATE_TIMESTAMP_COMPARISON =
+    buildConf("spark.gluten.sql.rewrite.dateTimestampComparison")
+      .internal()
+      .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
+        + "For example `fron_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")
+      .internal()
+      .doc("The default number of expected items for the velox bloomfilter: " +
+        "'spark.bloom_filter.expected_num_items'")
+      .longConf
+      .createWithDefault(1000000L)
+
+  val COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits")
+      .internal()
+      .doc("The default number of bits to use for the velox bloom filter: " +
+        "'spark.bloom_filter.num_bits'")
+      .longConf
+      .createWithDefault(8388608L)
+
+  val COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS =
+    buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits")
+      .internal()
+      .doc("The max number of bits to use for the velox bloom filter: " +
+        "'spark.bloom_filter.max_num_bits'")
+      .longConf
+      .createWithDefault(4194304L)
+
+  val COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled")
+      .internal()
+      .doc("Disables caching if false. File handle cache should be disabled " +
+        "if files are mutable, i.e. file content may change while file path stays the same.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT =
+    buildConf("spark.gluten.sql.cacheWholeStageTransformerContext")
+      .internal()
+      .doc("When true, `WholeStageTransformer` will cache the `WholeStageTransformerContext` " +
+        "when executing. It is used to get substrait plan node and native plan string.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN =
+    buildConf("spark.gluten.sql.injectNativePlanStringToExplain")
+      .internal()
+      .doc("When true, Gluten will inject native plan tree to explain string inside " +
+        "`WholeStageTransformerContext`.")
+      .booleanConf
+      .createWithDefault(false)
 }

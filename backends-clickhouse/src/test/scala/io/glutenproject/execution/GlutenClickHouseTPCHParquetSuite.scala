@@ -2004,8 +2004,23 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
 
+  test("GLUTEN-3501: test json output format with struct contains null value") {
+    val sql =
+      """
+        |select to_json(struct(cast(id as string), null, id, 1.1, 1.1f, 1.1d)) from range(3)
+        |""".stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
+  test("GLUTEN-3216: invalid read rel schema in aggregation") {
+    val sql =
+      """
+        |select count(distinct(n_regionkey,n_nationkey)) from nation
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
   test("Test plan json non-empty") {
-    spark.sparkContext.setLogLevel("WARN")
     val df1 = spark
       .sql("""
              | select * from lineitem limit 1
@@ -2013,18 +2028,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     val executedPlan1 = df1.queryExecution.executedPlan
     val lastStageTransformer1 = executedPlan1.find(_.isInstanceOf[WholeStageTransformer])
     executedPlan1.execute()
-    assert(lastStageTransformer1.get.asInstanceOf[WholeStageTransformer].getPlanJson.isEmpty)
-
-    spark.sparkContext.setLogLevel("DEBUG")
-    val df2 = spark
-      .sql("""
-             | select * from lineitem limit 1
-             | """.stripMargin)
-    val executedPlan2 = df2.queryExecution.executedPlan
-    val lastStageTransformer2 = executedPlan2.find(_.isInstanceOf[WholeStageTransformer])
-    executedPlan2.execute()
-    assert(lastStageTransformer2.get.asInstanceOf[WholeStageTransformer].getPlanJson.nonEmpty)
-    spark.sparkContext.setLogLevel(logLevel)
+    assert(lastStageTransformer1.get.asInstanceOf[WholeStageTransformer].substraitPlanJson.nonEmpty)
   }
 
   test("GLUTEN-3140: Bug fix array_contains return null") {
@@ -2051,5 +2055,167 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
                 |   ))""".stripMargin
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
+
+  test("GLUTEN-3149 convert Inf to int") {
+    val sql = """
+                | select n_regionkey, n is null, isnan(n),  cast(n as int) from (
+                |   select n_regionkey, x, n_regionkey/(x) as n from (
+                |     select n_regionkey, cast(n_nationkey as float) as x from  nation
+                |   )t1
+                | )t2""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test in-filter contains null value (bigint)") {
+    val sql = "select s_nationkey from supplier where s_nationkey in (null, 1, 2)"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("test in-filter contains null value (string)") {
+    val sql = "select n_name from nation where n_name in ('CANADA', null, 'BRAZIL')"
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-3287: diff when divide zero") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select 1/0f, 1/0.0d",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select n_nationkey / n_regionkey from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("GLUTEN-3135: Bug fix to_date") {
+    val create_table_sql =
+      """
+        | create table test_tbl_3135(id bigint, data string) using parquet
+        |""".stripMargin
+    val insert_data_sql =
+      """
+        |insert into test_tbl_3135 values
+        |(1, '2023-09-02 23:59:59.299+11'),
+        |(2, '2023-09-02 23:59:59.299-11'),
+        |(3, '2023-09-02 00:00:01.333+11'),
+        |(4, '2023-09-02 00:00:01.333-11'),
+        |(5, '  2023-09-02 agdfegfew'),
+        |(6, 'afe2023-09-02 11:22:33'),
+        |(7, '1970-01-01 00:00:00')
+        |""".stripMargin
+    spark.sql(create_table_sql)
+    spark.sql(insert_data_sql)
+
+    val select_sql = "select id, to_date(data) from test_tbl_3135"
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_3135")
+  }
+
+  test("GLUTEN-3134: Bug fix left join not match") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "1B")) {
+      val left_tbl_create_sql =
+        "create table test_tbl_left_3134(id bigint, name string) using parquet";
+      val right_tbl_create_sql =
+        "create table test_tbl_right_3134(id string, name string) using parquet";
+      val left_data_insert_sql =
+        "insert into test_tbl_left_3134 values(2, 'a'), (3, 'b'), (673, 'c')";
+      val right_data_insert_sql = "insert into test_tbl_right_3134 values('673', 'c')";
+      val join_select_sql_1 = "select a.id, b.cnt from " +
+        "(select id from test_tbl_left_3134) as a " +
+        "left join (select id, 12 as cnt from test_tbl_right_3134 group by id) as b on a.id = b.id"
+      val join_select_sql_2 = "select a.id, b.cnt from" +
+        "(select id from test_tbl_left_3134) as a " +
+        "left join (select id, count(1) as cnt from test_tbl_right_3134 group by id) as b on a.id = b.id"
+      val join_select_sql_3 = "select a.id, b.cnt1, b.cnt2 from" +
+        "(select id as id from test_tbl_left_3134) as a " +
+        "left join (select id as id, 12 as cnt1, count(1) as cnt2 from test_tbl_right_3134 group by id) as b on a.id = b.id"
+      val agg_select_sql_4 =
+        "select id, 12 as cnt1, count(1) as cnt2 from test_tbl_left_3134 group by id"
+
+      spark.sql(left_tbl_create_sql)
+      spark.sql(right_tbl_create_sql)
+      spark.sql(left_data_insert_sql)
+      spark.sql(right_data_insert_sql)
+      compareResultsAgainstVanillaSpark(join_select_sql_1, true, { _ => })
+      compareResultsAgainstVanillaSpark(join_select_sql_2, true, { _ => })
+      compareResultsAgainstVanillaSpark(join_select_sql_3, true, { _ => })
+      compareResultsAgainstVanillaSpark(agg_select_sql_4, true, { _ => })
+      spark.sql("drop table test_tbl_left_3134")
+      spark.sql("drop table test_tbl_right_3134")
+    }
+  }
+
+  // Please see the issue: https://github.com/oap-project/gluten/issues/3731
+  ignore(
+    "GLUTEN-3534: Fix incorrect logic of judging whether supports pre-project for the shuffle") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      runQueryAndCompare(
+        s"""
+           |select t1.l_orderkey, t2.o_orderkey, extract(year from t1.l_shipdate), t2.o_year,
+           |t1.l_cnt, t2.o_cnt
+           |from (
+           |  select l_orderkey, l_shipdate, count(1) as l_cnt
+           |  from lineitem
+           |  group by l_orderkey, l_shipdate) t1
+           |join (
+           |  select o_orderkey, extract(year from o_orderdate) as o_year, count(1) as o_cnt
+           |  from orders
+           |  group by o_orderkey, o_orderdate) t2
+           |on t1.l_orderkey = t2.o_orderkey
+           | and extract(year from t1.l_shipdate) = o_year
+           |order by t1.l_orderkey, t2.o_orderkey, t2.o_year, t1.l_cnt, t2.o_cnt
+           |limit 100
+           |
+           |""".stripMargin,
+        true,
+        true
+      )(df => {})
+
+      runQueryAndCompare(
+        s"""
+           |select t1.l_orderkey, t2.o_orderkey, extract(year from t1.l_shipdate), t2.o_year
+           |from (
+           |  select l_orderkey, l_shipdate, count(1) as l_cnt
+           |  from lineitem
+           |  group by l_orderkey, l_shipdate) t1
+           |join (
+           |  select o_orderkey, extract(year from o_orderdate) as o_year, count(1) as o_cnt
+           |  from orders
+           |  group by o_orderkey, o_orderdate) t2
+           |on t1.l_orderkey = t2.o_orderkey
+           | and extract(year from t1.l_shipdate) = o_year
+           |order by t1.l_orderkey, t2.o_orderkey, t2.o_year
+           |limit 100
+           |
+           |""".stripMargin,
+        true,
+        true
+      )(df => {})
+    }
+  }
+
+  test("GLUTEN-3467: Fix 'Names of tuple elements must be unique' error for ch backend") {
+    val sql =
+      """
+        |select named_struct('a', r_regionkey, 'b', r_name, 'a', r_comment) as mergedValue
+        |from region
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-3521: Bug fix substring index start from 1") {
+    val tbl_create_sql = "create table test_tbl_3521(id bigint, name string) using parquet";
+    val data_insert_sql = "insert into test_tbl_3521 values(1, 'abcdefghijk'), (2, '2023-10-32')";
+    val select_sql =
+      "select id, substring(name, 0), substring(name, 0, 3), substring(name from 0), substring(name from 0 for 100) from test_tbl_3521"
+    spark.sql(tbl_create_sql)
+    spark.sql(data_insert_sql)
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_3521")
+  }
+
 }
 // scalastyle:on line.size.limit

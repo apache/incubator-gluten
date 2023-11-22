@@ -72,6 +72,7 @@
       <modules>
         <module>velox</module>
         <module>common</module>
+        <module>package</module>
       </modules>
     </profile>
     <profile>
@@ -81,6 +82,7 @@
       <modules>
         <module>clickhouse</module>
         <module>common</module>
+        <module>package</module>
       </modules>
     </profile>
   </profiles>

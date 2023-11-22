@@ -28,7 +28,7 @@ import scala.io.Source
 // Usage: please export SPARK_TPCDS_DATA to your local TPCDS absolute path
 // The query is original TPCDS query, you can also change it to your query path
 // Then set the `ignore` to `test`
-class VeloxTPCDSSuite extends WholeStageTransformerSuite {
+class VeloxTPCDSSuite extends VeloxWholeStageTransformerSuite {
 
   override protected val backend: String = "velox"
   override protected val resourcePath: String =

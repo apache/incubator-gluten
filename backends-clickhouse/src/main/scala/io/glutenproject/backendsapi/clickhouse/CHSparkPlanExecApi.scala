@@ -39,7 +39,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.ColumnarAQEShuffleReadExec
+import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -49,13 +49,15 @@ import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildS
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.ClickHouseAnalysis
+import org.apache.spark.sql.extension.RewriteDateTimestampComparisonRule
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
 import org.apache.commons.lang3.ClassUtils
 
-import java.{lang, util}
+import java.lang.{Long => JLong}
+import java.util.{ArrayList => JArrayList, List => JList, Map => JMap}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -64,7 +66,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   /** Transform GetArrayItem to Substrait. */
   override def genGetArrayItemExpressionNode(
       substraitExprName: String,
-      functionMap: java.util.HashMap[String, java.lang.Long],
+      functionMap: JMap[String, JLong],
       leftNode: ExpressionNode,
       rightNode: ExpressionNode,
       original: GetArrayItem): ExpressionNode = {
@@ -286,10 +288,10 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
               Seq(ProjectExecTransformer(child.output ++ appendedProjections, wt.child)))
           case w: WholeStageCodegenExec =>
             w.withNewChildren(Seq(ProjectExec(child.output ++ appendedProjections, w.child)))
-          case columnarAQEShuffleReadExec: ColumnarAQEShuffleReadExec =>
+          case r: AQEShuffleReadExec if r.supportsColumnar =>
             // when aqe is open
             // TODO: remove this after pushdowning preprojection
-            wrapChild(columnarAQEShuffleReadExec)
+            wrapChild(r)
           case r2c: RowToCHNativeColumnarExec =>
             wrapChild(r2c)
           case union: UnionExecTransformer =>
@@ -328,7 +330,12 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(spark => new ClickHouseAnalysis(spark, spark.sessionState.conf))
+    val analyzers = List(spark => new ClickHouseAnalysis(spark, spark.sessionState.conf))
+    if (GlutenConfig.getConf.enableDateTimestampComparison) {
+      analyzers :+ (spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
+    } else {
+      analyzers
+    }
   }
 
   /**
@@ -369,6 +376,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       right: ExpressionTransformer,
       original: EqualNullSafe): ExpressionTransformer = {
     CHEqualNullSafeTransformer(substraitExprName, left, right, original)
+  }
+
+  override def genStringTranslateTransformer(
+      substraitExprName: String,
+      srcExpr: ExpressionTransformer,
+      matchingExpr: ExpressionTransformer,
+      replaceExpr: ExpressionTransformer,
+      original: StringTranslate): ExpressionTransformer = {
+    CHStringTranslateTransformer(substraitExprName, srcExpr, matchingExpr, replaceExpr, original)
   }
 
   override def genStringLocateTransformer(
@@ -436,9 +452,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
   /** Generate window function node */
   override def genWindowFunctionsNode(
       windowExpression: Seq[NamedExpression],
-      windowExpressionNodes: util.ArrayList[WindowFunctionNode],
+      windowExpressionNodes: JList[WindowFunctionNode],
       originalInputAttributes: Seq[Attribute],
-      args: util.HashMap[String, lang.Long]): Unit = {
+      args: JMap[String, JLong]): Unit = {
 
     windowExpression.map {
       windowExpr =>
@@ -451,7 +467,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             val frame = aggWindowFunc.frame.asInstanceOf[SpecifiedWindowFrame]
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               WindowFunctionsBuilder.create(args, aggWindowFunc).toInt,
-              new util.ArrayList[ExpressionNode](),
+              new JArrayList[ExpressionNode](),
               columnName,
               ConverterUtils.getTypeNode(aggWindowFunc.dataType, aggWindowFunc.nullable),
               WindowExecTransformer.getFrameBound(frame.upper),
@@ -467,7 +483,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
               throw new UnsupportedOperationException(s"Not currently supported: $aggregateFunc.")
             }
 
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            val childrenNodeList = new JArrayList[ExpressionNode]()
             aggregateFunc.children.foreach(
               expr =>
                 childrenNodeList.add(
@@ -505,7 +521,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
                 }
             }
 
-            val childrenNodeList = new util.ArrayList[ExpressionNode]()
+            val childrenNodeList = new JArrayList[ExpressionNode]()
             childrenNodeList.add(
               ExpressionConverter
                 .replaceWithExpressionTransformer(

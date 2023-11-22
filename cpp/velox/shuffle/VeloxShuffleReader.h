@@ -27,7 +27,7 @@ class VeloxShuffleReader final : public ShuffleReader {
  public:
   VeloxShuffleReader(
       std::shared_ptr<arrow::Schema> schema,
-      ReaderOptions options,
+      ShuffleReaderOptions options,
       arrow::MemoryPool* pool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool);
 

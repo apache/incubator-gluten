@@ -34,8 +34,6 @@ std::string generateUuid();
 
 std::string getSpilledShuffleFileDir(const std::string& configuredDir, int32_t subDirId);
 
-arrow::Result<std::vector<std::string>> getConfiguredLocalDirs();
-
 arrow::Result<std::string> createTempShuffleFile(const std::string& dir);
 
 arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShuffleWriterTypeId(
@@ -43,6 +41,8 @@ arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShuffleWriterType
 
 int64_t getBufferSizes(const std::shared_ptr<arrow::Array>& array);
 
-arrow::Status writeEos(arrow::io::OutputStream* os);
+int64_t getBufferSizes(const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
+
+arrow::Status writeEos(arrow::io::OutputStream* os, int64_t* bytes);
 
 } // namespace gluten

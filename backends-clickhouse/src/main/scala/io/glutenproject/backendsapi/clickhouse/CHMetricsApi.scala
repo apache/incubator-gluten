@@ -26,14 +26,15 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
-import java.{lang, util}
+import java.lang.{Long => JLong}
+import java.util.{List => JList, Map => JMap}
 
 class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
   override def metricsUpdatingFunction(
       child: SparkPlan,
-      relMap: util.HashMap[lang.Long, util.ArrayList[lang.Long]],
-      joinParamsMap: util.HashMap[lang.Long, JoinParams],
-      aggParamsMap: util.HashMap[lang.Long, AggregationParams]): IMetrics => Unit = {
+      relMap: JMap[JLong, JList[JLong]],
+      joinParamsMap: JMap[JLong, JoinParams],
+      aggParamsMap: JMap[JLong, AggregationParams]): IMetrics => Unit = {
     MetricsUtil.updateNativeMetrics(child, relMap, joinParamsMap, aggParamsMap)
   }
 
@@ -154,6 +155,8 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
+      "resizeInputRows" -> SQLMetrics.createMetric(sparkContext, "number of resize input rows"),
+      "resizeOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of resize output rows"),
       "preProjectTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "time of preProjection"),
       "aggregatingTime" ->
@@ -330,4 +333,10 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genHashJoinTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new HashJoinMetricsUpdater(metrics)
+
+  override def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map.empty
+
+  override def genGenerateTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric]): MetricsUpdater = NoopMetricsUpdater
 }

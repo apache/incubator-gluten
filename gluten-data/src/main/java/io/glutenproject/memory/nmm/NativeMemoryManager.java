@@ -17,6 +17,7 @@
 package io.glutenproject.memory.nmm;
 
 import io.glutenproject.GlutenConfig;
+import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
 
 import org.apache.spark.util.TaskResource;
@@ -43,7 +44,10 @@ public class NativeMemoryManager implements TaskResource {
     long allocatorId = NativeMemoryAllocators.getDefault().globalInstance().getNativeInstanceId();
     long reservationBlockSize = GlutenConfig.getConf().memoryReservationBlockSize();
     return new NativeMemoryManager(
-        name, create(name, allocatorId, reservationBlockSize, listener), listener);
+        name,
+        create(
+            BackendsApiManager.getBackendName(), name, allocatorId, reservationBlockSize, listener),
+        listener);
   }
 
   public long getNativeInstanceHandle() {
@@ -58,14 +62,28 @@ public class NativeMemoryManager implements TaskResource {
     return shrink(nativeInstanceHandle, size);
   }
 
+  // Hold this memory manager. The underlying memory pools will be released as lately as this
+  // memory manager gets destroyed. Which means, a call to this function would make sure the
+  // memory blocks directly or indirectly managed by this manager, be guaranteed safe to
+  // access during the period that this manager is alive.
+  public void hold() {
+    hold(nativeInstanceHandle);
+  }
+
   private static native long shrink(long memoryManagerId, long size);
 
   private static native long create(
-      String name, long allocatorId, long reservationBlockSize, ReservationListener listener);
+      String backendType,
+      String name,
+      long allocatorId,
+      long reservationBlockSize,
+      ReservationListener listener);
 
   private static native void release(long memoryManagerId);
 
   private static native byte[] collectMemoryUsage(long memoryManagerId);
+
+  private static native void hold(long memoryManagerId);
 
   @Override
   public void release() throws Exception {
@@ -73,7 +91,10 @@ public class NativeMemoryManager implements TaskResource {
     if (listener.getUsedBytes() != 0) {
       LOGGER.warn(
           name
-              + " Reservation listener still reserved non-zero bytes, which may cause "
+              + " Reservation listener "
+              + listener.toString()
+              + " "
+              + "still reserved non-zero bytes, which may cause "
               + "memory leak, size: "
               + Utils.bytesToString(listener.getUsedBytes()));
     }

@@ -30,3 +30,36 @@ rm -rf $SPARK_HOME/jars/protobuf-*
 rm -rf $SPARK_HOME/jars/flatbuffers-*
 rm -rf $SPARK_HOME/jars/arrow-*
 ```
+
+### Incompatible class error when using native writer
+Gluten native writer overwrite some vanilla spark classes. Therefore, when running a program that uses gluten, it is essential to ensure that the gluten jar is loaded prior to the vanilla spark jar. In this section, we will provide some configuration settings in `$SPARK_HOME/conf/spark-defaults.conf` for Yarn client, Yarn cluster, and Local&Standalone mode to guarantee that the gluten jar is prioritized.
+
+#### Configurations for Yarn Client mode
+
+```
+// spark will upload the gluten jar to hdfs and then the nodemanager will fetch the gluten jar before start the executor process. Here also can set the spark.jars.
+spark.files = {absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+// The absolute path on running node
+spark.driver.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+// The relative path under the executor working directory
+spark.executor.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+```
+
+#### Configurations for Yarn Cluster mode
+```
+spark.driver.userClassPathFirst = true
+spark.executor.userClassPathFirst = true
+
+spark.files = {absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+// The relative path under the executor working directory
+spark.driver.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+// The relative path under the executor working directory
+spark.executor.extraClassPath=./gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+```
+#### Configurations for Local & Standalone mode
+```
+// The absolute path on running node
+spark.driver.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+// The absolute path on running node
+spark.executor.extraClassPath={absolute_path}/gluten-<spark-version>-<gluten-version>-SNAPSHOT-jar-with-dependencies.jar
+```
