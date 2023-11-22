@@ -54,12 +54,12 @@
     <dependency>
       <groupId>io.glutenproject</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobuf.version}</version>
+      <version>${custom.protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>io.glutenproject</groupId>
       <artifactId>protobuf-java-util</artifactId>
-      <version>${protobuf.version}</version>
+      <version>${custom.protobuf.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>

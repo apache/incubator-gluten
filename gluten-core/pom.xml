@@ -173,13 +173,13 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${forked.protobuf.version}</version>
+      <version>${protobuf.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java-util</artifactId>
-      <version>${forked.protobuf.version}</version>
+      <version>${protobuf.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -282,7 +282,7 @@
             </goals>
             <configuration>
               <protocArtifact>
-                com.google.protobuf:protoc:${forked.protobuf.version}:exe:${os.detected.classifier}
+                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
               </protocArtifact>
               <protoSourceRoot>src/main/resources/substrait/proto</protoSourceRoot>
               <clearOutputDirectory>true</clearOutputDirectory>
@@ -297,7 +297,7 @@
             </goals>
             <configuration>
               <protocArtifact>
-                com.google.protobuf:protoc:${forked.protobuf.version}:exe:${os.detected.classifier}
+                com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
               </protocArtifact>
               <protoSourceRoot>src/main/resources/io/glutenproject/proto</protoSourceRoot>
               <clearOutputDirectory>false</clearOutputDirectory>
