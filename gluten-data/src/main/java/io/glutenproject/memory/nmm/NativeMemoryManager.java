@@ -19,7 +19,10 @@ package io.glutenproject.memory.nmm;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
+import io.glutenproject.proto.MemoryUsageStats;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.util.TaskResource;
 import org.apache.spark.util.Utils;
 import org.slf4j.Logger;
@@ -54,8 +57,12 @@ public class NativeMemoryManager implements TaskResource {
     return this.nativeInstanceHandle;
   }
 
-  public byte[] collectMemoryUsage() {
-    return collectMemoryUsage(nativeInstanceHandle);
+  public MemoryUsageStats collectMemoryUsage() {
+    try {
+      return MemoryUsageStats.parseFrom(collectMemoryUsage(nativeInstanceHandle));
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public long shrink(long size) {
@@ -87,17 +94,17 @@ public class NativeMemoryManager implements TaskResource {
 
   @Override
   public void release() throws Exception {
-    release(nativeInstanceHandle);
     if (listener.getUsedBytes() != 0) {
       LOGGER.warn(
-          name
-              + " Reservation listener "
-              + listener.toString()
-              + " "
-              + "still reserved non-zero bytes, which may cause "
-              + "memory leak, size: "
-              + Utils.bytesToString(listener.getUsedBytes()));
+          String.format(
+              "%s Reservation listener %s still reserved non-zero bytes, "
+                  + "which may cause memory leak, size: %s, usage dump: %s",
+              name,
+              listener.toString(),
+              Utils.bytesToString(listener.getUsedBytes()),
+              SparkMemoryUtil.dumpMemoryTargetStats(listener.target())));
     }
+    release(nativeInstanceHandle);
   }
 
   @Override

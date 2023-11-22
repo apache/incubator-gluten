@@ -109,6 +109,10 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
     return visitor.visit(this);
   }
 
+  public MemoryTarget delegated() {
+    return target;
+  }
+
   public static class OutOfMemoryException extends RuntimeException {
     public OutOfMemoryException(String message) {
       super(message);

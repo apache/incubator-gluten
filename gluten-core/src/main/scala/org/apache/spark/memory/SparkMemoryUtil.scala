@@ -16,7 +16,7 @@
  */
 package org.apache.spark.memory
 
-import io.glutenproject.memory.memtarget.{KnownNameAndStats, MemoryTarget, MemoryTargetVisitor, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
+import io.glutenproject.memory.memtarget._
 import io.glutenproject.memory.memtarget.spark.{RegularMemoryConsumer, TreeMemoryConsumer}
 import io.glutenproject.proto.MemoryUsageStats
 
@@ -64,7 +64,7 @@ object SparkMemoryUtil {
         }
 
         override def visit(throwOnOomMemoryTarget: ThrowOnOomMemoryTarget): KnownNameAndStats = {
-          throw new UnsupportedOperationException()
+          throwOnOomMemoryTarget.delegated().accept(this)
         }
 
         override def visit(treeMemoryConsumer: TreeMemoryConsumer): KnownNameAndStats = {
@@ -107,6 +107,10 @@ object SparkMemoryUtil {
                 .build()
             }
           }
+        }
+
+        override def visit(target: NoopMemoryTarget): KnownNameAndStats = {
+          target
         }
       })
     }

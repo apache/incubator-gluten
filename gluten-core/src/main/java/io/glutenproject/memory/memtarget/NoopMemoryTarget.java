@@ -16,19 +16,42 @@
  */
 package io.glutenproject.memory.memtarget;
 
-import io.glutenproject.memory.memtarget.spark.RegularMemoryConsumer;
-import io.glutenproject.memory.memtarget.spark.TreeMemoryConsumer;
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.proto.MemoryUsageStats;
 
-public interface MemoryTargetVisitor<T> {
-  T visit(OverAcquire overAcquire);
+public class NoopMemoryTarget implements MemoryTarget, KnownNameAndStats {
+  private final SimpleMemoryUsageRecorder recorder = new SimpleMemoryUsageRecorder();
+  private final String name = MemoryTargetUtil.toUniqueName("Noop");
 
-  T visit(RegularMemoryConsumer regularMemoryConsumer);
+  @Override
+  public long borrow(long size) {
+    recorder.inc(size);
+    return size;
+  }
 
-  T visit(ThrowOnOomMemoryTarget throwOnOomMemoryTarget);
+  @Override
+  public long repay(long size) {
+    recorder.inc(-size);
+    return size;
+  }
 
-  T visit(TreeMemoryConsumer treeMemoryConsumer);
+  @Override
+  public long usedBytes() {
+    return recorder.current();
+  }
 
-  T visit(TreeMemoryTargets.Node node);
+  @Override
+  public <T> T accept(MemoryTargetVisitor<T> visitor) {
+    return visitor.visit(this);
+  }
 
-  T visit(NoopMemoryTarget target);
+  @Override
+  public String name() {
+    return name;
+  }
+
+  @Override
+  public MemoryUsageStats stats() {
+    return recorder.toStats();
+  }
 }

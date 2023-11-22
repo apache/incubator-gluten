@@ -16,10 +16,13 @@
  */
 package io.glutenproject.memory.nmm;
 
+import io.glutenproject.memory.memtarget.MemoryTarget;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // For debugging purpose only
+// TODO: Make this a memory target
 public class LoggingReservationListener implements ReservationListener {
   private static final Logger LOGGER = LoggerFactory.getLogger(LoggingReservationListener.class);
 
@@ -55,5 +58,10 @@ public class LoggingReservationListener implements ReservationListener {
   @Override
   public long getUsedBytes() {
     return delegated.getUsedBytes();
+  }
+
+  @Override
+  public MemoryTarget target() {
+    return delegated.target();
   }
 }
