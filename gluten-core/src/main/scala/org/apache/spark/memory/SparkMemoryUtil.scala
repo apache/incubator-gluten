@@ -16,18 +16,15 @@
  */
 package org.apache.spark.memory
 
-import io.glutenproject.memory.memtarget.{KnownNameAndStats, MemoryTarget, MemoryTargetVisitor, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
+import io.glutenproject.memory.memtarget.{KnownNameAndStats, LoggingMemoryTarget, MemoryTarget, MemoryTargetVisitor, NoopMemoryTarget, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
 import io.glutenproject.memory.memtarget.spark.{RegularMemoryConsumer, TreeMemoryConsumer}
 import io.glutenproject.proto.MemoryUsageStats
-
 import org.apache.spark.SparkEnv
 import org.apache.spark.util.Utils
-
 import com.google.common.base.Preconditions
 import org.apache.commons.lang3.StringUtils
 
 import java.util
-
 import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
@@ -65,7 +62,7 @@ object SparkMemoryUtil {
         }
 
         override def visit(throwOnOomMemoryTarget: ThrowOnOomMemoryTarget): KnownNameAndStats = {
-          throw new UnsupportedOperationException()
+          throwOnOomMemoryTarget.target().accept(this)
         }
 
         override def visit(treeMemoryConsumer: TreeMemoryConsumer): KnownNameAndStats = {
@@ -73,7 +70,7 @@ object SparkMemoryUtil {
         }
 
         override def visit(node: TreeMemoryTargets.Node): KnownNameAndStats = {
-          node.parent().accept(this)
+          node.parent().accept(this) // walk up to find the one bound with task memory manager
         }
 
         private def collectFromTaskMemoryManager(tmm: TaskMemoryManager): KnownNameAndStats = {
@@ -108,6 +105,14 @@ object SparkMemoryUtil {
                 .build()
             }
           }
+        }
+
+        override def visit(loggingMemoryTarget: LoggingMemoryTarget): KnownNameAndStats = {
+          loggingMemoryTarget.delegated().accept(this)
+        }
+
+        override def visit(noopMemoryTarget: NoopMemoryTarget): KnownNameAndStats = {
+          noopMemoryTarget
         }
       })
     }

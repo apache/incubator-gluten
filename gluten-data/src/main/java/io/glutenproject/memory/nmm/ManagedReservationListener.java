@@ -42,6 +42,7 @@ public class ManagedReservationListener implements ReservationListener {
       try {
         long granted = target.borrow(size);
         sharedUsage.inc(granted);
+        this.notifyAll();
         return granted;
       } catch (Exception e) {
         LOG.error("Error reserving memory from target", e);
@@ -56,6 +57,7 @@ public class ManagedReservationListener implements ReservationListener {
       long freed = target.repay(size);
       sharedUsage.inc(-freed);
       Preconditions.checkState(freed == size);
+      this.notifyAll();
       return freed;
     }
   }
@@ -65,9 +67,17 @@ public class ManagedReservationListener implements ReservationListener {
     return target.usedBytes();
   }
 
-  public static class OutOfMemoryException extends RuntimeException {
-    public OutOfMemoryException(String message) {
-      super(message);
+  @Override
+  public void waitUntilReleased(final long timeoutMs) throws InterruptedException {
+    final long startMs = System.currentTimeMillis();
+    synchronized (this) {
+      while (getUsedBytes() > 0L) {
+        long remainingMs = System.currentTimeMillis() - (startMs + timeoutMs);
+        if (remainingMs <= 0L) {
+          break;
+        }
+        this.wait(remainingMs);
+      }
     }
   }
 }

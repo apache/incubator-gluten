@@ -114,4 +114,8 @@ public class ThrowOnOomMemoryTarget implements MemoryTarget {
       super(message);
     }
   }
+
+  public MemoryTarget target() {
+    return target;
+  }
 }
