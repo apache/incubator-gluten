@@ -14,28 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi
+package io.glutenproject.utils
 
-import io.glutenproject.GlutenPlugin
+trait SQLQueryTestSettings {
+  def getSupportedSQLQueryTests: Set[String]
 
-trait Backend {
-  def name(): String
-
-  def buildInfo(): GlutenPlugin.BackendBuildInfo
-
-  def iteratorApi(): IteratorApi
-
-  def sparkPlanExecApi(): SparkPlanExecApi
-
-  def transformerApi(): TransformerApi
-
-  def validatorApi(): ValidatorApi
-
-  def metricsApi(): MetricsApi
-
-  def listenerApi(): ListenerApi
-
-  def broadcastApi(): BroadcastApi
-
-  def settings(): BackendSettingsApi
+  def getOverwriteSQLQueryTests: Set[String]
 }

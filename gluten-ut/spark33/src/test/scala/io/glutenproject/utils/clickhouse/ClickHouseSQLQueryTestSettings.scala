@@ -14,14 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.backendsapi.clickhouse
+package io.glutenproject.utils.clickhouse
 
-import io.glutenproject.backendsapi.TestApi
+import io.glutenproject.utils.SQLQueryTestSettings
 
-class CHTestApi extends TestApi {
-  override def getSupportedSQLQueryTests(sparkVersion: TestApi.SparkVersion): Set[String] =
-    Set[String]()
+object ClickHouseSQLQueryTestSettings extends SQLQueryTestSettings {
+  override def getSupportedSQLQueryTests: Set[String] = Set()
 
-  override def getOverwriteSQLQueryTests(sparkVersion: TestApi.SparkVersion): Set[String] =
-    Set[String]()
+  override def getOverwriteSQLQueryTests: Set[String] = Set()
 }

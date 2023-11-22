@@ -17,8 +17,7 @@
 package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.{BackendsApiManager, TestApi}
-import io.glutenproject.utils.{BackendTestUtils, SystemParameters}
+import io.glutenproject.utils.{BackendTestSettings, BackendTestUtils, SystemParameters}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator
@@ -225,8 +224,8 @@ class GlutenSQLQueryTestSuite
 
   // List of supported cases to run with a certain backend, in lower case.
   private val supportedList: Set[String] =
-    BackendsApiManager.getTestApiInstance.getSupportedSQLQueryTests(TestApi.SparkVersion33()) ++
-      BackendsApiManager.getTestApiInstance.getOverwriteSQLQueryTests(TestApi.SparkVersion33())
+    BackendTestSettings.instance.getSQLQueryTestSettings.getSupportedSQLQueryTests ++
+      BackendTestSettings.instance.getSQLQueryTestSettings.getOverwriteSQLQueryTests
   // Create all the test cases.
   listTestCases.foreach(createScalaTestCase)
 
