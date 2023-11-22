@@ -19,15 +19,13 @@ package org.apache.spark.memory
 import io.glutenproject.memory.memtarget.{KnownNameAndStats, MemoryTarget, MemoryTargetVisitor, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
 import io.glutenproject.memory.memtarget.spark.{RegularMemoryConsumer, TreeMemoryConsumer}
 import io.glutenproject.proto.MemoryUsageStats
-
 import org.apache.spark.SparkEnv
 import org.apache.spark.util.Utils
-
 import com.google.common.base.Preconditions
 import org.apache.commons.lang3.StringUtils
 
 import java.util
-
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 object SparkMemoryUtil {
@@ -52,13 +50,13 @@ object SparkMemoryUtil {
   }
 
   def dumpMemoryTargetStats(target: MemoryTarget): String = {
-    def collectRootStats(target: MemoryTarget) = {
+    def collectRootStats(target: MemoryTarget): KnownNameAndStats = {
       target.accept(new MemoryTargetVisitor[KnownNameAndStats] {
         override def visit(overAcquire: OverAcquire): KnownNameAndStats = {
           overAcquire.getTarget.accept(this)
         }
 
-        @scala.annotation.nowarn
+        @nowarn
         override def visit(regularMemoryConsumer: RegularMemoryConsumer): KnownNameAndStats = {
           collectFromTaskMemoryManager(regularMemoryConsumer.getTaskMemoryManager)
         }
@@ -111,8 +109,10 @@ object SparkMemoryUtil {
       })
     }
 
-    val stats = collectRootStats(target)
+    prettyPrintStats(collectRootStats(target))
+  }
 
+  def prettyPrintStats(stats: KnownNameAndStats): String = {
     def asPrintable(name: String, mus: MemoryUsageStats): PrintableMemoryUsageStats = {
       def sortStats(stats: Seq[PrintableMemoryUsageStats]) = {
         stats.sortBy(_.used.getOrElse(Long.MinValue))(Ordering.Long.reverse)

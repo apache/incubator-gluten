@@ -106,13 +106,7 @@ public final class NativeMemoryManagers {
 
                           @Override
                           public MemoryUsageStats toStats() {
-                            final NativeMemoryManager nmm = getNativeMemoryManager();
-                            final byte[] usageProto = nmm.collectMemoryUsage();
-                            try {
-                              return MemoryUsageStats.parseFrom(usageProto);
-                            } catch (InvalidProtocolBufferException e) {
-                              throw new RuntimeException(e);
-                            }
+                            return getNativeMemoryManager().collectMemoryUsage();
                           }
 
                           private NativeMemoryManager getNativeMemoryManager() {
