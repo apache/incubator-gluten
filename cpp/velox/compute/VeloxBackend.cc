@@ -36,6 +36,7 @@
 #endif
 #include "config/GlutenConfig.h"
 #include "jni/JniFileSystem.h"
+#include "operators/functions/SparkTokenizer.h"
 #include "udf/UdfLoader.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/exception.h"
@@ -270,6 +271,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   if (veloxcfg->get<bool>(kDebugModeEnabled, false)) {
     LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
   }
+  registerSparkTokenizer();
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
