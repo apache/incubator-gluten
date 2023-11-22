@@ -112,10 +112,10 @@ object SparkMemoryUtil {
       })
     }
 
-    prettyPrintStats(collectRootStats(target))
+    prettyPrintStats("Memory consumer stats: ", collectRootStats(target))
   }
 
-  def prettyPrintStats(stats: KnownNameAndStats): String = {
+  def prettyPrintStats(title: String, stats: KnownNameAndStats): String = {
     def asPrintable(name: String, mus: MemoryUsageStats): PrintableMemoryUsageStats = {
       def sortStats(stats: Seq[PrintableMemoryUsageStats]) = {
         stats.sortBy(_.used.getOrElse(Long.MinValue))(Ordering.Long.reverse)
@@ -137,10 +137,10 @@ object SparkMemoryUtil {
       )
     }
 
-    prettyPrintToString(asPrintable(stats.name(), stats.stats()))
+    prettyPrintToString(title, asPrintable(stats.name(), stats.stats()))
   }
 
-  private def prettyPrintToString(stats: PrintableMemoryUsageStats): String = {
+  private def prettyPrintToString(title: String, stats: PrintableMemoryUsageStats): String = {
 
     def getBytes(bytes: Option[Long]): String = {
       bytes.map(Utils.bytesToString).getOrElse("N/A")
@@ -151,7 +151,7 @@ object SparkMemoryUtil {
     }
 
     val sb = new StringBuilder()
-    sb.append(s"Memory consumer stats:")
+    sb.append(title)
 
     // determine padding widths
     var nameWidth = 0
