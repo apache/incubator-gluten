@@ -1006,8 +1006,8 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         }
         else if (startsWith(function_signature, "make_decimal:"))
         {
-            if (scalar_function.arguments().size() < 3)
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least three args.");
+            if (scalar_function.arguments().size() < 2)
+                throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 2 args.");
 
             ActionsDAG::NodeRawConstPtrs new_args;
             new_args.reserve(3);
