@@ -281,10 +281,14 @@ class GlutenFunctionValidateSuite extends WholeStageTransformerSuite {
     runQueryAndCompare("SELECT get_json_object(string_field1, '$.12345') from json_test") { _ => }
     runQueryAndCompare("SELECT get_json_object(string_field1, '$.123.abc') from json_test") { _ => }
     runQueryAndCompare("SELECT get_json_object(string_field1, '$.123.123') from json_test") { _ => }
-    runQueryAndCompare("SELECT get_json_object(string_field1, '$.123abc.123') from json_test") { _ => }
+    runQueryAndCompare("SELECT get_json_object(string_field1, '$.123abc.123') from json_test") {
+      _ =>
+    }
     runQueryAndCompare("SELECT get_json_object(string_field1, '$.abc.123') from json_test") { _ => }
     runQueryAndCompare("SELECT get_json_object(string_field1, '$.123[0]') from json_test") { _ => }
-    runQueryAndCompare("SELECT get_json_object(string_field1, '$.123[0].123') from json_test") { _ => }
+    runQueryAndCompare("SELECT get_json_object(string_field1, '$.123[0].123') from json_test") {
+      _ =>
+    }
   }
 
   test("Test covar_samp") {
