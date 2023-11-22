@@ -65,7 +65,8 @@
     <junit.version>4.13.1</junit.version>
 
     <substrait.version>0.5.0</substrait.version>
-    <protobuf.version>3.23.4</protobuf.version>
+    <forked.protobuf.version>3.23.4</forked.protobuf.version>
+    <protobuf.version>3.23.4-0</protobuf.version>
     <!--spotless-->
     <spotless.version>2.27.2</spotless.version>
     <spotless.scalafmt.version>3.5.9</spotless.scalafmt.version>
