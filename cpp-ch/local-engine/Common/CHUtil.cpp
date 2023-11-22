@@ -706,6 +706,13 @@ void BackendInitializerUtil::initCompiledExpressionCache(DB::Context::Configurat
 #endif
 }
 
+void BackendInitializerUtil::init_json(std::string * plan_json)
+{
+    auto plan_ptr = std::make_unique<substrait::Plan>();
+    google::protobuf::util::JsonStringToMessage(plan_json->c_str(), plan_ptr.get());
+    return init(new String(plan_ptr->SerializeAsString()));
+}
+
 void BackendInitializerUtil::init(std::string * plan)
 {
     std::map<std::string, std::string> backend_conf_map = getBackendConfMap(plan);

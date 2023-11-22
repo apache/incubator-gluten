@@ -60,7 +60,7 @@ if (ENABLE_TESTS)
         ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine)
     # no-unreachable-code for GTEST_SKIP
     target_compile_options(unit_tests_local_engine PRIVATE -Wno-unreachable-code)
-    target_link_libraries(unit_tests_local_engine PRIVATE gluten_clickhouse_backend_libs _gtest_all clickhouse_parsers loggers)
+    target_link_libraries(unit_tests_local_engine PRIVATE gluten_clickhouse_backend_libs clickhouse_parsers loggers ch_contrib::gmock_all ch_contrib::gtest)
     target_link_libraries(unit_tests_local_engine PRIVATE ch_parquet)
 else()
     include_directories(benchmark_local_engine SYSTEM PUBLIC
