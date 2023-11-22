@@ -206,8 +206,7 @@ class VeloxTPCHDistinctSpill extends VeloxTPCHTableSupport {
 
   test("distinct spill") {
     val df = spark.sql("select count(distinct *) from lineitem limit 1")
-    df.explain(true)
-    df.show()
+    TestUtils.compareAnswers(df.collect(), Seq(Row(60175)))
   }
 }
 
