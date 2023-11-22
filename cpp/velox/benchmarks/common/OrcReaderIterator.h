@@ -17,6 +17,7 @@
 #pragma once
 
 #include <arrow/adapters/orc/adapter.h>
+#include <glog/logging.h>
 #include "benchmarks/common/FileReaderIterator.h"
 
 namespace gluten {
@@ -61,7 +62,7 @@ class OrcStreamReaderIterator final : public OrcReaderIterator {
   std::shared_ptr<gluten::ColumnarBatch> next() override {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
-    DEBUG_OUT << "OrcStreamReaderIterator get a batch, num rows: " << (batch ? batch->num_rows() : 0) << std::endl;
+    VLOG(1) << "OrcStreamReaderIterator get a batch, num rows: " << (batch ? batch->num_rows() : 0);
     collectBatchTime_ +=
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime).count();
     if (batch == nullptr) {
@@ -78,14 +79,13 @@ class OrcBufferedReaderIterator final : public OrcReaderIterator {
     collectBatches();
 
     iter_ = batches_.begin();
-#ifdef GLUTEN_PRINT_DEBUG
-    DEBUG_OUT << "OrcBufferedReaderIterator open file: " << path << std::endl;
-    DEBUG_OUT << "Number of input batches: " << std::to_string(batches_.size()) << std::endl;
+
+    VLOG(1) << "OrcBufferedReaderIterator open file: " << path;
+    VLOG(1) << "Number of input batches: " << std::to_string(batches_.size());
     if (iter_ != batches_.cend()) {
-      DEBUG_OUT << "columns: " << (*iter_)->num_columns() << std::endl;
-      DEBUG_OUT << "rows: " << (*iter_)->num_rows() << std::endl;
+      VLOG(1) << "columns: " << (*iter_)->num_columns();
+      VLOG(1) << "rows: " << (*iter_)->num_rows();
     }
-#endif
   }
 
   std::shared_ptr<gluten::ColumnarBatch> next() override {

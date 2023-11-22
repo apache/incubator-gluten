@@ -17,7 +17,7 @@
 
 #include "utils/qpl/qpl_job_pool.h"
 #include "utils/macros.h"
-
+#include <glog/logging.h>
 #include <arrow/util/logging.h>
 #include <iostream>
 
@@ -37,7 +37,7 @@ QplJobHWPool& QplJobHWPool::GetInstance() {
 QplJobHWPool::QplJobHWPool() : randomEngine(std::random_device()()), distribution(0, MAX_JOB_NUMBER - 1) {
   uint64_t initTime = 0;
   TIME_NANO(initTime, InitJobPool());
-  DEBUG_OUT << "Init job pool took " << 1.0 * initTime / 1e6 << "ms" << std::endl;
+  VLOG(1) << "Init job pool took " << 1.0 * initTime / 1e6 << "ms";
 }
 
 QplJobHWPool::~QplJobHWPool() {
@@ -96,7 +96,7 @@ qpl_job* QplJobHWPool::AcquireJob(uint32_t& jobId) {
     }
   }
   jobId = MAX_JOB_NUMBER - index;
-  DEBUG_OUT << "Acquired job index " << index << " after " << retry << " retries." << std::endl;
+  VLOG(1) << "Acquired job index " << index << " after " << retry << " retries.";
   return jobPool[index];
 }
 

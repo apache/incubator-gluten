@@ -42,8 +42,6 @@
 #include "shuffle/ShuffleWriter.h"
 #include "shuffle/Utils.h"
 
-#include "utils/Print.h"
-
 namespace gluten {
 
 // set 1 to open print

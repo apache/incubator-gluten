@@ -29,8 +29,6 @@
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
 
-#include <iostream>
-
 using namespace facebook;
 
 namespace {
@@ -53,8 +51,6 @@ jint JNI_OnLoad(JavaVM* vm, void*) {
   gluten::getJniErrorState()->ensureInitialized(env);
   gluten::initVeloxJniFileSystem(env);
   gluten::initVeloxJniUDF(env);
-
-  DEBUG_OUT << "Loaded Velox backend." << std::endl;
 
   return jniVersion;
 }

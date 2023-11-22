@@ -16,7 +16,6 @@
  */
 
 #include "Runtime.h"
-#include "utils/Print.h"
 
 namespace gluten {
 

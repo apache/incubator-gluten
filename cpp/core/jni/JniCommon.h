@@ -20,6 +20,7 @@
 #include <arrow/ipc/reader.h>
 #include <arrow/ipc/writer.h>
 #include <execinfo.h>
+#include <glog/logging.h>
 #include <jni.h>
 
 #include "compute/ProtobufUtils.h"
@@ -28,7 +29,6 @@
 #include "memory/AllocationListener.h"
 #include "shuffle/rss/RssClient.h"
 #include "utils/Compression.h"
-#include "utils/DebugOut.h"
 #include "utils/exception.h"
 
 static jint jniVersion = JNI_VERSION_1_8;
@@ -106,13 +106,12 @@ static inline jmethodID getStaticMethodIdOrError(JNIEnv* env, jclass thisClass, 
 static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
   int getEnvStat = vm->GetEnv(reinterpret_cast<void**>(out), jniVersion);
   if (getEnvStat == JNI_EDETACHED) {
-    DEBUG_OUT << "JNIEnv was not attached to current thread." << std::endl;
+    LOG(WARNING) << "JNIEnv was not attached to current thread." << std::endl;
     // Reattach current thread to JVM
     getEnvStat = vm->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(out), NULL);
     if (getEnvStat != JNI_OK) {
       throw gluten::GlutenException("Failed to reattach current thread to JVM.");
     }
-    DEBUG_OUT << "Succeeded attaching current thread." << std::endl;
     return;
   }
   if (getEnvStat != JNI_OK) {

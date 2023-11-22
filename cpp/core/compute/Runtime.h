@@ -29,7 +29,6 @@
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
-#include "utils/DebugOut.h"
 #include "utils/ObjectStore.h"
 
 namespace gluten {

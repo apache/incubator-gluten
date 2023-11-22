@@ -92,11 +92,10 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
     try {
       auto status = JavaInputStreamAdaptor::Close();
       if (!status.ok()) {
-        DEBUG_OUT << __func__ << " call JavaInputStreamAdaptor::Close() failed, status:" << status.ToString()
-                  << std::endl;
+        LOG(WARNING) << __func__ << " call JavaInputStreamAdaptor::Close() failed, status:" << status.ToString();
       }
     } catch (std::exception& e) {
-      DEBUG_OUT << __func__ << " call JavaInputStreamAdaptor::Close() got exception:" << e.what() << std::endl;
+      LOG(WARNING) << __func__ << " call JavaInputStreamAdaptor::Close() got exception:" << e.what();
     }
   }
 
