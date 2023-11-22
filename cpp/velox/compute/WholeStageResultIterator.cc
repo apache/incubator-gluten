@@ -465,7 +465,7 @@ WholeStageResultIteratorFirstStage::WholeStageResultIteratorFirstStage(
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = velox::exec::Task::create(
-      fmt::format("Gluten_StageId_{}_TaskId_{}", std::to_string(taskInfo_.stageId), std::to_string(taskInfo_.taskId)),
+      fmt::format("Gluten_Stage_{}_TID_{}", std::to_string(taskInfo_.stageId), std::to_string(taskInfo_.taskId)),
       std::move(planFragment),
       0,
       std::move(queryCtx));
@@ -521,7 +521,7 @@ WholeStageResultIteratorMiddleStage::WholeStageResultIteratorMiddleStage(
   std::shared_ptr<velox::core::QueryCtx> queryCtx = createNewVeloxQueryCtx();
 
   task_ = velox::exec::Task::create(
-      fmt::format("Gluten_StageId_{}_TaskId_{}", std::to_string(taskInfo_.stageId), std::to_string(taskInfo_.taskId)),
+      fmt::format("Gluten_Stage_{}_TID_{}", std::to_string(taskInfo_.stageId), std::to_string(taskInfo_.taskId)),
       std::move(planFragment),
       0,
       std::move(queryCtx));
