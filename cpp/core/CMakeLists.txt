@@ -324,7 +324,7 @@ else()
 endif()
 
 target_link_libraries(gluten
-    PUBLIC Arrow::arrow Arrow::parquet)
+    PUBLIC Arrow::arrow Arrow::parquet google::glog)
 
 install(TARGETS gluten
         DESTINATION ${CMAKE_INSTALL_LIBDIR})
