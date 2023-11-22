@@ -38,17 +38,15 @@
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
-        <dependency>
-      <groupId>com.google.protobuf</groupId>
+    <dependency>
+      <groupId>io.glutenproject</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${forked.protobuf.version}</version>
-      <scope>provided</scope>
+      <version>${protobuf.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.google.protobuf</groupId>
+      <groupId>io.glutenproject</groupId>
       <artifactId>protobuf-java-util</artifactId>
-      <version>${forked.protobuf.version}</version>
-      <scope>provided</scope>
+      <version>${protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>io.glutenproject</groupId>

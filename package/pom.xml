@@ -30,22 +30,6 @@
       <artifactId>gluten-core</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
-      <!--   <exclusions>
-        <exclusion>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protobuf-java</artifactId>
-        </exclusion>
-      </exclusions> -->
-    </dependency>
-    <dependency>
-      <groupId>io.glutenproject</groupId>
-      <artifactId>protobuf-java</artifactId>
-      <version>${protobuf.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>io.glutenproject</groupId>
-      <artifactId>protobuf-java-util</artifactId>
-      <version>${protobuf.version}</version>
     </dependency>
 
     <!-- Do not remove the following. They are for enforcer plugin -->
