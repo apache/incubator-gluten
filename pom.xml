@@ -93,6 +93,7 @@
  */
     </spotless.license.header>
 
+    <glutten.package.jar>./package/target/gluten-package-${version}.jar</glutten.package.jar>
     <!-- plugin version-->
     <build-helper-maven-plugin.version>3.2.0</build-helper-maven-plugin.version>
     <scala.compiler.version>4.8.0</scala.compiler.version>
@@ -141,6 +142,7 @@
 	<spark.version>3.5.0</spark.version>
 	<delta.version>2.2.0</delta.version>
 	<delta.binary.version>22</delta.binary.version>
+	<glutten.package.jar>./package/target/gluten-package-${version}-3.5.jar</glutten.package.jar>
       </properties>
     </profile>
     <profile>
@@ -589,7 +591,13 @@
 	  <artifactId>maven-surefire-plugin</artifactId>
 	  <version>3.2.2</version>
 	  <configuration>
-	    <argLine>-ea --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED -Djdk.reflect.useDirectMethodHandle=false --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true</argLine>
+	    <argLine>-ea --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED -Djdk.reflect.useDirectMethodHandle=false --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true -Dglutten.package.jar=${glutten.package.jar}</argLine>
+	    <environmentVariables>
+	      <GLUTTEN_PACKAGE_JAR>${glutten.package.jar}</GLUTTEN_PACKAGE_JAR>
+	    </environmentVariables>
+	    <systemPropertyVariables>
+	      <glutten.package.jar>${glutten.package.jar}</glutten.package.jar>
+	    </systemPropertyVariables>
 	  </configuration>
 	</plugin>
 	<plugin>
@@ -599,7 +607,13 @@
 	  <configuration>
 	    <testFailureIgnore>false</testFailureIgnore>
 	    <junitxml>.</junitxml>
-	    <argLine>-ea --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED -Djdk.reflect.useDirectMethodHandle=false --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true</argLine>
+	    <argLine>-ea --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --add-opens=java.base/jdk.internal.ref=ALL-UNNAMED -Djdk.reflect.useDirectMethodHandle=false --add-opens=java.base/java.lang.reflect=ALL-UNNAMED -Dio.netty.tryReflectionSetAccessible=true -Dglutten.package.jar=${glutten.package.jar}</argLine>
+	    <environmentVariables>
+	      <GLUTTEN_PACKAGE_JAR>${glutten.package.jar}</GLUTTEN_PACKAGE_JAR>
+	    </environmentVariables>
+	    <systemPropertyVariables>
+	      <glutten.package.jar>${glutten.package.jar}</glutten.package.jar>
+	    </systemPropertyVariables>
 	  </configuration>
 	  <executions>
 	    <execution>
