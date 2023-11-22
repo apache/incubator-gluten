@@ -16,10 +16,10 @@
  */
 
 #include "utils/qpl/qpl_job_pool.h"
-#include "utils/macros.h"
-#include <glog/logging.h>
 #include <arrow/util/logging.h>
+#include <glog/logging.h>
 #include <iostream>
+#include "utils/macros.h"
 
 namespace gluten {
 namespace qpl {
