@@ -1290,6 +1290,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_shr
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
   return memoryManager->shrink(static_cast<int64_t>(size));
   JNI_METHOD_END(kInvalidResourceHandle)
+
 }
 
 JNIEXPORT void JNICALL Java_io_glutenproject_memory_nmm_NativeMemoryManager_hold( // NOLINT
