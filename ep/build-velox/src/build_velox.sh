@@ -80,6 +80,7 @@ function apply_compilation_fixes {
   current_dir=$1
   velox_home=$2
   sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
+  sudo cp ${current_dir}/modify_libhdfs3.patch ${velox_home}/
   sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/third_party/
   cd ${velox_home}
   git apply modify_velox.patch
