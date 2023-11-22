@@ -102,6 +102,11 @@ object VeloxIntermediateData {
     TypeBuilder.makeStruct(false, structTypeNodes.asJava)
   }
 
+  def getRowConstructFuncName(aggFunc: AggregateFunction): String = aggFunc match {
+    case _: Average | _: Sum if aggFunc.dataType.isInstanceOf[DecimalType] => "row_constructor"
+    case _ => "row_constructor_with_null"
+  }
+
   object Type {
 
     /**
