@@ -124,10 +124,8 @@ void CachedShuffleWriter::initOutputIfNeeded(Block & block)
 {
     if (!output_header)
     {
-        output_header = block.cloneEmpty();
         if (output_columns_indicies.empty())
         {
-            /// TODO 这里逻辑有问题？output_header被赋值了两遍
             output_header = block.cloneEmpty();
             for (size_t i = 0; i < block.columns(); ++i)
             {
