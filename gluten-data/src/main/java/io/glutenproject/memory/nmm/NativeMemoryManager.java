@@ -16,13 +16,13 @@
  */
 package io.glutenproject.memory.nmm;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.glutenproject.GlutenConfig;
 import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.memory.alloc.NativeMemoryAllocators;
-
 import io.glutenproject.memory.memtarget.KnownNameAndStats;
 import io.glutenproject.proto.MemoryUsageStats;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.spark.memory.SparkMemoryUtil;
 import org.apache.spark.util.TaskResource;
 import org.apache.spark.util.Utils;
@@ -95,26 +95,27 @@ public class NativeMemoryManager implements TaskResource {
 
   @Override
   public void release() throws Exception {
-    LOGGER.debug("About to release memory manager, usage dump: {}",
-        SparkMemoryUtil.prettyPrintStats(new KnownNameAndStats() {
-          @Override
-          public String name() {
-            return name;
-          }
+    LOGGER.debug(
+        "About to release memory manager, usage dump: {}",
+        SparkMemoryUtil.prettyPrintStats(
+            new KnownNameAndStats() {
+              @Override
+              public String name() {
+                return name;
+              }
 
-          @Override
-          public MemoryUsageStats stats() {
-            return collectMemoryUsage();
-          }
-        }));
+              @Override
+              public MemoryUsageStats stats() {
+                return collectMemoryUsage();
+              }
+            }));
     release(nativeInstanceHandle);
     if (listener.getUsedBytes() != 0) {
       LOGGER.warn(
-          String.format("%s Reservation listener %s still reserved non-zero bytes, " +
-                  "which may cause memory leak, size: %s",
-              name,
-              listener.toString(),
-              Utils.bytesToString(listener.getUsedBytes())));
+          String.format(
+              "%s Reservation listener %s still reserved non-zero bytes, "
+                  + "which may cause memory leak, size: %s",
+              name, listener.toString(), Utils.bytesToString(listener.getUsedBytes())));
     }
   }
 

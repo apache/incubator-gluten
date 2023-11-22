@@ -19,12 +19,15 @@ package org.apache.spark.memory
 import io.glutenproject.memory.memtarget.{KnownNameAndStats, MemoryTarget, MemoryTargetVisitor, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
 import io.glutenproject.memory.memtarget.spark.{RegularMemoryConsumer, TreeMemoryConsumer}
 import io.glutenproject.proto.MemoryUsageStats
+
 import org.apache.spark.SparkEnv
 import org.apache.spark.util.Utils
+
 import com.google.common.base.Preconditions
 import org.apache.commons.lang3.StringUtils
 
 import java.util
+
 import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
