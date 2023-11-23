@@ -247,6 +247,26 @@ void VeloxMemoryManager::hold() {
   holdInternal(heldVeloxPools_, veloxAggregatePool_.get());
 }
 
+VeloxMemoryManager::~VeloxMemoryManager() {
+  heldVeloxPools_.clear();
+  veloxLeafPool_.reset();
+  veloxAggregatePool_.reset();
+
+  // Wait (50 + 100 + 200 + 400 + 800)ms = 1550ms to let possible async tasks (e.g. preload split) complete.
+  for (int32_t tryCount = 0; tryCount < 5; tryCount++) {
+    if (veloxMemoryManager_->numPools() == 0) {
+      if (tryCount > 0) {
+        LOG(INFO) << "The outstanding Velox memory pools successfully closed. ";
+      }
+      break;
+    }
+    uint32_t waitMs = 50 * static_cast<uint32_t>(pow(2, tryCount));
+    LOG(INFO) << "There are still outstanding Velox memory pools. Waiting for " << waitMs
+              << " ms to let possible async tasks done... ";
+    usleep(waitMs * 1000);
+  }
+}
+
 velox::memory::MemoryManager* getDefaultVeloxMemoryManager() {
   return &(facebook::velox::memory::defaultMemoryManager());
 }

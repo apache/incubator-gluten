@@ -114,16 +114,8 @@ public class NativeMemoryManager implements TaskResource {
       LOGGER.warn(
           String.format(
               "%s Reservation listener %s still reserved non-zero bytes, "
-                  + "which may cause memory leak, size: %s. "
-                  + "Waiting 2s in case there are async tasks that still consuming memory... ",
+                  + "which may cause memory leak, size: %s. ",
               name, listener.toString(), Utils.bytesToString(listener.getUsedBytes())));
-      // We are about to leak memory, wait 2s to let possible async task complete
-      listener.waitUntilReleased(2000L);
-      if (listener.getUsedBytes() == 0) {
-        LOGGER.info(
-            String.format(
-                "%s Reservation listener %s successfully released.", name, listener.toString()));
-      }
     }
   }
 

@@ -28,6 +28,4 @@ public interface ReservationListener {
   long unreserve(long size);
 
   long getUsedBytes();
-
-  void waitUntilReleased(long timeoutMs) throws InterruptedException;
 }
