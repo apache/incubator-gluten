@@ -148,10 +148,8 @@ bool SubstraitFileSource::tryPrepareReader()
         {
             /// For text/json format file, we can't get total rows from file metadata.
             /// So we add a dummy column to indicate the number of rows.
-            auto dummy_header = BlockUtil::buildRowCountHeader();
-            auto output_header_contains_dummy = output_header;
-            output_header_contains_dummy.insertUnique(dummy_header.getByPosition(0));
-            file_reader = std::make_unique<NormalFileReader>(current_file, context, dummy_header, output_header_contains_dummy);
+            file_reader
+                = std::make_unique<NormalFileReader>(current_file, context, getRealHeader(to_read_header), getRealHeader(output_header));
         }
     }
     else
@@ -360,20 +358,21 @@ NormalFileReader::NormalFileReader(
 
 bool NormalFileReader::pull(DB::Chunk & chunk)
 {
-    DB::Chunk tmp_chunk;
-    auto status = reader->pull(tmp_chunk);
+    DB::Chunk raw_chunk;
+    auto status = reader->pull(raw_chunk);
     if (!status)
         return false;
 
-    size_t rows = tmp_chunk.getNumRows();
+    size_t rows = raw_chunk.getNumRows();
     if (!rows)
         return false;
 
-    auto read_columns = tmp_chunk.detachColumns();
+    auto read_columns = raw_chunk.detachColumns();
     auto columns_with_name_and_type = output_header.getColumnsWithTypeAndName();
     auto partition_values = file->getFilePartitionValues();
 
     DB::Columns res_columns;
+    res_columns.reserve(columns_with_name_and_type.size());
     for (auto & column : columns_with_name_and_type)
     {
         if (to_read_header.has(column.name))
