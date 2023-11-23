@@ -291,7 +291,7 @@ VeloxMemoryManager::~VeloxMemoryManager() {
       break;
     }
     uint32_t waitMs = 50 * static_cast<uint32_t>(pow(2, tryCount));
-    LOG(INFO) << "There are still outstanding Velox memory pools. Waiting for " << waitMs
+    LOG(INFO) << "There are still outstanding Velox memory allocations. Waiting for " << waitMs
               << " ms to let possible async tasks done... ";
     usleep(waitMs * 1000);
   }
