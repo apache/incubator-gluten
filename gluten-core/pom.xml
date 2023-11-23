@@ -177,10 +177,9 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.google.protobuf</groupId>
+      <groupId>io.glutenproject</groupId>
       <artifactId>protobuf-java-util</artifactId>
-      <version>${protobuf.version}</version>
-      <scope>provided</scope>
+      <version>${custom.protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>commons-io</groupId>
