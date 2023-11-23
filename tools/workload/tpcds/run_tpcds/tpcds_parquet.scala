@@ -24,6 +24,14 @@ import sys.process._
 var parquet_file_path = "/PATH/TO/TPCDS_PARQUET_PATH"
 var gluten_root = "/PATH/TO/GLUTEN"
 
+// File root path: file://, hdfs:// , s3 , ...
+// e.g. hdfs://hostname:8020
+var paq_file_root = "/ROOT_PATH"
+
+var tpcds_queries_path = "/gluten-core/src/test/resources/tpcds-queries/"
+var queries_no_decimal = "tpcds.queries.no-decimal"
+var queries_original = "tpcds.queries.original"
+
 def time[R](block: => R): R = {
     val t0 = System.nanoTime()
     val result = block    // call-by-name
@@ -33,30 +41,30 @@ def time[R](block: => R): R = {
 }
 
 // Read TPC-DS Table from parquet files.
-val call_center = spark.read.format("parquet").load("file://" + parquet_file_path + "/call_center")
-val catalog_page = spark.read.format("parquet").load("file://" + parquet_file_path + "/catalog_page")
-val catalog_returns = spark.read.format("parquet").load("file://" + parquet_file_path + "/catalog_returns")
-val catalog_sales = spark.read.format("parquet").load("file://" + parquet_file_path + "/catalog_sales")
-val customer = spark.read.format("parquet").load("file://" + parquet_file_path + "/customer")
-val customer_address = spark.read.format("parquet").load("file://" + parquet_file_path + "/customer_address")
-val customer_demographics = spark.read.format("parquet").load("file://" + parquet_file_path + "/customer_demographics")
-val date_dim = spark.read.format("parquet").load("file://" + parquet_file_path + "/date_dim")
-val household_demographics = spark.read.format("parquet").load("file://" + parquet_file_path + "/household_demographics")
-val income_band = spark.read.format("parquet").load("file://" + parquet_file_path + "/income_band")
-val inventory = spark.read.format("parquet").load("file://" + parquet_file_path + "/inventory")
-val item = spark.read.format("parquet").load("file://" + parquet_file_path + "/item")
-val promotion = spark.read.format("parquet").load("file://" + parquet_file_path + "/promotion")
-val reason = spark.read.format("parquet").load("file://" + parquet_file_path + "/reason")
-val ship_mode = spark.read.format("parquet").load("file://" + parquet_file_path + "/ship_mode")
-val store = spark.read.format("parquet").load("file://" + parquet_file_path + "/store")
-val store_returns = spark.read.format("parquet").load("file://" + parquet_file_path + "/store_returns")
-val store_sales = spark.read.format("parquet").load("file://" + parquet_file_path + "/store_sales")
-val time_dim = spark.read.format("parquet").load("file://" + parquet_file_path + "/time_dim")
-val warehouse = spark.read.format("parquet").load("file://" + parquet_file_path + "/warehouse")
-val web_page = spark.read.format("parquet").load("file://" + parquet_file_path + "/web_page")
-val web_returns = spark.read.format("parquet").load("file://" + parquet_file_path + "/web_returns")
-val web_sales = spark.read.format("parquet").load("file://" + parquet_file_path + "/web_sales")
-val web_site = spark.read.format("parquet").load("file://" + parquet_file_path + "/web_site")
+val call_center = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/call_center")
+val catalog_page = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/catalog_page")
+val catalog_returns = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/catalog_returns")
+val catalog_sales = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/catalog_sales")
+val customer = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/customer")
+val customer_address = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/customer_address")
+val customer_demographics = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/customer_demographics")
+val date_dim = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/date_dim")
+val household_demographics = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/household_demographics")
+val income_band = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/income_band")
+val inventory = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/inventory")
+val item = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/item")
+val promotion = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/promotion")
+val reason = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/reason")
+val ship_mode = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/ship_mode")
+val store = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/store")
+val store_returns = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/store_returns")
+val store_sales = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/store_sales")
+val time_dim = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/time_dim")
+val warehouse = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/warehouse")
+val web_page = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/web_page")
+val web_returns = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/web_returns")
+val web_sales = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/web_sales")
+val web_site = spark.read.format("parquet").load(paq_file_root + parquet_file_path + "/web_site")
 
 // Create parquet based TPC-DS Table View.
 call_center.createOrReplaceTempView("call_center")
@@ -95,7 +103,7 @@ def getListOfFiles(dir: String): List[File] = {
      }
 }
 val fileLists =
-  getListOfFiles(gluten_root + "/gluten-core/src/test/resources/tpcds-queries/")
+  getListOfFiles(gluten_root + tpcds_queries_path + queries_no_decimal)
 val sorted = fileLists.sortBy {
        f => f.getName match {
        case name =>
