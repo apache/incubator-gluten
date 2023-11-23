@@ -56,8 +56,7 @@ DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
 DECLARE_bool(velox_memory_use_hugepages);
 
-// Gluten's flag declarations
-DECLARE_bool(velox_memory_ignore_usage_leak);
+DEFINE_bool(velox_memory_check_usage_leak, true, "Enable Velox's memory usage leak checking");
 
 using namespace facebook;
 
@@ -346,7 +345,7 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
       // OOM exception is thrown from memory manager's destructor which may cause crash. In the other hand, we have
       // similar leak checking in Java side which is less fatal for OOM case.
       LOG(INFO) << "Warning: disabling memory leak checking since split preload is enabled";
-      FLAGS_velox_memory_ignore_usage_leak = false;
+      FLAGS_velox_memory_check_usage_leak = false;
     }
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }

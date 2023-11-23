@@ -28,6 +28,9 @@
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/core/Config.h"
 
+// Gluten's flag declarations
+DECLARE_bool(velox_memory_check_usage_leak);
+
 namespace gluten {
 /// As a static instance in per executor, initialized at executor startup.
 /// Should not put heavily work here.
