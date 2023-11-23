@@ -57,9 +57,9 @@
       <version>${custom.protobuf.version}</version>
     </dependency>
     <dependency>
-      <groupId>io.glutenproject</groupId>
-      <artifactId>protobuf-java-util</artifactId>
-      <version>${custom.protobuf.version}</version>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>${guava.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
