@@ -102,6 +102,11 @@ object VeloxIntermediateData {
     TypeBuilder.makeStruct(false, structTypeNodes.asJava)
   }
 
+  /**
+   * Obtain the name of the RowConstruct function, only decimal avg and sum currently require the
+   * use of row_constructor, while the rest use the Gluten custom modified
+   * row_constructor_with_null.
+   */
   def getRowConstructFuncName(aggFunc: AggregateFunction): String = aggFunc match {
     case _: Average | _: Sum if aggFunc.dataType.isInstanceOf[DecimalType] => "row_constructor"
     case _ => "row_constructor_with_null"
