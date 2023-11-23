@@ -63,7 +63,7 @@ const std::string kGlogVerboseLevel = "spark.gluten.sql.columnar.backend.velox.g
 const uint32_t kGlogVerboseLevelDefault = 0;
 
 const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
-const uint32_t kGlogSeverityLevelDefault = 0;
+const uint32_t kGlogSeverityLevelDefault = 1;
 
 const std::string kEnableSystemExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace";
