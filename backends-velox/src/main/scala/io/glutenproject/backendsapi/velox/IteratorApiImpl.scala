@@ -47,7 +47,6 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.time.ZoneOffset
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
-import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
 
@@ -129,7 +128,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
       updateInputMetrics: (InputMetricsWrapper) => Unit,
       updateNativeMetrics: IMetrics => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()): Iterator[ColumnarBatch] = {
-    val beforeBuild = System.nanoTime()
     val columnarNativeIterators =
       new JArrayList[GeneralInIterator](inputIterators.map {
         iter => new ColumnarBatchInIterator(iter.asJava)
@@ -137,7 +135,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
     val transKernel = NativePlanEvaluator.create()
     val resIter: GeneralOutIterator =
       transKernel.createKernelWithBatchIterator(inputPartition.plan, columnarNativeIterators)
-    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
     Iterators
       .wrap(resIter.asScala)
@@ -172,8 +169,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
 
     ExecutorManager.tryTaskSet(numaBindingInfo)
 
-    val beforeBuild = System.nanoTime()
-
     val transKernel = NativePlanEvaluator.create()
     val columnarNativeIterator =
       new JArrayList[GeneralInIterator](inputIterators.map {
@@ -183,8 +178,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
       transKernel.createKernelWithBatchIterator(
         rootNode.toProtobuf.toByteArray,
         columnarNativeIterator)
-
-    pipelineTime += TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - beforeBuild)
 
     Iterators
       .wrap(nativeResultIterator.asScala)
