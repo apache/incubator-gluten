@@ -36,7 +36,10 @@ using namespace DB;
 namespace local_engine
 {
 
-void local_engine::PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & data)
+/// To avoid deadlock and data race, we need to make sure that PartitionWriter::evictPartitions won't be invoked recursively.
+thread_local std::atomic<bool> already_inside_evict_partitions(false);
+
+void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & data)
 {
     Stopwatch time;
 
@@ -65,7 +68,7 @@ void local_engine::PartitionWriter::write(const PartitionInfo & partition_info, 
     shuffle_writer->split_result.total_split_time += time.elapsedNanoseconds();
 }
 
-size_t LocalPartitionWriter::evictPartitions(bool for_memory_spill)
+size_t LocalPartitionWriter::evictPartitionsImpl(bool for_memory_spill)
 {
     size_t res = 0;
 
@@ -234,12 +237,23 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
     }
 }
 
+size_t PartitionWriter::evictPartitions(bool for_memory_spill)
+{
+    if (already_inside_evict_partitions)
+        return 0;
+
+    already_inside_evict_partitions = true;
+    evictPartitionsImpl(for_memory_spill);
+    already_inside_evict_partitions = false;
+}
+
+
 CelebornPartitionWriter::CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client_)
     : PartitionWriter(shuffleWriter), celeborn_client(std::move(celeborn_client_))
 {
 }
 
-size_t CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
+size_t CelebornPartitionWriter::evictPartitionsImpl(bool for_memory_spill)
 {
     size_t res = 0;
 
@@ -307,6 +321,7 @@ size_t CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
 
 void CelebornPartitionWriter::stop()
 {
+    /// Push the remaining data to Celeborn
     for (size_t partition_id = 0; partition_id < partition_block_buffer.size(); ++partition_id)
     {
         std::unique_lock<std::recursive_mutex> lock(mtxs[partition_id]);
@@ -317,12 +332,11 @@ void CelebornPartitionWriter::stop()
             partition_buffer[partition_id]->addBlock(std::move(block));
         }
     }
-
     evictPartitions(false);
 
-    for (const auto & item : shuffle_writer->split_result.partition_length)
+    for (const auto & length : shuffle_writer->split_result.partition_length)
     {
-        shuffle_writer->split_result.total_bytes_written += item;
+        shuffle_writer->split_result.total_bytes_written += length;
     }
 }
 
