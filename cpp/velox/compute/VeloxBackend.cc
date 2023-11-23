@@ -19,7 +19,6 @@
 #include "VeloxBackend.h"
 
 #include <folly/executors/IOThreadPoolExecutor.h>
-#include <fstream>
 
 #include "operators/functions/RegistrationAllFunctions.h"
 #include "operators/plannodes/RowVectorStream.h"
