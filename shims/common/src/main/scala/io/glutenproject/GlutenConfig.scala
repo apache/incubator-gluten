@@ -1066,7 +1066,7 @@ object GlutenConfig {
       .internal()
       .doc("Set glog severity level in Velox backend, same as FLAGS_minloglevel.")
       .intConf
-      .createWithDefault(0)
+      .createWithDefault(1)
 
   val COLUMNAR_VELOX_SPILL_STRATEGY =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
