@@ -55,8 +55,6 @@ DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
 DECLARE_bool(velox_memory_use_hugepages);
 
-DEFINE_bool(velox_memory_check_usage_leak, true, "Enable Velox's memory usage leak checking");
-
 using namespace facebook;
 
 namespace {
@@ -338,13 +336,6 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
       LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
                 << ", IO threads: " << ioThreads;
       FLAGS_split_preload_per_driver = splitPreloadPerDriver;
-      // Split preload may cause fake "memory leak" during the time Velox memory manager is destructed,
-      // because splitting preload requires holding a ref to the task instance which holds a ref to
-      // connector memory pool (see HiveConnector.cpp). Disable leak checking in this case anyway since Velox's
-      // OOM exception is thrown from memory manager's destructor which may cause crash. In the other hand, we have
-      // similar leak checking in Java side which is less fatal for OOM case.
-      LOG(INFO) << "Warning: disabling memory leak checking since split preload is enabled";
-      FLAGS_velox_memory_check_usage_leak = false;
     }
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }

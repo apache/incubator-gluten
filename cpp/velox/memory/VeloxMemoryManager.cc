@@ -23,8 +23,6 @@
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
-DECLARE_bool(velox_memory_check_usage_leak);
-
 namespace gluten {
 
 using namespace facebook;
@@ -175,7 +173,7 @@ VeloxMemoryManager::VeloxMemoryManager(
       velox::memory::kMaxMemory,
       velox::memory::kMaxMemory,
       true, // memory usage tracking
-      FLAGS_velox_memory_check_usage_leak, // leak check
+      true, // leak check
       false, // debug
 #ifdef GLUTEN_ENABLE_HBM
       wrappedAlloc.get(),
