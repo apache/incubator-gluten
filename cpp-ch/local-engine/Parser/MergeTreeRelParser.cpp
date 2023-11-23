@@ -218,7 +218,7 @@ DB::ActionsDAGPtr MergeTreeRelParser::optimizePrewhereAction(const substrait::Ex
     return filter_action;
 }
 
-void MergeTreeRelParser::parseToAction(ActionsDAGPtr & filter_action, const substrait::Expression & rel, std::string filter_name)
+void MergeTreeRelParser::parseToAction(ActionsDAGPtr & filter_action, const substrait::Expression & rel, std::string & filter_name)
 {
     if (rel.has_scalar_function())
         getPlanParser()->parseFunctionWithDAG(rel, filter_name, filter_action, true);
