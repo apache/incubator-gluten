@@ -294,6 +294,7 @@ void Partition::addBlock(DB::Block & block)
 
 bool Partition::empty() const
 {
+    std::unique_lock<std::mutex> lock(mtx);
     return blocks.empty();
 }
 
