@@ -334,13 +334,6 @@ target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
 
-include(Simdjson)
-if(TARGET simdjson::simdjson AND NOT TARGET simdjson)
-  add_library(simdjson INTERFACE)
-  target_link_libraries(simdjson INTERFACE simdjson::simdjson)
-endif()
-target_link_libraries(velox PUBLIC simdjson)
-
 if(ENABLE_GLUTEN_VCPKG)
   find_package(Thrift CONFIG)
 else()
