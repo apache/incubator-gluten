@@ -52,7 +52,7 @@ public:
 
 private:
     std::vector<DB::Block> blocks;
-    std::mutex mtx;
+    mutable std::mutex mtx;
 };
 
 class PartitionWriter {
