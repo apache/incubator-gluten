@@ -33,6 +33,8 @@ import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDi
 import org.apache.spark.sql.types._
 import org.apache.spark.util.collection.BitSet
 
+import com.google.protobuf.{Any, Message}
+
 import java.util.{Map => JMap}
 
 class TransformerApiImpl extends TransformerApi with Logging {
@@ -135,4 +137,6 @@ class TransformerApiImpl extends TransformerApi with Logging {
       tmpRuntime.release()
     }
   }
+
+  override def getPackMessage(message: Message): Any = Any.pack(message, "")
 }
