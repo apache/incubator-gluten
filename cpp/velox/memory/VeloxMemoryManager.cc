@@ -249,15 +249,15 @@ void VeloxMemoryManager::hold() {
 
 bool VeloxMemoryManager::tryDestructSafe() {
   // Velox memory pools considered safe to destruct when no alive allocations.
-  for (auto& pool : heldVeloxPools_) {
-    if (pool->currentBytes() != 0) {
+  for (const auto& pool : heldVeloxPools_) {
+    if (pool && pool->currentBytes() != 0) {
       return false;
     }
   }
-  if (veloxLeafPool_->currentBytes() != 0) {
+  if (veloxLeafPool_ && veloxLeafPool_->currentBytes() != 0) {
     return false;
   }
-  if (veloxAggregatePool_->currentBytes() != 0) {
+  if (veloxAggregatePool_ && veloxAggregatePool_->currentBytes() != 0) {
     return false;
   }
   heldVeloxPools_.clear();
@@ -265,13 +265,13 @@ bool VeloxMemoryManager::tryDestructSafe() {
   veloxAggregatePool_.reset();
 
   // Velox memory manager considered safe to destruct when no alive pools.
-  if (veloxMemoryManager_->numPools() != 0) {
+  if (veloxMemoryManager_ && veloxMemoryManager_->numPools() != 0) {
     return false;
   }
   veloxMemoryManager_.reset();
 
   // Applies similar rule for Arrow memory pool.
-  if (arrowPool_->bytes_allocated() != 0) {
+  if (arrowPool_ && arrowPool_->bytes_allocated() != 0) {
     return false;
   }
   arrowPool_.reset();
