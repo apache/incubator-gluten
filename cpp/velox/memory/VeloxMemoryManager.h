@@ -61,6 +61,9 @@ class VeloxMemoryManager final : public MemoryManager {
   void hold() override;
 
  private:
+
+  bool tryDestructSafe();
+
   std::string name_;
 
 #ifdef GLUTEN_ENABLE_HBM

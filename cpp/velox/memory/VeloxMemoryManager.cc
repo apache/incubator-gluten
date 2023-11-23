@@ -247,16 +247,40 @@ void VeloxMemoryManager::hold() {
   holdInternal(heldVeloxPools_, veloxAggregatePool_.get());
 }
 
-VeloxMemoryManager::~VeloxMemoryManager() {
+bool VeloxMemoryManager::tryDestructSafe() {
+  for (auto& pool : heldVeloxPools_) {
+    if (pool->currentBytes() != 0) {
+      return false;
+    }
+    pool.reset();
+  }
   heldVeloxPools_.clear();
+  if (veloxLeafPool_->currentBytes() != 0) {
+    return false;
+  }
   veloxLeafPool_.reset();
+  if (veloxAggregatePool_->currentBytes() != 0) {
+    return false;
+  }
   veloxAggregatePool_.reset();
 
+  if (veloxMemoryManager_->numPools() != 0) {
+    return false;
+  }
+  veloxMemoryManager_.reset();
+  if (arrowPool_->bytes_allocated() != 0) {
+    return false;
+  }
+  arrowPool_.reset();
+  return true;
+}
+
+VeloxMemoryManager::~VeloxMemoryManager() {
   // Wait (50 + 100 + 200 + 400 + 800)ms = 1550ms to let possible async tasks (e.g. preload split) complete.
   for (int32_t tryCount = 0; tryCount < 5; tryCount++) {
-    if (veloxMemoryManager_->numPools() == 0) {
+    if (tryDestructSafe()) {
       if (tryCount > 0) {
-        LOG(INFO) << "The outstanding Velox memory pools successfully closed. ";
+        LOG(INFO) << "All the outstanding memory resources successfully released. ";
       }
       break;
     }
