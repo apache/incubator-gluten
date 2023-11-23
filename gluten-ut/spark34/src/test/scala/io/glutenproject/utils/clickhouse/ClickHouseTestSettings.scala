@@ -16,7 +16,7 @@
  */
 package io.glutenproject.utils.clickhouse
 
-import io.glutenproject.utils.BackendTestSettings
+import io.glutenproject.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
