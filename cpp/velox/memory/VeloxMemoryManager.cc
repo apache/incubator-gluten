@@ -253,16 +253,15 @@ bool VeloxMemoryManager::tryDestructSafe() {
     if (pool->currentBytes() != 0) {
       return false;
     }
-    pool.reset();
   }
-  heldVeloxPools_.clear();
   if (veloxLeafPool_->currentBytes() != 0) {
     return false;
   }
-  veloxLeafPool_.reset();
   if (veloxAggregatePool_->currentBytes() != 0) {
     return false;
   }
+  heldVeloxPools_.clear();
+  veloxLeafPool_.reset();
   veloxAggregatePool_.reset();
 
   // Velox memory manager considered safe to destruct when no alive pools.
