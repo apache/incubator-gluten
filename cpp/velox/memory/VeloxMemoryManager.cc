@@ -276,6 +276,8 @@ bool VeloxMemoryManager::tryDestructSafe() {
     return false;
   }
   arrowPool_.reset();
+
+  // Successfully destructed.
   return true;
 }
 
