@@ -42,9 +42,7 @@ FormatFile::InputFormatPtr TextFormatFile::createInputFormat(const DB::Block & h
 
     /// Initialize format settings
     DB::FormatSettings format_settings = DB::getFormatSettings(context);
-    const auto & schema = file_info.schema();
-    for (const auto & name : schema.names())
-        format_settings.hive_text.input_field_names.push_back(name);
+    format_settings.hive_text.input_field_names = getSchema().getNames();
 
     std::string text_field_delimiter = file_info.text().field_delimiter();
     format_settings.hive_text.fields_delimiter = file_info.text().field_delimiter()[0];
