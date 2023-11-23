@@ -26,6 +26,7 @@
 #include <boost/algorithm/string.hpp>
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <parquet/properties.h>
+#include <velox/vector/ComplexVector.h>
 
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxColumnarBatch.h"
@@ -72,6 +73,7 @@ class VeloxParquetDatasource final : public Datasource {
  private:
   int64_t maxRowGroupBytes_ = 134217728; // 128MB
   int64_t maxRowGroupRows_ = 100000000; // 100M
+  int32_t batchSize_ = 4096;
 
   std::string filePath_;
   std::shared_ptr<arrow::Schema> schema_;
@@ -80,6 +82,10 @@ class VeloxParquetDatasource final : public Datasource {
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> s3SinkPool_;
   std::unique_ptr<facebook::velox::dwio::common::FileSink> sink_;
+  int32_t stagingRows_{0};
+  std::vector<facebook::velox::VectorPtr> stagingBatches_{};
+
+  void writeStaging();
 };
 
 } // namespace gluten

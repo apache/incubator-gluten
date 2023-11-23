@@ -87,6 +87,9 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   if (sparkConfs.find(kParquetBlockRows) != sparkConfs.end()) {
     maxRowGroupRows_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
   }
+  if (sparkConfs.find(kSparkBatchSize) != sparkConfs.end()) {
+    batchSize_ = stoi(sparkConfs.find(kSparkBatchSize)->second);
+  }
   velox::parquet::WriterOptions writeOption;
   auto compressionCodec = CompressionKind::CompressionKind_SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
@@ -148,6 +151,9 @@ void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
 }
 
 void VeloxParquetDatasource::close() {
+  if (stagingRows_ > 0) {
+    writeStaging();
+  }
   if (parquetWriter_) {
     parquetWriter_->close();
   }
@@ -156,7 +162,40 @@ void VeloxParquetDatasource::close() {
 void VeloxParquetDatasource::write(const std::shared_ptr<ColumnarBatch>& cb) {
   auto veloxBatch = std::dynamic_pointer_cast<VeloxColumnarBatch>(cb);
   VELOX_DCHECK(veloxBatch != nullptr, "Write batch should be VeloxColumnarBatch");
-  parquetWriter_->write(veloxBatch->getFlattenedRowVector());
+  vector_size_t appendedRows = 0;
+  auto batch = veloxBatch->getFlattenedRowVector();
+  if (stagingRows_ > 0) {
+    if (batchSize_ - stagingRows_ > batch->size()) {
+      stagingBatches_.push_back(batch);
+      stagingRows_ += batch->size();
+      return;
+    }
+    appendedRows = batchSize_ - stagingRows_;
+    stagingBatches_.push_back(batch->slice(0, appendedRows));
+    // Write and clear stagings.
+    writeStaging();
+  }
+  // Split into smaller batches.
+  while (true) {
+    auto remaining = batch->size() - appendedRows;
+    if (remaining == 0) {
+      break;
+    }
+    if (remaining < batchSize_) {
+      stagingBatches_.push_back(batch->slice(appendedRows, remaining));
+      stagingRows_ = remaining;
+      break;
+    }
+    parquetWriter_->write(batch->slice(appendedRows, batchSize_));
+    appendedRows += batchSize_;
+  }
 }
 
+void VeloxParquetDatasource::writeStaging() {
+  for (const auto& b : stagingBatches_) {
+    parquetWriter_->write(b);
+  }
+  stagingBatches_.clear();
+  stagingRows_ = 0;
+}
 } // namespace gluten
