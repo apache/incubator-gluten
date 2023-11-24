@@ -57,6 +57,7 @@
 #include <Parser/JoinRelParser.h>
 #include <Parser/RelParser.h>
 #include <Parser/TypeParser.h>
+#include <Parser/MergeTreeRelParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Processors/Executors/PullingAsyncPipelineExecutor.h>
@@ -567,7 +568,10 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             }
             else
             {
-                query_plan = parseMergeTreeTable(read, steps);
+                MergeTreeRelParser mergeTreeParser(this, context, query_context, global_context);
+                std::list<const substrait::Rel *> stack;
+                query_plan = mergeTreeParser.parse(std::make_unique<QueryPlan>(), rel, stack);
+                steps = mergeTreeParser.getSteps();
             }
             break;
         }
