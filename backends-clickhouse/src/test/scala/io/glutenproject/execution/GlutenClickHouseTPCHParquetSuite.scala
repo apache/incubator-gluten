@@ -376,8 +376,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("test 'function rand'") {
-    // TODO: add rand(1), rand(null) test back.
-    runSql("select rand() from range(10)")(checkOperatorMatch[ProjectExecTransformer])
+    runSql("select rand(), rand(1), rand(null) from range(10)")(
+      checkOperatorMatch[ProjectExecTransformer])
   }
 
   test("test 'function date_add/date_sub/datediff'") {

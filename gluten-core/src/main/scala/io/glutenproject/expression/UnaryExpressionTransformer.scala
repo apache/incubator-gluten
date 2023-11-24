@@ -220,10 +220,6 @@ case class RandTransformer(
       functionMap,
       ConverterUtils.makeFuncName(substraitExprName, Seq(original.child.dataType)))
     val inputNodes = Lists.newArrayList[ExpressionNode]()
-//    inputNodes.add(explicitSeed.doTransform(args))
-//    val partitionIndex = TaskContext.getPartitionId()
-//    val partitionIndexNode = ExpressionBuilder.makeLiteral(partitionIndex, IntegerType, false)
-//    inputNodes.add(partitionIndexNode)
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, inputNodes, typeNode)
   }
