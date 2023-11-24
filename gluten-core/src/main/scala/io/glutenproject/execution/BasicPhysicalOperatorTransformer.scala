@@ -42,6 +42,8 @@ import scala.collection.JavaConverters._
 
 abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkPlan)
   extends UnaryTransformSupport
+  with OrderPreservingNodeShim
+  with PartitioningPreservingNodeShim
   with PredicateHelper
   with Logging {
 
@@ -110,6 +112,10 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
         }
     }
   }
+
+  override protected def orderingExpressions: Seq[SortOrder] = child.outputOrdering
+
+  override protected def outputExpressions: Seq[NamedExpression] = child.output
 
   override protected def doValidateInternal(): ValidationResult = {
     if (cond == null) {
@@ -180,6 +186,8 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
 
 case class ProjectExecTransformer private (projectList: Seq[NamedExpression], child: SparkPlan)
   extends UnaryTransformSupport
+  with OrderPreservingNodeShim
+  with PartitioningPreservingNodeShim
   with PredicateHelper
   with Logging {
 
@@ -248,7 +256,9 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
 
   override def output: Seq[Attribute] = projectList.map(_.toAttribute)
 
-  // override def canEqual(that: Any): Boolean = false
+  override protected def orderingExpressions: Seq[SortOrder] = child.outputOrdering
+
+  override protected def outputExpressions: Seq[NamedExpression] = projectList
 
   def getRelNode(
       context: SubstraitContext,
