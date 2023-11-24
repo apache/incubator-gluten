@@ -242,7 +242,7 @@ macro(find_re2)
 endmacro()
 
 macro(find_awssdk)
-  set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  set (CMAKE_FIND_LIBRARY_SUFFIXES ".so")
   find_package(AWSSDK REQUIRED COMPONENTS s3;identity-management)
 endmacro()
 
