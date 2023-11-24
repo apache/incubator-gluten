@@ -131,6 +131,7 @@ function compile {
   echo "COMPILE_OPTION: "$COMPILE_OPTION
 
   export simdjson_SOURCE=BUNDLED
+  export duckdb_SOURCE=BUNDLED
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
