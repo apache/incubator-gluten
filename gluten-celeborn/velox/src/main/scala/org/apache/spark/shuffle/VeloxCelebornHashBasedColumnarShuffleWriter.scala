@@ -29,6 +29,7 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkResourceUtil
+import org.apache.spark.util.random.XORShiftRandom
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
@@ -72,6 +73,12 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
       } else {
         val handle = ColumnarBatches.getNativeHandle(cb)
         if (nativeShuffleWriter == -1L) {
+          val partitionKeySeed = dep.nativePartitioning.getShortName match {
+            case "rr" =>
+              new XORShiftRandom(context.partitionId())
+                .nextInt(dep.partitioner.numPartitions)
+            case _ => 0
+          }
           nativeShuffleWriter = jniWrapper.makeForRSS(
             dep.nativePartitioning,
             nativeBufferSize,
