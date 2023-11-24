@@ -194,6 +194,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(external::md5 "${VELOX_COMPONENTS_PATH}/external/md5/libmd5.a")
   add_velox_dependency(external::date "${VELOX_COMPONENTS_PATH}/external/date/libvelox_external_date.a")
   add_velox_dependency(velox::parquet::writer "${VELOX_COMPONENTS_PATH}/dwio/parquet/libvelox_dwio_parquet_writer.a")
+  add_velox_dependency(external::simdjson "${VELOX_COMPONENTS_PATH}/../_deps/simdjson-build/libsimdjson.a")
 
   if(BUILD_TESTS)
     add_velox_dependency(vector::test::util "${VELOX_COMPONENTS_PATH}/vector/tests/utils/libvelox_vector_test_lib.a")
@@ -313,7 +314,7 @@ set_target_properties(velox PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
     )
 
-## If the folly is not builded in system directories, please add
+## If the folly is not built in system directories, please add
 ## `-DCMAKE_PREFIX_PATH="${folly builded directory}" to the parameters of cmake.
 ## It is also applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
