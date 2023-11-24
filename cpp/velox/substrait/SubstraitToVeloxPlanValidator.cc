@@ -25,7 +25,6 @@
 #include "velox/exec/Aggregate.h"
 #include "velox/expression/Expr.h"
 #include "velox/expression/SignatureBinder.h"
-#include "velox/type/Tokenizer.h"
 
 namespace gluten {
 
@@ -62,7 +61,6 @@ bool validateColNames(const ::substrait::NamedStruct& schema) {
   };
 
   for (const auto& name : schema.names()) {
-    common::Tokenizer token(name, common::Separators::get());
     for (auto i = 0; i < name.size(); i++) {
       auto c = name[i];
       if (!isUnquotedPathCharacter(c)) {
