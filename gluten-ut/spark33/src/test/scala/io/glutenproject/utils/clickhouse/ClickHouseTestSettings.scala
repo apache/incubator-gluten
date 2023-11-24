@@ -16,7 +16,7 @@
  */
 package io.glutenproject.utils.clickhouse
 
-import io.glutenproject.utils.BackendTestSettings
+import io.glutenproject.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions._
@@ -2017,5 +2017,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("fallbackSummary with shuffle")
     .exclude("fallbackSummary with cache")
     .exclude("fallbackSummary with cached data and shuffle")
+
+  override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }
 // scalastyle:on line.size.limit
