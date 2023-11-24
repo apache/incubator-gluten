@@ -644,6 +644,17 @@ object GlutenConfig {
       .checkValues(Set("streaming", "sort"))
       .createWithDefault("streaming")
 
+  val COLUMNAR_PREFER_STREAMING_AGGREGATE =
+    buildConf("spark.gluten.sql.columnar.preferStreamingAggregate")
+      .internal()
+      .doc(
+        "Velox backend supports `StreamingAggregate`. `StreamingAggregate` uses the less " +
+          "memory as it does not need to hold all groups in memory, so it could avoid spill. " +
+          "When true and the child output ordering satisfies the grouping key then " +
+          "Gluten will choose `StreamingAggregate` as the native operator.")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.forceShuffledHashJoin")
       .internal()
