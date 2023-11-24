@@ -120,6 +120,12 @@ function compile {
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GCS=ON"
   fi
 
+  if [[ $ENABLE_TESTS == "ON" ]] || [[ $ENABLE_BENCHMARK == "ON" ]]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_PARSE=ON"
+  else
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_PARSE=OFF"
+  fi
+
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
   echo "COMPILE_OPTION: "$COMPILE_OPTION
