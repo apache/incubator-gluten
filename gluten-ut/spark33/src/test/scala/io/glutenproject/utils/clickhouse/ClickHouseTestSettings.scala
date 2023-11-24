@@ -766,7 +766,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Gluten - TIMESTAMP_MICROS")
     .exclude("Gluten - unix_timestamp")
     .exclude("Gluten - to_unix_timestamp")
-  enableSuite[GlutenDecimalExpressionSuite].exclude("MakeDecimal")
+  enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenHashExpressionsSuite]
     .exclude("sha2")
     .exclude("murmur3/xxHash64/hive hash: struct<null:void,boolean:boolean,byte:tinyint,short:smallint,int:int,long:bigint,float:float,double:double,bigDecimal:decimal(38,18),smallDecimal:decimal(10,0),string:string,binary:binary,date:date,timestamp:timestamp,udt:examplepoint>")
