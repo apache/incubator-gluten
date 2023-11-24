@@ -16,24 +16,12 @@
  */
 package io.glutenproject.memory.nmm;
 
+import io.glutenproject.memory.SimpleMemoryUsageRecorder;
+import io.glutenproject.memory.memtarget.NoopMemoryTarget;
+
 public interface ReservationListener {
   ReservationListener NOOP =
-      new ReservationListener() {
-        @Override
-        public long reserve(long size) {
-          return 0L;
-        }
-
-        @Override
-        public long unreserve(long size) {
-          return 0L;
-        }
-
-        @Override
-        public long getUsedBytes() {
-          return 0;
-        }
-      };
+      new ManagedReservationListener(new NoopMemoryTarget(), new SimpleMemoryUsageRecorder());
 
   long reserve(long size);
 
