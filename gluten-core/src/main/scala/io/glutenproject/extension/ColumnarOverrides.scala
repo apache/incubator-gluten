@@ -22,7 +22,6 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.metrics.GlutenTimeMetric
-import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
@@ -533,41 +532,19 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
    */
   def applyScanTransformer(plan: SparkPlan): SparkPlan = plan match {
     case plan: FileSourceScanExec =>
-      val newPartitionFilters =
-        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters, reuseSubquery)
-      val transformer = new FileSourceScanExecTransformer(
-        plan.relation,
-        plan.output,
-        plan.requiredSchema,
-        newPartitionFilters,
-        plan.optionalBucketSet,
-        plan.optionalNumCoalescedBuckets,
-        plan.dataFilters,
-        plan.tableIdentifier,
-        plan.disableBucketedScan
-      )
+      val transformer = ScanTransformerFactory.createFileSourceScanTransformer(plan, reuseSubquery)
       val validationResult = transformer.doValidate()
       if (validationResult.isValid) {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         transformer
       } else {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-        val newSource = plan.copy(partitionFilters = newPartitionFilters)
+        val newSource = plan.copy(partitionFilters = transformer.partitionFilters)
         TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
         newSource
       }
     case plan: BatchScanExec =>
-      val newPartitionFilters: Seq[Expression] = plan.scan match {
-        case scan: FileScan =>
-          ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters, reuseSubquery)
-        case _ =>
-          ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery)
-      }
-      val transformer = new BatchScanExecTransformer(
-        plan.output,
-        plan.scan,
-        newPartitionFilters,
-        table = SparkShimLoader.getSparkShims.getBatchScanExecTable(plan))
+      val transformer = ScanTransformerFactory.createBatchScanTransformer(plan, reuseSubquery)
 
       val validationResult = transformer.doValidate()
       if (validationResult.isValid) {
@@ -575,7 +552,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         transformer
       } else {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-        val newSource = plan.copy(runtimeFilters = newPartitionFilters)
+        val newSource = plan.copy(runtimeFilters = transformer.runtimeFilters)
         TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
         newSource
       }

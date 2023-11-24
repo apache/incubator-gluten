@@ -68,17 +68,17 @@ class BatchScanExecTransformer(
 
   override def getPartitions: Seq[InputPartition] = filteredFlattenPartitions
 
-  override def getPartitionSchemas: StructType = scan match {
+  override def getPartitionSchema: StructType = scan match {
     case fileScan: FileScan => fileScan.readPartitionSchema
     case _ => new StructType()
   }
 
-  override def getDataSchemas: StructType = scan match {
+  override def getDataSchema: StructType = scan match {
     case fileScan: FileScan => fileScan.readDataSchema
     case _ => new StructType()
   }
 
-  override def getInputFilePaths: Seq[String] = {
+  override def getInputFilePathsInternal: Seq[String] = {
     scan match {
       case fileScan: FileScan => fileScan.fileIndex.inputFiles.toSeq
       case _ => Seq.empty

@@ -28,7 +28,7 @@ import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
 import org.apache.spark.sql.catalyst.expressions.{BinaryArithmetic, _}
 import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, ExprCode}
 import org.apache.spark.sql.catalyst.optimizer.NormalizeNaNAndZero
-import org.apache.spark.sql.execution._
+import org.apache.spark.sql.execution.{ScalarSubquery, _}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.hive.HiveSimpleUDFTransformer
@@ -455,7 +455,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
    * Transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in DynamicPruningExpression.
    *
    * @param partitionFilters
+   *   The partition filter of Scan
    * @return
+   *   Transformed partition filter
    */
   def transformDynamicPruningExpr(
       partitionFilters: Seq[Expression],
@@ -468,15 +470,13 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         case c2r: ColumnarToRowExecBase => c2r.child
         // in fallback case
         case plan: UnaryExecNode if !plan.isInstanceOf[GlutenPlan] =>
-          if (plan.child.isInstanceOf[ColumnarToRowExec]) {
-            val wholeStageTransformer = exchange.find(_.isInstanceOf[WholeStageTransformer])
-            if (wholeStageTransformer.nonEmpty) {
-              wholeStageTransformer.get
-            } else {
+          plan.child match {
+            case _: ColumnarToRowExec =>
+              val wholeStageTransformer = exchange.find(_.isInstanceOf[WholeStageTransformer])
+              wholeStageTransformer.getOrElse(
+                BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(plan))
+            case _ =>
               BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(plan)
-            }
-          } else {
-            BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(plan)
           }
       }
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
@@ -486,7 +486,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       // Disable ColumnarSubqueryBroadcast for scan-only execution.
       partitionFilters
     } else {
-      partitionFilters.map {
+      val newPartitionFilters = partitionFilters.map {
         case dynamicPruning: DynamicPruningExpression =>
           dynamicPruning.transform {
             // Lookup inside subqueries for duplicate exchanges.
@@ -516,13 +516,12 @@ object ExpressionConverter extends SQLConfHelper with Logging {
                   // On the other hand, it needs to use
                   // the AdaptiveSparkPlanExec.AdaptiveExecutionContext to hold the reused map
                   // for each query.
-                  if (newIn.child.isInstanceOf[AdaptiveSparkPlanExec] && reuseSubquery) {
-                    // When AQE is on and reuseSubquery is on.
-                    newIn.child
-                      .asInstanceOf[AdaptiveSparkPlanExec]
-                      .context
-                      .subqueryCache
-                      .update(newIn.canonicalized, transformSubqueryBroadcast)
+                  newIn.child match {
+                    case a: AdaptiveSparkPlanExec if reuseSubquery =>
+                      // When AQE is on and reuseSubquery is on.
+                      a.context.subqueryCache
+                        .update(newIn.canonicalized, transformSubqueryBroadcast)
+                    case _ =>
                   }
                   in.copy(plan = transformSubqueryBroadcast.asInstanceOf[BaseSubqueryExec])
                 case r: ReusedSubqueryExec if r.child.isInstanceOf[SubqueryBroadcastExec] =>
@@ -545,7 +544,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
                         logWarning(errMsg)
                         throw new UnsupportedOperationException(errMsg)
                       }
-                    case other =>
+                    case _ =>
                       val errMsg = "Can not get the reused ColumnarSubqueryBroadcastExec" +
                         "by the ${newIn.canonicalized}"
                       logWarning(errMsg)
@@ -556,6 +555,25 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           }
         case e: Expression => e
       }
+      updateSubqueryResult(newPartitionFilters)
+      newPartitionFilters
+    }
+  }
+
+  private def updateSubqueryResult(partitionFilters: Seq[Expression]): Unit = {
+    // When it includes some DynamicPruningExpression,
+    // it needs to execute InSubqueryExec first,
+    // because doTransform path can't execute 'doExecuteColumnar' which will
+    // execute prepare subquery first.
+    partitionFilters.foreach {
+      case DynamicPruningExpression(inSubquery: InSubqueryExec) =>
+        if (inSubquery.values().isEmpty) inSubquery.updateResult()
+      case e: Expression =>
+        e.foreach {
+          case s: ScalarSubquery => s.updateResult()
+          case _ =>
+        }
+      case _ =>
     }
   }
 }

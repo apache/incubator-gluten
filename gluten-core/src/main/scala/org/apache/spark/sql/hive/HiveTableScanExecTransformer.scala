@@ -70,11 +70,11 @@ class HiveTableScanExecTransformer(
 
   override def getPartitions: Seq[InputPartition] = partitions
 
-  override def getPartitionSchemas: StructType = relation.tableMeta.partitionSchema
+  override def getPartitionSchema: StructType = relation.tableMeta.partitionSchema
 
-  override def getDataSchemas: StructType = relation.tableMeta.dataSchema
+  override def getDataSchema: StructType = relation.tableMeta.dataSchema
 
-  override def getInputFilePaths: Seq[String] = {
+  override def getInputFilePathsInternal: Seq[String] = {
     // FIXME how does a hive table expose file paths?
     Seq.empty
   }
@@ -172,7 +172,7 @@ class HiveTableScanExecTransformer(
         case (_, _) =>
       }
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
-      readRelNode.setDataSchema(getDataSchemas)
+      readRelNode.setDataSchema(getDataSchema)
       readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
     }
     transformCtx
