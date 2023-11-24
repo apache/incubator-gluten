@@ -16,7 +16,7 @@
  */
 package io.glutenproject.utils.velox
 
-import io.glutenproject.utils.BackendTestSettings
+import io.glutenproject.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.expressions.{GlutenAnsiCastSuiteWithAnsiModeOff, GlutenAnsiCastSuiteWithAnsiModeOn, GlutenArithmeticExpressionSuite, GlutenBitwiseExpressionsSuite, GlutenCastSuite, GlutenCastSuiteWithAnsiModeOn, GlutenCollectionExpressionsSuite, GlutenComplexTypeSuite, GlutenConditionalExpressionSuite, GlutenDateExpressionsSuite, GlutenDecimalExpressionSuite, GlutenHashExpressionsSuite, GlutenIntervalExpressionsSuite, GlutenLiteralExpressionSuite, GlutenMathExpressionsSuite, GlutenMiscExpressionsSuite, GlutenNondeterministicSuite, GlutenNullExpressionsSuite, GlutenPredicateSuite, GlutenRandomSuite, GlutenRegexpExpressionsSuite, GlutenSortOrderExpressionsSuite, GlutenStringExpressionsSuite, GlutenTryCastSuite}
@@ -1173,5 +1173,7 @@ class VeloxTestSettings extends BackendTestSettings {
     // ReaderFactory is not registered for format orc.
     .exclude("hive orc scan")
   enableSuite[GlutenImplicitsTest]
+
+  override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
 // scalastyle:on line.size.limit
