@@ -255,7 +255,8 @@
                     <ignoreClass>org.apache.spark.sql.execution.datasources.WriterBucketSpec$</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand</ignoreClass>
                     <ignoreClass>org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand$</ignoreClass>
-
+                    <!-- protobuf -->
+                    <ignoreClass>com.google.protobuf.*</ignoreClass>
                   </ignoreClasses>
                   <scopes>
                     <scope>compile</scope>
