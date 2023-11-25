@@ -23,8 +23,8 @@ namespace gluten {
 
 class RoundRobinPartitioner final : public Partitioner {
  public:
-  RoundRobinPartitioner(int32_t numPartitions, int32_t partitionKeySeed) 
-      : Partitioner(numPartitions, false), pidSelection_(partitionKeySeed) {}
+  RoundRobinPartitioner(int32_t numPartitions, int32_t partitionKeySeed)
+      : Partitioner(numPartitions, false), pidSelection_(partitionKeySeed % numPartitions) {}
 
   arrow::Status compute(
       const int32_t* pidArr,

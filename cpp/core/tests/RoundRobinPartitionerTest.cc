@@ -63,7 +63,7 @@ class RoundRobinPartitionerTest : public ::testing::Test {
 
 TEST_F(RoundRobinPartitionerTest, TestInit) {
   int numPart = 2;
-  prepareData(numPart, 1);
+  prepareData(numPart, 3);
   ASSERT_NE(partitioner_, nullptr);
   int32_t pidSelection = getPidSelection();
   ASSERT_EQ(pidSelection, 1);
