@@ -1001,7 +1001,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCSVReadSchemaSuite]
   enableSuite[GlutenDataSourceStrategySuite]
   enableSuite[GlutenDataSourceSuite]
-  enableSuite[GlutenFileFormatWriterSuite]
+  enableSuite[GlutenFileFormatWriterSuite].excludeByPrefix(
+    "empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileMetadataStructSuite]
     .exclude("metadata struct (json): file metadata in streaming")

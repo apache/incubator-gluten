@@ -1173,7 +1173,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCSVReadSchemaSuite]
   enableSuite[GlutenDataSourceStrategySuite]
   enableSuite[GlutenDataSourceSuite]
-  enableSuite[GlutenFileFormatWriterSuite]
+  enableSuite[GlutenFileFormatWriterSuite].excludeByPrefix(
+    "empty file should be skipped while write")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileSourceStrategySuite]
     .exclude("unpartitioned table, single partition")

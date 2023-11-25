@@ -28,8 +28,8 @@ arrow::Status gluten::RoundRobinPartitioner::compute(
   row2Partition.resize(numRows);
 
   for (int32_t i = 0; i < numRows; ++i) {
-    pidSelection_ = (pidSelection_ + 1) % numPartitions_;
     row2Partition[i] = pidSelection_;
+    pidSelection_ = (pidSelection_ + 1) % numPartitions_;
   }
 
   for (auto& pid : row2Partition) {
