@@ -21,8 +21,8 @@
 namespace gluten {
 class RoundRobinPartitionerTest : public ::testing::Test {
  protected:
-  void prepareData(int numPart) {
-    partitioner_ = std::make_shared<RoundRobinPartitioner>(numPart);
+  void prepareData(int numPart, int seed) {
+    partitioner_ = std::make_shared<RoundRobinPartitioner>(numPart, seed);
     row2Partition_.clear();
     partition2RowCount_.clear();
     partition2RowCount_.resize(numPart);

@@ -805,7 +805,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceStrategySuite]
   enableSuite[GlutenDataSourceSuite]
   enableSuite[GlutenFileFormatWriterSuite]
-    .excludeByPrefix("empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileMetadataStructSuite]
     .exclude("SPARK-41896: Filter on row_index and a stored column at the same time")

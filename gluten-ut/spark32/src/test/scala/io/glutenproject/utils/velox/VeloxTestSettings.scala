@@ -919,7 +919,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceStrategySuite]
   enableSuite[GlutenDataSourceSuite]
   enableSuite[GlutenFileFormatWriterSuite]
-    .excludeByPrefix("empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenParquetCodecSuite]
     // Unsupported compression codec.

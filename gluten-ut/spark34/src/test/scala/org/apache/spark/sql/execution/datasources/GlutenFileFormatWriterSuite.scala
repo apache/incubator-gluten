@@ -22,17 +22,4 @@ import org.apache.spark.sql.catalyst.plans.CodegenInterpretedPlanTest
 class GlutenFileFormatWriterSuite
   extends FileFormatWriterSuite
   with GlutenSQLTestsBaseTrait
-  with CodegenInterpretedPlanTest {
-
-  test("gluten empty file should be skipped while write to file") {
-    withTempPath {
-      path =>
-        spark.range(100).repartition(10).where("id = 50").write.parquet(path.toString)
-        val partFiles = path
-          .listFiles()
-          .filter(f => f.isFile && !f.getName.startsWith(".") && !f.getName.startsWith("_"))
-        // result only one row, gluten result is more reasonable
-        assert(partFiles.length === 1)
-    }
-  }
-}
+  with CodegenInterpretedPlanTest {}
