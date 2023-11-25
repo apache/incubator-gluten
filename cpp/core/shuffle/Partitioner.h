@@ -26,7 +26,8 @@ namespace gluten {
 
 class Partitioner {
  public:
-  static arrow::Result<std::shared_ptr<Partitioner>> make(Partitioning partitioning, int32_t numPartitions, int32_t partitionKeySeed);
+  static arrow::Result<std::shared_ptr<Partitioner>>
+  make(Partitioning partitioning, int32_t numPartitions, int32_t partitionKeySeed);
 
   // Whether the first column is partition key.
   bool hasPid() const {
