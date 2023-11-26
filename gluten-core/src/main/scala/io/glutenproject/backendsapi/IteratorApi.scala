@@ -67,6 +67,7 @@ trait IteratorApi {
    */
   // scalastyle:off argcount
   def genFinalStageIterator(
+      context: TaskContext,
       inputIterators: Seq[Iterator[ColumnarBatch]],
       numaBindingInfo: GlutenNumaBindingInfo,
       sparkConf: SparkConf,

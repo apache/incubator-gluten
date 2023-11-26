@@ -158,6 +158,7 @@ class IteratorApiImpl extends IteratorApi with Logging {
    * @return
    */
   override def genFinalStageIterator(
+      context: TaskContext,
       inputIterators: Seq[Iterator[ColumnarBatch]],
       numaBindingInfo: GlutenNumaBindingInfo,
       sparkConf: SparkConf,

@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.metrics.IMetrics
+import io.glutenproject.metrics.{GlutenTimeMetric, IMetrics}
 import io.glutenproject.substrait.plan.PlanBuilder
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
@@ -99,17 +99,20 @@ class GlutenWholeStageColumnarRDD(
   val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
-    ExecutorManager.tryTaskSet(numaBindingInfo)
-    val (inputPartition, inputColumnarRDDPartitions) = castNativePartition(split)
-    val inputIterators = rdds.getIterators(inputColumnarRDDPartitions, context)
-    BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
-      inputPartition,
-      context,
-      pipelineTime,
-      updateInputMetrics,
-      updateNativeMetrics,
-      inputIterators
-    )
+    GlutenTimeMetric.millis(pipelineTime) {
+      _ =>
+        ExecutorManager.tryTaskSet(numaBindingInfo)
+        val (inputPartition, inputColumnarRDDPartitions) = castNativePartition(split)
+        val inputIterators = rdds.getIterators(inputColumnarRDDPartitions, context)
+        BackendsApiManager.getIteratorApiInstance.genFirstStageIterator(
+          inputPartition,
+          context,
+          pipelineTime,
+          updateInputMetrics,
+          updateNativeMetrics,
+          inputIterators
+        )
+    }
   }
 
   private def castNativePartition(split: Partition): (BaseGlutenPartition, Seq[Partition]) = {
