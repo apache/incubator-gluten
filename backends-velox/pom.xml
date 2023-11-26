@@ -220,6 +220,8 @@
 	  <tagsToExclude>${tagsToExclude}</tagsToExclude>
 	  <systemProperties>
 	    <velox.udf.lib.path>${cpp.build.dir}/velox/udf/examples/libmyudf.so</velox.udf.lib.path>
+	    <gluten.package.jar>${gluten.package.jar}</gluten.package.jar>
+	    <spark.test.home>${env.SPARK_HOME}</spark.test.home>
 	  </systemProperties>
 	</configuration>
       </plugin>
