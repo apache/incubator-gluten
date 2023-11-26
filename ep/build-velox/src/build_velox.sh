@@ -170,7 +170,8 @@ function check_commit {
       fi
     fi
   else
-    git clean -dffx :/
+    # On linux some of the scripts use sudo in the build so it fails to clean.
+    git clean -dffx :/ || sudo git clean -dffx :/ 
   fi
 
   if [ -f ${VELOX_HOME}/velox-commit.cache ]; then
