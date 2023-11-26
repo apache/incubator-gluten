@@ -258,6 +258,13 @@
 	<artifactId>scala-collection-compat_${scala.binary.version}</artifactId>
 	<version>2.11.0</version>
       </dependency>
+      <!-- needed for jdk8, versions newer than 1.14 need JDK11+ -->
+      <!-- https://mvnrepository.com/artifact/com.google.googlejavaformat/google-java-format -->
+      <dependency>
+	<groupId>com.google.googlejavaformat</groupId>
+	<artifactId>google-java-format</artifactId>
+	<version>1.14</version>
+      </dependency>
       <dependency>
 	<groupId>com.github.ben-manes.caffeine</groupId>
 	<artifactId>caffeine</artifactId>
