@@ -122,7 +122,7 @@ class ColumnarShuffleWriter[K, V](
         val rows = cb.numRows()
         val handle = ColumnarBatches.getNativeHandle(cb)
         if (nativeShuffleWriter == -1L) {
-          val partitionKeySeed = dep.nativePartitioning.getShortName match {
+          val startPartitionId = dep.nativePartitioning.getShortName match {
             case "rr" =>
               new XORShiftRandom(taskContext.partitionId())
                 .nextInt(dep.partitioner.numPartitions)
@@ -163,7 +163,7 @@ class ColumnarShuffleWriter[K, V](
             reallocThreshold,
             handle,
             taskContext.taskAttemptId(),
-            partitionKeySeed
+            startPartitionId
           )
         }
         val startTime = System.nanoTime()

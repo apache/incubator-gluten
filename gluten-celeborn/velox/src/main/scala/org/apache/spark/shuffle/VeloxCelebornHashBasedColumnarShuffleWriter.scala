@@ -73,7 +73,7 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
       } else {
         val handle = ColumnarBatches.getNativeHandle(cb)
         if (nativeShuffleWriter == -1L) {
-          val partitionKeySeed = dep.nativePartitioning.getShortName match {
+          val startPartitionId = dep.nativePartitioning.getShortName match {
             case "rr" =>
               new XORShiftRandom(context.partitionId())
                 .nextInt(dep.partitioner.numPartitions)
@@ -111,7 +111,7 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
               .getNativeInstanceHandle,
             handle,
             context.taskAttemptId(),
-            partitionKeySeed,
+            startPartitionId,
             "celeborn",
             GlutenConfig.getConf.columnarShuffleReallocThreshold
           )
