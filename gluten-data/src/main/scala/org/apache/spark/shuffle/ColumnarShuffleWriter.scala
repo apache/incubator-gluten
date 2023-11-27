@@ -155,7 +155,8 @@ class ColumnarShuffleWriter[K, V](
             writeEOS,
             reallocThreshold,
             handle,
-            taskContext.taskAttemptId()
+            taskContext.taskAttemptId(),
+            GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, taskContext.partitionId)
           )
         }
         val startTime = System.nanoTime()

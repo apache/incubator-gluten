@@ -783,6 +783,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jdouble reallocThreshold,
     jlong firstBatchHandle,
     jlong taskAttemptId,
+    jint startPartitionId,
     jint pushBufferMaxSize,
     jobject partitionPusher,
     jstring partitionWriterTypeJstr) {
@@ -825,6 +826,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   }
 
   shuffleWriterOptions.task_attempt_id = (int64_t)taskAttemptId;
+  shuffleWriterOptions.start_partition_id = startPartitionId;
   shuffleWriterOptions.compression_threshold = bufferCompressThreshold;
 
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);

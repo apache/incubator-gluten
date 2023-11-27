@@ -425,7 +425,8 @@ arrow::Status VeloxShuffleWriter::init() {
   VELOX_CHECK_NOT_NULL(options_.memory_pool);
 
   ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->make(this));
-  ARROW_ASSIGN_OR_RAISE(partitioner_, Partitioner::make(options_.partitioning, numPartitions_));
+  ARROW_ASSIGN_OR_RAISE(
+      partitioner_, Partitioner::make(options_.partitioning, numPartitions_, options_.start_partition_id));
 
   // pre-allocated buffer size for each partition, unit is row count
   // when partitioner is SinglePart, partial variables don`t need init
