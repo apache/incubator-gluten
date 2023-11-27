@@ -200,6 +200,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   endif()
   add_velox_dependency(common::compression "${VELOX_COMPONENTS_PATH}/common/compression/libvelox_common_compression.a")
   add_velox_dependency(common::io "${VELOX_COMPONENTS_PATH}/common/io/libvelox_common_io.a")
+  add_velox_dependency(external::simdjson "${VELOX_BUILD_PATH}/_deps/simdjson-build/libsimdjson.a")
 endmacro()
 
 macro(find_libhdfs3)
@@ -314,8 +315,8 @@ set_target_properties(velox PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
     )
 
-## If the folly is not builded in system directories, please add
-## `-DCMAKE_PREFIX_PATH="${folly builded directory}" to the parameters of cmake.
+## If folly is not installed in system lib paths, please add
+## `-DCMAKE_PREFIX_PATH="${folly lib path}" to cmake arguments.
 ## It is also applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
 
@@ -334,13 +335,6 @@ target_link_libraries(velox PUBLIC Arrow::arrow Arrow::parquet)
 target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
-
-include(Simdjson)
-if(TARGET simdjson::simdjson AND NOT TARGET simdjson)
-  add_library(simdjson INTERFACE)
-  target_link_libraries(simdjson INTERFACE simdjson::simdjson)
-endif()
-target_link_libraries(velox PUBLIC simdjson)
 
 if(ENABLE_GLUTEN_VCPKG)
   find_package(Thrift CONFIG)
