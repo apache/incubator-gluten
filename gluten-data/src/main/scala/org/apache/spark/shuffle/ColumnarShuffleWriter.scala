@@ -30,7 +30,6 @@ import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, SparkResourceUtil, Utils}
-import org.apache.spark.util.random.XORShiftRandom
 
 import java.io.IOException
 
@@ -122,12 +121,6 @@ class ColumnarShuffleWriter[K, V](
         val rows = cb.numRows()
         val handle = ColumnarBatches.getNativeHandle(cb)
         if (nativeShuffleWriter == -1L) {
-          val startPartitionId = dep.nativePartitioning.getShortName match {
-            case "rr" =>
-              new XORShiftRandom(taskContext.partitionId())
-                .nextInt(dep.partitioner.numPartitions)
-            case _ => 0
-          }
           nativeShuffleWriter = jniWrapper.make(
             dep.nativePartitioning,
             nativeBufferSize,
@@ -163,7 +156,7 @@ class ColumnarShuffleWriter[K, V](
             reallocThreshold,
             handle,
             taskContext.taskAttemptId(),
-            startPartitionId
+            GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, taskContext.partitionId)
           )
         }
         val startTime = System.nanoTime()

@@ -58,7 +58,7 @@ struct ShuffleWriterOptions {
 
   int64_t thread_id = -1;
   int64_t task_attempt_id = -1;
-  int32_t partition_key_seed = 0;
+  int32_t start_partition_id = 0;
 
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 

@@ -25,11 +25,11 @@ import io.glutenproject.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.memory.SparkMemoryUtil
-import org.apache.spark.scheduler.MapStatus
+import org.apache.spark.scheduler.{GlutenShuffleUtils, MapStatus}
+import org.apache.spark.shuffle.GlutenShuffleUtils
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkResourceUtil
-import org.apache.spark.util.random.XORShiftRandom
 
 import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
@@ -73,12 +73,6 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
       } else {
         val handle = ColumnarBatches.getNativeHandle(cb)
         if (nativeShuffleWriter == -1L) {
-          val startPartitionId = dep.nativePartitioning.getShortName match {
-            case "rr" =>
-              new XORShiftRandom(context.partitionId())
-                .nextInt(dep.partitioner.numPartitions)
-            case _ => 0
-          }
           nativeShuffleWriter = jniWrapper.makeForRSS(
             dep.nativePartitioning,
             nativeBufferSize,
@@ -111,7 +105,9 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
               .getNativeInstanceHandle,
             handle,
             context.taskAttemptId(),
-            startPartitionId,
+            GlutenShuffleUtils.getStartPartitionId(
+              dep.nativePartitioning,
+              taskContext.partitionId()),
             "celeborn",
             GlutenConfig.getConf.columnarShuffleReallocThreshold
           )

@@ -826,7 +826,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   }
 
   shuffleWriterOptions.task_attempt_id = (int64_t)taskAttemptId;
-  shuffleWriterOptions.partition_key_seed = startPartitionId;
+  shuffleWriterOptions.start_partition_id = startPartitionId;
   shuffleWriterOptions.compression_threshold = bufferCompressThreshold;
 
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);

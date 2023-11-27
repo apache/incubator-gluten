@@ -27,7 +27,7 @@ import org.apache.spark.ShuffleDependency
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.ColumnarShuffleDependency
+import org.apache.spark.shuffle.{ColumnarShuffleDependency, GlutenShuffleUtils}
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BindReferences, BoundReference, UnsafeProjection, UnsafeRow}
@@ -198,7 +198,7 @@ object CHExecUtil extends Logging {
     }
 
     new NativePartitioning(
-      "hash",
+      GlutenShuffleUtils.HashPartitioningShortName,
       partitoining.numPartitions,
       Array.empty[Byte],
       hashFields.mkString(",").getBytes(),
@@ -244,9 +244,19 @@ object CHExecUtil extends Logging {
     }
     val nativePartitioning: NativePartitioning = newPartitioning match {
       case SinglePartition =>
-        new NativePartitioning("single", 1, Array.empty[Byte], Array.empty[Byte], requiredFields)
+        new NativePartitioning(
+          GlutenShuffleUtils.SinglePartitioningShortName,
+          1,
+          Array.empty[Byte],
+          Array.empty[Byte],
+          requiredFields)
       case RoundRobinPartitioning(n) =>
-        new NativePartitioning("rr", n, Array.empty[Byte], Array.empty[Byte], requiredFields)
+        new NativePartitioning(
+          GlutenShuffleUtils.RoundRobinPartitioningShortName,
+          n,
+          Array.empty[Byte],
+          Array.empty[Byte],
+          requiredFields)
       case HashPartitioning(_, _) =>
         buildHashPartitioning(
           newPartitioning.asInstanceOf[HashPartitioning],
@@ -282,7 +292,7 @@ object CHExecUtil extends Logging {
           Seq[Int]()
         }
         new NativePartitioning(
-          "range",
+          GlutenShuffleUtils.RangePartitioningShortName,
           numPartitions,
           Array.empty[Byte],
           orderingAndRangeBounds.getBytes(),
