@@ -32,7 +32,8 @@ struct PartitionSpillInfo {
     size_t length; // in Bytes
 };
 
-struct SpillInfo {
+struct SpillInfo
+{
     std::string spilled_file;
     std::vector<PartitionSpillInfo> partition_spill_infos;
 };

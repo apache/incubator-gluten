@@ -47,6 +47,7 @@ struct SplitOptions
     int compress_level;
     size_t spill_threshold = 300 * 1024 * 1024;
     std::string hash_algorithm;
+    bool throw_if_memory_exceed = true;
 };
 
 class ColumnsBuffer

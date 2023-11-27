@@ -654,7 +654,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jint num_sub_dirs,
     jboolean prefer_spill,
     jlong spill_threshold,
-    jstring hash_algorithm)
+    jstring hash_algorithm,
+    jboolean throw_if_memory_exceed)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -696,7 +697,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
         .spill_threshold = static_cast<size_t>(spill_threshold),
-        .hash_algorithm = jstring2string(env, hash_algorithm)};
+        .hash_algorithm = jstring2string(env, hash_algorithm),
+        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     if (prefer_spill)
@@ -724,7 +726,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jstring codec,
     jlong spill_threshold,
     jstring hash_algorithm,
-    jobject pusher)
+    jobject pusher,
+    jboolean throw_if_memory_exceed)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -757,7 +760,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
         .spill_threshold = static_cast<size_t>(spill_threshold),
-        .hash_algorithm = jstring2string(env, hash_algorithm)};
+        .hash_algorithm = jstring2string(env, hash_algorithm),
+        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options, pusher)};

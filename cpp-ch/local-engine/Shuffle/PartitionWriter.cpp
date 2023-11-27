@@ -107,7 +107,7 @@ size_t LocalPartitionWriter::unsafeEvictPartitions(bool for_memory_spill)
     };
 
     Stopwatch spill_time_watch;
-    if (for_memory_spill)
+    if (for_memory_spill && options->throw_if_memory_exceed)
     {
         // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
         IgnoreMemoryTracker ignore(2 * 1024 * 1024);
@@ -220,6 +220,7 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
     , partition_block_buffer(options->partition_num)
     , partition_buffer(options->partition_num)
 {
+    // std::cout << "throw_if_memory_exceed: " << options->throw_if_memory_exceed << std::endl;
     for (size_t partition_i = 0; partition_i < options->partition_num; ++partition_i)
     {
         partition_block_buffer[partition_i] = std::make_shared<ColumnsBuffer>(options->split_size);
@@ -266,20 +267,6 @@ size_t CelebornPartitionWriter::unsafeEvictPartitions(bool for_memory_spill)
             CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
             NativeWriter writer(compressed_output, shuffle_writer->output_header);
 
-            // if (!for_memory_spill)
-            // {
-            // std::unique_lock<std::recursive_mutex> lock(mtxs[partition_id]);
-            // }
-            // else
-            // {
-            //     std::unique_lock<std::recursive_mutex> lock(mtxs[partition_id], std::try_to_lock);
-            //     if (lock.owns_lock())
-            //     {
-            //         auto & partition = partition_buffer[partition_id];
-            //         raw_size = partition->spill(writer);
-            //     }
-            // }
-
             auto & partition = partition_buffer[partition_id];
             size_t raw_size = partition->spill(writer);
             res += raw_size;
@@ -299,26 +286,17 @@ size_t CelebornPartitionWriter::unsafeEvictPartitions(bool for_memory_spill)
     };
 
     Stopwatch spill_time_watch;
-    /*
-    if (for_memory_spill)
+    if (for_memory_spill && options->throw_if_memory_exceed)
     {
-        // // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
-        // IgnoreMemoryTracker ignore(2 * 1024 * 1024);
-        // ThreadFromGlobalPool thread(spill_to_celeborn);
-        // thread.join();
+        // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
+        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
+        ThreadFromGlobalPool thread(spill_to_celeborn);
+        thread.join();
     }
     else
     {
-        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
         spill_to_celeborn();
     }
-    */
-    // if (evicting_or_writing)
-    //     return 0;
-
-    // evicting_or_writing = true;
-    spill_to_celeborn();
-    // evicting_or_writing = false;
 
     shuffle_writer->split_result.total_spill_time += spill_time_watch.elapsedNanoseconds();
     shuffle_writer->split_result.total_bytes_spilled += total_partition_buffer_size;

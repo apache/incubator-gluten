@@ -424,7 +424,6 @@ std::map<std::string, std::string> BackendInitializerUtil::getBackendConfMap(std
         return ch_backend_conf;
     }
 
-
     /// Parse backend configs from plan extensions
     do
     {
