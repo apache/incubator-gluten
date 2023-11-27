@@ -288,6 +288,9 @@ void CelebornPartitionWriter::stop()
 
 void Partition::addBlock(DB::Block & block)
 {
+    /// Do not insert empty blocks, otherwise will cause the shuffle read terminate early.
+    if (!block.rows())
+        return;
     std::unique_lock<std::mutex> lock(mtx);
     blocks.emplace_back(std::move(block));
 }
