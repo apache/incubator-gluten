@@ -38,6 +38,12 @@ namespace local_engine
 
 void local_engine::PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & data)
 {
+    if (evicting_or_writing)
+        return;
+
+    evicting_or_writing = true;
+    SCOPE_EXIT({evicting_or_writing = false;});
+
     Stopwatch time;
 
     for (size_t partition_i = 0; partition_i < partition_info.partition_num; ++partition_i)
@@ -65,7 +71,7 @@ void local_engine::PartitionWriter::write(const PartitionInfo & partition_info, 
     shuffle_writer->split_result.total_split_time += time.elapsedNanoseconds();
 }
 
-size_t LocalPartitionWriter::evictPartitions(bool for_memory_spill)
+size_t LocalPartitionWriter::unsafeEvictPartitions(bool for_memory_spill)
 {
     size_t res = 0;
 
@@ -213,7 +219,8 @@ String LocalPartitionWriter::getNextSpillFile()
         std::filesystem::create_directories(dir);
     return std::filesystem::path(dir) / file_name;
 }
-void LocalPartitionWriter::stop()
+
+void LocalPartitionWriter::unsafeStop()
 {
     WriteBufferFromFile output(options->data_file, options->io_buffer_size);
     auto offsets = mergeSpills(output);
@@ -234,12 +241,32 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
     }
 }
 
+size_t PartitionWriter::evictPartitions(bool for_memory_spill)
+{
+    if (evicting_or_writing)
+        return 0;
+
+    evicting_or_writing = true;
+    SCOPE_EXIT({evicting_or_writing = false;});
+    return unsafeEvictPartitions(for_memory_spill);
+}
+
+void PartitionWriter::stop()
+{
+    if (evicting_or_writing)
+        return;
+
+    evicting_or_writing = true;
+    SCOPE_EXIT({evicting_or_writing = false;});
+    return unsafeStop();
+}
+
 CelebornPartitionWriter::CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client_)
     : PartitionWriter(shuffleWriter), celeborn_client(std::move(celeborn_client_))
 {
 }
 
-size_t CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
+size_t CelebornPartitionWriter::unsafeEvictPartitions(bool for_memory_spill)
 {
     size_t res = 0;
 
@@ -254,21 +281,21 @@ size_t CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
             NativeWriter writer(compressed_output, shuffle_writer->output_header);
 
             size_t raw_size = 0;
-            if (!for_memory_spill)
-            {
+            // if (!for_memory_spill)
+            // {
                 std::unique_lock<std::recursive_mutex> lock(mtxs[partition_id]);
                 auto & partition = partition_buffer[partition_id];
                 raw_size = partition->spill(writer);
-            }
-            else
-            {
-                std::unique_lock<std::recursive_mutex> lock(mtxs[partition_id], std::try_to_lock);
-                if (lock.owns_lock())
-                {
-                    auto & partition = partition_buffer[partition_id];
-                    raw_size = partition->spill(writer);
-                }
-            }
+            // }
+            // else
+            // {
+            //     std::unique_lock<std::recursive_mutex> lock(mtxs[partition_id], std::try_to_lock);
+            //     if (lock.owns_lock())
+            //     {
+            //         auto & partition = partition_buffer[partition_id];
+            //         raw_size = partition->spill(writer);
+            //     }
+            // }
             compressed_output.sync();
             res += raw_size;
 
@@ -286,15 +313,10 @@ size_t CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
     };
 
     Stopwatch spill_time_watch;
+    /*
     if (for_memory_spill)
     {
         // // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
-        auto n = evict_cnt.fetch_add(1);
-        if (n)
-            return 0;
-
-        spill_to_celeborn();
-        n = 0;
         // IgnoreMemoryTracker ignore(2 * 1024 * 1024);
         // ThreadFromGlobalPool thread(spill_to_celeborn);
         // thread.join();
@@ -304,6 +326,13 @@ size_t CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
         IgnoreMemoryTracker ignore(2 * 1024 * 1024);
         spill_to_celeborn();
     }
+    */
+    // if (evicting_or_writing)
+    //     return 0;
+
+    // evicting_or_writing = true;
+    spill_to_celeborn();
+    // evicting_or_writing = false;
 
     shuffle_writer->split_result.total_spill_time += spill_time_watch.elapsedNanoseconds();
     shuffle_writer->split_result.total_bytes_spilled += total_partition_buffer_size;
@@ -311,7 +340,7 @@ size_t CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
     return res;
 }
 
-void CelebornPartitionWriter::stop()
+void CelebornPartitionWriter::unsafeStop()
 {
     /// Push the remaining data to Celeborn
     for (size_t partition_id = 0; partition_id < partition_block_buffer.size(); ++partition_id)
@@ -324,7 +353,8 @@ void CelebornPartitionWriter::stop()
             partition_buffer[partition_id]->addBlock(std::move(block));
         }
     }
-    evictPartitions(false);
+
+    unsafeEvictPartitions(false);
 
     for (const auto & length : shuffle_writer->split_result.partition_length)
     {

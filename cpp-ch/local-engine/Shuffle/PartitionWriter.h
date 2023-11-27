@@ -61,15 +61,16 @@ public:
     explicit PartitionWriter(CachedShuffleWriter* shuffle_writer_);
     virtual ~PartitionWriter() = default;
 
-    virtual void write(const PartitionInfo& info, DB::Block & data);
+    void write(const PartitionInfo& info, DB::Block & data);
+    size_t evictPartitions(bool for_memory_spill = false);
+    void stop();
 
-    virtual size_t evictPartitions(bool for_memory_spill = false) = 0;
-
-    virtual void stop() = 0;
-
-    virtual size_t totalCacheSize() const { return total_partition_buffer_size; }
+    size_t totalCacheSize() const { return total_partition_buffer_size; }
 
 protected:
+    virtual size_t unsafeEvictPartitions(bool for_memory_spill = false) = 0;
+    virtual void unsafeStop() = 0;
+
     CachedShuffleWriter * shuffle_writer;
     SplitOptions * options;
 
@@ -83,6 +84,8 @@ protected:
     std::vector<PartitionPtr> partition_buffer;
 
     size_t total_partition_buffer_size = 0;
+
+    std::atomic<bool> evicting_or_writing{false};
 };
 
 class LocalPartitionWriter : public PartitionWriter
@@ -91,13 +94,12 @@ public:
     explicit LocalPartitionWriter(CachedShuffleWriter * shuffle_writer);
     ~LocalPartitionWriter() override = default;
 
-    size_t evictPartitions(bool for_memory_spill) override;
-
-    void stop() override;
-    std::vector<Int64> mergeSpills(DB::WriteBuffer& data_file);
-
 protected:
+    size_t unsafeEvictPartitions(bool for_memory_spill) override;
+    void unsafeStop() override;
+
     String getNextSpillFile();
+    std::vector<Int64> mergeSpills(DB::WriteBuffer& data_file);
 
     std::vector<SpillInfo> spill_infos;
 };
@@ -108,12 +110,11 @@ public:
     CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client);
     ~CelebornPartitionWriter() override = default;
 
-    size_t evictPartitions(bool for_memory_spill) override;
-
-    void stop() override;
-
 protected:
-    std::atomic<size_t> evict_cnt = 0;
+    size_t unsafeEvictPartitions(bool for_memory_spill) override;
+    void unsafeStop() override;
+
+    std::atomic<bool> evicting_or_writing = 0;
     std::unique_ptr<CelebornClient> celeborn_client;
 };
 }
