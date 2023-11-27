@@ -16,6 +16,7 @@
  */
 #include "VeloxColumnarBatch.h"
 #include "compute/VeloxRuntime.h"
+#include "utils/VeloxArrowUtils.h"
 #include "velox/row/UnsafeRowFast.h"
 #include "velox/type/Type.h"
 #include "velox/vector/FlatVector.h"
@@ -65,14 +66,14 @@ void VeloxColumnarBatch::ensureFlattened() {
 std::shared_ptr<ArrowSchema> VeloxColumnarBatch::exportArrowSchema() {
   auto out = std::make_shared<ArrowSchema>();
   ensureFlattened();
-  velox::exportToArrow(flattened_, *out);
+  velox::exportToArrow(flattened_, ArrowUtils::getBridgeOptions(), *out);
   return out;
 }
 
 std::shared_ptr<ArrowArray> VeloxColumnarBatch::exportArrowArray() {
   auto out = std::make_shared<ArrowArray>();
   ensureFlattened();
-  velox::exportToArrow(flattened_, *out, flattened_->pool());
+  velox::exportToArrow(flattened_, ArrowUtils::getBridgeOptions(), *out, flattened_->pool());
   return out;
 }
 
@@ -117,7 +118,8 @@ std::shared_ptr<VeloxColumnarBatch> VeloxColumnarBatch::from(
     auto compositeVeloxVector = makeRowVector(childNames, childVectors, cb->numRows(), pool);
     return std::make_shared<VeloxColumnarBatch>(compositeVeloxVector);
   }
-  auto vp = velox::importFromArrowAsOwner(*cb->exportArrowSchema(), *cb->exportArrowArray(), pool);
+  auto vp = velox::importFromArrowAsOwner(
+      *cb->exportArrowSchema(), *cb->exportArrowArray(), ArrowUtils::getBridgeOptions(), pool);
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 

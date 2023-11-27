@@ -26,7 +26,7 @@ namespace gluten {
 using namespace facebook;
 
 void toArrowSchema(const velox::TypePtr& rowType, facebook::velox::memory::MemoryPool* pool, struct ArrowSchema* out) {
-  exportToArrow(velox::BaseVector::create(rowType, 0, pool), *out);
+  exportToArrow(velox::BaseVector::create(rowType, 0, pool), ArrowUtils::getBridgeOptions(), *out);
 }
 
 std::shared_ptr<arrow::Schema> toArrowSchema(const velox::TypePtr& rowType, facebook::velox::memory::MemoryPool* pool) {
@@ -50,7 +50,8 @@ arrow::Result<std::shared_ptr<ColumnarBatch>> recordBatch2VeloxColumnarBatch(con
   ArrowArray arrowArray;
   ArrowSchema arrowSchema;
   RETURN_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-  auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::defaultLeafVeloxMemoryPool().get());
+  auto vp = velox::importFromArrowAsOwner(
+      arrowSchema, arrowArray, ArrowUtils::getBridgeOptions(), gluten::defaultLeafVeloxMemoryPool().get());
   return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
 }
 
