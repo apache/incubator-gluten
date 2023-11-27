@@ -25,7 +25,7 @@ import io.glutenproject.vectorized._
 
 import org.apache.spark._
 import org.apache.spark.memory.SparkMemoryUtil
-import org.apache.spark.scheduler.{GlutenShuffleUtils, MapStatus}
+import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.GlutenShuffleUtils
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
