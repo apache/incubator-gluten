@@ -74,7 +74,7 @@ abstract class HashAggregateExecBaseTransformer(
       aggregateAttributes)
   }
 
-  protected def isGroupingKeysPreGrouped: Boolean = {
+  protected def isCapableForStreamingAggregation: Boolean = {
     if (!conf.getConf(GlutenConfig.COLUMNAR_PREFER_STREAMING_AGGREGATE)) {
       return false
     }
@@ -85,6 +85,9 @@ abstract class HashAggregateExecBaseTransformer(
     val childOrdering = child match {
       case agg: HashAggregateExecBaseTransformer
           if agg.groupingExpressions == this.groupingExpressions =>
+        // If the child aggregate supports streaming aggregate then the ordering is not changed.
+        // So we can propagate ordering if there is no shuffle exchange between aggregates and
+        // they have same grouping keys,
         agg.child.outputOrdering
       case _ => child.outputOrdering
     }
@@ -579,7 +582,7 @@ abstract class HashAggregateExecBaseTransformer(
       null
     }
 
-    val isStreaming = if (isGroupingKeysPreGrouped) {
+    val isStreaming = if (isCapableForStreamingAggregation) {
       "1"
     } else {
       "0"
