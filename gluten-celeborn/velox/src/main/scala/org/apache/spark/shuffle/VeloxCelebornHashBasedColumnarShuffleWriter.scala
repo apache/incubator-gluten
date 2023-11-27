@@ -26,7 +26,6 @@ import io.glutenproject.vectorized._
 import org.apache.spark._
 import org.apache.spark.memory.SparkMemoryUtil
 import org.apache.spark.scheduler.MapStatus
-import org.apache.spark.shuffle.GlutenShuffleUtils
 import org.apache.spark.shuffle.celeborn.CelebornShuffleHandle
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.SparkResourceUtil
@@ -105,9 +104,7 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
               .getNativeInstanceHandle,
             handle,
             context.taskAttemptId(),
-            GlutenShuffleUtils.getStartPartitionId(
-              dep.nativePartitioning,
-              taskContext.partitionId()),
+            GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
             "celeborn",
             GlutenConfig.getConf.columnarShuffleReallocThreshold
           )
