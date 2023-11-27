@@ -1182,6 +1182,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // ReaderFactory is not registered for format orc.
     .exclude("the escape character is not allowed to end with")
     .exclude("SPARK-40245: Fix FileScan canonicalization when partition or data filter columns are not read")
+    // ORC related
+    .exclude("SPARK-37965: Spark support read/write orc file with invalid char in field name")
     .exclude("SPARK-38173: Quoted column cannot be recognized correctly when quotedRegexColumnNames is true")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
