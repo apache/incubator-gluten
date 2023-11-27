@@ -202,7 +202,8 @@ object CHExecUtil extends Logging {
       partitoining.numPartitions,
       Array.empty[Byte],
       hashFields.mkString(",").getBytes(),
-      outputFields.mkString(",").getBytes())
+      outputFields.mkString(",").getBytes()
+    )
   }
 
   private def buildPartitioningOptions(nativePartitioning: NativePartitioning): IteratorOptions = {
