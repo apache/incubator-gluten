@@ -253,8 +253,8 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/metrics/Metrics;");
 
-  metricsBuilderConstructor =
-      getMethodIdOrError(env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+  metricsBuilderConstructor = getMethodIdOrError(
+      env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   serializedColumnarBatchIteratorClass =
       createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ColumnarBatchInIterator;");
