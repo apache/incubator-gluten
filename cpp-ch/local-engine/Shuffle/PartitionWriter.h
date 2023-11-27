@@ -74,12 +74,6 @@ protected:
     CachedShuffleWriter * shuffle_writer;
     SplitOptions * options;
 
-    /// The mutex is used to protect partition_block_buffer and partition_buffer
-    /// It may be accessed by multiple threads in which "CachedShuffleWriter::split" and "CachedShuffleWriter::spill" are invoked simutanously.
-    ///
-    /// Notice: the mutex must support being recursively acquired by the same thread, which happens during memory spilling.
-    /// For more details, pls refer to https://github.com/oap-project/gluten/issues/3722
-    mutable std::vector<std::recursive_mutex> mtxs;
     std::vector<ColumnsBufferPtr> partition_block_buffer;
     std::vector<PartitionPtr> partition_buffer;
 

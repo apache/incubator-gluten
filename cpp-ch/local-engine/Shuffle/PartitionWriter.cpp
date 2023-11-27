@@ -51,8 +51,6 @@ void local_engine::PartitionWriter::write(const PartitionInfo & partition_info, 
         size_t from = partition_info.partition_start_points[partition_i];
         size_t length = partition_info.partition_start_points[partition_i + 1] - from;
 
-        std::unique_lock<std::recursive_mutex> lock(mtxs[partition_i]);
-
         /// Make sure buffer size is no greater than split_size
         auto & buffer = partition_block_buffer[partition_i];
         if (buffer->size() && buffer->size() + length >= shuffle_writer->options.split_size)
@@ -91,13 +89,8 @@ size_t LocalPartitionWriter::unsafeEvictPartitions(bool for_memory_spill)
             PartitionSpillInfo partition_spill_info;
             partition_spill_info.start = output.count();
 
-            size_t raw_size = 0;
-            {
-                std::unique_lock<std::recursive_mutex> lock(mtxs[partition_id]);
-
-                auto & partition = partition_buffer[partition_id];
-                raw_size = partition->spill(writer);
-            }
+            auto & partition = partition_buffer[partition_id];
+            size_t raw_size = partition->spill(writer);
             res += raw_size;
 
             compressed_output.sync();
@@ -168,18 +161,12 @@ std::vector<Int64> LocalPartitionWriter::mergeSpills(WriteBuffer& data_file)
         merge_io_time += io_time_watch.elapsedNanoseconds();
 
         serialization_time_watch.restart();
-        size_t raw_size = 0;
+        if (!partition_block_buffer[partition_id]->empty())
         {
-            std::unique_lock<std::recursive_mutex> lock(mtxs[partition_id]);
-
-            if (!partition_block_buffer[partition_id]->empty())
-            {
-                Block block = partition_block_buffer[partition_id]->releaseColumns();
-                partition_buffer[partition_id]->addBlock(std::move(block));
-            }
-
-            raw_size = partition_buffer[partition_id]->spill(writer);
+            Block block = partition_block_buffer[partition_id]->releaseColumns();
+            partition_buffer[partition_id]->addBlock(std::move(block));
         }
+        size_t raw_size = partition_buffer[partition_id]->spill(writer);
 
         compressed_output.sync();
         partition_length[partition_id] = data_file.count() - size_before;
@@ -230,7 +217,6 @@ void LocalPartitionWriter::unsafeStop()
 PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
     : shuffle_writer(shuffle_writer_)
     , options(&shuffle_writer->options)
-    , mtxs(options->partition_num)
     , partition_block_buffer(options->partition_num)
     , partition_buffer(options->partition_num)
 {
@@ -280,12 +266,9 @@ size_t CelebornPartitionWriter::unsafeEvictPartitions(bool for_memory_spill)
             CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
             NativeWriter writer(compressed_output, shuffle_writer->output_header);
 
-            size_t raw_size = 0;
             // if (!for_memory_spill)
             // {
-                std::unique_lock<std::recursive_mutex> lock(mtxs[partition_id]);
-                auto & partition = partition_buffer[partition_id];
-                raw_size = partition->spill(writer);
+            // std::unique_lock<std::recursive_mutex> lock(mtxs[partition_id]);
             // }
             // else
             // {
@@ -296,8 +279,11 @@ size_t CelebornPartitionWriter::unsafeEvictPartitions(bool for_memory_spill)
             //         raw_size = partition->spill(writer);
             //     }
             // }
-            compressed_output.sync();
+
+            auto & partition = partition_buffer[partition_id];
+            size_t raw_size = partition->spill(writer);
             res += raw_size;
+            compressed_output.sync();
 
             Stopwatch push_time_watch;
             celeborn_client->pushPartitionData(partition_id, output.str().data(), output.str().size());
@@ -345,8 +331,6 @@ void CelebornPartitionWriter::unsafeStop()
     /// Push the remaining data to Celeborn
     for (size_t partition_id = 0; partition_id < partition_block_buffer.size(); ++partition_id)
     {
-        std::unique_lock<std::recursive_mutex> lock(mtxs[partition_id]);
-
         if (!partition_block_buffer[partition_id]->empty())
         {
             Block block = partition_block_buffer[partition_id]->releaseColumns();
