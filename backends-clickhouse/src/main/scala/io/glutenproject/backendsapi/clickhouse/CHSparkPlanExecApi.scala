@@ -188,7 +188,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: GetMapValue): ExpressionTransformer =
-    new GetMapValueTransformer(substraitExprName, left, right, original.failOnError, original)
+    GetMapValueTransformer(substraitExprName, left, right, original.failOnError, original)
+
+  override def genRandTransformer(
+      substraitExprName: String,
+      explicitSeed: ExpressionTransformer,
+      original: Rand): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(explicitSeed), original)
+  }
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
