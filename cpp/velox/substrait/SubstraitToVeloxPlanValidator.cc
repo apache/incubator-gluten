@@ -976,7 +976,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
   if (aggRel.has_advanced_extension()) {
     std::vector<TypePtr> types;
     const auto& extension = aggRel.advanced_extension();
-    // Aggregate always has advanced extension for steaming aggregate optimization,
+    // Aggregate always has advanced extension for streaming aggregate optimization,
     // but only some of them have enhancement for validation.
     if (extension.has_enhancement() && !validateInputTypes(extension, types)) {
       logValidateMsg("native validation failed due to: Validation failed for input types in AggregateRel.");
