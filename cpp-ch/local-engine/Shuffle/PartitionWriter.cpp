@@ -36,10 +36,7 @@ using namespace DB;
 namespace local_engine
 {
 
-/// To avoid deadlock and data race, we need to make sure that PartitionWriter::evictPartitions won't be invoked recursively.
-thread_local std::atomic<bool> already_inside_evict_partitions(false);
-
-void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & data)
+void local_engine::PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & data)
 {
     Stopwatch time;
 
@@ -68,7 +65,7 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & da
     shuffle_writer->split_result.total_split_time += time.elapsedNanoseconds();
 }
 
-size_t LocalPartitionWriter::evictPartitionsImpl(bool for_memory_spill)
+size_t LocalPartitionWriter::evictPartitions(bool for_memory_spill)
 {
     size_t res = 0;
 
@@ -237,23 +234,12 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
     }
 }
 
-size_t PartitionWriter::evictPartitions(bool for_memory_spill)
-{
-    if (already_inside_evict_partitions)
-        return 0;
-
-    already_inside_evict_partitions = true;
-    evictPartitionsImpl(for_memory_spill);
-    already_inside_evict_partitions = false;
-}
-
-
 CelebornPartitionWriter::CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client_)
     : PartitionWriter(shuffleWriter), celeborn_client(std::move(celeborn_client_))
 {
 }
 
-size_t CelebornPartitionWriter::evictPartitionsImpl(bool for_memory_spill)
+size_t CelebornPartitionWriter::evictPartitions(bool for_memory_spill)
 {
     size_t res = 0;
 
@@ -302,10 +288,16 @@ size_t CelebornPartitionWriter::evictPartitionsImpl(bool for_memory_spill)
     Stopwatch spill_time_watch;
     if (for_memory_spill)
     {
-        // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
-        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
-        ThreadFromGlobalPool thread(spill_to_celeborn);
-        thread.join();
+        // // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
+        auto n = evict_cnt.fetch_add(1);
+        if (n)
+            return 0;
+
+        spill_to_celeborn();
+        n = 0;
+        // IgnoreMemoryTracker ignore(2 * 1024 * 1024);
+        // ThreadFromGlobalPool thread(spill_to_celeborn);
+        // thread.join();
     }
     else
     {

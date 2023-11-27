@@ -63,15 +63,13 @@ public:
 
     virtual void write(const PartitionInfo& info, DB::Block & data);
 
+    virtual size_t evictPartitions(bool for_memory_spill = false) = 0;
+
     virtual void stop() = 0;
 
     virtual size_t totalCacheSize() const { return total_partition_buffer_size; }
 
-    size_t evictPartitions(bool for_memory_spill = false);
-
 protected:
-    virtual size_t evictPartitionsImpl(bool for_memory_spill = false) = 0;
-
     CachedShuffleWriter * shuffle_writer;
     SplitOptions * options;
 
@@ -93,11 +91,12 @@ public:
     explicit LocalPartitionWriter(CachedShuffleWriter * shuffle_writer);
     ~LocalPartitionWriter() override = default;
 
+    size_t evictPartitions(bool for_memory_spill) override;
+
     void stop() override;
     std::vector<Int64> mergeSpills(DB::WriteBuffer& data_file);
 
 protected:
-    size_t evictPartitionsImpl(bool for_memory_spill) override;
     String getNextSpillFile();
 
     std::vector<SpillInfo> spill_infos;
@@ -109,11 +108,12 @@ public:
     CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client);
     ~CelebornPartitionWriter() override = default;
 
+    size_t evictPartitions(bool for_memory_spill) override;
+
     void stop() override;
 
 protected:
-    size_t evictPartitionsImpl(bool for_memory_spill) override;
-
+    std::atomic<size_t> evict_cnt = 0;
     std::unique_ptr<CelebornClient> celeborn_client;
 };
 }
