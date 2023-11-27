@@ -60,7 +60,10 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
-      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
+      "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "remaining filter time")
     )
 
   override def genBatchScanTransformerMetricsUpdater(
@@ -96,7 +99,10 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
-      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
+      "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "remaining filter time")
     )
 
   override def genHiveTableScanTransformerMetricsUpdater(
@@ -132,7 +138,10 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
-      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
+      "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "remaining filter time")
     )
 
   override def genFileSourceScanTransformerMetricsUpdater(
