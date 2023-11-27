@@ -1180,6 +1180,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
     // ReaderFactory is not registered for format orc.
+    .exclude("SPARK-38548: try_sum should return null if overflow happens before merging")
     .exclude("the escape character is not allowed to end with")
     .exclude("SPARK-40245: Fix FileScan canonicalization when partition or data filter columns are not read")
     // ORC related
