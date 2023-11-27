@@ -90,6 +90,16 @@ namespace gluten {
 enum SplitState { kInit, kPreAlloc, kSplit, kStop };
 enum EvictState { kEvictable, kUnevictable };
 
+struct BinaryArrayResizeState {
+  bool inResize;
+  uint32_t partitionId;
+  uint32_t binaryIdx;
+
+  BinaryArrayResizeState() : inResize(false) {}
+  BinaryArrayResizeState(uint32_t partitionId, uint32_t binaryIdx)
+      : inResize(false), partitionId(partitionId), binaryIdx(binaryIdx) {}
+};
+
 class VeloxShuffleWriter final : public ShuffleWriter {
   enum {
     kValidityBufferIndex = 0,
@@ -100,15 +110,15 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
  public:
   struct BinaryBuf {
-    BinaryBuf(uint8_t* value, uint8_t* offset, uint64_t valueCapacityIn, uint64_t valueOffsetIn)
-        : valuePtr(value), offsetPtr(offset), valueCapacity(valueCapacityIn), valueOffset(valueOffsetIn) {}
+    BinaryBuf(uint8_t* value, uint8_t* length, uint64_t valueCapacityIn, uint64_t valueOffsetIn)
+        : valuePtr(value), lengthPtr(length), valueCapacity(valueCapacityIn), valueOffset(valueOffsetIn) {}
 
-    BinaryBuf(uint8_t* value, uint8_t* offset, uint64_t valueCapacity) : BinaryBuf(value, offset, valueCapacity, 0) {}
+    BinaryBuf(uint8_t* value, uint8_t* length, uint64_t valueCapacity) : BinaryBuf(value, length, valueCapacity, 0) {}
 
     BinaryBuf() : BinaryBuf(nullptr, nullptr, 0) {}
 
     uint8_t* valuePtr;
-    uint8_t* offsetPtr;
+    uint8_t* lengthPtr;
     uint64_t valueCapacity;
     uint64_t valueOffset;
   };
@@ -322,6 +332,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   SplitState splitState_{kInit};
 
   EvictState evictState_{kEvictable};
+
+  BinaryArrayResizeState binaryArrayResizeState_{};
 
   bool supportAvx512_ = false;
 

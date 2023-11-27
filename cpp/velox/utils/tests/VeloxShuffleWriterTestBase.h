@@ -30,6 +30,23 @@
 
 namespace gluten {
 
+namespace {
+std::string makeString(uint32_t length) {
+  static const std::string kLargeStringOf128Bytes =
+      "thisisalaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaargestringlengthmorethan16bytes";
+  std::string res{};
+  auto repeats = length / kLargeStringOf128Bytes.length();
+  while (repeats--) {
+    res.append(kLargeStringOf128Bytes);
+  }
+  if (auto remains = length % kLargeStringOf128Bytes.length()) {
+    res.append(kLargeStringOf128Bytes.substr(0, remains));
+  }
+  return res;
+}
+} // namespace
+
 struct ShuffleTestParams {
   PartitionWriterType partition_writer_type;
   arrow::Compression::type compression_type;
@@ -110,9 +127,38 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
         makeFlatVector<facebook::velox::StringView>({"alice", ""}),
     };
 
+    largeString1_ = makeString(1024);
+    childrenLargeBinary1_ = {
+        makeFlatVector<int8_t>(std::vector<int8_t>(4096, 0)),
+        makeFlatVector<int8_t>(std::vector<int8_t>(4096, 0)),
+        makeFlatVector<int32_t>(std::vector<int32_t>(4096, 0)),
+        makeFlatVector<int64_t>(std::vector<int64_t>(4096, 0)),
+        makeFlatVector<float>(std::vector<float>(4096, 0)),
+        makeFlatVector<bool>(std::vector<bool>(4096, true)),
+        makeNullableFlatVector<facebook::velox::StringView>(
+            std::vector<std::optional<facebook::velox::StringView>>(4096, largeString1_.c_str())),
+        makeNullableFlatVector<facebook::velox::StringView>(
+            std::vector<std::optional<facebook::velox::StringView>>(4096, std::nullopt)),
+    };
+    largeString2_ = makeString(4096);
+    auto vectorToSpill = childrenLargeBinary2_ = {
+        makeFlatVector<int8_t>(std::vector<int8_t>(2048, 0)),
+        makeFlatVector<int8_t>(std::vector<int8_t>(2048, 0)),
+        makeFlatVector<int32_t>(std::vector<int32_t>(2048, 0)),
+        makeFlatVector<int64_t>(std::vector<int64_t>(2048, 0)),
+        makeFlatVector<float>(std::vector<float>(2048, 0)),
+        makeFlatVector<bool>(std::vector<bool>(2048, true)),
+        makeNullableFlatVector<facebook::velox::StringView>(
+            std::vector<std::optional<facebook::velox::StringView>>(2048, largeString2_.c_str())),
+        makeNullableFlatVector<facebook::velox::StringView>(
+            std::vector<std::optional<facebook::velox::StringView>>(2048, std::nullopt)),
+    };
+
     inputVector1_ = makeRowVector(children1_);
     inputVector2_ = makeRowVector(children2_);
     inputVectorNoNull_ = makeRowVector(childrenNoNull_);
+    inputVectorLargeBinary1_ = makeRowVector(childrenLargeBinary1_);
+    inputVectorLargeBinary2_ = makeRowVector(childrenLargeBinary2_);
   }
 
   arrow::Status splitRowVector(VeloxShuffleWriter& shuffleWriter, facebook::velox::RowVectorPtr vector) {
@@ -151,10 +197,16 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
   std::vector<facebook::velox::VectorPtr> children1_;
   std::vector<facebook::velox::VectorPtr> children2_;
   std::vector<facebook::velox::VectorPtr> childrenNoNull_;
+  std::vector<facebook::velox::VectorPtr> childrenLargeBinary1_;
+  std::vector<facebook::velox::VectorPtr> childrenLargeBinary2_;
 
   facebook::velox::RowVectorPtr inputVector1_;
   facebook::velox::RowVectorPtr inputVector2_;
   facebook::velox::RowVectorPtr inputVectorNoNull_;
+  std::string largeString1_;
+  std::string largeString2_;
+  facebook::velox::RowVectorPtr inputVectorLargeBinary1_;
+  facebook::velox::RowVectorPtr inputVectorLargeBinary2_;
 };
 
 class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams>, public VeloxShuffleWriterTestBase {
