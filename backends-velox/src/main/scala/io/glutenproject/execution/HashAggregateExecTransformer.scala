@@ -654,11 +654,14 @@ case class HashAggregateExecTransformer(
         }
         addFunctionNode(args, aggregateFunc, childrenNodes, aggExpr.mode, aggregateFunctionList)
       })
+
+    val extensionNode = getAdvancedExtension()
     RelBuilder.makeAggregateRel(
       projectRel,
       groupingList,
       aggregateFunctionList,
       aggFilterList,
+      extensionNode,
       context,
       operatorId)
   }

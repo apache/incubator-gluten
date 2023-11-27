@@ -16,11 +16,14 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.execution.{GenerateExec, RDDScanExec}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{avg, col, udf}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
 import scala.collection.JavaConverters
@@ -601,6 +604,39 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         assert(nativePlanString.contains("Aggregation[FINAL"))
         assert(nativePlanString.contains("Aggregation[PARTIAL"))
         assert(nativePlanString.contains("TableScan"))
+    }
+  }
+
+  test("Support StreamingAggregate if child output ordering is satisfied") {
+    withTable("t") {
+      spark
+        .range(10000)
+        .selectExpr(s"id % 999 as c1", "id as c2")
+        .write
+        .saveAsTable("t")
+
+      withSQLConf(
+        GlutenConfig.COLUMNAR_PREFER_STREAMING_AGGREGATE.key -> "true",
+        GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
+        SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1"
+      ) {
+        val query =
+          """
+            |SELECT c1, count(*), sum(c2) FROM (
+            |SELECT t1.c1, t2.c2 FROM t t1 JOIN t t2 ON t1.c1 = t2.c1
+            |)
+            |GROUP BY c1
+            |""".stripMargin
+        runQueryAndCompare(query) {
+          df =>
+            assert(
+              find(df.queryExecution.executedPlan)(
+                _.isInstanceOf[SortMergeJoinExecTransformer]).isDefined)
+            assert(
+              find(df.queryExecution.executedPlan)(
+                _.isInstanceOf[HashAggregateExecTransformer]).isDefined)
+        }
+      }
     }
   }
 }
