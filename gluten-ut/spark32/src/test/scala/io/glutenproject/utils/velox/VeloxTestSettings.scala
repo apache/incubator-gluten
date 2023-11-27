@@ -337,8 +337,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not useful and time consuming.
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
-    // ReaderFactory is not registered for format orc.
-    .exclude("SPARK-33593: Vector reader got incorrect data with binary partition value")
   enableSuite[GlutenDatasetAggregatorSuite]
   enableSuite[GlutenDatasetOptimizationSuite]
   enableSuite[GlutenDatasetPrimitiveSuite]
@@ -373,14 +371,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Return correct results when data columns overlap with partition " +
       "columns (nested data)")
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
-    // ReaderFactory is not registered for format orc.
-    .exclude("SPARK-15474 Write and read back non-empty schema with empty dataframe - orc")
-    .exclude("SPARK-23271 empty RDD when saved should write a metadata only file - orc")
-    .exclude("SPARK-22146 read files containing special characters using orc")
-    .exclude("Do not use cache on overwrite")
-    .exclude("Do not use cache on append")
-    .exclude("File source v2: support partition pruning")
-    .exclude("File source v2: support passing data filters to FileScan without partitionFilters")
   enableSuite[GlutenEnsureRequirementsSuite]
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")
@@ -416,13 +406,11 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenOrcPartitionDiscoverySuite]
     .exclude("read partitioned table - normal case")
     .exclude("read partitioned table - with nulls")
-    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcV1PartitionDiscoverySuite]
     .exclude("read partitioned table - normal case")
     .exclude("read partitioned table - with nulls")
     .exclude("read partitioned table - partition key included in orc file")
     .exclude("read partitioned table - with nulls and partition keys are included in Orc file")
-    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcV1QuerySuite]
     // Rewrite to disable Spark's columnar reader.
     .exclude("Simple selection form ORC table")
@@ -465,7 +453,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-37463: read/write Timestamp ntz to Orc with different time zone")
     .exclude("SPARK-39381: Make vectorized orc columar writer batch size configurable")
     .exclude("SPARK-39830: Reading ORC table that requires type promotion may throw AIOOBE")
-    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcV2QuerySuite]
     .exclude("Read/write binary data")
     .exclude("Read/write all types with non-primitive type")
@@ -507,7 +494,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-5309 strings stored using dictionary compression in orc")
     // For exception test.
     .exclude("SPARK-20728 Make ORCFileFormat configurable between sql/hive and sql/core")
-    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcSourceSuite]
     // Rewrite to disable Spark's columnar reader.
     .exclude("SPARK-31238: compatibility with Spark 2.4 in reading dates")
@@ -525,7 +511,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Gluten - SPARK-31238: compatibility with Spark 2.4 in reading dates")
     .exclude("Gluten - SPARK-31238, SPARK-31423: rebasing dates in write")
     .exclude("Gluten - SPARK-34862: Support ORC vectorized reader for nested column")
-    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcV1FilterSuite]
     .exclude("SPARK-32622: case sensitivity in predicate pushdown")
   enableSuite[GlutenOrcV1SchemaPruningSuite]
@@ -668,7 +653,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
-    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenOrcV2SchemaPruningSuite]
     .exclude(
       "Spark vectorized reader - without partition data column - select only top-level fields")
@@ -804,7 +788,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Spark vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - without partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
     .exclude("Non-vectorized reader - with partition data column - SPARK-38977: schema pruning with correlated NOT IN subquery")
-    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenParquetColumnIndexSuite]
     // Rewrite by just removing test timestamp.
     .exclude("test reading unaligned pages - test all types")
@@ -934,7 +917,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Unsupported compression codec.
     .exclude("write and read - file source parquet - codec: lz4")
   enableSuite[GlutenOrcCodecSuite]
-    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenFileSourceStrategySuite]
     // Plan comparison.
     .exclude("partitioned table - after scan filters")
@@ -968,7 +950,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("hide a nested column in the middle of the leaf struct column")
     .exclude("hide a nested column at the end of the middle struct column")
     .exclude("hide a nested column in the middle of the middle struct column")
-    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenVectorizedOrcReadSchemaSuite]
     // Rewrite to disable Spark's vectorized reading.
     .exclude("change column position")
@@ -990,7 +971,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("change column type from float to double")
     .exclude("Gluten - read byte, int, short, long together")
     .exclude("Gluten - read float and double together")
-    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenMergedOrcReadSchemaSuite]
     .exclude("append column into middle")
     .exclude("add a nested column at the end of the leaf struct column")
@@ -1008,7 +988,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("read byte, int, short, long together")
     .exclude("change column type from float to double")
     .exclude("read float and double together")
-    .disableByReason("Blocked by ORC Velox upstream not ready")
   enableSuite[GlutenParquetReadSchemaSuite]
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenMergedParquetReadSchemaSuite]
@@ -1098,8 +1077,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-33687: analyze all tables in a specific database")
   enableSuite[FallbackStrategiesSuite]
   enableSuite[GlutenHiveSQLQuerySuite]
-    // ReaderFactory is not registered for format orc.
-    .exclude("hive orc scan")
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }
