@@ -353,6 +353,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     }
     configs[velox::core::QueryConfig::kAggregationSpillEnabled] =
         getConfigValue(confMap_, kAggregationSpillEnabled, "true");
+    configs[velox::core::QueryConfig::kPartialAggregationSpillEnabled] = "true";
     configs[velox::core::QueryConfig::kJoinSpillEnabled] = getConfigValue(confMap_, kJoinSpillEnabled, "true");
     configs[velox::core::QueryConfig::kOrderBySpillEnabled] = getConfigValue(confMap_, kOrderBySpillEnabled, "true");
     configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] =
