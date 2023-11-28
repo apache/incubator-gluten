@@ -444,7 +444,7 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
         | create table test_tbl(id bigint, name string) using parquet;
         |""".stripMargin
     )
-    val sql1 = "select count(1), sum(id), max(id), min(id) from test_tbl"
+    val sql1 = "select count(1), sum(id), max(id), min(id), 'abc' as x from test_tbl"
     val sql2 =
       "select count(1) as cnt, sum(id) as sum, max(id) as max, min(id) as min from test_tbl"
     compareResultsAgainstVanillaSpark(sql1, true, { _ => })
