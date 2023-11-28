@@ -38,6 +38,7 @@ class HiveTableScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric]
   val processedSplits: SQLMetric = metrics("processedSplits")
   val skippedStrides: SQLMetric = metrics("skippedStrides")
   val processedStrides: SQLMetric = metrics("processedStrides")
+  val remainingFilterTime: SQLMetric = metrics("remainingFilterTime")
 
   override def updateInputMetrics(inputMetrics: InputMetricsWrapper): Unit = {
     inputMetrics.bridgeIncBytesRead(rawInputBytes.value)
@@ -63,6 +64,7 @@ class HiveTableScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric]
       processedSplits += operatorMetrics.processedSplits
       skippedStrides += operatorMetrics.skippedStrides
       processedStrides += operatorMetrics.processedStrides
+      remainingFilterTime += operatorMetrics.remainingFilterTime
     }
   }
 }
