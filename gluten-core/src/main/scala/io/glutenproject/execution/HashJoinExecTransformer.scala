@@ -204,7 +204,7 @@ trait HashJoinLikeExecTransformer
       substraitJoinType,
       needSwitchChildren,
       joinType,
-      genJoinParametersBuilder(),
+      genJoinParameters(),
       null,
       null,
       streamedPlan.output,
@@ -278,7 +278,7 @@ trait HashJoinLikeExecTransformer
       substraitJoinType,
       needSwitchChildren,
       joinType,
-      genJoinParametersBuilder(),
+      genJoinParameters(),
       inputStreamedRelNode,
       inputBuildRelNode,
       inputStreamedOutput,
@@ -297,8 +297,8 @@ trait HashJoinLikeExecTransformer
       inputBuildOutput)
   }
 
-  def genJoinParametersBuilder(): Any.Builder = {
-    val (isBHJ, isNullAwareAntiJoin, buildHashTableId) = genJoinParameters()
+  def genJoinParameters(): Any = {
+    val (isBHJ, isNullAwareAntiJoin, buildHashTableId) = genJoinParametersInternal()
     // Start with "JoinParameters:"
     val joinParametersStr = new StringBuffer("JoinParameters:")
     // isBHJ: 0 for SHJ, 1 for BHJ
@@ -321,12 +321,10 @@ trait HashJoinLikeExecTransformer
       .newBuilder()
       .setValue(joinParametersStr.toString)
       .build()
-    Any.newBuilder
-      .setValue(message.toByteString)
-      .setTypeUrl("/google.protobuf.StringValue")
+    BackendsApiManager.getTransformerApiInstance.getPackMessage(message)
   }
 
-  def genJoinParameters(): (Int, Int, String) = {
+  def genJoinParametersInternal(): (Int, Int, String) = {
     (0, 0, "")
   }
 }
@@ -406,7 +404,7 @@ abstract class BroadcastHashJoinExecTransformer(
   // Unique ID for builded hash table
   lazy val buildHashTableId: String = "BuiltHashTable-" + buildPlan.id
 
-  override def genJoinParameters(): (Int, Int, String) = {
+  override def genJoinParametersInternal(): (Int, Int, String) = {
     (1, if (isNullAwareAntiJoin) 1 else 0, buildHashTableId)
   }
 

@@ -30,7 +30,7 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import com.google.protobuf.StringValue
+import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.JoinRel
 
 import scala.collection.JavaConverters._
@@ -55,7 +55,7 @@ case class SortMergeJoinExecTransformer(
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
     (rightKeys, leftKeys, right, left)
 
-  override def stringArgs: Iterator[Any] = super.stringArgs.toSeq.dropRight(1).iterator
+  override def stringArgs: Iterator[scala.Any] = super.stringArgs.toSeq.dropRight(1).iterator
 
   override def simpleStringWithNodeId(): String = {
     val opId = ExplainUtils.getOpId(this)
@@ -176,7 +176,7 @@ case class SortMergeJoinExecTransformer(
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetricsUpdater(metrics)
 
-  def genJoinParametersBuilder(): com.google.protobuf.Any.Builder = {
+  def genJoinParameters(): Any = {
     val (isSMJ, isNullAwareAntiJoin) = (1, 0)
     // Start with "JoinParameters:"
     val joinParametersStr = new StringBuffer("JoinParameters:")
@@ -196,9 +196,7 @@ case class SortMergeJoinExecTransformer(
       .newBuilder()
       .setValue(joinParametersStr.toString)
       .build()
-    com.google.protobuf.Any.newBuilder
-      .setValue(message.toByteString)
-      .setTypeUrl("/google.protobuf.StringValue")
+    BackendsApiManager.getTransformerApiInstance.getPackMessage(message)
   }
 
   // Direct output order of substrait join operation
@@ -235,7 +233,7 @@ case class SortMergeJoinExecTransformer(
       substraitJoinType,
       false,
       joinType,
-      genJoinParametersBuilder(),
+      genJoinParameters(),
       null,
       null,
       streamedPlan.output,
@@ -298,7 +296,7 @@ case class SortMergeJoinExecTransformer(
       substraitJoinType,
       false,
       joinType,
-      genJoinParametersBuilder(),
+      genJoinParameters(),
       inputStreamedRelNode,
       inputBuildRelNode,
       inputStreamedOutput,

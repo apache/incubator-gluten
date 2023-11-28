@@ -84,7 +84,7 @@ case class WindowExecTransformer(
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  def genWindowParametersBuilder(): com.google.protobuf.Any.Builder = {
+  def genWindowParameters(): Any = {
     // Start with "WindowParameters:"
     val windowParametersStr = new StringBuffer("WindowParameters:")
     // isStreaming: 1 for streaming, 0 for sort
@@ -99,9 +99,7 @@ case class WindowExecTransformer(
       .newBuilder()
       .setValue(windowParametersStr.toString)
       .build()
-    com.google.protobuf.Any.newBuilder
-      .setValue(message.toByteString)
-      .setTypeUrl("/google.protobuf.StringValue")
+    BackendsApiManager.getTransformerApiInstance.getPackMessage(message)
   }
 
   def getRelNode(
@@ -157,7 +155,7 @@ case class WindowExecTransformer(
       }.asJava
     if (!validation) {
       val extensionNode =
-        ExtensionBuilder.makeAdvancedExtension(genWindowParametersBuilder.build(), null)
+        ExtensionBuilder.makeAdvancedExtension(genWindowParameters(), null)
       RelBuilder.makeWindowRel(
         input,
         windowExpressions,
