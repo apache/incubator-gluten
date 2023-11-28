@@ -145,6 +145,11 @@ BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively,
         if (elem.type->isNullable())
         {
             const auto * nullable_col = typeid_cast<const DB::ColumnNullable *>(elem.column->getPtr().get());
+	    if (isColumnConst(*elem.column.get()))
+            {
+                const auto * const_col = typeid_cast<const DB::ColumnConst *>(elem.column->getPtr().get());
+                nullable_col = typeid_cast<const DB::ColumnNullable *>(const_col->getDataColumnPtr().get());
+            }
             nested_col = nullable_col->getNestedColumnPtr();
             null_map_col = nullable_col->getNullMapColumnPtr();
         }
