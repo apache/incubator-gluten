@@ -190,7 +190,7 @@ class SubstraitToVeloxPlanConverter {
       if (forOrRelation) {
         return true;
       }
-      if (inRange_ || multiRange_ || leftBound_ || rightBound_) {
+      if (inRange_ || multiRange_ || leftBound_ || rightBound_ || isNull_) {
         return false;
       }
       inRange_ = true;
@@ -205,7 +205,7 @@ class SubstraitToVeloxPlanConverter {
           leftBound_ = true;
         return !rightBound_;
       }
-      if (leftBound_ || inRange_ || multiRange_) {
+      if (leftBound_ || inRange_ || multiRange_ || isNull_) {
         return false;
       }
       leftBound_ = true;
@@ -220,20 +220,30 @@ class SubstraitToVeloxPlanConverter {
           rightBound_ = true;
         return !leftBound_;
       }
-      if (rightBound_ || inRange_ || multiRange_) {
+      if (rightBound_ || inRange_ || multiRange_ || isNull_) {
         return false;
       }
       rightBound_ = true;
       return true;
     }
 
-    /// Set the multi-range and returns whether it can coexist with
+    /// Set the existence of multi-range and returns whether it can coexist with
     /// existing conditions for this field.
     bool setMultiRange() {
-      if (inRange_ || multiRange_ || leftBound_ || rightBound_) {
+      if (inRange_ || multiRange_ || leftBound_ || rightBound_ || isNull_) {
         return false;
       }
       multiRange_ = true;
+      return true;
+    }
+
+    /// Set the existence of IsNull and returns whether it can coexist with
+    /// existing conditions for this field.
+    bool setIsNull() {
+      if (inRange_ || multiRange_ || leftBound_ || rightBound_) {
+        return false;
+      }
+      isNull_ = true;
       return true;
     }
 
@@ -253,14 +263,26 @@ class SubstraitToVeloxPlanConverter {
 
     /// The existence of multi-range.
     bool multiRange_ = false;
+
+    /// The existence of IsNull.
+    bool isNull_ = false;
   };
 
   /// Filter info for a column used in filter push down.
   class FilterInfo {
    public:
-    // Disable null allow.
+    // Null is not allowed.
     void forbidsNull() {
       nullAllowed_ = false;
+      if (!initialized_) {
+        initialized_ = true;
+      }
+    }
+
+    // Only null is allowed.
+    void setNull() {
+      isNull_ = true;
+      nullAllowed_ = true;
       if (!initialized_) {
         initialized_ = true;
       }
@@ -312,8 +334,8 @@ class SubstraitToVeloxPlanConverter {
     // Whether this filter map is initialized.
     bool initialized_ = false;
 
-    // The null allow.
     bool nullAllowed_ = false;
+    bool isNull_ = false;
 
     // If true, left bound will be exclusive.
     std::vector<bool> lowerExclusives_;
@@ -360,7 +382,7 @@ class SubstraitToVeloxPlanConverter {
       const dwio::common::FileFormat& format);
 
   /// Returns whether a function can be pushed down.
-  static bool canPushdownCommonFunction(
+  static bool canPushdownFunction(
       const ::substrait::Expression_ScalarFunction& scalarFunction,
       const std::string& filterName,
       uint32_t& fieldIdx);
