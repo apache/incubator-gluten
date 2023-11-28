@@ -242,7 +242,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
           }
 
           runQueryAndCompare(
-            "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2, true) over" +
+            "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) IGNORE NULLS over" +
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
             assertWindowOffloaded
           }
