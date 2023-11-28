@@ -888,8 +888,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenMergedParquetReadSchemaSuite]
   enableSuite[GlutenEnsureRequirementsSuite]
-    // FIXME: yan
-    .exclude("reorder should handle PartitioningCollection")
     // Rewrite to change the shuffle partitions for optimizing repartition
     .excludeByPrefix("SPARK-35675")
     .exclude("SPARK-41986: Introduce shuffle on SinglePartition")
