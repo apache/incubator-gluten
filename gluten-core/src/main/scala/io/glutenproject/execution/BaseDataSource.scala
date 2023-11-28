@@ -16,12 +16,10 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.substrait.SupportFormat
-
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.types.StructType
 
-trait BaseDataSource extends SupportFormat {
+trait BaseDataSource {
 
   /** Returns the actual schema of this data source scan. */
   def getDataSchema: StructType

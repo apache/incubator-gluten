@@ -27,10 +27,10 @@ import io.glutenproject.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-
 import com.google.common.collect.Lists
-
 import scala.collection.JavaConverters._
+
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource {
 
@@ -38,6 +38,9 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
   def filterExprs(): Seq[Expression]
 
   def outputAttributes(): Seq[Attribute]
+
+  /** This can be used to report FileFormat for a file based scan operator. */
+  val fileFormat: ReadFileFormat
 
   // TODO: Remove this expensive call when CH support scan custom partition location.
   def getInputFilePaths: Seq[String] = {
