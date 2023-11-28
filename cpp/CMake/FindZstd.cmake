@@ -22,7 +22,7 @@
 # ZSTD_FOUND: whether zstd has been found
 
 if (NOT "$ENV{ZSTD_HOME}" STREQUAL "")
-  file(TO_CMAKE_PATH "$ENV${ZSTD_HOME}" _zstd_path)
+  file(TO_CMAKE_PATH "$ENV{ZSTD_HOME}" _zstd_path)
   message(STATUS "ZSTD_HOME: ${_zstd_path}")
 else()
   set(_zstd_path "/usr/local")
