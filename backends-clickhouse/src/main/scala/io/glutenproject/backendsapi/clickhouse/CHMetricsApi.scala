@@ -38,6 +38,21 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
     MetricsUtil.updateNativeMetrics(child, relMap, joinParamsMap, aggParamsMap)
   }
 
+  override def genInputIteratorTransformerMetrics(
+      sparkContext: SparkContext): Map[String, SQLMetric] = {
+    Map(
+      "iterReadTime" -> SQLMetrics.createTimingMetric(
+        sparkContext,
+        "time of reading from iterator"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors")
+    )
+  }
+
+  override def genInputIteratorTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric]): MetricsUpdater = {
+    InputIteratorMetricsUpdater(metrics)
+  }
+
   override def genBatchScanTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
@@ -163,8 +178,6 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
         SQLMetrics.createTimingMetric(sparkContext, "time of aggregating"),
       "postProjectTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "time of postProjection"),
-      "iterReadTime" ->
-        SQLMetrics.createTimingMetric(sparkContext, "time of reading from iterator"),
       "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
     )
 
@@ -312,12 +325,8 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
       "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
       "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
-      "streamIterReadTime" ->
-        SQLMetrics.createTimingMetric(sparkContext, "time of stream side read"),
       "streamPreProjectionTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "time of stream side preProjection"),
-      "buildIterReadTime" ->
-        SQLMetrics.createTimingMetric(sparkContext, "time of build side read"),
       "buildPreProjectionTime" ->
         SQLMetrics.createTimingMetric(sparkContext, "time of build side preProjection"),
       "postProjectTime" ->

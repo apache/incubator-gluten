@@ -24,7 +24,6 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.SubstraitUtil
 
 import org.apache.spark.rdd.RDD
@@ -44,8 +43,6 @@ import io.substrait.proto.JoinRel
 
 import java.lang.{Long => JLong}
 import java.util.{Map => JMap}
-
-import scala.collection.JavaConverters._
 
 trait ColumnarShuffledJoin extends BaseJoinExec {
   def isSkewJoin: Boolean
@@ -217,45 +214,19 @@ trait HashJoinLikeExecTransformer
     doNativeValidation(substraitContext, relNode)
   }
 
-  override def doTransform(substraitContext: SubstraitContext): TransformContext = {
+  override def doTransform(context: SubstraitContext): TransformContext = {
+    val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].doTransform(context)
+    val (inputStreamedRelNode, inputStreamedOutput) =
+      (streamedPlanContext.root, streamedPlanContext.outputAttributes)
 
-    def transformAndGetOutput(plan: SparkPlan): (RelNode, Seq[Attribute], Boolean, JLong) = {
-      plan match {
-        case p: TransformSupport =>
-          val transformContext = p.doTransform(substraitContext)
-          (transformContext.root, transformContext.outputAttributes, false, -1L)
-        case _ =>
-          val readRel = RelBuilder.makeReadRel(
-            plan.output.asJava,
-            substraitContext,
-            -1
-          ) /* A special handling in Join to delay the rel registration. */
-          // Make sure create a new read relId for the stream side first
-          // before the one of the build side, when there is no shuffle on the build side
-          (readRel, plan.output, true, substraitContext.nextRelId())
-      }
-    }
-
-    val joinParams = new JoinParams
-    val (inputStreamedRelNode, inputStreamedOutput, isStreamedReadRel, streamdReadRelId) =
-      transformAndGetOutput(streamedPlan)
-    joinParams.isStreamedReadRel = isStreamedReadRel
-
-    val (inputBuildRelNode, inputBuildOutput, isBuildReadRel, buildReadRelId) =
-      transformAndGetOutput(buildPlan)
-    joinParams.isBuildReadRel = isBuildReadRel
+    val buildPlanContext = buildPlan.asInstanceOf[TransformSupport].doTransform(context)
+    val (inputBuildRelNode, inputBuildOutput) =
+      (buildPlanContext.root, buildPlanContext.outputAttributes)
 
     // Get the operator id of this Join.
-    val operatorId = substraitContext.nextOperatorId(this.nodeName)
+    val operatorId = context.nextOperatorId(this.nodeName)
 
-    // Register the ReadRel to correct operator Id.
-    if (joinParams.isStreamedReadRel) {
-      substraitContext.registerRelToOperator(operatorId, streamdReadRelId)
-    }
-    if (joinParams.isBuildReadRel) {
-      substraitContext.registerRelToOperator(operatorId, buildReadRelId)
-    }
-
+    val joinParams = new JoinParams
     if (JoinUtils.preProjectionNeeded(streamedKeyExprs)) {
       joinParams.streamPreProjectionNeeded = true
     }
@@ -283,11 +254,11 @@ trait HashJoinLikeExecTransformer
       inputBuildRelNode,
       inputStreamedOutput,
       inputBuildOutput,
-      substraitContext,
+      context,
       operatorId
     )
 
-    substraitContext.registerJoinParam(operatorId, joinParams)
+    context.registerJoinParam(operatorId, joinParams)
 
     JoinUtils.createTransformContext(
       needSwitchChildren,

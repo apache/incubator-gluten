@@ -687,7 +687,8 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               val limitPlan = LimitTransformer(plan.child, 0, plan.limit)
               tagged = limitPlan.doValidate()
             } else {
-              val sortPlan = SortExecTransformer(plan.sortOrder, false, plan.child)
+              val inputTransformer = ColumnarCollapseTransformStages.wrapAdapter(plan.child)
+              val sortPlan = SortExecTransformer(plan.sortOrder, false, inputTransformer)
               val limitPlan = LimitTransformer(sortPlan, 0, plan.limit)
               tagged = limitPlan.doValidate()
             }
