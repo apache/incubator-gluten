@@ -88,6 +88,15 @@
       "dependencies": [
         "memkind"
       ]
+    },
+    "qat": {
+      "description": "QAT",
+      "dependencies": [
+        {
+	  "name": "zstd",
+	  "version>=": "1.5.4"
+        }
+      ]
     }
   },
   "overrides": [
