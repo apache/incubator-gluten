@@ -81,10 +81,9 @@ case class CHHashAggregateExecTransformer(
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
-
-    val aggParams = new AggregationParams
     val operatorId = context.nextOperatorId(this.nodeName)
 
+    val aggParams = new AggregationParams
     val isChildTransformSupported = !child.isInstanceOf[InputIteratorTransformer]
     val (relNode, inputAttributes, outputAttributes) = if (isChildTransformSupported) {
       // The final HashAggregateExecTransformer and partial HashAggregateExecTransformer
@@ -147,7 +146,11 @@ case class CHHashAggregateExecTransformer(
         }
       }
 
-      (getAggRel(context, operatorId, aggParams, childCtx.root), inputAttrs, outputAttrs)
+      // The output is different with child.output, so we can not use `childCtx.root` as the
+      // `ReadRel`. Here we re-generate the `ReadRel` with the special output list.
+      val readRel =
+        RelBuilder.makeReadRelForInputIteratorWithoutRegister(typeList, nameList, context)
+      (getAggRel(context, operatorId, aggParams, readRel), inputAttrs, outputAttrs)
     }
     TransformContext(inputAttributes, outputAttributes, relNode)
   }
