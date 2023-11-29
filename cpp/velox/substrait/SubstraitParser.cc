@@ -299,8 +299,7 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"collect_set", "array_distinct"},
     {"murmur3hash", "hash_with_seed"},
     {"modulus", "mod"}, /*Presto functions.*/
-    {"date_format", "format_datetime"}
-};
+    {"date_format", "format_datetime"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
     {"bool", "BOOLEAN"},
