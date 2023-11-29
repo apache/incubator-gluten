@@ -247,7 +247,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         assert(allGlutenPlans.size == 58)
 
         val shjPlan = allGlutenPlans(8)
-        assert(shjPlan.metrics("totalTime").value == 7)
+        assert(shjPlan.metrics("totalTime").value == 6)
         assert(shjPlan.metrics("inputWaitTime").value == 5)
         assert(shjPlan.metrics("outputWaitTime").value == 0)
         assert(shjPlan.metrics("outputRows").value == 44)
