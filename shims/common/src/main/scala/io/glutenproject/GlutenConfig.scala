@@ -1042,7 +1042,7 @@ object GlutenConfig {
       .internal()
       .doc("The IO threads for cache promoting")
       .intConf
-      .createWithDefault(1)
+      .createWithDefault(1) // TODO: Use task slot number instead
 
   val COLUMNAR_VELOX_SSD_ODIRECT_ENABLED =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.ssdODirect")
@@ -1056,7 +1056,7 @@ object GlutenConfig {
       .internal()
       .doc("The IO threads for connector split preloading")
       .intConf
-      .createWithDefault(0)
+      .createWithDefault(1) // TODO: Use task slot number instead
 
   val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
