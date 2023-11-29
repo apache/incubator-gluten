@@ -17,10 +17,12 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.expression.{ExpressionMappings, ExpressionNames}
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidationInfo
 
-import org.apache.spark.sql.catalyst.expressions.{Alias, Expression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, Expression, Generator}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.DataType
 
@@ -99,4 +101,13 @@ trait ValidatorApi {
    *   true by default
    */
   def doSchemaValidate(schema: DataType): Boolean = true
+
+  /** Validate against ColumnarShuffleExchangeExec. */
+  def doColumnarShuffleExchangeExecValidate(
+      outputPartitioning: Partitioning,
+      child: SparkPlan): Boolean
+
+  /** Validate against Generator expression. */
+  def doGeneratorValidate(generator: Generator, outer: Boolean): ValidationResult =
+    ValidationResult.ok
 }

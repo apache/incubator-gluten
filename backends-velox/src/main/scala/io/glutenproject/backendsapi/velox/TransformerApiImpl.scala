@@ -19,16 +19,13 @@ package io.glutenproject.backendsapi.velox
 import io.glutenproject.backendsapi.TransformerApi
 import io.glutenproject.exec.Runtimes
 import io.glutenproject.expression.ConverterUtils
-import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.utils.InputPartitionsUtil
 import io.glutenproject.vectorized.PlanEvaluatorJniWrapper
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.expressions.{Attribute, CreateMap, Explode, Generator, JsonTuple, Literal, PosExplode}
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types._
 import org.apache.spark.util.collection.BitSet
@@ -38,17 +35,6 @@ import com.google.protobuf.{Any, Message}
 import java.util.{Map => JMap}
 
 class TransformerApiImpl extends TransformerApi with Logging {
-
-  /**
-   * Do validate for ColumnarShuffleExchangeExec.
-   *
-   * @return
-   */
-  override def validateColumnarShuffleExchangeExec(
-      outputPartitioning: Partitioning,
-      child: SparkPlan): Boolean = {
-    new ValidatorApiImpl().doSchemaValidate(child.schema)
-  }
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
@@ -74,34 +60,6 @@ class TransformerApiImpl extends TransformerApi with Logging {
       nativeConfMap: JMap[String, String],
       backendPrefix: String): Unit = {
     // TODO: IMPLEMENT SPECIAL PROCESS FOR VELOX BACKEND
-  }
-
-  override def validateGenerator(generator: Generator, outer: Boolean): ValidationResult = {
-    if (outer) {
-      return ValidationResult.notOk(s"Velox backend does not support outer")
-    }
-    generator match {
-      case generator: JsonTuple =>
-        ValidationResult.notOk(s"Velox backend does not support this json_tuple")
-      case generator: PosExplode =>
-        // TODO(yuan): support posexplode and remove this check
-        ValidationResult.notOk(s"Velox backend does not support this posexplode")
-      case explode: Explode if (explode.child.isInstanceOf[CreateMap]) =>
-        // explode(MAP(col1, col2))
-        ValidationResult.notOk(s"Velox backend does not support MAP datatype")
-      case explode: Explode if (explode.child.isInstanceOf[Literal]) =>
-        // explode(ARRAY(1, 2, 3))
-        ValidationResult.notOk(s"Velox backend does not support literal Array datatype")
-      case explode: Explode =>
-        explode.child.dataType match {
-          case _: MapType =>
-            ValidationResult.notOk(s"Velox backend does not support MAP datatype")
-          case _ =>
-            ValidationResult.ok
-        }
-      case _ =>
-        ValidationResult.ok
-    }
   }
 
   override def createDateDiffParamList(

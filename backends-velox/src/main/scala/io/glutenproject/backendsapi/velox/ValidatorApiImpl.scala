@@ -18,11 +18,13 @@ package io.glutenproject.backendsapi.velox
 
 import io.glutenproject.backendsapi.ValidatorApi
 import io.glutenproject.exec.Runtimes
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidationInfo
 import io.glutenproject.vectorized.NativePlanEvaluator
 
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{CreateMap, Explode, Expression, Generator, JsonTuple, Literal, PosExplode}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, StructType, TimestampType}
 
@@ -80,5 +82,39 @@ class ValidatorApiImpl extends ValidatorApi {
       case _ => return false
     }
     true
+  }
+
+  override def doColumnarShuffleExchangeExecValidate(
+      outputPartitioning: Partitioning,
+      child: SparkPlan): Boolean = {
+    new ValidatorApiImpl().doSchemaValidate(child.schema)
+  }
+
+  override def doGeneratorValidate(generator: Generator, outer: Boolean): ValidationResult = {
+    if (outer) {
+      return ValidationResult.notOk(s"Velox backend does not support outer")
+    }
+    generator match {
+      case generator: JsonTuple =>
+        ValidationResult.notOk(s"Velox backend does not support this json_tuple")
+      case generator: PosExplode =>
+        // TODO(yuan): support posexplode and remove this check
+        ValidationResult.notOk(s"Velox backend does not support this posexplode")
+      case explode: Explode if (explode.child.isInstanceOf[CreateMap]) =>
+        // explode(MAP(col1, col2))
+        ValidationResult.notOk(s"Velox backend does not support MAP datatype")
+      case explode: Explode if (explode.child.isInstanceOf[Literal]) =>
+        // explode(ARRAY(1, 2, 3))
+        ValidationResult.notOk(s"Velox backend does not support literal Array datatype")
+      case explode: Explode =>
+        explode.child.dataType match {
+          case _: MapType =>
+            ValidationResult.notOk(s"Velox backend does not support MAP datatype")
+          case _ =>
+            ValidationResult.ok
+        }
+      case _ =>
+        ValidationResult.ok
+    }
   }
 }
