@@ -284,7 +284,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         }
 
         def wrapChild(child: SparkPlan): WholeStageTransformer = {
-          WholeStageTransformer(ProjectExecTransformer(child.output ++ appendedProjections, child))(
+          val childWithAdapter = ColumnarCollapseTransformStages.wrapAdapter(child)
+          WholeStageTransformer(
+            ProjectExecTransformer(child.output ++ appendedProjections, childWithAdapter))(
             ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
           )
         }
