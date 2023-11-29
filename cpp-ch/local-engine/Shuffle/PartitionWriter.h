@@ -80,7 +80,7 @@ protected:
 
     size_t total_partition_buffer_size = 0;
 
-    std::atomic<bool> evicting_or_writing{false};
+    bool evicting_or_writing{false};
 };
 
 class LocalPartitionWriter : public PartitionWriter
@@ -109,7 +109,6 @@ protected:
     size_t unsafeEvictPartitions(bool for_memory_spill) override;
     void unsafeStop() override;
 
-    std::atomic<bool> evicting_or_writing = 0;
     std::unique_ptr<CelebornClient> celeborn_client;
 };
 }

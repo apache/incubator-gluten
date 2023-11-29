@@ -440,8 +440,8 @@ QueryPlanPtr SerializedPlanParser::parse(std::unique_ptr<substrait::Plan> plan)
         pb_util::JsonOptions options;
         std::string json;
         auto s = pb_util::MessageToJsonString(*plan, &json, options);
-        // if (!s.ok())
-            // throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert Substrait Plan to Json");
+        if (!s.ok())
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "Can not convert Substrait Plan to Json");
         LOG_DEBUG(&Poco::Logger::get("SerializedPlanParser"), "substrait plan:\n{}", json);
     }
     parseExtensions(plan->extensions());

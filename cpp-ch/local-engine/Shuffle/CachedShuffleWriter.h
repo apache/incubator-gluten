@@ -47,7 +47,6 @@ private:
     void initOutputIfNeeded(DB::Block & block);
 
     bool stopped = false;
-    // PartitionInfo partition_info;
     DB::Block output_header;
     SplitOptions options;
     SplitResult split_result;

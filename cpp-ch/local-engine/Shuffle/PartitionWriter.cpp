@@ -220,7 +220,6 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
     , partition_block_buffer(options->partition_num)
     , partition_buffer(options->partition_num)
 {
-    // std::cout << "throw_if_memory_exceed: " << options->throw_if_memory_exceed << std::endl;
     for (size_t partition_i = 0; partition_i < options->partition_num; ++partition_i)
     {
         partition_block_buffer[partition_i] = std::make_shared<ColumnsBuffer>(options->split_size);
