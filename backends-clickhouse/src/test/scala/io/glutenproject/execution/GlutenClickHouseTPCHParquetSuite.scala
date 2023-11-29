@@ -22,6 +22,7 @@ import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, ConstantFolding, NullPropagation}
 import org.apache.spark.sql.execution.{ColumnarToRowExec, ReusedSubqueryExec, SubqueryExec}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{col, rand, when}
 import org.apache.spark.sql.internal.SQLConf
 
@@ -30,7 +31,9 @@ import java.io.File
 // Some sqls' line length exceeds 100
 // scalastyle:off line.size.limit
 
-class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite {
+class GlutenClickHouseTPCHParquetSuite
+  extends GlutenClickHouseTPCHAbstractSuite
+  with AdaptiveSparkPlanHelper {
 
   override protected val resourcePath: String =
     "../../../../gluten-core/src/test/resources/tpch-data"
@@ -2215,6 +2218,18 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     spark.sql(data_insert_sql)
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     spark.sql("drop table test_tbl_3521")
+  }
+
+  test("test page index pruning") {
+    runQueryAndCompare(
+      "SELECT sum(l_extendedprice * l_discount) AS revenue FROM lineitem WHERE l_orderkey = 39712") {
+      df =>
+        val plans = collect(df.queryExecution.executedPlan) {
+          case scanExec: BasicScanExecTransformer => scanExec
+        }
+        assert(plans.size == 1)
+        assert(plans(0).metrics("outputRows").value === 20000) // on page
+    }
   }
 
 }
