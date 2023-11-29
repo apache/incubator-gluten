@@ -604,7 +604,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Parse measures and get the window expressions.
   // Each measure represents one window expression.
-  bool ignoreNullKeys = false;
+  bool ignoreNulls = false;
   std::vector<core::WindowNode::Function> windowNodeFunctions;
   std::vector<std::string> windowColumnNames;
 
@@ -613,9 +613,25 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     const auto& windowFunction = smea.measure();
     std::string funcName = SubstraitParser::findVeloxFunction(functionMap_, windowFunction.function_reference());
     std::vector<core::TypedExprPtr> windowParams;
-    windowParams.reserve(windowFunction.arguments().size());
-    for (const auto& arg : windowFunction.arguments()) {
-      windowParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
+    auto& argumentList = windowFunction.arguments();
+    windowParams.reserve(argumentList.size());
+    // For functions in kOffsetWindowFunctions (see Spark OffsetWindowFunctions),
+    // we expect the last arg is passed for setting ignoreNulls.
+    if (kOffsetWindowFunctions.find(funcName) != kOffsetWindowFunctions.end()) {
+      int i = 0;
+      for (; i < argumentList.size() - 1; i++) {
+        windowParams.emplace_back(exprConverter_->toVeloxExpr(argumentList[i].value(), inputType));
+      }
+      auto constantTypedExpr = exprConverter_->toVeloxExpr(argumentList[i].value().literal());
+      auto variant = constantTypedExpr->value();
+      if (!variant.hasValue()) {
+        VELOX_FAIL("Value is expected in variant for setting ignoreNulls.");
+      }
+      ignoreNulls = variant.value<bool>();
+    } else {
+      for (const auto& arg : argumentList) {
+        windowParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
+      }
     }
     auto windowVeloxType = SubstraitParser::parseType(windowFunction.output_type());
     auto windowCall = std::make_shared<const core::CallTypedExpr>(windowVeloxType, std::move(windowParams), funcName);
@@ -626,7 +642,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     windowColumnNames.push_back(windowFunction.column_name());
 
     windowNodeFunctions.push_back(
-        {std::move(windowCall), createWindowFrame(lowerBound, upperBound, type), ignoreNullKeys});
+        {std::move(windowCall), createWindowFrame(lowerBound, upperBound, type), ignoreNulls});
   }
 
   // Construct partitionKeys

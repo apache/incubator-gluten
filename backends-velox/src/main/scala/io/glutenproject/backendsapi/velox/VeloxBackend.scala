@@ -178,9 +178,8 @@ object BackendSettings extends BackendSettingsApi {
             case _ =>
           }
           windowExpression.windowFunction match {
-            // 'ignoreNulls=true' is not supported in Velox for 'NthValue'.
             case _: RowNumber | _: AggregateExpression | _: Rank | _: CumeDist | _: DenseRank |
-                _: PercentRank | _ @NthValue(_, _, false) =>
+                _: PercentRank | _: NthValue =>
             case _ =>
               allSupported = false
           }
