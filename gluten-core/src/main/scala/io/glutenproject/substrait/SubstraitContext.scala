@@ -124,6 +124,11 @@ class SubstraitContext extends Serializable {
     id
   }
 
+  def currentIteratorIndex: JLong = {
+    assert(iteratorIndex > 0)
+    this.iteratorIndex - 1
+  }
+
   /**
    * Register a rel to certain operator id.
    * @param operatorId

@@ -129,7 +129,7 @@ public class RelBuilder {
 
   public static RelNode makeReadRelForInputIteratorWithoutRegister(
       List<TypeNode> typeList, List<String> nameList, SubstraitContext context) {
-    Long iteratorIndex = context.nextIteratorIndex();
+    Long iteratorIndex = context.currentIteratorIndex();
     return new InputIteratorRelNode(typeList, nameList, iteratorIndex);
   }
 
