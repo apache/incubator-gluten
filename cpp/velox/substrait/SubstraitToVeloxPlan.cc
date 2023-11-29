@@ -647,7 +647,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Construct partitionKeys
   std::vector<core::FieldAccessTypedExprPtr> partitionKeys;
-  std::unordered_set<string> keyNames;
+  std::unordered_set<std::string> keyNames;
   const auto& partitions = windowRel.partition_expressions();
   partitionKeys.reserve(partitions.size());
   for (const auto& partition : partitions) {
@@ -656,17 +656,18 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
     VELOX_USER_CHECK_NOT_NULL(veloxPartitionKey, "Window Operator only supports field partition key.");
     // Constructs unique parition keys.
-    if (keyNames.insert(veloxPartitionKey->name)->second) {
+    if (keyNames.insert(veloxPartitionKey->name()).second) {
       partitionKeys.emplace_back(veloxPartitionKey);
     }
   }
   std::vector<core::FieldAccessTypedExprPtr> sortingKeys;
   std::vector<core::SortOrder> sortingOrders;
-  for (auto& iter : processSortField(windowRel.sorts(), inputType)) {
+  const auto& [rawSortingKeys, rawSortingOrders] = processSortField(windowRel.sorts(), inputType);
+  for (vector_size_t i = 0; i < rawSortingKeys.size(); ++i) {
     // Constructs unique sort keys and excludes keys overlapped with partition keys.
-    if (keyNames.insert(iter->first->name)->second) {
-      sortingKeys.emplace_back(iter->first);
-      sortingOrders.emplace_back(iter->second);
+    if (keyNames.insert(rawSortingKeys[i]->name()).second) {
+      sortingKeys.emplace_back(rawSortingKeys[i]);
+      sortingOrders.emplace_back(rawSortingOrders[i]);
     }
   }
 
