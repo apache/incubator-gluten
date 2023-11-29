@@ -989,8 +989,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // substring issue
     .exclude("pivot with column definition in groupby")
   enableSuite[GlutenDataFrameRangeSuite]
-    .exclude("Cancelling stage in a query with Range.")
     .exclude("SPARK-20430 Initialize Range parameters in a driver side")
+    .excludeByPrefix("Cancelling stage in a query with Range")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenDataFrameSessionWindowingSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]
