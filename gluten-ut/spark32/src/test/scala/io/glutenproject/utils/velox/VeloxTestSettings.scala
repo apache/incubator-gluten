@@ -272,6 +272,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameComplexTypeSuite]
   enableSuite[GlutenApproximatePercentileQuerySuite]
   enableSuite[GlutenDataFrameRangeSuite]
+    .exclude("SPARK-20430 Initialize Range parameters in a driver side")
+    .excludeByPrefix("Cancelling stage in a query with Range")
   enableSuite[GlutenTakeOrderedAndProjectSuite]
   enableSuite[GlutenSubquerySuite]
     .excludeByPrefix(
