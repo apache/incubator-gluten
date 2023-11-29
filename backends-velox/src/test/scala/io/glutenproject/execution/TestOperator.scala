@@ -270,6 +270,20 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
               " (partition by l_suppkey order by l_orderkey) from lineitem ") {
             assertWindowOffloaded
           }
+
+          // Test same partition/ordering keys.
+          runQueryAndCompare(
+            "select avg(l_partkey) over" +
+              " (partition by l_suppkey order by l_suppkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
+          // Test overlapping partition/ordering keys.
+          runQueryAndCompare(
+            "select avg(l_partkey) over" +
+              " (partition by l_suppkey order by l_suppkey, l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
         }
     }
   }
