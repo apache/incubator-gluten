@@ -24,12 +24,14 @@ import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 
-import scala.reflect.runtime.{universe => ru}
+import java.util.ServiceLoader
+import java.util.concurrent.ConcurrentHashMap
+
+import scala.collection.JavaConverters._
 
 object ScanTransformerFactory {
 
-  private val IcebergScanClassName = "org.apache.iceberg.spark.source.SparkBatchQueryScan"
-  private val IcebergTransformerClassName = "io.glutenproject.execution.IcebergScanTransformer"
+  private val dataSourceV2TransformerMap = new ConcurrentHashMap[String, Class[_]]()
 
   def createFileSourceScanTransformer(
       scanExec: FileSourceScanExec,
@@ -87,8 +89,12 @@ object ScanTransformerFactory {
     }
     val scan = batchScanExec.scan
     scan match {
-      case _ if scan.getClass.getName == IcebergScanClassName =>
-        createBatchScanTransformer(IcebergTransformerClassName, batchScanExec, newPartitionFilters)
+      case _ if dataSourceV2TransformerExists(scan.getClass.getName) =>
+        val cls = lookupDataSourceV2Transformer(scan.getClass.getName)
+        cls
+          .newInstance()
+          .asInstanceOf[DataSourceV2TransformerRegister]
+          .createDataSourceV2Transformer(batchScanExec, newPartitionFilters)
       case _ =>
         new BatchScanExecTransformer(
           batchScanExec.output,
@@ -100,18 +106,30 @@ object ScanTransformerFactory {
 
   def supportedBatchScan(scan: Scan): Boolean = scan match {
     case _: FileScan => true
-    case _ if scan.getClass.getName == IcebergScanClassName => true
+    case _ if dataSourceV2TransformerExists(scan.getClass.getName) => true
     case _ => false
   }
 
-  private def createBatchScanTransformer(
-      className: String,
-      params: Any*): BatchScanExecTransformer = {
-    val classMirror = ru.runtimeMirror(getClass.getClassLoader)
-    val classModule = classMirror.staticModule(className)
-    val mirror = classMirror.reflectModule(classModule)
-    val apply = mirror.symbol.typeSignature.member(ru.TermName("apply")).asMethod
-    val objMirror = classMirror.reflect(mirror.instance)
-    objMirror.reflectMethod(apply)(params: _*).asInstanceOf[BatchScanExecTransformer]
+  private def lookupDataSourceV2Transformer(scanClassName: String): Class[_] = {
+    dataSourceV2TransformerMap.computeIfAbsent(
+      scanClassName,
+      _ => {
+        val loader = Option(Thread.currentThread().getContextClassLoader)
+          .getOrElse(getClass.getClassLoader)
+        val serviceLoader = ServiceLoader.load(classOf[DataSourceV2TransformerRegister], loader)
+        serviceLoader.asScala
+          .filter(_.scanClassName().equalsIgnoreCase(scanClassName))
+          .toList match {
+          case head :: Nil =>
+            // there is exactly one registered alias
+            head.getClass
+          case _ => null
+        }
+      }
+    )
+  }
+
+  private def dataSourceV2TransformerExists(scanClassName: String): Boolean = {
+    lookupDataSourceV2Transformer(scanClassName) != null
   }
 }

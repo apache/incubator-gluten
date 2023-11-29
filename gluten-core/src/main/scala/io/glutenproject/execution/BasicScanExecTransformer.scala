@@ -23,14 +23,15 @@ import io.glutenproject.substrait.`type`.ColumnTypeNode
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.vectorized.ColumnarBatch
-import com.google.common.collect.Lists
-import scala.collection.JavaConverters._
 
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import com.google.common.collect.Lists
+
+import scala.collection.JavaConverters._
 
 trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource {
 

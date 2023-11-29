@@ -53,4 +53,31 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
         (table, tableDF)
     }.toMap
   }
+
+  test("iceberg transformer exists") {
+    runQueryAndCompare("""
+                         |SELECT
+                         |  l_orderkey,
+                         |  o_orderdate
+                         |FROM
+                         |  orders,
+                         |  lineitem
+                         |WHERE
+                         |  l_orderkey = o_orderkey
+                         |ORDER BY
+                         |  l_orderkey,
+                         |  o_orderdate
+                         |LIMIT
+                         |  10;
+                         |""".stripMargin) {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[IcebergScanTransformer]
+              }) == 2)
+        }
+    }
+  }
 }

@@ -22,7 +22,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import org.apache.spark.softaffinity.SoftAffinityUtil
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 
-import org.apache.iceberg.{FileFormat, FileScanTask, ScanTask}
+import org.apache.iceberg.{CombinedScanTask, FileFormat, FileScanTask, ScanTask}
 
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
@@ -30,6 +30,7 @@ import java.util.{ArrayList => JArrayList, HashMap => JHashMap, Map => JMap}
 import scala.collection.JavaConverters._
 
 object GlutenIcebergSourceUtil {
+
   def genSplitInfo(inputPartition: InputPartition, index: Int): SplitInfo = inputPartition match {
     case partition: SparkInputPartition =>
       val paths = new JArrayList[String]()
@@ -39,43 +40,39 @@ object GlutenIcebergSourceUtil {
       var fileFormat = ReadFileFormat.UnknownFormat
 
       val tasks = partition.taskGroup[ScanTask]().tasks().asScala
-      if (tasks.forall(_.isInstanceOf[FileScanTask])) {
-        tasks.map(_.asInstanceOf[FileScanTask]).foreach {
-          task =>
-            paths.add(task.file().path().toString)
-            starts.add(task.start())
-            lengths.add(task.length())
-            partitionColumns.add(new JHashMap[String, String]())
-            val currentFileFormat = task.file().format() match {
-              case FileFormat.PARQUET => ReadFileFormat.ParquetReadFormat
-              case FileFormat.ORC => ReadFileFormat.OrcReadFormat
-              case _ =>
-                throw new UnsupportedOperationException(
-                  "Iceberg Only support parquet and orc file format.")
-            }
-            if (fileFormat == ReadFileFormat.UnknownFormat) {
-              fileFormat = currentFileFormat
-            } else if (fileFormat != currentFileFormat) {
+      asFileScanTask(tasks.toList).foreach {
+        task =>
+          paths.add(task.file().path().toString)
+          starts.add(task.start())
+          lengths.add(task.length())
+          partitionColumns.add(new JHashMap[String, String]())
+          val currentFileFormat = task.file().format() match {
+            case FileFormat.PARQUET => ReadFileFormat.ParquetReadFormat
+            case FileFormat.ORC => ReadFileFormat.OrcReadFormat
+            case _ =>
               throw new UnsupportedOperationException(
-                s"Only one file format is supported, " +
-                  s"find different file format $fileFormat and $currentFileFormat")
-            }
-        }
-        val preferredLoc = SoftAffinityUtil.getFilePartitionLocations(
-          paths.asScala.toArray,
-          inputPartition.preferredLocations())
-        IcebergLocalFilesBuilder.makeIcebergLocalFiles(
-          index,
-          paths,
-          starts,
-          lengths,
-          partitionColumns,
-          fileFormat,
-          preferredLoc.toList.asJava
-        )
-      } else {
-        throw new UnsupportedOperationException("Only support iceberg FileScanTask.")
+                "Iceberg Only support parquet and orc file format.")
+          }
+          if (fileFormat == ReadFileFormat.UnknownFormat) {
+            fileFormat = currentFileFormat
+          } else if (fileFormat != currentFileFormat) {
+            throw new UnsupportedOperationException(
+              s"Only one file format is supported, " +
+                s"find different file format $fileFormat and $currentFileFormat")
+          }
       }
+      val preferredLoc = SoftAffinityUtil.getFilePartitionLocations(
+        paths.asScala.toArray,
+        inputPartition.preferredLocations())
+      IcebergLocalFilesBuilder.makeIcebergLocalFiles(
+        index,
+        paths,
+        starts,
+        lengths,
+        partitionColumns,
+        fileFormat,
+        preferredLoc.toList.asJava
+      )
     case _ =>
       throw new UnsupportedOperationException("Only support iceberg SparkInputPartition.")
   }
@@ -83,10 +80,9 @@ object GlutenIcebergSourceUtil {
   def getFileFormat(sparkScan: Scan): ReadFileFormat = sparkScan match {
     case scan: SparkBatchQueryScan =>
       val tasks = scan.tasks().asScala
-      tasks.map(_.asCombinedScanTask()).foreach {
+      asFileScanTask(tasks.toList).foreach {
         task =>
-          val file = task.files().asScala.head.file()
-          file.format() match {
+          task.file().format() match {
             case FileFormat.PARQUET => return ReadFileFormat.ParquetReadFormat
             case FileFormat.ORC => return ReadFileFormat.OrcReadFormat
             case _ =>
@@ -97,4 +93,14 @@ object GlutenIcebergSourceUtil {
       throw new UnsupportedOperationException("Only support iceberg SparkBatchQueryScan.")
   }
 
+  private def asFileScanTask(tasks: List[ScanTask]): List[FileScanTask] = {
+    if (tasks.forall(_.isFileScanTask)) {
+      tasks.map(_.asFileScanTask())
+    } else if (tasks.forall(_.isInstanceOf[CombinedScanTask])) {
+      tasks.flatMap(_.asCombinedScanTask().tasks().asScala)
+    } else {
+      throw new UnsupportedOperationException(
+        "Only support iceberg CombinedScanTask and FileScanTask.")
+    }
+  }
 }
