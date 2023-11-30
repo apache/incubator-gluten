@@ -27,9 +27,14 @@ import io.glutenproject.proto.MemoryUsageStats;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResources;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class NativeMemoryManagers {
 
@@ -39,7 +44,7 @@ public final class NativeMemoryManagers {
       throw new IllegalStateException("This method must be called in a Spark task.");
     }
     return TaskResources.addResourceIfNotRegistered(
-        name, () -> createNativeMemoryManager(name, Spiller.NO_OP));
+        name, () -> createNativeMemoryManager(name, Collections.emptyList()));
   }
 
   /** Create a temporary memory manager, caller should call NativeMemoryManager#release manually. */
@@ -47,16 +52,17 @@ public final class NativeMemoryManagers {
     return NativeMemoryManager.create(name, ReservationListener.NOOP);
   }
 
-  public static NativeMemoryManager create(String name, Spiller spiller) {
+  public static NativeMemoryManager create(String name, Spiller... spillers) {
     if (!TaskResources.inSparkTask()) {
       throw new IllegalStateException("Spiller must be used in a Spark task.");
     }
 
-    final NativeMemoryManager manager = createNativeMemoryManager(name, spiller);
+    final NativeMemoryManager manager = createNativeMemoryManager(name, Arrays.asList(spillers));
     return TaskResources.addAnonymousResource(manager);
   }
 
-  private static NativeMemoryManager createNativeMemoryManager(String name, Spiller spiller) {
+  private static NativeMemoryManager createNativeMemoryManager(
+      String name, List<Spiller> spillers) {
     final AtomicReference<NativeMemoryManager> out = new AtomicReference<>();
     // memory target
     final double overAcquiredRatio = GlutenConfig.getConf().memoryOverAcquiredRatio();
@@ -69,22 +75,31 @@ public final class NativeMemoryManagers {
                     tmm,
                     name,
                     // call memory manager's shrink API, if no good then call the spiller
-                    Spillers.withOrder(
-                        Spillers.withMinSpillSize(
-                            (self, size) ->
-                                Optional.of(out.get())
-                                    .map(nmm -> nmm.shrink(size))
-                                    .orElseThrow(
-                                        () ->
-                                            new IllegalStateException(
-                                                ""
-                                                    + "Shrink is requested before native "
-                                                    + "memory manager is created. Try moving any "
-                                                    + "actions about memory allocation out "
-                                                    + "from the memory manager constructor.")),
-                            reservationBlockSize),
-                        // the input spiller, called after nmm.shrink was called
-                        Spillers.withMinSpillSize(spiller, reservationBlockSize)),
+                    Stream.concat(
+                            Stream.of(
+                                new Spiller() {
+                                  @Override
+                                  public long spill(MemoryTarget self, long size) {
+                                    return Optional.of(out.get())
+                                        .map(nmm -> nmm.shrink(size))
+                                        .orElseThrow(
+                                            () ->
+                                                new IllegalStateException(
+                                                    ""
+                                                        + "Shrink is requested before native "
+                                                        + "memory manager is created. Try moving "
+                                                        + "any actions about memory allocation out "
+                                                        + "from the memory manager constructor."));
+                                  }
+
+                                  @Override
+                                  public Set<Phase> applicablePhases() {
+                                    return Spillers.PHASE_SET_SHRINK_ONLY;
+                                  }
+                                }),
+                            spillers.stream())
+                        .map(spiller -> Spillers.withMinSpillSize(spiller, reservationBlockSize))
+                        .collect(Collectors.toList()),
                     Collections.singletonMap(
                         "single",
                         new MemoryUsageRecorder() {
@@ -121,7 +136,21 @@ public final class NativeMemoryManagers {
                           }
                         })),
                 MemoryTargets.newConsumer(
-                    tmm, "OverAcquire.DummyTarget", MemoryTarget::repay, Collections.emptyMap()),
+                    tmm,
+                    "OverAcquire.DummyTarget",
+                    Collections.singletonList(
+                        new Spiller() {
+                          @Override
+                          public long spill(MemoryTarget self, long size) {
+                            return self.repay(size);
+                          }
+
+                          @Override
+                          public Set<Phase> applicablePhases() {
+                            return Spillers.PHASE_SET_ALL;
+                          }
+                        }),
+                    Collections.emptyMap()),
                 overAcquiredRatio));
     // listener
     ManagedReservationListener rl =

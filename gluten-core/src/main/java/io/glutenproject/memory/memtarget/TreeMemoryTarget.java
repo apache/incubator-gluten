@@ -19,6 +19,7 @@ package io.glutenproject.memory.memtarget;
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.memtarget.spark.TreeMemoryConsumer;
 
+import java.util.List;
 import java.util.Map;
 
 /** An abstract for both {@link TreeMemoryConsumer} and it's non-consumer children nodes. */
@@ -28,12 +29,12 @@ public interface TreeMemoryTarget extends MemoryTarget, KnownNameAndStats {
   TreeMemoryTarget newChild(
       String name,
       long capacity,
-      Spiller spiller,
+      List<Spiller> spillers,
       Map<String, MemoryUsageStatsBuilder> virtualChildren);
 
   Map<String, TreeMemoryTarget> children();
 
   TreeMemoryTarget parent();
 
-  Spiller getNodeSpiller();
+  List<Spiller> getNodeSpillers();
 }

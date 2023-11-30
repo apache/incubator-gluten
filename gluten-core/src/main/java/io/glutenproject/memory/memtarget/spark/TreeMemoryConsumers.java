@@ -24,6 +24,7 @@ import io.glutenproject.memory.memtarget.TreeMemoryTarget;
 import org.apache.spark.memory.TaskMemoryManager;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -74,7 +75,8 @@ public final class TreeMemoryConsumers {
             tmm,
             m -> {
               TreeMemoryTarget tmc = new TreeMemoryConsumer(m);
-              return tmc.newChild("root", perTaskCapacity, Spiller.NO_OP, Collections.emptyMap());
+              return tmc.newChild(
+                  "root", perTaskCapacity, Collections.emptyList(), Collections.emptyMap());
             });
       }
     }
@@ -82,11 +84,11 @@ public final class TreeMemoryConsumers {
     public TreeMemoryTarget newConsumer(
         TaskMemoryManager tmm,
         String name,
-        Spiller spiller,
+        List<Spiller> spillers,
         Map<String, MemoryUsageStatsBuilder> virtualChildren) {
       TreeMemoryTarget account = getSharedAccount(tmm);
       return account.newChild(
-          name, TreeMemoryConsumer.CAPACITY_UNLIMITED, spiller, virtualChildren);
+          name, TreeMemoryConsumer.CAPACITY_UNLIMITED, spillers, virtualChildren);
     }
   }
 }

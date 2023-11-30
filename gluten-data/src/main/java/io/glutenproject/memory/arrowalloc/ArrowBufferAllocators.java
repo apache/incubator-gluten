@@ -17,7 +17,6 @@
 package io.glutenproject.memory.arrowalloc;
 
 import io.glutenproject.memory.memtarget.MemoryTargets;
-import io.glutenproject.memory.memtarget.Spiller;
 
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
@@ -61,7 +60,10 @@ public class ArrowBufferAllocators {
           new ManagedAllocationListener(
               MemoryTargets.throwOnOom(
                   MemoryTargets.newConsumer(
-                      tmm, "ArrowContextInstance", Spiller.NO_OP, Collections.emptyMap())),
+                      tmm,
+                      "ArrowContextInstance",
+                      Collections.emptyList(),
+                      Collections.emptyMap())),
               TaskResources.getSharedUsage());
     }
 

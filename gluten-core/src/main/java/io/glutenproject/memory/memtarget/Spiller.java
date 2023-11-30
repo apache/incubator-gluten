@@ -16,14 +16,16 @@
  */
 package io.glutenproject.memory.memtarget;
 
+import java.util.Set;
+
 public interface Spiller {
-  Spiller NO_OP =
-      new Spiller() {
-        @Override
-        public long spill(MemoryTarget self, long size) {
-          return 0L;
-        }
-      };
 
   long spill(MemoryTarget self, long size);
+
+  Set<Phase> applicablePhases();
+
+  enum Phase {
+    SHRINK,
+    SPILL
+  }
 }
