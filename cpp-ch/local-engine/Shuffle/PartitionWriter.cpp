@@ -105,9 +105,6 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
                                                                : partition_buffer[i]->bytes();
                     unsafeEvictSinglePartition(false, flush_block_buffer, i);
                 }
-                // std::cout << "current cached bytes after evict partitions is " << current_cached_bytes << " partition from "
-                //           << (last_partition_id + 1) % options->partition_num << " to " << partition_id << " average size:" << avg_size
-                //           << std::endl;
             }
 
             last_partition_id = partition_id;
