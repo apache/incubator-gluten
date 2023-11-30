@@ -39,6 +39,7 @@
 #include "memory/ColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "utils/TestUtils.h"
+#include "utils/VeloxArrowUtils.h"
 #include "utils/macros.h"
 #include "velox/dwio/parquet/writer/Writer.h"
 #include "velox/vector/arrow/Bridge.h"
@@ -101,7 +102,8 @@ class GoogleBenchmarkParquetWrite {
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
     ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-    auto vp = velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::defaultLeafVeloxMemoryPool().get());
+    auto vp = velox::importFromArrowAsOwner(
+        arrowSchema, arrowArray, gluten::ArrowUtils::getBridgeOptions(), gluten::defaultLeafVeloxMemoryPool().get());
     return std::make_shared<VeloxColumnarBatch>(std::dynamic_pointer_cast<velox::RowVector>(vp));
   }
 
@@ -263,7 +265,10 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
     for (auto _ : state) {
       // Init VeloxParquetDataSource
       auto veloxParquetDatasource = std::make_unique<gluten::VeloxParquetDatasource>(
-          outputPath_ + "/" + fileName, veloxPool->addAggregateChild("writer_benchmark"), localSchema);
+          outputPath_ + "/" + fileName,
+          veloxPool->addAggregateChild("writer_benchmark"),
+          veloxPool->addLeafChild("s3_sink_pool"),
+          localSchema);
 
       veloxParquetDatasource->init(runtime->getConfMap());
       auto start = std::chrono::steady_clock::now();

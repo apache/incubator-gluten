@@ -25,7 +25,7 @@ import io.glutenproject.metrics.{GlutenTimeMetric, MetricsUpdater, NoopMetricsUp
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
-import io.glutenproject.substrait.rel.RelNode
+import io.glutenproject.substrait.rel.{RelNode, SplitInfo}
 import io.glutenproject.utils.SubstraitPlanPrinterUtil
 
 import org.apache.spark.{Dependency, OneToOneDependency, Partition, SparkConf, TaskContext}
@@ -39,6 +39,7 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 case class TransformContext(
@@ -107,13 +108,28 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   val numaBindingInfo: GlutenNumaBindingInfo = GlutenConfig.getConf.numaBindingInfo
   val substraitPlanLogLevel: String = GlutenConfig.getConf.substraitPlanLogLevel
 
-  private var planJson: String = ""
+  @transient
+  private var wholeStageTransformerContext: Option[WholeStageTransformContext] = None
 
-  def getPlanJson: String = {
-    if (log.isDebugEnabled() && planJson.isEmpty) {
-      logWarning("Plan in JSON string is empty. This may due to the plan has not been executed.")
+  def substraitPlan: PlanNode = {
+    if (wholeStageTransformerContext.isDefined) {
+      // TODO: remove this work around after we make `RelNode#toProtobuf` idempotent
+      //    see `SubstraitContext#initSplitInfosIndex`.
+      wholeStageTransformerContext.get.substraitContext.initSplitInfosIndex(0)
+      wholeStageTransformerContext.get.root
+    } else {
+      generateWholeStageTransformContext().root
     }
-    planJson
+  }
+
+  def substraitPlanJson: String = {
+    SubstraitPlanPrinterUtil.substraitPlanToJson(substraitPlan.toProtobuf)
+  }
+
+  def nativePlanString(details: Boolean = true): String = {
+    BackendsApiManager.getTransformerApiInstance.getNativePlanString(
+      substraitPlan.toProtobuf.toByteArray,
+      details)
   }
 
   override def output: Seq[Attribute] = child.output
@@ -145,9 +161,9 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       maxFields,
       printNodeId = printNodeId,
       indent)
-    if (verbose && planJson.nonEmpty) {
+    if (verbose && wholeStageTransformerContext.isDefined) {
       append(prefix + "Substrait plan:\n")
-      append(planJson)
+      append(substraitPlanJson)
       append("\n")
     }
   }
@@ -157,10 +173,16 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   // See buildSparkPlanGraphNode in SparkPlanGraph.scala of Spark.
   override def nodeName: String = s"WholeStageCodegenTransformer ($transformStageId)"
 
-  def doWholeStageTransform(): WholeStageTransformContext = {
-    // invoke SparkPlan.prepare to do subquery preparation etc.
-    super.prepare()
+  override def verboseStringWithOperatorId(): String = {
+    val nativePlan = if (conf.getConf(GlutenConfig.INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN)) {
+      s"Native Plan:\n${nativePlanString()}"
+    } else {
+      ""
+    }
+    super.verboseStringWithOperatorId() ++ nativePlan
+  }
 
+  private def generateWholeStageTransformContext(): WholeStageTransformContext = {
     val substraitContext = new SubstraitContext
     val childCtx = child
       .asInstanceOf[TransformSupport]
@@ -191,11 +213,17 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       PlanBuilder.makePlan(substraitContext, Lists.newArrayList(childCtx.root), outNames)
     }
 
-    if (log.isDebugEnabled()) {
-      planJson = SubstraitPlanPrinterUtil.substraitPlanToJson(planNode.toProtobuf)
-    }
-
     WholeStageTransformContext(planNode, substraitContext)
+  }
+
+  def doWholeStageTransform(): WholeStageTransformContext = {
+    // invoke SparkPlan.prepare to do subquery preparation etc.
+    super.prepare()
+    val context = generateWholeStageTransformContext()
+    if (conf.getConf(GlutenConfig.CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT)) {
+      wholeStageTransformerContext = Some(context)
+    }
+    context
   }
 
   /** Find all BasicScanExecTransformers in one WholeStageTransformer */
@@ -242,28 +270,21 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
        * rather than genFinalStageIterator will be invoked
        */
 
-      // If these are two scan transformers, they must have same partitions,
-      // otherwise, exchange will be inserted.
-      val allScanPartitions = basicScanExecTransformers.map(_.getPartitions)
-      val allScanPartitionSchemas = basicScanExecTransformers.map(_.getPartitionSchemas)
-      val partitionLength = allScanPartitions.head.size
-      if (allScanPartitions.exists(_.size != partitionLength)) {
-        throw new GlutenException(
-          "The partition length of all the scan transformer are not the same.")
-      }
+      val allScanSplitInfos = getSplitInfosFromScanTransformer(basicScanExecTransformers)
       val (wsCxt, substraitPlanPartitions) = GlutenTimeMetric.withMillisTime {
         val wsCxt = doWholeStageTransform()
 
-        // the file format for each scan exec
-        val fileFormats = basicScanExecTransformers.map(ConverterUtils.getFileFormat)
-
         // generate each partition of all scan exec
-        val substraitPlanPartitions = (0 until partitionLength).map(
-          i => {
-            val currentPartitions = allScanPartitions.map(_(i))
-            BackendsApiManager.getIteratorApiInstance
-              .genFilePartition(i, currentPartitions, allScanPartitionSchemas, fileFormats, wsCxt)
-          })
+        val substraitPlanPartitions = allScanSplitInfos.zipWithIndex.map {
+          case (splitInfos, index) =>
+            wsCxt.substraitContext.initSplitInfosIndex(0)
+            wsCxt.substraitContext.setSplitInfos(splitInfos)
+            val substraitPlan = wsCxt.root.toProtobuf
+            GlutenPartition(
+              index,
+              substraitPlan.toByteArray,
+              splitInfos.flatMap(_.preferredLocations().asScala).toArray)
+        }
         (wsCxt, substraitPlanPartitions)
       }(
         t =>
@@ -336,6 +357,32 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   override protected def withNewChildInternal(newChild: SparkPlan): WholeStageTransformer =
     copy(child = newChild, materializeInput = materializeInput)(transformStageId)
+
+  private def getSplitInfosFromScanTransformer(
+      basicScanExecTransformers: Seq[BasicScanExecTransformer]): Seq[Seq[SplitInfo]] = {
+    // If these are two scan transformers, they must have same partitions,
+    // otherwise, exchange will be inserted. We should combine the two scan
+    // transformers' partitions with same index, and set them together in
+    // the substraitContext. We use transpose to do that, You can refer to
+    // the diagram below.
+    // scan1  p11 p12 p13 p14 ... p1n
+    // scan2  p21 p22 p23 p24 ... p2n
+    // transpose =>
+    // scan1 | scan2
+    //  p11  |  p21    => substraitContext.setSplitInfo([p11, p21])
+    //  p12  |  p22    => substraitContext.setSplitInfo([p11, p22])
+    //  p13  |  p23    ...
+    //  p14  |  p24
+    //      ...
+    //  p1n  |  p2n    => substraitContext.setSplitInfo([p1n, p2n])
+    val allScanSplitInfos = basicScanExecTransformers.map(_.getSplitInfos)
+    val partitionLength = allScanSplitInfos.head.size
+    if (allScanSplitInfos.exists(_.size != partitionLength)) {
+      throw new GlutenException(
+        "The partition length of all the scan transformer are not the same.")
+    }
+    allScanSplitInfos.transpose
+  }
 }
 
 /**

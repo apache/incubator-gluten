@@ -31,14 +31,23 @@
 #ifdef GLUTEN_ENABLE_IAA
 #include "utils/qpl/qpl_codec.h"
 #endif
+#ifdef ENABLE_GCS
+#include <fstream>
+#endif
+#include "config/GlutenConfig.h"
 #include "jni/JniFileSystem.h"
+#include "operators/functions/SparkTokenizer.h"
 #include "udf/UdfLoader.h"
 #include "utils/ConfigExtractor.h"
 #include "utils/exception.h"
 #include "velox/common/caching/SsdCache.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/common/memory/MmapAllocator.h"
+#include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnector.h"
+#include "velox/connectors/hive/HiveDataSource.h"
+#include "velox/dwio/dwrf/reader/DwrfReader.h"
+#include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/serializers/PrestoSerializer.h"
 
 DECLARE_int32(split_preload_per_driver);
@@ -58,7 +67,7 @@ const std::string kGlogVerboseLevel = "spark.gluten.sql.columnar.backend.velox.g
 const uint32_t kGlogVerboseLevelDefault = 0;
 
 const std::string kGlogSeverityLevel = "spark.gluten.sql.columnar.backend.velox.glogSeverityLevel";
-const uint32_t kGlogSeverityLevelDefault = 0;
+const uint32_t kGlogSeverityLevelDefault = 1;
 
 const std::string kEnableSystemExceptionStacktrace =
     "spark.gluten.sql.columnar.backend.velox.enableSystemExceptionStacktrace";
@@ -104,24 +113,21 @@ const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";
 // VeloxShuffleReader print flag.
 const std::string kVeloxShuffleReaderPrintFlag = "spark.gluten.velox.shuffleReaderPrintFlag";
 
+const std::string kVeloxFileHandleCacheEnabled = "spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled";
+const bool kVeloxFileHandleCacheEnabledDefault = false;
+
 } // namespace
 
 namespace gluten {
-
-void VeloxBackend::printConf(const facebook::velox::Config& conf) {
-  std::ostringstream oss;
-  oss << "STARTUP: VeloxBackend conf = {\n";
-  for (auto& [k, v] : conf.values()) {
-    oss << " {" << k << ", " << v << "}\n";
-  }
-  oss << "}\n";
-  LOG(INFO) << oss.str();
-}
 
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
   // Init glog and log level.
   auto veloxmemcfg = std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
   const facebook::velox::Config* veloxcfg = veloxmemcfg.get();
+
+  if (veloxcfg->get<bool>(kDebugModeEnabled, false)) {
+    LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
+  }
 
   uint32_t vlogLevel = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
   uint32_t severityLogLevel = veloxcfg->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
@@ -153,62 +159,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   // Setup and register.
   velox::filesystems::registerLocalFileSystem();
   initJolFilesystem(veloxcfg);
-
-#ifdef ENABLE_S3
-  std::string awsAccessKey = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.access.key", "");
-  std::string awsSecretKey = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.secret.key", "");
-  std::string awsEndpoint = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.endpoint", "");
-  bool sslEnabled = veloxcfg->get<bool>("spark.hadoop.fs.s3a.connection.ssl.enabled", false);
-  bool pathStyleAccess = veloxcfg->get<bool>("spark.hadoop.fs.s3a.path.style.access", false);
-  bool useInstanceCredentials = veloxcfg->get<bool>("spark.hadoop.fs.s3a.use.instance.credentials", false);
-  std::string iamRole = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.iam.role", "");
-  std::string iamRoleSessionName = veloxcfg->get<std::string>("spark.hadoop.fs.s3a.iam.role.session.name", "");
-
-  const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
-  if (envAwsAccessKey != nullptr) {
-    awsAccessKey = std::string(envAwsAccessKey);
-  }
-  const char* envAwsSecretKey = std::getenv("AWS_SECRET_ACCESS_KEY");
-  if (envAwsSecretKey != nullptr) {
-    awsSecretKey = std::string(envAwsSecretKey);
-  }
-  const char* envAwsEndpoint = std::getenv("AWS_ENDPOINT");
-  if (envAwsEndpoint != nullptr) {
-    awsEndpoint = std::string(envAwsEndpoint);
-  }
-
-  std::unordered_map<std::string, std::string> s3Config({});
-  if (useInstanceCredentials) {
-    veloxmemcfg->setValue("hive.s3.use-instance-credentials", "true");
-  } else if (!iamRole.empty()) {
-    veloxmemcfg->setValue("hive.s3.iam-role", iamRole);
-    if (!iamRoleSessionName.empty()) {
-      veloxmemcfg->setValue("hive.s3.iam-role-session-name", iamRoleSessionName);
-    }
-  } else {
-    veloxmemcfg->setValue("hive.s3.aws-access-key", awsAccessKey);
-    veloxmemcfg->setValue("hive.s3.aws-secret-key", awsSecretKey);
-  }
-  // Only need to set s3 endpoint when not use instance credentials.
-  if (!useInstanceCredentials) {
-    veloxmemcfg->setValue("hive.s3.endpoint", awsEndpoint);
-  }
-  veloxmemcfg->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
-  veloxmemcfg->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
-#endif
-
   initCache(veloxcfg);
-  initIOExecutor(veloxcfg);
-
-#ifdef GLUTEN_PRINT_DEBUG
-  printConf(veloxcfg);
-#endif
-
-  auto hiveConnector =
-      velox::connector::getConnectorFactory(velox::connector::hive::HiveConnectorFactory::kHiveConnectorName)
-          ->newConnector(kHiveConnectorId, veloxmemcfg, ioExecutor_.get());
-
-  registerConnector(hiveConnector);
+  initConnector(veloxcfg);
 
   // Register Velox functions
   registerAllFunctions();
@@ -219,6 +171,7 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   velox::exec::Operator::registerOperator(std::make_unique<RowVectorStreamOperatorTranslator>());
 
   initUdf(veloxcfg);
+  registerSparkTokenizer();
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
@@ -282,18 +235,112 @@ void VeloxBackend::initCache(const facebook::velox::Config* conf) {
   }
 }
 
-void VeloxBackend::initIOExecutor(const facebook::velox::Config* conf) {
+void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
   int32_t ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
   int32_t splitPreloadPerDriver = conf->get<int32_t>(kVeloxSplitPreloadPerDriver, kVeloxSplitPreloadPerDriverDefault);
-  if (ioThreads > 0) {
-    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
-    FLAGS_split_preload_per_driver = splitPreloadPerDriver;
+
+  auto mutableConf = std::make_shared<facebook::velox::core::MemConfigMutable>(conf->valuesCopy());
+
+#ifdef ENABLE_S3
+  std::string awsAccessKey = conf->get<std::string>("spark.hadoop.fs.s3a.access.key", "");
+  std::string awsSecretKey = conf->get<std::string>("spark.hadoop.fs.s3a.secret.key", "");
+  std::string awsEndpoint = conf->get<std::string>("spark.hadoop.fs.s3a.endpoint", "");
+  bool sslEnabled = conf->get<bool>("spark.hadoop.fs.s3a.connection.ssl.enabled", false);
+  bool pathStyleAccess = conf->get<bool>("spark.hadoop.fs.s3a.path.style.access", false);
+  bool useInstanceCredentials = conf->get<bool>("spark.hadoop.fs.s3a.use.instance.credentials", false);
+  std::string iamRole = conf->get<std::string>("spark.hadoop.fs.s3a.iam.role", "");
+  std::string iamRoleSessionName = conf->get<std::string>("spark.hadoop.fs.s3a.iam.role.session.name", "");
+
+  const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
+  if (envAwsAccessKey != nullptr) {
+    awsAccessKey = std::string(envAwsAccessKey);
+  }
+  const char* envAwsSecretKey = std::getenv("AWS_SECRET_ACCESS_KEY");
+  if (envAwsSecretKey != nullptr) {
+    awsSecretKey = std::string(envAwsSecretKey);
+  }
+  const char* envAwsEndpoint = std::getenv("AWS_ENDPOINT");
+  if (envAwsEndpoint != nullptr) {
+    awsEndpoint = std::string(envAwsEndpoint);
   }
 
-  if (splitPreloadPerDriver > 0 && ioThreads > 0) {
-    LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
-              << ", IO threads: " << ioThreads;
+  std::unordered_map<std::string, std::string> s3Config({});
+  if (useInstanceCredentials) {
+    mutableConf->setValue("hive.s3.use-instance-credentials", "true");
+  } else if (!iamRole.empty()) {
+    mutableConf->setValue("hive.s3.iam-role", iamRole);
+    if (!iamRoleSessionName.empty()) {
+      mutableConf->setValue("hive.s3.iam-role-session-name", iamRoleSessionName);
+    }
+  } else {
+    mutableConf->setValue("hive.s3.aws-access-key", awsAccessKey);
+    mutableConf->setValue("hive.s3.aws-secret-key", awsSecretKey);
   }
+  // Only need to set s3 endpoint when not use instance credentials.
+  if (!useInstanceCredentials) {
+    mutableConf->setValue("hive.s3.endpoint", awsEndpoint);
+  }
+  mutableConf->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
+  mutableConf->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
+#endif
+
+#ifdef ENABLE_GCS
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
+  auto gsStorageRootUrl = conf->get("spark.hadoop.fs.gs.storage.root.url");
+  if (gsStorageRootUrl.hasValue()) {
+    std::string url = gsStorageRootUrl.value();
+    std::string gcsScheme;
+    std::string gcsEndpoint;
+
+    const auto sep = std::string("://");
+    const auto pos = url.find_first_of(sep);
+    if (pos != std::string::npos) {
+      gcsScheme = url.substr(0, pos);
+      gcsEndpoint = url.substr(pos + sep.length());
+    }
+
+    if (!gcsEndpoint.empty() && !gcsScheme.empty()) {
+      mutableConf->setValue("hive.gcs.scheme", gcsScheme);
+      mutableConf->setValue("hive.gcs.endpoint", gcsEndpoint);
+    }
+  }
+
+  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
+  auto gsAuthType = conf->get("spark.hadoop.fs.gs.auth.type");
+  if (gsAuthType.hasValue()) {
+    std::string type = gsAuthType.value();
+    if (type == "SERVICE_ACCOUNT_JSON_KEYFILE") {
+      auto gsAuthServiceAccountJsonKeyfile = conf->get("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
+      if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
+        auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile.value());
+        stream.exceptions(std::ios::badbit);
+        std::string gsAuthServiceAccountJson = std::string(std::istreambuf_iterator<char>(stream.rdbuf()), {});
+        mutableConf->setValue("hive.gcs.credentials", gsAuthServiceAccountJson);
+      } else {
+        LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
+                        "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
+        throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
+      }
+    }
+  }
+#endif
+
+  mutableConf->setValue(
+      velox::connector::hive::HiveConfig::kEnableFileHandleCache,
+      conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
+
+  if (ioThreads > 0) {
+    if (splitPreloadPerDriver > 0) {
+      // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
+      // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
+      LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
+                << ", IO threads: " << ioThreads;
+      FLAGS_split_preload_per_driver = splitPreloadPerDriver;
+    }
+    ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
+  }
+  velox::connector::registerConnector(
+      std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, mutableConf, ioExecutor_.get()));
 }
 
 void VeloxBackend::initUdf(const facebook::velox::Config* conf) {

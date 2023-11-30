@@ -18,10 +18,9 @@ package io.glutenproject.execution
 
 import io.glutenproject.execution.CHHashAggregateExecTransformer.getAggregateResultAttributes
 import io.glutenproject.expression._
-import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
+import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -29,8 +28,6 @@ import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.types._
-
-import com.google.protobuf.Any
 
 import java.util
 
@@ -285,31 +282,16 @@ case class CHHashAggregateExecTransformer(
         )
         aggregateFunctionList.add(aggFunctionNode)
       })
-    if (!validation) {
-      RelBuilder.makeAggregateRel(
-        input,
-        groupingList,
-        aggregateFunctionList,
-        aggFilterList,
-        context,
-        operatorId)
-    } else {
-      // Use a extension node to send the input types through Substrait plan for validation.
-      val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- originalInputAttributes) {
-        inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-      }
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeAggregateRel(
-        input,
-        groupingList,
-        aggregateFunctionList,
-        aggFilterList,
-        extensionNode,
-        context,
-        operatorId)
-    }
+
+    val extensionNode = getAdvancedExtension(validation, originalInputAttributes)
+    RelBuilder.makeAggregateRel(
+      input,
+      groupingList,
+      aggregateFunctionList,
+      aggFilterList,
+      extensionNode,
+      context,
+      operatorId)
   }
 
   override def isStreaming: Boolean = false

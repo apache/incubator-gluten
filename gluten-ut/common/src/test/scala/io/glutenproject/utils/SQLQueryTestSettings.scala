@@ -16,25 +16,8 @@
  */
 package io.glutenproject.utils
 
-import org.apache.spark.sql.catalyst.expressions.aggregate.Average
-import org.apache.spark.sql.types.{DataType, DecimalType, DoubleType}
-import org.apache.spark.sql.types.DecimalType.{MAX_PRECISION, MAX_SCALE}
+trait SQLQueryTestSettings {
+  def getSupportedSQLQueryTests: Set[String]
 
-import scala.math.min
-
-object GlutenDecimalUtil {
-  object Fixed {
-    def unapply(t: DecimalType): Option[(Int, Int)] = Some((t.precision, t.scale))
-  }
-
-  def bounded(precision: Int, scale: Int): DecimalType = {
-    DecimalType(min(precision, MAX_PRECISION), min(scale, MAX_SCALE))
-  }
-
-  def getAvgSumDataType(avg: Average): DataType = avg.dataType match {
-    // avg.dataType is Decimal(p + 4, s + 4) and sumType is Decimal(p + 10, s)
-    // we need to get sumType, so p = p - 4 + 10 and s = s - 4
-    case _ @GlutenDecimalUtil.Fixed(p, s) => GlutenDecimalUtil.bounded(p - 4 + 10, s - 4)
-    case _ => DoubleType
-  }
+  def getOverwriteSQLQueryTests: Set[String]
 }

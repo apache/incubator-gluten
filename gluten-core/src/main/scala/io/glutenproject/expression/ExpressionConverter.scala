@@ -288,7 +288,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           getStructField.ordinal,
           getStructField)
       case t: StringTranslate =>
-        StringTranslateTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genStringTranslateTransformer(
           substraitExprName,
           replaceWithExpressionTransformer(t.srcExpr, attributeSeq),
           replaceWithExpressionTransformer(t.matchingExpr, attributeSeq),
@@ -390,6 +390,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           replaceWithExpressionTransformer(m.child, attributeSeq),
           m)
+      case rand: Rand =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genRandTransformer(
+          substraitExprName,
+          replaceWithExpressionTransformer(rand.child, attributeSeq),
+          rand)
       case _: KnownFloatingPointNormalized | _: NormalizeNaNAndZero | _: PromotePrecision =>
         ChildTransformer(
           replaceWithExpressionTransformer(expr.children.head, attributeSeq)

@@ -55,4 +55,22 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     checkLengthAndPlan(df2, 1)
     checkAnswer(df2, Row("v2") :: Nil)
   }
+
+  test("basic test with stats.skipping disabled") {
+    withSQLConf("spark.databricks.delta.stats.skipping" -> "false") {
+      spark.sql(s"""
+                   |create table delta_test2 (id int, name string) using delta
+                   |""".stripMargin)
+      spark.sql(s"""
+                   |insert into delta_test2 values (1, "v1"), (2, "v2")
+                   |""".stripMargin)
+      val df1 = runQueryAndCompare("select * from delta_test2") { _ => }
+      checkLengthAndPlan(df1, 2)
+      checkAnswer(df1, Row(1, "v1") :: Row(2, "v2") :: Nil)
+
+      val df2 = runQueryAndCompare("select name from delta_test2 where id = 2") { _ => }
+      checkLengthAndPlan(df2, 1)
+      checkAnswer(df2, Row("v2") :: Nil)
+    }
+  }
 }

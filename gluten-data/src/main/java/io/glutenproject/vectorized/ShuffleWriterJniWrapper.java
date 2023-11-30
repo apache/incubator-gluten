@@ -64,7 +64,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       boolean writeEOS,
       double reallocThreshold,
       long handle,
-      long taskAttemptId) {
+      long taskAttemptId,
+      int startPartitionId) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
@@ -81,6 +82,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         reallocThreshold,
         handle,
         taskAttemptId,
+        startPartitionId,
         0,
         null,
         "local");
@@ -105,6 +107,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       long memoryManagerHandle,
       long handle,
       long taskAttemptId,
+      int startPartitionId,
       String partitionWriterType,
       double reallocThreshold) {
     return nativeMake(
@@ -123,6 +126,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         reallocThreshold,
         handle,
         taskAttemptId,
+        startPartitionId,
         pushBufferMaxSize,
         pusher,
         partitionWriterType);
@@ -144,6 +148,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       double reallocThreshold,
       long handle,
       long taskAttemptId,
+      int startPartitionId,
       int pushBufferMaxSize,
       Object pusher,
       String partitionWriterType);

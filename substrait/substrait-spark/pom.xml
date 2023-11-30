@@ -46,9 +46,9 @@
       <artifactId>core</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.google.protobuf</groupId>
+      <groupId>io.glutenproject</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>${protobuf.version}</version>
+      <version>${custom.protobuf.version}</version>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>

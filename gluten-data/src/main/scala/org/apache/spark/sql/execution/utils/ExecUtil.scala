@@ -25,7 +25,7 @@ import io.glutenproject.vectorized.{ArrowWritableColumnVector, NativeColumnarToR
 import org.apache.spark.{Partitioner, RangePartitioner, ShuffleDependency}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.ColumnarShuffleDependency
+import org.apache.spark.shuffle.{ColumnarShuffleDependency, GlutenShuffleUtils}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, UnsafeProjection, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.LazilyGeneratedOrdering
@@ -146,14 +146,14 @@ object ExecUtil {
 
     val nativePartitioning: NativePartitioning = newPartitioning match {
       case SinglePartition =>
-        new NativePartitioning("single", 1)
+        new NativePartitioning(GlutenShuffleUtils.SinglePartitioningShortName, 1)
       case RoundRobinPartitioning(n) =>
-        new NativePartitioning("rr", n)
+        new NativePartitioning(GlutenShuffleUtils.RoundRobinPartitioningShortName, n)
       case HashPartitioning(exprs, n) =>
-        new NativePartitioning("hash", n)
+        new NativePartitioning(GlutenShuffleUtils.HashPartitioningShortName, n)
       // range partitioning fall back to row-based partition id computation
       case RangePartitioning(orders, n) =>
-        new NativePartitioning("range", n)
+        new NativePartitioning(GlutenShuffleUtils.RangePartitioningShortName, n)
     }
 
     val isRoundRobin = newPartitioning.isInstanceOf[RoundRobinPartitioning] &&

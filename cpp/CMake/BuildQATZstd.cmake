@@ -17,6 +17,12 @@
 
 include(ExternalProject)
 
+if("${MAKE}" STREQUAL "")
+  if(NOT MSVC)
+    find_program(MAKE make)
+  endif()
+endif()
+
 macro(build_qatzstd)
   # Find ZSTD
   include(FindZstd)
@@ -41,7 +47,7 @@ macro(build_qatzstd)
       GIT_TAG ${QATZSTD_SOURCE_BRANCH}
       SOURCE_DIR ${QATZSTD_SOURCE_DIR}
       CONFIGURE_COMMAND ""
-      BUILD_COMMAND $(MAKE) ${QATZSTD_MAKE_ARGS}
+      BUILD_COMMAND ${MAKE} ${QATZSTD_MAKE_ARGS}
       INSTALL_COMMAND ""
       BUILD_BYPRODUCTS ${QATZSTD_STATIC_LIB_TARGETS}
       BUILD_IN_SOURCE 1)
@@ -57,8 +63,10 @@ macro(build_qatzstd)
 
   set(QATZSTD_LINK_LIBRARIES
       "${ZSTD_LIBRARY}"
+      "${QAT_LIBRARY}"
       "${USDM_DRV_LIBRARY}"
-      "${QAT_S_LIBRARY}")
+      "${ADF_LIBRARY}"
+      "${OSAL_LIBRARY}")
 
   set_target_properties(qatzstd::qatzstd
       PROPERTIES IMPORTED_LOCATION
@@ -71,11 +79,15 @@ macro(build_qatzstd)
   add_dependencies(qatzstd::qatzstd qatzstd_ep)
 endmacro()
 
-find_library(USDM_DRV_LIBRARY REQUIRED NAMES usdm_drv_s PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
-find_library(QAT_S_LIBRARY REQUIRED NAMES qat_s PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
+find_library(QAT_LIBRARY REQUIRED NAMES qat PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
+find_library(USDM_DRV_LIBRARY REQUIRED NAMES usdm_drv PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
+find_library(ADF_LIBRARY REQUIRED NAMES adf PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
+find_library(OSAL_LIBRARY REQUIRED NAMES osal PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
 
+message(STATUS "Found qat: ${QAT_LIBRARY}")
 message(STATUS "Found usdm_drv: ${USDM_DRV_LIBRARY}")
-message(STATUS "Found qat_s: ${QAT_S_LIBRARY}")
+message(STATUS "Found adf: ${ADF_LIBRARY}")
+message(STATUS "Found osal: ${OSAL_LIBRARY}")
 
 build_qatzstd()
 

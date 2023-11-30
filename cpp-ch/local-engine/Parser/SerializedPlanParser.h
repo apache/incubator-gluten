@@ -271,6 +271,7 @@ private:
     friend class FunctionExecutor;
     friend class NonNullableColumnsResolver;
     friend class JoinRelParser;
+    friend class MergeTreeRelParser;
 
 public:
     explicit SerializedPlanParser(const ContextPtr & context);

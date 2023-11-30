@@ -16,7 +16,7 @@
  */
 package org.apache.spark.memory
 
-import io.glutenproject.memory.memtarget.{KnownNameAndStats, MemoryTarget, MemoryTargetVisitor, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
+import io.glutenproject.memory.memtarget.{KnownNameAndStats, LoggingMemoryTarget, MemoryTarget, MemoryTargetVisitor, NoopMemoryTarget, OverAcquire, ThrowOnOomMemoryTarget, TreeMemoryTargets}
 import io.glutenproject.memory.memtarget.spark.{RegularMemoryConsumer, TreeMemoryConsumer}
 import io.glutenproject.proto.MemoryUsageStats
 
@@ -28,6 +28,7 @@ import org.apache.commons.lang3.StringUtils
 
 import java.util
 
+import scala.annotation.nowarn
 import scala.collection.JavaConverters._
 
 object SparkMemoryUtil {
@@ -52,19 +53,19 @@ object SparkMemoryUtil {
   }
 
   def dumpMemoryTargetStats(target: MemoryTarget): String = {
-    def collectRootStats(target: MemoryTarget) = {
+    def collectRootStats(target: MemoryTarget): KnownNameAndStats = {
       target.accept(new MemoryTargetVisitor[KnownNameAndStats] {
         override def visit(overAcquire: OverAcquire): KnownNameAndStats = {
           overAcquire.getTarget.accept(this)
         }
 
-        @scala.annotation.nowarn
+        @nowarn
         override def visit(regularMemoryConsumer: RegularMemoryConsumer): KnownNameAndStats = {
           collectFromTaskMemoryManager(regularMemoryConsumer.getTaskMemoryManager)
         }
 
         override def visit(throwOnOomMemoryTarget: ThrowOnOomMemoryTarget): KnownNameAndStats = {
-          throw new UnsupportedOperationException()
+          throwOnOomMemoryTarget.target().accept(this)
         }
 
         override def visit(treeMemoryConsumer: TreeMemoryConsumer): KnownNameAndStats = {
@@ -72,7 +73,7 @@ object SparkMemoryUtil {
         }
 
         override def visit(node: TreeMemoryTargets.Node): KnownNameAndStats = {
-          node.parent().accept(this)
+          node.parent().accept(this) // walk up to find the one bound with task memory manager
         }
 
         private def collectFromTaskMemoryManager(tmm: TaskMemoryManager): KnownNameAndStats = {
@@ -108,11 +109,21 @@ object SparkMemoryUtil {
             }
           }
         }
+
+        override def visit(loggingMemoryTarget: LoggingMemoryTarget): KnownNameAndStats = {
+          loggingMemoryTarget.delegated().accept(this)
+        }
+
+        override def visit(noopMemoryTarget: NoopMemoryTarget): KnownNameAndStats = {
+          noopMemoryTarget
+        }
       })
     }
 
-    val stats = collectRootStats(target)
+    prettyPrintStats("Memory consumer stats: ", collectRootStats(target))
+  }
 
+  def prettyPrintStats(title: String, stats: KnownNameAndStats): String = {
     def asPrintable(name: String, mus: MemoryUsageStats): PrintableMemoryUsageStats = {
       def sortStats(stats: Seq[PrintableMemoryUsageStats]) = {
         stats.sortBy(_.used.getOrElse(Long.MinValue))(Ordering.Long.reverse)
@@ -134,10 +145,10 @@ object SparkMemoryUtil {
       )
     }
 
-    prettyPrintToString(asPrintable(stats.name(), stats.stats()))
+    prettyPrintToString(title, asPrintable(stats.name(), stats.stats()))
   }
 
-  private def prettyPrintToString(stats: PrintableMemoryUsageStats): String = {
+  private def prettyPrintToString(title: String, stats: PrintableMemoryUsageStats): String = {
 
     def getBytes(bytes: Option[Long]): String = {
       bytes.map(Utils.bytesToString).getOrElse("N/A")
@@ -148,7 +159,7 @@ object SparkMemoryUtil {
     }
 
     val sb = new StringBuilder()
-    sb.append(s"Memory consumer stats:")
+    sb.append(title)
 
     // determine padding widths
     var nameWidth = 0

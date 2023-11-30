@@ -253,8 +253,8 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
 
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/metrics/Metrics;");
 
-  metricsBuilderConstructor =
-      getMethodIdOrError(env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+  metricsBuilderConstructor = getMethodIdOrError(
+      env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   serializedColumnarBatchIteratorClass =
       createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ColumnarBatchInIterator;");
@@ -329,6 +329,24 @@ JNIEXPORT void JNICALL Java_io_glutenproject_exec_RuntimeJniWrapper_releaseRunti
 
   gluten::Runtime::release(runtime);
   JNI_METHOD_END()
+}
+
+JNIEXPORT jstring JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativePlanString( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jbyteArray planArray,
+    jboolean details) {
+  JNI_METHOD_START
+
+  auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
+  auto planSize = env->GetArrayLength(planArray);
+  auto ctx = gluten::getRuntime(env, wrapper);
+  ctx->parsePlan(planData, planSize, {});
+  auto& conf = ctx->getConfMap();
+  auto planString = ctx->planString(details, conf);
+  return env->NewStringUTF(planString.c_str());
+
+  JNI_METHOD_END(nullptr)
 }
 
 JNIEXPORT jlong JNICALL
@@ -467,7 +485,8 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
       longArray[Metrics::kSkippedSplits],
       longArray[Metrics::kProcessedSplits],
       longArray[Metrics::kSkippedStrides],
-      longArray[Metrics::kProcessedStrides]);
+      longArray[Metrics::kProcessedStrides],
+      longArray[Metrics::kRemainingFilterTime]);
 
   JNI_METHOD_END(nullptr)
 }
@@ -765,6 +784,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jdouble reallocThreshold,
     jlong firstBatchHandle,
     jlong taskAttemptId,
+    jint startPartitionId,
     jint pushBufferMaxSize,
     jobject partitionPusher,
     jstring partitionWriterTypeJstr) {
@@ -807,6 +827,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   }
 
   shuffleWriterOptions.task_attempt_id = (int64_t)taskAttemptId;
+  shuffleWriterOptions.start_partition_id = startPartitionId;
   shuffleWriterOptions.compression_threshold = bufferCompressThreshold;
 
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);

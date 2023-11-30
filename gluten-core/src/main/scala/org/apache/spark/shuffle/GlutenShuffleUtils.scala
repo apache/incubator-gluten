@@ -18,13 +18,28 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.vectorized.NativePartitioning
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.config._
+import org.apache.spark.util.random.XORShiftRandom
 
 import java.util.Locale
 
 object GlutenShuffleUtils {
+  val SinglePartitioningShortName = "single"
+  val RoundRobinPartitioningShortName = "rr"
+  val HashPartitioningShortName = "hash"
+  val RangePartitioningShortName = "range"
+
+  def getStartPartitionId(partition: NativePartitioning, partitionId: Int): Int = {
+    partition.getShortName match {
+      case RoundRobinPartitioningShortName =>
+        new XORShiftRandom(partitionId).nextInt(partition.getNumPartitions)
+      case _ => 0
+    }
+  }
+
   def checkCodecValues(codecConf: String, codec: String, validValues: Set[String]): Unit = {
     if (!validValues.contains(codec)) {
       throw new IllegalArgumentException(

@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
@@ -33,7 +34,7 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.window.WindowExecBase
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import com.google.protobuf.Any
+import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.SortField
 
 import java.util.{ArrayList => JArrayList}
@@ -68,8 +69,11 @@ case class WindowExecTransformer(
   }
 
   override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
-    if (BackendsApiManager.getSettings.requiredChildOrderingForWindow()) {
-      // We still need to do sort for columnar window, see `FLAGS_SkipRowSortInWindowOp`
+    if (
+      BackendsApiManager.getSettings.requiredChildOrderingForWindow()
+      && GlutenConfig.getConf.veloxColumnarWindowType.equals("streaming")
+    ) {
+      // Velox StreamingWindow need to require child order.
       Seq(partitionSpec.map(SortOrder(_, Ascending)) ++ orderSpec)
     } else {
       Seq(Nil)
@@ -79,6 +83,24 @@ case class WindowExecTransformer(
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
+
+  def genWindowParameters(): Any = {
+    // Start with "WindowParameters:"
+    val windowParametersStr = new StringBuffer("WindowParameters:")
+    // isStreaming: 1 for streaming, 0 for sort
+    val isStreaming: Int =
+      if (GlutenConfig.getConf.veloxColumnarWindowType.equals("streaming")) 1 else 0
+
+    windowParametersStr
+      .append("isStreaming=")
+      .append(isStreaming)
+      .append("\n")
+    val message = StringValue
+      .newBuilder()
+      .setValue(windowParametersStr.toString)
+      .build()
+    BackendsApiManager.getTransformerApiInstance.getPackMessage(message)
+  }
 
   def getRelNode(
       context: SubstraitContext,
@@ -132,11 +154,14 @@ case class WindowExecTransformer(
           builder.build()
       }.asJava
     if (!validation) {
+      val extensionNode =
+        ExtensionBuilder.makeAdvancedExtension(genWindowParameters(), null)
       RelBuilder.makeWindowRel(
         input,
         windowExpressions,
         partitionsExpressions,
         sortFieldList,
+        extensionNode,
         context,
         operatorId)
     } else {

@@ -23,11 +23,15 @@
 #include <string>
 #include <unordered_map>
 
+#include "config/GlutenConfig.h"
+
 namespace gluten {
 
 std::string getConfigValue(
     const std::unordered_map<std::string, std::string>& confMap,
     const std::string& key,
     const std::optional<std::string>& fallbackValue);
+
+bool debugModeEnabled(const std::unordered_map<std::string, std::string>& confMap);
 
 } // namespace gluten

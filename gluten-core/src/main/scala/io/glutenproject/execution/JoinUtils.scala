@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{AttributeReferenceTransformer, ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.SubstraitContext
@@ -40,9 +41,8 @@ object JoinUtils {
     // Normally the enhancement node is only used for plan validation. But here the enhancement
     // is also used in execution phase. In this case an empty typeUrlPrefix need to be passed,
     // so that it can be correctly parsed into json string on the cpp side.
-    Any.pack(
-      TypeBuilder.makeStruct(false, inputTypeNodes.asJava).toProtobuf,
-      /* typeUrlPrefix */ "")
+    BackendsApiManager.getTransformerApiInstance.getPackMessage(
+      TypeBuilder.makeStruct(false, inputTypeNodes.asJava).toProtobuf)
   }
 
   def createExtensionNode(output: Seq[Attribute], validation: Boolean): AdvancedExtensionNode = {
@@ -132,12 +132,12 @@ object JoinUtils {
   }
 
   def createJoinExtensionNode(
-      joinParameters: Any.Builder,
+      joinParameters: Any,
       output: Seq[Attribute]): AdvancedExtensionNode = {
     // Use field [optimization] in a extension node
     // to send some join parameters through Substrait plan.
     val enhancement = createEnhancement(output)
-    ExtensionBuilder.makeAdvancedExtension(joinParameters.build(), enhancement)
+    ExtensionBuilder.makeAdvancedExtension(joinParameters, enhancement)
   }
 
   // Return the direct join output.
@@ -180,7 +180,7 @@ object JoinUtils {
       substraitJoinType: JoinRel.JoinType,
       exchangeTable: Boolean,
       joinType: JoinType,
-      joinParameters: Any.Builder,
+      joinParameters: Any,
       inputStreamedRelNode: RelNode,
       inputBuildRelNode: RelNode,
       inputStreamedOutput: Seq[Attribute],

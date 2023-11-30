@@ -57,7 +57,6 @@ public:
     /// Create a new input format for reading this file
     virtual InputFormatPtr createInputFormat(const DB::Block & header) = 0;
 
-    /// Get schema which describes the columns of this file
     virtual DB::NamesAndTypesList getSchema() const
     {
         const auto & schema = file_info.schema();
