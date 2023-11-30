@@ -647,17 +647,29 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Construct partitionKeys
   std::vector<core::FieldAccessTypedExprPtr> partitionKeys;
+  std::unordered_set<std::string> keyNames;
   const auto& partitions = windowRel.partition_expressions();
   partitionKeys.reserve(partitions.size());
   for (const auto& partition : partitions) {
     auto expression = exprConverter_->toVeloxExpr(partition, inputType);
-    auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-    VELOX_CHECK(expr_field != nullptr, " the partition key in Window Operator only support field")
-
-    partitionKeys.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
+    core::FieldAccessTypedExprPtr veloxPartitionKey =
+        std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
+    VELOX_USER_CHECK_NOT_NULL(veloxPartitionKey, "Window Operator only supports field partition key.");
+    // Constructs unique parition keys.
+    if (keyNames.insert(veloxPartitionKey->name()).second) {
+      partitionKeys.emplace_back(veloxPartitionKey);
+    }
   }
-
-  auto [sortingKeys, sortingOrders] = processSortField(windowRel.sorts(), inputType);
+  std::vector<core::FieldAccessTypedExprPtr> sortingKeys;
+  std::vector<core::SortOrder> sortingOrders;
+  const auto& [rawSortingKeys, rawSortingOrders] = processSortField(windowRel.sorts(), inputType);
+  for (vector_size_t i = 0; i < rawSortingKeys.size(); ++i) {
+    // Constructs unique sort keys and excludes keys overlapped with partition keys.
+    if (keyNames.insert(rawSortingKeys[i]->name()).second) {
+      sortingKeys.emplace_back(rawSortingKeys[i]);
+      sortingOrders.emplace_back(rawSortingOrders[i]);
+    }
+  }
 
   if (windowRel.has_advanced_extension() &&
       SubstraitParser::configSetInOptimization(windowRel.advanced_extension(), "isStreaming=")) {
@@ -705,7 +717,7 @@ SubstraitToVeloxPlanConverter::processSortField(
     if (sort.has_expr()) {
       auto expression = exprConverter_->toVeloxExpr(sort.expr(), inputType);
       auto fieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
-      VELOX_CHECK_NOT_NULL(fieldExpr, " the sorting key in Sort Operator only support field");
+      VELOX_USER_CHECK_NOT_NULL(fieldExpr, "Sort Operator only supports field sorting key");
       sortingKeys.emplace_back(fieldExpr);
     }
   }
