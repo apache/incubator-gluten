@@ -104,6 +104,7 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
               .getNativeInstanceHandle,
             handle,
             context.taskAttemptId(),
+            GlutenShuffleUtils.getStartPartitionId(dep.nativePartitioning, context.partitionId),
             "celeborn",
             GlutenConfig.getConf.columnarShuffleReallocThreshold
           )

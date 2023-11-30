@@ -25,7 +25,6 @@
 #include "velox/exec/Aggregate.h"
 #include "velox/expression/Expr.h"
 #include "velox/expression/SignatureBinder.h"
-#include "velox/type/Tokenizer.h"
 
 namespace gluten {
 
@@ -42,11 +41,9 @@ static const std::unordered_set<std::string> kBlackList = {
     "factorial",
     "concat_ws",
     "from_json",
-    "rand",
     "json_array_length",
     "from_unixtime",
     "repeat",
-    "date_format",
     "trunc",
     "sequence",
     "posexplode",
@@ -62,7 +59,6 @@ bool validateColNames(const ::substrait::NamedStruct& schema) {
   };
 
   for (const auto& name : schema.names()) {
-    common::Tokenizer token(name, common::Separators::get());
     for (auto i = 0; i < name.size(); i++) {
       auto c = name[i];
       if (!isUnquotedPathCharacter(c)) {
@@ -978,7 +974,9 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
   if (aggRel.has_advanced_extension()) {
     std::vector<TypePtr> types;
     const auto& extension = aggRel.advanced_extension();
-    if (!validateInputTypes(extension, types)) {
+    // Aggregate always has advanced extension for streaming aggregate optimization,
+    // but only some of them have enhancement for validation.
+    if (extension.has_enhancement() && !validateInputTypes(extension, types)) {
       logValidateMsg("native validation failed due to: Validation failed for input types in AggregateRel.");
       return false;
     }

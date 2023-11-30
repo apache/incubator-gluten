@@ -46,6 +46,9 @@ const std::string kParquetBlockSize = "parquet.block.size";
 
 const std::string kParquetBlockRows = "parquet.block.rows";
 
+const std::string kParquetGzipWindowSize = "parquet.gzip.windowSize";
+const std::string kGzipWindowSize4k = "4096";
+
 const std::string kParquetCompressionCodec = "spark.sql.parquet.compression.codec";
 
 const std::string kUGIUserName = "spark.gluten.ugi.username";

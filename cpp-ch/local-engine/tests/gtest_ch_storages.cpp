@@ -15,12 +15,15 @@
  * limitations under the License.
  */
 #include <Functions/FunctionFactory.h>
+#include <Parser/MergeTreeRelParser.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parsers/ASTFunction.h>
 #include <Processors/Executors/PipelineExecutor.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Storages/CustomMergeTreeSink.h>
 #include <Storages/SubstraitSource/SubstraitFileSource.h>
+#include <google/protobuf/util/json_util.h>
+#include <google/protobuf/wrappers.pb.h>
 #include <gtest/gtest.h>
 #include <substrait/plan.pb.h>
 #include <Common/DebugUtils.h>
@@ -284,4 +287,56 @@ TEST(TestWrite, MergeTreeWriteTest)
         });
     auto executor = query_pipeline_builder.execute();
     executor->execute(1, false);
+}
+
+TEST(TestPrewhere, OptimizePrewhereCondition)
+{
+    String filter(R"({"scalarFunction":{"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"scalarFunction":{"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"scalarFunction":{"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"scalarFunction":{"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},   "arguments":[{"value":{"scalarFunction":{"functionReference":1,"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"selection":{"directReference":{"structField":{"field":2}}}}},    {"value":{"literal":{"date":8766}}}]}}},{"value":{"scalarFunction":{"functionReference":2,"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},    "arguments":[{"value":{"selection":{"directReference":{"structField":{"field":2}}}}},{"value":{"literal":{"date":9131}}}]}}}]}}},     {"value":{"scalarFunction":{"functionReference":3,"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"selection":     {"directReference":{"structField":{}}}}},{"value":{"literal":{"decimal":{"value":"YAkAAAAAAAAAAAAAAAAAAA==","precision":15,"scale":2}}}}]}}}]}}},     {"value":{"scalarFunction":{"functionReference":4,"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"selection":     {"directReference":{"structField":{"field":1}}}}},{"value":{"literal":{"decimal":{"value":"BQAAAAAAAAAAAAAAAAAAAA==","precision":15,"scale":2}}}}]}}}]}}},{"value":     {"scalarFunction":{"functionReference":5,"outputType":{"bool":{"nullability":"NULLABILITY_REQUIRED"}},"arguments":[{"value":{"selection":{"directReference":{"structField":     {"field":1}}}}},{"value":{"literal":{"decimal":{"value":"BwAAAAAAAAAAAAAAAAAAAA==","precision":15,"scale":2}}}}]}}}]}})");
+
+    auto expr_ptr = std::make_unique<substrait::Expression>();
+    auto s = google::protobuf::util::JsonStringToMessage(absl::string_view(filter), expr_ptr.get());
+    ASSERT_TRUE(s.ok());
+
+    auto plan_ptr = std::make_unique<substrait::Plan>();
+    String extensions_str("{\"extensions\":[{\"extensionFunction\":{\"functionAnchor\":7,\"name\":\"sum:req_i32\"}},{\"extensionFunction\":{\"functionAnchor\":4,\"name\":\"lt:opt_date_date\"}},{\"extensionFunction\":{\"functionAnchor\":6,\"name\":\"multiply:opt_i32_i32\"}},{\"extensionFunction\":{\"name\":\"and:opt_bool_bool\"}},{\"extensionFunction\":{\"functionAnchor\":1,\"name\":\"gte:opt_dec\u003c15,2\u003e_dec\u003c15,2\u003e\"}},{\"extensionFunction\":{\"functionAnchor\":2,\"name\":\"lte:opt_dec\u003c15,2\u003e_dec\u003c15,2\u003e\"}},{\"extensionFunction\":{\"functionAnchor\":5,\"name\":\"lt:opt_dec\u003c15,2\u003e_dec\u003c15,2\u003e\"}},{\"extensionFunction\":{\"functionAnchor\":3,\"name\":\"gte:opt_date_date\"}}],\"relations\":[{\"root\":{\"input\":{\"aggregate\":{\"common\":{\"direct\":{}},\"input\":{\"project\":{\"common\":{\"emit\":{\"outputMapping\":[2]}},\"input\":{\"project\":{\"common\":{\"emit\":{\"outputMapping\":[5,6]}},\"input\":{\"read\":{\"common\":{\"direct\":{}},\"baseSchema\":{\"names\":[\"l_orderkey\",\"l_partkey\",\"l_quantity\",\"l_discount\",\"l_shipdate\"],\"struct\":{\"types\":[{\"i32\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},{\"i32\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},{\"decimal\":{\"scale\":2,\"precision\":15,\"nullability\":\"NULLABILITY_REQUIRED\"}},{\"decimal\":{\"scale\":2,\"precision\":15,\"nullability\":\"NULLABILITY_REQUIRED\"}},{\"date\":{\"nullability\":\"NULLABILITY_REQUIRED\"}}]},\"columnTypes\":[\"NORMAL_COL\",\"NORMAL_COL\",\"NORMAL_COL\",\"NORMAL_COL\",\"NORMAL_COL\"]},\"filter\":{\"scalarFunction\":{\"outputType\":{\"bool\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},\"arguments\":[{\"value\":{\"scalarFunction\":{\"outputType\":{\"bool\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},\"arguments\":[{\"value\":{\"scalarFunction\":{\"outputType\":{\"bool\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},\"arguments\":[{\"value\":{\"scalarFunction\":{\"outputType\":{\"bool\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},\"arguments\":[{\"value\":{\"scalarFunction\":{\"functionReference\":1,\"outputType\":{\"bool\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},\"arguments\":[{\"value\":{\"selection\":{\"directReference\":{\"structField\":{\"field\":3}}}}},{\"value\":{\"literal\":{\"decimal\":{\"value\":\"BQAAAAAAAAAAAAAAAAAAAA==\",\"precision\":15,\"scale\":2}}}}]}}},{\"value\":{\"scalarFunction\":{\"functionReference\":2,\"outputType\":{\"bool\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},\"arguments\":[{\"value\":{\"selection\":{\"directReference\":{\"structField\":{\"field\":3}}}}},{\"value\":{\"literal\":{\"decimal\":{\"value\":\"BwAAAAAAAAAAAAAAAAAAAA==\",\"precision\":15,\"scale\":2}}}}]}}}]}}},{\"value\":{\"scalarFunction\":{\"functionReference\":3,\"outputType\":{\"bool\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},\"arguments\":[{\"value\":{\"selection\":{\"directReference\":{\"structField\":{\"field\":4}}}}},{\"value\":{\"literal\":{\"date\":8766}}}]}}}]}}},{\"value\":{\"scalarFunction\":{\"functionReference\":4,\"outputType\":{\"bool\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},\"arguments\":[{\"value\":{\"selection\":{\"directReference\":{\"structField\":{\"field\":4}}}}},{\"value\":{\"literal\":{\"date\":9131}}}]}}}]}}},{\"value\":{\"scalarFunction\":{\"functionReference\":5,\"outputType\":{\"bool\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},\"arguments\":[{\"value\":{\"selection\":{\"directReference\":{\"structField\":{\"field\":2}}}}},{\"value\":{\"literal\":{\"decimal\":{\"value\":\"YAkAAAAAAAAAAAAAAAAAAA==\",\"precision\":15,\"scale\":2}}}}]}}}]}},\"extensionTable\":{\"detail\":{\"@type\":\"type.googleapis.com/google.protobuf.StringValue\",\"value\":\"MergeTree;default\nlineitem\nvar/lib/clickhouse/data/tpch100_bak2/lineitem\n1\n574\n\"}}}},\"expressions\":[{\"selection\":{\"directReference\":{\"structField\":{}}}},{\"selection\":{\"directReference\":{\"structField\":{\"field\":1}}}}]}},\"expressions\":[{\"scalarFunction\":{\"functionReference\":6,\"outputType\":{\"i32\":{\"nullability\":\"NULLABILITY_REQUIRED\"}},\"arguments\":[{\"value\":{\"selection\":{\"directReference\":{\"structField\":{}}}}},{\"value\":{\"selection\":{\"directReference\":{\"structField\":{\"field\":1}}}}}]}}]}},\"groupings\":[{}],\"measures\":[{\"measure\":{\"functionReference\":7,\"phase\":\"AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE\",\"outputType\":{\"i64\":{\"nullability\":\"NULLABILITY_NULLABLE\"}},\"arguments\":[{\"value\":{\"selection\":{\"directReference\":{\"structField\":{}}}}}]}}]}},\"names\":[\"sum#909\"],\"outputSchema\":{\"types\":[{\"i64\":{\"nullability\":\"NULLABILITY_NULLABLE\"}}],\"nullability\":\"NULLABILITY_REQUIRED\"}}}]}");
+    auto ext = google::protobuf::util::JsonStringToMessage(absl::string_view(extensions_str), plan_ptr.get());
+    ASSERT_TRUE(ext.ok());
+
+    const auto * type_string = "columns format version: 1\n"
+                               "5 columns:\n"
+                               "`l_quantity` decimal(15,2)\n"
+                               "`l_discount` decimal(15,2)\n"
+                               "`l_shipdate` date32\n"
+                               "`l_orderkey` Int64\n"
+                               "`l_partkey` Int64\n";
+    auto names_and_types_list = NamesAndTypesList::parse(type_string);
+    ColumnsWithTypeAndName columns;
+    for (const auto & item : names_and_types_list)
+    {
+        ColumnWithTypeAndName col;
+        col.column = item.type->createColumn();
+        col.type = item.type;
+        col.name = item.name;
+        columns.emplace_back(std::move(col));
+    }
+    Block block(std::move(columns));
+
+    ContextPtr context = SerializedPlanParser::global_context;
+    SerializedPlanParser * parser = new SerializedPlanParser(context);
+    parser->parseExtensions(plan_ptr->extensions());
+
+    MergeTreeRelParser mergeTreeParser(parser, context, parser->query_context, SerializedPlanParser::global_context);
+
+    mergeTreeParser.column_sizes["l_discount"] = 0;
+    mergeTreeParser.column_sizes["l_quantity"] = 1;
+    mergeTreeParser.column_sizes["l_partkey"] = 2;
+    mergeTreeParser.column_sizes["l_orderkey"] = 3;
+    mergeTreeParser.column_sizes["l_shipdate"] = 4;
+
+    MergeTreeRelParser::Conditions res;
+    std::set<Int64> pk_positions;
+    mergeTreeParser.analyzeExpressions(res, *expr_ptr, pk_positions, block);
+    res.sort();
+    ASSERT_TRUE(res.front().table_columns.contains("l_discount"));
+    ASSERT_TRUE(res.back().table_columns.contains("l_shipdate"));
 }

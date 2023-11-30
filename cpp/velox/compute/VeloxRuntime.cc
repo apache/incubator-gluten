@@ -37,7 +37,7 @@ VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& c
 
 void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) {
   taskInfo_ = taskInfo;
-  if (getConfigValue(confMap_, kDebugModeEnabled, "false") == "true") {
+  if (debugModeEnabled(confMap_)) {
     try {
       auto jsonPlan = substraitFromPbToJson("Plan", data, size);
       LOG(INFO) << std::string(50, '#') << " received substrait::Plan:";
@@ -84,7 +84,7 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
-  if (getConfigValue(confMap_, kDebugModeEnabled, "false") == "true") {
+  if (debugModeEnabled(confMap_)) {
     LOG(INFO) << "VeloxRuntime session config:" << printConfig(confMap_);
   }
 
@@ -162,7 +162,11 @@ std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
     MemoryManager* memoryManager,
     std::shared_ptr<arrow::Schema> schema) {
   auto veloxPool = getAggregateVeloxPool(memoryManager);
-  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, schema);
+  // Pass a dedicate pool for S3 sink as can't share veloxPool
+  // with parquet writer.
+  auto s3SinkPool = getLeafVeloxPool(memoryManager);
+
+  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, s3SinkPool, schema);
 }
 
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(

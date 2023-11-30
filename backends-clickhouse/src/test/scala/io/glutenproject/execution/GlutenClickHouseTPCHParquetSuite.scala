@@ -70,7 +70,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
               salted_df = Some((salted_df match {
                 case Some(x) => x
                 case None => df
-              }).withColumn(c.name, when(rand() < 0.1, null).otherwise(col(c.name))))
+              }).withColumn(c.name, when(rand() < 0.01, null).otherwise(col(c.name))))
             }
 
             val currentSaltedTablePath = saltedTablesPath + "/" + tableName

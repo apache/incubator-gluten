@@ -21,13 +21,15 @@
 #include <Processors/QueryPlan/ITransformingStep.h>
 namespace local_engine
 {
-class EmptyHashAggregateStep : public DB::ITransformingStep
+
+/// Special case: goruping keys is empty, and there is no input from updstream, but still need to return one default row.
+class DefaultHashAggregateResultStep : public DB::ITransformingStep
 {
 public:
-    explicit EmptyHashAggregateStep(const DB::DataStream & input_stream_);
-    ~EmptyHashAggregateStep() override = default;
+    explicit DefaultHashAggregateResultStep(const DB::DataStream & input_stream_);
+    ~DefaultHashAggregateResultStep() override = default;
 
-    String getName() const override { return "EmptyHashAggregateStep"; }
+    String getName() const override { return "DefaultHashAggregateResultStep"; }
 
     void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & settings) override;
     void describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const override;

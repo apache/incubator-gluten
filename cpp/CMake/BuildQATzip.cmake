@@ -17,6 +17,12 @@
 
 include(ExternalProject)
 
+if("${MAKE}" STREQUAL "")
+  if(NOT MSVC)
+    find_program(MAKE make)
+  endif()
+endif()
+
 macro(build_qatzip)
   message(STATUS "Building QATzip from source")
   set(QATZIP_BUILD_VERSION "v1.1.1")
@@ -43,7 +49,7 @@ macro(build_qatzip)
       URL_HASH "SHA256=${QATZIP_BUILD_SHA256_CHECKSUM}"
       SOURCE_DIR ${QATZIP_SOURCE_DIR}
       CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env QZ_ROOT=${QATZIP_SOURCE_DIR} ./configure ${QATZIP_CONFIGURE_ARGS}
-      BUILD_COMMAND $(MAKE) all
+      BUILD_COMMAND ${MAKE} all
       BUILD_BYPRODUCTS ${QATZIP_STATIC_LIB_TARGETS}
       BUILD_IN_SOURCE 1)
 
@@ -60,8 +66,10 @@ macro(build_qatzip)
       "${ZLIB_LIBRARY}"
       "${LZ4_LIBRARY}"
       "${UDEV_LIBRARY}"
+      "${QAT_LIBRARY}"
       "${USDM_DRV_LIBRARY}"
-      "${QAT_S_LIBRARY}"
+      "${ADF_LIBRARY}"
+      "${OSAL_LIBRARY}"
       Threads::Threads)
 
   add_library(qatzip::qatzip STATIC IMPORTED)
@@ -82,14 +90,16 @@ find_package(Threads REQUIRED)
 find_library(ZLIB_LIBRARY REQUIRED NAMES z)
 find_library(LZ4_LIBRARY REQUIRED NAMES lz4)
 find_library(UDEV_LIBRARY REQUIRED NAMES udev)
-find_library(USDM_DRV_LIBRARY REQUIRED NAMES usdm_drv_s PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
-find_library(QAT_S_LIBRARY REQUIRED NAMES qat_s PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
+find_library(USDM_DRV_LIBRARY REQUIRED NAMES usdm_drv PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
+find_library(QAT_LIBRARY REQUIRED NAMES qat PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
+find_library(OSAL_LIBRARY REQUIRED NAMES osal PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
+find_library(ADF_LIBRARY REQUIRED NAMES adf PATHS "$ENV{ICP_ROOT}/build" NO_DEFAULT_PATH)
 
 message(STATUS "Found zlib: ${ZLIB_LIBRARY}")
 message(STATUS "Found lz4: ${LZ4_LIBRARY}")
 message(STATUS "Found udev: ${UDEV_LIBRARY}")
 message(STATUS "Found usdm_drv: ${USDM_DRV_LIBRARY}")
-message(STATUS "Found qat_s: ${QAT_S_LIBRARY}")
+message(STATUS "Found qat: ${QAT_LIBRARY}")
 
 build_qatzip()
 

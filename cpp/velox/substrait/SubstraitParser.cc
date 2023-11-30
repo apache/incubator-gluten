@@ -298,9 +298,8 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"bit_and_merge", "bitwise_and_agg_merge"},
     {"collect_set", "array_distinct"},
     {"murmur3hash", "hash_with_seed"},
-    {"make_decimal", "make_decimal_by_unscaled_value"},
-    {"modulus", "mod"} /*Presto functions.*/
-};
+    {"modulus", "mod"}, /*Presto functions.*/
+    {"date_format", "format_datetime"}};
 
 const std::unordered_map<std::string, std::string> SubstraitParser::typeMap_ = {
     {"bool", "BOOLEAN"},

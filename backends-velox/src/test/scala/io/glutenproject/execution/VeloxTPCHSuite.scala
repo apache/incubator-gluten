@@ -19,7 +19,7 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 
-abstract class VeloxTPCHSuite extends VeloxWholeStageTransformerSuite {
+abstract class VeloxTPCHTableSupport extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
@@ -32,11 +32,6 @@ abstract class VeloxTPCHSuite extends VeloxWholeStageTransformerSuite {
   // TODO: result comparison is not supported currently.
   protected val queriesResults: String = rootPath + "queries-output"
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    createTPCHNotNullTables()
-  }
-
   override protected def sparkConf: SparkConf = {
     super.sparkConf
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
@@ -47,6 +42,13 @@ abstract class VeloxTPCHSuite extends VeloxWholeStageTransformerSuite {
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
   }
 
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    createTPCHNotNullTables()
+  }
+}
+
+abstract class VeloxTPCHSuite extends VeloxTPCHTableSupport {
   test("TPC-H q1") {
     runTPCHQuery(1, veloxTPCHQueries, queriesResults, compareResult = false, noFallBack = false) {
       _ =>
@@ -192,6 +194,19 @@ abstract class VeloxTPCHSuite extends VeloxWholeStageTransformerSuite {
     val result = df.collect()
     val expectedResult = Seq(Row(0), Row(1), Row(2), Row(3), Row(4))
     TestUtils.compareAnswers(result, expectedResult)
+  }
+}
+
+class VeloxTPCHDistinctSpill extends VeloxTPCHTableSupport {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      .set("spark.memory.offHeap.size", "50m")
+      .set("spark.gluten.memory.overAcquiredMemoryRatio", "0.9") // to trigger distinct spill early
+  }
+
+  test("distinct spill") {
+    val df = spark.sql("select count(distinct *) from lineitem limit 1")
+    TestUtils.compareAnswers(df.collect(), Seq(Row(60175)))
   }
 }
 

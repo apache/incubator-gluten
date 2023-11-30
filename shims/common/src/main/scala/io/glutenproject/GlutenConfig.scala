@@ -310,6 +310,7 @@ object GlutenConfig {
   val SPARK_SQL_PARQUET_COMPRESSION_CODEC: String = "spark.sql.parquet.compression.codec"
   val PARQUET_BLOCK_SIZE: String = "parquet.block.size"
   val PARQUET_BLOCK_ROWS: String = "parquet.block.rows"
+  val PARQUET_GZIP_WINDOW_SIZE: String = "parquet.gzip.windowSize"
   // Hadoop config
   val HADOOP_PREFIX = "spark.hadoop."
 
@@ -642,6 +643,17 @@ object GlutenConfig {
       .stringConf
       .checkValues(Set("streaming", "sort"))
       .createWithDefault("streaming")
+
+  val COLUMNAR_PREFER_STREAMING_AGGREGATE =
+    buildConf("spark.gluten.sql.columnar.preferStreamingAggregate")
+      .internal()
+      .doc(
+        "Velox backend supports `StreamingAggregate`. `StreamingAggregate` uses the less " +
+          "memory as it does not need to hold all groups in memory, so it could avoid spill. " +
+          "When true and the child output ordering satisfies the grouping key then " +
+          "Gluten will choose `StreamingAggregate` as the native operator.")
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED =
     buildConf("spark.gluten.sql.columnar.forceShuffledHashJoin")
@@ -1065,7 +1077,7 @@ object GlutenConfig {
       .internal()
       .doc("Set glog severity level in Velox backend, same as FLAGS_minloglevel.")
       .intConf
-      .createWithDefault(0)
+      .createWithDefault(1)
 
   val COLUMNAR_VELOX_SPILL_STRATEGY =
     buildConf("spark.gluten.sql.columnar.backend.velox.spillStrategy")
@@ -1175,7 +1187,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.benchmark_task.stageId")
       .internal()
       .intConf
-      .createWithDefault(1)
+      .createWithDefault(-1)
 
   val BENCHMARK_TASK_PARTITIONID =
     buildConf("spark.gluten.sql.benchmark_task.partitionId")
@@ -1349,6 +1361,14 @@ object GlutenConfig {
       .internal()
       .doc("When true, `WholeStageTransformer` will cache the `WholeStageTransformerContext` " +
         "when executing. It is used to get substrait plan node and native plan string.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val INJECT_NATIVE_PLAN_STRING_TO_EXPLAIN =
+    buildConf("spark.gluten.sql.injectNativePlanStringToExplain")
+      .internal()
+      .doc("When true, Gluten will inject native plan tree to explain string inside " +
+        "`WholeStageTransformerContext`.")
       .booleanConf
       .createWithDefault(false)
 }

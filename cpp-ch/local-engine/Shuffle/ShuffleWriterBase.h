@@ -23,9 +23,10 @@ struct SplitResult;
 class ShuffleWriterBase
 {
 public:
-    virtual void split(DB::Block & block) = 0;
-    virtual size_t evictPartitions() {return 0;}
-    virtual SplitResult stop() = 0;
     virtual ~ShuffleWriterBase() = default;
+
+    virtual void split(DB::Block & block) = 0;
+    virtual size_t evictPartitions() { return 0; }
+    virtual SplitResult stop() = 0;
 };
 }

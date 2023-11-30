@@ -247,6 +247,55 @@ void VeloxMemoryManager::hold() {
   holdInternal(heldVeloxPools_, veloxAggregatePool_.get());
 }
 
+bool VeloxMemoryManager::tryDestructSafe() {
+  // Velox memory pools considered safe to destruct when no alive allocations.
+  for (const auto& pool : heldVeloxPools_) {
+    if (pool && pool->currentBytes() != 0) {
+      return false;
+    }
+  }
+  if (veloxLeafPool_ && veloxLeafPool_->currentBytes() != 0) {
+    return false;
+  }
+  if (veloxAggregatePool_ && veloxAggregatePool_->currentBytes() != 0) {
+    return false;
+  }
+  heldVeloxPools_.clear();
+  veloxLeafPool_.reset();
+  veloxAggregatePool_.reset();
+
+  // Velox memory manager considered safe to destruct when no alive pools.
+  if (veloxMemoryManager_ && veloxMemoryManager_->numPools() != 0) {
+    return false;
+  }
+  veloxMemoryManager_.reset();
+
+  // Applies similar rule for Arrow memory pool.
+  if (arrowPool_ && arrowPool_->bytes_allocated() != 0) {
+    return false;
+  }
+  arrowPool_.reset();
+
+  // Successfully destructed.
+  return true;
+}
+
+VeloxMemoryManager::~VeloxMemoryManager() {
+  // Wait (50 + 100 + 200 + 400 + 800)ms = 1550ms to let possible async tasks (e.g. preload split) complete.
+  for (int32_t tryCount = 0; tryCount < 5; tryCount++) {
+    if (tryDestructSafe()) {
+      if (tryCount > 0) {
+        LOG(INFO) << "All the outstanding memory resources successfully released. ";
+      }
+      break;
+    }
+    uint32_t waitMs = 50 * static_cast<uint32_t>(pow(2, tryCount));
+    LOG(INFO) << "There are still outstanding Velox memory allocations. Waiting for " << waitMs
+              << " ms to let possible async tasks done... ";
+    usleep(waitMs * 1000);
+  }
+}
+
 velox::memory::MemoryManager* getDefaultVeloxMemoryManager() {
   return &(facebook::velox::memory::defaultMemoryManager());
 }

@@ -94,6 +94,7 @@ std::string getMax<std::string>() {
 
 // Substrait function names.
 const std::string sIsNotNull = "is_not_null";
+const std::string sIsNull = "is_null";
 const std::string sGte = "gte";
 const std::string sGt = "gt";
 const std::string sLte = "lte";
@@ -365,6 +366,11 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   bool ignoreNullKeys = false;
   std::vector<core::FieldAccessTypedExprPtr> preGroupingExprs;
+  if (aggRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "isStreaming=")) {
+    preGroupingExprs.reserve(veloxGroupingExprs.size());
+    preGroupingExprs.insert(preGroupingExprs.begin(), veloxGroupingExprs.begin(), veloxGroupingExprs.end());
+  }
 
   // Get the output names of Aggregation.
   std::vector<std::string> aggOutNames;
@@ -598,7 +604,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   // Parse measures and get the window expressions.
   // Each measure represents one window expression.
-  bool ignoreNullKeys = false;
+  bool ignoreNulls = false;
   std::vector<core::WindowNode::Function> windowNodeFunctions;
   std::vector<std::string> windowColumnNames;
 
@@ -607,9 +613,25 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     const auto& windowFunction = smea.measure();
     std::string funcName = SubstraitParser::findVeloxFunction(functionMap_, windowFunction.function_reference());
     std::vector<core::TypedExprPtr> windowParams;
-    windowParams.reserve(windowFunction.arguments().size());
-    for (const auto& arg : windowFunction.arguments()) {
-      windowParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
+    auto& argumentList = windowFunction.arguments();
+    windowParams.reserve(argumentList.size());
+    // For functions in kOffsetWindowFunctions (see Spark OffsetWindowFunctions),
+    // we expect the last arg is passed for setting ignoreNulls.
+    if (kOffsetWindowFunctions.find(funcName) != kOffsetWindowFunctions.end()) {
+      int i = 0;
+      for (; i < argumentList.size() - 1; i++) {
+        windowParams.emplace_back(exprConverter_->toVeloxExpr(argumentList[i].value(), inputType));
+      }
+      auto constantTypedExpr = exprConverter_->toVeloxExpr(argumentList[i].value().literal());
+      auto variant = constantTypedExpr->value();
+      if (!variant.hasValue()) {
+        VELOX_FAIL("Value is expected in variant for setting ignoreNulls.");
+      }
+      ignoreNulls = variant.value<bool>();
+    } else {
+      for (const auto& arg : argumentList) {
+        windowParams.emplace_back(exprConverter_->toVeloxExpr(arg.value(), inputType));
+      }
     }
     auto windowVeloxType = SubstraitParser::parseType(windowFunction.output_type());
     auto windowCall = std::make_shared<const core::CallTypedExpr>(windowVeloxType, std::move(windowParams), funcName);
@@ -620,22 +642,34 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     windowColumnNames.push_back(windowFunction.column_name());
 
     windowNodeFunctions.push_back(
-        {std::move(windowCall), createWindowFrame(lowerBound, upperBound, type), ignoreNullKeys});
+        {std::move(windowCall), createWindowFrame(lowerBound, upperBound, type), ignoreNulls});
   }
 
   // Construct partitionKeys
   std::vector<core::FieldAccessTypedExprPtr> partitionKeys;
+  std::unordered_set<std::string> keyNames;
   const auto& partitions = windowRel.partition_expressions();
   partitionKeys.reserve(partitions.size());
   for (const auto& partition : partitions) {
     auto expression = exprConverter_->toVeloxExpr(partition, inputType);
-    auto expr_field = dynamic_cast<const core::FieldAccessTypedExpr*>(expression.get());
-    VELOX_CHECK(expr_field != nullptr, " the partition key in Window Operator only support field")
-
-    partitionKeys.emplace_back(std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression));
+    core::FieldAccessTypedExprPtr veloxPartitionKey =
+        std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
+    VELOX_USER_CHECK_NOT_NULL(veloxPartitionKey, "Window Operator only supports field partition key.");
+    // Constructs unique parition keys.
+    if (keyNames.insert(veloxPartitionKey->name()).second) {
+      partitionKeys.emplace_back(veloxPartitionKey);
+    }
   }
-
-  auto [sortingKeys, sortingOrders] = processSortField(windowRel.sorts(), inputType);
+  std::vector<core::FieldAccessTypedExprPtr> sortingKeys;
+  std::vector<core::SortOrder> sortingOrders;
+  const auto& [rawSortingKeys, rawSortingOrders] = processSortField(windowRel.sorts(), inputType);
+  for (vector_size_t i = 0; i < rawSortingKeys.size(); ++i) {
+    // Constructs unique sort keys and excludes keys overlapped with partition keys.
+    if (keyNames.insert(rawSortingKeys[i]->name()).second) {
+      sortingKeys.emplace_back(rawSortingKeys[i]);
+      sortingOrders.emplace_back(rawSortingOrders[i]);
+    }
+  }
 
   if (windowRel.has_advanced_extension() &&
       SubstraitParser::configSetInOptimization(windowRel.advanced_extension(), "isStreaming=")) {
@@ -683,7 +717,7 @@ SubstraitToVeloxPlanConverter::processSortField(
     if (sort.has_expr()) {
       auto expression = exprConverter_->toVeloxExpr(sort.expr(), inputType);
       auto fieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(expression);
-      VELOX_CHECK_NOT_NULL(fieldExpr, " the sorting key in Sort Operator only support field");
+      VELOX_USER_CHECK_NOT_NULL(fieldExpr, "Sort Operator only supports field sorting key");
       sortingKeys.emplace_back(fieldExpr);
     }
   }
@@ -1270,15 +1304,15 @@ bool SubstraitToVeloxPlanConverter::childrenFunctionsOnSameField(
   return false;
 }
 
-bool SubstraitToVeloxPlanConverter::canPushdownCommonFunction(
+bool SubstraitToVeloxPlanConverter::canPushdownFunction(
     const ::substrait::Expression_ScalarFunction& scalarFunction,
     const std::string& filterName,
     uint32_t& fieldIdx) {
   // Condtions can be pushed down.
-  static const std::unordered_set<std::string> supportedCommonFunctions = {sIsNotNull, sGte, sGt, sLte, sLt, sEqual};
+  static const std::unordered_set<std::string> supportedFunctions = {sIsNotNull, sIsNull, sGte, sGt, sLte, sLt, sEqual};
 
   bool canPushdown = false;
-  if (supportedCommonFunctions.find(filterName) != supportedCommonFunctions.end() &&
+  if (supportedFunctions.find(filterName) != supportedFunctions.end() &&
       fieldOrWithLiteral(scalarFunction.arguments(), fieldIdx)) {
     // The arg should be field or field with literal.
     canPushdown = true;
@@ -1412,7 +1446,7 @@ void SubstraitToVeloxPlanConverter::separateFilters(
     } else {
       // Check if the condition is supported to be pushed down.
       uint32_t fieldIdx;
-      if (canPushdownCommonFunction(scalarFunction, filterName, fieldIdx) &&
+      if (canPushdownFunction(scalarFunction, filterName, fieldIdx) &&
           rangeRecorders.at(fieldIdx).setCertainRangeForFunction(filterName)) {
         subfieldFunctions.emplace_back(scalarFunction);
       } else {
@@ -1460,6 +1494,12 @@ bool SubstraitToVeloxPlanConverter::RangeRecorder::setCertainRangeForFunction(
       // Is not null can always coexist with the other range.
       return true;
     }
+  } else if (functionName == sIsNull) {
+    if (reverse) {
+      return setCertainRangeForFunction(sIsNotNull, false, forOrRelation);
+    } else {
+      return setIsNull();
+    }
   } else {
     return false;
   }
@@ -1472,9 +1512,16 @@ void SubstraitToVeloxPlanConverter::setColumnFilterInfo(
     bool reverse) {
   if (filterName == sIsNotNull) {
     if (reverse) {
-      VELOX_NYI("Reverse not supported for filter name '{}'", filterName);
+      columnFilterInfo.setNull();
+    } else {
+      columnFilterInfo.forbidsNull();
     }
-    columnFilterInfo.forbidsNull();
+  } else if (filterName == sIsNull) {
+    if (reverse) {
+      columnFilterInfo.forbidsNull();
+    } else {
+      columnFilterInfo.setNull();
+    }
   } else if (filterName == sGte) {
     if (reverse) {
       columnFilterInfo.setUpper(literalVariant, true);
@@ -1543,11 +1590,11 @@ void SubstraitToVeloxPlanConverter::setFilterInfo(
   static const std::unordered_map<std::string, std::string> functionRevertMap = {
       {sLt, sGt}, {sGt, sLt}, {sGte, sLte}, {sLte, sGte}};
 
-  // Handle "123 < q1" type expression case
+  // Handle the case where literal is before the variable in a binary function, e.g. "123 < q1".
   if (typeCases.size() > 1 && (typeCases[0] == "kLiteral" && typeCases[1] == "kSelection")) {
     auto x = functionRevertMap.find(functionName);
     if (x != functionRevertMap.end()) {
-      // change the function name: lt => gt, gt => lt, gte => lte, lte => gte
+      // Change the function name: lt => gt, gt => lt, gte => lte, lte => gte.
       functionName = x->second;
     }
   }
@@ -1812,17 +1859,23 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
   }
 
   bool nullAllowed = filterInfo.nullAllowed_;
+  bool isNull = filterInfo.isNull_;
   uint32_t rangeSize = std::max(filterInfo.lowerBounds_.size(), filterInfo.upperBounds_.size());
 
   if constexpr (KIND == facebook::velox::TypeKind::HUGEINT) {
     // TODO: open it when the Velox's modification is ready.
     VELOX_NYI("constructSubfieldFilters not support for HUGEINT type");
   } else if constexpr (KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::MAP) {
-    // Only IsNotNull filter is supported for the above two type kinds now.
-    if (rangeSize == 0 && !nullAllowed) {
-      filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
-    } else {
-      VELOX_NYI("constructSubfieldFilters only support IsNotNull for input type '{}'", inputType);
+    // Only IsNotNull and IsNull are supported for array and map types.
+    if (rangeSize == 0) {
+      if (!nullAllowed) {
+        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
+      } else if (isNull) {
+        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNull>());
+      } else {
+        VELOX_NYI(
+            "Only IsNotNull and IsNull are supported in constructSubfieldFilters for input type '{}'.", inputType);
+      }
     }
   } else {
     using NativeType = typename RangeTraits<KIND>::NativeType;
@@ -1861,9 +1914,14 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
     }
 
     // Handle null filtering.
-    if (rangeSize == 0 && !nullAllowed) {
-      std::unique_ptr<common::IsNotNull> filter = std::make_unique<common::IsNotNull>();
-      filters[common::Subfield(inputName)] = std::move(filter);
+    if (rangeSize == 0) {
+      if (!nullAllowed) {
+        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
+      } else if (isNull) {
+        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNull>());
+      } else {
+        VELOX_NYI("Only IsNotNull and IsNull are supported in constructSubfieldFilters when no other filter ranges.");
+      }
       return;
     }
 

@@ -21,23 +21,28 @@ import io.glutenproject.GlutenConfig
 import org.apache.spark.TaskContext
 
 object DebugUtil {
-  // if not specify stageId, use default 1
-  // if specify partitionId, use this one
-  // if not, use specified taskId or save all the input of this stage
+  // if not in debug mode, then do nothing
+  // if specify taskId, then only do that task partition
+  // if not specify stageId, then do nothing
+  // if specify stageId but no partitionId, then do all partitions for that stage
+  // if specify stageId and partitionId, then only do that partition for that stage
   def saveInputToFile(): Boolean = {
     if (!GlutenConfig.getConf.debug) {
       return false
     }
+    if (TaskContext.get().taskAttemptId() == GlutenConfig.getConf.taskId) {
+      return true
+    }
     if (TaskContext.get().stageId() != GlutenConfig.getConf.taskStageId) {
       return false
     }
-    if (TaskContext.getPartitionId() == GlutenConfig.getConf.taskPartitionId) {
-      true
-    } else if (GlutenConfig.getConf.taskPartitionId == -1) {
-      TaskContext.get().taskAttemptId() == GlutenConfig.getConf.taskId ||
-      GlutenConfig.getConf.taskId == -1
-    } else {
-      false
+    if (GlutenConfig.getConf.taskPartitionId == -1) {
+      return true
     }
+    if (TaskContext.getPartitionId() == GlutenConfig.getConf.taskPartitionId) {
+      return true
+    }
+
+    false
   }
 }

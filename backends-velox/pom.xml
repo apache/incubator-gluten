@@ -40,6 +40,11 @@
     </dependency>
     <dependency>
       <groupId>io.glutenproject</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>${custom.protobuf.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.glutenproject</groupId>
       <artifactId>gluten-core</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>

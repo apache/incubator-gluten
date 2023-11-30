@@ -64,10 +64,4 @@ public class ManagedReservationListener implements ReservationListener {
   public long getUsedBytes() {
     return target.usedBytes();
   }
-
-  public static class OutOfMemoryException extends RuntimeException {
-    public OutOfMemoryException(String message) {
-      super(message);
-    }
-  }
 }
