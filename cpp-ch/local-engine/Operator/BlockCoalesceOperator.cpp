@@ -22,7 +22,7 @@ namespace local_engine
 
 void BlockCoalesceOperator::mergeBlock(DB::Block & block)
 {
-    block_buffer.add(block, 0, static_cast<int>(block.rows()));
+    block_buffer.append(block, 0, static_cast<int>(block.rows()));
 }
 
 bool BlockCoalesceOperator::isFull()
