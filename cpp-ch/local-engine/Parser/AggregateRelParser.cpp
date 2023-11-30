@@ -30,7 +30,7 @@
 #include <Common/StringUtils/StringUtils.h>
 #include "DataTypes/IDataType.h"
 
-#include <Operator/EmptyHashAggregate.h>
+#include <Operator/DefaultHashAggregateResult.h>
 
 namespace DB
 {
@@ -52,17 +52,6 @@ AggregateRelParser::AggregateRelParser(SerializedPlanParser * plan_paser_) : Rel
 DB::QueryPlanPtr AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, std::list<const substrait::Rel *> &)
 {
     setup(std::move(query_plan), rel);
-    LOG_TRACE(logger, "original header is: {}", plan->getCurrentDataStream().header.dumpStructure());
-    if (rel.aggregate().measures().empty()
-        && (rel.aggregate().groupings().empty() || rel.aggregate().groupings()[0].grouping_expressions().empty()))
-    {
-        LOG_TRACE(&Poco::Logger::get("AggregateRelParser"), "Empty aggregate step");
-        auto empty_agg = std::make_unique<EmptyHashAggregateStep>(plan->getCurrentDataStream());
-        empty_agg->setStepDescription("Empty aggregate");
-        steps.push_back(empty_agg.get());
-        plan->addStep(std::move(empty_agg));
-        return std::move(plan);
-    }
     addPreProjection();
     LOG_TRACE(logger, "header after pre-projection is: {}", plan->getCurrentDataStream().header.dumpStructure());
     if (has_final_stage)
@@ -76,6 +65,17 @@ DB::QueryPlanPtr AggregateRelParser::parse(DB::QueryPlanPtr query_plan, const su
     {
         addAggregatingStep();
         LOG_TRACE(logger, "header after aggregating is: {}", plan->getCurrentDataStream().header.dumpStructure());
+    }
+
+    /// If the groupings is empty, we still need to return one row with default values even if the input is empty.
+    if ((rel.aggregate().groupings().empty() || rel.aggregate().groupings()[0].grouping_expressions().empty())
+        && (has_final_stage || rel.aggregate().measures().empty()))
+    {
+        LOG_TRACE(&Poco::Logger::get("AggregateRelParser"), "default aggregate result step");
+        auto default_agg_result = std::make_unique<DefaultHashAggregateResultStep>(plan->getCurrentDataStream());
+        default_agg_result->setStepDescription("Default aggregate result");
+        steps.push_back(default_agg_result.get());
+        plan->addStep(std::move(default_agg_result));
     }
     return std::move(plan);
 }
