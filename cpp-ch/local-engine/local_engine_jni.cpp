@@ -654,7 +654,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jint num_sub_dirs,
     jboolean prefer_spill,
     jlong spill_threshold,
-    jstring hash_algorithm)
+    jstring hash_algorithm,
+    jboolean throw_if_memory_exceed)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -691,12 +692,13 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .num_sub_dirs = num_sub_dirs,
         .shuffle_id = shuffle_id,
         .map_id = static_cast<int>(map_id),
-        .partition_nums = static_cast<size_t>(num_partitions),
+        .partition_num = static_cast<size_t>(num_partitions),
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
         .spill_threshold = static_cast<size_t>(spill_threshold),
-        .hash_algorithm = jstring2string(env, hash_algorithm)};
+        .hash_algorithm = jstring2string(env, hash_algorithm),
+        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     if (prefer_spill)
@@ -724,7 +726,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jstring codec,
     jlong spill_threshold,
     jstring hash_algorithm,
-    jobject pusher)
+    jobject pusher,
+    jboolean throw_if_memory_exceed)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -752,12 +755,13 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .io_buffer_size = DBMS_DEFAULT_BUFFER_SIZE,
         .shuffle_id = shuffle_id,
         .map_id = static_cast<int>(map_id),
-        .partition_nums = static_cast<size_t>(num_partitions),
+        .partition_num = static_cast<size_t>(num_partitions),
         .hash_exprs = hash_exprs,
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
         .spill_threshold = static_cast<size_t>(spill_threshold),
-        .hash_algorithm = jstring2string(env, hash_algorithm)};
+        .hash_algorithm = jstring2string(env, hash_algorithm),
+        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options, pusher)};
@@ -1068,7 +1072,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_BlockSplitIterator_nativeCreate
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::NativeSplitter::Options options;
-    options.partition_nums = partition_num;
+    options.partition_num = partition_num;
     options.buffer_size = buffer_size;
     auto hash_algorithm_str = jstring2string(env, hash_algorithm);
     options.hash_algorithm.swap(hash_algorithm_str);
