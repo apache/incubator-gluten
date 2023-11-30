@@ -141,6 +141,15 @@ void CachedShuffleWriter::initOutputIfNeeded(Block & block)
 
 SplitResult CachedShuffleWriter::stop()
 {
+    auto old_before_alloc = CurrentMemoryTracker::before_alloc;
+    auto old_before_free = CurrentMemoryTracker::before_free;
+    CurrentMemoryTracker::before_alloc = nullptr;
+    CurrentMemoryTracker::before_free = nullptr;
+    SCOPE_EXIT({
+        CurrentMemoryTracker::before_alloc = old_before_alloc;
+        CurrentMemoryTracker::before_free = old_before_free;
+    });
+
     partition_writer->stop();
 
     static auto * logger = &Poco::Logger::get("CachedShuffleWriter");
