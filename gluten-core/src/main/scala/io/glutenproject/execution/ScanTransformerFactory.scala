@@ -16,12 +16,12 @@
  */
 package io.glutenproject.execution
 
-import io.glutenproject.execution.FilterHandler.{flattenCondition, getLeftFilters}
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.sql.shims.SparkShimLoader
 
+import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.read.Scan
-import org.apache.spark.sql.execution.{FileSourceScanExec, FilterExec}
+import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 
 import java.util.ServiceLoader
@@ -36,8 +36,9 @@ object ScanTransformerFactory {
   def createFileSourceScanTransformer(
       scanExec: FileSourceScanExec,
       reuseSubquery: Boolean,
+      extraFilters: Seq[Expression] = Seq.empty,
       validation: Boolean = false): FileSourceScanExecTransformer = {
-    // TODO: Add delta match here
+    // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
     val newPartitionFilters = if (validation) {
       scanExec.partitionFilters
     } else {
@@ -50,29 +51,7 @@ object ScanTransformerFactory {
       newPartitionFilters,
       scanExec.optionalBucketSet,
       scanExec.optionalNumCoalescedBuckets,
-      scanExec.dataFilters,
-      scanExec.tableIdentifier,
-      scanExec.disableBucketedScan
-    )
-  }
-
-  def createFileSourceScanTransformer(
-      scanExec: FileSourceScanExec,
-      reuseSubquery: Boolean,
-      filter: FilterExec): FileSourceScanExecTransformer = {
-    val leftFilters =
-      getLeftFilters(scanExec.dataFilters, flattenCondition(filter.condition))
-    // transform BroadcastExchangeExec to ColumnarBroadcastExchangeExec in partitionFilters
-    val newPartitionFilters =
-      ExpressionConverter.transformDynamicPruningExpr(scanExec.partitionFilters, reuseSubquery)
-    new FileSourceScanExecTransformer(
-      scanExec.relation,
-      scanExec.output,
-      scanExec.requiredSchema,
-      newPartitionFilters,
-      scanExec.optionalBucketSet,
-      scanExec.optionalNumCoalescedBuckets,
-      scanExec.dataFilters ++ leftFilters,
+      scanExec.dataFilters ++ extraFilters,
       scanExec.tableIdentifier,
       scanExec.disableBucketedScan
     )

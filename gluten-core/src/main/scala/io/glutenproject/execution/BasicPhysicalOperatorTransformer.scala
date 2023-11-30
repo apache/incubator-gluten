@@ -418,10 +418,12 @@ object FilterHandler {
   def applyFilterPushdownToScan(filter: FilterExec, reuseSubquery: Boolean): SparkPlan =
     filter.child match {
       case fileSourceScan: FileSourceScanExec =>
+        val leftFilters =
+          getLeftFilters(fileSourceScan.dataFilters, flattenCondition(filter.condition))
         ScanTransformerFactory.createFileSourceScanTransformer(
           fileSourceScan,
           reuseSubquery,
-          filter)
+          extraFilters = leftFilters)
       case batchScan: BatchScanExec =>
         if (ScanTransformerFactory.supportedBatchScan(batchScan.scan)) {
           ScanTransformerFactory.createBatchScanTransformer(batchScan, reuseSubquery)
