@@ -99,8 +99,7 @@ public class RelBuilder {
       ExpressionNode filter,
       SubstraitContext context,
       Long operatorId) {
-    context.registerRelToOperator(operatorId);
-    return new ReadRelNode(types, names, context, filter, null);
+    return makeReadRel(types, names, null, filter, context, operatorId);
   }
 
   public static RelNode makeReadRel(
@@ -111,38 +110,28 @@ public class RelBuilder {
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new ReadRelNode(types, names, context, filter, null, columnTypeNodes);
+    return new ReadRelNode(types, names, context, filter, columnTypeNodes);
   }
 
-  public static RelNode makeReadRel(
-      List<TypeNode> types,
-      List<String> names,
-      ExpressionNode filter,
-      Long iteratorIndex,
-      SubstraitContext context,
-      Long operatorId) {
-    context.registerRelToOperator(operatorId);
-    return new ReadRelNode(types, names, context, filter, iteratorIndex);
-  }
-
-  public static RelNode makeReadRel(
+  public static RelNode makeReadRelForInputIterator(
       List<Attribute> attributes, SubstraitContext context, Long operatorId) {
-    if (operatorId >= 0) {
-      // If the operator id is negative, will not register the rel to operator.
-      // Currently, only for the special handling in join.
-      context.registerRelToOperator(operatorId);
-    }
-
     List<TypeNode> typeList = ConverterUtils.collectAttributeTypeNodes(attributes);
     List<String> nameList = ConverterUtils.collectAttributeNamesWithExprId(attributes);
+    return makeReadRelForInputIterator(typeList, nameList, context, operatorId);
+  }
 
-    // The iterator index will be added in the path of LocalFiles.
+  public static RelNode makeReadRelForInputIterator(
+      List<TypeNode> typeList, List<String> nameList, SubstraitContext context, Long operatorId) {
+    context.registerRelToOperator(operatorId);
     Long iteratorIndex = context.nextIteratorIndex();
-    context.setIteratorNode(
-        iteratorIndex,
-        LocalFilesBuilder.makeLocalFiles(
-            ConverterUtils.ITERATOR_PREFIX().concat(iteratorIndex.toString())));
-    return new ReadRelNode(typeList, nameList, context, null, iteratorIndex);
+    return new InputIteratorRelNode(typeList, nameList, iteratorIndex);
+  }
+
+  // only used in CHHashAggregateExecTransformer for CH backend
+  public static RelNode makeReadRelForInputIteratorWithoutRegister(
+      List<TypeNode> typeList, List<String> nameList, SubstraitContext context) {
+    Long iteratorIndex = context.currentIteratorIndex();
+    return new InputIteratorRelNode(typeList, nameList, iteratorIndex);
   }
 
   public static RelNode makeJoinRel(

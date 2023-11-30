@@ -17,22 +17,16 @@
 package io.glutenproject.substrait
 
 import io.glutenproject.substrait.ddlplan.InsertOutputNode
-import io.glutenproject.substrait.rel.{LocalFilesNode, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import io.glutenproject.substrait.rel.SplitInfo
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.security.InvalidParameterException
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList, Map => JMap}
 
 case class JoinParams() {
-  // Whether the input of streamed side is a ReadRel represented iterator.
-  var isStreamedReadRel = false
-
   // Whether preProjection is needed in streamed side.
   var streamPreProjectionNeeded = false
-
-  // Whether the input of build side is a ReadRel represented iterator.
-  var isBuildReadRel = false
 
   // Whether preProjection is needed in build side.
   var buildPreProjectionNeeded = false
@@ -48,9 +42,6 @@ case class JoinParams() {
 }
 
 case class AggregationParams() {
-  // Whether the input is a ReadRel represented iterator.
-  var isReadRel = false
-
   // Whether preProjection is needed.
   var preProjectionNeeded = false
 
@@ -64,9 +55,6 @@ case class AggregationParams() {
 class SubstraitContext extends Serializable {
   // A map stores the relationship between function name and function id.
   private val functionMap = new JHashMap[String, JLong]()
-
-  // A map stores the relationship between id and local file node.
-  private val iteratorNodes = new JHashMap[JLong, LocalFilesNode]()
 
   // A map stores the relationship between Spark operator id and its respective Substrait Rel ids.
   private val operatorToRelsMap: JMap[JLong, JList[JLong]] = new JHashMap[JLong, JList[JLong]]()
@@ -87,13 +75,6 @@ class SubstraitContext extends Serializable {
   private var insertOutputNode: InsertOutputNode = _
   private var operatorId: JLong = 0L
   private var relId: JLong = 0L
-
-  def setIteratorNode(index: JLong, localFilesNode: LocalFilesNode): Unit = {
-    if (iteratorNodes.containsKey(index)) {
-      throw new IllegalStateException(s"Iterator index $index has been used.")
-    }
-    iteratorNodes.put(index, localFilesNode)
-  }
 
   def initSplitInfosIndex(splitInfosIndex: JInt): Unit = {
     this.splitInfosIndex = splitInfosIndex
@@ -117,10 +98,6 @@ class SubstraitContext extends Serializable {
 
   def setSplitInfos(SplitInfos: Seq[SplitInfo]): Unit = {
     this.splitInfos = SplitInfos
-  }
-
-  def getInputIteratorNode(index: JLong): LocalFilesNode = {
-    iteratorNodes.get(index)
   }
 
   def getInsertOutputNode: InsertOutputNode = insertOutputNode
@@ -147,6 +124,11 @@ class SubstraitContext extends Serializable {
     id
   }
 
+  def currentIteratorIndex: JLong = {
+    assert(iteratorIndex > 0)
+    this.iteratorIndex - 1
+  }
+
   /**
    * Register a rel to certain operator id.
    * @param operatorId
@@ -162,18 +144,6 @@ class SubstraitContext extends Serializable {
       operatorToRelsMap.put(operatorId, rels)
     }
     relId += 1
-  }
-
-  /** Register a specified rel to certain operator id. */
-  def registerRelToOperator(operatorId: JLong, specifiedRedId: JLong): Unit = {
-    if (operatorToRelsMap.containsKey(operatorId)) {
-      val rels = operatorToRelsMap.get(operatorId)
-      rels.add(specifiedRedId)
-    } else {
-      val rels = new JArrayList[JLong]()
-      rels.add(specifiedRedId)
-      operatorToRelsMap.put(operatorId, rels)
-    }
   }
 
   /** Add the relId and register to operator later */

@@ -14,18 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.substrait.rel;
+package io.glutenproject.metrics
+import org.apache.spark.sql.execution.metric.SQLMetric
 
-import io.substrait.proto.Rel;
-
-import java.io.Serializable;
-
-/** Contains helper functions for constructing substrait relations. */
-public interface RelNode extends Serializable {
-  /**
-   * Converts a Rel into a protobuf.
-   *
-   * @return A rel protobuf
-   */
-  Rel toProtobuf();
+case class InputIteratorMetricsUpdater(metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+  override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
+    if (opMetrics != null) {
+      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
+      metrics("cpuCount") += operatorMetrics.cpuCount
+      metrics("wallNanos") += operatorMetrics.wallNanos
+      metrics("outputVectors") += operatorMetrics.outputVectors
+    }
+  }
 }

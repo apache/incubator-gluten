@@ -34,15 +34,6 @@ class HashAggregateMetricsUpdater(val metrics: Map[String, SQLMetric])
           var currentIdx = operatorMetrics.metricsList.size() - 1
           var totalTime = 0L
 
-          // read rel
-          if (aggregationParams.isReadRel) {
-            metrics("iterReadTime") +=
-              (operatorMetrics.metricsList.get(currentIdx).time / 1000L).toLong
-            metrics("outputVectors") += operatorMetrics.metricsList.get(currentIdx).outputVectors
-            totalTime += operatorMetrics.metricsList.get(currentIdx).time
-            currentIdx -= 1
-          }
-
           // pre projection
           if (aggregationParams.preProjectionNeeded) {
             metrics("preProjectTime") +=

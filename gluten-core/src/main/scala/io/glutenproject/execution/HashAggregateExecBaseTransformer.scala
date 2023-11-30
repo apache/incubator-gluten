@@ -151,26 +151,12 @@ abstract class HashAggregateExecBaseTransformer(
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child match {
-      case c: TransformSupport =>
-        c.doTransform(context)
-      case _ =>
-        null
-    }
+    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
 
     val aggParams = new AggregationParams
     val operatorId = context.nextOperatorId(this.nodeName)
-
-    val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
-      (getAggRel(context, operatorId, aggParams, childCtx.root), childCtx.outputAttributes, output)
-    } else {
-      // This means the input is just an iterator, so an ReadRel will be created as child.
-      // Prepare the input schema.
-      aggParams.isReadRel = true
-      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
-      (getAggRel(context, operatorId, aggParams, readRel), child.output, output)
-    }
-    TransformContext(inputAttributes, outputAttributes, relNode)
+    val relNode = getAggRel(context, operatorId, aggParams, childCtx.root)
+    TransformContext(childCtx.outputAttributes, output, relNode)
   }
 
   // Members declared in org.apache.spark.sql.execution.AliasAwareOutputPartitioning

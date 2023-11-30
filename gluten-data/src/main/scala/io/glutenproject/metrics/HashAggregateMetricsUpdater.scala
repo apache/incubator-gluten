@@ -89,9 +89,5 @@ class HashAggregateMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
       preProjectionWallNanos += aggregationMetrics.get(idx).wallNanos
       idx += 1
     }
-
-    if (aggParams.isReadRel) {
-      idx += 1
-    }
   }
 }

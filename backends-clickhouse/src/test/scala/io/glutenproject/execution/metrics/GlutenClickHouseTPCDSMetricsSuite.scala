@@ -22,6 +22,7 @@ import io.glutenproject.vectorized.GeneralInIterator
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.execution.InputIteratorTransformer
 
 import scala.collection.JavaConverters._
 
@@ -89,7 +90,9 @@ class GlutenClickHouseTPCDSMetricsSuite extends GlutenClickHouseTPCDSAbstractSui
       metricsJsonFilePath + "/tpcds-q47-wholestage-9-metrics.json"
     ) {
       () =>
-        val allGlutenPlans = wholeStageTransformer.collect { case g: GlutenPlan => g }
+        val allGlutenPlans = wholeStageTransformer.collect {
+          case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
+        }
 
         assert(allGlutenPlans.size == 29)
 

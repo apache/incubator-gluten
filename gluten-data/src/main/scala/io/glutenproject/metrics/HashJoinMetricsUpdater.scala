@@ -65,15 +65,8 @@ class HashJoinMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
   val hashProbeDynamicFiltersProduced: SQLMetric =
     metrics("hashProbeDynamicFiltersProduced")
 
-  val streamCpuCount: SQLMetric = metrics("streamCpuCount")
-  val streamWallNanos: SQLMetric = metrics("streamWallNanos")
-  val streamVeloxToArrow: SQLMetric = metrics("streamVeloxToArrow")
-
   val streamPreProjectionCpuCount: SQLMetric = metrics("streamPreProjectionCpuCount")
   val streamPreProjectionWallNanos: SQLMetric = metrics("streamPreProjectionWallNanos")
-
-  val buildCpuCount: SQLMetric = metrics("buildCpuCount")
-  val buildWallNanos: SQLMetric = metrics("buildWallNanos")
 
   val buildPreProjectionCpuCount: SQLMetric = metrics("buildPreProjectionCpuCount")
   val buildPreProjectionWallNanos: SQLMetric = metrics("buildPreProjectionWallNanos")
@@ -140,23 +133,9 @@ class HashJoinMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
       idx += 1
     }
 
-    if (joinParams.isBuildReadRel) {
-      buildCpuCount += joinMetrics.get(idx).cpuCount
-      buildWallNanos += joinMetrics.get(idx).wallNanos
-      idx += 1
-    }
-
     if (joinParams.streamPreProjectionNeeded) {
       streamPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
       streamPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
-      idx += 1
-    }
-
-    if (joinParams.isStreamedReadRel) {
-      val streamMetrics = joinMetrics.get(idx)
-      streamCpuCount += streamMetrics.cpuCount
-      streamWallNanos += streamMetrics.wallNanos
-      streamVeloxToArrow += singleMetrics.veloxToArrow
       idx += 1
     }
   }
