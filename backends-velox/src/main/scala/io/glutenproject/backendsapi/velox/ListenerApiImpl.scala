@@ -83,11 +83,15 @@ class ListenerApiImpl extends ListenerApi {
       new SharedLibraryLoaderCentos7
     } else if (system.contains("tencentos") && system.contains("3.2")) {
       new SharedLibraryLoaderCentos8
+    } else if (systemName.contains("Red Hat") && systemVersion.startsWith("8")) {
+      new SharedLibraryLoaderCentos8
+    } else if (systemName.contains("Red Hat") && systemVersion.startsWith("7")) {
+      new SharedLibraryLoaderCentos7
     } else {
       throw new GlutenException(
         "Found unsupported OS! Currently, Gluten's Velox backend" +
           " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
-          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2.")
+          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8.")
     }
     loader.loadLib(load)
   }
