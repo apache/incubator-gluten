@@ -320,7 +320,7 @@ void ColumnsBuffer::appendSelective(
     if (!accumulated_columns[column_idx]->onlyNull())
     {
         accumulated_columns[column_idx]->insertRangeSelective(
-            *source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
+            *source.getByPosition(column_idx).column, selector, from, length);
     }
     else
     {
