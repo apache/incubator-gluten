@@ -97,10 +97,15 @@ struct SplitResult
     String toString() const
     {
         std::ostringstream oss;
-        oss << "compute_pid_time(ns):" << total_compute_pid_time << " split_time(ns)" << total_split_time
-            << " spill time(ns):" << total_spill_time << " serialize_time(ns):" << total_serialize_time
-            << " compress_time(ns):" << total_compress_time << " write time(ns):" << total_write_time
-            << " bytes_writen(ns):" << total_bytes_written << " bytes_spilled(ns):" << total_bytes_spilled
+
+        auto to_seconds = [](UInt64 nanoseconds) -> double {
+            return static_cast<double>(nanoseconds) / 1000000000ULL;
+        };
+
+        oss << "compute_pid_time(s):" << to_seconds(total_compute_pid_time) << " split_time(s):" << to_seconds(total_split_time)
+            << " spill time(s):" << to_seconds(total_spill_time) << " serialize_time(s):" << to_seconds(total_serialize_time)
+            << " compress_time(s):" << to_seconds(total_compress_time) << " write_time(s):" << to_seconds(total_write_time)
+            << " bytes_writen:" << total_bytes_written << " bytes_spilled:" << total_bytes_spilled
             << " partition_num: " << partition_lengths.size() << std::endl;
         return oss.str();
     }

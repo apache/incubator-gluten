@@ -357,8 +357,8 @@ size_t CelebornPartitionWriter::unsafeEvictSinglePartition(bool for_memory_spill
         res += written_bytes;
         compressed_output.sync();
 
-        std::cout << "evict partition " << partition_id << " uncompress_bytes:" << compressed_output.getUncompressedBytes()
-                  << " compress_bytes:" << compressed_output.getCompressedBytes() << std::endl;
+        // std::cout << "evict partition " << partition_id << " uncompress_bytes:" << compressed_output.getUncompressedBytes()
+        //           << " compress_bytes:" << compressed_output.getCompressedBytes() << std::endl;
 
         Stopwatch push_time_watch;
         celeborn_client->pushPartitionData(partition_id, output.str().data(), output.str().size());
