@@ -16,21 +16,21 @@
  */
 #include "PartitionWriter.h"
 #include <filesystem>
+#include <format>
 #include <memory>
 #include <ostream>
 #include <vector>
-#include <Storages/IO/CompressedWriteBuffer.h>
-#include <boost/algorithm/string/case_conv.hpp>
-#include <Shuffle/CachedShuffleWriter.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/WriteBufferFromFile.h>
+#include <IO/WriteBufferFromString.h>
+#include <Interpreters/sortBlock.h>
+#include <Shuffle/CachedShuffleWriter.h>
+#include <Storages/IO/CompressedWriteBuffer.h>
+#include <Storages/IO/NativeWriter.h>
+#include <boost/algorithm/string/case_conv.hpp>
+#include <Common/CHUtil.h>
 #include <Common/Stopwatch.h>
 #include <Common/ThreadPool.h>
-#include <Common/CHUtil.h>
-#include <Common/Exception.h>
-#include <IO/WriteBufferFromString.h>
-#include <format>
-#include <Storages/IO/NativeWriter.h>
 
 
 namespace DB
@@ -115,6 +115,102 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
     if (!supportsEvictSinglePartition() && options->spill_threshold && current_cached_bytes >= options->spill_threshold)
     {
         unsafeEvictPartitions(false, options->flush_block_buffer_before_evict);
+    }
+
+    shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
+}
+
+void PartitionWriter::writeNew(DB::Block & block)
+{
+    if (evicting_or_writing)
+        return;
+
+    evicting_or_writing = true;
+    SCOPE_EXIT({evicting_or_writing = false;});
+
+    Stopwatch watch;
+
+    /// First order by block by partition column
+    {
+        const auto & col_partition = block.getByPosition(block.columns() - 1);
+        SortDescription sort_description;
+        sort_description.emplace_back(col_partition.name, 1, 1);
+        sortBlock(block, sort_description);
+    }
+
+    /// Get sorted partition column and remove it from block
+    const auto col_partition = block.getByPosition(block.columns() - 1);
+    block.erase(block.columns() - 1);
+
+    const auto & partition_data = checkAndGetColumn<ColumnUInt64>(col_partition.column.get())->getData();
+    if (partition_data.empty())
+        return;
+
+    size_t current_cached_bytes = bytes();
+    auto write_range = [&](size_t start_, size_t end_)
+    {
+        size_t partition_id = partition_data[end_ - 1];
+        // std::cout << "write range of partition:" << partition_id << " row range:" << start_ << "-" << end_ << std::endl;
+
+        /// Make sure buffer size is no greater than split_size
+        auto & block_buffer = partition_block_buffer[partition_id];
+        auto & buffer = partition_buffer[partition_id];
+        if (block_buffer->size() && block_buffer->size() + end_ - start_ >= shuffle_writer->options.split_size)
+            buffer->addBlock(block_buffer->releaseColumns());
+
+        current_cached_bytes -= block_buffer->bytes();
+        block_buffer->append(block, start_, end_);
+        current_cached_bytes += block_buffer->bytes();
+
+        /// Only works for celeborn partitiion writer
+        if (supportsEvictSinglePartition() && options->spill_threshold > 0 && current_cached_bytes >= options->spill_threshold)
+        {
+            /// Calculate average rows of each partition block buffer
+            size_t avg_size = 0;
+            size_t cnt = 0;
+            for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
+                 i = (i + 1) % options->partition_num)
+            {
+                avg_size += partition_block_buffer[i]->size();
+                ++cnt;
+            }
+            avg_size /= cnt;
+
+
+            for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
+                 i = (i + 1) % options->partition_num)
+            {
+                /// Flush partition block buffer if it's size is no less than average rows
+                bool flush_block_buffer = partition_block_buffer[i]->size() >= avg_size;
+                current_cached_bytes -= flush_block_buffer ? partition_block_buffer[i]->bytes() + partition_buffer[i]->bytes()
+                                                           : partition_buffer[i]->bytes();
+                unsafeEvictSinglePartition(false, flush_block_buffer, i);
+            }
+
+            last_partition_id = partition_id;
+        }
+    };
+
+    size_t start = 0;
+    size_t end = 0;
+    for (size_t row_i = 1; row_i < partition_data.size(); ++row_i)
+    {
+        if (partition_data[row_i] == partition_data[start])
+            continue;
+
+        end = row_i;
+        write_range(start, end);
+
+        start = row_i;
+    }
+
+    end = partition_data.size();
+    write_range(start, end);
+
+    /// Only works for local partition writer
+    if (!supportsEvictSinglePartition() && options->spill_threshold && current_cached_bytes >= options->spill_threshold)
+    {
+        unsafeEvictPartitions(false, true);
     }
 
     shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();

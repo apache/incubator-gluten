@@ -58,7 +58,7 @@ public:
     ColumnsBuffer(size_t prefer_buffer_size = 8192);
     ~ColumnsBuffer() = default;
 
-    void add(DB::Block & columns, int start, int end);
+    void append(DB::Block & block, int start, int end);
     void appendSelective(size_t column_idx, const DB::Block & source, const DB::IColumn::Selector & selector, size_t from, size_t length);
 
     DB::Block getHeader();

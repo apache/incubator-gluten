@@ -48,6 +48,13 @@ extern const int LOGICAL_ERROR;
 }
 namespace local_engine
 {
+
+PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t partition_num)
+{
+    return PartitionInfo{.partition_selector = std::move(selector)};
+}
+
+/*
 PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t partition_num)
 {
     auto rows = selector.size();
@@ -68,6 +75,7 @@ PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t
         .partition_start_points = partition_row_idx_start_points,
         .partition_num = partition_num};
 }
+*/
 
 PartitionInfo RoundRobinSelectorBuilder::build(DB::Block & block)
 {
@@ -92,6 +100,7 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
     ColumnsWithTypeAndName args;
     for (size_t i = 0; i < exprs_index.size(); i++)
         args.emplace_back(block.safeGetByPosition(exprs_index.at(i)));
+
     auto flatten_block = BlockUtil::flattenBlock(DB::Block(args), BlockUtil::FLAT_STRUCT_FORCE | BlockUtil::FLAT_NESTED_TABLE, true);
     args = flatten_block.getColumnsWithTypeAndName();
 

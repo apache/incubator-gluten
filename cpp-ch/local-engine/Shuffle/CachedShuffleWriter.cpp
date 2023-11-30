@@ -15,12 +15,13 @@
  * limitations under the License.
  */
 #include "CachedShuffleWriter.h"
-#include <Poco/StringTokenizer.h>
-#include <Common/Stopwatch.h>
-#include <Storages/IO/AggregateSerializationUtils.h>
+#include <DataTypes/DataTypesNumber.h>
 #include <Shuffle/PartitionWriter.h>
+#include <Storages/IO/AggregateSerializationUtils.h>
 #include <jni/CelebornClient.h>
 #include <jni/jni_common.h>
+#include <Poco/StringTokenizer.h>
+#include <Common/Stopwatch.h>
 
 
 namespace DB
@@ -112,8 +113,17 @@ void CachedShuffleWriter::split(DB::Block & block)
     {
         out_block.insert(block.getByPosition(output_columns_indicies[col_i]));
     }
+
+    /// Insert column partition
+    ColumnWithTypeAndName col_partition;
+    col_partition.name = "_partition_" + std::to_string(reinterpret_cast<uintptr_t>(this));
+    col_partition.type = std::make_shared<DataTypeUInt64>();
+    auto column_partition = ColumnVector<UInt64>::create();
+    column_partition->getData() = std::move(partition_info.partition_selector);
+    col_partition.column = column_partition->getPtr();
+    out_block.insert(std::move(col_partition));
     out_block.info = block_info;
-    partition_writer->write(partition_info, out_block);
+    partition_writer->writeNew(out_block);
 }
 
 void CachedShuffleWriter::initOutputIfNeeded(Block & block)

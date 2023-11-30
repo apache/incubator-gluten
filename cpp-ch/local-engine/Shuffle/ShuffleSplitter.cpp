@@ -260,7 +260,7 @@ void ShuffleSplitter::writeIndexFile()
     }
 }
 
-void ColumnsBuffer::add(DB::Block & block, int start, int end)
+void ColumnsBuffer::append(DB::Block & block, int start, int end)
 {
     if (!header)
         header = block.cloneEmpty();
