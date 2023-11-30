@@ -51,7 +51,7 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
     def injectAdapter(p: SparkPlan): SparkPlan = p match {
       case p: ProjectExecTransformer => p.mapChildren(injectAdapter)
       case s: SortExecTransformer => s.mapChildren(injectAdapter)
-      case _ => ColumnarCollapseTransformStages.wrapAdapter(p)
+      case _ => ColumnarCollapseTransformStages.wrapInputIteratorTransformer(p)
     }
 
     // why materializeInput = true? this is for CH backend.

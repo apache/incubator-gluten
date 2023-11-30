@@ -39,9 +39,6 @@ import scala.collection.JavaConverters._
  * would be transformed to `ValueStreamNode` at native side.
  */
 case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupport {
-  // `InputAdapter` is a case class, so `ColumnarInputAdapter.withNewChildren()` will return
-  // `InputAdapter`.
-  assert(child.isInstanceOf[InputAdapter])
 
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
@@ -131,20 +128,20 @@ case class ColumnarCollapseTransformStages(
     case _ => false
   }
 
-  /** Inserts an InputAdapter on top of those that do not support transform. */
-  private def insertInputAdapter(plan: SparkPlan): SparkPlan = {
+  /** Inserts an InputIteratorTransformer on top of those that do not support transform. */
+  private def insertInputIteratorTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
       case p if !supportTransform(p) =>
-        ColumnarCollapseTransformStages.wrapAdapter(insertWholeStageTransformer(p))
+        ColumnarCollapseTransformStages.wrapInputIteratorTransformer(insertWholeStageTransformer(p))
       case p =>
-        p.withNewChildren(p.children.map(insertInputAdapter))
+        p.withNewChildren(p.children.map(insertInputIteratorTransformer))
     }
   }
 
   private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
       case t if supportTransform(t) =>
-        WholeStageTransformer(t.withNewChildren(t.children.map(insertInputAdapter)))(
+        WholeStageTransformer(t.withNewChildren(t.children.map(insertInputIteratorTransformer)))(
           transformStageCounter.incrementAndGet())
       case other =>
         other.withNewChildren(other.children.map(insertWholeStageTransformer))
@@ -155,7 +152,7 @@ case class ColumnarCollapseTransformStages(
 object ColumnarCollapseTransformStages {
   val transformStageCounter = new AtomicInteger(0)
 
-  def wrapAdapter(plan: SparkPlan): TransformSupport = {
+  def wrapInputIteratorTransformer(plan: SparkPlan): TransformSupport = {
     InputIteratorTransformer(plan)
   }
 }

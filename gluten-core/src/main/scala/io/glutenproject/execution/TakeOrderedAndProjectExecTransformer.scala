@@ -87,7 +87,8 @@ case class TakeOrderedAndProjectExecTransformer(
         case other =>
           // if the child it is not WholeStageTransformer, add the adapter first
           // so that, later we can wrap WholeStageTransformer.
-          val localSortPlan = withLocalSort(ColumnarCollapseTransformStages.wrapAdapter(other))
+          val localSortPlan = withLocalSort(
+            ColumnarCollapseTransformStages.wrapInputIteratorTransformer(other))
           LimitTransformer(localSortPlan, 0, limit)
       }
       val transformStageCounter: AtomicInteger =
@@ -104,7 +105,7 @@ case class TakeOrderedAndProjectExecTransformer(
           SortExecTransformer(
             sortOrder,
             false,
-            ColumnarCollapseTransformStages.wrapAdapter(transformedShuffleExec))
+            ColumnarCollapseTransformStages.wrapInputIteratorTransformer(transformedShuffleExec))
         LimitTransformer(localSortPlan, 0, limit)
       }
 
