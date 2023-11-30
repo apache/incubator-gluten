@@ -311,7 +311,8 @@ void ColumnsBuffer::appendSelective(
         accumulated_columns.reserve(source.columns());
         for (size_t i = 0; i < source.columns(); i++)
         {
-            auto column = source.getColumns()[i]->convertToFullColumnIfConst()->cloneEmpty();
+            // auto column = source.getColumns()[i]->convertToFullColumnIfConst()->cloneEmpty();
+            auto column = DataTypeFactory::instance().get(String(magic_enum::enum_name(source.getColumns()[i]->getDataType())))->createColumn();
             column->reserve(prefer_buffer_size);
             accumulated_columns.emplace_back(std::move(column));
         }
