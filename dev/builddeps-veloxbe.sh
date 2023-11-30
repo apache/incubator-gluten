@@ -20,6 +20,7 @@ ENABLE_HBM=OFF
 ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
+ENABLE_ABFS=OFF
 ENABLE_EP_CACHE=OFF
 ARROW_ENABLE_CUSTOM_CODEC=OFF
 ENABLE_VCPKG=OFF
@@ -77,6 +78,10 @@ do
         ENABLE_HDFS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --enable_abfs=*)
+        ENABLE_ABFS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
         --enable_ep_cache=*)
         ENABLE_EP_CACHE=("${arg#*=}")
         shift # Remove argument name from processing
@@ -100,8 +105,8 @@ fi
 
 ##install velox
 cd $GLUTEN_DIR/ep/build-velox/src
-./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS
-./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
+./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --enable_abfs=$ENABLE_ABFS
+./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS --enable_abfs=$ENABLE_ABFS \
                --enable_ep_cache=$ENABLE_EP_CACHE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS
 
 ## compile gluten cpp
@@ -111,5 +116,5 @@ mkdir build
 cd build
 cmake -DBUILD_VELOX_BACKEND=ON -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
       -DBUILD_TESTS=$BUILD_TESTS -DBUILD_EXAMPLES=$BUILD_EXAMPLES -DBUILD_BENCHMARKS=$BUILD_BENCHMARKS -DBUILD_JEMALLOC=$BUILD_JEMALLOC \
-      -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DENABLE_GCS=$ENABLE_GCS -DENABLE_S3=$ENABLE_S3 -DENABLE_HDFS=$ENABLE_HDFS ..
+      -DENABLE_HBM=$ENABLE_HBM -DENABLE_QAT=$ENABLE_QAT -DENABLE_IAA=$ENABLE_IAA -DENABLE_GCS=$ENABLE_GCS -DENABLE_S3=$ENABLE_S3 -DENABLE_HDFS=$ENABLE_HDFS -DENABLE_ABFS=$ENABLE_ABFS ..
 make -j

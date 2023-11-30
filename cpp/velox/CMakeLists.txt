@@ -149,6 +149,9 @@ macro(ADD_VELOX_DEPENDENCIES)
   if(ENABLE_S3)
     add_velox_dependency(connector::hive::s3fs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/s3fs/libvelox_s3fs.a")
   endif()
+  if(ENABLE_ABFS)
+  add_velox_dependency(connector::hive::abfs "${VELOX_COMPONENTS_PATH}/connectors/hive/storage_adapters/abfs/libvelox_abfs.a")
+  endif()
   add_velox_dependency(dwio::dwrf::writer "${VELOX_COMPONENTS_PATH}/dwio/dwrf/writer/libvelox_dwio_dwrf_writer.a")
   add_velox_dependency(dwio::dwrf::reader "${VELOX_COMPONENTS_PATH}/dwio/dwrf/reader/libvelox_dwio_dwrf_reader.a")
   add_velox_dependency(dwio::dwrf::utils "${VELOX_COMPONENTS_PATH}/dwio/dwrf/utils/libvelox_dwio_dwrf_utils.a")
@@ -266,7 +269,10 @@ macro(find_gcssdk)
   find_package(google_cloud_cpp_storage REQUIRED)
 endmacro()
 
-
+macro(find_azure)
+  set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  find_package(azure-storage-blobs-cpp CONFIG REQUIRED)
+endmacro()
 
 # Build Velox backend.
 set(VELOX_SRCS
@@ -392,4 +398,10 @@ endif()
 
 if(BUILD_EXAMPLES)
   add_subdirectory(udf/examples)
+endif()
+
+if(ENABLE_ABFS)
+  add_definitions(-DENABLE_ABFS)
+  find_azure()
+  target_link_libraries(velox PRIVATE Azure::azure-storage-blobs)
 endif()

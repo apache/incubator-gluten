@@ -28,6 +28,7 @@ ENABLE_HBM=OFF
 ENABLE_GCS=OFF
 ENABLE_S3=OFF
 ENABLE_HDFS=OFF
+ENABLE_ABFS=OFF
 VELOX_HOME=
 NPROC=$(nproc --ignore=2)
 
@@ -81,6 +82,10 @@ for arg in "$@"; do
     ENABLE_S3=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+  --enable_abfs=*)
+    ENABLE_ABFS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
   --enable_hdfs=*)
     ENABLE_HDFS=("${arg#*=}")
     shift # Remove argument name from processing
@@ -116,6 +121,7 @@ echo "BUILD_PROTOBUF=${BUILD_PROTOBUF}"
 echo "ENABLE_GCS=${ENABLE_GCS}"
 echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
+echo "ENABLE_ABFS=${ENABLE_ABFS}"
 
 if [ -d build ]; then
   rm -r build
@@ -135,5 +141,6 @@ cmake .. \
   -DENABLE_HBM=${ENABLE_HBM} \
   -DENABLE_GCS=${ENABLE_GCS} \
   -DENABLE_S3=${ENABLE_S3} \
-  -DENABLE_HDFS=${ENABLE_HDFS}
+  -DENABLE_HDFS=${ENABLE_HDFS} \
+  -DENABLE_ABFS=${ENABLE_ABFS}
 make -j$NPROC

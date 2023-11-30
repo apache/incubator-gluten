@@ -34,6 +34,9 @@
 #ifdef ENABLE_GCS
 #include <fstream>
 #endif
+#ifdef ENABLE_ABFS
+#include "velox/connectors/hive/storage_adapters/abfs/AbfsFileSystem.h"
+#endif
 #include "config/GlutenConfig.h"
 #include "jni/JniFileSystem.h"
 #include "operators/functions/SparkTokenizer.h"
@@ -282,6 +285,19 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
   }
   mutableConf->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
   mutableConf->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
+#endif
+
+#ifdef ENABLE_ABFS
+  velox::filesystems::abfs::registerAbfsFileSystem();
+  const auto& confValue = conf->valuesCopy();
+  for (auto& [k, v] : confValue) {
+    if (k.find("fs.azure.account.key") == 0) {
+      mutableConf->setValue(k, v);
+    } else if (k.find("spark.hadoop.fs.azure.account.key") == 0) {
+      constexpr int32_t accountKeyPrefixLength = 13;
+      mutableConf->setValue(k.substr(accountKeyPrefixLength), v);
+    }
+  }
 #endif
 
 #ifdef ENABLE_GCS

@@ -338,6 +338,10 @@ object GlutenConfig {
 
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
+  // ABFS config
+  val ABFS_ACCOUNT_KEY = "hadoop.fs.azure.account.key"
+  val SPARK_ABFS_ACCOUNT_KEY: String = "spark." + ABFS_ACCOUNT_KEY
+
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "qat"
   val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("gzip", "zstd")
@@ -537,6 +541,10 @@ object GlutenConfig {
     // put in all S3 configs
     conf
       .filter(_._1.startsWith(HADOOP_PREFIX + S3A_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    conf
+      .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return

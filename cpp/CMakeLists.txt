@@ -52,6 +52,7 @@ option(ENABLE_GCS "Enable GCS" OFF)
 option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
 option(ENABLE_ORC "Enable ORC" OFF)
+option(VELOX_ENABLE_ABFS "Enable ABFS" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
