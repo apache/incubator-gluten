@@ -127,6 +127,7 @@ public class RelBuilder {
     return new InputIteratorRelNode(typeList, nameList, iteratorIndex);
   }
 
+  // only used in CHHashAggregateExecTransformer for CH backend
   public static RelNode makeReadRelForInputIteratorWithoutRegister(
       List<TypeNode> typeList, List<String> nameList, SubstraitContext context) {
     Long iteratorIndex = context.currentIteratorIndex();

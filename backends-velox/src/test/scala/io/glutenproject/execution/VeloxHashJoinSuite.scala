@@ -19,7 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.{ColumnarInputAdapter, InputIteratorTransformer}
+import org.apache.spark.sql.execution.InputIteratorTransformer
 
 import java.io.File
 
@@ -82,7 +82,7 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
         // Join should be in `TransformContext`
         val countSHJ = wholeStages.map {
           _.collectFirst {
-            case _: ColumnarInputAdapter => 0
+            case _: InputIteratorTransformer => 0
             case _: ShuffledHashJoinExecTransformer => 1
           }.getOrElse(0)
         }.sum
@@ -118,7 +118,7 @@ class VeloxHashJoinSuite extends VeloxWholeStageTransformerSuite {
       // Join should be in `TransformContext`
       val countSHJ = wholeStages.map {
         _.collectFirst {
-          case _: ColumnarInputAdapter => 0
+          case _: InputIteratorTransformer => 0
           case _: ShuffledHashJoinExecTransformer => 1
         }.getOrElse(0)
       }.sum

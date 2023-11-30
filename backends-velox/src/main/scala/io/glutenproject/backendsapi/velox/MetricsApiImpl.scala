@@ -41,7 +41,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
       sparkContext: SparkContext): Map[String, SQLMetric] = {
     Map(
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of batch scan"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of input iterator"),
       "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors")
     )
   }
