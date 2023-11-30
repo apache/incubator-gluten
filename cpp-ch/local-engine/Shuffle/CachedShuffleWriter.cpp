@@ -97,6 +97,15 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
 
 void CachedShuffleWriter::split(DB::Block & block)
 {
+    auto old_before_alloc = CurrentMemoryTracker::before_alloc;
+    auto old_before_free = CurrentMemoryTracker::before_free;
+    CurrentMemoryTracker::before_alloc = nullptr;
+    CurrentMemoryTracker::before_free = nullptr;
+    SCOPE_EXIT({
+        CurrentMemoryTracker::before_alloc = old_before_alloc;
+        CurrentMemoryTracker::before_free = old_before_free;
+    });
+
     initOutputIfNeeded(block);
 
     Stopwatch split_time_watch;
@@ -140,6 +149,15 @@ void CachedShuffleWriter::initOutputIfNeeded(Block & block)
 
 SplitResult CachedShuffleWriter::stop()
 {
+    auto old_before_alloc = CurrentMemoryTracker::before_alloc;
+    auto old_before_free = CurrentMemoryTracker::before_free;
+    CurrentMemoryTracker::before_alloc = nullptr;
+    CurrentMemoryTracker::before_free = nullptr;
+    SCOPE_EXIT({
+        CurrentMemoryTracker::before_alloc = old_before_alloc;
+        CurrentMemoryTracker::before_free = old_before_free;
+    });
+
     partition_writer->stop();
 
     static auto * logger = &Poco::Logger::get("CachedShuffleWriter");
@@ -149,6 +167,15 @@ SplitResult CachedShuffleWriter::stop()
 
 size_t CachedShuffleWriter::evictPartitions()
 {
+    auto old_before_alloc = CurrentMemoryTracker::before_alloc;
+    auto old_before_free = CurrentMemoryTracker::before_free;
+    CurrentMemoryTracker::before_alloc = nullptr;
+    CurrentMemoryTracker::before_free = nullptr;
+    SCOPE_EXIT({
+        CurrentMemoryTracker::before_alloc = old_before_alloc;
+        CurrentMemoryTracker::before_free = old_before_free;
+    });
+
     return partition_writer->evictPartitions(true, true);
 }
 
