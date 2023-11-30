@@ -59,25 +59,17 @@ public:
     void add(DB::Block & columns, int start, int end);
     void appendSelective(size_t column_idx, const DB::Block & source, const DB::IColumn::Selector & selector, size_t from, size_t length);
 
+    DB::Block getHeader();
     size_t size() const;
     bool empty() const;
 
     DB::Block releaseColumns();
-    DB::Block getHeader();
 
     size_t bytes() const
     {
         size_t res = 0;
         for (const auto & col : accumulated_columns)
             res += col->byteSize();
-        return res;
-    }
-
-    size_t allocatedBytes() const
-    {
-        size_t res = 0;
-        for (const auto & col : accumulated_columns)
-            res += col->allocatedBytes();
         return res;
     }
 
@@ -90,17 +82,28 @@ using ColumnsBufferPtr = std::shared_ptr<ColumnsBuffer>;
 
 struct SplitResult
 {
-    Int64 total_compute_pid_time = 0;
-    Int64 total_write_time = 0;
-    Int64 total_spill_time = 0;
-    Int64 total_compress_time = 0;
-    Int64 total_bytes_written = 0;
-    Int64 total_bytes_spilled = 0;
-    std::vector<Int64> partition_length;
-    std::vector<Int64> raw_partition_length;
-    Int64 total_split_time = 0;
-    Int64 total_disk_time = 0;
-    Int64 total_serialize_time = 0;
+    UInt64 total_compute_pid_time = 0;           // Total nanoseconds to compute partition id
+    UInt64 total_write_time = 0;                 // Total nanoseconds to write data to local/celeborn, including the time writing to buffer
+    UInt64 total_spill_time = 0;                 // Total nanoseconds to execute PartitionWriter::evictPartitions
+    UInt64 total_compress_time = 0;              // Total nanoseconds to execute compression before writing data to local/celeborn
+    UInt64 total_bytes_written = 0;              // Sum of partition_length
+    UInt64 total_bytes_spilled = 0;              // Total bytes of blocks spilled to local/celeborn before serialization and compression
+    std::vector<UInt64> partition_lengths;        // Total written bytes of each partition after serialization and compression
+    std::vector<UInt64> raw_partition_lengths;    // Total written bytes of each partition after serialization
+    UInt64 total_split_time = 0;                 // Total nanoseconds to execute CachedShuffleWriter::split, excluding total_compute_pid_time
+    UInt64 total_io_time = 0;                    // Total nanoseconds to write data to local/celeborn, excluding the time writing to buffer
+    UInt64 total_serialize_time = 0;             // Total nanoseconds to execute spill_to_file/spill_to_celeborn. Bad naming, it works not as the name suggests.
+
+    String toString() const
+    {
+        std::ostringstream oss;
+        oss << "compute_pid_time(ns):" << total_compute_pid_time << " split_time(ns)" << total_split_time
+            << " spill time(ns):" << total_spill_time << " serialize_time(ns):" << total_serialize_time
+            << " compress_time(ns):" << total_compress_time << " write time(ns):" << total_write_time
+            << " bytes_writen(ns):" << total_bytes_written << " bytes_spilled(ns):" << total_bytes_spilled
+            << " partition_num: " << partition_lengths.size() << std::endl;
+        return oss.str();
+    }
 };
 
 class ShuffleSplitter;
@@ -122,7 +125,7 @@ public:
 
     void split(DB::Block & block) override;
     virtual void computeAndCountPartitionId(DB::Block &) { }
-    std::vector<int64_t> getPartitionLength() const { return split_result.partition_length; }
+    std::vector<UInt64> getPartitionLength() const { return split_result.partition_lengths; }
     void writeIndexFile();
     SplitResult stop() override;
 

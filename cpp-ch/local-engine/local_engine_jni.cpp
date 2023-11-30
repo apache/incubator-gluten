@@ -790,14 +790,16 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_evi
 JNIEXPORT jobject Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_stop(JNIEnv * env, jobject, jlong splitterId)
 {
     LOCAL_ENGINE_JNI_METHOD_START
+
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
     auto result = splitter->splitter->stop();
-    const auto & partition_lengths = result.partition_length;
+
+    const auto & partition_lengths = result.partition_lengths;
     auto * partition_length_arr = env->NewLongArray(partition_lengths.size());
     const auto * src = reinterpret_cast<const jlong *>(partition_lengths.data());
     env->SetLongArrayRegion(partition_length_arr, 0, partition_lengths.size(), src);
 
-    const auto & raw_partition_lengths = result.raw_partition_length;
+    const auto & raw_partition_lengths = result.raw_partition_lengths;
     auto * raw_partition_length_arr = env->NewLongArray(raw_partition_lengths.size());
     const auto * raw_src = reinterpret_cast<const jlong *>(raw_partition_lengths.data());
     env->SetLongArrayRegion(raw_partition_length_arr, 0, raw_partition_lengths.size(), raw_src);
@@ -814,7 +816,7 @@ JNIEXPORT jobject Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_s
         partition_length_arr,
         raw_partition_length_arr,
         result.total_split_time,
-        result.total_disk_time,
+        result.total_io_time,
         result.total_serialize_time);
 
     return split_result;
