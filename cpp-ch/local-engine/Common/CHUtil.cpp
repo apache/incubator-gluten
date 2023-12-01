@@ -16,6 +16,8 @@
  */
 #include <filesystem>
 #include <memory>
+#include <fstream>
+#include <iostream>
 #include <optional>
 #include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
@@ -65,6 +67,11 @@
 
 #include <regex>
 #include "CHUtil.h"
+
+#include <Storages/StorageMergeTreeFactory.h>
+#include <Common/MergeTreeTool.h>
+#include <Parser/TypeParser.h>
+#include <Poco/JSON/Parser.h>
 
 namespace DB
 {
@@ -614,6 +621,181 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("precise_float_parsing", true);
 }
 
+static void load_medadata_impl(std::vector<String> & metadata_lines, String & table_path, String & root_path)
+{
+        String database = "default";
+        Poco::JSON::Parser parser;
+        // table path  jie xi chu lai
+        // names        // done
+        // tablename
+        // order by
+        // sort by
+        // database = clickhouse
+
+        String table;
+        String table_relative_path = table_path.substr(root_path.length());
+        Strings path_parts;
+        boost::split(path_parts, table_relative_path, boost::is_any_of("/"));
+
+        if (path_parts.size() == 1)
+        {
+            table = path_parts[0];
+        }
+        else if (path_parts.size() == 2)
+        {
+            database = path_parts[0];
+            table = path_parts[1];
+        }
+        else if (path_parts.size() == 3)
+        {
+            database = path_parts[0];
+            table = path_parts[1] + "_" + path_parts[2];
+        }
+        else
+        {
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "xxxxx");
+        }
+
+        std::shared_ptr<DB::StorageInMemoryMetadata> metadata;
+        NamesAndTypesList names_and_types_list;
+        String sort_column_names_str;
+
+        for (const auto & line : metadata_lines)
+        {
+            auto info = parser.parse(line).extract<Poco::JSON::Object::Ptr>();
+
+            if (auto metaData = info->getObject("metaData"))
+            {
+                auto schema_object = parser.parse(metaData->getValue<String>("schemaString")).extract<Poco::JSON::Object::Ptr>();
+                auto feilds = schema_object->get("fields").extract<Poco::JSON::Array::Ptr>();
+
+                for (size_t i = 0; i < feilds->size(); ++i)
+                {
+                    auto field = feilds->get(i).extract<Poco::JSON::Object::Ptr>();
+                    auto name = field->getValue<String>("name");
+                    auto type = TypeParser::getCHTypeByName(field->getValue<String>("type"));
+
+                    if (field->getValue<bool>("nullable"))
+                        type = makeNullable(type);
+
+                    names_and_types_list.push_back(NameAndTypePair(name, type));
+                }
+
+                metadata = buildMetaData(names_and_types_list, SerializedPlanParser::global_context);
+            }
+
+            if (auto commit_info = info->getObject("commitInfo"))
+            {
+                if (auto operation_parameters = commit_info->getObject("operationParameters"))
+                {
+                    auto table_properties
+                        = parser.parse(operation_parameters->getValue<String>("properties")).extract<Poco::JSON::Object::Ptr>();
+                    sort_column_names_str = table_properties->getValue<String>("sortColumnNames");
+                }
+            }
+        }
+
+        if (!metadata)
+            return;
+
+        if (!sort_column_names_str.empty())
+        {
+            metadata->sorting_key
+                = KeyDescription::parse(sort_column_names_str, metadata->getColumns(), SerializedPlanParser::global_context);
+            metadata->primary_key
+                = KeyDescription::parse(sort_column_names_str, metadata->getColumns(), SerializedPlanParser::global_context);
+        }
+
+        auto custom_storage_merge_tree = std::make_shared<CustomStorageMergeTree>(
+            StorageID(database, table),
+            table_path,
+            *metadata,
+            false,
+            SerializedPlanParser::global_context,
+            "",
+            MergeTreeData::MergingParams(),
+            buildMergeTreeSettings());
+        custom_storage_merge_tree->loadDataParts(false, std::nullopt);
+        auto storage_factory = StorageMergeTreeFactory::instance();
+        storage_factory.loadStorage(StorageID(database, table), metadata->getColumns(), custom_storage_merge_tree);
+}
+
+
+static void load_medadata(std::string dir, std::string & root_path)
+{
+    if (!fs::exists(dir) || std::filesystem::directory_entry(dir).status().type() != std::filesystem::file_type::directory)
+        return;
+
+    std::unordered_map<String, String> file_map;
+    std::filesystem::directory_iterator it(dir);
+
+    for (auto & child : it)
+        file_map[child.path().filename()] = child.path().string();
+
+    if (file_map.contains("_delta_log"))
+    {
+        String metadata_file = file_map["_delta_log"] + "/00000000000000000000.json";
+        if (!fs::exists(metadata_file) && !std::filesystem::directory_entry(metadata_file).is_regular_file())
+        {
+            LOG_WARNING(
+                &Poco::Logger::get("CHUtil"), "Can not find file '00000000000000000000.json' in_delta_log {}.", file_map["_delta_log"]);
+            return;
+        }
+
+        std::ifstream fio(metadata_file);
+        String line;
+        std::vector<String> lines;
+        size_t line_num = 0;
+        while (getline(fio, line))
+        {
+            lines.emplace_back(line);
+            line_num++;
+
+            if (line_num > 3)
+                break;
+        }
+
+        fio.close();
+
+        if (lines.size() < 3)
+            throw Exception(ErrorCodes::LOGICAL_ERROR, "Format ch metadata error. Expected 3 rows but {}", line.size());
+
+        if (file_map.contains("format_version.txt"))
+        {
+            load_medadata_impl(lines, dir, root_path);
+        }
+        else
+        {
+            for (std::pair<String, String> p : file_map)
+            {
+                if (p.first == "_delta_log")
+                    continue;
+
+                load_medadata_impl(lines, p.second, root_path);
+            }
+        }
+    }
+    else
+    {
+        for (std::pair<String, String> p : file_map)
+            load_medadata(p.second, root_path);
+    }
+}
+
+void BackendInitializerUtil::initMetadata(std::map<std::string, std::string> & backend_conf_map)
+{
+    String key = "spark.gluten.sql.columnar.backend.ch.runtime_config.ch_metadata";
+    if (backend_conf_map.contains(key))
+    {
+        auto metadata_dir = backend_conf_map[key];
+        if (!metadata_dir.ends_with("/"))
+            metadata_dir.append("/");
+
+        load_medadata(metadata_dir, metadata_dir);
+
+      }
+}
+
 void BackendInitializerUtil::initContexts(DB::Context::ConfigurationPtr config)
 {
     /// Make sure global_context and shared_context are constructed only once.
@@ -756,6 +938,8 @@ void BackendInitializerUtil::init(std::string * plan)
                 0, // We don't need any threads one all the parts will be loaded
                 active_parts_loading_threads);
         });
+
+    initMetadata(backend_conf_map);
 }
 
 void BackendInitializerUtil::updateConfig(DB::ContextMutablePtr context, std::string * plan)

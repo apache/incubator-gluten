@@ -224,7 +224,7 @@ static const std::set<std::string> FUNCTION_NEED_KEEP_ARGUMENTS = {"alias"};
 struct QueryContext
 {
     StorageSnapshotPtr storage_snapshot;
-    std::shared_ptr<DB::StorageInMemoryMetadata> metadata;
+    StorageMetadataPtr metadata;
     std::shared_ptr<CustomStorageMergeTree> custom_storage_merge_tree;
 };
 

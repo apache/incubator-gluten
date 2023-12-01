@@ -55,18 +55,31 @@ std::unordered_map<String, String> TypeParser::type_names_mapping
        {"ByteType", "Int8"},
        {"ShortType", "Int16"},
        {"IntegerType", "Int32"},
+       {"integer", "Int32"},
        {"LongType", "Int64"},
+       {"long", "Int64"},
        {"FloatType", "Float32"},
        {"DoubleType", "Float64"},
+       {"double", "Float64"},
        {"StringType", "String"},
-       {"DateType", "Date32"}};
+       {"string", "String"},
+       {"DateType", "Date32"},
+       {"date", "Date32"}
+    };
 
 String TypeParser::getCHTypeName(const String & spark_type_name)
 {
-    auto it = type_names_mapping.find(spark_type_name);
-    if (it == type_names_mapping.end())
-        throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported substrait type: {}", spark_type_name);
-    return it->second;
+    if (startsWith(spark_type_name, "decimal("))
+        return spark_type_name;
+    else if (startsWith(spark_type_name, "DecimalType"))
+        return "Decimal" + spark_type_name.substr(strlen("DecimalType"));
+    else
+    {
+        auto it = type_names_mapping.find(spark_type_name);
+        if (it == type_names_mapping.end())
+            throw DB::Exception(DB::ErrorCodes::UNKNOWN_TYPE, "Unsupported substrait type: {}", spark_type_name);
+        return it->second;
+    }
 }
 
 DB::DataTypePtr TypeParser::getCHTypeByName(const String & spark_type_name)

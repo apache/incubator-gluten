@@ -14,11 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "MergeTreeTool.h"
+
 #include <IO/ReadBufferFromString.h>
 #include <IO/ReadHelpers.h>
 #include <IO/WriteBufferFromString.h>
 #include <IO/WriteHelpers.h>
+
+
+#include <boost/algorithm/string.hpp>
+
+#include "MergeTreeTool.h"
 
 using namespace DB;
 
@@ -44,6 +49,7 @@ std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings()
     auto settings = std::make_unique<DB::MergeTreeSettings>();
     settings->set("min_bytes_for_wide_part", Field(0));
     settings->set("min_rows_for_wide_part", Field(0));
+    settings->set("allow_nullable_key", Field(1));
     return settings;
 }
 

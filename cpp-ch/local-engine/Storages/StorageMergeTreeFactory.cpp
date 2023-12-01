@@ -24,34 +24,51 @@ StorageMergeTreeFactory & StorageMergeTreeFactory::instance()
     return ret;
 }
 
+void StorageMergeTreeFactory::loadStorage(StorageID id, ColumnsDescription columns, CustomStorageMergeTreePtr storage)
+{
+    auto table_name = id.database_name + "." + id.table_name;
+    if (storage_map.contains(table_name))
+    {
+        LOG_DEBUG(&Poco::Logger::get("StorageMergeTreeFactory"), "Table {} has already loaded.", table_name);
+        return;
+    }
+
+    storage_map.emplace(table_name, storage);
+    for (const auto & column : storage_map.at(table_name)->getInMemoryMetadataPtr()->columns)
+        storage_columns_map[table_name].emplace(column.name);
+
+    LOG_DEBUG(&Poco::Logger::get("StorageMergeTreeFactory"), "Table {} is loaded.", table_name);
+}
+
 CustomStorageMergeTreePtr
 StorageMergeTreeFactory::getStorage(StorageID id, ColumnsDescription columns, std::function<CustomStorageMergeTreePtr()> creator)
 {
     auto table_name = id.database_name + "." + id.table_name;
-    std::lock_guard lock(storage_map_mutex);
+    // std::lock_guard lock(storage_map_mutex);
     if (!storage_map.contains(table_name))
     {
-        if (storage_map.contains(table_name))
-        {
-            std::set<std::string> existed_columns = storage_columns_map.at(table_name);
-            for (const auto & column : columns)
-            {
-                if (!existed_columns.contains(column.name))
-                {
-                    storage_map.erase(table_name);
-                    storage_columns_map.erase(table_name);
-                }
-            }
-        }
-        if (!storage_map.contains(table_name))
-        {
-            storage_map.emplace(table_name, creator());
-            storage_columns_map.emplace(table_name, std::set<std::string>());
-            for (const auto & column : storage_map.at(table_name)->getInMemoryMetadataPtr()->columns)
-            {
-                storage_columns_map.at(table_name).emplace(column.name);
-            }
-        }
+        throw Exception(ErrorCodes::LOGICAL_ERROR, "Table {} metadata is not loaded.", table_name);
+        // if (storage_map.contains(table_name))
+        // {
+        //     std::set<std::string> existed_columns = storage_columns_map.at(table_name);
+        //     for (const auto & column : columns)
+        //     {
+        //         if (!existed_columns.contains(column.name))
+        //         {
+        //             storage_map.erase(table_name);
+        //             storage_columns_map.erase(table_name);
+        //         }
+        //     }
+        // }
+        // if (!storage_map.contains(table_name))
+        // {
+        //     storage_map.emplace(table_name, creator());
+        //     storage_columns_map.emplace(table_name, std::set<std::string>());
+        //     for (const auto & column : storage_map.at(table_name)->getInMemoryMetadataPtr()->columns)
+        //     {
+        //         storage_columns_map.at(table_name).emplace(column.name);
+        //     }
+        // }
     }
     return storage_map.at(table_name);
 }
