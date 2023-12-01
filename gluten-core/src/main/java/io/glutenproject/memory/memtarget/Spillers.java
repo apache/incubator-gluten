@@ -16,22 +16,25 @@
  */
 package io.glutenproject.memory.memtarget;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
 public final class Spillers {
   private Spillers() {
     // enclose factory ctor
   }
 
-  // calls the spillers one by one within the order
-  public static Spiller withOrder(Spiller... spillers) {
-    return (self, size) -> {
-      long remaining = size;
-      for (int i = 0; i < spillers.length && remaining > 0; i++) {
-        Spiller spiller = spillers[i];
-        remaining -= spiller.spill(self, remaining);
-      }
-      return size - remaining;
-    };
-  }
+  public static final Set<Spiller.Phase> PHASE_SET_ALL =
+      Collections.unmodifiableSet(
+          new HashSet<>(Arrays.asList(Spiller.Phase.SHRINK, Spiller.Phase.SPILL)));
+
+  public static final Set<Spiller.Phase> PHASE_SET_SHRINK_ONLY =
+      Collections.singleton(Spiller.Phase.SHRINK);
+
+  public static final Set<Spiller.Phase> PHASE_SET_SPILL_ONLY =
+      Collections.singleton(Spiller.Phase.SPILL);
 
   public static Spiller withMinSpillSize(Spiller spiller, long minSize) {
     return new WithMinSpillSize(spiller, minSize);
@@ -52,6 +55,11 @@ public final class Spillers {
     @Override
     public long spill(MemoryTarget self, long size) {
       return delegated.spill(self, Math.max(size, minSize));
+    }
+
+    @Override
+    public Set<Phase> applicablePhases() {
+      return delegated.applicablePhases();
     }
   }
 }

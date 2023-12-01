@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.memtarget.MemoryTarget
 import io.glutenproject.memory.memtarget.Spiller
+import io.glutenproject.memory.memtarget.Spillers
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
 
@@ -34,6 +35,7 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
+import java.util
 
 class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
     handle: CelebornShuffleHandle[K, V, V],
@@ -99,6 +101,9 @@ class VeloxCelebornHashBasedColumnarShuffleWriter[K, V](
                     logInfo(s"Gluten shuffle writer: Pushed $pushed / $size bytes of data")
                     pushed
                   }
+
+                  override def applicablePhases(): util.Set[Spiller.Phase] =
+                    Spillers.PHASE_SET_SPILL_ONLY
                 }
               )
               .getNativeInstanceHandle,

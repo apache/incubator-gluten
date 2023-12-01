@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.columnarbatch.ColumnarBatches
 import io.glutenproject.memory.memtarget.MemoryTarget
 import io.glutenproject.memory.memtarget.Spiller
+import io.glutenproject.memory.memtarget.Spillers
 import io.glutenproject.memory.nmm.NativeMemoryManagers
 import io.glutenproject.vectorized._
 
@@ -149,6 +150,9 @@ class ColumnarShuffleWriter[K, V](
                     logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
                     spilled
                   }
+
+                  override def applicablePhases(): java.util.Set[Spiller.Phase] =
+                    Spillers.PHASE_SET_SPILL_ONLY
                 }
               )
               .getNativeInstanceHandle,

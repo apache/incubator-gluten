@@ -19,6 +19,9 @@ package io.glutenproject.vectorized;
 import io.glutenproject.backendsapi.BackendsApiManager;
 import io.glutenproject.exec.Runtime;
 import io.glutenproject.exec.Runtimes;
+import io.glutenproject.memory.memtarget.MemoryTarget;
+import io.glutenproject.memory.memtarget.Spiller;
+import io.glutenproject.memory.memtarget.Spillers;
 import io.glutenproject.memory.nmm.NativeMemoryManager;
 import io.glutenproject.memory.nmm.NativeMemoryManagers;
 import io.glutenproject.utils.DebugUtil;
@@ -30,6 +33,7 @@ import org.apache.spark.util.SparkDirectoryUtil;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -62,17 +66,25 @@ public class NativePlanEvaluator {
     final NativeMemoryManager nmm =
         NativeMemoryManagers.create(
             "WholeStageIterator",
-            (self, size) -> {
-              ColumnarBatchOutIterator instance =
-                  Optional.of(outIterator.get())
-                      .orElseThrow(
-                          () ->
-                              new IllegalStateException(
-                                  "Fatal: spill() called before a output iterator "
-                                      + "is created. This behavior should be optimized "
-                                      + "by moving memory allocations from create() to "
-                                      + "hasNext()/next()"));
-              return instance.spill(size);
+            new Spiller() {
+              @Override
+              public long spill(MemoryTarget self, long size) {
+                ColumnarBatchOutIterator instance =
+                    Optional.of(outIterator.get())
+                        .orElseThrow(
+                            () ->
+                                new IllegalStateException(
+                                    "Fatal: spill() called before a output iterator "
+                                        + "is created. This behavior should be optimized "
+                                        + "by moving memory allocations from create() to "
+                                        + "hasNext()/next()"));
+                return instance.spill(size);
+              }
+
+              @Override
+              public Set<Phase> applicablePhases() {
+                return Spillers.PHASE_SET_SPILL_ONLY;
+              }
             });
     final long memoryManagerHandle = nmm.getNativeInstanceHandle();
 
