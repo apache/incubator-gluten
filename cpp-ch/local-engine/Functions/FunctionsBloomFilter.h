@@ -171,8 +171,9 @@ private:
             if (!agg_func)
             {
                 AggregateFunctionProperties properties;
+                auto action = NullsAction::EMPTY;
                 agg_func = AggregateFunctionFactory::instance().get(
-                    "groupBloomFilter", DataTypes{std::make_shared<DataTypeNullable>(std::make_shared<DataTypeInt64>())}, {}, properties);
+                    "groupBloomFilter", action, DataTypes{std::make_shared<DataTypeNullable>(std::make_shared<DataTypeInt64>())}, {}, properties);
             }
             // Gluten serialized the AggregateFunction into a String.
             if (allocated_bytes_for_bloom_filter_state == nullptr)
