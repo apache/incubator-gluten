@@ -85,18 +85,16 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
     }
     auto names_and_types_list = header.getNamesAndTypesList();
     auto storage_factory = StorageMergeTreeFactory::instance();
-    auto metadata = buildMetaData(names_and_types_list, context);
-    query_context.metadata = metadata;
 
     auto storage = storage_factory.getStorage(
         StorageID(merge_tree_table.database, merge_tree_table.table),
-        metadata->getColumns(),
+        ColumnsDescription(),
         [&]() -> CustomStorageMergeTreePtr
         {
             auto custom_storage_merge_tree = std::make_shared<CustomStorageMergeTree>(
                 StorageID(merge_tree_table.database, merge_tree_table.table),
                 merge_tree_table.relative_path,
-                *metadata,
+                *buildMetaData(names_and_types_list, context),
                 false,
                 global_context,
                 "",
@@ -105,11 +103,13 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
             custom_storage_merge_tree->loadDataParts(false, std::nullopt);
             return custom_storage_merge_tree;
         });
+    auto metadata = storage->getInMemoryMetadataPtr();
+    query_context.metadata = metadata;
 
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
 
-    query_context.storage_snapshot = std::make_shared<StorageSnapshot>(*storage, metadata);
+    query_context.storage_snapshot = std::make_shared<StorageSnapshot>(*storage,  metadata);
     query_context.custom_storage_merge_tree = storage;
     auto query_info = buildQueryInfo(names_and_types_list);
 

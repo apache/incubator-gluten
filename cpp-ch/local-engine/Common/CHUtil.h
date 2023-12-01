@@ -166,6 +166,7 @@ private:
     static void initLoggers(DB::Context::ConfigurationPtr config);
     static void initEnvs(DB::Context::ConfigurationPtr config);
     static void initSettings(std::map<std::string, std::string> & backend_conf_map, DB::Settings & settings);
+    static void initMetadata(std::map<std::string, std::string> & backend_conf_map);
 
     static void initContexts(DB::Context::ConfigurationPtr config);
     static void initCompiledExpressionCache(DB::Context::ConfigurationPtr config);
