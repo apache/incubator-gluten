@@ -301,7 +301,7 @@ void ColumnsBuffer::appendSelective(
         accumulated_columns.reserve(source.columns());
         for (size_t i = 0; i < source.columns(); i++)
         {
-            auto column = source.getColumns()[i]->convertToFullColumnIfConst()->cloneEmpty();
+            auto column = source.getColumns()[i]->convertToFullColumnIfConst()->convertToFullColumnIfSparse()->cloneEmpty();
             column->reserve(prefer_buffer_size);
             accumulated_columns.emplace_back(std::move(column));
         }
@@ -310,7 +310,7 @@ void ColumnsBuffer::appendSelective(
     if (!accumulated_columns[column_idx]->onlyNull())
     {
         accumulated_columns[column_idx]->insertRangeSelective(
-            *source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
+            *source.getByPosition(column_idx).column->convertToFullColumnIfConst()->convertToFullColumnIfSparse(), selector, from, length);
     }
     else
     {

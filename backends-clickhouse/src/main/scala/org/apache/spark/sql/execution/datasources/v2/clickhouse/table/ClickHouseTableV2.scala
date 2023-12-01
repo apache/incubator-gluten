@@ -323,8 +323,11 @@ object ClickHouseTableV2 extends Logging {
       .sortWith(
         (a, b) => {
           if (a.bucketNum.nonEmpty) {
-            (Integer.parseInt(a.bucketNum) < Integer.parseInt(b.bucketNum)) ||
-            (a.minBlockNumber < b.minBlockNumber)
+            if (Integer.parseInt(a.bucketNum) == Integer.parseInt(b.bucketNum)) {
+              a.minBlockNumber < b.minBlockNumber
+            } else {
+              Integer.parseInt(a.bucketNum) < Integer.parseInt(b.bucketNum)
+            }
           } else {
             a.minBlockNumber < b.minBlockNumber
           }
