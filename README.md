@@ -24,7 +24,7 @@ The basic rule of Gluten's design is that we would reuse spark's whole control f
 * Switch available native backends easily
 * Reuse Spark’s distributed control flow
 * Manage data sharing between JVM and native
-* Extend to supporting more native accelerators
+* Extensible to support more native accelerators
 
 ## 1.3 Target User
 
