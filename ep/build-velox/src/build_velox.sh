@@ -157,7 +157,8 @@ function compile {
   fi
 }
 
-function check_commit {
+# TODO: Move prepare_sourcecode to get_velox.sh
+function prepare_sourcecode {
   if [ $ENABLE_EP_CACHE == "ON" ]; then
     if [ -f ${VELOX_HOME}/velox-commit.cache ]; then
       CACHED_BUILT_COMMIT="$(cat ${VELOX_HOME}/velox-commit.cache)"
@@ -167,12 +168,15 @@ function check_commit {
           exit 0
         else
           echo "Found cached commit $CACHED_BUILT_COMMIT for Velox which is different with target commit $TARGET_BUILD_COMMIT."
+          git reset --hard HEAD
         fi
       fi
     fi
   else
     git clean -dffx :/
   fi
+
+  apply_compilation_fixes $CURRENT_DIR $VELOX_HOME
 
   if [ -f ${VELOX_HOME}/velox-commit.cache ]; then
     rm -f ${VELOX_HOME}/velox-commit.cache
@@ -264,8 +268,7 @@ if [ -z "$TARGET_BUILD_COMMIT" ]; then
 fi
 echo "Target Velox commit: $TARGET_BUILD_COMMIT"
 
-check_commit
-apply_compilation_fixes $CURRENT_DIR $VELOX_HOME
+prepare_sourcecode
 compile
 
 echo "Successfully built Velox from Source."
