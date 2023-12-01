@@ -32,7 +32,8 @@ public class CHShuffleSplitterJniWrapper {
       int subDirsPerLocalDir,
       boolean preferSpill,
       long spillThreshold,
-      String hashAlgorithm) {
+      String hashAlgorithm,
+      boolean throwIfMemoryExceed) {
     return nativeMake(
         part.getShortName(),
         part.getNumPartitions(),
@@ -47,7 +48,8 @@ public class CHShuffleSplitterJniWrapper {
         subDirsPerLocalDir,
         preferSpill,
         spillThreshold,
-        hashAlgorithm);
+        hashAlgorithm,
+        throwIfMemoryExceed);
   }
 
   public long makeForRSS(
@@ -58,7 +60,8 @@ public class CHShuffleSplitterJniWrapper {
       String codec,
       long spillThreshold,
       String hashAlgorithm,
-      Object pusher) {
+      Object pusher,
+      boolean throwIfMemoryExceed) {
     return nativeMakeForRSS(
         part.getShortName(),
         part.getNumPartitions(),
@@ -70,7 +73,8 @@ public class CHShuffleSplitterJniWrapper {
         codec,
         spillThreshold,
         hashAlgorithm,
-        pusher);
+        pusher,
+        throwIfMemoryExceed);
   }
 
   public native long nativeMake(
@@ -87,7 +91,8 @@ public class CHShuffleSplitterJniWrapper {
       int subDirsPerLocalDir,
       boolean preferSpill,
       long spillThreshold,
-      String hashAlgorithm);
+      String hashAlgorithm,
+      boolean throwIfMemoryExceed);
 
   public native long nativeMakeForRSS(
       String shortName,
@@ -100,7 +105,8 @@ public class CHShuffleSplitterJniWrapper {
       String codec,
       long spillThreshold,
       String hashAlgorithm,
-      Object pusher);
+      Object pusher,
+      boolean throwIfMemoryExceed);
 
   public native void split(long splitterId, long block);
 

@@ -14,34 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+package io.glutenproject.metrics
 
-#include <Shuffle/ShuffleSplitter.h>
+import org.apache.spark.sql.execution.metric.SQLMetric
 
-namespace DB
-{
-class Block;
-}
-
-namespace local_engine
-{
-
-class BlockCoalesceOperator
-{
-public:
-    explicit BlockCoalesceOperator(size_t buf_size_) : buf_size(buf_size_) { }
-    ~BlockCoalesceOperator();
-
-    void mergeBlock(DB::Block & block);
-    bool isFull();
-    DB::Block * releaseBlock();
-
-private:
-    void clearCache();
-
-    size_t buf_size;
-    ColumnsBuffer block_buffer;
-    DB::Block * cached_block = nullptr;
-
-};
+case class InputIteratorMetricsUpdater(metrics: Map[String, SQLMetric]) extends MetricsUpdater {
+  override def updateNativeMetrics(opMetrics: IOperatorMetrics): Unit = {
+    if (opMetrics != null) {
+      val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
+      if (!operatorMetrics.metricsList.isEmpty) {
+        val metricsData = operatorMetrics.metricsList.get(0)
+        metrics("iterReadTime") += (metricsData.time / 1000L).toLong
+        metrics("outputVectors") += metricsData.outputVectors
+      }
+    }
+  }
 }

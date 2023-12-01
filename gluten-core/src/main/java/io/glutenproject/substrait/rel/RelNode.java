@@ -18,8 +18,10 @@ package io.glutenproject.substrait.rel;
 
 import io.substrait.proto.Rel;
 
+import java.io.Serializable;
+
 /** Contains helper functions for constructing substrait relations. */
-public interface RelNode {
+public interface RelNode extends Serializable {
   /**
    * Converts a Rel into a protobuf.
    *

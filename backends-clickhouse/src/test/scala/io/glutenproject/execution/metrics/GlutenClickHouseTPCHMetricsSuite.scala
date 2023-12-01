@@ -22,6 +22,7 @@ import io.glutenproject.vectorized.GeneralInIterator
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.expressions.Attribute
+import org.apache.spark.sql.execution.InputIteratorTransformer
 
 import scala.collection.JavaConverters._
 
@@ -202,7 +203,9 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       metricsJsonFilePath + "/tpch-q2-wholestage-2-metrics.json"
     ) {
       () =>
-        val allGlutenPlans = wholeStageTransformer1.collect { case g: GlutenPlan => g }
+        val allGlutenPlans = wholeStageTransformer1.collect {
+          case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
+        }
 
         val scanPlan = allGlutenPlans(10)
         assert(scanPlan.metrics("scanTime").value == 2)
@@ -237,12 +240,14 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
       metricsJsonFilePath + "/tpch-q2-wholestage-11-metrics.json"
     ) {
       () =>
-        val allGlutenPlans = wholeStageTransformer2.collect { case g: GlutenPlan => g }
+        val allGlutenPlans = wholeStageTransformer2.collect {
+          case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
+        }
 
         assert(allGlutenPlans.size == 58)
 
         val shjPlan = allGlutenPlans(8)
-        assert(shjPlan.metrics("totalTime").value == 7)
+        assert(shjPlan.metrics("totalTime").value == 6)
         assert(shjPlan.metrics("inputWaitTime").value == 5)
         assert(shjPlan.metrics("outputWaitTime").value == 0)
         assert(shjPlan.metrics("outputRows").value == 44)

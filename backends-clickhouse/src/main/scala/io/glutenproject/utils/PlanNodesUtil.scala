@@ -20,7 +20,7 @@ import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.expression.ExpressionNode
 import io.glutenproject.substrait.plan.{PlanBuilder, PlanNode}
-import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder}
+import io.glutenproject.substrait.rel.RelBuilder
 
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, BoundReference, Expression}
 
@@ -31,17 +31,10 @@ object PlanNodesUtil {
   def genProjectionsPlanNode(key: Expression, output: Seq[Attribute]): PlanNode = {
     val context = new SubstraitContext
 
-    // input
-    val iteratorIndex: Long = context.nextIteratorIndex
     var operatorId = context.nextOperatorId("ClickHouseBuildSideRelationReadIter")
-    val inputIter = LocalFilesBuilder.makeLocalFiles(
-      ConverterUtils.ITERATOR_PREFIX.concat(iteratorIndex.toString))
-    context.setIteratorNode(iteratorIndex, inputIter)
-
     val typeList = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithExprId(output)
-    val readRel =
-      RelBuilder.makeReadRel(typeList, nameList, null, iteratorIndex, context, operatorId)
+    val readRel = RelBuilder.makeReadRelForInputIterator(typeList, nameList, context, operatorId)
 
     // replace attribute to BoundRefernce according to the output
     val newBoundRefKey = key.transformDown {

@@ -21,7 +21,7 @@ import io.glutenproject.expression._
 import io.glutenproject.substrait.`type`.TypeNode
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.rel.{LocalFilesBuilder, RelBuilder, RelNode}
+import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
@@ -80,17 +80,12 @@ case class CHHashAggregateExecTransformer(
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child match {
-      case c: TransformSupport =>
-        c.doTransform(context)
-      case _ =>
-        null
-    }
-
-    val aggParams = new AggregationParams
+    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
 
-    val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
+    val aggParams = new AggregationParams
+    val isChildTransformSupported = !child.isInstanceOf[InputIteratorTransformer]
+    val (relNode, inputAttributes, outputAttributes) = if (isChildTransformSupported) {
       // The final HashAggregateExecTransformer and partial HashAggregateExecTransformer
       // are in the one WholeStageTransformer.
       if (modes.isEmpty || !modes.contains(Partial)) {
@@ -110,7 +105,6 @@ case class CHHashAggregateExecTransformer(
       // Notes: Currently, ClickHouse backend uses the output attributes of
       // aggregateResultAttributes as Shuffle output,
       // which is different from Velox backend.
-      aggParams.isReadRel = true
       val typeList = new util.ArrayList[TypeNode]()
       val nameList = new util.ArrayList[String]()
       val (inputAttrs, outputAttrs) = {
@@ -152,14 +146,10 @@ case class CHHashAggregateExecTransformer(
         }
       }
 
-      // The iterator index will be added in the path of LocalFiles.
-      val iteratorIndex: Long = context.nextIteratorIndex
-      val inputIter = LocalFilesBuilder.makeLocalFiles(
-        ConverterUtils.ITERATOR_PREFIX.concat(iteratorIndex.toString))
-      context.setIteratorNode(iteratorIndex, inputIter)
+      // The output is different with child.output, so we can not use `childCtx.root` as the
+      // `ReadRel`. Here we re-generate the `ReadRel` with the special output list.
       val readRel =
-        RelBuilder.makeReadRel(typeList, nameList, null, iteratorIndex, context, operatorId)
-
+        RelBuilder.makeReadRelForInputIteratorWithoutRegister(typeList, nameList, context)
       (getAggRel(context, operatorId, aggParams, readRel), inputAttrs, outputAttrs)
     }
     TransformContext(inputAttributes, outputAttributes, relNode)

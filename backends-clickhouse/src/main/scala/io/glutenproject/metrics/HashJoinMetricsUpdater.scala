@@ -40,15 +40,6 @@ class HashJoinMetricsUpdater(val metrics: Map[String, SQLMetric])
             currentIdx -= 1
           }
 
-          // build side read rel
-          if (joinParams.isBuildReadRel) {
-            val buildSideRealRel = operatorMetrics.metricsList.get(currentIdx)
-            metrics("buildIterReadTime") += (buildSideRealRel.time / 1000L).toLong
-            metrics("outputVectors") += buildSideRealRel.outputVectors
-            totalTime += buildSideRealRel.time
-            currentIdx -= 1
-          }
-
           // stream side pre projection
           if (joinParams.streamPreProjectionNeeded) {
             metrics("streamPreProjectionTime") +=
@@ -58,25 +49,15 @@ class HashJoinMetricsUpdater(val metrics: Map[String, SQLMetric])
             currentIdx -= 1
           }
 
-          // stream side read rel
-          if (joinParams.isStreamedReadRel) {
-            metrics("streamIterReadTime") +=
-              (operatorMetrics.metricsList.get(currentIdx).time / 1000L).toLong
-            metrics("outputVectors") += operatorMetrics.metricsList.get(currentIdx).outputVectors
-            totalTime += operatorMetrics.metricsList.get(currentIdx).time
-
-            // update fillingRightJoinSideTime
-            MetricsUtil
-              .getAllProcessorList(operatorMetrics.metricsList.get(currentIdx))
-              .foreach(
-                processor => {
-                  if (processor.name.equalsIgnoreCase("FillingRightJoinSide")) {
-                    metrics("fillingRightJoinSideTime") += (processor.time / 1000L).toLong
-                  }
-                })
-
-            currentIdx -= 1
-          }
+          // update fillingRightJoinSideTime
+          MetricsUtil
+            .getAllProcessorList(operatorMetrics.metricsList.get(currentIdx))
+            .foreach(
+              processor => {
+                if (processor.name.equalsIgnoreCase("FillingRightJoinSide")) {
+                  metrics("fillingRightJoinSideTime") += (processor.time / 1000L).toLong
+                }
+              })
 
           // joining
           val joinMetricsData = operatorMetrics.metricsList.get(currentIdx)

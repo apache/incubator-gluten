@@ -17,7 +17,7 @@
 package io.glutenproject.execution
 
 import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf}
-import org.apache.spark.sql.execution.ColumnarInputAdapter
+import org.apache.spark.sql.execution.InputIteratorTransformer
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 
 import org.apache.commons.io.FileUtils
@@ -240,12 +240,12 @@ class GlutenClickHouseTPCHParquetBucketSuite
           plans(3)
             .asInstanceOf[HashJoinLikeExecTransformer]
             .left
-            .isInstanceOf[ColumnarInputAdapter])
+            .isInstanceOf[InputIteratorTransformer])
         assert(
           plans(3)
             .asInstanceOf[HashJoinLikeExecTransformer]
             .right
-            .isInstanceOf[ColumnarInputAdapter])
+            .isInstanceOf[InputIteratorTransformer])
 
         // Check the bucket join
         assert(
@@ -263,13 +263,13 @@ class GlutenClickHouseTPCHParquetBucketSuite
           plans(9)
             .asInstanceOf[HashJoinLikeExecTransformer]
             .left
-            .isInstanceOf[ColumnarInputAdapter])
+            .isInstanceOf[InputIteratorTransformer])
         if (sparkVersion.equals("3.2")) {
           assert(
             plans(9)
               .asInstanceOf[HashJoinLikeExecTransformer]
               .right
-              .isInstanceOf[ColumnarInputAdapter])
+              .isInstanceOf[InputIteratorTransformer])
         } else {
           assert(
             plans(9)
@@ -303,7 +303,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
             plans(1)
               .asInstanceOf[HashJoinLikeExecTransformer]
               .left
-              .isInstanceOf[ColumnarInputAdapter])
+              .isInstanceOf[InputIteratorTransformer])
         } else {
           assert(
             plans(1)
@@ -316,7 +316,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
           plans(1)
             .asInstanceOf[HashJoinLikeExecTransformer]
             .right
-            .isInstanceOf[ColumnarInputAdapter])
+            .isInstanceOf[InputIteratorTransformer])
 
         if (sparkVersion.equals("3.2")) {
           assert(!(plans(2).asInstanceOf[FileSourceScanExecTransformer].bucketedScan))
@@ -460,7 +460,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
             plans(1)
               .asInstanceOf[HashJoinLikeExecTransformer]
               .left
-              .isInstanceOf[ColumnarInputAdapter])
+              .isInstanceOf[InputIteratorTransformer])
         } else {
           assert(
             plans(1)
@@ -472,18 +472,18 @@ class GlutenClickHouseTPCHParquetBucketSuite
           plans(1)
             .asInstanceOf[HashJoinLikeExecTransformer]
             .right
-            .isInstanceOf[ColumnarInputAdapter])
+            .isInstanceOf[InputIteratorTransformer])
 
         assert(
           plans(2)
             .asInstanceOf[HashJoinLikeExecTransformer]
             .left
-            .isInstanceOf[ColumnarInputAdapter])
+            .isInstanceOf[InputIteratorTransformer])
         assert(
           plans(2)
             .asInstanceOf[HashJoinLikeExecTransformer]
             .right
-            .isInstanceOf[ColumnarInputAdapter])
+            .isInstanceOf[InputIteratorTransformer])
 
         assert(
           plans(3)
