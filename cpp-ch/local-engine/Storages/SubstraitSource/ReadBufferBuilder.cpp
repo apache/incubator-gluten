@@ -237,10 +237,10 @@ public:
     std::pair<size_t, size_t>
     adjustFileReadStartAndEndPos(size_t read_start_pos, size_t read_end_pos, const std::string & uri_path, const std::string & file_path)
     {
-        std::string hdfs_file_path = uri_path + file_path;
-        auto builder = DB::createHDFSBuilder(hdfs_file_path, context->getConfigRef());
+        auto builder = DB::createHDFSBuilder(uri_path, context->getConfigRef());
         auto fs = DB::createHDFSFS(builder.get());
         hdfsFile fin = hdfsOpenFile(fs.get(), file_path.c_str(), O_RDONLY, 0, 0, 0);
+        std::string hdfs_file_path = uri_path + file_path;
         if (!fin)
             throw DB::Exception(
                 DB::ErrorCodes::CANNOT_OPEN_FILE, "Cannot open hdfs file:{}, error: {}", hdfs_file_path, std::string(hdfsGetLastError()));
