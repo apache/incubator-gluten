@@ -67,9 +67,13 @@ public:
     virtual String getName() const = 0;
 
     void write(const PartitionInfo& info, DB::Block & block);
-    void writeNew(DB::Block & block);
+    void writeV2(DB::Block & block);
+    void writeV3(DB::Block & block);
+
     size_t evictPartitions(bool for_memory_spill = false, bool flush_block_buffer = false);
+
     void stop();
+    void stopV3();
 
 protected:
     size_t bytes() const;
@@ -83,11 +87,18 @@ protected:
         throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Evict single partition is not supported for {}", getName());
     }
 
+    virtual size_t
+    unsafeEvictSinglePartitionFromBlock(bool for_memory_spill, size_t partition_id, const DB::Block & block, size_t start, size_t length)
+    {
+        throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Evict single partition is not supported for {}", getName());
+    }
+
     virtual void unsafeStop() = 0;
 
     CachedShuffleWriter * shuffle_writer;
     const SplitOptions * options;
 
+    ColumnsBufferPtr sorted_buffer;
     std::vector<ColumnsBufferPtr> partition_block_buffer;
     std::vector<PartitionPtr> partition_buffer;
 
@@ -129,6 +140,9 @@ protected:
 
     bool supportsEvictSinglePartition() const override { return true; }
     size_t unsafeEvictSinglePartition(bool for_memory_spill, bool flush_block_buffer, size_t partition_id) override;
+
+    size_t unsafeEvictSinglePartitionFromBlock(
+        bool for_memory_spill, size_t partition_id, const DB::Block & block, size_t start, size_t length) override;
 
     void unsafeStop() override;
 

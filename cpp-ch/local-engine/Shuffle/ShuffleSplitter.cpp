@@ -269,7 +269,7 @@ void ColumnsBuffer::append(DB::Block & block, int start, int end)
     {
         accumulated_columns = block.cloneEmptyColumns();
         for (const auto & column : accumulated_columns )
-            column->reserve(prefer_buffer_size);
+            column->reserve(reserve_size);
     }
 
     assert(!accumulated_columns.empty());
@@ -296,7 +296,7 @@ void ColumnsBuffer::appendSelective(
     {
         accumulated_columns = block.cloneEmptyColumns();
         for (const auto & column : accumulated_columns )
-            column->reserve(prefer_buffer_size);
+            column->reserve(reserve_size);
     }
 
     if (!accumulated_columns[column_idx]->onlyNull())
@@ -335,7 +335,7 @@ DB::Block ColumnsBuffer::getHeader()
     return header;
 }
 
-ColumnsBuffer::ColumnsBuffer(size_t prefer_buffer_size_) : prefer_buffer_size(prefer_buffer_size_)
+ColumnsBuffer::ColumnsBuffer(size_t reserve_size_) : reserve_size(reserve_size_)
 {
 }
 

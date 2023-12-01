@@ -38,8 +38,13 @@ public:
     {}
 
     DB::Block getHeader() const { return header; }
+
     /// Returns the number of bytes written.
     size_t write(const DB::Block & block);
+
+    /// Returns the number of bytes written.
+    size_t write(const DB::Block & block, size_t offset, size_t limit);
+
     void flush();
 
 

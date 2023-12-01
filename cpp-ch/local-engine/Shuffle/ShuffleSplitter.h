@@ -55,7 +55,7 @@ struct SplitOptions
 class ColumnsBuffer
 {
 public:
-    ColumnsBuffer(size_t prefer_buffer_size = 8192);
+    ColumnsBuffer(size_t reserve_size = 8192);
     ~ColumnsBuffer() = default;
 
     void append(DB::Block & block, int start, int end);
@@ -75,10 +75,15 @@ public:
         return res;
     }
 
+    size_t reserveSize() const
+    {
+        return reserve_size;
+    }
+
 private:
     DB::MutableColumns accumulated_columns;
     DB::Block header;
-    size_t prefer_buffer_size;
+    size_t reserve_size;
 };
 using ColumnsBufferPtr = std::shared_ptr<ColumnsBuffer>;
 
