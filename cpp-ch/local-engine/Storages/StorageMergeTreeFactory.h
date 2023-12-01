@@ -26,6 +26,7 @@ class StorageMergeTreeFactory
 {
 public:
     static StorageMergeTreeFactory & instance();
+    static void loadStorage(StorageID id, ColumnsDescription columns, CustomStorageMergeTreePtr storage);
     static CustomStorageMergeTreePtr
     getStorage(StorageID id, ColumnsDescription columns, std::function<CustomStorageMergeTreePtr()> creator);
     static StorageInMemoryMetadataPtr getMetadata(StorageID id, std::function<StorageInMemoryMetadataPtr()> creator);
