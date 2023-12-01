@@ -857,6 +857,24 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
                          |""".stripMargin)(
       df => assert(getExecutedPlan(df).count(_.isInstanceOf[HashAggregateExecTransformer]) == 2))
   }
+
+  test("skewness") {
+    runQueryAndCompare("""
+                         |select skewness(l_partkey) from lineitem;
+                         |""".stripMargin) {
+      checkOperatorMatch[HashAggregateExecTransformer]
+    }
+    runQueryAndCompare("select skewness(l_partkey), count(distinct l_orderkey) from lineitem") {
+      df =>
+        {
+          assert(
+            getExecutedPlan(df).count(
+              plan => {
+                plan.isInstanceOf[HashAggregateExecTransformer]
+              }) == 4)
+        }
+    }
+  }
 }
 
 class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {
