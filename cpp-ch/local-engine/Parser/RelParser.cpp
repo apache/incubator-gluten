@@ -35,7 +35,8 @@ AggregateFunctionPtr RelParser::getAggregateFunction(
     const DB::String & name, DB::DataTypes arg_types, DB::AggregateFunctionProperties & properties, const DB::Array & parameters)
 {
     auto & factory = AggregateFunctionFactory::instance();
-    return factory.get(name, arg_types, parameters, properties);
+    auto action = NullsAction::EMPTY;
+    return factory.get(name, action, arg_types, parameters, properties);
 }
 
 std::optional<String> RelParser::parseSignatureFunctionName(UInt32 function_ref)
