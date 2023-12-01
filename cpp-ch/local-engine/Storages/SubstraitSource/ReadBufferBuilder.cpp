@@ -419,7 +419,7 @@ public:
                 /* restricted_seek */ true);
         };
 
-        DB::StoredObjects stored_objects{DB::StoredObject{key, "", object_size}};
+        DB::StoredObjects stored_objects{DB::StoredObject{key, object_size}};
         auto s3_impl = std::make_unique<DB::ReadBufferFromRemoteFSGather>(
             std::move(read_buffer_creator), stored_objects, new_settings, /* cache_log */ nullptr, /* use_external_buffer */ true);
 

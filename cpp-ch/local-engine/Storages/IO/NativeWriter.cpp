@@ -94,8 +94,8 @@ size_t NativeWriter::write(const DB::Block & block)
             if (is_agg_opt && agg_type && !isFixedSizeAggregateFunction(agg_type->getFunction()))
             {
                 const auto * str_col = static_cast<const ColumnString *>(column.column.get());
-                const PaddedPODArray<UInt8> & column_chars = str_col->getChars();
-                ostr.write(column_chars.raw_data(), str_col->getOffsets().back());
+                const auto & str_data = str_col->getChars();
+                ostr.write(str_data.raw_data(), str_col->getOffsets().back());
             }
             else
             {
@@ -108,4 +108,64 @@ size_t NativeWriter::write(const DB::Block & block)
     size_t written_size = written_after - written_before;
     return written_size;
 }
+
+
+size_t NativeWriter::write(const DB::Block & block, size_t offset, size_t limit)
+{
+    size_t written_before = ostr.count();
+
+    block.checkNumberOfRows();
+
+    /// Dimensions
+    size_t columns = block.columns();
+    size_t rows = limit;
+
+    writeVarUInt(columns, ostr);
+    writeVarUInt(rows, ostr);
+
+    for (size_t i = 0; i < columns; ++i)
+    {
+        auto column = block.safeGetByPosition(i);
+        /// agg state will convert to fixedString, need write actual agg state type
+        auto original_type = header.safeGetByPosition(i).type;
+        /// Type
+        String type_name = original_type->getName();
+        bool is_agg_opt = WhichDataType(original_type).isAggregateFunction()
+            && header.safeGetByPosition(i).column->getDataType() != block.safeGetByPosition(i).column->getDataType();
+        if (is_agg_opt)
+        {
+            writeStringBinary(type_name + AGG_STATE_SUFFIX, ostr);
+        }
+        else
+        {
+            writeStringBinary(type_name, ostr);
+        }
+
+        SerializationPtr serialization = column.type->getDefaultSerialization();
+        /// Data
+        if (rows)    /// Zero items of data is always represented as zero number of bytes.
+        {
+            const auto * agg_type = checkAndGetDataType<DataTypeAggregateFunction>(original_type.get());
+            if (is_agg_opt && agg_type && !isFixedSizeAggregateFunction(agg_type->getFunction()))
+            {
+                const auto * str_col = static_cast<const ColumnString *>(column.column.get());
+                const auto & str_data = str_col->getChars();
+                const auto & str_offsets = str_col->getOffsets();
+
+                const auto * from = str_data.data() + str_offsets[offset - 1];
+                size_t n = str_offsets[offset + limit - 1] - str_offsets[offset - 1];
+                ostr.write(reinterpret_cast<const char *>(from), n);
+            }
+            else
+            {
+                writeData(*serialization, column.column, ostr, offset, limit);
+            }
+        }
+    }
+
+    size_t written_after = ostr.count();
+    size_t written_size = written_after - written_before;
+    return written_size;
+}
+
 }

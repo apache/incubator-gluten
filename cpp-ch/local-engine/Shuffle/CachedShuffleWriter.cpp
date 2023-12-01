@@ -132,7 +132,7 @@ void CachedShuffleWriter::split(DB::Block & block)
     col_partition.column = column_partition->getPtr();
     out_block.insert(std::move(col_partition));
 
-    partition_writer->writeNew(out_block);
+    partition_writer->writeV3(out_block);
 }
 
 void CachedShuffleWriter::initOutputIfNeeded(Block & block)
@@ -169,7 +169,7 @@ SplitResult CachedShuffleWriter::stop()
         CurrentMemoryTracker::before_free = old_before_free;
     });
 
-    partition_writer->stop();
+    partition_writer->stopV3();
 
     static auto * logger = &Poco::Logger::get("CachedShuffleWriter");
     LOG_INFO(logger, "CachedShuffleWriter stop, split result: {}", split_result.toString());
@@ -187,7 +187,8 @@ size_t CachedShuffleWriter::evictPartitions()
         CurrentMemoryTracker::before_free = old_before_free;
     });
 
-    return partition_writer->evictPartitions(true, true);
+    // return partition_writer->evictPartitions(true, true);
+    return 0;
 }
 
 }
