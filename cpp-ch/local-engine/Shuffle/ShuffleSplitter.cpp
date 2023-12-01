@@ -269,7 +269,7 @@ void ColumnsBuffer::add(DB::Block & block, int start, int end)
         accumulated_columns.reserve(block.columns());
         for (size_t i = 0; i < block.columns(); i++)
         {
-            auto column = block.getColumns()[i]->cloneEmpty();
+            auto column = block.getByPosition(i).column->cloneEmpty();
             column->reserve(prefer_buffer_size);
             accumulated_columns.emplace_back(std::move(column));
         }
@@ -298,8 +298,7 @@ void ColumnsBuffer::appendSelective(
         accumulated_columns.reserve(source.columns());
         for (size_t i = 0; i < source.columns(); i++)
         {
-            // auto column = source.getColumns()[i]->convertToFullColumnIfConst()->cloneEmpty();
-            auto column = DataTypeFactory::instance().get(String(magic_enum::enum_name(source.getColumns()[i]->getDataType())))->createColumn();
+            auto column = DataTypeFactory::instance().get(String(magic_enum::enum_name(source.getByPosition(column_idx).column->getDataType())))->createColumn();
             column->reserve(prefer_buffer_size);
             accumulated_columns.emplace_back(std::move(column));
         }

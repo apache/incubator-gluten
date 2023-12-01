@@ -68,7 +68,7 @@ PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t
     }
     return PartitionInfo{
         .partition_selector = std::move(partition_selector),
-        .partition_start_points = partition_row_idx_start_points,
+        .partition_start_points = std::move(partition_row_idx_start_points),
         .partition_num = partition_num};
 }
 
