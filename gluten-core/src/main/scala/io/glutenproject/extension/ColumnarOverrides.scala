@@ -136,30 +136,20 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
   private def genFilterExec(plan: FilterExec): SparkPlan = {
     // FIXME: Filter push-down should be better done by Vanilla Spark's planner or by
     //  a individual rule.
-    // Push down the left conditions in Filter into Scan.
-    val newChild: SparkPlan =
-      if (
-        plan.child.isInstanceOf[FileSourceScanExec] ||
-        plan.child.isInstanceOf[BatchScanExec]
-      ) {
-        TransformHints.getHint(plan.child) match {
+    // Push down the left conditions in Filter into FileSourceScan.
+    val newChild: SparkPlan = plan.child match {
+      case scan: FileSourceScanExec =>
+        TransformHints.getHint(scan) match {
           case TRANSFORM_SUPPORTED() =>
             val newScan = FilterHandler.applyFilterPushdownToScan(plan, reuseSubquery)
             newScan match {
-              case ts: TransformSupport =>
-                if (ts.doValidate().isValid) {
-                  ts
-                } else {
-                  replaceWithTransformerPlan(plan.child)
-                }
-              case p: SparkPlan => p
+              case ts: TransformSupport if ts.doValidate().isValid => ts
+              case _ => replaceWithTransformerPlan(scan)
             }
-          case _ =>
-            replaceWithTransformerPlan(plan.child)
+          case _ => replaceWithTransformerPlan(scan)
         }
-      } else {
-        replaceWithTransformerPlan(plan.child)
-      }
+      case _ => replaceWithTransformerPlan(plan.child)
+    }
     logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
     BackendsApiManager.getSparkPlanExecApiInstance
       .genFilterExecTransformer(plan.condition, newChild)
@@ -544,18 +534,27 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         newSource
       }
     case plan: BatchScanExec =>
-      val transformer = ScanTransformerFactory.createBatchScanTransformer(plan, reuseSubquery)
-
-      val validationResult = transformer.doValidate()
-      if (validationResult.isValid) {
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        transformer
+      if (ScanTransformerFactory.supportedBatchScan(plan.scan)) {
+        val transformer = ScanTransformerFactory.createBatchScanTransformer(plan, reuseSubquery)
+        val validationResult = transformer.doValidate()
+        if (validationResult.isValid) {
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          transformer
+        } else {
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
+          val newSource = plan.copy(runtimeFilters = transformer.runtimeFilters)
+          TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
+          newSource
+        }
       } else {
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-        val newSource = plan.copy(runtimeFilters = transformer.runtimeFilters)
-        TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
+        // If filter expressions aren't empty, we need to transform the inner operators,
+        // and fallback the BatchScanExec itself.
+        val newSource = plan.copy(runtimeFilters = ExpressionConverter
+          .transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery))
+        TransformHints.tagNotTransformable(newSource, "The scan in BatchScanExec is not supported.")
         newSource
       }
+
     case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
       // TODO: Add DynamicPartitionPruningHiveScanSuite.scala
       val newPartitionFilters: Seq[Expression] = ExpressionConverter.transformDynamicPruningExpr(
