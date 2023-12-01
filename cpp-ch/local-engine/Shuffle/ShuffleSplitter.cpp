@@ -267,13 +267,9 @@ void ColumnsBuffer::append(DB::Block & block, int start, int end)
 
     if (accumulated_columns.empty())
     {
-        accumulated_columns.reserve(block.columns());
-        for (size_t i = 0; i < block.columns(); i++)
-        {
-            auto column = block.getColumns()[i]->cloneEmpty();
+        accumulated_columns = block.cloneEmptyColumns();
+        for (const auto & column : accumulated_columns )
             column->reserve(prefer_buffer_size);
-            accumulated_columns.emplace_back(std::move(column));
-        }
     }
 
     assert(!accumulated_columns.empty());
@@ -291,26 +287,21 @@ void ColumnsBuffer::append(DB::Block & block, int start, int end)
 }
 
 void ColumnsBuffer::appendSelective(
-    size_t column_idx, const DB::Block & source, const DB::IColumn::Selector & selector, size_t from, size_t length)
+    size_t column_idx, const DB::Block & block, const DB::IColumn::Selector & selector, size_t from, size_t length)
 {
     if (!header)
-        header = source.cloneEmpty();
+        header = block.cloneEmpty();
 
     if (accumulated_columns.empty())
     {
-        accumulated_columns.reserve(source.columns());
-        for (size_t i = 0; i < source.columns(); i++)
-        {
-            auto column = source.getColumns()[i]->convertToFullColumnIfConst()->cloneEmpty();
+        accumulated_columns = block.cloneEmptyColumns();
+        for (const auto & column : accumulated_columns )
             column->reserve(prefer_buffer_size);
-            accumulated_columns.emplace_back(std::move(column));
-        }
     }
 
     if (!accumulated_columns[column_idx]->onlyNull())
     {
-        accumulated_columns[column_idx]->insertRangeSelective(
-            *source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
+        accumulated_columns[column_idx]->insertRangeSelective(*block.getByPosition(column_idx).column, selector, from, length);
     }
     else
     {
