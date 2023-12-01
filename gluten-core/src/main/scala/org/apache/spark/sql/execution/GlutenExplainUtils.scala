@@ -84,6 +84,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
         case _: WholeStageCodegenExec =>
         case _: WholeStageTransformer =>
         case _: InputAdapter =>
+        case _: InputIteratorTransformer =>
         case _: ColumnarToRowTransition =>
         case _: RowToColumnarTransition =>
         case p: QueryStageExec => collect(p.plan)

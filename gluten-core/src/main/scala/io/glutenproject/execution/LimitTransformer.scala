@@ -57,6 +57,7 @@ case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
     val context = new SubstraitContext
     val operatorId = context.nextOperatorId(this.nodeName)
     val input = child match {
+      // for sort + limit case
       case c: TransformSupport => c.doTransform(context).root
       case _ => null
     }
@@ -66,18 +67,9 @@ case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child match {
-      case c: TransformSupport => c.doTransform(context)
-      case _ => null
-    }
-
+    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
-    val relNode = if (childCtx != null) {
-      getRelNode(context, operatorId, offset, count, child.output, childCtx.root, false)
-    } else {
-      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
-      getRelNode(context, operatorId, offset, count, child.output, readRel, false)
-    }
+    val relNode = getRelNode(context, operatorId, offset, count, child.output, childCtx.root, false)
     TransformContext(child.output, child.output, relNode)
   }
 
