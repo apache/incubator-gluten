@@ -217,7 +217,7 @@ function setup_linux {
   elif [[ "$LINUX_DISTRIBUTION" == "centos" ]]; then
     case "$LINUX_VERSION_ID" in
       8) process_setup_centos8 ;;
-      7) process_setup_centos7 ;;
+      7) process_setup_centos8 ;;
       *)
         echo "Unsupport centos version: $LINUX_VERSION_ID"
         exit 1
