@@ -307,7 +307,7 @@ void ColumnsBuffer::appendSelective(
     if (!accumulated_columns[column_idx]->onlyNull())
     {
         auto * nullable_column = checkAndGetColumn<DB::ColumnNullable>(*source.getByPosition(column_idx).column);
-        if (nullable_column)
+        if (!nullable_column)
         {
             accumulated_columns[column_idx]->insertRangeSelective(
                 *source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
