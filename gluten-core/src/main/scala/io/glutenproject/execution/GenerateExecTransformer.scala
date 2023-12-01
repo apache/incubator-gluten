@@ -59,7 +59,7 @@ case class GenerateExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     val validationResult =
-      BackendsApiManager.getTransformerApiInstance.validateGenerator(generator, outer)
+      BackendsApiManager.getValidatorApiInstance.doGeneratorValidate(generator, outer)
     if (!validationResult.isValid) {
       return validationResult
     }

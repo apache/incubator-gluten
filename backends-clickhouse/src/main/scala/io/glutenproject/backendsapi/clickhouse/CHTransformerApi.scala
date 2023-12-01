@@ -16,18 +16,14 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.GlutenConfig
-import io.glutenproject.backendsapi.{BackendsApiManager, TransformerApi}
+import io.glutenproject.backendsapi.TransformerApi
 import io.glutenproject.execution.CHHashAggregateExecTransformer
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
-import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode, SelectionNode}
+import io.glutenproject.expression.ConverterUtils
+import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
 import io.glutenproject.utils.{CHInputPartitionsUtil, ExpressionDocUtil}
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
@@ -42,43 +38,6 @@ import com.google.protobuf.{Any, Message}
 import java.util
 
 class CHTransformerApi extends TransformerApi with Logging {
-
-  /**
-   * Do validate for ColumnarShuffleExchangeExec. For ClickHouse backend, it will return true
-   * directly.
-   *
-   * @return
-   */
-  override def validateColumnarShuffleExchangeExec(
-      outputPartitioning: Partitioning,
-      child: SparkPlan): Boolean = {
-    val outputAttributes = child.output
-    // check repartition expression
-    val substraitContext = new SubstraitContext
-    outputPartitioning match {
-      case HashPartitioning(exprs, _) =>
-        !(exprs
-          .map(
-            expr => {
-              val node = ExpressionConverter
-                .replaceWithExpressionTransformer(expr, outputAttributes)
-                .doTransform(substraitContext.registeredFunction)
-              if (!node.isInstanceOf[SelectionNode]) {
-                // This is should not happen.
-                logDebug("Expressions are not supported in HashPartitioning.")
-                false
-              } else {
-                true
-              }
-            })
-          .exists(_ == false)) ||
-        BackendsApiManager.getSettings.supportShuffleWithProject(outputPartitioning, child)
-      case rangePartitoning: RangePartitioning =>
-        GlutenConfig.getConf.enableColumnarSort &&
-        RangePartitionerBoundsGenerator.supportedOrderings(rangePartitoning, child)
-      case _ => true
-    }
-  }
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
