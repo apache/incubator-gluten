@@ -10,7 +10,6 @@ VERSION=$(. /etc/os-release && echo ${VERSION_ID})
 ARCH=`uname -m`
 
 # compile gluten jar
-export CPU_TARGET="${ARCH}"
 $GLUTEN_DIR/dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON --enable_hdfs=ON
 mvn clean package -Pbackends-velox -Prss -Pspark-3.2 -DskipTests
 mvn clean package -Pbackends-velox -Prss -Pspark-3.3 -DskipTests
