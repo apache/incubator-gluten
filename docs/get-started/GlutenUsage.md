@@ -22,7 +22,6 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | enable_gcs       | build with gcs lib                                  | OFF           |
 | enable_hdfs      | build with hdfs lib                                 | OFF           |
 | enable_ep_cache  | enable caching for external project build (Velox)   | OFF           |
-| skip_build_ep    | skip the build of external projects (velox)         | OFF           |
 | enable_vcpkg     | enable vcpkg for static build                       | OFF           |
 
 ## Parameters for build_velox.sh
