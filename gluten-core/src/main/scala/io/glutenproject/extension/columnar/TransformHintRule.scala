@@ -714,6 +714,13 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           s"${e.getMessage}, original sparkplan is " +
             s"${plan.getClass}(${plan.children.toList.map(_.getClass)})")
     }
+
+    if (TransformHints.isAlreadyTagged(plan) && TransformHints.isNotTransformable(plan)) {
+      // Velox BloomFilter's implementation is different from Spark's.
+      //  So if might_contain falls back, we need fall back related bloom filter agg.
+      SparkShimLoader.getSparkShims.handleBloomFilterFallback(plan)(
+        p => TransformHints.tagNotTransformable(p, "related BloomFilterMightContain is fallbacked"))
+    }
   }
 
   implicit class EncodeTransformableTagImplicits(validationResult: ValidationResult) {
