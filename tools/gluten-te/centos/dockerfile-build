@@ -93,6 +93,7 @@ RUN EXTRA_MAVEN_OPTIONS=$(cat ~/.gluten-mvn-options) \
     DEPS_INSTALL_SCRIPT=$(cat ~/.gluten-deps-install-script) \
     && cd /opt/gluten \
     && bash -c "$DEPS_INSTALL_SCRIPT" \
-    && bash -c "mvn clean install $GLUTEN_MAVEN_OPTIONS $EXTRA_MAVEN_OPTIONS"
+    && bash -c "mvn clean install $GLUTEN_MAVEN_OPTIONS $EXTRA_MAVEN_OPTIONS" \
+    && bash -c "mv ep/build-velox/build/velox_ep /opt/velox"
 
 # EOF
