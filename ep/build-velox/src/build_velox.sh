@@ -158,6 +158,7 @@ function check_commit {
       fi
     fi
   else
+    # Branch-new build requires all untracked files to be deleted. We only need the source code.
     git clean -dffx :/
   fi
 
