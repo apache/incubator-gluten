@@ -17,6 +17,7 @@
 #pragma once
 #include <memory>
 #include <string_view>
+#include <stack>
 #include <Columns/ColumnNullable.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
@@ -211,6 +212,37 @@ public:
 private:
     DB::ContextPtr context;
 
+    void parseAbnormalJson(char * dst, std::string_view & json) const
+    {
+        const char * json_chars = json.data();
+        const size_t json_size = json.size();
+        UInt8 NULL_CHAR = 0x0000;
+        UInt8 SPACE_CHAR = 0x0020;
+        std::stack<char> tmp;
+        size_t cursor = 0;
+        for (size_t i = 0; i <= json_size; ++i)
+        {
+            if (*(json_chars + i) > NULL_CHAR && *(json_chars + i) < SPACE_CHAR)
+                continue;
+            else
+            {
+                char ch = *(json_chars + i);
+                dst[cursor++] = ch;
+                if (ch == '{')
+                    tmp.push('{');
+                else if (ch == '}')
+                {
+                    if (tmp.top() == '{')
+                        tmp.pop();
+                }
+                if (tmp.empty())
+                    break;
+            }
+        }
+        std::string_view result{dst, cursor};
+        json = result;
+    }
+
     template <typename JSONParser, typename Impl>
     DB::ColumnPtr innerExecuteImpl(const DB::ColumnsWithTypeAndName & arguments) const
     {
@@ -220,10 +252,12 @@ private:
         std::vector<DB::ASTPtr> json_path_asts;
 
         std::vector<String> required_fields;
+        const auto & first_column = arguments[0];
         if (const auto * required_fields_col = typeid_cast<const DB::ColumnConst *>(arguments[1].column.get()))
         {
             std::string json_fields = required_fields_col->getDataAt(0).toString();
             Poco::StringTokenizer tokenizer(json_fields, "|");
+            bool path_parsed = true;
             for (const auto & field : tokenizer)
             {
                 required_fields.push_back(field);
@@ -239,9 +273,18 @@ private:
                 DB::Expected expected;
                 if (!path_parser.parse(token_iterator, json_path_ast, expected))
                 {
-                    throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Invalid json path: {}", field);
+                    path_parsed = false;
                 }
                 json_path_asts.push_back(json_path_ast);
+            }
+            if (!path_parsed)
+            {
+                for (size_t i = 0; i < first_column.column->size(); ++i)
+                {
+                    for (size_t j = 0; j < tuple_columns.size(); ++j)
+                        tuple_columns[j]->insertDefault();
+                }
+                return DB::ColumnTuple::create(std::move(tuple_columns));
             }
         }
         else
@@ -250,8 +293,6 @@ private:
                 DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "The second argument of function {} must be a non-constant column", getName());
         }
 
-
-        const auto & first_column = arguments[0];
         if (!isString(first_column.type))
             throw DB::Exception(
                 DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT,
@@ -272,32 +313,16 @@ private:
         Impl impl;
         JSONParser parser;
         using Element = typename JSONParser::Element;
-
-        auto copyJsonStringExceptCtrlChars = [&](char * dst_chars, const char * src_chars, const size_t & length) -> std::string_view
-        {
-            UInt8 NULL_CHAR = 0x0000;
-            UInt8 SPACE_CHAR = 0x0020;
-            size_t cursor = 0;
-            for (size_t i = 0; i <= length; ++i)
-            {
-                if (*(src_chars + i) > NULL_CHAR && *(src_chars + i) < SPACE_CHAR)
-                    continue;
-                else
-                    dst_chars[cursor++] = *(src_chars + i);
-            }
-            std::string_view json{dst_chars, cursor - 1};
-            return json;
-        };
-
         Element document;
         bool document_ok = false;
         if (col_json_const)
         {
             std::string_view json{reinterpret_cast<const char *>(chars.data()), offsets[0] - 1};
             document_ok = parser.parse(json, document);
-            if (!document_ok) {
-                char dst_chars[json.size()];
-                json = copyJsonStringExceptCtrlChars(dst_chars, json.data(), json.size());
+            if (!document_ok)
+            {
+                char dst[json.size()];
+                parseAbnormalJson(dst, json);
                 document_ok = parser.parse(json, document);
             }
         }
@@ -318,8 +343,8 @@ private:
                 document_ok = parser.parse(json, document);
                 if (!document_ok)
                 {
-                    char dst_chars[json.size()];
-                    json = copyJsonStringExceptCtrlChars(dst_chars, json.data(), json.size());
+                    char dst[json.size()];
+                    parseAbnormalJson(dst, json);
                     document_ok = parser.parse(json, document);
                 }
             }
