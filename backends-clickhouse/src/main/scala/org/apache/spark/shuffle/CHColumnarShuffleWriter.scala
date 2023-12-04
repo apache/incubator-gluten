@@ -55,6 +55,8 @@ class CHColumnarShuffleWriter[K, V](
     GlutenShuffleUtils.getCompressionCodec(conf).toUpperCase(Locale.ROOT)
   private val preferSpill = GlutenConfig.getConf.chColumnarShufflePreferSpill
   private val throwIfMemoryExceed = GlutenConfig.getConf.chColumnarThrowIfMemoryExceed
+  private val flushBlockBufferBeforeEvict =
+    GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict
   private val spillThreshold = GlutenConfig.getConf.chColumnarShuffleSpillThreshold
   private val jniWrapper = new CHShuffleSplitterJniWrapper
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
@@ -104,7 +106,8 @@ class CHColumnarShuffleWriter[K, V](
         preferSpill,
         spillThreshold,
         CHBackendSettings.shuffleHashAlgorithm,
-        throwIfMemoryExceed
+        throwIfMemoryExceed,
+        flushBlockBufferBeforeEvict
       )
       CHNativeMemoryAllocators.createSpillable(
         "ShuffleWriter",

@@ -57,40 +57,48 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
         if (block_buffer->size() && block_buffer->size() + length >= shuffle_writer->options.split_size)
             buffer->addBlock(block_buffer->releaseColumns());
 
-        // std::cout << "current cached bytes before append partition:" << partition_id << " is " << current_cached_bytes << std::endl;
         current_cached_bytes -= block_buffer->bytes();
         for (size_t col_i = 0; col_i < block.columns(); ++col_i)
             block_buffer->appendSelective(col_i, block, partition_info.partition_selector, from, length);
         current_cached_bytes += block_buffer->bytes();
-        // std::cout << "current cached bytes after append partition:" << partition_id << " is " << current_cached_bytes << std::endl;
 
         /// Only works for celeborn partitiion writer
         if (supportsEvictSinglePartition() && options->spill_threshold > 0 && current_cached_bytes >= options->spill_threshold)
         {
-            /// Calculate average rows of each partition block buffer
-            size_t avg_size = 0;
-            size_t cnt = 0;
-            for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
-                 i = (i + 1) % options->partition_num)
+            /// If flush_block_buffer_before_evict is disabled, evict partitions from (last_partition_id+1)%partition_num to partition_id directly without flush,
+            /// Otherwise flush partition block buffer if it's size is no less than average rows, then evict partitions as above.
+            if (!options->flush_block_buffer_before_evict)
             {
-                avg_size += partition_block_buffer[i]->size();
-                ++cnt;
+                for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
+                     i = (i + 1) % options->partition_num)
+                    unsafeEvictSinglePartition(false, false, i);
             }
-            avg_size /= cnt;
+            else
+            {
+                /// Calculate average rows of each partition block buffer
+                size_t avg_size = 0;
+                size_t cnt = 0;
+                for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
+                     i = (i + 1) % options->partition_num)
+                {
+                    avg_size += partition_block_buffer[i]->size();
+                    ++cnt;
+                }
+                avg_size /= cnt;
 
 
-            for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
-                 i = (i + 1) % options->partition_num)
-            {
-                /// Flush partition block buffer if it's size is no less than average rows
-                bool flush_block_buffer = partition_block_buffer[i]->size() >= avg_size;
-                current_cached_bytes -= flush_block_buffer ? partition_block_buffer[i]->bytes() + partition_buffer[i]->bytes()
-                                                           : partition_buffer[i]->bytes();
-                unsafeEvictSinglePartition(false, flush_block_buffer, i);
+                for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
+                     i = (i + 1) % options->partition_num)
+                {
+                    bool flush_block_buffer = partition_block_buffer[i]->size() >= avg_size;
+                    current_cached_bytes -= flush_block_buffer ? partition_block_buffer[i]->bytes() + partition_buffer[i]->bytes()
+                                                               : partition_buffer[i]->bytes();
+                    unsafeEvictSinglePartition(false, flush_block_buffer, i);
+                }
+                // std::cout << "current cached bytes after evict partitions is " << current_cached_bytes << " partition from "
+                //           << (last_partition_id + 1) % options->partition_num << " to " << partition_id << " average size:" << avg_size
+                //           << std::endl;
             }
-            // std::cout << "current cached bytes after evict partitions is " << current_cached_bytes << " partition from "
-            //           << (last_partition_id + 1) % options->partition_num << " to " << partition_id << " average size:" << avg_size
-            //           << std::endl;
 
             last_partition_id = partition_id;
         }
@@ -99,7 +107,7 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
     /// Only works for local partition writer
     if (!supportsEvictSinglePartition() && options->spill_threshold && current_cached_bytes >= options->spill_threshold)
     {
-        unsafeEvictPartitions(false, true);
+        unsafeEvictPartitions(false, options->flush_block_buffer_before_evict);
     }
 
     shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();

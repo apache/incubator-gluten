@@ -243,6 +243,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def chColumnarThrowIfMemoryExceed: Boolean = conf.getConf(COLUMNAR_CH_THROW_IF_MEMORY_EXCEED)
 
+  def chColumnarFlushBlockBufferBeforeEvict: Boolean =
+    conf.getConf(COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -1130,6 +1133,13 @@ object GlutenConfig {
       .doc("Throw exception if memory exceeds threshold on ch backend.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT =
+    buildConf("spark.gluten.sql.columnar.backend.ch.flushBlockBufferBeforeEvict")
+      .internal()
+      .doc("Whether to flush partition_block_buffer before execute evict in CH PartitionWriter.")
+      .booleanConf
+      .createWithDefault(false)
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")

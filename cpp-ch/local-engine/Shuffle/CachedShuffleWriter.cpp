@@ -149,7 +149,7 @@ SplitResult CachedShuffleWriter::stop()
 
 size_t CachedShuffleWriter::evictPartitions()
 {
-    return partition_writer->evictPartitions(true, true);
+    return partition_writer->evictPartitions(true, options.flush_block_buffer_before_evict);
 }
 
 }

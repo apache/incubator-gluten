@@ -655,7 +655,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jboolean prefer_spill,
     jlong spill_threshold,
     jstring hash_algorithm,
-    jboolean throw_if_memory_exceed)
+    jboolean throw_if_memory_exceed,
+    jboolean flush_block_buffer_before_evict)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -698,7 +699,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .compress_method = jstring2string(env, codec),
         .spill_threshold = static_cast<size_t>(spill_threshold),
         .hash_algorithm = jstring2string(env, hash_algorithm),
-        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed)};
+        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed),
+        .flush_block_buffer_before_evict = static_cast<bool>(flush_block_buffer_before_evict)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     if (prefer_spill)
@@ -727,7 +729,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jlong spill_threshold,
     jstring hash_algorithm,
     jobject pusher,
-    jboolean throw_if_memory_exceed)
+    jboolean throw_if_memory_exceed,
+    jboolean flush_block_buffer_before_evict)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -761,7 +764,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .compress_method = jstring2string(env, codec),
         .spill_threshold = static_cast<size_t>(spill_threshold),
         .hash_algorithm = jstring2string(env, hash_algorithm),
-        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed)};
+        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed),
+        .flush_block_buffer_before_evict = static_cast<bool>(flush_block_buffer_before_evict)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options, pusher)};

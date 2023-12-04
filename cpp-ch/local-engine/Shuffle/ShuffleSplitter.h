@@ -48,6 +48,8 @@ struct SplitOptions
     size_t spill_threshold = 300 * 1024 * 1024;
     std::string hash_algorithm;
     bool throw_if_memory_exceed = true;
+    /// Whether to flush partition_block_buffer in PartitionWriter before evict.
+    bool flush_block_buffer_before_evict = false;
 };
 
 class ColumnsBuffer
