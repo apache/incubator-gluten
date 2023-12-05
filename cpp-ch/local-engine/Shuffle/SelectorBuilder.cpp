@@ -123,8 +123,26 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
     }
     else
     {
-        for (size_t i = 0; i < rows; i++)
-            partition_ids.emplace_back(static_cast<UInt64>(hash_column->get64(i) % parts_num));
+        if (hash_function_name == "sparkMurmurHash3_32")
+        {
+            auto parts_num_int32 = static_cast<Int32>(parts_num);
+            for (size_t i = 0; i < rows; i++)
+            {
+                // cast to int32 to be the same as the data type of the vanilla spark
+                auto hash_int32 = static_cast<Int32>(hash_column->get64(i));
+                auto res = hash_int32 % parts_num_int32;
+                if (res < 0)
+                {
+                    res += parts_num_int32;
+                }
+                partition_ids.emplace_back(static_cast<UInt64>(res));
+            }
+        }
+        else
+        {
+            for (size_t i = 0; i < rows; i++)
+                partition_ids.emplace_back(static_cast<UInt64>(hash_column->get64(i) % parts_num));
+        }
     }
     return PartitionInfo::fromSelector(std::move(partition_ids), parts_num);
 }
