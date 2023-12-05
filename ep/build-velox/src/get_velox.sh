@@ -205,6 +205,22 @@ fi
 git submodule sync --recursive
 git submodule update --init --recursive
 
+function apply_compilation_fixes {
+  current_dir=$1
+  velox_home=$2
+  sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
+  sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/third_party/
+  git add ${velox_home}/modify_velox.patch # to avoid the file from being deleted by git clean -dffx :/
+  git add ${velox_home}/third_party/modify_arrow.patch # to avoid the file from being deleted by git clean -dffx :/
+  cd ${velox_home}
+  echo "Applying patch to Velox source code..."
+  git apply modify_velox.patch
+  if [ $? -ne 0 ]; then
+    echo "Failed to apply compilation fixes to Velox: $?."
+    exit 1
+  fi
+}
+
 function setup_linux {
   local LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
   local LINUX_VERSION_ID=$(. /etc/os-release && echo ${VERSION_ID})
@@ -267,5 +283,7 @@ else
   echo "Unsupport kernel: $OS"
   exit 1
 fi
+
+apply_compilation_fixes $CURRENT_DIR $VELOX_SOURCE_DIR
 
 echo "Velox-get finished."
