@@ -19,8 +19,8 @@
 
 #include <arrow/array/array_binary.h>
 
-#include "VeloxShuffleUtils.h"
 #include "memory/VeloxColumnarBatch.h"
+#include "shuffle/Utils.h"
 #include "utils/Common.h"
 #include "utils/Compression.h"
 #include "utils/VeloxArrowUtils.h"

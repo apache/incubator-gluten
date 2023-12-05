@@ -49,7 +49,7 @@ inline std::shared_ptr<arrow::Schema> toWriteSchema(arrow::Schema& schema) {
   return std::make_shared<arrow::Schema>(fields);
 }
 
-inline std::shared_ptr<arrow::Schema> toCompressWriteSchema(arrow::Schema& schema) {
+inline std::shared_ptr<arrow::Schema> toCompressWriteSchema() {
   std::vector<std::shared_ptr<arrow::Field>> fields;
   fields.emplace_back(std::make_shared<arrow::Field>("header", arrow::large_utf8()));
   fields.emplace_back(std::make_shared<arrow::Field>("lengthBuffer", arrow::large_utf8()));

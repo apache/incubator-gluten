@@ -133,18 +133,14 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status stop() override;
 
+  arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) override;
+
   arrow::Status evictFixedSize(int64_t size, int64_t* actual) override;
-
-  arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createPayloadFromBuffer(
-      uint32_t partitionId,
-      bool reuseBuffers) override;
-
-  arrow::Status evictPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override;
 
   const uint64_t cachedPayloadSize() const override;
 
   int64_t rawPartitionBytes() const {
-    return std::accumulate(rawPartitionLengths_.begin(), rawPartitionLengths_.end(), 0LL);
+    return std::accumulate(metrics_.rawPartitionLengths.begin(), metrics_.rawPartitionLengths.end(), 0LL);
   }
 
   // for testing
@@ -254,13 +250,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status splitComplexType(const facebook::velox::RowVector& rv);
 
-  arrow::Status evictPartitionBuffer(uint32_t partitionId, uint32_t newSize, bool reuseBuffers);
+  arrow::Status
+  evictBuffers(uint32_t partitionId, uint32_t numRows, std::vector<std::shared_ptr<arrow::Buffer>> buffers);
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> createArrowRecordBatchFromBuffer(
-      uint32_t partitionId,
-      bool reuseBuffers);
-
-  arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createPayload(const arrow::RecordBatch& rb, bool reuseBuffers);
+  arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> assembleBuffers(uint32_t partitionId, bool reuseBuffers);
 
   template <typename T>
   arrow::Status splitFixedType(const uint8_t* srcAddr, const std::vector<uint8_t*>& dstAddrs) {
@@ -292,8 +285,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   arrow::Status resetValidityBuffer(uint32_t partitionId);
 
   arrow::Result<int64_t> shrinkPartitionBuffersMinSize(int64_t size);
-
-  arrow::Result<int64_t> shrinkPartitionBuffers();
 
   arrow::Result<int64_t> evictPartitionBuffersMinSize(int64_t size);
 

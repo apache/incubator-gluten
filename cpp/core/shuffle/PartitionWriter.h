@@ -22,40 +22,61 @@
 
 namespace gluten {
 
-class EvictHandle {
+class Evictor {
  public:
-  virtual ~EvictHandle() = default;
+  enum Type { kCache, kFlush, kStop };
+
+  Evictor(ShuffleWriterOptions* options) : options_(options) {}
+
+  virtual ~Evictor() = default;
 
   virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
 
   virtual arrow::Status finish() = 0;
+
+  int64_t getEvictTime() {
+    return evictTime_;
+  }
+
+ protected:
+  ShuffleWriterOptions* options_;
+
+  int64_t evictTime_{0};
 };
 
-class ShuffleWriter::PartitionWriter {
+class ShuffleWriter::PartitionWriter : public Evictable {
  public:
-  PartitionWriter(ShuffleWriter* shuffleWriter) : shuffleWriter_(shuffleWriter) {}
+  PartitionWriter(uint32_t numPartitions, ShuffleWriterOptions* options)
+      : numPartitions_(numPartitions), options_(options) {}
+
   virtual ~PartitionWriter() = default;
 
   virtual arrow::Status init() = 0;
 
-  virtual arrow::Status stop() = 0;
+  virtual arrow::Status stop(ShuffleWriterMetrics* metrics) = 0;
 
-  /// Request next evict. The caller can use `requestNextEvict` to start a evict, and choose to call
-  /// `getEvictHandle()->evict()` immediately, or to call it latter somewhere else.
-  /// The caller can start new evict multiple times. Once it's called, the last `EvictHandle`
-  /// will be finished automatically.
+  /// Evict buffers for `partitionId` partition.
   /// \param flush Whether to flush the evicted data immediately. If it's false,
   /// the data can be cached first.
-  virtual arrow::Status requestNextEvict(bool flush) = 0;
-
-  /// Get the current managed EvictHandle. Returns nullptr if the current EvictHandle was finished,
-  /// or requestNextEvict has not been called.
-  /// \return
-  virtual EvictHandle* getEvictHandle() = 0;
+  virtual arrow::Status evict(
+      uint32_t partitionId,
+      uint32_t numRows,
+      std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+      Evictor::Type evictType) = 0;
 
   virtual arrow::Status finishEvict() = 0;
 
-  ShuffleWriter* shuffleWriter_;
+ protected:
+  arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createPayloadFromBuffers(
+      uint32_t numRows,
+      std::vector<std::shared_ptr<arrow::Buffer>> buffers);
+
+  uint32_t numPartitions_;
+
+  ShuffleWriterOptions* options_;
+  int64_t compressTime_{0};
+  int64_t evictTime_{0};
+  int64_t writeTime_{0};
 };
 
 } // namespace gluten

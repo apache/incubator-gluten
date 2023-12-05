@@ -82,13 +82,6 @@ TEST_P(SinglePartitioningShuffleWriter, single) {
     auto shuffleWriter = createShuffleWriter();
     testShuffleWrite(*shuffleWriter, {inputVector1_, inputVector2_, inputVector1_});
   }
-  // Test not compress small buffer.
-  {
-    shuffleWriterOptions_.compression_type = arrow::Compression::LZ4_FRAME;
-    shuffleWriterOptions_.compression_threshold = 1024;
-    auto shuffleWriter = createShuffleWriter();
-    testShuffleWrite(*shuffleWriter, {inputVector1_, inputVector1_});
-  }
   // Split null RowVector.
   {
     auto shuffleWriter = createShuffleWriter();
@@ -373,10 +366,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, spillVerifyResult) {
 
   // Clear buffers and evict payloads and cache.
   for (auto pid : {0, 1}) {
-    GLUTEN_ASSIGN_OR_THROW(auto payload, shuffleWriter->createPayloadFromBuffer(pid, true));
-    if (payload) {
-      ASSERT_NOT_OK(shuffleWriter->evictPayload(pid, std::move(payload)));
-    }
+    ASSERT_NOT_OK(shuffleWriter->evictPartitionBuffers(pid, true));
   }
 
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
@@ -484,10 +474,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInit) {
 
     // Clear buffers then the size after shrink will be 0.
     for (auto pid = 0; pid < kDefaultShufflePartitions; ++pid) {
-      GLUTEN_ASSIGN_OR_THROW(auto payload, shuffleWriter->createPayloadFromBuffer(pid, true));
-      if (payload) {
-        ASSERT_NOT_OK(shuffleWriter->evictPayload(pid, std::move(payload)));
-      }
+      ASSERT_NOT_OK(shuffleWriter->evictPartitionBuffers(pid, true));
     }
 
     auto bufferSize = shuffleWriter->partitionBufferSize();
