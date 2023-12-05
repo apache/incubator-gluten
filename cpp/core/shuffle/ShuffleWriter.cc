@@ -30,23 +30,4 @@ namespace gluten {
 // by default, allocate 8M block, 2M page size
 #define SPLIT_BUFFER_SIZE 16 * 1024 * 1024
 #endif
-
-std::shared_ptr<arrow::Schema> ShuffleWriter::writeSchema() {
-  if (writeSchema_ != nullptr) {
-    return writeSchema_;
-  }
-
-  writeSchema_ = toWriteSchema(*schema_);
-  return writeSchema_;
-}
-
-std::shared_ptr<arrow::Schema> ShuffleWriter::compressWriteSchema() {
-  if (compressWriteSchema_ != nullptr) {
-    return compressWriteSchema_;
-  }
-
-  compressWriteSchema_ = toCompressWriteSchema(*schema_);
-  return compressWriteSchema_;
-}
-
 } // namespace gluten

@@ -29,34 +29,44 @@ namespace gluten {
 
 class CelebornPartitionWriter final : public RemotePartitionWriter {
  public:
-  CelebornPartitionWriter(ShuffleWriter* shuffleWriter, std::shared_ptr<RssClient> celebornClient)
-      : RemotePartitionWriter(shuffleWriter) {
+  CelebornPartitionWriter(
+      uint32_t numPartitions,
+      ShuffleWriterOptions* options,
+      std::shared_ptr<RssClient> celebornClient)
+      : RemotePartitionWriter(numPartitions, options) {
     celebornClient_ = celebornClient;
   }
 
-  arrow::Status requestNextEvict(bool flush /*unused*/) override;
-
-  EvictHandle* getEvictHandle() override;
+  arrow::Status evict(
+      uint32_t partitionId,
+      uint32_t numRows,
+      std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+      Evictor::Type evictType /* unused */) override;
 
   arrow::Status finishEvict() override;
 
   arrow::Status init() override;
 
-  arrow::Status stop() override;
+  arrow::Status stop(ShuffleWriterMetrics* metrics) override;
+
+  arrow::Status evictFixedSize(int64_t size, int64_t* actual) override;
 
  private:
   std::shared_ptr<RssClient> celebornClient_;
 
-  std::shared_ptr<EvictHandle> evictHandle_;
+  std::shared_ptr<Evictor> evictHandle_;
 
-  std::vector<int32_t> bytesEvicted_;
+  std::vector<int64_t> bytesEvicted_;
+  std::vector<int64_t> rawPartitionLengths_;
 };
 
 class CelebornPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {
  public:
   explicit CelebornPartitionWriterCreator(std::shared_ptr<RssClient> client);
 
-  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(ShuffleWriter* shuffleWriter) override;
+  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(
+      uint32_t numPartitions,
+      ShuffleWriterOptions* options) override;
 
  private:
   std::shared_ptr<RssClient> client_;

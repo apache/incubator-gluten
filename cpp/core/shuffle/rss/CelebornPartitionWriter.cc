@@ -16,24 +16,23 @@
  */
 
 #include "CelebornPartitionWriter.h"
+#include "shuffle/Utils.h"
+#include "utils/Timer.h"
 
 namespace gluten {
 
-class CelebornEvictHandle final : public EvictHandle {
+class CelebornEvictHandle final : public Evictor {
  public:
-  CelebornEvictHandle(
-      int64_t bufferSize,
-      const arrow::ipc::IpcWriteOptions& options,
-      arrow::MemoryPool* pool,
-      RssClient* client,
-      std::vector<int32_t>& bytesEvicted)
-      : bufferSize_(bufferSize), options_(options), pool_(pool), client_(client), bytesEvicted_(bytesEvicted) {}
+  CelebornEvictHandle(ShuffleWriterOptions* options, RssClient* client, std::vector<int64_t>& bytesEvicted)
+      : Evictor(options), client_(client), bytesEvicted_(bytesEvicted) {}
 
   arrow::Status evict(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override {
     // Copy payload to arrow buffered os.
-    ARROW_ASSIGN_OR_RAISE(auto celebornBufferOs, arrow::io::BufferOutputStream::Create(bufferSize_, pool_));
+    ARROW_ASSIGN_OR_RAISE(
+        auto celebornBufferOs, arrow::io::BufferOutputStream::Create(options_->buffer_size, options_->memory_pool));
     int32_t metadataLength = 0; // unused
-    RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_, celebornBufferOs.get(), &metadataLength));
+    RETURN_NOT_OK(
+        arrow::ipc::WriteIpcPayload(*payload, options_->ipc_write_options, celebornBufferOs.get(), &metadataLength));
     payload = nullptr; // Invalidate payload immediately.
 
     // Push.
@@ -48,56 +47,63 @@ class CelebornEvictHandle final : public EvictHandle {
   }
 
  private:
-  int64_t bufferSize_;
-  arrow::ipc::IpcWriteOptions options_;
-  arrow::MemoryPool* pool_;
   RssClient* client_;
 
-  std::vector<int32_t>& bytesEvicted_;
+  std::vector<int64_t>& bytesEvicted_;
 };
 
 arrow::Status CelebornPartitionWriter::init() {
-  const auto& options = shuffleWriter_->options();
-  bytesEvicted_.resize(shuffleWriter_->numPartitions(), 0);
-  evictHandle_ = std::make_shared<CelebornEvictHandle>(
-      options.buffer_size, options.ipc_write_options, options.memory_pool, celebornClient_.get(), bytesEvicted_);
+  bytesEvicted_.resize(numPartitions_, 0);
+  rawPartitionLengths_.resize(numPartitions_, 0);
+  evictHandle_ = std::make_shared<CelebornEvictHandle>(options_, celebornClient_.get(), bytesEvicted_);
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornPartitionWriter::stop() {
-  // push data and collect metrics
-  for (auto pid = 0; pid < shuffleWriter_->numPartitions(); ++pid) {
-    ARROW_ASSIGN_OR_RAISE(auto payload, shuffleWriter_->createPayloadFromBuffer(pid, false));
-    if (payload) {
-      RETURN_NOT_OK(evictHandle_->evict(pid, std::move(payload)));
-    }
-    shuffleWriter_->setPartitionLengths(pid, bytesEvicted_[pid]);
-    shuffleWriter_->setTotalBytesWritten(shuffleWriter_->totalBytesWritten() + bytesEvicted_[pid]);
-  }
+arrow::Status CelebornPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
+  // Push data and collect metrics.
+  auto totalBytesEvicted = std::accumulate(bytesEvicted_.begin(), bytesEvicted_.end(), 0);
   celebornClient_->stop();
+  // Populate metrics.
+  metrics->totalCompressTime += compressTime_;
+  metrics->totalEvictTime += evictHandle_->getEvictTime();
+  metrics->totalWriteTime += writeTime_;
+  metrics->totalBytesEvicted += totalBytesEvicted;
+  metrics->totalBytesWritten += totalBytesEvicted;
+  metrics->partitionLengths = std::move(bytesEvicted_);
+  metrics->rawPartitionLengths = std::move(rawPartitionLengths_);
   return arrow::Status::OK();
-}
-
-arrow::Status CelebornPartitionWriter::requestNextEvict(bool flush) {
-  return arrow::Status::OK();
-}
-
-EvictHandle* CelebornPartitionWriter::getEvictHandle() {
-  return evictHandle_.get();
 }
 
 arrow::Status CelebornPartitionWriter::finishEvict() {
   return evictHandle_->finish();
 }
 
+arrow::Status CelebornPartitionWriter::evict(
+    uint32_t partitionId,
+    uint32_t numRows,
+    std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+    Evictor::Type evictType) {
+  rawPartitionLengths_[partitionId] += getBufferSize(buffers);
+  ScopedTimer timer(evictTime_);
+  ARROW_ASSIGN_OR_RAISE(auto payload, createPayloadFromBuffers(numRows, std::move(buffers)));
+  RETURN_NOT_OK(evictHandle_->evict(partitionId, std::move(payload)));
+  return arrow::Status::OK();
+}
+
+arrow::Status CelebornPartitionWriter::evictFixedSize(int64_t size, int64_t* actual) {
+  *actual = 0;
+  return arrow::Status::OK();
+}
+
 CelebornPartitionWriterCreator::CelebornPartitionWriterCreator(std::shared_ptr<RssClient> client)
     : PartitionWriterCreator(), client_(client) {}
 
 arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> CelebornPartitionWriterCreator::make(
-    ShuffleWriter* shuffleWriter) {
-  std::shared_ptr<CelebornPartitionWriter> res(new CelebornPartitionWriter(shuffleWriter, client_));
-  RETURN_NOT_OK(res->init());
-  return res;
+    uint32_t numPartitions,
+    ShuffleWriterOptions* options) {
+  auto partitionWriter = std::make_shared<CelebornPartitionWriter>(numPartitions, options, client_);
+  RETURN_NOT_OK(partitionWriter->init());
+  return partitionWriter;
 }
 
 } // namespace gluten

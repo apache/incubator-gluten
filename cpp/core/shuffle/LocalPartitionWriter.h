@@ -46,13 +46,16 @@ struct SpillInfo {
 
 class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
  public:
-  explicit LocalPartitionWriter(ShuffleWriter* shuffleWriter) : PartitionWriter(shuffleWriter) {}
+  explicit LocalPartitionWriter(uint32_t numPartitions, ShuffleWriterOptions* options)
+      : PartitionWriter(numPartitions, options) {}
 
   arrow::Status init() override;
 
-  arrow::Status requestNextEvict(bool flush) override;
-
-  EvictHandle* getEvictHandle() override;
+  arrow::Status evict(
+      uint32_t partitionId,
+      uint32_t numRows,
+      std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+      Evictor::Type evictType) override;
 
   arrow::Status finishEvict() override;
 
@@ -75,22 +78,32 @@ class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
   /// If spill is triggered by 2.c, cached payloads of the remaining unmerged partitions will be spilled.
   /// In both cases, if the cached payload size doesn't free enough memory,
   /// it will shrink partition buffers to free more memory.
-  arrow::Status stop() override;
+  arrow::Status stop(ShuffleWriterMetrics* metrics) override;
 
-  class LocalEvictHandle;
+  arrow::Status evictFixedSize(int64_t size, int64_t* actual) override;
+
+  class LocalEvictor;
 
  private:
+  arrow::Status requestEvict(Evictor::Type evictType);
+
+  LocalEvictor* getEvictHandle();
+
   arrow::Status setLocalDirs();
 
   std::string nextSpilledFileDir();
 
   arrow::Status openDataFile();
 
+  arrow::Status mergeSpills(uint32_t partitionId);
+
   arrow::Status clearResource();
 
-  std::shared_ptr<arrow::fs::LocalFileSystem> fs_{};
-  std::shared_ptr<LocalEvictHandle> evictHandle_;
-  std::vector<std::shared_ptr<SpillInfo>> spills_;
+  arrow::Status populateMetrics(ShuffleWriterMetrics* metrics);
+
+  std::shared_ptr<arrow::fs::LocalFileSystem> fs_{nullptr};
+  std::shared_ptr<LocalEvictor> evictor_{nullptr};
+  std::vector<std::shared_ptr<SpillInfo>> spills_{};
 
   // configured local dirs for spilled file
   int32_t dirSelection_ = 0;
@@ -98,12 +111,19 @@ class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
   std::vector<std::string> configuredDirs_;
 
   std::shared_ptr<arrow::io::OutputStream> dataFileOs_;
+  int64_t totalBytesEvicted_{0};
+  int64_t totalBytesWritten_{0};
+  std::vector<int64_t> partitionLengths_;
+  std::vector<int64_t> rawPartitionLengths_;
+  std::vector<std::tuple<uint32_t, uint32_t, std::vector<std::shared_ptr<arrow::Buffer>>>> cachedPartitionBuffers_;
 };
 
 class LocalPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {
  public:
   LocalPartitionWriterCreator();
 
-  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(ShuffleWriter* shuffleWriter) override;
+  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(
+      uint32_t numPartitions,
+      ShuffleWriterOptions* options) override;
 };
 } // namespace gluten

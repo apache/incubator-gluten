@@ -36,7 +36,7 @@ class ShuffleReaderOutStream : public ColumnarBatchIterator {
       const std::function<void(int64_t)> ipcTimeAccumulator)
       : options_(options), in_(in), ipcTimeAccumulator_(ipcTimeAccumulator) {
     if (options.compression_type != arrow::Compression::UNCOMPRESSED) {
-      writeSchema_ = toCompressWriteSchema(*schema);
+      writeSchema_ = toCompressWriteSchema();
     } else {
       writeSchema_ = toWriteSchema(*schema);
     }

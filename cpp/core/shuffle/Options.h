@@ -62,6 +62,9 @@ struct ShuffleWriterOptions {
 
   arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
 
+  std::shared_ptr<arrow::Schema> write_schema{nullptr};
+  std::shared_ptr<arrow::util::Codec> codec{nullptr};
+
   std::string data_file{};
   std::string local_dirs{};
   arrow::MemoryPool* memory_pool{};

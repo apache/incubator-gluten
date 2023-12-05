@@ -31,6 +31,16 @@
 
 namespace gluten {
 
+struct ShuffleWriterMetrics {
+  int64_t totalBytesWritten{0};
+  int64_t totalBytesEvicted{0};
+  int64_t totalWriteTime{0};
+  int64_t totalEvictTime{0};
+  int64_t totalCompressTime{0};
+  std::vector<int64_t> partitionLengths{};
+  std::vector<int64_t> rawPartitionLengths{}; // Uncompressed size.
+};
+
 class ShuffleMemoryPool : public arrow::MemoryPool {
  public:
   ShuffleMemoryPool(arrow::MemoryPool* pool) : pool_(pool) {}
@@ -91,11 +101,7 @@ class ShuffleWriter : public Evictable {
 
   virtual arrow::Status split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) = 0;
 
-  virtual arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createPayloadFromBuffer(
-      uint32_t partitionId,
-      bool reuseBuffers) = 0;
-
-  virtual arrow::Status evictPayload(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
+  virtual arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) = 0;
 
   virtual arrow::Status stop() = 0;
 
@@ -107,64 +113,40 @@ class ShuffleWriter : public Evictable {
     return numPartitions_;
   }
 
-  int64_t totalBytesWritten() const {
-    return totalBytesWritten_;
-  }
-
-  int64_t totalBytesEvicted() const {
-    return totalBytesEvicted_;
-  }
-
   int64_t partitionBufferSize() const {
     return partitionBufferPool_->bytes_allocated();
   }
 
+  int64_t totalBytesWritten() const {
+    return metrics_.totalBytesWritten;
+  }
+
+  int64_t totalBytesEvicted() const {
+    return metrics_.totalBytesEvicted;
+  }
+
   int64_t totalWriteTime() const {
-    return totalWriteTime_;
+    return metrics_.totalWriteTime;
   }
 
   int64_t totalEvictTime() const {
-    return totalEvictTime_;
+    return metrics_.totalEvictTime;
   }
 
   int64_t totalCompressTime() const {
-    return totalCompressTime_;
+    return metrics_.totalCompressTime;
   }
 
   const std::vector<int64_t>& partitionLengths() const {
-    return partitionLengths_;
+    return metrics_.partitionLengths;
   }
 
   const std::vector<int64_t>& rawPartitionLengths() const {
-    return rawPartitionLengths_;
+    return metrics_.rawPartitionLengths;
   }
 
   ShuffleWriterOptions& options() {
     return options_;
-  }
-
-  void setPartitionLengths(int32_t index, int64_t length) {
-    partitionLengths_[index] = length;
-  }
-
-  void setRawPartitionLength(int32_t index, int64_t length) {
-    rawPartitionLengths_[index] = length;
-  }
-
-  void setTotalWriteTime(int64_t totalWriteTime) {
-    totalWriteTime_ = totalWriteTime;
-  }
-
-  void setTotalBytesWritten(int64_t totalBytesWritten) {
-    totalBytesWritten_ = totalBytesWritten;
-  }
-
-  void setTotalEvictTime(int64_t totalEvictTime) {
-    totalEvictTime_ = totalEvictTime;
-  }
-
-  void setTotalBytesEvicted(int64_t totalBytesEvicted) {
-    totalBytesEvicted_ = totalBytesEvicted;
   }
 
   virtual const uint64_t cachedPayloadSize() const = 0;
@@ -181,14 +163,11 @@ class ShuffleWriter : public Evictable {
       : numPartitions_(numPartitions),
         partitionWriterCreator_(std::move(partitionWriterCreator)),
         options_(std::move(options)),
-        partitionBufferPool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)),
-        codec_(createArrowIpcCodec(options_.compression_type, options_.codec_backend)) {}
+        partitionBufferPool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)) {
+    options_.codec = createArrowIpcCodec(options_.compression_type, options_.codec_backend);
+  }
 
   virtual ~ShuffleWriter() = default;
-
-  std::shared_ptr<arrow::Schema> writeSchema();
-
-  std::shared_ptr<arrow::Schema> compressWriteSchema();
 
   int32_t numPartitions_;
 
@@ -199,25 +178,14 @@ class ShuffleWriter : public Evictable {
   // The actual allocation is delegated to options_.memory_pool.
   std::shared_ptr<ShuffleMemoryPool> partitionBufferPool_;
 
-  int64_t totalBytesWritten_ = 0;
-  int64_t totalBytesEvicted_ = 0;
-  int64_t totalWriteTime_ = 0;
-  int64_t totalEvictTime_ = 0;
-  int64_t totalCompressTime_ = 0;
-
-  std::vector<int64_t> partitionLengths_;
-  std::vector<int64_t> rawPartitionLengths_; // Uncompressed size.
-
-  std::unique_ptr<arrow::util::Codec> codec_;
-
   std::shared_ptr<arrow::Schema> schema_;
-  std::shared_ptr<arrow::Schema> writeSchema_;
-  std::shared_ptr<arrow::Schema> compressWriteSchema_;
 
   // col partid
   std::vector<std::vector<std::vector<std::shared_ptr<arrow::ResizableBuffer>>>> partitionBuffers_;
 
   std::shared_ptr<Partitioner> partitioner_;
+
+  ShuffleWriterMetrics metrics_{};
 };
 
 } // namespace gluten

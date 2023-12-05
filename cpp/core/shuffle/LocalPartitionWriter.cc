@@ -24,19 +24,16 @@
 
 namespace gluten {
 
-class LocalPartitionWriter::LocalEvictHandle : public EvictHandle {
+class LocalPartitionWriter::LocalEvictor : public Evictor {
  public:
-  LocalEvictHandle(
-      uint32_t numPartitions,
-      const arrow::ipc::IpcWriteOptions& options,
-      const std::shared_ptr<SpillInfo>& spillInfo)
-      : numPartitions_(numPartitions), options_(options), spillInfo_(spillInfo) {}
+  LocalEvictor(uint32_t numPartitions, ShuffleWriterOptions* options, const std::shared_ptr<SpillInfo>& spillInfo)
+      : Evictor(options), numPartitions_(numPartitions), spillInfo_(spillInfo) {}
 
-  static std::shared_ptr<LocalEvictHandle> create(
+  static arrow::Result<std::unique_ptr<LocalEvictor>> create(
       uint32_t numPartitions,
-      const arrow::ipc::IpcWriteOptions& options,
+      ShuffleWriterOptions* options,
       const std::shared_ptr<SpillInfo>& spillInfo,
-      bool flush);
+      Evictor::Type evictType);
 
   bool finished() {
     return finished_;
@@ -44,22 +41,20 @@ class LocalPartitionWriter::LocalEvictHandle : public EvictHandle {
 
   virtual arrow::Status flushCachedPayloads(uint32_t partitionId, arrow::io::OutputStream* os) = 0;
 
+  virtual Type evictType() = 0;
+
  protected:
   uint32_t numPartitions_;
-  arrow::ipc::IpcWriteOptions options_;
   std::shared_ptr<SpillInfo> spillInfo_;
 
   std::shared_ptr<arrow::io::FileOutputStream> os_;
   bool finished_{false};
 };
 
-class CacheEvictHandle final : public LocalPartitionWriter::LocalEvictHandle {
+class CacheEvictor final : public LocalPartitionWriter::LocalEvictor {
  public:
-  CacheEvictHandle(
-      uint32_t numPartitions,
-      const arrow::ipc::IpcWriteOptions& options,
-      const std::shared_ptr<SpillInfo>& spillInfo)
-      : LocalPartitionWriter::LocalEvictHandle(numPartitions, options, spillInfo) {
+  CacheEvictor(uint32_t numPartitions, ShuffleWriterOptions* options, const std::shared_ptr<SpillInfo>& spillInfo)
+      : LocalPartitionWriter::LocalEvictor(numPartitions, options, spillInfo) {
     partitionCachedPayload_.resize(numPartitions);
   }
 
@@ -69,6 +64,7 @@ class CacheEvictHandle final : public LocalPartitionWriter::LocalEvictHandle {
   }
 
   arrow::Status finish() override {
+    ScopedTimer timer(evictTime_);
     if (!finished_) {
       ARROW_ASSIGN_OR_RAISE(os_, arrow::io::FileOutputStream::Open(spillInfo_->spilledFile, true));
       int64_t start = 0;
@@ -97,36 +93,42 @@ class CacheEvictHandle final : public LocalPartitionWriter::LocalEvictHandle {
       return arrow::Status::OK();
     }
 
+    ScopedTimer timer(evictTime_);
     int32_t metadataLength = 0; // unused
     auto payloads = std::move(partitionCachedPayload_[partitionId]);
     // Clear cached batches before creating the payloads, to avoid spilling this partition.
     partitionCachedPayload_[partitionId].clear();
     for (auto& payload : payloads) {
-      RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_, os, &metadataLength));
+      RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_->ipc_write_options, os, &metadataLength));
     }
     return arrow::Status::OK();
+  }
+
+  Type evictType() override {
+    return Type::kCache;
   }
 
  private:
   std::vector<std::vector<std::unique_ptr<arrow::ipc::IpcPayload>>> partitionCachedPayload_;
 };
 
-class FlushOnSpillEvictHandle final : public LocalPartitionWriter::LocalEvictHandle {
+class FlushOnSpillEvictor final : public LocalPartitionWriter::LocalEvictor {
  public:
-  FlushOnSpillEvictHandle(
+  FlushOnSpillEvictor(
       uint32_t numPartitions,
-      const arrow::ipc::IpcWriteOptions& options,
+      ShuffleWriterOptions* options,
       const std::shared_ptr<SpillInfo>& spillInfo)
-      : LocalPartitionWriter::LocalEvictHandle(numPartitions, options, spillInfo) {}
+      : LocalPartitionWriter::LocalEvictor(numPartitions, options, spillInfo) {}
 
   arrow::Status evict(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) override {
+    ScopedTimer timer(evictTime_);
     if (!os_) {
       ARROW_ASSIGN_OR_RAISE(os_, arrow::io::FileOutputStream::Open(spillInfo_->spilledFile, true));
     }
     int32_t metadataLength = 0; // unused.
 
     ARROW_ASSIGN_OR_RAISE(auto start, os_->Tell());
-    RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_, os_.get(), &metadataLength));
+    RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_->ipc_write_options, os_.get(), &metadataLength));
     ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
     DLOG(INFO) << "Spilled partition " << partitionId << " file start: " << start << ", file end: " << end;
     spillInfo_->partitionSpillInfos.push_back({partitionId, end - start});
@@ -147,29 +149,36 @@ class FlushOnSpillEvictHandle final : public LocalPartitionWriter::LocalEvictHan
   arrow::Status flushCachedPayloads(uint32_t partitionId, arrow::io::OutputStream* os) override {
     return arrow::Status::OK();
   }
+
+  Type evictType() override {
+    return Type::kFlush;
+  }
 };
 
-std::shared_ptr<LocalPartitionWriter::LocalEvictHandle> LocalPartitionWriter::LocalEvictHandle::create(
+arrow::Result<std::unique_ptr<LocalPartitionWriter::LocalEvictor>> LocalPartitionWriter::LocalEvictor::create(
     uint32_t numPartitions,
-    const arrow::ipc::IpcWriteOptions& options,
+    ShuffleWriterOptions* options,
     const std::shared_ptr<SpillInfo>& spillInfo,
-    bool flush) {
-  if (flush) {
-    return std::make_shared<FlushOnSpillEvictHandle>(numPartitions, options, spillInfo);
-  } else {
-    return std::make_shared<CacheEvictHandle>(numPartitions, options, spillInfo);
+    Evictor::Type evictType) {
+  switch (evictType) {
+    case Evictor::Type::kFlush:
+      return std::make_unique<FlushOnSpillEvictor>(numPartitions, options, spillInfo);
+    case Type::kCache:
+      return std::make_unique<CacheEvictor>(numPartitions, options, spillInfo);
+    default:
+      return arrow::Status::Invalid("Cannot create Evictor from type Evictor::Type::kStop.");
   }
 }
 
 std::string LocalPartitionWriter::nextSpilledFileDir() {
   auto spilledFileDir = getSpilledShuffleFileDir(configuredDirs_[dirSelection_], subDirSelection_[dirSelection_]);
-  subDirSelection_[dirSelection_] = (subDirSelection_[dirSelection_] + 1) % shuffleWriter_->options().num_sub_dirs;
+  subDirSelection_[dirSelection_] = (subDirSelection_[dirSelection_] + 1) % options_->num_sub_dirs;
   dirSelection_ = (dirSelection_ + 1) % configuredDirs_.size();
   return spilledFileDir;
 }
 
 arrow::Status LocalPartitionWriter::setLocalDirs() {
-  configuredDirs_ = splitPaths(shuffleWriter_->options().local_dirs);
+  configuredDirs_ = splitPaths(options_->local_dirs);
   // Shuffle the configured local directories. This prevents each task from using the same directory for spilled files.
   std::random_device rd;
   std::default_random_engine engine(rd());
@@ -181,11 +190,10 @@ arrow::Status LocalPartitionWriter::setLocalDirs() {
 arrow::Status LocalPartitionWriter::openDataFile() {
   // open data file output stream
   std::shared_ptr<arrow::io::FileOutputStream> fout;
-  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(shuffleWriter_->options().data_file));
-  if (shuffleWriter_->options().buffered_write) {
+  ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(options_->data_file));
+  if (options_->buffered_write) {
     // Output stream buffer is neither partition buffer memory nor ipc memory.
-    ARROW_ASSIGN_OR_RAISE(
-        dataFileOs_, arrow::io::BufferedOutputStream::Create(16384, shuffleWriter_->options().memory_pool, fout));
+    ARROW_ASSIGN_OR_RAISE(dataFileOs_, arrow::io::BufferedOutputStream::Create(16384, options_->memory_pool, fout));
   } else {
     dataFileOs_ = fout;
   }
@@ -201,16 +209,38 @@ arrow::Status LocalPartitionWriter::clearResource() {
 }
 
 arrow::Status LocalPartitionWriter::init() {
+  partitionLengths_.resize(numPartitions_, 0);
+  rawPartitionLengths_.resize(numPartitions_, 0);
   fs_ = std::make_shared<arrow::fs::LocalFileSystem>();
   RETURN_NOT_OK(setLocalDirs());
   return arrow::Status::OK();
 }
 
-arrow::Status LocalPartitionWriter::stop() {
-  int64_t totalBytesEvicted = 0;
-  int64_t totalBytesWritten = 0;
-  auto numPartitions = shuffleWriter_->numPartitions();
+arrow::Status LocalPartitionWriter::mergeSpills(uint32_t partitionId) {
+  for (auto spill : spills_) {
+    // Read if partition exists in the spilled file and write to the final file.
+    if (spill->mergePos < spill->partitionSpillInfos.size() &&
+        spill->partitionSpillInfos[spill->mergePos].partitionId == partitionId) { // A hit.
+      if (!spill->inputStream) {
+        // Open spilled file.
+        ARROW_ASSIGN_OR_RAISE(
+            spill->inputStream, arrow::io::MemoryMappedFile::Open(spill->spilledFile, arrow::io::FileMode::READ));
+        // Add evict metrics.
+        ARROW_ASSIGN_OR_RAISE(auto spilledSize, spill->inputStream->GetSize());
+        totalBytesEvicted_ += spilledSize;
+      }
 
+      auto spillInfo = spill->partitionSpillInfos[spill->mergePos];
+      ARROW_ASSIGN_OR_RAISE(auto raw, spill->inputStream->Read(spillInfo.length));
+      RETURN_NOT_OK(dataFileOs_->Write(raw));
+      // Goto next partition in this spillInfo.
+      spill->mergePos++;
+    }
+  }
+  return arrow::Status::OK();
+}
+
+arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
   // Open final file.
   // If options_.buffered_write is set, it will acquire 16KB memory that might trigger spill.
   RETURN_NOT_OK(openDataFile());
@@ -219,54 +249,38 @@ arrow::Status LocalPartitionWriter::stop() {
   writeTimer.start();
 
   int64_t endInFinalFile = 0;
+  int32_t metadataLength = 0;
+  auto cachedBuffersIter = cachedPartitionBuffers_.begin();
   // Iterator over pid.
-  for (auto pid = 0; pid < numPartitions; ++pid) {
+  for (auto pid = 0; pid < numPartitions_; ++pid) {
     // Record start offset.
     auto startInFinalFile = endInFinalFile;
     // Iterator over all spilled files.
-    for (auto spill : spills_) {
-      // Read if partition exists in the spilled file and write to the final file.
-      if (spill->mergePos < spill->partitionSpillInfos.size() &&
-          spill->partitionSpillInfos[spill->mergePos].partitionId == pid) { // A hit.
-        if (!spill->inputStream) {
-          // Open spilled file.
-          ARROW_ASSIGN_OR_RAISE(
-              spill->inputStream, arrow::io::MemoryMappedFile::Open(spill->spilledFile, arrow::io::FileMode::READ));
-          // Add evict metrics.
-          ARROW_ASSIGN_OR_RAISE(auto spilledSize, spill->inputStream->GetSize());
-          totalBytesEvicted += spilledSize;
-        }
-
-        auto spillInfo = spill->partitionSpillInfos[spill->mergePos];
-        ARROW_ASSIGN_OR_RAISE(auto raw, spill->inputStream->Read(spillInfo.length));
-        RETURN_NOT_OK(dataFileOs_->Write(raw));
-        // Goto next partition in this spillInfo.
-        spill->mergePos++;
-      }
-    }
+    RETURN_NOT_OK(mergeSpills(pid));
     // Write cached batches.
-    if (evictHandle_ && !evictHandle_->finished()) {
-      RETURN_NOT_OK(evictHandle_->flushCachedPayloads(pid, dataFileOs_.get()));
+    if (evictor_ && !evictor_->finished()) {
+      RETURN_NOT_OK(evictor_->flushCachedPayloads(pid, dataFileOs_.get()));
     }
     // Compress and write the last payload.
     // Stop the timer to prevent counting the compression time into write time.
-    writeTimer.stop();
-    ARROW_ASSIGN_OR_RAISE(auto lastPayload, shuffleWriter_->createPayloadFromBuffer(pid, false));
-    writeTimer.start();
-    if (lastPayload) {
-      int32_t metadataLength = 0; // unused
-      RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(
-          *lastPayload, shuffleWriter_->options().ipc_write_options, dataFileOs_.get(), &metadataLength));
+    if (cachedBuffersIter != cachedPartitionBuffers_.end() && std::get<0>(*cachedBuffersIter) == pid) {
+      writeTimer.stop();
+      ARROW_ASSIGN_OR_RAISE(
+          auto payload,
+          createPayloadFromBuffers(std::get<1>(*cachedBuffersIter), std::move(std::get<2>(*cachedBuffersIter))));
+      writeTimer.start();
+      RETURN_NOT_OK(
+          arrow::ipc::WriteIpcPayload(*payload, options_->ipc_write_options, dataFileOs_.get(), &metadataLength));
+      cachedBuffersIter++;
     }
     ARROW_ASSIGN_OR_RAISE(endInFinalFile, dataFileOs_->Tell());
-    if (endInFinalFile != startInFinalFile && shuffleWriter_->options().write_eos) {
+    if (endInFinalFile != startInFinalFile && options_->write_eos) {
       // Write EOS if any payload written.
       int64_t bytes;
       RETURN_NOT_OK(writeEos(dataFileOs_.get(), &bytes));
       endInFinalFile += bytes;
     }
-
-    shuffleWriter_->setPartitionLengths(pid, endInFinalFile - startInFinalFile);
+    partitionLengths_[pid] = endInFinalFile - startInFinalFile;
   }
 
   for (auto spill : spills_) {
@@ -280,34 +294,36 @@ arrow::Status LocalPartitionWriter::stop() {
     }
     RETURN_NOT_OK(fs_->DeleteFile(spill->spilledFile));
   }
-
-  ARROW_ASSIGN_OR_RAISE(totalBytesWritten, dataFileOs_->Tell());
+  ARROW_ASSIGN_OR_RAISE(totalBytesWritten_, dataFileOs_->Tell());
 
   writeTimer.stop();
-
-  shuffleWriter_->setTotalWriteTime(writeTimer.realTimeUsed());
-  shuffleWriter_->setTotalBytesEvicted(totalBytesEvicted);
-  shuffleWriter_->setTotalBytesWritten(totalBytesWritten);
+  writeTime_ = writeTimer.realTimeUsed();
 
   // Close Final file, Clear buffered resources.
   RETURN_NOT_OK(clearResource());
-
+  // Populate metrics.
+  RETURN_NOT_OK(populateMetrics(metrics));
   return arrow::Status::OK();
 }
 
-arrow::Status LocalPartitionWriter::requestNextEvict(bool flush) {
+arrow::Status LocalPartitionWriter::requestEvict(Evictor::Type evictType) {
+  if (auto handle = getEvictHandle()) {
+    if (handle->evictType() == evictType) {
+      return arrow::Status::OK();
+    }
+  }
   RETURN_NOT_OK(finishEvict());
+
   ARROW_ASSIGN_OR_RAISE(auto spilledFile, createTempShuffleFile(nextSpilledFileDir()));
   auto spillInfo = std::make_shared<SpillInfo>(spilledFile);
   spills_.push_back(spillInfo);
-  evictHandle_ = LocalEvictHandle::create(
-      shuffleWriter_->numPartitions(), shuffleWriter_->options().ipc_write_options, spillInfo, flush);
+  ARROW_ASSIGN_OR_RAISE(evictor_, LocalEvictor::create(numPartitions_, options_, spillInfo, evictType));
   return arrow::Status::OK();
 }
 
-EvictHandle* LocalPartitionWriter::getEvictHandle() {
-  if (evictHandle_ && !evictHandle_->finished()) {
-    return evictHandle_.get();
+LocalPartitionWriter::LocalEvictor* LocalPartitionWriter::getEvictHandle() {
+  if (evictor_ && !evictor_->finished()) {
+    return evictor_.get();
   }
   return nullptr;
 }
@@ -315,6 +331,7 @@ EvictHandle* LocalPartitionWriter::getEvictHandle() {
 arrow::Status LocalPartitionWriter::finishEvict() {
   if (auto handle = getEvictHandle()) {
     RETURN_NOT_OK(handle->finish());
+    evictTime_ += handle->getEvictTime();
     // The spilled file should not be empty. However, defensively
     // discard the last SpillInfo to avoid iterating over invalid ones.
     auto lastSpillInfo = spills_.back();
@@ -326,11 +343,56 @@ arrow::Status LocalPartitionWriter::finishEvict() {
   return arrow::Status::OK();
 }
 
+arrow::Status LocalPartitionWriter::evict(
+    uint32_t partitionId,
+    uint32_t numRows,
+    std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+    Evictor::Type evictType) {
+  rawPartitionLengths_[partitionId] += getBufferSize(buffers);
+  if (evictType == Evictor::Type::kStop) {
+    cachedPartitionBuffers_.push_back({partitionId, numRows, std::move(buffers)});
+  } else {
+    ARROW_ASSIGN_OR_RAISE(auto payload, createPayloadFromBuffers(numRows, std::move(buffers)));
+    RETURN_NOT_OK(requestEvict(evictType));
+    RETURN_NOT_OK(getEvictHandle()->evict(partitionId, std::move(payload)));
+  }
+  return arrow::Status::OK();
+}
+
+arrow::Status LocalPartitionWriter::populateMetrics(ShuffleWriterMetrics* metrics) {
+  metrics->totalCompressTime += compressTime_;
+  metrics->totalEvictTime += evictTime_;
+  metrics->totalWriteTime += writeTime_;
+  metrics->totalBytesEvicted += totalBytesEvicted_;
+  metrics->totalBytesWritten += totalBytesWritten_;
+  metrics->partitionLengths = std::move(partitionLengths_);
+  metrics->rawPartitionLengths = std::move(rawPartitionLengths_);
+  return arrow::Status::OK();
+}
+
+arrow::Status LocalPartitionWriter::evictFixedSize(int64_t size, int64_t* actual) {
+  auto beforeShrink = options_->memory_pool->bytes_allocated();
+  for (auto& item : cachedPartitionBuffers_) {
+    auto& buffers = std::get<2>(item);
+    for (auto& buffer : buffers) {
+      if (!buffer) {
+        continue;
+      }
+      if (auto parent = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffer->parent())) {
+        RETURN_NOT_OK(parent->Resize(buffer->size()));
+      }
+    }
+  }
+  *actual = beforeShrink - options_->memory_pool->bytes_allocated();
+  return arrow::Status::OK();
+}
+
 LocalPartitionWriterCreator::LocalPartitionWriterCreator() : PartitionWriterCreator() {}
 
 arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> LocalPartitionWriterCreator::make(
-    ShuffleWriter* shuffleWriter) {
-  auto partitionWriter = std::make_shared<LocalPartitionWriter>(shuffleWriter);
+    uint32_t numPartitions,
+    ShuffleWriterOptions* options) {
+  auto partitionWriter = std::make_shared<LocalPartitionWriter>(numPartitions, options);
   RETURN_NOT_OK(partitionWriter->init());
   return partitionWriter;
 }

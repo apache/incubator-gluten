@@ -16,11 +16,12 @@
  */
 
 #include "VeloxShuffleWriter.h"
-#include "VeloxShuffleUtils.h"
 #include "memory/ArrowMemory.h"
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "shuffle/Partitioner.h"
+#include "shuffle/ShuffleSchema.h"
+#include "shuffle/Utils.h"
 #include "utils/Common.h"
 #include "utils/Compression.h"
 #include "utils/Timer.h"
@@ -97,189 +98,6 @@ const int32_t* getFirstColumn(const facebook::velox::RowVector& rv) {
 
   // first column is partition key hash value or pid
   return firstChild->asFlatVector<int32_t>()->rawValues();
-}
-
-arrow::Result<std::shared_ptr<arrow::Array>> makeNullBinaryArray(
-    std::shared_ptr<arrow::DataType> type,
-    arrow::MemoryPool* pool) {
-  ARROW_ASSIGN_OR_RAISE(auto offsetBuffer, arrow::AllocateResizableBuffer(kSizeOfIpcOffsetBuffer << 1, pool));
-  // set the first offset to 0, and set the value offset
-  uint8_t* offsetaddr = offsetBuffer->mutable_data();
-  memset(offsetaddr, 0, kSizeOfIpcOffsetBuffer);
-  // second value offset 0
-  memset(offsetaddr + kSizeOfIpcOffsetBuffer, 0, kSizeOfIpcOffsetBuffer);
-  // If it is not compressed array, null valueBuffer
-  // worked, but if compress, will core dump at buffer::size(), so replace by kNullBuffer
-  static std::shared_ptr<arrow::Buffer> kNullBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
-  return arrow::MakeArray(arrow::ArrayData::Make(type, 1, {nullptr, std::move(offsetBuffer), kNullBuffer}));
-}
-
-arrow::Result<std::shared_ptr<arrow::Array>> makeBinaryArray(
-    std::shared_ptr<arrow::DataType> type,
-    std::shared_ptr<arrow::Buffer> valueBuffer,
-    arrow::MemoryPool* pool) {
-  if (valueBuffer == nullptr) {
-    return makeNullBinaryArray(type, pool);
-  }
-
-  ARROW_ASSIGN_OR_RAISE(auto offsetBuffer, arrow::AllocateResizableBuffer(kSizeOfIpcOffsetBuffer << 1, pool));
-  // set the first offset to 0, and set the value offset
-  uint8_t* offsetaddr = offsetBuffer->mutable_data();
-  memset(offsetaddr, 0, kSizeOfIpcOffsetBuffer);
-  int64_t length = valueBuffer->size();
-  memcpy(offsetaddr + kSizeOfIpcOffsetBuffer, reinterpret_cast<uint8_t*>(&length), kSizeOfIpcOffsetBuffer);
-  return arrow::MakeArray(arrow::ArrayData::Make(type, 1, {nullptr, std::move(offsetBuffer), valueBuffer}));
-}
-
-// Length buffer layout |compressionMode|buffers.size()|buffer1 unCompressedLength|buffer1 compressedLength| buffer2...
-arrow::Status getLengthBufferAndValueBufferOneByOne(
-    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    arrow::MemoryPool* pool,
-    arrow::util::Codec* codec,
-    std::shared_ptr<arrow::ResizableBuffer>& lengthBuffer,
-    std::shared_ptr<arrow::ResizableBuffer>& valueBuffer) {
-  ARROW_ASSIGN_OR_RAISE(
-      lengthBuffer, arrow::AllocateResizableBuffer((1 + 1 + buffers.size() * 2) * sizeof(int64_t), pool));
-  auto lengthBufferPtr = (int64_t*)(lengthBuffer->mutable_data());
-  // Write compression mode.
-  *lengthBufferPtr++ = CompressionMode::BUFFER;
-  // Write number of buffers.
-  *lengthBufferPtr++ = buffers.size();
-
-  int64_t compressedBufferMaxSize = getMaxCompressedBufferSize(buffers, codec);
-  ARROW_ASSIGN_OR_RAISE(valueBuffer, arrow::AllocateResizableBuffer(compressedBufferMaxSize, pool));
-  int64_t compressValueOffset = 0;
-  for (auto& buffer : buffers) {
-    if (buffer != nullptr && buffer->size() != 0) {
-      int64_t actualLength;
-      int64_t maxLength = codec->MaxCompressedLen(buffer->size(), nullptr);
-      ARROW_ASSIGN_OR_RAISE(
-          actualLength,
-          codec->Compress(
-              buffer->size(), buffer->data(), maxLength, valueBuffer->mutable_data() + compressValueOffset));
-      compressValueOffset += actualLength;
-      *lengthBufferPtr++ = buffer->size();
-      *lengthBufferPtr++ = actualLength;
-    } else {
-      *lengthBufferPtr++ = 0;
-      *lengthBufferPtr++ = 0;
-    }
-  }
-  RETURN_NOT_OK(valueBuffer->Resize(compressValueOffset, /*shrink*/ true));
-  return arrow::Status::OK();
-}
-
-// Length buffer layout |compressionMode|buffer unCompressedLength|buffer compressedLength|buffers.size()| buffer1 size
-// | buffer2 size
-arrow::Status getLengthBufferAndValueBufferStream(
-    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    arrow::MemoryPool* pool,
-    arrow::util::Codec* codec,
-    std::shared_ptr<arrow::ResizableBuffer>& lengthBuffer,
-    std::shared_ptr<arrow::ResizableBuffer>& compressedBuffer) {
-  ARROW_ASSIGN_OR_RAISE(lengthBuffer, arrow::AllocateResizableBuffer((1 + 3 + buffers.size()) * sizeof(int64_t), pool));
-  auto originalBufferSize = getBuffersSize(buffers);
-
-  // because 64B align, uncompressedBuffer size maybe bigger than unCompressedBufferSize which is
-  // getBuffersSize(buffers), then cannot use this size
-  ARROW_ASSIGN_OR_RAISE(auto uncompressedBuffer, arrow::AllocateResizableBuffer(originalBufferSize, pool));
-  int64_t uncompressedSize = uncompressedBuffer->size();
-
-  auto lengthBufferPtr = (int64_t*)(lengthBuffer->mutable_data());
-  // First write metadata.
-  // Write compression mode.
-  *lengthBufferPtr++ = CompressionMode::ROWVECTOR;
-  // Store uncompressed size.
-  *lengthBufferPtr++ = uncompressedSize; // uncompressedLength
-  // Skip compressed size and update later.
-  auto compressedLengthPtr = lengthBufferPtr++;
-  // Store number of buffers.
-  *lengthBufferPtr++ = buffers.size();
-
-  int64_t compressValueOffset = 0;
-  for (auto& buffer : buffers) {
-    // Copy all buffers into one big buffer.
-    if (buffer != nullptr && buffer->size() != 0) {
-      *lengthBufferPtr++ = buffer->size();
-      gluten::fastCopy(uncompressedBuffer->mutable_data() + compressValueOffset, buffer->data(), buffer->size());
-      compressValueOffset += buffer->size();
-    } else {
-      *lengthBufferPtr++ = 0;
-    }
-  }
-
-  // Compress the big buffer.
-  int64_t maxLength = codec->MaxCompressedLen(uncompressedSize, nullptr);
-  ARROW_ASSIGN_OR_RAISE(compressedBuffer, arrow::AllocateResizableBuffer(maxLength, pool));
-  ARROW_ASSIGN_OR_RAISE(
-      int64_t actualLength,
-      codec->Compress(uncompressedSize, uncompressedBuffer->data(), maxLength, compressedBuffer->mutable_data()));
-  RETURN_NOT_OK(compressedBuffer->Resize(actualLength, /*shrink*/ true));
-
-  // Update compressed size.
-  *compressedLengthPtr = actualLength;
-  return arrow::Status::OK();
-}
-
-arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeCompressedRecordBatch(
-    uint32_t numRows,
-    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    const std::shared_ptr<arrow::Schema> compressWriteSchema,
-    arrow::MemoryPool* pool,
-    arrow::util::Codec* codec,
-    int32_t bufferCompressThreshold,
-    CompressionMode compressionMode,
-    int64_t& compressionTime) {
-  ScopedTimer{compressionTime};
-  std::vector<std::shared_ptr<arrow::Array>> arrays;
-  // header col, numRows, compressionType
-  {
-    ARROW_ASSIGN_OR_RAISE(auto headerBuffer, arrow::AllocateResizableBuffer(sizeof(uint32_t) + sizeof(int32_t), pool));
-    memcpy(headerBuffer->mutable_data(), &numRows, sizeof(uint32_t));
-    int32_t compressType = static_cast<int32_t>(codec->compression_type());
-    memcpy(headerBuffer->mutable_data() + sizeof(uint32_t), &compressType, sizeof(int32_t));
-    arrays.emplace_back();
-    ARROW_ASSIGN_OR_RAISE(
-        arrays.back(), makeBinaryArray(compressWriteSchema->field(0)->type(), std::move(headerBuffer), pool));
-  }
-  std::shared_ptr<arrow::ResizableBuffer> lengthBuffer;
-  std::shared_ptr<arrow::ResizableBuffer> valueBuffer;
-  if (compressionMode == CompressionMode::BUFFER && numRows > bufferCompressThreshold) {
-    RETURN_NOT_OK(getLengthBufferAndValueBufferOneByOne(buffers, pool, codec, lengthBuffer, valueBuffer));
-  } else {
-    RETURN_NOT_OK(getLengthBufferAndValueBufferStream(buffers, pool, codec, lengthBuffer, valueBuffer));
-  }
-
-  arrays.emplace_back();
-  ARROW_ASSIGN_OR_RAISE(arrays.back(), makeBinaryArray(compressWriteSchema->field(1)->type(), lengthBuffer, pool));
-  arrays.emplace_back();
-  ARROW_ASSIGN_OR_RAISE(arrays.back(), makeBinaryArray(compressWriteSchema->field(2)->type(), valueBuffer, pool));
-  return arrow::RecordBatch::Make(compressWriteSchema, 1, {arrays});
-}
-
-// generate the new big one row several columns binary recordbatch
-arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeUncompressedRecordBatch(
-    uint32_t numRows,
-    const std::vector<std::shared_ptr<arrow::Buffer>>& buffers,
-    const std::shared_ptr<arrow::Schema> writeSchema,
-    arrow::MemoryPool* pool) {
-  std::vector<std::shared_ptr<arrow::Array>> arrays;
-  // header col, numRows, compressionType
-  {
-    ARROW_ASSIGN_OR_RAISE(auto headerBuffer, arrow::AllocateResizableBuffer(sizeof(uint32_t) + sizeof(int32_t), pool));
-    memcpy(headerBuffer->mutable_data(), &numRows, sizeof(uint32_t));
-    int32_t compressType = static_cast<int32_t>(arrow::Compression::type::UNCOMPRESSED);
-    memcpy(headerBuffer->mutable_data() + sizeof(uint32_t), &compressType, sizeof(int32_t));
-    arrays.emplace_back();
-    ARROW_ASSIGN_OR_RAISE(arrays.back(), makeBinaryArray(writeSchema->field(0)->type(), std::move(headerBuffer), pool));
-  }
-
-  int32_t bufferNum = writeSchema->num_fields() - 1;
-  for (int32_t i = 0; i < bufferNum; i++) {
-    arrays.emplace_back();
-    ARROW_ASSIGN_OR_RAISE(arrays.back(), makeBinaryArray(writeSchema->field(i + 1)->type(), buffers[i], pool));
-  }
-  return arrow::RecordBatch::Make(writeSchema, 1, {arrays});
 }
 
 class EvictGuard {
@@ -424,7 +242,7 @@ arrow::Status VeloxShuffleWriter::init() {
   // memory_pool should be assigned.
   VELOX_CHECK_NOT_NULL(options_.memory_pool);
 
-  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->make(this));
+  ARROW_ASSIGN_OR_RAISE(partitionWriter_, partitionWriterCreator_->make(numPartitions_, &options_));
   ARROW_ASSIGN_OR_RAISE(
       partitioner_, Partitioner::make(options_.partitioning, numPartitions_, options_.start_partition_id));
 
@@ -437,9 +255,6 @@ arrow::Status VeloxShuffleWriter::init() {
   }
 
   partitionBufferIdxBase_.resize(numPartitions_);
-
-  partitionLengths_.resize(numPartitions_);
-  rawPartitionLengths_.resize(numPartitions_);
 
   return arrow::Status::OK();
 }
@@ -525,11 +340,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64
       buffers.emplace_back();
       ARROW_ASSIGN_OR_RAISE(buffers.back(), generateComplexTypeBuffers(rowVector));
     }
-
-    rawPartitionLengths_[0] += getBuffersSize(buffers);
-    ARROW_ASSIGN_OR_RAISE(auto rb, makeRecordBatch(rv.size(), buffers));
-    ARROW_ASSIGN_OR_RAISE(auto payload, createPayload(*rb, false));
-    RETURN_NOT_OK(evictPayload(0, std::move(payload)));
+    RETURN_NOT_OK(evictBuffers(0, rv.size(), std::move(buffers)));
   } else if (options_.partitioning == Partitioning::kRange) {
     auto compositeBatch = std::dynamic_pointer_cast<CompositeColumnarBatch>(cb);
     VELOX_CHECK_NOT_NULL(compositeBatch);
@@ -571,10 +382,17 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64
 }
 
 arrow::Status VeloxShuffleWriter::stop() {
+  if (options_.partitioning != Partitioning::kSingle) {
+    for (auto pid = 0; pid < numPartitions_; ++pid) {
+      auto numRows = partitionBufferIdxBase_[pid];
+      ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(pid, false));
+      RETURN_NOT_OK(partitionWriter_->evict(pid, numRows, std::move(buffers), Evictor::Type::kStop));
+    }
+  }
   {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingStop]);
     setSplitState(SplitState::kStop);
-    RETURN_NOT_OK(partitionWriter_->stop());
+    RETURN_NOT_OK(partitionWriter_->stop(&metrics_));
     partitionBuffers_.clear();
   }
 
@@ -973,7 +791,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
 
       binaryBuf.valueOffset = valueOffset;
     }
-
     return arrow::Status::OK();
   }
 
@@ -1031,6 +848,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
 
   arrow::Status VeloxShuffleWriter::initColumnTypes(const facebook::velox::RowVector& rv) {
     schema_ = toArrowSchema(rv.type(), veloxPool_.get());
+    options_.write_schema = options_.codec ? toCompressWriteSchema() : toWriteSchema(*schema_);
 
     for (size_t i = 0; i < rv.childrenSize(); ++i) {
       veloxColumnTypes_.push_back(rv.childAt(i)->type());
@@ -1223,58 +1041,39 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     return arrow::Status::OK();
   }
 
-  arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> VeloxShuffleWriter::createPayloadFromBuffer(
-      uint32_t partitionId, bool reuseBuffers) {
-    ARROW_ASSIGN_OR_RAISE(auto rb, createArrowRecordBatchFromBuffer(partitionId, reuseBuffers));
-    if (rb) {
-      ARROW_ASSIGN_OR_RAISE(auto payload, createPayload(*rb, reuseBuffers));
-      return payload;
+  arrow::Status VeloxShuffleWriter::evictBuffers(
+      uint32_t partitionId, uint32_t numRows, std::vector<std::shared_ptr<arrow::Buffer>> buffers) {
+    if (!buffers.empty()) {
+      RETURN_NOT_OK(partitionWriter_->evict(partitionId, numRows, std::move(buffers), Evictor::Type::kCache));
     }
-    return nullptr;
+    return arrow::Status::OK();
   }
 
-  arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> VeloxShuffleWriter::createPayload(
-      const arrow::RecordBatch& rb, bool reuseBuffers) {
-    auto payload = std::make_unique<arrow::ipc::IpcPayload>();
-    // Extract numRows from header column
-    RETURN_NOT_OK(arrow::ipc::GetRecordBatchPayload(rb, options_.ipc_write_options, payload.get()));
-    if (codec_ == nullptr) {
-      // Without compression, we need to perform a manual copy of the original buffers
-      // so that we can reuse them for next split.
-      if (reuseBuffers) {
-        for (auto i = 0; i < payload->body_buffers.size(); ++i) {
-          auto& buffer = payload->body_buffers[i];
-          if (buffer) {
-            ARROW_ASSIGN_OR_RAISE(auto copy, ::arrow::AllocateResizableBuffer(buffer->size(), payloadPool_.get()));
-            if (buffer->size() > 0) {
-              gluten::fastCopy(copy->mutable_data(), buffer->data(), static_cast<size_t>(buffer->size()));
-            }
-            buffer = std::move(copy);
-          }
-        }
-      }
+  arrow::Status VeloxShuffleWriter::evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) {
+    auto numRows = partitionBufferIdxBase_[partitionId];
+    if (numRows > 0) {
+      ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(partitionId, reuseBuffers));
+      RETURN_NOT_OK(evictBuffers(partitionId, numRows, buffers));
     }
-    return payload;
+    return arrow::Status::OK();
   }
 
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> VeloxShuffleWriter::createArrowRecordBatchFromBuffer(
+  arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> VeloxShuffleWriter::assembleBuffers(
       uint32_t partitionId, bool reuseBuffers) {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingCreateRbFromBuffer]);
 
     if (partitionBufferIdxBase_[partitionId] == 0) {
-      return nullptr;
+      return std::vector<std::shared_ptr<arrow::Buffer>>{};
     }
 
     auto numRows = partitionBufferIdxBase_[partitionId];
-
-    // already filled
     auto fixedWidthIdx = 0;
     auto binaryIdx = 0;
     auto numFields = schema_->num_fields();
 
     std::vector<std::shared_ptr<arrow::Array>> arrays(numFields);
     std::vector<std::shared_ptr<arrow::Buffer>> allBuffers;
-    // one column should have 2 buffers at least, string column has 3 column buffers
+    // One column should have 2 buffers at least, string column has 3 column buffers.
     allBuffers.reserve(fixedWidthColumnCount_ * 2 + binaryColumnIndices_.size() * 3);
     bool hasComplexType = false;
     for (int i = 0; i < numFields; ++i) {
@@ -1303,11 +1102,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
           if (reuseBuffers) {
             // Set the first value offset to 0.
             binaryBuf.valueOffset = 0;
-          } else {
-            // Reset all buffers.
-            partitionValidityAddrs_[fixedWidthColumnCount_ + binaryIdx][partitionId] = nullptr;
-            binaryBuf = BinaryBuf();
-            partitionBuffers_[fixedWidthColumnCount_ + binaryIdx][partitionId].clear();
           }
           binaryIdx++;
           break;
@@ -1343,11 +1137,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
                 arrow::SliceBuffer(valueBuffer, 0, numRows * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3));
           }
           allBuffers.push_back(std::move(slicedValueBuffer));
-          if (!reuseBuffers) {
-            partitionValidityAddrs_[fixedWidthIdx][partitionId] = nullptr;
-            partitionFixedWidthValueAddrs_[fixedWidthIdx][partitionId] = nullptr;
-            partitionBuffers_[fixedWidthIdx][partitionId].clear();
-          }
           fixedWidthIdx++;
           break;
         }
@@ -1371,31 +1160,25 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       arenas_[partitionId] = nullptr;
     }
 
-    if (!reuseBuffers) {
-      partition2BufferSize_[partitionId] = 0;
-    }
     partitionBufferIdxBase_[partitionId] = 0;
-
-    rawPartitionLengths_[partitionId] += getBuffersSize(allBuffers);
-    return makeRecordBatch(numRows, allBuffers);
-  }
-
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> VeloxShuffleWriter::makeRecordBatch(
-      uint32_t numRows, const std::vector<std::shared_ptr<arrow::Buffer>>& buffers) {
-    SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingMakeRB]);
-    if (codec_ == nullptr) {
-      return makeUncompressedRecordBatch(numRows, buffers, writeSchema(), payloadPool_.get());
-    } else {
-      return makeCompressedRecordBatch(
-          numRows,
-          buffers,
-          compressWriteSchema(),
-          payloadPool_.get(),
-          codec_.get(),
-          options_.compression_threshold,
-          options_.compression_mode,
-          totalCompressTime_);
+    if (!reuseBuffers) {
+      RETURN_NOT_OK(resetPartitionBuffer(partitionId));
     }
+    if (options_.ipc_write_options.codec == nullptr && reuseBuffers) {
+      // Without compression, we need to perform a manual copy of the original buffers
+      // so that we can reuse them for next split.
+      for (auto i = 0; i < allBuffers.size(); ++i) {
+        auto& buffer = allBuffers[i];
+        if (buffer) {
+          ARROW_ASSIGN_OR_RAISE(auto copy, arrow::AllocateResizableBuffer(buffer->size(), payloadPool_.get()));
+          if (buffer->size() > 0) {
+            gluten::fastCopy(copy->mutable_data(), buffer->data(), static_cast<size_t>(buffer->size()));
+          }
+          buffer = std::move(copy);
+        }
+      }
+    }
+    return allBuffers;
   }
 
   arrow::Status VeloxShuffleWriter::evictFixedSize(int64_t size, int64_t * actual) {
@@ -1407,7 +1190,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
 
     int64_t reclaimed = 0;
     if (reclaimed < size && shrinkPartitionBuffersBeforeSpill()) {
-      ARROW_ASSIGN_OR_RAISE(auto shrunken, shrinkPartitionBuffers());
+      int64_t shrunken = 0;
+      RETURN_NOT_OK(partitionWriter_->evictFixedSize(size - reclaimed, &shrunken));
       reclaimed += shrunken;
     }
     if (reclaimed < size) {
@@ -1433,12 +1217,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       return 0;
     }
     auto evicted = beforeEvict;
-
-    {
-      ScopedTimer evictTime(totalEvictTime_);
-      RETURN_NOT_OK(partitionWriter_->finishEvict());
-    }
-
+    RETURN_NOT_OK(partitionWriter_->finishEvict());
     if (auto afterEvict = cachedPayloadSize()) {
       // Evict can be triggered by compressing buffers. The cachedPayloadSize is not empty.
       evicted -= afterEvict;
@@ -1560,19 +1339,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     return resizePartitionBuffer(partitionId, newSize, /*preserveData=*/true);
   }
 
-  arrow::Result<int64_t> VeloxShuffleWriter::shrinkPartitionBuffers() {
-    auto beforeShrink = partitionBufferPool_->bytes_allocated();
-    if (beforeShrink == 0) {
-      return 0;
-    }
-    for (auto pid = 0; pid < numPartitions_; ++pid) {
-      RETURN_NOT_OK(shrinkPartitionBuffer(pid));
-    }
-    auto shrunken = beforeShrink - partitionBufferPool_->bytes_allocated();
-    VLOG(2) << shrunken << " bytes released from shrinking.";
-    return shrunken;
-  }
-
   uint64_t VeloxShuffleWriter::valueBufferSizeForBinaryArray(uint32_t binaryIdx, int64_t newSize) {
     return (binaryArrayTotalSizeBytes_[binaryIdx] + totalInputNumRows_ - 1) / totalInputNumRows_ * newSize + 1024;
   }
@@ -1632,24 +1398,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     return payloadPool_->bytes_allocated();
   }
 
-  arrow::Status VeloxShuffleWriter::evictPartitionBuffer(uint32_t partitionId, uint32_t newSize, bool reuseBuffers) {
-    ARROW_ASSIGN_OR_RAISE(auto payload, createPayloadFromBuffer(partitionId, reuseBuffers));
-    if (payload) {
-      RETURN_NOT_OK(evictPayload(partitionId, std::move(payload)));
-    }
-    return arrow::Status::OK();
-  }
-
-  arrow::Status VeloxShuffleWriter::evictPayload(
-      uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) {
-    ScopedTimer spillTime(totalEvictTime_);
-    if (!partitionWriter_->getEvictHandle()) {
-      RETURN_NOT_OK(partitionWriter_->requestNextEvict(false));
-    }
-    RETURN_NOT_OK(partitionWriter_->getEvictHandle()->evict(partitionId, std::move(payload)));
-    return arrow::Status::OK();
-  }
-
   arrow::Result<int64_t> VeloxShuffleWriter::shrinkPartitionBuffersMinSize(int64_t size) {
     // Sort partition buffers by (partition2BufferSize_ - partitionBufferIdxBase_)
     std::vector<std::pair<uint32_t, uint32_t>> pidToSize;
@@ -1691,29 +1439,16 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       pidToSize.emplace_back(pid, partition2BufferSize_[pid]);
     }
     if (!pidToSize.empty()) {
-      Timer spillTime;
-      spillTime.start();
-      RETURN_NOT_OK(partitionWriter_->requestNextEvict(true));
-      auto evictHandle = partitionWriter_->getEvictHandle();
-      spillTime.stop();
-
       for (auto& item : pidToSize) {
         auto pid = item.first;
-        ARROW_ASSIGN_OR_RAISE(auto payload, createPayloadFromBuffer(pid, false));
-
-        spillTime.start();
-        RETURN_NOT_OK(evictHandle->evict(pid, std::move(payload)));
-        spillTime.stop();
-
+        ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(pid, false));
+        RETURN_NOT_OK(partitionWriter_->evict(pid, item.second, std::move(buffers), Evictor::Type::kFlush));
         evicted = beforeEvict - partitionBufferPool_->bytes_allocated();
         if (evicted >= size) {
           break;
         }
       }
-      spillTime.start();
       RETURN_NOT_OK(partitionWriter_->finishEvict());
-      spillTime.stop();
-      totalEvictTime_ += spillTime.realTimeUsed();
     }
     return evicted;
   }
@@ -1760,7 +1495,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       } else if (beyondThreshold(pid, newSize)) {
         if (newSize <= partitionBufferIdxBase_[pid]) {
           // If the newSize is smaller, cache the buffered data and reuse and shrink the buffer.
-          RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, true));
+          RETURN_NOT_OK(evictPartitionBuffers(pid, true));
           RETURN_NOT_OK(resizePartitionBuffer(pid, newSize, /*preserveData=*/false));
         } else {
           // If the newSize is larger, check if alreadyFilled + toBeFilled <= newSize
@@ -1775,7 +1510,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
             // If newSize <= allocated buffer size, reuse and shrink the buffer.
             // Else free and allocate new buffers.
             bool reuseBuffers = newSize <= partition2BufferSize_[pid];
-            RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, reuseBuffers));
+            RETURN_NOT_OK(evictPartitionBuffers(pid, reuseBuffers));
             if (reuseBuffers) {
               RETURN_NOT_OK(resizePartitionBuffer(pid, newSize, /*preserveData=*/false));
             } else {
@@ -1788,11 +1523,11 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
         // buffer.
         if (newSize > partition2BufferSize_[pid]) {
           // If the partition size after split is already larger than allocated buffer size, need reallocate.
-          RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, false));
+          RETURN_NOT_OK(evictPartitionBuffers(pid, false));
           RETURN_NOT_OK(allocatePartitionBuffer(pid, newSize));
         } else {
           // Partition size after split is smaller than buffer size. Reuse the buffers.
-          RETURN_NOT_OK(evictPartitionBuffer(pid, newSize, true));
+          RETURN_NOT_OK(evictPartitionBuffers(pid, true));
           // Reset validity buffer for reallocate.
           RETURN_NOT_OK(resetValidityBuffer(pid));
         }

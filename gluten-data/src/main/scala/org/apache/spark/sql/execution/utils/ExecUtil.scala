@@ -80,6 +80,7 @@ object ExecUtil {
       serializer: Serializer,
       writeMetrics: Map[String, SQLMetric],
       metrics: Map[String, SQLMetric]): ShuffleDependency[Int, ColumnarBatch, ColumnarBatch] = {
+    metrics("numPartitions").set(newPartitioning.numPartitions)
     // scalastyle:on argcount
     // only used for fallback range partitioning
     val rangePartitioner: Option[Partitioner] = newPartitioning match {
