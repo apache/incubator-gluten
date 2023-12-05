@@ -133,7 +133,7 @@ class Spark33Shims extends SparkShims {
       expr => expr.aggregateFunction.isInstanceOf[BloomFilterAggregate])
   }
 
-  override def extactPlanFromBloomFilterMightContain(expr: Expression): Option[SparkPlan] = {
+  override def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan] = {
     expr match {
       case mc @ BloomFilterMightContain(sub: org.apache.spark.sql.execution.ScalarSubquery, _) =>
         Some(sub.plan)

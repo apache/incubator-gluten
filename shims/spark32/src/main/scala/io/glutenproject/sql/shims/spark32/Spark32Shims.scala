@@ -105,5 +105,5 @@ class Spark32Shims extends SparkShims {
   override def hasBloomFilterAggregate(
       agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean = false
 
-  override def extactPlanFromBloomFilterMightContain(expr: Expression): Option[SparkPlan] = None
+  override def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan] = None
 }

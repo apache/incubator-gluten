@@ -288,7 +288,7 @@ case class FallbackBloomFilterAggIfNeeded() extends Rule[SparkPlan] {
 
   object SubPlanFromBloomFilterMightContain {
     def unapply(expr: Expression): Option[SparkPlan] =
-      SparkShimLoader.getSparkShims.extactPlanFromBloomFilterMightContain(expr)
+      SparkShimLoader.getSparkShims.extractSubPlanFromMightContain(expr)
   }
 
   private def handleBloomFilterFallback(plan: SparkPlan): Unit = {

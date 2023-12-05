@@ -85,5 +85,5 @@ trait SparkShims {
   def hasBloomFilterAggregate(
       agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean
 
-  def extactPlanFromBloomFilterMightContain(expr: Expression): Option[SparkPlan]
+  def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan]
 }
