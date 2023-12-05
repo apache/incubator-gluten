@@ -210,8 +210,8 @@ function apply_compilation_fixes {
   velox_home=$2
   sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
   sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/third_party/
-  git add ${velox_home}/modify_velox.patch # to avoid the file being deleted by git clean -dffx :/
-  git add ${velox_home}/third_party/modify_arrow.patch # to avoid the file being deleted by git clean -dffx :/
+  git add ${velox_home}/modify_velox.patch # to avoid the file from being deleted by git clean -dffx :/
+  git add ${velox_home}/third_party/modify_arrow.patch # to avoid the file from being deleted by git clean -dffx :/
   cd ${velox_home}
   echo "Applying patch to Velox source code..."
   git apply modify_velox.patch
