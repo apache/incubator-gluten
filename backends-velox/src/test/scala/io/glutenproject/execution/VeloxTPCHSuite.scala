@@ -220,7 +220,7 @@ class VeloxTPCHV1Suite extends VeloxTPCHSuite {
 class VeloxTPCHV1BhjSuite extends VeloxTPCHSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.sql.sources.useV1SourceList", "")
+      .set("spark.sql.sources.useV1SourceList", "parquet")
       .set("spark.sql.autoBroadcastJoinThreshold", "30M")
   }
 }
@@ -228,7 +228,7 @@ class VeloxTPCHV1BhjSuite extends VeloxTPCHSuite {
 class VeloxTPCHV2Suite extends VeloxTPCHSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      .set("spark.sql.sources.useV1SourceList", "parquet")
+      .set("spark.sql.sources.useV1SourceList", "")
   }
 }
 
