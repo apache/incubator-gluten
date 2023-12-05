@@ -20,43 +20,45 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.`type`.ColumnTypeNode
-import io.glutenproject.substrait.{SubstraitContext, SupportFormat}
+import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
+import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.connector.read.InputPartition
-import org.apache.spark.sql.execution.InSubqueryExec
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
 
 import scala.collection.JavaConverters._
 
-trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
+trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource {
 
-  // The key of merge schema option in Parquet reader.
-  protected val mergeSchemaOptionKey = "mergeschema"
-
+  /** Returns the filters that can be pushed down to native file scan */
   def filterExprs(): Seq[Expression]
 
   def outputAttributes(): Seq[Attribute]
 
-  def getPartitions: Seq[InputPartition]
-
-  def getPartitionSchemas: StructType
-
-  def getDataSchemas: StructType
+  /** This can be used to report FileFormat for a file based scan operator. */
+  val fileFormat: ReadFileFormat
 
   // TODO: Remove this expensive call when CH support scan custom partition location.
-  def getInputFilePaths: Seq[String]
+  def getInputFilePaths: Seq[String] = {
+    // This is a heavy operation, and only the required backend executes the corresponding logic.
+    if (BackendsApiManager.getSettings.requiredInputFilePaths()) {
+      getInputFilePathsInternal
+    } else {
+      Seq.empty
+    }
+  }
 
-  def getSplitInfos: Seq[SplitInfo] =
+  /** Returns the split infos that will be processed by the underlying native engine. */
+  def getSplitInfos: Seq[SplitInfo] = {
     getPartitions.map(
       BackendsApiManager.getIteratorApiInstance
-        .genSplitInfo(_, getPartitionSchemas, fileFormat))
+        .genSplitInfo(_, getPartitionSchema, fileFormat))
+  }
 
   def doExecuteColumnarInternal(): RDD[ColumnarBatch] = {
     val numOutputRows = longMetric("outputRows")
@@ -85,13 +87,12 @@ trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
         .supportFileFormatRead(
           fileFormat,
           schema.fields,
-          getPartitionSchemas.nonEmpty,
+          getPartitionSchema.nonEmpty,
           getInputFilePaths)
     ) {
       return ValidationResult.notOk(
         s"Not supported file format or complex type for scan: $fileFormat")
     }
-
     val substraitContext = new SubstraitContext
     val relNode = doTransform(substraitContext).root
 
@@ -102,10 +103,9 @@ trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
     val output = outputAttributes()
     val typeNodes = ConverterUtils.collectAttributeTypeNodes(output)
     val nameList = ConverterUtils.collectAttributeNamesWithoutExprId(output)
-    val partitionSchemas = getPartitionSchemas
     val columnTypeNodes = output.map {
       attr =>
-        if (partitionSchemas.exists(_.name.equals(attr.name))) {
+        if (getPartitionSchema.exists(_.name.equals(attr.name))) {
           new ColumnTypeNode(1)
         } else {
           new ColumnTypeNode(0)
@@ -125,11 +125,7 @@ trait BasicScanExecTransformer extends LeafTransformSupport with SupportFormat {
       exprNode,
       context,
       context.nextOperatorId(this.nodeName))
-    relNode.asInstanceOf[ReadRelNode].setDataSchema(getDataSchemas)
+    relNode.asInstanceOf[ReadRelNode].setDataSchema(getDataSchema)
     TransformContext(output, output, relNode)
-  }
-
-  def executeInSubqueryForDynamicPruningExpression(inSubquery: InSubqueryExec): Unit = {
-    if (inSubquery.values().isEmpty) inSubquery.updateResult()
   }
 }

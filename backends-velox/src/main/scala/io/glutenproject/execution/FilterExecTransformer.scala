@@ -66,10 +66,8 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
   private def getLeftCondition: Expression = {
     val scanFilters = child match {
       // Get the filters including the manually pushed down ones.
-      case batchScanTransformer: BatchScanExecTransformer =>
-        batchScanTransformer.filterExprs()
-      case fileScanTransformer: FileSourceScanExecTransformer =>
-        fileScanTransformer.filterExprs()
+      case basicScanExecTransformer: BasicScanExecTransformer =>
+        basicScanExecTransformer.filterExprs()
       // For fallback scan, we need to keep original filter.
       case _ =>
         Seq.empty[Expression]

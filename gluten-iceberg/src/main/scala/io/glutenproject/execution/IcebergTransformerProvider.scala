@@ -14,14 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.substrait
+package io.glutenproject.execution
 
-import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 
-/**
- * A mix-in interface for BasicScanExecTransformer. This can be used to report FileFormat for a file
- * based scan operator.
- */
-trait SupportFormat {
-  @transient val fileFormat: ReadFileFormat
+class IcebergTransformerProvider extends DataSourceV2TransformerRegister {
+
+  override def scanClassName(): String = "org.apache.iceberg.spark.source.SparkBatchQueryScan"
+
+  override def createDataSourceV2Transformer(
+      batchScan: BatchScanExec,
+      partitionFilters: Seq[Expression]): BatchScanExecTransformer = {
+    IcebergScanTransformer.apply(batchScan, partitionFilters)
+  }
 }

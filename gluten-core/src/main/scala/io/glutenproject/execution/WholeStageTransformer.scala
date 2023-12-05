@@ -226,7 +226,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     context
   }
 
-  /** Find all BasicScanExecTransformers in one WholeStageTransformer */
+  /** Find all BasicScanExecTransformer in one WholeStageTransformer */
   private def findAllScanTransformers(): Seq[BasicScanExecTransformer] = {
     val basicScanExecTransformers = new mutable.ListBuffer[BasicScanExecTransformer]()
 

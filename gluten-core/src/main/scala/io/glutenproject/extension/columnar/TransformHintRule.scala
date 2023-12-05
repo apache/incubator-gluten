@@ -20,7 +20,6 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
-import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
@@ -336,11 +335,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             if (plan.runtimeFilters.nonEmpty) {
               TransformHints.tagTransformable(plan)
             } else {
-              val transformer = new BatchScanExecTransformer(
-                plan.output,
-                plan.scan,
-                plan.runtimeFilters,
-                table = SparkShimLoader.getSparkShims.getBatchScanExecTable(plan))
+              val transformer =
+                ScanTransformerFactory.createBatchScanTransformer(
+                  plan,
+                  reuseSubquery = false,
+                  validation = true)
               TransformHints.tag(plan, transformer.doValidate().toTransformHint)
             }
           }
@@ -354,17 +353,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             if (plan.partitionFilters.nonEmpty) {
               TransformHints.tagTransformable(plan)
             } else {
-              val transformer = new FileSourceScanExecTransformer(
-                plan.relation,
-                plan.output,
-                plan.requiredSchema,
-                plan.partitionFilters,
-                plan.optionalBucketSet,
-                plan.optionalNumCoalescedBuckets,
-                plan.dataFilters,
-                plan.tableIdentifier,
-                plan.disableBucketedScan
-              )
+              val transformer =
+                ScanTransformerFactory.createFileSourceScanTransformer(
+                  plan,
+                  reuseSubquery = false,
+                  validation = true)
               TransformHints.tag(plan, transformer.doValidate().toTransformHint)
             }
           }

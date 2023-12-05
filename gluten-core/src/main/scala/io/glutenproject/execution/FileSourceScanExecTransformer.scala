@@ -38,14 +38,14 @@ import org.apache.spark.util.collection.BitSet
 import scala.collection.JavaConverters
 
 class FileSourceScanExecTransformer(
-    @transient relation: HadoopFsRelation,
+    @transient override val relation: HadoopFsRelation,
     output: Seq[Attribute],
     requiredSchema: StructType,
     partitionFilters: Seq[Expression],
     optionalBucketSet: Option[BitSet],
     optionalNumCoalescedBuckets: Option[Int],
     dataFilters: Seq[Expression],
-    tableIdentifier: Option[TableIdentifier],
+    override val tableIdentifier: Option[TableIdentifier],
     disableBucketedScan: Boolean = false)
   extends FileSourceScanExecShim(
     relation,
@@ -57,7 +57,7 @@ class FileSourceScanExecTransformer(
     dataFilters,
     tableIdentifier,
     disableBucketedScan)
-  with BasicScanExecTransformer {
+  with DatasourceScanTransformer {
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] =
@@ -89,11 +89,11 @@ class FileSourceScanExecTransformer(
       optionalNumCoalescedBuckets,
       disableBucketedScan)
 
-  override def getPartitionSchemas: StructType = relation.partitionSchema
+  override def getPartitionSchema: StructType = relation.partitionSchema
 
-  override def getDataSchemas: StructType = relation.dataSchema
+  override def getDataSchema: StructType = relation.dataSchema
 
-  override def getInputFilePaths: Seq[String] = {
+  override def getInputFilePathsInternal: Seq[String] = {
     relation.location.inputFiles.toSeq
   }
 
@@ -150,7 +150,7 @@ class FileSourceScanExecTransformer(
       }
 
       val readRelNode = transformCtx.root.asInstanceOf[ReadRelNode]
-      readRelNode.setDataSchema(getDataSchemas)
+      readRelNode.setDataSchema(getDataSchema)
       readRelNode.setProperties(JavaConverters.mapAsJavaMap(options))
     }
     transformCtx

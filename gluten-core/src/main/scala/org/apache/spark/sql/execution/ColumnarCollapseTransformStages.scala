@@ -118,13 +118,13 @@ case class ColumnarCollapseTransformStages(
    * When it's the ClickHouse backend, BasicScanExecTransformer will not be included in
    * WholeStageTransformer.
    */
-  private def isSeparateBasicScanExecTransformer(plan: SparkPlan): Boolean = plan match {
+  private def isSeparateBaseScanExecTransformer(plan: SparkPlan): Boolean = plan match {
     case _: BasicScanExecTransformer if separateScanRDD => true
     case _ => false
   }
 
   private def supportTransform(plan: SparkPlan): Boolean = plan match {
-    case plan: TransformSupport if !isSeparateBasicScanExecTransformer(plan) => true
+    case plan: TransformSupport if !isSeparateBaseScanExecTransformer(plan) => true
     case _ => false
   }
 
