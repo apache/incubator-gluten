@@ -21,15 +21,45 @@ import io.glutenproject.substrait.JoinParams
 
 import org.apache.spark.sql.execution.metric.SQLMetric
 
-trait HashJoinMetricsUpdater extends MetricsUpdater {
+import java.util
+
+trait JoinMetricsUpdater extends MetricsUpdater {
   def updateJoinMetrics(
       joinMetrics: java.util.ArrayList[OperatorMetrics],
       singleMetrics: SingleMetric,
       joinParams: JoinParams): Unit
 }
 
-class HashJoinMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
-  extends HashJoinMetricsUpdater {
+abstract class JoinMetricsUpdaterBase(val metrics: Map[String, SQLMetric])
+  extends JoinMetricsUpdater {
+  val postProjectionCpuCount: SQLMetric = metrics("postProjectionCpuCount")
+  val postProjectionWallNanos: SQLMetric = metrics("postProjectionWallNanos")
+  val numOutputRows: SQLMetric = metrics("numOutputRows")
+  val numOutputVectors: SQLMetric = metrics("numOutputVectors")
+  val numOutputBytes: SQLMetric = metrics("numOutputBytes")
+
+  final override def updateJoinMetrics(
+      joinMetrics: util.ArrayList[OperatorMetrics],
+      singleMetrics: SingleMetric,
+      joinParams: JoinParams): Unit = {
+    assert(joinParams.postProjectionNeeded)
+    val postProjectMetrics = joinMetrics.remove(0)
+    postProjectionCpuCount += postProjectMetrics.cpuCount
+    postProjectionWallNanos += postProjectMetrics.wallNanos
+    numOutputRows += postProjectMetrics.outputRows
+    numOutputVectors += postProjectMetrics.outputVectors
+    numOutputBytes += postProjectMetrics.outputBytes
+
+    updateJoinMetricsInternal(joinMetrics, joinParams)
+  }
+
+  protected def updateJoinMetricsInternal(
+      joinMetrics: util.ArrayList[OperatorMetrics],
+      joinParams: JoinParams): Unit
+}
+
+class HashJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
+  extends JoinMetricsUpdaterBase(metrics) {
   val hashBuildInputRows: SQLMetric = metrics("hashBuildInputRows")
   val hashBuildOutputRows: SQLMetric = metrics("hashBuildOutputRows")
   val hashBuildOutputVectors: SQLMetric = metrics("hashBuildOutputVectors")
@@ -71,28 +101,10 @@ class HashJoinMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
   val buildPreProjectionCpuCount: SQLMetric = metrics("buildPreProjectionCpuCount")
   val buildPreProjectionWallNanos: SQLMetric = metrics("buildPreProjectionWallNanos")
 
-  val postProjectionCpuCount: SQLMetric = metrics("postProjectionCpuCount")
-  val postProjectionWallNanos: SQLMetric = metrics("postProjectionWallNanos")
-  val postProjectionOutputRows: SQLMetric = metrics("postProjectionOutputRows")
-  val postProjectionOutputVectors: SQLMetric = metrics("postProjectionOutputVectors")
-
-  val finalOutputRows: SQLMetric = metrics("finalOutputRows")
-  val finalOutputVectors: SQLMetric = metrics("finalOutputVectors")
-
-  override def updateJoinMetrics(
+  override protected def updateJoinMetricsInternal(
       joinMetrics: java.util.ArrayList[OperatorMetrics],
-      singleMetrics: SingleMetric,
       joinParams: JoinParams): Unit = {
     var idx = 0
-    if (joinParams.postProjectionNeeded) {
-      val postProjectMetrics = joinMetrics.get(idx)
-      postProjectionCpuCount += postProjectMetrics.cpuCount
-      postProjectionWallNanos += postProjectMetrics.wallNanos
-      postProjectionOutputRows += postProjectMetrics.outputRows
-      postProjectionOutputVectors += postProjectMetrics.outputVectors
-      idx += 1
-    }
-
     // HashProbe
     val hashProbeMetrics = joinMetrics.get(idx)
     hashProbeInputRows += hashProbeMetrics.inputRows
@@ -130,6 +142,43 @@ class HashJoinMetricsUpdaterImpl(val metrics: Map[String, SQLMetric])
     if (joinParams.buildPreProjectionNeeded) {
       buildPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
       buildPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
+      idx += 1
+    }
+
+    if (joinParams.streamPreProjectionNeeded) {
+      streamPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
+      streamPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
+      idx += 1
+    }
+  }
+}
+
+class SortMergeJoinMetricsUpdater(override val metrics: Map[String, SQLMetric])
+  extends JoinMetricsUpdaterBase(metrics) {
+  val cpuCount: SQLMetric = metrics("cpuCount")
+  val wallNanos: SQLMetric = metrics("wallNanos")
+  val peakMemoryBytes: SQLMetric = metrics("peakMemoryBytes")
+  val numMemoryAllocations: SQLMetric = metrics("numMemoryAllocations")
+
+  val streamPreProjectionCpuCount: SQLMetric = metrics("streamPreProjectionCpuCount")
+  val streamPreProjectionWallNanos: SQLMetric = metrics("streamPreProjectionWallNanos")
+  val bufferPreProjectionCpuCount: SQLMetric = metrics("bufferPreProjectionCpuCount")
+  val bufferPreProjectionWallNanos: SQLMetric = metrics("bufferPreProjectionWallNanos")
+
+  override protected def updateJoinMetricsInternal(
+      joinMetrics: util.ArrayList[OperatorMetrics],
+      joinParams: JoinParams): Unit = {
+    var idx = 0
+    val smjMetrics = joinMetrics.get(0)
+    cpuCount += smjMetrics.cpuCount
+    wallNanos += smjMetrics.wallNanos
+    peakMemoryBytes += smjMetrics.peakMemoryBytes
+    numMemoryAllocations += smjMetrics.numMemoryAllocations
+    idx += 1
+
+    if (joinParams.buildPreProjectionNeeded) {
+      bufferPreProjectionCpuCount += joinMetrics.get(idx).cpuCount
+      bufferPreProjectionWallNanos += joinMetrics.get(idx).wallNanos
       idx += 1
     }
 

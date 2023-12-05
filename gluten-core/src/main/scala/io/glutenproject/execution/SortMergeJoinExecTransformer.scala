@@ -49,6 +49,9 @@ case class SortMergeJoinExecTransformer(
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetrics(sparkContext)
 
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetricsUpdater(metrics)
+
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
     (rightKeys, leftKeys, right, left)
 
@@ -169,9 +172,6 @@ case class SortMergeJoinExecTransformer(
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] = {
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(bufferedPlan)
   }
-
-  override def metricsUpdater(): MetricsUpdater =
-    BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetricsUpdater(metrics)
 
   def genJoinParameters(): Any = {
     val (isSMJ, isNullAwareAntiJoin) = (1, 0)

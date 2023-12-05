@@ -352,12 +352,32 @@ class MetricsApiImpl extends MetricsApi with Logging {
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
-      "numOutputBatches" -> SQLMetrics.createMetric(sparkContext, "number of output batches"),
-      "prepareTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to prepare left list"),
-      "processTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to process"),
-      "joinTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to merge join"),
-      "totaltimeSortmergejoin" -> SQLMetrics
-        .createTimingMetric(sparkContext, "totaltime sortmergejoin")
+      "numOutputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "numOutputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of merge join"),
+      "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+      "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+      "numMemoryAllocations" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of memory allocations"),
+      "streamPreProjectionCpuCount" -> SQLMetrics.createMetric(
+        sparkContext,
+        "stream preProject cpu wall time count"),
+      "streamPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "totaltime of stream preProjection"),
+      "bufferPreProjectionCpuCount" -> SQLMetrics.createMetric(
+        sparkContext,
+        "preProject cpu wall time count"),
+      "bufferPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "totaltime to build preProjection"),
+      "postProjectionCpuCount" -> SQLMetrics.createMetric(
+        sparkContext,
+        "postProject cpu wall time count"),
+      "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "totaltime of postProjection")
     )
 
   override def genSortMergeJoinTransformerMetricsUpdater(
@@ -476,20 +496,13 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "totaltime of postProjection"),
-      "postProjectionOutputRows" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of postProjection output rows"),
-      "postProjectionOutputVectors" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of postProjection output vectors"),
-      "finalOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of final output rows"),
-      "finalOutputVectors" -> SQLMetrics.createMetric(
-        sparkContext,
-        "number of final output vectors")
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "numOutputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "numOutputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes")
     )
 
   override def genHashJoinTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = new HashJoinMetricsUpdaterImpl(metrics)
+      metrics: Map[String, SQLMetric]): MetricsUpdater = new HashJoinMetricsUpdater(metrics)
 
   override def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
     Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
