@@ -82,5 +82,8 @@ trait SparkShims {
       length: Long,
       @transient locations: Array[String] = Array.empty): PartitionedFile
 
-  def handleBloomFilterFallback(plan: SparkPlan)(fun: SparkPlan => Unit): Unit
+  def hasBloomFilterAggregate(
+      agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean
+
+  def extactPlanFromBloomFilterMightContain(expr: Expression): Option[SparkPlan]
 }

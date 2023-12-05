@@ -127,30 +127,21 @@ class Spark33Shims extends SparkShims {
       @transient locations: Array[String] = Array.empty): PartitionedFile =
     PartitionedFile(partitionValues, filePath, start, length, locations)
 
-  override def handleBloomFilterFallback(plan: SparkPlan)(fun: SparkPlan => Unit): Unit = {
-    def tagNotTransformableRecursive(p: SparkPlan): Unit = {
-      p match {
-        case agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
-            if agg.aggregateExpressions.exists(
-              expr => expr.aggregateFunction.isInstanceOf[BloomFilterAggregate]) =>
-          fun(agg)
-          tagNotTransformableRecursive(agg.child)
-        case a: org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec =>
-          tagNotTransformableRecursive(a.executedPlan)
-        case _ =>
-          p.children.map(tagNotTransformableRecursive)
-      }
-    }
+  override def hasBloomFilterAggregate(
+      agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean = {
+    agg.aggregateExpressions.exists(
+      expr => expr.aggregateFunction.isInstanceOf[BloomFilterAggregate])
+  }
 
-    plan.transformAllExpressions {
+  override def extactPlanFromBloomFilterMightContain(expr: Expression): Option[SparkPlan] = {
+    expr match {
       case mc @ BloomFilterMightContain(sub: org.apache.spark.sql.execution.ScalarSubquery, _) =>
-        tagNotTransformableRecursive(sub.plan)
-        mc
+        Some(sub.plan)
       case mc @ BloomFilterMightContain(
             g @ GetStructField(sub: org.apache.spark.sql.execution.ScalarSubquery, _, _),
             _) =>
-        tagNotTransformableRecursive(sub.plan)
-        mc
+        Some(sub.plan)
+      case _ => None
     }
   }
 

@@ -102,5 +102,8 @@ class Spark32Shims extends SparkShims {
       @transient locations: Array[String] = Array.empty): PartitionedFile =
     PartitionedFile(partitionValues, filePath, start, length, locations)
 
-  override def handleBloomFilterFallback(plan: SparkPlan)(fun: SparkPlan => Unit): Unit = {}
+  override def hasBloomFilterAggregate(
+      agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean = false
+
+  override def extactPlanFromBloomFilterMightContain(expr: Expression): Option[SparkPlan] = None
 }
