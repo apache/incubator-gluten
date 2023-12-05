@@ -246,7 +246,7 @@
                                                                                                                             }
                                                                                                                           },
                                                                                                                           "baseSchema": {
-                                                                                                                            "names": ["s_suppkey", "s_nationkey"],
+                                                                                                                            "names": ["s_suppkey", "s_nationkey", "s_name", "s_address", "s_phone", "s_acctbal", "s_comment"],
                                                                                                                             "struct": {
                                                                                                                               "types": [{
                                                                                                                                 "i64": {
@@ -254,6 +254,26 @@
                                                                                                                                 }
                                                                                                                               }, {
                                                                                                                                 "i64": {
+                                                                                                                                  "nullability": "NULLABILITY_REQUIRED"
+                                                                                                                                }
+                                                                                                                              }, {
+                                                                                                                                "string": {
+                                                                                                                                  "nullability": "NULLABILITY_REQUIRED"
+                                                                                                                                }
+                                                                                                                              }, {
+                                                                                                                                "string": {
+                                                                                                                                  "nullability": "NULLABILITY_REQUIRED"
+                                                                                                                                }
+                                                                                                                              }, {
+                                                                                                                                "string": {
+                                                                                                                                  "nullability": "NULLABILITY_REQUIRED"
+                                                                                                                                }
+                                                                                                                              }, {
+                                                                                                                                "fp64": {
+                                                                                                                                  "nullability": "NULLABILITY_REQUIRED"
+                                                                                                                                }
+                                                                                                                              }, {
+                                                                                                                                "string": {
                                                                                                                                   "nullability": "NULLABILITY_REQUIRED"
                                                                                                                                 }
                                                                                                                               }]
@@ -408,7 +428,7 @@
                                                                                                                 }
                                                                                                               },
                                                                                                               "baseSchema": {
-                                                                                                                "names": ["n_nationkey", "n_regionkey"],
+                                                                                                                "names": ["n_nationkey", "n_regionkey", "n_name"],
                                                                                                                 "struct": {
                                                                                                                   "types": [{
                                                                                                                     "i64": {
@@ -416,6 +436,10 @@
                                                                                                                     }
                                                                                                                   }, {
                                                                                                                     "i64": {
+                                                                                                                      "nullability": "NULLABILITY_REQUIRED"
+                                                                                                                    }
+                                                                                                                  }, {
+                                                                                                                    "string": {
                                                                                                                       "nullability": "NULLABILITY_REQUIRED"
                                                                                                                     }
                                                                                                                   }]

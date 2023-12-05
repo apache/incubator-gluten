@@ -85,26 +85,23 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
     }
     auto names_and_types_list = header.getNamesAndTypesList();
     auto storage_factory = StorageMergeTreeFactory::instance();
-    // auto metadata = buildMetaData(names_and_types_list, context);
-
 
     auto storage = storage_factory.getStorage(
         StorageID(merge_tree_table.database, merge_tree_table.table),
         ColumnsDescription(),
         [&]() -> CustomStorageMergeTreePtr
         {
-            // auto custom_storage_merge_tree = std::make_shared<CustomStorageMergeTree>(
-            //     StorageID(merge_tree_table.database, merge_tree_table.table),
-            //     merge_tree_table.relative_path,
-            //     *metadata,
-            //     false,
-            //     global_context,
-            //     "",
-            //     MergeTreeData::MergingParams(),
-            //     buildMergeTreeSettings());
-            // custom_storage_merge_tree->loadDataParts(false, std::nullopt);
-            // return custom_storage_merge_tree;
-            return nullptr;
+            auto custom_storage_merge_tree = std::make_shared<CustomStorageMergeTree>(
+                StorageID(merge_tree_table.database, merge_tree_table.table),
+                merge_tree_table.relative_path,
+                *buildMetaData(names_and_types_list, context),
+                false,
+                global_context,
+                "",
+                MergeTreeData::MergingParams(),
+                buildMergeTreeSettings());
+            custom_storage_merge_tree->loadDataParts(false, std::nullopt);
+            return custom_storage_merge_tree;
         });
     auto metadata = storage->getInMemoryMetadataPtr();
     query_context.metadata = metadata;

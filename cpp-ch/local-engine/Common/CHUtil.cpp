@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 #include <filesystem>
-#include <memory>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <AggregateFunctions/Combinators/AggregateFunctionCombinatorFactory.h>
 #include <AggregateFunctions/registerAggregateFunctions.h>
@@ -31,8 +31,8 @@
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/DataTypeArray.h>
-#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeMap.h>
+#include <DataTypes/DataTypeNullable.h>
 #include <DataTypes/DataTypeString.h>
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
@@ -68,10 +68,10 @@
 #include <regex>
 #include "CHUtil.h"
 
-#include <Storages/StorageMergeTreeFactory.h>
-#include <Common/MergeTreeTool.h>
 #include <Parser/TypeParser.h>
+#include <Storages/StorageMergeTreeFactory.h>
 #include <Poco/JSON/Parser.h>
+#include <Common/MergeTreeTool.h>
 
 namespace DB
 {
