@@ -20,6 +20,8 @@ import io.glutenproject.expression.{ExpressionConverter, ExpressionTransformer, 
 
 import org.apache.spark.sql.catalyst.expressions._
 
+import java.util.Locale
+
 object HiveSimpleUDFTransformer {
   def isHiveSimpleUDF(expr: Expression): Boolean = {
     expr match {
@@ -36,7 +38,8 @@ object HiveSimpleUDFTransformer {
     }
 
     val udf = expr.asInstanceOf[HiveSimpleUDF]
-    val substraitExprName = UDFMappings.hiveUDFMap.get(udf.name.stripPrefix("default."))
+    val substraitExprName =
+      UDFMappings.hiveUDFMap.get(udf.name.stripPrefix("default.").toLowerCase(Locale.ROOT))
     substraitExprName match {
       case Some(name) =>
         GenericExpressionTransformer(
@@ -44,7 +47,9 @@ object HiveSimpleUDFTransformer {
           udf.children.map(ExpressionConverter.replaceWithExpressionTransformer(_, attributeSeq)),
           udf)
       case _ =>
-        throw new UnsupportedOperationException(s"Not supported hive simple udf: $udf.")
+        throw new UnsupportedOperationException(
+          s"Not supported hive simple udf:$udf"
+            + s" name:${udf.name} hiveUDFMap:${UDFMappings.hiveUDFMap}")
     }
   }
 }
