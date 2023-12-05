@@ -143,7 +143,7 @@ function compile {
   fi
 }
 
-function generate_build_summary {
+function get_build_summary {
   COMMIT_HASH=$1
   # Ideally all script arguments should be put into build summary.
   echo "ENABLE_S3=$ENABLE_S3,ENABLE_GCS=$ENABLE_GCS,ENABLE_HDFS=$ENABLE_HDFS,BUILD_TYPE=$BUILD_TYPE,VELOX_HOME=$VELOX_HOME,ENABLE_EP_CACHE=$ENABLE_EP_CACHE,ENABLE_BENCHMARK=$ENABLE_BENCHMARK,ENABLE_TESTS=$ENABLE_TESTS,RUN_SETUP_SCRIPT=$RUN_SETUP_SCRIPT,OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
@@ -250,7 +250,7 @@ echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 
 cd ${VELOX_HOME}
-TARGET_BUILD_SUMMARY=$(generate_build_summary "$(git rev-parse --verify HEAD)")
+TARGET_BUILD_SUMMARY=$(get_build_summary "$(git rev-parse --verify HEAD)")
 if [ -z "$TARGET_BUILD_SUMMARY" ]; then
   echo "Unable to parse Velox build: $TARGET_BUILD_SUMMARY."
   exit 1
