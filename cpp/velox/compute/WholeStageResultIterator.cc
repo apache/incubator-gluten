@@ -212,6 +212,8 @@ void WholeStageResultIterator::collectMetrics() {
   }
 
   auto planStats = velox::exec::toPlanStats(task_->taskStats());
+  DEBUG_OUT << "Plan Stats Json: " << toPlanStatsJson(task_->taskStats()) << std::endl;
+
   // Calculate the total number of metrics.
   int statsNum = 0;
   for (int idx = 0; idx < orderedNodeIds_.size(); idx++) {
