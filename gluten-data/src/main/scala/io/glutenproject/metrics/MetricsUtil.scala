@@ -50,6 +50,10 @@ object MetricsUtil extends Logging {
           MetricsUpdaterTree(
             j.metricsUpdater(),
             Seq(treeifyMetricsUpdaters(j.buildPlan), treeifyMetricsUpdaters(j.streamedPlan)))
+        case smj: SortMergeJoinExecTransformer =>
+          MetricsUpdaterTree(
+            smj.metricsUpdater(),
+            Seq(treeifyMetricsUpdaters(smj.bufferedPlan), treeifyMetricsUpdaters(smj.streamedPlan)))
         case t: TransformSupport =>
           MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
         case _ =>
@@ -193,6 +197,11 @@ object MetricsUtil extends Logging {
         operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
         curMetricsIdx -= 1
         ju.updateJoinMetrics(
+          operatorMetrics,
+          metrics.getSingleMetrics,
+          joinParamsMap.get(operatorIdx))
+      case smj: SortMergeJoinMetricsUpdater =>
+        smj.updateJoinMetrics(
           operatorMetrics,
           metrics.getSingleMetrics,
           joinParamsMap.get(operatorIdx))
