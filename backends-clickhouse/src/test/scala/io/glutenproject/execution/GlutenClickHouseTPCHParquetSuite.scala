@@ -2217,6 +2217,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       runQueryAndCompare(
         "select trunc(l_shipdate, 'MM'), trunc(l_shipdate, 'YEAR'), trunc(l_shipdate, 'WEEK'), " +
           "trunc(l_shipdate, 'QUARTER') from lineitem"
+      }
+  }
+
+  test("GLUTEN-3934: log10/log2/ln") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select log10(n_regionkey), log10(-1.0), log10(0), log10(n_regionkey - 100000), " +
+          "log2(n_regionkey), log2(-1.0), log2(0), log2(n_regionkey - 100000), " +
+          "ln(n_regionkey), ln(-1.0), ln(0), ln(n_regionkey - 100000) from nation"
       )(checkOperatorMatch[ProjectExecTransformer])
     }
   }

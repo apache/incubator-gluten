@@ -19,21 +19,21 @@
 namespace local_engine
 {
 
-class FunctionParserLog1p : public FunctionParserLogBase
+class FunctionParserLn : public FunctionParserLogBase
 {
 public:
-    explicit FunctionParserLog1p(SerializedPlanParser * plan_parser_) : FunctionParserLogBase(plan_parser_) {}
-    ~FunctionParserLog1p() override = default;
+    explicit FunctionParserLn(SerializedPlanParser * plan_parser_) : FunctionParserLogBase(plan_parser_) {}
+    ~FunctionParserLn() override = default;
 
-    static constexpr auto name = "log1p";
+    static constexpr auto name = "log";
 
     String getName() const override { return name; }
-    String getCHFunctionName() const override { return "log1p"; }
+    String getCHFunctionName() const override { return "log"; }
     const DB::ActionsDAG::Node * getParameterLowerBound(ActionsDAGPtr & actions_dag, const DataTypePtr & data_type) const override
     {
-        return addColumnToActionsDAG(actions_dag, data_type, -1.0);
+        return addColumnToActionsDAG(actions_dag, data_type, 0.0);
     }
 };
 
-static FunctionParserRegister<FunctionParserLog1p> register_log1p;
+static FunctionParserRegister<FunctionParserLn> register_ln;
 }
