@@ -1067,7 +1067,7 @@ class GlutenClickHouseHiveTableSuite()
     val jarUrl = s"file://${System.getProperty("user.dir")}/$jarPath"
     spark.sql(
       s"CREATE FUNCTION my_add as " +
-        "'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
+        s"'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
     runQueryAndCompare("select MY_ADD(id, id+1) from range(10)")(
       checkOperatorMatch[ProjectExecTransformer])
   }
