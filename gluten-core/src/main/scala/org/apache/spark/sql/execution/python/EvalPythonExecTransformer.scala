@@ -87,11 +87,7 @@ case class EvalPythonExecTransformer(
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child match {
-      case c: TransformSupport => c.doTransform(context)
-      case _ => null
-    }
-
+    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
     val args = context.registeredFunction
     val operatorId = context.nextOperatorId(this.nodeName)
     val expressionNodes = new JArrayList[ExpressionNode]
@@ -103,17 +99,8 @@ case class EvalPythonExecTransformer(
           ExpressionConverter.replaceWithExpressionTransformer(udf, child.output).doTransform(args))
       })
 
-    val relNode = if (childCtx != null) {
+    val relNode =
       getRelNode(childCtx.root, expressionNodes, context, operatorId, child.output, false)
-    } else {
-      val attrList = new JArrayList[Attribute]()
-      for (attr <- child.output) {
-        attrList.add(attr)
-      }
-      val readRel = RelBuilder.makeReadRel(attrList, context, operatorId)
-      getRelNode(readRel, expressionNodes, context, operatorId, child.output, false)
-    }
-
     TransformContext(child.output, output, relNode)
   }
 

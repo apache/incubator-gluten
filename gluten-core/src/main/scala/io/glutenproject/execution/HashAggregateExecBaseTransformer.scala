@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
@@ -23,7 +24,7 @@ import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
-import io.glutenproject.substrait.extensions.ExtensionBuilder
+import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.rdd.RDD
@@ -35,7 +36,7 @@ import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import com.google.protobuf.Any
+import com.google.protobuf.{Any, StringValue}
 
 import java.util.{ArrayList => JArrayList, List => JList}
 
@@ -71,6 +72,27 @@ abstract class HashAggregateExecBaseTransformer(
     groupingAttributes.toList ::: getAttrForAggregateExprs(
       aggregateExpressions,
       aggregateAttributes)
+  }
+
+  protected def isCapableForStreamingAggregation: Boolean = {
+    if (!conf.getConf(GlutenConfig.COLUMNAR_PREFER_STREAMING_AGGREGATE)) {
+      return false
+    }
+    if (groupingExpressions.isEmpty) {
+      return false
+    }
+
+    val childOrdering = child match {
+      case agg: HashAggregateExecBaseTransformer
+          if agg.groupingExpressions == this.groupingExpressions =>
+        // If the child aggregate supports streaming aggregate then the ordering is not changed.
+        // So we can propagate ordering if there is no shuffle exchange between aggregates and
+        // they have same grouping keys,
+        agg.child.outputOrdering
+      case _ => child.outputOrdering
+    }
+    val requiredOrdering = groupingExpressions.map(expr => SortOrder.apply(expr, Ascending))
+    SortOrder.orderingSatisfies(childOrdering, requiredOrdering)
   }
 
   override def doExecuteColumnar(): RDD[ColumnarBatch] = {
@@ -129,26 +151,12 @@ abstract class HashAggregateExecBaseTransformer(
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child match {
-      case c: TransformSupport =>
-        c.doTransform(context)
-      case _ =>
-        null
-    }
+    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
 
     val aggParams = new AggregationParams
     val operatorId = context.nextOperatorId(this.nodeName)
-
-    val (relNode, inputAttributes, outputAttributes) = if (childCtx != null) {
-      (getAggRel(context, operatorId, aggParams, childCtx.root), childCtx.outputAttributes, output)
-    } else {
-      // This means the input is just an iterator, so an ReadRel will be created as child.
-      // Prepare the input schema.
-      aggParams.isReadRel = true
-      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
-      (getAggRel(context, operatorId, aggParams, readRel), child.output, output)
-    }
-    TransformContext(inputAttributes, outputAttributes, relNode)
+    val relNode = getAggRel(context, operatorId, aggParams, childCtx.root)
+    TransformContext(childCtx.outputAttributes, output, relNode)
   }
 
   // Members declared in org.apache.spark.sql.execution.AliasAwareOutputPartitioning
@@ -328,11 +336,13 @@ abstract class HashAggregateExecBaseTransformer(
         }
       })
 
+    val extensionNode = getAdvancedExtension()
     RelBuilder.makeAggregateRel(
       inputRel,
       groupingList,
       aggregateFunctionList,
       aggFilterList,
+      extensionNode,
       context,
       operatorId)
   }
@@ -533,30 +543,39 @@ abstract class HashAggregateExecBaseTransformer(
           aggExpr.mode,
           aggregateFunctionList)
       })
-    if (!validation) {
-      RelBuilder.makeAggregateRel(
-        input,
-        groupingList,
-        aggregateFunctionList,
-        aggFilterList,
-        context,
-        operatorId)
-    } else {
+
+    val extensionNode = getAdvancedExtension(validation, originalInputAttributes)
+    RelBuilder.makeAggregateRel(
+      input,
+      groupingList,
+      aggregateFunctionList,
+      aggFilterList,
+      extensionNode,
+      context,
+      operatorId)
+  }
+
+  protected def getAdvancedExtension(
+      validation: Boolean = false,
+      originalInputAttributes: Seq[Attribute] = Seq.empty): AdvancedExtensionNode = {
+    val enhancement = if (validation) {
       // Use a extension node to send the input types through Substrait plan for validation.
       val inputTypeNodeList = originalInputAttributes
         .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         .asJava
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
-      RelBuilder.makeAggregateRel(
-        input,
-        groupingList,
-        aggregateFunctionList,
-        aggFilterList,
-        extensionNode,
-        context,
-        operatorId)
+      Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf)
+    } else {
+      null
     }
+
+    val isStreaming = if (isCapableForStreamingAggregation) {
+      "1"
+    } else {
+      "0"
+    }
+    val optimization =
+      Any.pack(StringValue.newBuilder.setValue(s"isStreaming=$isStreaming\n").build)
+    ExtensionBuilder.makeAdvancedExtension(optimization, enhancement)
   }
 
   protected def getAggRel(

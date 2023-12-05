@@ -83,11 +83,15 @@ class ListenerApiImpl extends ListenerApi {
       new SharedLibraryLoaderCentos7
     } else if (system.contains("tencentos") && system.contains("3.2")) {
       new SharedLibraryLoaderCentos8
+    } else if (systemName.contains("Red Hat") && systemVersion.startsWith("8")) {
+      new SharedLibraryLoaderCentos8
+    } else if (systemName.contains("Red Hat") && systemVersion.startsWith("7")) {
+      new SharedLibraryLoaderCentos7
     } else {
       throw new GlutenException(
         "Found unsupported OS! Currently, Gluten's Velox backend" +
           " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
-          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2.")
+          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8.")
     }
     loader.loadLib(load)
   }
@@ -102,9 +106,9 @@ class ListenerApiImpl extends ListenerApi {
     }
     loader
       .newTransaction()
-      .loadAndCreateLink(s"libarrow.so.$ARROW_VERSION.0.0", s"libarrow.so.$ARROW_VERSION", false)
+      .loadAndCreateLink(s"libarrow.so.$ARROW_VERSION.1.0", s"libarrow.so.$ARROW_VERSION", false)
       .loadAndCreateLink(
-        s"libparquet.so.$ARROW_VERSION.0.0",
+        s"libparquet.so.$ARROW_VERSION.1.0",
         s"libparquet.so.$ARROW_VERSION",
         false)
       .commit()
@@ -114,11 +118,11 @@ class ListenerApiImpl extends ListenerApi {
     loader
       .newTransaction()
       .loadAndCreateLink(
-        s"libarrow.$ARROW_VERSION.0.0.dylib",
+        s"libarrow.$ARROW_VERSION.1.0.dylib",
         s"libarrow.$ARROW_VERSION.dylib",
         false)
       .loadAndCreateLink(
-        s"libparquet.$ARROW_VERSION.0.0.dylib",
+        s"libparquet.$ARROW_VERSION.1.0.dylib",
         s"libparquet.$ARROW_VERSION.dylib",
         false)
       .commit()

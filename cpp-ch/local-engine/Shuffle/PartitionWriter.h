@@ -32,63 +32,70 @@ struct PartitionSpillInfo {
     size_t length; // in Bytes
 };
 
-struct SpillInfo {
+struct SpillInfo
+{
     std::string spilled_file;
     std::vector<PartitionSpillInfo> partition_spill_infos;
 };
 
-class CachedShuffleWriter;
 
 class Partition
 {
 public:
-    Partition() {}
-    Partition(const Partition & p) : blocks(p.blocks) {}
+    Partition() = default;
     ~Partition() = default;
-    void addBlock(DB::Block & block);
-    bool empty() const;
-    void clear();
+
+    Partition(Partition && other) noexcept : blocks(std::move(other.blocks)) { }
+
+    void addBlock(DB::Block block);
     size_t spill(NativeWriter & writer);
 
 private:
     std::vector<DB::Block> blocks;
-    std::mutex mtx;
 };
 
-class PartitionWriter {
+class CachedShuffleWriter;
+using PartitionPtr = std::shared_ptr<Partition>;
+class PartitionWriter : boost::noncopyable
+{
 public:
     explicit PartitionWriter(CachedShuffleWriter* shuffle_writer_);
     virtual ~PartitionWriter() = default;
 
-    virtual void write(const PartitionInfo& info, DB::Block & data);
+    void write(const PartitionInfo& info, DB::Block & data);
+    size_t evictPartitions(bool for_memory_spill = false);
+    void stop();
 
-    virtual void evictPartitions(bool for_memory_spill = false) = 0;
-
-    virtual void stop() = 0;
-
-    virtual size_t totalCacheSize()
-    {
-        return total_partition_buffer_size;
-    }
+    size_t totalCacheSize() const { return total_partition_buffer_size; }
 
 protected:
-    std::vector<ColumnsBuffer> partition_block_buffer;
-    std::vector<Partition> partition_buffer;
-    SplitOptions * options;
+    virtual size_t unsafeEvictPartitions(bool for_memory_spill = false) = 0;
+    virtual void unsafeStop() = 0;
+
     CachedShuffleWriter * shuffle_writer;
+    SplitOptions * options;
+
+    std::vector<ColumnsBufferPtr> partition_block_buffer;
+    std::vector<PartitionPtr> partition_buffer;
+
     size_t total_partition_buffer_size = 0;
+
+    bool evicting_or_writing{false};
 };
 
 class LocalPartitionWriter : public PartitionWriter
 {
 public:
     explicit LocalPartitionWriter(CachedShuffleWriter * shuffle_writer);
-    void evictPartitions(bool for_memory_spill) override;
-    void stop() override;
+    ~LocalPartitionWriter() override = default;
+
+protected:
+    size_t unsafeEvictPartitions(bool for_memory_spill) override;
+    void unsafeStop() override;
+
+    String getNextSpillFile();
     std::vector<Int64> mergeSpills(DB::WriteBuffer& data_file);
 
-private:
-    String getNextSpillFile();
     std::vector<SpillInfo> spill_infos;
 };
 
@@ -96,11 +103,12 @@ class CelebornPartitionWriter : public PartitionWriter
 {
 public:
     CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client);
-    void evictPartitions(bool for_memory_spill) override;
-    void stop() override;
+    ~CelebornPartitionWriter() override = default;
 
+protected:
+    size_t unsafeEvictPartitions(bool for_memory_spill) override;
+    void unsafeStop() override;
 
-private:
     std::unique_ptr<CelebornClient> celeborn_client;
 };
 }

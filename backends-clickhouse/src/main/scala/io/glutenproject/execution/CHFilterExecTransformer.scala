@@ -18,14 +18,9 @@ package io.glutenproject.execution
 
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.rel.RelBuilder
 
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions.{And, Expression}
 import org.apache.spark.sql.execution.SparkPlan
-
-import java.util
-
-import scala.collection.JavaConverters._
 
 case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
   extends FilterExecTransformerBase(condition, child) {
@@ -46,13 +41,8 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
+    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
     val leftCondition = getLeftCondition
-    val childCtx = child match {
-      case c: TransformSupport =>
-        c.doTransform(context)
-      case _ =>
-        throw new IllegalStateException(s"child ${child.nodeName} doesn't support transform.");
-    }
 
     val operatorId = context.nextOperatorId(this.nodeName)
     if (leftCondition == null) {
@@ -63,34 +53,15 @@ case class CHFilterExecTransformer(condition: Expression, child: SparkPlan)
       TransformContext(childCtx.inputAttributes, output, childCtx.root)
     }
 
-    val currRel = if (childCtx != null) {
-      getRelNode(
-        context,
-        leftCondition,
-        child.output,
-        operatorId,
-        childCtx.root,
-        validation = false)
-    } else {
-      // This means the input is just an iterator, so an ReadRel will be created as child.
-      // Prepare the input schema.
-      val attrList = new util.ArrayList[Attribute](child.output.asJava)
-      getRelNode(
-        context,
-        leftCondition,
-        child.output,
-        operatorId,
-        RelBuilder.makeReadRel(attrList, context, operatorId),
-        validation = false)
-    }
+    val currRel = getRelNode(
+      context,
+      leftCondition,
+      child.output,
+      operatorId,
+      childCtx.root,
+      validation = false)
     assert(currRel != null, "Filter rel should be valid.")
-    val inputAttributes = if (childCtx != null) {
-      // Use the outputAttributes of child context as inputAttributes.
-      childCtx.outputAttributes
-    } else {
-      child.output
-    }
-    TransformContext(inputAttributes, output, currRel)
+    TransformContext(childCtx.outputAttributes, output, currRel)
   }
 
   private def getLeftCondition: Expression = {

@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2023-11-14
+VELOX_BRANCH=update
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -26,6 +26,8 @@ ENABLE_HDFS=OFF
 BUILD_PROTOBUF=ON
 #Set on run gluten on S3
 ENABLE_S3=OFF
+#Set on run gluten on GCS
+ENABLE_GCS=OFF
 
 OS=`uname -s`
 
@@ -53,6 +55,10 @@ for arg in "$@"; do
     ;;
   --enable_s3=*)
     ENABLE_S3=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_gcs=*)
+    ENABLE_GCS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -90,6 +96,9 @@ function process_setup_ubuntu {
     sed -i '/^function install_fmt.*/i function install_awssdk {\n  github_checkout aws/aws-sdk-cpp 1.9.379 --depth 1 --recurse-submodules\n  cmake_install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS:BOOL=OFF -DMINIMIZE_SIZE:BOOL=ON -DENABLE_TESTING:BOOL=OFF -DBUILD_ONLY:STRING="s3;identity-management" \n} \n' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_awssdk' scripts/setup-ubuntu.sh
   fi
+  if [ $ENABLE_GCS == "ON" ]; then
+    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-ubuntu.sh
+  fi
   sed -i 's/run_and_time install_conda/#run_and_time install_conda/' scripts/setup-ubuntu.sh
 
 }
@@ -115,6 +124,9 @@ function process_setup_centos8 {
     sed -i '/^function cmake_install_deps.*/i function install_awssdk {\n  github_checkout aws/aws-sdk-cpp 1.9.379 --depth 1 --recurse-submodules\n  cmake_install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS:BOOL=OFF -DMINIMIZE_SIZE:BOOL=ON -DENABLE_TESTING:BOOL=OFF -DBUILD_ONLY:STRING="s3;identity-management" \n} \n' scripts/setup-centos8.sh
     sed -i '/^cmake_install_deps fmt/a \ \ install_awssdk' scripts/setup-centos8.sh
   fi
+  if [ $ENABLE_GCS == "ON" ]; then
+    sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos8.sh
+  fi
 }
 
 function process_setup_centos7 {
@@ -138,6 +150,9 @@ function process_setup_centos7 {
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_awssdk' scripts/setup-centos7.sh
+  fi
+  if [ $ENABLE_GCS == "ON" ]; then
+    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos7.sh
   fi
 }
 
@@ -189,6 +204,22 @@ fi
 #sync submodules
 git submodule sync --recursive
 git submodule update --init --recursive
+
+function apply_compilation_fixes {
+  current_dir=$1
+  velox_home=$2
+  sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
+  sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/third_party/
+  git add ${velox_home}/modify_velox.patch # to avoid the file from being deleted by git clean -dffx :/
+  git add ${velox_home}/third_party/modify_arrow.patch # to avoid the file from being deleted by git clean -dffx :/
+  cd ${velox_home}
+  echo "Applying patch to Velox source code..."
+  git apply modify_velox.patch
+  if [ $? -ne 0 ]; then
+    echo "Failed to apply compilation fixes to Velox: $?."
+    exit 1
+  fi
+}
 
 function setup_linux {
   local LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
@@ -252,5 +283,7 @@ else
   echo "Unsupport kernel: $OS"
   exit 1
 fi
+
+apply_compilation_fixes $CURRENT_DIR $VELOX_SOURCE_DIR
 
 echo "Velox-get finished."

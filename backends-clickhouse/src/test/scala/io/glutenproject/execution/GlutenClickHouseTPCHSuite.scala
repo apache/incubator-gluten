@@ -444,12 +444,12 @@ class GlutenClickHouseTPCHSuite extends GlutenClickHouseTPCHAbstractSuite {
         | create table test_tbl(id bigint, name string) using parquet;
         |""".stripMargin
     )
-    val df = spark.sql("select count(1), sum(id), max(id), min(id) from test_tbl");
-    val result = df.collect()
-    assert(result(0).getLong(0) == 0)
-    assert(result(0).isNullAt(1))
-    assert(result(0).isNullAt(2))
-    assert(result(0).isNullAt(3))
+    val sql1 = "select count(1), sum(id), max(id), min(id), 'abc' as x from test_tbl"
+    val sql2 =
+      "select count(1) as cnt, sum(id) as sum, max(id) as max, min(id) as min from test_tbl"
+    compareResultsAgainstVanillaSpark(sql1, true, { _ => })
+    compareResultsAgainstVanillaSpark(sql2, true, { _ => })
+    spark.sql("drop table test_tbl")
   }
 
   test("test 'function json_tuple'") {

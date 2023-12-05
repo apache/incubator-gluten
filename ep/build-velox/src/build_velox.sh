@@ -17,6 +17,8 @@
 set -exu
 #Set on run gluten on S3
 ENABLE_S3=OFF
+#Set on run gluten on GCS
+ENABLE_GCS=OFF
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
 BUILD_TYPE=release
@@ -37,6 +39,10 @@ for arg in "$@"; do
     ;;
   --enable_s3=*)
     ENABLE_S3=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_gcs=*)
+    ENABLE_GCS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --enable_hdfs=*)
@@ -70,19 +76,6 @@ for arg in "$@"; do
   esac
 done
 
-function apply_compilation_fixes {
-  current_dir=$1
-  velox_home=$2
-  sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
-  sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/third_party/
-  cd ${velox_home}
-  git apply modify_velox.patch
-  if [ $? -ne 0 ]; then
-    echo "Failed to apply compilation fixes to Velox: $?."
-    exit 1
-  fi
-}
-
 function compile {
   TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
 
@@ -97,7 +90,7 @@ function compile {
     fi
   fi
 
-  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_BUILD_TEST_UTILS=OFF -DVELOX_ENABLE_DUCKDB=OFF"
+  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_BUILD_TEST_UTILS=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_ENABLE_PARSE=OFF"
   if [ $ENABLE_BENCHMARK == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_BENCHMARKS=ON"
   fi
@@ -110,11 +103,16 @@ function compile {
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
   fi
+  if [ $ENABLE_GCS == "ON" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GCS=ON"
+  fi
 
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
   COMPILE_TYPE=$(if [[ "$BUILD_TYPE" == "debug" ]] || [[ "$BUILD_TYPE" == "Debug" ]]; then echo 'debug'; else echo 'release'; fi)
   echo "COMPILE_OPTION: "$COMPILE_OPTION
 
+  export simdjson_SOURCE=BUNDLED
+  export duckdb_SOURCE=BUNDLED
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
@@ -124,8 +122,6 @@ function compile {
     exit 1
   fi
 
-  export simdjson_SOURCE=BUNDLED
-  make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   # Install deps to system as needed
   if [ -d "_build/$COMPILE_TYPE/_deps" ]; then
     cd _build/$COMPILE_TYPE/_deps
@@ -162,6 +158,7 @@ function check_commit {
       fi
     fi
   else
+    # Branch-new build requires all untracked files to be deleted. We only need the source code.
     git clean -dffx :/
   fi
 
@@ -243,6 +240,7 @@ echo "Start building Velox..."
 echo "CMAKE Arguments:"
 echo "VELOX_HOME=${VELOX_HOME}"
 echo "ENABLE_S3=${ENABLE_S3}"
+echo "ENABLE_GCS=${ENABLE_GCS}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 
@@ -255,7 +253,6 @@ fi
 echo "Target Velox commit: $TARGET_BUILD_COMMIT"
 
 check_commit
-apply_compilation_fixes $CURRENT_DIR $VELOX_HOME
 compile
 
 echo "Successfully built Velox from Source."

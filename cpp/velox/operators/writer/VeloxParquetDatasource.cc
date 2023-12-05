@@ -38,11 +38,25 @@ using namespace facebook::velox::filesystems;
 
 namespace gluten {
 
+namespace {
+const int32_t kGzipWindowBits4k = 12;
+}
+
 void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::string>& sparkConfs) {
   if (strncmp(filePath_.c_str(), "file:", 5) == 0) {
     auto path = filePath_.substr(5);
     auto localWriteFile = std::make_unique<LocalWriteFile>(path, true, false);
     sink_ = std::make_unique<WriteFileSink>(std::move(localWriteFile), path);
+  } else if (strncmp(filePath_.c_str(), "s3a:", 4) == 0) {
+#ifdef ENABLE_S3
+    auto fileSystem = getFileSystem(filePath_, nullptr);
+    auto* s3FileSystem = dynamic_cast<filesystems::S3FileSystem*>(fileSystem.get());
+    sink_ = std::make_unique<dwio::common::WriteFileSink>(
+        s3FileSystem->openFileForWrite(filePath_, {{}, s3SinkPool_.get()}), filePath_);
+#else
+    throw std::runtime_error(
+        "The write path is S3 path but the S3 haven't been enabled when writing parquet data in velox runtime!");
+#endif
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
 #ifdef ENABLE_HDFS
     std::string pathSuffix = getHdfsPath(filePath_, HdfsFileSystem::kScheme);
@@ -73,6 +87,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
   if (sparkConfs.find(kParquetBlockRows) != sparkConfs.end()) {
     maxRowGroupRows_ = static_cast<int64_t>(stoi(sparkConfs.find(kParquetBlockRows)->second));
   }
+  velox::parquet::WriterOptions writeOption;
   auto compressionCodec = CompressionKind::CompressionKind_SNAPPY;
   if (sparkConfs.find(kParquetCompressionCodec) != sparkConfs.end()) {
     auto compressionCodecStr = sparkConfs.find(kParquetCompressionCodec)->second;
@@ -81,6 +96,14 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
       compressionCodec = CompressionKind::CompressionKind_SNAPPY;
     } else if (boost::iequals(compressionCodecStr, "gzip")) {
       compressionCodec = CompressionKind::CompressionKind_GZIP;
+      if (sparkConfs.find(kParquetGzipWindowSize) != sparkConfs.end()) {
+        auto parquetGzipWindowSizeStr = sparkConfs.find(kParquetGzipWindowSize)->second;
+        if (parquetGzipWindowSizeStr == kGzipWindowSize4k) {
+          auto codecOptions = std::make_shared<facebook::velox::parquet::arrow::util::GZipCodecOptions>();
+          codecOptions->window_bits = kGzipWindowBits4k;
+          writeOption.codecOptions = std::move(codecOptions);
+        }
+      }
     } else if (boost::iequals(compressionCodecStr, "lzo")) {
       compressionCodec = CompressionKind::CompressionKind_LZO;
     } else if (boost::iequals(compressionCodecStr, "brotli")) {
@@ -96,12 +119,10 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
       compressionCodec = CompressionKind::CompressionKind_NONE;
     }
   }
-
-  velox::parquet::WriterOptions writeOption;
   writeOption.compression = compressionCodec;
   writeOption.flushPolicyFactory = [&]() {
     return std::make_unique<velox::parquet::LambdaFlushPolicy>(
-        maxRowGroupRows_, maxRowGroupRows_, [&]() { return false; });
+        maxRowGroupRows_, maxRowGroupBytes_, [&]() { return false; });
   };
   writeOption.schema = gluten::fromArrowSchema(schema_);
 

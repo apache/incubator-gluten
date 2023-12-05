@@ -2,25 +2,8 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "builtin-baseline": "a7b6122f6b6504d16d96117336a0562693579933",
   "dependencies": ["jemalloc"],
-  "default-features": ["arrow", "velox", "velox-s3", "velox-hdfs"],
+  "default-features": ["velox", "velox-s3", "velox-gcs", "velox-hdfs"],
   "features": {
-    "arrow": {
-      "description": "Apache Arrow",
-      "dependencies": [
-        "libevent",
-        "libdwarf",
-        "openssl",
-        "orc",
-        "protobuf",
-        "rapidjson",
-        "snappy",
-        "xsimd",
-        "zlib",
-        "zstd",
-        "thrift",
-        "jemalloc"
-      ]
-    },
     "velox": {
       "description": "Velox backend",
       "dependencies": [
@@ -83,6 +66,17 @@
         }
       ]
     },
+    "velox-gcs": {
+      "description": "Velox GCS Support",
+      "dependencies": [
+        {
+          "name": "google-cloud-cpp",
+          "features": [
+            "storage"
+          ]
+        }
+      ]
+    },
     "velox-hdfs": {
       "description": "Velox HDFS Support",
       "dependencies": [
@@ -93,6 +87,15 @@
       "description": "HBM",
       "dependencies": [
         "memkind"
+      ]
+    },
+    "qat": {
+      "description": "QAT",
+      "dependencies": [
+        {
+	  "name": "zstd",
+	  "version>=": "1.5.4"
+        }
       ]
     }
   },

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "EmptyHashAggregate.h"
+#include "DefaultHashAggregateResult.h"
 #include <memory>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnsNumber.h>
@@ -46,13 +46,28 @@ static DB::ITransformingStep::Traits getTraits()
         }};
 }
 
-/// Always return a block with one row. Don't care what is in it.
-class EmptyHashAggregate : public DB::IProcessor
+/// A more special case, the aggregate functions is also empty.
+/// We add a fake block to downstream. 
+DB::Block adjustOutputHeader(const DB::Block & original_block)
+{
+    if (original_block)
+        return original_block;
+    return BlockUtil::buildRowCountHeader();
+}
+
+class DefaultHashAggrgateResultTransform : public DB::IProcessor
 {
 public:
-    explicit EmptyHashAggregate(const DB::Block & input_) : DB::IProcessor({input_}, {BlockUtil::buildRowCountHeader()}) { }
-    ~EmptyHashAggregate() override = default;
-
+    explicit DefaultHashAggrgateResultTransform(const DB::Block & input_) : DB::IProcessor({input_}, {adjustOutputHeader(input_)}), header(input_) { }
+    ~DefaultHashAggrgateResultTransform() override = default;
+    void work() override
+    {
+        if (has_input)
+        {
+            has_input = false;
+            has_output = true;
+        }
+    }
     Status prepare() override
     {
         auto & output = outputs.front();
@@ -69,9 +84,12 @@ public:
                 output.push(std::move(output_chunk));
                 has_output = false;
                 has_outputed = true;
-                return Status::PortFull;
             }
+            return Status::PortFull;
         }
+
+        if (has_input)
+            return Status::Ready;
 
         if (input.isFinished())
         {
@@ -80,61 +98,76 @@ public:
                 output.finish();
                 return Status::Finished;
             }
-            if (!has_output)
+            DB::Columns result_cols;
+            if (header)
             {
-                output_chunk = BlockUtil::buildRowCountChunk(1);
-                has_output = true;
+                for (const auto & col : header.getColumnsWithTypeAndName())
+                {
+                    auto result_col = col.type->createColumnConst(1, col.type->getDefault());
+                    result_cols.emplace_back(result_col);
+                }
             }
+            else
+            {
+                auto cnt_chunk = BlockUtil::buildRowCountChunk(1);
+                result_cols = cnt_chunk.detachColumns();
+            }
+            has_input = true;
+            output_chunk = DB::Chunk(result_cols, 1);
             return Status::Ready;
         }
 
         input.setNeeded();
         if (input.hasData())
         {
-            (void)input.pullData(true);
+            output_chunk = input.pull(true);
+            has_input = true;
             return Status::Ready;
         }
         return Status::NeedData;
-    }
-    void work() override { }
+    }    
 
-    DB::String getName() const override { return "EmptyHashAggregate"; }
-
+    DB::String getName() const override { return "DefaultHashAggrgateResultTransform"; }
 private:
-    bool has_outputed = false;
+    DB::Block header;
+    bool has_input = false;
     bool has_output = false;
+    bool has_outputed = false;
     DB::Chunk output_chunk;
 };
 
-EmptyHashAggregateStep::EmptyHashAggregateStep(const DB::DataStream & input_stream_)
-    : DB::ITransformingStep(input_stream_, BlockUtil::buildRowCountHeader(), getTraits())
+DefaultHashAggregateResultStep::DefaultHashAggregateResultStep(const DB::DataStream & input_stream_)
+    : DB::ITransformingStep(input_stream_, input_stream_.header, getTraits())
 {
 }
 
-void EmptyHashAggregateStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & /*settings*/)
+void DefaultHashAggregateResultStep::transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & /*settings*/)
 {
+    auto num_streams = pipeline.getNumStreams();
+    pipeline.resize(1);
     auto build_transform = [&](DB::OutputPortRawPtrs outputs)
     {
         DB::Processors new_processors;
         for (auto & output : outputs)
         {
-            auto op = std::make_shared<EmptyHashAggregate>(output->getHeader());
+            auto op = std::make_shared<DefaultHashAggrgateResultTransform>(output->getHeader());
             new_processors.push_back(op);
             DB::connect(*output, op->getInputs().front());
         }
         return new_processors;
     };
     pipeline.transform(build_transform);
+    pipeline.resize(num_streams);
 }
 
-void EmptyHashAggregateStep::describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const
+void DefaultHashAggregateResultStep::describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const
 {
     if (!processors.empty())
         DB::IQueryPlanStep::describePipeline(processors, settings);
 }
 
-void EmptyHashAggregateStep::updateOutputStream()
+void DefaultHashAggregateResultStep::updateOutputStream()
 {
-    createOutputStream(input_streams.front(), BlockUtil::buildRowCountHeader(), getDataStreamTraits());
+    createOutputStream(input_streams.front(), input_streams.front().header, getDataStreamTraits());
 }
 }

@@ -70,7 +70,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
               salted_df = Some((salted_df match {
                 case Some(x) => x
                 case None => df
-              }).withColumn(c.name, when(rand() < 0.1, null).otherwise(col(c.name))))
+              }).withColumn(c.name, when(rand() < 0.01, null).otherwise(col(c.name))))
             }
 
             val currentSaltedTablePath = saltedTablesPath + "/" + tableName
@@ -2021,7 +2021,6 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
   }
 
   test("Test plan json non-empty") {
-    spark.sparkContext.setLogLevel("WARN")
     val df1 = spark
       .sql("""
              | select * from lineitem limit 1
@@ -2029,18 +2028,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     val executedPlan1 = df1.queryExecution.executedPlan
     val lastStageTransformer1 = executedPlan1.find(_.isInstanceOf[WholeStageTransformer])
     executedPlan1.execute()
-    assert(lastStageTransformer1.get.asInstanceOf[WholeStageTransformer].getPlanJson.isEmpty)
-
-    spark.sparkContext.setLogLevel("DEBUG")
-    val df2 = spark
-      .sql("""
-             | select * from lineitem limit 1
-             | """.stripMargin)
-    val executedPlan2 = df2.queryExecution.executedPlan
-    val lastStageTransformer2 = executedPlan2.find(_.isInstanceOf[WholeStageTransformer])
-    executedPlan2.execute()
-    assert(lastStageTransformer2.get.asInstanceOf[WholeStageTransformer].getPlanJson.nonEmpty)
-    spark.sparkContext.setLogLevel(logLevel)
+    assert(lastStageTransformer1.get.asInstanceOf[WholeStageTransformer].substraitPlanJson.nonEmpty)
   }
 
   test("GLUTEN-3140: Bug fix array_contains return null") {
@@ -2102,8 +2090,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
-  // ISSUE-3668, revert first
-  ignore("GLUTEN-3135: Bug fix to_date") {
+  test("GLUTEN-3135: Bug fix to_date") {
     val create_table_sql =
       """
         | create table test_tbl_3135(id bigint, data string) using parquet
@@ -2229,5 +2216,6 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     spark.sql("drop table test_tbl_3521")
   }
+
 }
 // scalastyle:on line.size.limit

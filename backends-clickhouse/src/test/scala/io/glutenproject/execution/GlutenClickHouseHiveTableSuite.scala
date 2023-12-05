@@ -957,8 +957,8 @@ class GlutenClickHouseHiveTableSuite()
     spark.sql("DROP TABLE b")
   }
 
-  test("GLUTEN-3337: fix get_json_object ctrl-chars bug") {
-    val data_path = rootPath + "/text-data/ctrl-chars"
+  test("GLUTEN-3337: fix get_json_object for abnormal json") {
+    val data_path = rootPath + "/text-data/abnormal-json"
     spark.sql(s"""
                  |CREATE TABLE test_tbl_3337 (
                  |  id bigint,
@@ -966,8 +966,17 @@ class GlutenClickHouseHiveTableSuite()
                  |LOCATION '$data_path'
       """.stripMargin)
 
-    val select_sql = "select id, get_json_object(data, '$.data.v') from test_tbl_3337"
-    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    val select_sql_1 = "select id, get_json_object(data, '$.data.v') from test_tbl_3337"
+    val select_sql_2 = "select id, get_json_object(data, '$.v') from test_tbl_3337"
+    val select_sql_3 = "select id, get_json_object(data, '$.123.234') from test_tbl_3337"
+    val select_sql_4 = "select id, get_json_object(data, '$.v111') from test_tbl_3337"
+    val select_sql_5 = "select id, get_json_object(data, 'v112') from test_tbl_3337"
+    compareResultsAgainstVanillaSpark(select_sql_1, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_2, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_3, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_4, compareResult = true, _ => {})
+    compareResultsAgainstVanillaSpark(select_sql_5, compareResult = true, _ => {})
+
     spark.sql("DROP TABLE test_tbl_3337")
   }
 
@@ -1027,5 +1036,28 @@ class GlutenClickHouseHiveTableSuite()
     val select_sql = "select * from test_tbl_3552"
     compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
     spark.sql("DROP TABLE test_tbl_3552")
+  }
+
+  test("GLUTEN-3548: Bug fix csv allow cr end of line") {
+    val data_path = rootPath + "/text-data/cr_end_of_line"
+    spark.sql(s"""
+                 | CREATE TABLE test_tbl_3548(
+                 | a string,
+                 | b string,
+                 | c string)
+                 | ROW FORMAT SERDE
+                 |  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
+                 |WITH SERDEPROPERTIES (
+                 |   'field.delim'=','
+                 | )
+                 | STORED AS INPUTFORMAT
+                 |  'org.apache.hadoop.mapred.TextInputFormat'
+                 |OUTPUTFORMAT
+                 |  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+                 |LOCATION '$data_path'
+                 |""".stripMargin)
+    val select_sql = "select * from test_tbl_3548"
+    compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    spark.sql("DROP TABLE test_tbl_3548")
   }
 }

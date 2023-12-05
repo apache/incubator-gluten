@@ -45,7 +45,7 @@
     <scala.version>2.12.15</scala.version>
     <spark.major.version>3</spark.major.version>
     <sparkbundle.version>3.2</sparkbundle.version>
-    <spark.version>3.2.2</spark.version>
+    <spark.version>3.4.1</spark.version>
     <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
     <celeborn.version>0.3.0-incubating</celeborn.version>
     <arrow.version>12.0.0</arrow.version>
@@ -65,7 +65,11 @@
     <junit.version>4.13.1</junit.version>
 
     <substrait.version>0.5.0</substrait.version>
+    <!-- The original protobuf version -->
     <protobuf.version>3.23.4</protobuf.version>
+    <!-- The custom protobuf version (based on 3.23.4) with recursion limit enlarged. -->
+    <custom.protobuf.version>3.23.4-0</custom.protobuf.version>
+    <guava.version>32.0.1-jre</guava.version>
     <!--spotless-->
     <spotless.version>2.27.2</spotless.version>
     <spotless.scalafmt.version>3.5.9</spotless.scalafmt.version>

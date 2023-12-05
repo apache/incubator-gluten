@@ -28,7 +28,8 @@ import org.apache.spark.sql.execution.datasources.v2.DataSourceV2ScanRelation
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy.CORRECTED
+import org.apache.spark.sql.internal.SQLConf.LegacyBehaviorPolicy.{CORRECTED, LEGACY}
+import org.apache.spark.sql.internal.SQLConf.ParquetOutputTimestampType.INT96
 import org.apache.spark.sql.types._
 import org.apache.spark.tags.ExtendedSQLTest
 import org.apache.spark.util.Utils
@@ -41,7 +42,7 @@ import org.apache.parquet.filter2.predicate.Operators.{Column => _, _}
 import org.apache.parquet.hadoop.{ParquetFileReader, ParquetInputFormat, ParquetOutputFormat}
 import org.apache.parquet.hadoop.util.HadoopInputFile
 
-import java.sql.Date
+import java.sql.{Date, Timestamp}
 import java.time.LocalDate
 
 import scala.reflect.ClassTag
@@ -65,6 +66,44 @@ abstract class GltuenParquetFilterSuite extends ParquetFilterSuite with GlutenSQ
   override protected def readResourceParquetFile(name: String): DataFrame = {
     spark.read.parquet(
       getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + name)
+  }
+
+  test(GlutenTestConstants.GLUTEN_TEST + "filter pushdown - timestamp") {
+    Seq(true, false).foreach {
+      java8Api =>
+        Seq(CORRECTED, LEGACY).foreach {
+          rebaseMode =>
+            val millisData = Seq(
+              "1000-06-14 08:28:53.123",
+              "1582-06-15 08:28:53.001",
+              "1900-06-16 08:28:53.0",
+              "2018-06-17 08:28:53.999")
+            // INT96 doesn't support pushdown
+            withSQLConf(
+              SQLConf.DATETIME_JAVA8API_ENABLED.key -> java8Api.toString,
+              SQLConf.PARQUET_INT96_REBASE_MODE_IN_WRITE.key -> rebaseMode.toString,
+              SQLConf.PARQUET_OUTPUT_TIMESTAMP_TYPE.key -> INT96.toString
+            ) {
+              import testImplicits._
+              withTempPath {
+                file =>
+                  millisData
+                    .map(i => Tuple1(Timestamp.valueOf(i)))
+                    .toDF
+                    .write
+                    .format(dataSourceName)
+                    .save(file.getCanonicalPath)
+                  readParquetFile(file.getCanonicalPath) {
+                    df =>
+                      val schema = new SparkToParquetSchemaConverter(conf).convert(df.schema)
+                      assertResult(None) {
+                        createParquetFilters(schema).createFilter(sources.IsNull("_1"))
+                      }
+                  }
+              }
+            }
+        }
+    }
   }
 
   test(

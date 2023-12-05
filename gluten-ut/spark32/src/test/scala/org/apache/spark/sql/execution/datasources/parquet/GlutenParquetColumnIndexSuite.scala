@@ -16,6 +16,30 @@
  */
 package org.apache.spark.sql.execution.datasources.parquet
 
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
+import org.apache.spark.sql.{DataFrame, GlutenSQLTestsBaseTrait}
 
-class GlutenParquetColumnIndexSuite extends ParquetColumnIndexSuite with GlutenSQLTestsBaseTrait {}
+class GlutenParquetColumnIndexSuite extends ParquetColumnIndexSuite with GlutenSQLTestsBaseTrait {
+  private val actions: Seq[DataFrame => DataFrame] = Seq(
+    "_1 = 500",
+    "_1 = 500 or _1 = 1500",
+    "_1 = 500 or _1 = 501 or _1 = 1500",
+    "_1 = 500 or _1 = 501 or _1 = 1000 or _1 = 1500",
+    "_1 >= 500 and _1 < 1000",
+    "(_1 >= 500 and _1 < 1000) or (_1 >= 1500 and _1 < 1600)"
+  ).map(f => (df: DataFrame) => df.filter(f))
+
+  test("Gluten: test reading unaligned pages - test all types except timestamp") {
+    val df = spark
+      .range(0, 2000)
+      .selectExpr(
+        "id as _1",
+        "cast(id as short) as _3",
+        "cast(id as int) as _4",
+        "cast(id as float) as _5",
+        "cast(id as double) as _6",
+        "cast(id as decimal(20,0)) as _7",
+        "cast(cast(1618161925000 + id * 1000 * 60 * 60 * 24 as timestamp) as date) as _9"
+      )
+    checkUnalignedPages(df)(actions: _*)
+  }
+}

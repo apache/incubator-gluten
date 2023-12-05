@@ -46,17 +46,6 @@ namespace local_engine
 SubstraitFileSourceStep::SubstraitFileSourceStep(DB::ContextPtr context_, DB::Pipe pipe_, const String &)
     : SourceStepWithFilter(DB::DataStream{.header = pipe_.getHeader()}), pipe(std::move(pipe_)), context(context_)
 {
-    DB::Processors processors = pipe.getProcessors();
-    for (size_t i = 0; i < processors.size(); ++i)
-    {
-        DB::ProcessorPtr processor = processors[i];
-        const SubstraitFileSource * source = static_cast<const SubstraitFileSource *>(processor.get());
-        if (source)
-        {
-            partition_keys = source->getPartitionKeys();
-            file_format = source->getFileFormat();
-        }
-    }
 }
 
 void SubstraitFileSourceStep::initializePipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings &)

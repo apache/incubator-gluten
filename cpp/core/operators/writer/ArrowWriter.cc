@@ -37,8 +37,8 @@ arrow::Status ArrowWriter::initWriter(arrow::Schema& schema) {
   // Create a writer
   std::shared_ptr<arrow::io::FileOutputStream> outfile;
   ARROW_ASSIGN_OR_RAISE(outfile, arrow::io::FileOutputStream::Open(path_));
-  ARROW_RETURN_NOT_OK(
-      parquet::arrow::FileWriter::Open(schema, arrow::default_memory_pool(), outfile, props, arrowProps, &writer_));
+  ARROW_ASSIGN_OR_RAISE(
+      writer_, parquet::arrow::FileWriter::Open(schema, arrow::default_memory_pool(), outfile, props, arrowProps));
   return arrow::Status::OK();
 }
 

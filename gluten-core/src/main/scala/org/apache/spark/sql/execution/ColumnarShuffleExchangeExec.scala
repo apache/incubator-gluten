@@ -106,7 +106,7 @@ case class ColumnarShuffleExchangeExec(
 
   override protected def doValidateInternal(): ValidationResult = {
     if (
-      !BackendsApiManager.getTransformerApiInstance.validateColumnarShuffleExchangeExec(
+      !BackendsApiManager.getValidatorApiInstance.doColumnarShuffleExchangeExecValidate(
         outputPartitioning,
         child)
     ) {

@@ -25,8 +25,6 @@
 #include "operators/writer/VeloxParquetDatasource.h"
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
-#include "shuffle/VeloxShuffleReader.h"
-#include "utils/ResourceMap.h"
 
 namespace gluten {
 
@@ -36,6 +34,8 @@ inline static const std::string kVeloxRuntimeKind{"velox"};
 class VeloxRuntime final : public Runtime {
  public:
   explicit VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap);
+
+  void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) override;
 
   static std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
     return toVeloxMemoryManager(memoryManager)->getAggregateMemoryPool();
@@ -106,6 +106,8 @@ class VeloxRuntime final : public Runtime {
       MemoryManager* memoryManager,
       arrow::MemoryPool* arrowPool,
       struct ArrowSchema* cSchema) override;
+
+  std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) override;
 
   std::shared_ptr<const facebook::velox::core::PlanNode> getVeloxPlan() {
     return veloxPlan_;

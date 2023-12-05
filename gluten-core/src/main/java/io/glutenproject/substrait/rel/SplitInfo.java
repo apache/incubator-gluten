@@ -14,23 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
-#include <Core/Block.h>
-#include <Parser/ExpandField.h>
-#include <Processors/QueryPlan/IQueryPlanStep.h>
-#include <Processors/QueryPlan/ITransformingStep.h>
-namespace local_engine
-{
-class EmptyHashAggregateStep : public DB::ITransformingStep
-{
-public:
-    explicit EmptyHashAggregateStep(const DB::DataStream & input_stream_);
-    ~EmptyHashAggregateStep() override = default;
+package io.glutenproject.substrait.rel;
 
-    String getName() const override { return "EmptyHashAggregateStep"; }
+import com.google.protobuf.MessageOrBuilder;
 
-    void transformPipeline(DB::QueryPipelineBuilder & pipeline, const DB::BuildQueryPipelineSettings & settings) override;
-    void describePipeline(DB::IQueryPlanStep::FormatSettings & settings) const override;
-    void updateOutputStream() override;
-};
+import java.io.Serializable;
+import java.util.List;
+
+/**
+ * A serializable representation of a read split for native engine, including the file path and
+ * other information of the scan table. It is returned by {@link
+ * io.glutenproject.execution.BasicScanExecTransformer#getSplitInfos()}.
+ */
+public interface SplitInfo extends Serializable {
+  /** The preferred locations where the table files returned by this read split can run faster. */
+  List<String> preferredLocations();
+
+  MessageOrBuilder toProtobuf();
 }

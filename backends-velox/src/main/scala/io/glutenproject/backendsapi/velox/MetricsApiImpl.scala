@@ -37,6 +37,20 @@ class MetricsApiImpl extends MetricsApi with Logging {
     MetricsUtil.updateNativeMetrics(child, relMap, joinParamsMap, aggParamsMap)
   }
 
+  override def genInputIteratorTransformerMetrics(
+      sparkContext: SparkContext): Map[String, SQLMetric] = {
+    Map(
+      "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of input iterator"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors")
+    )
+  }
+
+  override def genInputIteratorTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric]): MetricsUpdater = {
+    InputIteratorMetricsUpdater(metrics)
+  }
+
   override def genBatchScanTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
@@ -49,7 +63,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
       "wallNanos" -> SQLMetrics.createNanoTimingMetric(sparkContext, "totaltime of batch scan"),
       "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
-      "scanTime" -> SQLMetrics.createTimingMetric(sparkContext, "scan time"),
+      "scanTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "scan time"),
       "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
       "numMemoryAllocations" -> SQLMetrics.createMetric(
         sparkContext,
@@ -60,7 +74,10 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
-      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
+      "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "remaining filter time")
     )
 
   override def genBatchScanTransformerMetricsUpdater(
@@ -96,7 +113,10 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
-      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
+      "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "remaining filter time")
     )
 
   override def genHiveTableScanTransformerMetricsUpdater(
@@ -132,7 +152,10 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
-      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups")
+      "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
+      "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "remaining filter time")
     )
 
   override def genFileSourceScanTransformerMetricsUpdater(
@@ -435,23 +458,12 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "hashProbeDynamicFiltersProduced" -> SQLMetrics.createMetric(
         sparkContext,
         "number of hash probe dynamic filters produced"),
-      "streamCpuCount" -> SQLMetrics.createMetric(sparkContext, "stream input cpu wall time count"),
-      "streamWallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime of stream input"),
-      "streamVeloxToArrow" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime of velox2arrow converter"),
       "streamPreProjectionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "stream preProject cpu wall time count"),
       "streamPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
         "totaltime of stream preProjection"),
-      "buildCpuCount" -> SQLMetrics.createMetric(sparkContext, "build input cpu wall time count"),
-      "buildWallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime to build input"),
       "buildPreProjectionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "preProject cpu wall time count"),

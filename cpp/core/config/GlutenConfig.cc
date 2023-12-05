@@ -34,4 +34,13 @@ std::unordered_map<std::string, std::string> parseConfMap(JNIEnv* env, jbyteArra
 
   return sparkConfs;
 }
+
+std::string printConfig(const std::unordered_map<std::string, std::string>& conf) {
+  std::ostringstream oss;
+  oss << std::endl;
+  for (auto& [k, v] : conf) {
+    oss << " [" << k << ", " << v << "]\n";
+  }
+  return oss.str();
+}
 } // namespace gluten

@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.GlutenNumaBindingInfo
 import io.glutenproject.backendsapi.BackendsApiManager
-import io.glutenproject.metrics.IMetrics
+import io.glutenproject.metrics.{GlutenTimeMetric, IMetrics}
 
 import org.apache.spark.{Partition, SparkConf, SparkContext, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -45,19 +45,23 @@ class WholeStageZippedPartitionsRDD(
   extends RDD[ColumnarBatch](sc, rdds.getDependencies) {
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
-    val partitions = split.asInstanceOf[ZippedPartitionsPartition].inputColumnarRDDPartitions
-    val inputIterators: Seq[Iterator[ColumnarBatch]] = rdds.getIterators(partitions, context)
-    BackendsApiManager.getIteratorApiInstance
-      .genFinalStageIterator(
-        inputIterators,
-        numaBindingInfo,
-        sparkConf,
-        resCtx.root,
-        pipelineTime,
-        updateNativeMetrics,
-        buildRelationBatchHolder,
-        materializeInput
-      )
+    GlutenTimeMetric.millis(pipelineTime) {
+      _ =>
+        val partitions = split.asInstanceOf[ZippedPartitionsPartition].inputColumnarRDDPartitions
+        val inputIterators: Seq[Iterator[ColumnarBatch]] = rdds.getIterators(partitions, context)
+        BackendsApiManager.getIteratorApiInstance
+          .genFinalStageIterator(
+            context,
+            inputIterators,
+            numaBindingInfo,
+            sparkConf,
+            resCtx.root,
+            pipelineTime,
+            updateNativeMetrics,
+            buildRelationBatchHolder,
+            materializeInput
+          )
+    }
   }
 
   override def getPartitions: Array[Partition] = {

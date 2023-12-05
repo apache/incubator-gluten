@@ -16,15 +16,19 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.execution.{GenerateExec, RDDScanExec}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{avg, col, udf}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
 import scala.collection.JavaConverters
 
-class TestOperator extends VeloxWholeStageTransformerSuite {
+class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
@@ -193,29 +197,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
   }
 
   test("window expression") {
-    runQueryAndCompare(
-      "select row_number() over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
-
-    runQueryAndCompare(
-      "select rank() over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
-
-    runQueryAndCompare(
-      "select dense_rank() over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
-
-    runQueryAndCompare(
-      "select percent_rank() over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
-
-    runQueryAndCompare(
-      "select cume_dist() over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
-
-    runQueryAndCompare(
-      "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+    def assertWindowOffloaded: DataFrame => Unit = {
       df =>
         {
           assert(
@@ -226,22 +208,84 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
         }
     }
 
-    runQueryAndCompare(
-      "select sum(l_partkey + 1) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem") { _ => }
+    Seq("sort", "streaming").foreach {
+      windowType =>
+        withSQLConf("spark.gluten.sql.columnar.backend.velox.window.type" -> windowType) {
+          runQueryAndCompare(
+            "select row_number() over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
 
-    runQueryAndCompare(
-      "select max(l_partkey) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+          runQueryAndCompare(
+            "select rank() over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
 
-    runQueryAndCompare(
-      "select min(l_partkey) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+          runQueryAndCompare(
+            "select dense_rank() over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
 
-    runQueryAndCompare(
-      "select avg(l_partkey) over" +
-        " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+          runQueryAndCompare(
+            "select percent_rank() over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
 
+          runQueryAndCompare(
+            "select cume_dist() over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") { _ => }
+
+          runQueryAndCompare(
+            "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
+          runQueryAndCompare(
+            "select l_suppkey, l_orderkey, nth_value(l_orderkey, 2) IGNORE NULLS over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
+          runQueryAndCompare(
+            "select sum(l_partkey + 1) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem") {
+            assertWindowOffloaded
+          }
+
+          runQueryAndCompare(
+            "select max(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
+          runQueryAndCompare(
+            "select min(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
+          runQueryAndCompare(
+            "select avg(l_partkey) over" +
+              " (partition by l_suppkey order by l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
+          // Test same partition/ordering keys.
+          runQueryAndCompare(
+            "select avg(l_partkey) over" +
+              " (partition by l_suppkey order by l_suppkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+
+          // Test overlapping partition/ordering keys.
+          runQueryAndCompare(
+            "select avg(l_partkey) over" +
+              " (partition by l_suppkey order by l_suppkey, l_orderkey) from lineitem ") {
+            assertWindowOffloaded
+          }
+        }
+    }
   }
 
   test("chr function") {
@@ -465,7 +509,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
     checkOperatorMatch[HashAggregateExecTransformer](result)
   }
 
-  ignore("orc scan") {
+  test("orc scan") {
     val df = spark.read
       .format("orc")
       .load("../cpp/velox/benchmarks/data/bm_lineitem/orc/lineitem.orc")
@@ -582,6 +626,52 @@ class TestOperator extends VeloxWholeStageTransformerSuite {
           {
             getExecutedPlan(df).exists(plan => plan.find(_.isInstanceOf[GenerateExec]).isDefined)
           }
+      }
+    }
+  }
+
+  test("Support get native plan tree string") {
+    runQueryAndCompare("select l_partkey + 1, count(*) from lineitem group by l_partkey + 1") {
+      df =>
+        val wholeStageTransformers = collect(df.queryExecution.executedPlan) {
+          case w: WholeStageTransformer => w
+        }
+        val nativePlanString = wholeStageTransformers.head.nativePlanString()
+        assert(nativePlanString.contains("Aggregation[FINAL"))
+        assert(nativePlanString.contains("Aggregation[PARTIAL"))
+        assert(nativePlanString.contains("TableScan"))
+    }
+  }
+
+  test("Support StreamingAggregate if child output ordering is satisfied") {
+    withTable("t") {
+      spark
+        .range(10000)
+        .selectExpr(s"id % 999 as c1", "id as c2")
+        .write
+        .saveAsTable("t")
+
+      withSQLConf(
+        GlutenConfig.COLUMNAR_PREFER_STREAMING_AGGREGATE.key -> "true",
+        GlutenConfig.COLUMNAR_FPRCE_SHUFFLED_HASH_JOIN_ENABLED.key -> "false",
+        SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1"
+      ) {
+        val query =
+          """
+            |SELECT c1, count(*), sum(c2) FROM (
+            |SELECT t1.c1, t2.c2 FROM t t1 JOIN t t2 ON t1.c1 = t2.c1
+            |)
+            |GROUP BY c1
+            |""".stripMargin
+        runQueryAndCompare(query) {
+          df =>
+            assert(
+              find(df.queryExecution.executedPlan)(
+                _.isInstanceOf[SortMergeJoinExecTransformer]).isDefined)
+            assert(
+              find(df.queryExecution.executedPlan)(
+                _.isInstanceOf[HashAggregateExecTransformer]).isDefined)
+        }
       }
     }
   }

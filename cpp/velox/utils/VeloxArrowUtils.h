@@ -25,8 +25,18 @@
 #include "velox/buffer/Buffer.h"
 #include "velox/common/memory/MemoryPool.h"
 #include "velox/type/Type.h"
+#include "velox/vector/arrow/Bridge.h"
 
 namespace gluten {
+
+class ArrowUtils {
+ public:
+  static facebook::velox::BridgeOptions getBridgeOptions() {
+    facebook::velox::BridgeOptions options;
+    options.timestampUnit = static_cast<facebook::velox::TimestampUnit>(2);
+    return options;
+  }
+};
 
 void toArrowSchema(
     const facebook::velox::TypePtr& rowType,

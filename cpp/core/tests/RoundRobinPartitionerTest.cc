@@ -21,8 +21,8 @@
 namespace gluten {
 class RoundRobinPartitionerTest : public ::testing::Test {
  protected:
-  void prepareData(int numPart) {
-    partitioner_ = std::make_shared<RoundRobinPartitioner>(numPart);
+  void prepareData(int numPart, int seed) {
+    partitioner_ = std::make_shared<RoundRobinPartitioner>(numPart, seed);
     row2Partition_.clear();
     partition2RowCount_.clear();
     partition2RowCount_.resize(numPart);
@@ -62,18 +62,18 @@ class RoundRobinPartitionerTest : public ::testing::Test {
 };
 
 TEST_F(RoundRobinPartitionerTest, TestInit) {
-  int numPart = 0;
-  prepareData(numPart);
+  int numPart = 2;
+  prepareData(numPart, 3);
   ASSERT_NE(partitioner_, nullptr);
   int32_t pidSelection = getPidSelection();
-  ASSERT_EQ(pidSelection, 0);
+  ASSERT_EQ(pidSelection, 1);
 }
 
 TEST_F(RoundRobinPartitionerTest, TestComoputeNormal) {
   // numRows equal numPart
   {
     int numPart = 10;
-    prepareData(numPart);
+    prepareData(numPart, 0);
     int numRows = 10;
     ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
     ASSERT_EQ(getPidSelection(), 0);
@@ -85,7 +85,7 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeNormal) {
   // numRows less than numPart
   {
     int numPart = 10;
-    prepareData(numPart);
+    prepareData(numPart, 0);
     int numRows = 8;
     ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
     ASSERT_EQ(getPidSelection(), 8);
@@ -99,7 +99,7 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeNormal) {
   // numRows greater than numPart
   {
     int numPart = 10;
-    prepareData(numPart);
+    prepareData(numPart, 0);
     int numRows = 12;
     ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
     ASSERT_EQ(getPidSelection(), 2);
@@ -113,7 +113,7 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeNormal) {
   // numRows greater than 2*numPart
   {
     int numPart = 10;
-    prepareData(numPart);
+    prepareData(numPart, 0);
     int numRows = 22;
     ASSERT_TRUE(partitioner_->compute(nullptr, numRows, row2Partition_, partition2RowCount_).ok());
     ASSERT_EQ(getPidSelection(), 2);
@@ -127,7 +127,7 @@ TEST_F(RoundRobinPartitionerTest, TestComoputeNormal) {
 
 TEST_F(RoundRobinPartitionerTest, TestComoputeContinuous) {
   int numPart = 10;
-  prepareData(numPart);
+  prepareData(numPart, 0);
 
   {
     int numRows = 8;

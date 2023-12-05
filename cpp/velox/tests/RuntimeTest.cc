@@ -25,6 +25,8 @@ class DummyRuntime final : public Runtime {
  public:
   DummyRuntime(const std::unordered_map<std::string, std::string>& conf) : Runtime(conf) {}
 
+  void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) override {}
+
   std::shared_ptr<ResultIterator> createResultIterator(
       MemoryManager* memoryManager,
       const std::string& spillDir,
@@ -82,6 +84,9 @@ class DummyRuntime final : public Runtime {
     throw GlutenException("Not yet implemented");
   }
   std::shared_ptr<ColumnarBatch> select(MemoryManager*, std::shared_ptr<ColumnarBatch>, std::vector<int32_t>) override {
+    throw GlutenException("Not yet implemented");
+  }
+  std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) override {
     throw GlutenException("Not yet implemented");
   }
 

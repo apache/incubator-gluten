@@ -16,19 +16,26 @@
  */
 package io.glutenproject.backendsapi.clickhouse
 
-import io.glutenproject.backendsapi.ValidatorApi
+import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.{BackendsApiManager, ValidatorApi}
+import io.glutenproject.expression.ExpressionConverter
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.expression.SelectionNode
 import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.utils.CHExpressionUtil
 import io.glutenproject.validate.NativePlanValidationInfo
 import io.glutenproject.vectorized.CHNativeExpressionEvaluator
 
+import org.apache.spark.internal.Logging
+import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning}
 import org.apache.spark.sql.delta.DeltaLogFileIndex
 import org.apache.spark.sql.execution.{CommandResultExec, FileSourceScanExec, RDDScanExec, SparkPlan}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.datasources.v2.V2CommandExec
 
-class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
+class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper with Logging {
 
   override def doNativeValidateWithFailureReason(plan: PlanNode): NativePlanValidationInfo = {
     val validator = new CHNativeExpressionEvaluator()
@@ -91,5 +98,36 @@ class CHValidatorApi extends ValidatorApi with AdaptiveSparkPlanHelper {
   /** Validate whether the compression method support splittable at clickhouse backend. */
   override def doCompressionSplittableValidate(compressionMethod: String): Boolean = {
     false
+  }
+
+  override def doColumnarShuffleExchangeExecValidate(
+      outputPartitioning: Partitioning,
+      child: SparkPlan): Boolean = {
+    val outputAttributes = child.output
+    // check repartition expression
+    val substraitContext = new SubstraitContext
+    outputPartitioning match {
+      case HashPartitioning(exprs, _) =>
+        !(exprs
+          .map(
+            expr => {
+              val node = ExpressionConverter
+                .replaceWithExpressionTransformer(expr, outputAttributes)
+                .doTransform(substraitContext.registeredFunction)
+              if (!node.isInstanceOf[SelectionNode]) {
+                // This is should not happen.
+                logDebug("Expressions are not supported in HashPartitioning.")
+                false
+              } else {
+                true
+              }
+            })
+          .exists(_ == false)) ||
+        BackendsApiManager.getSettings.supportShuffleWithProject(outputPartitioning, child)
+      case rangePartitoning: RangePartitioning =>
+        GlutenConfig.getConf.enableColumnarSort &&
+        RangePartitionerBoundsGenerator.supportedOrderings(rangePartitoning, child)
+      case _ => true
+    }
   }
 }

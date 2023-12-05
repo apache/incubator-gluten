@@ -79,7 +79,7 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     std::lock_guard<std::recursive_mutex> l(mutex_); // FIXME: Do we have recursive locking for this mutex?
     auto pool = pools.at(0);
     const uint64_t oldCapacity = pool->capacity();
-    uint64_t spilledOut = pool->reclaim(targetBytes, status); // ignore the output
+    uint64_t spilledOut = pool->reclaim(targetBytes, 0, status); // ignore the output
     uint64_t shrunken = pool->shrink(0);
     const uint64_t newCapacity = pool->capacity();
     uint64_t total = oldCapacity - newCapacity;
@@ -175,6 +175,7 @@ VeloxMemoryManager::VeloxMemoryManager(
       true, // memory usage tracking
       true, // leak check
       false, // debug
+      false, // coreOnAllocationFailureEnabled
 #ifdef GLUTEN_ENABLE_HBM
       wrappedAlloc.get(),
 #else
@@ -182,7 +183,8 @@ VeloxMemoryManager::VeloxMemoryManager(
 #endif
       afr.getKind(),
       0,
-      32 << 20};
+      32 << 20,
+      0};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(
@@ -245,6 +247,55 @@ void holdInternal(
 
 void VeloxMemoryManager::hold() {
   holdInternal(heldVeloxPools_, veloxAggregatePool_.get());
+}
+
+bool VeloxMemoryManager::tryDestructSafe() {
+  // Velox memory pools considered safe to destruct when no alive allocations.
+  for (const auto& pool : heldVeloxPools_) {
+    if (pool && pool->currentBytes() != 0) {
+      return false;
+    }
+  }
+  if (veloxLeafPool_ && veloxLeafPool_->currentBytes() != 0) {
+    return false;
+  }
+  if (veloxAggregatePool_ && veloxAggregatePool_->currentBytes() != 0) {
+    return false;
+  }
+  heldVeloxPools_.clear();
+  veloxLeafPool_.reset();
+  veloxAggregatePool_.reset();
+
+  // Velox memory manager considered safe to destruct when no alive pools.
+  if (veloxMemoryManager_ && veloxMemoryManager_->numPools() != 0) {
+    return false;
+  }
+  veloxMemoryManager_.reset();
+
+  // Applies similar rule for Arrow memory pool.
+  if (arrowPool_ && arrowPool_->bytes_allocated() != 0) {
+    return false;
+  }
+  arrowPool_.reset();
+
+  // Successfully destructed.
+  return true;
+}
+
+VeloxMemoryManager::~VeloxMemoryManager() {
+  // Wait (50 + 100 + 200 + 400 + 800)ms = 1550ms to let possible async tasks (e.g. preload split) complete.
+  for (int32_t tryCount = 0; tryCount < 5; tryCount++) {
+    if (tryDestructSafe()) {
+      if (tryCount > 0) {
+        LOG(INFO) << "All the outstanding memory resources successfully released. ";
+      }
+      break;
+    }
+    uint32_t waitMs = 50 * static_cast<uint32_t>(pow(2, tryCount));
+    LOG(INFO) << "There are still outstanding Velox memory allocations. Waiting for " << waitMs
+              << " ms to let possible async tasks done... ";
+    usleep(waitMs * 1000);
+  }
 }
 
 velox::memory::MemoryManager* getDefaultVeloxMemoryManager() {

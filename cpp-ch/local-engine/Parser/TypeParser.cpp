@@ -263,8 +263,9 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
             SerializedPlanParser tmp_plan_parser(tmp_ctx);
             auto function_parser = AggregateFunctionParserFactory::instance().get(name_parts[3], &tmp_plan_parser);
             auto agg_function_name = function_parser->getCHFunctionName(args_types);
+            auto action = NullsAction::EMPTY;
             ch_type = AggregateFunctionFactory::instance()
-                            .get(agg_function_name, args_types, function_parser->getDefaultFunctionParameters(), properties)
+                            .get(agg_function_name, action, args_types, function_parser->getDefaultFunctionParameters(), properties)
                             ->getStateType();
         }
 

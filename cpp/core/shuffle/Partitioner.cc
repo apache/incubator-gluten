@@ -23,12 +23,13 @@
 
 namespace gluten {
 
-arrow::Result<std::shared_ptr<Partitioner>> Partitioner::make(Partitioning partitioning, int32_t numPartitions) {
+arrow::Result<std::shared_ptr<Partitioner>>
+Partitioner::make(Partitioning partitioning, int32_t numPartitions, int32_t startPartitionId) {
   switch (partitioning) {
     case Partitioning::kHash:
       return std::make_shared<HashPartitioner>(numPartitions);
     case Partitioning::kRoundRobin:
-      return std::make_shared<RoundRobinPartitioner>(numPartitions);
+      return std::make_shared<RoundRobinPartitioner>(numPartitions, startPartitionId);
     case Partitioning::kSingle:
       return std::make_shared<SinglePartitioner>();
     case Partitioning::kRange:

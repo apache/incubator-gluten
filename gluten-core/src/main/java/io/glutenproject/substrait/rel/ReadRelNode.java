@@ -40,7 +40,6 @@ public class ReadRelNode implements RelNode, Serializable {
   private final List<ColumnTypeNode> columnTypeNodes = new ArrayList<>();
   private final SubstraitContext context;
   private final ExpressionNode filterNode;
-  private final Long iteratorIndex;
   private StructType dataSchema;
   private Map<String, String> properties;
 
@@ -49,26 +48,11 @@ public class ReadRelNode implements RelNode, Serializable {
       List<String> names,
       SubstraitContext context,
       ExpressionNode filterNode,
-      Long iteratorIndex) {
-    this.types.addAll(types);
-    this.names.addAll(names);
-    this.context = context;
-    this.filterNode = filterNode;
-    this.iteratorIndex = iteratorIndex;
-  }
-
-  ReadRelNode(
-      List<TypeNode> types,
-      List<String> names,
-      SubstraitContext context,
-      ExpressionNode filterNode,
-      Long iteratorIndex,
       List<ColumnTypeNode> columnTypeNodes) {
     this.types.addAll(types);
     this.names.addAll(names);
     this.context = context;
     this.filterNode = filterNode;
-    this.iteratorIndex = iteratorIndex;
     this.columnTypeNodes.addAll(columnTypeNodes);
   }
 
@@ -125,24 +109,17 @@ public class ReadRelNode implements RelNode, Serializable {
     if (filterNode != null) {
       readBuilder.setFilter(filterNode.toProtobuf());
     }
-    if (this.iteratorIndex != null) {
-      LocalFilesNode filesNode = context.getInputIteratorNode(iteratorIndex);
-      if (dataSchema != null) {
-        filesNode.setFileSchema(dataSchema);
-        filesNode.setFileReadProperties(properties);
-      }
-      readBuilder.setLocalFiles(filesNode.toProtobuf());
-    } else if (context.getLocalFilesNodes() != null && !context.getLocalFilesNodes().isEmpty()) {
-      Serializable currentLocalFileNode = context.getCurrentLocalFileNode();
-      if (currentLocalFileNode instanceof LocalFilesNode) {
-        LocalFilesNode filesNode = (LocalFilesNode) currentLocalFileNode;
+    if (context.getSplitInfos() != null && !context.getSplitInfos().isEmpty()) {
+      SplitInfo currentSplitInfo = context.getCurrentSplitInfo();
+      if (currentSplitInfo instanceof LocalFilesNode) {
+        LocalFilesNode filesNode = (LocalFilesNode) currentSplitInfo;
         if (dataSchema != null) {
           filesNode.setFileSchema(dataSchema);
           filesNode.setFileReadProperties(properties);
         }
-        readBuilder.setLocalFiles(((LocalFilesNode) currentLocalFileNode).toProtobuf());
-      } else if (currentLocalFileNode instanceof ExtensionTableNode) {
-        readBuilder.setExtensionTable(((ExtensionTableNode) currentLocalFileNode).toProtobuf());
+        readBuilder.setLocalFiles(((LocalFilesNode) currentSplitInfo).toProtobuf());
+      } else if (currentSplitInfo instanceof ExtensionTableNode) {
+        readBuilder.setExtensionTable(((ExtensionTableNode) currentSplitInfo).toProtobuf());
       }
     }
     Rel.Builder builder = Rel.newBuilder();

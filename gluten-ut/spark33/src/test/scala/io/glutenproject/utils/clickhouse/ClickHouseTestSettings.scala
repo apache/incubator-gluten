@@ -16,9 +16,10 @@
  */
 package io.glutenproject.utils.clickhouse
 
-import io.glutenproject.utils.BackendTestSettings
+import io.glutenproject.utils.{BackendTestSettings, SQLQueryTestSettings}
 
 import org.apache.spark.sql._
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.connector._
 import org.apache.spark.sql.errors._
@@ -154,6 +155,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("collect functions should be able to cast to array type with no null values")
     .exclude("SPARK-17616: distinct aggregate combined with a non-partial aggregate")
     .exclude("SPARK-19471: AggregationIterator does not initialize the generated result projection before using it")
+    .exclude(GLUTEN_TEST + "SPARK-19471: AggregationIterator does not initialize the generated" +
+      " result projection before using it")
     .exclude("SPARK-26021: NaN and -0.0 in grouping expressions")
     .exclude("SPARK-32038: NormalizeFloatingNumbers should work on distinct aggregate")
     .exclude("SPARK-32136: NormalizeFloatingNumbers should work on null struct")
@@ -766,7 +769,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("Gluten - TIMESTAMP_MICROS")
     .exclude("Gluten - unix_timestamp")
     .exclude("Gluten - to_unix_timestamp")
-  enableSuite[GlutenDecimalExpressionSuite].exclude("MakeDecimal")
+  enableSuite[GlutenDecimalExpressionSuite]
   enableSuite[GlutenHashExpressionsSuite]
     .exclude("sha2")
     .exclude("murmur3/xxHash64/hive hash: struct<null:void,boolean:boolean,byte:tinyint,short:smallint,int:int,long:bigint,float:float,double:double,bigDecimal:decimal(38,18),smallDecimal:decimal(10,0),string:string,binary:binary,date:date,timestamp:timestamp,udt:examplepoint>")
@@ -2017,5 +2020,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("fallbackSummary with shuffle")
     .exclude("fallbackSummary with cache")
     .exclude("fallbackSummary with cached data and shuffle")
+
+  override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }
 // scalastyle:on line.size.limit

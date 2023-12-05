@@ -16,37 +16,39 @@
  */
 
 #include "VeloxRuntime.h"
+
 #include <filesystem>
 
-#include "arrow/c/bridge.h"
+#include "VeloxBackend.h"
 #include "compute/ResultIterator.h"
 #include "compute/Runtime.h"
 #include "compute/VeloxPlanConverter.h"
 #include "config/GlutenConfig.h"
 #include "operators/serializer/VeloxRowToColumnarConverter.h"
+#include "shuffle/VeloxShuffleReader.h"
 #include "shuffle/VeloxShuffleWriter.h"
+#include "utils/ConfigExtractor.h"
 
 using namespace facebook;
 
 namespace gluten {
 
-namespace {
-
-#ifdef GLUTEN_PRINT_DEBUG
-void printSessionConf(const std::unordered_map<std::string, std::string>& conf) {
-  std::ostringstream oss;
-  oss << "session conf = {\n";
-  for (auto& [k, v] : conf) {
-    oss << " {" << k << " = " << v << "}\n";
-  }
-  oss << "}\n";
-  LOG(INFO) << oss.str();
-}
-#endif
-
-} // namespace
-
 VeloxRuntime::VeloxRuntime(const std::unordered_map<std::string, std::string>& confMap) : Runtime(confMap) {}
+
+void VeloxRuntime::parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) {
+  taskInfo_ = taskInfo;
+  if (debugModeEnabled(confMap_)) {
+    try {
+      auto jsonPlan = substraitFromPbToJson("Plan", data, size);
+      LOG(INFO) << std::string(50, '#') << " received substrait::Plan:";
+      LOG(INFO) << taskInfo_ << std::endl << jsonPlan;
+    } catch (const std::exception& e) {
+      LOG(WARNING) << "Error converting Substrait plan to JSON: " << e.what();
+    }
+  }
+
+  GLUTEN_CHECK(parseProtobuf(data, size, &substraitPlan_) == true, "Parse substrait plan failed");
+}
 
 void VeloxRuntime::getInfoAndIds(
     const std::unordered_map<velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfoMap,
@@ -69,14 +71,22 @@ void VeloxRuntime::getInfoAndIds(
   }
 }
 
+std::string VeloxRuntime::planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) {
+  std::vector<std::shared_ptr<ResultIterator>> inputs;
+  auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
+  VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), sessionConf, true);
+  auto veloxPlan = veloxPlanConverter.toVeloxPlan(substraitPlan_);
+  return veloxPlan->toString(details, true);
+}
+
 std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     MemoryManager* memoryManager,
     const std::string& spillDir,
     const std::vector<std::shared_ptr<ResultIterator>>& inputs,
     const std::unordered_map<std::string, std::string>& sessionConf) {
-#ifdef GLUTEN_PRINT_DEBUG
-  printSessionConf(sessionConf);
-#endif
+  if (debugModeEnabled(confMap_)) {
+    LOG(INFO) << "VeloxRuntime session config:" << printConfig(confMap_);
+  }
 
   VeloxPlanConverter veloxPlanConverter(inputs, getLeafVeloxPool(memoryManager).get(), sessionConf);
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
@@ -152,7 +162,11 @@ std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
     MemoryManager* memoryManager,
     std::shared_ptr<arrow::Schema> schema) {
   auto veloxPool = getAggregateVeloxPool(memoryManager);
-  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, schema);
+  // Pass a dedicate pool for S3 sink as can't share veloxPool
+  // with parquet writer.
+  auto s3SinkPool = getLeafVeloxPool(memoryManager);
+
+  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, s3SinkPool, schema);
 }
 
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(

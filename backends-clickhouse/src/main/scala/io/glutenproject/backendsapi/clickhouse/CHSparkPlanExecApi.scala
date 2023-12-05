@@ -188,7 +188,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       left: ExpressionTransformer,
       right: ExpressionTransformer,
       original: GetMapValue): ExpressionTransformer =
-    new GetMapValueTransformer(substraitExprName, left, right, original.failOnError, original)
+    GetMapValueTransformer(substraitExprName, left, right, original.failOnError, original)
+
+  override def genRandTransformer(
+      substraitExprName: String,
+      explicitSeed: ExpressionTransformer,
+      original: Rand): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, Seq(explicitSeed), original)
+  }
 
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
@@ -277,7 +284,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
         }
 
         def wrapChild(child: SparkPlan): WholeStageTransformer = {
-          WholeStageTransformer(ProjectExecTransformer(child.output ++ appendedProjections, child))(
+          val childWithAdapter = ColumnarCollapseTransformStages.wrapInputIteratorTransformer(child)
+          WholeStageTransformer(
+            ProjectExecTransformer(child.output ++ appendedProjections, childWithAdapter))(
             ColumnarCollapseTransformStages.transformStageCounter.incrementAndGet()
           )
         }
@@ -376,6 +385,15 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       right: ExpressionTransformer,
       original: EqualNullSafe): ExpressionTransformer = {
     CHEqualNullSafeTransformer(substraitExprName, left, right, original)
+  }
+
+  override def genStringTranslateTransformer(
+      substraitExprName: String,
+      srcExpr: ExpressionTransformer,
+      matchingExpr: ExpressionTransformer,
+      replaceExpr: ExpressionTransformer,
+      original: StringTranslate): ExpressionTransformer = {
+    CHStringTranslateTransformer(substraitExprName, srcExpr, matchingExpr, replaceExpr, original)
   }
 
   override def genStringLocateTransformer(

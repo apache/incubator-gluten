@@ -14,46 +14,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.memory.nmm;
+package io.glutenproject.memory.memtarget;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // For debugging purpose only
-public class LoggingReservationListener implements ReservationListener {
-  private static final Logger LOGGER = LoggerFactory.getLogger(LoggingReservationListener.class);
+public class LoggingMemoryTarget implements MemoryTarget {
+  private static final Logger LOGGER = LoggerFactory.getLogger(LoggingMemoryTarget.class);
+  private final MemoryTarget delegated;
 
-  private final ReservationListener delegated;
-
-  public LoggingReservationListener(ReservationListener delegated) {
+  public LoggingMemoryTarget(MemoryTarget delegated) {
     this.delegated = delegated;
   }
 
   @Override
-  public long reserve(long size) {
-    long before = getUsedBytes();
-    long reserved = delegated.reserve(size);
-    long after = getUsedBytes();
+  public long borrow(long size) {
+    long before = usedBytes();
+    long reserved = delegated.borrow(size);
+    long after = usedBytes();
     LOGGER.info(
         String.format(
-            "Reservation[%s]: %d + %d(%d) = %d", this.toString(), before, reserved, size, after));
+            "Borrowed[%s]: %d + %d(%d) = %d", this.toString(), before, reserved, size, after));
     return reserved;
   }
 
   @Override
-  public long unreserve(long size) {
-    long before = getUsedBytes();
-    long unreserved = delegated.unreserve(size);
-    long after = getUsedBytes();
+  public long repay(long size) {
+    long before = usedBytes();
+    long unreserved = delegated.repay(size);
+    long after = usedBytes();
     LOGGER.info(
         String.format(
-            "Unreservation[%s]: %d - %d(%d) = %d",
-            this.toString(), before, unreserved, size, after));
+            "Repaid[%s]: %d - %d(%d) = %d", this.toString(), before, unreserved, size, after));
     return unreserved;
   }
 
   @Override
-  public long getUsedBytes() {
-    return delegated.getUsedBytes();
+  public long usedBytes() {
+    return delegated.usedBytes();
+  }
+
+  @Override
+  public <T> T accept(MemoryTargetVisitor<T> visitor) {
+    return visitor.visit(this);
+  }
+
+  public MemoryTarget delegated() {
+    return delegated;
   }
 }

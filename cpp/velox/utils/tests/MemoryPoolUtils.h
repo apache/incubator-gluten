@@ -59,7 +59,7 @@ class LimitedMemoryPool final : public arrow::MemoryPool {
  */
 class SelfEvictedMemoryPool : public arrow::MemoryPool {
  public:
-  explicit SelfEvictedMemoryPool(arrow::MemoryPool* pool) : pool_(pool) {}
+  explicit SelfEvictedMemoryPool(arrow::MemoryPool* pool, bool failIfOOM = true) : pool_(pool), failIfOOM_(failIfOOM) {}
 
   bool checkEvict(int64_t newCapacity, std::function<void()> block);
 
@@ -89,6 +89,8 @@ class SelfEvictedMemoryPool : public arrow::MemoryPool {
   arrow::Status evict(int64_t size);
 
   arrow::MemoryPool* pool_;
+  bool failIfOOM_;
+
   Evictable* evictable_;
   int64_t capacity_{std::numeric_limits<int64_t>::max()};
 

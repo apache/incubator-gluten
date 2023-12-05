@@ -36,4 +36,7 @@ std::string getConfigValue(
   return got->second;
 }
 
+bool debugModeEnabled(const std::unordered_map<std::string, std::string>& confMap) {
+  return getConfigValue(confMap, kDebugModeEnabled, "false") == "true";
+}
 } // namespace gluten

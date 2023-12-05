@@ -78,7 +78,8 @@ std::pair<String, DB::DataTypes> AggregateFunctionParser::tryApplyCHCombinator(
     auto get_aggregate_function = [](const String & name, const DB::DataTypes & arg_types) -> DB::AggregateFunctionPtr
     {
         DB::AggregateFunctionProperties properties;
-        auto func = DB::AggregateFunctionFactory::instance().get(name, arg_types, DB::Array{}, properties);
+        auto action = NullsAction::EMPTY;
+        auto func = DB::AggregateFunctionFactory::instance().get(name, action, arg_types, DB::Array{}, properties);
         if (!func)
         {
             throw Exception(DB::ErrorCodes::BAD_ARGUMENTS, "Unknown aggregate function {}", name);
