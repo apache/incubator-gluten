@@ -24,10 +24,12 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.RelBuilder
 
 import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.metric.SQLMetric
+import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -39,6 +41,9 @@ import scala.collection.JavaConverters._
  * would be transformed to `ValueStreamNode` at native side.
  */
 case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupport {
+  // `InputAdapter` is a case class, so `ColumnarInputAdapter.withNewChildren()` will return
+  // `InputAdapter`.
+  assert(child.isInstanceOf[InputAdapter])
 
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
@@ -63,6 +68,48 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
 
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = {
     copy(child = newChild)
+  }
+}
+
+/**
+ * InputAdapter is used to hide a SparkPlan from a subtree that supports transform. Note, if we
+ * remove this adaptor, the SQL UI graph would be broken.
+ */
+class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
+
+  // This is not strictly needed because the codegen transformation happens after the columnar
+  // transformation but just for consistency
+  override def supportsColumnar: Boolean = child.supportsColumnar
+
+  // this is the most important effect of this class
+  override def supportCodegen: Boolean = false
+
+  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
+    child.executeColumnar()
+  }
+
+  override def nodeName: String = s"InputAdapter"
+
+  override def generateTreeString(
+      depth: Int,
+      lastChildren: Seq[Boolean],
+      append: String => Unit,
+      verbose: Boolean,
+      prefix: String = "",
+      addSuffix: Boolean = false,
+      maxFields: Int,
+      printNodeId: Boolean,
+      indent: Int = 0): Unit = {
+    child.generateTreeString(
+      depth,
+      lastChildren,
+      append,
+      verbose,
+      prefix = "",
+      addSuffix = false,
+      maxFields,
+      printNodeId,
+      indent)
   }
 }
 
@@ -153,6 +200,6 @@ object ColumnarCollapseTransformStages {
   val transformStageCounter = new AtomicInteger(0)
 
   def wrapInputIteratorTransformer(plan: SparkPlan): TransformSupport = {
-    InputIteratorTransformer(plan)
+    InputIteratorTransformer(new ColumnarInputAdapter(plan))
   }
 }
