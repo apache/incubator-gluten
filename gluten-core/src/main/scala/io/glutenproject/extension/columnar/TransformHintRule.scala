@@ -275,11 +275,16 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
  * need fall back related bloom filter agg.
  */
 case class FallbackBloomFilterAggIfNeeded() extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan = plan.transformDown {
-    case p if TransformHints.isAlreadyTagged(p) && TransformHints.isNotTransformable(p) =>
-      handleBloomFilterFallback(p)
-      p
-  }
+  override def apply(plan: SparkPlan): SparkPlan =
+    if (GlutenConfig.getConf.enableNativeBloomFilter) {
+      plan.transformDown {
+        case p if TransformHints.isAlreadyTagged(p) && TransformHints.isNotTransformable(p) =>
+          handleBloomFilterFallback(p)
+          p
+      }
+    } else {
+      plan
+    }
 
   object SubPlanFromBloomFilterMightContain {
     def unapply(expr: Expression): Option[SparkPlan] =
