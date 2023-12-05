@@ -253,7 +253,7 @@ cd ${VELOX_HOME}
 TARGET_BUILD_SUMMARY=$(generate_build_summary "$(git rev-parse --verify HEAD)")
 if [ -z "$TARGET_BUILD_SUMMARY" ]; then
   echo "Unable to parse Velox build: $TARGET_BUILD_SUMMARY."
-  exit 0
+  exit 1
 fi
 echo "Target Velox build: $TARGET_BUILD_SUMMARY"
 
