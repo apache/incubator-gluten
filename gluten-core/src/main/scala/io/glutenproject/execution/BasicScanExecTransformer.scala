@@ -113,6 +113,11 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }.asJava
     // Will put all filter expressions into an AND expression
     val transformer = filterExprs()
+      .map {
+        case ar: AttributeReference if ar.dataType == BooleanType =>
+          EqualNullSafe(ar, Literal.TrueLiteral)
+        case e => e
+      }
       .reduceLeftOption(And)
       .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
     val filterNodes = transformer.map(_.doTransform(context.registeredFunction))

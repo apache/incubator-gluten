@@ -718,4 +718,17 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       checkOperatorMatch[GenerateExecTransformer]
     }
   }
+
+  test("Support bool type filter in scan") {
+    withTable("t") {
+      sql("create table t (id int, b boolean) using parquet")
+      sql("insert into t values (1, true), (2, false)")
+      runQueryAndCompare("select * from t where b = true") {
+        checkOperatorMatch[BasicScanExecTransformer]
+      }
+      runQueryAndCompare("select * from t where b = false") {
+        checkOperatorMatch[BasicScanExecTransformer]
+      }
+    }
+  }
 }
