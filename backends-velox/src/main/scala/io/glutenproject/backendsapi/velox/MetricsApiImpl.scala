@@ -368,10 +368,10 @@ class MetricsApiImpl extends MetricsApi with Logging {
         "totaltime of stream preProjection"),
       "bufferPreProjectionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
-        "preProject cpu wall time count"),
+        "buffer preProject cpu wall time count"),
       "bufferPreProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime to build preProjection"),
+        "totaltime of buffer preProjection"),
       "postProjectionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "postProject cpu wall time count"),
