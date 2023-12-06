@@ -19,6 +19,8 @@ package org.apache.spark.shuffle
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.HashPartitioning
 
+// A wrapper for HashPartitioning.
+// Only used by CH backend when shuffle hash expressions contains non-field expression.
 class HashPartitioningWrapper(
     original: Seq[Expression],
     newExpr: Seq[Expression],
