@@ -494,7 +494,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       runQueryAndCompare(
         "SELECT array(array(1,2,3), array(4,5,6))[1], " +
           "array(array(id,id+1,id+2), array(id+3,id+4,id+5)) from range(100)",
-        noFallBack = false
+        noFallBack = true
       )(checkOperatorMatch[ProjectExecTransformer])
 
       // input type is array<array<string>>
@@ -502,14 +502,14 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         "SELECT array(array('1','2','3'), array('4','5','6'))[1], " +
           "array(array('1','2',cast(id as string)), array('4','5',cast(id as string)))[1] " +
           "from range(100)",
-        noFallBack = false
+        noFallBack = true
       )(checkOperatorMatch[ProjectExecTransformer])
 
       // input type is array<map<string, int>>
       runQueryAndCompare(
         "SELECT array(map(cast(id as string), id), map(cast(id+1 as string), id+1))[1] " +
           "from range(100)",
-        noFallBack = false
+        noFallBack = true
       )(checkOperatorMatch[ProjectExecTransformer])
     }
   }
