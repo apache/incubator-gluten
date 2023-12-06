@@ -6,7 +6,7 @@
 
   <groupId>io.glutenproject</groupId>
   <artifactId>gluten-it</artifactId>
-  <version>1.1.0-SNAPSHOT</version>
+  <version>1.2.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <modules>
     <module>common</module>
@@ -24,7 +24,7 @@
     <scala.binary.version>2.12</scala.binary.version>
     <spark.major.version>3</spark.major.version>
     <celeborn.version>0.3.0-incubating</celeborn.version>
-    <gluten.version>1.1.0-SNAPSHOT</gluten.version>
+    <gluten.version>1.2.0-SNAPSHOT</gluten.version>
     <guava.version>32.0.1-jre</guava.version>
     <tpch.version>1.1</tpch.version>
     <tpcds.version>1.4</tpcds.version>
