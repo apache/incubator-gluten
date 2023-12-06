@@ -24,12 +24,10 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.rel.RelBuilder
 
 import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.metric.SQLMetric
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import java.util.concurrent.atomic.AtomicInteger
 
