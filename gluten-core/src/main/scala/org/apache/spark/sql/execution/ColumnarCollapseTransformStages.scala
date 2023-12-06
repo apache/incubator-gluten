@@ -76,41 +76,10 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
  * remove this adaptor, the SQL UI graph would be broken.
  */
 class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
-
-  // This is not strictly needed because the codegen transformation happens after the columnar
-  // transformation but just for consistency
-  override def supportsColumnar: Boolean = child.supportsColumnar
-
   // this is the most important effect of this class
   override def supportCodegen: Boolean = false
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    child.executeColumnar()
-  }
-
   override def nodeName: String = s"InputAdapter"
-
-  override def generateTreeString(
-      depth: Int,
-      lastChildren: Seq[Boolean],
-      append: String => Unit,
-      verbose: Boolean,
-      prefix: String = "",
-      addSuffix: Boolean = false,
-      maxFields: Int,
-      printNodeId: Boolean,
-      indent: Int = 0): Unit = {
-    child.generateTreeString(
-      depth,
-      lastChildren,
-      append,
-      verbose,
-      prefix = "",
-      addSuffix = false,
-      maxFields,
-      printNodeId,
-      indent)
-  }
 }
 
 /**
