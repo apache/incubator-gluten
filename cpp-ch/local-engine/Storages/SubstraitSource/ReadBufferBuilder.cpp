@@ -583,21 +583,26 @@ private:
         settings.tryGetString(BackendInitializerUtil::HADOOP_S3_SECRET_KEY, sk);
         stripQuote(ak);
         stripQuote(sk);
+        const DB::Settings & global_settings = context->getGlobalContext()->getSettingsRef();
+        const DB::Settings & local_settings = context->getSettingsRef();
         if (use_assumed_role)
         {
             auto new_client = DB::S3::ClientFactory::instance().create(
                 client_configuration,
-                false,
-                ak,
-                sk,
-                "",
-                {},
-                {},
-                {.use_environment_credentials = true,
-                 .use_insecure_imds_request = false,
-                 .role_arn = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE),
-                 .session_name = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_SESSION_NAME),
-                 .external_id = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_EXTERNAL_ID)});
+                local_settings.s3_disable_checksum,
+                false,  // is_virtual_hosted_style
+                ak,     // access_key_id
+                sk,     // secret_access_key
+                "",     // server_side_encryption_customer_key_base64
+                {},     // sse_kms_config
+                {},     // headers
+                DB::S3::CredentialsConfiguration{
+                    .use_environment_credentials = true,
+                    .use_insecure_imds_request = false,
+                    .role_arn = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE),
+                    .session_name = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_SESSION_NAME),
+                    .external_id = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_EXTERNAL_ID)
+                });
 
             //TODO: support online change config for cached per_bucket_clients
             std::shared_ptr<DB::S3::Client> ret = std::move(new_client);
@@ -607,7 +612,17 @@ private:
         else
         {
             auto new_client = DB::S3::ClientFactory::instance().create(
-                client_configuration, false, ak, sk, "", {}, {}, {.use_environment_credentials = true, .use_insecure_imds_request = false});
+                client_configuration,
+                local_settings.s3_disable_checksum,
+                false,  // is_virtual_hosted_style
+                ak,     // access_key_id
+                sk,     // secret_access_key
+                "",     // server_side_encryption_customer_key_base64
+                {},     // sse_kms_config
+                {},     // headers
+                DB::S3::CredentialsConfiguration{
+                    .use_environment_credentials = true,
+                    .use_insecure_imds_request = false});
 
             std::shared_ptr<DB::S3::Client> ret = std::move(new_client);
             cacheClient(bucket_name, is_per_bucket, ret);
