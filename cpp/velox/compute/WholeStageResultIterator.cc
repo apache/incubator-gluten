@@ -383,7 +383,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] =
         getConfigValue(confMap_, kBloomFilterMaxNumBits, "4194304");
 
-    configs[velox::core::QueryConfig::kArrowBridgeTimestampUnit] = 2;
+    configs[velox::core::QueryConfig::kArrowBridgeTimestampUnit] = "6";
 
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();
@@ -414,7 +414,7 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
   // The semantics of reading as lower case is opposite with case-sensitive.
   configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCase] =
       getConfigValue(confMap_, kCaseSensitive, "false") == "false" ? "true" : "false";
-  configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = 2;
+  configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = "6";
 
   return std::make_shared<velox::core::MemConfig>(configs);
 }

@@ -26,7 +26,7 @@ namespace gluten {
 using namespace facebook;
 
 void toArrowSchema(const velox::TypePtr& rowType, facebook::velox::memory::MemoryPool* pool, struct ArrowSchema* out) {
-  exportToArrow(velox::BaseVector::create(rowType, 0, pool), ArrowUtils::getBridgeOptions(), *out);
+  exportToArrow(velox::BaseVector::create(rowType, 0, pool), *out, ArrowUtils::getBridgeOptions());
 }
 
 std::shared_ptr<arrow::Schema> toArrowSchema(const velox::TypePtr& rowType, facebook::velox::memory::MemoryPool* pool) {
