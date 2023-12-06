@@ -27,6 +27,7 @@ ENABLE_EP_CACHE=OFF
 ENABLE_BENCHMARK=OFF
 ENABLE_TESTS=OFF
 RUN_SETUP_SCRIPT=ON
+OTHER_ARGUMENTS=""
 
 OS=`uname -s`
 ARCH=`uname -m`
@@ -77,8 +78,6 @@ for arg in "$@"; do
 done
 
 function compile {
-  TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
-
   if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     if [ $OS == 'Linux' ]; then
       setup_linux
@@ -144,16 +143,22 @@ function compile {
   fi
 }
 
+function get_build_summary {
+  COMMIT_HASH=$1
+  # Ideally all script arguments should be put into build summary.
+  echo "ENABLE_S3=$ENABLE_S3,ENABLE_GCS=$ENABLE_GCS,ENABLE_HDFS=$ENABLE_HDFS,BUILD_TYPE=$BUILD_TYPE,VELOX_HOME=$VELOX_HOME,ENABLE_EP_CACHE=$ENABLE_EP_CACHE,ENABLE_BENCHMARK=$ENABLE_BENCHMARK,ENABLE_TESTS=$ENABLE_TESTS,RUN_SETUP_SCRIPT=$RUN_SETUP_SCRIPT,OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
+}
+
 function check_commit {
   if [ $ENABLE_EP_CACHE == "ON" ]; then
-    if [ -f ${VELOX_HOME}/velox-commit.cache ]; then
-      CACHED_BUILT_COMMIT="$(cat ${VELOX_HOME}/velox-commit.cache)"
-      if [ -n "$CACHED_BUILT_COMMIT" ]; then
-        if [ "$TARGET_BUILD_COMMIT" = "$CACHED_BUILT_COMMIT" ]; then
-          echo "Velox build of commit $TARGET_BUILD_COMMIT was cached."
+    if [ -f ${VELOX_HOME}/velox-build.cache ]; then
+      CACHED_BUILD_SUMMARY="$(cat ${VELOX_HOME}/velox-build.cache)"
+      if [ -n "$CACHED_BUILD_SUMMARY" ]; then
+        if [ "$TARGET_BUILD_SUMMARY" = "$CACHED_BUILD_SUMMARY" ]; then
+          echo "Velox build $TARGET_BUILD_SUMMARY was cached."
           exit 0
         else
-          echo "Found cached commit $CACHED_BUILT_COMMIT for Velox which is different with target commit $TARGET_BUILD_COMMIT."
+          echo "Found cached build $CACHED_BUILD_SUMMARY for Velox which is different with target build $TARGET_BUILD_SUMMARY."
         fi
       fi
     fi
@@ -162,8 +167,8 @@ function check_commit {
     git clean -dffx :/
   fi
 
-  if [ -f ${VELOX_HOME}/velox-commit.cache ]; then
-    rm -f ${VELOX_HOME}/velox-commit.cache
+  if [ -f ${VELOX_HOME}/velox-build.cache ]; then
+    rm -f ${VELOX_HOME}/velox-build.cache
   fi
 }
 
@@ -245,15 +250,15 @@ echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 
 cd ${VELOX_HOME}
-TARGET_BUILD_COMMIT="$(git rev-parse --verify HEAD)"
-if [ -z "$TARGET_BUILD_COMMIT" ]; then
-  echo "Unable to parse Velox commit: $TARGET_BUILD_COMMIT."
-  exit 0
+TARGET_BUILD_SUMMARY=$(get_build_summary "$(git rev-parse --verify HEAD)")
+if [ -z "$TARGET_BUILD_SUMMARY" ]; then
+  echo "Unable to parse Velox build: $TARGET_BUILD_SUMMARY."
+  exit 1
 fi
-echo "Target Velox commit: $TARGET_BUILD_COMMIT"
+echo "Target Velox build: $TARGET_BUILD_SUMMARY"
 
 check_commit
 compile
 
 echo "Successfully built Velox from Source."
-echo $TARGET_BUILD_COMMIT >"${VELOX_HOME}/velox-commit.cache"
+echo $TARGET_BUILD_SUMMARY >"${VELOX_HOME}/velox-build.cache"
