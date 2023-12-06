@@ -205,6 +205,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         shuffle/Partitioning.cc
         shuffle/PartitionWriterCreator.cc
         shuffle/LocalPartitionWriter.cc
+        shuffle/PartitionWriter.cc
         shuffle/rss/RemotePartitionWriter.cc
         shuffle/rss/CelebornPartitionWriter.cc
         shuffle/Utils.cc
@@ -212,7 +213,7 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         utils/StringUtil.cc
         utils/ObjectStore.cc
         jni/JniError.cc
-        jni/JniCommon.cc shuffle/PartitionWriter.cc)
+        jni/JniCommon.cc)
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})

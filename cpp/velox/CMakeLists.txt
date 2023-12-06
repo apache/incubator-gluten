@@ -296,7 +296,7 @@ set(VELOX_SRCS
     operators/serializer/VeloxRowToColumnarConverter.cc
     operators/writer/VeloxParquetDatasource.cc
     shuffle/VeloxShuffleReader.cc
-        shuffle/VeloxShuffleWriter.cc
+    shuffle/VeloxShuffleWriter.cc
     substrait/SubstraitParser.cc
     substrait/SubstraitToVeloxExpr.cc
     substrait/SubstraitToVeloxPlan.cc
@@ -311,7 +311,7 @@ set(VELOX_SRCS
     utils/VeloxArrowUtils.cc
     utils/ConfigExtractor.cc
     utils/Common.cc
-        )
+    )
 
 if (ENABLE_HDFS)
   list(APPEND VELOX_SRCS utils/HdfsUtils.cc)
