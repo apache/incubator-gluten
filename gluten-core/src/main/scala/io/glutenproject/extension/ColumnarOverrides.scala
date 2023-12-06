@@ -26,6 +26,7 @@ import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
+import org.apache.spark.shuffle.HashPartitioningWrapper
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, BindReferences, BoundReference, Expression, Murmur3Hash, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight, BuildSide}
@@ -204,7 +205,10 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           val pos = newExpressionsPosition(i)
           newExprs = newExprs :+ project.output(pos)
         }
-        (projectExpressions.size, HashPartitioning(newExprs, numPartitions), project)
+        (
+          projectExpressions.size,
+          new HashPartitioningWrapper(exprs, newExprs, numPartitions),
+          project)
       case RangePartitioning(orderings, numPartitions) =>
         val exprs = orderings.map(ordering => ordering.child)
         val (projectExpressions, newExpressionsPosition) = {
