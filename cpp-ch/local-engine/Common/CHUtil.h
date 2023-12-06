@@ -21,6 +21,7 @@
 #include <Core/ColumnWithTypeAndName.h>
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/Serializations/ISerialization.h>
+#include <Functions/CastOverloadResolver.h>
 #include <Interpreters/ActionsDAG.h>
 #include <Interpreters/Context.h>
 #include <Processors/Chunk.h>
@@ -99,7 +100,8 @@ public:
         DB::ActionsDAGPtr & actions_dag,
         const DB::ActionsDAG::Node * node,
         const std::string & type_name,
-        const std::string & result_name = "");
+        const std::string & result_name = "",
+        DB::CastType cast_type = DB::CastType::nonAccurate);
 };
 
 class QueryPipelineUtil

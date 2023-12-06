@@ -1038,14 +1038,28 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
 
         if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type) && !converted_decimal_args)
         {
-            result_node = ActionsDAGUtil::convertNodeType(
-                actions_dag,
-                function_node,
-                // as stated in isTypeMatched， currently we don't change nullability of the result type
-                function_node->result_type->isNullable()
-                    ? local_engine::wrapNullableType(true, TypeParser::parseType(rel.scalar_function().output_type()))->getName()
-                    : local_engine::removeNullable(TypeParser::parseType(rel.scalar_function().output_type()))->getName(),
-                function_node->result_name);
+            auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
+            if (isDecimalOrNullableDecimal(result_type))
+            {
+                result_node = ActionsDAGUtil::convertNodeType(
+                    actions_dag,
+                    function_node,
+                    // as stated in isTypeMatched， currently we don't change nullability of the result type
+                    function_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)->getName()
+                                                             : local_engine::removeNullable(result_type)->getName(),
+                    function_node->result_name,
+                    DB::CastType::accurateOrNull);
+            }
+            else
+            {
+                result_node = ActionsDAGUtil::convertNodeType(
+                    actions_dag,
+                    function_node,
+                    // as stated in isTypeMatched， currently we don't change nullability of the result type
+                    function_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)->getName()
+                                                             : local_engine::removeNullable(result_type)->getName(),
+                    function_node->result_name);
+            }
         }
 
         if (ch_func_name == "JSON_VALUE")
