@@ -39,6 +39,9 @@ import scala.collection.JavaConverters._
  * would be transformed to `ValueStreamNode` at native side.
  */
 case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupport {
+  // `InputAdapter` is a case class, so `ColumnarInputAdapter.withNewChildren()` will return
+  // `InputAdapter`.
+  assert(child.isInstanceOf[InputAdapter])
 
   @transient
   override lazy val metrics: Map[String, SQLMetric] =
@@ -64,6 +67,17 @@ case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupp
   override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = {
     copy(child = newChild)
   }
+}
+
+/**
+ * InputAdapter is used to hide a SparkPlan from a subtree that supports transform. Note, if we
+ * remove this adaptor, the SQL UI graph would be broken.
+ */
+class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
+  // this is the most important effect of this class
+  override def supportCodegen: Boolean = false
+
+  override def nodeName: String = s"InputAdapter"
 }
 
 /**
@@ -153,6 +167,6 @@ object ColumnarCollapseTransformStages {
   val transformStageCounter = new AtomicInteger(0)
 
   def wrapInputIteratorTransformer(plan: SparkPlan): TransformSupport = {
-    InputIteratorTransformer(plan)
+    InputIteratorTransformer(new ColumnarInputAdapter(plan))
   }
 }
