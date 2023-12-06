@@ -485,4 +485,32 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       "select * from date_table where to_date(from_unixtime(ts)) = '2019-01-01'",
       noFallBack = true) { _ => }
   }
+
+  test("test element_at function") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key ->
+        (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      // input type is array<array<int>>
+      runQueryAndCompare(
+        "SELECT array(array(1,2,3), array(4,5,6))[1], " +
+          "array(array(id,id+1,id+2), array(id+3,id+4,id+5)) from range(100)",
+        noFallBack = true
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      // input type is array<array<string>>
+      runQueryAndCompare(
+        "SELECT array(array('1','2','3'), array('4','5','6'))[1], " +
+          "array(array('1','2',cast(id as string)), array('4','5',cast(id as string)))[1] " +
+          "from range(100)",
+        noFallBack = true
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      // input type is array<map<string, int>>
+      runQueryAndCompare(
+        "SELECT array(map(cast(id as string), id), map(cast(id+1 as string), id+1))[1] " +
+          "from range(100)",
+        noFallBack = true
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
 }
