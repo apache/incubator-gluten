@@ -54,7 +54,7 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
  private:
   std::shared_ptr<RssClient> celebornClient_;
 
-  std::shared_ptr<Evictor> evictHandle_;
+  std::shared_ptr<Evictor> evictor_;
 
   std::vector<int64_t> bytesEvicted_;
   std::vector<int64_t> rawPartitionLengths_;

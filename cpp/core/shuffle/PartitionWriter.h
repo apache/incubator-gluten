@@ -72,8 +72,8 @@ class ShuffleWriter::PartitionWriter : public Evictable {
       std::vector<std::shared_ptr<arrow::Buffer>> buffers);
 
   uint32_t numPartitions_;
-
   ShuffleWriterOptions* options_;
+
   int64_t compressTime_{0};
   int64_t evictTime_{0};
   int64_t writeTime_{0};
