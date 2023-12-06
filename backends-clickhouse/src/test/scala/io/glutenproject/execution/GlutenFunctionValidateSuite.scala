@@ -508,7 +508,8 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       // input type is array<map<string, int>>
       runQueryAndCompare(
         "SELECT array(map(cast(id as string), id), map(cast(id+1 as string), id+1))[1] " +
-          "from range(100)" noFallBack = false
+          "from range(100)",
+        noFallBack = false
       )(checkOperatorMatch[ProjectExecTransformer])
     }
   }
