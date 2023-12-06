@@ -399,11 +399,13 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     const auto * right_arg = &actions_dag->addColumn(std::move(type_name_col));
     const auto * left_arg = node;
     DB::CastDiagnostic diagnostic = {node->result_name, node->result_name};
-    DB::FunctionOverloadResolverPtr func_builder_cast
-        = DB::createInternalCastOverloadResolver(DB::CastType::accurateOrNull, std::move(diagnostic));
+    auto type = CastType::nonAccurate;
+
+    if (startsWith(type_name, "Nullable"))
+        type = CastType::accurateOrNull;
 
     DB::ActionsDAG::NodeRawConstPtrs children = {left_arg, right_arg};
-    return &actions_dag->addFunction(func_builder_cast, std::move(children), result_name);
+    return &actions_dag->addFunction(DB::createInternalCastOverloadResolver(type, std::move(diagnostic)), std::move(children), result_name);
 }
 
 String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)
