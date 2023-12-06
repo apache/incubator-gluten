@@ -1063,7 +1063,7 @@ class GlutenClickHouseHiveTableSuite()
   }
 
   test("test 'hive udf'") {
-    val jarPath = "backends-clickhouse/src/test/resources/udfs/hive-test-udfs.jar"
+    val jarPath = "src/test/resources/udfs/hive-test-udfs.jar"
     val jarUrl = s"file://${System.getProperty("user.dir")}/$jarPath"
     spark.sql(
       s"CREATE FUNCTION my_add as " +
