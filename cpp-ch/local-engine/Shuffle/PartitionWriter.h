@@ -90,7 +90,7 @@ protected:
     std::vector<ColumnsBufferPtr> partition_block_buffer;
     std::vector<PartitionPtr> partition_buffer;
 
-    /// Protect write/evictPartitions/stop from being called recursively
+    /// Make sure memory spill doesn't happen while write/stop are executed.
     bool evicting_or_writing{false};
 
     /// Only valid in celeborn partition writer

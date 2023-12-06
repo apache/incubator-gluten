@@ -27,19 +27,29 @@
 #include <Common/Stopwatch.h>
 #include <Common/ThreadPool.h>
 #include <Common/CHUtil.h>
+#include <Common/Exception.h>
 #include <IO/WriteBufferFromString.h>
 #include <format>
 #include <Storages/IO/NativeWriter.h>
 
-using namespace DB;
 
+namespace DB
+{
+namespace ErrorCodes
+{
+    extern const int LOGICAL_ERROR;
+}
+}
+
+using namespace DB;
 namespace local_engine
 {
 
 void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & block)
 {
+    /// PartitionWriter::write is alwasy the top frame who occupies evicting_or_writing
     if (evicting_or_writing)
-        return;
+        throw Exception(ErrorCodes::LOGICAL_ERROR, "PartitionWriter::write is invoked with evicting_or_writing being occupied");
 
     evicting_or_writing = true;
     SCOPE_EXIT({evicting_or_writing = false;});
@@ -297,7 +307,7 @@ size_t PartitionWriter::evictPartitions(bool for_memory_spill, bool flush_block_
 void PartitionWriter::stop()
 {
     if (evicting_or_writing)
-        return;
+        throw Exception(ErrorCodes::LOGICAL_ERROR, "PartitionWriter::stop is invoked with evicting_or_writing being occupied");
 
     evicting_or_writing = true;
     SCOPE_EXIT({evicting_or_writing = false;});
