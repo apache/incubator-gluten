@@ -385,8 +385,10 @@ arrow::Status VeloxShuffleWriter::stop() {
   if (options_.partitioning != Partitioning::kSingle) {
     for (auto pid = 0; pid < numPartitions_; ++pid) {
       auto numRows = partitionBufferIdxBase_[pid];
-      ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(pid, false));
-      RETURN_NOT_OK(partitionWriter_->evict(pid, numRows, std::move(buffers), Evictor::Type::kStop));
+      if (numRows > 0) {
+        ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(pid, false));
+        RETURN_NOT_OK(partitionWriter_->evict(pid, numRows, std::move(buffers), Evictor::Type::kStop));
+      }
     }
   }
   {

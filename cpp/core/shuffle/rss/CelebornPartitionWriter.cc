@@ -55,17 +55,17 @@ class CelebornEvictHandle final : public Evictor {
 arrow::Status CelebornPartitionWriter::init() {
   bytesEvicted_.resize(numPartitions_, 0);
   rawPartitionLengths_.resize(numPartitions_, 0);
-  evictHandle_ = std::make_shared<CelebornEvictHandle>(options_, celebornClient_.get(), bytesEvicted_);
+  evictor_ = std::make_shared<CelebornEvictHandle>(options_, celebornClient_.get(), bytesEvicted_);
   return arrow::Status::OK();
 }
 
 arrow::Status CelebornPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
   // Push data and collect metrics.
-  auto totalBytesEvicted = std::accumulate(bytesEvicted_.begin(), bytesEvicted_.end(), 0);
+  auto totalBytesEvicted = std::accumulate(bytesEvicted_.begin(), bytesEvicted_.end(), 0LL);
   celebornClient_->stop();
   // Populate metrics.
   metrics->totalCompressTime += compressTime_;
-  metrics->totalEvictTime += evictHandle_->getEvictTime();
+  metrics->totalEvictTime += evictor_->getEvictTime();
   metrics->totalWriteTime += writeTime_;
   metrics->totalBytesEvicted += totalBytesEvicted;
   metrics->totalBytesWritten += totalBytesEvicted;
@@ -75,7 +75,7 @@ arrow::Status CelebornPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
 }
 
 arrow::Status CelebornPartitionWriter::finishEvict() {
-  return evictHandle_->finish();
+  return evictor_->finish();
 }
 
 arrow::Status CelebornPartitionWriter::evict(
@@ -86,7 +86,7 @@ arrow::Status CelebornPartitionWriter::evict(
   rawPartitionLengths_[partitionId] += getBufferSize(buffers);
   ScopedTimer timer(evictTime_);
   ARROW_ASSIGN_OR_RAISE(auto payload, createPayloadFromBuffers(numRows, std::move(buffers)));
-  RETURN_NOT_OK(evictHandle_->evict(partitionId, std::move(payload)));
+  RETURN_NOT_OK(evictor_->evict(partitionId, std::move(payload)));
   return arrow::Status::OK();
 }
 

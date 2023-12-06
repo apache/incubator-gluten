@@ -87,8 +87,6 @@ class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
  private:
   arrow::Status requestEvict(Evictor::Type evictType);
 
-  LocalEvictor* getEvictHandle();
-
   arrow::Status setLocalDirs();
 
   std::string nextSpilledFileDir();
@@ -101,6 +99,7 @@ class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
 
   arrow::Status populateMetrics(ShuffleWriterMetrics* metrics);
 
+  bool stopped_{false};
   std::shared_ptr<arrow::fs::LocalFileSystem> fs_{nullptr};
   std::shared_ptr<LocalEvictor> evictor_{nullptr};
   std::vector<std::shared_ptr<SpillInfo>> spills_{};
@@ -115,6 +114,7 @@ class LocalPartitionWriter : public ShuffleWriter::PartitionWriter {
   int64_t totalBytesWritten_{0};
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_;
+  // Partition id, num rows, partition buffers.
   std::vector<std::tuple<uint32_t, uint32_t, std::vector<std::shared_ptr<arrow::Buffer>>>> cachedPartitionBuffers_;
 };
 
