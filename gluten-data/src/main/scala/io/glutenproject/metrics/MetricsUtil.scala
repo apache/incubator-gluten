@@ -50,6 +50,10 @@ object MetricsUtil extends Logging {
           MetricsUpdaterTree(
             j.metricsUpdater(),
             Seq(treeifyMetricsUpdaters(j.buildPlan), treeifyMetricsUpdaters(j.streamedPlan)))
+        case smj: SortMergeJoinExecTransformer =>
+          MetricsUpdaterTree(
+            smj.metricsUpdater(),
+            Seq(treeifyMetricsUpdaters(smj.bufferedPlan), treeifyMetricsUpdaters(smj.streamedPlan)))
         case t: TransformSupport =>
           MetricsUpdaterTree(t.metricsUpdater(), t.children.map(treeifyMetricsUpdaters))
         case _ =>
@@ -109,6 +113,7 @@ object MetricsUtil extends Logging {
     var processedSplits: Long = 0
     var skippedStrides: Long = 0
     var processedStrides: Long = 0
+    var remainingFilterTime: Long = 0
 
     val metricsIterator = operatorMetrics.iterator()
     while (metricsIterator.hasNext) {
@@ -130,6 +135,7 @@ object MetricsUtil extends Logging {
       processedSplits += metrics.processedSplits
       skippedStrides += metrics.skippedStrides
       processedStrides += metrics.processedStrides
+      remainingFilterTime += metrics.remainingFilterTime
     }
 
     new OperatorMetrics(
@@ -157,7 +163,8 @@ object MetricsUtil extends Logging {
       skippedSplits,
       processedSplits,
       skippedStrides,
-      processedStrides
+      processedStrides,
+      remainingFilterTime
     )
   }
 
@@ -190,6 +197,11 @@ object MetricsUtil extends Logging {
         operatorMetrics.add(metrics.getOperatorMetrics(curMetricsIdx))
         curMetricsIdx -= 1
         ju.updateJoinMetrics(
+          operatorMetrics,
+          metrics.getSingleMetrics,
+          joinParamsMap.get(operatorIdx))
+      case smj: SortMergeJoinMetricsUpdater =>
+        smj.updateJoinMetrics(
           operatorMetrics,
           metrics.getSingleMetrics,
           joinParamsMap.get(operatorIdx))

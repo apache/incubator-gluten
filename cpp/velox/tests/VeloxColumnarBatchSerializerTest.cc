@@ -21,6 +21,7 @@
 #include "memory/VeloxColumnarBatch.h"
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarBatchSerializer.h"
+#include "utils/VeloxArrowUtils.h"
 #include "velox/vector/arrow/Bridge.h"
 #include "velox/vector/tests/utils/VectorTestBase.h"
 
@@ -52,7 +53,7 @@ TEST_F(VeloxColumnarBatchSerializerTest, serialize) {
   auto buffer = serializer->serializeColumnarBatches({batch});
 
   ArrowSchema cSchema;
-  exportToArrow(vector, cSchema);
+  exportToArrow(vector, ArrowUtils::getBridgeOptions(), cSchema);
   auto deserializer = std::make_shared<VeloxColumnarBatchSerializer>(arrowPool_.get(), veloxPool_, &cSchema);
   auto deserialized = deserializer->deserialize(const_cast<uint8_t*>(buffer->data()), buffer->size());
   auto deserializedVector = std::dynamic_pointer_cast<VeloxColumnarBatch>(deserialized)->getRowVector();

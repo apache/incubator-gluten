@@ -21,6 +21,7 @@ import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
 import io.glutenproject.memory.alloc.CHNativeMemoryAllocators
 import io.glutenproject.memory.memtarget.MemoryTarget
 import io.glutenproject.memory.memtarget.Spiller
+import io.glutenproject.memory.memtarget.Spillers
 import io.glutenproject.vectorized._
 
 import org.apache.spark._
@@ -32,6 +33,7 @@ import org.apache.celeborn.client.ShuffleClient
 import org.apache.celeborn.common.CelebornConf
 
 import java.io.IOException
+import java.util
 import java.util.Locale
 
 class CHCelebornHashBasedColumnarShuffleWriter[K, V](
@@ -70,7 +72,8 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
         customizedCompressCodec,
         GlutenConfig.getConf.chColumnarShuffleSpillThreshold,
         CHBackendSettings.shuffleHashAlgorithm,
-        celebornPartitionPusher
+        celebornPartitionPusher,
+        GlutenConfig.getConf.chColumnarThrowIfMemoryExceed
       )
       CHNativeMemoryAllocators.createSpillable(
         "CelebornShuffleWriter",
@@ -88,6 +91,8 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
             logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
             spilled
           }
+
+          override def applicablePhases(): util.Set[Spiller.Phase] = Spillers.PHASE_SET_SPILL_ONLY
         }
       )
     }

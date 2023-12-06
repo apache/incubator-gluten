@@ -19,9 +19,9 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | enable_iaa       | enable IAA for shuffle data de/compression          | OFF           |
 | enable_hbm       | enable HBM allocator                                | OFF           |
 | enable_s3        | build with s3 lib                                   | OFF           |
+| enable_gcs       | build with gcs lib                                  | OFF           |
 | enable_hdfs      | build with hdfs lib                                 | OFF           |
 | enable_ep_cache  | enable caching for external project build (Velox)   | OFF           |
-| skip_build_ep    | skip the build of external projects (velox)         | OFF           |
 | enable_vcpkg     | enable vcpkg for static build                       | OFF           |
 
 ## Parameters for build_velox.sh
@@ -32,6 +32,7 @@ Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 | velox_home | Velox build path                          | GLUTEN_DIR/ep/build-velox/build/velox_ep|
 | build_type | Velox build type, CMAKE_BUILD_TYPE        | Release|
 | enable_s3  | Build Velox with -DENABLE_S3              | OFF           |
+| enable_gcs  | Build Velox with -DENABLE_GCS            | OFF           |
 | enable_hdfs | Build Velox with -DENABLE_HDFS           | OFF           |
 | build_protobuf | build protobuf from source            | ON           |
 | run_setup_script | Run Velox setup script before build | ON           |

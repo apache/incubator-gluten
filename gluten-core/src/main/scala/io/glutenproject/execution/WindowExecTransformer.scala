@@ -84,7 +84,7 @@ case class WindowExecTransformer(
 
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
-  def genWindowParametersBuilder(): com.google.protobuf.Any.Builder = {
+  def genWindowParameters(): Any = {
     // Start with "WindowParameters:"
     val windowParametersStr = new StringBuffer("WindowParameters:")
     // isStreaming: 1 for streaming, 0 for sort
@@ -99,9 +99,7 @@ case class WindowExecTransformer(
       .newBuilder()
       .setValue(windowParametersStr.toString)
       .build()
-    com.google.protobuf.Any.newBuilder
-      .setValue(message.toByteString)
-      .setTypeUrl("/google.protobuf.StringValue")
+    BackendsApiManager.getTransformerApiInstance.getPackMessage(message)
   }
 
   def getRelNode(
@@ -157,7 +155,7 @@ case class WindowExecTransformer(
       }.asJava
     if (!validation) {
       val extensionNode =
-        ExtensionBuilder.makeAdvancedExtension(genWindowParametersBuilder.build(), null)
+        ExtensionBuilder.makeAdvancedExtension(genWindowParameters(), null)
       RelBuilder.makeWindowRel(
         input,
         windowExpressions,
@@ -207,13 +205,7 @@ case class WindowExecTransformer(
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child match {
-      case c: TransformSupport =>
-        c.doTransform(context)
-      case _ =>
-        null
-    }
-
+    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
     val operatorId = context.nextOperatorId(this.nodeName)
     if (windowExpression == null || windowExpression.isEmpty) {
       // The computing for this project is not needed.
@@ -221,36 +213,17 @@ case class WindowExecTransformer(
       return childCtx
     }
 
-    val (currRel, inputAttributes) = if (childCtx != null) {
-      (
-        getRelNode(
-          context,
-          windowExpression,
-          partitionSpec,
-          orderSpec,
-          child.output,
-          operatorId,
-          childCtx.root,
-          validation = false),
-        childCtx.outputAttributes)
-    } else {
-      // This means the input is just an iterator, so an ReadRel will be created as child.
-      // Prepare the input schema.
-      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
-      (
-        getRelNode(
-          context,
-          windowExpression,
-          partitionSpec,
-          orderSpec,
-          child.output,
-          operatorId,
-          readRel,
-          validation = false),
-        child.output)
-    }
+    val currRel = getRelNode(
+      context,
+      windowExpression,
+      partitionSpec,
+      orderSpec,
+      child.output,
+      operatorId,
+      childCtx.root,
+      validation = false)
     assert(currRel != null, "Window Rel should be valid")
-    TransformContext(inputAttributes, output, currRel)
+    TransformContext(childCtx.outputAttributes, output, currRel)
   }
 
   override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {

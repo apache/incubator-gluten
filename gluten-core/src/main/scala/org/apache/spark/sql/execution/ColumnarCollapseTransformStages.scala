@@ -19,50 +19,65 @@ package org.apache.spark.sql.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
+import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.substrait.SubstraitContext
+import io.glutenproject.substrait.rel.RelBuilder
 
-import org.apache.spark.rdd.RDD
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.sql.catalyst.expressions.{Attribute, SortOrder}
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.vectorized.ColumnarBatch
+import org.apache.spark.sql.execution.metric.SQLMetric
 
 import java.util.concurrent.atomic.AtomicInteger
 
-/** InputAdapter is used to hide a SparkPlan from a subtree that supports transform. */
+import scala.collection.JavaConverters._
+
+/**
+ * A bridge to connect [[SparkPlan]] and [[TransformSupport]] and provide the substrait plan
+ * `ReadRel` for the child columnar iterator, so that the [[TransformSupport]] always has input. It
+ * would be transformed to `ValueStreamNode` at native side.
+ */
+case class InputIteratorTransformer(child: SparkPlan) extends UnaryTransformSupport {
+  // `InputAdapter` is a case class, so `ColumnarInputAdapter.withNewChildren()` will return
+  // `InputAdapter`.
+  assert(child.isInstanceOf[InputAdapter])
+
+  @transient
+  override lazy val metrics: Map[String, SQLMetric] =
+    BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetrics(sparkContext)
+
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genInputIteratorTransformerMetricsUpdater(metrics)
+
+  override def output: Seq[Attribute] = child.output
+  override def outputPartitioning: Partitioning = child.outputPartitioning
+  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
+
+  override def doExecuteBroadcast[T](): Broadcast[T] = {
+    child.doExecuteBroadcast()
+  }
+
+  override def doTransform(context: SubstraitContext): TransformContext = {
+    val operatorId = context.nextOperatorId(nodeName)
+    val readRel = RelBuilder.makeReadRelForInputIterator(child.output.asJava, context, operatorId)
+    TransformContext(output, output, readRel)
+  }
+
+  override protected def withNewChildInternal(newChild: SparkPlan): SparkPlan = {
+    copy(child = newChild)
+  }
+}
+
+/**
+ * InputAdapter is used to hide a SparkPlan from a subtree that supports transform. Note, if we
+ * remove this adaptor, the SQL UI graph would be broken.
+ */
 class ColumnarInputAdapter(child: SparkPlan) extends InputAdapter(child) {
-
-  // This is not strictly needed because the codegen transformation happens after the columnar
-  // transformation but just for consistency
-  override def supportsColumnar: Boolean = child.supportsColumnar
-
   // this is the most important effect of this class
   override def supportCodegen: Boolean = false
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    child.executeColumnar()
-  }
-
   override def nodeName: String = s"InputAdapter"
-
-  override def generateTreeString(
-      depth: Int,
-      lastChildren: Seq[Boolean],
-      append: String => Unit,
-      verbose: Boolean,
-      prefix: String = "",
-      addSuffix: Boolean = false,
-      maxFields: Int,
-      printNodeId: Boolean,
-      indent: Int = 0): Unit = {
-    child.generateTreeString(
-      depth,
-      lastChildren,
-      append,
-      verbose,
-      prefix = "",
-      addSuffix = false,
-      maxFields,
-      printNodeId,
-      indent)
-  }
 }
 
 /**
@@ -117,30 +132,30 @@ case class ColumnarCollapseTransformStages(
    * When it's the ClickHouse backend, BasicScanExecTransformer will not be included in
    * WholeStageTransformer.
    */
-  private def isSeparateBasicScanExecTransformer(plan: SparkPlan): Boolean = plan match {
+  private def isSeparateBaseScanExecTransformer(plan: SparkPlan): Boolean = plan match {
     case _: BasicScanExecTransformer if separateScanRDD => true
     case _ => false
   }
 
   private def supportTransform(plan: SparkPlan): Boolean = plan match {
-    case plan: TransformSupport if !isSeparateBasicScanExecTransformer(plan) => true
+    case plan: TransformSupport if !isSeparateBaseScanExecTransformer(plan) => true
     case _ => false
   }
 
-  /** Inserts an InputAdapter on top of those that do not support transform. */
-  private def insertInputAdapter(plan: SparkPlan): SparkPlan = {
+  /** Inserts an InputIteratorTransformer on top of those that do not support transform. */
+  private def insertInputIteratorTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
       case p if !supportTransform(p) =>
-        new ColumnarInputAdapter(insertWholeStageTransformer(p))
+        ColumnarCollapseTransformStages.wrapInputIteratorTransformer(insertWholeStageTransformer(p))
       case p =>
-        p.withNewChildren(p.children.map(insertInputAdapter))
+        p.withNewChildren(p.children.map(insertInputIteratorTransformer))
     }
   }
 
   private def insertWholeStageTransformer(plan: SparkPlan): SparkPlan = {
     plan match {
       case t if supportTransform(t) =>
-        WholeStageTransformer(t.withNewChildren(t.children.map(insertInputAdapter)))(
+        WholeStageTransformer(t.withNewChildren(t.children.map(insertInputIteratorTransformer)))(
           transformStageCounter.incrementAndGet())
       case other =>
         other.withNewChildren(other.children.map(insertWholeStageTransformer))
@@ -150,4 +165,8 @@ case class ColumnarCollapseTransformStages(
 
 object ColumnarCollapseTransformStages {
   val transformStageCounter = new AtomicInteger(0)
+
+  def wrapInputIteratorTransformer(plan: SparkPlan): TransformSupport = {
+    InputIteratorTransformer(new ColumnarInputAdapter(plan))
+  }
 }

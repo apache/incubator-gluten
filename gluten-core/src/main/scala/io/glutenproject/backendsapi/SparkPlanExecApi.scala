@@ -127,6 +127,13 @@ trait SparkPlanExecApi {
     GenericExpressionTransformer(substraitExprName, Seq(srcExpr, regexExpr, limitExpr), original)
   }
 
+  def genRandTransformer(
+      substraitExprName: String,
+      explicitSeed: ExpressionTransformer,
+      original: Rand): ExpressionTransformer = {
+    RandTransformer(substraitExprName, explicitSeed, original)
+  }
+
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
   def genGetMapValueTransformer(
       substraitExprName: String,
@@ -437,7 +444,7 @@ trait SparkPlanExecApi {
               frame.frameType.sql
             )
             windowExpressionNodes.add(windowFunctionNode)
-          case wf @ NthValue(input, offset: Literal, _) =>
+          case wf @ NthValue(input, offset: Literal, ignoreNulls: Boolean) =>
             val frame = wExpression.windowSpec.frameSpecification.asInstanceOf[SpecifiedWindowFrame]
             val childrenNodeList = new JArrayList[ExpressionNode]()
             childrenNodeList.add(
@@ -445,6 +452,7 @@ trait SparkPlanExecApi {
                 .replaceWithExpressionTransformer(input, attributeSeq = originalInputAttributes)
                 .doTransform(args))
             childrenNodeList.add(LiteralTransformer(offset).doTransform(args))
+            childrenNodeList.add(LiteralTransformer(Literal(ignoreNulls)).doTransform(args))
             val windowFunctionNode = ExpressionBuilder.makeWindowFunction(
               WindowFunctionsBuilder.create(args, wf).toInt,
               childrenNodeList,

@@ -35,6 +35,7 @@
 #include "memory/VeloxMemoryManager.h"
 #include "operators/serializer/VeloxColumnarToRowConverter.h"
 #include "utils/TestUtils.h"
+#include "utils/VeloxArrowUtils.h"
 #include "utils/macros.h"
 #include "velox/vector/arrow/Bridge.h"
 
@@ -95,7 +96,8 @@ class GoogleBenchmarkColumnarToRow {
     ArrowArray arrowArray;
     ArrowSchema arrowSchema;
     ASSERT_NOT_OK(arrow::ExportRecordBatch(rb, &arrowArray, &arrowSchema));
-    return velox::importFromArrowAsOwner(arrowSchema, arrowArray, gluten::defaultLeafVeloxMemoryPool().get());
+    return velox::importFromArrowAsOwner(
+        arrowSchema, arrowArray, ArrowUtils::getBridgeOptions(), gluten::defaultLeafVeloxMemoryPool().get());
   }
 
  protected:

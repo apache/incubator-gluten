@@ -39,6 +39,7 @@ yum -y install \
     git \
     dnf \
     cmake3 \
+    ccache \
     devtoolset-9 \
     java-1.8.0-openjdk \
     java-1.8.0-openjdk-devel \

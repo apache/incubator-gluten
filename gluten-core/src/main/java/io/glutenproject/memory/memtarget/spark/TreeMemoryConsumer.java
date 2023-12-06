@@ -33,6 +33,7 @@ import org.apache.spark.memory.TaskMemoryManager;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -123,10 +124,10 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarg
   public TreeMemoryTarget newChild(
       String name,
       long capacity,
-      Spiller spiller,
+      List<Spiller> spillers,
       Map<String, MemoryUsageStatsBuilder> virtualChildren) {
     final TreeMemoryTarget child =
-        TreeMemoryTargets.newChild(this, name, capacity, spiller, virtualChildren);
+        TreeMemoryTargets.newChild(this, name, capacity, spillers, virtualChildren);
     if (children.containsKey(child.name())) {
       throw new IllegalArgumentException("Child already registered: " + child.name());
     }
@@ -146,9 +147,9 @@ public class TreeMemoryConsumer extends MemoryConsumer implements TreeMemoryTarg
   }
 
   @Override
-  public Spiller getNodeSpiller() {
+  public List<Spiller> getNodeSpillers() {
     // root doesn't spill
-    return Spiller.NO_OP;
+    return Collections.emptyList();
   }
 
   public TaskMemoryManager getTaskMemoryManager() {

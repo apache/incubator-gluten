@@ -109,7 +109,9 @@ function process_setup_centos8 {
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos8.sh
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
   sed -i '/^function cmake_install_deps.*/i FB_OS_VERSION=v2022.11.14.00\n function install_folly {\n  github_checkout facebook/folly "${FB_OS_VERSION}"\n  cmake_install -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON\n}\n'     scripts/setup-centos8.sh
+  sed -i '/^function cmake_install_deps.*/i function install_openssl {\n  wget_and_untar https://github.com/openssl/openssl/archive/refs/tags/OpenSSL_1_1_1s.tar.gz openssl \n cd openssl \n ./config no-shared && make depend && make && sudo make install \n}\n'     scripts/setup-centos8.sh
   sed -i '/^cmake_install_deps fmt/a \install_folly' scripts/setup-centos8.sh
+  sed -i '/^cmake_install_deps fmt/a \install_openssl' scripts/setup-centos8.sh
 
   if [ $ENABLE_HDFS == "ON" ]; then
     sed -i '/^function cmake_install_deps.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos8.sh
@@ -150,6 +152,9 @@ function process_setup_centos7 {
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_awssdk' scripts/setup-centos7.sh
+  fi
+  if [ $ENABLE_GCS == "ON" ]; then
+    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos7.sh
   fi
 }
 
@@ -201,6 +206,22 @@ fi
 #sync submodules
 git submodule sync --recursive
 git submodule update --init --recursive
+
+function apply_compilation_fixes {
+  current_dir=$1
+  velox_home=$2
+  sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
+  sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/third_party/
+  git add ${velox_home}/modify_velox.patch # to avoid the file from being deleted by git clean -dffx :/
+  git add ${velox_home}/third_party/modify_arrow.patch # to avoid the file from being deleted by git clean -dffx :/
+  cd ${velox_home}
+  echo "Applying patch to Velox source code..."
+  git apply modify_velox.patch
+  if [ $? -ne 0 ]; then
+    echo "Failed to apply compilation fixes to Velox: $?."
+    exit 1
+  fi
+}
 
 function setup_linux {
   local LINUX_DISTRIBUTION=$(. /etc/os-release && echo ${ID})
@@ -264,5 +285,7 @@ else
   echo "Unsupport kernel: $OS"
   exit 1
 fi
+
+apply_compilation_fixes $CURRENT_DIR $VELOX_SOURCE_DIR
 
 echo "Velox-get finished."

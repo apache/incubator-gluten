@@ -76,6 +76,7 @@ const std::string kSkippedSplits = "skippedSplits";
 const std::string kProcessedSplits = "processedSplits";
 const std::string kSkippedStrides = "skippedStrides";
 const std::string kProcessedStrides = "processedStrides";
+const std::string kRemainingFilterTime = "totalRemainingFilterTime";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
@@ -284,6 +285,8 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kSkippedStrides)[metricIndex] = runtimeMetric("sum", second->customStats, kSkippedStrides);
       metrics_->get(Metrics::kProcessedStrides)[metricIndex] =
           runtimeMetric("sum", second->customStats, kProcessedStrides);
+      metrics_->get(Metrics::kRemainingFilterTime)[metricIndex] =
+          runtimeMetric("sum", second->customStats, kRemainingFilterTime);
       metricIndex += 1;
     }
   }
@@ -353,6 +356,7 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     }
     configs[velox::core::QueryConfig::kAggregationSpillEnabled] =
         getConfigValue(confMap_, kAggregationSpillEnabled, "true");
+    configs[velox::core::QueryConfig::kPartialAggregationSpillEnabled] = "true";
     configs[velox::core::QueryConfig::kJoinSpillEnabled] = getConfigValue(confMap_, kJoinSpillEnabled, "true");
     configs[velox::core::QueryConfig::kOrderBySpillEnabled] = getConfigValue(confMap_, kOrderBySpillEnabled, "true");
     configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] =
@@ -378,6 +382,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         getConfigValue(confMap_, kBloomFilterNumBits, "8388608");
     configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] =
         getConfigValue(confMap_, kBloomFilterMaxNumBits, "4194304");
+
+    configs[velox::core::QueryConfig::kArrowBridgeTimestampUnit] = 2;
+
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();
     throw std::runtime_error("Invalid conf arg: " + errDetails);
@@ -407,6 +414,8 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
   // The semantics of reading as lower case is opposite with case-sensitive.
   configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCase] =
       getConfigValue(confMap_, kCaseSensitive, "false") == "false" ? "true" : "false";
+  configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = 2;
+
   return std::make_shared<velox::core::MemConfig>(configs);
 }
 

@@ -21,7 +21,7 @@ import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.util.TaskResources
 
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+import java.util.concurrent.atomic.AtomicBoolean
 
 private class PayloadCloser[A](in: Iterator[A])(closeCallback: A => Unit) extends Iterator[A] {
   private var closer: Option[() => Unit] = None
@@ -87,16 +87,15 @@ private class IteratorCompleter[A](in: Iterator[A])(completionCallback: => Unit)
 
 private class PipelineTimeAccumulator[A](in: Iterator[A], pipelineTime: SQLMetric)
   extends Iterator[A] {
-  private val accumulatedTime: AtomicLong = new AtomicLong(0L)
+  private val closed = new AtomicBoolean(false)
+  private val startTime = System.nanoTime()
 
   TaskResources.addRecycler("Iterators#PipelineTimeAccumulator", 100) {
     tryFinish()
   }
 
   override def hasNext: Boolean = {
-    val prev = System.nanoTime()
     val out = in.hasNext
-    accumulatedTime.addAndGet(System.nanoTime() - prev)
     if (!out) {
       tryFinish()
     }
@@ -104,18 +103,17 @@ private class PipelineTimeAccumulator[A](in: Iterator[A], pipelineTime: SQLMetri
   }
 
   override def next(): A = {
-    val prev = System.nanoTime()
-    val out = in.next()
-    accumulatedTime.addAndGet(System.nanoTime() - prev)
-    out
+    in.next()
   }
 
   private def tryFinish(): Unit = {
+    // pipeline metric should only be calculate once.
+    if (!closed.compareAndSet(false, true)) {
+      return
+    }
     pipelineTime += TimeUnit.NANOSECONDS.toMillis(
-      accumulatedTime.getAndSet(
-        0L
-      )
-    ) // make sure the accumulated time is submitted once
+      System.nanoTime() - startTime
+    )
   }
 }
 
@@ -124,10 +122,10 @@ private class PipelineTimeAccumulator[A](in: Iterator[A], pipelineTime: SQLMetri
  * methods.
  */
 private class InvocationFlowProtection[A](in: Iterator[A]) extends Iterator[A] {
-  sealed private trait State;
-  private case object Init extends State;
-  private case class HasNextCalled(hasNext: Boolean) extends State;
-  private case object NextCalled extends State;
+  sealed private trait State
+  private case object Init extends State
+  private case class HasNextCalled(hasNext: Boolean) extends State
+  private case object NextCalled extends State
 
   private var state: State = Init
 

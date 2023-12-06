@@ -27,6 +27,7 @@ ENABLE_EP_CACHE=OFF
 ENABLE_BENCHMARK=OFF
 ENABLE_TESTS=OFF
 RUN_SETUP_SCRIPT=ON
+OTHER_ARGUMENTS=""
 
 OS=`uname -s`
 ARCH=`uname -m`
@@ -76,22 +77,7 @@ for arg in "$@"; do
   esac
 done
 
-function apply_compilation_fixes {
-  current_dir=$1
-  velox_home=$2
-  sudo cp ${current_dir}/modify_velox.patch ${velox_home}/
-  sudo cp ${current_dir}/modify_arrow.patch ${velox_home}/third_party/
-  cd ${velox_home}
-  git apply modify_velox.patch
-  if [ $? -ne 0 ]; then
-    echo "Failed to apply compilation fixes to Velox: $?."
-    exit 1
-  fi
-}
-
 function compile {
-  TARGET_BUILD_COMMIT=$(git rev-parse --verify HEAD)
-
   if [ -z "${GLUTEN_VCPKG_ENABLED:-}" ] && [ $RUN_SETUP_SCRIPT == "ON" ]; then
     if [ $OS == 'Linux' ]; then
       setup_linux
@@ -103,7 +89,7 @@ function compile {
     fi
   fi
 
-  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_BUILD_TEST_UTILS=OFF -DVELOX_ENABLE_DUCKDB=OFF"
+  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_BUILD_TEST_UTILS=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_ENABLE_PARSE=OFF"
   if [ $ENABLE_BENCHMARK == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_BENCHMARKS=ON"
   fi
@@ -125,6 +111,7 @@ function compile {
   echo "COMPILE_OPTION: "$COMPILE_OPTION
 
   export simdjson_SOURCE=BUNDLED
+  export duckdb_SOURCE=BUNDLED
   if [ $ARCH == 'x86_64' ]; then
     make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
@@ -156,25 +143,32 @@ function compile {
   fi
 }
 
+function get_build_summary {
+  COMMIT_HASH=$1
+  # Ideally all script arguments should be put into build summary.
+  echo "ENABLE_S3=$ENABLE_S3,ENABLE_GCS=$ENABLE_GCS,ENABLE_HDFS=$ENABLE_HDFS,BUILD_TYPE=$BUILD_TYPE,VELOX_HOME=$VELOX_HOME,ENABLE_EP_CACHE=$ENABLE_EP_CACHE,ENABLE_BENCHMARK=$ENABLE_BENCHMARK,ENABLE_TESTS=$ENABLE_TESTS,RUN_SETUP_SCRIPT=$RUN_SETUP_SCRIPT,OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
+}
+
 function check_commit {
   if [ $ENABLE_EP_CACHE == "ON" ]; then
-    if [ -f ${VELOX_HOME}/velox-commit.cache ]; then
-      CACHED_BUILT_COMMIT="$(cat ${VELOX_HOME}/velox-commit.cache)"
-      if [ -n "$CACHED_BUILT_COMMIT" ]; then
-        if [ "$TARGET_BUILD_COMMIT" = "$CACHED_BUILT_COMMIT" ]; then
-          echo "Velox build of commit $TARGET_BUILD_COMMIT was cached."
+    if [ -f ${VELOX_HOME}/velox-build.cache ]; then
+      CACHED_BUILD_SUMMARY="$(cat ${VELOX_HOME}/velox-build.cache)"
+      if [ -n "$CACHED_BUILD_SUMMARY" ]; then
+        if [ "$TARGET_BUILD_SUMMARY" = "$CACHED_BUILD_SUMMARY" ]; then
+          echo "Velox build $TARGET_BUILD_SUMMARY was cached."
           exit 0
         else
-          echo "Found cached commit $CACHED_BUILT_COMMIT for Velox which is different with target commit $TARGET_BUILD_COMMIT."
+          echo "Found cached build $CACHED_BUILD_SUMMARY for Velox which is different with target build $TARGET_BUILD_SUMMARY."
         fi
       fi
     fi
   else
+    # Branch-new build requires all untracked files to be deleted. We only need the source code.
     git clean -dffx :/
   fi
 
-  if [ -f ${VELOX_HOME}/velox-commit.cache ]; then
-    rm -f ${VELOX_HOME}/velox-commit.cache
+  if [ -f ${VELOX_HOME}/velox-build.cache ]; then
+    rm -f ${VELOX_HOME}/velox-build.cache
   fi
 }
 
@@ -256,16 +250,15 @@ echo "ENABLE_HDFS=${ENABLE_HDFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 
 cd ${VELOX_HOME}
-TARGET_BUILD_COMMIT="$(git rev-parse --verify HEAD)"
-if [ -z "$TARGET_BUILD_COMMIT" ]; then
-  echo "Unable to parse Velox commit: $TARGET_BUILD_COMMIT."
-  exit 0
+TARGET_BUILD_SUMMARY=$(get_build_summary "$(git rev-parse --verify HEAD)")
+if [ -z "$TARGET_BUILD_SUMMARY" ]; then
+  echo "Unable to parse Velox build: $TARGET_BUILD_SUMMARY."
+  exit 1
 fi
-echo "Target Velox commit: $TARGET_BUILD_COMMIT"
+echo "Target Velox build: $TARGET_BUILD_SUMMARY"
 
 check_commit
-apply_compilation_fixes $CURRENT_DIR $VELOX_HOME
 compile
 
 echo "Successfully built Velox from Source."
-echo $TARGET_BUILD_COMMIT >"${VELOX_HOME}/velox-commit.cache"
+echo $TARGET_BUILD_SUMMARY >"${VELOX_HOME}/velox-build.cache"

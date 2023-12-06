@@ -16,29 +16,20 @@
  */
 package io.glutenproject.backendsapi
 
-import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.expression.ExpressionNode
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Generator}
-import org.apache.spark.sql.catalyst.plans.physical.Partitioning
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.util.collection.BitSet
 
+import com.google.protobuf.{Any, Message}
+
 import java.util
 
 trait TransformerApi {
-
-  /**
-   * Do validate for ColumnarShuffleExchangeExec.
-   *
-   * @return
-   */
-  def validateColumnarShuffleExchangeExec(
-      outputPartitioning: Partitioning,
-      child: SparkPlan): Boolean
 
   /** Generate Seq[InputPartition] for FileSourceScanExecTransformer. */
   def genInputPartitionSeq(
@@ -66,9 +57,6 @@ trait TransformerApi {
     plan.output
   }
 
-  def validateGenerator(generator: Generator, outer: Boolean): ValidationResult =
-    ValidationResult.ok
-
   def createDateDiffParamList(start: ExpressionNode, end: ExpressionNode): Iterable[ExpressionNode]
 
   def createLikeParamList(
@@ -85,4 +73,6 @@ trait TransformerApi {
       nullOnOverflow: Boolean): ExpressionNode
 
   def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String
+
+  def getPackMessage(message: Message): Any
 }

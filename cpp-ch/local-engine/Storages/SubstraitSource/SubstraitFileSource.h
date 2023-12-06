@@ -104,41 +104,19 @@ public:
 
     void setKeyCondition(const DB::ActionsDAG::NodeRawConstPtrs & nodes, DB::ContextPtr context_) override;
 
-    std::vector<String> getPartitionKeys() const;
-    DB::String getFileFormat() const;
-
 protected:
     DB::Chunk generate() override;
 
 private:
     DB::ContextPtr context;
-    DB::Block output_header; /// Sample header before flatten, may contains partitions keys
-    DB::Block flatten_output_header; // Sample header after flatten, include partition keys
-    DB::Block to_read_header; // Sample header after flatten, not include partition keys
+    DB::Block output_header; /// Sample header may contains partitions keys
+    DB::Block to_read_header; // Sample header not include partition keys
     FormatFiles files;
-    DB::NamesAndTypesList file_schema; /// The column names and types in the file
-
-    /// The columns to skip flatten based on output_header
-    /// Notice that not all tuple type columns need to be flatten.
-    /// E.g. if parquet file schema is `info struct<name string, age int>`, and output_header is `info Tuple(name String, age Int32)`
-    /// then there is not need to flatten `info` column, because null value of `info` column will be represented as null value of `info.name` and `info.age`, which is obviously wrong.
-    std::unordered_set<size_t> columns_to_skip_flatten;
 
     UInt32 current_file_index = 0;
     std::unique_ptr<FileReaderWrapper> file_reader;
     ReadBufferBuilderPtr read_buffer_builder;
 
     bool tryPrepareReader();
-
-    // E.g we have flatten columns correspond to header {a:int, b.x.i: int, b.x.j: string, b.y: string}
-    // but we want to fold all the flatten struct columns into one struct column,
-    // {a:int, b: {x: {i: int, j: string}, y: string}}
-    // Notice, don't support list with named struct. ClickHouse may take advantage of this to support
-    // nested table, but not the case in spark.
-    static DB::Block
-    foldFlattenColumns(const DB::Columns & cols, const DB::Block & header, const std::unordered_set<size_t> & columns_to_skip_flatten);
-
-    static DB::ColumnWithTypeAndName
-    foldFlattenColumn(DB::DataTypePtr col_type, const std::string & col_name, size_t & pos, const DB::Columns & cols);
 };
 }

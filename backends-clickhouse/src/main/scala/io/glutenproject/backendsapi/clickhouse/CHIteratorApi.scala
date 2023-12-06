@@ -108,17 +108,17 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       updateNativeMetrics: IMetrics => Unit,
       inputIterators: Seq[Iterator[ColumnarBatch]] = Seq()
   ): Iterator[ColumnarBatch] = {
-    val resIter: GeneralOutIterator = GlutenTimeMetric.millis(pipelineTime) {
-      _ =>
-        val transKernel = new CHNativeExpressionEvaluator()
-        val inBatchIters = new JArrayList[GeneralInIterator](inputIterators.map {
-          iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
-        }.asJava)
-        transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters, false)
-    }
-    TaskContext.get().addTaskCompletionListener[Unit](_ => resIter.close())
+
+    val transKernel = new CHNativeExpressionEvaluator()
+    val inBatchIters = new JArrayList[GeneralInIterator](inputIterators.map {
+      iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+    }.asJava)
+    val resIter: GeneralOutIterator =
+      transKernel.createKernelWithBatchIterator(inputPartition.plan, inBatchIters, false)
+
+    context.addTaskCompletionListener[Unit](_ => resIter.close())
     val iter = new Iterator[Any] {
-      private val inputMetrics = TaskContext.get().taskMetrics().inputMetrics
+      private val inputMetrics = context.taskMetrics().inputMetrics
       private var outputRowCount = 0L
       private var outputVectorCount = 0L
       private var metricsUpdated = false
@@ -155,6 +155,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
   // Generate Iterator[ColumnarBatch] for final stage.
   // scalastyle:off argcount
   override def genFinalStageIterator(
+      context: TaskContext,
       inputIterators: Seq[Iterator[ColumnarBatch]],
       numaBindingInfo: GlutenNumaBindingInfo,
       sparkConf: SparkConf,
@@ -165,19 +166,17 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       materializeInput: Boolean): Iterator[ColumnarBatch] = {
     // scalastyle:on argcount
     GlutenConfig.getConf
-    val nativeIterator = GlutenTimeMetric.millis(pipelineTime) {
-      _ =>
-        val transKernel = new CHNativeExpressionEvaluator()
-        val columnarNativeIterator =
-          new JArrayList[GeneralInIterator](inputIterators.map {
-            iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
-          }.asJava)
-        // we need to complete dependency RDD's firstly
-        transKernel.createKernelWithBatchIterator(
-          rootNode.toProtobuf.toByteArray,
-          columnarNativeIterator,
-          materializeInput)
-    }
+
+    val transKernel = new CHNativeExpressionEvaluator()
+    val columnarNativeIterator =
+      new JArrayList[GeneralInIterator](inputIterators.map {
+        iter => new ColumnarNativeIterator(genCloseableColumnBatchIterator(iter).asJava)
+      }.asJava)
+    // we need to complete dependency RDD's firstly
+    val nativeIterator = transKernel.createKernelWithBatchIterator(
+      rootNode.toProtobuf.toByteArray,
+      columnarNativeIterator,
+      materializeInput)
 
     val resIter = new Iterator[ColumnarBatch] {
       private var outputRowCount = 0L
@@ -212,7 +211,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
       // relationHolder.clear()
     }
 
-    TaskContext.get().addTaskCompletionListener[Unit](_ => close())
+    context.addTaskCompletionListener[Unit](_ => close())
     new CloseableCHColumnBatchIterator(resIter, Some(pipelineTime))
   }
 

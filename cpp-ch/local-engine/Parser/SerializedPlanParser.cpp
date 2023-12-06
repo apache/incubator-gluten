@@ -57,6 +57,7 @@
 #include <Parser/JoinRelParser.h>
 #include <Parser/RelParser.h>
 #include <Parser/TypeParser.h>
+#include <Parser/MergeTreeRelParser.h>
 #include <Parsers/ASTIdentifier.h>
 #include <Parsers/ExpressionListParsers.h>
 #include <Processors/Executors/PullingAsyncPipelineExecutor.h>
@@ -567,7 +568,10 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
             }
             else
             {
-                query_plan = parseMergeTreeTable(read, steps);
+                MergeTreeRelParser mergeTreeParser(this, context, query_context, global_context);
+                std::list<const substrait::Rel *> stack;
+                query_plan = mergeTreeParser.parse(std::make_unique<QueryPlan>(), rel, stack);
+                steps = mergeTreeParser.getSteps();
             }
             break;
         }
@@ -733,10 +737,10 @@ SerializedPlanParser::getFunctionName(const std::string & function_signature, co
     }
     else if (function_name == "make_decimal")
     {
-        if (args.size() < 3)
-            throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 3 args.");
+        if (args.size() < 2)
+            throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 2 args.");
         ch_function_name = SCALAR_FUNCTIONS.at(function_name);
-        auto null_on_overflow = args.at(2).value().literal().boolean();
+        auto null_on_overflow = args.at(1).value().literal().boolean();
         if (null_on_overflow)
             ch_function_name = ch_function_name + "OrNull";
     }
@@ -1006,8 +1010,8 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         }
         else if (startsWith(function_signature, "make_decimal:"))
         {
-            if (scalar_function.arguments().size() < 3)
-                throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least three args.");
+            if (scalar_function.arguments().size() < 2)
+                throw Exception(ErrorCodes::BAD_ARGUMENTS, "make_decimal function requires at least 2 args.");
 
             ActionsDAG::NodeRawConstPtrs new_args;
             new_args.reserve(3);
@@ -2165,10 +2169,6 @@ bool LocalExecutor::hasNext()
             auto empty_block = header.cloneEmpty();
             setCurrentBlock(empty_block);
             has_next = executor->pull(currentBlock());
-            if (!has_next)
-            {
-                has_next = checkAndSetDefaultBlock(columns, has_next);
-            }
             produce();
         }
         else
@@ -2230,39 +2230,6 @@ Block & LocalExecutor::getHeader()
 LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_)
     : query_context(_query_context), context(context_)
 {
-}
-
-bool LocalExecutor::checkAndSetDefaultBlock(size_t current_block_columns, bool has_next_blocks)
-{
-    if (current_block_columns > 0 || has_next_blocks)
-    {
-        return has_next_blocks;
-    }
-    bool should_set_default_value = false;
-    for (auto p :  query_pipeline.getProcessors())
-    {
-        if (p->getName() == "MergingAggregatedTransform")
-        {
-            DB::MergingAggregatedStep * agg_step = static_cast<DB::MergingAggregatedStep *>(p->getQueryPlanStep());
-            auto query_params = agg_step->getParams();
-            should_set_default_value = query_params.keys_size == 0;
-        }
-    }
-    if (!should_set_default_value)
-        return false;
-    auto cols = currentBlock().getColumnsWithTypeAndName();
-    for (size_t i = 0; i < cols.size(); i++)
-    {
-        const DB::ColumnWithTypeAndName col = cols[i];
-        String col_name = col.name;
-        DataTypePtr col_type = col.type;
-        const DB::ColumnPtr & default_col_ptr = col_type->createColumnConst(1, col_type->getDefault());
-        const DB::ColumnWithTypeAndName default_col(default_col_ptr, col_type, col_name);
-        currentBlock().setColumn(i, default_col);
-    }
-    if (cols.size() > 0)
-        return true;
-    return false;
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(

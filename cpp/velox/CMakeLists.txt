@@ -26,7 +26,7 @@ include(FindPackageHandleStandardArgs)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx -mavx2")
 endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations -Wno-attributes")
 if (NOT ${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
@@ -90,6 +90,20 @@ macro(ADD_VELOX_OBJECTS)
   target_link_libraries(velox PUBLIC velox_objects)
 endmacro()
 
+macro(add_duckdb)
+  add_velox_dependency(duckdb::static "${VELOX_BUILD_PATH}/_deps/duckdb-build/src/libduckdb_static.a")
+  add_velox_dependency(duckdb::jemalloc "${VELOX_BUILD_PATH}/_deps/duckdb-build/extension/jemalloc/libjemalloc_extension.a")
+  add_velox_dependency(duckdb::fmt "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/fmt/libduckdb_fmt.a")
+  add_velox_dependency(duckdb::query "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/libpg_query/libduckdb_pg_query.a")
+  add_velox_dependency(duckdb::re2 "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/re2/libduckdb_re2.a")
+  add_velox_dependency(duckdb::miniz "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/miniz/libduckdb_miniz.a")
+  add_velox_dependency(duckdb::utf8 "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/utf8proc/libduckdb_utf8proc.a")
+  add_velox_dependency(duckdb::hyperloglog "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/hyperloglog/libduckdb_hyperloglog.a")
+  add_velox_dependency(duckdb::fastpforlib "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/fastpforlib/libduckdb_fastpforlib.a")
+  add_velox_dependency(duckdb::mbedtls "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/mbedtls/libduckdb_mbedtls.a")
+  add_velox_dependency(duckdb::fsst "${VELOX_BUILD_PATH}/_deps/duckdb-build/third_party/fsst/libduckdb_fsst.a")
+endmacro()
+
 macro(ADD_VELOX_DEPENDENCIES)
   add_velox_objects()
   add_velox_dependency(functions::sparksql::lib "${VELOX_COMPONENTS_PATH}/functions/sparksql/libvelox_functions_spark.a")
@@ -114,12 +128,11 @@ macro(ADD_VELOX_DEPENDENCIES)
   endif()
   add_velox_dependency(exec "${VELOX_COMPONENTS_PATH}/exec/libvelox_exec.a")
   add_velox_dependency(common::test_util "${VELOX_COMPONENTS_PATH}/common/testutil/libvelox_test_util.a")
-  add_velox_dependency(parse::parser "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
+  
   if(BUILD_TESTS)
+    add_velox_dependency(parse::parser "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_parser.a")
     add_velox_dependency(duckdb::parser "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_parser.a")
-  endif()
-  add_velox_dependency(parse::expression "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_expression.a")
-  if(BUILD_TESTS)
+    add_velox_dependency(parse::expression "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_expression.a")
     add_velox_dependency(parse::utils "${VELOX_COMPONENTS_PATH}/parse/libvelox_parse_utils.a")
     add_velox_dependency(function::registry "${VELOX_COMPONENTS_PATH}/functions/libvelox_function_registry.a")
   endif()
@@ -146,7 +159,9 @@ macro(ADD_VELOX_DEPENDENCIES)
     add_velox_dependency(dwio::common::utils "${VELOX_COMPONENTS_PATH}/dwio/common/tests/utils/libvelox_dwio_common_test_utils.a")
     add_velox_dependency(dwio::dwrf::test_utils "${VELOX_COMPONENTS_PATH}/dwio/dwrf/test/utils/libvelox_dwrf_test_utils.a")
     add_velox_dependency(parquet::reader::duckdb_conversion "${VELOX_COMPONENTS_PATH}/duckdb/conversion/libvelox_duckdb_conversion.a")
-    add_velox_dependency(duckdb::duckdb "${VELOX_COMPONENTS_PATH}/external/duckdb/libduckdb.a")
+    
+    add_duckdb()
+    
     add_velox_dependency(tpch::gen "${VELOX_COMPONENTS_PATH}/tpch/gen/libvelox_tpch_gen.a")
     add_velox_dependency(dbgen "${VELOX_COMPONENTS_PATH}/tpch/gen/dbgen/libvelox_dbgen.a")
   endif()
@@ -176,7 +191,6 @@ macro(ADD_VELOX_DEPENDENCIES)
   add_velox_dependency(common::base "${VELOX_COMPONENTS_PATH}/common/base/libvelox_common_base.a")
   add_velox_dependency(common::memory "${VELOX_COMPONENTS_PATH}/common/memory/libvelox_memory.a")
   add_velox_dependency(common::serialization "${VELOX_COMPONENTS_PATH}/common/serialization/libvelox_serialization.a")
-  add_velox_dependency(spill::config "${VELOX_COMPONENTS_PATH}/common/config/libvelox_spill_config.a")
   add_velox_dependency(common::base::exception "${VELOX_COMPONENTS_PATH}/common/base/libvelox_exception.a")
 
   add_velox_dependency(type::tz "${VELOX_COMPONENTS_PATH}/type/tz/libvelox_type_tz.a")
@@ -200,6 +214,7 @@ macro(ADD_VELOX_DEPENDENCIES)
   endif()
   add_velox_dependency(common::compression "${VELOX_COMPONENTS_PATH}/common/compression/libvelox_common_compression.a")
   add_velox_dependency(common::io "${VELOX_COMPONENTS_PATH}/common/io/libvelox_common_io.a")
+  add_velox_dependency(external::simdjson "${VELOX_BUILD_PATH}/_deps/simdjson-build/libsimdjson.a")
 endmacro()
 
 macro(find_libhdfs3)
@@ -266,6 +281,7 @@ set(VELOX_SRCS
     memory/VeloxMemoryManager.cc
     operators/functions/RegistrationAllFunctions.cc
     operators/functions/RowConstructorWithNull.cc
+    operators/functions/SparkTokenizer.cc
     operators/serializer/VeloxColumnarToRowConverter.cc
     operators/serializer/VeloxColumnarBatchSerializer.cc
     operators/serializer/VeloxRowToColumnarConverter.cc
@@ -313,8 +329,8 @@ set_target_properties(velox PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${root_directory}/releases
     )
 
-## If the folly is not builded in system directories, please add
-## `-DCMAKE_PREFIX_PATH="${folly builded directory}" to the parameters of cmake.
+## If folly is not installed in system lib paths, please add
+## `-DCMAKE_PREFIX_PATH="${folly lib path}" to cmake arguments.
 ## It is also applicable to other dependencies.
 find_package(Folly REQUIRED CONFIG)
 
@@ -333,13 +349,6 @@ target_link_libraries(velox PUBLIC Arrow::arrow Arrow::parquet)
 target_link_libraries(velox PUBLIC Folly::folly)
 find_re2()
 target_link_libraries(velox PUBLIC ${RE2_LIBRARY})
-
-include(Simdjson)
-if(TARGET simdjson::simdjson AND NOT TARGET simdjson)
-  add_library(simdjson INTERFACE)
-  target_link_libraries(simdjson INTERFACE simdjson::simdjson)
-endif()
-target_link_libraries(velox PUBLIC simdjson)
 
 if(ENABLE_GLUTEN_VCPKG)
   find_package(Thrift CONFIG)

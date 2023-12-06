@@ -16,16 +16,15 @@
  */
 package org.apache.spark.sql.execution.datasources
 
-import io.glutenproject.execution.TransformSupport
-import io.glutenproject.execution.WholeStageTransformer
+import io.glutenproject.execution.{ProjectExecTransformer, SortExecTransformer, TransformSupport, WholeStageTransformer}
 import io.glutenproject.execution.datasource.GlutenFormatWriterInjects
 import io.glutenproject.extension.TransformPreOverrides
 import io.glutenproject.extension.columnar.AddTransformHintRule
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, SparkPlan}
 import org.apache.spark.sql.execution.ColumnarCollapseTransformStages.transformStageCounter
-import org.apache.spark.sql.execution.SparkPlan
 
 trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
 
@@ -49,6 +48,12 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
           "consider disabling native writer to workaround this issue.")
     }
 
+    def injectAdapter(p: SparkPlan): SparkPlan = p match {
+      case p: ProjectExecTransformer => p.mapChildren(injectAdapter)
+      case s: SortExecTransformer => s.mapChildren(injectAdapter)
+      case _ => ColumnarCollapseTransformStages.wrapInputIteratorTransformer(p)
+    }
+
     // why materializeInput = true? this is for CH backend.
     // in this wst, a Sort will be executed by the underlying native engine.
     // In CH, a SortingTransform cannot handle Const Columns,
@@ -56,7 +61,8 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
     // and use const_columns_to_remove to skip const columns.
     // Unfortunately, in our case this wst's input is SourceFromJavaIter
     // and cannot provide const-ness.
-    val wst = WholeStageTransformer(transformed, materializeInput = true)(
+    val transformedWithAdapter = injectAdapter(transformed)
+    val wst = WholeStageTransformer(transformedWithAdapter, materializeInput = true)(
       transformStageCounter.incrementAndGet())
     FakeRowAdaptor(wst).execute()
   }

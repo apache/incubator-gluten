@@ -288,8 +288,8 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
 
   // Modified based on vanilla spark to explicitly set timezone in config.
   test(GLUTEN_TEST + "DateFormat") {
-    val PST_OPT = Option(PST.getId)
-    val JST_OPT = Option(JST.getId)
+    val PST_OPT = Option("America/Los_Angeles")
+    val JST_OPT = Option("Asia/Tokyo")
 
     Seq("legacy", "corrected").foreach {
       legacyParserPolicy =>
@@ -331,7 +331,7 @@ class GlutenDateExpressionsSuite extends DateExpressionsSuite with GlutenTestsTr
 
         withSQLConf(
           SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy,
-          SQLConf.SESSION_LOCAL_TIMEZONE.key -> PST_OPT.get) {
+          SQLConf.SESSION_LOCAL_TIMEZONE.key -> JST_OPT.get) {
           checkEvaluation(
             DateFormatClass(Cast(Literal(d), TimestampType, JST_OPT), Literal("y"), JST_OPT),
             "2015")

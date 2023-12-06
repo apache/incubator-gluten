@@ -38,7 +38,7 @@ public:
     struct Options
     {
         size_t buffer_size = DEFAULT_BLOCK_SIZE;
-        size_t partition_nums;
+        size_t partition_num;
         std::string exprs_buffer;
         std::string schema_buffer;
         std::string hash_algorithm;
@@ -55,15 +55,15 @@ public:
     static std::unique_ptr<NativeSplitter> create(const std::string & short_name, Options options, jobject input);
 
     NativeSplitter(Options options, jobject input);
-    bool hasNext();
-    DB::Block * next();
-    int32_t nextPartitionId();
-
-
     virtual ~NativeSplitter();
 
+    bool hasNext();
+    DB::Block * next();
+    int32_t nextPartitionId() const;
+
 protected:
-    virtual void computePartitionId(DB::Block &) { }
+    virtual void computePartitionId(DB::Block &) = 0;
+
     Options options;
     PartitionInfo partition_info;
     std::vector<size_t> output_columns_indicies;
@@ -74,7 +74,6 @@ private:
     int64_t inputNext();
     bool inputHasNext();
 
-
     std::vector<std::shared_ptr<ColumnsBuffer>> partition_buffer;
     std::stack<std::pair<int32_t, std::unique_ptr<DB::Block>>> output_buffer;
     int32_t next_partition_id = -1;
@@ -83,35 +82,37 @@ private:
 
 class HashNativeSplitter : public NativeSplitter
 {
-    void computePartitionId(DB::Block & block) override;
-
 public:
     HashNativeSplitter(NativeSplitter::Options options_, jobject input);
+    ~HashNativeSplitter() override = default;
 
 private:
+    void computePartitionId(DB::Block & block) override;
+
     std::unique_ptr<HashSelectorBuilder> selector_builder;
 };
 
 class RoundRobinNativeSplitter : public NativeSplitter
 {
-    void computePartitionId(DB::Block & block) override;
-
 public:
     RoundRobinNativeSplitter(NativeSplitter::Options options_, jobject input);
+    ~RoundRobinNativeSplitter() override = default;
 
 private:
+    void computePartitionId(DB::Block & block) override;
+
     std::unique_ptr<RoundRobinSelectorBuilder> selector_builder;
 };
 
 class RangePartitionNativeSplitter : public NativeSplitter
 {
-    void computePartitionId(DB::Block & block) override;
-
 public:
     RangePartitionNativeSplitter(NativeSplitter::Options options_, jobject input);
     ~RangePartitionNativeSplitter() override = default;
 
 private:
+    void computePartitionId(DB::Block & block) override;
+
     std::unique_ptr<RangeSelectorBuilder> selector_builder;
 };
 

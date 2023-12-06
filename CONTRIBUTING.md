@@ -6,11 +6,11 @@ The contribution is not limited to contributing code. It also includes reviewing
 
 ### GitHub Pull Request
 
-If necessary, please file a GitHub issue beforehand and refer to that issue in your PR title.
+If necessary, please file a GitHub issue beforehand and reference that issue in your PR title.
 
 By convention, `CH` & `VL` represent ClickHouse & Velox backend respectively. Please add `[CH]` or `[VL]` in your PR title
 accordingly if your proposed code change is just for one specific backend. Please do NOT add such tag if common code is changed,
-but add `[CORE]` instead.
+but add tags like `[CORE]`, `[MINOR]`, `[DOC]` instead.
 
 Examples:
 * PR just for CH backend:
@@ -93,9 +93,9 @@ For critical code change, merging the PR requires at least two committers' appro
 
 **Squash and merge** should be selected to merge PR. If commit message title doesn't align with its PR title, please revise it.
 
-Example for commit message title:
+Example for commit message:
 
   `[GLUTEN-<issue ID>][CORE] xxxx (#<PR ID>)`
 
-Please add some brief description, if helpful, in the text box when merging PR. Please do NOT leave any meaningless
-historical commit message, such as "Initial commit", "Fix", "Fix code style", etc.
+Please add some brief description in extended message section, if helpful, when merging PR. Please do NOT leave any meaningless
+historical commit message, such as "Initial commit", "Fix", etc.

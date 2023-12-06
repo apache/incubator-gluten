@@ -133,15 +133,19 @@ arrow::Status SelfEvictedMemoryPool::evict(int64_t size) {
     int64_t actual;
     RETURN_NOT_OK(evictable_->evictFixedSize(size, &actual));
     if (size > capacity_ - pool_->bytes_allocated()) {
-      return arrow::Status::OutOfMemory(
-          "Failed to allocate after evict. Capacity: ",
-          capacity_,
-          ", Requested: ",
-          size,
-          ", Evicted: ",
-          actual,
-          ", Allocated: ",
-          pool_->bytes_allocated());
+      if (failIfOOM_) {
+        return arrow::Status::OutOfMemory(
+            "Failed to allocate after evict. Capacity: ",
+            capacity_,
+            ", Requested: ",
+            size,
+            ", Evicted: ",
+            actual,
+            ", Allocated: ",
+            pool_->bytes_allocated());
+      } else {
+        capacity_ = size + pool_->bytes_allocated();
+      }
     }
     bytesEvicted_ += actual;
   }

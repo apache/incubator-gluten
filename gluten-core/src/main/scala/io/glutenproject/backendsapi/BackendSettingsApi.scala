@@ -109,4 +109,6 @@ trait BackendSettingsApi {
   def requiredChildOrderingForWindow(): Boolean = false
 
   def staticPartitionWriteOnly(): Boolean = false
+
+  def requiredInputFilePaths(): Boolean = false
 }

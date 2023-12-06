@@ -27,11 +27,12 @@ namespace gluten {
 
 class VeloxMemoryManager final : public MemoryManager {
  public:
-  explicit VeloxMemoryManager(
+  VeloxMemoryManager(
       const std::string& name,
       std::shared_ptr<MemoryAllocator> allocator,
       std::unique_ptr<AllocationListener> listener);
 
+  ~VeloxMemoryManager() override;
   VeloxMemoryManager(const VeloxMemoryManager&) = delete;
   VeloxMemoryManager(VeloxMemoryManager&&) = delete;
   VeloxMemoryManager& operator=(const VeloxMemoryManager&) = delete;
@@ -60,6 +61,8 @@ class VeloxMemoryManager final : public MemoryManager {
   void hold() override;
 
  private:
+  bool tryDestructSafe();
+
   std::string name_;
 
 #ifdef GLUTEN_ENABLE_HBM

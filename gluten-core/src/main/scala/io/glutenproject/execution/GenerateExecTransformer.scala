@@ -59,7 +59,7 @@ case class GenerateExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     val validationResult =
-      BackendsApiManager.getTransformerApiInstance.validateGenerator(generator, outer)
+      BackendsApiManager.getValidatorApiInstance.doGeneratorValidate(generator, outer)
     if (!validationResult.isValid) {
       return validationResult
     }
@@ -95,11 +95,7 @@ case class GenerateExecTransformer(
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val childCtx = child match {
-      case c: TransformSupport => c.doTransform(context)
-      case _ => null
-    }
-
+    val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
     val args = context.registeredFunction
     val operatorId = context.nextOperatorId(this.nodeName)
     val generatorExpr =
@@ -116,12 +112,7 @@ case class GenerateExecTransformer(
       }
     }
 
-    val inputRel = if (childCtx != null) {
-      childCtx.root
-    } else {
-      val readRel = RelBuilder.makeReadRel(child.output.asJava, context, operatorId)
-      readRel
-    }
+    val inputRel = childCtx.root
     val projRel =
       if (BackendsApiManager.getSettings.insertPostProjectForGenerate()) {
         // need to insert one projection node for velox backend

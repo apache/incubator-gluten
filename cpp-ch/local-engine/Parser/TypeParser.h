@@ -44,7 +44,7 @@ public:
 
     static DB::Block buildBlockFromNamedStruct(const substrait::NamedStruct & struct_);
 
-    /// Build block from substrait NamedStruct without following DFS rules.
+    /// Build block from substrait NamedStruct without DFS rules, different from buildBlockFromNamedStruct
     static DB::Block buildBlockFromNamedStructWithoutDFS(const substrait::NamedStruct & struct_);
 
     static bool isTypeMatched(const substrait::Type & substrait_type, const DB::DataTypePtr & ch_type);

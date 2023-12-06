@@ -21,7 +21,6 @@ import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.{JoinParams, SubstraitContext}
-import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
@@ -30,10 +29,8 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import com.google.protobuf.StringValue
+import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.JoinRel
-
-import scala.collection.JavaConverters._
 
 /** Performs a sort merge join of two child relations. */
 case class SortMergeJoinExecTransformer(
@@ -52,10 +49,13 @@ case class SortMergeJoinExecTransformer(
   @transient override lazy val metrics =
     BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetrics(sparkContext)
 
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetricsUpdater(metrics)
+
   val (bufferedKeys, streamedKeys, bufferedPlan, streamedPlan) =
     (rightKeys, leftKeys, right, left)
 
-  override def stringArgs: Iterator[Any] = super.stringArgs.toSeq.dropRight(1).iterator
+  override def stringArgs: Iterator[scala.Any] = super.stringArgs.toSeq.dropRight(1).iterator
 
   override def simpleStringWithNodeId(): String = {
     val opId = ExplainUtils.getOpId(this)
@@ -173,10 +173,7 @@ case class SortMergeJoinExecTransformer(
     getColumnarInputRDDs(streamedPlan) ++ getColumnarInputRDDs(bufferedPlan)
   }
 
-  override def metricsUpdater(): MetricsUpdater =
-    BackendsApiManager.getMetricsApiInstance.genSortMergeJoinTransformerMetricsUpdater(metrics)
-
-  def genJoinParametersBuilder(): com.google.protobuf.Any.Builder = {
+  def genJoinParameters(): Any = {
     val (isSMJ, isNullAwareAntiJoin) = (1, 0)
     // Start with "JoinParameters:"
     val joinParametersStr = new StringBuffer("JoinParameters:")
@@ -196,9 +193,7 @@ case class SortMergeJoinExecTransformer(
       .newBuilder()
       .setValue(joinParametersStr.toString)
       .build()
-    com.google.protobuf.Any.newBuilder
-      .setValue(message.toByteString)
-      .setTypeUrl("/google.protobuf.StringValue")
+    BackendsApiManager.getTransformerApiInstance.getPackMessage(message)
   }
 
   // Direct output order of substrait join operation
@@ -235,7 +230,7 @@ case class SortMergeJoinExecTransformer(
       substraitJoinType,
       false,
       joinType,
-      genJoinParametersBuilder(),
+      genJoinParameters(),
       null,
       null,
       streamedPlan.output,
@@ -249,41 +244,18 @@ case class SortMergeJoinExecTransformer(
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    def transformAndGetOutput(plan: SparkPlan): (RelNode, Seq[Attribute], Boolean) = {
-      plan match {
-        case p: TransformSupport =>
-          val transformContext = p.doTransform(context)
-          (transformContext.root, transformContext.outputAttributes, false)
-        case _ =>
-          val readRel = RelBuilder.makeReadRel(
-            plan.output.asJava,
-            context,
-            -1
-          ) /* A special handling in Join to delay the rel registration. */
-          (readRel, plan.output, true)
-      }
-    }
+    val streamedPlanContext = streamedPlan.asInstanceOf[TransformSupport].doTransform(context)
+    val (inputStreamedRelNode, inputStreamedOutput) =
+      (streamedPlanContext.root, streamedPlanContext.outputAttributes)
 
-    val joinParams = new JoinParams
-    val (inputStreamedRelNode, inputStreamedOutput, isStreamedReadRel) =
-      transformAndGetOutput(streamedPlan)
-    joinParams.isStreamedReadRel = isStreamedReadRel
-
-    val (inputBuildRelNode, inputBuildOutput, isBuildReadRel) =
-      transformAndGetOutput(bufferedPlan)
-    joinParams.isBuildReadRel = isBuildReadRel
+    val bufferedPlanContext = bufferedPlan.asInstanceOf[TransformSupport].doTransform(context)
+    val (inputBuildRelNode, inputBuildOutput) =
+      (bufferedPlanContext.root, bufferedPlanContext.outputAttributes)
 
     // Get the operator id of this Join.
     val operatorId = context.nextOperatorId(this.nodeName)
 
-    // Register the ReadRel to correct operator Id.
-    if (joinParams.isStreamedReadRel) {
-      context.registerRelToOperator(operatorId)
-    }
-    if (joinParams.isBuildReadRel) {
-      context.registerRelToOperator(operatorId)
-    }
-
+    val joinParams = new JoinParams
     if (JoinUtils.preProjectionNeeded(leftKeys)) {
       joinParams.streamPreProjectionNeeded = true
     }
@@ -298,7 +270,7 @@ case class SortMergeJoinExecTransformer(
       substraitJoinType,
       false,
       joinType,
-      genJoinParametersBuilder(),
+      genJoinParameters(),
       inputStreamedRelNode,
       inputBuildRelNode,
       inputStreamedOutput,

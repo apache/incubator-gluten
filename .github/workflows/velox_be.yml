@@ -42,6 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+
   ubuntu2004-test-spark32:
     runs-on: velox-self-hosted
     steps:
@@ -87,8 +88,7 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop ubuntu2004-test-$GITHUB_RUN_ID || true
-
-  ubuntu2004-test-slow-spark32:
+  ubuntu2004-test-spark32-slow:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v4
@@ -112,7 +112,7 @@ jobs:
         run: |
           docker exec ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -Piceberg -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2
         run: |
           docker exec ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
@@ -125,7 +125,6 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop ubuntu2004-test-slow-$GITHUB_RUN_ID || true
-
   ubuntu2004-test-spark33-slow:
     runs-on: velox-self-hosted
     steps:
@@ -149,7 +148,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.3.1(slow tests)
         run: |
           docker exec ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3
         run: |
           docker exec ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten/tools/gluten-it && \
@@ -162,7 +161,6 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID || true
-
   ubuntu2004-test-spark33:
     runs-on: velox-self-hosted
     steps:
@@ -186,7 +184,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.3.1(other tests)
         run: |
           docker exec ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.3 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       - name: Exit docker container
         if: ${{ always() }}
@@ -216,7 +214,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.4.1(slow tests)
         run: |
           docker exec ubuntu2004-test-spark34-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
+          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.4
         run: |
           docker exec ubuntu2004-test-spark34-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten/tools/gluten-it && \
@@ -229,7 +227,6 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop ubuntu2004-test-spark34-slow-$GITHUB_RUN_ID || true
-
   ubuntu2004-test-spark34:
     runs-on: velox-self-hosted
     steps:
@@ -253,13 +250,12 @@ jobs:
       - name: Build and Run unit test for Spark 3.4.1(other tests)
         run: |
           docker exec ubuntu2004-test-spark34-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.4 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
           docker stop ubuntu2004-test-spark34-$GITHUB_RUN_ID || true
-
   ubuntu2204-test:
     runs-on: velox-self-hosted
     steps:
@@ -284,7 +280,7 @@ jobs:
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -DskipTests'
+          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -DskipTests'
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
@@ -311,7 +307,7 @@ jobs:
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -DskipTests'
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -DskipTests'
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.3
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
@@ -324,7 +320,7 @@ jobs:
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -DskipTests'
+          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -DskipTests'
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.4
         run: |
           docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
@@ -337,7 +333,6 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop ubuntu2204-test-$GITHUB_RUN_ID || true
-
   centos8-test:
     runs-on: velox-self-hosted
     steps:
@@ -365,7 +360,7 @@ jobs:
         run: |
           docker exec centos8-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -DskipTests'
+          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -DskipTests'
       - name: TPC-H SF1.0 && TPC-DS SF30.0 Parquet local spark3.2
         run: |
           docker exec centos8-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
@@ -393,28 +388,30 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name centos7-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/centos:7 \
-          bash -c 'cd /opt/gluten && sleep 14400'
+          EXTRA_DOCKER_OPTIONS="--name centos7-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" \
+          NON_INTERACTIVE=ON \
+          MOUNT_MAVEN_CACHE=OFF \
+          OS_IMAGE=centos:7 \
+          OS_VERSION=7 \
+          tools/gluten-te/centos/cbash.sh sleep 14400
       - name: Build Gluten velox third party
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
-          source /env.sh && \
-          sudo yum -y install patch && \
+          yum -y install epel-release centos-release-scl patch sudo && \
           cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --run_setup_script=OFF --velox_home=/opt/velox --enable_ep_cache=ON'
+          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON && \
+          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
-          source /env.sh && \
           cd /opt/gluten/cpp && \
-          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox'
+          source /opt/rh/devtoolset-9/enable && \
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON'
       - name: Build for Spark 3.2.2
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -DskipTests'
+          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -DskipTests'
       - name: TPC-H SF1.0 && TPC-DS SF30.0 Parquet local spark3.2
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
@@ -491,12 +488,12 @@ jobs:
           cd /opt/gluten && \
           sudo -E ./dev/vcpkg/setup-build-depends.sh && \
           source ./dev/vcpkg/env.sh && \
-          ./dev/builddeps-veloxbe.sh --build_tests=ON --build_benchmarks=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON'
+          ./dev/builddeps-veloxbe.sh --run_setup_script=OFF --build_tests=ON --build_benchmarks=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON'
       - name: Build for Spark 3.2.2
         run: |
           docker exec static-build-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -DskipTests && \
+          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -DskipTests && \
           cd /opt/gluten/tools/gluten-it && \
           mvn clean install -Pspark-3.2'
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (centos 8)

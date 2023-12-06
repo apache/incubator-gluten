@@ -22,7 +22,6 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.metrics.GlutenTimeMetric
-import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
@@ -137,30 +136,20 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
   private def genFilterExec(plan: FilterExec): SparkPlan = {
     // FIXME: Filter push-down should be better done by Vanilla Spark's planner or by
     //  a individual rule.
-    // Push down the left conditions in Filter into Scan.
-    val newChild: SparkPlan =
-      if (
-        plan.child.isInstanceOf[FileSourceScanExec] ||
-        plan.child.isInstanceOf[BatchScanExec]
-      ) {
-        TransformHints.getHint(plan.child) match {
+    // Push down the left conditions in Filter into FileSourceScan.
+    val newChild: SparkPlan = plan.child match {
+      case scan: FileSourceScanExec =>
+        TransformHints.getHint(scan) match {
           case TRANSFORM_SUPPORTED() =>
             val newScan = FilterHandler.applyFilterPushdownToScan(plan, reuseSubquery)
             newScan match {
-              case ts: TransformSupport =>
-                if (ts.doValidate().isValid) {
-                  ts
-                } else {
-                  replaceWithTransformerPlan(plan.child)
-                }
-              case p: SparkPlan => p
+              case ts: TransformSupport if ts.doValidate().isValid => ts
+              case _ => replaceWithTransformerPlan(scan)
             }
-          case _ =>
-            replaceWithTransformerPlan(plan.child)
+          case _ => replaceWithTransformerPlan(scan)
         }
-      } else {
-        replaceWithTransformerPlan(plan.child)
-      }
+      case _ => replaceWithTransformerPlan(plan.child)
+    }
     logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
     BackendsApiManager.getSparkPlanExecApiInstance
       .genFilterExecTransformer(plan.condition, newChild)
@@ -533,52 +522,39 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
    */
   def applyScanTransformer(plan: SparkPlan): SparkPlan = plan match {
     case plan: FileSourceScanExec =>
-      val newPartitionFilters =
-        ExpressionConverter.transformDynamicPruningExpr(plan.partitionFilters, reuseSubquery)
-      val transformer = new FileSourceScanExecTransformer(
-        plan.relation,
-        plan.output,
-        plan.requiredSchema,
-        newPartitionFilters,
-        plan.optionalBucketSet,
-        plan.optionalNumCoalescedBuckets,
-        plan.dataFilters,
-        plan.tableIdentifier,
-        plan.disableBucketedScan
-      )
+      val transformer = ScanTransformerFactory.createFileSourceScanTransformer(plan, reuseSubquery)
       val validationResult = transformer.doValidate()
       if (validationResult.isValid) {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         transformer
       } else {
         logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-        val newSource = plan.copy(partitionFilters = newPartitionFilters)
+        val newSource = plan.copy(partitionFilters = transformer.partitionFilters)
         TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
         newSource
       }
     case plan: BatchScanExec =>
-      val newPartitionFilters: Seq[Expression] = plan.scan match {
-        case scan: FileScan =>
-          ExpressionConverter.transformDynamicPruningExpr(scan.partitionFilters, reuseSubquery)
-        case _ =>
-          ExpressionConverter.transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery)
-      }
-      val transformer = new BatchScanExecTransformer(
-        plan.output,
-        plan.scan,
-        newPartitionFilters,
-        table = SparkShimLoader.getSparkShims.getBatchScanExecTable(plan))
-
-      val validationResult = transformer.doValidate()
-      if (validationResult.isValid) {
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-        transformer
+      if (ScanTransformerFactory.supportedBatchScan(plan.scan)) {
+        val transformer = ScanTransformerFactory.createBatchScanTransformer(plan, reuseSubquery)
+        val validationResult = transformer.doValidate()
+        if (validationResult.isValid) {
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+          transformer
+        } else {
+          logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
+          val newSource = plan.copy(runtimeFilters = transformer.runtimeFilters)
+          TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
+          newSource
+        }
       } else {
-        logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-        val newSource = plan.copy(runtimeFilters = newPartitionFilters)
-        TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
+        // If filter expressions aren't empty, we need to transform the inner operators,
+        // and fallback the BatchScanExec itself.
+        val newSource = plan.copy(runtimeFilters = ExpressionConverter
+          .transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery))
+        TransformHints.tagNotTransformable(newSource, "The scan in BatchScanExec is not supported.")
         newSource
       }
+
     case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
       // TODO: Add DynamicPartitionPruningHiveScanSuite.scala
       val newPartitionFilters: Seq[Expression] = ExpressionConverter.transformDynamicPruningExpr(
@@ -815,6 +791,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         (spark: SparkSession) => PlanOneRowRelation(spark),
         (_: SparkSession) => FallbackEmptySchemaRelation(),
         (_: SparkSession) => AddTransformHintRule(),
+        (_: SparkSession) => FallbackBloomFilterAggIfNeeded(),
         (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
         (spark: SparkSession) => RewriteTransformer(spark),
         (_: SparkSession) => EnsureLocalSortRequirements

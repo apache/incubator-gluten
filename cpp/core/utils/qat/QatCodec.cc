@@ -37,6 +37,11 @@ class QatZipCodec : public arrow::util::Codec {
  protected:
   explicit QatZipCodec(int compressionLevel) : compressionLevel_(compressionLevel) {}
 
+  ~QatZipCodec() {
+    (void)qzTeardownSession(&qzSession_);
+    (void)qzClose(&qzSession_);
+  }
+
   arrow::Result<int64_t> Decompress(int64_t inputLen, const uint8_t* input, int64_t outputLen, uint8_t* output)
       override {
     uint32_t compressedSize = static_cast<uint32_t>(inputLen);

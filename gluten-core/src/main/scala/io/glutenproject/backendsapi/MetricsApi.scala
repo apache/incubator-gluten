@@ -20,7 +20,7 @@ import io.glutenproject.metrics.{IMetrics, MetricsUpdater}
 import io.glutenproject.substrait.{AggregationParams, JoinParams}
 
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.execution.SparkPlan
+import org.apache.spark.sql.execution.{SparkPlan, WholeStageCodegenExec}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 
 import java.lang.{Long => JLong}
@@ -29,7 +29,13 @@ import java.util.{List => JList, Map => JMap}
 trait MetricsApi extends Serializable {
 
   def genWholeStageTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
-    Map("pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext, "duration"))
+    Map(
+      "pipelineTime" -> SQLMetrics
+        .createTimingMetric(sparkContext, WholeStageCodegenExec.PIPELINE_DURATION_METRIC))
+
+  def genInputIteratorTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
+
+  def genInputIteratorTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
   def metricsUpdatingFunction(
       child: SparkPlan,

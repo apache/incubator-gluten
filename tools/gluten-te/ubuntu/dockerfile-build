@@ -57,7 +57,9 @@ RUN test -n "$BUILD_BACKEND_TYPE" || (echo "BUILD_BACKEND_TYPE not set" && false
 RUN if [ "$BUILD_BACKEND_TYPE" == "velox" ]; \
     then \
       if [ "$GLUTEN_DEBUG_BUILD" == "ON" ]; then GLUTEN_BUILD_TYPE="Debug"; else GLUTEN_BUILD_TYPE="Release"; fi; \
-      DEPS_INSTALL_SCRIPT="bash /opt/gluten/dev/builddeps-veloxbe.sh --build_type=$GLUTEN_BUILD_TYPE --enable_ep_cache=ON"; \
+      DEPS_INSTALL_SCRIPT="bash /opt/gluten/dev/builddeps-veloxbe.sh \
+                           --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON \
+                           --build_type=$GLUTEN_BUILD_TYPE --enable_ep_cache=ON"; \
       EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
                            -Pbackends-velox \
                            -Prss \
@@ -93,6 +95,7 @@ RUN EXTRA_MAVEN_OPTIONS=$(cat ~/.gluten-mvn-options) \
     DEPS_INSTALL_SCRIPT=$(cat ~/.gluten-deps-install-script) \
     && cd /opt/gluten \
     && bash -c "$DEPS_INSTALL_SCRIPT" \
-    && bash -c "mvn clean install $GLUTEN_MAVEN_OPTIONS $EXTRA_MAVEN_OPTIONS"
+    && bash -c "mvn clean install $GLUTEN_MAVEN_OPTIONS $EXTRA_MAVEN_OPTIONS" \
+    && bash -c "mv ep/build-velox/build/velox_ep /opt/velox"
 
 # EOF

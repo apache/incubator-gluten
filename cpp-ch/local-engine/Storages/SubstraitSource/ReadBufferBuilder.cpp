@@ -237,10 +237,10 @@ public:
     std::pair<size_t, size_t>
     adjustFileReadStartAndEndPos(size_t read_start_pos, size_t read_end_pos, const std::string & uri_path, const std::string & file_path)
     {
-        std::string hdfs_file_path = uri_path + file_path;
-        auto builder = DB::createHDFSBuilder(hdfs_file_path, context->getConfigRef());
+        auto builder = DB::createHDFSBuilder(uri_path, context->getConfigRef());
         auto fs = DB::createHDFSFS(builder.get());
         hdfsFile fin = hdfsOpenFile(fs.get(), file_path.c_str(), O_RDONLY, 0, 0, 0);
+        std::string hdfs_file_path = uri_path + file_path;
         if (!fin)
             throw DB::Exception(
                 DB::ErrorCodes::CANNOT_OPEN_FILE, "Cannot open hdfs file:{}, error: {}", hdfs_file_path, std::string(hdfsGetLastError()));
@@ -583,21 +583,26 @@ private:
         settings.tryGetString(BackendInitializerUtil::HADOOP_S3_SECRET_KEY, sk);
         stripQuote(ak);
         stripQuote(sk);
+        const DB::Settings & global_settings = context->getGlobalContext()->getSettingsRef();
+        const DB::Settings & local_settings = context->getSettingsRef();
         if (use_assumed_role)
         {
             auto new_client = DB::S3::ClientFactory::instance().create(
                 client_configuration,
-                false,
-                ak,
-                sk,
-                "",
-                {},
-                {},
-                {.use_environment_credentials = true,
-                 .use_insecure_imds_request = false,
-                 .role_arn = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE),
-                 .session_name = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_SESSION_NAME),
-                 .external_id = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_EXTERNAL_ID)});
+                local_settings.s3_disable_checksum,
+                false,  // is_virtual_hosted_style
+                ak,     // access_key_id
+                sk,     // secret_access_key
+                "",     // server_side_encryption_customer_key_base64
+                {},     // sse_kms_config
+                {},     // headers
+                DB::S3::CredentialsConfiguration{
+                    .use_environment_credentials = true,
+                    .use_insecure_imds_request = false,
+                    .role_arn = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_ROLE),
+                    .session_name = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_SESSION_NAME),
+                    .external_id = getSetting(settings, bucket_name, BackendInitializerUtil::HADOOP_S3_ASSUMED_EXTERNAL_ID)
+                });
 
             //TODO: support online change config for cached per_bucket_clients
             std::shared_ptr<DB::S3::Client> ret = std::move(new_client);
@@ -607,7 +612,17 @@ private:
         else
         {
             auto new_client = DB::S3::ClientFactory::instance().create(
-                client_configuration, false, ak, sk, "", {}, {}, {.use_environment_credentials = true, .use_insecure_imds_request = false});
+                client_configuration,
+                local_settings.s3_disable_checksum,
+                false,  // is_virtual_hosted_style
+                ak,     // access_key_id
+                sk,     // secret_access_key
+                "",     // server_side_encryption_customer_key_base64
+                {},     // sse_kms_config
+                {},     // headers
+                DB::S3::CredentialsConfiguration{
+                    .use_environment_credentials = true,
+                    .use_insecure_imds_request = false});
 
             std::shared_ptr<DB::S3::Client> ret = std::move(new_client);
             cacheClient(bucket_name, is_per_bucket, ret);

@@ -16,11 +16,17 @@
  */
 package org.apache.spark.sql.execution.exchange
 
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.internal.SQLConf
 
 class GlutenEnsureRequirementsSuite extends EnsureRequirementsSuite with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf = {
+    // Native SQL configs
+    super.sparkConf
+      .set("spark.sql.shuffle.partitions", "5")
+  }
 
   test(
     GLUTEN_TEST +

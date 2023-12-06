@@ -26,7 +26,7 @@ import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -270,6 +270,49 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
   }
 }
 
+/**
+ * Velox BloomFilter's implementation is different from Spark's. So if might_contain falls back, we
+ * need fall back related bloom filter agg.
+ */
+case class FallbackBloomFilterAggIfNeeded() extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan =
+    if (GlutenConfig.getConf.enableNativeBloomFilter) {
+      plan.transformDown {
+        case p if TransformHints.isAlreadyTagged(p) && TransformHints.isNotTransformable(p) =>
+          handleBloomFilterFallback(p)
+          p
+      }
+    } else {
+      plan
+    }
+
+  object SubPlanFromBloomFilterMightContain {
+    def unapply(expr: Expression): Option[SparkPlan] =
+      SparkShimLoader.getSparkShims.extractSubPlanFromMightContain(expr)
+  }
+
+  private def handleBloomFilterFallback(plan: SparkPlan): Unit = {
+    def tagNotTransformableRecursive(p: SparkPlan): Unit = {
+      p match {
+        case agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
+            if SparkShimLoader.getSparkShims.hasBloomFilterAggregate(agg) =>
+          TransformHints.tagNotTransformable(agg, "related BloomFilterMightContain falls back")
+          tagNotTransformableRecursive(agg.child)
+        case a: org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec =>
+          tagNotTransformableRecursive(a.executedPlan)
+        case _ =>
+          p.children.map(tagNotTransformableRecursive)
+      }
+    }
+
+    plan.transformAllExpressions {
+      case expr @ SubPlanFromBloomFilterMightContain(p: SparkPlan) =>
+        tagNotTransformableRecursive(p)
+        expr
+    }
+  }
+}
+
 // This rule will try to convert a plan into plan transformer.
 // The doValidate function will be called to check if the conversion is supported.
 // If false is returned or any unsupported exception is thrown, a row guard will
@@ -336,11 +379,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             if (plan.runtimeFilters.nonEmpty) {
               TransformHints.tagTransformable(plan)
             } else {
-              val transformer = new BatchScanExecTransformer(
-                plan.output,
-                plan.scan,
-                plan.runtimeFilters,
-                table = SparkShimLoader.getSparkShims.getBatchScanExecTable(plan))
+              val transformer =
+                ScanTransformerFactory.createBatchScanTransformer(
+                  plan,
+                  reuseSubquery = false,
+                  validation = true)
               TransformHints.tag(plan, transformer.doValidate().toTransformHint)
             }
           }
@@ -354,17 +397,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             if (plan.partitionFilters.nonEmpty) {
               TransformHints.tagTransformable(plan)
             } else {
-              val transformer = new FileSourceScanExecTransformer(
-                plan.relation,
-                plan.output,
-                plan.requiredSchema,
-                plan.partitionFilters,
-                plan.optionalBucketSet,
-                plan.optionalNumCoalescedBuckets,
-                plan.dataFilters,
-                plan.tableIdentifier,
-                plan.disableBucketedScan
-              )
+              val transformer =
+                ScanTransformerFactory.createFileSourceScanTransformer(
+                  plan,
+                  reuseSubquery = false,
+                  validation = true)
               TransformHints.tag(plan, transformer.doValidate().toTransformHint)
             }
           }
@@ -687,7 +724,12 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               val limitPlan = LimitTransformer(plan.child, 0, plan.limit)
               tagged = limitPlan.doValidate()
             } else {
-              val sortPlan = SortExecTransformer(plan.sortOrder, false, plan.child)
+              // Here we are validating sort + limit which is a kind of whole stage transformer,
+              // because we would call sort.doTransform in limit.
+              // So, we should add adapter to make it work.
+              val inputTransformer =
+                ColumnarCollapseTransformStages.wrapInputIteratorTransformer(plan.child)
+              val sortPlan = SortExecTransformer(plan.sortOrder, false, inputTransformer)
               val limitPlan = LimitTransformer(sortPlan, 0, plan.limit)
               tagged = limitPlan.doValidate()
             }

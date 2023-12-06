@@ -110,6 +110,10 @@ RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
 RUN cd /opt && git clone --depth 1 --branch v3.3.1 https://github.com/apache/spark.git spark331
 RUN cd /opt/spark331 && ./build/mvn -Pyarn -DskipTests clean install
 
+# Build & install Spark 3.4.1
+RUN cd /opt && git clone --depth 1 --branch v3.4.1 https://github.com/apache/spark.git spark341
+RUN cd /opt/spark341 && ./build/mvn -Pyarn -DskipTests clean install
+
 # Prepare entry command
 COPY scripts/cmd.sh /root/.cmd.sh
 CMD ["/root/.cmd.sh"]

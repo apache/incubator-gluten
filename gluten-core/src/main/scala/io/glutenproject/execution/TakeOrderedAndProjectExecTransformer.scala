@@ -23,7 +23,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, NamedExpression, SortOrder}
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, SinglePartition}
 import org.apache.spark.sql.catalyst.util.truncatedString
-import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarInputAdapter, ColumnarShuffleExchangeExec, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ColumnarCollapseTransformStages, ColumnarShuffleExchangeExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -85,7 +85,10 @@ case class TakeOrderedAndProjectExecTransformer(
           val localSortPlan = withLocalSort(wholeStage.child)
           LimitTransformer(localSortPlan, 0, limit)
         case other =>
-          val localSortPlan = withLocalSort(other)
+          // if the child it is not WholeStageTransformer, add the adapter first
+          // so that, later we can wrap WholeStageTransformer.
+          val localSortPlan = withLocalSort(
+            ColumnarCollapseTransformStages.wrapInputIteratorTransformer(other))
           LimitTransformer(localSortPlan, 0, limit)
       }
       val transformStageCounter: AtomicInteger =
@@ -99,7 +102,10 @@ case class TakeOrderedAndProjectExecTransformer(
         val transformedShuffleExec =
           ColumnarShuffleExchangeExec(shuffleExec, limitStagePlan, shuffleExec.child.output)
         val localSortPlan =
-          SortExecTransformer(sortOrder, false, new ColumnarInputAdapter(transformedShuffleExec))
+          SortExecTransformer(
+            sortOrder,
+            false,
+            ColumnarCollapseTransformStages.wrapInputIteratorTransformer(transformedShuffleExec))
         LimitTransformer(localSortPlan, 0, limit)
       }
 
@@ -112,7 +118,7 @@ case class TakeOrderedAndProjectExecTransformer(
       val finalPlan =
         WholeStageTransformer(projectPlan)(transformStageCounter.incrementAndGet())
 
-      finalPlan.doExecuteColumnar()
+      finalPlan.executeColumnar()
     }
   }
 }
