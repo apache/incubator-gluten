@@ -76,7 +76,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"pmod", "pmod"},
        {"abs", "abs"},
        {"ceil", "ceil"},
-       {"floor", "floor"},
        {"round", "roundHalfUp"},
        {"bround", "roundBankers"},
        {"exp", "exp"},
