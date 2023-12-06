@@ -23,6 +23,7 @@ case class InputIteratorMetricsUpdater(metrics: Map[String, SQLMetric]) extends 
       val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
       metrics("cpuCount") += operatorMetrics.cpuCount
       metrics("wallNanos") += operatorMetrics.wallNanos
+      metrics("outputRows") += operatorMetrics.outputRows
       metrics("outputVectors") += operatorMetrics.outputVectors
     }
   }
