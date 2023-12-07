@@ -339,17 +339,18 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
+          docker pull 10.0.2.4:5000/gluten-dev-dec/centos:8
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name centos8-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/centos:8 \
+          -v $PWD:/opt/gluten --name centos8-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev-dec/centos:8 \
           bash -c 'cd /opt/gluten && sleep 14400'
-      - name: Build Gluten velox third party
-        run: |
-          docker exec centos8-test-$GITHUB_RUN_ID bash -c '
-          source /env.sh && \
-          sudo yum -y install patch && \
-          cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON && \
-          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON'
+      # - name: Build Gluten velox third party
+      #   run: |
+      #     docker exec centos8-test-$GITHUB_RUN_ID bash -c '
+      #     source /env.sh && \
+      #     sudo yum -y install patch && \
+      #     cd /opt/gluten/ep/build-velox/src && \
+      #     ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON && \
+      #     ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec centos8-test-$GITHUB_RUN_ID bash -c '
@@ -388,24 +389,22 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          EXTRA_DOCKER_OPTIONS="--name centos7-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" \
-          NON_INTERACTIVE=ON \
-          MOUNT_MAVEN_CACHE=OFF \
-          OS_IMAGE=centos:7 \
-          OS_VERSION=7 \
-          tools/gluten-te/centos/cbash.sh sleep 14400
-      - name: Build Gluten velox third party
-        run: |
-          docker exec centos7-test-$GITHUB_RUN_ID bash -c '
-          yum -y install epel-release centos-release-scl patch sudo && \
-          cd /opt/gluten/ep/build-velox/src && \
-          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON && \
-          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON'
+          docker pull 10.0.2.4:5000/gluten-dev-dec/centos:7
+          docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
+          -v $PWD:/opt/gluten --name centos7-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev-dec/centos:7 \
+          bash -c 'cd /opt/gluten && sleep 14400'
+      # - name: Build Gluten velox third party
+      #   run: |
+      #     docker exec centos7-test-$GITHUB_RUN_ID bash -c '
+      #     yum -y install epel-release centos-release-scl patch sudo && \
+      #     cd /opt/gluten/ep/build-velox/src && \
+      #     ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON && \
+      #     ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
-          source /opt/rh/devtoolset-9/enable && \
+          source /env.sh && \
           ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON'
       - name: Build for Spark 3.2.2
         run: |
