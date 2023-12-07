@@ -71,6 +71,7 @@ object ScanTransformerFactory {
       case _ if dataSourceV2TransformerExists(scan.getClass.getName) =>
         val cls = lookupDataSourceV2Transformer(scan.getClass.getName)
         cls
+          .getDeclaredConstructor()
           .newInstance()
           .asInstanceOf[DataSourceV2TransformerRegister]
           .createDataSourceV2Transformer(batchScanExec, newPartitionFilters)
