@@ -268,6 +268,7 @@ class GoogleBenchmarkVeloxParquetWriteCacheScanBenchmark : public GoogleBenchmar
           outputPath_ + "/" + fileName,
           veloxPool->addAggregateChild("writer_benchmark"),
           veloxPool->addLeafChild("s3_sink_pool"),
+          veloxPool->addLeafChild("gcs_sink_pool"),
           localSchema);
 
       veloxParquetDatasource->init(runtime->getConfMap());

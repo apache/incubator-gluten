@@ -36,6 +36,9 @@
 #include "velox/connectors/hive/storage_adapters/s3fs/S3FileSystem.h"
 #include "velox/connectors/hive/storage_adapters/s3fs/S3Util.h"
 #endif
+#ifdef ENABLE_GCS
+#include "velox/connectors/hive/storage_adapters/gcs/GCSFileSystem.h"
+#endif
 #ifdef ENABLE_HDFS
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsFileSystem.h"
 #include "velox/connectors/hive/storage_adapters/hdfs/HdfsUtil.h"
@@ -54,12 +57,14 @@ class VeloxParquetDatasource final : public Datasource {
       const std::string& filePath,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> s3SinkPool,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> gcsSinkPool,
       std::shared_ptr<arrow::Schema> schema)
       : Datasource(filePath, schema),
         filePath_(filePath),
         schema_(schema),
         pool_(std::move(veloxPool)),
-        s3SinkPool_(std::move(s3SinkPool)) {}
+        s3SinkPool_(std::move(s3SinkPool)),
+        gcsSinkPool_(std::move(gcsSinkPool)) {}
 
   void init(const std::unordered_map<std::string, std::string>& sparkConfs) override;
   void inspectSchema(struct ArrowSchema* out) override;
@@ -92,6 +97,7 @@ class VeloxParquetDatasource final : public Datasource {
   std::shared_ptr<facebook::velox::parquet::Writer> parquetWriter_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> pool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> s3SinkPool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> gcsSinkPool_;
   std::unique_ptr<facebook::velox::dwio::common::FileSink> sink_;
 };
 
