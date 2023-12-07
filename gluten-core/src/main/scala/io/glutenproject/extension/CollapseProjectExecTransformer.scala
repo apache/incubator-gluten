@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.optimizer.CollapseProjectShim
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 
-object CollapseProjectTransformer extends Rule[SparkPlan] {
+object CollapseProjectExecTransformer extends Rule[SparkPlan] {
 
   override def apply(plan: SparkPlan): SparkPlan = {
     if (!GlutenConfig.getConf.enableColumnarProjectCollapse) {
@@ -51,7 +51,7 @@ object CollapseProjectTransformer extends Rule[SparkPlan] {
 
   /**
    * In Velox, CreateNamedStruct will generate a special output named obj, We cannot collapse such
-   * ProjectTransformer, otherwise it will result in a bind reference failure.
+   * project transformer, otherwise it will result in a bind reference failure.
    */
   private def containsNamedStructAlias(projectList: Seq[NamedExpression]): Boolean = {
     projectList.exists {

@@ -25,8 +25,6 @@ import org.apache.spark.sql.{DataFrame, GlutenSQLTestsTrait, Row, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.CodegenObjectFactoryMode
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
-import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.hive.{HiveTableScanExecTransformer, HiveUtils}
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 
@@ -89,52 +87,6 @@ class GlutenHiveSQLQuerySuite extends GlutenSQLTestsTrait {
     conf.set(
       StaticSQLConf.WAREHOUSE_PATH,
       conf.get(StaticSQLConf.WAREHOUSE_PATH) + "/" + getClass.getCanonicalName)
-  }
-
-  /**
-   * Get all the children plan of plans.
-   *
-   * @param plans
-   *   : the input plans.
-   * @return
-   */
-  def getChildrenPlan(plans: Seq[SparkPlan]): Seq[SparkPlan] = {
-    if (plans.isEmpty) {
-      return Seq()
-    }
-
-    val inputPlans: Seq[SparkPlan] = plans.map {
-      case stage: ShuffleQueryStageExec => stage.plan
-      case plan => plan
-    }
-
-    var newChildren: Seq[SparkPlan] = Seq()
-    inputPlans.foreach {
-      plan =>
-        newChildren = newChildren ++ getChildrenPlan(plan.children)
-        // To avoid duplication of WholeStageCodegenXXX and its children.
-        if (!plan.nodeName.startsWith("WholeStageCodegen")) {
-          newChildren = newChildren :+ plan
-        }
-    }
-    newChildren
-  }
-
-  /**
-   * Get the executed plan of a data frame.
-   *
-   * @param df
-   *   : dataframe.
-   * @return
-   *   A sequence of executed plans.
-   */
-  def getExecutedPlan(df: DataFrame): Seq[SparkPlan] = {
-    df.queryExecution.executedPlan match {
-      case exec: AdaptiveSparkPlanExec =>
-        getChildrenPlan(Seq(exec.executedPlan))
-      case plan =>
-        getChildrenPlan(Seq(plan))
-    }
   }
 
   def checkOperatorMatch[T <: TransformSupport](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {

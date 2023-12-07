@@ -798,7 +798,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
         (spark: SparkSession) => RewriteTransformer(spark),
         (_: SparkSession) => EnsureLocalSortRequirements,
-        (_: SparkSession) => CollapseProjectTransformer
+        (_: SparkSession) => CollapseProjectExecTransformer
       ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
       SparkRuleUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPreRules)
