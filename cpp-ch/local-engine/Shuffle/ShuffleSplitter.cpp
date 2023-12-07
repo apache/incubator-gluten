@@ -30,7 +30,6 @@
 #include <Poco/StringTokenizer.h>
 #include <Common/Stopwatch.h>
 #include <Common/DebugUtils.h>
-#include <Common/typeid_cast.h>
 
 namespace local_engine
 {
@@ -306,18 +305,8 @@ void ColumnsBuffer::appendSelective(
     }
     if (!accumulated_columns[column_idx]->onlyNull())
     {
-        auto * nullable_column = checkAndGetColumn<DB::ColumnNullable>(*source.getByPosition(column_idx).column);
-        if (!nullable_column)
-        {
-            accumulated_columns[column_idx]->insertRangeSelective(
-                *source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
-        }
-        else
-        {
-            auto * dst_column = typeid_cast<DB::ColumnNullable *>(accumulated_columns[column_idx].get());
-            dst_column->getNestedColumn().insertRangeSelective(nullable_column->getNestedColumn(), selector, from, length);
-            dst_column->getNullMapColumn().insertRangeSelective(nullable_column->getNullMapColumn(), selector, from, length);
-        }
+        accumulated_columns[column_idx]->insertRangeSelective(
+            *source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
     }
     else
     {
