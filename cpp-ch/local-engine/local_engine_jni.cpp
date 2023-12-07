@@ -655,7 +655,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jboolean prefer_spill,
     jlong spill_threshold,
     jstring hash_algorithm,
-    jboolean throw_if_memory_exceed)
+    jboolean throw_if_memory_exceed,
+    jboolean flush_block_buffer_before_evict)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -698,7 +699,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .compress_method = jstring2string(env, codec),
         .spill_threshold = static_cast<size_t>(spill_threshold),
         .hash_algorithm = jstring2string(env, hash_algorithm),
-        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed)};
+        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed),
+        .flush_block_buffer_before_evict = static_cast<bool>(flush_block_buffer_before_evict)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     if (prefer_spill)
@@ -727,7 +729,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jlong spill_threshold,
     jstring hash_algorithm,
     jobject pusher,
-    jboolean throw_if_memory_exceed)
+    jboolean throw_if_memory_exceed,
+    jboolean flush_block_buffer_before_evict)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     std::string hash_exprs;
@@ -761,7 +764,8 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .compress_method = jstring2string(env, codec),
         .spill_threshold = static_cast<size_t>(spill_threshold),
         .hash_algorithm = jstring2string(env, hash_algorithm),
-        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed)};
+        .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed),
+        .flush_block_buffer_before_evict = static_cast<bool>(flush_block_buffer_before_evict)};
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options, pusher)};
@@ -790,14 +794,16 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_evi
 JNIEXPORT jobject Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_stop(JNIEnv * env, jobject, jlong splitterId)
 {
     LOCAL_ENGINE_JNI_METHOD_START
+
     local_engine::SplitterHolder * splitter = reinterpret_cast<local_engine::SplitterHolder *>(splitterId);
     auto result = splitter->splitter->stop();
-    const auto & partition_lengths = result.partition_length;
+
+    const auto & partition_lengths = result.partition_lengths;
     auto * partition_length_arr = env->NewLongArray(partition_lengths.size());
     const auto * src = reinterpret_cast<const jlong *>(partition_lengths.data());
     env->SetLongArrayRegion(partition_length_arr, 0, partition_lengths.size(), src);
 
-    const auto & raw_partition_lengths = result.raw_partition_length;
+    const auto & raw_partition_lengths = result.raw_partition_lengths;
     auto * raw_partition_length_arr = env->NewLongArray(raw_partition_lengths.size());
     const auto * raw_src = reinterpret_cast<const jlong *>(raw_partition_lengths.data());
     env->SetLongArrayRegion(raw_partition_length_arr, 0, raw_partition_lengths.size(), raw_src);
@@ -814,7 +820,7 @@ JNIEXPORT jobject Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_s
         partition_length_arr,
         raw_partition_length_arr,
         result.total_split_time,
-        result.total_disk_time,
+        result.total_io_time,
         result.total_serialize_time);
 
     return split_result;

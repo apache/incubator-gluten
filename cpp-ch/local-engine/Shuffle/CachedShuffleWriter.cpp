@@ -90,8 +90,8 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
         partition_writer = std::make_unique<LocalPartitionWriter>(this);
     }
 
-    split_result.partition_length.resize(options.partition_num, 0);
-    split_result.raw_partition_length.resize(options.partition_num, 0);
+    split_result.partition_lengths.resize(options.partition_num, 0);
+    split_result.raw_partition_lengths.resize(options.partition_num, 0);
 }
 
 
@@ -113,11 +113,6 @@ void CachedShuffleWriter::split(DB::Block & block)
         out_block.insert(block.getByPosition(output_columns_indicies[col_i]));
     }
     partition_writer->write(partition_info, out_block);
-
-    if (options.spill_threshold > 0 && partition_writer->totalCacheSize() > options.spill_threshold)
-    {
-        partition_writer->evictPartitions(false);
-    }
 }
 
 void CachedShuffleWriter::initOutputIfNeeded(Block & block)
@@ -146,12 +141,15 @@ void CachedShuffleWriter::initOutputIfNeeded(Block & block)
 SplitResult CachedShuffleWriter::stop()
 {
     partition_writer->stop();
+
+    static auto * logger = &Poco::Logger::get("CachedShuffleWriter");
+    LOG_INFO(logger, "CachedShuffleWriter stop, split result: {}", split_result.toString());
     return split_result;
 }
 
 size_t CachedShuffleWriter::evictPartitions()
 {
-    return partition_writer->evictPartitions(true);
+    return partition_writer->evictPartitions(true, options.flush_block_buffer_before_evict);
 }
 
 }
