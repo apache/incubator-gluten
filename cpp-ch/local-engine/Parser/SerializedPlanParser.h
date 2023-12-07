@@ -181,7 +181,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"datediff", "dateDiff"},
        {"second", "toSecond"},
        {"add_months", "addMonths"},
-       {"trunc", ""}, /// dummy mapping
        {"date_trunc", "dateTrunc"},
        {"floor_datetime", "dateTrunc"},
        {"months_between", "sparkMonthsBetween"},

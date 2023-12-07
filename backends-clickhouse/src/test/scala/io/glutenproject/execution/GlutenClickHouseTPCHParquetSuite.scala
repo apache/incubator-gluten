@@ -2206,5 +2206,20 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     spark.sql("drop table test_tbl_3521")
   }
 
+  test("GLUTEN-3948: trunc function") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select trunc('2023-12-06', 'MM'), trunc('2023-12-06', 'YEAR'), trunc('2023-12-06', 'WEEK'), trunc('2023-12-06', 'QUARTER')",
+        noFallBack = false
+      )(checkOperatorMatch[ProjectExecTransformer])
+
+      runQueryAndCompare(
+        "select trunc(l_shipdate, 'MM'), trunc(l_shipdate, 'YEAR'), trunc(l_shipdate, 'WEEK'), " +
+          "trunc(l_shipdate, 'QUARTER') from lineitem"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
 }
 // scalastyle:on line.size.limit

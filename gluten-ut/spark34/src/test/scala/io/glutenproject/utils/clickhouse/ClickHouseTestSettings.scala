@@ -300,7 +300,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-40660: Switch to XORShiftRandom to distribute elements")
   enableSuite[GlutenDateFunctionsSuite]
     .exclude("function to_date")
-    .exclude("function trunc")
     .exclude("from_unixtime")
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
