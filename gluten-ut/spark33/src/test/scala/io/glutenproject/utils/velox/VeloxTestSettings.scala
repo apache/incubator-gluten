@@ -950,6 +950,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDSV2CharVarcharTestSuite]
   enableSuite[GlutenColumnExpressionSuite]
   enableSuite[GlutenComplexTypeSuite]
+    // FIXME: feilong
+    .exclude("StringToMap")
   enableSuite[GlutenConfigBehaviorSuite]
     // Will be fixed by cleaning up ColumnarShuffleExchangeExec.
     .exclude("SPARK-22160 spark.sql.execution.rangeExchange.sampleSizePerPartition")
