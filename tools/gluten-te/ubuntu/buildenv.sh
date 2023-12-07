@@ -22,6 +22,7 @@ source "$BASEDIR/defaults.conf"
 
 # Enable buildkit
 export DOCKER_BUILDKIT=1
+export BUILDKIT_PROGRESS=plain
 
 # Docker cache image used to speed-up builds
 DOCKER_CACHE_IMAGE=${DOCKER_CACHE_IMAGE:-$DEFAULT_DOCKER_CACHE_IMAGE}
