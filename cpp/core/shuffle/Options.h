@@ -34,11 +34,8 @@ static constexpr bool kWriteEos = true;
 enum PartitionWriterType { kLocal, kCeleborn };
 
 struct ShuffleReaderOptions {
-  arrow::ipc::IpcReadOptions ipc_read_options = arrow::ipc::IpcReadOptions::Defaults();
   arrow::Compression::type compression_type = arrow::Compression::type::LZ4_FRAME;
   CodecBackend codec_backend = CodecBackend::NONE;
-
-  static ShuffleReaderOptions defaults();
 };
 
 struct ShuffleWriterOptions {
@@ -59,17 +56,16 @@ struct ShuffleWriterOptions {
   int64_t thread_id = -1;
   int64_t task_attempt_id = -1;
   int32_t start_partition_id = 0;
-
-  arrow::ipc::IpcWriteOptions ipc_write_options = arrow::ipc::IpcWriteOptions::Defaults();
-
-  std::shared_ptr<arrow::Schema> write_schema{nullptr};
-  std::shared_ptr<arrow::util::Codec> codec{nullptr};
-
-  std::string data_file{};
-  std::string local_dirs{};
   arrow::MemoryPool* memory_pool{};
-
-  static ShuffleWriterOptions defaults();
 };
 
+struct ShuffleWriterMetrics {
+  int64_t totalBytesWritten{0};
+  int64_t totalBytesEvicted{0};
+  int64_t totalWriteTime{0};
+  int64_t totalEvictTime{0};
+  int64_t totalCompressTime{0};
+  std::vector<int64_t> partitionLengths{};
+  std::vector<int64_t> rawPartitionLengths{}; // Uncompressed size.
+};
 } // namespace gluten

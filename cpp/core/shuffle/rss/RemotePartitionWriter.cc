@@ -15,6 +15,6 @@
  * limitations under the License.
  */
 
-#include "shuffle/rss/RemotePartitionWriter.h"
+#include "RemotePartitionWriter.h"
 
 namespace gluten {} // namespace gluten

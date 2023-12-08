@@ -17,27 +17,69 @@
 
 #pragma once
 
+#include "shuffle/BlockPayload.h"
 #include "shuffle/ShuffleReader.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"
 
 namespace gluten {
 
-class VeloxShuffleReader final : public ShuffleReader {
+class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
  public:
-  VeloxShuffleReader(
-      std::shared_ptr<arrow::Schema> schema,
-      ShuffleReaderOptions options,
-      arrow::MemoryPool* pool,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool);
+  VeloxColumnarBatchDeserializer(
+      const std::shared_ptr<arrow::io::InputStream>& in,
+      const std::shared_ptr<arrow::Schema>& schema,
+      const std::shared_ptr<arrow::util::Codec>& codec,
+      const facebook::velox::RowTypePtr& rowType,
+      arrow::MemoryPool* memoryPool,
+      facebook::velox::memory::MemoryPool* veloxPool,
+      int64_t& arrowToVeloxTime,
+      int64_t& decompressTime);
 
-  std::shared_ptr<ResultIterator> readStream(std::shared_ptr<arrow::io::InputStream> in) override;
+  std::shared_ptr<ColumnarBatch> next();
 
  private:
+  std::shared_ptr<arrow::io::InputStream> in_;
+  std::shared_ptr<arrow::Schema> schema_;
+  std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+  arrow::MemoryPool* memoryPool_;
+  facebook::velox::memory::MemoryPool* veloxPool_;
+
+  int64_t& arrowToVeloxTime_;
+  int64_t& decompressTime_;
 };
 
-extern bool veloxShuffleReaderPrintFlag;
+class VeloxColumnarBatchDeserializerFactory : public DeserializerFactory {
+ public:
+  VeloxColumnarBatchDeserializerFactory(
+      const std::shared_ptr<arrow::Schema>& schema,
+      const std::shared_ptr<arrow::util::Codec>& codec,
+      const facebook::velox::RowTypePtr& rowType,
+      arrow::MemoryPool* memoryPool,
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool);
 
+  std::unique_ptr<ColumnarBatchIterator> createDeserializer(std::shared_ptr<arrow::io::InputStream> in) override;
+
+  arrow::MemoryPool* getPool() override;
+
+  int64_t getDecompressTime() override;
+
+  int64_t getArrowToVeloxTime() override;
+
+ private:
+  std::shared_ptr<arrow::Schema> schema_;
+  std::shared_ptr<arrow::util::Codec> codec_;
+  facebook::velox::RowTypePtr rowType_;
+  arrow::MemoryPool* memoryPool_;
+  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
+
+  int64_t arrowToVeloxTime_{0};
+  int64_t decompressTime_{0};
+};
+
+class VeloxShuffleReader final : public ShuffleReader {
+ public:
+  VeloxShuffleReader(std::unique_ptr<DeserializerFactory> factory);
+};
 } // namespace gluten

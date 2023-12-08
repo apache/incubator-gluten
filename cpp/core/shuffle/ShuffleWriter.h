@@ -25,75 +25,13 @@
 #include "memory/ColumnarBatch.h"
 #include "memory/Evictable.h"
 #include "shuffle/Options.h"
+#include "shuffle/PartitionWriter.h"
 #include "shuffle/Partitioner.h"
 #include "shuffle/Partitioning.h"
+#include "shuffle/ShuffleMemoryPool.h"
 #include "utils/Compression.h"
 
 namespace gluten {
-
-struct ShuffleWriterMetrics {
-  int64_t totalBytesWritten{0};
-  int64_t totalBytesEvicted{0};
-  int64_t totalWriteTime{0};
-  int64_t totalEvictTime{0};
-  int64_t totalCompressTime{0};
-  std::vector<int64_t> partitionLengths{};
-  std::vector<int64_t> rawPartitionLengths{}; // Uncompressed size.
-};
-
-class ShuffleMemoryPool : public arrow::MemoryPool {
- public:
-  ShuffleMemoryPool(arrow::MemoryPool* pool) : pool_(pool) {}
-
-  arrow::MemoryPool* delegated() {
-    return pool_;
-  }
-
-  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override {
-    auto status = pool_->Allocate(size, alignment, out);
-    if (status.ok()) {
-      bytesAllocated_ += size;
-    }
-    return status;
-  }
-
-  arrow::Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override {
-    auto status = pool_->Reallocate(old_size, new_size, alignment, ptr);
-    if (status.ok()) {
-      bytesAllocated_ += (new_size - old_size);
-    }
-    return status;
-  }
-
-  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override {
-    pool_->Free(buffer, size, alignment);
-    bytesAllocated_ -= size;
-  }
-
-  int64_t bytes_allocated() const override {
-    return bytesAllocated_;
-  }
-
-  int64_t max_memory() const override {
-    return pool_->max_memory();
-  }
-
-  std::string backend_name() const override {
-    return pool_->backend_name();
-  }
-
-  int64_t total_bytes_allocated() const override {
-    return pool_->total_bytes_allocated();
-  }
-
-  int64_t num_allocations() const override {
-    throw pool_->num_allocations();
-  }
-
- private:
-  arrow::MemoryPool* pool_;
-  uint64_t bytesAllocated_ = 0;
-};
 
 class ShuffleWriter : public Evictable {
  public:
@@ -104,10 +42,6 @@ class ShuffleWriter : public Evictable {
   virtual arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) = 0;
 
   virtual arrow::Status stop() = 0;
-
-  virtual std::shared_ptr<arrow::Schema>& schema() {
-    return schema_;
-  }
 
   int32_t numPartitions() const {
     return numPartitions_;
@@ -145,42 +79,37 @@ class ShuffleWriter : public Evictable {
     return metrics_.rawPartitionLengths;
   }
 
-  ShuffleWriterOptions& options() {
-    return options_;
+  ShuffleWriterOptions* options() {
+    return options_.get();
   }
 
   virtual const uint64_t cachedPayloadSize() const = 0;
 
-  class PartitionWriter;
-
-  class PartitionWriterCreator;
-
  protected:
   ShuffleWriter(
       int32_t numPartitions,
-      std::shared_ptr<PartitionWriterCreator> partitionWriterCreator,
-      const ShuffleWriterOptions& options)
+      std::unique_ptr<PartitionWriter> partitionWriter,
+      std::unique_ptr<ShuffleWriterOptions> options)
       : numPartitions_(numPartitions),
-        partitionWriterCreator_(std::move(partitionWriterCreator)),
         options_(std::move(options)),
-        partitionBufferPool_(std::make_shared<ShuffleMemoryPool>(options_.memory_pool)) {
-    options_.codec = createArrowIpcCodec(options_.compression_type, options_.codec_backend);
-  }
+        partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(options_->memory_pool)),
+        partitionWriter_(std::move(partitionWriter)) {}
 
   virtual ~ShuffleWriter() = default;
 
   int32_t numPartitions_;
 
-  std::shared_ptr<PartitionWriterCreator> partitionWriterCreator_;
+  std::unique_ptr<ShuffleWriterOptions> options_;
 
-  ShuffleWriterOptions options_;
   // Memory Pool used to track memory usage of partition buffers.
   // The actual allocation is delegated to options_.memory_pool.
-  std::shared_ptr<ShuffleMemoryPool> partitionBufferPool_;
+  std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
+
+  std::unique_ptr<PartitionWriter> partitionWriter_;
 
   std::shared_ptr<arrow::Schema> schema_;
 
-  // col partid
+  // Column index, partition id, buffers.
   std::vector<std::vector<std::vector<std::shared_ptr<arrow::ResizableBuffer>>>> partitionBuffers_;
 
   std::shared_ptr<Partitioner> partitioner_;
