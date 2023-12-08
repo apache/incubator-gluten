@@ -20,7 +20,6 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
-import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
