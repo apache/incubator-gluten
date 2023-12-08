@@ -77,7 +77,7 @@ jobs:
         run: |
           docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       # Cpp micro benchmarks will use generated files from unit test in backends-velox module.
       - name: Run micro benchmarks
@@ -112,7 +112,7 @@ jobs:
         run: |
           docker exec ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -Piceberg -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
+          mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -Piceberg -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2
         run: |
           docker exec ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
@@ -148,7 +148,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.3.1(slow tests)
         run: |
           docker exec ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.3
         run: |
           docker exec ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten/tools/gluten-it && \
@@ -184,7 +184,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.3.1(other tests)
         run: |
           docker exec ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.3 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       - name: Exit docker container
         if: ${{ always() }}
@@ -214,7 +214,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.4.1(slow tests)
         run: |
           docker exec ubuntu2004-test-spark34-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
+          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.4
         run: |
           docker exec ubuntu2004-test-spark34-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten/tools/gluten-it && \
@@ -250,7 +250,7 @@ jobs:
       - name: Build and Run unit test for Spark 3.4.1(other tests)
         run: |
           docker exec ubuntu2004-test-spark34-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
+          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pspark-ut -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.4 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       - name: Exit docker container
         if: ${{ always() }}
