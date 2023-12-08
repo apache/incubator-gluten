@@ -153,6 +153,10 @@ function process_setup_centos7 {
 
   # install gtest
   sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
+  # Don't force to install git.
+  sed -i 's/dnf_install ccache git/dnf_install ccache/' scripts/setup-centos7.sh
+  # Install git with --skip-broken to accept other version of git already installed.
+  sed -i '/^$SUDO dnf remove -y gflags/a \\dnf install -y -q --setopt=install_weak_deps=False --skip-broken git' scripts/setup-centos7.sh
 
   if [ $ENABLE_HDFS = "ON" ]; then
     sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh
