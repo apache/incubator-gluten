@@ -24,8 +24,11 @@ source "$BASEDIR/defaults.conf"
 export DOCKER_BUILDKIT=1
 export BUILDKIT_PROGRESS=plain
 
-# Docker cache image used to speed-up builds
-DOCKER_CACHE_IMAGE=${DOCKER_CACHE_IMAGE:-$DEFAULT_DOCKER_CACHE_IMAGE}
+# Docker registry used to pull pre-built images to speed-up builds
+DOCKER_CACHE_REGISTRY=${DOCKER_CACHE_REGISTRY:-$DEFAULT_DOCKER_CACHE_REGISTRY}
+
+# Docker registry to push pre-built images
+DOCKER_PUSH_REGISTRY=${DOCKER_PUSH_REGISTRY:-$DEFAULT_DOCKER_PUSH_REGISTRY}
 
 # HTTP proxy
 HTTP_PROXY_HOST=${HTTP_PROXY_HOST:-$DEFAULT_HTTP_PROXY_HOST}
