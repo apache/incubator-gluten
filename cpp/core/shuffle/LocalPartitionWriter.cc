@@ -212,7 +212,7 @@ arrow::Status LocalPartitionWriter::init() {
 }
 
 arrow::Status LocalPartitionWriter::mergeSpills(uint32_t partitionId) {
-  for (auto spill : spills_) {
+  for (const auto& spill : spills_) {
     // Read if partition exists in the spilled file and write to the final file.
     if (spill->mergePos < spill->partitionSpillInfos.size() &&
         spill->partitionSpillInfos[spill->mergePos].partitionId == partitionId) { // A hit.
@@ -284,7 +284,6 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
     }
     partitionLengths_[pid] = endInFinalFile - startInFinalFile;
   }
-  RETURN_NOT_OK(finishEvict());
 
   for (auto spill : spills_) {
     // Check if all spilled data are merged.
