@@ -157,10 +157,10 @@ case class FallbackMultiCodegens(session: SparkSession) extends Rule[SparkPlan] 
     plan match {
       case plan: CodegenSupport if plan.supportCodegen =>
         if ((count + 1) >= optimizeLevel) return true
-        plan.children.map(existsMultiCodegens(_, count + 1)).exists(_ == true)
+        plan.children.exists(existsMultiCodegens(_, count + 1))
       case plan: ShuffledHashJoinExec =>
         if ((count + 1) >= optimizeLevel) return true
-        plan.children.map(existsMultiCodegens(_, count + 1)).exists(_ == true)
+        plan.children.exists(existsMultiCodegens(_, count + 1))
       case other => false
     }
 
