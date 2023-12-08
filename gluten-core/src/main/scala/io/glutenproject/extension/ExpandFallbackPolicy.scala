@@ -18,7 +18,7 @@ package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.BroadcastHashJoinExecTransformer
-import io.glutenproject.extension.columnar.TransformHints
+import io.glutenproject.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHints}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -247,7 +247,9 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     val reason = fallback(plan)
     if (reason.isDefined) {
       val fallbackPlan = fallbackToRowBasedPlan()
-      TransformHints.tagAllNotTransformable(fallbackPlan, reason.get)
+      TransformHints.tagAllNotTransformable(
+        fallbackPlan,
+        TRANSFORM_UNSUPPORTED(reason, appendReasonIfExists = false))
       FallbackNode(fallbackPlan)
     } else {
       plan

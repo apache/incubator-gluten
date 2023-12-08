@@ -17,13 +17,18 @@
 package org.apache.spark.sql.gluten
 
 import io.glutenproject.{GlutenConfig, VERSION}
+import io.glutenproject.events.GlutenPlanFallbackEvent
+import io.glutenproject.execution.FileSourceScanExecTransformer
 
 import org.apache.spark.scheduler.{SparkListener, SparkListenerEvent}
-import org.apache.spark.sql.GlutenSQLTestsTrait
+import org.apache.spark.sql.{GlutenSQLTestsTrait, Row}
+import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.execution.ui.{GlutenSQLAppStatusStore, SparkListenerSQLExecutionStart}
 import org.apache.spark.status.ElementTrackingStore
 
-class GlutenFallbackSuite extends GlutenSQLTestsTrait {
+import scala.collection.mutable.ArrayBuffer
+
+class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelper {
 
   test("test fallback logging") {
     val testAppender = new LogAppender("fallback reason")
@@ -99,6 +104,45 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait {
       assert(
         execution.get.fallbackNodeToReason.head._2
           .contains("Gluten does not touch it or does not support it"))
+    }
+  }
+
+  test("Improve merge fallback reason") {
+    spark.sql("create table t using parquet as select 1 as c1, timestamp '2023-01-01' as c2")
+    withTable("t") {
+      val events = new ArrayBuffer[GlutenPlanFallbackEvent]
+      val listener = new SparkListener {
+        override def onOtherEvent(event: SparkListenerEvent): Unit = {
+          event match {
+            case e: GlutenPlanFallbackEvent => events.append(e)
+            case _ =>
+          }
+        }
+      }
+      spark.sparkContext.addSparkListener(listener)
+      withSQLConf(GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
+        try {
+          val df =
+            spark.sql("select c1, count(*) from t where c2 > timestamp '2022-01-01' group by c1")
+          checkAnswer(df, Row(1, 1))
+          spark.sparkContext.listenerBus.waitUntilEmpty()
+
+          // avoid failing when we support transform timestamp filter in future
+          val isFallback = find(df.queryExecution.executedPlan) {
+            _.isInstanceOf[FileSourceScanExecTransformer]
+          }.isEmpty
+          if (isFallback) {
+            events.exists(
+              _.fallbackNodeToReason.values.exists(
+                _.contains("Subfield filters creation not supported for input type 'TIMESTAMP'")))
+            events.exists(
+              _.fallbackNodeToReason.values.exists(
+                _.contains("Timestamp is not fully supported in Filter")))
+          }
+        } finally {
+          spark.sparkContext.removeSparkListener(listener)
+        }
+      }
     }
   }
 }
