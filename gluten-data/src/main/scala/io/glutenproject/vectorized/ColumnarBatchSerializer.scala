@@ -145,9 +145,14 @@ private class ColumnarBatchSerializerInstance(
       // E.g. A Velox limit operator may suddenly drop the input stream after emitting enough
       // rows. In the case DeserializationStream#close() will not be called. Spark doesn't
       // call close() either. So we should handle the case especially.
-      TaskResources.addRecycler(s"ShuffleReaderDeserializationStream_${wrappedOut.getId}", 50) {
-        this.close()
-      }
+      //
+      // FIXME: Below code can cause heavy GC, especially when AQE is on with
+      // large number of coalesced partitions.
+      // Assuming 8000 shuffle write tasks, and 100 reducer tasks, 8 tasks per executor.
+      // There will be ~ 8000 / 100 * 8000 * 8 = 5120000 objects.
+      // TaskResources.addRecycler(s"ShuffleReaderDeserializationStream_${wrappedOut.getId}", 50) {
+      //  this.close()
+      // }
 
       override def asIterator: Iterator[Any] = {
         // This method is never called by shuffle code.

@@ -21,7 +21,7 @@
 
 namespace gluten {
 
-class RemotePartitionWriter : public ShuffleWriter::PartitionWriter {
+class RemotePartitionWriter : public PartitionWriter {
  public:
   explicit RemotePartitionWriter(uint32_t numPartitions, ShuffleWriterOptions* options)
       : PartitionWriter(numPartitions, options) {}

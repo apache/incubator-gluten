@@ -15,21 +15,33 @@
  * limitations under the License.
  */
 
+#include <arrow/memory_pool.h>
+
 #pragma once
 
-#include "shuffle/PartitionWriter.h"
-#include "shuffle/ShuffleWriter.h"
-
 namespace gluten {
-
-class ShuffleWriter::PartitionWriterCreator {
+class ShuffleMemoryPool : public arrow::MemoryPool {
  public:
-  PartitionWriterCreator() = default;
-  virtual ~PartitionWriterCreator() = default;
+  ShuffleMemoryPool(arrow::MemoryPool* pool);
 
-  virtual arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(
-      uint32_t numPartitions,
-      ShuffleWriterOptions* options) = 0;
+  arrow::Status Allocate(int64_t size, int64_t alignment, uint8_t** out) override;
+
+  arrow::Status Reallocate(int64_t old_size, int64_t new_size, int64_t alignment, uint8_t** ptr) override;
+
+  void Free(uint8_t* buffer, int64_t size, int64_t alignment) override;
+
+  int64_t bytes_allocated() const override;
+
+  int64_t max_memory() const override;
+
+  std::string backend_name() const override;
+
+  int64_t total_bytes_allocated() const override;
+
+  int64_t num_allocations() const override;
+
+ private:
+  arrow::MemoryPool* pool_;
+  uint64_t bytesAllocated_ = 0;
 };
-
 } // namespace gluten

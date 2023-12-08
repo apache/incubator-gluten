@@ -20,9 +20,7 @@
 #include <arrow/io/api.h>
 
 #include "shuffle/rss/RemotePartitionWriter.h"
-
-#include "jni/JniCommon.h"
-#include "shuffle/PartitionWriterCreator.h"
+#include "shuffle/rss/RssClient.h"
 #include "utils/macros.h"
 
 namespace gluten {
@@ -33,43 +31,30 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
       uint32_t numPartitions,
       ShuffleWriterOptions* options,
       std::shared_ptr<RssClient> celebornClient)
-      : RemotePartitionWriter(numPartitions, options) {
-    celebornClient_ = celebornClient;
+      : RemotePartitionWriter(numPartitions, options), celebornClient_(celebornClient) {
+    init();
   }
 
   arrow::Status evict(
       uint32_t partitionId,
       uint32_t numRows,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+      bool reuseBuffers,
       Evictor::Type evictType /* unused */) override;
 
   arrow::Status finishEvict() override;
-
-  arrow::Status init() override;
 
   arrow::Status stop(ShuffleWriterMetrics* metrics) override;
 
   arrow::Status evictFixedSize(int64_t size, int64_t* actual) override;
 
  private:
-  std::shared_ptr<RssClient> celebornClient_;
+  void init();
 
+  std::shared_ptr<RssClient> celebornClient_;
   std::shared_ptr<Evictor> evictor_;
 
   std::vector<int64_t> bytesEvicted_;
   std::vector<int64_t> rawPartitionLengths_;
 };
-
-class CelebornPartitionWriterCreator : public ShuffleWriter::PartitionWriterCreator {
- public:
-  explicit CelebornPartitionWriterCreator(std::shared_ptr<RssClient> client);
-
-  arrow::Result<std::shared_ptr<ShuffleWriter::PartitionWriter>> make(
-      uint32_t numPartitions,
-      ShuffleWriterOptions* options) override;
-
- private:
-  std::shared_ptr<RssClient> client_;
-};
-
 } // namespace gluten

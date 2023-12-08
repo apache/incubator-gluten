@@ -32,6 +32,9 @@ namespace gluten {
 using BinaryArrayLengthBufferType = uint32_t;
 using IpcOffsetBufferType = arrow::LargeStringType::offset_type;
 
+static constexpr int32_t kIpcContinuationToken = -1;
+static constexpr uint32_t kZeroLength = 0;
+
 static const size_t kSizeOfBinaryArrayLengthBuffer = sizeof(BinaryArrayLengthBufferType);
 static const size_t kSizeOfIpcOffsetBuffer = sizeof(IpcOffsetBufferType);
 static const std::string kGlutenSparkLocalDirs = "GLUTEN_SPARK_LOCAL_DIRS";

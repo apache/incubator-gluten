@@ -326,8 +326,6 @@ int64_t gluten::getMaxCompressedBufferSize(
 
 arrow::Status gluten::writeEos(arrow::io::OutputStream* os, int64_t* bytes) {
   // write EOS
-  static constexpr int32_t kIpcContinuationToken = -1;
-  static constexpr int32_t kZeroLength = 0;
   static const int64_t kSizeOfEos = sizeof(kIpcContinuationToken) + sizeof(kZeroLength);
   RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(kIpcContinuationToken)));
   RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(kZeroLength)));

@@ -18,11 +18,14 @@
 #include "VeloxShuffleReader.h"
 
 #include <arrow/array/array_binary.h>
+#include <arrow/io/buffered.h>
 
 #include "memory/VeloxColumnarBatch.h"
+#include "shuffle/BlockPayload.h"
 #include "shuffle/Utils.h"
 #include "utils/Common.h"
 #include "utils/Compression.h"
+#include "utils/Timer.h"
 #include "utils/VeloxArrowUtils.h"
 #include "utils/macros.h"
 #include "velox/serializers/PrestoSerializer.h"
@@ -36,8 +39,6 @@
 using namespace facebook::velox;
 
 namespace gluten {
-
-bool veloxShuffleReaderPrintFlag = false;
 
 namespace {
 
@@ -366,54 +367,6 @@ RowVectorPtr readRowVector(
   return rv;
 }
 
-class VeloxShuffleReaderOutStream : public ColumnarBatchIterator {
- public:
-  VeloxShuffleReaderOutStream(
-      arrow::MemoryPool* pool,
-      const std::shared_ptr<facebook::velox::memory::MemoryPool>& veloxPool,
-      const ShuffleReaderOptions& options,
-      const RowTypePtr& rowType,
-      const std::function<void(int64_t)> decompressionTimeAccumulator,
-      const std::function<void(int64_t)> deserializeTimeAccumulator,
-      ResultIterator& in)
-      : pool_(pool),
-        veloxPool_(veloxPool),
-        options_(options),
-        rowType_(rowType),
-        decompressionTimeAccumulator_(decompressionTimeAccumulator),
-        deserializeTimeAccumulator_(deserializeTimeAccumulator),
-        in_(std::move(in)) {}
-
-  std::shared_ptr<ColumnarBatch> next() override {
-    if (!in_.hasNext()) {
-      return nullptr;
-    }
-    auto batch = in_.next();
-    auto rb = std::dynamic_pointer_cast<ArrowColumnarBatch>(batch)->getRecordBatch();
-
-    int64_t decompressTime = 0LL;
-    int64_t deserializeTime = 0LL;
-
-    auto vp =
-        readRowVector(*rb, rowType_, options_.codec_backend, decompressTime, deserializeTime, pool_, veloxPool_.get());
-
-    decompressionTimeAccumulator_(decompressTime);
-    deserializeTimeAccumulator_(deserializeTime);
-    return std::make_shared<VeloxColumnarBatch>(vp);
-  }
-
- private:
-  arrow::MemoryPool* pool_;
-  std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
-  ShuffleReaderOptions options_;
-  facebook::velox::RowTypePtr rowType_;
-
-  std::function<void(int64_t)> decompressionTimeAccumulator_;
-  std::function<void(int64_t)> deserializeTimeAccumulator_;
-
-  ResultIterator in_;
-};
-
 std::string getCodecBackend(CodecBackend type) {
   if (type == CodecBackend::QAT) {
     return "QAT";
@@ -440,31 +393,69 @@ std::string getCompressionType(arrow::Compression::type type) {
 
 } // namespace
 
-VeloxShuffleReader::VeloxShuffleReader(
-    std::shared_ptr<arrow::Schema> schema,
-    ShuffleReaderOptions options,
-    arrow::MemoryPool* pool,
-    std::shared_ptr<memory::MemoryPool> veloxPool)
-    : ShuffleReader(schema, options, pool), veloxPool_(std::move(veloxPool)) {
-  rowType_ = asRowType(gluten::fromArrowSchema(schema));
-  if (gluten::veloxShuffleReaderPrintFlag) {
-    std::ostringstream oss;
-    oss << "VeloxShuffleReader create, compression_type:" << getCompressionType(options.compression_type);
-    oss << " codec_backend:" << getCodecBackend(options.codec_backend);
-    LOG(INFO) << oss.str();
+VeloxShuffleReader::VeloxShuffleReader(std::unique_ptr<DeserializerFactory> factory)
+    : ShuffleReader(std::move(factory)) {}
+
+VeloxColumnarBatchDeserializer::VeloxColumnarBatchDeserializer(
+    const std::shared_ptr<arrow::io::InputStream>& in,
+    const std::shared_ptr<arrow::Schema>& schema,
+    const std::shared_ptr<arrow::util::Codec>& codec,
+    const facebook::velox::RowTypePtr& rowType,
+    arrow::MemoryPool* memoryPool,
+    facebook::velox::memory::MemoryPool* veloxPool,
+    int64_t& arrowToVeloxTime,
+    int64_t& decompressTime)
+    : in_(in),
+      schema_(schema),
+      codec_(codec),
+      rowType_(rowType),
+      memoryPool_(memoryPool),
+      veloxPool_(veloxPool),
+      arrowToVeloxTime_(arrowToVeloxTime),
+      decompressTime_(decompressTime) {}
+
+std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
+  ScopedTimer timer(decompressTime_);
+  uint32_t numRows;
+  GLUTEN_ASSIGN_OR_THROW(
+      auto arrowBuffers, BlockPayload::deserialize(in_.get(), schema_, codec_, memoryPool_, numRows));
+  if (numRows == 0) {
+    // Reach EOS.
+    return nullptr;
   }
+  timer.switchTo(arrowToVeloxTime_);
+  std::vector<BufferPtr> veloxBuffers;
+  veloxBuffers.reserve(arrowBuffers.size());
+  for (auto& buffer : arrowBuffers) {
+    veloxBuffers.push_back(convertToVeloxBuffer(buffer));
+  }
+  auto rowVector = deserialize(rowType_, numRows, veloxBuffers, veloxPool_);
+  return std::make_shared<VeloxColumnarBatch>(rowVector);
 }
 
-std::shared_ptr<ResultIterator> VeloxShuffleReader::readStream(std::shared_ptr<arrow::io::InputStream> in) {
-  auto wrappedIn = ShuffleReader::readStream(in);
-  return std::make_shared<ResultIterator>(std::make_unique<VeloxShuffleReaderOutStream>(
-      pool_,
-      veloxPool_,
-      options_,
-      rowType_,
-      [this](int64_t decompressionTime) { this->decompressTime_ += decompressionTime; },
-      [this](int64_t deserializeTime) { this->deserializeTime_ += deserializeTime; },
-      *wrappedIn));
+VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
+    const std::shared_ptr<arrow::Schema>& schema,
+    const std::shared_ptr<arrow::util::Codec>& codec,
+    const RowTypePtr& rowType,
+    arrow::MemoryPool* memoryPool,
+    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool)
+    : schema_(schema), codec_(codec), rowType_(rowType), memoryPool_(memoryPool), veloxPool_(veloxPool) {}
+
+std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::createDeserializer(
+    std::shared_ptr<arrow::io::InputStream> in) {
+  return std::make_unique<VeloxColumnarBatchDeserializer>(
+      std::move(in), schema_, codec_, rowType_, memoryPool_, veloxPool_.get(), arrowToVeloxTime_, decompressTime_);
 }
 
+arrow::MemoryPool* VeloxColumnarBatchDeserializerFactory::getPool() {
+  return memoryPool_;
+}
+
+int64_t VeloxColumnarBatchDeserializerFactory::getDecompressTime() {
+  return decompressTime_;
+}
+
+int64_t VeloxColumnarBatchDeserializerFactory::getArrowToVeloxTime() {
+  return arrowToVeloxTime_;
+}
 } // namespace gluten

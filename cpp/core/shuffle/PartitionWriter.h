@@ -17,10 +17,18 @@
 
 #pragma once
 
+#include "ShuffleMemoryPool.h"
+#include "memory/Evictable.h"
 #include "shuffle/Options.h"
-#include "shuffle/ShuffleWriter.h"
 
 namespace gluten {
+
+class Payload {
+ public:
+  virtual ~Payload() = default;
+
+  virtual arrow::Status serialize(arrow::io::OutputStream* outputStream) = 0;
+};
 
 class Evictor {
  public:
@@ -30,7 +38,7 @@ class Evictor {
 
   virtual ~Evictor() = default;
 
-  virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<arrow::ipc::IpcPayload> payload) = 0;
+  virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<Payload> payload) = 0;
 
   virtual arrow::Status finish() = 0;
 
@@ -44,14 +52,15 @@ class Evictor {
   int64_t evictTime_{0};
 };
 
-class ShuffleWriter::PartitionWriter : public Evictable {
+class PartitionWriter : public Evictable {
  public:
   PartitionWriter(uint32_t numPartitions, ShuffleWriterOptions* options)
-      : numPartitions_(numPartitions), options_(options) {}
+      : numPartitions_(numPartitions), options_(options) {
+    payloadPool_ = std::make_unique<ShuffleMemoryPool>(options_->memory_pool);
+    codec_ = createArrowIpcCodec(options_->compression_type, options_->codec_backend);
+  }
 
   virtual ~PartitionWriter() = default;
-
-  virtual arrow::Status init() = 0;
 
   virtual arrow::Status stop(ShuffleWriterMetrics* metrics) = 0;
 
@@ -62,21 +71,27 @@ class ShuffleWriter::PartitionWriter : public Evictable {
       uint32_t partitionId,
       uint32_t numRows,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+      bool reuseBuffers,
       Evictor::Type evictType) = 0;
 
   virtual arrow::Status finishEvict() = 0;
 
- protected:
-  arrow::Result<std::unique_ptr<arrow::ipc::IpcPayload>> createPayloadFromBuffers(
-      uint32_t numRows,
-      std::vector<std::shared_ptr<arrow::Buffer>> buffers);
+  uint64_t cachedPayloadSize() {
+    return payloadPool_->bytes_allocated();
+  }
 
+ protected:
   uint32_t numPartitions_;
   ShuffleWriterOptions* options_;
+
+  // Memory Pool used to track memory allocation of partition payloads.
+  // The actual allocation is delegated to options_.memory_pool.
+  std::unique_ptr<ShuffleMemoryPool> payloadPool_;
+
+  std::unique_ptr<arrow::util::Codec> codec_;
 
   int64_t compressTime_{0};
   int64_t evictTime_{0};
   int64_t writeTime_{0};
 };
-
 } // namespace gluten
