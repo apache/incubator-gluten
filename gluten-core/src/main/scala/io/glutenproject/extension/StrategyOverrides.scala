@@ -161,10 +161,10 @@ case class JoinSelectionOverrides(session: SparkSession)
     plan match {
       case plan: Join =>
         if ((count + 1) >= GlutenConfig.getConf.logicalJoinOptimizationThrottle) return true
-        plan.children.map(existsMultiJoins(_, count + 1)).exists(_ == true)
+        plan.children.exists(existsMultiJoins(_, count + 1))
       case plan: Project =>
         if ((count + 1) >= GlutenConfig.getConf.logicalJoinOptimizationThrottle) return true
-        plan.children.map(existsMultiJoins(_, count + 1)).exists(_ == true)
+        plan.children.exists(existsMultiJoins(_, count + 1))
       case other => false
     }
   }
