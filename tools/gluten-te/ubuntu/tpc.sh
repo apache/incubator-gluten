@@ -108,7 +108,7 @@ then
   JAVA_ARGS="$JAVA_ARGS -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=$JDWP_SERVER_PORT"
 fi
 JAVA_ARGS="$JAVA_ARGS $EXTRA_JAVA_OPTIONS"
-JAVA_ARGS="$JAVA_ARGS -cp /opt/gluten/tools/gluten-it/target/gluten-it-1.0-SNAPSHOT-jar-with-dependencies.jar"
+JAVA_ARGS="$JAVA_ARGS -cp /opt/gluten/tools/gluten-it/package/target/lib/*"
 JAVA_ARGS="$JAVA_ARGS io.glutenproject.integration.tpc.Tpc $TPC_CMD_ARGS"
 
 BASH_ARGS=
