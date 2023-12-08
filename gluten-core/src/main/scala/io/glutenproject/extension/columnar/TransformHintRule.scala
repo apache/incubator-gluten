@@ -26,7 +26,7 @@ import io.glutenproject.utils.PhysicalPlanSelector
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -267,49 +267,6 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
         }
       }
       p
-  }
-}
-
-/**
- * Velox BloomFilter's implementation is different from Spark's. So if might_contain falls back, we
- * need fall back related bloom filter agg.
- */
-case class FallbackBloomFilterAggIfNeeded() extends Rule[SparkPlan] {
-  override def apply(plan: SparkPlan): SparkPlan =
-    if (GlutenConfig.getConf.enableNativeBloomFilter) {
-      plan.transformDown {
-        case p if TransformHints.isAlreadyTagged(p) && TransformHints.isNotTransformable(p) =>
-          handleBloomFilterFallback(p)
-          p
-      }
-    } else {
-      plan
-    }
-
-  object SubPlanFromBloomFilterMightContain {
-    def unapply(expr: Expression): Option[SparkPlan] =
-      SparkShimLoader.getSparkShims.extractSubPlanFromMightContain(expr)
-  }
-
-  private def handleBloomFilterFallback(plan: SparkPlan): Unit = {
-    def tagNotTransformableRecursive(p: SparkPlan): Unit = {
-      p match {
-        case agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
-            if SparkShimLoader.getSparkShims.hasBloomFilterAggregate(agg) =>
-          TransformHints.tagNotTransformable(agg, "related BloomFilterMightContain falls back")
-          tagNotTransformableRecursive(agg.child)
-        case a: org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec =>
-          tagNotTransformableRecursive(a.executedPlan)
-        case _ =>
-          p.children.map(tagNotTransformableRecursive)
-      }
-    }
-
-    plan.transformAllExpressions {
-      case expr @ SubPlanFromBloomFilterMightContain(p: SparkPlan) =>
-        tagNotTransformableRecursive(p)
-        expr
-    }
   }
 }
 
