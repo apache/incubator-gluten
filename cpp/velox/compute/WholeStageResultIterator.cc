@@ -74,9 +74,6 @@ const std::string kLoadQuantum = "spark.gluten.sql.columnar.backend.velox.loadQu
 const std::string kMaxCoalescedDistanceBytes = "spark.gluten.sql.columnar.backend.maxCoalescedDistanceBytes";
 const std::string kMaxCoalescedBytes = "spark.gluten.sql.columnar.backend.maxCoalescedBytes";
 
-
-
-
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
@@ -427,13 +424,11 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
       getConfigValue(confMap_, kCaseSensitive, "false") == "false" ? "true" : "false";
   configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = "6";
 
-
-  configs[velox::connector::hive::HiveConfig::kMaxCoalescedBytes] = 
+  configs[velox::connector::hive::HiveConfig::kMaxCoalescedBytes] =
       getConfigValue(confMap_, kMaxCoalescedBytes, "67108864"); // 64M
   configs[velox::connector::hive::HiveConfig::kMaxCoalescedDistanceBytes] =
       getConfigValue(confMap_, kMaxCoalescedDistanceBytes, "1048576"); // 1M
-  configs[velox::connector::hive::HiveConfig::kPrefetchRowGroups] =
-      getConfigValue(confMap_, kPrefetchRowGroups, "1");
+  configs[velox::connector::hive::HiveConfig::kPrefetchRowGroups] = getConfigValue(confMap_, kPrefetchRowGroups, "1");
   configs[velox::connector::hive::HiveConfig::kLoadQuantum] =
       getConfigValue(confMap_, kLoadQuantum, "268435456"); // 256M
   configs[velox::connector::hive::HiveConfig::kDirectorySizeGuess] =
