@@ -131,7 +131,7 @@ class FileSourceScanExecTransformer(
   override val nodeNamePrefix: String = "NativeFile"
 
   override val nodeName: String = {
-    s"NativeScan $relation ${tableIdentifier.map(_.unquotedString).getOrElse("")}"
+    s"Scan $relation ${tableIdentifier.map(_.unquotedString).getOrElse("")}"
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
