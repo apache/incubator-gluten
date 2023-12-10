@@ -54,6 +54,7 @@ DECLARE_int32(split_preload_per_driver);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
 DECLARE_bool(velox_memory_use_hugepages);
+DECLARE_int32(cache_prefetch_min_pct);
 
 using namespace facebook;
 
@@ -329,6 +330,9 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
       velox::connector::hive::HiveConfig::kEnableFileHandleCache,
       conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
 
+  // set cache_prefetch_min_pct = 0 to force all loads are prefetched in DirectBufferInput.
+  FLAGS_cache_prefetch_min_pct = 0;
+  
   if (ioThreads > 0) {
     if (splitPreloadPerDriver > 0) {
       // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
