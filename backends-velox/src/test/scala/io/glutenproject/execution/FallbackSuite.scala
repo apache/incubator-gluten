@@ -38,7 +38,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-
+    createTPCHNotNullTables()
     spark
       .range(100)
       .selectExpr("cast(id % 3 as int) as c1")
@@ -142,6 +142,37 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
             }.size == 2,
             df.queryExecution.executedPlan)
       }
+    }
+  }
+
+  test("fallback bloom_filter_agg") {
+    val query = "select upper(s_name) from supplier join nation on s_nationkey = n_nationkey " +
+      "where n_name = 'CANADA'"
+    withSQLConf(
+      GlutenConfig.COLUMNAR_PROJECT_ENABLED.key -> "false",
+      "spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold" -> "1",
+      "spark.sql.optimizer.runtime.bloomFilter.creationSideThreshold" -> "1",
+      "spark.sql.autoBroadcastJoinThreshold" -> "-1"
+    ) {
+      runQueryAndCompare(query) { df => }
+    }
+
+    withSQLConf(
+      GlutenConfig.COLUMNAR_FILTER_ENABLED.key -> "false",
+      "spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold" -> "1",
+      "spark.sql.optimizer.runtime.bloomFilter.creationSideThreshold" -> "1",
+      "spark.sql.autoBroadcastJoinThreshold" -> "-1"
+    ) {
+      runQueryAndCompare(query) { df => }
+    }
+
+    withSQLConf(
+      GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key -> "false",
+      "spark.sql.optimizer.runtime.bloomFilter.applicationSideScanSizeThreshold" -> "1",
+      "spark.sql.optimizer.runtime.bloomFilter.creationSideThreshold" -> "1",
+      "spark.sql.autoBroadcastJoinThreshold" -> "-1"
+    ) {
+      runQueryAndCompare(query) { df => }
     }
   }
 }
