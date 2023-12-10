@@ -49,6 +49,7 @@ class BatchScanMetricsUpdater(val metrics: Map[String, SQLMetric]) extends Metri
       metrics("skippedStrides") += operatorMetrics.skippedStrides
       metrics("processedStrides") += operatorMetrics.processedStrides
       metrics("remainingFilterTime") += operatorMetrics.remainingFilterTime
+      metrics("ioWaitTime") += operatorMetrics.ioWaitTime
     }
   }
 }
