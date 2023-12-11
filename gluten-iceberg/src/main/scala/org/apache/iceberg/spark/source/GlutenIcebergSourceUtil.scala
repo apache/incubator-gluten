@@ -140,8 +140,11 @@ object GlutenIcebergSourceUtil {
       partitionFields.zipWithIndex.foreach {
         case (field, index) =>
           val partitionValue = partition.get(index, field.`type`().typeId().javaClass())
+          val partitionType = field.`type`()
           if (partitionValue != null) {
-            partitionColumns.put(field.name(), partitionValue.toString)
+            partitionColumns.put(
+              field.name(),
+              TypeUtil.getPartitionValueString(partitionType, partitionValue))
           } else {
             partitionColumns.put(field.name(), ExternalCatalogUtils.DEFAULT_PARTITION_NAME)
           }

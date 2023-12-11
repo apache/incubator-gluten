@@ -16,7 +16,15 @@
  */
 package org.apache.iceberg.spark.source
 
+import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
+
+import org.apache.iceberg.types.Type
 import org.apache.iceberg.types.Type.TypeID
+
+import java.lang.{Long => JLong}
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
+import java.time.ZoneOffset
 
 object TypeUtil {
   def validatePartitionColumnType(typeID: TypeID): Unit = typeID match {
@@ -32,5 +40,20 @@ object TypeUtil {
     case TypeID.DECIMAL =>
     case _ =>
       throw new UnsupportedOperationException(s"Unsupported partition column type $typeID")
+  }
+
+  def getPartitionValueString(partitionType: Type, partitionValue: Any): String = {
+    partitionType.typeId() match {
+      case TypeID.BINARY =>
+        new String(partitionValue.asInstanceOf[ByteBuffer].array(), StandardCharsets.UTF_8)
+      case TypeID.DATE =>
+        DateFormatter.apply().format(partitionValue.asInstanceOf[Integer])
+      case TypeID.TIMESTAMP | TypeID.TIME =>
+        TimestampFormatter
+          .getFractionFormatter(ZoneOffset.UTC)
+          .format(partitionValue.asInstanceOf[JLong])
+      case _ =>
+        partitionType.toString
+    }
   }
 }

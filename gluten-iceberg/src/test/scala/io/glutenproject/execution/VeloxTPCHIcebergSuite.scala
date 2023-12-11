@@ -83,4 +83,54 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
         }
     }
   }
+
+  test("iceberg partition table") {
+    withTable("lineitem_p") {
+      spark.sql("""
+                  |CREATE TABLE lineitem_p (
+                  |  l_orderkey BIGINT,
+                  |  l_partkey BIGINT,
+                  |  l_suppkey BIGINT,
+                  |  l_linenumber INT,
+                  |  l_quantity DECIMAL(12,2),
+                  |  l_extendedprice DECIMAL(12,2),
+                  |  l_discount DECIMAL(12,2),
+                  |  l_tax DECIMAL(12,2),
+                  |  l_returnflag STRING,
+                  |  l_linestatus STRING,
+                  |  l_commitdate DATE,
+                  |  l_receiptdate DATE,
+                  |  l_shipinstruct STRING,
+                  |  l_shipmode STRING,
+                  |  l_comment STRING,
+                  |  l_shipdate DATE)
+                  |USING iceberg
+                  |PARTITIONED BY (l_shipdate);
+                  |""".stripMargin)
+      val tablePath = new File(resourcePath, "lineitem").getAbsolutePath
+      val tableDF = spark.read.format(fileFormat).load(tablePath)
+      tableDF.write.format("iceberg").mode("append").saveAsTable("lineitem_p")
+      runQueryAndCompare("""
+                           |SELECT
+                           |  sum(l_extendedprice * l_discount) AS revenue
+                           |FROM
+                           |  lineitem_p
+                           |WHERE
+                           |  l_shipdate >= '1994-01-01'
+                           |  AND l_shipdate < '1995-01-01'
+                           |  AND l_discount BETWEEN.06 - 0.01
+                           |  AND.06 + 0.01
+                           |  AND l_quantity < 24;
+                           |""".stripMargin) {
+        df =>
+          {
+            assert(
+              getExecutedPlan(df).count(
+                plan => {
+                  plan.isInstanceOf[IcebergScanTransformer]
+                }) == 1)
+          }
+      }
+    }
+  }
 }
