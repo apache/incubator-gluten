@@ -405,13 +405,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(expr.children.head, attributeSeq),
           expr)
       case _: StringToMap =>
-        if (
-          SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
-            != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString
-        ) {
-          throw new UnsupportedOperationException("Only EXCEPTION policy is supported!")
-        }
-        GenericExpressionTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genStringToMapTransformer(
           substraitExprName,
           expr.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
           expr)

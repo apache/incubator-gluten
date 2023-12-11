@@ -48,6 +48,7 @@ import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.ExecUtil
 import org.apache.spark.sql.expression.{UDFExpression, UDFResolver}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
@@ -360,6 +361,19 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       ExpressionMappings.expressionsMap(classOf[ElementAt]),
       Seq(left, right),
       original)
+  }
+
+  override def genStringToMapTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer = {
+    if (
+      SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
+        != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString
+    ) {
+      throw new UnsupportedOperationException("Only EXCEPTION policy is supported!")
+    }
+    GenericExpressionTransformer(substraitExprName, children, expr)
   }
 
   /** Generate an expression transformer to transform NamedStruct to Substrait. */
