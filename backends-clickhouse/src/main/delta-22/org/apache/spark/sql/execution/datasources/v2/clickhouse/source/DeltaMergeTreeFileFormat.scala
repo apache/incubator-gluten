@@ -21,6 +21,10 @@ import org.apache.spark.sql.delta.actions.Metadata
 
 class DeltaMergeTreeFileFormat(metadata: Metadata) extends DeltaParquetFileFormat(metadata) {
 
+  override def shortName(): String = "mergetree"
+
+  override def toString(): String = "MergeTree"
+
   override def equals(other: Any): Boolean = {
     other match {
       case ff: DeltaMergeTreeFileFormat =>
