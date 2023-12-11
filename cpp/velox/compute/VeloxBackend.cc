@@ -37,6 +37,7 @@
 #ifdef ENABLE_ABFS
 #include "velox/connectors/hive/storage_adapters/abfs/AbfsFileSystem.h"
 #endif
+#include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniFileSystem.h"
 #include "operators/functions/SparkTokenizer.h"
@@ -53,7 +54,6 @@
 #include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/serializers/PrestoSerializer.h"
 
-DECLARE_int32(split_preload_per_driver);
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
 DECLARE_bool(velox_memory_use_hugepages);
@@ -100,9 +100,6 @@ const std::string kVeloxSsdODirectEnabled = "spark.gluten.sql.columnar.backend.v
 const std::string kVeloxIOThreads = "spark.gluten.sql.columnar.backend.velox.IOThreads";
 const uint32_t kVeloxIOThreadsDefault = 0;
 
-const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
-const uint32_t kVeloxSplitPreloadPerDriverDefault = 2;
-
 // udf
 const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.velox.udfLibraryPaths";
 
@@ -123,7 +120,16 @@ const bool kVeloxFileHandleCacheEnabledDefault = false;
 
 namespace gluten {
 
+namespace {
+gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::string>& sessionConf) {
+  return new gluten::VeloxRuntime(sessionConf);
+}
+} // namespace
+
 void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf) {
+  // Register Velox runtime factory
+  gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
+
   // Init glog and log level.
   auto veloxmemcfg = std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
   const facebook::velox::Config* veloxcfg = veloxmemcfg.get();
@@ -240,7 +246,6 @@ void VeloxBackend::initCache(const facebook::velox::Config* conf) {
 
 void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
   int32_t ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
-  int32_t splitPreloadPerDriver = conf->get<int32_t>(kVeloxSplitPreloadPerDriver, kVeloxSplitPreloadPerDriverDefault);
 
   auto mutableConf = std::make_shared<facebook::velox::core::MemConfigMutable>(conf->valuesCopy());
 
@@ -346,13 +351,6 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
       conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
 
   if (ioThreads > 0) {
-    if (splitPreloadPerDriver > 0) {
-      // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
-      // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
-      LOG(INFO) << "STARTUP: Using split preloading, Split preload per driver: " << splitPreloadPerDriver
-                << ", IO threads: " << ioThreads;
-      FLAGS_split_preload_per_driver = splitPreloadPerDriver;
-    }
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }
   velox::connector::registerConnector(

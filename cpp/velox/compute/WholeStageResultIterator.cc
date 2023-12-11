@@ -62,9 +62,12 @@ const std::string kAbandonPartialAggregationMinPct =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct";
 const std::string kAbandonPartialAggregationMinRows =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows";
+
+// execution
 const std::string kBloomFilterExpectedNumItems = "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems";
 const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits";
 const std::string kBloomFilterMaxNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits";
+const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
@@ -382,6 +385,10 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         getConfigValue(confMap_, kBloomFilterNumBits, "8388608");
     configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] =
         getConfigValue(confMap_, kBloomFilterMaxNumBits, "4194304");
+    // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
+    // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
+    configs[velox::core::QueryConfig::kMaxSplitPreloadPerDriver] =
+        getConfigValue(confMap_, kVeloxSplitPreloadPerDriver, "2");
 
     configs[velox::core::QueryConfig::kArrowBridgeTimestampUnit] = "6";
 
