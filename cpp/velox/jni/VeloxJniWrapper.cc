@@ -22,7 +22,6 @@
 #include <exception>
 #include "JniUdf.h"
 #include "compute/VeloxBackend.h"
-#include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniError.h"
 #include "jni/JniFileSystem.h"
@@ -32,12 +31,6 @@
 #include <iostream>
 
 using namespace facebook;
-
-namespace {
-gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::string>& sessionConf) {
-  return new gluten::VeloxRuntime(sessionConf);
-}
-} // namespace
 
 #ifdef __cplusplus
 extern "C" {
@@ -75,7 +68,6 @@ JNIEXPORT void JNICALL Java_io_glutenproject_init_NativeBackendInitializer_initi
     jbyteArray conf) {
   JNI_METHOD_START
   auto sparkConf = gluten::parseConfMap(env, conf);
-  gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
   gluten::VeloxBackend::create(sparkConf);
   JNI_METHOD_END()
 }
