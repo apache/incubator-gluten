@@ -405,14 +405,16 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformer(expr.children.head, attributeSeq),
           expr)
       case _: StringToMap =>
-        if (SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
-            != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString) {
+        if (
+          SQLConf.get.getConf(SQLConf.MAP_KEY_DEDUP_POLICY)
+            != SQLConf.MapKeyDedupPolicy.EXCEPTION.toString
+        ) {
           throw new UnsupportedOperationException("Only EXCEPTION policy is supported!")
         }
         GenericExpressionTransformer(
-            substraitExprName,
-            expr.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
-            expr)
+          substraitExprName,
+          expr.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          expr)
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         // PrecisionLoss=true: velox support / ch not support
         // PrecisionLoss=false: velox not support / ch support
