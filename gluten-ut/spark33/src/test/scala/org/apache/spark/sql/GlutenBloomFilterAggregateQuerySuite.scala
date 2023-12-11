@@ -17,6 +17,7 @@
 package org.apache.spark.sql
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.HashAggregateExecBaseTransformer
 
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
@@ -96,17 +97,19 @@ class GlutenBloomFilterAggregateQuerySuite
           df.queryExecution.executedPlan
         )
       }
-      withSQLConf(
-        GlutenConfig.COLUMNAR_FILTER_ENABLED.key -> "false"
-      ) {
-        val df = spark.sql(sqlString)
-        df.collect
-        assert(
-          collectWithSubqueries(df.queryExecution.executedPlan) {
-            case h if h.isInstanceOf[HashAggregateExecBaseTransformer] => h
-          }.size == 0,
-          df.queryExecution.executedPlan
-        )
+      if (BackendsApiManager.getSettings.enableBloomFilterAggFallbackRule()) {
+        withSQLConf(
+          GlutenConfig.COLUMNAR_FILTER_ENABLED.key -> "false"
+        ) {
+          val df = spark.sql(sqlString)
+          df.collect
+          assert(
+            collectWithSubqueries(df.queryExecution.executedPlan) {
+              case h if h.isInstanceOf[HashAggregateExecBaseTransformer] => h
+            }.size == 0,
+            df.queryExecution.executedPlan
+          )
+        }
       }
     }
   }
