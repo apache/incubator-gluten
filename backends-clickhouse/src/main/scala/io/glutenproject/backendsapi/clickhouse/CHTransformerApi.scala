@@ -96,6 +96,12 @@ class CHTransformerApi extends TransformerApi with Logging {
           nativeConfMap.put(groupBySpillKey, groupBySpillValue.toLong.toString)
         }
 
+        val maxMemoryUsageKey = settingPrefix + "max_memory_usage";
+        if (!nativeConfMap.containsKey(maxMemoryUsageKey)) {
+          val maxMemoryUsageValue = offHeapSize
+          nativeConfMap.put(maxMemoryUsageKey, maxMemoryUsageValue.toLong.toString)
+        }
+
         // Only set default max_bytes_before_external_join for CH when join_algorithm is grace_hash
         val joinAlgorithmKey = settingPrefix + "join_algorithm";
         if (

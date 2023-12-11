@@ -311,15 +311,14 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         .get(0)
         .getProcessors
         .get(0)
-        .getInputRows == 591677)
-
+        .getInputRows == 591673)
     assert(
       nativeMetricsData.metricsDataList
         .get(4)
         .getSteps
         .get(0)
         .getProcessors
-        .get(1)
+        .get(0)
         .getOutputRows == 4)
 
     assert(
@@ -356,7 +355,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         .getSteps
         .get(0)
         .getName
-        .equals("MergingAggregated"))
+        .equals("GraceMergingAggregatedStep"))
     assert(
       nativeMetricsDataFinal.metricsDataList.get(1).getSteps.get(1).getName.equals("Expression"))
     assert(nativeMetricsDataFinal.metricsDataList.get(2).getName.equals("kProject"))

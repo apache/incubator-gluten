@@ -94,6 +94,14 @@ class HashAggregateMetricsUpdater(val metrics: Map[String, SQLMetric])
 }
 
 object HashAggregateMetricsUpdater {
-  val INCLUDING_PROCESSORS = Array("AggregatingTransform", "MergingAggregatedTransform")
-  val CH_PLAN_NODE_NAME = Array("AggregatingTransform", "MergingAggregatedTransform")
+  val INCLUDING_PROCESSORS = Array(
+    "AggregatingTransform",
+    "StreamingAggregatingTransform",
+    "MergingAggregatedTransform",
+    "GraceMergingAggregatedTransform")
+  val CH_PLAN_NODE_NAME = Array(
+    "AggregatingTransform",
+    "StreamingAggregatingTransform",
+    "MergingAggregatedTransform",
+    "GraceMergingAggregatedTransform")
 }
