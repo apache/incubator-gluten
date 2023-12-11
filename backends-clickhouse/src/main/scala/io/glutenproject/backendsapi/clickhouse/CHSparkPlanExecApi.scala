@@ -49,6 +49,7 @@ import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildS
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.ClickHouseAnalysis
+import org.apache.spark.sql.extension.CommonSubexpressionEliminateRule
 import org.apache.spark.sql.extension.RewriteDateTimestampComparisonRule
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -342,6 +343,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     val analyzers = List(spark => new ClickHouseAnalysis(spark, spark.sessionState.conf))
     if (GlutenConfig.getConf.enableDateTimestampComparison) {
       analyzers :+ (spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
+      analyzers :+ (spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf))
     } else {
       analyzers
     }
