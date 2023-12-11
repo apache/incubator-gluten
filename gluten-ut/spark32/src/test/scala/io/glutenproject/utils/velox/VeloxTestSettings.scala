@@ -252,8 +252,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("corr, covar_pop, stddev_pop functions in specific window")
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenComplexTypeSuite]
-    // FIXME: feilong
-    .exclude("StringToMap")
   enableSuite[GlutenDateFunctionsSuite]
     // The below two are replaced by two modified versions.
     .exclude("unix_timestamp")

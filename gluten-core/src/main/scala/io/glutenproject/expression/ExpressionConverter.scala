@@ -404,6 +404,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           substraitExprName,
           replaceWithExpressionTransformer(expr.children.head, attributeSeq),
           expr)
+      case _: StringToMap =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genStringToMapTransformer(
+          substraitExprName,
+          expr.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          expr)
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         // PrecisionLoss=true: velox support / ch not support
         // PrecisionLoss=false: velox not support / ch support
