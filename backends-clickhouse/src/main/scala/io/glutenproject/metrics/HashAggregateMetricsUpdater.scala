@@ -68,8 +68,6 @@ class HashAggregateMetricsUpdater(val metrics: Map[String, SQLMetric])
           if (!resizeStep.isEmpty) {
             metrics("resizeInputRows") += resizeStep.get.inputRows
             metrics("resizeOutputRows") += aggMetricsData.getOutputRows
-            // The input rows of the Resize is included in the input rows of the Aggregating
-            metrics("inputRows") += -resizeStep.get.inputRows
           }
 
           currentIdx -= 1
