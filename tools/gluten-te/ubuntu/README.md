@@ -57,7 +57,7 @@ cd gluten/
 
 ```sh
 cd gluten/
-{PATH_TO_GLUTEN_TE}/cbash.sh mvn clean dependency:tree
+{PATH_TO_GLUTEN_TE}/cbash-mount.sh mvn clean dependency:tree
 ```
 
 ## Example: Run GUI-based IDEs

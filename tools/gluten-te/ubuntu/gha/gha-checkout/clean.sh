@@ -16,13 +16,10 @@
 
 set -ex
 
-BASEDIR=$(dirname $0)
+if [ -z "$GITHUB_RUN_ID" ]
+then
+  echo "Unable to parse GITHUB_RUN_ID."
+  exit 1
+fi
 
-EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
-                     -Pbackends-velox \
-                     -Prss \
-                     -DskipTests \
-                     -Dscalastyle.skip=true \
-                     -Dcheckstyle.skip=true"
-
-$BASEDIR/../../cbash-mount.sh "cd /opt/gluten && dev/builddeps-veloxbe.sh && mvn clean install $EXTRA_MAVEN_OPTIONS"
+docker stop gha-checkout-$GITHUB_RUN_ID || true
