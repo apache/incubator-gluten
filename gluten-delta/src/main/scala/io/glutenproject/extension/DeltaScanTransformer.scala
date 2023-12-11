@@ -56,12 +56,12 @@ object DeltaScanTransformer {
 
   def apply(
       scanExec: FileSourceScanExec,
-      partitionFilters: Seq[Expression]): DeltaScanTransformer = {
+      newPartitionFilters: Seq[Expression]): DeltaScanTransformer = {
     new DeltaScanTransformer(
       scanExec.relation,
       scanExec.output,
       scanExec.requiredSchema,
-      partitionFilters,
+      newPartitionFilters,
       scanExec.optionalBucketSet,
       scanExec.optionalNumCoalescedBuckets,
       scanExec.dataFilters,

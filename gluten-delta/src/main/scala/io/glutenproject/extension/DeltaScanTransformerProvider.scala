@@ -27,7 +27,7 @@ class DeltaScanTransformerProvider extends DataSourceScanTransformerRegister {
 
   override def createDataSourceTransformer(
       batchScan: FileSourceScanExec,
-      partitionFilters: Seq[Expression]): FileSourceScanExecTransformer = {
-    DeltaScanTransformer(batchScan, partitionFilters)
+      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformer = {
+    DeltaScanTransformer(batchScan, newPartitionFilters)
   }
 }
