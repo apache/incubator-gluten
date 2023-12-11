@@ -14,7 +14,7 @@ message(STATUS "Building gtest from source")
 FetchContent_Declare(
     gtest
     URL ${GLUTEN_GTEST_SOURCE_URL}
-    URL_HASH "SHA256=${GLUTEN_GTEST_BUILD_SHA256_CHECKSUM}"
+    URL_HASH "${GLUTEN_GTEST_BUILD_SHA256_CHECKSUM}"
 )
 
 FetchContent_MakeAvailable(gtest)

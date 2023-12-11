@@ -19,6 +19,7 @@
 
 #include <glog/logging.h>
 #include <jni/JniCommon.h>
+
 #include <exception>
 #include "JniUdf.h"
 #include "compute/VeloxBackend.h"
@@ -27,6 +28,7 @@
 #include "jni/JniFileSystem.h"
 #include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
+#include "utils/ConfigExtractor.h"
 
 #include <iostream>
 
@@ -84,11 +86,21 @@ JNIEXPORT void JNICALL Java_io_glutenproject_udf_UdfJniWrapper_nativeLoadUdfLibr
 JNIEXPORT jobject JNICALL
 Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailureReason( // NOLINT
     JNIEnv* env,
-    jobject,
+    jobject wrapper,
     jbyteArray planArray) {
   JNI_METHOD_START
+  auto ctx = gluten::getRuntime(env, wrapper);
   auto planData = reinterpret_cast<const uint8_t*>(env->GetByteArrayElements(planArray, 0));
   auto planSize = env->GetArrayLength(planArray);
+  if (gluten::debugModeEnabled(ctx->getConfMap())) {
+    try {
+      auto jsonPlan = gluten::substraitFromPbToJson("Plan", planData, planSize);
+      LOG(INFO) << std::string(50, '#') << " received substrait::Plan: for validation";
+    } catch (const std::exception& e) {
+      LOG(WARNING) << "Error converting Substrait plan for validation to JSON: " << e.what();
+    }
+  }
+
   ::substrait::Plan subPlan;
   gluten::parseProtobuf(planData, planSize, &subPlan);
 
