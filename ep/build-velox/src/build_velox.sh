@@ -21,6 +21,8 @@ ENABLE_S3=OFF
 ENABLE_GCS=OFF
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
+#Set on run gluten on ABFS
+ENABLE_ABFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
 ENABLE_EP_CACHE=OFF
@@ -48,6 +50,10 @@ for arg in "$@"; do
     ;;
   --enable_hdfs=*)
     ENABLE_HDFS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_abfs=*)
+    ENABLE_ABFS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --build_type=*)
@@ -98,6 +104,9 @@ function compile {
   fi
   if [ $ENABLE_HDFS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
+  fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_ABFS=ON"
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
@@ -247,6 +256,7 @@ echo "VELOX_HOME=${VELOX_HOME}"
 echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_GCS=${ENABLE_GCS}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
+echo "ENABLE_ABFS=${ENABLE_ABFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 
 cd ${VELOX_HOME}

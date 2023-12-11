@@ -28,6 +28,8 @@ BUILD_PROTOBUF=ON
 ENABLE_S3=OFF
 #Set on run gluten on GCS
 ENABLE_GCS=OFF
+#Set on run gluten on ABFS
+ENABLE_ABFS=OFF
 
 OS=`uname -s`
 
@@ -59,6 +61,10 @@ for arg in "$@"; do
     ;;
   --enable_gcs=*)
     ENABLE_GCS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_abfs=*)
+    ENABLE_ABFS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -99,6 +105,9 @@ function process_setup_ubuntu {
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-ubuntu.sh
   fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-ubuntu.sh
+  fi
   sed -i 's/run_and_time install_conda/#run_and_time install_conda/' scripts/setup-ubuntu.sh
 
 }
@@ -129,6 +138,9 @@ function process_setup_centos8 {
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos8.sh
   fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos8.sh
+  fi
 }
 
 function process_setup_centos7 {
@@ -155,6 +167,9 @@ function process_setup_centos7 {
   fi
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos7.sh
+  fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos7.sh
   fi
 }
 
