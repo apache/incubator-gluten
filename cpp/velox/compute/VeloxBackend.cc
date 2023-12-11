@@ -332,7 +332,7 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
 
   // set cache_prefetch_min_pct = 0 to force all loads are prefetched in DirectBufferInput.
   FLAGS_cache_prefetch_min_pct = 0;
-  
+
   if (ioThreads > 0) {
     if (splitPreloadPerDriver > 0) {
       // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
