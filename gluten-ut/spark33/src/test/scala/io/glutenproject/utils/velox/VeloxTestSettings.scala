@@ -51,8 +51,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("string split function with positive limit")
     .exclude("string split function with negative limit")
   enableSuite[GlutenBloomFilterAggregateQuerySuite]
-    // fallback might_contain, the input argument binary is not same with vanilla spark
-    .exclude("Test NULL inputs for might_contain")
   enableSuite[GlutenDataSourceV2DataFrameSessionCatalogSuite]
   enableSuite[GlutenDataSourceV2DataFrameSuite]
   enableSuite[GlutenDataSourceV2FunctionSuite]

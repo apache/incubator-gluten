@@ -219,4 +219,6 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def allowDecimalArithmetic: Boolean = !SQLConf.get.decimalOperationsAllowPrecisionLoss
 
   override def requiredInputFilePaths(): Boolean = true
+
+  override def enableBloomFilterAggFallbackRule(): Boolean = false
 }
