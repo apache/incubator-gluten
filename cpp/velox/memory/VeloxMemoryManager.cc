@@ -173,7 +173,7 @@ VeloxMemoryManager::VeloxMemoryManager(
       velox::memory::kMaxMemory,
       velox::memory::kMaxMemory,
       true, // memory usage tracking
-      true, // leak check
+      false, // leak check
       false, // debug
       false, // coreOnAllocationFailureEnabled
 #ifdef GLUTEN_ENABLE_HBM
