@@ -262,6 +262,15 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def extendedExpressionTransformer: String = conf.getConf(EXTENDED_EXPRESSION_TRAN_CONF)
 
+  def expressionBlacklist: Set[String] = {
+    val blacklist = conf.getConf(EXPRESSION_BLACK_LIST)
+    if (blacklist.isDefined) {
+      blacklist.get.toLowerCase(Locale.ROOT).trim.split(",").toSet
+    } else {
+      Set.empty
+    }
+  }
+
   def printStackOnValidationFailure: Boolean =
     conf.getConf(VALIDATION_PRINT_FAILURE_STACK_)
 
@@ -1251,6 +1260,12 @@ object GlutenConfig {
       .doc("A class for the extended expressions transformer.")
       .stringConf
       .createWithDefaultString("")
+
+  val EXPRESSION_BLACK_LIST =
+    buildConf("spark.gluten.expression.blacklist")
+      .doc("A black list of expression to skip transform, multiple values separated by commas.")
+      .stringConf
+      .createOptional
 
   val FALLBACK_REPORTER_ENABLED =
     buildConf("spark.gluten.sql.columnar.fallbackReporter")
