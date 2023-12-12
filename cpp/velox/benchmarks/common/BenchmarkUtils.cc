@@ -44,7 +44,6 @@ gluten::Runtime* veloxRuntimeFactory(const std::unordered_map<std::string, std::
 } // namespace
 
 void initVeloxBackend(std::unordered_map<std::string, std::string>& conf) {
-  gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
   gluten::VeloxBackend::create(conf);
 }
 
