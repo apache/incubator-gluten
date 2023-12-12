@@ -139,9 +139,11 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   }
 
   uint32_t vlogLevel = veloxcfg->get<uint32_t>(kGlogVerboseLevel, kGlogVerboseLevelDefault);
-  uint32_t severityLogLevel = veloxcfg->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
   FLAGS_v = vlogLevel;
-  FLAGS_minloglevel = severityLogLevel;
+  if (!veloxcfg->get<bool>(kDebugModeEnabled, false)) {
+    uint32_t severityLogLevel = veloxcfg->get<uint32_t>(kGlogSeverityLevel, kGlogSeverityLevelDefault);
+    FLAGS_minloglevel = severityLogLevel;
+  }
   FLAGS_logtostderr = true;
   google::InitGoogleLogging("gluten");
 
