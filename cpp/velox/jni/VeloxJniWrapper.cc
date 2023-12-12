@@ -96,6 +96,7 @@ Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeValidateWithFailu
     try {
       auto jsonPlan = gluten::substraitFromPbToJson("Plan", planData, planSize);
       LOG(INFO) << std::string(50, '#') << " received substrait::Plan: for validation";
+      LOG(INFO) << jsonPlan;
     } catch (const std::exception& e) {
       LOG(WARNING) << "Error converting Substrait plan for validation to JSON: " << e.what();
     }
