@@ -72,4 +72,4 @@ RUN yum -y install sudo \
     && yum clean all
 RUN echo '%wheel ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-COPY env.sh /env.sh
+COPY scripts/env.sh /env.sh
