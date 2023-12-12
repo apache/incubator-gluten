@@ -694,4 +694,17 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       }
     }
   }
+
+  test("test explode function") {
+    runQueryAndCompare("""
+                         |SELECT explode(array(1, 2, 3));
+                         |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |SELECT explode(map(1, 'a', 2, 'b'));
+                         |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+  }
 }
