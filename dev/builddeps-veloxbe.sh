@@ -24,6 +24,7 @@ ENABLE_ABFS=OFF
 ENABLE_EP_CACHE=OFF
 ARROW_ENABLE_CUSTOM_CODEC=OFF
 ENABLE_VCPKG=OFF
+RUN_SETUP_SCRIPT=ON
 
 for arg in "$@"
 do
@@ -90,6 +91,10 @@ do
         ENABLE_VCPKG=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --run_setup_script=*)
+        RUN_SETUP_SCRIPT=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
 	      *)
         OTHER_ARGUMENTS+=("$1")
         shift # Remove generic argument from processing
@@ -106,8 +111,8 @@ fi
 ##install velox
 cd $GLUTEN_DIR/ep/build-velox/src
 ./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --enable_abfs=$ENABLE_ABFS
-./build_velox.sh --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS --enable_abfs=$ENABLE_ABFS \
-               --enable_ep_cache=$ENABLE_EP_CACHE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS
+./build_velox.sh --run_setup_script=$RUN_SETUP_SCRIPT --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
+                 --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp
