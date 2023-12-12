@@ -291,6 +291,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def abandonPartialAggregationMinRows: Option[Int] =
     conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
   def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
+
+  def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 }
 
 object GlutenConfig {
@@ -1339,6 +1341,13 @@ object GlutenConfig {
       .internal()
       .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
         + "For example `fron_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_COLUMNAR_PROJECT_COLLAPSE =
+    buildConf("spark.gluten.sql.columnar.project.collapse")
+      .internal()
+      .doc("Combines two columnar project operators into one and perform alias substitution")
       .booleanConf
       .createWithDefault(true)
 
