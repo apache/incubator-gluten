@@ -65,6 +65,9 @@
     <fasterxml.version>2.13.5</fasterxml.version>
     <junit.version>4.13.1</junit.version>
 
+    <!-- Package name to use when relocating shaded classes -->
+    <gluten.shade.packageName>io.glutenproject.shaded</gluten.shade.packageName>
+
     <substrait.version>0.5.0</substrait.version>
     <!-- The original protobuf version -->
     <protobuf.version>3.23.4</protobuf.version>
