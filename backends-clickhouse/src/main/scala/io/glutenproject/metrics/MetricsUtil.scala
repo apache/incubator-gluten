@@ -155,7 +155,7 @@ object MetricsUtil extends Logging {
       aggParamsMap.getOrDefault(operatorIdx, null))
     mutNode.updater.updateNativeMetrics(operatorMetrics)
 
-    var newOperatorIdx: java.lang.Long = operatorIdx - 1
+    var newOperatorIdx: JLong = operatorIdx - 1
 
     mutNode.children.foreach {
       child =>
@@ -183,7 +183,7 @@ object MetricsUtil extends Logging {
       })
   }
 
-  /** Update extral time metric by the processors */
+  /** Update extra time metric by the processors */
   def updateExtraTimeMetric(
       metricData: MetricsData,
       extraTime: SQLMetric,
