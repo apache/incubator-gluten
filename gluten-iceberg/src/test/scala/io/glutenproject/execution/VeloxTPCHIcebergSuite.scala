@@ -18,6 +18,8 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 
+import org.apache.iceberg.spark.SparkWriteOptions
+
 import java.io.File
 
 class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
@@ -86,30 +88,13 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
 
   test("iceberg partition table") {
     withTable("lineitem_p") {
-      spark.sql("""
-                  |CREATE TABLE lineitem_p (
-                  |  l_orderkey BIGINT,
-                  |  l_partkey BIGINT,
-                  |  l_suppkey BIGINT,
-                  |  l_linenumber INT,
-                  |  l_quantity DECIMAL(12,2),
-                  |  l_extendedprice DECIMAL(12,2),
-                  |  l_discount DECIMAL(12,2),
-                  |  l_tax DECIMAL(12,2),
-                  |  l_returnflag STRING,
-                  |  l_linestatus STRING,
-                  |  l_commitdate DATE,
-                  |  l_receiptdate DATE,
-                  |  l_shipinstruct STRING,
-                  |  l_shipmode STRING,
-                  |  l_comment STRING,
-                  |  l_shipdate DATE)
-                  |USING iceberg
-                  |PARTITIONED BY (l_shipdate);
-                  |""".stripMargin)
       val tablePath = new File(resourcePath, "lineitem").getAbsolutePath
       val tableDF = spark.read.format(fileFormat).load(tablePath)
-      tableDF.write.format("iceberg").mode("append").saveAsTable("lineitem_p")
+      tableDF.write
+        .format("iceberg")
+        .option(SparkWriteOptions.FANOUT_ENABLED, "true")
+        .mode("append")
+        .saveAsTable("lineitem_p")
       runQueryAndCompare("""
                            |SELECT
                            |  sum(l_extendedprice * l_discount) AS revenue
