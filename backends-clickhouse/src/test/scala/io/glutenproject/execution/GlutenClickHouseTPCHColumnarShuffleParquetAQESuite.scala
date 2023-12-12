@@ -349,7 +349,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
           |    l_returnflag,
           |    l_linestatus
           |""".stripMargin
-      runQueryAndCompare(sql, noFallBack = false) { df => }
+      runQueryAndCompare(sql) { df => }
     }
   }
 }
