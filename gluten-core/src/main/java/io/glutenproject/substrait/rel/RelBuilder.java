@@ -162,6 +162,16 @@ public class RelBuilder {
     return new JoinRelNode(left, right, joinType, expression, postJoinFilter, extensionNode);
   }
 
+  public static RelNode makeCrossRel(
+      RelNode left,
+      RelNode right,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new CrossRelNode(left, right, extensionNode);
+  }
+
   public static RelNode makeExpandRel(
       RelNode input,
       List<List<ExpressionNode>> projections,

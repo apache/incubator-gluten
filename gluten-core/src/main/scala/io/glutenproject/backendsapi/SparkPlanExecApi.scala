@@ -114,6 +114,12 @@ trait SparkPlanExecApi {
       right: SparkPlan,
       isNullAwareAntiJoin: Boolean = false): BroadcastHashJoinExecTransformer
 
+  /** Generate CartesianProductExecTransformer. */
+  def genCartesianProductExecTransformer(
+      left: SparkPlan,
+      right: SparkPlan,
+      condition: Option[Expression]): CartesianProductExecTransformer
+
   def genAliasTransformer(
       substraitExprName: String,
       child: ExpressionTransformer,

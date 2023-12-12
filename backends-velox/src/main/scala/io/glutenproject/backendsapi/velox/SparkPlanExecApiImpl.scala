@@ -223,6 +223,16 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       right,
       isNullAwareAntiJoin)
 
+  override def genCartesianProductExecTransformer(
+      left: SparkPlan,
+      right: SparkPlan,
+      condition: Option[Expression]): CartesianProductExecTransformer =
+    CartesianProductExecTransformer(
+      left,
+      right,
+      condition
+    )
+
   override def genHashExpressionTransformer(
       substraitExprName: String,
       exprs: Seq[ExpressionTransformer],
