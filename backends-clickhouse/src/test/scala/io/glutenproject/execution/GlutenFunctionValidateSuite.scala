@@ -277,6 +277,20 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     }
   }
 
+  test("Test get_json_object 10") {
+    runQueryAndCompare("SELECT get_json_object(string_field1, '$.12345') from json_test") { _ => }
+    runQueryAndCompare("SELECT get_json_object(string_field1, '$.123.abc') from json_test") { _ => }
+    runQueryAndCompare("SELECT get_json_object(string_field1, '$.123.123') from json_test") { _ => }
+    runQueryAndCompare("SELECT get_json_object(string_field1, '$.123abc.123') from json_test") {
+      _ =>
+    }
+    runQueryAndCompare("SELECT get_json_object(string_field1, '$.abc.123') from json_test") { _ => }
+    runQueryAndCompare("SELECT get_json_object(string_field1, '$.123[0]') from json_test") { _ => }
+    runQueryAndCompare("SELECT get_json_object(string_field1, '$.123[0].123') from json_test") {
+      _ =>
+    }
+  }
+
   test("Test covar_samp") {
     runQueryAndCompare("SELECT covar_samp(double_field1, int_field1) from json_test") { _ => }
   }
