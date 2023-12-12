@@ -83,6 +83,8 @@ function process_setup_ubuntu {
 
   # No need to re-install git.
   sed -i '/git \\/d' scripts/setup-ubuntu.sh
+  # Do not install libunwind which can cause interruption when catching native exception.
+  sed -i 's/sudo --preserve-env apt install -y libunwind-dev && //' scripts/setup-ubuntu.sh
   sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
   sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  *thrift* \\' scripts/setup-ubuntu.sh
