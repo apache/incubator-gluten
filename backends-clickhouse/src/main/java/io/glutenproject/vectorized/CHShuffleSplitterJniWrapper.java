@@ -32,6 +32,7 @@ public class CHShuffleSplitterJniWrapper {
       int subDirsPerLocalDir,
       boolean preferSpill,
       long spillThreshold,
+      long offHeapSize,
       String hashAlgorithm,
       boolean throwIfMemoryExceed,
       boolean flushBlockBufferBeforeEvict) {
@@ -49,6 +50,7 @@ public class CHShuffleSplitterJniWrapper {
         subDirsPerLocalDir,
         preferSpill,
         spillThreshold,
+        offHeapSize,
         hashAlgorithm,
         throwIfMemoryExceed,
         flushBlockBufferBeforeEvict);
@@ -61,6 +63,7 @@ public class CHShuffleSplitterJniWrapper {
       int bufferSize,
       String codec,
       long spillThreshold,
+      long offHeapSize,
       String hashAlgorithm,
       Object pusher,
       boolean throwIfMemoryExceed,
@@ -75,6 +78,7 @@ public class CHShuffleSplitterJniWrapper {
         bufferSize,
         codec,
         spillThreshold,
+        offHeapSize,
         hashAlgorithm,
         pusher,
         throwIfMemoryExceed,
@@ -95,6 +99,7 @@ public class CHShuffleSplitterJniWrapper {
       int subDirsPerLocalDir,
       boolean preferSpill,
       long spillThreshold,
+      long offHeapSize,
       String hashAlgorithm,
       boolean throwIfMemoryExceed,
       boolean flushBlockBufferBeforeEvict);
@@ -109,6 +114,7 @@ public class CHShuffleSplitterJniWrapper {
       int bufferSize,
       String codec,
       long spillThreshold,
+      long offHeapSize,
       String hashAlgorithm,
       Object pusher,
       boolean throwIfMemoryExceed,

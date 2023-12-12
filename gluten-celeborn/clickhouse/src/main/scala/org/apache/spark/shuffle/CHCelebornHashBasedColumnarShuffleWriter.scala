@@ -62,7 +62,11 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
       handleEmptyIterator()
       return
     }
-
+    val maxOffHeapMemory = if (CHBackendSettings.enableShuffleActiveSpill) {
+      GlutenConfig.getConf.offHeapMemorySize
+    } else {
+      0
+    }
     if (nativeShuffleWriter == -1L) {
       nativeShuffleWriter = jniWrapper.makeForRSS(
         dep.nativePartitioning,
@@ -71,6 +75,7 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
         nativeBufferSize,
         customizedCompressCodec,
         GlutenConfig.getConf.chColumnarShuffleSpillThreshold,
+        maxOffHeapMemory,
         CHBackendSettings.shuffleHashAlgorithm,
         celebornPartitionPusher,
         GlutenConfig.getConf.chColumnarThrowIfMemoryExceed,

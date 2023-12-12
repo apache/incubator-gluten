@@ -29,6 +29,9 @@ class PartitionWriter;
 class LocalPartitionWriter;
 class CelebornPartitionWriter;
 
+/// For CachedShuffleWriter, both `spark.gluten.sql.columnar.backend.ch.spillThreshold` and
+/// `spark.memory.offHeap.size` could control the evict action. In most cases, you don't need to
+/// set `spark.gluten.sql.columnar.backend.ch.spillThreshold`.
 class CachedShuffleWriter : public ShuffleWriterBase
 {
 public:

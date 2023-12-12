@@ -129,6 +129,13 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       ".runtime_config.max_source_concatenate_bytes"
   val GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT = -1
 
+  // Enable this, shuffle write will evict in memory data actively, not rely on the vanilla memory
+  // manager.
+  val GLUTEN_ENABLE_SHUFFLE_ACTIVE_SPILL: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
+      ".enable.shuffle.active.spill"
+  val GLUTEN_ENABLE_SHUFFLE_ACTIVE_SPILL_DEFAULT = true
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
@@ -270,6 +277,11 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   def maxShuffleReadBytes(): Long = {
     SparkEnv.get.conf
       .getLong(GLUTEN_MAX_SHUFFLE_READ_BYTES, GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT)
+  }
+
+  def enableShuffleActiveSpill(): Boolean = {
+    SparkEnv.get.conf
+      .getBoolean(GLUTEN_ENABLE_SHUFFLE_ACTIVE_SPILL, GLUTEN_ENABLE_SHUFFLE_ACTIVE_SPILL_DEFAULT)
   }
 
   override def supportWriteFilesExec(

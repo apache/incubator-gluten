@@ -24,6 +24,7 @@
 #include <Shuffle/CachedShuffleWriter.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/WriteBufferFromFile.h>
+#include <Common/CHUtil.h>
 #include <Common/Stopwatch.h>
 #include <Common/ThreadPool.h>
 #include <Common/CHUtil.h>
@@ -31,6 +32,10 @@
 #include <IO/WriteBufferFromString.h>
 #include <format>
 #include <Storages/IO/NativeWriter.h>
+
+#include <Poco/Logger.h>
+#include <Common/logger_useful.h>
+#include <Common/formatReadable.h>
 
 
 namespace DB
@@ -44,6 +49,32 @@ namespace ErrorCodes
 using namespace DB;
 namespace local_engine
 {
+
+/// JVM memory manager will trigger evict partitions when memory usage reaches limit.
+/// But we cannot rely on this, because once the memory usage reaches limit, the call of
+///  `java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_evict` even could fail to
+/// start and throws an stack overflow error.
+bool PartitionWriter::needEvictPartitions(size_t cached_bytes)
+{
+    const size_t reserved_memory = 30 * 1024 * 1024;
+    auto current_mem_used = MemoryUtil::getCurrentMemoryUsage();
+    size_t max_mem_limit
+        = options->max_offheap_size < reserved_memory ? options->max_offheap_size : options->max_offheap_size - reserved_memory;
+    auto need_evict = (options->spill_threshold > 0 && cached_bytes > options->spill_threshold)
+        || (max_mem_limit && current_mem_used > max_mem_limit);
+    if (need_evict)
+    {
+        LOG_INFO(
+            &Poco::Logger::get("PartitionWriter"),
+            "memory overflow. partitions: {}, cached_bytes: {}, current_mem_used: {}, spill threshold: {}, max_mem_limit: {}",
+            partition_block_buffer.size(),
+            ReadableSize(cached_bytes),
+            ReadableSize(current_mem_used),
+            ReadableSize(options->spill_threshold),
+            ReadableSize(options->max_offheap_size));
+    }
+    return need_evict;
+}
 
 void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & block)
 {
@@ -73,7 +104,7 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
         current_cached_bytes += block_buffer->bytes();
 
         /// Only works for celeborn partitiion writer
-        if (supportsEvictSinglePartition() && options->spill_threshold > 0 && current_cached_bytes >= options->spill_threshold)
+        if (supportsEvictSinglePartition() && needEvictPartitions(current_cached_bytes))
         {
             /// If flush_block_buffer_before_evict is disabled, evict partitions from (last_partition_id+1)%partition_num to partition_id directly without flush,
             /// Otherwise flush partition block buffer if it's size is no less than average rows, then evict partitions as above.
@@ -115,7 +146,7 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
     }
 
     /// Only works for local partition writer
-    if (!supportsEvictSinglePartition() && options->spill_threshold && current_cached_bytes >= options->spill_threshold)
+    if (!supportsEvictSinglePartition() && needEvictPartitions(current_cached_bytes))
     {
         unsafeEvictPartitions(false, options->flush_block_buffer_before_evict);
     }
@@ -289,7 +320,7 @@ PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
 {
     for (size_t partition_id = 0; partition_id < options->partition_num; ++partition_id)
     {
-        partition_block_buffer[partition_id] = std::make_shared<ColumnsBuffer>(options->split_size);
+        partition_block_buffer[partition_id] = std::make_shared<ColumnsBuffer>(options->max_offheap_size);
         partition_buffer[partition_id] = std::make_shared<Partition>();
     }
 }

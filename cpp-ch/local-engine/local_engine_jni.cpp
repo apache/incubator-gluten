@@ -638,6 +638,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jint num_sub_dirs,
     jboolean prefer_spill,
     jlong spill_threshold,
+    jlong max_offheap_size,
     jstring hash_algorithm,
     jboolean throw_if_memory_exceed,
     jboolean flush_block_buffer_before_evict)
@@ -682,6 +683,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
         .spill_threshold = static_cast<size_t>(spill_threshold),
+        .max_offheap_size = static_cast<size_t>(max_offheap_size),
         .hash_algorithm = jstring2string(env, hash_algorithm),
         .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed),
         .flush_block_buffer_before_evict = static_cast<bool>(flush_block_buffer_before_evict)};
@@ -707,6 +709,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     jint split_size,
     jstring codec,
     jlong spill_threshold,
+    jlong max_offheap_size,
     jstring hash_algorithm,
     jobject pusher,
     jboolean throw_if_memory_exceed,
@@ -743,6 +746,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
         .out_exprs = out_exprs,
         .compress_method = jstring2string(env, codec),
         .spill_threshold = static_cast<size_t>(spill_threshold),
+        .max_offheap_size = static_cast<size_t>(max_offheap_size),
         .hash_algorithm = jstring2string(env, hash_algorithm),
         .throw_if_memory_exceed = static_cast<bool>(throw_if_memory_exceed),
         .flush_block_buffer_before_evict = static_cast<bool>(flush_block_buffer_before_evict)};

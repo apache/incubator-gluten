@@ -59,6 +59,7 @@ class CHColumnarShuffleWriter[K, V](
   private val flushBlockBufferBeforeEvict =
     GlutenConfig.getConf.chColumnarFlushBlockBufferBeforeEvict
   private val spillThreshold = GlutenConfig.getConf.chColumnarShuffleSpillThreshold
+  private val offHeapSize = GlutenConfig.getConf.offHeapMemorySize
   private val jniWrapper = new CHShuffleSplitterJniWrapper
   // Are we in the process of stopping? Because map tasks can call stop() with success = true
   // and then call stop() with success = false if they get an exception, we want to make sure
@@ -106,6 +107,7 @@ class CHColumnarShuffleWriter[K, V](
         subDirsPerLocalDir,
         preferSpill,
         spillThreshold,
+        offHeapSize,
         CHBackendSettings.shuffleHashAlgorithm,
         throwIfMemoryExceed,
         flushBlockBufferBeforeEvict

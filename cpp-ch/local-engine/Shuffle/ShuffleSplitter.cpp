@@ -28,6 +28,7 @@
 #include <Parser/SerializedPlanParser.h>
 #include <boost/algorithm/string/case_conv.hpp>
 #include <Poco/StringTokenizer.h>
+#include <Common/CHUtil.h>
 #include <Common/Stopwatch.h>
 #include <Common/DebugUtils.h>
 
@@ -271,7 +272,8 @@ void ColumnsBuffer::add(DB::Block & block, int start, int end)
         for (size_t i = 0; i < block.columns(); i++)
         {
             auto column = block.getColumns()[i]->cloneEmpty();
-            column->reserve(prefer_buffer_size);
+            if (prefer_buffer_size && MemoryUtil::getCurrentMemoryUsage() < max_offheap_size)
+                column->reserve(prefer_buffer_size);
             accumulated_columns.emplace_back(std::move(column));
         }
     }
@@ -302,7 +304,8 @@ void ColumnsBuffer::appendSelective(
         for (size_t i = 0; i < source.columns(); i++)
         {
             auto column = source.getColumns()[i]->convertToFullColumnIfConst()->cloneEmpty();
-            column->reserve(prefer_buffer_size);
+            if (prefer_buffer_size && MemoryUtil::getCurrentMemoryUsage() < max_offheap_size)
+                column->reserve(prefer_buffer_size);
             accumulated_columns.emplace_back(std::move(column));
         }
     }
@@ -331,6 +334,10 @@ bool ColumnsBuffer::empty() const
 DB::Block ColumnsBuffer::releaseColumns()
 {
     DB::Columns columns(std::make_move_iterator(accumulated_columns.begin()), std::make_move_iterator(accumulated_columns.end()));
+    /// Adjust reserve size dynamicly.
+    if (!columns.empty())
+        prefer_buffer_size = PODArrayUtil::adjustMemoryEfficientSize(columns[0]->size());
+
     accumulated_columns.clear();
 
     if (columns.empty())
@@ -344,7 +351,7 @@ DB::Block ColumnsBuffer::getHeader()
     return header;
 }
 
-ColumnsBuffer::ColumnsBuffer(size_t prefer_buffer_size_) : prefer_buffer_size(prefer_buffer_size_)
+ColumnsBuffer::ColumnsBuffer(size_t max_offheap_size_) : max_offheap_size(max_offheap_size_)
 {
 }
 

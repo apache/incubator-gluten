@@ -55,6 +55,7 @@
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/BitHelpers.h>
+#include <Common/CurrentThread.h>
 #include <Common/Config/ConfigProcessor.h>
 #include <Common/CurrentThread.h>
 #include <Common/GlutenSignalHandler.h>
@@ -305,7 +306,10 @@ size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
     }
     else
     {
-        padded_n = rounded_n - padding_n;    
+        if (rounded_n < padding_n)
+            padded_n = rounded_n;
+        else
+            padded_n = rounded_n - padding_n;
     }
     return padded_n;
 }
@@ -876,5 +880,4 @@ UInt64 MemoryUtil::getMemoryRSS()
     fclose(fp);
     return rss * sysconf(_SC_PAGESIZE);
 }
-
 }

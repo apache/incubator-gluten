@@ -46,6 +46,7 @@ struct SplitOptions
     std::string compress_method = "zstd";
     int compress_level;
     size_t spill_threshold = 300 * 1024 * 1024;
+    size_t max_offheap_size = 0;
     std::string hash_algorithm;
     bool throw_if_memory_exceed = true;
     /// Whether to flush partition_block_buffer in PartitionWriter before evict.
@@ -55,7 +56,7 @@ struct SplitOptions
 class ColumnsBuffer
 {
 public:
-    ColumnsBuffer(size_t prefer_buffer_size = 8192);
+    ColumnsBuffer(size_t max_offheap_size_ = 0);
     ~ColumnsBuffer() = default;
 
     void add(DB::Block & columns, int start, int end);
@@ -78,7 +79,8 @@ public:
 private:
     DB::MutableColumns accumulated_columns;
     DB::Block header;
-    size_t prefer_buffer_size;
+    size_t prefer_buffer_size = 0;
+    size_t max_offheap_size = 0;
 };
 using ColumnsBufferPtr = std::shared_ptr<ColumnsBuffer>;
 

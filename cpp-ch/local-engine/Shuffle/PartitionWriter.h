@@ -95,6 +95,8 @@ protected:
 
     /// Only valid in celeborn partition writer
     size_t last_partition_id;
+
+    bool needEvictPartitions(size_t cached_bytes);
 };
 
 class LocalPartitionWriter : public PartitionWriter
