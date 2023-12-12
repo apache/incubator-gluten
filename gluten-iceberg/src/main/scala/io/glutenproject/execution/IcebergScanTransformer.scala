@@ -61,11 +61,13 @@ class IcebergScanTransformer(
 }
 
 object IcebergScanTransformer {
-  def apply(batchScan: BatchScanExec, partitionFilters: Seq[Expression]): IcebergScanTransformer = {
+  def apply(
+      batchScan: BatchScanExec,
+      newPartitionFilters: Seq[Expression]): IcebergScanTransformer = {
     new IcebergScanTransformer(
       batchScan.output,
       batchScan.scan,
-      partitionFilters,
+      newPartitionFilters,
       table = SparkShimLoader.getSparkShims.getBatchScanExecTable(batchScan))
   }
 }

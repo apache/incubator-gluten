@@ -163,7 +163,6 @@ class FileSourceScanExecTransformer(
       case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
       case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
       case "CSVFileFormat" => ReadFileFormat.TextReadFormat
-      case "DeltaParquetFileFormat" => ReadFileFormat.ParquetReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
 

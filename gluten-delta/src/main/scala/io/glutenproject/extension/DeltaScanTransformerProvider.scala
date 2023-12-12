@@ -14,18 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.execution
+package io.glutenproject.extension
+
+import io.glutenproject.execution.{DataSourceScanTransformerRegister, FileSourceScanExecTransformer}
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.FileSourceScanExec
 
-class IcebergTransformerProvider extends DataSourceScanTransformerRegister {
+class DeltaScanTransformerProvider extends DataSourceScanTransformerRegister {
 
-  override val scanClassName: String = "org.apache.iceberg.spark.source.SparkBatchQueryScan"
+  override val scanClassName: String = "org.apache.spark.sql.delta.files.TahoeLogFileIndex"
 
-  override def createDataSourceV2Transformer(
-      batchScan: BatchScanExec,
-      newPartitionFilters: Seq[Expression]): BatchScanExecTransformer = {
-    IcebergScanTransformer(batchScan, newPartitionFilters)
+  override def createDataSourceTransformer(
+      batchScan: FileSourceScanExec,
+      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformer = {
+    DeltaScanTransformer(batchScan, newPartitionFilters)
   }
 }
