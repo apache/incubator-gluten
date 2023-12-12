@@ -2217,7 +2217,8 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       runQueryAndCompare(
         "select trunc(l_shipdate, 'MM'), trunc(l_shipdate, 'YEAR'), trunc(l_shipdate, 'WEEK'), " +
           "trunc(l_shipdate, 'QUARTER') from lineitem"
-      }
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
   }
 
   test("GLUTEN-3934: log10/log2/ln") {
