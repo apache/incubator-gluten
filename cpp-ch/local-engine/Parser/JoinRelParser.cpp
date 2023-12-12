@@ -397,7 +397,7 @@ bool JoinRelParser::tryAddPushDownFilter(
             }
         }
     }
-    // if ch not support the join type or join conditions, it will throw an exception like 'not support'.
+    // if ch does not support the join type or join conditions, it will throw an exception like 'not support'.
     catch (Poco::Exception & e)
     {
         // CH not support join condition has 'or' and has different table in each side.
