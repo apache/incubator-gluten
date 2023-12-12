@@ -116,7 +116,7 @@ class Spark34Shims extends SparkShims {
         f =>
           BucketingUtils
             .getBucketId(f.toPath.getName)
-            .getOrElse(throw invalidBucketFile(f.toPath.getName))
+            .getOrElse(throw invalidBucketFile(f.urlEncodedPath))
       }
   }
 
@@ -148,10 +148,11 @@ class Spark34Shims extends SparkShims {
     }
   }
 
+  //https://issues.apache.org/jira/browse/SPARK-40400
   private def invalidBucketFile(path: String): Throwable = {
     new SparkException(
       errorClass = "INVALID_BUCKET_FILE",
-      messageParameters = Map("error" -> path),
+      messageParameters = Map("path" -> path),
       cause = null)
   }
 }

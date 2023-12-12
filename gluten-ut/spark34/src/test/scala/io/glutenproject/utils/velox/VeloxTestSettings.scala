@@ -183,7 +183,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .includeByPrefix(
       "gluten",
       "SPARK-29906",
-//      "SPARK-30291",
+      "SPARK-30291",
       "SPARK-30403",
       "SPARK-30719",
       "SPARK-31384",
@@ -196,7 +196,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-35585",
       "SPARK-32932",
       "SPARK-33494",
-//      "SPARK-33933",
+      "SPARK-33933",
       "SPARK-31220",
       "SPARK-35874",
       "SPARK-39551"
