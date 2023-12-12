@@ -114,7 +114,6 @@ class VeloxTestSettings extends BackendTestSettings {
       "INCONSISTENT_BEHAVIOR_CROSS_VERSION: compatibility with Spark 2.4/3.2 in reading/writing dates")
     .exclude("FAILED_EXECUTE_UDF: execute user defined function")
     .exclude("UNRECOGNIZED_SQL_TYPE: unrecognized SQL type -100")
-    .exclude("INVALID_BUCKET_FILE: error if there exists any malformed bucket files")
     .excludeByPrefix("SCALAR_SUBQUERY_TOO_MANY_ROWS:")
     .excludeByPrefix("UNSUPPORTED_FEATURE.MULTI_ACTION_ALTER:")
   enableSuite[GlutenQueryParsingErrorsSuite]
@@ -987,7 +986,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenCTEHintSuite]
-    .exclude("Resolve join hint in CTE")
   enableSuite[GlutenCTEInlineSuiteAEOff]
   enableSuite[GlutenCTEInlineSuiteAEOn]
   enableSuite[GlutenDataFrameAggregateSuite]
