@@ -16,13 +16,10 @@
 
 set -ex
 
-BASEDIR=$(dirname $0)
+TARGET_GLUTEN_REPO=$1
+TARGET_GLUTEN_COMMIT=$2
 
-EXTRA_MAVEN_OPTIONS="-Pspark-3.2 \
-                     -Pbackends-velox \
-                     -Prss \
-                     -DskipTests \
-                     -Dscalastyle.skip=true \
-                     -Dcheckstyle.skip=true"
+cd /opt/gluten
 
-$BASEDIR/../../cbash-mount.sh "cd /opt/gluten && dev/builddeps-veloxbe.sh && mvn clean install $EXTRA_MAVEN_OPTIONS"
+git fetch $TARGET_GLUTEN_REPO $TARGET_GLUTEN_COMMIT:build_$TARGET_GLUTEN_COMMIT
+git checkout build_$TARGET_GLUTEN_COMMIT

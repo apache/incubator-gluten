@@ -393,7 +393,7 @@ jobs:
           MOUNT_MAVEN_CACHE=OFF \
           OS_IMAGE=centos:7 \
           OS_VERSION=7 \
-          tools/gluten-te/centos/cbash.sh sleep 14400
+          tools/gluten-te/centos/cbash-mount.sh sleep 14400
       - name: Build Gluten velox third party
         run: |
           docker exec centos7-test-$GITHUB_RUN_ID bash -c '
