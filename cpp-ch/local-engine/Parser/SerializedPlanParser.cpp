@@ -49,6 +49,7 @@
 #include <Interpreters/ActionsVisitor.h>
 #include <Interpreters/CollectJoinOnKeysVisitor.h>
 #include <Interpreters/Context.h>
+#include <Interpreters/PreparedSets.h>
 #include <Interpreters/ProcessList.h>
 #include <Interpreters/QueryPriorities.h>
 #include <Join/StorageJoinFromReadBuffer.h>
@@ -1883,7 +1884,7 @@ ActionsDAGPtr ASTParser::convertToActions(const NamesAndTypesList & name_and_typ
         size_t(0),
         name_and_types,
         std::make_shared<ActionsDAG>(name_and_types),
-        nullptr /* prepared_sets */,
+        std::make_shared<PreparedSets>(),
         false /* no_subqueries */,
         false /* no_makeset */,
         false /* only_consts */,
@@ -1895,6 +1896,8 @@ ActionsDAGPtr ASTParser::convertToActions(const NamesAndTypesList & name_and_typ
 ASTPtr ASTParser::parseToAST(const Names & names, const substrait::Expression & rel)
 {
     LOG_DEBUG(&Poco::Logger::get("ASTParser"), "substrait plan:\n{}", rel.DebugString());
+    if (rel.has_singular_or_list())
+        return parseArgumentToAST(names, rel);
     if (!rel.has_scalar_function())
         throw Exception(ErrorCodes::BAD_ARGUMENTS, "the root of expression should be a scalar function:\n {}", rel.DebugString());
 
@@ -2000,7 +2003,8 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
 
             bool nullable = false;
             size_t options_len = options.size();
-            args.reserve(options_len);
+            ASTs in_args;
+            in_args.reserve(options_len);
 
             for (int i = 0; i < static_cast<int>(options_len); ++i)
             {
@@ -2023,8 +2027,10 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
                         elem_type->getName(),
                         option_type->getName());
 
-                args.emplace_back(std::make_shared<ASTLiteral>(type_and_field.second));
+                in_args.emplace_back(std::make_shared<ASTLiteral>(type_and_field.second));
             }
+            auto array_ast = makeASTFunction("array", in_args);
+            args.emplace_back(array_ast);
 
             auto ast = makeASTFunction("in", args);
             if (nullable)
