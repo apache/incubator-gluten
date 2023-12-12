@@ -75,8 +75,16 @@ for arg in "$@"; do
 done
 
 function process_setup_ubuntu {
-  # make this function Reentrantly
+  if [ -z "$(which git)" ]; then
+    sudo --preserve-env apt install -y git
+  fi
+  # make this function Reentrant
   git checkout scripts/setup-ubuntu.sh
+
+  # No need to re-install git.
+  sed -i '/git \\/d' scripts/setup-ubuntu.sh
+  # Do not install libunwind which can cause interruption when catching native exception.
+  sed -i 's/sudo --preserve-env apt install -y libunwind-dev && //' scripts/setup-ubuntu.sh
   sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
   sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  *thrift* \\' scripts/setup-ubuntu.sh
@@ -113,8 +121,15 @@ function process_setup_ubuntu {
 }
 
 function process_setup_centos8 {
-  # make this function Reentrantly
+  # Allows other version of git already installed.
+  if [ -z "$(which git)" ]; then
+    dnf install -y -q --setopt=install_weak_deps=False git
+  fi
+  # make this function Reentrant
   git checkout scripts/setup-centos8.sh
+
+  # # No need to re-install git.
+  sed -i 's/dnf_install ninja-build ccache gcc-toolset-9 git/dnf_install ninja-build ccache gcc-toolset-9/' scripts/setup-centos8.sh
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos8.sh
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
   sed -i '/^function cmake_install_deps.*/i FB_OS_VERSION=v2022.11.14.00\n function install_folly {\n  github_checkout facebook/folly "${FB_OS_VERSION}"\n  cmake_install -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON\n}\n'     scripts/setup-centos8.sh
@@ -144,19 +159,21 @@ function process_setup_centos8 {
 }
 
 function process_setup_centos7 {
-  # make this function Reentrantly
+  # Allows other version of git already installed.
+  if [ -z "$(which git)" ]; then
+    dnf install -y -q --setopt=install_weak_deps=False git
+  fi
+  # make this function Reentrant
   git checkout scripts/setup-centos7.sh
 
+  # No need to re-install git.
+  sed -i 's/dnf_install ccache git/dnf_install ccache/' scripts/setup-centos7.sh
   # cmake 3 and ninja should be installed
   sed -i '/^run_and_time install_cmake/d' scripts/setup-centos7.sh
   sed -i '/^run_and_time install_ninja/d' scripts/setup-centos7.sh
 
   # install gtest
   sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
-  # Don't force to install git.
-  sed -i 's/dnf_install ccache git/dnf_install ccache/' scripts/setup-centos7.sh
-  # Install git with --skip-broken to accept other version of git already installed.
-  sed -i '/^$SUDO dnf remove -y gflags/a \\dnf install -y -q --setopt=install_weak_deps=False --skip-broken git' scripts/setup-centos7.sh
 
   if [ $ENABLE_HDFS = "ON" ]; then
     sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh

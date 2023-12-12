@@ -90,7 +90,7 @@ function compile {
     elif [ $OS == 'Darwin' ]; then
       setup_macos
     else
-      echo "Unsupport kernel: $OS"
+      echo "Unsupported kernel: $OS"
       exit 1
     fi
   fi
@@ -126,7 +126,7 @@ function compile {
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
     CPU_TARGET=$ARCH make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   else
-    echo "Unsupport arch: $ARCH"
+    echo "Unsupported arch: $ARCH"
     exit 1
   fi
 
@@ -208,7 +208,7 @@ function setup_linux {
       set -u
       ;;
     *)
-      echo "Unsupport centos version: $LINUX_VERSION_ID"
+      echo "Unsupported centos version: $LINUX_VERSION_ID"
       exit 1
       ;;
     esac
@@ -223,7 +223,7 @@ function setup_linux {
       ;;
     3) scripts/setup-centos8.sh ;;
     *)
-      echo "Unsupport alinux version: $LINUX_VERSION_ID"
+      echo "Unsupported alinux version: $LINUX_VERSION_ID"
       exit 1
       ;;
     esac
@@ -231,12 +231,12 @@ function setup_linux {
     case "$LINUX_VERSION_ID" in
     3.2) scripts/setup-centos8.sh ;;
     *)
-      echo "Unsupport tencentos version: $LINUX_VERSION_ID"
+      echo "Unsupported tencentos version: $LINUX_VERSION_ID"
       exit 1
       ;;
     esac
   else
-    echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
+    echo "Unsupported linux distribution: $LINUX_DISTRIBUTION"
     exit 1
   fi
 }
