@@ -103,6 +103,7 @@ class LocalPartitionWriter : public PartitionWriter {
   bool stopped_{false};
   std::shared_ptr<arrow::fs::LocalFileSystem> fs_{nullptr};
   std::shared_ptr<LocalEvictor> evictor_{nullptr};
+  std::shared_ptr<LocalEvictor> partitionBufferEvictor_{nullptr};
   std::vector<std::shared_ptr<SpillInfo>> spills_{};
 
   // configured local dirs for spilled file
