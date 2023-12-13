@@ -77,33 +77,33 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
 
   test("delta: time travel") {
     spark.sql(s"""
-                 |create table delta_cm1 (id int, name string) using delta
+                 |create table delta_tm (id int, name string) using delta
                  |""".stripMargin)
     spark.sql(s"""
-                 |insert into delta_cm1 values (1, "v1"), (2, "v2")
+                 |insert into delta_tm values (1, "v1"), (2, "v2")
                  |""".stripMargin)
     spark.sql(s"""
-                 |insert into delta_cm1 values (3, "v3"), (4, "v4")
+                 |insert into delta_tm values (3, "v3"), (4, "v4")
                  |""".stripMargin)
-    val df1 = runQueryAndCompare("select * from delta_cm1 VERSION AS OF 1") { _ => }
+    val df1 = runQueryAndCompare("select * from delta_tm VERSION AS OF 1") { _ => }
     checkLengthAndPlan(df1, 2)
     checkAnswer(df1, Row(1, "v1") :: Row(2, "v2") :: Nil)
-    val df2 = runQueryAndCompare("select * from delta_cm1 VERSION AS OF 2") { _ => }
+    val df2 = runQueryAndCompare("select * from delta_tm VERSION AS OF 2") { _ => }
     checkLengthAndPlan(df2, 4)
     checkAnswer(df2, Row(1, "v1") :: Row(2, "v2") :: Row(3, "v3") :: Row(4, "v4") :: Nil)
-    val df3 = runQueryAndCompare("select name from delta_cm1 VERSION AS OF 2 where id = 2") { _ => }
+    val df3 = runQueryAndCompare("select name from delta_tm VERSION AS OF 2 where id = 2") { _ => }
     checkLengthAndPlan(df3, 1)
     checkAnswer(df3, Row("v2") :: Nil)
   }
 
   test("delta: partition filters") {
     spark.sql(s"""
-                 |create table delta_cm1 (id int, name string) using delta partitioned by (name)
+                 |create table delta_pf (id int, name string) using delta partitioned by (name)
                  |""".stripMargin)
     spark.sql(s"""
-                 |insert into delta_cm1 values (1, "v1"), (2, "v2"), (3, "v1"), (4, "v2")
+                 |insert into delta_pf values (1, "v1"), (2, "v2"), (3, "v1"), (4, "v2")
                  |""".stripMargin)
-    val df1 = runQueryAndCompare("select * from delta_cm1 where name = 'v1'") { _ => }
+    val df1 = runQueryAndCompare("select * from delta_pf where name = 'v1'") { _ => }
     val deltaScanTransformer = df1.queryExecution.executedPlan.collect {
       case f: FileSourceScanExecTransformer => f
     }.head
