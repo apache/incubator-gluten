@@ -123,7 +123,7 @@ object ConverterUtils extends Logging {
   // TODO: This is used only by `BasicScanExecTransformer`,
   //  perhaps we can remove this in the future and use `withExprId` version consistently.
   def collectAttributeNamesWithoutExprId(attributes: Seq[Attribute]): JList[String] = {
-    collectAttributeNamesDFS(attributes)(genColumnNameWithoutExprId)
+    collectAttributeNamesDFS(attributes)(attr => normalizeColName(attr.name))
   }
 
   private def collectAttributeNamesDFS(attributes: Seq[Attribute])(

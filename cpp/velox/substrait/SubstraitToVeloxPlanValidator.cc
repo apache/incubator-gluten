@@ -50,27 +50,6 @@ static const std::unordered_set<std::string> kBlackList = {
     "arrays_overlap",
     "approx_percentile"};
 
-bool validateColNames(const ::substrait::NamedStruct& schema) {
-  // Keeps the same logic with 'Tokenizer::isUnquotedPathCharacter' at
-  // https://github.com/oap-project/velox/blob/update/velox/type/Tokenizer.cpp#L154-L157.
-  auto isUnquotedPathCharacter = [](char c) {
-    return c == ':' || c == '$' || c == '-' || c == '/' || c == '@' || c == '|' || c == '#' || c == '.' || c == '-' ||
-        c == '_' || isalnum(c);
-  };
-
-  for (const auto& name : schema.names()) {
-    for (auto i = 0; i < name.size(); i++) {
-      auto c = name[i];
-      if (!isUnquotedPathCharacter(c)) {
-        std::cout << "native validation failed due to: Illegal column charactor " << c << "in column " << name
-                  << std::endl;
-        return false;
-      }
-    }
-  }
-  return true;
-}
-
 } // namespace
 
 bool SubstraitToVeloxPlanValidator::validateInputTypes(
@@ -1160,13 +1139,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
     }
   }
 
-  if (readRel.has_base_schema()) {
-    const auto& baseSchema = readRel.base_schema();
-    if (!validateColNames(baseSchema)) {
-      logValidateMsg("native validation failed due to: Validation failed for column name contains illegal charactor.");
-      return false;
-    }
-  }
   return true;
 }
 
