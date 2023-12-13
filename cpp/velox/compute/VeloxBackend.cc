@@ -125,7 +125,6 @@ const std::string kLoadQuantum = "spark.gluten.sql.columnar.backend.velox.loadQu
 const std::string kMaxCoalescedDistanceBytes = "spark.gluten.sql.columnar.backend.velox.maxCoalescedDistanceBytes";
 const std::string kMaxCoalescedBytes = "spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes";
 
-
 } // namespace
 
 namespace gluten {
@@ -339,18 +338,22 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
       velox::connector::hive::HiveConfig::kEnableFileHandleCache,
       conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
 
-  mutableConf->setValue(velox::connector::hive::HiveConfig::kMaxCoalescedBytes, 
+  mutableConf->setValue(
+      velox::connector::hive::HiveConfig::kMaxCoalescedBytes,
       conf->get<std::string>(kMaxCoalescedBytes, "67108864")); // 64M
-  mutableConf->setValue(velox::connector::hive::HiveConfig::kMaxCoalescedDistanceBytes, 
+  mutableConf->setValue(
+      velox::connector::hive::HiveConfig::kMaxCoalescedDistanceBytes,
       conf->get<std::string>(kMaxCoalescedDistanceBytes, "1048576")); // 1M
-  mutableConf->setValue(velox::connector::hive::HiveConfig::kPrefetchRowGroups, conf->get<std::string>(kPrefetchRowGroups, "1"));
-  mutableConf->setValue(velox::connector::hive::HiveConfig::kLoadQuantum, 
-      conf->get<std::string>(kLoadQuantum, "268435456")); // 256M
-  mutableConf->setValue(velox::connector::hive::HiveConfig::kDirectorySizeGuess, 
+  mutableConf->setValue(
+      velox::connector::hive::HiveConfig::kPrefetchRowGroups, conf->get<std::string>(kPrefetchRowGroups, "1"));
+  mutableConf->setValue(
+      velox::connector::hive::HiveConfig::kLoadQuantum, conf->get<std::string>(kLoadQuantum, "268435456")); // 256M
+  mutableConf->setValue(
+      velox::connector::hive::HiveConfig::kDirectorySizeGuess,
       conf->get<std::string>(kDirectorySizeGuess, "32768")); // 32K
-  mutableConf->setValue(velox::connector::hive::HiveConfig::kFilePreloadThreshold, 
+  mutableConf->setValue(
+      velox::connector::hive::HiveConfig::kFilePreloadThreshold,
       conf->get<std::string>(kFilePreloadThreshold, "1048576")); // 1M
-
 
   // set cache_prefetch_min_pct = 0 to force all loads are prefetched in DirectBufferInput.
   FLAGS_cache_prefetch_min_pct = 0;
