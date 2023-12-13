@@ -103,8 +103,15 @@ class CacheEvictor final : public LocalPartitionWriter::LocalEvictor {
     ScopedTimer timer(evictTime_);
     auto payloads = std::move(partitionCachedPayload_[partitionId]);
     partitionCachedPayload_.erase(partitionId);
+    int32_t numPayloads = 0;
+
+    ARROW_ASSIGN_OR_RAISE(auto startInFinalFile, os->Tell());
     for (auto& payload : payloads) {
       RETURN_NOT_OK(payload->serialize(os));
+      ARROW_ASSIGN_OR_RAISE(auto spillPos, os->Tell());
+      DEBUG_OUT << "Partition " << partitionId << " cached payload " << numPayloads++ << " of bytes "
+                << spillPos - startInFinalFile << std::endl;
+      startInFinalFile = spillPos;
     }
     return arrow::Status::OK();
   }
@@ -198,7 +205,6 @@ arrow::Status LocalPartitionWriter::clearResource() {
   // When buffered_write = true, dataFileOs_->Close doesn't release underlying buffer.
   dataFileOs_.reset();
   spills_.clear();
-  cachedPartitionBuffers_.clear();
   return arrow::Status::OK();
 }
 
@@ -252,34 +258,19 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
   writeTimer.start();
 
   int64_t endInFinalFile = 0;
-  auto cachedPartitionBuffersIter = cachedPartitionBuffers_.begin();
   // Iterator over pid.
   for (auto pid = 0; pid < numPartitions_; ++pid) {
     // Record start offset.
     auto startInFinalFile = endInFinalFile;
     // Iterator over all spilled files.
     RETURN_NOT_OK(mergeSpills(pid));
+#ifdef GLUTEN_PRINT_DEBUG
+    ARROW_ASSIGN_OR_RAISE(auto spillPos, dataFileOs_->Tell());
+    DEBUG_OUT << "Partition " << pid << " spilled from file of bytes " << spillPos - startInFinalFile << std::endl;
+#endif
     // Write cached batches.
     if (evictor_) {
       RETURN_NOT_OK(evictor_->flushCachedPayloads(pid, dataFileOs_.get()));
-    }
-    // Compress and write the last payload.
-    // Stop the timer to prevent counting the compression time into write time.
-    if (cachedPartitionBuffersIter != cachedPartitionBuffers_.end() &&
-        std::get<0>(*cachedPartitionBuffersIter) == pid) {
-      writeTimer.stop();
-      ARROW_ASSIGN_OR_RAISE(
-          auto payload,
-          BlockPayload::fromBuffers(
-              std::get<1>(*cachedPartitionBuffersIter),
-              std::move(std::get<2>(*cachedPartitionBuffersIter)),
-              options_,
-              payloadPool_.get(),
-              codec_ ? codec_.get() : nullptr,
-              false));
-      writeTimer.start();
-      RETURN_NOT_OK(payload->serialize(dataFileOs_.get()));
-      cachedPartitionBuffersIter++;
     }
     ARROW_ASSIGN_OR_RAISE(endInFinalFile, dataFileOs_->Tell());
     if (endInFinalFile != startInFinalFile && options_->write_eos) {
@@ -302,10 +293,6 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
     }
     RETURN_NOT_OK(fs_->DeleteFile(spill->spilledFile));
   }
-  // Check if all partition buffers are merged.
-  ARROW_RETURN_IF(
-      cachedPartitionBuffersIter != cachedPartitionBuffers_.end(),
-      arrow::Status::Invalid("Not all partition buffers are merged."));
 
   writeTimer.stop();
   writeTime_ = writeTimer.realTimeUsed();
@@ -352,21 +339,21 @@ arrow::Status LocalPartitionWriter::evict(
     bool reuseBuffers,
     Evictor::Type evictType) {
   rawPartitionLengths_[partitionId] += getBufferSize(buffers);
-  if (evictType == Evictor::Type::kStop) {
-    cachedPartitionBuffers_.emplace_back(partitionId, numRows, std::move(buffers));
-  } else {
-    ARROW_ASSIGN_OR_RAISE(
-        auto payload,
-        BlockPayload::fromBuffers(
-            numRows,
-            std::move(buffers),
-            options_,
-            payloadPool_.get(),
-            (codec_ && evictType == Evictor::kCache) ? codec_.get() : nullptr,
-            reuseBuffers));
-    RETURN_NOT_OK(requestEvict(evictType));
-    RETURN_NOT_OK(evictor_->evict(partitionId, std::move(payload)));
+  auto payloadType = (codec_ && evictType != Evictor::kFlush && numRows >= options_->compression_threshold)
+      ? BlockPayload::Type::kCompressed
+      : BlockPayload::Type::kUncompressed;
+  if (evictType == Evictor::kStop) {
+    evictType = Evictor::kCache;
+    if (payloadType == BlockPayload::Type::kCompressed) {
+      payloadType = BlockPayload::Type::kToBeCompressed;
+    }
   }
+  ARROW_ASSIGN_OR_RAISE(
+      auto payload,
+      BlockPayload::fromBuffers(
+          payloadType, numRows, std::move(buffers), payloadPool_.get(), codec_ ? codec_.get() : nullptr, reuseBuffers));
+  RETURN_NOT_OK(requestEvict(evictType));
+  RETURN_NOT_OK(evictor_->evict(partitionId, std::move(payload)));
   return arrow::Status::OK();
 }
 
@@ -380,22 +367,4 @@ arrow::Status LocalPartitionWriter::populateMetrics(ShuffleWriterMetrics* metric
   metrics->rawPartitionLengths = std::move(rawPartitionLengths_);
   return arrow::Status::OK();
 }
-
-arrow::Status LocalPartitionWriter::evictFixedSize(int64_t size, int64_t* actual) {
-  auto beforeShrink = options_->memory_pool->bytes_allocated();
-  for (auto& item : cachedPartitionBuffers_) {
-    auto& buffers = std::get<2>(item);
-    for (auto& buffer : buffers) {
-      if (!buffer) {
-        continue;
-      }
-      if (auto parent = std::dynamic_pointer_cast<arrow::ResizableBuffer>(buffer->parent())) {
-        RETURN_NOT_OK(parent->Resize(buffer->size()));
-      }
-    }
-  }
-  *actual = beforeShrink - options_->memory_pool->bytes_allocated();
-  return arrow::Status::OK();
-}
-
 } // namespace gluten

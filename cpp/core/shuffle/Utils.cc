@@ -332,3 +332,8 @@ arrow::Status gluten::writeEos(arrow::io::OutputStream* os, int64_t* bytes) {
   *bytes = kSizeOfEos;
   return arrow::Status::OK();
 }
+
+std::shared_ptr<arrow::Buffer> gluten::zeroLengthNullBuffer() {
+  static std::shared_ptr<arrow::Buffer> kNullBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
+  return kNullBuffer;
+}

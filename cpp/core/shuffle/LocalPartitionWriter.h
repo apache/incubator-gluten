@@ -80,8 +80,6 @@ class LocalPartitionWriter : public PartitionWriter {
   /// it will shrink partition buffers to free more memory.
   arrow::Status stop(ShuffleWriterMetrics* metrics) override;
 
-  arrow::Status evictFixedSize(int64_t size, int64_t* actual) override;
-
   class LocalEvictor;
 
  private:
@@ -116,7 +114,5 @@ class LocalPartitionWriter : public PartitionWriter {
   int64_t totalBytesWritten_{0};
   std::vector<int64_t> partitionLengths_;
   std::vector<int64_t> rawPartitionLengths_;
-  // Partition id, num rows, partition buffers.
-  std::vector<std::tuple<uint32_t, uint32_t, std::vector<std::shared_ptr<arrow::Buffer>>>> cachedPartitionBuffers_;
 };
 } // namespace gluten
