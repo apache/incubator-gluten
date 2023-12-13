@@ -30,14 +30,12 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
   with Logging {
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    // scalastyle:off println
-    // println(s"apply cse for plan:$plan")
-    // scalastyle:on println
-    if (plan.resolved) {
+    val newPlan = if (plan.resolved) {
       visitPlan(plan)
     } else {
       plan
     }
+    newPlan
   }
 
   private case class AliasAndAttribute(alias: Alias, attribute: Attribute)
