@@ -295,11 +295,12 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       queryNum: Int,
       tpchQueries: String,
       customCheck: DataFrame => Unit,
-      noFallBack: Boolean = true): Unit = {
+      noFallBack: Boolean = true,
+      compareResult: Boolean = true): Unit = {
     val sqlNum = "q" + "%02d".format(queryNum)
     val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
-    compareResultsAgainstVanillaSpark(sqlStr, compareResult = true, customCheck, noFallBack)
+    compareResultsAgainstVanillaSpark(sqlStr, compareResult, customCheck, noFallBack)
   }
 
   protected def vanillaSparkConfs(): Seq[(String, String)] = {
