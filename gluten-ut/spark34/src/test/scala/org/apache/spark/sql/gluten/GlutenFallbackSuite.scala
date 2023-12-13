@@ -41,8 +41,9 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
           sql("SELECT * FROM t").collect()
         }
       }
-      val msgRegex = """Validation failed for plan: Scan parquet spark_catalog.default\.t\[QueryId=[0-9]+\],""" +
-        """ due to: columnar FileScan is not enabled in FileSourceScanExec\."""
+      val msgRegex =
+        """Validation failed for plan: Scan parquet spark_catalog.default\.t\[QueryId=[0-9]+\],""" +
+          """ due to: columnar FileScan is not enabled in FileSourceScanExec\."""
       assert(testAppender.loggingEvents.exists(_.getMessage.getFormattedMessage.matches(msgRegex)))
     }
   }

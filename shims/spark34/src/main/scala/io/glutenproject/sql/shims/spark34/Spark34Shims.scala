@@ -148,7 +148,7 @@ class Spark34Shims extends SparkShims {
     }
   }
 
-  //https://issues.apache.org/jira/browse/SPARK-40400
+  // https://issues.apache.org/jira/browse/SPARK-40400
   private def invalidBucketFile(path: String): Throwable = {
     new SparkException(
       errorClass = "INVALID_BUCKET_FILE",
