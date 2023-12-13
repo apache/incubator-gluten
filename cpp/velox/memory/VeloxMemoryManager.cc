@@ -283,18 +283,20 @@ bool VeloxMemoryManager::tryDestructSafe() {
 }
 
 VeloxMemoryManager::~VeloxMemoryManager() {
-  // Wait (50 + 100 + 200 + 400 + 800)ms = 1550ms to let possible async tasks (e.g. preload split) complete.
-  for (int32_t tryCount = 0; tryCount < 5; tryCount++) {
+  static const uint32_t kWaitTimeoutMs = 30000UL; // 30s
+  uint32_t accumulatedWaitMs = 0UL;
+  for (int32_t tryCount = 0; accumulatedWaitMs < kWaitTimeoutMs; tryCount++) {
     if (tryDestructSafe()) {
       if (tryCount > 0) {
         LOG(INFO) << "All the outstanding memory resources successfully released. ";
       }
       break;
     }
-    uint32_t waitMs = 50 * static_cast<uint32_t>(pow(2, tryCount));
+    uint32_t waitMs = 50 * static_cast<uint32_t>(pow(1.5, tryCount)); // 50ms, 75ms, 112.5ms ...
     LOG(INFO) << "There are still outstanding Velox memory allocations. Waiting for " << waitMs
               << " ms to let possible async tasks done... ";
     usleep(waitMs * 1000);
+    accumulatedWaitMs += waitMs;
   }
 }
 
