@@ -78,9 +78,9 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
       }
     }
 
-    if (!fallbackOperator.isEmpty) {
+    if (fallbackOperator.nonEmpty) {
       fallbackOperator.foreach(operator => log.info(s"gluten fallback operator:{$operator}"))
     }
-    return fallbackOperator.nonEmpty
+    fallbackOperator.nonEmpty
   }
 }

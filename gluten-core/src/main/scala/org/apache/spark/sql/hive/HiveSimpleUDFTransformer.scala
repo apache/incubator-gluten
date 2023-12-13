@@ -44,7 +44,7 @@ object HiveSimpleUDFTransformer {
       case Some(name) =>
         GenericExpressionTransformer(
           name,
-          udf.children.map(ExpressionConverter.replaceWithExpressionTransformer(_, attributeSeq)),
+          ExpressionConverter.replaceWithExpressionTransformer(udf.children, attributeSeq),
           udf)
       case _ =>
         throw new UnsupportedOperationException(
