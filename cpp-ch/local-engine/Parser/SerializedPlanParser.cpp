@@ -1563,7 +1563,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
         case substrait::Expression::RexTypeCase::kCast: {
             if (!rel.cast().has_type() || !rel.cast().has_input())
                 throw Exception(ErrorCodes::BAD_ARGUMENTS, "Doesn't have type or input in cast node.");
-
             DB::ActionsDAG::NodeRawConstPtrs args;
 
             const auto & input = rel.cast().input();
@@ -1573,7 +1572,11 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             const ActionsDAG::Node * function_node = nullptr;
             if (DB::isString(DB::removeNullable(args.back()->result_type)) && substrait_type.has_date())
             {
-                function_node = toFunctionNode(actions_dag, "spark_to_date", args);
+                function_node = toFunctionNode(actions_dag, "sparkToDate", args);
+            }
+            else if(DB::isString(DB::removeNullable(args.back()->result_type)) && substrait_type.has_timestamp())
+            {
+                function_node = toFunctionNode(actions_dag, "sparkToDateTime", args);
             }
             else if (substrait_type.has_binary())
             {
