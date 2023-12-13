@@ -527,4 +527,31 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       )(checkOperatorMatch[ProjectExecTransformer])
     }
   }
+
+  test("test common subexpression eliminate") {
+    withSQLConf(("spark.gluten.sql.commonSubexpressionEliminate", "true")) {
+      // CSE in project
+      runQueryAndCompare("select hex(id), lower(hex(id)), upper(hex(id)) from range(10)") { _ => }
+
+      // CSE in filter(not work yet)
+      runQueryAndCompare(
+        "select id from range(10) " +
+          "where hex(id) != '' and upper(hex(id)) != '' and lower(hex(id)) != ''") { _ => }
+
+      // CSE in window
+      runQueryAndCompare(
+        "SELECT id, AVG(id) OVER (PARTITION BY id % 2 ORDER BY id) as avg_id, " +
+          "SUM(id) OVER (PARTITION BY id % 2 ORDER BY id) as sum_id FROM range(10)") { _ => }
+
+      // CSE in aggregate
+      runQueryAndCompare(
+        "select id % 2, max(hex(id)), min(hex(id)) " +
+          "from range(10) group by id % 2") { _ => }
+
+      // CSE in sort
+      runQueryAndCompare(
+        "select id from range(00) " +
+          "order by hex(id%10), lower(hex(id%10))") { _ => }
+    }
+  }
 }
