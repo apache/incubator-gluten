@@ -54,7 +54,8 @@ trait TransformHint {
 }
 
 case class TRANSFORM_SUPPORTED() extends TransformHint
-case class TRANSFORM_UNSUPPORTED(reason: Option[String]) extends TransformHint
+case class TRANSFORM_UNSUPPORTED(reason: Option[String], appendReasonIfExists: Boolean = true)
+  extends TransformHint
 
 object TransformHints {
   val TAG: TreeNodeTag[TransformHint] =
@@ -77,11 +78,19 @@ object TransformHints {
   def tag(plan: SparkPlan, hint: TransformHint): Unit = {
     val mergedHint = getHintOption(plan)
       .map {
-        case originalHint @ TRANSFORM_UNSUPPORTED(Some(originalReason)) =>
+        case originalHint @ TRANSFORM_UNSUPPORTED(Some(originalReason), originAppend) =>
           hint match {
-            case TRANSFORM_UNSUPPORTED(Some(newReason)) =>
-              TRANSFORM_UNSUPPORTED(Some(originalReason + "; " + newReason))
-            case TRANSFORM_UNSUPPORTED(None) =>
+            case TRANSFORM_UNSUPPORTED(Some(newReason), append) =>
+              if (originAppend && append) {
+                TRANSFORM_UNSUPPORTED(Some(originalReason + "; " + newReason))
+              } else if (originAppend) {
+                TRANSFORM_UNSUPPORTED(Some(originalReason))
+              } else if (append) {
+                TRANSFORM_UNSUPPORTED(Some(newReason))
+              } else {
+                TRANSFORM_UNSUPPORTED(Some(originalReason), false)
+              }
+            case TRANSFORM_UNSUPPORTED(None, _) =>
               originalHint
             case _ =>
               throw new UnsupportedOperationException(
@@ -113,10 +122,10 @@ object TransformHints {
     tag(plan, TRANSFORM_UNSUPPORTED(Some(reason)))
   }
 
-  def tagAllNotTransformable(plan: SparkPlan, reason: String): Unit = {
+  def tagAllNotTransformable(plan: SparkPlan, hint: TRANSFORM_UNSUPPORTED): Unit = {
     plan.foreach {
       case _: GlutenPlan => // ignore
-      case other => tagNotTransformable(other, reason)
+      case other => tag(other, hint)
     }
   }
 
