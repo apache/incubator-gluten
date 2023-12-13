@@ -574,7 +574,8 @@ abstract class HashAggregateExecBaseTransformer(
       "0"
     }
     val optimization =
-      Any.pack(StringValue.newBuilder.setValue(s"isStreaming=$isStreaming\n").build)
+      BackendsApiManager.getTransformerApiInstance.getPackMessage(
+        StringValue.newBuilder.setValue(s"isStreaming=$isStreaming\n").build)
     ExtensionBuilder.makeAdvancedExtension(optimization, enhancement)
   }
 
