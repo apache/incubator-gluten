@@ -216,13 +216,26 @@ object HiveTableScanExecTransformer {
     }
   }
 
+  def getRequestAttributesOnSchemaFieldsOrder(
+      attrs: Seq[Attribute],
+      schema: StructType): Seq[Attribute] = {
+    val attrMap = attrs.map(x => (x.name, x)).toMap
+    val fields = schema.fields.filter(x => attrMap.contains(x.name))
+    fields.map(f => attrMap.getOrElse(f.name, null)).toSeq
+  }
+
   def apply(plan: SparkPlan): HiveTableScanExecTransformer = {
     plan match {
       case hiveTableScan: HiveTableScanExec =>
         new HiveTableScanExecTransformer(
-          hiveTableScan.requestedAttributes,
+          getRequestAttributesOnSchemaFieldsOrder(
+            hiveTableScan.requestedAttributes,
+            hiveTableScan.relation.tableMeta.schema),
           hiveTableScan.relation,
-          hiveTableScan.partitionPruningPred)(hiveTableScan.session)
+          hiveTableScan.partitionPruningPred
+        )(
+          hiveTableScan.session
+        )
       case _ =>
         throw new UnsupportedOperationException(
           s"Can't transform HiveTableScanExecTransformer from ${plan.getClass.getSimpleName}")

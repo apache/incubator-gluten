@@ -647,6 +647,10 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("output_format_json_quote_64bit_integers", false);
     settings.set("output_format_json_quote_denormals", true);
     settings.set("output_format_json_skip_null_value_in_named_tuples", true);
+    settings.set("input_format_csv_allow_whitespace_or_tab_as_delimiter", true);
+    settings.set("input_format_csv_use_default_on_bad_values", true);
+    settings.set("input_format_csv_skip_trailing_empty_lines", true);
+    settings.set("input_format_csv_allow_variable_number_of_columns", true);
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
     settings.set("precise_float_parsing", true);
