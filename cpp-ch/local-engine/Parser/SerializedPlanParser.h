@@ -69,7 +69,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"subtract", "minus"},
        {"multiply", "multiply"},
        {"add", "plus"},
-       {"divide", "divide"},
+       // {"divide", "divide"},
        {"positive", "identity"},
        {"negative", "negate"},
        {"modulus", "modulo"},
