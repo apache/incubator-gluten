@@ -77,15 +77,15 @@ arrow::Status compressBuffer(
 
 class BlockPayload : public Payload {
  public:
-  enum Type : int32_t { kCompressed, kUncompressed };
+  enum Type : int32_t { kCompressed, kUncompressed, kToBeCompressed };
 
   BlockPayload(BlockPayload::Type type, uint32_t numRows, std::vector<std::shared_ptr<arrow::Buffer>> buffers)
       : type_(type), numRows_(numRows), buffers_(std::move(buffers)) {}
 
   static arrow::Result<std::unique_ptr<BlockPayload>> fromBuffers(
+      BlockPayload::Type payloadType,
       uint32_t numRows,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
-      ShuffleWriterOptions* options,
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec,
       bool reuseBuffers);
@@ -145,10 +145,27 @@ class BlockPayload : public Payload {
     return arrow::Status::OK();
   }
 
- private:
+ protected:
   Type type_;
   uint32_t numRows_;
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
+};
+
+class CompressibleBlockPayload : public BlockPayload {
+ public:
+  CompressibleBlockPayload(
+      BlockPayload::Type type,
+      uint32_t numRows,
+      std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+      arrow::MemoryPool* pool,
+      arrow::util::Codec* codec)
+      : BlockPayload(type, numRows, std::move(buffers)), pool_(pool), codec_(codec) {}
+
+  arrow::Status serialize(arrow::io::OutputStream* outputStream);
+
+ private:
+  arrow::MemoryPool* pool_;
+  arrow::util::Codec* codec_;
 };
 
 } // namespace gluten

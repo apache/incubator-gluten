@@ -17,16 +17,19 @@
 
 #include "shuffle/BlockPayload.h"
 
+namespace {
+static const gluten::BlockPayload::Type kCompressedType = gluten::BlockPayload::kCompressed;
+}
 namespace gluten {
 
 arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
+    BlockPayload::Type payloadType,
     uint32_t numRows,
     std::vector<std::shared_ptr<arrow::Buffer>> buffers,
-    ShuffleWriterOptions* options,
     arrow::MemoryPool* pool,
     arrow::util::Codec* codec,
     bool reuseBuffers) {
-  if (codec && numRows >= options->compression_threshold) {
+  if (payloadType == BlockPayload::Type::kCompressed) {
     // Compress.
     // Compressed buffer layout: | buffer1 compressedLength | buffer1 uncompressedLength | buffer1 | ...
     auto metadataLength = sizeof(int64_t) * 2 * buffers.size();
@@ -67,6 +70,9 @@ arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
       copies.push_back(std::move(copy));
     }
     return std::make_unique<BlockPayload>(Type::kUncompressed, numRows, std::move(copies));
+  }
+  if (payloadType == Type::kToBeCompressed) {
+    return std::make_unique<CompressibleBlockPayload>(Type::kUncompressed, numRows, std::move(buffers), pool, codec);
   }
   return std::make_unique<BlockPayload>(Type::kUncompressed, numRows, std::move(buffers));
 }
@@ -192,5 +198,35 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> BlockPayload::readCompressedBuffer
   RETURN_NOT_OK(codec->Decompress(
       compressedLength, compressed->data(), uncompressedLength, const_cast<uint8_t*>(output->data())));
   return output;
+}
+
+arrow::Status CompressibleBlockPayload::serialize(arrow::io::OutputStream* outputStream) {
+  RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
+  RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
+  auto metadataLength = sizeof(int64_t) * 2 * buffers_.size();
+  int64_t totalCompressedLength =
+      std::accumulate(buffers_.begin(), buffers_.end(), 0LL, [&](auto sum, const auto& buffer) {
+        if (!buffer) {
+          return sum;
+        }
+        return sum + codec_->MaxCompressedLen(buffer->size(), buffer->data());
+      });
+  ARROW_ASSIGN_OR_RAISE(
+      std::shared_ptr<arrow::ResizableBuffer> compressed,
+      arrow::AllocateResizableBuffer(metadataLength + totalCompressedLength, pool_));
+  auto output = compressed->mutable_data();
+
+  // Compress buffers one by one.
+  for (auto& buffer : buffers_) {
+    auto availableLength = compressed->size() - (output - compressed->data());
+    RETURN_NOT_OK(compressBuffer(buffer, output, availableLength, codec_));
+  }
+
+  int64_t actualLength = output - compressed->data();
+  ARROW_RETURN_IF(actualLength < 0, arrow::Status::Invalid("Writing compressed buffer out of bound."));
+  RETURN_NOT_OK(compressed->Resize(actualLength));
+
+  RETURN_NOT_OK(outputStream->Write(std::move(compressed)));
+  return arrow::Status::OK();
 }
 } // namespace gluten

@@ -856,6 +856,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
           complexColumnIndices_.push_back(i);
           complexNames.emplace_back(veloxColumnTypes_[i]->name());
           complexChildrens.emplace_back(veloxColumnTypes_[i]);
+          hasComplexType_ = true;
         } break;
         default:
           simpleColumnIndices_.push_back(i);
@@ -1057,8 +1058,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     std::vector<std::shared_ptr<arrow::Array>> arrays(numFields);
     std::vector<std::shared_ptr<arrow::Buffer>> allBuffers;
     // One column should have 2 buffers at least, string column has 3 column buffers.
-    allBuffers.reserve(fixedWidthColumnCount_ * 2 + binaryColumnIndices_.size() * 3);
-    bool hasComplexType = false;
+    allBuffers.reserve(fixedWidthColumnCount_ * 2 + binaryColumnIndices_.size() * 3 + hasComplexType_);
     for (int i = 0; i < numFields; ++i) {
       switch (arrowColumnTypes_[i]->id()) {
         case arrow::BinaryType::type_id:
@@ -1067,20 +1067,41 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
           auto& binaryBuf = partitionBinaryAddrs_[binaryIdx][partitionId];
           // validity buffer
           if (buffers[kValidityBufferIndex] != nullptr) {
-            allBuffers.push_back(
-                arrow::SliceBuffer(buffers[kValidityBufferIndex], 0, arrow::bit_util::BytesForBits(numRows)));
+            auto validityBufferSize = arrow::bit_util::BytesForBits(numRows);
+            if (reuseBuffers) {
+              allBuffers.push_back(
+                  arrow::SliceBuffer(buffers[kValidityBufferIndex], 0, arrow::bit_util::BytesForBits(numRows)));
+            } else {
+              RETURN_NOT_OK(buffers[kValidityBufferIndex]->Resize(validityBufferSize, true));
+              allBuffers.push_back(std::move(buffers[kValidityBufferIndex]));
+            }
           } else {
             allBuffers.push_back(nullptr);
           }
-          // offset buffer
+          // Length buffer.
+          auto lengthBufferSize = numRows * kSizeOfBinaryArrayLengthBuffer;
           ARROW_RETURN_IF(
               !buffers[kBinaryLengthBufferIndex], arrow::Status::Invalid("Offset buffer of binary array is null."));
-          allBuffers.push_back(
-              arrow::SliceBuffer(buffers[kBinaryLengthBufferIndex], 0, numRows * kSizeOfBinaryArrayLengthBuffer));
+          if (reuseBuffers) {
+            allBuffers.push_back(arrow::SliceBuffer(buffers[kBinaryLengthBufferIndex], 0, lengthBufferSize));
+          } else {
+            RETURN_NOT_OK(buffers[kBinaryLengthBufferIndex]->Resize(lengthBufferSize, true));
+            allBuffers.push_back(std::move(buffers[kBinaryLengthBufferIndex]));
+          }
+
+          // Value buffer.
+          auto valueBufferSize = binaryBuf.valueOffset;
           ARROW_RETURN_IF(
               !buffers[kBinaryValueBufferIndex], arrow::Status::Invalid("Value buffer of binary array is null."));
-          // value buffer
-          allBuffers.push_back(arrow::SliceBuffer(buffers[kBinaryValueBufferIndex], 0, binaryBuf.valueOffset));
+          if (reuseBuffers) {
+            allBuffers.push_back(arrow::SliceBuffer(buffers[kBinaryValueBufferIndex], 0, valueBufferSize));
+          } else if (valueBufferSize > 0) {
+            RETURN_NOT_OK(buffers[kBinaryValueBufferIndex]->Resize(valueBufferSize, true));
+            allBuffers.push_back(std::move(buffers[kBinaryValueBufferIndex]));
+          } else {
+            // Binary value buffer size can be 0, in which case cannot be resized.
+            allBuffers.push_back(zeroLengthNullBuffer());
+          }
 
           if (reuseBuffers) {
             // Set the first value offset to 0.
@@ -1091,41 +1112,49 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
         }
         case arrow::StructType::type_id:
         case arrow::MapType::type_id:
-        case arrow::ListType::type_id: {
-          hasComplexType = true;
-        } break;
+        case arrow::ListType::type_id:
+          break;
         default: {
           auto& buffers = partitionBuffers_[fixedWidthIdx][partitionId];
           // validity buffer
           if (buffers[kValidityBufferIndex] != nullptr) {
-            allBuffers.push_back(
-                arrow::SliceBuffer(buffers[kValidityBufferIndex], 0, arrow::bit_util::BytesForBits(numRows)));
+            auto validityBufferSize = arrow::bit_util::BytesForBits(numRows);
+            if (reuseBuffers) {
+              allBuffers.push_back(
+                  arrow::SliceBuffer(buffers[kValidityBufferIndex], 0, arrow::bit_util::BytesForBits(numRows)));
+            } else {
+              RETURN_NOT_OK(buffers[kValidityBufferIndex]->Resize(validityBufferSize, true));
+              allBuffers.push_back(std::move(buffers[kValidityBufferIndex]));
+            }
           } else {
             allBuffers.push_back(nullptr);
           }
-          // value buffer
+          // Value buffer.
+          uint64_t valueBufferSize = 0;
           auto& valueBuffer = buffers[kFixedWidthValueBufferIndex];
           ARROW_RETURN_IF(!valueBuffer, arrow::Status::Invalid("Value buffer of fixed-width array is null."));
-          std::shared_ptr<arrow::Buffer> slicedValueBuffer;
           if (arrowColumnTypes_[i]->id() == arrow::BooleanType::type_id) {
-            slicedValueBuffer = arrow::SliceBuffer(valueBuffer, 0, arrow::bit_util::BytesForBits(numRows));
+            valueBufferSize = arrow::bit_util::BytesForBits(numRows);
           } else if (veloxColumnTypes_[i]->isShortDecimal()) {
-            slicedValueBuffer =
-                arrow::SliceBuffer(valueBuffer, 0, numRows * (arrow::bit_width(arrow::Int64Type::type_id) >> 3));
+            valueBufferSize = numRows * (arrow::bit_width(arrow::Int64Type::type_id) >> 3);
           } else if (veloxColumnTypes_[i]->kind() == facebook::velox::TypeKind::TIMESTAMP) {
-            slicedValueBuffer = arrow::SliceBuffer(
-                valueBuffer, 0, facebook::velox::BaseVector::byteSize<facebook::velox::Timestamp>(numRows));
+            valueBufferSize = facebook::velox::BaseVector::byteSize<facebook::velox::Timestamp>(numRows);
           } else {
-            slicedValueBuffer =
-                arrow::SliceBuffer(valueBuffer, 0, numRows * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3));
+            valueBufferSize = numRows * (arrow::bit_width(arrowColumnTypes_[i]->id()) >> 3);
           }
-          allBuffers.push_back(std::move(slicedValueBuffer));
+          if (reuseBuffers) {
+            auto slicedValueBuffer = arrow::SliceBuffer(valueBuffer, 0, valueBufferSize);
+            allBuffers.push_back(std::move(slicedValueBuffer));
+          } else {
+            RETURN_NOT_OK(buffers[kFixedWidthValueBufferIndex]->Resize(valueBufferSize, true));
+            allBuffers.push_back(std::move(buffers[kFixedWidthValueBufferIndex]));
+          }
           fixedWidthIdx++;
           break;
         }
       }
     }
-    if (hasComplexType && complexTypeData_[partitionId] != nullptr) {
+    if (hasComplexType_ && complexTypeData_[partitionId] != nullptr) {
       auto flushBuffer = complexTypeFlushBuffer_[partitionId];
       auto serializedSize = complexTypeData_[partitionId]->maxSerializedSize();
       if (flushBuffer == nullptr) {
@@ -1158,11 +1187,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     EvictGuard evictGuard{evictState_};
 
     int64_t reclaimed = 0;
-    if (reclaimed < size && shrinkPartitionBuffersBeforeSpill()) {
-      int64_t shrunken = 0;
-      RETURN_NOT_OK(partitionWriter_->evictFixedSize(size - reclaimed, &shrunken));
-      reclaimed += shrunken;
-    }
     if (reclaimed < size) {
       ARROW_ASSIGN_OR_RAISE(auto cached, evictCachedPayload());
       reclaimed += cached;
@@ -1420,13 +1444,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       RETURN_NOT_OK(partitionWriter_->finishEvict());
     }
     return evicted;
-  }
-
-  bool VeloxShuffleWriter::shrinkPartitionBuffersBeforeSpill() const {
-    // If OOM happens during stop(), the reclaim order is shrink->spill,
-    // because the partition buffers will be freed soon.
-    // SinglePartitioning doesn't maintain partition buffers.
-    return options_->partitioning != Partitioning::kSingle && splitState_ == SplitState::kStop;
   }
 
   bool VeloxShuffleWriter::shrinkPartitionBuffersAfterSpill() const {

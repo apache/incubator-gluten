@@ -84,16 +84,13 @@ arrow::Status CelebornPartitionWriter::evict(
     Evictor::Type evictType) {
   rawPartitionLengths_[partitionId] += getBufferSize(buffers);
   ScopedTimer timer(evictTime_);
+  auto payloadType = (codec_ && numRows >= options_->compression_threshold) ? BlockPayload::Type::kCompressed
+                                                                            : BlockPayload::Type::kUncompressed;
   ARROW_ASSIGN_OR_RAISE(
       auto payload,
       BlockPayload::fromBuffers(
-          numRows, std::move(buffers), options_, payloadPool_.get(), codec_ ? codec_.get() : nullptr, false));
+          payloadType, numRows, std::move(buffers), payloadPool_.get(), codec_ ? codec_.get() : nullptr, false));
   RETURN_NOT_OK(evictor_->evict(partitionId, std::move(payload)));
-  return arrow::Status::OK();
-}
-
-arrow::Status CelebornPartitionWriter::evictFixedSize(int64_t size, int64_t* actual) {
-  *actual = 0;
   return arrow::Status::OK();
 }
 } // namespace gluten

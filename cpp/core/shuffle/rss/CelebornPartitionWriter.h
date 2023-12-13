@@ -46,8 +46,6 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
 
   arrow::Status stop(ShuffleWriterMetrics* metrics) override;
 
-  arrow::Status evictFixedSize(int64_t size, int64_t* actual) override;
-
  private:
   void init();
 

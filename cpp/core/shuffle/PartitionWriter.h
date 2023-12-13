@@ -52,7 +52,7 @@ class Evictor {
   int64_t evictTime_{0};
 };
 
-class PartitionWriter : public Evictable {
+class PartitionWriter {
  public:
   PartitionWriter(uint32_t numPartitions, ShuffleWriterOptions* options)
       : numPartitions_(numPartitions), options_(options) {

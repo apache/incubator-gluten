@@ -75,4 +75,6 @@ arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeUncompressedRecordBatch(
     const std::shared_ptr<arrow::Schema> writeSchema,
     arrow::MemoryPool* pool);
 
+std::shared_ptr<arrow::Buffer> zeroLengthNullBuffer();
+
 } // namespace gluten
