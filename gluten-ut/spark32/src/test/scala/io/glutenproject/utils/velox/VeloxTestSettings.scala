@@ -346,8 +346,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // Rewrite the following two tests in GlutenDatasetSuite.
     .exclude("dropDuplicates: columns with same column name")
     .exclude("groupBy.as")
-    // Map could not contain non-scalar type.
-    .exclude("as map of case class - reorder fields by name")
   enableSuite[GlutenJsonFunctionsSuite]
     // Velox does not support single quotes in get_json_object function.
     .exclude("function get_json_object - support single quotes")
