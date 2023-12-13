@@ -15,14 +15,14 @@
  * limitations under the License.
  */
 
-#include <Functions/SparkFunctionUnixTimestamp.h>
+#include <Functions/SparkFunctionDateToUnixTimestamp.h>
 
 namespace local_engine
 {
 
-REGISTER_FUNCTION(SparkFunctionUnixTimestamp)
+REGISTER_FUNCTION(SparkFunctionDateToUnixTimestamp)
 {
-    factory.registerFunction<local_eingine::SparkFunctionUnixTimestamp>();
+    factory.registerFunction<local_eingine::SparkFunctionDateToUnixTimestamp>();
 }
 
 }
