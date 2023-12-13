@@ -20,27 +20,33 @@ import org.apache.spark.SparkContext
 import org.apache.spark.executor.TempShuffleReadMetrics
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics, SQLShuffleReadMetricsReporter}
 
+/** Correct records read metric for columnar shuffle and add batches read metric */
 class SQLColumnarShuffleReadMetricsReporter(
     tempMetrics: TempShuffleReadMetrics,
     metrics: Map[String, SQLMetric])
   extends SQLShuffleReadMetricsReporter(tempMetrics, metrics) {
 
+  /** Number of columnar batches read. */
   private[this] val _batchesRead =
     metrics(SQLColumnarShuffleReadMetricsReporter.BATCHES_READ)
 
+  /** Number of records read. */
   private[this] val _recordsRead =
     metrics(SQLShuffleReadMetricsReporter.RECORDS_READ)
 
+  /**
+   * The `incRecordsRead` method is called in `BlockStoreShuffleReader` to increase number of
+   * `ColumnarBatch`, so we increase to `_batchesRead`.
+   */
   override def incRecordsRead(v: Long): Unit = {
     _batchesRead.add(v)
-    // tempMetrics.incRecordsRead(v)
   }
 
+  /** Increase batch records read. Calculate in `ColumnarBatchRDD.compute`. */
   def incBatchesRecordsRead(v: Long): Unit = {
     _recordsRead.add(v)
     tempMetrics.incRecordsRead(v)
   }
-
 }
 
 object SQLColumnarShuffleReadMetricsReporter {
