@@ -91,10 +91,17 @@ gdb generic_benchmark
 
 6. get more detail information about benchmarks from [MicroBenchmarks](./MicroBenchmarks.md)
 
-## 2 How to debug Java/Scala
+## 2 How to debug plan validation process
+Gluten will validate generated plan before execute it, and validation usually happens in native side, so we provide a utility to help debug validation process in native side.
+
+1. Run query with conf `spark.gluten.sql.debug=true`, and you will find generated plan be printed in stderr with json format, save it as `plan.json` for example.
+2. Compile cpp part with `--build_benchmarks=ON`, then check `plan_validator_util` executable file in `gluten_home/cpp/build/velox/benchmarks/`.
+3. Run or debug with `./plan_validator_util <path>/plan.json`
+
+## 3 How to debug Java/Scala
 wait to add
 
-## 3 How to debug with core-dump
+## 4 How to debug with core-dump
 wait to complete
 ```
 cd the_directory_of_core_file_generated
