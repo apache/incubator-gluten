@@ -66,14 +66,6 @@ const std::string kBloomFilterExpectedNumItems = "spark.gluten.sql.columnar.back
 const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits";
 const std::string kBloomFilterMaxNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits";
 
-/* configs for file read in velox*/
-const std::string kDirectorySizeGuess = "spark.gluten.sql.columnar.backend.velox.directorySizeGuess";
-const std::string kFilePreloadThreshold = "spark.gluten.sql.columnar.backend.velox.filePreloadThreshold";
-const std::string kPrefetchRowGroups = "spark.gluten.sql.columnar.backend.velox.prefetchRowGroups";
-const std::string kLoadQuantum = "spark.gluten.sql.columnar.backend.velox.loadQuantum";
-const std::string kMaxCoalescedDistanceBytes = "spark.gluten.sql.columnar.backend.velox.maxCoalescedDistanceBytes";
-const std::string kMaxCoalescedBytes = "spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes";
-
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
 const std::string kDynamicFiltersAccepted = "dynamicFiltersAccepted";
@@ -423,18 +415,6 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
   configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCase] =
       getConfigValue(confMap_, kCaseSensitive, "false") == "false" ? "true" : "false";
   configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = "6";
-
-  configs[velox::connector::hive::HiveConfig::kMaxCoalescedBytes] =
-      getConfigValue(confMap_, kMaxCoalescedBytes, "67108864"); // 64M
-  configs[velox::connector::hive::HiveConfig::kMaxCoalescedDistanceBytes] =
-      getConfigValue(confMap_, kMaxCoalescedDistanceBytes, "1048576"); // 1M
-  configs[velox::connector::hive::HiveConfig::kPrefetchRowGroups] = getConfigValue(confMap_, kPrefetchRowGroups, "1");
-  configs[velox::connector::hive::HiveConfig::kLoadQuantum] =
-      getConfigValue(confMap_, kLoadQuantum, "268435456"); // 256M
-  configs[velox::connector::hive::HiveConfig::kDirectorySizeGuess] =
-      getConfigValue(confMap_, kDirectorySizeGuess, "32768"); // 32K
-  configs[velox::connector::hive::HiveConfig::kFilePreloadThreshold] =
-      getConfigValue(confMap_, kFilePreloadThreshold, "1048576"); // 1M
 
   return std::make_shared<velox::core::MemConfig>(configs);
 }
