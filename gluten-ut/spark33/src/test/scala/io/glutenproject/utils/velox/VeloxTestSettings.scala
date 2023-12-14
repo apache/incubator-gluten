@@ -1120,9 +1120,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-33677: LikeSimplification should be skipped if pattern contains any escapeChar")
     // Different exception.
     .exclude("run sql directly on files")
-    // Columnar shuffle cannot generate the expected number of partitions if the row of a input
-    // batch is less than the expected number of partitions.
-    .exclude("SPARK-24940: coalesce and repartition hint")
     // Not useful and time consuming.
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
