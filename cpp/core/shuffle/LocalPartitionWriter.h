@@ -54,10 +54,11 @@ class LocalPartitionWriter : public PartitionWriter {
       uint32_t partitionId,
       uint32_t numRows,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+      const std::vector<bool>* isValidityBuffer,
       bool reuseBuffers,
       Evictor::Type evictType) override;
 
-  arrow::Status finishEvict() override;
+  arrow::Status spill() override;
 
   /// The stop function performs several tasks:
   /// 1. Opens the final data file.
@@ -97,6 +98,10 @@ class LocalPartitionWriter : public PartitionWriter {
 
   arrow::Status populateMetrics(ShuffleWriterMetrics* metrics);
 
+  arrow::Result<std::unique_ptr<LocalPartitionWriter::LocalEvictor>> createEvictor(
+      Evictor::Type evictType,
+      const std::string& spillFile);
+
   std::string dataFile_;
   std::vector<std::string> localDirs_;
 
@@ -104,7 +109,7 @@ class LocalPartitionWriter : public PartitionWriter {
   std::shared_ptr<arrow::fs::LocalFileSystem> fs_{nullptr};
   std::shared_ptr<LocalEvictor> evictor_{nullptr};
   std::shared_ptr<LocalEvictor> partitionBufferEvictor_{nullptr};
-  std::vector<std::shared_ptr<SpillInfo>> spills_{};
+  std::list<std::unique_ptr<Spill>> spills_{};
 
   // configured local dirs for spilled file
   int32_t dirSelection_{0};

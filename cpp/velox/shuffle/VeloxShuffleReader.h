@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "shuffle/BlockPayload.h"
+#include "shuffle/Payload.h"
 #include "shuffle/ShuffleReader.h"
 #include "velox/type/Type.h"
 #include "velox/vector/ComplexVector.h"

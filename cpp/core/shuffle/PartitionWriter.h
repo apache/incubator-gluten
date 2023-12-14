@@ -20,19 +20,14 @@
 #include "ShuffleMemoryPool.h"
 #include "memory/Evictable.h"
 #include "shuffle/Options.h"
+#include "shuffle/Payload.h"
+#include "shuffle/Spill.h"
 
 namespace gluten {
 
-class Payload {
- public:
-  virtual ~Payload() = default;
-
-  virtual arrow::Status serialize(arrow::io::OutputStream* outputStream) = 0;
-};
-
 class Evictor {
  public:
-  enum Type { kCache, kFlush, kStop };
+  enum Type { kCache, kSpill, kStop };
 
   Evictor(ShuffleWriterOptions* options) : options_(options) {}
 
@@ -40,7 +35,7 @@ class Evictor {
 
   virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<Payload> payload) = 0;
 
-  virtual arrow::Status finish() = 0;
+  virtual arrow::Result<std::unique_ptr<Spill>> finish() = 0;
 
   int64_t getEvictTime() {
     return evictTime_;
@@ -71,10 +66,11 @@ class PartitionWriter {
       uint32_t partitionId,
       uint32_t numRows,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+      const std::vector<bool>* isValidityBuffer,
       bool reuseBuffers,
       Evictor::Type evictType) = 0;
 
-  virtual arrow::Status finishEvict() = 0;
+  virtual arrow::Status spill() = 0;
 
   uint64_t cachedPayloadSize() {
     return payloadPool_->bytes_allocated();

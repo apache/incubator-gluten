@@ -15,9 +15,11 @@
  * limitations under the License.
  */
 
-#include "CelebornPartitionWriter.h"
-#include "shuffle/BlockPayload.h"
+#include <numeric>
+
+#include "shuffle/Payload.h"
 #include "shuffle/Utils.h"
+#include "shuffle/rss/CelebornPartitionWriter.h"
 #include "utils/Timer.h"
 
 namespace gluten {
@@ -41,8 +43,8 @@ class CelebornEvictHandle final : public Evictor {
     return arrow::Status::OK();
   }
 
-  arrow::Status finish() override {
-    return arrow::Status::OK();
+  arrow::Result<std::unique_ptr<Spill>> finish() override {
+    return nullptr;
   }
 
  private:
@@ -72,24 +74,31 @@ arrow::Status CelebornPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornPartitionWriter::finishEvict() {
-  return evictor_->finish();
+arrow::Status CelebornPartitionWriter::spill() {
+  return arrow::Status::OK();
 }
 
 arrow::Status CelebornPartitionWriter::evict(
     uint32_t partitionId,
     uint32_t numRows,
     std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+    const std::vector<bool>* isValidityBuffer,
     bool reuseBuffers,
     Evictor::Type evictType) {
   rawPartitionLengths_[partitionId] += getBufferSize(buffers);
   ScopedTimer timer(evictTime_);
-  auto payloadType = (codec_ && numRows >= options_->compression_threshold) ? BlockPayload::Type::kCompressed
-                                                                            : BlockPayload::Type::kUncompressed;
+  auto payloadType = (codec_ && numRows >= options_->compression_threshold) ? Payload::Type::kCompressed
+                                                                            : Payload::Type::kUncompressed;
   ARROW_ASSIGN_OR_RAISE(
       auto payload,
       BlockPayload::fromBuffers(
-          payloadType, numRows, std::move(buffers), payloadPool_.get(), codec_ ? codec_.get() : nullptr, false));
+          payloadType,
+          numRows,
+          std::move(buffers),
+          isValidityBuffer,
+          payloadPool_.get(),
+          codec_ ? codec_.get() : nullptr,
+          false));
   RETURN_NOT_OK(evictor_->evict(partitionId, std::move(payload)));
   return arrow::Status::OK();
 }

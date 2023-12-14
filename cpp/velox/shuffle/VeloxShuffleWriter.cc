@@ -371,7 +371,8 @@ arrow::Status VeloxShuffleWriter::stop() {
       auto numRows = partitionBufferIdxBase_[pid];
       if (numRows > 0) {
         ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(pid, false));
-        RETURN_NOT_OK(partitionWriter_->evict(pid, numRows, std::move(buffers), false, Evictor::Type::kStop));
+        RETURN_NOT_OK(
+            partitionWriter_->evict(pid, numRows, std::move(buffers), &isValidityBuffer_, false, Evictor::Type::kStop));
       }
     }
   }
@@ -849,9 +850,12 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     for (size_t i = 0; i < arrowColumnTypes_.size(); ++i) {
       switch (arrowColumnTypes_[i]->id()) {
         case arrow::BinaryType::type_id:
-        case arrow::StringType::type_id:
+        case arrow::StringType::type_id: {
           binaryColumnIndices_.push_back(i);
-          break;
+          isValidityBuffer_.push_back(true);
+          isValidityBuffer_.push_back(false);
+          isValidityBuffer_.push_back(false);
+        } break;
         case arrow::StructType::type_id:
         case arrow::MapType::type_id:
         case arrow::ListType::type_id: {
@@ -860,9 +864,16 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
           complexChildrens.emplace_back(veloxColumnTypes_[i]);
           hasComplexType_ = true;
         } break;
-        default:
+        case arrow::BooleanType::type_id: {
           simpleColumnIndices_.push_back(i);
-          break;
+          isValidityBuffer_.push_back(true);
+          isValidityBuffer_.push_back(true);
+        } break;
+        default: {
+          simpleColumnIndices_.push_back(i);
+          isValidityBuffer_.push_back(true);
+          isValidityBuffer_.push_back(false);
+        } break;
       }
     }
 
@@ -1029,8 +1040,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
   arrow::Status VeloxShuffleWriter::evictBuffers(
       uint32_t partitionId, uint32_t numRows, std::vector<std::shared_ptr<arrow::Buffer>> buffers, bool reuseBuffers) {
     if (!buffers.empty()) {
-      RETURN_NOT_OK(
-          partitionWriter_->evict(partitionId, numRows, std::move(buffers), reuseBuffers, Evictor::Type::kCache));
+      RETURN_NOT_OK(partitionWriter_->evict(
+          partitionId, numRows, std::move(buffers), &isValidityBuffer_, reuseBuffers, Evictor::Type::kCache));
     }
     return arrow::Status::OK();
   }
@@ -1212,7 +1223,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       return 0;
     }
     auto evicted = beforeEvict;
-    RETURN_NOT_OK(partitionWriter_->finishEvict());
+    RETURN_NOT_OK(partitionWriter_->spill());
     if (auto afterEvict = cachedPayloadSize()) {
       // Evict can be triggered by compressing buffers. The cachedPayloadSize is not empty.
       evicted -= afterEvict;
@@ -1437,13 +1448,14 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       for (auto& item : pidToSize) {
         auto pid = item.first;
         ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(pid, false));
-        RETURN_NOT_OK(partitionWriter_->evict(pid, item.second, std::move(buffers), false, Evictor::Type::kFlush));
+        RETURN_NOT_OK(partitionWriter_->evict(
+            pid, item.second, std::move(buffers), &isValidityBuffer_, false, Evictor::Type::kSpill));
         evicted = beforeEvict - partitionBufferPool_->bytes_allocated();
         if (evicted >= size) {
           break;
         }
       }
-      RETURN_NOT_OK(partitionWriter_->finishEvict());
+      RETURN_NOT_OK(partitionWriter_->spill());
     }
     return evicted;
   }

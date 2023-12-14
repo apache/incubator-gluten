@@ -316,6 +316,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   bool supportAvx512_ = false;
 
   bool hasComplexType_ = false;
+  std::vector<bool> isValidityBuffer_;
 
   // store arrow column types
   std::vector<std::shared_ptr<arrow::DataType>> arrowColumnTypes_;

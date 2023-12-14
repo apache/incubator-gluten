@@ -21,7 +21,7 @@
 #include <arrow/io/buffered.h>
 
 #include "memory/VeloxColumnarBatch.h"
-#include "shuffle/BlockPayload.h"
+#include "shuffle/Payload.h"
 #include "shuffle/Utils.h"
 #include "utils/Common.h"
 #include "utils/Compression.h"
