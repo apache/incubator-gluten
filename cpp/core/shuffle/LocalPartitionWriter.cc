@@ -73,6 +73,7 @@ class CacheEvictor final : public LocalPartitionWriter::LocalEvictor {
         RETURN_NOT_OK(flushInternal(pid, os_.get()));
         ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
         spillInfo_->partitionSpillInfos.push_back({pid, end - start});
+        DEBUG_OUT << "Spilled partition " << pid << " file start: " << start << ", file end: " << end << std::endl;
         start = end;
       }
     }
