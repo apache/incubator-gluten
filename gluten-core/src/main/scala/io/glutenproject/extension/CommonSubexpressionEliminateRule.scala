@@ -29,8 +29,11 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
   extends Rule[LogicalPlan]
   with Logging {
 
+  private var lastPlan: LogicalPlan = null
+
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    val newPlan = if (plan.resolved) {
+    val newPlan = if (plan.resolved && !plan.fastEquals(lastPlan)) {
+      lastPlan = plan
       visitPlan(plan)
     } else {
       plan
