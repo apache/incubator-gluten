@@ -24,7 +24,7 @@ namespace gluten {
 
 class ParquetReaderIterator : public FileReaderIterator {
  public:
-  explicit ParquetReaderIterator(const std::string& path) : FileReaderIterator(getExampleFilePath(path)) {}
+  explicit ParquetReaderIterator(const std::string& path) : FileReaderIterator(path) {}
 
   void createReader() override {
     parquet::ArrowReaderProperties properties = parquet::default_arrow_reader_properties();

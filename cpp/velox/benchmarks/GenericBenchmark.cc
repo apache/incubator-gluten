@@ -124,7 +124,7 @@ auto BM_Generic = [](::benchmark::State& state,
   }
   auto memoryManager = getDefaultMemoryManager();
   auto runtime = Runtime::create(kVeloxRuntimeKind, conf);
-  const auto& filePath = getExampleFilePath(substraitJsonFile);
+  const auto& filePath = substraitJsonFile;
   auto plan = getPlanFromFile(filePath);
   auto startTime = std::chrono::steady_clock::now();
   int64_t collectBatchTime = 0;
@@ -238,9 +238,10 @@ int main(int argc, char** argv) {
 
   try {
     if (argc < 2) {
-      std::cout << "No input args. Usage: " << std::endl
-                << "./generic_benchmark /path/to/substrait_json_file /path/to/data_file_1 /path/to/data_file_2 ..."
-                << std::endl;
+      std::cout
+          << "No input args. Usage: " << std::endl
+          << "./generic_benchmark /absolute-path/to/substrait_json_file /absolute-path/to/data_file_1 /absolute-path/to/data_file_2 ..."
+          << std::endl;
       std::cout << "Running example..." << std::endl;
       inputFiles.resize(2);
       substraitJsonFile = getGeneratedFilePath("example.json");
