@@ -31,7 +31,7 @@ import scala.collection.JavaConverters._
 
 object ScanTransformerFactory {
 
-  private val dataSourceV2TransformerMap = new ConcurrentHashMap[String, Class[_]]()
+  private val scanTransformerMap = new ConcurrentHashMap[String, Class[_]]()
 
   def createFileSourceScanTransformer(
       scanExec: FileSourceScanExec,
@@ -44,17 +44,27 @@ object ScanTransformerFactory {
     } else {
       ExpressionConverter.transformDynamicPruningExpr(scanExec.partitionFilters, reuseSubquery)
     }
-    new FileSourceScanExecTransformer(
-      scanExec.relation,
-      scanExec.output,
-      scanExec.requiredSchema,
-      newPartitionFilters,
-      scanExec.optionalBucketSet,
-      scanExec.optionalNumCoalescedBuckets,
-      scanExec.dataFilters ++ extraFilters,
-      scanExec.tableIdentifier,
-      scanExec.disableBucketedScan
-    )
+    val fileIndex = scanExec.relation.location
+    lookupDataSourceScanTransformer(fileIndex.getClass.getName) match {
+      case Some(clz) =>
+        clz
+          .getDeclaredConstructor()
+          .newInstance()
+          .asInstanceOf[DataSourceScanTransformerRegister]
+          .createDataSourceTransformer(scanExec, newPartitionFilters)
+      case _ =>
+        new FileSourceScanExecTransformer(
+          scanExec.relation,
+          scanExec.output,
+          scanExec.requiredSchema,
+          newPartitionFilters,
+          scanExec.optionalBucketSet,
+          scanExec.optionalNumCoalescedBuckets,
+          scanExec.dataFilters ++ extraFilters,
+          scanExec.tableIdentifier,
+          scanExec.disableBucketedScan
+        )
+    }
   }
 
   def createBatchScanTransformer(
@@ -67,13 +77,12 @@ object ScanTransformerFactory {
       ExpressionConverter.transformDynamicPruningExpr(batchScanExec.runtimeFilters, reuseSubquery)
     }
     val scan = batchScanExec.scan
-    scan match {
-      case _ if dataSourceV2TransformerExists(scan.getClass.getName) =>
-        val cls = lookupDataSourceV2Transformer(scan.getClass.getName)
-        cls
+    lookupDataSourceScanTransformer(scan.getClass.getName) match {
+      case Some(clz) =>
+        clz
           .getDeclaredConstructor()
           .newInstance()
-          .asInstanceOf[DataSourceV2TransformerRegister]
+          .asInstanceOf[DataSourceScanTransformerRegister]
           .createDataSourceV2Transformer(batchScanExec, newPartitionFilters)
       case _ =>
         new BatchScanExecTransformer(
@@ -86,19 +95,18 @@ object ScanTransformerFactory {
 
   def supportedBatchScan(scan: Scan): Boolean = scan match {
     case _: FileScan => true
-    case _ if dataSourceV2TransformerExists(scan.getClass.getName) => true
-    case _ => false
+    case _ => lookupDataSourceScanTransformer(scan.getClass.getName).nonEmpty
   }
 
-  private def lookupDataSourceV2Transformer(scanClassName: String): Class[_] = {
-    dataSourceV2TransformerMap.computeIfAbsent(
+  private def lookupDataSourceScanTransformer(scanClassName: String): Option[Class[_]] = {
+    val clz = scanTransformerMap.computeIfAbsent(
       scanClassName,
       _ => {
         val loader = Option(Thread.currentThread().getContextClassLoader)
           .getOrElse(getClass.getClassLoader)
-        val serviceLoader = ServiceLoader.load(classOf[DataSourceV2TransformerRegister], loader)
+        val serviceLoader = ServiceLoader.load(classOf[DataSourceScanTransformerRegister], loader)
         serviceLoader.asScala
-          .filter(_.scanClassName().equalsIgnoreCase(scanClassName))
+          .filter(_.scanClassName.equalsIgnoreCase(scanClassName))
           .toList match {
           case head :: Nil =>
             // there is exactly one registered alias
@@ -107,9 +115,7 @@ object ScanTransformerFactory {
         }
       }
     )
+    Option(clz)
   }
 
-  private def dataSourceV2TransformerExists(scanClassName: String): Boolean = {
-    lookupDataSourceV2Transformer(scanClassName) != null
-  }
 }

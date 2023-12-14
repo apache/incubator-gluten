@@ -25,8 +25,27 @@ case class InputIteratorMetricsUpdater(metrics: Map[String, SQLMetric]) extends 
       if (!operatorMetrics.metricsList.isEmpty) {
         val metricsData = operatorMetrics.metricsList.get(0)
         metrics("iterReadTime") += (metricsData.time / 1000L).toLong
-        metrics("outputVectors") += metricsData.outputVectors
+
+        val processors = MetricsUtil.getAllProcessorList(metricsData)
+        processors.foreach(
+          processor => {
+            if (
+              InputIteratorMetricsUpdater.CH_PLAN_NODE_NAME
+                .exists(processor.name.startsWith(_))
+            ) {
+              metrics("inputRows") += processor.inputRows
+              metrics("outputRows") += processor.outputRows
+            }
+            if (processor.name.equalsIgnoreCase("FillingRightJoinSide")) {
+              metrics("fillingRightJoinSideTime") += (processor.time / 1000L).toLong
+            }
+          })
       }
     }
   }
+}
+
+object InputIteratorMetricsUpdater {
+  val INCLUDING_PROCESSORS = Array("BlocksBufferPoolTransform")
+  val CH_PLAN_NODE_NAME = Array("BlocksBufferPoolTransform")
 }

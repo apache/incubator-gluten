@@ -1,5 +1,5 @@
 [{
-  "id": 6,
+  "id": 5,
   "name": "kProject",
   "time": 4,
   "input_wait_time": 7736,
@@ -14,24 +14,6 @@
       "output_bytes": 16644,
       "input_rows": 292,
       "input_bytes": 14308
-    }]
-  }]
-}, {
-  "id": 5,
-  "name": "kProject",
-  "time": 6,
-  "input_wait_time": 7725,
-  "output_wait_time": 48,
-  "steps": [{
-    "name": "Expression",
-    "description": "Project",
-    "processors": [{
-      "name": "ExpressionTransform",
-      "time": 6,
-      "output_rows": 292,
-      "output_bytes": 14308,
-      "input_rows": 292,
-      "input_bytes": 16644
     }]
   }]
 }, {

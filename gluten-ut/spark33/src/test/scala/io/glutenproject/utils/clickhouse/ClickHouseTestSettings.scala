@@ -1154,6 +1154,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("sorting on ShortType with nullable=false, sortOrder=List('a ASC NULLS LAST)")
     .exclude("sorting on ShortType with nullable=false, sortOrder=List('a DESC NULLS LAST)")
     .exclude("sorting on ShortType with nullable=false, sortOrder=List('a DESC NULLS FIRST)")
+    .exclude("SPARK-40089: decimal values sort correctly")
   enableSuite[GlutenTakeOrderedAndProjectSuite]
     .exclude("TakeOrderedAndProject.doExecute without project")
     .exclude("TakeOrderedAndProject.doExecute with project")

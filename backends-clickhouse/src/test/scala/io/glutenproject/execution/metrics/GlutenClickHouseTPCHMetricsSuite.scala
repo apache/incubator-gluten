@@ -207,14 +207,14 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
           case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
         }
 
-        val scanPlan = allGlutenPlans(10)
+        val scanPlan = allGlutenPlans(9)
         assert(scanPlan.metrics("scanTime").value == 2)
         assert(scanPlan.metrics("inputWaitTime").value == 3)
         assert(scanPlan.metrics("outputWaitTime").value == 1)
         assert(scanPlan.metrics("outputRows").value == 80000)
         assert(scanPlan.metrics("outputBytes").value == 2160000)
 
-        val filterPlan = allGlutenPlans(9)
+        val filterPlan = allGlutenPlans(8)
         assert(filterPlan.metrics("totalTime").value == 1)
         assert(filterPlan.metrics("inputWaitTime").value == 13)
         assert(filterPlan.metrics("outputWaitTime").value == 1)
@@ -223,7 +223,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         assert(filterPlan.metrics("inputRows").value == 80000)
         assert(filterPlan.metrics("inputBytes").value == 2160000)
 
-        val joinPlan = allGlutenPlans(3)
+        val joinPlan = allGlutenPlans(2)
         assert(joinPlan.metrics("totalTime").value == 1)
         assert(joinPlan.metrics("inputWaitTime").value == 6)
         assert(joinPlan.metrics("outputWaitTime").value == 0)
@@ -244,7 +244,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
           case g: GlutenPlan if !g.isInstanceOf[InputIteratorTransformer] => g
         }
 
-        assert(allGlutenPlans.size == 58)
+        assert(allGlutenPlans.size == 57)
 
         val shjPlan = allGlutenPlans(8)
         assert(shjPlan.metrics("totalTime").value == 6)
@@ -311,15 +311,14 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         .get(0)
         .getProcessors
         .get(0)
-        .getInputRows == 591677)
-
+        .getInputRows == 591673)
     assert(
       nativeMetricsData.metricsDataList
         .get(4)
         .getSteps
         .get(0)
         .getProcessors
-        .get(1)
+        .get(0)
         .getOutputRows == 4)
 
     assert(
@@ -356,7 +355,7 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         .getSteps
         .get(0)
         .getName
-        .equals("MergingAggregated"))
+        .equals("GraceMergingAggregatedStep"))
     assert(
       nativeMetricsDataFinal.metricsDataList.get(1).getSteps.get(1).getName.equals("Expression"))
     assert(nativeMetricsDataFinal.metricsDataList.get(2).getName.equals("kProject"))

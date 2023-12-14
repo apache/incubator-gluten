@@ -262,6 +262,15 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def extendedExpressionTransformer: String = conf.getConf(EXTENDED_EXPRESSION_TRAN_CONF)
 
+  def expressionBlacklist: Set[String] = {
+    val blacklist = conf.getConf(EXPRESSION_BLACK_LIST)
+    if (blacklist.isDefined) {
+      blacklist.get.toLowerCase(Locale.ROOT).trim.split(",").toSet
+    } else {
+      Set.empty
+    }
+  }
+
   def printStackOnValidationFailure: Boolean =
     conf.getConf(VALIDATION_PRINT_FAILURE_STACK_)
 
@@ -305,6 +314,7 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def maxCoalescedBytes: Option[Int] =
     conf.getConf(MAX_COALESCED_BYTES)
 
+  def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 }
 
 object GlutenConfig {
@@ -352,6 +362,10 @@ object GlutenConfig {
 
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
+  // ABFS config
+  val ABFS_ACCOUNT_KEY = "hadoop.fs.azure.account.key"
+  val SPARK_ABFS_ACCOUNT_KEY: String = "spark." + ABFS_ACCOUNT_KEY
+
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "qat"
   val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("gzip", "zstd")
@@ -551,6 +565,10 @@ object GlutenConfig {
     // put in all S3 configs
     conf
       .filter(_._1.startsWith(HADOOP_PREFIX + S3A_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    conf
+      .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
@@ -1256,6 +1274,12 @@ object GlutenConfig {
       .stringConf
       .createWithDefaultString("")
 
+  val EXPRESSION_BLACK_LIST =
+    buildConf("spark.gluten.expression.blacklist")
+      .doc("A black list of expression to skip transform, multiple values separated by commas.")
+      .stringConf
+      .createOptional
+
   val FALLBACK_REPORTER_ENABLED =
     buildConf("spark.gluten.sql.columnar.fallbackReporter")
       .doc("When true, enable fallback reporter rule to print fallback reason")
@@ -1345,6 +1369,13 @@ object GlutenConfig {
       .internal()
       .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
         + "For example `fron_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_COLUMNAR_PROJECT_COLLAPSE =
+    buildConf("spark.gluten.sql.columnar.project.collapse")
+      .internal()
+      .doc("Combines two columnar project operators into one and perform alias substitution")
       .booleanConf
       .createWithDefault(true)
 

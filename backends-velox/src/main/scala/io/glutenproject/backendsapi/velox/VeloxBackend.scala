@@ -278,8 +278,6 @@ object BackendSettings extends BackendSettingsApi {
   override def removeHashColumnFromColumnarShuffleExchangeExec(): Boolean = true
   override def rescaleDecimalLiteral(): Boolean = true
 
-  override def replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
-
   /** Get the config prefix for each backend */
   override def getBackendConfigPrefix(): String =
     GlutenConfig.GLUTEN_CONFIG_PREFIX + VeloxBackend.BACKEND_NAME

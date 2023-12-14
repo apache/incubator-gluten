@@ -127,6 +127,24 @@ class Spark33Shims extends SparkShims {
       @transient locations: Array[String] = Array.empty): PartitionedFile =
     PartitionedFile(partitionValues, filePath, start, length, locations)
 
+  override def hasBloomFilterAggregate(
+      agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean = {
+    agg.aggregateExpressions.exists(
+      expr => expr.aggregateFunction.isInstanceOf[BloomFilterAggregate])
+  }
+
+  override def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan] = {
+    expr match {
+      case mc @ BloomFilterMightContain(sub: org.apache.spark.sql.execution.ScalarSubquery, _) =>
+        Some(sub.plan)
+      case mc @ BloomFilterMightContain(
+            g @ GetStructField(sub: org.apache.spark.sql.execution.ScalarSubquery, _, _),
+            _) =>
+        Some(sub.plan)
+      case _ => None
+    }
+  }
+
   private def invalidBucketFile(path: String): Throwable = {
     new SparkException(
       errorClass = "INVALID_BUCKET_FILE",

@@ -141,6 +141,13 @@ trait SparkPlanExecApi {
       right: ExpressionTransformer,
       original: GetMapValue): ExpressionTransformer
 
+  def genStringToMapTransformer(
+      substraitExprName: String,
+      children: Seq[ExpressionTransformer],
+      expr: Expression): ExpressionTransformer = {
+    GenericExpressionTransformer(substraitExprName, children, expr)
+  }
+
   /** Transform GetArrayItem to Substrait. */
   def genGetArrayItemExpressionNode(
       substraitExprName: String,

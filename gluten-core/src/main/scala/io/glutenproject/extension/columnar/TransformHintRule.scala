@@ -20,12 +20,13 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
 import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, SortOrder}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, SortOrder}
 import org.apache.spark.sql.catalyst.optimizer.{BuildLeft, BuildRight}
 import org.apache.spark.sql.catalyst.plans.FullOuter
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -53,7 +54,8 @@ trait TransformHint {
 }
 
 case class TRANSFORM_SUPPORTED() extends TransformHint
-case class TRANSFORM_UNSUPPORTED(reason: Option[String]) extends TransformHint
+case class TRANSFORM_UNSUPPORTED(reason: Option[String], appendReasonIfExists: Boolean = true)
+  extends TransformHint
 
 object TransformHints {
   val TAG: TreeNodeTag[TransformHint] =
@@ -76,11 +78,19 @@ object TransformHints {
   def tag(plan: SparkPlan, hint: TransformHint): Unit = {
     val mergedHint = getHintOption(plan)
       .map {
-        case originalHint @ TRANSFORM_UNSUPPORTED(Some(originalReason)) =>
+        case originalHint @ TRANSFORM_UNSUPPORTED(Some(originalReason), originAppend) =>
           hint match {
-            case TRANSFORM_UNSUPPORTED(Some(newReason)) =>
-              TRANSFORM_UNSUPPORTED(Some(originalReason + "; " + newReason))
-            case TRANSFORM_UNSUPPORTED(None) =>
+            case TRANSFORM_UNSUPPORTED(Some(newReason), append) =>
+              if (originAppend && append) {
+                TRANSFORM_UNSUPPORTED(Some(originalReason + "; " + newReason))
+              } else if (originAppend) {
+                TRANSFORM_UNSUPPORTED(Some(originalReason))
+              } else if (append) {
+                TRANSFORM_UNSUPPORTED(Some(newReason))
+              } else {
+                TRANSFORM_UNSUPPORTED(Some(originalReason), false)
+              }
+            case TRANSFORM_UNSUPPORTED(None, _) =>
               originalHint
             case _ =>
               throw new UnsupportedOperationException(
@@ -112,10 +122,10 @@ object TransformHints {
     tag(plan, TRANSFORM_UNSUPPORTED(Some(reason)))
   }
 
-  def tagAllNotTransformable(plan: SparkPlan, reason: String): Unit = {
+  def tagAllNotTransformable(plan: SparkPlan, hint: TRANSFORM_UNSUPPORTED): Unit = {
     plan.foreach {
       case _: GlutenPlan => // ignore
-      case other => tagNotTransformable(other, reason)
+      case other => tag(other, hint)
     }
   }
 
@@ -266,6 +276,52 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
         }
       }
       p
+  }
+}
+
+/**
+ * Velox BloomFilter's implementation is different from Spark's. So if might_contain falls back, we
+ * need fall back related bloom filter agg.
+ */
+case class FallbackBloomFilterAggIfNeeded() extends Rule[SparkPlan] {
+  override def apply(plan: SparkPlan): SparkPlan =
+    if (
+      GlutenConfig.getConf.enableNativeBloomFilter &&
+      BackendsApiManager.getSettings.enableBloomFilterAggFallbackRule()
+    ) {
+      plan.transformDown {
+        case p if TransformHints.isAlreadyTagged(p) && TransformHints.isNotTransformable(p) =>
+          handleBloomFilterFallback(p)
+          p
+      }
+    } else {
+      plan
+    }
+
+  object SubPlanFromBloomFilterMightContain {
+    def unapply(expr: Expression): Option[SparkPlan] =
+      SparkShimLoader.getSparkShims.extractSubPlanFromMightContain(expr)
+  }
+
+  private def handleBloomFilterFallback(plan: SparkPlan): Unit = {
+    def tagNotTransformableRecursive(p: SparkPlan): Unit = {
+      p match {
+        case agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec
+            if SparkShimLoader.getSparkShims.hasBloomFilterAggregate(agg) =>
+          TransformHints.tagNotTransformable(agg, "related BloomFilterMightContain falls back")
+          tagNotTransformableRecursive(agg.child)
+        case a: org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec =>
+          tagNotTransformableRecursive(a.executedPlan)
+        case _ =>
+          p.children.map(tagNotTransformableRecursive)
+      }
+    }
+
+    plan.transformExpressions {
+      case expr @ SubPlanFromBloomFilterMightContain(p: SparkPlan) =>
+        tagNotTransformableRecursive(p)
+        expr
+    }
   }
 }
 

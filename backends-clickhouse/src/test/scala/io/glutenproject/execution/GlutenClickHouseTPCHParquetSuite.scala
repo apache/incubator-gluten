@@ -2186,6 +2186,27 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-3861: Fix parse exception when join postJoinFilter contains singularOrList") {
+    withSQLConf(("spark.sql.autoBroadcastJoinThreshold", "-1")) {
+      val sql =
+        """
+          |select t1.l_orderkey, t1.l_year, t2.o_orderkey, t2.o_year
+          |from (
+          |  select l_orderkey, extract(year from l_shipdate) as l_year, count(1) as l_cnt
+          |  from lineitem
+          |  group by l_orderkey, l_shipdate) t1
+          |left join (
+          |  select o_orderkey, extract(year from o_orderdate) as o_year, count(1) as o_cnt
+          |  from orders
+          |  group by o_orderkey, o_orderdate) t2
+          |on t1.l_orderkey = t2.o_orderkey
+          | and l_year in (1997, 1995, 1993)
+          |order by t1.l_orderkey, t1.l_year, t2.o_orderkey, t2.o_year
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
+
   test("GLUTEN-3467: Fix 'Names of tuple elements must be unique' error for ch backend") {
     val sql =
       """
@@ -2217,6 +2238,17 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       runQueryAndCompare(
         "select trunc(l_shipdate, 'MM'), trunc(l_shipdate, 'YEAR'), trunc(l_shipdate, 'WEEK'), " +
           "trunc(l_shipdate, 'QUARTER') from lineitem"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("GLUTEN-3934: log10/log2/ln") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select log10(n_regionkey), log10(-1.0), log10(0), log10(n_regionkey - 100000), " +
+          "log2(n_regionkey), log2(-1.0), log2(0), log2(n_regionkey - 100000), " +
+          "ln(n_regionkey), ln(-1.0), ln(0), ln(n_regionkey - 100000) from nation"
       )(checkOperatorMatch[ProjectExecTransformer])
     }
   }

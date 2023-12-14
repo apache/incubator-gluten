@@ -63,12 +63,18 @@ class GlutenClickHouseDecimalSuite
   }
 
   private val decimalTable: String = "decimal_table"
-  private val decimalTPCHTables: Seq[DecimalType] = Seq.apply(DecimalType.apply(18, 8))
+  private val decimalTPCHTables: Seq[(DecimalType, Seq[Int])] = Seq.apply(
+    (DecimalType.apply(9, 4), Seq()),
+    // 1: ch decimal avg is float
+    (DecimalType.apply(18, 8), Seq(1)),
+    // 1: ch decimal avg is float, 3/10: all value is null and compare with limit
+    (DecimalType.apply(38, 19), Seq(1, 3, 10))
+  )
 
   override protected val createNullableTables = true
 
   override protected def createTPCHNullableTables(): Unit = {
-    decimalTPCHTables.foreach(createDecimalTables)
+    decimalTPCHTables.foreach(t => createDecimalTables(t._1))
   }
 
   private def createDecimalTables(dataType: DecimalType): Unit = {
@@ -85,7 +91,7 @@ class GlutenClickHouseDecimalSuite
         .map(
           tableName => {
             val originTablePath = tablesPath + "/" + tableName
-            spark.read.parquet(originTablePath).createTempView(tableName + "_ori")
+            spark.read.parquet(originTablePath).createOrReplaceTempView(tableName + "_ori")
 
             val sql = tableName match {
               case "customer" =>
@@ -292,17 +298,42 @@ class GlutenClickHouseDecimalSuite
       queriesResults: String = queriesResults,
       compareResult: Boolean = true,
       noFallBack: Boolean = true)(customCheck: DataFrame => Unit): Unit = {
-    decimalTPCHTables.foreach(
-      decimalType => {
-        spark.sql(s"use decimal_${decimalType.precision}_${decimalType.scale}")
-        compareTPCHQueryAgainstVanillaSpark(queryNum, tpchQueries, customCheck, noFallBack)
-        spark.sql(s"use default")
-      })
+    compareTPCHQueryAgainstVanillaSpark(
+      queryNum,
+      tpchQueries,
+      compareResult = compareResult,
+      customCheck = customCheck,
+      noFallBack = noFallBack)
   }
 
-  test("TPCH Q20") {
-    runTPCHQuery(20)(_ => {})
-  }
+  Range
+    .inclusive(1, 22)
+    .foreach(
+      sql_num => {
+        decimalTPCHTables.foreach(
+          dt => {
+            val decimalType = dt._1
+            test(s"TPCH Decimal(${decimalType.precision},${decimalType.scale}) Q$sql_num") {
+              var noFallBack = true
+              var compareResult = true
+              if (sql_num == 16 || sql_num == 21) {
+                noFallBack = false
+              }
+
+              if (dt._2.contains(sql_num)) {
+                compareResult = false
+              }
+
+              spark.sql(s"use decimal_${decimalType.precision}_${decimalType.scale}")
+              runTPCHQuery(
+                sql_num,
+                tpchQueries,
+                compareResult = compareResult,
+                noFallBack = noFallBack) { _ => {} }
+              spark.sql(s"use default")
+            }
+          })
+      })
 
   test("fix decimal precision overflow") {
     val sql =

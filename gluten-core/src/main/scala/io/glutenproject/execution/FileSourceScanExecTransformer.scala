@@ -131,7 +131,7 @@ class FileSourceScanExecTransformer(
   override val nodeNamePrefix: String = "NativeFile"
 
   override val nodeName: String = {
-    s"NativeScan $relation ${tableIdentifier.map(_.unquotedString).getOrElse("")}"
+    s"Scan $relation ${tableIdentifier.map(_.unquotedString).getOrElse("")}"
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -163,7 +163,6 @@ class FileSourceScanExecTransformer(
       case "DwrfFileFormat" => ReadFileFormat.DwrfReadFormat
       case "DeltaMergeTreeFileFormat" => ReadFileFormat.MergeTreeReadFormat
       case "CSVFileFormat" => ReadFileFormat.TextReadFormat
-      case "DeltaParquetFileFormat" => ReadFileFormat.ParquetReadFormat
       case _ => ReadFileFormat.UnknownFormat
     }
 

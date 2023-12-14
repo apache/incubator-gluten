@@ -28,6 +28,8 @@ BUILD_PROTOBUF=ON
 ENABLE_S3=OFF
 #Set on run gluten on GCS
 ENABLE_GCS=OFF
+#Set on run gluten on ABFS
+ENABLE_ABFS=OFF
 
 OS=`uname -s`
 
@@ -61,6 +63,10 @@ for arg in "$@"; do
     ENABLE_GCS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+  --enable_abfs=*)
+    ENABLE_ABFS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
   *)
     OTHER_ARGUMENTS+=("$1")
     shift # Remove generic argument from processing
@@ -69,8 +75,16 @@ for arg in "$@"; do
 done
 
 function process_setup_ubuntu {
-  # make this function Reentrantly
+  if [ -z "$(which git)" ]; then
+    sudo --preserve-env apt install -y git
+  fi
+  # make this function Reentrant
   git checkout scripts/setup-ubuntu.sh
+
+  # No need to re-install git.
+  sed -i '/git \\/d' scripts/setup-ubuntu.sh
+  # Do not install libunwind which can cause interruption when catching native exception.
+  sed -i 's/sudo --preserve-env apt install -y libunwind-dev && //' scripts/setup-ubuntu.sh
   sed -i '/libprotobuf-dev/d' scripts/setup-ubuntu.sh
   sed -i '/protobuf-compiler/d' scripts/setup-ubuntu.sh
   sed -i '/ccache/a\  *thrift* \\' scripts/setup-ubuntu.sh
@@ -99,13 +113,23 @@ function process_setup_ubuntu {
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-ubuntu.sh
   fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-ubuntu.sh
+  fi
   sed -i 's/run_and_time install_conda/#run_and_time install_conda/' scripts/setup-ubuntu.sh
 
 }
 
 function process_setup_centos8 {
-  # make this function Reentrantly
+  # Allows other version of git already installed.
+  if [ -z "$(which git)" ]; then
+    dnf install -y -q --setopt=install_weak_deps=False git
+  fi
+  # make this function Reentrant
   git checkout scripts/setup-centos8.sh
+
+  # # No need to re-install git.
+  sed -i 's/dnf_install ninja-build ccache gcc-toolset-9 git/dnf_install ninja-build ccache gcc-toolset-9/' scripts/setup-centos8.sh
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos8.sh
   sed -i '/^dnf_install autoconf/a\dnf_install libxml2-devel libgsasl-devel libuuid-devel' scripts/setup-centos8.sh
   sed -i '/^function cmake_install_deps.*/i FB_OS_VERSION=v2022.11.14.00\n function install_folly {\n  github_checkout facebook/folly "${FB_OS_VERSION}"\n  cmake_install -DBUILD_TESTS=OFF -DFOLLY_HAVE_INT128_T=ON\n}\n'     scripts/setup-centos8.sh
@@ -129,12 +153,21 @@ function process_setup_centos8 {
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos8.sh
   fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos8.sh
+  fi
 }
 
 function process_setup_centos7 {
-  # make this function Reentrantly
+  # Allows other version of git already installed.
+  if [ -z "$(which git)" ]; then
+    dnf install -y -q --setopt=install_weak_deps=False git
+  fi
+  # make this function Reentrant
   git checkout scripts/setup-centos7.sh
 
+  # No need to re-install git.
+  sed -i 's/dnf_install ccache git/dnf_install ccache/' scripts/setup-centos7.sh
   # cmake 3 and ninja should be installed
   sed -i '/^run_and_time install_cmake/d' scripts/setup-centos7.sh
   sed -i '/^run_and_time install_ninja/d' scripts/setup-centos7.sh
@@ -155,6 +188,9 @@ function process_setup_centos7 {
   fi
   if [ $ENABLE_GCS == "ON" ]; then
     sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos7.sh
+  fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos7.sh
   fi
 }
 

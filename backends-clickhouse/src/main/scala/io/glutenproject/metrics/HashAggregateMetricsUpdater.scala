@@ -68,8 +68,6 @@ class HashAggregateMetricsUpdater(val metrics: Map[String, SQLMetric])
           if (!resizeStep.isEmpty) {
             metrics("resizeInputRows") += resizeStep.get.inputRows
             metrics("resizeOutputRows") += aggMetricsData.getOutputRows
-            // The input rows of the Resize is included in the input rows of the Aggregating
-            metrics("inputRows") += -resizeStep.get.inputRows
           }
 
           currentIdx -= 1
@@ -94,6 +92,14 @@ class HashAggregateMetricsUpdater(val metrics: Map[String, SQLMetric])
 }
 
 object HashAggregateMetricsUpdater {
-  val INCLUDING_PROCESSORS = Array("AggregatingTransform", "MergingAggregatedTransform")
-  val CH_PLAN_NODE_NAME = Array("AggregatingTransform", "MergingAggregatedTransform")
+  val INCLUDING_PROCESSORS = Array(
+    "AggregatingTransform",
+    "StreamingAggregatingTransform",
+    "MergingAggregatedTransform",
+    "GraceMergingAggregatedTransform")
+  val CH_PLAN_NODE_NAME = Array(
+    "AggregatingTransform",
+    "StreamingAggregatingTransform",
+    "MergingAggregatedTransform",
+    "GraceMergingAggregatedTransform")
 }

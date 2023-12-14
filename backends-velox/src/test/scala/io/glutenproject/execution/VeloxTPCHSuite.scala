@@ -19,6 +19,8 @@ package io.glutenproject.execution
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.{Row, TestUtils}
 
+import java.io.File
+
 abstract class VeloxTPCHTableSupport extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
@@ -237,5 +239,30 @@ class VeloxTPCHV2BhjSuite extends VeloxTPCHSuite {
     super.sparkConf
       .set("spark.sql.sources.useV1SourceList", "")
       .set("spark.sql.autoBroadcastJoinThreshold", "30M")
+  }
+}
+
+class VeloxPartitionedTableTPCHSuite extends VeloxTPCHSuite {
+  override protected def createTPCHNotNullTables(): Unit = {
+    TPCHTables = TPCHTable.map {
+      table =>
+        val tableDir = getClass.getResource(resourcePath).getFile
+        val tablePath = new File(tableDir, table.name).getAbsolutePath
+        val tableDF = spark.read.format(fileFormat).load(tablePath)
+
+        tableDF.write
+          .format(fileFormat)
+          .partitionBy(table.partitionColumns: _*)
+          .mode("append")
+          .saveAsTable(table.name)
+        (table.name, tableDF)
+    }.toMap
+  }
+
+  override protected def afterAll(): Unit = {
+    if (TPCHTables != null) {
+      TPCHTables.keys.foreach(v => spark.sql(s"DROP TABLE IF EXISTS $v"))
+    }
+    super.afterAll()
   }
 }

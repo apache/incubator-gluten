@@ -78,7 +78,8 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "remaining filter time")
+        "remaining filter time"),
+      "ioWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "io wait time")
     )
 
   override def genBatchScanTransformerMetricsUpdater(
@@ -117,7 +118,8 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "remaining filter time")
+        "remaining filter time"),
+      "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time")
     )
 
   override def genHiveTableScanTransformerMetricsUpdater(
@@ -156,7 +158,8 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "remaining filter time")
+        "remaining filter time"),
+      "ioWaitTime" -> SQLMetrics.createNanoTimingMetric(sparkContext, "io wait time")
     )
 
   override def genFileSourceScanTransformerMetricsUpdater(

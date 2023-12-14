@@ -94,9 +94,9 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
     split_result.raw_partition_lengths.resize(options.partition_num, 0);
 }
 
-
 void CachedShuffleWriter::split(DB::Block & block)
 {
+    auto block_info = block.info;
     initOutputIfNeeded(block);
 
     Stopwatch split_time_watch;
@@ -112,6 +112,7 @@ void CachedShuffleWriter::split(DB::Block & block)
     {
         out_block.insert(block.getByPosition(output_columns_indicies[col_i]));
     }
+    out_block.info = block_info;
     partition_writer->write(partition_info, out_block);
 }
 

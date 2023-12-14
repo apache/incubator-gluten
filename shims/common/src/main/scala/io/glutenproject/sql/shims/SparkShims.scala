@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.{Expression, PlanExpression}
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.FileSourceScanExec
+import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{FilePartition, FileScanRDD, PartitionDirectory, PartitionedFile, PartitioningAwareFileIndex}
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.datasources.v2.text.TextScan
@@ -81,4 +81,9 @@ trait SparkShims {
       start: Long,
       length: Long,
       @transient locations: Array[String] = Array.empty): PartitionedFile
+
+  def hasBloomFilterAggregate(
+      agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean
+
+  def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan]
 }
