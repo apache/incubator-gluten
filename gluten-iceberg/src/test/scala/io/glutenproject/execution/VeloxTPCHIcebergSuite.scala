@@ -53,10 +53,17 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
         table =>
           val tablePath = new File(resourcePath, table).getAbsolutePath
           val tableDF = spark.read.format(fileFormat).load(tablePath)
-          tableDF.write.format("iceberg").mode("append").saveAsTable(table)
+          tableDF.write.format("iceberg").mode("overwrite").saveAsTable(table)
           (table, tableDF)
       }
       .toMap
+  }
+
+  override protected def afterAll(): Unit = {
+    if (TPCHTables != null) {
+      TPCHTables.keys.foreach(v => spark.sql(s"DROP TABLE IF EXISTS $v"))
+    }
+    super.afterAll()
   }
 
   test("iceberg transformer exists") {
@@ -85,37 +92,22 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
         }
     }
   }
+}
 
-  test("iceberg partition table") {
-    withTable("lineitem_p") {
-      val tablePath = new File(resourcePath, "lineitem").getAbsolutePath
-      val tableDF = spark.read.format(fileFormat).load(tablePath)
-      tableDF.write
-        .format("iceberg")
-        .option(SparkWriteOptions.FANOUT_ENABLED, "true")
-        .mode("append")
-        .saveAsTable("lineitem_p")
-      runQueryAndCompare("""
-                           |SELECT
-                           |  sum(l_extendedprice * l_discount) AS revenue
-                           |FROM
-                           |  lineitem_p
-                           |WHERE
-                           |  l_shipdate >= '1994-01-01'
-                           |  AND l_shipdate < '1995-01-01'
-                           |  AND l_discount BETWEEN.06 - 0.01
-                           |  AND.06 + 0.01
-                           |  AND l_quantity < 24;
-                           |""".stripMargin) {
-        df =>
-          {
-            assert(
-              getExecutedPlan(df).count(
-                plan => {
-                  plan.isInstanceOf[IcebergScanTransformer]
-                }) == 1)
-          }
-      }
-    }
+class VeloxPartitionedTableTPCHIcebergSuite extends VeloxTPCHIcebergSuite {
+  override protected def createTPCHNotNullTables(): Unit = {
+    TPCHTables = TPCHTable.map {
+      table =>
+        val tablePath = new File(resourcePath, table.name).getAbsolutePath
+        val tableDF = spark.read.format(fileFormat).load(tablePath)
+
+        tableDF.write
+          .format("iceberg")
+          .partitionBy(table.partitionColumns: _*)
+          .option(SparkWriteOptions.FANOUT_ENABLED, "true")
+          .mode("overwrite")
+          .saveAsTable(table.name)
+        (table.name, tableDF)
+    }.toMap
   }
 }
