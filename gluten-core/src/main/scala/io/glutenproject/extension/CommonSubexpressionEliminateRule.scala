@@ -46,7 +46,7 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     var newPlan = plan match {
       case project: Project => visitProject(project)
       // TODO: CSE in Filter doesn't work for unknown reason, need to fix it later
-      case filter: Filter => visitFilter(filter)
+      // case filter: Filter => visitFilter(filter)
       case window: Window => visitWindow(window)
       case aggregate: Aggregate => visitAggregate(aggregate)
       case sort: Sort => visitSort(sort)
