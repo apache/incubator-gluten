@@ -27,12 +27,9 @@ import io.glutenproject.substrait.expression.WindowFunctionNode
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.physical.{AllTuples, ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.window.WindowExecBase
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.SortField
