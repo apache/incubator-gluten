@@ -192,7 +192,7 @@ facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const 
 }
 
 // JNI-or-local filesystem, for spilling-to-heap if we have extra JVM heap spaces
-void VeloxBackend::initJolFilesystem(const std::shared_ptr<const facebook::velox::Config> conf) {
+void VeloxBackend::initJolFilesystem(const std::shared_ptr<const facebook::velox::Config>& conf) {
   int64_t maxSpillFileSize = conf->get<int64_t>(kMaxSpillFileSize, kMaxSpillFileSizeDefault);
 
   // FIXME It's known that if spill compression is disabled, the actual spill file size may
@@ -201,7 +201,7 @@ void VeloxBackend::initJolFilesystem(const std::shared_ptr<const facebook::velox
   gluten::registerJolFileSystem(maxSpillFileSize);
 }
 
-void VeloxBackend::initCache(const std::shared_ptr<const facebook::velox::Config> conf) {
+void VeloxBackend::initCache(const std::shared_ptr<const facebook::velox::Config>& conf) {
   bool veloxCacheEnabled = conf->get<bool>(kVeloxCacheEnabled, false);
   if (veloxCacheEnabled) {
     FLAGS_ssd_odirect = true;
@@ -248,7 +248,7 @@ void VeloxBackend::initCache(const std::shared_ptr<const facebook::velox::Config
   }
 }
 
-void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Config> conf) {
+void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Config>& conf) {
   int32_t ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
 
   auto mutableConf = std::make_shared<facebook::velox::core::MemConfigMutable>(conf->valuesCopy());
@@ -361,7 +361,7 @@ void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Co
       std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, mutableConf, ioExecutor_.get()));
 }
 
-void VeloxBackend::initUdf(const std::shared_ptr<const facebook::velox::Config> conf) {
+void VeloxBackend::initUdf(const std::shared_ptr<const facebook::velox::Config>& conf) {
   auto got = conf->get<std::string>(kVeloxUdfLibraryPaths, "");
   if (!got.empty()) {
     auto udfLoader = gluten::UdfLoader::getInstance();
