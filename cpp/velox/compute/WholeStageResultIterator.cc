@@ -39,6 +39,8 @@ const std::string kHiveConnectorId = "test-hive";
 // memory
 const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
 const std::string kSpillStrategyDefaultValue = "auto";
+const std::string kPartialAggregationSpillEnabled =
+    "spark.gluten.sql.columnar.backend.velox.partialAggregationSpillEnabled";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
@@ -361,7 +363,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     }
     configs[velox::core::QueryConfig::kAggregationSpillEnabled] =
         getConfigValue(confMap_, kAggregationSpillEnabled, "true");
-    configs[velox::core::QueryConfig::kPartialAggregationSpillEnabled] = "true";
+    configs[velox::core::QueryConfig::kPartialAggregationSpillEnabled] =
+        getConfigValue(confMap_, kPartialAggregationSpillEnabled, "true");
     configs[velox::core::QueryConfig::kJoinSpillEnabled] = getConfigValue(confMap_, kJoinSpillEnabled, "true");
     configs[velox::core::QueryConfig::kOrderBySpillEnabled] = getConfigValue(confMap_, kOrderBySpillEnabled, "true");
     configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] =
