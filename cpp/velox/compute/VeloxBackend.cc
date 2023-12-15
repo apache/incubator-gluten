@@ -59,6 +59,7 @@ DECLARE_int32(velox_memory_num_shared_leaf_pools);
 DECLARE_bool(velox_memory_use_hugepages);
 
 DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
+DEFINE_int32(gluten_velox_aysnc_timeout_on_task_stopping, 30000, "Aysnc timout when task is being stopped");
 
 using namespace facebook;
 
