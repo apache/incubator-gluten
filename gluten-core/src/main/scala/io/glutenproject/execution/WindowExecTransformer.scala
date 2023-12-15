@@ -56,18 +56,6 @@ case class WindowExecTransformer(
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genWindowTransformerMetricsUpdater(metrics)
 
-  override def output: Seq[Attribute] = child.output ++ windowExpression.map(_.toAttribute)
-
-  override def requiredChildDistribution: Seq[Distribution] = {
-    if (partitionSpec.isEmpty) {
-      // Only show warning when the number of bytes is larger than 100 MiB?
-      logWarning(
-        "No Partition Defined for Window operation! Moving all data to a single "
-          + "partition, this can cause serious performance degradation.")
-      AllTuples :: Nil
-    } else ClusteredDistribution(partitionSpec) :: Nil
-  }
-
   override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
     if (
       BackendsApiManager.getSettings.requiredChildOrderingForWindow()
@@ -79,10 +67,6 @@ case class WindowExecTransformer(
       Seq(Nil)
     }
   }
-
-  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
-
-  override def outputPartitioning: Partitioning = child.outputPartitioning
 
   def genWindowParameters(): Any = {
     // Start with "WindowParameters:"
