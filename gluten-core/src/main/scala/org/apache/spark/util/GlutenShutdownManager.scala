@@ -18,7 +18,7 @@ package org.apache.spark.util
 
 object GlutenShutdownManager {
 
-  private def isJava8: Boolean = Runtime.version().version().get(0) == 8
+  private def isJava8: Boolean = System.getProperty("java.version").equals("8")
 
   def addHook(hook: () => Unit): AnyRef = {
     ShutdownHookManager.addShutdownHook(ShutdownHookManager.DEFAULT_SHUTDOWN_PRIORITY)(hook)
