@@ -21,6 +21,7 @@
 
   <name>Gluten Parent Pom</name>
   <url>https://github.com/oap-project/gluten.git</url>
+  <description>Gluten is an open source plugin for Spark Native Engine Support.</description>
 
   <licenses>
     <license>
@@ -29,6 +30,21 @@
     </license>
   </licenses>
 
+  <developers>
+    <developer>
+      <name>Weiting Chen</name>
+      <email>weiting.chen@intel.com</email>
+      <organization>Intel Corporation</organization>
+      <organizationUrl>http://www.intel.com</organizationUrl>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:git://github.com/oap-project/gluten.git</connection>
+    <developerConnection>scm:git:ssh://github.com:oap-project/gluten.git</developerConnection>
+    <url>http://github.com/oap-project/gluten/tree/main</url>
+  </scm>
+
   <modules>
     <module>gluten-core</module>
     <module>gluten-ui</module>
@@ -36,6 +52,17 @@
     <module>shims</module>
     <module>substrait/substrait-spark</module>
   </modules>
+
+  <distributionManagement>
+    <snapshotRepository>
+      <id>ossrh</id>
+      <url>https://s01.oss.sonatype.org/content/repositories/snapshots</url>
+    </snapshotRepository>
+    <repository>
+      <id>ossrh</id>
+      <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
+  </distributionManagement>
 
   <properties>
     <caffeine.version.java8>2.9.3</caffeine.version.java8>
@@ -227,6 +254,32 @@
       <modules>
         <module>gluten-ut</module>
       </modules>
+    </profile>
+    <profile>
+      <id>publish</id>
+      <activation>
+        <activeByDefault>false</activeByDefault>
+      </activation>
+      <properties>
+      </properties>
+      <build>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-gpg-plugin</artifactId>
+          <version>1.5</version>
+          <executions>
+            <execution>
+              <id>sign-artifacts</id>
+              <phase>verify</phase>
+              <goals>
+                <goal>sign</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+      </build>
     </profile>
   </profiles>
 
@@ -504,6 +557,31 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.2.0</version>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>javadoc</report>
+              <report>test-javadoc</report>
+            </reports>
+          </reportSet>
+          <reportSet>
+            <id>aggregate</id>
+            <inherited>false</inherited>
+            <reports>
+              <report>aggregate</report>
+            </reports>
+          </reportSet>
+        </reportSets>
+      </plugin>
+    </plugins>
+  </reporting>
 
   <build>
     <extensions>
@@ -784,6 +862,58 @@
         <artifactId>versions-maven-plugin</artifactId>
         <version>2.15.0</version>
       </plugin>
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <version>1.6.7</version>
+        <extensions>true</extensions>
+        <configuration>
+          <serverId>ossrh</serverId>
+	  <nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
+          <autoReleaseAfterClose>true</autoReleaseAfterClose>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.2.0</version>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>aggregate</id>
+            <phase>site</phase>
+            <goals>
+              <goal>aggregate</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <encoding>UTF-8</encoding>
+          <charset>UTF-8</charset>
+          <additionalOptions>
+            <additionalOption>-Xdoclint:none</additionalOption>
+          </additionalOptions>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-gpg-plugin</artifactId>
+        <version>1.5</version>
+        <executions>
+          <execution>
+            <id>sign-artifacts</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin> 
     </plugins>
   </build>
 </project>

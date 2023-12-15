@@ -65,6 +65,27 @@
           <artifactId>spotless-maven-plugin</artifactId>
           <version>${spotless.version}</version>
         </plugin>
+	<plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.2.0</version>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <phase>deploy</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <encoding>UTF-8</encoding>
+          <charset>UTF-8</charset>
+          <additionalOptions>
+            <additionalOption>-Xdoclint:none</additionalOption>
+          </additionalOptions>
+        </configuration>
+      </plugin>
       </plugins>
     </pluginManagement>
   </build>
