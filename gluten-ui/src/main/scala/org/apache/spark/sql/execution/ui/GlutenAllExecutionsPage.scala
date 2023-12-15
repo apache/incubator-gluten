@@ -88,7 +88,6 @@ private[ui] class GlutenAllExecutionsPage(parent: GlutenSQLTab) extends WebUIPag
             {infos}
           </div>
         </div>
-        <br/>
       </div>
 
     UIUtils.headerSparkPage(request, "Gluten SQL / DataFrame", summary ++ content, parent)
