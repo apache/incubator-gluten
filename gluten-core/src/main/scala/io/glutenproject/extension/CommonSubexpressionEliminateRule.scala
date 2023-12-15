@@ -19,6 +19,7 @@ package org.apache.spark.sql.extension
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateFunction
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.internal.SQLConf
@@ -87,21 +88,28 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     // Get all the expressions that appear at least twice
     val newChild = visitPlan(inputCtx.child)
     val commonExprs = equivalentExpressions.getCommonSubexpressions
-    if (commonExprs.isEmpty) {
-      // println(s"commonExprs is empty all exprs: ${equivalentExpressions.debugString(true)}")
-      return RewriteContext(inputCtx.exprs, newChild)
-    }
 
     // Put the common expressions into a hash map
     val commonExprMap = mutable.HashMap.empty[ExpressionEquals, AliasAndAttribute]
     commonExprs.foreach {
       expr =>
-        val exprEquals = ExpressionEquals(expr)
-        val alias = Alias(expr, expr.toString)()
-        val attribute = alias.toAttribute
-        commonExprMap.put(exprEquals, AliasAndAttribute(alias, attribute))
+        if (
+          !expr.isInstanceOf[Unevaluable] && !expr.foldable
+          && !expr.isInstanceOf[Attribute] && !expr.isInstanceOf[AggregateFunction]
+        ) {
+          // println(s"common expr $expr class ${expr.getClass.toString}")
+          val exprEquals = ExpressionEquals(expr)
+          val alias = Alias(expr, expr.toString)()
+          val attribute = alias.toAttribute
+          commonExprMap.put(exprEquals, AliasAndAttribute(alias, attribute))
+        }
     }
     // println(s"commonExprMap: $commonExprMap")
+
+    if (commonExprMap.isEmpty) {
+      // println(s"commonExprMap is empty all exprs: ${equivalentExpressions.debugString(true)}")
+      return RewriteContext(inputCtx.exprs, newChild)
+    }
 
     // Generate pre-project as new child
     var preProjectList = newChild.output ++ commonExprMap.values.map(_.alias)
