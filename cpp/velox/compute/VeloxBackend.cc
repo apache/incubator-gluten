@@ -58,6 +58,8 @@ DECLARE_bool(velox_exception_user_stacktrace_enabled);
 DECLARE_int32(velox_memory_num_shared_leaf_pools);
 DECLARE_bool(velox_memory_use_hugepages);
 
+DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
+
 using namespace facebook;
 
 namespace {
@@ -97,8 +99,12 @@ const std::string kVeloxSsdCacheIOThreads = "spark.gluten.sql.columnar.backend.v
 const uint32_t kVeloxSsdCacheIOThreadsDefault = 1;
 const std::string kVeloxSsdODirectEnabled = "spark.gluten.sql.columnar.backend.velox.ssdODirect";
 
+// async
 const std::string kVeloxIOThreads = "spark.gluten.sql.columnar.backend.velox.IOThreads";
 const uint32_t kVeloxIOThreadsDefault = 0;
+const std::string kVeloxAsyncTimeoutOnTaskStopping =
+    "spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping";
+const int32_t kVeloxAsyncTimeoutOnTaskStoppingDefault = 30000; // 30s
 
 // udf
 const std::string kVeloxUdfLibraryPaths = "spark.gluten.sql.columnar.backend.velox.udfLibraryPaths";
@@ -158,6 +164,10 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   // Set velox_memory_use_hugepages.
   FLAGS_velox_memory_use_hugepages = veloxcfg->get<bool>(kMemoryUseHugePages, kMemoryUseHugePagesDefault);
+
+  // Async timeout.
+  FLAGS_gluten_velox_aysnc_timeout_on_task_stopping =
+      veloxcfg->get<int32_t>(kVeloxAsyncTimeoutOnTaskStopping, kVeloxAsyncTimeoutOnTaskStoppingDefault);
 
   // Set backtrace_allocation
   gluten::backtrace_allocation = veloxcfg->get<bool>(kBacktraceAllocation, false);

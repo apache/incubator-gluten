@@ -23,6 +23,8 @@
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
+DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
+
 namespace gluten {
 
 using namespace facebook;
@@ -283,7 +285,8 @@ bool VeloxMemoryManager::tryDestructSafe() {
 }
 
 VeloxMemoryManager::~VeloxMemoryManager() {
-  static const uint32_t kWaitTimeoutMs = 30000UL; // 30s
+  static const uint32_t kWaitTimeoutMs = FLAGS_gluten_velox_aysnc_timeout_on_task_stopping; // 30s by default
+  GLUTEN_CHECK(kWaitTimeoutMs > 0, "Aysnc timeout must be greater than 0");
   uint32_t accumulatedWaitMs = 0UL;
   for (int32_t tryCount = 0; accumulatedWaitMs < kWaitTimeoutMs; tryCount++) {
     if (tryDestructSafe()) {
