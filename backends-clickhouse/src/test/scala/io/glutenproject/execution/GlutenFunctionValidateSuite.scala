@@ -531,7 +531,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   test("test common subexpression eliminate") {
     withSQLConf(("spark.gluten.sql.commonSubexpressionEliminate", "true")) {
       // CSE in project
-      runQueryAndCompare("select hex(id), lower(hex(id)), upper(hex(id)) from range(10)") { _ => }
+      runQueryAndCompare("select hash(id), hash(id)+1, hash(id)-1 from range(10)") { _ => }
 
       // CSE in filter(not work yet)
       runQueryAndCompare(
@@ -545,13 +545,13 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
 
       // CSE in aggregate
       runQueryAndCompare(
-        "select id % 2, max(hex(id)), min(hex(id)) " +
+        "select id % 2, max(hash(id)), min(hash(id)) " +
           "from range(10) group by id % 2") { _ => }
 
       // CSE in sort
       runQueryAndCompare(
-        "select id from range(00) " +
-          "order by hex(id%10), lower(hex(id%10))") { _ => }
+        "select id from range(10) " +
+          "order by hash(id%10), hash(hash(id%10))") { _ => }
     }
   }
 }
