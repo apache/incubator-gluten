@@ -116,6 +116,10 @@ const std::string kVeloxShuffleReaderPrintFlag = "spark.gluten.velox.shuffleRead
 const std::string kVeloxFileHandleCacheEnabled = "spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled";
 const bool kVeloxFileHandleCacheEnabledDefault = false;
 
+// Log granularity of AWS C++ SDK
+const std::string kVeloxAwsSdkLogLevel = "spark.gluten.velox.awsSdkLogLevel";
+const std::string kVeloxAwsSdkLogLevelDefault = "FATAL";
+
 } // namespace
 
 namespace gluten {
@@ -263,6 +267,8 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
   std::string iamRole = conf->get<std::string>("spark.hadoop.fs.s3a.iam.role", "");
   std::string iamRoleSessionName = conf->get<std::string>("spark.hadoop.fs.s3a.iam.role.session.name", "");
 
+  std::string awsSdkLogLevel = conf->get<std::string>(kVeloxAwsSdkLogLevel, kVeloxAwsSdkLogLevelDefault);
+
   const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
   if (envAwsAccessKey != nullptr) {
     awsAccessKey = std::string(envAwsAccessKey);
@@ -294,6 +300,7 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
   }
   mutableConf->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
   mutableConf->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
+  mutableConf->setValue("hive.s3.log-level", awsSdkLogLevel);
 #endif
 
 #ifdef ENABLE_ABFS
