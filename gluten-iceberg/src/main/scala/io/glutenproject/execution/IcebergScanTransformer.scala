@@ -51,8 +51,6 @@ class IcebergScanTransformer(
 
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = throw new UnsupportedOperationException()
-
   override def getSplitInfos: Seq[SplitInfo] = {
     getPartitions.zipWithIndex.map {
       case (p, index) => GlutenIcebergSourceUtil.genSplitInfo(p, index)

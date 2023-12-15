@@ -226,10 +226,6 @@ case class WindowExecTransformer(
     TransformContext(childCtx.outputAttributes, output, currRel)
   }
 
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
   override protected def withNewChildInternal(newChild: SparkPlan): WindowExecTransformer =
     copy(child = newChild)
 }

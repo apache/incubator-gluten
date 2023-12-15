@@ -95,10 +95,6 @@ abstract class HashAggregateExecBaseTransformer(
     SortOrder.orderingSatisfies(childOrdering, requiredOrdering)
   }
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genHashAggregateTransformerMetricsUpdater(metrics)
 

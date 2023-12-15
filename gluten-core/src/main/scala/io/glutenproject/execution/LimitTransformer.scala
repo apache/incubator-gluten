@@ -46,10 +46,6 @@ case class LimitTransformer(child: SparkPlan, offset: Long, count: Long)
   override protected def withNewChildInternal(newChild: SparkPlan): LimitTransformer =
     copy(child = newChild)
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genLimitTransformerMetricsUpdater(metrics)
 
