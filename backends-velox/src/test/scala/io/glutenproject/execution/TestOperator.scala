@@ -706,5 +706,17 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
                          |""".stripMargin) {
       checkOperatorMatch[GenerateExecTransformer]
     }
+    runQueryAndCompare(
+      """
+        |SELECT explode(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
+        |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+    runQueryAndCompare(
+      """
+        |SELECT explode(map(1, array(1, 2), 2, array(3, 4)));
+        |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
   }
 }
