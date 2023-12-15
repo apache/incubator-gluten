@@ -591,6 +591,7 @@
           <configuration>
             <testFailureIgnore>false</testFailureIgnore>
             <junitxml>.</junitxml>
+            <argLine>-Dio.netty.tryReflectionSetAccessible=true</argLine>
           </configuration>
           <executions>
             <execution>
