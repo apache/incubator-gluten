@@ -27,7 +27,7 @@ InMemorySpill::InMemorySpill(
     uint32_t compressionThreshold,
     arrow::MemoryPool* pool,
     arrow::util::Codec* codec,
-    std::unordered_map<uint32_t, std::list<std::unique_ptr<Payload>>> partitionToPayloads)
+    std::unordered_map<uint32_t, std::list<std::unique_ptr<BlockPayload>>> partitionToPayloads)
     : Spill(type, numPartitions),
       partitionToPayloads_(std::move(partitionToPayloads)),
       batchSize_(batchSize),
@@ -143,15 +143,19 @@ void DiskSpill::insertPayload(
     uint64_t rawSize,
     arrow::MemoryPool* pool,
     arrow::util::Codec* codec) {
-  // TODO: Support merging uncompressed payloads when codec is null.
-  if (payloadType == Payload::Type::kCompressed) {
-    partitionPayloads_.push_back(
-        {partitionId, std::make_unique<CompressedDiskBlockPayload>(numRows, isValidityBuffer, rawIs_, rawSize, pool)});
-  } else {
-    partitionPayloads_.push_back(
-        {partitionId,
-         std::make_unique<UncompressedDiskBlockPayload>(
-             payloadType, numRows, isValidityBuffer, rawIs_, rawSize, pool, codec)});
+  // TODO: Add compression threshold.
+  switch (payloadType) {
+    case Payload::Type::kUncompressed:
+      partitionPayloads_.push_back(
+          {partitionId,
+           std::make_unique<UncompressedDiskBlockPayload>(numRows, isValidityBuffer, rawIs_, rawSize, pool, codec)});
+      break;
+    case Payload::Type::kCompressed:
+    case Payload::Type::kToBeCompressed:
+      partitionPayloads_.push_back(
+          {partitionId,
+           std::make_unique<CompressedDiskBlockPayload>(numRows, isValidityBuffer, rawIs_, rawSize, pool)});
+      break;
   }
 }
 

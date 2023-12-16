@@ -41,7 +41,7 @@ class LocalPartitionWriter::LocalEvictor {
 
   virtual ~LocalEvictor() {}
 
-  virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<Payload> payload) = 0;
+  virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> payload) = 0;
 
   virtual arrow::Status spill() = 0;
 
@@ -68,7 +68,7 @@ class LocalPartitionWriter::PayloadMerger {
   PayloadMerger(ShuffleWriterOptions* options, arrow::MemoryPool* pool, arrow::util::Codec* codec, bool hasComplexType)
       : options_(options), pool_(pool), codec_(codec), hasComplexType_(hasComplexType) {}
 
-  arrow::Result<std::optional<std::unique_ptr<Payload>>> merge(
+  arrow::Result<std::optional<std::unique_ptr<BlockPayload>>> merge(
       uint32_t partitionId,
       uint32_t numRows,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
@@ -112,7 +112,7 @@ class LocalPartitionWriter::PayloadMerger {
     return merged->finish(codec_ == nullptr ? Payload::kUncompressed : Payload::kToBeCompressed);
   }
 
-  arrow::Result<std::optional<std::unique_ptr<Payload>>> finish(uint32_t partitionId, bool spill) {
+  arrow::Result<std::optional<std::unique_ptr<BlockPayload>>> finish(uint32_t partitionId, bool spill) {
     if (spill) {
       // If it's triggered by spill, we need to check whether the spill source is from compressing the merged buffers.
       if ((partitionInMerge_.has_value() && *partitionInMerge_ == partitionId) || !hasMerged(partitionId)) {
@@ -188,7 +188,7 @@ class LocalPartitionWriter::PayloadMerger {
     return std::make_unique<MergeBlockPayload>(numRows, std::move(buffers), isValidityBuffer, pool_, codec_);
   }
 
-  arrow::Result<std::unique_ptr<Payload>> createBlockPayload(
+  arrow::Result<std::unique_ptr<BlockPayload>> createBlockPayload(
       uint32_t numRows,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
@@ -221,9 +221,9 @@ class CacheEvictor : public LocalPartitionWriter::LocalEvictor {
       arrow::util::Codec* codec)
       : LocalPartitionWriter::LocalEvictor(numPartitions, options, spillFile, pool, codec) {}
 
-  arrow::Status evict(uint32_t partitionId, std::unique_ptr<Payload> payload) override {
+  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> payload) override {
     if (partitionCachedPayload_.find(partitionId) == partitionCachedPayload_.end()) {
-      partitionCachedPayload_[partitionId] = std::list<std::unique_ptr<Payload>>{};
+      partitionCachedPayload_[partitionId] = std::list<std::unique_ptr<BlockPayload>>{};
     }
     partitionCachedPayload_[partitionId].push_back(std::move(payload));
     return arrow::Status::OK();
@@ -240,13 +240,14 @@ class CacheEvictor : public LocalPartitionWriter::LocalEvictor {
         while (!payloads.empty()) {
           auto payload = std::move(payloads.front());
           payloads.pop_front();
+          payload->giveUpCompression();
           RETURN_NOT_OK(payload->serialize(os.get()));
 
           if (UNLIKELY(!diskSpill_)) {
             diskSpill_ = std::make_unique<DiskSpill>(Spill::SpillType::kBatchedSpill, numPartitions_, spillFile_);
           }
           ARROW_ASSIGN_OR_RAISE(auto end, os->Tell());
-          DEBUG_OUT << "Spilled partition " << pid << " file start: " << start << ", file end: " << end
+          DEBUG_OUT << "CacheEvictor: Spilled partition " << pid << " file start: " << start << ", file end: " << end
                     << ", file: " << spillFile_ << std::endl;
           diskSpill_->insertPayload(
               pid, payload->type(), payload->numRows(), payload->isValidityBuffer(), end - start, pool_, codec_);
@@ -283,7 +284,7 @@ class CacheEvictor : public LocalPartitionWriter::LocalEvictor {
  private:
   bool finished_{false};
   std::unique_ptr<DiskSpill> diskSpill_{nullptr};
-  std::unordered_map<uint32_t, std::list<std::unique_ptr<Payload>>> partitionCachedPayload_;
+  std::unordered_map<uint32_t, std::list<std::unique_ptr<BlockPayload>>> partitionCachedPayload_;
 
   arrow::Result<std::unique_ptr<InMemorySpill>> createSpill() {
     if (partitionCachedPayload_.empty()) {
@@ -312,7 +313,7 @@ class SpillEvictor final : public LocalPartitionWriter::LocalEvictor {
       arrow::util::Codec* codec)
       : LocalPartitionWriter::LocalEvictor(numPartitions, options, spillFile, pool, codec) {}
 
-  arrow::Status evict(uint32_t partitionId, std::unique_ptr<Payload> payload) override {
+  arrow::Status evict(uint32_t partitionId, std::unique_ptr<BlockPayload> payload) override {
     ScopedTimer timer(evictTime_);
     if (!opened_) {
       opened_ = true;
@@ -323,7 +324,7 @@ class SpillEvictor final : public LocalPartitionWriter::LocalEvictor {
     ARROW_ASSIGN_OR_RAISE(auto start, os_->Tell());
     RETURN_NOT_OK(payload->serialize(os_.get()));
     ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
-    DEBUG_OUT << "Spilled partition " << partitionId << " file start: " << start << ", file end: " << end
+    DEBUG_OUT << "SpillEvictor: Spilled partition " << partitionId << " file start: " << start << ", file end: " << end
               << ", file: " << spillFile_ << std::endl;
     spill_->insertPayload(
         partitionId, payload->type(), payload->numRows(), payload->isValidityBuffer(), end - start, pool_, codec_);
@@ -440,13 +441,13 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
 
   // Cached payloads.
   if (evictor_) {
-    ARROW_RETURN_IF(evictor_->evictType() != Evict::kCache, arrow::Status::Invalid("Unclosed evictor."));
-    ARROW_ASSIGN_OR_RAISE(auto spill, evictor_->finish());
+    auto evictor = std::move(evictor_);
+    ARROW_RETURN_IF(evictor->evictType() != Evict::kCache, arrow::Status::Invalid("Unclosed evictor."));
+    ARROW_ASSIGN_OR_RAISE(auto spill, evictor->finish());
     if (spill) {
       spills_.push_back(std::move(spill));
     }
-    evictTime_ += evictor_->getEvictTime();
-    evictor_ = nullptr;
+    evictTime_ += evictor->getEvictTime();
   }
 
   int64_t endInFinalFile = 0;
@@ -498,10 +499,10 @@ arrow::Status LocalPartitionWriter::requestEvict(Evict::type evictType) {
     return arrow::Status::OK();
   }
   if (evictor_) {
+    auto evictor = std::move(evictor_);
     spills_.emplace_back();
-    ARROW_ASSIGN_OR_RAISE(spills_.back(), evictor_->finish());
-    evictTime_ += evictor_->getEvictTime();
-    evictor_ = nullptr;
+    ARROW_ASSIGN_OR_RAISE(spills_.back(), evictor->finish());
+    evictTime_ += evictor->getEvictTime();
   }
 
   ARROW_ASSIGN_OR_RAISE(auto spilledFile, createTempShuffleFile(nextSpilledFileDir()));
@@ -522,13 +523,13 @@ arrow::Status LocalPartitionWriter::spill() {
   }
   // Then spill all cached payloads.
   if (evictor_) {
-    RETURN_NOT_OK(evictor_->spill());
-    ARROW_ASSIGN_OR_RAISE(auto spill, evictor_->finish());
+    auto evictor = std::move(evictor_);
+    RETURN_NOT_OK(evictor->spill());
+    ARROW_ASSIGN_OR_RAISE(auto spill, evictor->finish());
     if (spill) {
       spills_.push_back(std::move(spill));
     }
-    evictTime_ += evictor_->getEvictTime();
-    evictor_ = nullptr;
+    evictTime_ += evictor->getEvictTime();
   }
   return arrow::Status::OK();
 }

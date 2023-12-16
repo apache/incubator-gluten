@@ -56,7 +56,7 @@ class InMemorySpill final : public Spill {
       uint32_t compressionThreshold,
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec,
-      std::unordered_map<uint32_t, std::list<std::unique_ptr<Payload>>> partitionToPayloads);
+      std::unordered_map<uint32_t, std::list<std::unique_ptr<BlockPayload>>> partitionToPayloads);
 
   std::list<std::unique_ptr<Payload>> grouping(uint32_t partitionId, Payload::Type groupPayloadType);
 
@@ -65,7 +65,7 @@ class InMemorySpill final : public Spill {
   std::unique_ptr<Payload> nextPayload(uint32_t partitionId) override;
 
  private:
-  std::unordered_map<uint32_t, std::list<std::unique_ptr<Payload>>> partitionToPayloads_;
+  std::unordered_map<uint32_t, std::list<std::unique_ptr<BlockPayload>>> partitionToPayloads_;
 
   std::unique_ptr<Payload>
   createGroupPayload(Payload::Type groupPayloadType, uint32_t& rows, std::vector<std::unique_ptr<Payload>> toBeMerged);

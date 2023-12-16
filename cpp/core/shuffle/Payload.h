@@ -90,6 +90,8 @@ class BlockPayload : public Payload {
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t pos) override;
 
+  void giveUpCompression();
+
  protected:
   BlockPayload(
       Type type,
@@ -123,7 +125,7 @@ class MergeBlockPayload : public BlockPayload {
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec);
 
-  arrow::Result<std::unique_ptr<Payload>> finish(Payload::Type payloadType);
+  arrow::Result<std::unique_ptr<BlockPayload>> finish(Payload::Type payloadType);
 };
 
 class GroupPayload : public Payload {
@@ -161,7 +163,6 @@ class GroupPayload : public Payload {
 class UncompressedDiskBlockPayload : public Payload {
  public:
   UncompressedDiskBlockPayload(
-      Type type,
       uint32_t numRows,
       const std::vector<bool>* isValidityBuffer,
       arrow::io::InputStream*& inputStream,

@@ -405,6 +405,12 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> BlockPayload::readCompressedBuffer
   return output;
 }
 
+void BlockPayload::giveUpCompression() {
+  if (type_ == Type::kToBeCompressed) {
+    type_ = Type::kUncompressed;
+  }
+}
+
 arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
     std::unique_ptr<MergeBlockPayload> source,
     uint32_t appendNumRows,
@@ -505,7 +511,7 @@ arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
   return std::make_unique<MergeBlockPayload>(mergedRows, std::move(merged), isValidityBuffer, pool, codec);
 }
 
-arrow::Result<std::unique_ptr<Payload>> MergeBlockPayload::finish(Payload::Type payloadType) {
+arrow::Result<std::unique_ptr<BlockPayload>> MergeBlockPayload::finish(Payload::Type payloadType) {
   return BlockPayload::fromBuffers(payloadType, numRows_, std::move(buffers_), isValidityBuffer_, pool_, codec_);
 }
 
@@ -648,14 +654,13 @@ arrow::Status GroupPayload::serializeCompressed(arrow::io::OutputStream* outputS
 }
 
 UncompressedDiskBlockPayload::UncompressedDiskBlockPayload(
-    Payload::Type type,
     uint32_t numRows,
     const std::vector<bool>* isValidityBuffer,
     arrow::io::InputStream*& inputStream,
     uint64_t rawSize,
     arrow::MemoryPool* pool,
     arrow::util::Codec* codec)
-    : Payload(type, numRows, isValidityBuffer),
+    : Payload(Payload::kUncompressed, numRows, isValidityBuffer),
       inputStream_(inputStream),
       rawSize_(rawSize),
       pool_(pool),
