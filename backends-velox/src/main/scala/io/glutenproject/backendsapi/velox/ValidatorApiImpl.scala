@@ -23,10 +23,10 @@ import io.glutenproject.substrait.plan.PlanNode
 import io.glutenproject.validate.NativePlanValidationInfo
 import io.glutenproject.vectorized.NativePlanEvaluator
 
-import org.apache.spark.sql.catalyst.expressions.{CreateMap, Explode, Expression, Generator, JsonTuple, Literal, PosExplode}
+import org.apache.spark.sql.catalyst.expressions.{CreateMap, Explode, Expression, Generator, JsonTuple, PosExplode}
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
-import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, StructType, TimestampType}
+import org.apache.spark.sql.types._
 
 class ValidatorApiImpl extends ValidatorApi {
 
@@ -95,20 +95,15 @@ class ValidatorApiImpl extends ValidatorApi {
       return ValidationResult.notOk(s"Velox backend does not support outer")
     }
     generator match {
-      case generator: JsonTuple =>
+      case _: JsonTuple =>
         ValidationResult.notOk(s"Velox backend does not support this json_tuple")
-      case generator: PosExplode =>
+      case _: PosExplode =>
         // TODO(yuan): support posexplode and remove this check
         ValidationResult.notOk(s"Velox backend does not support this posexplode")
-      case explode: Explode if (explode.child.isInstanceOf[CreateMap]) =>
-        // explode(MAP(col1, col2))
-        ValidationResult.notOk(s"Velox backend does not support MAP datatype")
-      case explode: Explode if (explode.child.isInstanceOf[Literal]) =>
-        // explode(ARRAY(1, 2, 3))
-        ValidationResult.notOk(s"Velox backend does not support literal Array datatype")
       case explode: Explode =>
-        explode.child.dataType match {
-          case _: MapType =>
+        explode.child match {
+          case _: CreateMap =>
+            // explode(MAP(col1, col2))
             ValidationResult.notOk(s"Velox backend does not support MAP datatype")
           case _ =>
             ValidationResult.ok
