@@ -47,9 +47,9 @@ class Spill {
   uint32_t numPartitions_;
 };
 
-class GroupSpill final : public Spill {
+class InMemorySpill final : public Spill {
  public:
-  GroupSpill(
+  InMemorySpill(
       SpillType type,
       uint32_t numPartitions,
       uint32_t batchSize,

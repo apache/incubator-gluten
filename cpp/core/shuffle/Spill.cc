@@ -16,10 +16,11 @@
  */
 
 #include "shuffle/Spill.h"
+#include <iostream>
 
 namespace gluten {
 
-GroupSpill::GroupSpill(
+InMemorySpill::InMemorySpill(
     SpillType type,
     uint32_t numPartitions,
     uint32_t batchSize,
@@ -34,12 +35,12 @@ GroupSpill::GroupSpill(
       pool_(pool),
       codec_(codec) {}
 
-bool GroupSpill::hasNextPayload(uint32_t partitionId) {
+bool InMemorySpill::hasNextPayload(uint32_t partitionId) {
   return partitionToPayloads_.find(partitionId) != partitionToPayloads_.end() &&
       !partitionToPayloads_[partitionId].empty();
 }
 
-std::unique_ptr<Payload> GroupSpill::nextPayload(uint32_t partitionId) {
+std::unique_ptr<Payload> InMemorySpill::nextPayload(uint32_t partitionId) {
   if (!hasNextPayload(partitionId)) {
     return nullptr;
   }
@@ -48,7 +49,7 @@ std::unique_ptr<Payload> GroupSpill::nextPayload(uint32_t partitionId) {
   return front;
 }
 
-std::list<std::unique_ptr<Payload>> GroupSpill::grouping(uint32_t partitionId, Payload::Type groupPayloadType) {
+std::list<std::unique_ptr<Payload>> InMemorySpill::grouping(uint32_t partitionId, Payload::Type groupPayloadType) {
   if (!hasNextPayload(partitionId)) {
     return {};
   }
@@ -88,7 +89,7 @@ std::list<std::unique_ptr<Payload>> GroupSpill::grouping(uint32_t partitionId, P
   return groupPayloads;
 }
 
-std::unique_ptr<Payload> GroupSpill::createGroupPayload(
+std::unique_ptr<Payload> InMemorySpill::createGroupPayload(
     Payload::Type groupPayloadType,
     uint32_t& rows,
     std::vector<std::unique_ptr<Payload>> toBeMerged) {
@@ -103,6 +104,7 @@ std::unique_ptr<Payload> GroupSpill::createGroupPayload(
   if (groupPayloadType == Payload::Type::kCompressed && rows < compressionThreshold_) {
     groupPayloadType = Payload::Type::kUncompressed;
   }
+  std::cout << "Create group payload. Num payloads: " << toBeMerged.size() << " , num rows: " << rows << std::endl;
   auto payload =
       std::make_unique<GroupPayload>(groupPayloadType, rows, isValidityBuffer, pool_, codec_, std::move(toBeMerged));
   toBeMerged.clear();

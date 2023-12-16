@@ -27,7 +27,7 @@ namespace gluten {
 
 class Payload {
  public:
-  enum Type : int32_t { kCompressed, kUncompressed, kToBeCompressed };
+  enum Type : int32_t { kCompressed, kUncompressed };
 
   Payload(Type type, uint32_t numRows, const std::vector<bool>* isValidityBuffer)
       : type_(type), numRows_(numRows), isValidityBuffer_(isValidityBuffer) {}
@@ -81,8 +81,7 @@ class BlockPayload : public Payload {
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
       arrow::MemoryPool* pool,
-      arrow::util::Codec* codec,
-      bool reuseBuffers);
+      arrow::util::Codec* codec);
 
   static arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> deserialize(
       arrow::io::InputStream* inputStream,
@@ -102,9 +101,10 @@ class BlockPayload : public Payload {
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
 };
 
-class CompressibleBlockPayload : public BlockPayload {
+// Type of MergeBlockPayload can be either kMergedCompressed or kMergedUncompressed.
+class MergeBlockPayload : public BlockPayload {
  public:
-  CompressibleBlockPayload(
+  MergeBlockPayload(
       Payload::Type type,
       uint32_t numRows,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
@@ -114,6 +114,14 @@ class CompressibleBlockPayload : public BlockPayload {
       : BlockPayload(type, numRows, std::move(buffers), isValidityBuffer), pool_(pool), codec_(codec) {}
 
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
+
+  static arrow::Result<std::unique_ptr<MergeBlockPayload>> merge(
+      std::unique_ptr<Payload> source,
+      std::unique_ptr<Payload> append,
+      arrow::MemoryPool* pool,
+      arrow::util::Codec* codec);
+
+  arrow::Result<std::unique_ptr<Payload>> finish(bool shouldCompress);
 
  private:
   arrow::MemoryPool* pool_;
@@ -142,8 +150,6 @@ class GroupPayload : public Payload {
   std::vector<bool> isValidityAllNull_;
 
   int64_t rawSizeAt(uint32_t index);
-
-  const arrow::Buffer* validityBufferAllTrue();
 
   arrow::Status writeValidityBuffer(arrow::io::OutputStream* outputStream, uint32_t index);
 

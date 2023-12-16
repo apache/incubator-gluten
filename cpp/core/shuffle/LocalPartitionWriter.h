@@ -26,22 +26,6 @@
 
 namespace gluten {
 
-struct SpillInfo {
-  struct PartitionSpillInfo {
-    uint32_t partitionId{};
-    int64_t length{}; // in Bytes
-  };
-
-  bool empty{true};
-  std::string spilledFile{};
-  std::vector<PartitionSpillInfo> partitionSpillInfos{};
-  std::shared_ptr<arrow::io::MemoryMappedFile> inputStream{};
-
-  int32_t mergePos = 0;
-
-  SpillInfo(std::string spilledFile) : spilledFile(spilledFile) {}
-};
-
 class LocalPartitionWriter : public PartitionWriter {
  public:
   explicit LocalPartitionWriter(
@@ -56,7 +40,8 @@ class LocalPartitionWriter : public PartitionWriter {
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
       bool reuseBuffers,
-      Evictor::Type evictType) override;
+      Evict::type evictType,
+      bool hasComplexType) override;
 
   arrow::Status spill() override;
 
@@ -83,10 +68,12 @@ class LocalPartitionWriter : public PartitionWriter {
 
   class LocalEvictor;
 
+  class PayloadMerger;
+
  private:
   void init();
 
-  arrow::Status requestEvict(Evictor::Type evictType);
+  arrow::Status requestEvict(Evict::type evictType);
 
   std::string nextSpilledFileDir();
 
@@ -99,8 +86,10 @@ class LocalPartitionWriter : public PartitionWriter {
   arrow::Status populateMetrics(ShuffleWriterMetrics* metrics);
 
   arrow::Result<std::unique_ptr<LocalPartitionWriter::LocalEvictor>> createEvictor(
-      Evictor::Type evictType,
+      Evict::type evictType,
       const std::string& spillFile);
+
+  arrow::Status evictMerged();
 
   std::string dataFile_;
   std::vector<std::string> localDirs_;
@@ -108,7 +97,7 @@ class LocalPartitionWriter : public PartitionWriter {
   bool stopped_{false};
   std::shared_ptr<arrow::fs::LocalFileSystem> fs_{nullptr};
   std::shared_ptr<LocalEvictor> evictor_{nullptr};
-  std::shared_ptr<LocalEvictor> partitionBufferEvictor_{nullptr};
+  std::shared_ptr<PayloadMerger> merger_{nullptr};
   std::list<std::unique_ptr<Spill>> spills_{};
 
   // configured local dirs for spilled file

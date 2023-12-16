@@ -371,8 +371,8 @@ arrow::Status VeloxShuffleWriter::stop() {
       auto numRows = partitionBufferIdxBase_[pid];
       if (numRows > 0) {
         ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(pid, false));
-        RETURN_NOT_OK(
-            partitionWriter_->evict(pid, numRows, std::move(buffers), &isValidityBuffer_, false, Evictor::Type::kStop));
+        RETURN_NOT_OK(partitionWriter_->evict(
+            pid, numRows, std::move(buffers), &isValidityBuffer_, false, Evict::kCache, hasComplexType_));
       }
     }
   }
@@ -958,6 +958,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
         memLimit > 0 && bytesPerRow > 0 ? memLimit / bytesPerRow / numPartitions_ >> 2 : options_->buffer_size;
     preAllocRowCnt = std::min(preAllocRowCnt, (uint64_t)options_->buffer_size);
 
+    std::cout << "Calculated partition buffer size -  memLimit: " << memLimit << ", bytesPerRow: " << bytesPerRow
+              << ", preAllocRowCnt: " << preAllocRowCnt << std::endl;
+
     VS_PRINTLF(preAllocRowCnt);
 
     totalInputNumRows_ += numRows;
@@ -1041,7 +1044,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       uint32_t partitionId, uint32_t numRows, std::vector<std::shared_ptr<arrow::Buffer>> buffers, bool reuseBuffers) {
     if (!buffers.empty()) {
       RETURN_NOT_OK(partitionWriter_->evict(
-          partitionId, numRows, std::move(buffers), &isValidityBuffer_, reuseBuffers, Evictor::Type::kCache));
+          partitionId, numRows, std::move(buffers), &isValidityBuffer_, reuseBuffers, Evict::kCache, hasComplexType_));
     }
     return arrow::Status::OK();
   }
@@ -1449,7 +1452,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
         auto pid = item.first;
         ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(pid, false));
         RETURN_NOT_OK(partitionWriter_->evict(
-            pid, item.second, std::move(buffers), &isValidityBuffer_, false, Evictor::Type::kSpill));
+            pid, item.second, std::move(buffers), &isValidityBuffer_, false, Evict::kSpill, hasComplexType_));
         evicted = beforeEvict - partitionBufferPool_->bytes_allocated();
         if (evicted >= size) {
           break;
@@ -1488,6 +1491,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
   arrow::Status VeloxShuffleWriter::preAllocPartitionBuffers(uint32_t preAllocBufferSize) {
     for (auto& pid : partitionUsed_) {
       auto newSize = std::max(preAllocBufferSize, partition2RowCount_[pid]);
+      std::cout << "Actual partition buffer size - current: " << partition2RowCount_[pid] << ", newSize: " << newSize
+                << std::endl;
       // Make sure the size to be allocated is larger than the size to be filled.
       if (partition2BufferSize_[pid] == 0) {
         // Allocate buffer if it's not yet allocated.

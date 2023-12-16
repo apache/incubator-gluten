@@ -25,26 +25,8 @@
 
 namespace gluten {
 
-class Evictor {
- public:
-  enum Type { kCache, kSpill, kStop };
-
-  Evictor(ShuffleWriterOptions* options) : options_(options) {}
-
-  virtual ~Evictor() = default;
-
-  virtual arrow::Status evict(uint32_t partitionId, std::unique_ptr<Payload> payload) = 0;
-
-  virtual arrow::Result<std::unique_ptr<Spill>> finish() = 0;
-
-  int64_t getEvictTime() {
-    return evictTime_;
-  }
-
- protected:
-  ShuffleWriterOptions* options_;
-
-  int64_t evictTime_{0};
+struct Evict {
+  enum type { kCache, kSpill };
 };
 
 class PartitionWriter {
@@ -68,7 +50,8 @@ class PartitionWriter {
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
       bool reuseBuffers,
-      Evictor::Type evictType) = 0;
+      Evict::type evictType,
+      bool hasComplexType) = 0;
 
   virtual arrow::Status spill() = 0;
 

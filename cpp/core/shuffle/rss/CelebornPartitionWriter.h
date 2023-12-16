@@ -40,8 +40,9 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
       uint32_t numRows,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
-      bool reuseBuffers,
-      Evictor::Type evictType /* unused */) override;
+      bool reuseBuffers, /* unused */
+      Evict::type evictType /* unused */,
+      bool hasComplexType /* unused */) override;
 
   arrow::Status spill() override;
 
@@ -51,7 +52,6 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
   void init();
 
   std::shared_ptr<RssClient> celebornClient_;
-  std::shared_ptr<Evictor> evictor_;
 
   std::vector<int64_t> bytesEvicted_;
   std::vector<int64_t> rawPartitionLengths_;
