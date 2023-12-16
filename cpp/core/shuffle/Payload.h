@@ -27,7 +27,7 @@ namespace gluten {
 
 class Payload {
  public:
-  enum Type : int32_t { kCompressed, kUncompressed };
+  enum Type : int32_t { kCompressed, kUncompressed, kToBeCompressed };
 
   Payload(Type type, uint32_t numRows, const std::vector<bool>* isValidityBuffer)
       : type_(type), numRows_(numRows), isValidityBuffer_(isValidityBuffer) {}
@@ -64,17 +64,6 @@ class Payload {
 // Can be compressed or uncompressed.
 class BlockPayload : public Payload {
  public:
-  BlockPayload(
-      Type type,
-      uint32_t numRows,
-      std::vector<std::shared_ptr<arrow::Buffer>> buffers,
-      const std::vector<bool>* isValidityBuffer)
-      : Payload(type, numRows, isValidityBuffer), buffers_(std::move(buffers)) {}
-
-  arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
-
-  arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t pos) override;
-
   static arrow::Result<std::unique_ptr<BlockPayload>> fromBuffers(
       Payload::Type payloadType,
       uint32_t numRows,
@@ -97,35 +86,44 @@ class BlockPayload : public Payload {
       const std::shared_ptr<arrow::util::Codec>& codec,
       arrow::MemoryPool* pool);
 
+  arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
+
+  arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t pos) override;
+
  protected:
+  BlockPayload(
+      Type type,
+      uint32_t numRows,
+      std::vector<std::shared_ptr<arrow::Buffer>> buffers,
+      const std::vector<bool>* isValidityBuffer,
+      arrow::MemoryPool* pool,
+      arrow::util::Codec* codec)
+      : Payload(type, numRows, isValidityBuffer), buffers_(std::move(buffers)), pool_(pool), codec_(codec) {}
+
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
+  arrow::MemoryPool* pool_;
+  arrow::util::Codec* codec_;
 };
 
 // Type of MergeBlockPayload can be either kMergedCompressed or kMergedUncompressed.
 class MergeBlockPayload : public BlockPayload {
  public:
   MergeBlockPayload(
-      Payload::Type type,
       uint32_t numRows,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec)
-      : BlockPayload(type, numRows, std::move(buffers), isValidityBuffer), pool_(pool), codec_(codec) {}
-
-  arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
+      : BlockPayload(Type::kUncompressed, numRows, std::move(buffers), isValidityBuffer, pool, codec) {}
 
   static arrow::Result<std::unique_ptr<MergeBlockPayload>> merge(
-      std::unique_ptr<Payload> source,
-      std::unique_ptr<Payload> append,
+      std::unique_ptr<MergeBlockPayload> source,
+      uint32_t appendNumRows,
+      std::vector<std::shared_ptr<arrow::Buffer>> appendBuffers,
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec);
 
-  arrow::Result<std::unique_ptr<Payload>> finish(bool shouldCompress);
-
- private:
-  arrow::MemoryPool* pool_;
-  arrow::util::Codec* codec_;
+  arrow::Result<std::unique_ptr<Payload>> finish(Payload::Type payloadType);
 };
 
 class GroupPayload : public Payload {

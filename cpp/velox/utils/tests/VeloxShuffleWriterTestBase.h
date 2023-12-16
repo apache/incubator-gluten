@@ -61,14 +61,14 @@ std::unique_ptr<PartitionWriter> createPartitionWriter(
 } // namespace
 
 struct ShuffleTestParams {
-  PartitionWriterType partition_writer_type;
-  arrow::Compression::type compression_type;
-  CompressionMode compression_mode;
+  PartitionWriterType partitionWriterType;
+  arrow::Compression::type compressionType;
+  uint32_t compressionThreshold;
 
   std::string toString() const {
     std::ostringstream out;
-    out << "partition_writer_type = " << partition_writer_type << "compression_type = " << compression_type
-        << ", compression_mode = " << compression_mode;
+    out << "partitionWriterType = " << partitionWriterType << "compressionType = " << compressionType
+        << ", compressionThreshold = " << compressionThreshold;
     return out.str();
   }
 };
@@ -77,7 +77,6 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
  public:
   virtual arrow::Status initShuffleWriterOptions() {
     shuffleWriterOptions_ = std::make_unique<ShuffleWriterOptions>();
-    shuffleWriterOptions_->compression_threshold = 0;
     shuffleWriterOptions_->memory_pool = defaultArrowMemoryPool().get();
     RETURN_NOT_OK(setLocalDirsAndDataFile());
     return arrow::Status::OK();
@@ -230,11 +229,11 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     RETURN_NOT_OK(VeloxShuffleWriterTestBase::initShuffleWriterOptions());
 
     ShuffleTestParams params = GetParam();
-    if (params.partition_writer_type == PartitionWriterType::kCeleborn) {
+    if (params.partitionWriterType == PartitionWriterType::kCeleborn) {
       shuffleWriterOptions_->partition_writer_type = kCeleborn;
     }
-    shuffleWriterOptions_->compression_type = params.compression_type;
-    shuffleWriterOptions_->compression_mode = params.compression_mode;
+    shuffleWriterOptions_->compression_type = params.compressionType;
+    shuffleWriterOptions_->compression_threshold = params.compressionThreshold;
     return arrow::Status::OK();
   }
 

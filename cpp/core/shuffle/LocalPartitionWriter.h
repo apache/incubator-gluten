@@ -89,8 +89,6 @@ class LocalPartitionWriter : public PartitionWriter {
       Evict::type evictType,
       const std::string& spillFile);
 
-  arrow::Status evictMerged();
-
   std::string dataFile_;
   std::vector<std::string> localDirs_;
 

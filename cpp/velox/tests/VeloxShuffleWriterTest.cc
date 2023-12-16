@@ -52,12 +52,12 @@ std::vector<ShuffleTestParams> createShuffleTestParams() {
   std::vector<arrow::Compression::type> compressions = {
       arrow::Compression::UNCOMPRESSED, arrow::Compression::LZ4_FRAME, arrow::Compression::ZSTD};
 
-  std::vector<CompressionMode> modes = {CompressionMode::BUFFER, CompressionMode::ROWVECTOR};
+  std::vector<uint32_t> compressionThresholds = {0, 3, 4, 10, 100, 4096};
 
   for (const auto& writerType : writerTypes) {
     for (const auto& compression : compressions) {
-      for (const auto& mode : modes) {
-        params.push_back(ShuffleTestParams{writerType, compression, mode});
+      for (const auto compressionThreshold : compressionThresholds) {
+        params.push_back(ShuffleTestParams{writerType, compression, compressionThreshold});
       }
     }
   }

@@ -119,9 +119,14 @@ std::shared_ptr<arrow::Buffer> validityBufferAllTrue() {
 
 class RawBufferOutputStream final : public arrow::io::OutputStream {
  public:
-  RawBufferOutputStream(uint8_t* data) : data_(data) {}
+  RawBufferOutputStream(uint8_t* data, int64_t size) : data_(data), size_(size) {}
 
   arrow::Status Write(const void* data, int64_t nbytes) {
+    if (pos_ + nbytes > size_) {
+      return arrow::Status::Invalid(
+          "Write to RawBufferOutputStream overflow. pos: " + std::to_string(pos_) +
+          ", nbytes: " + std::to_string(nbytes) + ", size: " + std::to_string(size_));
+    }
     memcpy(data_ + pos_, data, nbytes);
     pos_ += nbytes;
     return arrow::Status::OK();
@@ -142,6 +147,7 @@ class RawBufferOutputStream final : public arrow::io::OutputStream {
 
  private:
   uint8_t* data_;
+  int64_t size_;
   int64_t pos_{0};
   bool closed_{false};
 };
@@ -150,8 +156,9 @@ class BitOutputStream {
  public:
   BitOutputStream(arrow::io::OutputStream* os) : os_(os) {}
 
+  // Clear highest bits that beyond writePos in data.
   BitOutputStream(uint8_t data, uint8_t writePos, arrow::io::OutputStream* os)
-      : data_(data), writePos_(writePos), os_(os) {}
+      : data_(data & (0xff >> (8 - writePos))), writePos_(writePos), os_(os) {}
 
   arrow::Status write(const uint8_t* source, uint32_t numBits) {
     if (writePos_ == 0) {
@@ -178,7 +185,9 @@ class BitOutputStream {
       RETURN_NOT_OK(write(validityBuffer->data(), rowsPerRun));
       numBits -= rowsPerRun;
     }
-    RETURN_NOT_OK(write(validityBuffer->data(), numBits));
+    if (numBits > 0) {
+      RETURN_NOT_OK(write(validityBuffer->data(), numBits));
+    }
     return arrow::Status::OK();
   }
 
@@ -248,16 +257,22 @@ arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
 
     ARROW_RETURN_IF(actualLength < 0, arrow::Status::Invalid("Writing compressed buffer out of bound."));
     RETURN_NOT_OK(compressed->Resize(actualLength));
-    return std::make_unique<BlockPayload>(
-        Type::kCompressed, numRows, std::vector<std::shared_ptr<arrow::Buffer>>{compressed}, isValidityBuffer);
+    return std::unique_ptr<BlockPayload>(new BlockPayload(
+        Type::kCompressed,
+        numRows,
+        std::vector<std::shared_ptr<arrow::Buffer>>{compressed},
+        isValidityBuffer,
+        pool,
+        codec));
   }
-  return std::make_unique<BlockPayload>(Type::kUncompressed, numRows, std::move(buffers), isValidityBuffer);
+  return std::unique_ptr<BlockPayload>(
+      new BlockPayload(payloadType, numRows, std::move(buffers), isValidityBuffer, pool, codec));
 }
 
 arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
-  RETURN_NOT_OK(outputStream->Write(&type_, sizeof(type_)));
-  RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
   if (type_ == Type::kUncompressed) {
+    RETURN_NOT_OK(outputStream->Write(&kUncompressedType, sizeof(Type)));
+    RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
     for (auto& buffer : buffers_) {
       if (!buffer) {
         RETURN_NOT_OK(outputStream->Write(&kNullBuffer, sizeof(int64_t)));
@@ -265,9 +280,19 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
       }
       int64_t bufferSize = buffer->size();
       RETURN_NOT_OK(outputStream->Write(&bufferSize, sizeof(int64_t)));
-      RETURN_NOT_OK(outputStream->Write(std::move(buffer)));
+      if (bufferSize > 0) {
+        RETURN_NOT_OK(outputStream->Write(std::move(buffer)));
+      }
+    }
+  } else if (type_ == Type::kToBeCompressed) {
+    RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
+    RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
+    for (auto& buffer : buffers_) {
+      RETURN_NOT_OK(compressAndFlush(std::move(buffer), outputStream, codec_, pool_));
     }
   } else {
+    RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
+    RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
     RETURN_NOT_OK(outputStream->Write(std::move(buffers_[0])));
   }
   buffers_.clear();
@@ -381,35 +406,41 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> BlockPayload::readCompressedBuffer
 }
 
 arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
-    std::unique_ptr<Payload> source,
-    std::unique_ptr<Payload> append,
+    std::unique_ptr<MergeBlockPayload> source,
+    uint32_t appendNumRows,
+    std::vector<std::shared_ptr<arrow::Buffer>> appendBuffers,
     arrow::MemoryPool* pool,
     arrow::util::Codec* codec) {
-  auto mergedRows = source->numRows() + append->numRows();
+  auto mergedRows = source->numRows() + appendNumRows;
   auto isValidityBuffer = source->isValidityBuffer();
 
-  auto numBuffers = source->numBuffers();
+  auto numBuffers = appendBuffers.size();
+  ARROW_RETURN_IF(
+      numBuffers != source->numBuffers(), arrow::Status::Invalid("Number of merging buffers doesn't match."));
   std::vector<std::shared_ptr<arrow::Buffer>> merged;
-  merged.reserve(numBuffers);
+  merged.resize(numBuffers);
   for (size_t i = 0; i < numBuffers; ++i) {
     ARROW_ASSIGN_OR_RAISE(auto sourceBuffer, source->readBufferAt(i));
-    ARROW_ASSIGN_OR_RAISE(auto appendBuffer, append->readBufferAt(i));
+    auto appendBuffer = std::move(appendBuffers[i]);
     if (isValidityBuffer->at(i)) {
       if (!sourceBuffer) {
         if (!appendBuffer) {
           merged[i] = nullptr;
         } else {
           ARROW_ASSIGN_OR_RAISE(
-              auto bufferOS, arrow::io::BufferOutputStream::Create(arrow::bit_util::BytesForBits(mergedRows), pool));
-          auto bitOs = BitOutputStream(bufferOS.get());
+              auto buffer, arrow::AllocateResizableBuffer(arrow::bit_util::BytesForBits(mergedRows), pool));
+          auto bufferOs = RawBufferOutputStream(buffer->mutable_data(), buffer->size());
+          auto bitOs = BitOutputStream(&bufferOs);
           // Source is null, fill all true.
           RETURN_NOT_OK(bitOs.writeAllTrue(source->numRows()));
           // Write append bits.
-          RETURN_NOT_OK(bitOs.write(appendBuffer->data(), append->numRows()));
+          RETURN_NOT_OK(bitOs.write(appendBuffer->data(), appendNumRows));
           RETURN_NOT_OK(bitOs.end());
-          ARROW_ASSIGN_OR_RAISE(merged[i], bufferOS->Finish());
+          merged[i] = std::move(buffer);
         }
       } else {
+        // Because sourceBuffer can be resized, need to save buffer size in advance.
+        auto sourceBufferSize = sourceBuffer->size();
         auto resizable = std::dynamic_pointer_cast<arrow::ResizableBuffer>(sourceBuffer);
         auto mergedBytes = arrow::bit_util::BytesForBits(mergedRows);
         if (resizable) {
@@ -418,31 +449,32 @@ arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
         } else {
           // Otherwise copy source.
           ARROW_ASSIGN_OR_RAISE(resizable, arrow::AllocateResizableBuffer(mergedBytes, pool));
-          memcpy(resizable->mutable_data(), sourceBuffer->data(), sourceBuffer->size());
+          memcpy(resizable->mutable_data(), sourceBuffer->data(), sourceBufferSize);
         }
         if ((source->numRows() & 7) == 0) {
           // If source numRows is byte aligned, write append to merged buffer.
-          auto rawOs = RawBufferOutputStream(resizable->mutable_data() + sourceBuffer->size());
+          auto rawOs =
+              RawBufferOutputStream(resizable->mutable_data() + sourceBufferSize, resizable->size() - sourceBufferSize);
           auto bitOs = BitOutputStream(&rawOs);
           if (!appendBuffer) {
-            RETURN_NOT_OK(bitOs.writeAllTrue(append->numRows()));
+            RETURN_NOT_OK(bitOs.writeAllTrue(appendNumRows));
           } else {
-            RETURN_NOT_OK(bitOs.write(appendBuffer->data(), append->numRows()));
+            RETURN_NOT_OK(bitOs.write(appendBuffer->data(), appendNumRows));
           }
           RETURN_NOT_OK(bitOs.end());
         } else {
           // Otherwise, assign the last byte in source buffer, and set write pos of the remaining bits to bitOs.
           // -1 won't overflow because for non-null validity buffer, buffer size is always > 0.
-          uint8_t* lastByte = resizable->mutable_data() + sourceBuffer->size() - 1;
-          auto rawOs = RawBufferOutputStream(lastByte);
+          auto lastByte = resizable->mutable_data() + sourceBufferSize - 1;
+          auto rawOs = RawBufferOutputStream(lastByte, resizable->size() - sourceBufferSize + 1);
           auto value = *lastByte;
           uint8_t pos = source->numRows() & 7;
           auto bitOs = BitOutputStream(value, pos, &rawOs);
           if (!appendBuffer) {
             // If append is null, fill all true.
-            RETURN_NOT_OK(bitOs.writeAllTrue(append->numRows()));
+            RETURN_NOT_OK(bitOs.writeAllTrue(appendNumRows));
           } else {
-            RETURN_NOT_OK(bitOs.write(appendBuffer->data(), append->numRows()));
+            RETURN_NOT_OK(bitOs.write(appendBuffer->data(), appendNumRows));
           }
           RETURN_NOT_OK(bitOs.end());
         }
@@ -452,7 +484,9 @@ arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
       if (appendBuffer->size() == 0) {
         merged[i] = std::move(sourceBuffer);
       } else {
-        auto mergedSize = sourceBuffer->size() + appendBuffer->size();
+        // Because sourceBuffer can be resized, need to save buffer size in advance.
+        auto sourceBufferSize = sourceBuffer->size();
+        auto mergedSize = sourceBufferSize + appendBuffer->size();
         auto resizable = std::dynamic_pointer_cast<arrow::ResizableBuffer>(sourceBuffer);
         if (resizable) {
           // If source is resizable, resize and reuse source.
@@ -460,34 +494,19 @@ arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
         } else {
           // Otherwise copy source.
           ARROW_ASSIGN_OR_RAISE(resizable, arrow::AllocateResizableBuffer(mergedSize, pool));
-          memcpy(resizable->mutable_data(), sourceBuffer->data(), sourceBuffer->size());
+          memcpy(resizable->mutable_data(), sourceBuffer->data(), sourceBufferSize);
         }
         // Copy append.
-        memcpy(resizable->mutable_data() + sourceBuffer->size(), appendBuffer->data(), appendBuffer->size());
+        memcpy(resizable->mutable_data() + sourceBufferSize, appendBuffer->data(), appendBuffer->size());
         merged[i] = std::move(resizable);
       }
     }
   }
-  return std::make_unique<MergeBlockPayload>(
-      source->type(), mergedRows, std::move(merged), isValidityBuffer, pool, codec);
+  return std::make_unique<MergeBlockPayload>(mergedRows, std::move(merged), isValidityBuffer, pool, codec);
 }
 
-arrow::Status MergeBlockPayload::serialize(arrow::io::OutputStream* outputStream) {
-  RETURN_NOT_OK(outputStream->Write(&type_, sizeof(Type)));
-  RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
-  if (type_ == kCompressedType) {
-    for (auto& buffer : buffers_) {
-      RETURN_NOT_OK(compressAndFlush(std::move(buffer), outputStream, codec_, pool_));
-    }
-  } else {
-    RETURN_NOT_OK(BlockPayload::serialize(outputStream));
-  }
-  return arrow::Status::OK();
-}
-
-arrow::Result<std::unique_ptr<Payload>> MergeBlockPayload::finish(bool shouldCompress) {
-  auto finishType = shouldCompress ? type_ : Type::kUncompressed;
-  return BlockPayload::fromBuffers(finishType, numRows_, std::move(buffers_), isValidityBuffer_, pool_, codec_);
+arrow::Result<std::unique_ptr<Payload>> MergeBlockPayload::finish(Payload::Type payloadType) {
+  return BlockPayload::fromBuffers(payloadType, numRows_, std::move(buffers_), isValidityBuffer_, pool_, codec_);
 }
 
 GroupPayload::GroupPayload(

@@ -206,10 +206,10 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
   oss << " partitionWriterCreator:" << typeid(*partitionWriter.get()).name();
   oss << " partitioning:" << options->partitioning;
   oss << " buffer_size:" << options->buffer_size;
-  oss << " compression_mode:" << (int)options->compression_mode;
+  oss << " compressionMode:" << (int)options->compressionMode;
   oss << " buffered_write:" << options->buffered_write;
   oss << " write_eos:" << options->write_eos;
-  oss << " partition_writer_type:" << options->partition_writer_type;
+  oss << " partitionWriterType:" << options->partitionWriterType;
   oss << " thread_id:" << options->thread_id;
   LOG(INFO) << oss.str();
 #endif
@@ -1053,7 +1053,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     auto numRows = partitionBufferIdxBase_[partitionId];
     if (numRows > 0) {
       ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(partitionId, reuseBuffers));
-      RETURN_NOT_OK(evictBuffers(partitionId, numRows, buffers, reuseBuffers));
+      RETURN_NOT_OK(evictBuffers(partitionId, numRows, std::move(buffers), reuseBuffers));
     }
     return arrow::Status::OK();
   }
