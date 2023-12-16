@@ -363,7 +363,7 @@ public:
                 fs::create_directories(cache_base_path);
 
             file_cache_settings.base_path = cache_base_path;
-            file_cache = DB::FileCacheFactory::instance().getOrCreate("s3_local_cache", file_cache_settings);
+            file_cache = DB::FileCacheFactory::instance().getOrCreate("s3_local_cache", file_cache_settings, "");
             file_cache->initialize();
 
             new_settings.remote_fs_cache = file_cache;
