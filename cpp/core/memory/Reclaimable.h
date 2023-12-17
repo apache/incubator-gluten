@@ -21,11 +21,11 @@
 
 namespace gluten {
 
-class Evictable {
+class Reclaimable {
  public:
-  virtual ~Evictable() = default;
+  virtual ~Reclaimable() = default;
 
-  virtual arrow::Status evictFixedSize(int64_t size, int64_t* actual) = 0;
+  virtual arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) = 0;
 };
 
 } // namespace gluten

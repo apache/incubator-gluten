@@ -44,7 +44,7 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
       Evict::type evictType /* unused */,
       bool hasComplexType /* unused */) override;
 
-  arrow::Status spill() override;
+  arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 
   arrow::Status stop(ShuffleWriterMetrics* metrics) override;
 

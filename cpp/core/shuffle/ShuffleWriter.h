@@ -23,7 +23,7 @@
 
 #include "memory/ArrowMemoryPool.h"
 #include "memory/ColumnarBatch.h"
-#include "memory/Evictable.h"
+#include "memory/Reclaimable.h"
 #include "shuffle/Options.h"
 #include "shuffle/PartitionWriter.h"
 #include "shuffle/Partitioner.h"
@@ -33,7 +33,7 @@
 
 namespace gluten {
 
-class ShuffleWriter : public Evictable {
+class ShuffleWriter : public Reclaimable {
  public:
   static constexpr int64_t kMinMemLimit = 128LL * 1024 * 1024;
 

@@ -518,7 +518,7 @@ class VeloxShuffleWriterMemoryTest : public VeloxShuffleWriterTestBase, public t
       targetEvicted += shuffleWriter.partitionBufferSize();
     }
     int64_t evicted;
-    ASSERT_NOT_OK(shuffleWriter.evictFixedSize(targetEvicted, &evicted));
+    ASSERT_NOT_OK(shuffleWriter.reclaimFixedSize(targetEvicted, &evicted));
 
     return evicted;
   };

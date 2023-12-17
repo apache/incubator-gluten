@@ -313,7 +313,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
   auto cachedPayloadSize = shuffleWriter->cachedPayloadSize();
   auto partitionBufferBeforeEvict = shuffleWriter->partitionBufferSize();
   int64_t evicted;
-  ASSERT_NOT_OK(shuffleWriter->evictFixedSize(cachedPayloadSize, &evicted));
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(cachedPayloadSize, &evicted));
   // Check only cached data being spilled.
   ASSERT_EQ(evicted, cachedPayloadSize);
   VELOX_CHECK_EQ(shuffleWriter->partitionBufferSize(), partitionBufferBeforeEvict);
@@ -326,7 +326,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
 
   // Split more data with null. New buffer size is larger and current data is preserved.
   // Evict cached data first.
-  ASSERT_NOT_OK(shuffleWriter->evictFixedSize(shuffleWriter->cachedPayloadSize(), &evicted));
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(shuffleWriter->cachedPayloadSize(), &evicted));
   // Set a large buffer size.
   shuffleWriter->options()->buffer_size = 100;
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
@@ -385,7 +385,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, spillVerifyResult) {
   int64_t evicted;
   auto cachedPayloadSize = shuffleWriter->cachedPayloadSize();
   auto partitionBufferSize = shuffleWriter->partitionBufferSize();
-  ASSERT_NOT_OK(shuffleWriter->evictFixedSize(cachedPayloadSize + partitionBufferSize, &evicted));
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(cachedPayloadSize + partitionBufferSize, &evicted));
 
   ASSERT_EQ(evicted, cachedPayloadSize + partitionBufferSize);
 
@@ -453,7 +453,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInit) {
     auto bufferSize = shuffleWriter->partitionBufferSize();
     auto payloadSize = shuffleWriter->cachedPayloadSize();
     int64_t evicted;
-    ASSERT_NOT_OK(shuffleWriter->evictFixedSize(payloadSize + bufferSize, &evicted));
+    ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(payloadSize + bufferSize, &evicted));
     ASSERT_EQ(evicted, payloadSize + bufferSize);
     // No cached payload after evict.
     ASSERT_EQ(shuffleWriter->cachedPayloadSize(), 0);
@@ -470,7 +470,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInit) {
     auto bufferSize = shuffleWriter->partitionBufferSize();
     auto payloadSize = shuffleWriter->cachedPayloadSize();
     int64_t evicted;
-    ASSERT_NOT_OK(shuffleWriter->evictFixedSize(payloadSize + 1, &evicted));
+    ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(payloadSize + 1, &evicted));
     ASSERT_GT(evicted, payloadSize);
     // No cached payload after evict.
     ASSERT_EQ(shuffleWriter->cachedPayloadSize(), 0);
@@ -494,15 +494,15 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInit) {
     auto payloadSize = shuffleWriter->cachedPayloadSize();
     int64_t evicted;
     // Evict payload and shrink min-size buffer.
-    ASSERT_NOT_OK(shuffleWriter->evictFixedSize(payloadSize + 1, &evicted));
+    ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(payloadSize + 1, &evicted));
     ASSERT_GT(evicted, payloadSize);
     ASSERT_GT(shuffleWriter->partitionBufferSize(), 0);
     // Evict empty partition buffers.
-    ASSERT_NOT_OK(shuffleWriter->evictFixedSize(bufferSize, &evicted));
+    ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(bufferSize, &evicted));
     ASSERT_GT(evicted, 0);
     ASSERT_EQ(shuffleWriter->partitionBufferSize(), 0);
     // Evict again. No reclaimable space.
-    ASSERT_NOT_OK(shuffleWriter->evictFixedSize(1, &evicted));
+    ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(1, &evicted));
     ASSERT_EQ(evicted, 0);
   }
 
@@ -522,7 +522,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInitSingle) {
 
     auto payloadSize = shuffleWriter->cachedPayloadSize();
     int64_t evicted;
-    ASSERT_NOT_OK(shuffleWriter->evictFixedSize(payloadSize + 1, &evicted));
+    ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(payloadSize + 1, &evicted));
     ASSERT_EQ(evicted, payloadSize);
     // No cached payload after evict.
     ASSERT_EQ(shuffleWriter->cachedPayloadSize(), 0);
@@ -560,7 +560,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kSplitSingle) {
   auto pool = SelfEvictedMemoryPool(shuffleWriterOptions_->memory_pool, false);
   shuffleWriterOptions_->memory_pool = &pool;
 
-  auto shuffleWriter = createShuffleWriter();
+  auto shuffleWriter = createShuffleWriter(1);
 
   pool.setEvictable(shuffleWriter.get());
 
@@ -611,13 +611,13 @@ TEST_F(VeloxShuffleWriterMemoryTest, evictPartitionBuffers) {
 
   // First evict cached payloads.
   int64_t evicted;
-  ASSERT_NOT_OK(shuffleWriter->evictFixedSize(shuffleWriter->cachedPayloadSize(), &evicted));
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(shuffleWriter->cachedPayloadSize(), &evicted));
   ASSERT_EQ(shuffleWriter->cachedPayloadSize(), 0);
   ASSERT_GT(shuffleWriter->partitionBufferSize(), 0);
   // Set limited capacity.
   pool.setCapacity(0);
   // Evict again. Because no cached payload to evict, it will try to evict all partition buffers.
-  ASSERT_NOT_OK(shuffleWriter->evictFixedSize(shuffleWriter->partitionBufferSize(), &evicted));
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(shuffleWriter->partitionBufferSize(), &evicted));
   ASSERT_EQ(shuffleWriter->partitionBufferSize(), 0);
 }
 
@@ -635,12 +635,12 @@ TEST_F(VeloxShuffleWriterMemoryTest, kUnevictableSingle) {
 
   // First evict cached payloads.
   int64_t evicted;
-  ASSERT_NOT_OK(shuffleWriter->evictFixedSize(shuffleWriter->cachedPayloadSize(), &evicted));
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(shuffleWriter->cachedPayloadSize(), &evicted));
   ASSERT_EQ(shuffleWriter->cachedPayloadSize(), 0);
   // Set limited capacity.
   pool.setCapacity(0);
   // Evict again. Single partitioning doesn't have partition buffers, so the evicted size is 0.
-  ASSERT_NOT_OK(shuffleWriter->evictFixedSize(shuffleWriter->partitionBufferSize(), &evicted));
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(shuffleWriter->partitionBufferSize(), &evicted));
   ASSERT_EQ(evicted, 0);
 }
 
@@ -659,7 +659,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, resizeBinaryBufferTriggerSpill) {
 
   // Evict cached payloads.
   int64_t evicted;
-  ASSERT_NOT_OK(shuffleWriter->evictFixedSize(shuffleWriter->cachedPayloadSize(), &evicted));
+  ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(shuffleWriter->cachedPayloadSize(), &evicted));
   ASSERT_EQ(shuffleWriter->cachedPayloadSize(), 0);
   // Set limited capacity.
   ASSERT_TRUE(pool.checkEvict(pool.bytes_allocated(), [&] {

@@ -1195,7 +1195,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     return allBuffers;
   }
 
-  arrow::Status VeloxShuffleWriter::evictFixedSize(int64_t size, int64_t * actual) {
+  arrow::Status VeloxShuffleWriter::reclaimFixedSize(int64_t size, int64_t * actual) {
     if (evictState_ == EvictState::kUnevictable) {
       *actual = 0;
       return arrow::Status::OK();
@@ -1204,7 +1204,7 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
 
     int64_t reclaimed = 0;
     if (reclaimed < size) {
-      ARROW_ASSIGN_OR_RAISE(auto cached, evictCachedPayload());
+      ARROW_ASSIGN_OR_RAISE(auto cached, evictCachedPayload(size - reclaimed));
       reclaimed += cached;
     }
     if (reclaimed < size && shrinkPartitionBuffersAfterSpill()) {
@@ -1219,21 +1219,18 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     return arrow::Status::OK();
   }
 
-  arrow::Result<int64_t> VeloxShuffleWriter::evictCachedPayload() {
+  arrow::Result<int64_t> VeloxShuffleWriter::evictCachedPayload(int64_t size) {
     SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingEvictPartition]);
-    auto beforeEvict = cachedPayloadSize();
-    if (beforeEvict == 0) {
-      return 0;
-    }
-    auto evicted = beforeEvict;
-    RETURN_NOT_OK(partitionWriter_->spill());
-    if (auto afterEvict = cachedPayloadSize()) {
-      // Evict can be triggered by compressing buffers. The cachedPayloadSize is not empty.
-      evicted -= afterEvict;
-    }
+    int64_t actual;
+    auto before = partitionBufferPool_->bytes_allocated();
+    RETURN_NOT_OK(partitionWriter_->reclaimFixedSize(size, &actual));
+    // Need to count the changes from partitionBufferPool as well.
+    // When the evicted partition buffers are not copied, the merged ones
+    // are resized from the original buffers thus allocated from partitionBufferPool.
+    actual += before - partitionBufferPool_->bytes_allocated();
 
-    DLOG(INFO) << "Evicted all cached payloads. " << std::to_string(evicted) << " bytes released" << std::endl;
-    return evicted;
+    DLOG(INFO) << "Evicted all cached payloads. " << std::to_string(actual) << " bytes released" << std::endl;
+    return actual;
   }
 
   arrow::Status VeloxShuffleWriter::resetValidityBuffer(uint32_t partitionId) {
@@ -1458,7 +1455,6 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
           break;
         }
       }
-      RETURN_NOT_OK(partitionWriter_->spill());
     }
     return evicted;
   }

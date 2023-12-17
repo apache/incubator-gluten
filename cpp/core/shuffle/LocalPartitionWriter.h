@@ -43,8 +43,6 @@ class LocalPartitionWriter : public PartitionWriter {
       Evict::type evictType,
       bool hasComplexType) override;
 
-  arrow::Status spill() override;
-
   /// The stop function performs several tasks:
   /// 1. Opens the final data file.
   /// 2. Iterates over each partition ID (pid) to:
@@ -65,6 +63,12 @@ class LocalPartitionWriter : public PartitionWriter {
   /// In both cases, if the cached payload size doesn't free enough memory,
   /// it will shrink partition buffers to free more memory.
   arrow::Status stop(ShuffleWriterMetrics* metrics) override;
+
+  // Spill source:
+  // 1. Other op.
+  // 2. PayloadMerger merging payloads or compressing merged payload.
+  // 3. After stop() called,
+  arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 
   class LocalEvictor;
 
@@ -96,7 +100,7 @@ class LocalPartitionWriter : public PartitionWriter {
   std::shared_ptr<arrow::fs::LocalFileSystem> fs_{nullptr};
   std::shared_ptr<LocalEvictor> evictor_{nullptr};
   std::shared_ptr<PayloadMerger> merger_{nullptr};
-  std::list<std::unique_ptr<Spill>> spills_{};
+  std::list<std::shared_ptr<Spill>> spills_{};
 
   // configured local dirs for spilled file
   int32_t dirSelection_{0};

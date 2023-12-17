@@ -921,7 +921,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   }
   int64_t evictedSize;
   gluten::arrowAssertOkOrThrow(
-      shuffleWriter->evictFixedSize(size, &evictedSize), "(shuffle) nativeEvict: evict failed");
+      shuffleWriter->reclaimFixedSize(size, &evictedSize), "(shuffle) nativeEvict: evict failed");
   return (jlong)evictedSize;
   JNI_METHOD_END(kInvalidResourceHandle)
 }

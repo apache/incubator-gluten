@@ -44,7 +44,8 @@ arrow::Status CelebornPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
   return arrow::Status::OK();
 }
 
-arrow::Status CelebornPartitionWriter::spill() {
+arrow::Status CelebornPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actual) {
+  *actual = 0;
   return arrow::Status::OK();
 }
 

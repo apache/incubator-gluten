@@ -15,8 +15,10 @@
  * limitations under the License.
  */
 
-#include "shuffle/Spill.h"
 #include <iostream>
+
+#include "shuffle/Spill.h"
+#include "utils/DebugOut.h"
 
 namespace gluten {
 
@@ -112,6 +114,25 @@ std::unique_ptr<Payload> InMemorySpill::createGroupPayload(
   return payload;
 }
 
+arrow::Result<std::unique_ptr<Spill>> InMemorySpill::toDiskSpill(const std::string& spillFile) {
+  ARROW_ASSIGN_OR_RAISE(auto os, arrow::io::FileOutputStream::Open(spillFile, true));
+  auto diskSpill = std::make_unique<DiskSpill>(Spill::SpillType::kSequentialSpill, numPartitions_, spillFile);
+  for (auto pid = 0; pid < numPartitions_; ++pid) {
+    while (hasNextPayload(pid)) {
+      auto payload = std::move(partitionToPayloads_[pid].front());
+      partitionToPayloads_[pid].pop_front();
+      ARROW_ASSIGN_OR_RAISE(auto start, os->Tell());
+      auto originalType = payload->giveUpCompression();
+      RETURN_NOT_OK(payload->serialize(os.get()));
+      ARROW_ASSIGN_OR_RAISE(auto end, os->Tell());
+      DEBUG_OUT << "InMemorySpill: Spilled partition " << pid << " file start: " << start << ", file end: " << end
+                << ", file: " << spillFile << std::endl;
+      diskSpill->insertPayload(pid, originalType, payload->numRows(), payload->isValidityBuffer(), end - start, pool_, codec_);
+    }
+  }
+  return diskSpill;
+}
+
 DiskSpill::DiskSpill(Spill::SpillType type, uint32_t numPartitions, const std::string& spillFile)
     : Spill(type, numPartitions), spillFile_(spillFile) {}
 
@@ -146,12 +167,13 @@ void DiskSpill::insertPayload(
   // TODO: Add compression threshold.
   switch (payloadType) {
     case Payload::Type::kUncompressed:
+    case Payload::Type::kToBeCompressed:
       partitionPayloads_.push_back(
           {partitionId,
-           std::make_unique<UncompressedDiskBlockPayload>(numRows, isValidityBuffer, rawIs_, rawSize, pool, codec)});
+           std::make_unique<UncompressedDiskBlockPayload>(
+               payloadType, numRows, isValidityBuffer, rawIs_, rawSize, pool, codec)});
       break;
     case Payload::Type::kCompressed:
-    case Payload::Type::kToBeCompressed:
       partitionPayloads_.push_back(
           {partitionId,
            std::make_unique<CompressedDiskBlockPayload>(numRows, isValidityBuffer, rawIs_, rawSize, pool)});

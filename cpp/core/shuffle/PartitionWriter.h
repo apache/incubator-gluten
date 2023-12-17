@@ -18,7 +18,7 @@
 #pragma once
 
 #include "ShuffleMemoryPool.h"
-#include "memory/Evictable.h"
+#include "memory/Reclaimable.h"
 #include "shuffle/Options.h"
 #include "shuffle/Payload.h"
 #include "shuffle/Spill.h"
@@ -29,7 +29,7 @@ struct Evict {
   enum type { kCache, kSpill };
 };
 
-class PartitionWriter {
+class PartitionWriter: public Reclaimable {
  public:
   PartitionWriter(uint32_t numPartitions, ShuffleWriterOptions* options)
       : numPartitions_(numPartitions), options_(options) {
@@ -52,8 +52,6 @@ class PartitionWriter {
       bool reuseBuffers,
       Evict::type evictType,
       bool hasComplexType) = 0;
-
-  virtual arrow::Status spill() = 0;
 
   uint64_t cachedPayloadSize() {
     return payloadPool_->bytes_allocated();

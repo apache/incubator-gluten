@@ -86,7 +86,7 @@ int64_t SelfEvictedMemoryPool::capacity() const {
   return capacity_;
 }
 
-void SelfEvictedMemoryPool::setEvictable(Evictable* evictable) {
+void SelfEvictedMemoryPool::setEvictable(Reclaimable* evictable) {
   evictable_ = evictable;
 }
 
@@ -131,7 +131,7 @@ arrow::Status SelfEvictedMemoryPool::evict(int64_t size) {
   if (size > capacity_ - pool_->bytes_allocated()) {
     // Self evict.
     int64_t actual;
-    RETURN_NOT_OK(evictable_->evictFixedSize(size, &actual));
+    RETURN_NOT_OK(evictable_->reclaimFixedSize(size, &actual));
     if (size > capacity_ - pool_->bytes_allocated()) {
       if (failIfOOM_) {
         return arrow::Status::OutOfMemory(

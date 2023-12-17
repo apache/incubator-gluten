@@ -405,10 +405,12 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> BlockPayload::readCompressedBuffer
   return output;
 }
 
-void BlockPayload::giveUpCompression() {
+Payload::Type BlockPayload::giveUpCompression() {
   if (type_ == Type::kToBeCompressed) {
     type_ = Type::kUncompressed;
+    return Type::kToBeCompressed;
   }
+  return type_;
 }
 
 arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
@@ -511,7 +513,7 @@ arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
   return std::make_unique<MergeBlockPayload>(mergedRows, std::move(merged), isValidityBuffer, pool, codec);
 }
 
-arrow::Result<std::unique_ptr<BlockPayload>> MergeBlockPayload::finish(Payload::Type payloadType) {
+arrow::Result<std::unique_ptr<BlockPayload>> MergeBlockPayload::toBlockPayload(Payload::Type payloadType) {
   return BlockPayload::fromBuffers(payloadType, numRows_, std::move(buffers_), isValidityBuffer_, pool_, codec_);
 }
 
@@ -654,13 +656,14 @@ arrow::Status GroupPayload::serializeCompressed(arrow::io::OutputStream* outputS
 }
 
 UncompressedDiskBlockPayload::UncompressedDiskBlockPayload(
+    Type type,
     uint32_t numRows,
     const std::vector<bool>* isValidityBuffer,
     arrow::io::InputStream*& inputStream,
     uint64_t rawSize,
     arrow::MemoryPool* pool,
     arrow::util::Codec* codec)
-    : Payload(Payload::kUncompressed, numRows, isValidityBuffer),
+    : Payload(type, numRows, isValidityBuffer),
       inputStream_(inputStream),
       rawSize_(rawSize),
       pool_(pool),
@@ -671,15 +674,18 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> UncompressedDiskBlockPayload::read
 }
 
 arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* outputStream) {
-  // TODO: Add compression threshold.
-  if (codec_ == nullptr) {
+  if (codec_ == nullptr || type_ == Payload::kUncompressed) {
     ARROW_ASSIGN_OR_RAISE(auto block, inputStream_->Read(rawSize_));
     RETURN_NOT_OK(outputStream->Write(block));
     return arrow::Status::OK();
   }
 
+  ARROW_RETURN_IF(
+      type_ != Payload::kToBeCompressed,
+      arrow::Status::Invalid(
+          "Invalid payload type: " + std::to_string(type_) +
+          ", should be either Payload::kUncompressed or Payload::kToBeCompressed"));
   ARROW_ASSIGN_OR_RAISE(auto startPos, inputStream_->Tell());
-  // TODO: For kToBeMerged, read, merge, compress and write.
   auto typeAndRows = readTypeAndRows(inputStream_);
   // Discard type and rows.
   RETURN_NOT_OK(typeAndRows.status());

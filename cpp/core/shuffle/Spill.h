@@ -64,6 +64,8 @@ class InMemorySpill final : public Spill {
 
   std::unique_ptr<Payload> nextPayload(uint32_t partitionId) override;
 
+  arrow::Result<std::unique_ptr<Spill>> toDiskSpill(const std::string& spillFile);
+
  private:
   std::unordered_map<uint32_t, std::list<std::unique_ptr<BlockPayload>>> partitionToPayloads_;
 
