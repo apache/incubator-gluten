@@ -32,6 +32,8 @@ import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 
+import java.util.Locale
+
 import scala.util.control.Breaks.{break, breakable}
 
 class CHBackend extends Backend {
@@ -106,6 +108,21 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     } else {
       algorithm
     }
+  }
+
+  val GLUTEN_CLICKHOUSE_AFFINITY_MODE: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME + ".affinity.mode"
+  val SOFT: String = "soft"
+  val FORCE: String = "force"
+  private val GLUTEN_CLICKHOUSE_AFFINITY_MODE_DEFAULT = SOFT
+
+  def affinityMode: String = {
+    SparkEnv.get.conf
+      .get(
+        CHBackendSettings.GLUTEN_CLICKHOUSE_AFFINITY_MODE,
+        CHBackendSettings.GLUTEN_CLICKHOUSE_AFFINITY_MODE_DEFAULT
+      )
+      .toLowerCase(Locale.getDefault)
   }
 
   override def supportFileFormatRead(

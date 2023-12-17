@@ -36,7 +36,7 @@ case class ValidationResult(isValid: Boolean, reason: Option[String])
 
 object ValidationResult {
   def ok: ValidationResult = ValidationResult(isValid = true, None)
-  def notOk(reason: String): ValidationResult = ValidationResult(isValid = false, Some(reason))
+  def notOk(reason: String): ValidationResult = ValidationResult(isValid = false, Option(reason))
   def convertFromValidationInfo(info: NativePlanValidationInfo): ValidationResult = {
     if (info.isSupported) {
       ok

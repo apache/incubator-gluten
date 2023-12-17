@@ -51,7 +51,7 @@ TypePtr SubstraitParser::parseType(const ::substrait::Type& substraitType, bool 
       std::vector<TypePtr> types;
       std::vector<std::string> names;
       for (int i = 0; i < structTypes.size(); i++) {
-        types.emplace_back(parseType(structTypes[i]));
+        types.emplace_back(parseType(structTypes[i], asLowerCase));
         std::string fieldName = nameProvided ? structNames[i] : "col_" + std::to_string(i);
         if (asLowerCase) {
           folly::toLowerAscii(fieldName);
@@ -62,13 +62,13 @@ TypePtr SubstraitParser::parseType(const ::substrait::Type& substraitType, bool 
     }
     case ::substrait::Type::KindCase::kList: {
       const auto& fieldType = substraitType.list().type();
-      return ARRAY(parseType(fieldType));
+      return ARRAY(parseType(fieldType, asLowerCase));
     }
     case ::substrait::Type::KindCase::kMap: {
       const auto& sMap = substraitType.map();
       const auto& keyType = sMap.key();
       const auto& valueType = sMap.value();
-      return MAP(parseType(keyType), parseType(valueType));
+      return MAP(parseType(keyType, asLowerCase), parseType(valueType, asLowerCase));
     }
     case ::substrait::Type::KindCase::kUserDefined:
       // We only support UNKNOWN type to handle the null literal whose type is

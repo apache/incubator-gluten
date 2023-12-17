@@ -302,6 +302,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
 
   def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
+
+  def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 }
 
 object GlutenConfig {
@@ -524,7 +526,8 @@ object GlutenConfig {
       ("spark.sql.orc.compression.codec", "snappy"),
       (
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
-        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString)
+        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString),
+      (AWS_SDK_LOG_LEVEL.key, AWS_SDK_LOG_LEVEL.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -1413,4 +1416,11 @@ object GlutenConfig {
         "`WholeStageTransformerContext`.")
       .booleanConf
       .createWithDefault(false)
+
+  val AWS_SDK_LOG_LEVEL =
+    buildConf("spark.gluten.velox.awsSdkLogLevel")
+      .internal()
+      .doc("Log granularity of AWS C++ SDK in velox.")
+      .stringConf
+      .createWithDefault("FATAL")
 }

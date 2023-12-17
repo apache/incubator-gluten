@@ -45,13 +45,16 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
-    TPCHTables = TPCHTableNames.map {
-      table =>
-        val tablePath = new File(resourcePath, table).getAbsolutePath
-        val tableDF = spark.read.format(fileFormat).load(tablePath)
-        tableDF.write.format("iceberg").mode("append").saveAsTable(table)
-        (table, tableDF)
-    }.toMap
+    TPCHTables = TPCHTable
+      .map(_.name)
+      .map {
+        table =>
+          val tablePath = new File(resourcePath, table).getAbsolutePath
+          val tableDF = spark.read.format(fileFormat).load(tablePath)
+          tableDF.write.format("iceberg").mode("append").saveAsTable(table)
+          (table, tableDF)
+      }
+      .toMap
   }
 
   test("iceberg transformer exists") {
