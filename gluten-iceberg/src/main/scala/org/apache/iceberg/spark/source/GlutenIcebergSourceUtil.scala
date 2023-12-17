@@ -19,7 +19,7 @@ package org.apache.iceberg.spark.source
 import io.glutenproject.substrait.rel.{IcebergLocalFilesBuilder, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
-import org.apache.spark.softaffinity.SoftAffinityUtil
+import org.apache.spark.softaffinity.SoftAffinity
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
 
 import org.apache.iceberg.{CombinedScanTask, FileFormat, FileScanTask, ScanTask}
@@ -61,7 +61,7 @@ object GlutenIcebergSourceUtil {
                 s"find different file format $fileFormat and $currentFileFormat")
           }
       }
-      val preferredLoc = SoftAffinityUtil.getFilePartitionLocations(
+      val preferredLoc = SoftAffinity.getFilePartitionLocations(
         paths.asScala.toArray,
         inputPartition.preferredLocations())
       IcebergLocalFilesBuilder.makeIcebergLocalFiles(
