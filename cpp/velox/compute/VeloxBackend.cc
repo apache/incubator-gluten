@@ -33,17 +33,12 @@
 #endif
 #ifdef ENABLE_GCS
 #include <fstream>
-#include "velox/connectors/hive/storage_adapters/gcs/RegisterGCSFileSystem.h"
-#endif
-#ifdef ENABLE_ABFS
-#include "velox/connectors/hive/storage_adapters/abfs/AbfsFileSystem.h"
 #endif
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniFileSystem.h"
 #include "operators/functions/SparkTokenizer.h"
 #include "udf/UdfLoader.h"
-#include "utils/ConfigExtractor.h"
 #include "utils/exception.h"
 #include "velox/common/caching/SsdCache.h"
 #include "velox/common/file/FileSystems.h"
@@ -51,8 +46,6 @@
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveDataSource.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/serializers/PrestoSerializer.h"
 
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
@@ -305,7 +298,6 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
 #endif
 
 #ifdef ENABLE_ABFS
-  velox::filesystems::abfs::registerAbfsFileSystem();
   const auto& confValue = conf->valuesCopy();
   for (auto& [k, v] : confValue) {
     if (k.find("fs.azure.account.key") == 0) {
@@ -318,9 +310,6 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
 #endif
 
 #ifdef ENABLE_GCS
-  // Register the GCS connector
-  velox::filesystems::registerGCSFileSystem();
-
   // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
   auto gsStorageRootUrl = conf->get("spark.hadoop.fs.gs.storage.root.url");
   if (gsStorageRootUrl.hasValue()) {
