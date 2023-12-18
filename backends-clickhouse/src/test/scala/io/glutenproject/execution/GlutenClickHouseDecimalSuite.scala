@@ -53,6 +53,8 @@ class GlutenClickHouseDecimalSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.sql.decimalOperations.allowPrecisionLoss", "false")
+      .set("spark.sql.planChangeLog.level", "error")
+      .set("spark.gluten.sql.commonSubexpressionEliminate", "true")
   }
 
   override def beforeAll(): Unit = {

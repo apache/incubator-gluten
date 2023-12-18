@@ -81,7 +81,7 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
 
   private def rewrite(inputCtx: RewriteContext): RewriteContext = {
     // scalastyle:off println
-    // println(s"start rewrite with input exprs:${inputCtx.exprs} input child:${inputCtx.child}")
+    println(s"start rewrite with input exprs:${inputCtx.exprs} input child:${inputCtx.child}")
     val equivalentExpressions = new EquivalentExpressions
     inputCtx.exprs.foreach(equivalentExpressions.addExprTree(_))
 
@@ -97,31 +97,38 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
           !expr.isInstanceOf[Unevaluable] && !expr.foldable
           && !expr.isInstanceOf[Attribute] && !expr.isInstanceOf[AggregateFunction]
         ) {
-          // println(s"common expr $expr class ${expr.getClass.toString}")
+          println(s"common expr $expr class ${expr.getClass.toString}")
           val exprEquals = ExpressionEquals(expr)
           val alias = Alias(expr, expr.toString)()
           val attribute = alias.toAttribute
           commonExprMap.put(exprEquals, AliasAndAttribute(alias, attribute))
         }
     }
-    // println(s"commonExprMap: $commonExprMap")
+    println(s"commonExprMap: $commonExprMap")
 
     if (commonExprMap.isEmpty) {
-      // println(s"commonExprMap is empty all exprs: ${equivalentExpressions.debugString(true)}")
+      println(s"commonExprMap is empty all exprs: ${equivalentExpressions.debugString(true)}")
       return RewriteContext(inputCtx.exprs, newChild)
     }
 
     // Generate pre-project as new child
     var preProjectList = newChild.output ++ commonExprMap.values.map(_.alias)
     val preProject = Project(preProjectList, newChild)
-    // println(s"newChild: $preProject")
+    println(s"newChild: $preProject")
 
     // Replace the common expressions with the first expression that produces it.
-    var newExprs = inputCtx.exprs
-      .map(replaceCommonExprWithAttribute(_, commonExprMap))
-    // println(s"newExprs: $newExprs")
-
-    RewriteContext(newExprs, preProject)
+    try {
+      var newExprs = inputCtx.exprs
+        .map(replaceCommonExprWithAttribute(_, commonExprMap))
+      println(s"newExprs: $newExprs")
+      RewriteContext(newExprs, preProject)
+    } catch {
+      case e: Exception =>
+        logWarning(
+          s"Common subexpression eliminate failed with exception: ${e.getMessage}" +
+            s" while replace ${inputCtx.exprs} with $commonExprMap, fallback now")
+        RewriteContext(inputCtx.exprs, newChild)
+    }
     // scalastyle:on println
   }
 
