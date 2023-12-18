@@ -50,6 +50,8 @@ trait GlutenSQLTestsBaseTrait extends SharedSparkSession with GlutenTestsBaseTra
       .set("spark.plugins", "io.glutenproject.GlutenPlugin")
       .set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.sql.warehouse.dir", warehouse)
+      .set("spark.ui.enabled", "false")
+      .set("spark.gluten.ui.enabled", "false")
     // Avoid static evaluation by spark catalyst. But there are some UT issues
     // coming from spark, e.g., expecting SparkException is thrown, but the wrapped
     // exception is thrown.
