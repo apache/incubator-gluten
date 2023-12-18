@@ -79,6 +79,14 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     }
   }
 
+  private def isValidCommonExpr(expr: Expression): Boolean = {
+    if (expr.isInstanceOf[Unevaluable] || expr.isInstanceOf[AggregateFunction]) {
+      return false
+    }
+
+    expr.children.forall(isValidCommonExpr(_))
+  }
+
   private def rewrite(inputCtx: RewriteContext): RewriteContext = {
     // scalastyle:off println
     // println(s"start rewrite with input exprs:${inputCtx.exprs} input child:${inputCtx.child}")
@@ -93,10 +101,7 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     val commonExprMap = mutable.HashMap.empty[ExpressionEquals, AliasAndAttribute]
     commonExprs.foreach {
       expr =>
-        if (
-          !expr.isInstanceOf[Unevaluable] && !expr.foldable
-          && !expr.isInstanceOf[Attribute] && !expr.isInstanceOf[AggregateFunction]
-        ) {
+        if (!expr.foldable && !expr.isInstanceOf[Attribute] && isValidCommonExpr(expr)) {
           // println(s"common expr $expr class ${expr.getClass.toString}")
           val exprEquals = ExpressionEquals(expr)
           val alias = Alias(expr, expr.toString)()
