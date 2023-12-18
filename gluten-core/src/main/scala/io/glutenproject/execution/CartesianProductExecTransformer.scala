@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
@@ -26,9 +27,10 @@ import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
 import org.apache.spark.sql.catalyst.plans.{Inner, JoinType}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.joins.BaseJoinExec
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-// Only supports cartesian product for now
+// Only supports basic cartesian product with no conditions for now
 case class CartesianProductExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
@@ -45,9 +47,12 @@ case class CartesianProductExecTransformer(
   override def columnarInputRDDs: Seq[RDD[ColumnarBatch]] =
     getColumnarInputRDDs(left) ++ getColumnarInputRDDs(right)
 
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics: Map[String, SQLMetric] =
+    BackendsApiManager.getMetricsApiInstance.genCartesianProductTransformerMetrics(sparkContext)
+
   override def metricsUpdater(): MetricsUpdater = {
-    // Add metric updater
-    null
+    BackendsApiManager.getMetricsApiInstance.genCartesianProductTransformerMetricsUpdater(metrics)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
@@ -59,9 +64,9 @@ case class CartesianProductExecTransformer(
     val (inputRightRelNode, inputRightOutput) =
       (rightPlanContext.root, rightPlanContext.outputAttributes)
 
-    val extensionNode = JoinUtils.createExtensionNode(inputLeftOutput ++ inputRightOutput, true)
+    val extensionNode =
+      JoinUtils.createExtensionNode(inputLeftOutput ++ inputRightOutput, validation = true)
 
-    // Get the operator id of this Join.
     val operatorId = context.nextOperatorId(this.nodeName)
 
     val currRel = RelBuilder.makeCrossRel(
@@ -74,14 +79,20 @@ case class CartesianProductExecTransformer(
     TransformContext(inputLeftOutput ++ inputRightOutput, output, currRel)
   }
 
+  override protected def doValidateInternal(): ValidationResult = {
+    // Ideally joins with "=" join condition should get changed into other join types like shuffle hash join
+    // Only joins with non equi join conditions should come here.
+    // TODO: Support conditions in CrossRel
+    if (condition.isDefined) {
+      return ValidationResult
+        .notOk(s"Conditions are not supported for Cartesian product")
+    }
+    ValidationResult.ok
+  }
+
   override def nodeName: String = "CartesianProductExecTransformer"
 
   override def output: Seq[Attribute] = left.output ++ right.output
-
-  override protected def doValidateInternal(): ValidationResult = {
-//    val substraitContext = new SubstraitContext
-    ValidationResult.ok
-  }
 
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,

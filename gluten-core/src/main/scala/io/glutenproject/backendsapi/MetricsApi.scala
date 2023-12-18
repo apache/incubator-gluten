@@ -107,6 +107,10 @@ trait MetricsApi extends Serializable {
 
   def genHashJoinTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
 
+  def genCartesianProductTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
+
+  def genCartesianProductTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater
+
   def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric]
 
   def genGenerateTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater

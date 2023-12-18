@@ -529,6 +529,24 @@ class MetricsApiImpl extends MetricsApi with Logging {
     Map("numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
   }
 
+  def genCartesianProductTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+      "wallNanos" -> SQLMetrics.createNanoTimingMetric(
+        sparkContext,
+        "totaltime of cartesian product"),
+      "cpuCount" -> SQLMetrics.createMetric(sparkContext, "cpu wall time count"),
+      "peakMemoryBytes" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory bytes"),
+      "numMemoryAllocations" -> SQLMetrics.createMetric(
+        sparkContext,
+        "number of memory allocations")
+    )
+
+  def genCartesianProductTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric]): MetricsUpdater = new CartesianProductMetricsUpdater(metrics)
+
   override def genGenerateTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new GenerateMetricsUpdater(metrics)
 }
