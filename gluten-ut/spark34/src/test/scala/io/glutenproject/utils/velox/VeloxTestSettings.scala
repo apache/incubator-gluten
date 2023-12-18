@@ -885,9 +885,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenMergedParquetReadSchemaSuite]
   enableSuite[GlutenEnsureRequirementsSuite]
-    // Rewrite to change the shuffle partitions for optimizing repartition
-    .excludeByPrefix("SPARK-35675")
-    .exclude("SPARK-41986: Introduce shuffle on SinglePartition")
 
 //  enableSuite[GlutenBroadcastJoinSuite]
 //    .exclude("Shouldn't change broadcast join buildSide if user clearly specified")
