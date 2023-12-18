@@ -299,7 +299,7 @@ VeloxMemoryManager::~VeloxMemoryManager() {
 }
 
 velox::memory::MemoryManager* getDefaultVeloxMemoryManager() {
-  return &(facebook::velox::memory::defaultMemoryManager());
+  return &(facebook::velox::memory::deprecatedDefaultMemoryManager());
 }
 
 } // namespace gluten
