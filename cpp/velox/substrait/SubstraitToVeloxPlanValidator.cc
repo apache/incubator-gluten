@@ -21,6 +21,7 @@
 #include <string>
 #include "TypeUtils.h"
 #include "utils/Common.h"
+#include "velox/common/file/FileSystems.h"
 #include "velox/core/ExpressionEvaluator.h"
 #include "velox/exec/Aggregate.h"
 #include "velox/expression/Expr.h"
@@ -1155,6 +1156,24 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::ReadRel& readRel
       logValidateMsg(
           "native validation failed due to: filter expression validation fails in ReadRel, " + err.message());
       return false;
+    }
+  }
+
+  // Validate read path
+  if (readRel.has_local_files()) {
+    const auto& fileList = readRel.local_files().items();
+    if (fileList.size() > 0) {
+      // check if file path is no registered file system
+      std::string path = fileList[0].uri_file();
+      try {
+        facebook::velox::filesystems::getFileSystem(path, nullptr);
+      } catch (const VeloxException& err) {
+        std::string noRegisteredFSErrorPrefix = "No registered file system matched with file path";
+        if (err.message().rfind(noRegisteredFSErrorPrefix, 0) == 0) {
+          logValidateMsg("native validation failed due to: " + err.message());
+          return false;
+        }
+      }
     }
   }
 

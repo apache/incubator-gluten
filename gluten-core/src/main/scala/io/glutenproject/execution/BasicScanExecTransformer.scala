@@ -31,6 +31,7 @@ import org.apache.spark.sql.types.BooleanType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
+import org.apache.hadoop.fs.Path
 
 import scala.collection.JavaConverters._
 
@@ -49,6 +50,14 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     // This is a heavy operation, and only the required backend executes the corresponding logic.
     if (BackendsApiManager.getSettings.requiredInputFilePaths()) {
       getInputFilePathsInternal
+    } else {
+      Seq.empty
+    }
+  }
+
+  def getRootPaths: Seq[Path] = {
+    if (BackendsApiManager.getSettings.requiredRootPaths()) {
+      getRootPathsInternal
     } else {
       Seq.empty
     }
@@ -88,12 +97,14 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
         fileFormat,
         schema.fields,
         getPartitionSchema.nonEmpty,
-        getInputFilePaths)
+        getInputFilePaths,
+        getRootPaths)
     if (!validationResult.isValid) {
       return validationResult
     }
 
     val substraitContext = new SubstraitContext
+    substraitContext.setSplitInfos(getSplitInfos)
     val relNode = doTransform(substraitContext).root
 
     doNativeValidation(substraitContext, relNode)

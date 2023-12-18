@@ -30,12 +30,15 @@ import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectComma
 import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.types.StructField
 
+import org.apache.hadoop.fs.Path
+
 trait BackendSettingsApi {
   def supportFileFormatRead(
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String]): ValidationResult = ValidationResult.ok
+      paths: Seq[String],
+      rootPaths: Seq[Path]): ValidationResult = ValidationResult.ok
   def supportWriteFilesExec(
       format: FileFormat,
       fields: Array[StructField],
@@ -120,6 +123,8 @@ trait BackendSettingsApi {
   def supportTransformWriteFiles: Boolean = false
 
   def requiredInputFilePaths(): Boolean = false
+
+  def requiredRootPaths(): Boolean = false
 
   def enableBloomFilterAggFallbackRule(): Boolean = true
 

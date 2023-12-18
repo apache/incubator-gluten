@@ -38,6 +38,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.Utils
 
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
 import org.apache.hadoop.hive.ql.plan.TableDesc
@@ -77,6 +78,10 @@ class HiveTableScanExecTransformer(
   override def getInputFilePathsInternal: Seq[String] = {
     // FIXME how does a hive table expose file paths?
     Seq.empty
+  }
+
+  override def getRootPathsInternal: Seq[Path] = {
+    relation.tableMeta.storage.locationUri.map(new Path(_)).toSeq
   }
 
   override def metricsUpdater(): MetricsUpdater =

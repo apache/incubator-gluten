@@ -20,8 +20,14 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.execution.FileSourceScanExec
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanHelper, AQEShuffleReadExec}
+import org.apache.spark.sql.execution.datasources.FakeParentPathFileSystem
+import org.apache.spark.sql.internal.StaticSQLConf
+
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 
 class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPlanHelper {
   protected val rootPath: String = getClass.getResource("/").getPath
@@ -71,6 +77,47 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
         df =>
           val columnarToRow = collectColumnarToRow(df.queryExecution.executedPlan)
           assert(columnarToRow == 1)
+      }
+    }
+  }
+
+  test("fallback with unsupported filesystem") {
+    val hadoopConf = new Configuration()
+    hadoopConf.set("fs.mockFs.impl", classOf[FakeParentPathFileSystem].getName)
+    def withTempData(path: Path)(f: => Unit): Unit = {
+      try {
+        spark
+          .range(100)
+          .selectExpr("cast(id % 9 as int) as c1")
+          .write
+          .format("parquet")
+          .save(path.toString)
+        f
+      } finally {
+        val fs = path.getFileSystem(hadoopConf)
+        fs.delete(path, true)
+      }
+    }
+
+    withSQLConf("fs.mockFs.impl" -> classOf[FakeParentPathFileSystem].getName) {
+      val supportedPath = new Path(conf.getConf(StaticSQLConf.WAREHOUSE_PATH) + "/supported_path")
+      withTempData(supportedPath) {
+        runQueryAndCompare(s"SELECT count(*) FROM `parquet`.`$supportedPath`") {
+          df =>
+            val plan = df.queryExecution.executedPlan
+            val fileScan = collect(plan) { case s: FileSourceScanExecTransformer => s }
+            assert(fileScan.size == 1)
+        }
+      }
+
+      val unsupportedPath = new Path("mockFs://some-bucket/test_parquet")
+      withTempData(unsupportedPath) {
+        runQueryAndCompare(s"SELECT count(*) FROM `parquet`.`$unsupportedPath`") {
+          df =>
+            val plan = df.queryExecution.executedPlan
+            val fileScan = collect(plan) { case s: FileSourceScanExec => s }
+            assert(fileScan.size == 1)
+        }
       }
     }
   }
