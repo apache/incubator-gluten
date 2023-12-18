@@ -39,9 +39,6 @@ using namespace facebook::velox::exec;
 namespace gluten {
 class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBase {
  protected:
-  static void SetUpTestCase() {
-    memory::MemoryManager::initialize({});
-  }
   std::vector<std::shared_ptr<facebook::velox::connector::ConnectorSplit>> makeSplits(
       const SubstraitToVeloxPlanConverter& converter,
       std::shared_ptr<const core::PlanNode> planNode) {
