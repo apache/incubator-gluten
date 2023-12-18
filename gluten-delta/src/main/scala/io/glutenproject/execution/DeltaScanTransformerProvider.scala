@@ -14,16 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.extension
-
-import io.glutenproject.execution.{DataSourceScanTransformerRegister, FileSourceScanExecTransformer}
+package io.glutenproject.execution
 
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.execution.FileSourceScanExec
 
 class DeltaScanTransformerProvider extends DataSourceScanTransformerRegister {
 
-  override val scanClassName: String = "org.apache.spark.sql.delta.files.TahoeLogFileIndex"
+  override val scanClassName: String = "org.apache.spark.sql.delta.DeltaParquetFileFormat"
 
   override def createDataSourceTransformer(
       batchScan: FileSourceScanExec,

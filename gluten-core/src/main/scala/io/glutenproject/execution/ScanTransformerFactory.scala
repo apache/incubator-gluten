@@ -44,8 +44,8 @@ object ScanTransformerFactory {
     } else {
       ExpressionConverter.transformDynamicPruningExpr(scanExec.partitionFilters, reuseSubquery)
     }
-    val fileIndex = scanExec.relation.location
-    lookupDataSourceScanTransformer(fileIndex.getClass.getName) match {
+    val fileFormat = scanExec.relation.fileFormat
+    lookupDataSourceScanTransformer(fileFormat.getClass.getName) match {
       case Some(clz) =>
         clz
           .getDeclaredConstructor()
