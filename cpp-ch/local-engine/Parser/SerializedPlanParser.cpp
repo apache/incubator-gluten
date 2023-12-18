@@ -1985,11 +1985,7 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
         case substrait::Expression::RexTypeCase::kIfThen: {
             const auto & if_then = rel.if_then();
             auto condition_nums = if_then.ifs_size();
-            std::string ch_function_name;
-            if (condition_nums == 1)
-                ch_function_name = "if";
-            else
-                ch_function_name = "multiIf";
+            std::string ch_function_name = condition_nums == 1 ? "if" : "multiIf";
             auto function_multi_if = DB::FunctionFactory::instance().get(ch_function_name, context);
             ASTs args;
 
