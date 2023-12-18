@@ -138,7 +138,7 @@ function compile {
       if [ $OS == 'Linux' ]; then
         sudo cmake --install xsimd-build/
       elif [ $OS == 'Darwin' ]; then
-        cmake --install xsimd-build/
+        sudo cmake --install xsimd-build/
       fi
     fi
     if [ -d gtest-build ]; then
@@ -146,7 +146,7 @@ function compile {
       if [ $OS == 'Linux' ]; then
         sudo cmake --install gtest-build/
       elif [ $OS == 'Darwin' ]; then
-        cmake --install gtest-build/
+        sudo cmake --install gtest-build/
       fi
     fi
   fi
