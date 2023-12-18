@@ -75,7 +75,7 @@ class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBa
       std::make_shared<SubstraitToVeloxPlanConverter>(memoryPool_.get());
 
  private:
-  std::shared_ptr<memory::MemoryPool> memoryPool_{memory::MemoryManager::getInstance()->addLeafPool()};
+  std::shared_ptr<memory::MemoryPool> memoryPool_{memory::addDefaultLeafMemoryPool()};
 };
 
 // This test will firstly generate mock TPC-H lineitem ORC file. Then, Velox's
@@ -125,7 +125,7 @@ TEST_F(Substrait2VeloxPlanConversionTest, q6) {
            VARCHAR(),
            VARCHAR(),
            VARCHAR()});
-  std::shared_ptr<memory::MemoryPool> pool{memory::MemoryManager::getInstance()->addLeafPool()};
+  std::shared_ptr<memory::MemoryPool> pool{memory::addDefaultLeafMemoryPool()};
   std::vector<VectorPtr> vectors;
   // TPC-H lineitem table has 16 columns.
   int colNum = 16;

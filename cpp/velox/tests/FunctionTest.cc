@@ -40,7 +40,7 @@ class FunctionTest : public ::testing::Test {
  protected:
   std::shared_ptr<core::QueryCtx> queryCtx_ = std::make_shared<core::QueryCtx>();
 
-  std::shared_ptr<memory::MemoryPool> pool_ = memory::MemoryManager::getInstance()->addLeafPool();
+  std::shared_ptr<memory::MemoryPool> pool_ = memory::addDefaultLeafMemoryPool();
 
   std::shared_ptr<gluten::SubstraitToVeloxPlanConverter> planConverter_ =
       std::make_shared<gluten::SubstraitToVeloxPlanConverter>(pool_.get());

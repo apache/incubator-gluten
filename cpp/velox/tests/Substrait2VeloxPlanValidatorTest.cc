@@ -58,7 +58,7 @@ class Substrait2VeloxPlanValidatorTest : public exec::test::HiveConnectorTestBas
   }
 
  private:
-  std::shared_ptr<memory::MemoryPool> memoryPool_{memory::MemoryManager::getInstance()->addLeafPool()};
+  std::shared_ptr<memory::MemoryPool> memoryPool_{memory::addDefaultLeafMemoryPool()};
 };
 
 TEST_F(Substrait2VeloxPlanValidatorTest, group) {
