@@ -80,7 +80,8 @@ case class CartesianProductExecTransformer(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    // Ideally joins with "=" join condition should get changed into other join types like shuffle hash join
+    // Ideally joins with "=" join condition should get changed into
+    // other join types like shuffle hash join
     // Only joins with non equi join conditions should come here.
     // TODO: Support conditions in CrossRel
     if (condition.isDefined) {
