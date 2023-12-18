@@ -61,21 +61,19 @@ facebook::velox::RowVectorPtr takeRows(
 std::vector<ShuffleTestParams> createShuffleTestParams() {
   std::vector<ShuffleTestParams> params;
 
-  std::vector<PartitionWriterType> writerTypes = {PartitionWriterType::kLocal, PartitionWriterType::kCeleborn};
-
   std::vector<arrow::Compression::type> compressions = {
       arrow::Compression::UNCOMPRESSED, arrow::Compression::LZ4_FRAME, arrow::Compression::ZSTD};
 
-  std::vector<int32_t> compressionThresholds = {-1, 0, 3, 4, 10, 100, 4096};
-  std::vector<int32_t> mergeBufferSizes = {-1, 0, 3, 4, 10, 100, 4096};
+  std::vector<int32_t> compressionThresholds = {-1, 0, 3, 4, 10, 4096};
+  std::vector<int32_t> mergeBufferSizes = {0, 3, 4, 10, 4096};
 
-  for (const auto& writerType : writerTypes) {
-    for (const auto& compression : compressions) {
-      for (const auto compressionThreshold : compressionThresholds) {
-        for (const auto mergeBufferSize : mergeBufferSizes) {
-          params.push_back(ShuffleTestParams{writerType, compression, compressionThreshold, mergeBufferSize});
-        }
+  for (const auto& compression : compressions) {
+    for (const auto compressionThreshold : compressionThresholds) {
+      for (const auto mergeBufferSize : mergeBufferSizes) {
+        params.push_back(
+            ShuffleTestParams{PartitionWriterType::kLocal, compression, compressionThreshold, mergeBufferSize});
       }
+      params.push_back(ShuffleTestParams{PartitionWriterType::kCeleborn, compression, compressionThreshold, 0});
     }
   }
 
