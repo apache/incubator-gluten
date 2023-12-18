@@ -18,87 +18,11 @@ package org.apache.spark.sql.execution.exchange
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
-import org.apache.spark.sql.catalyst.expressions.{AttributeMap, Literal}
-import org.apache.spark.sql.catalyst.plans.Inner
-import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, SinglePartition}
-import org.apache.spark.sql.catalyst.statsEstimation.StatsTestPlan
-import org.apache.spark.sql.execution.{DummySparkPlan, SortExec}
-import org.apache.spark.sql.execution.joins.SortMergeJoinExec
-import org.apache.spark.sql.internal.SQLConf
 
 class GlutenEnsureRequirementsSuite extends EnsureRequirementsSuite with GlutenSQLTestsBaseTrait {
   override def sparkConf: SparkConf = {
     // Native SQL configs
     super.sparkConf
       .set("spark.sql.shuffle.partitions", "5")
-  }
-
-  test(
-    GLUTEN_TEST +
-      "SPARK-35675: EnsureRequirements remove shuffle should respect PartitioningCollection") {
-    import testImplicits._
-    withSQLConf(
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",
-      SQLConf.SHUFFLE_PARTITIONS.key -> "5",
-      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
-      val df1 = Seq((1, 2)).toDF("c1", "c2")
-      val df2 = Seq((1, 3)).toDF("c3", "c4")
-      val res = df1.join(df2, $"c1" === $"c3").repartition($"c1")
-      assert(res.queryExecution.executedPlan.collect { case s: ShuffleExchangeLike => s }.size == 2)
-    }
-  }
-
-  test(GLUTEN_TEST + "SPARK-41986: Introduce shuffle on SinglePartition") {
-    val filesMaxPartitionBytes = conf.filesMaxPartitionBytes
-    val exprA = Literal(1)
-    val exprC = Literal(3)
-    val EnsureRequirements = new EnsureRequirements()
-    withSQLConf(
-      SQLConf.MAX_SINGLE_PARTITION_BYTES.key -> filesMaxPartitionBytes.toString,
-      SQLConf.SHUFFLE_PARTITIONS.key -> "5") {
-      Seq(filesMaxPartitionBytes, filesMaxPartitionBytes + 1).foreach {
-        size =>
-          val logicalPlan = StatsTestPlan(Nil, 1L, AttributeMap.empty, Some(size))
-          val left = DummySparkPlan(outputPartitioning = SinglePartition)
-          left.setLogicalLink(logicalPlan)
-
-          val right = DummySparkPlan(outputPartitioning = SinglePartition)
-          right.setLogicalLink(logicalPlan)
-          val smjExec = SortMergeJoinExec(exprA :: Nil, exprC :: Nil, Inner, None, left, right)
-
-          if (size <= filesMaxPartitionBytes) {
-            EnsureRequirements.apply(smjExec) match {
-              case SortMergeJoinExec(
-                    leftKeys,
-                    rightKeys,
-                    _,
-                    _,
-                    SortExec(_, _, _: DummySparkPlan, _),
-                    SortExec(_, _, _: DummySparkPlan, _),
-                    _) =>
-                assert(leftKeys === Seq(exprA))
-                assert(rightKeys === Seq(exprC))
-              case other => fail(other.toString)
-            }
-          } else {
-            EnsureRequirements.apply(smjExec) match {
-              case SortMergeJoinExec(
-                    leftKeys,
-                    rightKeys,
-                    _,
-                    _,
-                    SortExec(_, _, ShuffleExchangeExec(left: HashPartitioning, _, _), _),
-                    SortExec(_, _, ShuffleExchangeExec(right: HashPartitioning, _, _), _),
-                    _) =>
-                assert(leftKeys === Seq(exprA))
-                assert(rightKeys === Seq(exprC))
-                assert(left.numPartitions == 5)
-                assert(right.numPartitions == 5)
-              case other => fail(other.toString)
-            }
-          }
-      }
-    }
   }
 }
