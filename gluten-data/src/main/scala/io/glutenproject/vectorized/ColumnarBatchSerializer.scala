@@ -97,13 +97,14 @@ private class ColumnarBatchSerializerInstance(
       }
     val compressionCodecBackend =
       GlutenConfig.getConf.columnarShuffleCodecBackend.orNull
+    val batchSize = GlutenConfig.getConf.maxBatchSize
     val jniWrapper = ShuffleReaderJniWrapper.create()
     val shuffleReaderHandle = jniWrapper.make(
       cSchema.memoryAddress(),
       nmm.getNativeInstanceHandle,
       compressionCodec,
-      compressionCodecBackend
-    )
+      compressionCodecBackend,
+      batchSize)
     // Close shuffle reader instance as lately as the end of task processing,
     // since the native reader could hold a reference to memory pool that
     // was used to create all buffers read from shuffle reader. The pool

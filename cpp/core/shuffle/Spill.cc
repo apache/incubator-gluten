@@ -51,69 +51,6 @@ std::unique_ptr<Payload> InMemorySpill::nextPayload(uint32_t partitionId) {
   return front;
 }
 
-std::list<std::unique_ptr<Payload>> InMemorySpill::grouping(uint32_t partitionId, Payload::Type groupPayloadType) {
-  if (!hasNextPayload(partitionId)) {
-    return {};
-  }
-  auto groupPayloads = std::list<std::unique_ptr<Payload>>{};
-  auto payloads = std::move(partitionToPayloads_[partitionId]);
-
-  uint32_t rows = 0;
-  std::vector<std::unique_ptr<Payload>> toBeMerged{};
-  while (!payloads.empty()) {
-    auto payload = std::move(payloads.front());
-    payloads.pop_front();
-    if (payload->type() == Payload::Type::kUncompressed) {
-      // If payload is uncompressed, check whether it can be appended to the last group.
-      // If total rows exceeds configured batch size, create a new group from toBeMerged.
-      if (!toBeMerged.empty() && rows + payload->numRows() > batchSize_) {
-        // TODO: Add compression threshold to force uncompress.
-        groupPayloads.push_back(createGroupPayload(groupPayloadType, rows, std::move(toBeMerged)));
-        toBeMerged.clear();
-      }
-      rows += payload->numRows();
-      toBeMerged.push_back(std::move(payload));
-      continue;
-    }
-    // Current payload is compressed, which means it cannot be merged with previous ones.
-    // Create a new group from toBeMerged.
-    if (!toBeMerged.empty()) {
-      groupPayloads.push_back(createGroupPayload(groupPayloadType, rows, std::move(toBeMerged)));
-      toBeMerged.clear();
-    }
-    groupPayloads.push_back(std::move(payload));
-  }
-  // Create a new group for the remaining payloads in toBeMerged, if any.
-  // TODO: The last payload can be merged with next spill/partition buffers.
-  if (!toBeMerged.empty()) {
-    groupPayloads.push_back(createGroupPayload(groupPayloadType, rows, std::move(toBeMerged)));
-  }
-  return groupPayloads;
-}
-
-std::unique_ptr<Payload> InMemorySpill::createGroupPayload(
-    Payload::Type groupPayloadType,
-    uint32_t& rows,
-    std::vector<std::unique_ptr<Payload>> toBeMerged) {
-  // If there's only one payload in toBeMerged, return it.
-  if (toBeMerged.size() == 1) {
-    rows = 0;
-    auto payload = std::move(toBeMerged.back());
-    toBeMerged.pop_back();
-    return payload;
-  }
-  auto isValidityBuffer = toBeMerged.back()->isValidityBuffer();
-  if (groupPayloadType == Payload::Type::kCompressed && rows < compressionThreshold_) {
-    groupPayloadType = Payload::Type::kUncompressed;
-  }
-  std::cout << "Create group payload. Num payloads: " << toBeMerged.size() << " , num rows: " << rows << std::endl;
-  auto payload =
-      std::make_unique<GroupPayload>(groupPayloadType, rows, isValidityBuffer, pool_, codec_, std::move(toBeMerged));
-  toBeMerged.clear();
-  rows = 0;
-  return payload;
-}
-
 arrow::Result<std::unique_ptr<Spill>> InMemorySpill::toDiskSpill(const std::string& spillFile) {
   ARROW_ASSIGN_OR_RAISE(auto os, arrow::io::FileOutputStream::Open(spillFile, true));
   auto diskSpill = std::make_unique<DiskSpill>(Spill::SpillType::kSequentialSpill, numPartitions_, spillFile);
@@ -127,7 +64,8 @@ arrow::Result<std::unique_ptr<Spill>> InMemorySpill::toDiskSpill(const std::stri
       ARROW_ASSIGN_OR_RAISE(auto end, os->Tell());
       DEBUG_OUT << "InMemorySpill: Spilled partition " << pid << " file start: " << start << ", file end: " << end
                 << ", file: " << spillFile << std::endl;
-      diskSpill->insertPayload(pid, originalType, payload->numRows(), payload->isValidityBuffer(), end - start, pool_, codec_);
+      diskSpill->insertPayload(
+          pid, originalType, payload->numRows(), payload->isValidityBuffer(), end - start, pool_, codec_);
     }
   }
   return diskSpill;

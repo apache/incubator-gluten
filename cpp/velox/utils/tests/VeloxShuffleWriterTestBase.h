@@ -63,12 +63,13 @@ std::unique_ptr<PartitionWriter> createPartitionWriter(
 struct ShuffleTestParams {
   PartitionWriterType partitionWriterType;
   arrow::Compression::type compressionType;
-  uint32_t compressionThreshold;
+  int32_t compressionThreshold;
+  int32_t mergeBufferSize;
 
   std::string toString() const {
     std::ostringstream out;
-    out << "partitionWriterType = " << partitionWriterType << "compressionType = " << compressionType
-        << ", compressionThreshold = " << compressionThreshold;
+    out << "partitionWriterType = " << partitionWriterType << ", compressionType = " << compressionType
+        << ", compressionThreshold = " << compressionThreshold << ", mergeBufferSize = " << mergeBufferSize;
     return out.str();
   }
 };
@@ -234,6 +235,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     }
     shuffleWriterOptions_->compression_type = params.compressionType;
     shuffleWriterOptions_->compression_threshold = params.compressionThreshold;
+    shuffleWriterOptions_->mergeBufferSize = params.mergeBufferSize;
     return arrow::Status::OK();
   }
 
@@ -272,11 +274,11 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       std::shared_ptr<arrow::Schema> schema,
       std::vector<facebook::velox::RowVectorPtr>& vectors) {
     ShuffleReaderOptions options;
-    options.compression_type = writerOptions->compression_type;
-    auto codec = createArrowIpcCodec(options.compression_type, CodecBackend::NONE);
+    options.compressionType = writerOptions->compression_type;
+    auto codec = createArrowIpcCodec(options.compressionType, CodecBackend::NONE);
     auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
     auto deserializerFactory = std::make_unique<gluten::VeloxColumnarBatchDeserializerFactory>(
-        schema, std::move(codec), rowType, defaultArrowMemoryPool().get(), pool_);
+        schema, std::move(codec), rowType, writerOptions->mergeBufferSize, defaultArrowMemoryPool().get(), pool_);
     auto reader = std::make_shared<VeloxShuffleReader>(std::move(deserializerFactory));
     auto iter = reader->readStream(file_);
     while (iter->hasNext()) {

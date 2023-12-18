@@ -258,10 +258,9 @@ arrow::Result<std::string> gluten::createTempShuffleFile(const std::string& dir)
   return filePath;
 }
 
-arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> gluten::toShuffleWriterTypeId(
+arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> gluten::toShuffleTypeId(
     const std::vector<std::shared_ptr<arrow::Field>>& fields) {
-  std::vector<std::shared_ptr<arrow::DataType>> shuffleWriterTypeId;
-  std::pair<std::string, arrow::Type::type> fieldTypeNotImplemented;
+  std::vector<std::shared_ptr<arrow::DataType>> shuffleTypeId;
   for (auto field : fields) {
     switch (field->type()->id()) {
       case arrow::BooleanType::type_id:
@@ -291,14 +290,14 @@ arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> gluten::toShuffleWr
       case arrow::LargeListType::type_id:
       case arrow::Decimal128Type::type_id:
       case arrow::NullType::type_id:
-        shuffleWriterTypeId.push_back(field->type());
+        shuffleTypeId.push_back(field->type());
         break;
       default:
         RETURN_NOT_OK(arrow::Status::NotImplemented(
             "Field type not implemented in ColumnarShuffle, type is ", field->type()->ToString()));
     }
   }
-  return shuffleWriterTypeId;
+  return shuffleTypeId;
 }
 
 int64_t gluten::getBufferSize(const std::shared_ptr<arrow::Array>& array) {

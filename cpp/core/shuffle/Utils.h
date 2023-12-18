@@ -45,7 +45,7 @@ std::string getSpilledShuffleFileDir(const std::string& configuredDir, int32_t s
 
 arrow::Result<std::string> createTempShuffleFile(const std::string& dir);
 
-arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShuffleWriterTypeId(
+arrow::Result<std::vector<std::shared_ptr<arrow::DataType>>> toShuffleTypeId(
     const std::vector<std::shared_ptr<arrow::Field>>& fields);
 
 int64_t getBufferSize(const std::shared_ptr<arrow::Array>& array);

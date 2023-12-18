@@ -128,38 +128,6 @@ class MergeBlockPayload : public BlockPayload {
   arrow::Result<std::unique_ptr<BlockPayload>> toBlockPayload(Payload::Type payloadType);
 };
 
-class GroupPayload : public Payload {
- public:
-  GroupPayload(
-      Type type,
-      uint32_t numRows,
-      const std::vector<bool>* isValidityBuffer,
-      arrow::MemoryPool* pool,
-      arrow::util::Codec* codec,
-      std::vector<std::unique_ptr<Payload>> payloads);
-
-  arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
-
-  arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) override;
-
- private:
-  arrow::MemoryPool* pool_;
-  arrow::util::Codec* codec_;
-  std::vector<std::vector<std::shared_ptr<arrow::Buffer>>> buffers_;
-  std::vector<uint32_t> bufferNumRows_;
-  std::vector<bool> isValidityAllNull_;
-
-  int64_t rawSizeAt(uint32_t index);
-
-  arrow::Status writeValidityBuffer(arrow::io::OutputStream* outputStream, uint32_t index);
-
-  arrow::Status writeBuffer(arrow::io::OutputStream* outputStream, uint32_t index);
-
-  arrow::Status serializeUncompressed(arrow::io::OutputStream* outputStream);
-
-  arrow::Status serializeCompressed(arrow::io::OutputStream* outputStream);
-};
-
 class UncompressedDiskBlockPayload : public Payload {
  public:
   UncompressedDiskBlockPayload(

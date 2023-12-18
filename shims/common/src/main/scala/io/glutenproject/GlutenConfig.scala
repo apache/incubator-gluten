@@ -916,6 +916,7 @@ object GlutenConfig {
     buildConf(GLUTEN_SHUFFLE_WRITER_BUFFER_SIZE)
       .internal()
       .intConf
+      .checkValue(_ > 0, "Shuffle writer buffer size should be greater than 0.")
       .createOptional
 
   val COLUMNAR_LIMIT_ENABLED =

@@ -790,6 +790,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jstring partitioningNameJstr,
     jint numPartitions,
     jint bufferSize,
+    jint mergeBufferSize,
     jstring codecJstr,
     jstring codecBackendJstr,
     jint bufferCompressThreshold,
@@ -818,9 +819,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   auto partitioningName = jStringToCString(env, partitioningNameJstr);
   shuffleWriterOptions->partitioning = gluten::toPartitioning(partitioningName);
 
-  if (bufferSize > 0) {
-    shuffleWriterOptions->buffer_size = bufferSize;
-  }
+  shuffleWriterOptions->buffer_size = bufferSize;
+  shuffleWriterOptions->mergeBufferSize = mergeBufferSize;
 
   shuffleWriterOptions->compression_type = getCompressionType(env, codecJstr);
   if (codecJstr != NULL) {
@@ -1022,17 +1022,20 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleReaderJniWrapper
     jlong cSchema,
     jlong memoryManagerHandle,
     jstring compressionType,
-    jstring compressionBackend) {
+    jstring compressionBackend,
+    jint batchSize) {
   JNI_METHOD_START
   auto ctx = gluten::getRuntime(env, wrapper);
   auto memoryManager = jniCastOrThrow<MemoryManager>(memoryManagerHandle);
 
   auto pool = memoryManager->getArrowMemoryPool();
   ShuffleReaderOptions options = ShuffleReaderOptions{};
-  options.compression_type = getCompressionType(env, compressionType);
+  options.compressionType = getCompressionType(env, compressionType);
   if (compressionType != nullptr) {
-    options.codec_backend = getCodecBackend(env, compressionBackend);
+    options.codecBackend = getCodecBackend(env, compressionBackend);
   }
+  options.batchSize = batchSize;
+  // TODO: Add coalesce option and maximum coalesced size.
   std::shared_ptr<arrow::Schema> schema =
       gluten::arrowGetOrThrow(arrow::ImportSchema(reinterpret_cast<struct ArrowSchema*>(cSchema)));
 

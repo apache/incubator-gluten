@@ -34,12 +34,14 @@ static constexpr bool kWriteEos = true;
 enum PartitionWriterType { kLocal, kCeleborn };
 
 struct ShuffleReaderOptions {
-  arrow::Compression::type compression_type = arrow::Compression::type::LZ4_FRAME;
-  CodecBackend codec_backend = CodecBackend::NONE;
+  arrow::Compression::type compressionType = arrow::Compression::type::LZ4_FRAME;
+  CodecBackend codecBackend = CodecBackend::NONE;
+  int32_t batchSize = kDefaultShuffleWriterBufferSize;
 };
 
 struct ShuffleWriterOptions {
   int32_t buffer_size = kDefaultShuffleWriterBufferSize;
+  int32_t mergeBufferSize = kDefaultShuffleWriterBufferSize;
   int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
   int32_t num_sub_dirs = kDefaultNumSubDirs;
   int32_t compression_threshold = kDefaultCompressionThreshold;

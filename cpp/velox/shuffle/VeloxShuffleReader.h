@@ -27,12 +27,15 @@ namespace gluten {
 class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
  public:
   VeloxColumnarBatchDeserializer(
-      const std::shared_ptr<arrow::io::InputStream>& in,
+      std::shared_ptr<arrow::io::InputStream> in,
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
       const facebook::velox::RowTypePtr& rowType,
+      int32_t batchSize,
       arrow::MemoryPool* memoryPool,
       facebook::velox::memory::MemoryPool* veloxPool,
+      std::vector<bool>* isValidityBuffer,
+      bool hasComplexType,
       int64_t& arrowToVeloxTime,
       int64_t& decompressTime);
 
@@ -43,11 +46,17 @@ class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
+  int32_t batchSize_;
   arrow::MemoryPool* memoryPool_;
   facebook::velox::memory::MemoryPool* veloxPool_;
+  std::vector<bool>* isValidityBuffer_;
+  bool hasComplexType_;
 
   int64_t& arrowToVeloxTime_;
   int64_t& decompressTime_;
+
+  std::unique_ptr<MergeBlockPayload> merged_{nullptr};
+  bool reachEos_{false};
 };
 
 class VeloxColumnarBatchDeserializerFactory : public DeserializerFactory {
@@ -56,6 +65,7 @@ class VeloxColumnarBatchDeserializerFactory : public DeserializerFactory {
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
       const facebook::velox::RowTypePtr& rowType,
+      int32_t batchSize,
       arrow::MemoryPool* memoryPool,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool);
 
@@ -71,11 +81,17 @@ class VeloxColumnarBatchDeserializerFactory : public DeserializerFactory {
   std::shared_ptr<arrow::Schema> schema_;
   std::shared_ptr<arrow::util::Codec> codec_;
   facebook::velox::RowTypePtr rowType_;
+  int32_t batchSize_;
   arrow::MemoryPool* memoryPool_;
   std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool_;
 
+  std::vector<bool> isValidityBuffer_;
+  bool hasComplexType_{false};
+
   int64_t arrowToVeloxTime_{0};
   int64_t decompressTime_{0};
+
+  void initFromSchema();
 };
 
 class VeloxShuffleReader final : public ShuffleReader {
