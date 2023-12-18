@@ -160,7 +160,6 @@ VeloxMemoryManager::VeloxMemoryManager(
   glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(glutenAlloc_.get());
 
-  velox::memory::MemoryManager::initialize({});
   auto veloxAlloc = velox::memory::MemoryAllocator::getInstance();
 
 #ifdef GLUTEN_ENABLE_HBM
