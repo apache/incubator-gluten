@@ -38,6 +38,14 @@ class Payload {
 
   virtual arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) = 0;
 
+  int64_t getCompressTime() const {
+    return compressTime_;
+  }
+
+  int64_t getWriteTime() const {
+    return writeTime_;
+  }
+
   Type type() const {
     return type_;
   }
@@ -54,10 +62,26 @@ class Payload {
     return isValidityBuffer_;
   }
 
+  std::string toString() const {
+    static std::string kUncompressedString = "Payload::kUncompressed";
+    static std::string kCompressedString = "Payload::kCompressed";
+    static std::string kToBeCompressedString = "Payload::kToBeCompressed";
+
+    if (type_ == kUncompressed) {
+      return kUncompressedString;
+    }
+    if (type_ == kCompressed) {
+      return kCompressedString;
+    }
+    return kToBeCompressedString;
+  }
+
  protected:
   Type type_;
   uint32_t numRows_;
   const std::vector<bool>* isValidityBuffer_;
+  int64_t compressTime_{0};
+  int64_t writeTime_{0};
 };
 
 // A block represents data to be cached in-memory.
@@ -90,8 +114,6 @@ class BlockPayload : public Payload {
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t pos) override;
 
-  Type giveUpCompression();
-
  protected:
   BlockPayload(
       Type type,
@@ -101,6 +123,10 @@ class BlockPayload : public Payload {
       arrow::MemoryPool* pool,
       arrow::util::Codec* codec)
       : Payload(type, numRows, isValidityBuffer), buffers_(std::move(buffers)), pool_(pool), codec_(codec) {}
+
+  void setCompressionTime(int64_t compressionTime) {
+    compressTime_ = compressionTime;
+  }
 
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
   arrow::MemoryPool* pool_;

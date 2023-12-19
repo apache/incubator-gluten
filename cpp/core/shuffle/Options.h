@@ -44,7 +44,7 @@ struct ShuffleWriterOptions {
   int32_t mergeBufferSize = kDefaultShuffleWriterBufferSize;
   int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
   int32_t num_sub_dirs = kDefaultNumSubDirs;
-  int32_t compression_threshold = kDefaultCompressionThreshold;
+  int32_t compressionThreshold = kDefaultCompressionThreshold;
   double buffer_realloc_threshold = kDefaultBufferReallocThreshold;
   arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
   CodecBackend codec_backend = CodecBackend::NONE;

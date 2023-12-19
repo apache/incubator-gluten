@@ -26,67 +26,25 @@
 #include "utils/macros.h"
 
 namespace gluten {
-class Spill {
+
+class Spill final {
  public:
-  enum SpillType { kSequentialSpill, kBatchedSpill, kBatchedInMemorySpill };
+  enum SpillType { kSequentialSpill, kBatchedSpill };
 
-  Spill(SpillType type, uint32_t numPartitions) : type_(type), numPartitions_(numPartitions) {}
-
-  virtual ~Spill() = default;
-
-  virtual bool hasNextPayload(uint32_t partitionId) = 0;
-
-  virtual std::unique_ptr<Payload> nextPayload(uint32_t partitionId) = 0;
-
-  SpillType type() const {
-    return type_;
-  }
-
- protected:
-  SpillType type_;
-  uint32_t numPartitions_;
-};
-
-class InMemorySpill final : public Spill {
- public:
-  InMemorySpill(
-      SpillType type,
-      uint32_t numPartitions,
-      uint32_t batchSize,
-      uint32_t compressionThreshold,
-      arrow::MemoryPool* pool,
-      arrow::util::Codec* codec,
-      std::unordered_map<uint32_t, std::list<std::unique_ptr<BlockPayload>>> partitionToPayloads);
-
-  bool hasNextPayload(uint32_t partitionId) override;
-
-  std::unique_ptr<Payload> nextPayload(uint32_t partitionId) override;
-
-  arrow::Result<std::unique_ptr<Spill>> toDiskSpill(const std::string& spillFile);
-
- private:
-  std::unordered_map<uint32_t, std::list<std::unique_ptr<BlockPayload>>> partitionToPayloads_;
-
-  uint32_t batchSize_;
-  uint32_t compressionThreshold_;
-  arrow::MemoryPool* pool_;
-  arrow::util::Codec* codec_;
-};
-
-class DiskSpill final : public Spill {
- public:
   struct PartitionPayload {
     uint32_t partitionId{};
     std::unique_ptr<Payload> payload{};
   };
 
-  DiskSpill(SpillType type, uint32_t numPartitions, const std::string& spillFile);
+  Spill(SpillType type, uint32_t numPartitions, const std::string& spillFile);
 
-  ~DiskSpill();
+  ~Spill();
 
-  bool hasNextPayload(uint32_t partitionId) override;
+  SpillType type() const;
 
-  std::unique_ptr<Payload> nextPayload(uint32_t partitionId) override;
+  bool hasNextPayload(uint32_t partitionId);
+
+  std::unique_ptr<Payload> nextPayload(uint32_t partitionId);
 
   void insertPayload(
       uint32_t partitionId,
@@ -98,6 +56,8 @@ class DiskSpill final : public Spill {
       arrow::util::Codec* codec);
 
  private:
+  SpillType type_;
+  uint32_t numPartitions_;
   std::shared_ptr<arrow::io::MemoryMappedFile> is_;
   std::list<PartitionPayload> partitionPayloads_{};
   std::shared_ptr<arrow::io::MemoryMappedFile> inputStream_{};

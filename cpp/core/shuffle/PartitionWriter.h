@@ -68,7 +68,7 @@ class PartitionWriter: public Reclaimable {
   std::unique_ptr<arrow::util::Codec> codec_;
 
   int64_t compressTime_{0};
-  int64_t evictTime_{0};
+  int64_t spillTime_{0};
   int64_t writeTime_{0};
 };
 } // namespace gluten

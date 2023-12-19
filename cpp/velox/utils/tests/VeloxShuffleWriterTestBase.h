@@ -234,7 +234,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       shuffleWriterOptions_->partition_writer_type = kCeleborn;
     }
     shuffleWriterOptions_->compression_type = params.compressionType;
-    shuffleWriterOptions_->compression_threshold = params.compressionThreshold;
+    shuffleWriterOptions_->compressionThreshold = params.compressionThreshold;
     shuffleWriterOptions_->mergeBufferSize = params.mergeBufferSize;
     return arrow::Status::OK();
   }

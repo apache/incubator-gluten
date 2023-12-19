@@ -845,7 +845,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
 
   shuffleWriterOptions->task_attempt_id = (int64_t)taskAttemptId;
   shuffleWriterOptions->start_partition_id = startPartitionId;
-  shuffleWriterOptions->compression_threshold = bufferCompressThreshold;
+  shuffleWriterOptions->compressionThreshold = bufferCompressThreshold;
 
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);
   auto partitionWriterType = std::string(partitionWriterTypeC);

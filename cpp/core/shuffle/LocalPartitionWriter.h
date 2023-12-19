@@ -70,14 +70,18 @@ class LocalPartitionWriter : public PartitionWriter {
   // 3. After stop() called,
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 
-  class LocalEvictor;
+  class LocalSpiller;
 
   class PayloadMerger;
+
+  class PayloadCache;
 
  private:
   void init();
 
-  arrow::Status requestEvict(Evict::type evictType);
+  arrow::Status requestSpill();
+
+  arrow::Status finishSpill();
 
   std::string nextSpilledFileDir();
 
@@ -89,17 +93,14 @@ class LocalPartitionWriter : public PartitionWriter {
 
   arrow::Status populateMetrics(ShuffleWriterMetrics* metrics);
 
-  arrow::Result<std::unique_ptr<LocalPartitionWriter::LocalEvictor>> createEvictor(
-      Evict::type evictType,
-      const std::string& spillFile);
-
   std::string dataFile_;
   std::vector<std::string> localDirs_;
 
   bool stopped_{false};
   std::shared_ptr<arrow::fs::LocalFileSystem> fs_{nullptr};
-  std::shared_ptr<LocalEvictor> evictor_{nullptr};
+  std::shared_ptr<LocalSpiller> spiller_{nullptr};
   std::shared_ptr<PayloadMerger> merger_{nullptr};
+  std::shared_ptr<PayloadCache> payloadCache_{nullptr};
   std::list<std::shared_ptr<Spill>> spills_{};
 
   // configured local dirs for spilled file

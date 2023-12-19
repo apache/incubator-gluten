@@ -35,7 +35,7 @@ arrow::Status CelebornPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
   celebornClient_->stop();
   // Populate metrics.
   metrics->totalCompressTime += compressTime_;
-  metrics->totalEvictTime += evictTime_;
+  metrics->totalEvictTime += spillTime_;
   metrics->totalWriteTime += writeTime_;
   metrics->totalBytesEvicted += totalBytesEvicted;
   metrics->totalBytesWritten += totalBytesEvicted;
@@ -59,8 +59,8 @@ arrow::Status CelebornPartitionWriter::evict(
     bool hasComplexType) {
   rawPartitionLengths_[partitionId] += getBufferSize(buffers);
 
-  ScopedTimer timer(evictTime_);
-  auto payloadType = (codec_ && numRows >= options_->compression_threshold) ? Payload::Type::kCompressed
+  ScopedTimer timer(spillTime_);
+  auto payloadType = (codec_ && numRows >= options_->compressionThreshold) ? Payload::Type::kCompressed
                                                                             : Payload::Type::kUncompressed;
   ARROW_ASSIGN_OR_RAISE(
       auto payload,

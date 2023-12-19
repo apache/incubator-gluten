@@ -24,6 +24,7 @@
 
 #include "shuffle/Options.h"
 #include "shuffle/Utils.h"
+#include "utils/Timer.h"
 #include "utils/exception.h"
 
 namespace gluten {
@@ -90,21 +91,28 @@ arrow::Status compressAndFlush(
     const std::shared_ptr<arrow::Buffer>& buffer,
     arrow::io::OutputStream* outputStream,
     arrow::util::Codec* codec,
-    arrow::MemoryPool* pool) {
+    arrow::MemoryPool* pool,
+    int64_t& compressTime,
+    int64_t& writeTime) {
   if (!buffer) {
+    ScopedTimer timer(writeTime);
     RETURN_NOT_OK(outputStream->Write(&kNullBuffer, sizeof(int64_t)));
     return arrow::Status::OK();
   }
   if (buffer->size() == 0) {
+    ScopedTimer timer(writeTime);
     RETURN_NOT_OK(outputStream->Write(&kZeroLengthBuffer, sizeof(int64_t)));
     return arrow::Status::OK();
   }
+  ScopedTimer timer(compressTime);
   auto maxCompressedLength = codec->MaxCompressedLen(buffer->size(), buffer->data());
   ARROW_ASSIGN_OR_RAISE(
       std::shared_ptr<arrow::ResizableBuffer> compressed,
       arrow::AllocateResizableBuffer(sizeof(int64_t) * 2 + maxCompressedLength, pool));
   auto output = compressed->mutable_data();
   ARROW_ASSIGN_OR_RAISE(auto compressedSize, compressBuffer(buffer, output, maxCompressedLength, codec));
+
+  timer.switchTo(writeTime);
   RETURN_NOT_OK(outputStream->Write(compressed->data(), compressedSize));
   return arrow::Status::OK();
 }
@@ -118,6 +126,8 @@ arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
     arrow::MemoryPool* pool,
     arrow::util::Codec* codec) {
   if (payloadType == Payload::Type::kCompressed) {
+    Timer compressionTime;
+    compressionTime.start();
     // Compress.
     // Compressed buffer layout: | buffer1 compressedLength | buffer1 uncompressedLength | buffer1 | ...
     const auto metadataLength = sizeof(int64_t) * 2 * buffers.size();
@@ -145,13 +155,16 @@ arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
 
     ARROW_RETURN_IF(actualLength < 0, arrow::Status::Invalid("Writing compressed buffer out of bound."));
     RETURN_NOT_OK(compressed->Resize(actualLength));
-    return std::unique_ptr<BlockPayload>(new BlockPayload(
+    compressionTime.stop();
+    auto payload = std::unique_ptr<BlockPayload>(new BlockPayload(
         Type::kCompressed,
         numRows,
         std::vector<std::shared_ptr<arrow::Buffer>>{compressed},
         isValidityBuffer,
         pool,
         codec));
+    payload->setCompressionTime(compressionTime.realTimeUsed());
+    return payload;
   }
   return std::unique_ptr<BlockPayload>(
       new BlockPayload(payloadType, numRows, std::move(buffers), isValidityBuffer, pool, codec));
@@ -176,7 +189,7 @@ arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
     RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
     RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
     for (auto& buffer : buffers_) {
-      RETURN_NOT_OK(compressAndFlush(std::move(buffer), outputStream, codec_, pool_));
+      RETURN_NOT_OK(compressAndFlush(std::move(buffer), outputStream, codec_, pool_, compressTime_, writeTime_));
     }
   } else {
     RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
@@ -291,14 +304,6 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> BlockPayload::readCompressedBuffer
   RETURN_NOT_OK(codec->Decompress(
       compressedLength, compressed->data(), uncompressedLength, const_cast<uint8_t*>(output->data())));
   return output;
-}
-
-Payload::Type BlockPayload::giveUpCompression() {
-  if (type_ == Type::kToBeCompressed) {
-    type_ = Type::kUncompressed;
-    return Type::kToBeCompressed;
-  }
-  return type_;
 }
 
 arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
@@ -422,7 +427,7 @@ arrow::Status UncompressedDiskBlockPayload::serialize(arrow::io::OutputStream* o
   while (readPos - startPos < rawSize_) {
     ARROW_ASSIGN_OR_RAISE(auto uncompressed, readUncompressedBuffer());
     ARROW_ASSIGN_OR_RAISE(readPos, inputStream_->Tell());
-    RETURN_NOT_OK(compressAndFlush(std::move(uncompressed), outputStream, codec_, pool_));
+    RETURN_NOT_OK(compressAndFlush(std::move(uncompressed), outputStream, codec_, pool_, compressTime_, writeTime_));
   }
   return arrow::Status::OK();
 }
