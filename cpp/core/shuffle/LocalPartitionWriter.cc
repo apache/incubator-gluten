@@ -451,13 +451,6 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
       }
     }
     ARROW_ASSIGN_OR_RAISE(endInFinalFile, dataFileOs_->Tell());
-
-    if (endInFinalFile != startInFinalFile && options_->writeEos) {
-      // Write EOS if any payload written.
-      int64_t bytes;
-      RETURN_NOT_OK(writeEos(dataFileOs_.get(), &bytes));
-      endInFinalFile += bytes;
-    }
     partitionLengths_[pid] = endInFinalFile - startInFinalFile;
   }
 

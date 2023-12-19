@@ -323,15 +323,6 @@ int64_t gluten::getMaxCompressedBufferSize(
   return totalSize;
 }
 
-arrow::Status gluten::writeEos(arrow::io::OutputStream* os, int64_t* bytes) {
-  // write EOS
-  static const int64_t kSizeOfEos = sizeof(kIpcContinuationToken) + sizeof(kZeroLength);
-  RETURN_NOT_OK(os->Write(&kIpcContinuationToken, sizeof(kIpcContinuationToken)));
-  RETURN_NOT_OK(os->Write(&kZeroLength, sizeof(kZeroLength)));
-  *bytes = kSizeOfEos;
-  return arrow::Status::OK();
-}
-
 std::shared_ptr<arrow::Buffer> gluten::zeroLengthNullBuffer() {
   static std::shared_ptr<arrow::Buffer> kNullBuffer = std::make_shared<arrow::Buffer>(nullptr, 0);
   return kNullBuffer;

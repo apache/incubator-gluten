@@ -50,10 +50,14 @@ T* advance(uint8_t** dst) {
   return ptr;
 }
 
-arrow::Result<std::pair<int32_t, uint32_t>> readTypeAndRows(arrow::io::InputStream* inputStream) {
-  int32_t type;
+arrow::Result<std::pair<uint8_t, uint32_t>> readTypeAndRows(arrow::io::InputStream* inputStream) {
+  uint8_t type;
   uint32_t numRows;
-  RETURN_NOT_OK(inputStream->Read(sizeof(Payload::Type), &type));
+  ARROW_ASSIGN_OR_RAISE(auto bytes, inputStream->Read(sizeof(Payload::Type), &type));
+  if (bytes == 0) {
+    // Reach EOS.
+    return std::make_pair(0, 0);
+  }
   RETURN_NOT_OK(inputStream->Read(sizeof(uint32_t), &numRows));
   return std::make_pair(type, numRows);
 }
@@ -232,19 +236,19 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deseria
     uint32_t& numRows) {
   static const std::vector<std::shared_ptr<arrow::Buffer>> kEmptyBuffers{};
   ARROW_ASSIGN_OR_RAISE(auto typeAndRows, readTypeAndRows(inputStream));
-  if (typeAndRows.first == kIpcContinuationToken && typeAndRows.second == kZeroLength) {
+  if (typeAndRows.first == 0) {
     numRows = 0;
     return kEmptyBuffers;
   }
   numRows = typeAndRows.second;
   auto fields = schema->fields();
 
-  auto isCompressionEnabled = typeAndRows.first == Type::kUncompressed;
+  auto isCompressionEnabled = typeAndRows.first == Type::kCompressed;
   auto readBuffer = [&]() {
     if (isCompressionEnabled) {
-      return readUncompressedBuffer(inputStream);
-    } else {
       return readCompressedBuffer(inputStream, codec, pool);
+    } else {
+      return readUncompressedBuffer(inputStream);
     }
   };
 

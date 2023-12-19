@@ -208,7 +208,6 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
   oss << " bufferSize:" << options->bufferSize;
   oss << " compressionMode:" << (int)options->compressionMode;
   oss << " bufferedWrite:" << options->bufferedWrite;
-  oss << " writeEos:" << options->writeEos;
   oss << " partitionWriterType:" << options->partitionWriterType;
   oss << " threadId:" << options->threadId;
   LOG(INFO) << oss.str();
