@@ -394,6 +394,8 @@ std::unique_ptr<VeloxBackend> VeloxBackend::instance_ = nullptr;
 
 void VeloxBackend::create(const std::unordered_map<std::string, std::string>& conf) {
   instance_ = std::unique_ptr<VeloxBackend>(new gluten::VeloxBackend(conf));
+  // initialize the global memory manager for current process
+  facebook::velox::memory::MemoryManager::initialize({});
 }
 
 VeloxBackend* VeloxBackend::get() {
