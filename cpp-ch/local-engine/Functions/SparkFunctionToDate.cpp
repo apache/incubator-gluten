@@ -106,14 +106,14 @@ public:
             throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be nullable", name);
         
         if (!isDate32(removeNullable(result_type)))
-            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be data32.", name);
+            throw DB::Exception(DB::ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {}'s return type must be date32.", name);
         
         using ColVecTo = DB::DataTypeDate32::ColumnType;
         typename ColVecTo::MutablePtr result_column = ColVecTo::create(size);
         typename ColVecTo::Container & result_container = result_column->getData();
         DB::ColumnUInt8::MutablePtr null_map = DB::ColumnUInt8::create(size);
         typename DB::ColumnUInt8::Container & null_container = null_map->getData();
-        const DateLUTImpl * utc_time_zone = &DateLUT::instance("UTC");
+        const DateLUTImpl * time_zone = &DateLUT::instance();
 
         for (size_t i = 0; i < size; ++i)
         {
@@ -144,7 +144,7 @@ public:
                 }
                 else
                 {
-                    bool parsed = tryParseImpl<DB::DataTypeDate32>(result_container[i], buf, utc_time_zone, false);
+                    bool parsed = tryParseImpl<DB::DataTypeDate32>(result_container[i], buf, time_zone, false);
                     null_container[i] = !parsed;
                 }
             }

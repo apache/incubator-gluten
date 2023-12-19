@@ -60,12 +60,19 @@ public:
         const auto * expr_arg = parsed_args[0];
         const auto * fmt_arg = parsed_args[1];
         auto expr_type = removeNullable(expr_arg->result_type);
+        const DateLUTImpl * date_lut = &DateLUT::instance();
+        const auto * time_zone_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeString>(), date_lut->getTimeZone());
 
         const DB::ActionsDAG::Node * result_node = nullptr;
         if (isString(expr_type))
-            result_node = toFunctionNode(actions_dag, "parseDateTimeInJodaSyntaxOrNull", {expr_arg, fmt_arg});
-        else if (isDateOrDate32(expr_type) || isDateTime(expr_type) || isDateTime64(expr_type))
-            result_node = toFunctionNode(actions_dag, "toUnixTimestamp", {expr_arg});
+            result_node = toFunctionNode(actions_dag, "parseDateTimeInJodaSyntaxOrNull", {expr_arg, fmt_arg, time_zone_node});
+        else if (isDateOrDate32(expr_type))
+        {
+            const auto * to_date_node = toFunctionNode(actions_dag, "toDateTime", {expr_arg});
+            result_node = toFunctionNode(actions_dag, "toUnixTimestamp", {to_date_node});
+        }
+        else if (isDateTime(expr_type) || isDateTime64(expr_type))
+            result_node = toFunctionNode(actions_dag, "toUnixTimestamp", {expr_arg, time_zone_node});
         else
             throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {} requires expr type is string/date/timestamp", getName());
 
