@@ -1487,8 +1487,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
   arrow::Status VeloxShuffleWriter::preAllocPartitionBuffers(uint32_t preAllocBufferSize) {
     for (auto& pid : partitionUsed_) {
       auto newSize = std::max(preAllocBufferSize, partition2RowCount_[pid]);
-      VLOG(9) << "Actual partition buffer size - current: " << partition2BufferSize_[pid] << ", newSize: " << newSize
-              << std::endl;
+      VLOG_IF(9, partition2BufferSize_[pid] != newSize)
+          << "Actual partition buffer size - current: " << partition2BufferSize_[pid] << ", newSize: " << newSize
+          << std::endl;
       // Make sure the size to be allocated is larger than the size to be filled.
       if (partition2BufferSize_[pid] == 0) {
         // Allocate buffer if it's not yet allocated.

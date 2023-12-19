@@ -63,7 +63,7 @@ class LocalPartitionWriter::LocalSpiller {
     // Because payload is uncompressed, no compress time.
     spillTime_ += payload->getWriteTime();
     ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
-    DEBUG_OUT << "SpillEvictor: Spilled partition " << partitionId << " file start: " << start << ", file end: " << end
+    DEBUG_OUT << "LocalSpiller: Spilled partition " << partitionId << " file start: " << start << ", file end: " << end
               << ", file: " << spillFile_ << std::endl;
 
     auto payloadType = codec_ != nullptr && payload->numRows() >= compressionThreshold_ ? Payload::kToBeCompressed
@@ -451,7 +451,6 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
       endInFinalFile += bytes;
     }
     partitionLengths_[pid] = endInFinalFile - startInFinalFile;
-    DEBUG_OUT << "Partition " << pid << " partition length " << partitionLengths_[pid] << std::endl;
   }
 
   for (const auto& spill : spills_) {
