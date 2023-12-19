@@ -130,7 +130,7 @@ function concat_velox_param {
     fi
 
     # check velox home
-    if [[ -n $VELOX_BRANCH ]]; then
+    if [[ -n $VELOX_HOME ]]; then
 	VELOX_PARAMETER+="--velox_home=$VELOX_HOME "
     fi
 }
