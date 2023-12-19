@@ -122,6 +122,7 @@ auto BM_Generic = [](::benchmark::State& state,
   } else {
     setCpu(state.thread_index());
   }
+  memory::MemoryManager::testingSetInstance({});
   auto memoryManager = getDefaultMemoryManager();
   auto runtime = Runtime::create(kVeloxRuntimeKind, conf);
   const auto& filePath = substraitJsonFile;
