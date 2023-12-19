@@ -18,7 +18,6 @@
 #include <limits>
 #include <memory>
 #include <mutex>
-#include <Common/CHUtil.h>
 #include <Columns/ColumnArray.h>
 #include <Columns/ColumnMap.h>
 #include <Columns/ColumnNullable.h>
@@ -26,6 +25,7 @@
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeMap.h>
 #include <DataTypes/DataTypeTuple.h>
+#include <DataTypes/DataTypesDecimal.h>
 #include <Functions/FunctionFactory.h>
 #include <Parser/SerializedPlanParser.h>
 #include <Parser/TypeParser.h>
@@ -36,13 +36,14 @@
 #include <Poco/JSON/Parser.h>
 #include <Poco/MemoryStream.h>
 #include <Poco/StreamCopier.h>
+#include <Common/CHUtil.h>
 #include <Common/Exception.h>
 
 namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int LOGICAL_ERROR;
+extern const int LOGICAL_ERROR;
 }
 }
 namespace local_engine
@@ -53,14 +54,10 @@ PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t
     std::vector<size_t> partition_row_idx_start_points(partition_num + 1, 0);
     IColumn::Selector partition_selector(rows, 0);
     for (size_t i = 0; i < rows; ++i)
-    {
         partition_row_idx_start_points[selector[i]]++;
-    }
 
     for (size_t i = 1; i <= partition_num; ++i)
-    {
         partition_row_idx_start_points[i] += partition_row_idx_start_points[i - 1];
-    }
     for (size_t i = rows; i-- > 0;)
     {
         partition_selector[partition_row_idx_start_points[selector[i]] - 1] = i;
@@ -94,9 +91,7 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
 {
     ColumnsWithTypeAndName args;
     for (size_t i = 0; i < exprs_index.size(); i++)
-    {
         args.emplace_back(block.safeGetByPosition(exprs_index.at(i)));
-    }
     auto flatten_block = BlockUtil::flattenBlock(DB::Block(args), BlockUtil::FLAT_STRUCT_FORCE | BlockUtil::FLAT_NESTED_TABLE, true);
     args = flatten_block.getColumnsWithTypeAndName();
 
@@ -178,9 +173,7 @@ void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)
         auto sort_direction = ordering->get("direction").convert<int>();
         auto d_iter = direction_map.find(sort_direction);
         if (d_iter == direction_map.end())
-        {
             throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupported sorting direction:{}", sort_direction);
-        }
         DB::SortColumnDescription ch_col_sort_descr(col_name, d_iter->second.first, d_iter->second.second);
         sort_descriptions.emplace_back(ch_col_sort_descr);
 
@@ -197,9 +190,12 @@ void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)
 template <typename T>
 void RangeSelectorBuilder::safeInsertFloatValue(const Poco::Dynamic::Var & field_value, DB::MutableColumnPtr & col)
 {
-    try {
+    try
+    {
         col->insert(field_value.convert<T>());
-    } catch (const std::exception &) {
+    }
+    catch (const std::exception &)
+    {
         String val = Poco::toLower(field_value.convert<std::string>());
         T res;
         if (val == "nan")
@@ -277,6 +273,21 @@ void RangeSelectorBuilder::initRangeBlock(Poco::JSON::Array::Ptr range_bounds)
                     int val = field_value.convert<DB::Int32>();
                     col->insert(val);
                 }
+                else if (const auto * decimal32 = dynamic_cast<const DB::DataTypeDecimal<DB::Decimal32> *>(type_info.inner_type.get()))
+                {
+                    auto value = decimal32->parseFromString(field_value.convert<std::string>());
+                    col->insert(DB::DecimalField<DB::Decimal32>(value, decimal32->getScale()));
+                }
+                else if (const auto * decimal64 = dynamic_cast<const DB::DataTypeDecimal<DB::Decimal64> *>(type_info.inner_type.get()))
+                {
+                    auto value = decimal64->parseFromString(field_value.convert<std::string>());
+                    col->insert(DB::DecimalField<DB::Decimal64>(value, decimal64->getScale()));
+                }
+                else if (const auto * decimal128 = dynamic_cast<const DB::DataTypeDecimal<DB::Decimal128> *>(type_info.inner_type.get()))
+                {
+                    auto value = decimal128->parseFromString(field_value.convert<std::string>());
+                    col->insert(DB::DecimalField<DB::Decimal128>(value, decimal128->getScale()));
+                }
                 else
                 {
                     throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupported data type: {}", type_info.inner_type->getName());
@@ -320,12 +331,8 @@ void RangeSelectorBuilder::computePartitionIdByBinarySearch(DB::Block & block, D
     const auto & bounds_columns = range_bounds_block.getColumns();
     auto max_part = bounds_columns[0]->size();
     for (size_t i = 0; i < bounds_columns.size(); i++)
-    {
         if (bounds_columns[i]->isNullable() && !input_columns[sorting_key_columns[i]]->isNullable())
-        {
             input_columns[sorting_key_columns[i]] = makeNullable(input_columns[sorting_key_columns[i]]);
-        }
-    }
     for (size_t r = 0; r < total_rows; ++r)
     {
         size_t selected_partition = 0;
@@ -352,9 +359,7 @@ int RangeSelectorBuilder::compareRow(
         auto res = columns[lpos]->compareAt(row, bound_row, *bound_columns[rpos], sort_descriptions[i].nulls_direction)
             * sort_descriptions[i].direction;
         if (res != 0)
-        {
             return res;
-        }
     }
     return 0;
 }
@@ -365,9 +370,7 @@ int RangeSelectorBuilder::binarySearchBound(
     const DB::Columns & bound_columns, Int64 l, Int64 r, const DB::Columns & columns, const std::vector<size_t> & used_cols, size_t row)
 {
     if (l > r)
-    {
         return -1;
-    }
     auto m = (l + r) >> 1;
     auto cmp_ret = compareRow(columns, used_cols, row, bound_columns, m);
     if (l == r)

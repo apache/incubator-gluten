@@ -14,25 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.execution
 
-// This File includes common helper functions with Arrow dependency.
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.execution.FileSourceScanExec
 
-#pragma once
+class DeltaScanTransformerProvider extends DataSourceScanTransformerRegister {
 
-#include <optional>
-#include <string>
-#include <unordered_map>
+  override val scanClassName: String = "org.apache.spark.sql.delta.DeltaParquetFileFormat"
 
-#include "config/GlutenConfig.h"
-#include "velox/core/Config.h"
-
-namespace gluten {
-
-std::string getConfigValue(
-    const std::unordered_map<std::string, std::string>& confMap,
-    const std::string& key,
-    const std::optional<std::string>& fallbackValue);
-
-bool debugModeEnabled(const std::unordered_map<std::string, std::string>& confMap);
-
-} // namespace gluten
+  override def createDataSourceTransformer(
+      batchScan: FileSourceScanExec,
+      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformer = {
+    DeltaScanTransformer(batchScan, newPartitionFilters)
+  }
+}

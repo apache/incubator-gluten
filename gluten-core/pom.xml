@@ -163,6 +163,12 @@
       <artifactId>xchart</artifactId>
       <version>3.6.5</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>de.erichseifert.vectorgraphics2d</groupId>
+          <artifactId>VectorGraphics2D</artifactId>		      
+	</exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.glutenproject</groupId>

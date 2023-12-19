@@ -18,6 +18,7 @@
 #include "FilePathGenerator.h"
 #include "JsonToProtoConverter.h"
 
+#include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
 #include "velox/common/base/tests/GTestUtils.h"
@@ -36,9 +37,6 @@ using namespace facebook::velox::exec;
 namespace gluten {
 class Substrait2VeloxPlanValidatorTest : public exec::test::HiveConnectorTestBase {
  protected:
-  std::shared_ptr<SubstraitToVeloxPlanConverter> planConverter_ =
-      std::make_shared<SubstraitToVeloxPlanConverter>(memoryPool_.get());
-
   bool validatePlan(std::string file) {
     std::string subPlanPath = FilePathGenerator::getDataFilePath(file);
 
@@ -58,7 +56,7 @@ class Substrait2VeloxPlanValidatorTest : public exec::test::HiveConnectorTestBas
   }
 
  private:
-  std::shared_ptr<memory::MemoryPool> memoryPool_{memory::addDefaultLeafMemoryPool()};
+  std::shared_ptr<memory::MemoryPool> memoryPool_{gluten::defaultLeafVeloxMemoryPool()};
 };
 
 TEST_F(Substrait2VeloxPlanValidatorTest, group) {

@@ -19,8 +19,9 @@ package org.apache.spark.sql.execution
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.shuffle.sort.SortShuffleManager
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleReadMetricsReporter}
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.metric.SQLColumnarShuffleReadMetricsReporter
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 /** The [[Partition]] used by [[ShuffledColumnarBatchRDD]]. */
@@ -91,7 +92,7 @@ class ShuffledColumnarBatchRDD(
     val tempMetrics = context.taskMetrics().createTempShuffleReadMetrics()
     // `SQLShuffleReadMetricsReporter` will update its own metrics for SQL exchange operator,
     // as well as the `tempMetrics` for basic shuffle metrics.
-    val sqlMetricsReporter = new SQLShuffleReadMetricsReporter(tempMetrics, metrics)
+    val sqlMetricsReporter = new SQLColumnarShuffleReadMetricsReporter(tempMetrics, metrics)
     val reader = split.asInstanceOf[ShuffledColumnarBatchRDDPartition].spec match {
       case CoalescedPartitionSpec(startReducerIndex, endReducerIndex, _) =>
         SparkEnv.get.shuffleManager.getReader(
@@ -131,7 +132,11 @@ class ShuffledColumnarBatchRDD(
           context,
           sqlMetricsReporter)
     }
-    reader.read().asInstanceOf[Iterator[Product2[Int, ColumnarBatch]]].map(_._2)
+    reader.read().asInstanceOf[Iterator[Product2[Int, ColumnarBatch]]].map {
+      case (_, batch: ColumnarBatch) =>
+        sqlMetricsReporter.incBatchesRecordsRead(batch.numRows())
+        batch
+    }
   }
 
   override def clearDependencies() {

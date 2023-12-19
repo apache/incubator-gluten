@@ -25,6 +25,7 @@ import org.apache.hadoop.security.UserGroupInformation
 
 import java.util
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
@@ -302,6 +303,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
 
   def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
+
+  def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 }
 
 object GlutenConfig {
@@ -524,7 +527,8 @@ object GlutenConfig {
       ("spark.sql.orc.compression.codec", "snappy"),
       (
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
-        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString)
+        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString),
+      (AWS_SDK_LOG_LEVEL.key, AWS_SDK_LOG_LEVEL.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -1080,6 +1084,16 @@ object GlutenConfig {
       .intConf
       .createWithDefault(0)
 
+  val COLUMNAR_VELOX_ASYNC_TIMEOUT =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
+      .internal()
+      .doc(
+        "Timeout for asynchronous execution when task is being stopped in Velox backend. " +
+          "It's recommended to set to a number larger than network connection timeout that the " +
+          "possible aysnc tasks are relying on.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefault(30000)
+
   val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
       .internal()
@@ -1413,4 +1427,11 @@ object GlutenConfig {
         "`WholeStageTransformerContext`.")
       .booleanConf
       .createWithDefault(false)
+
+  val AWS_SDK_LOG_LEVEL =
+    buildConf("spark.gluten.velox.awsSdkLogLevel")
+      .internal()
+      .doc("Log granularity of AWS C++ SDK in velox.")
+      .stringConf
+      .createWithDefault("FATAL")
 }

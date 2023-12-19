@@ -115,8 +115,15 @@ ExpandRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & rel, 
                 throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Unsupported expression in projections");
             }
         }
+
         expand_kinds.push_back(std::move(kinds));
         expand_fields.push_back(std::move(fields));
+    }
+
+    for (int i = 0; i < names.size(); ++i)
+    {
+        if (names[i].empty())
+            names[i] = getUniqueName("expand_" + std::to_string(i));
     }
 
     ExpandField expand_field(names, types, expand_kinds, expand_fields);

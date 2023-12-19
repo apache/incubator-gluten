@@ -45,6 +45,9 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
+      .set(
+        "spark.gluten.sql.columnar.backend.ch.runtime_config.enable_streaming_aggregating",
+        "true")
   }
 
   override protected def createTPCHNotNullTables(): Unit = {

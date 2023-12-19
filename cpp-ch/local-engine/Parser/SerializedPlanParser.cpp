@@ -121,6 +121,13 @@ std::string join(const ActionsDAG::NodeRawConstPtrs & v, char c)
     return res;
 }
 
+const ActionsDAG::Node * SerializedPlanParser::addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field)
+{
+    return &actions_dag->addColumn(
+        ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field).substr(0, 10))));
+}
+
+
 void SerializedPlanParser::parseExtensions(
     const ::google::protobuf::RepeatedPtrField<substrait::extensions::SimpleExtensionDeclaration> & extensions)
 {
@@ -783,15 +790,10 @@ ActionsDAG::NodeRawConstPtrs SerializedPlanParser::parseArrayJoinWithDAG(
     ActionsDAG::NodeRawConstPtrs args;
     parseFunctionArguments(actions_dag, args, function_name, scalar_function);
 
-    auto add_column = [&actions_dag, this ](const DataTypePtr & type, const Field & field) -> auto
-    {
-        return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field))));
-    };
-
     auto arg_type = DB::removeNullable(args[0]->result_type);
     /// array() or map()
     const auto * empty_map_or_array_node
-        = add_column(DB::removeNullable(args[0]->result_type), isMap(arg_type) ? Field(Map()) : Field(Array()));
+        = addColumn(actions_dag, DB::removeNullable(args[0]->result_type), isMap(arg_type) ? Field(Map()) : Field(Array()));
     /// ifNull(args[0], array() or map())
     const auto * if_null_node = toFunctionNode(actions_dag, "ifNull", {args[0], empty_map_or_array_node});
     /// assumeNotNull(ifNull(args[0], array() or map()))
@@ -1017,14 +1019,28 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
 
         if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type) && !converted_decimal_args)
         {
-            result_node = ActionsDAGUtil::convertNodeType(
-                actions_dag,
-                function_node,
-                // as stated in isTypeMatched， currently we don't change nullability of the result type
-                function_node->result_type->isNullable()
-                    ? local_engine::wrapNullableType(true, TypeParser::parseType(rel.scalar_function().output_type()))->getName()
-                    : local_engine::removeNullable(TypeParser::parseType(rel.scalar_function().output_type()))->getName(),
-                function_node->result_name);
+            auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
+            if (isDecimalOrNullableDecimal(result_type))
+            {
+                result_node = ActionsDAGUtil::convertNodeType(
+                    actions_dag,
+                    function_node,
+                    // as stated in isTypeMatched， currently we don't change nullability of the result type
+                    function_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)->getName()
+                                                             : local_engine::removeNullable(result_type)->getName(),
+                    function_node->result_name,
+                    DB::CastType::accurateOrNull);
+            }
+            else
+            {
+                result_node = ActionsDAGUtil::convertNodeType(
+                    actions_dag,
+                    function_node,
+                    // as stated in isTypeMatched， currently we don't change nullability of the result type
+                    function_node->result_type->isNullable() ? local_engine::wrapNullableType(true, result_type)->getName()
+                                                             : local_engine::removeNullable(result_type)->getName(),
+                    function_node->result_name);
+            }
         }
 
         if (ch_func_name == "JSON_VALUE")
@@ -1073,9 +1089,10 @@ bool SerializedPlanParser::convertBinaryArithmeticFunDecimalArgs(
                 precision = p1 + p2 + 1;
             }
 
-            UInt32 maxPrecision = DataTypeDecimal128::maxPrecision();
+            UInt32 maxPrecision = DataTypeDecimal256::maxPrecision();
+            UInt32 maxScale = DataTypeDecimal128::maxPrecision();
             precision = std::min(precision, maxPrecision);
-            scale = std::min(scale, maxPrecision);
+            scale = std::min(scale, maxScale);
 
             ActionsDAG::NodeRawConstPtrs new_args;
             new_args.reserve(args.size());
@@ -1107,9 +1124,6 @@ void SerializedPlanParser::parseFunctionArguments(
     std::string & function_name,
     const substrait::Expression_ScalarFunction & scalar_function)
 {
-    auto add_column = [&actions_dag, this](const DataTypePtr & type, const Field & field) -> auto
-    { return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field)))); };
-
     auto function_signature = function_mapping.at(std::to_string(scalar_function.function_reference()));
     const auto & args = scalar_function.arguments();
     parsed_args.reserve(args.size());
@@ -1119,7 +1133,7 @@ void SerializedPlanParser::parseFunctionArguments(
     {
         parseFunctionArgument(actions_dag, parsed_args, function_name, args[0]);
         auto data_type = TypeParser::parseType(scalar_function.output_type());
-        parsed_args.emplace_back(add_column(std::make_shared<DB::DataTypeString>(), data_type->getName()));
+        parsed_args.emplace_back(addColumn(actions_dag, std::make_shared<DB::DataTypeString>(), data_type->getName()));
     }
     else if (function_name == "tupleElement")
     {
@@ -1138,7 +1152,7 @@ void SerializedPlanParser::parseFunctionArguments(
             throw Exception(ErrorCodes::BAD_ARGUMENTS, "get_struct_field's second argument must be i32");
         }
         Int32 field_index = static_cast<Int32>(field.get<Int32>() + 1);
-        const auto * index_node = add_column(std::make_shared<DB::DataTypeUInt32>(), field_index);
+        const auto * index_node = addColumn(actions_dag, std::make_shared<DB::DataTypeUInt32>(), field_index);
         parsed_args.emplace_back(index_node);
     }
     else if (function_name == "tuple")
@@ -1185,7 +1199,7 @@ void SerializedPlanParser::parseFunctionArguments(
             arg_node = parseFunctionArgument(actions_dag, function_name, args[0]);
         }
 
-        DB::ActionsDAG::NodeRawConstPtrs ifnull_func_args = {arg_node, add_column(std::make_shared<DataTypeInt32>(), 0)};
+        DB::ActionsDAG::NodeRawConstPtrs ifnull_func_args = {arg_node, addColumn(actions_dag, std::make_shared<DataTypeInt32>(), 0)};
         parsed_args.emplace_back(toFunctionNode(actions_dag, "IfNull", ifnull_func_args));
     }
     else if (function_name == "positionUTF8Spark")
@@ -1210,7 +1224,7 @@ void SerializedPlanParser::parseFunctionArguments(
     {
         // convert space function to repeat
         const DB::ActionsDAG::Node * repeat_times_node = parseFunctionArgument(actions_dag, "repeat", args[0]);
-        const DB::ActionsDAG::Node * space_str_node = add_column(std::make_shared<DataTypeString>(), " ");
+        const DB::ActionsDAG::Node * space_str_node = addColumn(actions_dag, std::make_shared<DataTypeString>(), " ");
         function_name = "repeat";
         parsed_args.emplace_back(space_str_node);
         parsed_args.emplace_back(repeat_times_node);
@@ -1339,8 +1353,7 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
     {
         actions_dag = std::make_shared<ActionsDAG>(blockToNameAndTypeList(input));
     }
-    auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
-    { return &actions_dag->addColumn(ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field)))); };
+
     const auto & scalar_function = rel.scalar_function();
     auto function_signature = function_mapping.at(std::to_string(rel.scalar_function().function_reference()));
     auto function_name = getFunctionName(function_signature, scalar_function);
@@ -1371,7 +1384,7 @@ ActionsDAGPtr SerializedPlanParser::parseJsonTuple(
         }
     }
     extract_expr.append(")");
-    const DB::ActionsDAG::Node * extract_expr_node = add_column(std::make_shared<DataTypeString>(), extract_expr);
+    const DB::ActionsDAG::Node * extract_expr_node = addColumn(actions_dag, std::make_shared<DataTypeString>(), extract_expr);
     auto json_extract_builder = FunctionFactory::instance().get("JSONExtract", context);
     auto json_extract_result_name = "JSONExtract(" + json_expr_node->result_name + "," + extract_expr_node->result_name + ")";
     const ActionsDAG::Node * json_extract_node
@@ -1602,19 +1615,13 @@ std::pair<DataTypePtr, Field> SerializedPlanParser::parseLiteral(const substrait
 
 const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr actions_dag, const substrait::Expression & rel)
 {
-    auto add_column = [&](const DataTypePtr & type, const Field & field) -> auto
-    {
-        return &actions_dag->addColumn(
-            ColumnWithTypeAndName(type->createColumnConst(1, field), type, getUniqueName(toString(field).substr(0, 10))));
-    };
-
     switch (rel.rex_type_case())
     {
         case substrait::Expression::RexTypeCase::kLiteral: {
             DataTypePtr type;
             Field field;
             std::tie(type, field) = parseLiteral(rel.literal());
-            return add_column(type, field);
+            return addColumn(actions_dag, type, field);
         }
 
         case substrait::Expression::RexTypeCase::kSelection: {
@@ -1644,7 +1651,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 /// ClickHouse (https://github.com/ClickHouse/ClickHouse/issues/47120).
                 String function_name = "spark_to_date";
                 const auto * date_node = toFunctionNode(actions_dag, function_name, args);
-                const auto * zero_date_col_node = add_column(std::make_shared<DataTypeString>(), "1900-01-01");
+                const auto * zero_date_col_node = addColumn(actions_dag, std::make_shared<DataTypeString>(), "1900-01-01");
                 const auto * zero_date_node = toFunctionNode(actions_dag, function_name, {zero_date_col_node});
                 DB::ActionsDAG::NodeRawConstPtrs nullif_args = {date_node, zero_date_node};
                 function_node = toFunctionNode(actions_dag, "nullIf", nullif_args);
@@ -1657,19 +1664,19 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             else if (DB::isFloat(DB::removeNullable(args[0]->result_type)) && DB::isNativeInteger(DB::removeNullable(to_ch_type)))
             {
                 /// It looks like by design in CH that forbids cast NaN/Inf to integer.
-                auto zero_node = add_column(args[0]->result_type, 0.0);
+                auto zero_node = addColumn(actions_dag, args[0]->result_type, 0.0);
                 const auto * if_not_finite_node = toFunctionNode(actions_dag, "ifNotFinite", {args[0], zero_node});
                 const auto * final_arg_node = if_not_finite_node;
                 if (args[0]->result_type->isNullable())
                 {
                     DB::Field null_field;
-                    const auto * null_value = add_column(args[0]->result_type, null_field);
+                    const auto * null_value = addColumn(actions_dag, args[0]->result_type, null_field);
                     const auto * is_null_node = toFunctionNode(actions_dag, "isNull", {args[0]});
                     const auto * if_node = toFunctionNode(actions_dag, "if", {is_null_node, null_value, if_not_finite_node});
                     final_arg_node = if_node;
                 }
                 function_node = toFunctionNode(
-                    actions_dag, "CAST", {final_arg_node, add_column(std::make_shared<DataTypeString>(), to_ch_type->getName())});
+                    actions_dag, "CAST", {final_arg_node, addColumn(actions_dag, std::make_shared<DataTypeString>(), to_ch_type->getName())});
             }
             else
             {
@@ -1677,12 +1684,12 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 if(DB::isString(DB::removeNullable(ch_type)) && isDecimalOrNullableDecimal(args[0]->result_type))
                 {
                     UInt8 scale = getDecimalScale(*DB::removeNullable(args[0]->result_type));
-                    args.emplace_back(add_column(std::make_shared<DataTypeUInt8>(), Field(scale)));
+                    args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeUInt8>(), Field(scale)));
                     function_node = toFunctionNode(actions_dag, "toDecimalString", args);
                 }
                 else
                 {
-                    args.emplace_back(add_column(std::make_shared<DataTypeString>(), ch_type->getName()));
+                    args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeString>(), ch_type->getName()));
                     function_node = toFunctionNode(actions_dag, "CAST", args);
                 }
             }
@@ -1725,7 +1732,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             const auto & options = rel.singular_or_list().options();
             /// options is empty always return false
             if (options.empty())
-                return add_column(std::make_shared<DataTypeUInt8>(), 0);
+                return addColumn(actions_dag, std::make_shared<DataTypeUInt8>(), 0);
             /// options should be literals
             if (!options[0].has_literal())
                 throw Exception(ErrorCodes::LOGICAL_ERROR, "Options of SingularOrList must have literal type");
@@ -1790,7 +1797,8 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 /// In CH: return `false`
                 /// So we used if(a, b, c) cast `false` to `null` if sets has `null`
                 auto type = wrapNullableType(true, function_node->result_type);
-                DB::ActionsDAG::NodeRawConstPtrs cast_args({function_node, add_column(type, true), add_column(type, Field())});
+                DB::ActionsDAG::NodeRawConstPtrs cast_args(
+                    {function_node, addColumn(actions_dag, type, true), addColumn(actions_dag, type, Field())});
                 auto cast = FunctionFactory::instance().get("if", context);
                 function_node = toFunctionNode(actions_dag, "if", cast_args);
                 actions_dag->addOrReplaceInOutputs(*function_node);

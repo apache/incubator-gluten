@@ -14,20 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.extension
+package io.glutenproject.execution
 
-import io.glutenproject.execution.{DataSourceScanTransformerRegister, FileSourceScanExecTransformer}
+import io.glutenproject.substrait.plan.PlanBuilder
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.execution.FileSourceScanExec
-
-class DeltaScanTransformerProvider extends DataSourceScanTransformerRegister {
-
-  override val scanClassName: String = "org.apache.spark.sql.delta.files.TahoeLogFileIndex"
-
-  override def createDataSourceTransformer(
-      batchScan: FileSourceScanExec,
-      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformer = {
-    DeltaScanTransformer(batchScan, newPartitionFilters)
+case class GlutenMergeTreePartition(
+    index: Int,
+    engine: String,
+    database: String,
+    table: String,
+    tablePath: String,
+    minParts: Long,
+    maxParts: Long,
+    plan: Array[Byte] = PlanBuilder.EMPTY_PLAN)
+  extends BaseGlutenPartition {
+  override def preferredLocations(): Array[String] = {
+    Array.empty[String]
   }
 }

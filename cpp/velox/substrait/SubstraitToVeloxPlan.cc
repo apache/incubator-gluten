@@ -498,8 +498,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 
   std::vector<core::FieldAccessTypedExprPtr> replicated;
   std::vector<core::FieldAccessTypedExprPtr> unnest;
-  // TODO(yuan): get from generator output
-  std::vector<std::string> unnestNames = {"C0"};
 
   const auto& generator = generateRel.generator();
   const auto& requiredChildOutput = generateRel.child_output();
@@ -532,6 +530,21 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     auto unnestFieldExpr = std::dynamic_pointer_cast<const core::FieldAccessTypedExpr>(unnestExpr);
     VELOX_CHECK_NOT_NULL(unnestFieldExpr, " the key in unnest Operator only support field");
     unnest.emplace_back(unnestFieldExpr);
+  }
+
+  // TODO(yuan): get from generator output
+  std::vector<std::string> unnestNames;
+  int unnestIndex = 0;
+  for (const auto& variable : unnest) {
+    if (variable->type()->isArray()) {
+      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
+    } else if (variable->type()->isMap()) {
+      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
+      unnestNames.emplace_back(fmt::format("C{}", unnestIndex++));
+    } else {
+      VELOX_FAIL(
+          "Unexpected type of unnest variable. Expected ARRAY or MAP, but got {}.", variable->type()->toString());
+    }
   }
 
   auto node = std::make_shared<core::UnnestNode>(
@@ -816,7 +829,9 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::vector<TypePtr> veloxTypeList;
   std::vector<bool> isPartitionColumns;
   // Convert field names into lower case when not case-sensitive.
-  bool asLowerCase = !folly::to<bool>(getConfigValue(confMap_, kCaseSensitive, "false"));
+  std::shared_ptr<const facebook::velox::Config> veloxCfg =
+      std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap_);
+  bool asLowerCase = !veloxCfg->get<bool>(kCaseSensitive, false);
   if (readRel.has_base_schema()) {
     const auto& baseSchema = readRel.base_schema();
     colNameList.reserve(baseSchema.names().size());

@@ -39,6 +39,8 @@ const std::string kHiveConnectorId = "test-hive";
 // memory
 const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
 const std::string kSpillStrategyDefaultValue = "auto";
+const std::string kPartialAggregationSpillEnabled =
+    "spark.gluten.sql.columnar.backend.velox.partialAggregationSpillEnabled";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
@@ -92,11 +94,14 @@ WholeStageResultIterator::WholeStageResultIterator(
     const std::shared_ptr<const facebook::velox::core::PlanNode>& planNode,
     const std::unordered_map<std::string, std::string>& confMap,
     const SparkTaskInfo& taskInfo)
-    : veloxPlan_(planNode), confMap_(confMap), taskInfo_(taskInfo), memoryManager_(memoryManager) {
+    : veloxPlan_(planNode),
+      veloxCfg_(std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap)),
+      taskInfo_(taskInfo),
+      memoryManager_(memoryManager) {
 #ifdef ENABLE_HDFS
   updateHdfsTokens();
 #endif
-  spillStrategy_ = getConfigValue(confMap_, kSpillStrategy, kSpillStrategyDefaultValue);
+  spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
 }
 
@@ -216,7 +221,7 @@ void WholeStageResultIterator::collectMetrics() {
     return;
   }
 
-  if (debugModeEnabled(confMap_)) {
+  if (veloxCfg_->get<bool>(kDebugModeEnabled, false)) {
     auto planWithStats = velox::exec::printPlanWithStats(*veloxPlan_.get(), task_->taskStats(), true);
     std::ostringstream oss;
     oss << "Native Plan with stats for: " << taskInfo_;
@@ -321,8 +326,10 @@ int64_t WholeStageResultIterator::runtimeMetric(
 std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryContextConf() {
   std::unordered_map<std::string, std::string> configs = {};
   // Find batch size from Spark confs. If found, set the preferred and max batch size.
-  configs[velox::core::QueryConfig::kPreferredOutputBatchRows] = getConfigValue(confMap_, kSparkBatchSize, "4096");
-  configs[velox::core::QueryConfig::kMaxOutputBatchRows] = getConfigValue(confMap_, kSparkBatchSize, "4096");
+  configs[velox::core::QueryConfig::kPreferredOutputBatchRows] =
+      std::to_string(veloxCfg_->get<uint32_t>(kSparkBatchSize, 4096));
+  configs[velox::core::QueryConfig::kMaxOutputBatchRows] =
+      std::to_string(veloxCfg_->get<uint32_t>(kSparkBatchSize, 4096));
   // Find offheap size from Spark confs. If found, set the max memory usage of partial aggregation.
   // FIXME this uses process-wise off-heap memory which is not for task
   try {
@@ -330,28 +337,28 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     configs[velox::core::QueryConfig::kCastToIntByTruncate] = std::to_string(true);
     // To align with Spark's behavior, unset to support non-ISO8601 standard strings.
     configs[velox::core::QueryConfig::kCastStringToDateIsIso8601] = std::to_string(false);
-    auto defaultTimezone = getConfigValue(confMap_, kDefaultSessionTimezone, "");
-    configs[velox::core::QueryConfig::kSessionTimezone] = getConfigValue(confMap_, kSessionTimezone, defaultTimezone);
+    auto defaultTimezone = veloxCfg_->get<std::string>(kDefaultSessionTimezone, "");
+    configs[velox::core::QueryConfig::kSessionTimezone] =
+        veloxCfg_->get<std::string>(kSessionTimezone, defaultTimezone);
     // Adjust timestamp according to the above configured session timezone.
     configs[velox::core::QueryConfig::kAdjustTimestampToTimezone] = std::to_string(true);
     // Align Velox size function with Spark.
-    configs[velox::core::QueryConfig::kSparkLegacySizeOfNull] = getConfigValue(confMap_, kLegacySize, "true");
+    configs[velox::core::QueryConfig::kSparkLegacySizeOfNull] = std::to_string(veloxCfg_->get<bool>(kLegacySize, true));
 
     {
       // partial aggregation memory config
-      auto offHeapMemory = std::stol(
-          getConfigValue(confMap_, kSparkTaskOffHeapMemory, std::to_string(facebook::velox::memory::kMaxMemory)));
+      auto offHeapMemory = veloxCfg_->get<int64_t>(kSparkTaskOffHeapMemory, facebook::velox::memory::kMaxMemory);
       auto maxPartialAggregationMemory =
-          (long)(std::stod(getConfigValue(confMap_, kMaxPartialAggregationMemoryRatio, "0.1")) * offHeapMemory);
+          (long)(veloxCfg_->get<double>(kMaxPartialAggregationMemoryRatio, 0.1) * offHeapMemory);
       auto maxExtendedPartialAggregationMemory =
-          (long)(std::stod(getConfigValue(confMap_, kMaxExtendedPartialAggregationMemoryRatio, "0.5")) * offHeapMemory);
+          (long)(veloxCfg_->get<double>(kMaxExtendedPartialAggregationMemoryRatio, 0.5) * offHeapMemory);
       configs[velox::core::QueryConfig::kMaxPartialAggregationMemory] = std::to_string(maxPartialAggregationMemory);
       configs[velox::core::QueryConfig::kMaxExtendedPartialAggregationMemory] =
           std::to_string(maxExtendedPartialAggregationMemory);
       configs[velox::core::QueryConfig::kAbandonPartialAggregationMinPct] =
-          getConfigValue(confMap_, kAbandonPartialAggregationMinPct, "90");
+          std::to_string(veloxCfg_->get<int32_t>(kAbandonPartialAggregationMinPct, 90));
       configs[velox::core::QueryConfig::kAbandonPartialAggregationMinRows] =
-          getConfigValue(confMap_, kAbandonPartialAggregationMinRows, "100000");
+          std::to_string(veloxCfg_->get<int32_t>(kAbandonPartialAggregationMinRows, 100000));
     }
     // Spill configs
     if (spillStrategy_ == "none") {
@@ -360,37 +367,42 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
       configs[velox::core::QueryConfig::kSpillEnabled] = "true";
     }
     configs[velox::core::QueryConfig::kAggregationSpillEnabled] =
-        getConfigValue(confMap_, kAggregationSpillEnabled, "true");
-    configs[velox::core::QueryConfig::kPartialAggregationSpillEnabled] = "true";
-    configs[velox::core::QueryConfig::kJoinSpillEnabled] = getConfigValue(confMap_, kJoinSpillEnabled, "true");
-    configs[velox::core::QueryConfig::kOrderBySpillEnabled] = getConfigValue(confMap_, kOrderBySpillEnabled, "true");
-    configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] =
-        getConfigValue(confMap_, kAggregationSpillMemoryThreshold, "0"); // spill only when input doesn't fit
+        std::to_string(veloxCfg_->get<bool>(kAggregationSpillEnabled, true));
+    configs[velox::core::QueryConfig::kPartialAggregationSpillEnabled] =
+        std::to_string(veloxCfg_->get<bool>(kPartialAggregationSpillEnabled, true));
+    configs[velox::core::QueryConfig::kJoinSpillEnabled] =
+        std::to_string(veloxCfg_->get<bool>(kJoinSpillEnabled, true));
+    configs[velox::core::QueryConfig::kOrderBySpillEnabled] =
+        std::to_string(veloxCfg_->get<bool>(kOrderBySpillEnabled, true));
+    configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] = std::to_string(
+        veloxCfg_->get<uint64_t>(kAggregationSpillMemoryThreshold, 0)); // spill only when input doesn't fit
     configs[velox::core::QueryConfig::kJoinSpillMemoryThreshold] =
-        getConfigValue(confMap_, kJoinSpillMemoryThreshold, "0"); // spill only when input doesn't fit
+        std::to_string(veloxCfg_->get<uint64_t>(kJoinSpillMemoryThreshold, 0)); // spill only when input doesn't fit
     configs[velox::core::QueryConfig::kOrderBySpillMemoryThreshold] =
-        getConfigValue(confMap_, kOrderBySpillMemoryThreshold, "0"); // spill only when input doesn't fit
-    configs[velox::core::QueryConfig::kMaxSpillLevel] = getConfigValue(confMap_, kMaxSpillLevel, "4");
+        std::to_string(veloxCfg_->get<uint64_t>(kOrderBySpillMemoryThreshold, 0)); // spill only when input doesn't fit
+    configs[velox::core::QueryConfig::kMaxSpillLevel] = std::to_string(veloxCfg_->get<int32_t>(kMaxSpillLevel, 4));
     configs[velox::core::QueryConfig::kMaxSpillFileSize] =
-        getConfigValue(confMap_, kMaxSpillFileSize, std::to_string(20L * 1024 * 1024));
+        std::to_string(veloxCfg_->get<uint64_t>(kMaxSpillFileSize, 20L * 1024 * 1024));
     configs[velox::core::QueryConfig::kMinSpillRunSize] =
-        getConfigValue(confMap_, kMinSpillRunSize, std::to_string(256 << 20));
+        std::to_string(veloxCfg_->get<uint64_t>(kMinSpillRunSize, 256 << 20));
     configs[velox::core::QueryConfig::kSpillStartPartitionBit] =
-        getConfigValue(confMap_, kSpillStartPartitionBit, "29");
-    configs[velox::core::QueryConfig::kJoinSpillPartitionBits] = getConfigValue(confMap_, kSpillPartitionBits, "2");
+        std::to_string(veloxCfg_->get<uint8_t>(kSpillStartPartitionBit, 29));
+    configs[velox::core::QueryConfig::kJoinSpillPartitionBits] =
+        std::to_string(veloxCfg_->get<uint8_t>(kSpillPartitionBits, 2));
     configs[velox::core::QueryConfig::kSpillableReservationGrowthPct] =
-        getConfigValue(confMap_, kSpillableReservationGrowthPct, "25");
-    configs[velox::core::QueryConfig::kSpillCompressionKind] = getConfigValue(confMap_, kSpillCompressionKind, "lz4");
+        std::to_string(veloxCfg_->get<uint8_t>(kSpillableReservationGrowthPct, 25));
+    configs[velox::core::QueryConfig::kSpillCompressionKind] =
+        veloxCfg_->get<std::string>(kSpillCompressionKind, "lz4");
     configs[velox::core::QueryConfig::kSparkBloomFilterExpectedNumItems] =
-        getConfigValue(confMap_, kBloomFilterExpectedNumItems, "1000000");
+        std::to_string(veloxCfg_->get<int64_t>(kBloomFilterExpectedNumItems, 1000000));
     configs[velox::core::QueryConfig::kSparkBloomFilterNumBits] =
-        getConfigValue(confMap_, kBloomFilterNumBits, "8388608");
+        std::to_string(veloxCfg_->get<int64_t>(kBloomFilterNumBits, 8388608));
     configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] =
-        getConfigValue(confMap_, kBloomFilterMaxNumBits, "4194304");
+        std::to_string(veloxCfg_->get<int64_t>(kBloomFilterMaxNumBits, 4194304));
     // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
     // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
     configs[velox::core::QueryConfig::kMaxSplitPreloadPerDriver] =
-        getConfigValue(confMap_, kVeloxSplitPreloadPerDriver, "2");
+        std::to_string(veloxCfg_->get<int32_t>(kVeloxSplitPreloadPerDriver, 2));
 
     configs[velox::core::QueryConfig::kArrowBridgeTimestampUnit] = "6";
 
@@ -404,15 +416,14 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
 #ifdef ENABLE_HDFS
 void WholeStageResultIterator::updateHdfsTokens() {
   std::lock_guard lock{mutex};
-  const auto& username = confMap_[kUGIUserName];
-  const auto& allTokens = confMap_[kUGITokens];
+  const auto& username = veloxCfg_->get<std::string>(kUGIUserName);
+  const auto& allTokens = veloxCfg_->get<std::string>(kUGITokens);
 
-  if (username.empty() || allTokens.empty())
+  if (!username.has_value() || !allTokens.has_value())
     return;
-
-  hdfsSetDefautUserName(username.c_str());
+  hdfsSetDefautUserName(username.value().c_str());
   std::vector<folly::StringPiece> tokens;
-  folly::split('\0', allTokens, tokens);
+  folly::split('\0', allTokens.value(), tokens);
   for (auto& token : tokens)
     hdfsSetTokenForDefaultUser(token.data());
 }
@@ -422,7 +433,7 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
   std::unordered_map<std::string, std::string> configs = {};
   // The semantics of reading as lower case is opposite with case-sensitive.
   configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
-      getConfigValue(confMap_, kCaseSensitive, "false") == "false" ? "true" : "false";
+      veloxCfg_->get<bool>(kCaseSensitive, false) == false ? "true" : "false";
   configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = "6";
 
   return std::make_shared<velox::core::MemConfig>(configs);
@@ -515,7 +526,7 @@ void WholeStageResultIteratorFirstStage::constructPartitionColumns(
   for (const auto& partitionColumn : map) {
     auto key = partitionColumn.first;
     const auto value = partitionColumn.second;
-    if (!folly::to<bool>(getConfigValue(confMap_, kCaseSensitive, "false"))) {
+    if (!veloxCfg_->get<bool>(kCaseSensitive, false)) {
       folly::toLowerAscii(key);
     }
     if (value == kHiveDefaultPartition) {

@@ -31,7 +31,8 @@ import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.CoalesceExec.EmptyPartition
 import org.apache.spark.sql.execution.exchange._
-import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleReadMetricsReporter, SQLShuffleWriteMetricsReporter}
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleWriteMetricsReporter}
+import org.apache.spark.sql.metric.SQLColumnarShuffleReadMetricsReporter
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import scala.concurrent.Future
@@ -47,7 +48,7 @@ case class ColumnarShuffleExchangeExec(
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
 
   private[sql] lazy val readMetrics =
-    SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
+    SQLColumnarShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
 
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics =

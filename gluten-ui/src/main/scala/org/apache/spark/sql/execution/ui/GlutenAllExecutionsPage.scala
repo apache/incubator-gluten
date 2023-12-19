@@ -80,15 +80,14 @@ private[ui] class GlutenAllExecutionsPage(parent: GlutenSQLTab) extends WebUIPag
           <span class="collapse-sql-properties collapse-table"
                 onClick="collapseTable('collapse-sql-properties', 'sql-properties')">
             <h4>
-              <span class="collapse-table-arrow arrow-open"></span>
+              <span class="collapse-table-arrow arrow-closed"></span>
               <a>Gluten Build Information</a>
             </h4>
           </span>
-          <div class="sql-properties collapsible-table">
+          <div class="sql-properties collapsible-table collapsed">
             {infos}
           </div>
         </div>
-        <br/>
       </div>
 
     UIUtils.headerSparkPage(request, "Gluten SQL / DataFrame", summary ++ content, parent)

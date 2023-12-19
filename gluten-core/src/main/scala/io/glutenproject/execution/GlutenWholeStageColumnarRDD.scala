@@ -19,7 +19,6 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.metrics.{GlutenTimeMetric, IMetrics}
-import io.glutenproject.substrait.plan.PlanBuilder
 
 import org.apache.spark.{Partition, SparkContext, SparkException, TaskContext}
 import org.apache.spark.rdd.RDD
@@ -67,21 +66,6 @@ case class GlutenFilePartition(index: Int, files: Array[PartitionedFile], plan: 
   }
 }
 
-case class GlutenMergeTreePartition(
-    index: Int,
-    engine: String,
-    database: String,
-    table: String,
-    tablePath: String,
-    minParts: Long,
-    maxParts: Long,
-    plan: Array[Byte] = PlanBuilder.EMPTY_PLAN)
-  extends BaseGlutenPartition {
-  override def preferredLocations(): Array[String] = {
-    Array.empty[String]
-  }
-}
-
 case class FirstZippedPartitionsPartition(
     index: Int,
     inputPartition: InputPartition,
@@ -93,10 +77,10 @@ class GlutenWholeStageColumnarRDD(
     @transient private val inputPartitions: Seq[InputPartition],
     var rdds: ColumnarInputRDDsWrapper,
     pipelineTime: SQLMetric,
-    updateInputMetrics: (InputMetricsWrapper) => Unit,
+    updateInputMetrics: InputMetricsWrapper => Unit,
     updateNativeMetrics: IMetrics => Unit)
   extends RDD[ColumnarBatch](sc, rdds.getDependencies) {
-  val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
+  private val numaBindingInfo = GlutenConfig.getConf.numaBindingInfo
 
   override def compute(split: Partition, context: TaskContext): Iterator[ColumnarBatch] = {
     GlutenTimeMetric.millis(pipelineTime) {
