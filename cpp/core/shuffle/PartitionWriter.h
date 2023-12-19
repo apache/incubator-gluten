@@ -29,7 +29,7 @@ struct Evict {
   enum type { kCache, kSpill };
 };
 
-class PartitionWriter: public Reclaimable {
+class PartitionWriter : public Reclaimable {
  public:
   PartitionWriter(uint32_t numPartitions, ShuffleWriterOptions* options)
       : numPartitions_(numPartitions), options_(options) {
