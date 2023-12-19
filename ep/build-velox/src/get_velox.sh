@@ -16,8 +16,8 @@
 
 set -exu
 
-VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=update
+VELOX_REPO=https://github.com/rui-mo/velox.git
+VELOX_BRANCH=wip_fix_agg
 VELOX_HOME=""
 
 #Set on run gluten on HDFS

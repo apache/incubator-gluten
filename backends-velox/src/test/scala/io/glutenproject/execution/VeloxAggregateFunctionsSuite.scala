@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
+
 import org.apache.spark.SparkConf
 
 abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
@@ -699,8 +700,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
   }
 }
 
-class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {
-}
+class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {}
 
 class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
   override protected def sparkConf: SparkConf = {
