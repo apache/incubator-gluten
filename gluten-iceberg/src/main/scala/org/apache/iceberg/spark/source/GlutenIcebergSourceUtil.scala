@@ -20,7 +20,9 @@ import io.glutenproject.substrait.rel.{IcebergLocalFilesBuilder, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.softaffinity.SoftAffinity
+import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.connector.read.{InputPartition, Scan}
+import org.apache.spark.sql.types.StructType
 
 import org.apache.iceberg.{CombinedScanTask, FileFormat, FileScanTask, ScanTask}
 
@@ -45,7 +47,7 @@ object GlutenIcebergSourceUtil {
           paths.add(task.file().path().toString)
           starts.add(task.start())
           lengths.add(task.length())
-          partitionColumns.add(new JHashMap[String, String]())
+          partitionColumns.add(getPartitionColumns(task))
           val currentFileFormat = task.file().format() match {
             case FileFormat.PARQUET => ReadFileFormat.ParquetReadFormat
             case FileFormat.ORC => ReadFileFormat.OrcReadFormat
@@ -93,6 +95,31 @@ object GlutenIcebergSourceUtil {
       throw new UnsupportedOperationException("Only support iceberg SparkBatchQueryScan.")
   }
 
+  def getPartitionSchema(sparkScan: Scan): StructType = sparkScan match {
+    case scan: SparkBatchQueryScan =>
+      val tasks = scan.tasks().asScala
+      asFileScanTask(tasks.toList).foreach {
+        task =>
+          val spec = task.spec()
+          if (spec.isPartitioned) {
+            var partitionSchema = new StructType()
+            val partitionFields = spec.partitionType().fields().asScala
+            partitionFields.foreach {
+              field =>
+                TypeUtil.validatePartitionColumnType(field.`type`().typeId())
+                partitionSchema = partitionSchema.add(field.name(), field.`type`().toString)
+            }
+            return partitionSchema
+          } else {
+            return new StructType()
+          }
+      }
+      throw new UnsupportedOperationException(
+        "Failed to get partition schema from iceberg SparkBatchQueryScan.")
+    case _ =>
+      throw new UnsupportedOperationException("Only support iceberg SparkBatchQueryScan.")
+  }
+
   private def asFileScanTask(tasks: List[ScanTask]): List[FileScanTask] = {
     if (tasks.forall(_.isFileScanTask)) {
       tasks.map(_.asFileScanTask())
@@ -102,5 +129,27 @@ object GlutenIcebergSourceUtil {
       throw new UnsupportedOperationException(
         "Only support iceberg CombinedScanTask and FileScanTask.")
     }
+  }
+
+  private def getPartitionColumns(task: FileScanTask): JHashMap[String, String] = {
+    val partitionColumns = new JHashMap[String, String]()
+    val spec = task.spec()
+    val partition = task.partition()
+    if (spec.isPartitioned) {
+      val partitionFields = spec.partitionType().fields().asScala
+      partitionFields.zipWithIndex.foreach {
+        case (field, index) =>
+          val partitionValue = partition.get(index, field.`type`().typeId().javaClass())
+          val partitionType = field.`type`()
+          if (partitionValue != null) {
+            partitionColumns.put(
+              field.name(),
+              TypeUtil.getPartitionValueString(partitionType, partitionValue))
+          } else {
+            partitionColumns.put(field.name(), ExternalCatalogUtils.DEFAULT_PARTITION_NAME)
+          }
+      }
+    }
+    partitionColumns
   }
 }
