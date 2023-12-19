@@ -68,8 +68,8 @@ public:
             result_node = toFunctionNode(actions_dag, "parseDateTimeInJodaSyntaxOrNull", {expr_arg, fmt_arg, time_zone_node});
         else if (isDateOrDate32(expr_type))
         {
-            const auto * to_date_node = toFunctionNode(actions_dag, "toDateTime", {expr_arg});
-            result_node = toFunctionNode(actions_dag, "toUnixTimestamp", {to_date_node});
+            const auto * to_datetime_node = toFunctionNode(actions_dag, "toDateTime", {expr_arg, time_zone_node});
+            result_node = toFunctionNode(actions_dag, "toUnixTimestamp", {to_datetime_node});
         }
         else if (isDateTime(expr_type) || isDateTime64(expr_type))
             result_node = toFunctionNode(actions_dag, "toUnixTimestamp", {expr_arg, time_zone_node});
