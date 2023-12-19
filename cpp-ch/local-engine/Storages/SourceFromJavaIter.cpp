@@ -25,6 +25,7 @@
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
 
+
 namespace local_engine
 {
 jclass SourceFromJavaIter::serialized_record_batch_iterator_class = nullptr;
@@ -38,39 +39,71 @@ static DB::Block getRealHeader(const DB::Block & header)
         return header;
     return BlockUtil::buildRowCountHeader();
 }
-SourceFromJavaIter::SourceFromJavaIter(DB::Block header, jobject java_iter_, bool materialize_input_)
-    : DB::ISource(getRealHeader(header)), java_iter(java_iter_), materialize_input(materialize_input_), original_header(header)
+SourceFromJavaIter::SourceFromJavaIter(DB::ContextPtr context_, DB::Block header, jobject java_iter_, bool materialize_input_)
+    : DB::ISource(getRealHeader(header))
+    , java_iter(java_iter_)
+    , materialize_input(materialize_input_)
+    , original_header(header)
+    , context(context_)
 {
 }
 DB::Chunk SourceFromJavaIter::generate()
 {
     GET_JNIENV(env)
-    jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext);
+    size_t max_block_size = context->getSettingsRef().max_block_size;
     DB::Chunk result;
-    if (has_next)
+    size_t total_rows = 0;
+    std::vector<DB::Block> blocks;
+    if (pending_block.rows())
     {
-        jbyteArray block = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
-        DB::Block * data = reinterpret_cast<DB::Block *>(byteArrayToLong(env, block));
-        if(materialize_input)
-            materializeBlockInplace(*data);
-        if (data->rows() > 0)
+        total_rows += pending_block.rows();
+        blocks.emplace_back(std::move(pending_block));
+        pending_block = {};
+    }
+
+    while(total_rows < max_block_size)
+    {
+        jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext);
+        if (!has_next)
+            break;
+        jbyteArray block_address = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
+        DB::Block * block = reinterpret_cast<DB::Block *>(byteArrayToLong(env, block_address));
+
+        if (!blocks.empty() && (blocks[0].info.is_overflows != block->info.is_overflows || blocks[0].info.bucket_num != block->info.bucket_num))
         {
-            size_t rows = data->rows();
-            if (original_header.columns())
-            {
-                result.setColumns(data->mutateColumns(), rows);
-                convertNullable(result);
-                auto info = std::make_shared<DB::AggregatedChunkInfo>();
-                info->is_overflows = data->info.is_overflows;
-                info->bucket_num = data->info.bucket_num;
-                result.setChunkInfo(info);
-            }
-            else
-            {
-                result = BlockUtil::buildRowCountChunk(rows);
-            }
+            pending_block = std::move(*block);
+            break;
+        }
+
+        if (block->rows())
+        {
+            total_rows += block->rows();
+            blocks.emplace_back(std::move(*block));
         }
     }
+
+    if (total_rows)
+    {
+        if (original_header.columns())
+        {
+            auto is_overflows = blocks[0].info.is_overflows;
+            auto bucket_num = blocks[0].info.bucket_num;
+            auto merged_block = DB::concatenateBlocks(blocks);
+            if (materialize_input)
+                materializeBlockInplace(merged_block);
+            result.setColumns(merged_block.getColumns(), total_rows);
+            convertNullable(result);
+            auto info = std::make_shared<DB::AggregatedChunkInfo>();
+            info->is_overflows = is_overflows;
+            info->bucket_num = bucket_num;
+            result.setChunkInfo(info);
+        }
+        else
+        {
+            result = BlockUtil::buildRowCountChunk(total_rows);
+        }
+    }
+
     CLEAN_JNIENV
     return result;
 }

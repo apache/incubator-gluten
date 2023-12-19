@@ -107,9 +107,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"unhex", "unhex"},
        {"hypot", "hypot"},
        {"sign", "sign"},
-       {"log10", "log10"},
-       {"log2", "log2"},
-       {"log", "log"},
        {"radians", "radians"},
        {"greatest", "greatest"},
        {"least", "least"},
@@ -181,7 +178,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"datediff", "dateDiff"},
        {"second", "toSecond"},
        {"add_months", "addMonths"},
-       {"trunc", ""}, /// dummy mapping
        {"date_trunc", "dateTrunc"},
        {"floor_datetime", "dateTrunc"},
        {"months_between", "sparkMonthsBetween"},
@@ -367,6 +363,7 @@ private:
     void wrapNullable(
         const std::vector<String> & columns, ActionsDAGPtr actions_dag, std::map<std::string, std::string> & nullable_measure_names);
     static std::pair<DB::DataTypePtr, DB::Field> convertStructFieldType(const DB::DataTypePtr & type, const DB::Field & field);
+    const ActionsDAG::Node * addColumn(DB::ActionsDAGPtr actions_dag, const DataTypePtr & type, const Field & field);
 
     int name_no = 0;
     std::unordered_map<std::string, std::string> function_mapping;

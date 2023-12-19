@@ -38,11 +38,11 @@ install_centos_7() {
         java-1.8.0-openjdk java-1.8.0-openjdk-devel
 
     # git>2.7.4
-    if [[ "$(git --version)" != "git version 2."* ]]; then
-        [ -f /etc/yum.repos.d/ius.repo ] || yum -y install https://repo.ius.io/ius-release-el7.rpm
-        yum -y remove git
-        yum -y install git236
-    fi
+    #if [[ "$(git --version)" != "git version 2."* ]]; then
+    #    [ -f /etc/yum.repos.d/ius.repo ] || yum -y install https://repo.ius.io/ius-release-el7.rpm
+    #    yum -y remove git
+    #    yum -y install git236
+    #fi
 
     # flex>=2.6.0
     if [[ "$(PATH="/usr/local/bin:$PATH" flex --version 2>&1)" != "flex 2.6."* ]]; then

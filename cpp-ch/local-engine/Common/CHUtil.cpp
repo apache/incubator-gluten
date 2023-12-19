@@ -35,7 +35,6 @@
 #include <DataTypes/DataTypeTuple.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <DataTypes/NestedUtils.h>
-#include <Functions/CastOverloadResolver.h>
 #include <Functions/FunctionFactory.h>
 #include <Functions/FunctionsConversion.h>
 #include <Functions/registerFunctions.h>
@@ -390,7 +389,11 @@ const DB::ColumnWithTypeAndName * NestedColumnExtractHelper::findColumn(const DB
 }
 
 const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
-    DB::ActionsDAGPtr & actions_dag, const DB::ActionsDAG::Node * node, const std::string & type_name, const std::string & result_name)
+    DB::ActionsDAGPtr & actions_dag,
+    const DB::ActionsDAG::Node * node,
+    const std::string & type_name,
+    const std::string & result_name,
+    CastType cast_type)
 {
     DB::ColumnWithTypeAndName type_name_col;
     type_name_col.name = type_name;
@@ -399,11 +402,9 @@ const DB::ActionsDAG::Node * ActionsDAGUtil::convertNodeType(
     const auto * right_arg = &actions_dag->addColumn(std::move(type_name_col));
     const auto * left_arg = node;
     DB::CastDiagnostic diagnostic = {node->result_name, node->result_name};
-    DB::FunctionOverloadResolverPtr func_builder_cast
-        = DB::createInternalCastOverloadResolver(DB::CastType::nonAccurate, std::move(diagnostic));
-
     DB::ActionsDAG::NodeRawConstPtrs children = {left_arg, right_arg};
-    return &actions_dag->addFunction(func_builder_cast, std::move(children), result_name);
+    return &actions_dag->addFunction(
+        DB::createInternalCastOverloadResolver(cast_type, std::move(diagnostic)), std::move(children), result_name);
 }
 
 String QueryPipelineUtil::explainPipeline(DB::QueryPipeline & pipeline)

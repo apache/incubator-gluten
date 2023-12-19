@@ -17,6 +17,7 @@
 #pragma once
 #include <jni.h>
 #include <Processors/ISource.h>
+#include <Interpreters/Context.h>
 
 namespace local_engine
 {
@@ -29,7 +30,7 @@ public:
 
     static Int64 byteArrayToLong(JNIEnv * env, jbyteArray arr);
 
-    SourceFromJavaIter(DB::Block header, jobject java_iter_, bool materialize_input_);
+    SourceFromJavaIter(DB::ContextPtr context_, DB::Block header, jobject java_iter_, bool materialize_input_);
     ~SourceFromJavaIter() override;
 
     String getName() const override { return "SourceFromJavaIter"; }
@@ -40,7 +41,10 @@ private:
 
     jobject java_iter;
     bool materialize_input;
+    DB::ContextPtr context;
     DB::Block original_header;
+
+    DB::Block pending_block;
 };
 
 }

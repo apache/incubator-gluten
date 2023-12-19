@@ -17,9 +17,10 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.sql.shims.SparkShimLoader
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{DataFrame, Row}
+import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution.{GenerateExec, RDDScanExec}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
 import org.apache.spark.sql.functions.{avg, col, udf}
@@ -672,6 +673,64 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
               find(df.queryExecution.executedPlan)(
                 _.isInstanceOf[HashAggregateExecTransformer]).isDefined)
         }
+      }
+    }
+  }
+
+  test("Verify parquet field name with special character") {
+    withTable("t") {
+
+      // https://github.com/apache/spark/pull/35229 Spark remove parquet field name check after 3.2
+      if (!SparkShimLoader.getSparkVersion.startsWith("3.2")) {
+        sql("create table t using parquet as select sum(l_partkey) from lineitem")
+        runQueryAndCompare("select * from t") {
+          checkOperatorMatch[FileSourceScanExecTransformer]
+        }
+      } else {
+        val msg = intercept[AnalysisException] {
+          sql("create table t using parquet as select sum(l_partkey) from lineitem")
+        }.message
+        assert(msg.contains("contains invalid character"))
+      }
+    }
+  }
+
+  test("test explode function") {
+    runQueryAndCompare("""
+                         |SELECT explode(array(1, 2, 3));
+                         |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |SELECT explode(map(1, 'a', 2, 'b'));
+                         |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+    runQueryAndCompare(
+      """
+        |SELECT explode(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
+        |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |SELECT explode(map(1, array(1, 2), 2, array(3, 4)));
+                         |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+  }
+
+  test("Support bool type filter in scan") {
+    withTable("t") {
+      sql("create table t (id int, b boolean) using parquet")
+      sql("insert into t values (1, true), (2, false), (3, null)")
+      runQueryAndCompare("select * from t where b = true") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+      runQueryAndCompare("select * from t where b = false") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+      runQueryAndCompare("select * from t where b is NULL") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
       }
     }
   }

@@ -125,6 +125,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    // failed on spark32 UT, see https://github.com/oap-project/gluten/issues/4043
+    .exclude("SPARK-34833: right-padding applied correctly for correlated subqueries - other preds")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude("average")
@@ -270,7 +272,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("groupBy.as")
   enableSuite[GlutenDateFunctionsSuite]
     .exclude("function to_date")
-    .exclude("function trunc")
     .exclude("from_unixtime")
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")

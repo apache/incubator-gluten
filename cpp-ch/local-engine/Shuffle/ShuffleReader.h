@@ -45,6 +45,7 @@ private:
     std::unique_ptr<DB::ReadBuffer> compressed_in;
     std::unique_ptr<local_engine::NativeReader> input_stream;
     DB::Block header;
+    DB::Block pending_block;
 };
 
 

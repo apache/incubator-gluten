@@ -87,6 +87,27 @@ class GlutenClickHouseTPCHParquetBucketSuite
                  | CLUSTERED BY (c_custkey) SORTED BY (c_custkey) INTO 2 BUCKETS;
                  |""".stripMargin)
 
+    val customerData1 = bucketTableDataPath + "/customer_6_buckets"
+    spark.sql(s"DROP TABLE IF EXISTS customer_6_buckets")
+    spark.sql(s"""
+                 | CREATE EXTERNAL TABLE IF NOT EXISTS customer_6_buckets (
+                 | c_custkey    bigint,
+                 | c_name       string,
+                 | c_address    string,
+                 | c_nationkey  bigint,
+                 | c_phone      string,
+                 | c_acctbal    double,
+                 | c_mktsegment string,
+                 | c_comment    string)
+                 | USING PARQUET
+                 | LOCATION '$customerData1'
+                 | CLUSTERED BY (c_custkey) SORTED BY (c_custkey) INTO 6 BUCKETS;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |INSERT INTO customer_6_buckets SELECT * FROM customer;
+                 |""".stripMargin)
+
     val lineitemData = bucketTableDataPath + "/lineitem"
     spark.sql(s"DROP TABLE IF EXISTS lineitem")
     spark.sql(s"""
@@ -155,6 +176,28 @@ class GlutenClickHouseTPCHParquetBucketSuite
                  | CLUSTERED BY (o_orderkey) SORTED BY (o_orderkey, o_orderdate) INTO 2 BUCKETS;
                  |""".stripMargin)
 
+    val ordersData1 = bucketTableDataPath + "/orders_6_buckets"
+    spark.sql(s"DROP TABLE IF EXISTS orders_6_buckets")
+    spark.sql(s"""
+                 | CREATE EXTERNAL TABLE IF NOT EXISTS orders_6_buckets (
+                 | o_orderkey      bigint,
+                 | o_custkey       bigint,
+                 | o_orderstatus   string,
+                 | o_totalprice    double,
+                 | o_orderdate     date,
+                 | o_orderpriority string,
+                 | o_clerk         string,
+                 | o_shippriority  bigint,
+                 | o_comment       string)
+                 | USING PARQUET
+                 | LOCATION '$ordersData1'
+                 | CLUSTERED BY (o_orderkey) SORTED BY (o_orderkey, o_orderdate) INTO 6 BUCKETS;
+                 |""".stripMargin)
+
+    spark.sql(s"""
+                 |INSERT INTO orders_6_buckets SELECT * FROM orders;
+                 |""".stripMargin)
+
     val partData = bucketTableDataPath + "/part"
     spark.sql(s"DROP TABLE IF EXISTS part")
     spark.sql(s"""
@@ -208,7 +251,7 @@ class GlutenClickHouseTPCHParquetBucketSuite
               | show tables;
               |""".stripMargin)
       .collect()
-    assert(result.length == 8)
+    assert(result.length == 10)
   }
 
   test("TPCH Q1") {
@@ -496,6 +539,31 @@ class GlutenClickHouseTPCHParquetBucketSuite
             .right
             .isInstanceOf[ProjectExecTransformer])
       }
+    )
+  }
+
+  test("GLUTEN-3922: Fix incorrect shuffle hash id value when executing modulo") {
+    val SQL =
+      """
+        |SELECT
+        |    c_custkey, o_custkey, hash(o_custkey), pmod(hash(o_custkey), 12),
+        |    pmod(hash(o_custkey), 4)
+        |FROM
+        |    customer_6_buckets,
+        |    orders_6_buckets
+        |WHERE
+        |    c_mktsegment = 'BUILDING'
+        |    AND c_custkey = o_custkey
+        |    AND o_orderdate < date'1995-03-15'
+        |ORDER BY
+        |    o_custkey DESC,
+        |    c_custkey
+        |LIMIT 100;
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(
+      SQL,
+      true,
+      df => {}
     )
   }
 }

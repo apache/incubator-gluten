@@ -31,9 +31,9 @@ namespace gluten {
 
 class ArrowUtils {
  public:
-  static facebook::velox::BridgeOptions getBridgeOptions() {
-    facebook::velox::BridgeOptions options;
-    options.timestampUnit = static_cast<facebook::velox::TimestampUnit>(2);
+  static ArrowOptions getBridgeOptions() {
+    ArrowOptions options;
+    options.timestampUnit = static_cast<TimestampUnit>(6);
     return options;
   }
 };

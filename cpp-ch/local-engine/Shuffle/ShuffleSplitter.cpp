@@ -30,7 +30,6 @@
 #include <Poco/StringTokenizer.h>
 #include <Common/Stopwatch.h>
 #include <Common/DebugUtils.h>
-#include <Common/typeid_cast.h>
 
 namespace local_engine
 {
@@ -64,10 +63,10 @@ SplitResult ShuffleSplitter::stop()
         if (item)
         {
             split_result.total_compress_time += item->getCompressTime();
-            split_result.total_disk_time += item->getWriteTime();
+            split_result.total_io_time += item->getWriteTime();
         }
     }
-    split_result.total_serialize_time = split_result.total_spill_time - split_result.total_compress_time - split_result.total_disk_time;
+    split_result.total_serialize_time = split_result.total_spill_time - split_result.total_compress_time - split_result.total_io_time;
     partition_outputs.clear();
     partition_cached_write_buffers.clear();
     partition_write_buffers.clear();
@@ -144,13 +143,13 @@ void ShuffleSplitter::init()
     partition_outputs.resize(options.partition_num);
     partition_write_buffers.resize(options.partition_num);
     partition_cached_write_buffers.resize(options.partition_num);
-    split_result.partition_length.resize(options.partition_num);
-    split_result.raw_partition_length.resize(options.partition_num);
+    split_result.partition_lengths.resize(options.partition_num);
+    split_result.raw_partition_lengths.resize(options.partition_num);
     for (size_t partition_i = 0; partition_i < options.partition_num; ++partition_i)
     {
         partition_buffer[partition_i] = std::make_shared<ColumnsBuffer>(options.split_size);
-        split_result.partition_length[partition_i] = 0;
-        split_result.raw_partition_length[partition_i] = 0;
+        split_result.partition_lengths[partition_i] = 0;
+        split_result.raw_partition_lengths[partition_i] = 0;
     }
 }
 
@@ -187,13 +186,13 @@ void ShuffleSplitter::mergePartitionFiles()
         {
             auto bytes = reader.readBig(buffer.data(), buffer_size);
             data_write_buffer.write(buffer.data(), bytes);
-            split_result.partition_length[i] += bytes;
+            split_result.partition_lengths[i] += bytes;
             split_result.total_bytes_written += bytes;
         }
         reader.close();
         std::filesystem::remove(file);
     }
-    split_result.total_disk_time += merge_io_time.elapsedNanoseconds();
+    split_result.total_io_time += merge_io_time.elapsedNanoseconds();
     data_write_buffer.close();
 }
 
@@ -254,7 +253,7 @@ void ShuffleSplitter::writeIndexFile()
 {
     auto index_file = options.data_file + ".index";
     auto writer = std::make_unique<DB::WriteBufferFromFile>(index_file, options.io_buffer_size, O_CREAT | O_WRONLY | O_TRUNC);
-    for (auto len : split_result.partition_length)
+    for (auto len : split_result.partition_lengths)
     {
         DB::writeIntText(len, *writer);
         DB::writeChar('\n', *writer);
@@ -263,9 +262,10 @@ void ShuffleSplitter::writeIndexFile()
 
 void ColumnsBuffer::add(DB::Block & block, int start, int end)
 {
-    if (header.columns() == 0)
+    if (!header)
         header = block.cloneEmpty();
-    if (accumulated_columns.empty()) [[unlikely]]
+
+    if (accumulated_columns.empty())
     {
         accumulated_columns.reserve(block.columns());
         for (size_t i = 0; i < block.columns(); i++)
@@ -275,6 +275,7 @@ void ColumnsBuffer::add(DB::Block & block, int start, int end)
             accumulated_columns.emplace_back(std::move(column));
         }
     }
+
     assert(!accumulated_columns.empty());
     for (size_t i = 0; i < block.columns(); ++i)
     {
@@ -292,9 +293,10 @@ void ColumnsBuffer::add(DB::Block & block, int start, int end)
 void ColumnsBuffer::appendSelective(
     size_t column_idx, const DB::Block & source, const DB::IColumn::Selector & selector, size_t from, size_t length)
 {
-    if (header.columns() == 0)
+    if (!header)
         header = source.cloneEmpty();
-    if (accumulated_columns.empty()) [[unlikely]]
+
+    if (accumulated_columns.empty())
     {
         accumulated_columns.reserve(source.columns());
         for (size_t i = 0; i < source.columns(); i++)
@@ -304,20 +306,11 @@ void ColumnsBuffer::appendSelective(
             accumulated_columns.emplace_back(std::move(column));
         }
     }
+
     if (!accumulated_columns[column_idx]->onlyNull())
     {
-        auto * nullable_column = checkAndGetColumn<DB::ColumnNullable>(*source.getByPosition(column_idx).column);
-        if (!nullable_column)
-        {
-            accumulated_columns[column_idx]->insertRangeSelective(
-                *source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
-        }
-        else
-        {
-            auto * dst_column = typeid_cast<DB::ColumnNullable *>(accumulated_columns[column_idx].get());
-            dst_column->getNestedColumn().insertRangeSelective(nullable_column->getNestedColumn(), selector, from, length);
-            dst_column->getNullMapColumn().insertRangeSelective(nullable_column->getNullMapColumn(), selector, from, length);
-        }
+        accumulated_columns[column_idx]->insertRangeSelective(
+            *source.getByPosition(column_idx).column->convertToFullColumnIfConst(), selector, from, length);
     }
     else
     {
@@ -337,16 +330,13 @@ bool ColumnsBuffer::empty() const
 
 DB::Block ColumnsBuffer::releaseColumns()
 {
-    DB::Columns res(std::make_move_iterator(accumulated_columns.begin()), std::make_move_iterator(accumulated_columns.end()));
+    DB::Columns columns(std::make_move_iterator(accumulated_columns.begin()), std::make_move_iterator(accumulated_columns.end()));
     accumulated_columns.clear();
-    if (res.empty())
-    {
+
+    if (columns.empty())
         return header.cloneEmpty();
-    }
     else
-    {
-        return header.cloneWithColumns(res);
-    }
+        return header.cloneWithColumns(columns);
 }
 
 DB::Block ColumnsBuffer::getHeader()

@@ -66,14 +66,14 @@ void VeloxColumnarBatch::ensureFlattened() {
 std::shared_ptr<ArrowSchema> VeloxColumnarBatch::exportArrowSchema() {
   auto out = std::make_shared<ArrowSchema>();
   ensureFlattened();
-  velox::exportToArrow(flattened_, ArrowUtils::getBridgeOptions(), *out);
+  velox::exportToArrow(flattened_, *out, ArrowUtils::getBridgeOptions());
   return out;
 }
 
 std::shared_ptr<ArrowArray> VeloxColumnarBatch::exportArrowArray() {
   auto out = std::make_shared<ArrowArray>();
   ensureFlattened();
-  velox::exportToArrow(flattened_, ArrowUtils::getBridgeOptions(), *out, flattened_->pool());
+  velox::exportToArrow(flattened_, *out, flattened_->pool(), ArrowUtils::getBridgeOptions());
   return out;
 }
 

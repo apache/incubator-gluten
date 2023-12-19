@@ -79,19 +79,6 @@ index e2ff67fa5..e03b246e3 100644
  if(NOT TARGET gflags::gflags)
    # This is a bit convoluted, but we want to be able to use gflags::gflags as a
    # target even when velox is built as a subproject which uses
-diff --git a/scripts/setup-ubuntu.sh b/scripts/setup-ubuntu.sh
-index 42054e593..4c793b785 100755
---- a/scripts/setup-ubuntu.sh
-+++ b/scripts/setup-ubuntu.sh
-@@ -31,7 +31,7 @@ export CMAKE_BUILD_TYPE=Release
- # Install all velox and folly dependencies. 
- # The is an issue on 22.04 where a version conflict prevents glog install,
- # installing libunwind first fixes this.
--sudo --preserve-env apt update && sudo --preserve-env apt install -y libunwind-dev && \
-+sudo --preserve-env apt update && \
-   sudo --preserve-env apt install -y \
-   g++ \
-   cmake \
 diff --git a/third_party/CMakeLists.txt b/third_party/CMakeLists.txt
 index c7c4d8557..2715e625c 100644
 --- a/third_party/CMakeLists.txt

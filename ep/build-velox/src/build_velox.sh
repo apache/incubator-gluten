@@ -21,6 +21,8 @@ ENABLE_S3=OFF
 ENABLE_GCS=OFF
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
+#Set on run gluten on ABFS
+ENABLE_ABFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
 ENABLE_EP_CACHE=OFF
@@ -48,6 +50,10 @@ for arg in "$@"; do
     ;;
   --enable_hdfs=*)
     ENABLE_HDFS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --enable_abfs=*)
+    ENABLE_ABFS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   --build_type=*)
@@ -84,7 +90,7 @@ function compile {
     elif [ $OS == 'Darwin' ]; then
       setup_macos
     else
-      echo "Unsupport kernel: $OS"
+      echo "Unsupported kernel: $OS"
       exit 1
     fi
   fi
@@ -98,6 +104,9 @@ function compile {
   fi
   if [ $ENABLE_HDFS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
+  fi
+  if [ $ENABLE_ABFS == "ON" ]; then
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_ABFS=ON"
   fi
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
@@ -117,7 +126,7 @@ function compile {
   elif [[ "$ARCH" == 'arm64' || "$ARCH" == 'aarch64' ]]; then
     CPU_TARGET=$ARCH make $COMPILE_TYPE EXTRA_CMAKE_FLAGS="${COMPILE_OPTION}"
   else
-    echo "Unsupport arch: $ARCH"
+    echo "Unsupported arch: $ARCH"
     exit 1
   fi
 
@@ -199,7 +208,7 @@ function setup_linux {
       set -u
       ;;
     *)
-      echo "Unsupport centos version: $LINUX_VERSION_ID"
+      echo "Unsupported centos version: $LINUX_VERSION_ID"
       exit 1
       ;;
     esac
@@ -214,7 +223,7 @@ function setup_linux {
       ;;
     3) scripts/setup-centos8.sh ;;
     *)
-      echo "Unsupport alinux version: $LINUX_VERSION_ID"
+      echo "Unsupported alinux version: $LINUX_VERSION_ID"
       exit 1
       ;;
     esac
@@ -222,12 +231,12 @@ function setup_linux {
     case "$LINUX_VERSION_ID" in
     3.2) scripts/setup-centos8.sh ;;
     *)
-      echo "Unsupport tencentos version: $LINUX_VERSION_ID"
+      echo "Unsupported tencentos version: $LINUX_VERSION_ID"
       exit 1
       ;;
     esac
   else
-    echo "Unsupport linux distribution: $LINUX_DISTRIBUTION"
+    echo "Unsupported linux distribution: $LINUX_DISTRIBUTION"
     exit 1
   fi
 }
@@ -247,6 +256,7 @@ echo "VELOX_HOME=${VELOX_HOME}"
 echo "ENABLE_S3=${ENABLE_S3}"
 echo "ENABLE_GCS=${ENABLE_GCS}"
 echo "ENABLE_HDFS=${ENABLE_HDFS}"
+echo "ENABLE_ABFS=${ENABLE_ABFS}"
 echo "BUILD_TYPE=${BUILD_TYPE}"
 
 cd ${VELOX_HOME}

@@ -213,10 +213,8 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
       input: RelNode,
       validation: Boolean): RelNode = {
     val args = context.registeredFunction
-    val columnarProjExprs: Seq[ExpressionTransformer] = projectList.map(
-      expr =>
-        ExpressionConverter
-          .replaceWithExpressionTransformer(expr, attributeSeq = originalInputAttributes))
+    val columnarProjExprs: Seq[ExpressionTransformer] = ExpressionConverter
+      .replaceWithExpressionTransformer(projectList, attributeSeq = originalInputAttributes)
     val projExprNodeList = columnarProjExprs.map(_.doTransform(args)).asJava
     val emitStartIndex = originalInputAttributes.size
     if (!validation) {

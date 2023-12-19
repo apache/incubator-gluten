@@ -298,7 +298,6 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-40660: Switch to XORShiftRandom to distribute elements")
   enableSuite[GlutenDateFunctionsSuite]
     .exclude("function to_date")
-    .exclude("function trunc")
     .exclude("from_unixtime")
     .exclude("unix_timestamp")
     .exclude("to_unix_timestamp")
@@ -1155,6 +1154,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("sorting on ShortType with nullable=false, sortOrder=List('a ASC NULLS LAST)")
     .exclude("sorting on ShortType with nullable=false, sortOrder=List('a DESC NULLS LAST)")
     .exclude("sorting on ShortType with nullable=false, sortOrder=List('a DESC NULLS FIRST)")
+    .exclude("SPARK-40089: decimal values sort correctly")
   enableSuite[GlutenTakeOrderedAndProjectSuite]
     .exclude("TakeOrderedAndProject.doExecute without project")
     .exclude("TakeOrderedAndProject.doExecute with project")

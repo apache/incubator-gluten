@@ -133,6 +133,15 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
             }.size == 2,
             df.queryExecution.executedPlan)
       }
+
+      runQueryAndCompare("select c1, count(*) from tmp1 group by c1") {
+        df =>
+          assert(
+            collect(df.queryExecution.executedPlan) {
+              case h: HashAggregateExecTransformer => h
+            }.size == 2,
+            df.queryExecution.executedPlan)
+      }
     }
   }
 }

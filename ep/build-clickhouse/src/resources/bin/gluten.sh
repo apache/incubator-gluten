@@ -35,18 +35,16 @@ function start() {
   DRIVER_OPTIONS=${DRIVER_OPTIONS:-"-Dlog4j.configuration=file:${GLUTEN_HOME}/conf/log4j.properties"}
   DRIVER_OPTIONS="${DRIVER_OPTIONS} $(cat ${GLUTEN_HOME}/conf/gluten.properties | grep "^spark.driver.extraJavaOptions" | cut -d "=" -f 2)"
 
-  GLUTEN_JARS=${GLUTEN_HOME}/jars/*
-  echo "GLUTEN_JARS: ${GLUTEN_JARS} will be loaded."
-
+  GLUTEN_JARS=
   if [ "${SPARK_MAJOR_MINOR_VERSION}" == "3.2" ]; then
-      EXTRA_JARS=${GLUTEN_HOME}/extraJars/spark33/*
+      GLUTEN_JARS=${GLUTEN_HOME}/jars/spark32/*
   elif [ "${SPARK_MAJOR_MINOR_VERSION}" == "3.3" ]; then
-      EXTRA_JARS=${GLUTEN_HOME}/extraJars/spark33/*
+      GLUTEN_JARS=${GLUTEN_HOME}/jars/spark33/*
   else
       echo "Unsupported spark version: ${SPARK_MAJOR_MINOR_VERSION}"
       exit 1
   fi
-  echo "EXTRA_JARS: ${EXTRA_JARS} will be loaded."
+  echo "GLUTEN_JARS: ${GLUTEN_JARS} will be loaded."
 
   export LD_PRELOAD=${GLUTEN_HOME}/libs/libch.so
   export SPARK_LOG_DIR=${GLUTEN_HOME}/logs
@@ -54,8 +52,8 @@ function start() {
   rm -f ${GLUTEN_HOME}/logs/spark-*.out*
   nohup ${SPARK_HOME}/sbin/start-thriftserver.sh \
     --properties-file ${GLUTEN_HOME}/conf/spark-default.conf \
-    --conf spark.driver.extraClassPath=${GLUTEN_JARS}:${EXTRA_JARS} \
-    --conf spark.executor.extraClassPath=${GLUTEN_JARS}:${EXTRA_JARS} \
+    --conf spark.driver.extraClassPath=${GLUTEN_JARS} \
+    --conf spark.executor.extraClassPath=${GLUTEN_JARS} \
     --conf spark.driver.extraJavaOptions=${DRIVER_OPTIONS} \
     --conf spark.gluten.sql.columnar.libpath=${GLUTEN_HOME}/libs/libch.so \
     --verbose \

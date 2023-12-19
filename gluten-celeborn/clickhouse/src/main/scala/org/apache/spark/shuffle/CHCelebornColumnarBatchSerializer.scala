@@ -62,12 +62,12 @@ private class CHCelebornColumnarBatchSerializerInstance(
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
     new DeserializationStream {
-      private val reader: CHStreamReader = new CHStreamReader(
-        in,
-        GlutenConfig.getConf.isUseColumnarShuffleManager
-          || GlutenConfig.getConf.isUseCelebornShuffleManager,
-        CHBackendSettings.useCustomizedShuffleCodec
-      )
+      private var reader: CHStreamReader = null
+      private val original_in: InputStream = if (in.equals(CelebornInputStream.empty())) {
+        null
+      } else {
+        in
+      }
       private var cb: ColumnarBatch = _
       private val isEmptyStream: Boolean = in.equals(CelebornInputStream.empty())
 
@@ -92,6 +92,8 @@ private class CHCelebornColumnarBatchSerializerInstance(
           } catch {
             case eof: EOFException =>
               finished = true
+              // try to release memory immediately
+              closeReader()
               null
           }
         }
@@ -128,14 +130,14 @@ private class CHCelebornColumnarBatchSerializerInstance(
           cb = null
         }
 
-        var nativeBlock = reader.next()
+        var nativeBlock = getReader.next()
         while (nativeBlock.numRows() == 0) {
           if (nativeBlock.numColumns() == 0) {
             nativeBlock.close()
             this.close()
             throw new EOFException
           }
-          nativeBlock = reader.next()
+          nativeBlock = getReader.next()
         }
         val numRows = nativeBlock.numRows()
 
@@ -160,8 +162,27 @@ private class CHCelebornColumnarBatchSerializerInstance(
             cb.close()
             cb = null
           }
-          reader.close()
+          closeReader()
           isClosed = true
+        }
+      }
+
+      def getReader: CHStreamReader = {
+        if (reader == null) {
+          reader = new CHStreamReader(
+            original_in,
+            GlutenConfig.getConf.isUseColumnarShuffleManager
+              || GlutenConfig.getConf.isUseCelebornShuffleManager,
+            CHBackendSettings.useCustomizedShuffleCodec
+          )
+        }
+        reader
+      }
+
+      def closeReader(): Unit = {
+        if (reader != null) {
+          reader.close()
+          reader = null
         }
       }
     }

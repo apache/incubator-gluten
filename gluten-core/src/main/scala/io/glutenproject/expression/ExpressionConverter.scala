@@ -45,48 +45,70 @@ trait Transformable extends Expression {
 }
 
 object ExpressionConverter extends SQLConfHelper with Logging {
-  def replacePythonUDFWithExpressionTransformer(
-      udf: PythonUDF,
+
+  def replaceWithExpressionTransformer(
+      exprs: Seq[Expression],
+      attributeSeq: Seq[Attribute]): Seq[ExpressionTransformer] = {
+    val expressionsMap = ExpressionMappings.expressionsMap
+    exprs.map {
+      expr => replaceWithExpressionTransformerInternal(expr, attributeSeq, expressionsMap)
+    }.toSeq
+  }
+
+  def replaceWithExpressionTransformer(
+      expr: Expression,
       attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    val expressionsMap = ExpressionMappings.expressionsMap
+    replaceWithExpressionTransformerInternal(expr, attributeSeq, expressionsMap)
+  }
+
+  private def replacePythonUDFWithExpressionTransformer(
+      udf: PythonUDF,
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
     val substraitExprName = UDFMappings.pythonUDFMap.get(udf.name)
     substraitExprName match {
       case Some(name) =>
         GenericExpressionTransformer(
           name,
-          udf.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          udf.children.map(
+            replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           udf)
       case _ =>
         throw new UnsupportedOperationException(s"Not supported python udf: $udf.")
     }
   }
 
-  def replaceScalaUDFWithExpressionTransformer(
+  private def replaceScalaUDFWithExpressionTransformer(
       udf: ScalaUDF,
-      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
     val substraitExprName = UDFMappings.scalaUDFMap.get(udf.udfName.get)
     substraitExprName match {
       case Some(name) =>
         GenericExpressionTransformer(
           name,
-          udf.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          udf.children.map(
+            replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           udf)
       case _ =>
         throw new UnsupportedOperationException(s"Not supported scala udf: $udf.")
     }
   }
 
-  def replaceWithExpressionTransformer(
+  private def replaceWithExpressionTransformerInternal(
       expr: Expression,
-      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+      attributeSeq: Seq[Attribute],
+      expressionsMap: Map[Class[_], String]): ExpressionTransformer = {
     logDebug(
       s"replaceWithExpressionTransformer expr: $expr class: ${expr.getClass} " +
         s"name: ${expr.prettyName}")
 
     expr match {
       case p: PythonUDF =>
-        return replacePythonUDFWithExpressionTransformer(p, attributeSeq)
+        return replacePythonUDFWithExpressionTransformer(p, attributeSeq, expressionsMap)
       case s: ScalaUDF =>
-        return replaceScalaUDFWithExpressionTransformer(s, attributeSeq)
+        return replaceScalaUDFWithExpressionTransformer(s, attributeSeq, expressionsMap)
       case _ if HiveSimpleUDFTransformer.isHiveSimpleUDF(expr) =>
         return HiveSimpleUDFTransformer.replaceWithExpressionTransformer(expr, attributeSeq)
       case _ =>
@@ -94,10 +116,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
 
     TestStats.addExpressionClassName(expr.getClass.getName)
     // Check whether Gluten supports this expression
-    val substraitExprName = ExpressionMappings.expressionsMap.getOrElse(expr.getClass, "")
-    if (substraitExprName.isEmpty) {
+    val substraitExprNameOpt = expressionsMap.get(expr.getClass)
+    if (substraitExprNameOpt.isEmpty) {
       throw new UnsupportedOperationException(s"Not supported: $expr. ${expr.getClass}")
     }
+    val substraitExprName = substraitExprNameOpt.get
 
     // Check whether each backend supports this expression
     if (!BackendsApiManager.getValidatorApiInstance.doExprValidate(substraitExprName, expr)) {
@@ -111,39 +134,43 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         ExpressionMappings.expressionExtensionTransformer
           .replaceWithExtensionExpressionTransformer(substraitExprName, extendedExpr, attributeSeq)
       case c: CreateArray =>
-        val children = c.children.map(replaceWithExpressionTransformer(_, attributeSeq))
+        val children =
+          c.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap))
         CreateArrayTransformer(substraitExprName, children, true, c)
       case g: GetArrayItem =>
         GetArrayItemTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(g.left, attributeSeq),
-          replaceWithExpressionTransformer(g.right, attributeSeq),
+          replaceWithExpressionTransformerInternal(g.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(g.right, attributeSeq, expressionsMap),
           g.failOnError,
-          g)
+          g
+        )
       case c: CreateMap =>
-        val children = c.children.map(replaceWithExpressionTransformer(_, attributeSeq))
+        val children =
+          c.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap))
         CreateMapTransformer(substraitExprName, children, c.useStringTypeWhenEmpty, c)
       case g: GetMapValue =>
         BackendsApiManager.getSparkPlanExecApiInstance.genGetMapValueTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(g.child, attributeSeq),
-          replaceWithExpressionTransformer(g.key, attributeSeq),
-          g)
+          replaceWithExpressionTransformerInternal(g.child, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(g.key, attributeSeq, expressionsMap),
+          g
+        )
       case e: Explode =>
         ExplodeTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(e.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(e.child, attributeSeq, expressionsMap),
           e)
       case p: PosExplode =>
         PosExplodeTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(p.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(p.child, attributeSeq, expressionsMap),
           p,
           attributeSeq)
       case a: Alias =>
         BackendsApiManager.getSparkPlanExecApiInstance.genAliasTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(a.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(a.child, attributeSeq, expressionsMap),
           a)
       case a: AttributeReference =>
         if (attributeSeq == null) {
@@ -175,52 +202,54 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case f: FromUnixTime =>
         FromUnixTimeTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(f.sec, attributeSeq),
-          replaceWithExpressionTransformer(f.format, attributeSeq),
+          replaceWithExpressionTransformerInternal(f.sec, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(f.format, attributeSeq, expressionsMap),
           f.timeZoneId,
-          f)
+          f
+        )
       case d: DateDiff =>
         DateDiffTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(d.endDate, attributeSeq),
-          replaceWithExpressionTransformer(d.startDate, attributeSeq),
-          d)
+          replaceWithExpressionTransformerInternal(d.endDate, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(d.startDate, attributeSeq, expressionsMap),
+          d
+        )
       case t: ToUnixTimestamp =>
         BackendsApiManager.getSparkPlanExecApiInstance.genUnixTimestampTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(t.timeExp, attributeSeq),
-          replaceWithExpressionTransformer(t.format, attributeSeq),
+          replaceWithExpressionTransformerInternal(t.timeExp, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(t.format, attributeSeq, expressionsMap),
           t
         )
       case u: UnixTimestamp =>
         BackendsApiManager.getSparkPlanExecApiInstance.genUnixTimestampTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(u.timeExp, attributeSeq),
-          replaceWithExpressionTransformer(u.format, attributeSeq),
+          replaceWithExpressionTransformerInternal(u.timeExp, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(u.format, attributeSeq, expressionsMap),
           ToUnixTimestamp(u.timeExp, u.format, u.timeZoneId, u.failOnError)
         )
       case t: TruncTimestamp =>
         BackendsApiManager.getSparkPlanExecApiInstance.genTruncTimestampTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(t.format, attributeSeq),
-          replaceWithExpressionTransformer(t.timestamp, attributeSeq),
+          replaceWithExpressionTransformerInternal(t.format, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(t.timestamp, attributeSeq, expressionsMap),
           t.timeZoneId,
           t
         )
       case m: MonthsBetween =>
         MonthsBetweenTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(m.date1, attributeSeq),
-          replaceWithExpressionTransformer(m.date2, attributeSeq),
-          replaceWithExpressionTransformer(m.roundOff, attributeSeq),
+          replaceWithExpressionTransformerInternal(m.date1, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(m.date2, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(m.roundOff, attributeSeq, expressionsMap),
           m.timeZoneId,
           m
         )
       case i: If =>
         IfTransformer(
-          replaceWithExpressionTransformer(i.predicate, attributeSeq),
-          replaceWithExpressionTransformer(i.trueValue, attributeSeq),
-          replaceWithExpressionTransformer(i.falseValue, attributeSeq),
+          replaceWithExpressionTransformerInternal(i.predicate, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(i.trueValue, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(i.falseValue, attributeSeq, expressionsMap),
           i
         )
       case cw: CaseWhen =>
@@ -229,27 +258,27 @@ object ExpressionConverter extends SQLConfHelper with Logging {
             expr =>
               {
                 (
-                  replaceWithExpressionTransformer(expr._1, attributeSeq),
-                  replaceWithExpressionTransformer(expr._2, attributeSeq))
+                  replaceWithExpressionTransformerInternal(expr._1, attributeSeq, expressionsMap),
+                  replaceWithExpressionTransformerInternal(expr._2, attributeSeq, expressionsMap))
               }
           },
           cw.elseValue.map {
             expr =>
               {
-                replaceWithExpressionTransformer(expr, attributeSeq)
+                replaceWithExpressionTransformerInternal(expr, attributeSeq, expressionsMap)
               }
           },
           cw
         )
       case i: In =>
         InTransformer(
-          replaceWithExpressionTransformer(i.value, attributeSeq),
+          replaceWithExpressionTransformerInternal(i.value, attributeSeq, expressionsMap),
           i.list,
           i.value.dataType,
           i)
       case i: InSet =>
         InSetTransformer(
-          replaceWithExpressionTransformer(i.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(i.child, attributeSeq, expressionsMap),
           i.hset,
           i.child.dataType,
           i)
@@ -260,7 +289,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         val newCast =
           BackendsApiManager.getSparkPlanExecApiInstance.genCastWithNewChild(c)
         CastTransformer(
-          replaceWithExpressionTransformer(newCast.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(newCast.child, attributeSeq, expressionsMap),
           newCast.dataType,
           newCast.timeZoneId,
           newCast)
@@ -272,86 +301,93 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         }
         String2TrimExpressionTransformer(
           substraitExprName,
-          trimStr.map(replaceWithExpressionTransformer(_, attributeSeq)),
-          replaceWithExpressionTransformer(srcStr, attributeSeq),
-          s)
+          trimStr.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
+          replaceWithExpressionTransformerInternal(srcStr, attributeSeq, expressionsMap),
+          s
+        )
       case m: HashExpression[_] =>
         BackendsApiManager.getSparkPlanExecApiInstance.genHashExpressionTransformer(
           substraitExprName,
-          m.children.map(expr => replaceWithExpressionTransformer(expr, attributeSeq)),
+          m.children.map(
+            expr => replaceWithExpressionTransformerInternal(expr, attributeSeq, expressionsMap)),
           m)
       case getStructField: GetStructField =>
         // Different backends may have different result.
         BackendsApiManager.getSparkPlanExecApiInstance.genGetStructFieldTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(getStructField.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(
+            getStructField.child,
+            attributeSeq,
+            expressionsMap),
           getStructField.ordinal,
           getStructField)
       case t: StringTranslate =>
         BackendsApiManager.getSparkPlanExecApiInstance.genStringTranslateTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(t.srcExpr, attributeSeq),
-          replaceWithExpressionTransformer(t.matchingExpr, attributeSeq),
-          replaceWithExpressionTransformer(t.replaceExpr, attributeSeq),
+          replaceWithExpressionTransformerInternal(t.srcExpr, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(t.matchingExpr, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(t.replaceExpr, attributeSeq, expressionsMap),
           t
         )
       case l: StringLocate =>
         BackendsApiManager.getSparkPlanExecApiInstance.genStringLocateTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(l.first, attributeSeq),
-          replaceWithExpressionTransformer(l.second, attributeSeq),
-          replaceWithExpressionTransformer(l.third, attributeSeq),
+          replaceWithExpressionTransformerInternal(l.first, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(l.second, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(l.third, attributeSeq, expressionsMap),
           l
         )
       case s: StringSplit =>
         BackendsApiManager.getSparkPlanExecApiInstance.genStringSplitTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(s.str, attributeSeq),
-          replaceWithExpressionTransformer(s.regex, attributeSeq),
-          replaceWithExpressionTransformer(s.limit, attributeSeq),
+          replaceWithExpressionTransformerInternal(s.str, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(s.regex, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(s.limit, attributeSeq, expressionsMap),
           s
         )
       case r: RegExpReplace =>
         RegExpReplaceTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(r.subject, attributeSeq),
-          replaceWithExpressionTransformer(r.regexp, attributeSeq),
-          replaceWithExpressionTransformer(r.rep, attributeSeq),
-          replaceWithExpressionTransformer(r.pos, attributeSeq),
+          replaceWithExpressionTransformerInternal(r.subject, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(r.regexp, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(r.rep, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(r.pos, attributeSeq, expressionsMap),
           r
         )
       case equal: EqualNullSafe =>
         BackendsApiManager.getSparkPlanExecApiInstance.genEqualNullSafeTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(equal.left, attributeSeq),
-          replaceWithExpressionTransformer(equal.right, attributeSeq),
+          replaceWithExpressionTransformerInternal(equal.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(equal.right, attributeSeq, expressionsMap),
           equal
         )
       case md5: Md5 =>
         BackendsApiManager.getSparkPlanExecApiInstance.genMd5Transformer(
           substraitExprName,
-          replaceWithExpressionTransformer(md5.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(md5.child, attributeSeq, expressionsMap),
           md5)
       case sha1: Sha1 =>
         BackendsApiManager.getSparkPlanExecApiInstance.genSha1Transformer(
           substraitExprName,
-          replaceWithExpressionTransformer(sha1.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(sha1.child, attributeSeq, expressionsMap),
           sha1)
       case sha2: Sha2 =>
         BackendsApiManager.getSparkPlanExecApiInstance.genSha2Transformer(
           substraitExprName,
-          replaceWithExpressionTransformer(sha2.left, attributeSeq),
-          replaceWithExpressionTransformer(sha2.right, attributeSeq),
-          sha2)
+          replaceWithExpressionTransformerInternal(sha2.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(sha2.right, attributeSeq, expressionsMap),
+          sha2
+        )
       case size: Size =>
         BackendsApiManager.getSparkPlanExecApiInstance.genSizeExpressionTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(size.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(size.child, attributeSeq, expressionsMap),
           size)
       case namedStruct: CreateNamedStruct =>
         BackendsApiManager.getSparkPlanExecApiInstance.genNamedStructTransformer(
           substraitExprName,
-          namedStruct.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          namedStruct.children.map(
+            replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           namedStruct,
           attributeSeq)
       case namedLambdaVariable: NamedLambdaVariable =>
@@ -365,44 +401,58 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       case lambdaFunction: LambdaFunction =>
         LambdaFunctionTransformer(
           substraitExprName,
-          function = replaceWithExpressionTransformer(lambdaFunction.function, attributeSeq),
-          arguments =
-            lambdaFunction.arguments.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          function = replaceWithExpressionTransformerInternal(
+            lambdaFunction.function,
+            attributeSeq,
+            expressionsMap),
+          arguments = lambdaFunction.arguments.map(
+            replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           hidden = false,
           original = lambdaFunction
         )
       case j: JsonTuple =>
-        val children = j.children.map(replaceWithExpressionTransformer(_, attributeSeq))
+        val children =
+          j.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap))
         JsonTupleExpressionTransformer(substraitExprName, children, j)
       case l: Like =>
         LikeTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(l.left, attributeSeq),
-          replaceWithExpressionTransformer(l.right, attributeSeq),
-          l)
+          replaceWithExpressionTransformerInternal(l.left, attributeSeq, expressionsMap),
+          replaceWithExpressionTransformerInternal(l.right, attributeSeq, expressionsMap),
+          l
+        )
       case c: CheckOverflow =>
         CheckOverflowTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(c.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(c.child, attributeSeq, expressionsMap),
           c)
       case m: MakeDecimal =>
         MakeDecimalTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(m.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(m.child, attributeSeq, expressionsMap),
           m)
       case rand: Rand =>
         BackendsApiManager.getSparkPlanExecApiInstance.genRandTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(rand.child, attributeSeq),
+          replaceWithExpressionTransformerInternal(rand.child, attributeSeq, expressionsMap),
           rand)
       case _: KnownFloatingPointNormalized | _: NormalizeNaNAndZero | _: PromotePrecision =>
         ChildTransformer(
-          replaceWithExpressionTransformer(expr.children.head, attributeSeq)
+          replaceWithExpressionTransformerInternal(expr.children.head, attributeSeq, expressionsMap)
         )
       case _: GetDateField | _: GetTimeField =>
         ExtractDateTransformer(
           substraitExprName,
-          replaceWithExpressionTransformer(expr.children.head, attributeSeq),
+          replaceWithExpressionTransformerInternal(
+            expr.children.head,
+            attributeSeq,
+            expressionsMap),
+          expr)
+      case _: StringToMap =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genStringToMapTransformer(
+          substraitExprName,
+          expr.children.map(
+            replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           expr)
       case b: BinaryArithmetic if DecimalArithmeticUtil.isDecimalArithmetic(b) =>
         // PrecisionLoss=true: velox support / ch not support
@@ -421,8 +471,9 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         val (left, right) = DecimalArithmeticUtil.rescaleCastForDecimal(
           DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.left),
           DecimalArithmeticUtil.removeCastForDecimal(rescaleBinary.right))
-        val leftChild = replaceWithExpressionTransformer(left, attributeSeq)
-        val rightChild = replaceWithExpressionTransformer(right, attributeSeq)
+        val leftChild = replaceWithExpressionTransformerInternal(left, attributeSeq, expressionsMap)
+        val rightChild =
+          replaceWithExpressionTransformerInternal(right, attributeSeq, expressionsMap)
 
         val resultType = DecimalArithmeticUtil.getResultTypeForOperation(
           DecimalArithmeticUtil.getOperationType(b),
@@ -440,12 +491,14 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           resultType,
           b)
       case e: Transformable =>
-        val childrenTransformers = e.children.map(replaceWithExpressionTransformer(_, attributeSeq))
+        val childrenTransformers =
+          e.children.map(replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap))
         e.getTransformer(childrenTransformers)
       case expr =>
         GenericExpressionTransformer(
           substraitExprName,
-          expr.children.map(replaceWithExpressionTransformer(_, attributeSeq)),
+          expr.children.map(
+            replaceWithExpressionTransformerInternal(_, attributeSeq, expressionsMap)),
           expr
         )
     }

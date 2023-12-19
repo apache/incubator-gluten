@@ -39,6 +39,8 @@ const std::string kHiveConnectorId = "test-hive";
 // memory
 const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
 const std::string kSpillStrategyDefaultValue = "auto";
+const std::string kPartialAggregationSpillEnabled =
+    "spark.gluten.sql.columnar.backend.velox.partialAggregationSpillEnabled";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
@@ -62,9 +64,12 @@ const std::string kAbandonPartialAggregationMinPct =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinPct";
 const std::string kAbandonPartialAggregationMinRows =
     "spark.gluten.sql.columnar.backend.velox.abandonPartialAggregationMinRows";
+
+// execution
 const std::string kBloomFilterExpectedNumItems = "spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems";
 const std::string kBloomFilterNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.numBits";
 const std::string kBloomFilterMaxNumBits = "spark.gluten.sql.columnar.backend.velox.bloomFilter.maxNumBits";
+const std::string kVeloxSplitPreloadPerDriver = "spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver";
 
 // metrics
 const std::string kDynamicFiltersProduced = "dynamicFiltersProduced";
@@ -77,6 +82,7 @@ const std::string kProcessedSplits = "processedSplits";
 const std::string kSkippedStrides = "skippedStrides";
 const std::string kProcessedStrides = "processedStrides";
 const std::string kRemainingFilterTime = "totalRemainingFilterTime";
+const std::string kIoWaitTime = "ioWaitNanos";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
@@ -287,6 +293,7 @@ void WholeStageResultIterator::collectMetrics() {
           runtimeMetric("sum", second->customStats, kProcessedStrides);
       metrics_->get(Metrics::kRemainingFilterTime)[metricIndex] =
           runtimeMetric("sum", second->customStats, kRemainingFilterTime);
+      metrics_->get(Metrics::kIoWaitTime)[metricIndex] = runtimeMetric("sum", second->customStats, kIoWaitTime);
       metricIndex += 1;
     }
   }
@@ -356,7 +363,8 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     }
     configs[velox::core::QueryConfig::kAggregationSpillEnabled] =
         getConfigValue(confMap_, kAggregationSpillEnabled, "true");
-    configs[velox::core::QueryConfig::kPartialAggregationSpillEnabled] = "true";
+    configs[velox::core::QueryConfig::kPartialAggregationSpillEnabled] =
+        getConfigValue(confMap_, kPartialAggregationSpillEnabled, "true");
     configs[velox::core::QueryConfig::kJoinSpillEnabled] = getConfigValue(confMap_, kJoinSpillEnabled, "true");
     configs[velox::core::QueryConfig::kOrderBySpillEnabled] = getConfigValue(confMap_, kOrderBySpillEnabled, "true");
     configs[velox::core::QueryConfig::kAggregationSpillMemoryThreshold] =
@@ -382,8 +390,12 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         getConfigValue(confMap_, kBloomFilterNumBits, "8388608");
     configs[velox::core::QueryConfig::kSparkBloomFilterMaxNumBits] =
         getConfigValue(confMap_, kBloomFilterMaxNumBits, "4194304");
+    // spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver takes no effect if
+    // spark.gluten.sql.columnar.backend.velox.IOThreads is set to 0
+    configs[velox::core::QueryConfig::kMaxSplitPreloadPerDriver] =
+        getConfigValue(confMap_, kVeloxSplitPreloadPerDriver, "2");
 
-    configs[velox::core::QueryConfig::kArrowBridgeTimestampUnit] = 2;
+    configs[velox::core::QueryConfig::kArrowBridgeTimestampUnit] = "6";
 
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();
@@ -412,9 +424,9 @@ void WholeStageResultIterator::updateHdfsTokens() {
 std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {
   std::unordered_map<std::string, std::string> configs = {};
   // The semantics of reading as lower case is opposite with case-sensitive.
-  configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCase] =
+  configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
       getConfigValue(confMap_, kCaseSensitive, "false") == "false" ? "true" : "false";
-  configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = 2;
+  configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = "6";
 
   return std::make_shared<velox::core::MemConfig>(configs);
 }

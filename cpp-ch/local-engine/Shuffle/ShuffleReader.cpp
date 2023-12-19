@@ -21,6 +21,7 @@
 #include <Common/DebugUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/Stopwatch.h>
+#include <Core/Block.h>
 
 using namespace DB;
 
@@ -46,12 +47,47 @@ local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool
 }
 Block * local_engine::ShuffleReader::read()
 {
-    auto block = input_stream->read();
-    setCurrentBlock(block);
+    // Avoid to generate out a lot of small blocks.
+    const size_t at_least_block_size = 64 * 1024;
+    size_t total_rows = 0;
+    std::vector<DB::Block> blocks;
+    if (pending_block)
+    {
+        blocks.emplace_back(std::move(pending_block));
+        total_rows += blocks.back().rows();
+        pending_block = {};
+    }
+
+    while(total_rows < at_least_block_size)
+    {
+        auto block = input_stream->read();
+        if (!block.rows())
+        {
+            break;
+        }
+        if (!blocks.empty()
+            && (blocks[0].info.is_overflows != block.info.is_overflows || blocks[0].info.bucket_num != block.info.bucket_num))
+        {
+            pending_block = std::move(block);
+            break;
+        }
+        total_rows += block.rows();
+        blocks.emplace_back(std::move(block));
+    }
+
+    DB::Block final_block;
+    if (!blocks.empty())
+    {
+        auto block_info = blocks[0].info;
+        final_block = DB::concatenateBlocks(blocks);
+        final_block.info = block_info;
+    }
+    setCurrentBlock(final_block);
     if (unlikely(header.columns() == 0))
         header = currentBlock().cloneEmpty();
     return &currentBlock();
 }
+
 ShuffleReader::~ShuffleReader()
 {
     in.reset();

@@ -53,7 +53,6 @@ void CompressedWriteBuffer::nextImpl()
     if (out.available() >= compressed_reserve_size + sizeof(CityHash_v1_0_2::uint128))
     {
         char * out_compressed_ptr = out.position() + sizeof(CityHash_v1_0_2::uint128);
-        compress_time_watch.start();
         UInt32 compressed_size = codec->compress(working_buffer.begin(), decompressed_size, out_compressed_ptr);
         compress_time += compress_time_watch.elapsedNanoseconds();
         CityHash_v1_0_2::uint128 checksum_(0,0);
@@ -71,7 +70,6 @@ void CompressedWriteBuffer::nextImpl()
     else
     {
         compressed_buffer.resize(compressed_reserve_size);
-        compress_time_watch.start();
         UInt32 compressed_size = codec->compress(working_buffer.begin(), decompressed_size, compressed_buffer.data());
         compress_time += compress_time_watch.elapsedNanoseconds();
         CityHash_v1_0_2::uint128 checksum_(0,0);
@@ -83,7 +81,6 @@ void CompressedWriteBuffer::nextImpl()
         writeBinaryLittleEndian(checksum_.high64, out);
 
         Stopwatch write_time_watch;
-        write_time_watch.start();
         out.write(compressed_buffer.data(), compressed_size);
         write_time += write_time_watch.elapsedNanoseconds();
     }

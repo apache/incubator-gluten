@@ -82,7 +82,7 @@ trait BackendSettingsApi {
    * Whether to replace sort agg with hash agg., e.g., sort agg will be used in spark's planning for
    * string type input.
    */
-  def replaceSortAggWithHashAgg: Boolean = false
+  def replaceSortAggWithHashAgg: Boolean = GlutenConfig.getConf.forceToUseHashAgg
 
   /** Get the config prefix for each backend */
   def getBackendConfigPrefix: String
@@ -111,4 +111,6 @@ trait BackendSettingsApi {
   def staticPartitionWriteOnly(): Boolean = false
 
   def requiredInputFilePaths(): Boolean = false
+
+  def enableBloomFilterAggFallbackRule(): Boolean = true
 }

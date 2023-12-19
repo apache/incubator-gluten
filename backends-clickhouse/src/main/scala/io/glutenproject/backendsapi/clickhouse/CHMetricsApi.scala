@@ -44,7 +44,11 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       "iterReadTime" -> SQLMetrics.createTimingMetric(
         sparkContext,
         "time of reading from iterator"),
-      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors")
+      "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "fillingRightJoinSideTime" -> SQLMetrics.createTimingMetric(
+        sparkContext,
+        "filling right join side time")
     )
   }
 

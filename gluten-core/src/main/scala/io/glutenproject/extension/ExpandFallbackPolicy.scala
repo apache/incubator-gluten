@@ -18,7 +18,7 @@ package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.execution.BroadcastHashJoinExecTransformer
-import io.glutenproject.extension.columnar.TransformHints
+import io.glutenproject.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHints}
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -142,21 +142,21 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
      */
     def countStageFallbackCostInternal(plan: SparkPlan): Unit = {
       plan match {
-        case _: GlutenPlan if plan.children.find(_.isInstanceOf[InMemoryTableScanExec]).isDefined =>
-          plan.children
+        case glutenPlan: GlutenPlan =>
+          val leaves = glutenPlan.collectLeaves()
+          leaves
             .filter(_.isInstanceOf[InMemoryTableScanExec])
             .foreach {
               // For this case, table cache will internally execute ColumnarToRow if
               // we make the stage fall back.
-              case child if InMemoryTableScanHelper.isGlutenTableCache(child) =>
+              case tableCache if InMemoryTableScanHelper.isGlutenTableCache(tableCache) =>
                 stageFallbackCost = stageFallbackCost + 1
               // For other case, table cache will save internal RowToColumnar if we make
               // the stage fall back.
               case _ =>
                 stageFallbackCost = stageFallbackCost - 1
             }
-        case _: GlutenPlan if plan.children.find(_.isInstanceOf[QueryStageExec]).isDefined =>
-          plan.children
+          leaves
             .filter(_.isInstanceOf[QueryStageExec])
             .foreach {
               case stage: QueryStageExec
@@ -212,15 +212,17 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
       return None
     }
 
-    val netFallbackNum = if (isAdaptiveContext) {
-      countFallback(plan) - countStageFallbackCost(plan)
+    val fallbackNum = countFallback(plan)
+    val fallbackCost = if (isAdaptiveContext) {
+      countStageFallbackCost(plan)
     } else {
-      countFallback(plan)
+      0
     }
+    val netFallbackNum = fallbackNum - fallbackCost
     if (netFallbackNum >= fallbackThreshold) {
       Some(
         s"Fallback policy is taking effect, net fallback number: $netFallbackNum, " +
-          s"threshold: $fallbackThreshold")
+          s"fallback num: $fallbackNum, cost: $fallbackCost, threshold: $fallbackThreshold")
     } else {
       None
     }
@@ -245,7 +247,9 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     val reason = fallback(plan)
     if (reason.isDefined) {
       val fallbackPlan = fallbackToRowBasedPlan()
-      TransformHints.tagAllNotTransformable(fallbackPlan, reason.get)
+      TransformHints.tagAllNotTransformable(
+        fallbackPlan,
+        TRANSFORM_UNSUPPORTED(reason, appendReasonIfExists = false))
       FallbackNode(fallbackPlan)
     } else {
       plan

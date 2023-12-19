@@ -27,10 +27,10 @@ import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.vectorized.{CHNativeExpressionEvaluator, CloseableCHColumnBatchIterator, GeneralInIterator, GeneralOutIterator}
 
 import org.apache.spark.{InterruptibleIterator, SparkConf, SparkContext, TaskContext}
+import org.apache.spark.affinity.CHAffinity
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
-import org.apache.spark.softaffinity.SoftAffinityUtil
 import org.apache.spark.sql.connector.read.InputPartition
 import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.joins.BuildSideRelation
@@ -54,7 +54,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
    */
   override def genSplitInfo(
       partition: InputPartition,
-      partitionSchemas: StructType,
+      partitionSchema: StructType,
       fileFormat: ReadFileFormat): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>
@@ -65,7 +65,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             p.database,
             p.table,
             p.tablePath,
-            SoftAffinityUtil.getNativeMergeTreePartitionLocations(p).toList.asJava)
+            CHAffinity.getNativeMergeTreePartitionLocations(p).toList.asJava)
       case f: FilePartition =>
         val paths = new JArrayList[String]()
         val starts = new JArrayList[JLong]()
@@ -81,7 +81,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
             partitionColumns.add(partitionColumn)
         }
         val preferredLocations =
-          SoftAffinityUtil.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
+          CHAffinity.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
         LocalFilesBuilder.makeLocalFiles(
           f.index,
           paths,

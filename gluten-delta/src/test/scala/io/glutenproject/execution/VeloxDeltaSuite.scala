@@ -39,7 +39,8 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
       .set("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
   }
 
-  test("column mapping mode") {
+  // IdMapping is supported in Delta 2.2 (related to Spark3.3.1)
+  testWithSpecifiedSparkVersion("column mapping mode = id", Some("3.3.1")) {
     spark.sql(s"""
                  |create table delta_cm1 (id int, name string) using delta
                  |tblproperties ("delta.columnMapping.mode"= "id")
@@ -52,6 +53,24 @@ class VeloxDeltaSuite extends WholeStageTransformerSuite {
     checkAnswer(df1, Row(1, "v1") :: Row(2, "v2") :: Nil)
 
     val df2 = runQueryAndCompare("select name from delta_cm1 where id = 2") { _ => }
+    checkLengthAndPlan(df2, 1)
+    checkAnswer(df2, Row("v2") :: Nil)
+  }
+
+  // NameMapping is supported in Delta 2.0 (related to Spark3.2.0)
+  testWithSpecifiedSparkVersion("column mapping mode = name", Some("3.2.0")) {
+    spark.sql(s"""
+                 |create table delta_cm2 (id int, name string) using delta
+                 |tblproperties ("delta.columnMapping.mode"= "name")
+                 |""".stripMargin)
+    spark.sql(s"""
+                 |insert into delta_cm2 values (1, "v1"), (2, "v2")
+                 |""".stripMargin)
+    val df1 = runQueryAndCompare("select * from delta_cm2") { _ => }
+    checkLengthAndPlan(df1, 2)
+    checkAnswer(df1, Row(1, "v1") :: Row(2, "v2") :: Nil)
+
+    val df2 = runQueryAndCompare("select name from delta_cm2 where id = 2") { _ => }
     checkLengthAndPlan(df2, 1)
     checkAnswer(df2, Row("v2") :: Nil)
   }

@@ -97,6 +97,7 @@ class GlutenClickHouseHiveTableSuite()
         "spark.sql.warehouse.dir",
         getClass.getResource("/").getPath + "unit-tests-working-home/spark-warehouse")
       .set("spark.hive.exec.dynamic.partition.mode", "nonstrict")
+      .set("spark.gluten.supported.hive.udfs", "my_add")
       .setMaster("local[*]")
   }
 
@@ -1059,5 +1060,15 @@ class GlutenClickHouseHiveTableSuite()
     val select_sql = "select * from test_tbl_3548"
     compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
     spark.sql("DROP TABLE test_tbl_3548")
+  }
+
+  test("test 'hive udf'") {
+    val jarPath = "src/test/resources/udfs/hive-test-udfs.jar"
+    val jarUrl = s"file://${System.getProperty("user.dir")}/$jarPath"
+    spark.sql(
+      s"CREATE FUNCTION my_add as " +
+        s"'org.apache.hadoop.hive.contrib.udf.example.UDFExampleAdd2' USING JAR '$jarUrl'")
+    runQueryAndCompare("select MY_ADD(id, id+1) from range(10)")(
+      checkOperatorMatch[ProjectExecTransformer])
   }
 }

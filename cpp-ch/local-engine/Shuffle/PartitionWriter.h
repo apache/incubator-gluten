@@ -38,7 +38,6 @@ struct SpillInfo
     std::vector<PartitionSpillInfo> partition_spill_infos;
 };
 
-
 class Partition
 {
 public:
@@ -47,11 +46,14 @@ public:
 
     Partition(Partition && other) noexcept : blocks(std::move(other.blocks)) { }
 
+    bool empty() const { return blocks.empty(); }
     void addBlock(DB::Block block);
     size_t spill(NativeWriter & writer);
+    size_t bytes() const { return cached_bytes; }
 
 private:
     std::vector<DB::Block> blocks;
+    size_t cached_bytes = 0;
 };
 
 class CachedShuffleWriter;
@@ -62,25 +64,37 @@ public:
     explicit PartitionWriter(CachedShuffleWriter* shuffle_writer_);
     virtual ~PartitionWriter() = default;
 
-    void write(const PartitionInfo& info, DB::Block & data);
-    size_t evictPartitions(bool for_memory_spill = false);
+    virtual String getName() const = 0;
+
+    void write(const PartitionInfo& info, DB::Block & block);
+    size_t evictPartitions(bool for_memory_spill = false, bool flush_block_buffer = false);
     void stop();
 
-    size_t totalCacheSize() const { return total_partition_buffer_size; }
-
 protected:
-    virtual size_t unsafeEvictPartitions(bool for_memory_spill = false) = 0;
+    size_t bytes() const;
+
+    virtual size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer = false) = 0;
+
+    virtual bool supportsEvictSinglePartition() const { return false; }
+
+    virtual size_t unsafeEvictSinglePartition(bool for_memory_spill, bool flush_block_buffer, size_t partition_id)
+    {
+        throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Evict single partition is not supported for {}", getName());
+    }
+
     virtual void unsafeStop() = 0;
 
     CachedShuffleWriter * shuffle_writer;
-    SplitOptions * options;
+    const SplitOptions * options;
 
     std::vector<ColumnsBufferPtr> partition_block_buffer;
     std::vector<PartitionPtr> partition_buffer;
 
-    size_t total_partition_buffer_size = 0;
-
+    /// Make sure memory spill doesn't happen while write/stop are executed.
     bool evicting_or_writing{false};
+
+    /// Only valid in celeborn partition writer
+    size_t last_partition_id;
 };
 
 class LocalPartitionWriter : public PartitionWriter
@@ -89,12 +103,14 @@ public:
     explicit LocalPartitionWriter(CachedShuffleWriter * shuffle_writer);
     ~LocalPartitionWriter() override = default;
 
+    String getName() const override { return "LocalPartitionWriter"; }
+
 protected:
-    size_t unsafeEvictPartitions(bool for_memory_spill) override;
+    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
     void unsafeStop() override;
 
     String getNextSpillFile();
-    std::vector<Int64> mergeSpills(DB::WriteBuffer& data_file);
+    std::vector<UInt64> mergeSpills(DB::WriteBuffer & data_file);
 
     std::vector<SpillInfo> spill_infos;
 };
@@ -105,8 +121,14 @@ public:
     CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client);
     ~CelebornPartitionWriter() override = default;
 
+    String getName() const override { return "CelebornPartitionWriter"; }
+
 protected:
-    size_t unsafeEvictPartitions(bool for_memory_spill) override;
+    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
+
+    bool supportsEvictSinglePartition() const override { return true; }
+    size_t unsafeEvictSinglePartition(bool for_memory_spill, bool flush_block_buffer, size_t partition_id) override;
+
     void unsafeStop() override;
 
     std::unique_ptr<CelebornClient> celeborn_client;

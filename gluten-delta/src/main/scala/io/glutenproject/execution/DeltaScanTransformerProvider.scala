@@ -17,26 +17,15 @@
 package io.glutenproject.execution
 
 import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
+import org.apache.spark.sql.execution.FileSourceScanExec
 
-/**
- * Data sources v2 transformer should implement this trait so that they can register an alias to
- * their data source v2 transformer. This allows users to give the data source v2 transformer alias
- * as the format type over the fully qualified class name.
- */
-trait DataSourceV2TransformerRegister {
+class DeltaScanTransformerProvider extends DataSourceScanTransformerRegister {
 
-  /**
-   * The scan class name that this data source v2 transformer provider adapts. This is overridden by
-   * children to provide a alias for the data source v2 transformer. For example:
-   *
-   * {{{
-   *   override def scanClassName(): String = "org.apache.iceberg.spark.source.SparkBatchQueryScan"
-   * }}}
-   */
-  def scanClassName(): String
+  override val scanClassName: String = "org.apache.spark.sql.delta.DeltaParquetFileFormat"
 
-  def createDataSourceV2Transformer(
-      batchScan: BatchScanExec,
-      partitionFilters: Seq[Expression]): BatchScanExecTransformer
+  override def createDataSourceTransformer(
+      batchScan: FileSourceScanExec,
+      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformer = {
+    DeltaScanTransformer(batchScan, newPartitionFilters)
+  }
 }

@@ -16,6 +16,7 @@
  */
 package io.glutenproject.expression
 
+import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ExpressionNames._
 import io.glutenproject.extension.ExpressionExtensionTrait
@@ -277,9 +278,16 @@ object ExpressionMappings {
     Sig[NthValue](NTH_VALUE)
   )
 
-  def expressionsMap: Map[Class[_], String] =
-    defaultExpressionsMap ++
+  def expressionsMap: Map[Class[_], String] = {
+    val blacklist = GlutenConfig.getConf.expressionBlacklist
+    val supportedExprs = defaultExpressionsMap ++
       expressionExtensionTransformer.extensionExpressionsMapping
+    if (blacklist.isEmpty) {
+      supportedExprs
+    } else {
+      supportedExprs.filterNot(kv => blacklist.contains(kv._2))
+    }
+  }
 
   private lazy val defaultExpressionsMap: Map[Class[_], String] = {
     (SCALAR_SIGS ++ AGGREGATE_SIGS ++ WINDOW_SIGS ++

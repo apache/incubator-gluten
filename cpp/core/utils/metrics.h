@@ -70,6 +70,7 @@ struct Metrics {
     kSkippedStrides,
     kProcessedStrides,
     kRemainingFilterTime,
+    kIoWaitTime,
 
     // The end of enum items.
     kEnd,

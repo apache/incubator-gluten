@@ -27,7 +27,7 @@ import org.apache.spark.ShuffleDependency
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
-import org.apache.spark.shuffle.{ColumnarShuffleDependency, GlutenShuffleUtils}
+import org.apache.spark.shuffle.{ColumnarShuffleDependency, GlutenShuffleUtils, HashPartitioningWrapper}
 import org.apache.spark.shuffle.utils.RangePartitionerBoundsGenerator
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BindReferences, BoundReference, UnsafeProjection, UnsafeRow}
@@ -175,11 +175,17 @@ object CHExecUtil extends Logging {
   }
 
   private def buildHashPartitioning(
-      partitoining: HashPartitioning,
+      partitioning: HashPartitioning,
       childOutput: Seq[Attribute],
       output: Seq[Attribute]): NativePartitioning = {
+    val hashExpressions = partitioning match {
+      case partitioning: HashPartitioningWrapper =>
+        partitioning.getNewExpr
+      case _ =>
+        partitioning.expressions
+    }
     val hashFields =
-      partitoining.expressions.map(
+      hashExpressions.map(
         a =>
           BindReferences
             .bindReference(ConverterUtils.getAttrFromExpr(a).toAttribute, childOutput)
@@ -199,7 +205,7 @@ object CHExecUtil extends Logging {
 
     new NativePartitioning(
       GlutenShuffleUtils.HashPartitioningShortName,
-      partitoining.numPartitions,
+      partitioning.numPartitions,
       Array.empty[Byte],
       hashFields.mkString(",").getBytes(),
       outputFields.mkString(",").getBytes()

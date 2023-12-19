@@ -25,6 +25,7 @@ import org.apache.hadoop.security.UserGroupInformation
 
 import java.util
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
@@ -243,6 +244,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def chColumnarThrowIfMemoryExceed: Boolean = conf.getConf(COLUMNAR_CH_THROW_IF_MEMORY_EXCEED)
 
+  def chColumnarFlushBlockBufferBeforeEvict: Boolean =
+    conf.getConf(COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -258,6 +262,15 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def extendedColumnarPostRules: String = conf.getConf(EXTENDED_COLUMNAR_POST_RULES)
 
   def extendedExpressionTransformer: String = conf.getConf(EXTENDED_EXPRESSION_TRAN_CONF)
+
+  def expressionBlacklist: Set[String] = {
+    val blacklist = conf.getConf(EXPRESSION_BLACK_LIST)
+    if (blacklist.isDefined) {
+      blacklist.get.toLowerCase(Locale.ROOT).trim.split(",").toSet
+    } else {
+      Set.empty
+    }
+  }
 
   def printStackOnValidationFailure: Boolean =
     conf.getConf(VALIDATION_PRINT_FAILURE_STACK_)
@@ -288,6 +301,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def abandonPartialAggregationMinRows: Option[Int] =
     conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
   def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
+
+  def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
+
+  def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
 }
 
 object GlutenConfig {
@@ -335,6 +352,10 @@ object GlutenConfig {
 
   // Hardware acceleraters backend
   val GLUTEN_SHUFFLE_CODEC_BACKEND = "spark.gluten.sql.columnar.shuffle.codecBackend"
+  // ABFS config
+  val ABFS_ACCOUNT_KEY = "hadoop.fs.azure.account.key"
+  val SPARK_ABFS_ACCOUNT_KEY: String = "spark." + ABFS_ACCOUNT_KEY
+
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "qat"
   val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("gzip", "zstd")
@@ -506,7 +527,8 @@ object GlutenConfig {
       ("spark.sql.orc.compression.codec", "snappy"),
       (
         COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.key,
-        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString)
+        COLUMNAR_VELOX_FILE_HANDLE_CACHE_ENABLED.defaultValueString),
+      (AWS_SDK_LOG_LEVEL.key, AWS_SDK_LOG_LEVEL.defaultValueString)
     )
     keyWithDefault.forEach(e => nativeConfMap.put(e._1, conf.getOrElse(e._1, e._2)))
 
@@ -534,6 +556,10 @@ object GlutenConfig {
     // put in all S3 configs
     conf
       .filter(_._1.startsWith(HADOOP_PREFIX + S3A_PREFIX))
+      .foreach(entry => nativeConfMap.put(entry._1, entry._2))
+
+    conf
+      .filter(_._1.startsWith(SPARK_ABFS_ACCOUNT_KEY))
       .foreach(entry => nativeConfMap.put(entry._1, entry._2))
 
     // return
@@ -1058,6 +1084,16 @@ object GlutenConfig {
       .intConf
       .createWithDefault(0)
 
+  val COLUMNAR_VELOX_ASYNC_TIMEOUT =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
+      .internal()
+      .doc(
+        "Timeout for asynchronous execution when task is being stopped in Velox backend. " +
+          "It's recommended to set to a number larger than network connection timeout that the " +
+          "possible aysnc tasks are relying on.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefault(30000)
+
   val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
     buildStaticConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
       .internal()
@@ -1130,6 +1166,13 @@ object GlutenConfig {
       .doc("Throw exception if memory exceeds threshold on ch backend.")
       .booleanConf
       .createWithDefault(true)
+
+  val COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT =
+    buildConf("spark.gluten.sql.columnar.backend.ch.flushBlockBufferBeforeEvict")
+      .internal()
+      .doc("Whether to flush partition_block_buffer before execute evict in CH PartitionWriter.")
+      .booleanConf
+      .createWithDefault(false)
 
   val TRANSFORM_PLAN_LOG_LEVEL =
     buildConf("spark.gluten.sql.transform.logLevel")
@@ -1232,6 +1275,12 @@ object GlutenConfig {
       .stringConf
       .createWithDefaultString("")
 
+  val EXPRESSION_BLACK_LIST =
+    buildConf("spark.gluten.expression.blacklist")
+      .doc("A black list of expression to skip transform, multiple values separated by commas.")
+      .stringConf
+      .createOptional
+
   val FALLBACK_REPORTER_ENABLED =
     buildConf("spark.gluten.sql.columnar.fallbackReporter")
       .doc("When true, enable fallback reporter rule to print fallback reason")
@@ -1324,6 +1373,13 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(true)
 
+  val ENABLE_COLUMNAR_PROJECT_COLLAPSE =
+    buildConf("spark.gluten.sql.columnar.project.collapse")
+      .internal()
+      .doc("Combines two columnar project operators into one and perform alias substitution")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS =
     buildConf("spark.gluten.sql.columnar.backend.velox.bloomFilter.expectedNumItems")
       .internal()
@@ -1371,4 +1427,11 @@ object GlutenConfig {
         "`WholeStageTransformerContext`.")
       .booleanConf
       .createWithDefault(false)
+
+  val AWS_SDK_LOG_LEVEL =
+    buildConf("spark.gluten.velox.awsSdkLogLevel")
+      .internal()
+      .doc("Log granularity of AWS C++ SDK in velox.")
+      .stringConf
+      .createWithDefault("FATAL")
 }

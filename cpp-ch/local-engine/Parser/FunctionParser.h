@@ -76,7 +76,7 @@ protected:
     {
         return plan_parser->toFunctionNode(action_dag, func_name, args);
     }
-    
+
     const DB::ActionsDAG::Node *
     toFunctionNode(DB::ActionsDAGPtr & action_dag, const String & func_name, const String & result_name, const DB::ActionsDAG::NodeRawConstPtrs & args) const
     {

@@ -23,6 +23,8 @@ import org.apache.spark.internal.Logging
 
 import org.apache.commons.lang3.StringUtils
 
+import java.util.Locale
+
 import scala.collection.mutable.Map
 
 object UDFMappings extends Logging {
@@ -41,7 +43,7 @@ object UDFMappings extends Logging {
           s"will be replaced by value:$value")
     }
 
-    res.put(key, value)
+    res.put(key.toLowerCase(Locale.ROOT), value)
   }
 
   private def parseStringToMap(input: String, res: Map[String, String]) {

@@ -101,11 +101,50 @@
               <relocations>
                 <relocation>
                   <pattern>com.google.protobuf</pattern>
-                  <shadedPattern>io.glutenproject.shaded.com.google.protobuf</shadedPattern>
+                  <shadedPattern>${gluten.shade.packageName}.com.google.protobuf</shadedPattern>
+                </relocation>
+                <!-- shaded com.google.guava -->
+                <relocation>
+                  <pattern>com.google.common</pattern>
+                  <shadedPattern>${gluten.shade.packageName}.com.google.common</shadedPattern>
+                  <includes>
+                    <include>com.google.common.**</include>
+                  </includes>
+                  <excludes>
+                    <exclude>com.google.common.jimfs.**</exclude>
+                  </excludes>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.thirdparty</pattern>
+                  <shadedPattern>${gluten.shade.packageName}.com.google.thirdparty</shadedPattern>
+                  <includes>
+                    <include>com.google.thirdparty.**</include>
+                  </includes>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.errorprone.annotations</pattern>
+                  <shadedPattern>${gluten.shade.packageName}.com.google.errorprone.annotations</shadedPattern>
+                  <includes>
+                    <include>com.google.errorprone.annotations.**</include>
+                  </includes>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.j2objc</pattern>
+                  <shadedPattern>${gluten.shade.packageName}.com.google.j2objc</shadedPattern>
+                  <includes>
+                    <include>com.google.j2objc.**</include>
+                  </includes>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.gson</pattern>
+                  <shadedPattern>${gluten.shade.packageName}.com.google.gson</shadedPattern>
+                  <includes>
+                    <include>com.google.gson.**</include>
+                  </includes>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.arrow</pattern>
-                  <shadedPattern>io.glutenproject.shaded.org.apache.arrow</shadedPattern>
+                  <shadedPattern>${gluten.shade.packageName}.org.apache.arrow</shadedPattern>
                   <!--arrow's C wrapper refers to the original class path, so we should not relocate here-->
                   <excludes>
                     <exclude>org.apache.arrow.c.*</exclude>
@@ -114,7 +153,7 @@
                 </relocation>
                 <relocation>
                   <pattern>com.google.flatbuffers</pattern>
-                  <shadedPattern>io.glutenproject.shaded.com.google.flatbuffers</shadedPattern>
+                  <shadedPattern>${gluten.shade.packageName}.com.google.flatbuffers</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

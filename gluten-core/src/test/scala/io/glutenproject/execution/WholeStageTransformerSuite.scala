@@ -32,6 +32,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import scala.io.Source
 import scala.reflect.ClassTag
 
+case class Table(name: String, partitionColumns: Seq[String])
+
 abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSparkSession {
 
   protected val backend: String
@@ -39,8 +41,16 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   protected val fileFormat: String
   protected val logLevel: String = "WARN"
 
-  protected val TPCHTableNames: Seq[String] =
-    Seq("customer", "lineitem", "nation", "orders", "part", "partsupp", "region", "supplier")
+  protected val TPCHTable = Seq(
+    Table("part", partitionColumns = "p_brand" :: Nil),
+    Table("supplier", partitionColumns = Nil),
+    Table("partsupp", partitionColumns = Nil),
+    Table("customer", partitionColumns = "c_mktsegment" :: Nil),
+    Table("orders", partitionColumns = "o_orderdate" :: Nil),
+    Table("lineitem", partitionColumns = "l_shipdate" :: Nil),
+    Table("nation", partitionColumns = Nil),
+    Table("region", partitionColumns = Nil)
+  )
 
   protected var TPCHTables: Map[String, DataFrame] = _
 
@@ -64,14 +74,17 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   }
 
   protected def createTPCHNotNullTables(): Unit = {
-    TPCHTables = TPCHTableNames.map {
-      table =>
-        val tableDir = getClass.getResource(resourcePath).getFile
-        val tablePath = new File(tableDir, table).getAbsolutePath
-        val tableDF = spark.read.format(fileFormat).load(tablePath)
-        tableDF.createOrReplaceTempView(table)
-        (table, tableDF)
-    }.toMap
+    TPCHTables = TPCHTable
+      .map(_.name)
+      .map {
+        table =>
+          val tableDir = getClass.getResource(resourcePath).getFile
+          val tablePath = new File(tableDir, table).getAbsolutePath
+          val tableDF = spark.read.format(fileFormat).load(tablePath)
+          tableDF.createOrReplaceTempView(table)
+          (table, tableDF)
+      }
+      .toMap
   }
 
   override protected def sparkConf: SparkConf = {
@@ -295,11 +308,12 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
       queryNum: Int,
       tpchQueries: String,
       customCheck: DataFrame => Unit,
-      noFallBack: Boolean = true): Unit = {
+      noFallBack: Boolean = true,
+      compareResult: Boolean = true): Unit = {
     val sqlNum = "q" + "%02d".format(queryNum)
     val sqlFile = tpchQueries + "/" + sqlNum + ".sql"
     val sqlStr = Source.fromFile(new File(sqlFile), "UTF-8").mkString
-    compareResultsAgainstVanillaSpark(sqlStr, compareResult = true, customCheck, noFallBack)
+    compareResultsAgainstVanillaSpark(sqlStr, compareResult, customCheck, noFallBack)
   }
 
   protected def vanillaSparkConfs(): Seq[(String, String)] = {
