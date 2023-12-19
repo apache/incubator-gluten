@@ -286,6 +286,15 @@ class LocalPartitionWriter::PayloadCache {
     return arrow::Status::OK();
   }
 
+  bool canSpill() {
+    for (auto pid = 0; pid < numPartitions_; ++pid) {
+      if (hasCachedPayloads(pid)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   arrow::Result<std::shared_ptr<Spill>>
   spill(const std::string& spillFile, arrow::MemoryPool* pool, arrow::util::Codec* codec) {
     ScopedTimer timer(spillTime_);
@@ -533,7 +542,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
   int64_t reclaimed = 0;
   // Can reclaim memory from payloadCache and merger.
   // First toBlockPayload existing evictor and spill.
-  if (payloadCache_) {
+  if (payloadCache_ && payloadCache_->canSpill()) {
     auto beforeSpill = payloadPool_->bytes_allocated();
     ARROW_ASSIGN_OR_RAISE(auto spillFile, createTempShuffleFile(nextSpilledFileDir()));
     spills_.emplace_back();
