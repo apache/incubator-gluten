@@ -37,6 +37,8 @@ std::string getConfigValue(
 }
 
 bool debugModeEnabled(const std::unordered_map<std::string, std::string>& confMap) {
-  return getConfigValue(confMap, kDebugModeEnabled, "false") == "true";
+  std::shared_ptr<const facebook::velox::Config> veloxCfg =
+      std::make_shared<const facebook::velox::core::MemConfigMutable>(confMap);
+  return veloxCfg->get<bool>(kDebugModeEnabled, false);
 }
 } // namespace gluten
