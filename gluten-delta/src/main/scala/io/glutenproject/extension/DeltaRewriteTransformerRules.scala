@@ -16,7 +16,7 @@
  */
 package io.glutenproject.extension
 
-import io.glutenproject.execution.{FileSourceScanExecTransformer, ProjectExecTransformer}
+import io.glutenproject.execution.{DeltaScanTransformer, ProjectExecTransformer}
 import io.glutenproject.extension.DeltaRewriteTransformerRules.columnMappingRule
 import io.glutenproject.extension.columnar.TransformHints
 
@@ -53,7 +53,7 @@ object DeltaRewriteTransformerRules {
       // If it enables Delta Column Mapping(e.g. nameMapping and idMapping),
       // transform the metadata of Delta into Parquet's,
       // so that gluten can read Delta File using Parquet Reader.
-      case p: FileSourceScanExecTransformer
+      case p: DeltaScanTransformer
           if isDeltaColumnMappingFileFormat(p.relation.fileFormat) && notAppliedColumnMappingRule(
             p) =>
         transformColumnMappingPlan(p)
@@ -71,7 +71,7 @@ object DeltaRewriteTransformerRules {
    * transform the metadata of Delta into Parquet's, each plan should only be transformed once.
    */
   private def transformColumnMappingPlan(plan: SparkPlan): SparkPlan = plan match {
-    case plan: FileSourceScanExecTransformer =>
+    case plan: DeltaScanTransformer =>
       val fmt = plan.relation.fileFormat.asInstanceOf[DeltaParquetFileFormat]
       // a mapping between the table schemas name to parquet schemas.
       val columnNameMapping = mutable.Map.empty[String, String]
@@ -136,7 +136,7 @@ object DeltaRewriteTransformerRules {
       val newRequiredFields = plan.requiredSchema.map {
         e => StructField(columnNameMapping(e.name), e.dataType, e.nullable, e.metadata)
       }
-      val scanExecTransformer = new FileSourceScanExecTransformer(
+      val scanExecTransformer = new DeltaScanTransformer(
         newFsRelation,
         newOutput,
         StructType(newRequiredFields),

@@ -32,6 +32,11 @@ class VeloxColumnarBatchSerializerTest : public ::testing::Test, public test::Ve
  protected:
   std::shared_ptr<arrow::MemoryPool> arrowPool_ = defaultArrowMemoryPool();
   std::shared_ptr<memory::MemoryPool> veloxPool_ = defaultLeafVeloxMemoryPool();
+  // velox requires the mem manager to be instanced
+ protected:
+  static void SetUpTestCase() {
+    memory::MemoryManager::testingSetInstance({});
+  }
 };
 
 TEST_F(VeloxColumnarBatchSerializerTest, serialize) {

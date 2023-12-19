@@ -18,6 +18,8 @@ package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
 
+import org.apache.iceberg.spark.SparkWriteOptions
+
 import java.io.File
 
 class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
@@ -51,10 +53,17 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
         table =>
           val tablePath = new File(resourcePath, table).getAbsolutePath
           val tableDF = spark.read.format(fileFormat).load(tablePath)
-          tableDF.write.format("iceberg").mode("append").saveAsTable(table)
+          tableDF.write.format("iceberg").mode("overwrite").saveAsTable(table)
           (table, tableDF)
       }
       .toMap
+  }
+
+  override protected def afterAll(): Unit = {
+    if (TPCHTables != null) {
+      TPCHTables.keys.foreach(v => spark.sql(s"DROP TABLE IF EXISTS $v"))
+    }
+    super.afterAll()
   }
 
   test("iceberg transformer exists") {
@@ -82,5 +91,23 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
               }) == 2)
         }
     }
+  }
+}
+
+class VeloxPartitionedTableTPCHIcebergSuite extends VeloxTPCHIcebergSuite {
+  override protected def createTPCHNotNullTables(): Unit = {
+    TPCHTables = TPCHTable.map {
+      table =>
+        val tablePath = new File(resourcePath, table.name).getAbsolutePath
+        val tableDF = spark.read.format(fileFormat).load(tablePath)
+
+        tableDF.write
+          .format("iceberg")
+          .partitionBy(table.partitionColumns: _*)
+          .option(SparkWriteOptions.FANOUT_ENABLED, "true")
+          .mode("overwrite")
+          .saveAsTable(table.name)
+        (table.name, tableDF)
+    }.toMap
   }
 }

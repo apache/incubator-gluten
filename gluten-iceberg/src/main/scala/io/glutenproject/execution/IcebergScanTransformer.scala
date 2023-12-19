@@ -43,7 +43,7 @@ class IcebergScanTransformer(
 
   override def filterExprs(): Seq[Expression] = Seq.empty
 
-  override def getPartitionSchema: StructType = new StructType()
+  override def getPartitionSchema: StructType = GlutenIcebergSourceUtil.getPartitionSchema(scan)
 
   override def getDataSchema: StructType = new StructType()
 
