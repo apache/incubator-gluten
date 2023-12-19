@@ -247,7 +247,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
-    // By default, the outputsColumnar if always false.
+    // By default, the outputsColumnar is always false.
     // The outputsColumnar will be true if it is a cached plan and we are going to
     // cache columnar batch using Gluten columnar serializer. So we should add a
     // Gluten RowToColumnar.
