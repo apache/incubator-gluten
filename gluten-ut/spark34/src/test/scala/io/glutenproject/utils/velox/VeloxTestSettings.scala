@@ -68,14 +68,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
     .exclude("partitioned join: only one side reports partitioning")
     .exclude("partitioned join: join with two partition keys and different # of partition keys")
+    // disable as both checks for SMJ node
     .excludeByPrefix("SPARK-41413: partitioned join:")
     .excludeByPrefix("SPARK-42038: partially clustered:")
-    .exclude("SPARK-42038: partially clustered: with different partition keys and missing keys on left-hand side")
-    .exclude("SPARK-42038: partially clustered: with different partition keys and missing keys on right-hand side")
-    .exclude("SPARK-42038: partially clustered: left outer join")
-    .exclude("SPARK-42038: partially clustered: right outer join")
-    .exclude("SPARK-42038: partially clustered: full outer join is not applicable")
-    .exclude("SPARK-42038: partially clustered: with dynamic partition filtering")
   enableSuite[GlutenLocalScanSuite]
   enableSuite[GlutenMetadataColumnSuite]
   enableSuite[GlutenSupportsCatalogOptionsSuite]

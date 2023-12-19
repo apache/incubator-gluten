@@ -60,7 +60,7 @@ class GlutenKeyGroupedPartitioningSuite
   }
 
   private def collectShuffles(plan: SparkPlan): Seq[ShuffleExchangeExec] = {
-    // here we skip collecting shuffle operators that are not associated with SMJ
+    // here we skip collecting shuffle operators that are not associated with SHJ
     collect(plan) { case s: ShuffledHashJoinExec => s }.flatMap(
       smj => collect(smj) { case s: ShuffleExchangeExec => s })
   }
