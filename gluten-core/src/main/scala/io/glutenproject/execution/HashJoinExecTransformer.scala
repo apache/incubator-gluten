@@ -292,7 +292,7 @@ trait HashJoinLikeExecTransformer
       .newBuilder()
       .setValue(joinParametersStr.toString)
       .build()
-    BackendsApiManager.getTransformerApiInstance.getPackMessage(message)
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
   }
 
   def genJoinParametersInternal(): (Int, Int, String) = {

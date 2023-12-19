@@ -30,7 +30,6 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
 
-import com.google.protobuf.Any
 import io.substrait.proto.SortField
 
 import java.util.{ArrayList => JArrayList}
@@ -112,7 +111,8 @@ case class SortExecTransformer(
       }
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
         input,
         projectExpressions,
@@ -136,7 +136,8 @@ case class SortExecTransformer(
 
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
 
       RelBuilder.makeSortRel(inputRel, sortFieldList, extensionNode, context, operatorId)
     }
@@ -157,7 +158,8 @@ case class SortExecTransformer(
       }
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
         sortRel,
         new JArrayList[ExpressionNode](selectOrigins),
@@ -195,7 +197,8 @@ case class SortExecTransformer(
       val inputTypeNodeList = originalInputAttributes.map(
         attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList.asJava).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList.asJava).toProtobuf))
 
       RelBuilder.makeSortRel(input, sortFieldList.asJava, extensionNode, context, operatorId)
     }

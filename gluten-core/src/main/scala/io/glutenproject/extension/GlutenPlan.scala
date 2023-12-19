@@ -23,7 +23,7 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.plan.PlanBuilder
 import io.glutenproject.substrait.rel.RelNode
 import io.glutenproject.test.TestStats
-import io.glutenproject.utils.LogLevelUtil
+import io.glutenproject.utils.{LogLevelUtil, SubstraitPlanPrinterUtil}
 import io.glutenproject.validate.NativePlanValidationInfo
 
 import org.apache.spark.sql.execution.SparkPlan
@@ -84,6 +84,7 @@ trait GlutenPlan extends SparkPlan with LogLevelUtil {
   protected def doNativeValidation(context: SubstraitContext, node: RelNode): ValidationResult = {
     if (node != null && enableNativeValidation) {
       val planNode = PlanBuilder.makePlan(context, Lists.newArrayList(node))
+      logWarning(s"${SubstraitPlanPrinterUtil.substraitPlanToJson(planNode.toProtobuf)}")
       val info = BackendsApiManager.getValidatorApiInstance
         .doNativeValidateWithFailureReason(planNode)
       ValidationResult.convertFromValidationInfo(info)
