@@ -118,6 +118,23 @@ arrow::Status compressAndFlush(
 }
 } // namespace
 
+Payload::Payload(Payload::Type type, uint32_t numRows, const std::vector<bool>* isValidityBuffer)
+    : type_(type), numRows_(numRows), isValidityBuffer_(isValidityBuffer) {}
+
+std::string Payload::toString() const {
+  static std::string kUncompressedString = "Payload::kUncompressed";
+  static std::string kCompressedString = "Payload::kCompressed";
+  static std::string kToBeCompressedString = "Payload::kToBeCompressed";
+
+  if (type_ == kUncompressed) {
+    return kUncompressedString;
+  }
+  if (type_ == kCompressed) {
+    return kCompressedString;
+  }
+  return kToBeCompressedString;
+}
+
 arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
     Payload::Type payloadType,
     uint32_t numRows,
@@ -304,6 +321,10 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> BlockPayload::readCompressedBuffer
   RETURN_NOT_OK(codec->Decompress(
       compressedLength, compressed->data(), uncompressedLength, const_cast<uint8_t*>(output->data())));
   return output;
+}
+
+void BlockPayload::setCompressionTime(int64_t compressionTime) {
+  compressTime_ = compressionTime;
 }
 
 arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(

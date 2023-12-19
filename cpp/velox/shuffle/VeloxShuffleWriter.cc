@@ -205,12 +205,12 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
   oss << " partitionNum:" << numPartitions;
   oss << " partitionWriterCreator:" << typeid(*partitionWriter.get()).name();
   oss << " partitioning:" << options->partitioning;
-  oss << " buffer_size:" << options->buffer_size;
+  oss << " bufferSize:" << options->bufferSize;
   oss << " compressionMode:" << (int)options->compressionMode;
-  oss << " buffered_write:" << options->buffered_write;
-  oss << " write_eos:" << options->write_eos;
+  oss << " bufferedWrite:" << options->bufferedWrite;
+  oss << " writeEos:" << options->writeEos;
   oss << " partitionWriterType:" << options->partitionWriterType;
-  oss << " thread_id:" << options->thread_id;
+  oss << " threadId:" << options->threadId;
   LOG(INFO) << oss.str();
 #endif
   std::shared_ptr<VeloxShuffleWriter> res(
@@ -229,12 +229,12 @@ arrow::Status VeloxShuffleWriter::init() {
   // Partition number should be less than 64k.
   VELOX_CHECK_LE(numPartitions_, 64 * 1024);
   // Split record batch size should be less than 32k.
-  VELOX_CHECK_LE(options_->buffer_size, 32 * 1024);
-  // memory_pool should be assigned.
-  VELOX_CHECK_NOT_NULL(options_->memory_pool);
+  VELOX_CHECK_LE(options_->bufferSize, 32 * 1024);
+  // memoryPool should be assigned.
+  VELOX_CHECK_NOT_NULL(options_->memoryPool);
 
   ARROW_ASSIGN_OR_RAISE(
-      partitioner_, Partitioner::make(options_->partitioning, numPartitions_, options_->start_partition_id));
+      partitioner_, Partitioner::make(options_->partitioning, numPartitions_, options_->startPartitionId));
 
   // pre-allocated buffer size for each partition, unit is row count
   // when partitioner is SinglePart, partial variables don`t need init
@@ -452,7 +452,7 @@ arrow::Status VeloxShuffleWriter::doSplit(const facebook::velox::RowVector& rv, 
   START_TIMING(cpuWallTimingList_[CpuWallTimingIteratePartitions]);
 
   setSplitState(SplitState::kPreAlloc);
-  // Calculate buffer size based on available offheap memory, history average bytes per row and options_.buffer_size.
+  // Calculate buffer size based on available offheap memory, history average bytes per row and options_.bufferSize.
   auto preAllocBufferSize = calculatePartitionBufferSize(rv, memLimit);
   RETURN_NOT_OK(preAllocPartitionBuffers(preAllocBufferSize));
   END_TIMING();
@@ -907,8 +907,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
 
   inline bool VeloxShuffleWriter::beyondThreshold(uint32_t partitionId, uint64_t newSize) {
     auto currentBufferSize = partition2BufferSize_[partitionId];
-    return newSize > (1 + options_->buffer_realloc_threshold) * currentBufferSize ||
-        newSize < (1 - options_->buffer_realloc_threshold) * currentBufferSize;
+    return newSize > (1 + options_->bufferReallocThreshold) * currentBufferSize ||
+        newSize < (1 - options_->bufferReallocThreshold) * currentBufferSize;
   }
 
   void VeloxShuffleWriter::calculateSimpleColumnBytes() {
@@ -955,8 +955,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
     }
 
     uint64_t preAllocRowCnt =
-        memLimit > 0 && bytesPerRow > 0 ? memLimit / bytesPerRow / numPartitions_ >> 2 : options_->buffer_size;
-    preAllocRowCnt = std::min(preAllocRowCnt, (uint64_t)options_->buffer_size);
+        memLimit > 0 && bytesPerRow > 0 ? memLimit / bytesPerRow / numPartitions_ >> 2 : options_->bufferSize;
+    preAllocRowCnt = std::min(preAllocRowCnt, (uint64_t)options_->bufferSize);
 
     VLOG(9) << "Calculated partition buffer size -  memLimit: " << memLimit << ", bytesPerRow: " << bytesPerRow
             << ", preAllocRowCnt: " << preAllocRowCnt << std::endl;

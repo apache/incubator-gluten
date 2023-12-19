@@ -78,7 +78,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
  public:
   virtual arrow::Status initShuffleWriterOptions() {
     shuffleWriterOptions_ = std::make_unique<ShuffleWriterOptions>();
-    shuffleWriterOptions_->memory_pool = defaultArrowMemoryPool().get();
+    shuffleWriterOptions_->memoryPool = defaultArrowMemoryPool().get();
     RETURN_NOT_OK(setLocalDirsAndDataFile());
     return arrow::Status::OK();
   }
@@ -231,9 +231,9 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
 
     ShuffleTestParams params = GetParam();
     if (params.partitionWriterType == PartitionWriterType::kCeleborn) {
-      shuffleWriterOptions_->partition_writer_type = kCeleborn;
+      shuffleWriterOptions_->partitionWriterType = kCeleborn;
     }
-    shuffleWriterOptions_->compression_type = params.compressionType;
+    shuffleWriterOptions_->compressionType = params.compressionType;
     shuffleWriterOptions_->compressionThreshold = params.compressionThreshold;
     shuffleWriterOptions_->mergeBufferSize = params.mergeBufferSize;
     return arrow::Status::OK();
@@ -274,7 +274,7 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
       std::shared_ptr<arrow::Schema> schema,
       std::vector<facebook::velox::RowVectorPtr>& vectors) {
     ShuffleReaderOptions options;
-    options.compressionType = writerOptions->compression_type;
+    options.compressionType = writerOptions->compressionType;
     auto codec = createArrowIpcCodec(options.compressionType, CodecBackend::NONE);
     auto rowType = facebook::velox::asRowType(gluten::fromArrowSchema(schema));
     // Set batchSize to a large value to make sure batches are merged by reader.
@@ -316,11 +316,11 @@ class SinglePartitioningShuffleWriter : public VeloxShuffleWriterTest {
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() override {
-    shuffleWriterOptions_->buffer_size = 10;
+    shuffleWriterOptions_->bufferSize = 10;
     shuffleWriterOptions_->partitioning = Partitioning::kSingle;
     static const uint32_t kNumPartitions = 1;
     auto partitionWriter = createPartitionWriter(
-        shuffleWriterOptions_->partition_writer_type,
+        shuffleWriterOptions_->partitionWriterType,
         kNumPartitions,
         dataFile_,
         localDirs_,
@@ -392,11 +392,11 @@ class HashPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() override {
-    shuffleWriterOptions_->buffer_size = 4;
+    shuffleWriterOptions_->bufferSize = 4;
     shuffleWriterOptions_->partitioning = Partitioning::kHash;
     static const uint32_t kNumPartitions = 2;
     auto partitionWriter = createPartitionWriter(
-        shuffleWriterOptions_->partition_writer_type,
+        shuffleWriterOptions_->partitionWriterType,
         kNumPartitions,
         dataFile_,
         localDirs_,
@@ -431,11 +431,11 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() override {
-    shuffleWriterOptions_->buffer_size = 4;
+    shuffleWriterOptions_->bufferSize = 4;
     shuffleWriterOptions_->partitioning = Partitioning::kRange;
     static const uint32_t kNumPartitions = 2;
     auto partitionWriter = createPartitionWriter(
-        shuffleWriterOptions_->partition_writer_type,
+        shuffleWriterOptions_->partitionWriterType,
         kNumPartitions,
         dataFile_,
         localDirs_,
@@ -466,10 +466,10 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
 class RoundRobinPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
  protected:
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter() override {
-    shuffleWriterOptions_->buffer_size = 4;
+    shuffleWriterOptions_->bufferSize = 4;
     static const uint32_t kNumPartitions = 2;
     auto partitionWriter = createPartitionWriter(
-        shuffleWriterOptions_->partition_writer_type,
+        shuffleWriterOptions_->partitionWriterType,
         kNumPartitions,
         dataFile_,
         localDirs_,
@@ -493,7 +493,7 @@ class VeloxShuffleWriterMemoryTest : public VeloxShuffleWriterTestBase, public t
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions) {
     auto partitionWriter = createPartitionWriter(
-        shuffleWriterOptions_->partition_writer_type,
+        shuffleWriterOptions_->partitionWriterType,
         numPartitions,
         dataFile_,
         localDirs_,

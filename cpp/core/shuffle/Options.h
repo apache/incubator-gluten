@@ -40,25 +40,25 @@ struct ShuffleReaderOptions {
 };
 
 struct ShuffleWriterOptions {
-  int32_t buffer_size = kDefaultShuffleWriterBufferSize;
+  int32_t bufferSize = kDefaultShuffleWriterBufferSize;
   int32_t mergeBufferSize = kDefaultShuffleWriterBufferSize;
-  int32_t push_buffer_max_size = kDefaultShuffleWriterBufferSize;
-  int32_t num_sub_dirs = kDefaultNumSubDirs;
+  int32_t pushBufferMaxSize = kDefaultShuffleWriterBufferSize;
+  int32_t numSubDirs = kDefaultNumSubDirs;
   int32_t compressionThreshold = kDefaultCompressionThreshold;
-  double buffer_realloc_threshold = kDefaultBufferReallocThreshold;
-  arrow::Compression::type compression_type = arrow::Compression::LZ4_FRAME;
-  CodecBackend codec_backend = CodecBackend::NONE;
-  CompressionMode compression_mode = CompressionMode::BUFFER;
-  bool buffered_write = kEnableBufferedWrite;
-  bool write_eos = kWriteEos;
+  double bufferReallocThreshold = kDefaultBufferReallocThreshold;
+  arrow::Compression::type compressionType = arrow::Compression::LZ4_FRAME;
+  CodecBackend codecBackend = CodecBackend::NONE;
+  CompressionMode compressionMode = CompressionMode::BUFFER;
+  bool bufferedWrite = kEnableBufferedWrite;
+  bool writeEos = kWriteEos;
 
-  PartitionWriterType partition_writer_type = PartitionWriterType::kLocal;
+  PartitionWriterType partitionWriterType = PartitionWriterType::kLocal;
   Partitioning partitioning = Partitioning::kRoundRobin;
 
-  int64_t thread_id = -1;
-  int64_t task_attempt_id = -1;
-  int32_t start_partition_id = 0;
-  arrow::MemoryPool* memory_pool{};
+  int64_t threadId = -1;
+  int64_t taskAttemptId = -1;
+  int32_t startPartitionId = 0;
+  arrow::MemoryPool* memoryPool{};
 };
 
 struct ShuffleWriterMetrics {

@@ -132,7 +132,6 @@ class LocalPartitionWriter::PayloadMerger {
         ARROW_ASSIGN_OR_RAISE(
             partitionMergePayload_[partitionId],
             createMergeBlockPayload(numRows, std::move(buffers), isValidityBuffer, reuseBuffers));
-        DEBUG_OUT << "Create new merge for partition: " << partitionId << ", initial numRows: " << numRows << std::endl;
         return std::nullopt;
       }
       // If already reach merging threshold, return BlockPayload.
@@ -360,7 +359,7 @@ LocalPartitionWriter::LocalPartitionWriter(
 
 std::string LocalPartitionWriter::nextSpilledFileDir() {
   auto spilledFileDir = getSpilledShuffleFileDir(localDirs_[dirSelection_], subDirSelection_[dirSelection_]);
-  subDirSelection_[dirSelection_] = (subDirSelection_[dirSelection_] + 1) % options_->num_sub_dirs;
+  subDirSelection_[dirSelection_] = (subDirSelection_[dirSelection_] + 1) % options_->numSubDirs;
   dirSelection_ = (dirSelection_ + 1) % localDirs_.size();
   return spilledFileDir;
 }
@@ -369,9 +368,9 @@ arrow::Status LocalPartitionWriter::openDataFile() {
   // open data file output stream
   std::shared_ptr<arrow::io::FileOutputStream> fout;
   ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(dataFile_));
-  if (options_->buffered_write) {
+  if (options_->bufferedWrite) {
     // Output stream buffer is neither partition buffer memory nor ipc memory.
-    ARROW_ASSIGN_OR_RAISE(dataFileOs_, arrow::io::BufferedOutputStream::Create(16384, options_->memory_pool, fout));
+    ARROW_ASSIGN_OR_RAISE(dataFileOs_, arrow::io::BufferedOutputStream::Create(16384, options_->memoryPool, fout));
   } else {
     dataFileOs_ = fout;
   }
@@ -380,7 +379,7 @@ arrow::Status LocalPartitionWriter::openDataFile() {
 
 arrow::Status LocalPartitionWriter::clearResource() {
   RETURN_NOT_OK(dataFileOs_->Close());
-  // When buffered_write = true, dataFileOs_->Close doesn't release underlying buffer.
+  // When bufferedWrite = true, dataFileOs_->Close doesn't release underlying buffer.
   dataFileOs_.reset();
   return arrow::Status::OK();
 }
@@ -427,7 +426,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
   RETURN_NOT_OK(finishSpill());
 
   // Open final data file.
-  // If options_.buffered_write is set, it will acquire 16KB memory that can trigger spill.
+  // If options_.bufferedWrite is set, it will acquire 16KB memory that can trigger spill.
   RETURN_NOT_OK(openDataFile());
 
   int64_t endInFinalFile = 0;
@@ -453,7 +452,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
     }
     ARROW_ASSIGN_OR_RAISE(endInFinalFile, dataFileOs_->Tell());
 
-    if (endInFinalFile != startInFinalFile && options_->write_eos) {
+    if (endInFinalFile != startInFinalFile && options_->writeEos) {
       // Write EOS if any payload written.
       int64_t bytes;
       RETURN_NOT_OK(writeEos(dataFileOs_.get(), &bytes));

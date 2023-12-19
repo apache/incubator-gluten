@@ -819,16 +819,16 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   auto partitioningName = jStringToCString(env, partitioningNameJstr);
   shuffleWriterOptions->partitioning = gluten::toPartitioning(partitioningName);
 
-  shuffleWriterOptions->buffer_size = bufferSize;
+  shuffleWriterOptions->bufferSize = bufferSize;
   shuffleWriterOptions->mergeBufferSize = mergeBufferSize;
 
-  shuffleWriterOptions->compression_type = getCompressionType(env, codecJstr);
+  shuffleWriterOptions->compressionType = getCompressionType(env, codecJstr);
   if (codecJstr != NULL) {
-    shuffleWriterOptions->codec_backend = getCodecBackend(env, codecBackendJstr);
-    shuffleWriterOptions->compression_mode = getCompressionMode(env, compressionModeJstr);
+    shuffleWriterOptions->codecBackend = getCodecBackend(env, codecBackendJstr);
+    shuffleWriterOptions->compressionMode = getCompressionMode(env, compressionModeJstr);
   }
 
-  shuffleWriterOptions->memory_pool = memoryManager->getArrowMemoryPool();
+  shuffleWriterOptions->memoryPool = memoryManager->getArrowMemoryPool();
 
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
@@ -840,11 +840,11 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jmethodID midGetid = getMethodIdOrError(env, cls, "getId", "()J");
     jlong sid = env->CallLongMethod(thread, midGetid);
     checkException(env);
-    shuffleWriterOptions->thread_id = (int64_t)sid;
+    shuffleWriterOptions->threadId = (int64_t)sid;
   }
 
-  shuffleWriterOptions->task_attempt_id = (int64_t)taskAttemptId;
-  shuffleWriterOptions->start_partition_id = startPartitionId;
+  shuffleWriterOptions->taskAttemptId = (int64_t)taskAttemptId;
+  shuffleWriterOptions->startPartitionId = startPartitionId;
   shuffleWriterOptions->compressionThreshold = bufferCompressThreshold;
 
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);
@@ -854,7 +854,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   std::unique_ptr<PartitionWriter> partitionWriter;
 
   if (partitionWriterType == "local") {
-    shuffleWriterOptions->partition_writer_type = kLocal;
+    shuffleWriterOptions->partitionWriterType = kLocal;
     if (dataFileJstr == NULL) {
       throw gluten::GlutenException(std::string("Shuffle DataFile can't be null"));
     }
@@ -862,11 +862,11 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
       throw gluten::GlutenException(std::string("Shuffle DataFile can't be null"));
     }
 
-    shuffleWriterOptions->write_eos = writeEOS;
-    shuffleWriterOptions->buffer_realloc_threshold = reallocThreshold;
+    shuffleWriterOptions->writeEos = writeEOS;
+    shuffleWriterOptions->bufferReallocThreshold = reallocThreshold;
 
     if (numSubDirs > 0) {
-      shuffleWriterOptions->num_sub_dirs = numSubDirs;
+      shuffleWriterOptions->numSubDirs = numSubDirs;
     }
 
     auto dataFileC = env->GetStringUTFChars(dataFileJstr, JNI_FALSE);
@@ -880,13 +880,13 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     partitionWriter =
         std::make_unique<LocalPartitionWriter>(numPartitions, dataFile, configuredDirs, shuffleWriterOptions.get());
   } else if (partitionWriterType == "celeborn") {
-    shuffleWriterOptions->partition_writer_type = PartitionWriterType::kCeleborn;
+    shuffleWriterOptions->partitionWriterType = PartitionWriterType::kCeleborn;
     jclass celebornPartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
     jmethodID celebornPushPartitionDataMethod =
         getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", "(I[BI)I");
     if (pushBufferMaxSize > 0) {
-      shuffleWriterOptions->push_buffer_max_size = pushBufferMaxSize;
+      shuffleWriterOptions->pushBufferMaxSize = pushBufferMaxSize;
     }
     JavaVM* vm;
     if (env->GetJavaVM(&vm) != JNI_OK) {

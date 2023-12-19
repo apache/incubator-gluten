@@ -92,7 +92,7 @@ class ShuffleWriter : public Reclaimable {
       std::unique_ptr<ShuffleWriterOptions> options)
       : numPartitions_(numPartitions),
         options_(std::move(options)),
-        partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(options_->memory_pool)),
+        partitionBufferPool_(std::make_unique<ShuffleMemoryPool>(options_->memoryPool)),
         partitionWriter_(std::move(partitionWriter)) {}
 
   virtual ~ShuffleWriter() = default;
@@ -102,7 +102,7 @@ class ShuffleWriter : public Reclaimable {
   std::unique_ptr<ShuffleWriterOptions> options_;
 
   // Memory Pool used to track memory usage of partition buffers.
-  // The actual allocation is delegated to options_.memory_pool.
+  // The actual allocation is delegated to options_.memoryPool.
   std::unique_ptr<ShuffleMemoryPool> partitionBufferPool_;
 
   std::unique_ptr<PartitionWriter> partitionWriter_;

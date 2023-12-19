@@ -111,8 +111,8 @@ class BenchmarkShuffleSplit {
     std::shared_ptr<arrow::MemoryPool> pool = defaultArrowMemoryPool();
 
     auto options = std::make_unique<ShuffleWriterOptions>();
-    options->buffer_size = kPartitionBufferSize;
-    options->memory_pool = pool.get();
+    options->bufferSize = kPartitionBufferSize;
+    options->memoryPool = pool.get();
     options->partitioning = Partitioning::kRoundRobin;
     std::string dataFile;
     std::vector<std::string> localDirs;
@@ -258,7 +258,7 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       LOG(INFO) << localSchema->ToString();
 
-    auto pool = options->memory_pool;
+    auto pool = options->memoryPool;
     auto partitionWriter = std::make_unique<LocalPartitionWriter>(numPartitions, dataFile, localDirs, options.get());
     GLUTEN_ASSIGN_OR_THROW(
         shuffleWriter,
@@ -296,7 +296,7 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
             TIME_NANO_OR_THROW(splitTime, shuffleWriter->split(cb, ShuffleWriter::kMinMemLimit));
           });
       // LOG(INFO) << " split done memory allocated = " <<
-      // options.memory_pool->bytes_allocated() ;
+      // options.memoryPool->bytes_allocated();
     }
 
     TIME_NANO_OR_THROW(splitTime, shuffleWriter->stop());
@@ -322,7 +322,7 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
     if (state.thread_index() == 0)
       LOG(INFO) << schema_->ToString();
 
-    auto pool = options->memory_pool;
+    auto pool = options->memoryPool;
     auto partitionWriter = std::make_unique<LocalPartitionWriter>(numPartitions, dataFile, localDirs, options.get());
     GLUTEN_ASSIGN_OR_THROW(
         shuffleWriter,

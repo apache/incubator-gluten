@@ -59,20 +59,20 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
     const std::string& dataFile,
     const std::vector<std::string>& localDirs) {
   auto options = std::make_unique<ShuffleWriterOptions>();
-  options->memory_pool = memoryManager->getArrowMemoryPool();
+  options->memoryPool = memoryManager->getArrowMemoryPool();
   options->partitioning = gluten::toPartitioning(FLAGS_partitioning);
   if (FLAGS_zstd) {
-    options->codec_backend = CodecBackend::NONE;
-    options->compression_type = arrow::Compression::ZSTD;
+    options->codecBackend = CodecBackend::NONE;
+    options->compressionType = arrow::Compression::ZSTD;
   } else if (FLAGS_qat_gzip) {
-    options->codec_backend = CodecBackend::QAT;
-    options->compression_type = arrow::Compression::GZIP;
+    options->codecBackend = CodecBackend::QAT;
+    options->compressionType = arrow::Compression::GZIP;
   } else if (FLAGS_qat_zstd) {
-    options->codec_backend = CodecBackend::QAT;
-    options->compression_type = arrow::Compression::ZSTD;
+    options->codecBackend = CodecBackend::QAT;
+    options->compressionType = arrow::Compression::ZSTD;
   } else if (FLAGS_iaa_gzip) {
-    options->codec_backend = CodecBackend::IAA;
-    options->compression_type = arrow::Compression::GZIP;
+    options->codecBackend = CodecBackend::IAA;
+    options->compressionType = arrow::Compression::GZIP;
   }
 
   std::unique_ptr<PartitionWriter> partitionWriter =

@@ -29,8 +29,7 @@ class Payload {
  public:
   enum Type : int32_t { kCompressed, kUncompressed, kToBeCompressed };
 
-  Payload(Type type, uint32_t numRows, const std::vector<bool>* isValidityBuffer)
-      : type_(type), numRows_(numRows), isValidityBuffer_(isValidityBuffer) {}
+  Payload(Type type, uint32_t numRows, const std::vector<bool>* isValidityBuffer);
 
   virtual ~Payload() = default;
 
@@ -62,19 +61,7 @@ class Payload {
     return isValidityBuffer_;
   }
 
-  std::string toString() const {
-    static std::string kUncompressedString = "Payload::kUncompressed";
-    static std::string kCompressedString = "Payload::kCompressed";
-    static std::string kToBeCompressedString = "Payload::kToBeCompressed";
-
-    if (type_ == kUncompressed) {
-      return kUncompressedString;
-    }
-    if (type_ == kCompressed) {
-      return kCompressedString;
-    }
-    return kToBeCompressedString;
-  }
+  std::string toString() const;
 
  protected:
   Type type_;
@@ -124,9 +111,7 @@ class BlockPayload : public Payload {
       arrow::util::Codec* codec)
       : Payload(type, numRows, isValidityBuffer), buffers_(std::move(buffers)), pool_(pool), codec_(codec) {}
 
-  void setCompressionTime(int64_t compressionTime) {
-    compressTime_ = compressionTime;
-  }
+  void setCompressionTime(int64_t compressionTime);
 
   std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
   arrow::MemoryPool* pool_;
