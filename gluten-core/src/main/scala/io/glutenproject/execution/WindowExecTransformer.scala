@@ -65,6 +65,7 @@ case class WindowExecTransformer(
       AllTuples :: Nil
     } else ClusteredDistribution(partitionSpec) :: Nil
   }
+
   override def requiredChildOrdering: Seq[Seq[SortOrder]] = {
     if (
       BackendsApiManager.getSettings.requiredChildOrderingForWindow()
