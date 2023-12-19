@@ -375,8 +375,10 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
   if (ioThreads > 0) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }
-  velox::connector::registerConnector(
-      std::make_shared<velox::connector::hive::HiveConnector>(kHiveConnectorId, mutableConf, ioExecutor_.get()));
+  velox::connector::registerConnector(std::make_shared<velox::connector::hive::HiveConnector>(
+      kHiveConnectorId,
+      std::make_shared<facebook::velox::core::MemConfig>(mutableConf->valuesCopy()),
+      ioExecutor_.get()));
 }
 
 void VeloxBackend::initUdf(const facebook::velox::Config* conf) {
