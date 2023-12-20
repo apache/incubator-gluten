@@ -71,7 +71,7 @@ class VeloxParquetDatasource final : public Datasource {
 
   bool isSupportedS3SdkPath(const std::string& filePath_) {
     // support scheme
-    const std::array<const char*, 4> supported_schemes = {"s3a:", "oss:", "cos:", "cosn:"};
+    const std::array<const char*, 5> supported_schemes = {"s3:", "s3a:", "oss:", "cos:", "cosn:"};
 
     for (const char* scheme : supported_schemes) {
       size_t scheme_length = std::strlen(scheme);
