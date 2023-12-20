@@ -340,7 +340,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name centos8-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/centos:8 \
+          -v $PWD:/opt/gluten --name centos8-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.0.25:5000/gluten-dev/centos:8 \
           bash -c 'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
