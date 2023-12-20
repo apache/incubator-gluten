@@ -1,5 +1,5 @@
 #!/bin/bash
-# test1
+# test2
 
 BASEDIR=$(dirname $0)
 source "$BASEDIR/builddeps-veloxbe.sh"
