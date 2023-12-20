@@ -25,6 +25,7 @@
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 
+#include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/common/compression/Compression.h"
 #include "velox/core/QueryConfig.h"
@@ -49,7 +50,10 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     sink_ = std::make_unique<WriteFileSink>(std::move(localWriteFile), path);
   } else if (strncmp(filePath_.c_str(), "s3a:", 4) == 0) {
 #ifdef ENABLE_S3
-    auto fileSystem = getFileSystem(filePath_, nullptr);
+    auto confs = std::make_shared<facebook::velox::core::MemConfigMutable>(sparkConfs);
+    auto hiveConfs = getHiveConfig(confs);
+    auto fileSystem =
+        getFileSystem(filePath_, std::make_shared<facebook::velox::core::MemConfig>(hiveConfs->valuesCopy()));
     auto* s3FileSystem = dynamic_cast<filesystems::S3FileSystem*>(fileSystem.get());
     sink_ = std::make_unique<dwio::common::WriteFileSink>(
         s3FileSystem->openFileForWrite(filePath_, {{}, s3SinkPool_.get()}), filePath_);
