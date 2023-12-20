@@ -34,15 +34,11 @@
 #ifdef ENABLE_GCS
 #include <fstream>
 #endif
-#ifdef ENABLE_ABFS
-#include "velox/connectors/hive/storage_adapters/abfs/AbfsFileSystem.h"
-#endif
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniFileSystem.h"
 #include "operators/functions/SparkTokenizer.h"
 #include "udf/UdfLoader.h"
-#include "utils/ConfigExtractor.h"
 #include "utils/exception.h"
 #include "velox/common/caching/SsdCache.h"
 #include "velox/common/file/FileSystems.h"
@@ -50,8 +46,6 @@
 #include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveDataSource.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/serializers/PrestoSerializer.h"
 
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
@@ -142,8 +136,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
 
   // Init glog and log level.
-  auto veloxmemcfg = std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
-  const facebook::velox::Config* veloxcfg = veloxmemcfg.get();
+  std::shared_ptr<const facebook::velox::Config> veloxcfg =
+      std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
 
   if (veloxcfg->get<bool>(kDebugModeEnabled, false)) {
     LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
@@ -200,6 +194,9 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   initUdf(veloxcfg);
   registerSparkTokenizer();
+
+  // initialize the global memory manager for current process
+  facebook::velox::memory::MemoryManager::initialize({});
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
@@ -207,7 +204,7 @@ facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const 
 }
 
 // JNI-or-local filesystem, for spilling-to-heap if we have extra JVM heap spaces
-void VeloxBackend::initJolFilesystem(const facebook::velox::Config* conf) {
+void VeloxBackend::initJolFilesystem(const std::shared_ptr<const facebook::velox::Config>& conf) {
   int64_t maxSpillFileSize = conf->get<int64_t>(kMaxSpillFileSize, kMaxSpillFileSizeDefault);
 
   // FIXME It's known that if spill compression is disabled, the actual spill file size may
@@ -216,7 +213,7 @@ void VeloxBackend::initJolFilesystem(const facebook::velox::Config* conf) {
   gluten::registerJolFileSystem(maxSpillFileSize);
 }
 
-void VeloxBackend::initCache(const facebook::velox::Config* conf) {
+void VeloxBackend::initCache(const std::shared_ptr<const facebook::velox::Config>& conf) {
   bool veloxCacheEnabled = conf->get<bool>(kVeloxCacheEnabled, false);
   if (veloxCacheEnabled) {
     FLAGS_ssd_odirect = true;
@@ -263,7 +260,7 @@ void VeloxBackend::initCache(const facebook::velox::Config* conf) {
   }
 }
 
-void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
+void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Config>& conf) {
   int32_t ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
 
   auto mutableConf = std::make_shared<facebook::velox::core::MemConfigMutable>(conf->valuesCopy());
@@ -315,7 +312,6 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
 #endif
 
 #ifdef ENABLE_ABFS
-  velox::filesystems::abfs::registerAbfsFileSystem();
   const auto& confValue = conf->valuesCopy();
   for (auto& [k, v] : confValue) {
     if (k.find("fs.azure.account.key") == 0) {
@@ -381,7 +377,7 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
       ioExecutor_.get()));
 }
 
-void VeloxBackend::initUdf(const facebook::velox::Config* conf) {
+void VeloxBackend::initUdf(const std::shared_ptr<const facebook::velox::Config>& conf) {
   auto got = conf->get<std::string>(kVeloxUdfLibraryPaths, "");
   if (!got.empty()) {
     auto udfLoader = gluten::UdfLoader::getInstance();

@@ -149,11 +149,11 @@ class ListenerApiImpl extends ListenerApi {
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
       JniLibLoader.loadFromPath(libPath, false)
-      return
+    } else {
+      val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
+      loader.mapAndLoad(baseLibName, false)
+      loader.mapAndLoad(VeloxBackend.BACKEND_NAME, false)
     }
-    val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
-    loader.mapAndLoad(baseLibName, false)
-    loader.mapAndLoad(VeloxBackend.BACKEND_NAME, false)
 
     initializeNative(conf.getAll.toMap)
 
