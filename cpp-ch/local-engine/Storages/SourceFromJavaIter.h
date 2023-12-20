@@ -45,6 +45,8 @@ private:
     DB::Block original_header;
 
     DB::Block pending_block;
+    size_t max_concatenate_rows = 0;
+    size_t max_concatenate_bytes = 0;
 };
 
 }

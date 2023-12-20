@@ -19,6 +19,7 @@
 #include <Core/ColumnsWithTypeAndName.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <Processors/Transforms/AggregatingTransform.h>
+#include <jni/SparkBackendSettings.h>
 #include <jni/jni_common.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
@@ -46,22 +47,28 @@ SourceFromJavaIter::SourceFromJavaIter(DB::ContextPtr context_, DB::Block header
     , original_header(header)
     , context(context_)
 {
+    max_concatenate_rows = SparkBackendSettings::getRuntimeLongConf(
+        SparkBackendSettings::max_source_concatenate_rows_key, SparkBackendSettings::default_max_source_concatenate_rows);
+    max_concatenate_bytes = SparkBackendSettings::getRuntimeLongConf(
+        SparkBackendSettings::max_source_concatenate_bytes_key, SparkBackendSettings::default_max_source_concatenate_bytes);
 }
 DB::Chunk SourceFromJavaIter::generate()
 {
     GET_JNIENV(env)
     size_t max_block_size = context->getSettingsRef().max_block_size;
     DB::Chunk result;
-    size_t total_rows = 0;
+    size_t buffer_rows = 0;
+    size_t buffer_bytes = 0;
     std::vector<DB::Block> blocks;
     if (pending_block.rows())
     {
-        total_rows += pending_block.rows();
+        buffer_rows += pending_block.rows();
+        buffer_bytes += pending_block.bytes();
         blocks.emplace_back(std::move(pending_block));
         pending_block = {};
     }
 
-    while(total_rows < max_block_size)
+    while (!buffer_rows || (buffer_rows < max_concatenate_rows && buffer_bytes < max_concatenate_bytes))
     {
         jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext);
         if (!has_next)
@@ -77,12 +84,13 @@ DB::Chunk SourceFromJavaIter::generate()
 
         if (block->rows())
         {
-            total_rows += block->rows();
+            buffer_rows += block->rows();
+            buffer_bytes += block->bytes();
             blocks.emplace_back(std::move(*block));
         }
     }
 
-    if (total_rows)
+    if (buffer_rows)
     {
         if (original_header.columns())
         {
@@ -91,7 +99,7 @@ DB::Chunk SourceFromJavaIter::generate()
             auto merged_block = DB::concatenateBlocks(blocks);
             if (materialize_input)
                 materializeBlockInplace(merged_block);
-            result.setColumns(merged_block.getColumns(), total_rows);
+            result.setColumns(merged_block.getColumns(), buffer_rows);
             convertNullable(result);
             auto info = std::make_shared<DB::AggregatedChunkInfo>();
             info->is_overflows = is_overflows;
@@ -100,7 +108,7 @@ DB::Chunk SourceFromJavaIter::generate()
         }
         else
         {
-            result = BlockUtil::buildRowCountChunk(total_rows);
+            result = BlockUtil::buildRowCountChunk(buffer_rows);
         }
     }
 

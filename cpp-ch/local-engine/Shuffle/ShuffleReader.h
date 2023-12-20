@@ -42,6 +42,8 @@ public:
 
 private:
     std::unique_ptr<DB::ReadBuffer> in;
+    size_t max_concatenate_rows;
+    size_t max_concatenate_bytes;
     std::unique_ptr<DB::ReadBuffer> compressed_in;
     std::unique_ptr<local_engine::NativeReader> input_stream;
     DB::Block header;

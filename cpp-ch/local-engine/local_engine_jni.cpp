@@ -40,6 +40,7 @@
 #include <Storages/SubstraitSource/ReadBufferBuilder.h>
 #include <jni/ReservationListenerWrapper.h>
 #include <jni/SharedPointerWrapper.h>
+#include <jni/SparkBackendSettings.h>
 #include <jni/jni_common.h>
 #include <jni/jni_error.h>
 #include <Poco/Logger.h>
@@ -174,6 +175,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     native_metrics_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/metrics/NativeMetrics;");
     native_metrics_constructor = local_engine::GetMethodID(env, native_metrics_class, "<init>", "(Ljava/lang/String;)V");
 
+    local_engine::SparkBackendSettings::backend_settings_class = local_engine::CreateGlobalClassReference(env, "Lio/glutenproject/backendsapi/clickhouse/CHBackendSettings;");
+    local_engine::SparkBackendSettings::get_long_conf_method = local_engine::GetStaticMethodID(env, local_engine::SparkBackendSettings::backend_settings_class, "getConfLong", "(Ljava/lang/String;J)J");
+
     local_engine::BroadCastJoinBuilder::init(env);
 
     local_engine::JNIUtils::vm = vm;
@@ -200,6 +204,7 @@ JNIEXPORT void JNI_OnUnload(JavaVM * vm, void * /*reserved*/)
     env->DeleteGlobalRef(local_engine::SparkRowToCHColumn::spark_row_interator_class);
     env->DeleteGlobalRef(local_engine::ReservationListenerWrapper::reservation_listener_class);
     env->DeleteGlobalRef(native_metrics_class);
+    env->DeleteGlobalRef(local_engine::SparkBackendSettings::backend_settings_class);
 }
 
 JNIEXPORT void Java_io_glutenproject_vectorized_ExpressionEvaluatorJniWrapper_nativeInitNative(JNIEnv * env, jobject, jbyteArray conf_plan)

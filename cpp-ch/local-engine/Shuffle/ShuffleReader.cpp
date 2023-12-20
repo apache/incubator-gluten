@@ -17,6 +17,7 @@
 #include "ShuffleReader.h"
 #include <Compression/CompressedReadBuffer.h>
 #include <IO/ReadBuffer.h>
+#include <jni/SparkBackendSettings.h>
 #include <jni/jni_common.h>
 #include <Common/DebugUtils.h>
 #include <Common/JNIUtils.h>
@@ -34,6 +35,10 @@ void configureCompressedReadBuffer(DB::CompressedReadBuffer & compressedReadBuff
 }
 local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed) : in(std::move(in_))
 {
+    max_concatenate_rows = SparkBackendSettings::getRuntimeLongConf(
+        SparkBackendSettings::max_source_concatenate_rows_key, SparkBackendSettings::default_max_source_concatenate_rows);
+    max_concatenate_bytes = SparkBackendSettings::getRuntimeLongConf(
+        SparkBackendSettings::max_source_concatenate_bytes_key, SparkBackendSettings::default_max_source_concatenate_bytes);
     if (compressed)
     {
         compressed_in = std::make_unique<CompressedReadBuffer>(*in);
@@ -48,17 +53,18 @@ local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool
 Block * local_engine::ShuffleReader::read()
 {
     // Avoid to generate out a lot of small blocks.
-    const size_t at_least_block_size = 64 * 1024;
-    size_t total_rows = 0;
+    size_t buffer_rows = 0;
+    size_t buffer_bytes = 0;
     std::vector<DB::Block> blocks;
     if (pending_block)
     {
         blocks.emplace_back(std::move(pending_block));
-        total_rows += blocks.back().rows();
+        buffer_rows += blocks.back().rows();
+        buffer_bytes += blocks.back().bytes();
         pending_block = {};
     }
 
-    while(total_rows < at_least_block_size)
+    while (!buffer_rows || (buffer_rows < max_concatenate_rows && buffer_bytes < max_concatenate_bytes))
     {
         auto block = input_stream->read();
         if (!block.rows())
@@ -71,7 +77,8 @@ Block * local_engine::ShuffleReader::read()
             pending_block = std::move(block);
             break;
         }
-        total_rows += block.rows();
+        buffer_rows += block.rows();
+        buffer_bytes += block.bytes();
         blocks.emplace_back(std::move(block));
     }
 
