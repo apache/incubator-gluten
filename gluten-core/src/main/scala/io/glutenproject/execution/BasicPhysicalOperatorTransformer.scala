@@ -293,7 +293,6 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
     child =>
       child match {
         case w: WholeStageTransformer =>
-          logError(s"child class: ${w.getClass.getName}} set outputschema: $output")
           w.setOutputSchemaForPlan(output)
         case _ =>
       })
@@ -318,7 +317,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
 
   override protected def withNewChildrenInternal(
       newChildren: IndexedSeq[SparkPlan]): UnionExecTransformer = {
-    UnionExecTransformer(newChildren)
+    copy(children = newChildren)
   }
 
   def columnarInputRDD: RDD[ColumnarBatch] = {
