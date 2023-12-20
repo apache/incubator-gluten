@@ -66,7 +66,7 @@ class ColumnarBatchSerializer(
       deserializeTime)
   }
 
-  override def supportsRelocationOfSerializedObjects: Boolean = supportsRelocation
+  override def supportsRelocationOfSerializedObjects: Boolean = true
 }
 
 private class ColumnarBatchSerializerInstance(
