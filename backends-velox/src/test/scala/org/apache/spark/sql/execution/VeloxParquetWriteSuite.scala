@@ -49,7 +49,7 @@ class VeloxParquetWriteSuite extends VeloxWholeStageTransformerSuite {
             case _ => codec
           }
 
-          TPCHTables.foreach {
+          TPCHTableDataFrames.foreach {
             case (_, df) =>
               withTempPath {
                 f =>
