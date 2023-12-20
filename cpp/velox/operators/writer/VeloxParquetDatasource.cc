@@ -47,7 +47,7 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     auto path = filePath_.substr(5);
     auto localWriteFile = std::make_unique<LocalWriteFile>(path, true, false);
     sink_ = std::make_unique<WriteFileSink>(std::move(localWriteFile), path);
-  } else if (strncmp(filePath_.c_str(), "s3a:", 4) == 0) {
+  } else if (isSupportedS3SdkPath(filePath_)) {
 #ifdef ENABLE_S3
     auto fileSystem = getFileSystem(filePath_, nullptr);
     auto* s3FileSystem = dynamic_cast<filesystems::S3FileSystem*>(fileSystem.get());
