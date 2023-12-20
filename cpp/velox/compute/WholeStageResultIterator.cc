@@ -298,7 +298,8 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kRemainingFilterTime)[metricIndex] =
           runtimeMetric("sum", second->customStats, kRemainingFilterTime);
       metrics_->get(Metrics::kIoWaitTime)[metricIndex] = runtimeMetric("sum", second->customStats, kIoWaitTime);
-      metrics_->get(Metrics::kPreloadSplits)[metricIndex] = runtimeMetric("sum", entry.second->customStats, kPreloadSplits);
+      metrics_->get(Metrics::kPreloadSplits)[metricIndex] =
+          runtimeMetric("sum", entry.second->customStats, kPreloadSplits);
       metricIndex += 1;
     }
   }
