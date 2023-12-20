@@ -33,7 +33,7 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FunctionIdentifier}
+import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FunctionIdentifier, IntermediateHashAggregateRule}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
@@ -157,7 +157,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       initialInputBufferOffset: Int,
       resultExpressions: Seq[NamedExpression],
       child: SparkPlan): HashAggregateExecBaseTransformer =
-    HashAggregateExecTransformer(
+    RegularHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
       groupingExpressions,
       aggregateExpressions,
@@ -488,7 +488,8 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
+  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] =
+    List(IntermediateHashAggregateRule)
 
   /**
    * Generate extended columnar post-rules.

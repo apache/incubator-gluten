@@ -38,7 +38,7 @@ import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-case class HashAggregateExecTransformer(
+abstract class HashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
@@ -67,10 +67,6 @@ case class HashAggregateExecTransformer(
       case _ =>
         super.checkAggFuncModeSupport(aggFunc, mode)
     }
-  }
-
-  override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
-    copy(child = newChild)
   }
 
   /**
@@ -173,15 +169,16 @@ case class HashAggregateExecTransformer(
     }
   }
 
-  override protected def modeToKeyWord(aggregateMode: AggregateMode): String = {
-    super.modeToKeyWord(if (mixedPartialAndMerge) {
-      Partial
-    } else {
-      aggregateMode match {
-        case PartialMerge => Final
-        case _ => aggregateMode
-      }
-    })
+  // Whether the output data allows to be just pre-aggregated rather than
+  // fully aggregated. If true, aggregation could flush its in memory
+  // aggregated data whenever is needed rather than waiting for all input
+  // to be read.
+  protected def allowIntermediateOutput: Boolean
+
+  override protected def formatExtOptimizationString(isStreaming: Boolean): String = {
+    val isStreamingStr = if (isStreaming) "1" else "0"
+    val allowIntermediateOutputStr = if (allowIntermediateOutput) "1" else "0"
+    s"isStreaming=$isStreamingStr\nallowIntermediateOutput=$allowIntermediateOutputStr\n"
   }
 
   // Create aggregate function node and add to list.
@@ -191,8 +188,6 @@ case class HashAggregateExecTransformer(
       childrenNodeList: JList[ExpressionNode],
       aggregateMode: AggregateMode,
       aggregateNodeList: JList[AggregateFunctionNode]): Unit = {
-    // This is a special handling for PartialMerge in the execution of distinct.
-    // Use Partial phase instead for this aggregation.
     val modeKeyWord = modeToKeyWord(aggregateMode)
 
     def generateMergeCompanionNode(): Unit = {
@@ -623,5 +618,62 @@ object VeloxAggregateFunctionsBuilder {
         substraitAggFuncName,
         VeloxIntermediateData.getInputTypes(aggregateFunc, forMergeCompanion),
         FunctionConfig.REQ))
+  }
+}
+
+// Hash aggregation that emits full-aggregated data, this works like regular hash
+// aggregation in Vanilla Spark.
+case class RegularHashAggregateExecTransformer(
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute],
+    initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan)
+  extends HashAggregateExecTransformer(
+    requiredChildDistributionExpressions,
+    groupingExpressions,
+    aggregateExpressions,
+    aggregateAttributes,
+    initialInputBufferOffset,
+    resultExpressions,
+    child) {
+
+  override protected def allowIntermediateOutput: Boolean = false
+
+  override def simpleString(maxFields: Int): String = s"${super.simpleString(maxFields)}"
+
+  override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
+    copy(child = newChild)
+  }
+}
+
+// Hash aggregation that emits pre-aggregated data which allows duplications on grouping keys
+// among its output rows.
+case class IntermediateHashAggregateExecTransformer(
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute],
+    initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan)
+  extends HashAggregateExecTransformer(
+    requiredChildDistributionExpressions,
+    groupingExpressions,
+    aggregateExpressions,
+    aggregateAttributes,
+    initialInputBufferOffset,
+    resultExpressions,
+    child) {
+
+  override protected def allowIntermediateOutput: Boolean = true
+
+  override def simpleString(maxFields: Int): String =
+    s"Intermediate${super.simpleString(maxFields)}"
+
+  override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
+    copy(child = newChild)
   }
 }

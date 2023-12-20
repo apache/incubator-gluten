@@ -194,26 +194,12 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::processEmit(
 }
 
 core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationStep(const ::substrait::AggregateRel& aggRel) {
-  if (aggRel.measures().size() == 0) {
-    // When only groupings exist, set the phase to be Single.
-    return core::AggregationNode::Step::kSingle;
+  // TODO Simplify Velox's aggregation steps
+  if (aggRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "allowIntermediateOutput=")) {
+    return core::AggregationNode::Step::kPartial;
   }
-
-  // Use the first measure to set aggregation phase.
-  const auto& firstMeasure = aggRel.measures()[0];
-  const auto& aggFunction = firstMeasure.measure();
-  switch (aggFunction.phase()) {
-    case ::substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE:
-      return core::AggregationNode::Step::kPartial;
-    case ::substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE:
-      return core::AggregationNode::Step::kIntermediate;
-    case ::substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT:
-      return core::AggregationNode::Step::kFinal;
-    case ::substrait::AGGREGATION_PHASE_INITIAL_TO_RESULT:
-      return core::AggregationNode::Step::kSingle;
-    default:
-      VELOX_FAIL("Aggregate phase is not supported.");
-  }
+  return core::AggregationNode::Step::kFinal;
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::JoinRel& sJoin) {
