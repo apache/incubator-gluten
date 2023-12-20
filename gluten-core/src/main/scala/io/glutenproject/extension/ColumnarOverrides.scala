@@ -138,9 +138,10 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
   private def genFilterExec(plan: FilterExec): SparkPlan = {
     // FIXME: Filter push-down should be better done by Vanilla Spark's planner or by
     //  a individual rule.
+    val scan = plan.child
     // Push down the left conditions in Filter into FileSourceScan.
-    val newChild: SparkPlan = plan.child match {
-      case scan: FileSourceScanExec =>
+    val newChild: SparkPlan = scan match {
+      case _: FileSourceScanExec | _: BatchScanExec =>
         TransformHints.getHint(scan) match {
           case TRANSFORM_SUPPORTED() =>
             val newScan = FilterHandler.applyFilterPushdownToScan(plan, reuseSubquery)
@@ -557,26 +558,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         newSource
       }
     case plan: BatchScanExec =>
-      if (ScanTransformerFactory.supportedBatchScan(plan.scan)) {
-        val transformer = ScanTransformerFactory.createBatchScanTransformer(plan, reuseSubquery)
-        val validationResult = transformer.doValidate()
-        if (validationResult.isValid) {
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-          transformer
-        } else {
-          logDebug(s"Columnar Processing for ${plan.getClass} is currently unsupported.")
-          val newSource = plan.copy(runtimeFilters = transformer.runtimeFilters)
-          TransformHints.tagNotTransformable(newSource, validationResult.reason.get)
-          newSource
-        }
-      } else {
-        // If filter expressions aren't empty, we need to transform the inner operators,
-        // and fallback the BatchScanExec itself.
-        val newSource = plan.copy(runtimeFilters = ExpressionConverter
-          .transformDynamicPruningExpr(plan.runtimeFilters, reuseSubquery))
-        TransformHints.tagNotTransformable(newSource, "The scan in BatchScanExec is not supported.")
-        newSource
-      }
+      ScanTransformerFactory.createBatchScanTransformer(plan, reuseSubquery)
 
     case plan if HiveTableScanExecTransformer.isHiveTableScan(plan) =>
       // TODO: Add DynamicPartitionPruningHiveScanSuite.scala
