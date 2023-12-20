@@ -17,7 +17,7 @@
 package org.apache.spark.sql.connector
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
+import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestConstants, Row}
 import org.apache.spark.sql.connector.catalog.{Identifier, InMemoryTableCatalog}
 import org.apache.spark.sql.connector.distributions.Distributions
 import org.apache.spark.sql.connector.expressions.Expressions.{bucket, identity}
@@ -82,8 +82,8 @@ class GlutenKeyGroupedPartitioningSuite
     .add("time", TimestampType)
 
   test(
-    "gluten - SPARK-41413: partitioned join: partition values from one side are subset of those from " +
-      "the other side") {
+    GlutenTestConstants.GLUTEN_TEST + "SPARK-41413: partitioned join: partition values" +
+      " from one side are subset of those from the other side") {
     val items_partitions = Array(bucket(4, "id"))
     createTable(items, items_schema, items_partitions)
 
@@ -124,7 +124,9 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test("gluten - SPARK-41413: partitioned join: partition values from both sides overlaps") {
+  test(
+    GlutenTestConstants.GLUTEN_TEST + "SPARK-41413: partitioned join:" +
+      " partition values from both sides overlaps") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
 
@@ -165,7 +167,9 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test("gluten - SPARK-41413: partitioned join: non-overlapping partition values from both sides") {
+  test(
+    GlutenTestConstants.GLUTEN_TEST + "SPARK-41413: partitioned join:" +
+      " non-overlapping partition values from both sides") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -206,7 +210,8 @@ class GlutenKeyGroupedPartitioningSuite
   }
 
   test(
-    "gluten - SPARK-42038: partially clustered: with same partition keys and one side fully clustered") {
+    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered:" +
+      " with same partition keys and one side fully clustered") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -257,8 +262,8 @@ class GlutenKeyGroupedPartitioningSuite
   }
 
   test(
-    "gluten - SPARK-42038: partially clustered: with same partition keys and both sides partially " +
-      "clustered") {
+    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered:" +
+      " with same partition keys and both sides partially clustered") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -319,8 +324,8 @@ class GlutenKeyGroupedPartitioningSuite
   }
 
   test(
-    "gluten - SPARK-42038: partially clustered: with different partition keys and both sides partially " +
-      "clustered") {
+    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered: with different" +
+      " partition keys and both sides partially clustered") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -389,8 +394,8 @@ class GlutenKeyGroupedPartitioningSuite
   }
 
   test(
-    "gluten - SPARK-42038: partially clustered: with different partition keys and missing keys on " +
-      "left-hand side") {
+    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered: with different" +
+      " partition keys and missing keys on left-hand side") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -449,8 +454,8 @@ class GlutenKeyGroupedPartitioningSuite
   }
 
   test(
-    "gluten - SPARK-42038: partially clustered: with different partition keys and missing keys on " +
-      "right-hand side") {
+    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered:" +
+      " with different partition keys and missing keys on right-hand side") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -500,7 +505,7 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test("gluten - SPARK-42038: partially clustered: left outer join") {
+  test(GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered: left outer join") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -562,7 +567,7 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test("gluten - SPARK-42038: partially clustered: right outer join") {
+  test(GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered: right outer join") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
@@ -628,7 +633,9 @@ class GlutenKeyGroupedPartitioningSuite
     }
   }
 
-  test("gluten - SPARK-42038: partially clustered: full outer join is not applicable") {
+  test(
+    GlutenTestConstants.GLUTEN_TEST + "SPARK-42038: partially clustered:" +
+      " full outer join is not applicable") {
     val items_partitions = Array(identity("id"))
     createTable(items, items_schema, items_partitions)
     sql(
