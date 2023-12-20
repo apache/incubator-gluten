@@ -29,7 +29,8 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
-import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
+import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -112,6 +113,60 @@ object BackendSettings extends BackendSettingsApi {
         validateTypes(typeValidator)
       case _ => ValidationResult.notOk(s"Unsupported file format for $format.")
     }
+  }
+
+  override def supportFileFormatWrite(format: FileFormat, fields: Array[StructField]): Boolean = {
+    // Validate if all types are supported.
+    def validateTypes(fields: Array[StructField]): Boolean = {
+
+      val unsupportedDataTypes =
+        fields.flatMap {
+          field =>
+            field.dataType match {
+              case _: TimestampType => Some("TimestampType")
+              case struct: StructType if validateTypes(struct.fields) =>
+                Some("StructType(TimestampType)")
+              case array: ArrayType if array.elementType.isInstanceOf[TimestampType] =>
+                Some("MapType(TimestampType)")
+              case map: MapType
+                  if (map.keyType.isInstanceOf[TimestampType] ||
+                    map.valueType.isInstanceOf[TimestampType]) =>
+                Some("MapType(TimestampType)")
+              case _ => None
+            }
+        }
+
+      for (unsupportedDataType <- unsupportedDataTypes) {
+        // scalastyle:off println
+        println(
+          s"Validation failed for ${this.getClass.toString} due to:" +
+            s" data type $unsupportedDataType in file schema.")
+        // scalastyle:on println
+      }
+
+      unsupportedDataTypes.isEmpty
+    }
+
+    def containFieldMetadata(fields: Array[StructField]): Boolean = {
+      if (fields.exists(!_.metadata.equals(Metadata.empty))) false else true
+    }
+
+    format match {
+      case _: ParquetFileFormat =>
+        validateTypes(fields) &&
+        containFieldMetadata(fields)
+      case _ => false
+    }
+  }
+  override def supportWriteExec(): Boolean = {
+    // Velox doesn't support brotli and lzo.
+    if (
+      SQLConf.get.parquetCompressionCodec.toLowerCase().equals("brotli") ||
+      SQLConf.get.parquetCompressionCodec.toLowerCase().equals("lzo")
+    ) {
+      return false
+    }
+    true
   }
 
   override def supportExpandExec(): Boolean = true

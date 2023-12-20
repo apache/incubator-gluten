@@ -39,6 +39,14 @@ VeloxPlanConverter::VeloxPlanConverter(
       substraitVeloxPlanConverter_(veloxPool, confMap, validationMode),
       pool_(veloxPool) {}
 
+void VeloxPlanConverter::setInputPlanNode(const ::substrait::WriteRel& writeRel) {
+  if (writeRel.has_input()) {
+    setInputPlanNode(writeRel.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
+}
+
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {
     setInputPlanNode(fetchRel.input());
@@ -176,6 +184,8 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.window());
   } else if (srel.has_generate()) {
     setInputPlanNode(srel.generate());
+  } else if (srel.has_write()) {
+    setInputPlanNode(srel.write());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }

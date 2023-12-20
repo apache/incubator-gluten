@@ -29,6 +29,9 @@ class SubstraitToVeloxPlanValidator {
   SubstraitToVeloxPlanValidator(memory::MemoryPool* pool, core::ExecCtx* execCtx)
       : pool_(pool), execCtx_(execCtx), planConverter_(pool_, confMap_, true) {}
 
+  /// Used to validate whether the computing of this Write is supported.
+  bool validate(const ::substrait::WriteRel& writeRel);
+
   /// Used to validate whether the computing of this Limit is supported.
   bool validate(const ::substrait::FetchRel& fetchRel);
 

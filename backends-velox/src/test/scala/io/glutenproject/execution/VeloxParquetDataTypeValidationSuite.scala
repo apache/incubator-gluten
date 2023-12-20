@@ -445,16 +445,20 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
     }
   }
 
-  ignore("Velox Parquet Write") {
+  test("Velox Parquet Write") {
     withSQLConf(("spark.gluten.sql.native.writer.enabled", "true")) {
       withTempDir {
         dir =>
           val write_path = dir.toURI.getPath
           val data_path = getClass.getResource("/").getPath + "/data-type-validation-data/type1"
-          val df = spark.read.format("parquet").load(data_path)
+          // Spark 3.4 native write doesn't support Timestamp type.
+          val df = spark.read.format("parquet").load(data_path).drop("timestamp")
           df.write.mode("append").format("parquet").save(write_path)
+          val parquetDf = spark.read
+            .format("parquet")
+            .load(write_path)
+          checkAnswer(parquetDf, df)
       }
     }
-
   }
 }

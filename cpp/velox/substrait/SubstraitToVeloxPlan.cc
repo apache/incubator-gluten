@@ -18,10 +18,13 @@
 #include "SubstraitToVeloxPlan.h"
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
+#include "velox/connectors/hive/HiveDataSink.h"
+#include "velox/exec/TableWriter.h"
 #include "velox/type/Type.h"
 
 #include "utils/ConfigExtractor.h"
 
+#include <iostream>
 #include "config/GlutenConfig.h"
 
 namespace gluten {
@@ -444,6 +447,148 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return std::make_shared<core::ProjectNode>(
         nextPlanNodeId(), std::move(projectNames), std::move(expressions), std::move(childNode));
   }
+}
+
+std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
+    std::string targetDirectory,
+    std::optional<std::string> writeDirectory = std::nullopt,
+    connector::hive::LocationHandle::TableType tableType = connector::hive::LocationHandle::TableType::kExisting) {
+  return std::make_shared<connector::hive::LocationHandle>(
+      targetDirectory, writeDirectory.value_or(targetDirectory), tableType);
+}
+
+std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandle(
+    const std::vector<std::string>& tableColumnNames,
+    const std::vector<TypePtr>& tableColumnTypes,
+    const std::vector<std::string>& partitionedBy,
+    std::shared_ptr<connector::hive::HiveBucketProperty> bucketProperty,
+    std::shared_ptr<connector::hive::LocationHandle> locationHandle,
+    const dwio::common::FileFormat tableStorageFormat = dwio::common::FileFormat::PARQUET,
+    const std::optional<common::CompressionKind> compressionKind = {}) {
+  std::vector<std::shared_ptr<const connector::hive::HiveColumnHandle>> columnHandles;
+  std::vector<std::string> bucketedBy;
+  std::vector<TypePtr> bucketedTypes;
+  std::vector<std::shared_ptr<const connector::hive::HiveSortingColumn>> sortedBy;
+  if (bucketProperty != nullptr) {
+    bucketedBy = bucketProperty->bucketedBy();
+    bucketedTypes = bucketProperty->bucketedTypes();
+    sortedBy = bucketProperty->sortedBy();
+  }
+  int32_t numPartitionColumns{0};
+  int32_t numSortingColumns{0};
+  int32_t numBucketColumns{0};
+  for (int i = 0; i < tableColumnNames.size(); ++i) {
+    for (int j = 0; j < bucketedBy.size(); ++j) {
+      if (bucketedBy[j] == tableColumnNames[i]) {
+        ++numBucketColumns;
+      }
+    }
+    for (int j = 0; j < sortedBy.size(); ++j) {
+      if (sortedBy[j]->sortColumn() == tableColumnNames[i]) {
+        ++numSortingColumns;
+      }
+    }
+    if (std::find(partitionedBy.cbegin(), partitionedBy.cend(), tableColumnNames.at(i)) != partitionedBy.cend()) {
+      ++numPartitionColumns;
+      columnHandles.push_back(std::make_shared<connector::hive::HiveColumnHandle>(
+          tableColumnNames.at(i),
+          connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
+          tableColumnTypes.at(i),
+          tableColumnTypes.at(i)));
+    } else {
+      columnHandles.push_back(std::make_shared<connector::hive::HiveColumnHandle>(
+          tableColumnNames.at(i),
+          connector::hive::HiveColumnHandle::ColumnType::kRegular,
+          tableColumnTypes.at(i),
+          tableColumnTypes.at(i)));
+    }
+  }
+  VELOX_CHECK_EQ(numPartitionColumns, partitionedBy.size());
+  VELOX_CHECK_EQ(numBucketColumns, bucketedBy.size());
+  VELOX_CHECK_EQ(numSortingColumns, sortedBy.size());
+  return std::make_shared<connector::hive::HiveInsertTableHandle>(
+      columnHandles, locationHandle, tableStorageFormat, bucketProperty, compressionKind);
+}
+
+core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::WriteRel& writeRel) {
+  core::PlanNodePtr childNode;
+  if (writeRel.has_input()) {
+    childNode = toVeloxPlan(writeRel.input());
+  } else {
+    VELOX_FAIL("Child Rel is expected in WriteRel.");
+  }
+  const auto& inputType = childNode->outputType();
+
+  std::vector<std::string> tableColumnNames;
+  std::vector<std::string> partitionedKey;
+  std::vector<bool> isPartitionColumns;
+  tableColumnNames.reserve(writeRel.table_schema().names_size());
+
+  if (writeRel.has_table_schema()) {
+    const auto& tableSchema = writeRel.table_schema();
+    isPartitionColumns = SubstraitParser::parsePartitionColumns(tableSchema);
+
+    for (const auto& name : tableSchema.names()) {
+      tableColumnNames.emplace_back(name);
+    }
+
+    for (int i = 0; i < tableSchema.names_size(); i++) {
+      if (isPartitionColumns[i]) {
+        partitionedKey.emplace_back(tableColumnNames[i]);
+      }
+    }
+  }
+
+  std::vector<std::string> writePath;
+  writePath.reserve(1);
+  for (const auto& name : writeRel.named_table().names()) {
+    writePath.emplace_back(name);
+  }
+
+  // spark default compression code is snappy.
+  common::CompressionKind compressionCodec = common::CompressionKind::CompressionKind_SNAPPY;
+  if (writeRel.named_table().has_advanced_extension()) {
+    std::cout << "the table has extension" << std::flush << std::endl;
+    if (SubstraitParser::configSetInOptimization(writeRel.named_table().advanced_extension(), "isSnappy=")) {
+      compressionCodec = common::CompressionKind::CompressionKind_SNAPPY;
+    } else if (SubstraitParser::configSetInOptimization(writeRel.named_table().advanced_extension(), "isGzip=")) {
+      compressionCodec = common::CompressionKind::CompressionKind_GZIP;
+    } else if (SubstraitParser::configSetInOptimization(writeRel.named_table().advanced_extension(), "isLzo=")) {
+      compressionCodec = common::CompressionKind::CompressionKind_LZO;
+    } else if (SubstraitParser::configSetInOptimization(writeRel.named_table().advanced_extension(), "isLz4=")) {
+      compressionCodec = common::CompressionKind::CompressionKind_LZ4;
+    } else if (SubstraitParser::configSetInOptimization(writeRel.named_table().advanced_extension(), "isZstd=")) {
+      compressionCodec = common::CompressionKind::CompressionKind_ZSTD;
+    } else if (SubstraitParser::configSetInOptimization(writeRel.named_table().advanced_extension(), "isNone=")) {
+      compressionCodec = common::CompressionKind::CompressionKind_NONE;
+    } else if (SubstraitParser::configSetInOptimization(
+                   writeRel.named_table().advanced_extension(), "isUncompressed=")) {
+      compressionCodec = common::CompressionKind::CompressionKind_NONE;
+    }
+  }
+
+  // Do not hard-code connector ID and allow for connectors other than Hive.
+  static const std::string kHiveConnectorId = "test-hive";
+
+  return std::make_shared<core::TableWriteNode>(
+      nextPlanNodeId(),
+      inputType,
+      tableColumnNames,
+      nullptr, /*aggregationNode*/
+      std::make_shared<core::InsertTableHandle>(
+          kHiveConnectorId,
+          makeHiveInsertTableHandle(
+              tableColumnNames, /*inputType->names() clolumn name is different*/
+              inputType->children(),
+              partitionedKey,
+              nullptr /*bucketProperty*/,
+              makeLocationHandle(writePath[0]),
+              dwio::common::FileFormat::PARQUET, // Currently only support parquet format.
+              compressionCodec)),
+      (isPartitionColumns.size() > 0) ? true : false,
+      exec::TableWriteTraits::outputType(nullptr),
+      connector::CommitStrategy::kNoCommit,
+      childNode);
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::ExpandRel& expandRel) {
@@ -1042,6 +1187,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return toVeloxPlan(rel.fetch());
   } else if (rel.has_window()) {
     return toVeloxPlan(rel.window());
+  } else if (rel.has_write()) {
+    return toVeloxPlan(rel.write());
   } else {
     VELOX_NYI("Substrait conversion not supported for Rel.");
   }

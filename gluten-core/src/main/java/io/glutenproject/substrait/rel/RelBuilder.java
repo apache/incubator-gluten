@@ -179,6 +179,31 @@ public class RelBuilder {
     return new ExpandRelNode(input, projections);
   }
 
+  public static RelNode makeWriteRel(
+      RelNode input,
+      List<TypeNode> types,
+      List<String> names,
+      List<ColumnTypeNode> columnTypeNodes,
+      String writePath,
+      SubstraitContext context,
+      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new WriteRelNode(input, types, names, columnTypeNodes, writePath);
+  }
+
+  public static RelNode makeWriteRel(
+      RelNode input,
+      List<TypeNode> types,
+      List<String> names,
+      List<ColumnTypeNode> columnTypeNodes,
+      String writePath,
+      AdvancedExtensionNode extensionNode,
+      SubstraitContext context,
+      Long operatorId) {
+    context.registerRelToOperator(operatorId);
+    return new WriteRelNode(input, types, names, columnTypeNodes, writePath, extensionNode);
+  }
+
   public static RelNode makeSortRel(
       RelNode input,
       List<SortField> sorts,

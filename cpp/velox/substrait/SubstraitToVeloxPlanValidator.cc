@@ -329,6 +329,47 @@ bool SubstraitToVeloxPlanValidator::validateExpression(
   }
 }
 
+bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeRel) {
+  if (writeRel.has_input() && !validate(writeRel.input())) {
+    std::cout << "Validation failed for input type validation in WriteRel." << std::endl;
+    return false;
+  }
+
+  // validate input datatype
+  std::vector<TypePtr> types;
+  if (writeRel.has_named_table()) {
+    const auto& extension = writeRel.named_table().advanced_extension();
+    if (!validateInputTypes(extension, types)) {
+      std::cout << "Validation failed for input types in WriteRel." << std::endl;
+      return false;
+    }
+  }
+
+  // Validate partition key type.
+  if (writeRel.has_table_schema()) {
+    const auto& tableSchema = writeRel.table_schema();
+    auto isPartitionColumns = SubstraitParser::parsePartitionColumns(tableSchema);
+    for (auto i = 0; i < types.size(); i++) {
+      if (isPartitionColumns[i]) {
+        switch (types[i]->kind()) {
+          case TypeKind::BOOLEAN:
+          case TypeKind::TINYINT:
+          case TypeKind::SMALLINT:
+          case TypeKind::INTEGER:
+          case TypeKind::BIGINT:
+          case TypeKind::VARCHAR:
+          case TypeKind::VARBINARY:
+            break;
+          default:
+            return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchRel) {
   RowTypePtr rowType = nullptr;
   // Get and validate the input types from extension.
@@ -1185,6 +1226,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
     return validate(rel.fetch());
   } else if (rel.has_window()) {
     return validate(rel.window());
+  } else if (rel.has_write()) {
+    return validate(rel.write());
   } else {
     return false;
   }

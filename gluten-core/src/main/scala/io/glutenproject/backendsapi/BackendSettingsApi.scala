@@ -26,7 +26,7 @@ import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
-import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
+import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
 import org.apache.spark.sql.types.StructField
 
 trait BackendSettingsApi {
@@ -35,6 +35,8 @@ trait BackendSettingsApi {
       fields: Array[StructField],
       partTable: Boolean,
       paths: Seq[String]): ValidationResult = ValidationResult.ok
+  def supportFileFormatWrite(format: FileFormat, fields: Array[StructField]): Boolean = false
+  def supportWriteExec(): Boolean = false
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true
