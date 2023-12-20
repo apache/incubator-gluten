@@ -124,9 +124,9 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     return std::make_unique<velox::parquet::LambdaFlushPolicy>(
         maxRowGroupRows_, maxRowGroupBytes_, [&]() { return false; });
   };
-  writeOption.schema = gluten::fromArrowSchema(schema_);
+  auto schema = gluten::fromArrowSchema(schema_);
 
-  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_);
+  parquetWriter_ = std::make_unique<velox::parquet::Writer>(std::move(sink_), writeOption, pool_, asRowType(schema));
 }
 
 void VeloxParquetDatasource::inspectSchema(struct ArrowSchema* out) {
