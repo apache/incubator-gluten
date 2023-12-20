@@ -185,4 +185,23 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
         }
     }
   }
+
+  test("Fix miss RowToColumnar with columnar table cache in AQE") {
+    withSQLConf(
+      "spark.sql.adaptive.forceApply" -> "true",
+      GlutenConfig.EXPRESSION_BLACK_LIST.key -> "add",
+      GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1") {
+      runQueryAndCompare("SELECT l_partkey + 1 FROM lineitem", cache = true) {
+        df =>
+          val plan = df.queryExecution.executedPlan
+          val tableCache = find(plan)(_.isInstanceOf[InMemoryTableScanExec])
+          assert(tableCache.isDefined)
+          val cachedPlan =
+            tableCache.get.asInstanceOf[InMemoryTableScanExec].relation.cachedPlan
+          assert(find(cachedPlan) {
+            _.isInstanceOf[ProjectExecTransformer]
+          }.isEmpty)
+      }
+    }
+  }
 }
