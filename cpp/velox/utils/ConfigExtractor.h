@@ -24,6 +24,7 @@
 #include <unordered_map>
 
 #include "config/GlutenConfig.h"
+#include "velox/core/Config.h"
 
 namespace gluten {
 

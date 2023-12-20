@@ -22,6 +22,7 @@
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/plan.pb.h"
 #include "utils/metrics.h"
+#include "velox/core/Config.h"
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
 
@@ -68,7 +69,7 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
   std::shared_ptr<facebook::velox::core::QueryCtx> createNewVeloxQueryCtx();
 
   /// A map of custom configs.
-  std::unordered_map<std::string, std::string> confMap_;
+  const std::shared_ptr<const Config> veloxCfg_;
 
   const SparkTaskInfo taskInfo_;
 

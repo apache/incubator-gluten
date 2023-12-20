@@ -515,9 +515,6 @@ object GlutenConfig {
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
-      (
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.key,
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
@@ -1095,7 +1092,7 @@ object GlutenConfig {
       .createWithDefault(30000)
 
   val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
+    buildConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
       .internal()
       .doc("The split preload per task")
       .intConf
