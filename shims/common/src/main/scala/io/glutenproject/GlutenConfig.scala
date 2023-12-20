@@ -174,6 +174,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def queryFallbackThreshold: Int = conf.getConf(COLUMNAR_QUERY_FALLBACK_THRESHOLD)
 
+  def fallbackIgnoreRowToColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR)
+
+  def fallbackPreferColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
+
   def numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean = conf.getConf(COLUMNAR_NUMA_BINDING_ENABLED)
     if (!enableNumaBinding) {
@@ -944,6 +948,24 @@ object GlutenConfig {
         "by counting the number of ColumnarToRow & vanilla leaf node.")
       .intConf
       .createWithDefault(-1)
+
+  val COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR =
+    buildConf("spark.gluten.sql.columnar.fallback.ignoreRowToColumnar")
+      .internal()
+      .doc(
+        "When true, the fallback policy ignores the RowToColumnar when counting fallback number.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_FALLBACK_PREFER_COLUMNAR =
+    buildConf("spark.gluten.sql.columnar.fallback.preferColumnar")
+      .internal()
+      .doc(
+        "When true, the fallback policy prefers to use Gluten plan rather than vanilla " +
+          "Spark plan if the both of them contains ColumnarToRow and the vanilla Spark plan " +
+          "ColumnarToRow number is not smaller than Gluten plan.")
+      .booleanConf
+      .createWithDefault(true)
 
   val COLUMNAR_NUMA_BINDING_ENABLED =
     buildConf("spark.gluten.sql.columnar.numaBinding")
