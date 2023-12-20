@@ -1082,8 +1082,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_unix_timestamp")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
-    .excludeByPrefix("static scan metrics")
-    .excludeByPrefix("Gluten - static scan metrics")
   enableSuite[GlutenExpressionsSchemaSuite]
     .exclude("Check schemas for expression examples")
   enableSuite[GlutenExtraStrategiesSuite]
