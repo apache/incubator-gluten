@@ -303,11 +303,9 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
           case s: ColumnarSubqueryBroadcastExec => s
         }
         assert(subqueryBroadcastExecs.size === 1)
-        // Not relevant. See MetricsApiImpl.genColumnarSubqueryBroadcastMetrics
-        // and org.apache.spark.sql.execution.ColumnarSubqueryBroadcastExec.metrics
-//        subqueryBroadcastExecs.foreach {
-//          subqueryBroadcastExec => assert(subqueryBroadcastExec.metrics("outputRows").value === 1)
-//        }
+        subqueryBroadcastExecs.foreach {
+          subqueryBroadcastExec => assert(subqueryBroadcastExec.metrics("numOutputRows").value === 1)
+        }
 
         checkAnswer(df, Row(1060, 2) :: Row(1060, 2) :: Row(1060, 2) :: Nil)
       }
@@ -753,7 +751,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan
 
 // Same as above except AQE is off.
 class GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan
-  extends GlutenDynamicPartitionPruningV2SuiteAEOff {
+  extends GlutenDynamicPartitionPruningV1SuiteAEOff {
   override def sparkConf: SparkConf = {
     super.sparkConf.set(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key, "false")
   }
