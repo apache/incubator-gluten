@@ -247,7 +247,7 @@ void AggregateRelParser::addMergingAggregatedStep()
     auto settings = getContext()->getSettingsRef();
     Aggregator::Params params(
         grouping_keys, aggregate_descriptions, false, settings.max_threads, settings.max_block_size, settings.min_hit_rate_to_use_consecutive_keys_optimization);
-    bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", false);
+    bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", true);
     if (enable_streaming_aggregating)
     {
         auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params);
@@ -278,7 +278,7 @@ void AggregateRelParser::addAggregatingStep()
     AggregateDescriptions aggregate_descriptions;
     buildAggregateDescriptions(aggregate_descriptions);
     auto settings = getContext()->getSettingsRef();
-    bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", false);
+    bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", true);
 
     if (enable_streaming_aggregating)
     {

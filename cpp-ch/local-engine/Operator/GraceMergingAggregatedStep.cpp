@@ -103,6 +103,11 @@ GraceMergingAggregatedTransform::GraceMergingAggregatedTransform(const DB::Block
     , context(context_)
     , tmp_data_disk(std::make_unique<DB::TemporaryDataOnDisk>(context_->getTempDataOnDisk()))
 {
+    max_buckets = context->getConfigRef().getUInt64("max_grace_merging_buckets", 32);
+    throw_on_overflow_buckets = context->getConfigRef().getBool("throw_on_overflow_grace_merging_buckets", false);
+    aggregated_keys_before_extend_buckets = context->getConfigRef().getUInt64("aggregated_keys_before_extend_grace_merging_buckets", 8196);
+    max_pending_flush_blocks_per_bucket = context->getConfigRef().getUInt64("max_pending_flush_blocks_per_grace_merging_bucket", 1024 * 1024);
+    max_allowed_memory_usage_ratio = context->getConfigRef().getDouble("max_allowed_memory_usage_ratio", 0.9);
     current_data_variants = std::make_shared<DB::AggregatedDataVariants>();
     // bucket 0 is for in-memory data, it's just a placeholder.
     buckets.emplace(0, BufferFileStream());
@@ -215,18 +220,27 @@ void GraceMergingAggregatedTransform::work()
     }
 }
 
-void GraceMergingAggregatedTransform::extendBuckets()
+bool GraceMergingAggregatedTransform::extendBuckets()
 {
+    if (!current_data_variants || current_data_variants->size() < aggregated_keys_before_extend_buckets)
+        return false;
+
     auto current_size = getBucketsNum();
     auto next_size = current_size * 2;
     if (next_size > max_buckets)
-        throw DB::Exception(
-            DB::ErrorCodes::LOGICAL_ERROR,
-            "Too many buckets, limit is {}. Please consider increate offhead size or partitoin number",
-            max_buckets);
+    {
+        if (throw_on_overflow_buckets)
+            throw DB::Exception(
+                DB::ErrorCodes::LOGICAL_ERROR,
+                "Too many buckets, limit is {}. Please consider increate offhead size or partitoin number",
+                max_buckets);
+        else
+         return false;
+    }
     LOG_INFO(logger, "extend buckets from {} to {}", current_size, next_size);
     for (size_t i = current_size; i < next_size; ++i)
         buckets.emplace(i, BufferFileStream());
+    return true;
 }
 
 void GraceMergingAggregatedTransform::rehashDataVariants()
@@ -280,11 +294,14 @@ void GraceMergingAggregatedTransform::addBlockIntoFileBucket(size_t bucket_index
     if (!block.rows())
         return;
     auto & file_stream = buckets[bucket_index];
+    pending_flush_blocks_bytes += block.bytes();
     file_stream.blocks.push_back(block);
 }
 
 void GraceMergingAggregatedTransform::flushBuckets()
 {
+    if (pending_flush_blocks_bytes < getBucketsNum() * max_pending_flush_blocks_per_bucket)
+        return;
     auto before_mem = getMemoryUsage();
     size_t flush_bytes = 0;
     Stopwatch watch;
@@ -293,6 +310,7 @@ void GraceMergingAggregatedTransform::flushBuckets()
     total_spill_disk_time += watch.elapsedMilliseconds();
     total_spill_disk_bytes += flush_bytes;
     LOG_INFO(logger, "flush {} in {} ms, memoery usage: {} -> {}", ReadableSize(flush_bytes), watch.elapsedMilliseconds(), ReadableSize(before_mem), ReadableSize(getMemoryUsage()));
+    pending_flush_blocks_bytes = 0;
 }
 
 size_t GraceMergingAggregatedTransform::flushBucket(size_t bucket_index)
@@ -374,9 +392,8 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
     if (isMemoryOverflow())
         flushBuckets();
 
-    if (isMemoryOverflow())
+    if (isMemoryOverflow() && extendBuckets())
     {
-        extendBuckets();
         rehashDataVariants();
     }
 
@@ -419,7 +436,7 @@ bool GraceMergingAggregatedTransform::isMemoryOverflow()
     /// More greedy memory usage strategy.
     if (!context->getSettingsRef().max_memory_usage)
         return false;
-    auto max_mem_used = context->getSettingsRef().max_memory_usage * 8 / 10;
+    auto max_mem_used = static_cast<size_t>(context->getSettingsRef().max_memory_usage * max_allowed_memory_usage_ratio);
     auto current_result_rows = current_data_variants->size();
     auto current_mem_used = getMemoryUsage();
     if (per_key_memory_usage > 0)
@@ -439,13 +456,14 @@ bool GraceMergingAggregatedTransform::isMemoryOverflow()
     }
     else
     {
-        if (current_mem_used * 2 >= context->getSettingsRef().max_memory_usage)
+        if (current_mem_used * 2 >= max_mem_used)
         {
             LOG_INFO(
                 logger,
-                "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, buckets: {}",
+                "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, aggregator keys: {}, buckets: {}",
                 ReadableSize(current_mem_used),
-                ReadableSize(context->getSettingsRef().max_memory_usage),
+                ReadableSize(max_mem_used),
+                current_result_rows,
                 getBucketsNum());
             return true;
         }

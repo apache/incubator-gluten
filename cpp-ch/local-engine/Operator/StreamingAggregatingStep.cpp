@@ -40,6 +40,9 @@ StreamingAggregatingTransform::StreamingAggregatingTransform(DB::ContextPtr cont
     , aggregate_columns(params_->params.aggregates_size)
     , params(params_)
 {
+    aggregated_keys_before_evict = context->getConfigRef().getUInt64("aggregated_keys_before_streaming_aggregating_evict", 1024);
+    max_allowed_memory_usage_ratio = context->getConfigRef().getDouble("max_memory_usage_ratio_for_streaming_aggregating", 0.9);
+    high_cardinality_threshold = context->getConfigRef().getDouble("high_cardinality_threshold_for_streaming_aggregating", 0.8);
 }
 
 StreamingAggregatingTransform::~StreamingAggregatingTransform()
@@ -115,13 +118,21 @@ static UInt64 getMemoryUsage()
     return current_memory_usage < 0 ? 0 : current_memory_usage;
 }
 
-bool StreamingAggregatingTransform::isMemoryOverflow()
+bool StreamingAggregatingTransform::needEvict()
 {
     /// More greedy memory usage strategy.
     if (!context->getSettingsRef().max_memory_usage)
         return false;
-    auto max_mem_used = context->getSettingsRef().max_memory_usage * 8 / 10;
+    auto max_mem_used = static_cast<size_t>(context->getSettingsRef().max_memory_usage * max_allowed_memory_usage_ratio);
     auto current_result_rows = data_variants->size();
+    if (current_result_rows < aggregated_keys_before_evict)
+        return false;
+    
+    /// If the grouping keys is high cardinality, we should evict data variants early, and avoid to use a big
+    /// hash table.
+    if (static_cast<double>(total_output_rows)/total_input_rows > high_cardinality_threshold)
+        return true;
+
     auto current_mem_used = getMemoryUsage();
     if (per_key_memory_usage > 0)
     {
@@ -139,13 +150,14 @@ bool StreamingAggregatingTransform::isMemoryOverflow()
     }
     else
     {
-        if (current_mem_used * 2 >= context->getSettingsRef().max_memory_usage)
+        if (current_mem_used * 2 >= max_mem_used)
         {
             LOG_INFO(
                 logger,
-                "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}",
+                "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, aggregator keys: {}",
                 ReadableSize(current_mem_used),
-                ReadableSize(context->getSettingsRef().max_memory_usage));
+                ReadableSize(max_mem_used),
+                current_result_rows);
             return true;
         }
     }
@@ -198,7 +210,7 @@ void StreamingAggregatingTransform::work()
         total_aggregate_time += watch.elapsedMicroseconds();
         has_input = false;
 
-        if (isMemoryOverflow())
+        if (needEvict())
         {
             Stopwatch convert_watch;
             /// When convert data variants to blocks, memory usage may be double.

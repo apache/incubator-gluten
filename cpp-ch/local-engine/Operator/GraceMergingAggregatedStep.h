@@ -54,7 +54,6 @@ private:
 class GraceMergingAggregatedTransform : public DB::IProcessor
 {
 public:
-    static constexpr size_t max_buckets = 32;
     using Status = DB::IProcessor::Status;
     explicit GraceMergingAggregatedTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_);
     ~GraceMergingAggregatedTransform() override;
@@ -69,6 +68,10 @@ private:
     DB::TemporaryDataOnDiskPtr tmp_data_disk;
     DB::AggregatedDataVariantsPtr current_data_variants = nullptr;
     size_t current_bucket_index = 0;
+    size_t max_buckets = 0;
+    bool throw_on_overflow_buckets = false;
+    size_t aggregated_keys_before_extend_buckets = 8196;
+    double max_allowed_memory_usage_ratio = 0.9;
 
     struct BufferFileStream
     {
@@ -78,7 +81,7 @@ private:
     std::unordered_map<size_t, BufferFileStream> buckets;
 
     size_t getBucketsNum() const { return buckets.size(); }
-    void extendBuckets();
+    bool extendBuckets();
     void rehashDataVariants();
     DB::Blocks scatterBlock(const DB::Block & block);
     void addBlockIntoFileBucket(size_t bucket_index, const DB::Block & block);
@@ -98,6 +101,9 @@ private:
     bool no_more_keys = false;
 
     double per_key_memory_usage = 0;
+    size_t pending_flush_blocks_bytes = 0;
+    // configured by max_pending_flush_blocks_per_grace_merging_bucket
+    size_t max_pending_flush_blocks_per_bucket = 0;
 
     // metrics
     size_t total_input_blocks = 0;

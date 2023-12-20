@@ -54,6 +54,7 @@
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
 #include <Common/Config/ConfigProcessor.h>
+#include <Common/CurrentThread.h>
 #include <Common/GlutenSignalHandler.h>
 #include <Common/Logger.h>
 #include <Common/logger_useful.h>
@@ -793,6 +794,19 @@ void BackendFinalizerUtil::finalizeSessionally()
 Int64 DateTimeUtil::currentTimeMillis()
 {
     return timeInMilliseconds(std::chrono::system_clock::now());
+}
+
+UInt64 MemoryUtil::getCurrentMemoryUsage(size_t depth)
+{
+    Int64 current_memory_usage = 0;
+    auto * current_mem_tracker = DB::CurrentThread::getMemoryTracker();
+    for (size_t i = 0; i < depth && current_mem_tracker; ++i)
+    {
+        current_mem_tracker = current_mem_tracker->getParent();
+    }
+    if (current_mem_tracker)
+        current_memory_usage = current_mem_tracker->get();
+    return current_memory_usage < 0 ? 0 : current_memory_usage;
 }
 
 }

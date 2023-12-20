@@ -207,4 +207,10 @@ public:
     static Int64 currentTimeMillis();
 };
 
+class MemoryUtil
+{
+public:
+    static UInt64 getCurrentMemoryUsage(size_t depth = 1);
+};
+
 }

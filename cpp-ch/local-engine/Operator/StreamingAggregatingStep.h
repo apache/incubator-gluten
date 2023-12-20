@@ -47,6 +47,9 @@ private:
     DB::ColumnRawPtrs key_columns;
     DB::Aggregator::AggregateColumns aggregate_columns;
     DB::AggregatingTransformParamsPtr params;
+    size_t aggregated_keys_before_evict = 1024;
+    double max_allowed_memory_usage_ratio = 0.9;
+    double high_cardinality_threshold = 0.8;
 
     bool no_more_keys = false;
     bool is_consume_finished = false;
@@ -71,7 +74,7 @@ private:
     size_t total_aggregate_time = 0;
     size_t total_convert_data_variants_time = 0;
 
-    bool isMemoryOverflow();
+    bool needEvict();
 };
 
 class StreamingAggregatingStep : public DB::ITransformingStep
