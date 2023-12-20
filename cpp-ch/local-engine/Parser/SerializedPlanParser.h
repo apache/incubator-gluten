@@ -179,6 +179,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"add_months", "addMonths"},
        {"date_trunc", "dateTrunc"},
        {"floor_datetime", "dateTrunc"},
+       {"floor", "spark_floor"},
        {"months_between", "sparkMonthsBetween"},
 
        // array functions
