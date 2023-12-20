@@ -83,6 +83,7 @@ const std::string kSkippedStrides = "skippedStrides";
 const std::string kProcessedStrides = "processedStrides";
 const std::string kRemainingFilterTime = "totalRemainingFilterTime";
 const std::string kIoWaitTime = "ioWaitNanos";
+const std::string kPreloadSplits = "readyPreloadedSplits";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
@@ -297,6 +298,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kRemainingFilterTime)[metricIndex] =
           runtimeMetric("sum", second->customStats, kRemainingFilterTime);
       metrics_->get(Metrics::kIoWaitTime)[metricIndex] = runtimeMetric("sum", second->customStats, kIoWaitTime);
+      metrics_->get(Metrics::kPreloadSplits)[metricIndex] = runtimeMetric("sum", entry.second->customStats, kPreloadSplits);
       metricIndex += 1;
     }
   }
