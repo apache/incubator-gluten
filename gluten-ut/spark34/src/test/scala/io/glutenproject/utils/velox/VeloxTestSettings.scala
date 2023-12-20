@@ -1024,8 +1024,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataFrameSelfJoinSuite]
   enableSuite[GlutenDataFrameSessionWindowingSuite]
   enableSuite[GlutenDataFrameSetOperationsSuite]
-    // exclude as map not supported
-    .exclude("SPARK-36797: Union should resolve nested columns as top-level columns")
     .exclude("SPARK-37371: UnionExec should support columnar if all children support columnar")
     // Result depends on the implementation for nondeterministic expression rand.
     // Not really an issue.
@@ -1050,8 +1048,6 @@ class VeloxTestSettings extends BackendTestSettings {
       "Gluten - describe",
       // decimal failed ut.
       "SPARK-22271: mean overflows and returns null for some decimal variables",
-      // Not supported for approx_count_distinct
-      "SPARK-34165: Add count_distinct to summary",
       // Result depends on the implementation for nondeterministic expression rand.
       // Not really an issue.
       "SPARK-9083: sort with non-deterministic expressions",
