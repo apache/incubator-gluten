@@ -19,6 +19,7 @@ set -exu
 VELOX_REPO=https://github.com/oap-project/velox.git
 VELOX_BRANCH=update
 VELOX_HOME=""
+VELOX_COMMIT=aa45d51f2408d5f143f8c31542e325cedf6cebcf
 
 #Set on run gluten on HDFS
 ENABLE_HDFS=OFF
@@ -223,7 +224,7 @@ fi
 VELOX_SOURCE_DIR="${VELOX_HOME}"
 
 # checkout code
-TARGET_BUILD_COMMIT="$(git ls-remote $VELOX_REPO $VELOX_BRANCH | awk '{print $1;}')"
+TARGET_BUILD_COMMIT=$VELOX_COMMIT
 if [ -d $VELOX_SOURCE_DIR ]; then
   echo "Velox source folder $VELOX_SOURCE_DIR already exists..."
   cd $VELOX_SOURCE_DIR
@@ -235,8 +236,9 @@ if [ -d $VELOX_SOURCE_DIR ]; then
   git reset --hard HEAD
   git checkout refs/tags/build_$TARGET_BUILD_COMMIT
 else
-  git clone $VELOX_REPO -b $VELOX_BRANCH $VELOX_SOURCE_DIR
+  mkdir -p $VELOX_SOURCE_DIR
   cd $VELOX_SOURCE_DIR
+  git fetch $VELOX_REPO $TARGET_BUILD_COMMIT
   git checkout $TARGET_BUILD_COMMIT
 fi
 #sync submodules
