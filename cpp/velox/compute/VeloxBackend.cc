@@ -194,6 +194,9 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   initUdf(veloxcfg);
   registerSparkTokenizer();
+
+  // initialize the global memory manager for current process
+  facebook::velox::memory::MemoryManager::initialize({});
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
