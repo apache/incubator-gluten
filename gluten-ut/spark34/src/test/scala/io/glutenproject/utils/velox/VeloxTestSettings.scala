@@ -1078,23 +1078,13 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_unix_timestamp")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
-    .excludeByPrefix("static scan metrics")
-    .excludeByPrefix("Gluten - static scan metrics")
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenExpressionsSchemaSuite]
     .exclude("Check schemas for expression examples")
   enableSuite[GlutenExtraStrategiesSuite]
