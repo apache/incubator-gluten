@@ -339,6 +339,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
+          echo $(pwd)  && \
           OS_IMAGE=centos:8 /root/gluten-te/centos/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
