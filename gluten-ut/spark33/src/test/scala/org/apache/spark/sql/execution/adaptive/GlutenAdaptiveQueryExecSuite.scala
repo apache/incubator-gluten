@@ -1153,22 +1153,22 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         .toDF("c1", "c2")
         .createOrReplaceTempView("t2")
 
-      // t1 partition size: [926, 729, 731]
-      // t2 partition size: [318, 120, 0]
+      // t1 partition size: [395, 316, 313]
+      // t2 partition size: [140, 50, 0]
       withSQLConf(
         SQLConf.SHUFFLE_PARTITIONS.key -> "3",
         SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",
         SQLConf.PREFER_SORTMERGEJOIN.key -> "true") {
         // check default value
         checkJoinStrategy(false)
-        withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "400") {
-          checkJoinStrategy(false)
+        withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "200") {
+          checkJoinStrategy(true)
         }
-        withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "300") {
+        withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "100") {
           checkJoinStrategy(false)
         }
         withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "1000") {
-          checkJoinStrategy(false)
+          checkJoinStrategy(true)
         }
       }
     }
@@ -1235,11 +1235,12 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
           assert(read.head.partitionSpecs.size == totalNumber)
         }
 
-        withSQLConf(SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key -> "150") {
-          // partition size [0,258,72,72,72]
-          checkPartitionNumber("SELECT /*+ REBALANCE(c1) */ * FROM v", 3, 6)
-          // partition size [72,216,216,144,72]
-          checkPartitionNumber("SELECT /*+ REBALANCE */ * FROM v", 9, 10)
+        // Changed ADVISORY_PARTITION_SIZE_IN_BYTES from 150 to 120 because Gluten has smaller partition size.
+        withSQLConf(SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key -> "120") {
+          // partition size [0,208,54,54,54]
+          checkPartitionNumber("SELECT /*+ REBALANCE(c1) */ * FROM v", 2, 4)
+          // partition size [108, 54, 60, 108, 54, 108, 54]
+          checkPartitionNumber("SELECT /*+ REBALANCE */ * FROM v", 6, 7)
         }
 
         // no skewed partition should be optimized
