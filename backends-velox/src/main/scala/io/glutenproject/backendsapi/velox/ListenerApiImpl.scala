@@ -87,6 +87,8 @@ class ListenerApiImpl extends ListenerApi {
       new SharedLibraryLoaderCentos8
     } else if (systemName.contains("Red Hat") && systemVersion.startsWith("7")) {
       new SharedLibraryLoaderCentos7
+    } else if (systemName.contains("Debian") && systemVersion.startsWith("11")) {
+      new SharedLibraryLoaderDebian11
     } else {
       throw new GlutenException(
         "Found unsupported OS! Currently, Gluten's Velox backend" +
