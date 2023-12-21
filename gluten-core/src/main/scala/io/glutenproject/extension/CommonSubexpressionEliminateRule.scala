@@ -80,8 +80,11 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
   }
 
   private def isValidCommonExpr(expr: Expression): Boolean = {
-    logDebug(s"check expr $expr class ${expr.getClass.toString}")
-    if (expr.isInstanceOf[Unevaluable] || expr.isInstanceOf[AggregateFunction]) {
+    if (
+      (expr.isInstanceOf[Unevaluable] && !expr.isInstanceOf[AttributeReference])
+      || expr.isInstanceOf[AggregateFunction]
+    ) {
+      logTrace(s"Check common expression failed $expr class ${expr.getClass.toString}")
       return false
     }
 
@@ -89,7 +92,7 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
   }
 
   private def rewrite(inputCtx: RewriteContext): RewriteContext = {
-    logDebug(s"Start rewrite with input exprs:${inputCtx.exprs} input child:${inputCtx.child}")
+    logTrace(s"Start rewrite with input exprs:${inputCtx.exprs} input child:${inputCtx.child}")
     val equivalentExpressions = new EquivalentExpressions
     inputCtx.exprs.foreach(equivalentExpressions.addExprTree(_))
 
@@ -102,7 +105,7 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     commonExprs.foreach {
       expr =>
         if (!expr.foldable && !expr.isInstanceOf[Attribute] && isValidCommonExpr(expr)) {
-          logDebug(s"Common expr $expr class ${expr.getClass.toString}")
+          logTrace(s"Common subexpression $expr class ${expr.getClass.toString}")
           val exprEquals = ExpressionEquals(expr)
           val alias = Alias(expr, expr.toString)()
           val attribute = alias.toAttribute
@@ -111,20 +114,20 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     }
 
     if (commonExprMap.isEmpty) {
-      logDebug(s"commonExprMap is empty all exprs: ${equivalentExpressions.debugString(true)}")
+      logTrace(s"commonExprMap is empty, all exprs: ${equivalentExpressions.debugString(true)}")
       return RewriteContext(inputCtx.exprs, newChild)
     }
 
     // Generate pre-project as new child
     var preProjectList = newChild.output ++ commonExprMap.values.map(_.alias)
     val preProject = Project(preProjectList, newChild)
-    logDebug(s"newChild: $preProject")
+    logTrace(s"newChild after rewrite: $preProject")
 
     // Replace the common expressions with the first expression that produces it.
     try {
       var newExprs = inputCtx.exprs
         .map(replaceCommonExprWithAttribute(_, commonExprMap))
-      logDebug(s"newExprs: $newExprs")
+      logTrace(s"newExprs after rewrite: $newExprs")
       RewriteContext(newExprs, preProject)
     } catch {
       case e: Exception =>

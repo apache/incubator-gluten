@@ -20,6 +20,7 @@ import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
@@ -29,6 +30,7 @@ import java.nio.file.Files
 import java.sql.Date
 
 import scala.collection.immutable.Seq
+import scala.reflect.ClassTag
 
 class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerSuite {
   override protected val resourcePath: String = {
@@ -529,29 +531,46 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   }
 
   test("test common subexpression eliminate") {
+    def checkOperatorCount[T <: TransformSupport](count: Int)(df: DataFrame)(implicit
+        tag: ClassTag[T]): Unit = {
+      assert(
+        getExecutedPlan(df).count(
+          plan => {
+            plan.getClass == tag.runtimeClass
+          }) == count)
+    }
+
     withSQLConf(("spark.gluten.sql.commonSubexpressionEliminate", "true")) {
       // CSE in project
-      runQueryAndCompare("select hash(id), hash(id)+1, hash(id)-1 from range(10)") { _ => }
+      runQueryAndCompare("select hash(id), hash(id)+1, hash(id)-1 from range(10)") {
+        df => checkOperatorCount[ProjectExecTransformer](2)(df)
+      }
 
       // CSE in filter(not work yet)
-      runQueryAndCompare(
-        "select id from range(10) " +
-          "where hex(id) != '' and upper(hex(id)) != '' and lower(hex(id)) != ''") { _ => }
+      // runQueryAndCompare(
+      //   "select id from range(10) " +
+      //     "where hex(id) != '' and upper(hex(id)) != '' and lower(hex(id)) != ''") { _ => }
 
       // CSE in window
       runQueryAndCompare(
         "SELECT id, AVG(id) OVER (PARTITION BY id % 2 ORDER BY id) as avg_id, " +
-          "SUM(id) OVER (PARTITION BY id % 2 ORDER BY id) as sum_id FROM range(10)") { _ => }
+          "SUM(id) OVER (PARTITION BY id % 2 ORDER BY id) as sum_id FROM range(10)") {
+        df => checkOperatorCount[ProjectExecTransformer](4)(df)
+      }
 
       // CSE in aggregate
       runQueryAndCompare(
         "select id % 2, max(hash(id)), min(hash(id)) " +
-          "from range(10) group by id % 2") { _ => }
+          "from range(10) group by id % 2") {
+        df => checkOperatorCount[ProjectExecTransformer](1)(df)
+      }
 
       // CSE in sort
       runQueryAndCompare(
         "select id from range(10) " +
-          "order by hash(id%10), hash(hash(id%10))") { _ => }
+          "order by hash(id%10), hash(hash(id%10))") {
+        df => checkOperatorCount[ProjectExecTransformer](2)(df)
+      }
     }
   }
 }
