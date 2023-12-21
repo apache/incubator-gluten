@@ -65,10 +65,6 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
   def getRelNode(
       context: SubstraitContext,
       condExpr: Expression,
@@ -234,10 +230,6 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
         operatorId,
         emitStartIndex)
     }
-  }
-
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
