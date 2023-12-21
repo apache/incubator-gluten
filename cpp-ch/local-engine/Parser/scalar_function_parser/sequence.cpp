@@ -106,13 +106,10 @@ public:
 
         DataTypePtr result_type = makeNullable(range_1_node->result_type);
         const auto * null_const_node = addColumnToActionsDAG(actions_dag, result_type, {});
+        const auto * or_condition_node = toFunctionNode(actions_dag, "or", {start_is_null_node, end_is_null_node, step_is_null_node});
 
         const auto * result_node = toFunctionNode(actions_dag, "multiIf", {
-            start_is_null_node,
-            null_const_node,
-            end_is_null_node,
-            null_const_node,
-            step_is_null_node,
+            or_condition_node,
             null_const_node,
             modulo_step_eq_zero_node,
             range_1_node,

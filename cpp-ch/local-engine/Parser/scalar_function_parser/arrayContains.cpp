@@ -94,16 +94,13 @@ public:
         const auto * null_const_node = addColumnToActionsDAG(actions_dag, result_type, Field{});
         const auto * true_node = addColumnToActionsDAG(actions_dag, result_type, 1);
         const auto * false_node = addColumnToActionsDAG(actions_dag, result_type, 0);
+        const auto * or_condition_node = toFunctionNode(actions_dag, "or", {arr_is_null_node, val_is_null_node, has_arr_null_node});
 
         const auto * multi_if_node = toFunctionNode(actions_dag, "multiIf", {
-            arr_is_null_node,
-            null_const_node,
-            val_is_null_node,
+            or_condition_node,
             null_const_node,
             has_arr_value_node,
             true_node,
-            has_arr_null_node,
-            null_const_node,
             false_node
         });
         return convertNodeTypeIfNeeded(substrait_func, multi_if_node, actions_dag);
