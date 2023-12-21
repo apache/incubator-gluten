@@ -355,22 +355,19 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::CrossRel& crossRel) {
-    // Support basic cross join without any filters
-    if (!crossRel.has_left()) {
-      VELOX_FAIL("Left Rel is expected in CrossRel.");
-    }
-    if (!crossRel.has_right()) {
-      VELOX_FAIL("Right Rel is expected in CrossRel.");
-    }
+  // Support basic cross join without any filters
+  if (!crossRel.has_left()) {
+    VELOX_FAIL("Left Rel is expected in CrossRel.");
+  }
+  if (!crossRel.has_right()) {
+    VELOX_FAIL("Right Rel is expected in CrossRel.");
+  }
 
-    auto leftNode = toVeloxPlan(crossRel.left());
-    auto rightNode = toVeloxPlan(crossRel.right());
+  auto leftNode = toVeloxPlan(crossRel.left());
+  auto rightNode = toVeloxPlan(crossRel.right());
 
-    return std::make_shared<core::NestedLoopJoinNode>(
-        nextPlanNodeId(),
-        leftNode,
-        rightNode,
-        getJoinInputType(leftNode, rightNode));
+  return std::make_shared<core::NestedLoopJoinNode>(
+      nextPlanNodeId(), leftNode, rightNode, getJoinInputType(leftNode, rightNode));
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::AggregateRel& aggRel) {

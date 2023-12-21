@@ -944,9 +944,9 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::JoinRel& joinRel
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossRel) {
   if (crossRel.has_left() && !validate(crossRel.left())) {
-      logValidateMsg("native validation failed due to: validation fails for cross join left input. ");
-      return false;
-    }
+    logValidateMsg("native validation failed due to: validation fails for cross join left input. ");
+    return false;
+  }
 
   if (crossRel.has_right() && !validate(crossRel.right())) {
     logValidateMsg("native validation failed due to: validation fails for cross join right input. ");
