@@ -26,11 +26,9 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.Any
 
@@ -205,10 +203,6 @@ case class ExpandExecTransformer(
       getRelNode(context, projections, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Expand Rel should be valid")
     TransformContext(childCtx.outputAttributes, output, currRel)
-  }
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ExpandExecTransformer =
