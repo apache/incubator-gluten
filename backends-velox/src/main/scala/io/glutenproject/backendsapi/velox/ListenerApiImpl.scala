@@ -93,7 +93,8 @@ class ListenerApiImpl extends ListenerApi {
       throw new GlutenException(
         "Found unsupported OS! Currently, Gluten's Velox backend" +
           " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
-          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8.")
+          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8, " +
+          "Debian 11.")
     }
     loader.loadLib(load)
   }
