@@ -316,9 +316,8 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
   }
 
   override protected def withNewChildrenInternal(
-      newChildren: IndexedSeq[SparkPlan]): UnionExecTransformer = {
+      newChildren: IndexedSeq[SparkPlan]): UnionExecTransformer =
     copy(children = newChildren)
-  }
 
   def columnarInputRDD: RDD[ColumnarBatch] = {
     if (children.isEmpty) {

@@ -113,18 +113,22 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
   private var outputSchemaForPlan: Option[TypeNode] = None
 
+  private def inferSchemaFromAttributes(attrs: Seq[Attribute]): TypeNode = {
+    val outputTypeNodeList = new java.util.ArrayList[TypeNode]()
+    for (attr <- attrs) {
+      outputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+    }
+
+    TypeBuilder.makeStruct(false, outputTypeNodeList)
+  }
+
   def setOutputSchemaForPlan(expectOutput: Seq[Attribute]): Unit = {
     if (outputSchemaForPlan.isDefined) {
       return
     }
 
-    val outputTypeNodeList = new java.util.ArrayList[TypeNode]()
-    for (attr <- expectOutput) {
-      outputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-    }
-
     // Fixes issue-1874
-    outputSchemaForPlan = Some(TypeBuilder.makeStruct(false, outputTypeNodeList))
+    outputSchemaForPlan = Some(inferSchemaFromAttributes(expectOutput))
   }
 
   def substraitPlan: PlanNode = {
@@ -216,11 +220,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
       val outputSchema = if (outputSchemaForPlan.isDefined) {
         outputSchemaForPlan.get
       } else {
-        val outputTypeNodeList = new java.util.ArrayList[TypeNode]()
-        for (attr <- childCtx.outputAttributes) {
-          outputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
-        }
-        TypeBuilder.makeStruct(false, outputTypeNodeList)
+        inferSchemaFromAttributes(childCtx.outputAttributes)
       }
 
       PlanBuilder.makePlan(
