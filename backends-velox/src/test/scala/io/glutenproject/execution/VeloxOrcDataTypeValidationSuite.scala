@@ -20,11 +20,11 @@ import org.apache.spark.SparkConf
 
 import java.io.File
 
-class VeloxDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
+class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/data-type-validation-data"
-  override protected val fileFormat: String = "parquet"
+  override protected val fileFormat: String = "orc"
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -38,8 +38,9 @@ class VeloxDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
     ).map {
       table =>
         val tableDir = getClass.getResource(resourcePath).getFile
-        val tablePath = new File(tableDir, table).getAbsolutePath
+        val tablePath = new File(tableDir, table + "_" + fileFormat).getAbsolutePath
         val tableDF = spark.read.format(fileFormat).load(tablePath)
+
         tableDF.createOrReplaceTempView(table)
         (table, tableDF)
     }.toMap
@@ -438,8 +439,9 @@ class VeloxDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
       df =>
         {
           val executedPlan = getExecutedPlan(df)
+          // Note: timestamp is not supported in ORC
           assert(
-            executedPlan.exists(
+            !executedPlan.exists(
               plan => plan.find(child => child.isInstanceOf[BatchScanExecTransformer]).isDefined))
         }
     }
