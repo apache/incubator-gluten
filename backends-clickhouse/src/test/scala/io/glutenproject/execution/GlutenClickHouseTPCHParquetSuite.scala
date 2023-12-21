@@ -2253,5 +2253,21 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-4032: fix shuffle read coredump after union") {
+    val sql =
+      """
+        |select p_partkey from (
+        |  select *, row_number() over (partition by p_partkey order by is_new) as rank from(
+        |    select p_partkey, 0 as is_new from part where p_partkey is not null
+        |    union all
+        |    select p_partkey, p_size as is_new from (
+        |      select p_partkey, p_size,
+        |        row_number() over (partition by p_name order by p_partkey) as rn from part
+        |    ) t0 where rn = 1
+        |  ) t1
+        |) t2 where rank = 1
+        |""".stripMargin
+    runQueryAndCompare(sql)({ _ => })
+  }
 }
 // scalastyle:on line.size.limit
