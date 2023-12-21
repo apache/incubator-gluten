@@ -16,9 +16,10 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.GlutenConfig
 import org.apache.spark.SparkConf
 
-class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
+abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
 
   protected val rootPath: String = getClass.getResource("/").getPath
   override protected val backend: String = "velox"
@@ -695,5 +696,17 @@ class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSuite {
         assert(
           getExecutedPlan(df).count(plan => plan.isInstanceOf[HashAggregateExecTransformer]) >= 2)
     }
+  }
+}
+
+class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {
+}
+
+class VeloxAggregateFunctionsFlushSuite extends VeloxAggregateFunctionsSuite {
+  override protected def sparkConf: SparkConf = {
+    super.sparkConf
+      // To test flush behaviors, set low flush threshold to ensure flush happens.
+      .set(GlutenConfig.ABANDON_PARTIAL_AGGREGATION_MIN_PCT.key, "1")
+      .set(GlutenConfig.ABANDON_PARTIAL_AGGREGATION_MIN_ROWS.key, "10")
   }
 }
