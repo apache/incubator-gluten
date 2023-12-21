@@ -1763,6 +1763,21 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("GLUTEN-4032 Fix block nullable mismatch after union") {
+    withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "-1") {
+      val sql =
+        """
+          |select t1.p_partkey, t1.is_new, t2.ps_suppkey from (
+          | select p_partkey, 0 as is_new from part where p_partkey is not null
+          |  union all
+          | select p_partkey, p_size as is_new from part
+          |) t1 join partsupp t2 on t1.p_partkey = t2.ps_partkey
+          |order by t1.p_partkey, t1.is_new, t2.ps_suppkey
+          |""".stripMargin
+      compareResultsAgainstVanillaSpark(sql, true, { _ => })
+    }
+  }
+
   test("GLUTEN-1874 not null in both streams") {
     val sql =
       """

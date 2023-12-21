@@ -363,18 +363,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
             child
           )
       case plan: UnionExec =>
-        def newChild(child: SparkPlan): SparkPlan = {
-          val newOutput =
-            child.output.zip(plan.output).map(o => o._1.withNullability(o._2.nullable))
-          if (newOutput != child.output) {
-            val project = ProjectExec(newOutput, child)
-            AddTransformHintRule().apply(project)
-            project
-          } else {
-            child
-          }
-        }
-        val children = plan.children.map(newChild).map(replaceWithTransformerPlan)
+        val children = plan.children.map(replaceWithTransformerPlan)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         UnionExecTransformer(children)
       case plan: ExpandExec =>
