@@ -387,6 +387,7 @@ endif()
 if(ENABLE_S3)
   add_definitions(-DENABLE_S3)
   find_awssdk()
+  find_package(ZLIB)
   target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
 endif()
 
