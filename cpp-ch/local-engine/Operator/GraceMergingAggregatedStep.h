@@ -68,10 +68,19 @@ private:
     DB::TemporaryDataOnDiskPtr tmp_data_disk;
     DB::AggregatedDataVariantsPtr current_data_variants = nullptr;
     size_t current_bucket_index = 0;
+    
+    /// Followings are configurations defined in context config.
+    // max buckets number, default is 32
     size_t max_buckets = 0;
+    // If the buckets number is overflow the max_buckets, throw exception or not.
     bool throw_on_overflow_buckets = false;
+    // Even the memory usage has reached the limit, we still allow to aggregate some more keys before
+    // extend the buckets.
     size_t aggregated_keys_before_extend_buckets = 8196;
+    // The ratio of memory usage to the total memory usage of the whole query.
     double max_allowed_memory_usage_ratio = 0.9;
+    // configured by max_pending_flush_blocks_per_grace_merging_bucket
+    size_t max_pending_flush_blocks_per_bucket = 0;
 
     struct BufferFileStream
     {
@@ -89,7 +98,6 @@ private:
     size_t flushBucket(size_t bucket_index);
     void prepareBucketOutputBlocks();
     void mergeOneBlock(const DB::Block &block);
-    size_t getMemoryUsage();
     bool isMemoryOverflow();
 
     bool input_finished = false;
@@ -102,8 +110,6 @@ private:
 
     double per_key_memory_usage = 0;
     size_t pending_flush_blocks_bytes = 0;
-    // configured by max_pending_flush_blocks_per_grace_merging_bucket
-    size_t max_pending_flush_blocks_per_bucket = 0;
 
     // metrics
     size_t total_input_blocks = 0;

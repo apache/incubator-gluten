@@ -18,6 +18,7 @@
 #include "StreamingAggregatingStep.h"
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/CHUtil.h>
 #include <Common/CurrentThread.h>
 #include <Common/formatReadable.h>
 #include <Common/Stopwatch.h>
@@ -47,7 +48,7 @@ StreamingAggregatingTransform::StreamingAggregatingTransform(DB::ContextPtr cont
 
 StreamingAggregatingTransform::~StreamingAggregatingTransform()
 {
-    LOG_INFO(
+    LOG_ERROR(
         logger,
         "Metrics. total_input_blocks: {}, total_input_rows: {},  total_output_blocks: {}, total_output_rows: {}, "
         "total_clear_data_variants_num: {}, total_aggregate_time: {}, total_convert_data_variants_time: {}",
@@ -73,6 +74,7 @@ StreamingAggregatingTransform::Status StreamingAggregatingTransform::prepare()
     {
         if (output.canPush())
         {
+            LOG_ERROR(logger, "xxx push one chunk, rows: {}", output_chunk.getNumRows());
             total_output_rows += output_chunk.getNumRows();
             total_output_blocks++;
             output.push(std::move(output_chunk));
@@ -109,15 +111,6 @@ StreamingAggregatingTransform::Status StreamingAggregatingTransform::prepare()
     return Status::Ready;
 }
 
-static UInt64 getMemoryUsage()
-{
-    Int64 current_memory_usage = 0;
-    if (auto * memory_tracker_child = DB::CurrentThread::getMemoryTracker())
-        if (auto * memory_tracker = memory_tracker_child->getParent())
-            current_memory_usage = memory_tracker->get();
-    return current_memory_usage < 0 ? 0 : current_memory_usage;
-}
-
 bool StreamingAggregatingTransform::needEvict()
 {
     /// More greedy memory usage strategy.
@@ -133,12 +126,12 @@ bool StreamingAggregatingTransform::needEvict()
     if (static_cast<double>(total_output_rows)/total_input_rows > high_cardinality_threshold)
         return true;
 
-    auto current_mem_used = getMemoryUsage();
+    auto current_mem_used = MemoryUtil::getCurrentMemoryUsage();
     if (per_key_memory_usage > 0)
     {
         if (current_mem_used + per_key_memory_usage * current_result_rows >= max_mem_used)
         {
-            LOG_INFO(
+            LOG_ERROR(
                 logger,
                 "Memory is overflow. current_mem_used: {}, max_mem_used: {}, per_key_memory_usage: {}, aggregator keys: {}",
                 ReadableSize(current_mem_used),
@@ -152,7 +145,7 @@ bool StreamingAggregatingTransform::needEvict()
     {
         if (current_mem_used * 2 >= max_mem_used)
         {
-            LOG_INFO(
+            LOG_ERROR(
                 logger,
                 "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, aggregator keys: {}",
                 ReadableSize(current_mem_used),
@@ -169,6 +162,26 @@ void StreamingAggregatingTransform::work()
 {
     auto pop_one_pending_block = [&]()
     {
+        #if AGGREGATE_UTIL_H
+        if (blokck_converter && blokck_converter->hasNext())
+        {
+            Stopwatch convert_watch;
+            auto block = blokck_converter->next();
+            output_chunk = DB::convertToChunk(block);
+            total_convert_data_variants_time += convert_watch.elapsedMicroseconds();
+            has_output = true;
+            has_input = blokck_converter->hasNext();
+            if (output_chunk.getNumRows())
+                per_key_memory_usage = output_chunk.allocatedBytes() * 1.0 / output_chunk.getNumRows();
+            if (!has_input)
+            {
+                data_variants = nullptr;
+                blokck_converter = nullptr;
+            }
+            return true;
+        }
+        return false;
+        #else
         while (!pending_blocks.empty())
         {
             if (!pending_blocks.front().rows())
@@ -187,6 +200,7 @@ void StreamingAggregatingTransform::work()
             return true;
         }
         return false;
+        #endif
     };
 
     if (has_input)
@@ -212,6 +226,11 @@ void StreamingAggregatingTransform::work()
 
         if (needEvict())
         {
+            #if AGGREGATE_UTIL_H
+            LOG_ERROR(logger, "xxx 1) convert data variants to blocks. data_variants size: {}", data_variants->size());
+            blokck_converter = std::make_unique<AggregateDataBlockConverter>(params->aggregator, data_variants, false);
+            total_clear_data_variants_num++;
+            #else
             Stopwatch convert_watch;
             /// When convert data variants to blocks, memory usage may be double.
             pending_blocks = params->aggregator.convertToBlocks(*data_variants, false, 1);
@@ -229,21 +248,27 @@ void StreamingAggregatingTransform::work()
             total_convert_data_variants_time += convert_watch.elapsedMicroseconds();
             total_clear_data_variants_num++;
             data_variants = nullptr;
+            #endif
             pop_one_pending_block();
         }
     }
     else
     {
         // NOLINTNEXTLINE
-        if (!data_variants->size())
+        if (!data_variants || !data_variants->size())
         {
             has_output = false;
         }
         Stopwatch convert_watch;
+        #if AGGREGATE_UTIL_H
+        LOG_ERROR(logger, "xxx 2) convert data variants to blocks. data_variants size: {}", data_variants->size());
+        blokck_converter = std::make_unique<AggregateDataBlockConverter>(params->aggregator, data_variants, false);
+        #else
         pending_blocks = params->aggregator.convertToBlocks(*data_variants, false, 1);
+        data_variants = nullptr;
+        #endif
         total_clear_data_variants_num++;
         total_aggregate_time += convert_watch.elapsedMicroseconds();
-        data_variants = nullptr;
         pop_one_pending_block();
     }
 }

@@ -29,9 +29,11 @@
 #include <QueryPipeline/SizeLimits.h>
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
+#include <Common/AggregateUtil.h>
 
 namespace local_engine
 {
+#define AGGREGATE_UTIL_H 1
 class StreamingAggregatingTransform : public DB::IProcessor
 {
 public:
@@ -47,8 +49,14 @@ private:
     DB::ColumnRawPtrs key_columns;
     DB::Aggregator::AggregateColumns aggregate_columns;
     DB::AggregatingTransformParamsPtr params;
+
+    /// Followings are configurations defined in context config.
+    // Even the memory usage has reached the limit, we still allow to aggregate some more keys.
     size_t aggregated_keys_before_evict = 1024;
+    // The ratio of memory usage to the total memory usage of the whole query.
     double max_allowed_memory_usage_ratio = 0.9;
+    // If the cardinality of a key is larger than this threshold, we will evict data before the
+    // the hash table grows too large.
     double high_cardinality_threshold = 0.8;
 
     bool no_more_keys = false;
@@ -60,7 +68,11 @@ private:
     DB::Chunk input_chunk;
     DB::Chunk output_chunk;
     
+    #if AGGREGATE_UTIL_H
+    std::unique_ptr<AggregateDataBlockConverter> blokck_converter = nullptr;
+    #else
     DB::BlocksList pending_blocks;
+    #endif
     Poco::Logger * logger = &Poco::Logger::get("StreamingAggregatingTransform");
 
     double per_key_memory_usage = 0;

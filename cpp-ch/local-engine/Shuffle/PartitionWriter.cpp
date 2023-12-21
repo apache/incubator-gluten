@@ -32,6 +32,8 @@
 #include <format>
 #include <Storages/IO/NativeWriter.h>
 
+#include <Common/logger_useful.h>
+#include <Poco/Logger.h>
 
 namespace DB
 {
@@ -56,6 +58,7 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
 
     Stopwatch watch;
     size_t current_cached_bytes = bytes();
+
     for (size_t partition_id = 0; partition_id < partition_info.partition_num; ++partition_id)
     {
         size_t from = partition_info.partition_start_points[partition_id];
@@ -121,6 +124,18 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
     }
 
     shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
+    
+    #if 1
+    LOG_ERROR(
+        &Poco::Logger::get("PartitionWriter"),
+        "xxx partitions: {}, processed_rows: {}, current_cached_bytes: {}, mem used: {}, time: {}",
+        partition_info.partition_num,
+        processed_rows,
+        ReadableSize(current_cached_bytes),
+        ReadableSize(MemoryUtil::getCurrentMemoryUsage()),
+        watch.elapsedMilliseconds());
+    processed_rows += block.rows();
+    #endif
 }
 
 size_t LocalPartitionWriter::unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer)

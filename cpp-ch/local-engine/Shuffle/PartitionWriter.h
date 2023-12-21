@@ -95,6 +95,8 @@ protected:
 
     /// Only valid in celeborn partition writer
     size_t last_partition_id;
+
+    size_t processed_rows = 0;
 };
 
 class LocalPartitionWriter : public PartitionWriter

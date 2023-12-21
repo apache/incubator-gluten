@@ -18,6 +18,7 @@
 #include <Interpreters/JoinUtils.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <Common/CHUtil.h>
 #include <Common/CurrentThread.h>
 #include <Common/formatReadable.h>
 
@@ -115,7 +116,7 @@ GraceMergingAggregatedTransform::GraceMergingAggregatedTransform(const DB::Block
 
 GraceMergingAggregatedTransform::~GraceMergingAggregatedTransform()
 {
-    LOG_INFO(
+    LOG_ERROR(
         logger,
         "Metrics. total_input_blocks: {}, total_input_rows: {}, total_output_blocks: {}, total_output_rows: {}, total_spill_disk_bytes: "
         "{}, total_spill_disk_time: {}, total_read_disk_time: {}, total_scatter_time: {}",
@@ -237,7 +238,7 @@ bool GraceMergingAggregatedTransform::extendBuckets()
         else
          return false;
     }
-    LOG_INFO(logger, "extend buckets from {} to {}", current_size, next_size);
+    LOG_ERROR(logger, "extend buckets from {} to {}", current_size, next_size);
     for (size_t i = current_size; i < next_size; ++i)
         buckets.emplace(i, BufferFileStream());
     return true;
@@ -302,14 +303,14 @@ void GraceMergingAggregatedTransform::flushBuckets()
 {
     if (pending_flush_blocks_bytes < getBucketsNum() * max_pending_flush_blocks_per_bucket)
         return;
-    auto before_mem = getMemoryUsage();
+    auto before_mem = MemoryUtil::getCurrentMemoryUsage();
     size_t flush_bytes = 0;
     Stopwatch watch;
     for (size_t i = current_bucket_index + 1; i < getBucketsNum(); ++i)
         flush_bytes += flushBucket(i);
     total_spill_disk_time += watch.elapsedMilliseconds();
     total_spill_disk_bytes += flush_bytes;
-    LOG_INFO(logger, "flush {} in {} ms, memoery usage: {} -> {}", ReadableSize(flush_bytes), watch.elapsedMilliseconds(), ReadableSize(before_mem), ReadableSize(getMemoryUsage()));
+    LOG_ERROR(logger, "flush {} in {} ms, memoery usage: {} -> {}", ReadableSize(flush_bytes), watch.elapsedMilliseconds(), ReadableSize(before_mem), ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
     pending_flush_blocks_bytes = 0;
 }
 
@@ -381,7 +382,7 @@ void GraceMergingAggregatedTransform::prepareBucketOutputBlocks()
         }
     }
     current_final_blocks = params->aggregator.convertToBlocks(*current_data_variants, true, 1);
-    LOG_INFO(logger, "prepare to output bucket {}, read bytes: {}, read rows: {}, time: {} ms", current_bucket_index, ReadableSize(read_bytes), read_rows, watch.elapsedMilliseconds());
+    LOG_ERROR(logger, "prepare to output bucket {}, read bytes: {}, read rows: {}, time: {} ms", current_bucket_index, ReadableSize(read_bytes), read_rows, watch.elapsedMilliseconds());
 }
 
 void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
@@ -405,7 +406,7 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
         block.info.bucket_num,
         current_bucket_index,
         getBucketsNum(),
-        ReadableSize(getMemoryUsage()));
+        ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
 
     if (block.info.bucket_num == static_cast<Int32>(getBucketsNum()) || getBucketsNum() == 1)
     {
@@ -422,15 +423,6 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
     }
 }
 
-size_t GraceMergingAggregatedTransform::getMemoryUsage()
-{
-    Int64 current_memory_usage = 0;
-    if (auto * memory_tracker_child = DB::CurrentThread::getMemoryTracker())
-        if (auto * memory_tracker = memory_tracker_child->getParent())
-            current_memory_usage = memory_tracker->get();
-    return current_memory_usage < 0 ? 0 : current_memory_usage;
-}
-
 bool GraceMergingAggregatedTransform::isMemoryOverflow()
 {
     /// More greedy memory usage strategy.
@@ -438,12 +430,12 @@ bool GraceMergingAggregatedTransform::isMemoryOverflow()
         return false;
     auto max_mem_used = static_cast<size_t>(context->getSettingsRef().max_memory_usage * max_allowed_memory_usage_ratio);
     auto current_result_rows = current_data_variants->size();
-    auto current_mem_used = getMemoryUsage();
+    auto current_mem_used = MemoryUtil::getCurrentMemoryUsage();
     if (per_key_memory_usage > 0)
     {
         if (current_mem_used + per_key_memory_usage * current_result_rows >= max_mem_used)
         {
-            LOG_INFO(
+            LOG_ERROR(
                 logger,
                 "Memory is overflow. current_mem_used: {}, max_mem_used: {}, per_key_memory_usage: {}, aggregator keys: {}, buckets: {}",
                 ReadableSize(current_mem_used),
@@ -458,7 +450,7 @@ bool GraceMergingAggregatedTransform::isMemoryOverflow()
     {
         if (current_mem_used * 2 >= max_mem_used)
         {
-            LOG_INFO(
+            LOG_ERROR(
                 logger,
                 "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, aggregator keys: {}, buckets: {}",
                 ReadableSize(current_mem_used),
