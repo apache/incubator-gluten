@@ -21,12 +21,14 @@ import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.memtarget.Spiller;
 import io.glutenproject.memory.memtarget.TreeMemoryTarget;
 
+import org.apache.commons.collections4.map.AbstractReferenceMap.ReferenceStrength;
+import org.apache.commons.collections4.map.ReferenceMap;
+
 import org.apache.spark.memory.TaskMemoryManager;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class TreeMemoryConsumers {
@@ -62,7 +64,8 @@ public final class TreeMemoryConsumers {
 
   public static class Factory {
 
-    private static final WeakHashMap<TaskMemoryManager, TreeMemoryTarget> MAP = new WeakHashMap<>();
+    private static final ReferenceMap<TaskMemoryManager, TreeMemoryTarget> MAP =
+            new ReferenceMap<>(ReferenceStrength.WEAK, ReferenceStrength.WEAK);
     private final long perTaskCapacity;
 
     private Factory(long perTaskCapacity) {
