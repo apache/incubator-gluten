@@ -356,6 +356,16 @@ object GlutenConfig {
   val ABFS_ACCOUNT_KEY = "hadoop.fs.azure.account.key"
   val SPARK_ABFS_ACCOUNT_KEY: String = "spark." + ABFS_ACCOUNT_KEY
 
+  // GCS config
+  val GCS_PREFIX = "fs.gs."
+  val GCS_STORAGE_ROOT_URL = "fs.gs.storage.root.url"
+  val SPARK_GCS_STORAGE_ROOT_URL: String = HADOOP_PREFIX + GCS_STORAGE_ROOT_URL
+  val GCS_AUTH_TYPE = "fs.gs.auth.type"
+  val SPARK_GCS_AUTH_TYPE: String = HADOOP_PREFIX + GCS_AUTH_TYPE
+  val GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE = "fs.gs.auth.service.account.json.keyfile"
+  val SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE: String =
+    HADOOP_PREFIX + GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "qat"
   val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("gzip", "zstd")
@@ -461,7 +471,21 @@ object GlutenConfig {
       "spark.io.compression.codec",
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
-      COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key
+      COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,
+      // s3 config
+      SPARK_S3_ACCESS_KEY,
+      SPARK_S3_SECRET_KEY,
+      SPARK_S3_ENDPOINT,
+      SPARK_S3_CONNECTION_SSL_ENABLED,
+      SPARK_S3_PATH_STYLE_ACCESS,
+      SPARK_S3_USE_INSTANCE_CREDENTIALS,
+      SPARK_S3_IAM,
+      SPARK_S3_IAM_SESSION_NAME,
+      AWS_SDK_LOG_LEVEL.key,
+      // gcs config
+      SPARK_GCS_STORAGE_ROOT_URL,
+      SPARK_GCS_AUTH_TYPE,
+      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
     )
     keys.forEach(
       k => {
