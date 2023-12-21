@@ -106,6 +106,7 @@ function process_setup_ubuntu {
     sed -i '/^function install_fmt.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-ubuntu.sh
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_protobuf' scripts/setup-ubuntu.sh
   fi
+  sed -i "s/apt install -y/sudo apt install -y/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-ubuntu.sh
   fi
@@ -145,6 +146,7 @@ function process_setup_centos8 {
     sed -i '/^function cmake_install_deps.*/i function install_protobuf {\n  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz\n  tar -xzf protobuf-all-21.4.tar.gz\n  cd protobuf-21.4\n  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local\n  make "-j$(nproc)"\n  sudo make install\n  sudo ldconfig\n}\n' scripts/setup-centos8.sh
     sed -i '/^cmake_install_deps fmt/a \\install_protobuf' scripts/setup-centos8.sh
   fi
+  sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos8.sh
   fi
@@ -181,6 +183,7 @@ function process_setup_centos7 {
   if [[ $BUILD_PROTOBUF == "ON" ]] || [[ $ENABLE_HDFS == "ON" ]]; then
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_protobuf' scripts/setup-centos7.sh
   fi
+  sed -i "s/yum -y install/sudo yum -y install/" ${VELOX_HOME}/scripts/setup-adapters.sh
   if [ $ENABLE_S3 == "ON" ]; then
     sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh aws' scripts/setup-centos7.sh
   fi
