@@ -120,7 +120,7 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
 
     val outputTypeNodeList = new java.util.ArrayList[TypeNode]()
     for (attr <- expectOutput) {
-      outputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, true))
+      outputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
     }
 
     // Fixes issue-1874
