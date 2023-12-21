@@ -1078,6 +1078,13 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_unix_timestamp")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan]
+  enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan]
   enableSuite[GlutenExpressionsSchemaSuite]
     .exclude("Check schemas for expression examples")
   enableSuite[GlutenExtraStrategiesSuite]
