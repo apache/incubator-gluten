@@ -19,7 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.metrics.MetricsUpdater
+import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
 import io.glutenproject.substrait.`type`.{ColumnTypeNode, TypeBuilder}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.extensions.ExtensionBuilder
@@ -48,7 +48,7 @@ case class WriteFilesExecTransformer(
     staticPartitions: TablePartitionSpec)
   extends UnaryExecNode
   with UnaryTransformSupport {
-  override def metricsUpdater(): MetricsUpdater = null
+  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
 
   override def output: Seq[Attribute] = Seq.empty
 
@@ -135,11 +135,14 @@ case class WriteFilesExecTransformer(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    if (
-      !BackendsApiManager.getSettings.supportWriteExec() || !BackendsApiManager.getSettings
-        .supportFileFormatWrite(fileFormat, child.output.toStructType.fields) || bucketSpec.nonEmpty
-    ) {
-      return ValidationResult.notOk("Current backend does not support Write")
+    val supportedWrite =
+      BackendsApiManager.getSettings.supportWriteExec(fileFormat, child.output.toStructType.fields)
+    if (supportedWrite.nonEmpty) {
+      return ValidationResult.notOk("Unsupported native write: " + supportedWrite.get)
+    }
+
+    if (bucketSpec.nonEmpty) {
+      return ValidationResult.notOk("Unsupported native write: bucket write is not supported.")
     }
 
     val substraitContext = new SubstraitContext
@@ -152,8 +155,8 @@ case class WriteFilesExecTransformer(
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-//    val writePath = ColumnarWriteFilesExec.writePath.get()
     val writePath = child.session.sparkContext.getLocalProperty("writePath")
+    assert(writePath.size > 0)
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
 
     val operatorId = context.nextOperatorId(this.nodeName)

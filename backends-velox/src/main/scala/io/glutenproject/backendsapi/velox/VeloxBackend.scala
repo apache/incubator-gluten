@@ -115,58 +115,54 @@ object BackendSettings extends BackendSettingsApi {
     }
   }
 
-  override def supportFileFormatWrite(format: FileFormat, fields: Array[StructField]): Boolean = {
-    // Validate if all types are supported.
-    def validateTypes(fields: Array[StructField]): Boolean = {
-
-      val unsupportedDataTypes =
-        fields.flatMap {
-          field =>
-            field.dataType match {
-              case _: TimestampType => Some("TimestampType")
-              case struct: StructType if validateTypes(struct.fields) =>
-                Some("StructType(TimestampType)")
-              case array: ArrayType if array.elementType.isInstanceOf[TimestampType] =>
-                Some("MapType(TimestampType)")
-              case map: MapType
-                  if (map.keyType.isInstanceOf[TimestampType] ||
-                    map.valueType.isInstanceOf[TimestampType]) =>
-                Some("MapType(TimestampType)")
-              case _ => None
-            }
-        }
-
-      for (unsupportedDataType <- unsupportedDataTypes) {
-        // scalastyle:off println
-        println(
-          s"Validation failed for ${this.getClass.toString} due to:" +
-            s" data type $unsupportedDataType in file schema.")
-        // scalastyle:on println
+  override def supportWriteExec(format: FileFormat, fields: Array[StructField]): Option[String] = {
+    def validateCompressionCodec(): Option[String] = {
+      // Velox doesn't support brotli and lzo.
+      val unSupportedCompressions = Set("brotli, lzo")
+      if (unSupportedCompressions.contains(SQLConf.get.parquetCompressionCodec.toLowerCase())) {
+        Some("brotli or lzo compression codec is not support in velox backend.")
+      } else {
+        None
       }
-
-      unsupportedDataTypes.isEmpty
     }
 
-    def containFieldMetadata(fields: Array[StructField]): Boolean = {
-      if (fields.exists(!_.metadata.equals(Metadata.empty))) false else true
+    // Validate if all types are supported.
+    def validateDateTypes(fields: Array[StructField]): Option[String] = {
+      fields.flatMap {
+        field =>
+          field.dataType match {
+            case _: TimestampType => Some("TimestampType")
+            case struct: StructType if validateDateTypes(struct.fields).nonEmpty =>
+              Some("StructType(TimestampType)")
+            case array: ArrayType if array.elementType.isInstanceOf[TimestampType] =>
+              Some("MapType(TimestampType)")
+            case map: MapType
+                if (map.keyType.isInstanceOf[TimestampType] ||
+                  map.valueType.isInstanceOf[TimestampType]) =>
+              Some("MapType(TimestampType)")
+            case _ => None
+          }
+      }.headOption
     }
 
-    format match {
-      case _: ParquetFileFormat =>
-        validateTypes(fields) &&
-        containFieldMetadata(fields)
-      case _ => false
+    def validateFieldMetadata(fields: Array[StructField]): Option[String] = {
+      if (fields.exists(!_.metadata.equals(Metadata.empty))) {
+        Some("StructField contain the metadata information.")
+      } else None
     }
-  }
-  override def supportWriteExec(): Boolean = {
-    // Velox doesn't support brotli and lzo.
-    if (
-      SQLConf.get.parquetCompressionCodec.toLowerCase().equals("brotli") ||
-      SQLConf.get.parquetCompressionCodec.toLowerCase().equals("lzo")
-    ) {
-      return false
+
+    def validateFileFormat(format: FileFormat): Option[String] = {
+      format match {
+        case _: ParquetFileFormat => None
+        case _: FileFormat => Some("Only parquet fileformat is supported in native write.")
+      }
     }
-    true
+
+    val fileFormat = validateFileFormat(format)
+    val metadata = validateFieldMetadata(fields)
+    val dataTypes = validateDateTypes(fields)
+    val compression = validateCompressionCodec()
+    compression.orElse(dataTypes).orElse(metadata).orElse(fileFormat)
   }
 
   override def supportExpandExec(): Boolean = true

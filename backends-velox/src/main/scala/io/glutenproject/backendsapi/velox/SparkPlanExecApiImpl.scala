@@ -497,7 +497,8 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    if (SparkShimLoader.getSparkShims.getShimDescriptor.toString.equals("3.4.1")) {
+    val Array(major, minor, _) = SparkShimLoader.getSparkShims.getShimDescriptor.toString.split('.')
+    if (major.toInt > 3 || (major.toInt == 3 && (minor.toInt >= 4))) {
       List()
     } else {
       List(spark => NativeWritePostRule(spark))

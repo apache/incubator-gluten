@@ -331,7 +331,7 @@ bool SubstraitToVeloxPlanValidator::validateExpression(
 
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeRel) {
   if (writeRel.has_input() && !validate(writeRel.input())) {
-    std::cout << "Validation failed for input type validation in WriteRel." << std::endl;
+    logValidateMsg("Validation failed for input type validation in WriteRel.");
     return false;
   }
 
@@ -340,7 +340,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeR
   if (writeRel.has_named_table()) {
     const auto& extension = writeRel.named_table().advanced_extension();
     if (!validateInputTypes(extension, types)) {
-      std::cout << "Validation failed for input types in WriteRel." << std::endl;
+      logValidateMsg("Validation failed for input type validation in WriteRel.");
       return false;
     }
   }

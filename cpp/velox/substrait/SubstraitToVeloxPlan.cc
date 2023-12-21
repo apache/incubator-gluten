@@ -466,6 +466,7 @@ std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandl
     const dwio::common::FileFormat tableStorageFormat = dwio::common::FileFormat::PARQUET,
     const std::optional<common::CompressionKind> compressionKind = {}) {
   std::vector<std::shared_ptr<const connector::hive::HiveColumnHandle>> columnHandles;
+  columnHandles.reserve(tableColumnNames.size());
   std::vector<std::string> bucketedBy;
   std::vector<TypePtr> bucketedTypes;
   std::vector<std::shared_ptr<const connector::hive::HiveSortingColumn>> sortedBy;
@@ -524,23 +525,23 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   std::vector<bool> isPartitionColumns;
   tableColumnNames.reserve(writeRel.table_schema().names_size());
 
-  if (writeRel.has_table_schema()) {
-    const auto& tableSchema = writeRel.table_schema();
-    isPartitionColumns = SubstraitParser::parsePartitionColumns(tableSchema);
+  VELOX_CHECK(writeRel.has_table_schema(), "WriteRel should have the table schema to store the column information");
+  const auto& tableSchema = writeRel.table_schema();
+  isPartitionColumns = SubstraitParser::parsePartitionColumns(tableSchema);
 
-    for (const auto& name : tableSchema.names()) {
-      tableColumnNames.emplace_back(name);
-    }
+  for (const auto& name : tableSchema.names()) {
+    tableColumnNames.emplace_back(name);
+  }
 
-    for (int i = 0; i < tableSchema.names_size(); i++) {
-      if (isPartitionColumns[i]) {
-        partitionedKey.emplace_back(tableColumnNames[i]);
-      }
+  for (int i = 0; i < tableSchema.names_size(); i++) {
+    if (isPartitionColumns[i]) {
+      partitionedKey.emplace_back(tableColumnNames[i]);
     }
   }
 
   std::vector<std::string> writePath;
   writePath.reserve(1);
+  VELOX_CHECK(writeRel.named_table().names().size() == 1)
   for (const auto& name : writeRel.named_table().names()) {
     writePath.emplace_back(name);
   }
@@ -585,7 +586,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               makeLocationHandle(writePath[0]),
               dwio::common::FileFormat::PARQUET, // Currently only support parquet format.
               compressionCodec)),
-      (isPartitionColumns.size() > 0) ? true : false,
+      (partitionedKey.size() > 0) ? true : false,
       exec::TableWriteTraits::outputType(nullptr),
       connector::CommitStrategy::kNoCommit,
       childNode);

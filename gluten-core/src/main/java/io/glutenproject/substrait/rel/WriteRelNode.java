@@ -55,20 +55,6 @@ public class WriteRelNode implements RelNode, Serializable {
     this.extensionNode = extensionNode;
   }
 
-  WriteRelNode(
-      RelNode input,
-      List<TypeNode> types,
-      List<String> names,
-      List<ColumnTypeNode> partitionColumnTypeNodes,
-      String writePath) {
-    this.input = input;
-    this.types.addAll(types);
-    this.names.addAll(names);
-    this.columnTypeNodes.addAll(partitionColumnTypeNodes);
-    this.writePath = writePath;
-    this.extensionNode = null;
-  }
-
   @Override
   public Rel toProtobuf() {
 

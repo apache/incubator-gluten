@@ -35,8 +35,7 @@ trait BackendSettingsApi {
       fields: Array[StructField],
       partTable: Boolean,
       paths: Seq[String]): ValidationResult = ValidationResult.ok
-  def supportFileFormatWrite(format: FileFormat, fields: Array[StructField]): Boolean = false
-  def supportWriteExec(): Boolean = false
+  def supportWriteExec(format: FileFormat, fields: Array[StructField]): Option[String]
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true

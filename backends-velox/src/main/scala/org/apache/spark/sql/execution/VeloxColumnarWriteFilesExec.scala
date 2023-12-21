@@ -51,56 +51,88 @@ class VeloxColumnarWriteFilesExec(
 
   override def doExecuteWrite(writeFilesSpec: WriteFilesSpec): RDD[WriterCommitMessage] = {
     assert(child.supportsColumnar)
+
+    // We need to pass the WritePath to the Velox TableWriter in the doTransform
+    // method of the WriteTransformer. However, the WritePath is not accessible
+    // during the planning phase in the WriteTransformer, and can only be obtained
+    // during the actual execution, specifically in the doExecuteWrite method of
+    // ColumnarWriteFilesExec, where it is available within the WriteFilesSpec.
+    // Therefore, we use this hack method to pass the writePath.
     child.session.sparkContext.setLocalProperty("writePath", writeFilesSpec.description.path)
-    child.executeColumnar().map {
-      cb =>
+    child.executeColumnar().mapPartitionsInternal {
+      iter =>
         // Currently, the cb contains three columns: row, fragments, and context.
-        //  The first row in the row column contains the number of written numRows.
+        // The first row in the row column contains the number of written numRows.
         // The fragments column contains detailed information about the file writes.
-        // The detailed fragement is https://github.com/facebookincubator/velox/blob/
-        // 6b17ea5100a2713a6ee0252a37ce47cb17f46929/velox/connectors/hive/HiveDataSink.cpp#L508.
-        val loadedCb = ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, cb)
+        // The json can be as following:
+        // {
+        //     "inMemoryDataSizeInBytes":0,
+        //     "containsNumberedFileNames":true,
+        //     "onDiskDataSizeInBytes":307,
+        //     "fileWriteInfos":[
+        //         {
+        //             "fileSize":307,
+        //             "writeFileName":
+        //                "Gluten_Stage_1_TID_2_0_2_d1db3b31-4f99-41cb-a4e7-3b8607506168.parquet",
+        //             "targetFileName":
+        //                "Gluten_Stage_1_TID_2_0_2_d1db3b31-4f99-41cb-a4e7-3b8607506168.parquet"
+        //         }
+        //     ],
+        //     "writePath":"file:/home/gluten/spark-warehouse/inserttable/part1=1/part2=1",
+        //     "rowCount":1,
+        //     "targetPath":"file:/home/gluten/spark-warehouse/inserttable/part1=1/part2=1",
+        //     "updateMode":"NEW",
+        //     "name":"part1=1/part2=1"
+        // }
+        if (iter.hasNext) {
+          val cb = iter.next()
+          val loadedCb = ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, cb)
 
-        val numRows = loadedCb.column(0).getLong(0)
+          val numRows = loadedCb.column(0).getLong(0)
 
-        var updatedPartitions = Set.empty[String]
-        val addedAbsPathFiles: mutable.Map[String, String] = mutable.Map[String, String]()
-        var numBytes = 0L
-        for (i <- 0 until loadedCb.numRows() - 1) {
-          val fragments = loadedCb.column(1).getUTF8String(i + 1)
-          val objectMapper = new ObjectMapper()
-          val jsonObject = objectMapper.readTree(fragments.toString)
+          var updatedPartitions = Set.empty[String]
+          val addedAbsPathFiles: mutable.Map[String, String] = mutable.Map[String, String]()
+          var numBytes = 0L
+          for (i <- 0 until loadedCb.numRows() - 1) {
+            val fragments = loadedCb.column(1).getUTF8String(i + 1)
+            val objectMapper = new ObjectMapper()
+            val jsonObject = objectMapper.readTree(fragments.toString)
 
-          val fileWriteInfos = jsonObject.get("fileWriteInfos").elements()
-          if (jsonObject.get("fileWriteInfos").elements().hasNext) {
-            val writeInfo = fileWriteInfos.next();
-            numBytes += writeInfo.get("fileSize").size()
-            // Get partition informations.
-            if (jsonObject.get("name").textValue().nonEmpty) {
-              val targetFileName = writeInfo.get("targetFileName").textValue()
-              val partitionDir = jsonObject.get("name").textValue()
-              updatedPartitions += partitionDir
-              val tmpOutputPath =
-                writeFilesSpec.description.path + "/" + partitionDir + "/" + targetFileName
-              val absOutputPathObject =
-                writeFilesSpec.description.customPartitionLocations.get(
-                  PartitioningUtils.parsePathFragment(partitionDir))
-              if (absOutputPathObject.nonEmpty) {
-                val absOutputPath = absOutputPathObject.get + "/" + targetFileName
-                addedAbsPathFiles(tmpOutputPath) = absOutputPath
+            val fileWriteInfos = jsonObject.get("fileWriteInfos").elements()
+            if (jsonObject.get("fileWriteInfos").elements().hasNext) {
+              val writeInfo = fileWriteInfos.next();
+              numBytes += writeInfo.get("fileSize").size()
+              // Get partition information.
+              if (jsonObject.get("name").textValue().nonEmpty) {
+                val targetFileName = writeInfo.get("targetFileName").textValue()
+                val partitionDir = jsonObject.get("name").textValue()
+                updatedPartitions += partitionDir
+                val tmpOutputPath =
+                  writeFilesSpec.description.path + "/" + partitionDir + "/" + targetFileName
+                val absOutputPathObject =
+                  writeFilesSpec.description.customPartitionLocations.get(
+                    PartitioningUtils.parsePathFragment(partitionDir))
+                if (absOutputPathObject.nonEmpty) {
+                  val absOutputPath = absOutputPathObject.get + "/" + targetFileName
+                  addedAbsPathFiles(tmpOutputPath) = absOutputPath
+                }
               }
             }
           }
+
+          // TODO: need to get the partition Internal row?
+          val stats = BasicWriteTaskStats(Seq.empty, (numRows - 1).toInt, numBytes, numRows)
+          val summary =
+            ExecutedWriteSummary(updatedPartitions = updatedPartitions, stats = Seq(stats))
+
+          val result = WriteTaskResult(
+            new TaskCommitMessage(addedAbsPathFiles.toMap -> updatedPartitions),
+            summary)
+          Iterator.single(result)
+        } else {
+          Iterator.empty
         }
 
-        // TODO: need to get the partition Internal row?
-        val stats = BasicWriteTaskStats(Seq.empty, (numRows - 1).toInt, numBytes, numRows)
-        val summary =
-          ExecutedWriteSummary(updatedPartitions = updatedPartitions, stats = Seq(stats))
-
-        WriteTaskResult(
-          new TaskCommitMessage(addedAbsPathFiles.toMap -> updatedPartitions),
-          summary)
     }
   }
 
