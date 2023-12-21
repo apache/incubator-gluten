@@ -47,14 +47,25 @@ public:
             res = nullable_col->getNestedColumnPtr();
         }
         DB::MutableColumnPtr null_map_col = DB::ColumnUInt8::create(res->size(), 0);
-        DB::MutableColumnPtr res_mutable = DB::IColumn::mutate(res);
-        DB::TypeIndex res_type_index = res_mutable->getDataType();
+        DB::TypeIndex res_type_index = res->getDataType();
         switch (res_type_index)
         {
-            case DB::TypeIndex::Float32: checkAndSetNullable<DB::Float32>(res_mutable, null_map_col);
-            case DB::TypeIndex::Float64: checkAndSetNullable<DB::Float64>(res_mutable, null_map_col);
+            case DB::TypeIndex::Float32: 
+            {
+                DB::MutableColumnPtr res_mutable = DB::IColumn::mutate(res);
+                checkAndSetNullable<DB::Float32>(res_mutable, null_map_col);
+                return DB::ColumnNullable::create(std::move(res_mutable), std::move(null_map_col));
+            }
+            case DB::TypeIndex::Float64: 
+            {
+                DB::MutableColumnPtr res_mutable = DB::IColumn::mutate(res);
+                checkAndSetNullable<DB::Float64>(res_mutable, null_map_col);
+                return DB::ColumnNullable::create(std::move(res_mutable), std::move(null_map_col));
+            }
+            default:
+                 return DB::ColumnNullable::create(std::move(res), std::move(null_map_col));
         }
-        return DB::ColumnNullable::create(std::move(res_mutable), std::move(null_map_col));
+       
     }
 
     template<typename T>
@@ -77,8 +88,6 @@ public:
                     data[i] = 0;
                     null_map[i] = 1;
                 }
-                else
-                    null_map[i] = 0;
             }
             else if constexpr (std::is_same<T, double>::value) // means the double type element is inf
             {
@@ -88,11 +97,7 @@ public:
                     data[i] = 0;
                     null_map[i] = 1;
                 }
-                else
-                    null_map[i] = 0;
             }
-            else
-                null_map[i] = 0;
         }
     }
 };
