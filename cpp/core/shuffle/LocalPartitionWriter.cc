@@ -134,11 +134,19 @@ class LocalPartitionWriter::PayloadMerger {
             createMergeBlockPayload(numRows, std::move(buffers), isValidityBuffer, reuseBuffers));
         return std::nullopt;
       }
-      // If already reach merging threshold, return BlockPayload.
+      // If current buffer rows reaches merging threshold, return BlockPayload.
       return createBlockPayload(numRows, std::move(buffers), isValidityBuffer, reuseBuffers);
     }
     auto lastPayload = std::move(partitionMergePayload_[partitionId]);
     auto mergedRows = numRows + lastPayload->numRows();
+    if (mergedRows > options_->mergeBufferSize) {
+      // Save current buffers for merge, and return merged.
+      ARROW_ASSIGN_OR_RAISE(
+          partitionMergePayload_[partitionId],
+          createMergeBlockPayload(numRows, std::move(buffers), isValidityBuffer, reuseBuffers));
+      return lastPayload;
+    }
+    // Merge buffers.
     DEBUG_OUT << "Merged partition: " << partitionId << ", numRows before: " << lastPayload->numRows()
               << ", numRows appended: " << numRows << ", numRows after: " << mergedRows << std::endl;
     ARROW_ASSIGN_OR_RAISE(

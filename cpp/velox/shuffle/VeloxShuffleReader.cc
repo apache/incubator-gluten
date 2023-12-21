@@ -421,7 +421,7 @@ VeloxColumnarBatchDeserializer::VeloxColumnarBatchDeserializer(
       decompressTime_(decompressTime) {}
 
 std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
-  if (reachEos_) {
+  if (reachEos_ && !merged_) {
     return nullptr;
   }
 
@@ -444,10 +444,10 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
     return std::make_shared<VeloxColumnarBatch>(rowVector);
   }
 
+  std::vector<std::shared_ptr<arrow::Buffer>> arrowBuffers{};
+  uint32_t numRows = 0;
   while (!merged_ || merged_->numRows() < batchSize_) {
-    uint32_t numRows;
-    GLUTEN_ASSIGN_OR_THROW(
-        auto arrowBuffers, BlockPayload::deserialize(in_.get(), schema_, codec_, memoryPool_, numRows));
+    GLUTEN_ASSIGN_OR_THROW(arrowBuffers, BlockPayload::deserialize(in_.get(), schema_, codec_, memoryPool_, numRows));
     if (numRows == 0) {
       reachEos_ = true;
       break;
@@ -455,15 +455,21 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
     if (!merged_) {
       merged_ = std::make_unique<MergeBlockPayload>(
           numRows, std::move(arrowBuffers), isValidityBuffer_, memoryPool_, codec_.get());
+      arrowBuffers.clear();
       continue;
+    }
+    auto mergedRows = merged_->numRows() + numRows;
+    if (mergedRows > batchSize_) {
+      break;
     }
     GLUTEN_ASSIGN_OR_THROW(
         merged_,
         MergeBlockPayload::merge(std::move(merged_), numRows, std::move(arrowBuffers), memoryPool_, codec_.get()));
+    arrowBuffers.clear();
   }
 
   // Reach EOS.
-  if (!merged_) {
+  if (reachEos_ && !merged_) {
     return nullptr;
   }
 
@@ -476,7 +482,12 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
     veloxBuffers.push_back(convertToVeloxBuffer(std::move(buffer)));
   }
   auto rowVector = deserialize(rowType_, merged_->numRows(), veloxBuffers, veloxPool_);
-  merged_ = nullptr;
+  if (!arrowBuffers.empty()) {
+    merged_ = std::make_unique<MergeBlockPayload>(
+        numRows, std::move(arrowBuffers), isValidityBuffer_, memoryPool_, codec_.get());
+  } else {
+    merged_ = nullptr;
+  }
   return std::make_shared<VeloxColumnarBatch>(rowVector);
 }
 
