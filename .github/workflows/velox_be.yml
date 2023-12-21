@@ -49,43 +49,43 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          OS_IMAGE=ubuntu:20.04 ./tools/gluten-te/centos/gha/gha-checkout/checkout.sh
+          OS_IMAGE=ubuntu:20.04 ./tools/gluten-te/ubuntu/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
-          ./tools/gluten-te/centos/gha/gha-checkout/exec.sh '
+          ./tools/gluten-te/ubuntu/gha/gha-checkout/exec.sh '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
           ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --build_tests=ON'
       - name: Build Gluten CPP library
         run: |
-         ./tools/gluten-te/centos/gha/gha-checkout/exec.sh '
+         ./tools/gluten-te/ubuntu/gha/gha-checkout/exec.sh '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --build_tests=ON --build_examples=ON --build_benchmarks=ON'
       - name: Run CPP unit test
         run: |
-          ./tools/gluten-te/centos/gha/gha-checkout/exec.sh 'cd /opt/gluten/cpp/build && \
+          ./tools/gluten-te/ubuntu/gha/gha-checkout/exec.sh 'cd /opt/gluten/cpp/build && \
           ctest -V'
       - name: Run HBM CPP unit test
         run: |
-          ./tools/gluten-te/centos/gha/gha-checkout/exec.sh 'cd /opt/gluten/cpp/build && \
+          ./tools/gluten-te/ubuntu/gha/gha-checkout/exec.sh 'cd /opt/gluten/cpp/build && \
           cmake -DBUILD_TESTS=ON -DENABLE_HBM=ON .. && \
           cmake --build . --target hbw_allocator_test -- -j && \
           ctest -V -R TestHbw'
       - name: Build and run unit test for Spark 3.2.2 (other tests)
         run: |
-          ./tools/gluten-te/centos/gha/gha-checkout/exec.sh '
+          ./tools/gluten-te/ubuntu/gha/gha-checkout/exec.sh '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pspark-ut -Pbackends-velox -Prss -DargLine="-Dspark.test.home=/opt/spark322" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
           mvn test -Pspark-3.2 -Pbackends-velox -DtagsToExclude=None -DtagsToInclude=io.glutenproject.tags.UDFTest'
       # Cpp micro benchmarks will use generated files from unit test in backends-velox module.
       - name: Run micro benchmarks
         run: |
-          ./tools/gluten-te/centos/gha/gha-checkout/exec.sh 'cd /opt/gluten/cpp/build/velox/benchmarks && \
+          ./tools/gluten-te/ubuntu/gha/gha-checkout/exec.sh 'cd /opt/gluten/cpp/build/velox/benchmarks && \
           ./generic_benchmark --with-shuffle --threads 1 --iterations 1'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
-          ./tools/gluten-te/centos/gha/gha-checkout/clean.sh || true
+          ./tools/gluten-te/ubuntu/gha/gha-checkout/clean.sh || true
   ubuntu2004-test-spark32-slow:
     runs-on: velox-self-hosted
     steps:
