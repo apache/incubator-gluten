@@ -96,9 +96,7 @@ public:
         const auto * length_is_null_node = toFunctionNode(actions_dag, "isNull", {length_arg});
         const auto * or_condition_node = toFunctionNode(actions_dag, "or", {arr_is_null_node, start_is_null_node, length_is_null_node});
 
-        const auto * if_node = toFunctionNode(actions_dag, "if", {
-            or_condition_node, null_const_node, wrap_slice_node });
-
+        const auto * if_node = toFunctionNode(actions_dag, "if", {or_condition_node, null_const_node, wrap_slice_node });
         return if_ndoe;
     }
 

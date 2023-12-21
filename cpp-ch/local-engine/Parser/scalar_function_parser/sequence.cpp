@@ -115,7 +115,7 @@ public:
             range_1_node,
             range_2_node
         });
-       return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
+        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
 };
 
