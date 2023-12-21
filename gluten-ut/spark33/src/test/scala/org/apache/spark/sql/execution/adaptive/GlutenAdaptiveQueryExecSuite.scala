@@ -1161,12 +1161,17 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         SQLConf.PREFER_SORTMERGEJOIN.key -> "true") {
         // check default value
         checkJoinStrategy(false)
+        // t1 no hint.
+        // t2 partition size are all smaller than 200, t2 has SHJ hint. The result is true.
         withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "200") {
           checkJoinStrategy(true)
         }
+        // t1 no hint.
+        // Not all partition size of t2 are smaller than 100, t2 no hint. The result is false.
         withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "100") {
           checkJoinStrategy(false)
         }
+        // t1, t2 partition size are all smaller than 1000, t1 and t2 can use SHJ. The result is true.
         withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "1000") {
           checkJoinStrategy(true)
         }

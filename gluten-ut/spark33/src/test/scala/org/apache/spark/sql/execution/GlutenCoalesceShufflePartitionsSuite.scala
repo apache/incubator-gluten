@@ -200,7 +200,7 @@ class GlutenCoalesceShufflePartitionsSuite
             }
         }
 
-        // Change the original value 16384 to 40000 for gluten. The test depends on the calculation
+        // Change the original value 16384 to 20000 for gluten. The test depends on the calculation
         // for bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
         // See ShufflePartitionsUtil.coalescePartitions & GlutenColumnarShuffleWriter's mapStatus.
         withSparkSession(test, 20000, minNumPostShufflePartitions)
@@ -250,7 +250,7 @@ class GlutenCoalesceShufflePartitionsSuite
             }
         }
 
-        // Change the original value 12000 to 30000 for gluten. The test depends on the calculation
+        // Change the original value 12000 to 16000 for gluten. The test depends on the calculation
         // for bytesByPartitionId in MapOutputStatistics. Gluten has a different statistic result.
         // See ShufflePartitionsUtil.coalescePartitions & GlutenColumnarShuffleWriter's mapStatus.
         withSparkSession(test, 16000, minNumPostShufflePartitions)
