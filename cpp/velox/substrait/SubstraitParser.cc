@@ -293,8 +293,10 @@ std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunc
     {"starts_with", "startswith"},
     {"named_struct", "row_constructor"},
     {"bit_or", "bitwise_or_agg"},
+    {"bit_or_partial", "bitwise_or_agg_partial"},
     {"bit_or_merge", "bitwise_or_agg_merge"},
     {"bit_and", "bitwise_and_agg"},
+    {"bit_and_partial", "bitwise_and_agg_partial"},
     {"bit_and_merge", "bitwise_and_agg_merge"},
     {"murmur3hash", "hash_with_seed"},
     {"modulus", "mod"}, /*Presto functions.*/
