@@ -615,15 +615,26 @@ case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[Spark
   def transformColumnarToRowExec(plan: ColumnarToRowExec): SparkPlan = {
     if (columnarConf.enableNativeColumnarToRow) {
       val child = replaceWithTransformerPlan(plan.child)
-      logDebug(s"ColumnarPostOverrides ColumnarToRowExecBase(${child.nodeName})")
-      val nativeConversion =
-        BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
-      val validationResult = nativeConversion.doValidate()
-      if (validationResult.isValid) {
-        nativeConversion
-      } else {
-        TransformHints.tagNotTransformable(plan, validationResult)
+      val isChildGlutenPlan = child match {
+        case a: AQEShuffleReadExec if a.child.isInstanceOf[GlutenPlan] => true
+        case s: ShuffleQueryStageExec if s.plan.isInstanceOf[GlutenPlan] => true
+        case _: GlutenPlan => true
+        case _ => false
+      }
+      if (!isChildGlutenPlan) {
+        TransformHints.tagNotTransformable(plan, "child is not gluten plan")
         plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
+      } else {
+        logDebug(s"ColumnarPostOverrides ColumnarToRowExecBase(${child.nodeName})")
+        val nativeConversion =
+          BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child)
+        val validationResult = nativeConversion.doValidate()
+        if (validationResult.isValid) {
+          nativeConversion
+        } else {
+          TransformHints.tagNotTransformable(plan, validationResult)
+          plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
+        }
       }
     } else {
       plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
@@ -699,19 +710,17 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   private def replaceWithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
-    case c2r: ColumnarToRowExecBase if isVanillaColumnarReader(c2r.child) =>
+    case c2r: ColumnarToRowExecBase if isVanillaColumnarOp(c2r.child) =>
       ColumnarToRowExec(c2r.child)
-    case c2r: ColumnarToRowExec if isVanillaColumnarReader(c2r.child) =>
+    case c2r: ColumnarToRowExec if isVanillaColumnarOp(c2r.child) =>
       c2r
-    case _ if isVanillaColumnarReader(plan) =>
+    case _ if isVanillaColumnarOp(plan) =>
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(ColumnarToRowExec(plan))
     case _ =>
       plan.withNewChildren(plan.children.map(replaceWithVanillaColumnarToRow))
   }
 
-  private def isVanillaColumnarReader(plan: SparkPlan): Boolean = plan match {
-    case _: BatchScanExec | _: DataSourceScanExec =>
-      !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
+  private def isVanillaColumnarOp(plan: SparkPlan): Boolean = plan match {
     case i: InMemoryTableScanExec =>
       if (InMemoryTableScanHelper.isGlutenTableCache(i)) {
         // `InMemoryTableScanExec` do not need extra RowToColumnar or ColumnarToRow
@@ -719,7 +728,11 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
       } else {
         !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
       }
-    case _ => false
+    case _: AQEShuffleReadExec => false
+    case _: ShuffleQueryStageExec => false
+    case _: RowToColumnarExec => false
+    case _: BroadcastQueryStageExec => false
+    case _ => !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
   }
 
   def apply(plan: SparkPlan): SparkPlan =
