@@ -87,8 +87,8 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
         case _: InputIteratorTransformer =>
         case _: ColumnarToRowTransition =>
         case _: RowToColumnarTransition =>
-//        case _: ReusedExchangeExec =>
-//        case _: AdaptiveSparkPlanExec =>
+        case _: ReusedExchangeExec =>
+        case _: AdaptiveSparkPlanExec =>
         case p: QueryStageExec => collect(p.plan)
         case p: GlutenPlan =>
           numGlutenNodes += 1
