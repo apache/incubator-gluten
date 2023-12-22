@@ -799,7 +799,7 @@ class GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan
 
 // Same as above except AQE is off.
 class GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan
-  extends GlutenDynamicPartitionPruningV1SuiteAEOff {
+  extends GlutenDynamicPartitionPruningV2SuiteAEOff {
   override def sparkConf: SparkConf = {
     super.sparkConf.set(GlutenConfig.COLUMNAR_FILESCAN_ENABLED.key, "false")
   }
