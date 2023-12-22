@@ -113,7 +113,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         "WITH sub1 AS (SELECT * FROM t1), sub2 AS (SELECT * FROM t1) SELECT * FROM sub1 JOIN sub2;"
       val id = runExecution(sql)
       val execution = glutenStore.execution(id)
-      assert(!execution.get.fallbackNodeToReason.exists(_._1.equals("ReusedExchange")))
+      assert(!execution.get.fallbackNodeToReason.exists(_._1.contains("ReusedExchange")))
     }
   }
 
