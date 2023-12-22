@@ -102,9 +102,4 @@ public:
     }
 };
 
-REGISTER_FUNCTION(SparkFloor)
-{
-    factory.registerFunction<SparkFunctionFloor>();
-}
-
 }
