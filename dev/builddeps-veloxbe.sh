@@ -12,6 +12,7 @@ BUILD_TYPE=Release
 BUILD_TESTS=OFF
 BUILD_EXAMPLES=OFF
 BUILD_BENCHMARKS=OFF
+BUILD_VELOX_BENCHMARKS=OFF
 BUILD_JEMALLOC=OFF
 BUILD_PROTOBUF=ON
 ENABLE_QAT=OFF
@@ -47,6 +48,10 @@ do
         ;;
         --build_benchmarks=*)
         BUILD_BENCHMARKS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_velox_benchmarks=*)
+        BUILD_VELOX_BENCHMARKS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
         --build_jemalloc=*)
@@ -141,12 +146,12 @@ if [ "$ENABLE_VCPKG" = "ON" ]; then
     eval "$envs"
 fi
 
-##install velox
+## build velox
 concat_velox_param
 cd $GLUTEN_DIR/ep/build-velox/src
 ./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --enable_abfs=$ENABLE_ABFS $VELOX_PARAMETER
 ./build_velox.sh --run_setup_script=$RUN_SETUP_SCRIPT --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
-                 --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS
+                 --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_tests=$BUILD_TESTS --build_velox_benchmarks=$BUILD_VELOX_BENCHMARKS
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp
