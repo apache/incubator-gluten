@@ -207,6 +207,7 @@ jobs:
         run: |
           ./tools/gluten-te/github_action/clean.sh || true
   centos7-test:
+  
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v4
@@ -289,59 +290,3 @@ jobs:
         if: ${{ always() }}
         run: |
           ./tools/gluten-te/github_action/clean.sh || true
-
-    runs-on: velox-self-hosted
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup docker container
-        run: |
-          docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/centos:7 \
-          bash -c 'cd /opt/gluten && sleep 14400'
-      - name: Build Gluten CPP library
-        run: |
-          docker exec -i static-build-test-$GITHUB_RUN_ID bash -c '
-          source /env.sh && \
-          sudo yum -y install patch && \
-          cd /opt/gluten && \
-          sudo -E ./dev/vcpkg/setup-build-depends.sh && \
-          source ./dev/vcpkg/env.sh && \
-          ./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_tests=ON --build_benchmarks=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=OFF'
-      - name: Build for Spark 3.2.2
-        run: |
-          docker exec static-build-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -DskipTests && \
-          cd /opt/gluten/tools/gluten-it && \
-          mvn clean install -Pspark-3.2'
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (centos 8)
-        run: |
-          docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.2.4:5000/gluten-dev/centos:8 \
-          bash -c 'cd /opt/gluten/tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx10G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=20g -s=1.0 --threads=32 --iterations=1'
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 20.04)
-        run: |
-          docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.2.4:5000/gluten-dev/ubuntu:20.04 \
-          'cd /opt/gluten/tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx10G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=20g -s=1.0 --threads=32 --iterations=1'
-      - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 22.04)
-        run: |
-          docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.2.4:5000/gluten-dev/ubuntu:22.04 \
-          'cd /opt/gluten/tools/gluten-it \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx10G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=20g -s=1.0 --threads=32 --iterations=1'
-      - name: Exit docker container
-        if: ${{ always() }}
-        run: |
-          docker stop static-build-test-$GITHUB_RUN_ID || true
