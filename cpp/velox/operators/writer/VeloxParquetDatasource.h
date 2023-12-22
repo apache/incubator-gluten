@@ -69,6 +69,19 @@ class VeloxParquetDatasource final : public Datasource {
     return schema_;
   }
 
+  bool isSupportedS3SdkPath(const std::string& filePath_) {
+    // support scheme
+    const std::array<const char*, 5> supported_schemes = {"s3:", "s3a:", "oss:", "cos:", "cosn:"};
+
+    for (const char* scheme : supported_schemes) {
+      size_t scheme_length = std::strlen(scheme);
+      if (filePath_.length() >= scheme_length && std::strncmp(filePath_.c_str(), scheme, scheme_length) == 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
  private:
   int64_t maxRowGroupBytes_ = 134217728; // 128MB
   int64_t maxRowGroupRows_ = 100000000; // 100M

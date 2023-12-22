@@ -20,6 +20,7 @@ package org.apache.spark.sql
  * Why we need a GlutenQueryTest when we already have QueryTest?
  *   1. We need to modify the way org.apache.spark.sql.CHQueryTest#compare compares double
  */
+import org.apache.spark.SPARK_VERSION_SHORT
 import org.apache.spark.rpc.GlutenDriverEndpoint
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans._
@@ -40,6 +41,20 @@ import scala.reflect.runtime.universe
 abstract class GlutenQueryTest extends PlanTest {
 
   protected def spark: SparkSession
+
+  def testWithSpecifiedSparkVersion(
+      testName: String,
+      minSparkVersion: Option[String] = None,
+      maxSparkVersion: Option[String] = None)(testFun: => Any): Unit = {
+    if (
+      minSparkVersion.forall(_ <= SPARK_VERSION_SHORT)
+      && maxSparkVersion.forall(_ >= SPARK_VERSION_SHORT)
+    ) {
+      test(testName) {
+        testFun
+      }
+    }
+  }
 
   /** Runs the plan and makes sure the answer contains all of the keywords. */
   def checkKeywordsExist(df: DataFrame, keywords: String*): Unit = {

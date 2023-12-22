@@ -24,6 +24,7 @@ on:
       - 'gluten-celeborn/**'
       - 'gluten-core/**'
       - 'gluten-data/**'
+      - 'gluten-delta/**'
       - 'gluten-ut/**'
       - 'shims/**'
       - 'tools/gluten-it/**'
@@ -107,7 +108,7 @@ jobs:
         run: |
           ./tools/gluten-te/github_action/exec.sh '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -DskipTests'
+          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests'
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.2
         run: |
           ./tools/gluten-te/github_action/exec.sh 'cd /opt/gluten/tools/gluten-it && \
@@ -134,7 +135,7 @@ jobs:
         run: |
           ./tools/gluten-te/github_action/exec.sh '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -DskipTests'
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests'
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.3
         run: |
           ./tools/gluten-te/github_action/exec.sh 'cd /opt/gluten/tools/gluten-it && \
@@ -147,7 +148,7 @@ jobs:
         run: |
           ./tools/gluten-te/github_action/exec.sh '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -DskipTests'
+          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests'
       - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.4
         run: |
           ./tools/gluten-te/github_action/exec.sh 'cd /opt/gluten/tools/gluten-it && \
@@ -185,7 +186,7 @@ jobs:
         run: |
           ./tools/gluten-te/github_action/exec.sh '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -DskipTests'
+          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests'
       - name: TPC-H SF1.0 && TPC-DS SF30.0 Parquet local spark3.2
         run: |
           ./tools/gluten-te/github_action/exec.sh 'cd /opt/gluten/tools/gluten-it && \
@@ -231,7 +232,7 @@ jobs:
         run: |
           ./tools/gluten-te/github_action/exec.sh '
           cd /opt/gluten && \
-          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -DskipTests'
+          mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests'
       - name: TPC-H SF1.0 && TPC-DS SF30.0 Parquet local spark3.2
         run: |
           ./tools/gluten-te/github_action/exec.sh 'cd /opt/gluten/tools/gluten-it && \
@@ -290,3 +291,4 @@ jobs:
         if: ${{ always() }}
         run: |
           ./tools/gluten-te/github_action/clean.sh || true
+

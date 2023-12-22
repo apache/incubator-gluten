@@ -54,7 +54,7 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
    */
   override def genSplitInfo(
       partition: InputPartition,
-      partitionSchemas: StructType,
+      partitionSchema: StructType,
       fileFormat: ReadFileFormat): SplitInfo = {
     partition match {
       case p: GlutenMergeTreePartition =>

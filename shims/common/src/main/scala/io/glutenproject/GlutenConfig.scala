@@ -25,6 +25,7 @@ import org.apache.hadoop.security.UserGroupInformation
 
 import java.util
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
@@ -514,9 +515,6 @@ object GlutenConfig {
       (
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.key,
         COLUMNAR_VELOX_CONNECTOR_IO_THREADS.defaultValueString),
-      (
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.key,
-        COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER.defaultValueString),
       (COLUMNAR_SHUFFLE_CODEC.key, ""),
       (COLUMNAR_SHUFFLE_CODEC_BACKEND.key, ""),
       ("spark.hadoop.input.connect.timeout", "180000"),
@@ -1083,8 +1081,18 @@ object GlutenConfig {
       .intConf
       .createWithDefault(0)
 
+  val COLUMNAR_VELOX_ASYNC_TIMEOUT =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.asyncTimeoutOnTaskStopping")
+      .internal()
+      .doc(
+        "Timeout for asynchronous execution when task is being stopped in Velox backend. " +
+          "It's recommended to set to a number larger than network connection timeout that the " +
+          "possible aysnc tasks are relying on.")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefault(30000)
+
   val COLUMNAR_VELOX_SPLIT_PRELOAD_PER_DRIVER =
-    buildStaticConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
+    buildConf("spark.gluten.sql.columnar.backend.velox.SplitPreloadPerDriver")
       .internal()
       .doc("The split preload per task")
       .intConf

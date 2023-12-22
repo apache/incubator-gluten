@@ -59,12 +59,12 @@ class IteratorApiImpl extends IteratorApi with Logging {
    */
   override def genSplitInfo(
       partition: InputPartition,
-      partitionSchemas: StructType,
+      partitionSchema: StructType,
       fileFormat: ReadFileFormat): SplitInfo = {
     partition match {
       case f: FilePartition =>
         val (paths, starts, lengths, partitionColumns) =
-          constructSplitInfo(partitionSchemas, f.files)
+          constructSplitInfo(partitionSchema, f.files)
         val preferredLocations =
           SoftAffinity.getFilePartitionLocations(paths.asScala.toArray, f.preferredLocations())
         LocalFilesBuilder.makeLocalFiles(

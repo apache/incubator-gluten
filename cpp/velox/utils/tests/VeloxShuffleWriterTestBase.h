@@ -211,6 +211,9 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
 
 class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams>, public VeloxShuffleWriterTestBase {
  protected:
+  static void SetUpTestCase() {
+    facebook::velox::memory::MemoryManager::testingSetInstance({});
+  }
   virtual void SetUp() override {
     VeloxShuffleWriterTestBase::setUp();
 
@@ -420,6 +423,9 @@ class RoundRobinPartitioningShuffleWriter : public MultiplePartitioningShuffleWr
 
 class VeloxShuffleWriterMemoryTest : public VeloxShuffleWriterTestBase, public testing::Test {
  protected:
+  static void SetUpTestCase() {
+    facebook::velox::memory::MemoryManager::testingSetInstance({});
+  }
   void SetUp() override {
     VeloxShuffleWriterTestBase::setUp();
     // Use LocalPartitionWriter to test OOM and spill.

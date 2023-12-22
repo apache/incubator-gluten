@@ -41,7 +41,7 @@ trait IteratorApi {
    */
   def genSplitInfo(
       partition: InputPartition,
-      partitionSchemas: StructType,
+      partitionSchema: StructType,
       fileFormat: ReadFileFormat): SplitInfo
 
   /**
