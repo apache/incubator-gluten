@@ -174,7 +174,14 @@ case class HashAggregateExecTransformer(
   }
 
   override protected def modeToKeyWord(aggregateMode: AggregateMode): String = {
-    super.modeToKeyWord(if (mixedPartialAndMerge) Partial else aggregateMode)
+    super.modeToKeyWord(if (mixedPartialAndMerge) {
+      Partial
+    } else {
+      aggregateMode match {
+        case PartialMerge => Final
+        case _ => aggregateMode
+      }
+    })
   }
 
   // Create aggregate function node and add to list.
@@ -201,7 +208,7 @@ case class HashAggregateExecTransformer(
         case PartialMerge =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
             VeloxAggregateFunctionsBuilder
-              .create(args, aggregateFunction, mixedPartialAndMerge),
+              .create(args, aggregateFunction, mixedPartialAndMerge, purePartialMerge),
             childrenNodeList,
             modeKeyWord,
             VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
@@ -253,7 +260,8 @@ case class HashAggregateExecTransformer(
           VeloxAggregateFunctionsBuilder.create(
             args,
             aggregateFunction,
-            aggregateMode == PartialMerge && mixedPartialAndMerge),
+            aggregateMode == PartialMerge && mixedPartialAndMerge,
+            aggregateMode == PartialMerge && purePartialMerge),
           childrenNodeList,
           modeKeyWord,
           ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
@@ -500,6 +508,10 @@ case class HashAggregateExecTransformer(
     partialMergeExists && partialExists
   }
 
+  def purePartialMerge: Boolean = {
+    aggregateExpressions.forall(_.mode == PartialMerge)
+  }
+
   /**
    * Create and return the Rel for the this aggregation.
    * @param context
@@ -576,7 +588,8 @@ object VeloxAggregateFunctionsBuilder {
   def create(
       args: java.lang.Object,
       aggregateFunc: AggregateFunction,
-      forMergeCompanion: Boolean = false): Long = {
+      forMergeCompanion: Boolean = false,
+      purePartialMerge: Boolean = false): Long = {
     val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
 
     var sigName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
@@ -593,7 +606,15 @@ object VeloxAggregateFunctionsBuilder {
     }
 
     // Use companion function for partial-merge aggregation functions on count distinct.
-    val substraitAggFuncName = if (!forMergeCompanion) sigName.get else sigName.get + "_merge"
+    val substraitAggFuncName = {
+      if (purePartialMerge) {
+        sigName.get + "_partial"
+      } else if (forMergeCompanion) {
+        sigName.get + "_merge"
+      } else {
+        sigName.get
+      }
+    }
 
     ExpressionBuilder.newScalarFunction(
       functionMap,
