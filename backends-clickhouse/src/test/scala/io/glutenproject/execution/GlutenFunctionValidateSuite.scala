@@ -82,7 +82,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
-        }
+  }
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -224,7 +224,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     spark.catalog.createTable("url_table", urlFilePath, fileFormat)
   }
 
-    test("Test get_json_object 1") {
+  test("Test get_json_object 1") {
     runQueryAndCompare("SELECT get_json_object(string_field1, '$.a') from json_test") {
       checkOperatorMatch[ProjectExecTransformer]
     }
@@ -535,7 +535,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       )(checkOperatorMatch[ProjectExecTransformer])
     }
   }
-   
+
   test("test common subexpression eliminate") {
     def checkOperatorCount[T <: TransformSupport](count: Int)(df: DataFrame)(implicit
         tag: ClassTag[T]): Unit = {
@@ -552,10 +552,7 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     withSQLConf(("spark.gluten.sql.commonSubexpressionEliminate", "true")) {
       // CSE in project
       runQueryAndCompare("select hash(id), hash(id)+1, hash(id)-1 from range(10)") {
-        df =>
-          {
-            checkOperatorCount[ProjectExecTransformer](2)(df)
-          }
+        df => checkOperatorCount[ProjectExecTransformer](2)(df)
       }
 
       // CSE in filter(not work yet)
