@@ -44,7 +44,7 @@ else
   GLUTEN_DEBUG_BUILD=OFF
 fi
 
-# The branches used to prepare dependencies
+#  The branches used to prepare dependencies
 CACHE_GLUTEN_REPO=${CACHE_GLUTEN_REPO:-$DEFAULT_GLUTEN_REPO}
 CACHE_GLUTEN_BRANCH=${CACHE_GLUTEN_BRANCH:-$DEFAULT_GLUTEN_BRANCH}
 
