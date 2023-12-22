@@ -17,13 +17,12 @@
 package io.glutenproject.memory.memtarget.spark;
 
 import io.glutenproject.GlutenConfig;
-import io.glutenproject.collections.AbstractReferenceMap;
-import io.glutenproject.collections.AbstractReferenceMap.ReferenceStrength;
 import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.memtarget.Spiller;
 import io.glutenproject.memory.memtarget.TreeMemoryTarget;
-import io.glutenproject.sql.shims.SparkShimLoader;
 
+import org.apache.commons.collections4.map.AbstractReferenceMap.ReferenceStrength;
+import org.apache.commons.collections4.map.ReferenceMap;
 import org.apache.spark.memory.TaskMemoryManager;
 
 import java.util.Collections;
@@ -64,9 +63,8 @@ public final class TreeMemoryConsumers {
 
   public static class Factory {
 
-    private static final AbstractReferenceMap<TaskMemoryManager, TreeMemoryTarget> MAP =
-        SparkShimLoader.getSparkShims()
-            .getReferenceMap(ReferenceStrength.WEAK, ReferenceStrength.WEAK);
+    private static final ReferenceMap<TaskMemoryManager, TreeMemoryTarget> MAP =
+        new ReferenceMap<>(ReferenceStrength.WEAK, ReferenceStrength.WEAK);
     private final long perTaskCapacity;
 
     private Factory(long perTaskCapacity) {
