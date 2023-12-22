@@ -257,6 +257,58 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop ubuntu2004-test-spark34-$GITHUB_RUN_ID || true
+
+  ubuntu2204-test-spark33-spark34:
+    runs-on: velox-self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup docker container
+        run: |
+          docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
+          -v $PWD:/opt/gluten --name ubuntu2204-test-spark33-spark34-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/ubuntu:22.04 \
+          'cd /opt/gluten && sleep 14400'
+      - name: Build Gluten velox third party
+        run: |
+          docker exec ubuntu2204-test-spark33-spark34-$GITHUB_RUN_ID bash -c '
+          cd /opt/gluten/ep/build-velox/src && \
+          ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=OFF && \
+          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=OFF'
+      - name: Build Gluten CPP library
+        run: |
+          docker exec ubuntu2204-test-spark33-spark34-$GITHUB_RUN_ID bash -c '
+          cd /opt/gluten/cpp && \
+          ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=OFF'
+      - name: Build for Spark 3.3.1
+        run: |
+          docker exec ubuntu2204-test-spark33-spark34-$GITHUB_RUN_ID bash -c '
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests'
+      - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.3
+        run: |
+          docker exec ubuntu2204-test-spark33-spark34-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
+          mvn clean install -Pspark-3.3 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=30g -s=10.0 --threads=32 --iterations=1'
+      - name: Build for Spark 3.4.1
+        run: |
+          docker exec ubuntu2204-test-spark33-spark34-$GITHUB_RUN_ID bash -c '
+          cd /opt/gluten && \
+          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests'
+      - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.4
+        run: |
+          docker exec ubuntu2204-test-spark33-spark34-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
+          mvn clean install -Pspark-3.4 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
+          && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh queries-compare \
+            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=30g -s=10.0 --threads=32 --iterations=1'
+      - name: Exit docker container
+        if: ${{ always() }}
+        run: |
+          docker stop ubuntu2204-test-spark33-spark34-$GITHUB_RUN_ID || true
+
   ubuntu2204-test:
     runs-on: velox-self-hosted
     steps:
@@ -304,32 +356,6 @@ jobs:
             --local --preset=velox-with-celeborn --benchmark-type=ds --error-on-memleak --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 && \
           bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/stop-worker.sh \
           && bash /opt/apache-celeborn-0.3.0-incubating-bin/sbin/stop-master.sh'
-      - name: Build for Spark 3.3.1
-        run: |
-          docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten && \
-          mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests'
-      - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.3
-        run: |
-          docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean install -Pspark-3.3 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=30g -s=10.0 --threads=32 --iterations=1'
-      - name: Build for Spark 3.4.1
-        run: |
-          docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c '
-          cd /opt/gluten && \
-          mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests'
-      - name: TPC-H SF1.0 && TPC-DS SF10.0 Parquet local spark3.4
-        run: |
-          docker exec ubuntu2204-test-$GITHUB_RUN_ID bash -c 'cd /opt/gluten/tools/gluten-it && \
-          mvn clean install -Pspark-3.4 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
-          && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh queries-compare \
-            --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=30g -s=10.0 --threads=32 --iterations=1'
       - name: Exit docker container
         if: ${{ always() }}
         run: |
