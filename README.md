@@ -93,13 +93,9 @@ spark-shell
 
 ### 3.2.1 Build and install Gluten with Velox backend
 
-<img src="https://github.com/facebookincubator/velox/raw/main/static/logo.svg" width="200">
-
 If you want to use Gluten **Velox** backend, see [Build with Velox](./docs/get-started/Velox.md) to build and install the necessary libraries.
 
 ### 3.2.2 Build and install Gluten with ClickHouse backend
-
-![logo](./docs/image/ClickHouse/logo.png)
 
 If you want to use Gluten **ClickHouse** backend, see [Build with ClickHouse Backend](./docs/get-started/ClickHouse.md). ClickHouse backend is developed by [Kyligence](https://kyligence.io/), please visit https://github.com/Kyligence/ClickHouse for more infomation.
 
@@ -147,18 +143,6 @@ Gluten was initiated by Intel and Kyligence in 2022. Several companies such as I
 rui.mo@intel.com; binwei.yang@intel.com; weiting.chen@intel.com;
 chang.chen@kyligence.io; zhichao.zhang@kyligence.io; neng.liu@kyligence.io;
 zuochunwei@meituan.com;yangchuan.zy@alibaba-inc.com;xiyu.zk@alibaba-inc.com;joey.ljy@alibaba-inc.com
-
-#
-
-<img src="./docs/image/intel_logo.jpg" width="200"> &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;<img src="./docs/image/kyligence_logo.png" width="500"><br>
-<img src="./docs/image/bigo_logo.png" width="200"> &nbsp; &nbsp; &nbsp;  &nbsp; &nbsp; &nbsp; <img src="./docs/image/meituan_logo.png" width="200">
-
-#
-
-Intel, the Intel logo, Arc, Intel Atom, Intel Core, Iris, OpenVINO, the OpenVINO logo, Pentium, VTune, and Xeon are trademarks of Intel Corporation or its subsidiaries.
-* Other names and brands may be claimed as the property of others.
-
-(C) Intel Corporation
 
 
 ##### \* LEGAL NOTICE: Your use of this software and any required dependent software (the "Software Package") is subject to the terms and conditions of the software license agreements for the Software Package, which may also include notices, disclaimers, or license terms for third party or open source software included in or with the Software Package, and your use indicates your acceptance of all such terms. Please refer to the "TPP.txt" or other similarly-named text file included with the Software Package for additional details.

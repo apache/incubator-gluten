@@ -26,7 +26,8 @@ import io.glutenproject.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.BooleanType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
@@ -113,6 +114,11 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }.asJava
     // Will put all filter expressions into an AND expression
     val transformer = filterExprs()
+      .map {
+        case ar: AttributeReference if ar.dataType == BooleanType =>
+          EqualNullSafe(ar, Literal.TrueLiteral)
+        case e => e
+      }
       .reduceLeftOption(And)
       .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
     val filterNodes = transformer.map(_.doTransform(context.registeredFunction))

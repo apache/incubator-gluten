@@ -108,10 +108,10 @@ static void writeSignalIDtoSignalPipe(int sig)
 static void call_default_signal_handler(int sig)
 {
     if (SIG_ERR == signal(sig, SIG_DFL))
-        DB::throwFromErrno("Cannot set signal handler.", DB::ErrorCodes::CANNOT_SET_SIGNAL_HANDLER);
+        throw ErrnoException(ErrorCodes::CANNOT_SET_SIGNAL_HANDLER, "Cannot set signal handler");
 
     if (0 != raise(sig))
-        DB::throwFromErrno("Cannot send signal.", DB::ErrorCodes::CANNOT_SEND_SIGNAL);
+        throw ErrnoException(ErrorCodes::CANNOT_SEND_SIGNAL, "Cannot send signal");
 }
 
 static void signalHandler(int sig, siginfo_t * info, void * context) noexcept
@@ -407,7 +407,16 @@ struct SignalHandler::Impl
         /// Reset signals to SIG_DFL to avoid trying to write to the signal_pipe that will be closed after.
         for (int sig : handled_signals)
             if (SIG_ERR == signal(sig, SIG_DFL))
-                throwFromErrno("Cannot set signal handler.", ErrorCodes::CANNOT_SET_SIGNAL_HANDLER);
+            {
+                try
+                {
+                    throw ErrnoException(ErrorCodes::CANNOT_SET_SIGNAL_HANDLER, "Cannot set signal handler");
+                }
+                catch (ErrnoException &)
+                {
+                    tryLogCurrentException(__PRETTY_FUNCTION__);
+                }
+            }
         signal_pipe.close();
     }
 };

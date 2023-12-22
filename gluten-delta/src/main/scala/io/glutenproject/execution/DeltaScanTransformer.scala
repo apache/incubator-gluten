@@ -14,9 +14,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.extension
+package io.glutenproject.execution
 
-import io.glutenproject.execution.FileSourceScanExecTransformer
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.sql.catalyst.TableIdentifier

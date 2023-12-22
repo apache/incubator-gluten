@@ -71,6 +71,7 @@ struct Metrics {
     kProcessedStrides,
     kRemainingFilterTime,
     kIoWaitTime,
+    kPreloadSplits,
 
     // The end of enum items.
     kEnd,

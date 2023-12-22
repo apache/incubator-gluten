@@ -284,10 +284,6 @@ case class SortMergeJoinExecTransformer(
     JoinUtils.createTransformContext(false, output, joinRel, inputStreamedOutput, inputBuildOutput)
   }
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
   override protected def withNewChildrenInternal(
       newLeft: SparkPlan,
       newRight: SparkPlan): SortMergeJoinExecTransformer =

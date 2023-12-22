@@ -41,6 +41,7 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
   val numDynamicFiltersAccepted: SQLMetric = metrics("numDynamicFiltersAccepted")
   val skippedSplits: SQLMetric = metrics("skippedSplits")
   val processedSplits: SQLMetric = metrics("processedSplits")
+  val preloadSplits: SQLMetric = metrics("preloadSplits")
   val skippedStrides: SQLMetric = metrics("skippedStrides")
   val processedStrides: SQLMetric = metrics("processedStrides")
   val remainingFilterTime: SQLMetric = metrics("remainingFilterTime")
@@ -72,6 +73,7 @@ class FileSourceScanMetricsUpdater(@transient val metrics: Map[String, SQLMetric
       processedStrides += operatorMetrics.processedStrides
       remainingFilterTime += operatorMetrics.remainingFilterTime
       ioWaitTime += operatorMetrics.ioWaitTime
+      preloadSplits += operatorMetrics.preloadSplits
     }
   }
 }

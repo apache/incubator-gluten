@@ -20,13 +20,11 @@ import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.SplitInfo
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression}
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import org.apache.iceberg.spark.source.GlutenIcebergSourceUtil
 
@@ -43,15 +41,13 @@ class IcebergScanTransformer(
 
   override def filterExprs(): Seq[Expression] = Seq.empty
 
-  override def getPartitionSchema: StructType = new StructType()
+  override def getPartitionSchema: StructType = GlutenIcebergSourceUtil.getPartitionSchema(scan)
 
   override def getDataSchema: StructType = new StructType()
 
   override def getInputFilePathsInternal: Seq[String] = Seq.empty
 
   override lazy val fileFormat: ReadFileFormat = GlutenIcebergSourceUtil.getFileFormat(scan)
-
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = throw new UnsupportedOperationException()
 
   override def getSplitInfos: Seq[SplitInfo] = {
     getPartitions.zipWithIndex.map {
