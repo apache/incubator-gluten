@@ -279,7 +279,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          ./tools/gluten-te/github_action/gha/gha-checkout/checkout.sh
+          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
@@ -358,7 +358,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          OS_IMAGE=centos OS_VERSION=8 ./tools/gluten-te/github_action/gha/gha-checkout/checkout.sh
+          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
@@ -400,7 +400,6 @@ jobs:
           $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/clean.sh
   
   centos7-test:
-  
     runs-on: velox-self-hosted
     env:
       OS_IMAGE: centos
@@ -409,10 +408,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          OS_IMAGE=centos OS_VERSION=7 ./tools/gluten-te/github_action/gha/gha-checkout/checkout.sh
+          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
-         $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
+          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
           yum -y install epel-release centos-release-scl patch sudo && \
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox --enable_hdfs=ON --enable_s3=ON --enable_gcs=ON --enable_abfs=OFF && \
