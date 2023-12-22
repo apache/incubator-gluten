@@ -78,7 +78,7 @@ public:
 
        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
-};
 
-static FunctionParserRegister<FunctionParserUnixTimestamp> register_unix_timestamp;
+    static FunctionParserRegister<FunctionParserUnixTimestamp> register_unix_timestamp;
+};
 }
