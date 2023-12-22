@@ -429,6 +429,8 @@ object GlutenConfig {
   // Tokens of current user, split by `\0`
   val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
 
+  val GLUTEN_UI_ENABLED = "spark.gluten.ui.enabled"
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
