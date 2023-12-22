@@ -134,6 +134,7 @@ object ExpressionMappings {
     Sig[Log1p](LOG1P),
     Sig[Log2](LOG2),
     Sig[Log](LOG),
+    Sig[Logarithm](LOG),
     Sig[ToRadians](RADIANS),
     Sig[Greatest](GREATEST),
     Sig[Least](LEAST),

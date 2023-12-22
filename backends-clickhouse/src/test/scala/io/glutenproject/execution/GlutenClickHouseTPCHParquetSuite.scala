@@ -2253,6 +2253,15 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-4152: log") {
+    withSQLConf(
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> (ConstantFolding.ruleName + "," + NullPropagation.ruleName)) {
+      runQueryAndCompare(
+        "select log(n_regionkey + 1.0) from nation"
+      )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
   test("GLUTEN-4032: fix shuffle read coredump after union") {
     val sql =
       """
