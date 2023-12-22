@@ -85,6 +85,7 @@ private:
     ContextPtr & context;
     QueryContext & query_context;
     ContextMutablePtr & global_context;
+    NameToIndexMap primary_key_names_positions;
 };
 
 }
