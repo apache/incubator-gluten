@@ -83,6 +83,8 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
     if (
       (expr.isInstanceOf[Unevaluable] && !expr.isInstanceOf[AttributeReference])
       || expr.isInstanceOf[AggregateFunction]
+      || (expr.isInstanceOf[AttributeReference]
+        && expr.asInstanceOf[AttributeReference].name == VirtualColumn.groupingIdName)
     ) {
       logTrace(s"Check common expression failed $expr class ${expr.getClass.toString}")
       return false
@@ -161,6 +163,9 @@ class CommonSubexpressionEliminateRule(session: SparkSession, conf: SQLConf)
   }
 
   private def visitAggregate(aggregate: Aggregate): Aggregate = {
+    logTrace(
+      s"aggregate groupingExpressions: ${aggregate.groupingExpressions} " +
+        s"aggregateExpressions: ${aggregate.aggregateExpressions}")
     val groupingSize = aggregate.groupingExpressions.size
     val aggregateSize = aggregate.aggregateExpressions.size
 
