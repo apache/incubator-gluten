@@ -16,6 +16,8 @@
  */
 package io.glutenproject.sql.shims
 
+import io.glutenproject.collections.AbstractReferenceMap
+import io.glutenproject.collections.AbstractReferenceMap.ReferenceStrength
 import io.glutenproject.expression.Sig
 
 import org.apache.spark.sql.SparkSession
@@ -86,4 +88,8 @@ trait SparkShims {
       agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean
 
   def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan]
+
+  def getReferenceMap[K, V](
+      keyStrength: ReferenceStrength,
+      valueStrength: ReferenceStrength): AbstractReferenceMap[K, V]
 }

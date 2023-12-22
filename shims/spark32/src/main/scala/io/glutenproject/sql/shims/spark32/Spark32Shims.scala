@@ -16,6 +16,8 @@
  */
 package io.glutenproject.sql.shims.spark32
 
+import io.glutenproject.collections.AbstractReferenceMap
+import io.glutenproject.collections.ReferenceMap
 import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
@@ -106,4 +108,10 @@ class Spark32Shims extends SparkShims {
       agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean = false
 
   override def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan] = None
+
+  override def getReferenceMap[K, V](
+      keyStrength: AbstractReferenceMap.ReferenceStrength,
+      valueStrength: AbstractReferenceMap.ReferenceStrength): AbstractReferenceMap[K, V] = {
+    new ReferenceMap[K, V](keyStrength, valueStrength)
+  }
 }

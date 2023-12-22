@@ -17,6 +17,8 @@
 package io.glutenproject.sql.shims.spark34
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.collections.AbstractReferenceMap
+import io.glutenproject.collections.ReferenceMap
 import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.expression.ExpressionNames.EMPTY2NULL
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
@@ -153,5 +155,11 @@ class Spark34Shims extends SparkShims {
       errorClass = "INVALID_BUCKET_FILE",
       messageParameters = Map("error" -> path),
       cause = null)
+  }
+
+  override def getReferenceMap[K, V](
+      keyStrength: AbstractReferenceMap.ReferenceStrength,
+      valueStrength: AbstractReferenceMap.ReferenceStrength): AbstractReferenceMap[K, V] = {
+    new ReferenceMap[K, V](keyStrength, valueStrength)
   }
 }
