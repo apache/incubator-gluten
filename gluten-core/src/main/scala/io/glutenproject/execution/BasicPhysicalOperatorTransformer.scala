@@ -281,6 +281,14 @@ object ProjectExecTransformer {
 
 // An alternatives for UnionExec.
 case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
+  children.foreach(
+    child =>
+      child match {
+        case w: WholeStageTransformer =>
+          w.setOutputSchemaForPlan(output)
+        case _ =>
+      })
+
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {
