@@ -22,7 +22,7 @@ import io.glutenproject.execution._
 import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.columnar._
 import io.glutenproject.metrics.GlutenTimeMetric
-import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector}
+import io.glutenproject.utils.{LogLevelUtil, PhysicalPlanSelector, PlanUtil}
 
 import org.apache.spark.api.python.EvalPythonExecTransformer
 import org.apache.spark.internal.Logging
@@ -36,7 +36,6 @@ import org.apache.spark.sql.catalyst.rules.{PlanChangeLogger, Rule}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
-import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
@@ -114,7 +113,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
           // If the child is transformable, transform aggregation as well.
           logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
           transformHashAggregate()
-        case p: SparkPlan if InMemoryTableScanHelper.isGlutenTableCache(p) =>
+        case p: SparkPlan if PlanUtil.isGlutenTableCache(p) =>
           transformHashAggregate()
         case _ =>
           // If the child is not transformable, transform the grandchildren only.
@@ -615,13 +614,8 @@ case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[Spark
   def transformColumnarToRowExec(plan: ColumnarToRowExec): SparkPlan = {
     if (columnarConf.enableNativeColumnarToRow) {
       val child = replaceWithTransformerPlan(plan.child)
-      val isChildGlutenPlan = child match {
-        case a: AQEShuffleReadExec if a.child.isInstanceOf[GlutenPlan] => true
-        case s: ShuffleQueryStageExec if s.plan.isInstanceOf[GlutenPlan] => true
-        case _: GlutenPlan => true
-        case _ => false
-      }
-      if (!isChildGlutenPlan) {
+
+      if (!PlanUtil.outputNativeColumnarData(child)) {
         TransformHints.tagNotTransformable(plan, "child is not gluten plan")
         plan.withNewChildren(plan.children.map(replaceWithTransformerPlan))
       } else {
@@ -657,7 +651,7 @@ case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[Spark
     case ColumnarToRowExec(child: BroadcastQueryStageExec) =>
       replaceWithTransformerPlan(child)
     // `InMemoryTableScanExec` internally supports ColumnarToRow
-    case ColumnarToRowExec(child: SparkPlan) if InMemoryTableScanHelper.isGlutenTableCache(child) =>
+    case ColumnarToRowExec(child: SparkPlan) if PlanUtil.isGlutenTableCache(child) =>
       child
     case plan: ColumnarToRowExec =>
       transformColumnarToRowExec(plan)
@@ -668,7 +662,7 @@ case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[Spark
       // ColumnarExchange maybe child as a Row SparkPlan
       r.withNewChildren(r.children.map {
         // `InMemoryTableScanExec` internally supports ColumnarToRow
-        case c: ColumnarToRowExec if !InMemoryTableScanHelper.isGlutenTableCache(c.child) =>
+        case c: ColumnarToRowExec if !PlanUtil.isGlutenTableCache(c.child) =>
           transformColumnarToRowExec(c)
         case other =>
           replaceWithTransformerPlan(other)
@@ -685,64 +679,43 @@ case class TransformPostOverrides(isAdaptiveContext: Boolean) extends Rule[Spark
   }
 }
 
-object InMemoryTableScanHelper {
-  private def isGlutenTableCacheInternal(i: InMemoryTableScanExec): Boolean = {
-    // `ColumnarCachedBatchSerializer` is at velox module, so use class name here
-    i.relation.cacheBuilder.serializer.getClass.getSimpleName == "ColumnarCachedBatchSerializer" &&
-    i.supportsColumnar
-  }
-
-  def isGlutenTableCache(plan: SparkPlan): Boolean = {
-    plan match {
-      case i: InMemoryTableScanExec =>
-        isGlutenTableCacheInternal(i)
-      case q: QueryStageExec =>
-        // Compatible with Spark3.5 `TableCacheQueryStage`
-        isGlutenTableCache(q.plan)
-      case _ => false
-    }
-  }
-}
-
 // This rule will try to add RowToColumnarExecBase and ColumnarToRowExec
-// to support vanilla columnar scan.
+// to support vanilla columnar operators.
 case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[SparkPlan] {
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   private def replaceWithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
-    case c2r: ColumnarToRowExecBase if isVanillaColumnarOp(c2r.child) =>
+    case c2r: ColumnarToRowExecBase if PlanUtil.isVanillaColumnarOp(c2r.child) =>
       ColumnarToRowExec(c2r.child)
-    case c2r: ColumnarToRowExec if isVanillaColumnarOp(c2r.child) =>
+    case c2r: ColumnarToRowExec if PlanUtil.isVanillaColumnarOp(c2r.child) =>
       c2r
-    case _ if isVanillaColumnarOp(plan) =>
+    case _ if PlanUtil.isVanillaColumnarOp(plan) =>
       BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(ColumnarToRowExec(plan))
     case _ =>
       plan.withNewChildren(plan.children.map(replaceWithVanillaColumnarToRow))
   }
 
-  private def isVanillaColumnarOp(plan: SparkPlan): Boolean = plan match {
-    case i: InMemoryTableScanExec =>
-      if (InMemoryTableScanHelper.isGlutenTableCache(i)) {
-        // `InMemoryTableScanExec` do not need extra RowToColumnar or ColumnarToRow
-        false
-      } else {
-        !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
-      }
-    case _: AQEShuffleReadExec => false
-    case _: ShuffleQueryStageExec => false
-    case _: RowToColumnarExec => false
-    case _: BroadcastQueryStageExec => false
-    case _ => !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
+  private def replaceWithVanillaRowToColumnar(plan: SparkPlan): SparkPlan = plan match {
+    case _ if PlanUtil.isVanillaColumnarOp(plan) =>
+      plan.withNewChildren(plan.children.map {
+        c =>
+          val child = replaceWithVanillaRowToColumnar(c)
+          if (child.isInstanceOf[GlutenPlan]) {
+            RowToColumnarExec(
+              BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child))
+          } else {
+            child
+          }
+      })
+    case _ =>
+      plan.withNewChildren(plan.children.map(replaceWithVanillaRowToColumnar))
   }
 
-  def apply(plan: SparkPlan): SparkPlan =
-    if (GlutenConfig.getConf.enableVanillaVectorizedReaders) {
-      val newPlan = replaceWithVanillaColumnarToRow(plan)
-      planChangeLogger.logRule(ruleName, plan, newPlan)
-      newPlan
-    } else {
-      plan
-    }
+  def apply(plan: SparkPlan): SparkPlan = {
+    val newPlan = replaceWithVanillaRowToColumnar(replaceWithVanillaColumnarToRow(plan))
+    planChangeLogger.logRule(ruleName, plan, newPlan)
+    newPlan
+  }
 }
 
 object ColumnarOverrideRules {
