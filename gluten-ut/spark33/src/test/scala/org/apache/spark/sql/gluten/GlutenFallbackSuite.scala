@@ -105,6 +105,16 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         execution.get.fallbackNodeToReason.head._2
           .contains("Gluten does not touch it or does not support it"))
     }
+
+    // [GLUTEN-4119] Skip add ReusedExchange to fallback node
+    withTable("t1") {
+      spark.range(10).write.format("parquet").saveAsTable("t1")
+      val sql =
+        "WITH sub1 AS (SELECT * FROM t1), sub2 AS (SELECT * FROM t1) SELECT * FROM sub1 JOIN sub2;"
+      val id = runExecution(sql)
+      val execution = glutenStore.execution(id)
+      assert(!execution.get.fallbackNodeToReason.exists(_._1.equals("ReusedExchange")))
+    }
   }
 
   test("Improve merge fallback reason") {
