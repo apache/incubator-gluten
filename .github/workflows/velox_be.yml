@@ -48,11 +48,14 @@ env:
 jobs:
   ubuntu2004-test-spark32:
     runs-on: velox-self-hosted
+    env:
+      OS_IMAGE: ubuntu
+      OS_VERSION: 20.04
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          OS_IMAGE=ubuntu OS_VERSION=20.04 $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
+          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
@@ -92,11 +95,14 @@ jobs:
   
   ubuntu2004-test-spark32-slow:
     runs-on: velox-self-hosted
+    env:
+      OS_IMAGE: ubuntu
+      OS_VERSION: 20.04
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-         OS_IMAGE=ubuntu OS_VERSION=20.04 $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
+          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
@@ -128,11 +134,14 @@ jobs:
 
   ubuntu2004-test-spark33-slow:
     runs-on: velox-self-hosted
+    env:
+      OS_IMAGE: ubuntu
+      OS_VERSION: 20.04
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          OS_IMAGE=ubuntu OS_VERSION=20.04 $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
+          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
@@ -163,11 +172,14 @@ jobs:
 
   ubuntu2004-test-spark33:
     runs-on: velox-self-hosted
+    env:
+      OS_IMAGE: ubuntu
+      OS_VERSION: 20.04
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-         OS_IMAGE=ubuntu OS_VERSION=20.04 $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
+          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
@@ -191,11 +203,14 @@ jobs:
   
   ubuntu2004-test-spark34-slow:
     runs-on: velox-self-hosted
+    env:
+      OS_IMAGE: ubuntu
+      OS_VERSION: 20.04
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          OS_IMAGE=ubuntu OS_VERSION=20.04 $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
+          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
@@ -226,11 +241,14 @@ jobs:
 
   ubuntu2004-test-spark34:
     runs-on: velox-self-hosted
+    env:
+      OS_IMAGE: ubuntu
+      OS_VERSION: 20.04
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          OS_IMAGE=ubuntu OS_VERSION=20.04 $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
+          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
@@ -254,11 +272,14 @@ jobs:
 
   ubuntu2204-test:
     runs-on: velox-self-hosted
+    env:
+      OS_IMAGE: ubuntu
+      OS_VERSION: 22.04
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          OS_IMAGE=ubuntu OS_VERSION=22.04 ./tools/gluten-te/github_action/gha/gha-checkout/checkout.sh
+          ./tools/gluten-te/github_action/gha/gha-checkout/checkout.sh
       - name: Build Gluten velox third party
         run: |
           $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
@@ -330,6 +351,9 @@ jobs:
  
   centos8-test:
     runs-on: velox-self-hosted
+    env:
+      OS_IMAGE: centos
+      OS_VERSION: 8
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
@@ -378,6 +402,9 @@ jobs:
   centos7-test:
   
     runs-on: velox-self-hosted
+    env:
+      OS_IMAGE: centos
+      OS_VERSION: 7
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
@@ -460,16 +487,19 @@ jobs:
         run: |
           $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/clean.sh
 
+
   static-build-test:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
-          OS_IMAGE=centos OS_VERSION=7 ./tools/gluten-te/github_action/gha/gha-checkout/checkout.sh
+          docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.0.25:5000/gluten-te/gluten-build-centos:7 \
+          bash -c 'cd /opt/gluten && sleep 14400'
       - name: Build Gluten CPP library
         run: |
-          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
+          docker exec -i static-build-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten && \
@@ -478,7 +508,7 @@ jobs:
           ./dev/builddeps-veloxbe.sh --enable_vcpkg=ON --build_tests=ON --build_benchmarks=ON --enable_s3=ON --enable_gcs=ON --enable_hdfs=ON --enable_abfs=OFF'
       - name: Build for Spark 3.2.2
         run: |
-          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/exec.sh '
+          docker exec static-build-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
           mvn clean install -Pspark-3.2 -Pbackends-velox -Prss -Piceberg -Pdelta -DskipTests && \
           cd /opt/gluten/tools/gluten-it && \
@@ -486,7 +516,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (centos 8)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.0.25:5000/gluten-dev/centos:8 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.0.25:5000/gluten-te/gluten-build-centos:8 \
           bash -c 'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
@@ -495,7 +525,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 20.04)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.0.25:5000/gluten-dev/ubuntu:20.04 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.0.25:5000/gluten-te/gluten-build-ubuntu:20.04 \
           'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
@@ -504,7 +534,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 22.04)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.0.25:5000/gluten-dev/ubuntu:22.04 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.0.25:5000/gluten-te/gluten-build-ubuntu:22.04 \
           'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
@@ -513,5 +543,5 @@ jobs:
       - name: Exit docker container
         if: ${{ always() }}
         run: |
-          $PATH_TO_CHECKOUT/$OS_IMAGE/gha/gha-checkout/clean.sh
+          docker stop static-build-test-$GITHUB_RUN_ID || true
 
