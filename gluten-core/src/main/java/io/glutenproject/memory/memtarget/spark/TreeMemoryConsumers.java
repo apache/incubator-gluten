@@ -21,8 +21,7 @@ import io.glutenproject.memory.MemoryUsageStatsBuilder;
 import io.glutenproject.memory.memtarget.Spiller;
 import io.glutenproject.memory.memtarget.TreeMemoryTarget;
 
-import org.apache.commons.collections4.map.AbstractReferenceMap.ReferenceStrength;
-import org.apache.commons.collections4.map.ReferenceMap;
+import org.apache.commons.collections.map.ReferenceMap;
 import org.apache.spark.memory.TaskMemoryManager;
 
 import java.util.Collections;
@@ -63,23 +62,24 @@ public final class TreeMemoryConsumers {
 
   public static class Factory {
 
-    private static final ReferenceMap<TaskMemoryManager, TreeMemoryTarget> MAP =
-        new ReferenceMap<>(ReferenceStrength.WEAK, ReferenceStrength.WEAK);
+    private static final ReferenceMap MAP = new ReferenceMap(ReferenceMap.WEAK, ReferenceMap.WEAK);
     private final long perTaskCapacity;
 
     private Factory(long perTaskCapacity) {
       this.perTaskCapacity = perTaskCapacity;
     }
 
+    @SuppressWarnings("unchecked")
     private TreeMemoryTarget getSharedAccount(TaskMemoryManager tmm) {
       synchronized (MAP) {
-        return MAP.computeIfAbsent(
-            tmm,
-            m -> {
-              TreeMemoryTarget tmc = new TreeMemoryConsumer(m);
-              return tmc.newChild(
-                  "root", perTaskCapacity, Collections.emptyList(), Collections.emptyMap());
-            });
+        return (TreeMemoryTarget)
+            MAP.computeIfAbsent(
+                tmm,
+                m -> {
+                  TreeMemoryTarget tmc = new TreeMemoryConsumer((TaskMemoryManager) m);
+                  return tmc.newChild(
+                      "root", perTaskCapacity, Collections.emptyList(), Collections.emptyMap());
+                });
       }
     }
 
