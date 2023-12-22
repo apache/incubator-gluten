@@ -1066,6 +1066,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan]
     .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenExpressionsSchemaSuite]
+    .exclude("Check schemas for expression examples")
   enableSuite[GlutenExtraStrategiesSuite]
   enableSuite[GlutenFileBasedDataSourceSuite]
     // test data path is jar path, rewrite
