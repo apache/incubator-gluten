@@ -535,8 +535,10 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
     }
 
-    if (GlutenConfig.getConf.enableScanOnly) {
-      // Disable ColumnarSubqueryBroadcast for scan-only execution.
+    if (
+      GlutenConfig.getConf.enableScanOnly || !GlutenConfig.getConf.enableColumnarBroadcastExchange
+    ) {
+      // Disable ColumnarSubqueryBroadcast for scan-only execution or ColumnarBroadcastExchange is disabled.
       partitionFilters
     } else {
       val newPartitionFilters = partitionFilters.map {
