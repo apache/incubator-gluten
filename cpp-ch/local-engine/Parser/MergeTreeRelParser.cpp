@@ -43,6 +43,20 @@ namespace local_engine
 {
 using namespace DB;
 
+static NameToIndexMap fillNamesPositions(const Names & names)
+{
+    NameToIndexMap names_positions;
+
+    for (size_t position = 0; position < names.size(); ++position)
+    {
+        const auto & name = names[position];
+        names_positions[name] = position;
+    }
+
+    return names_positions;
+}
+
+
 /// Find minimal position of any of the column in primary key.
 static Int64 findMinPosition(const NameSet & condition_table_columns, const NameToIndexMap & primary_key_positions)
 {
@@ -105,6 +119,7 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
         });
     auto metadata = storage->getInMemoryMetadataPtr();
     query_context.metadata = metadata;
+    primary_key_names_positions = fillNamesPositions(metadata->primary_key.column_names);
 
     for (const auto & [name, sizes] : storage->getColumnSizes())
         column_sizes[name] = sizes.data_compressed;
@@ -183,7 +198,6 @@ DB::ActionsDAGPtr MergeTreeRelParser::optimizePrewhereAction(const substrait::Ex
         min_valid_pk_pos = pk_pos;
     }
 
-    // TODO need to test
     for (auto & cond : res)
         if (cond.min_position_in_primary_key > min_valid_pk_pos)
             cond.min_position_in_primary_key = std::numeric_limits<Int64>::max() - 1;
@@ -248,9 +262,6 @@ void MergeTreeRelParser::analyzeExpressions(
         Condition cond(rel);
         collectColumns(rel, cond.table_columns, block);
         cond.columns_size = getColumnsSize(cond.table_columns);
-
-        // TODO: get primary_key_names
-        const NameToIndexMap primary_key_names_positions;
         cond.min_position_in_primary_key = findMinPosition(cond.table_columns, primary_key_names_positions);
         pk_positions.emplace(cond.min_position_in_primary_key);
 
