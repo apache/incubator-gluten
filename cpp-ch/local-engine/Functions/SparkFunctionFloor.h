@@ -43,14 +43,11 @@ public:
         const T* limit = in.data() + in.size() / data_count * data_count;
         const T* __restrict p_in = in.data();
         T* __restrict p_out = out.data();
-        size_t i = 0;
         while (p_in < limit)
         {
             Op::compute(p_in, mm_scale, p_out);
-            checkAndSetNullable(*p_out, null_map[i]);
             p_in += data_count;
             p_out += data_count;
-            ++i;
         }
 
         if (p_in < end_in)
@@ -61,8 +58,9 @@ public:
             memcpy(&tmp_src, p_in, tail_size_bytes);
             Op::compute(reinterpret_cast<T *>(&tmp_src), mm_scale, reinterpret_cast<T *>(&tmp_dst));
             memcpy(p_out, &tmp_dst, tail_size_bytes);
-            checkAndSetNullable(*p_out, null_map[i]);
         }
+        for (size_t i = 0; i < out.size(); ++i)
+            checkAndSetNullable(out[i], null_map[i]);
     }
 
     static void checkAndSetNullable(T& t, UInt8& null_flag)
