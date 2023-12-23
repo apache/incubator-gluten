@@ -74,5 +74,5 @@ trait TransformerApi {
 
   def getNativePlanString(substraitPlan: Array[Byte], details: Boolean): String
 
-  def getPackMessage(message: Message): Any
+  def packPBMessage(message: Message): Any
 }

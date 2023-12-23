@@ -30,8 +30,6 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
 
-import com.google.protobuf.Any
-
 import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConverters._
@@ -164,7 +162,8 @@ case class GenerateExecTransformer(
       val inputTypeNodeList =
         inputAttributes.map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)).asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeGenerateRel(input, generator, childOutput, extensionNode, context, operatorId)
     }
   }

@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -30,8 +31,6 @@ import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-
-import com.google.protobuf.Any
 
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList}
@@ -162,7 +161,8 @@ case class HashAggregateExecTransformer(
         groupingExpressions.size + aggregateExpressions.size)
     } else {
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, getPartialAggOutTypes).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, getPartialAggOutTypes).toProtobuf))
       RelBuilder.makeProjectRel(
         aggRel,
         expressionNodes,
@@ -435,7 +435,8 @@ case class HashAggregateExecTransformer(
         .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
         inputRel,
         exprNodes,
