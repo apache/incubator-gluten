@@ -193,7 +193,7 @@ case class SortMergeJoinExecTransformer(
       .newBuilder()
       .setValue(joinParametersStr.toString)
       .build()
-    BackendsApiManager.getTransformerApiInstance.getPackMessage(message)
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
   }
 
   // Direct output order of substrait join operation
