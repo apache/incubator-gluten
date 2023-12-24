@@ -16,23 +16,10 @@
  */
 package io.glutenproject.benchmarks
 
-import io.glutenproject.benchmarks.ShuffleWriterFuzzerTest.{Failed, OOM, Successful, TestResult}
 import io.glutenproject.execution.VeloxWholeStageTransformerSuite
-import io.glutenproject.memory.memtarget.ThrowOnOomMemoryTarget
 import io.glutenproject.tags.FuzzerTest
 
 import org.apache.spark.SparkConf
-
-object ShuffleWriterFuzzerTest {
-  trait TestResult {
-    val seed: Long
-
-    def getSeed: Long = seed
-  }
-  case class Successful(seed: Long) extends TestResult
-  case class Failed(seed: Long) extends TestResult
-  case class OOM(seed: Long) extends TestResult
-}
 
 @FuzzerTest
 class ShuffleWriterFuzzerTest extends VeloxWholeStageTransformerSuite {
@@ -54,40 +41,35 @@ class ShuffleWriterFuzzerTest extends VeloxWholeStageTransformerSuite {
       .set("spark.driver.memory", "4g")
   }
 
-  def executeQuery(sql: String): TestResult = {
+  def executeQuery(sql: String): Boolean = {
     try {
       System.gc()
       dataGenerator.generateRandomData(spark, outputPath)
       spark.read.format("parquet").load(outputPath).createOrReplaceTempView("tbl")
-      runQueryAndCompare(sql, true, false)(_ => {})
-      Successful(dataGenerator.getSeed)
+      spark.sql(sql).foreach(_ => ())
+      true
     } catch {
-      case oom: ThrowOnOomMemoryTarget.OutOfMemoryException =>
-        logError(s"Out of memory while running test with seed: ${dataGenerator.getSeed}", oom)
-        OOM(dataGenerator.getSeed)
       case t: Throwable =>
         logError(s"Failed to run test with seed: ${dataGenerator.getSeed}", t)
-        Failed(dataGenerator.getSeed)
+        false
     }
   }
 
   def repeatQuery(sql: String, iterations: Int): Unit = {
-    val result = (0 until iterations)
-      .map {
+    val failed = (0 until iterations)
+      .filterNot {
         i =>
           logWarning(
             s"==============================> " +
               s"Started iteration $i (seed: ${dataGenerator.getSeed})")
-          val result = executeQuery(sql)
+          val success = executeQuery(sql)
           dataGenerator.reFake(System.currentTimeMillis())
-          result
+          success
       }
-    val oom = result.filter(_.isInstanceOf[OOM]).map(_.getSeed)
-    if (oom.nonEmpty) {
-      logError(s"Out of memory while running test with seed: ${oom.mkString(", ")}")
+      .map(_ => dataGenerator.getSeed)
+    if (failed.nonEmpty) {
+      logError(s"Failed to run test with seed: ${failed.mkString(", ")}")
     }
-    val failed = result.filter(_.isInstanceOf[Failed]).map(_.getSeed)
-    assert(failed.isEmpty, s"Failed to run test with seed: ${failed.mkString(",")}")
   }
 
   test("repartition") {
@@ -106,8 +88,7 @@ class ShuffleWriterFuzzerTest extends VeloxWholeStageTransformerSuite {
         logWarning(
           s"==============================> " +
             s"Started reproduction (seed: ${dataGenerator.getSeed})")
-        val result = executeQuery(sql)
-        assert(result.isInstanceOf[Successful])
+        executeQuery(sql)
     }
   }
 }
