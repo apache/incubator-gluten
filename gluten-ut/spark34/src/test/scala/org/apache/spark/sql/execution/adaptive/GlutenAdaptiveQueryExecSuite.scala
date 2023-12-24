@@ -1169,9 +1169,10 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
         withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "100") {
           checkJoinStrategy(false)
         }
-        // t1, t2 partition size are all smaller than 1000, t1 and t2 can use SHJ. The result is true.
+        // t1, t2 partition size are all smaller than 1000, t1 and t2 can use SHJ.
+        // The result is true.
         withSQLConf(SQLConf.ADAPTIVE_MAX_SHUFFLE_HASH_JOIN_LOCAL_MAP_THRESHOLD.key -> "1000") {
-          checkJoinStrategy(false)
+          checkJoinStrategy(true)
         }
       }
     }
@@ -1238,7 +1239,8 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
           assert(read.head.partitionSpecs.size == totalNumber)
         }
 
-        // Changed ADVISORY_PARTITION_SIZE_IN_BYTES from 150 to 120 because Gluten has smaller partition size.
+        // Changed ADVISORY_PARTITION_SIZE_IN_BYTES from 150 to 120 because Gluten has smaller
+        // partition size.
         withSQLConf(SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key -> "120") {
           // partition size [0,208,54,54,54]
           checkPartitionNumber("SELECT /*+ REBALANCE(c1) */ * FROM v", 2, 4)
