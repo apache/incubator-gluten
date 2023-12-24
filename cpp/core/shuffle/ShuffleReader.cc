@@ -48,8 +48,8 @@ int64_t ShuffleReader::getIpcTime() const {
   return ipcTime_;
 }
 
-int64_t ShuffleReader::getArrowToVeloxTime() const {
-  return factory_->getArrowToVeloxTime();
+int64_t ShuffleReader::getDeserializeTime() const {
+  return factory_->getDeserializeTime();
 }
 
 } // namespace gluten

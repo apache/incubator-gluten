@@ -120,6 +120,49 @@ arrow::Status compressAndFlush(
   RETURN_NOT_OK(outputStream->Write(compressed->data(), compressedSize));
   return arrow::Status::OK();
 }
+
+arrow::Result<std::shared_ptr<arrow::Buffer>> readUncompressedBuffer(arrow::io::InputStream* inputStream) {
+  int64_t bufferLength;
+  RETURN_NOT_OK(inputStream->Read(sizeof(int64_t), &bufferLength));
+  if (bufferLength == kNullBuffer) {
+    return nullptr;
+  }
+  ARROW_ASSIGN_OR_RAISE(auto buffer, inputStream->Read(bufferLength));
+  return buffer;
+}
+
+arrow::Result<std::shared_ptr<arrow::Buffer>> readCompressedBuffer(
+    arrow::io::InputStream* inputStream,
+    const std::shared_ptr<arrow::util::Codec>& codec,
+    arrow::MemoryPool* pool,
+    int64_t& decompressTime) {
+  int64_t compressedLength;
+  RETURN_NOT_OK(inputStream->Read(sizeof(int64_t), &compressedLength));
+  if (compressedLength == kNullBuffer) {
+    return nullptr;
+  }
+  if (compressedLength == kZeroLengthBuffer) {
+    return zeroLengthNullBuffer();
+  }
+
+  int64_t uncompressedLength;
+  RETURN_NOT_OK(inputStream->Read(sizeof(int64_t), &uncompressedLength));
+  if (compressedLength == kUncompressedBuffer) {
+    ARROW_ASSIGN_OR_RAISE(auto uncompressed, arrow::AllocateResizableBuffer(uncompressedLength, pool));
+    RETURN_NOT_OK(inputStream->Read(uncompressedLength, const_cast<uint8_t*>(uncompressed->data())));
+    return uncompressed;
+  }
+  ARROW_ASSIGN_OR_RAISE(auto compressed, arrow::AllocateBuffer(compressedLength, pool));
+  RETURN_NOT_OK(inputStream->Read(compressedLength, const_cast<uint8_t*>(compressed->data())));
+  ARROW_ASSIGN_OR_RAISE(auto output, arrow::AllocateResizableBuffer(uncompressedLength, pool));
+  {
+    ScopedTimer timer(decompressTime);
+    RETURN_NOT_OK(codec->Decompress(
+        compressedLength, compressed->data(), uncompressedLength, const_cast<uint8_t*>(output->data())));
+  }
+  return output;
+}
+
 } // namespace
 
 Payload::Payload(Payload::Type type, uint32_t numRows, const std::vector<bool>* isValidityBuffer)
@@ -233,7 +276,8 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deseria
     const std::shared_ptr<arrow::Schema>& schema,
     const std::shared_ptr<arrow::util::Codec>& codec,
     arrow::MemoryPool* pool,
-    uint32_t& numRows) {
+    uint32_t& numRows,
+    int64_t& decompressTime) {
   static const std::vector<std::shared_ptr<arrow::Buffer>> kEmptyBuffers{};
   ARROW_ASSIGN_OR_RAISE(auto typeAndRows, readTypeAndRows(inputStream));
   if (typeAndRows.first == 0) {
@@ -246,7 +290,7 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deseria
   auto isCompressionEnabled = typeAndRows.first == Type::kCompressed;
   auto readBuffer = [&]() {
     if (isCompressionEnabled) {
-      return readCompressedBuffer(inputStream, codec, pool);
+      return readCompressedBuffer(inputStream, codec, pool, decompressTime);
     } else {
       return readUncompressedBuffer(inputStream);
     }
@@ -286,45 +330,6 @@ arrow::Result<std::vector<std::shared_ptr<arrow::Buffer>>> BlockPayload::deseria
     ARROW_ASSIGN_OR_RAISE(buffers.back(), readBuffer());
   }
   return buffers;
-}
-
-arrow::Result<std::shared_ptr<arrow::Buffer>> BlockPayload::readUncompressedBuffer(
-    arrow::io::InputStream* inputStream) {
-  int64_t bufferLength;
-  RETURN_NOT_OK(inputStream->Read(sizeof(int64_t), &bufferLength));
-  if (bufferLength == kNullBuffer) {
-    return nullptr;
-  }
-  ARROW_ASSIGN_OR_RAISE(auto buffer, inputStream->Read(bufferLength));
-  return buffer;
-}
-
-arrow::Result<std::shared_ptr<arrow::Buffer>> BlockPayload::readCompressedBuffer(
-    arrow::io::InputStream* inputStream,
-    const std::shared_ptr<arrow::util::Codec>& codec,
-    arrow::MemoryPool* pool) {
-  int64_t compressedLength;
-  RETURN_NOT_OK(inputStream->Read(sizeof(int64_t), &compressedLength));
-  if (compressedLength == kNullBuffer) {
-    return nullptr;
-  }
-  if (compressedLength == kZeroLengthBuffer) {
-    return zeroLengthNullBuffer();
-  }
-
-  int64_t uncompressedLength;
-  RETURN_NOT_OK(inputStream->Read(sizeof(int64_t), &uncompressedLength));
-  if (compressedLength == kUncompressedBuffer) {
-    ARROW_ASSIGN_OR_RAISE(auto uncompressed, arrow::AllocateBuffer(uncompressedLength, pool));
-    RETURN_NOT_OK(inputStream->Read(uncompressedLength, const_cast<uint8_t*>(uncompressed->data())));
-    return uncompressed;
-  }
-  ARROW_ASSIGN_OR_RAISE(auto compressed, arrow::AllocateBuffer(compressedLength, pool));
-  RETURN_NOT_OK(inputStream->Read(compressedLength, const_cast<uint8_t*>(compressed->data())));
-  ARROW_ASSIGN_OR_RAISE(auto output, arrow::AllocateBuffer(uncompressedLength, pool));
-  RETURN_NOT_OK(codec->Decompress(
-      compressedLength, compressed->data(), uncompressedLength, const_cast<uint8_t*>(output->data())));
-  return output;
 }
 
 void BlockPayload::setCompressionTime(int64_t compressionTime) {

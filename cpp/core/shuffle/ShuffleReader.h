@@ -38,7 +38,7 @@ class DeserializerFactory {
 
   virtual int64_t getDecompressTime() = 0;
 
-  virtual int64_t getArrowToVeloxTime() = 0;
+  virtual int64_t getDeserializeTime() = 0;
 };
 
 class ShuffleReader {
@@ -56,7 +56,7 @@ class ShuffleReader {
 
   int64_t getIpcTime() const;
 
-  int64_t getArrowToVeloxTime() const;
+  int64_t getDeserializeTime() const;
 
   arrow::MemoryPool* getPool() const;
 

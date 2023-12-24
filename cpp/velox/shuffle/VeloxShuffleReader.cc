@@ -239,7 +239,9 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
     RowTypePtr type,
     uint32_t numRows,
     std::vector<std::shared_ptr<arrow::Buffer>> arrowBuffers,
-    memory::MemoryPool* pool) {
+    memory::MemoryPool* pool,
+    int64_t& deserializeTime) {
+  ScopedTimer timer(deserializeTime);
   std::vector<BufferPtr> veloxBuffers;
   veloxBuffers.reserve(arrowBuffers.size());
   for (auto& buffer : arrowBuffers) {
@@ -249,8 +251,12 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
   return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
 }
 
-std::shared_ptr<VeloxColumnarBatch>
-makeColumnarBatch(RowTypePtr type, std::unique_ptr<BlockPayload> payload, memory::MemoryPool* pool) {
+std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
+    RowTypePtr type,
+    std::unique_ptr<BlockPayload> payload,
+    memory::MemoryPool* pool,
+    int64_t& deserializeTime) {
+  ScopedTimer timer(deserializeTime);
   std::vector<BufferPtr> veloxBuffers;
   auto numBuffers = payload->numBuffers();
   veloxBuffers.reserve(numBuffers);
@@ -433,7 +439,7 @@ VeloxColumnarBatchDeserializer::VeloxColumnarBatchDeserializer(
     facebook::velox::memory::MemoryPool* veloxPool,
     std::vector<bool>* isValidityBuffer,
     bool hasComplexType,
-    int64_t& arrowToVeloxTime,
+    int64_t& deserializeTime,
     int64_t& decompressTime)
     : in_(std::move(in)),
       schema_(schema),
@@ -444,36 +450,35 @@ VeloxColumnarBatchDeserializer::VeloxColumnarBatchDeserializer(
       veloxPool_(veloxPool),
       isValidityBuffer_(isValidityBuffer),
       hasComplexType_(hasComplexType),
-      arrowToVeloxTime_(arrowToVeloxTime),
+      deserializeTime_(deserializeTime),
       decompressTime_(decompressTime) {}
 
 std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
   if (hasComplexType_) {
-    ScopedTimer timer(decompressTime_);
     uint32_t numRows;
     GLUTEN_ASSIGN_OR_THROW(
-        auto arrowBuffers, BlockPayload::deserialize(in_.get(), schema_, codec_, memoryPool_, numRows));
+        auto arrowBuffers,
+        BlockPayload::deserialize(in_.get(), schema_, codec_, memoryPool_, numRows, decompressTime_));
     if (numRows == 0) {
       // Reach EOS.
       return nullptr;
     }
-    timer.switchTo(arrowToVeloxTime_);
-    return makeColumnarBatch(rowType_, numRows, std::move(arrowBuffers), veloxPool_);
+    return makeColumnarBatch(rowType_, numRows, std::move(arrowBuffers), veloxPool_, deserializeTime_);
   }
 
   if (reachEos_) {
-    ScopedTimer timer(arrowToVeloxTime_);
+    ScopedTimer timer(deserializeTime_);
     if (merged_) {
-      return makeColumnarBatch(rowType_, std::move(merged_), veloxPool_);
+      return makeColumnarBatch(rowType_, std::move(merged_), veloxPool_, deserializeTime_);
     }
     return nullptr;
   }
 
-  ScopedTimer timer(decompressTime_);
   std::vector<std::shared_ptr<arrow::Buffer>> arrowBuffers{};
   uint32_t numRows = 0;
   while (!merged_ || merged_->numRows() < batchSize_) {
-    GLUTEN_ASSIGN_OR_THROW(arrowBuffers, BlockPayload::deserialize(in_.get(), schema_, codec_, memoryPool_, numRows));
+    GLUTEN_ASSIGN_OR_THROW(
+        arrowBuffers, BlockPayload::deserialize(in_.get(), schema_, codec_, memoryPool_, numRows, decompressTime_));
     if (numRows == 0) {
       reachEos_ = true;
       break;
@@ -499,8 +504,7 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
     return nullptr;
   }
 
-  timer.switchTo(arrowToVeloxTime_);
-  auto columnarBatch = makeColumnarBatch(rowType_, std::move(merged_), veloxPool_);
+  auto columnarBatch = makeColumnarBatch(rowType_, std::move(merged_), veloxPool_, deserializeTime_);
 
   // Save remaining rows.
   if (!arrowBuffers.empty()) {
@@ -538,7 +542,7 @@ std::unique_ptr<ColumnarBatchIterator> VeloxColumnarBatchDeserializerFactory::cr
       veloxPool_.get(),
       &isValidityBuffer_,
       hasComplexType_,
-      arrowToVeloxTime_,
+      deserializeTime_,
       decompressTime_);
 }
 
@@ -550,8 +554,8 @@ int64_t VeloxColumnarBatchDeserializerFactory::getDecompressTime() {
   return decompressTime_;
 }
 
-int64_t VeloxColumnarBatchDeserializerFactory::getArrowToVeloxTime() {
-  return arrowToVeloxTime_;
+int64_t VeloxColumnarBatchDeserializerFactory::getDeserializeTime() {
+  return deserializeTime_;
 }
 
 void VeloxColumnarBatchDeserializerFactory::initFromSchema() {

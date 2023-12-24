@@ -36,7 +36,7 @@ class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
       facebook::velox::memory::MemoryPool* veloxPool,
       std::vector<bool>* isValidityBuffer,
       bool hasComplexType,
-      int64_t& arrowToVeloxTime,
+      int64_t& deserializeTime,
       int64_t& decompressTime);
 
   std::shared_ptr<ColumnarBatch> next();
@@ -52,7 +52,7 @@ class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
   std::vector<bool>* isValidityBuffer_;
   bool hasComplexType_;
 
-  int64_t& arrowToVeloxTime_;
+  int64_t& deserializeTime_;
   int64_t& decompressTime_;
 
   std::unique_ptr<MergeBlockPayload> merged_{nullptr};
@@ -75,7 +75,7 @@ class VeloxColumnarBatchDeserializerFactory : public DeserializerFactory {
 
   int64_t getDecompressTime() override;
 
-  int64_t getArrowToVeloxTime() override;
+  int64_t getDeserializeTime() override;
 
  private:
   std::shared_ptr<arrow::Schema> schema_;
@@ -88,7 +88,7 @@ class VeloxColumnarBatchDeserializerFactory : public DeserializerFactory {
   std::vector<bool> isValidityBuffer_;
   bool hasComplexType_{false};
 
-  int64_t arrowToVeloxTime_{0};
+  int64_t deserializeTime_{0};
   int64_t decompressTime_{0};
 
   void initFromSchema();

@@ -88,14 +88,8 @@ class BlockPayload : public Payload {
       const std::shared_ptr<arrow::Schema>& schema,
       const std::shared_ptr<arrow::util::Codec>& codec,
       arrow::MemoryPool* pool,
-      uint32_t& numRows);
-
-  static arrow::Result<std::shared_ptr<arrow::Buffer>> readUncompressedBuffer(arrow::io::InputStream* inputStream);
-
-  static arrow::Result<std::shared_ptr<arrow::Buffer>> readCompressedBuffer(
-      arrow::io::InputStream* inputStream,
-      const std::shared_ptr<arrow::util::Codec>& codec,
-      arrow::MemoryPool* pool);
+      uint32_t& numRows,
+      int64_t& decompressTime);
 
   arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
 
