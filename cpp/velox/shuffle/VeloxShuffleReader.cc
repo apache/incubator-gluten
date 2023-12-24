@@ -235,6 +235,33 @@ RowVectorPtr deserialize(RowTypePtr type, uint32_t numRows, std::vector<BufferPt
   return std::make_shared<RowVector>(pool, type, BufferPtr(nullptr), numRows, children);
 }
 
+std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
+    RowTypePtr type,
+    uint32_t numRows,
+    std::vector<std::shared_ptr<arrow::Buffer>> arrowBuffers,
+    memory::MemoryPool* pool) {
+  std::vector<BufferPtr> veloxBuffers;
+  veloxBuffers.reserve(arrowBuffers.size());
+  for (auto& buffer : arrowBuffers) {
+    veloxBuffers.push_back(convertToVeloxBuffer(std::move(buffer)));
+  }
+  auto rowVector = deserialize(type, numRows, veloxBuffers, pool);
+  return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+
+std::shared_ptr<VeloxColumnarBatch>
+makeColumnarBatch(RowTypePtr type, std::unique_ptr<BlockPayload> payload, memory::MemoryPool* pool) {
+  std::vector<BufferPtr> veloxBuffers;
+  auto numBuffers = payload->numBuffers();
+  veloxBuffers.reserve(numBuffers);
+  for (size_t i = 0; i < numBuffers; ++i) {
+    GLUTEN_ASSIGN_OR_THROW(auto buffer, payload->readBufferAt(i));
+    veloxBuffers.push_back(convertToVeloxBuffer(std::move(buffer)));
+  }
+  auto rowVector = deserialize(type, payload->numRows(), veloxBuffers, pool);
+  return std::make_shared<VeloxColumnarBatch>(std::move(rowVector));
+}
+
 std::shared_ptr<arrow::Buffer> readColumnBuffer(const arrow::RecordBatch& batch, int32_t fieldIdx) {
   return std::dynamic_pointer_cast<arrow::LargeStringArray>(batch.column(fieldIdx))->value_data();
 }
@@ -421,12 +448,8 @@ VeloxColumnarBatchDeserializer::VeloxColumnarBatchDeserializer(
       decompressTime_(decompressTime) {}
 
 std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
-  if (reachEos_ && !merged_) {
-    return nullptr;
-  }
-
-  ScopedTimer timer(decompressTime_);
   if (hasComplexType_) {
+    ScopedTimer timer(decompressTime_);
     uint32_t numRows;
     GLUTEN_ASSIGN_OR_THROW(
         auto arrowBuffers, BlockPayload::deserialize(in_.get(), schema_, codec_, memoryPool_, numRows));
@@ -435,15 +458,18 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
       return nullptr;
     }
     timer.switchTo(arrowToVeloxTime_);
-    std::vector<BufferPtr> veloxBuffers;
-    veloxBuffers.reserve(arrowBuffers.size());
-    for (auto& buffer : arrowBuffers) {
-      veloxBuffers.push_back(convertToVeloxBuffer(std::move(buffer)));
-    }
-    auto rowVector = deserialize(rowType_, numRows, veloxBuffers, veloxPool_);
-    return std::make_shared<VeloxColumnarBatch>(rowVector);
+    return makeColumnarBatch(rowType_, numRows, std::move(arrowBuffers), veloxPool_);
   }
 
+  if (reachEos_) {
+    ScopedTimer timer(arrowToVeloxTime_);
+    if (merged_) {
+      return makeColumnarBatch(rowType_, std::move(merged_), veloxPool_);
+    }
+    return nullptr;
+  }
+
+  ScopedTimer timer(decompressTime_);
   std::vector<std::shared_ptr<arrow::Buffer>> arrowBuffers{};
   uint32_t numRows = 0;
   while (!merged_ || merged_->numRows() < batchSize_) {
@@ -474,21 +500,14 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
   }
 
   timer.switchTo(arrowToVeloxTime_);
-  std::vector<BufferPtr> veloxBuffers;
-  auto numBuffers = merged_->numBuffers();
-  veloxBuffers.reserve(numBuffers);
-  for (size_t i = 0; i < numBuffers; ++i) {
-    GLUTEN_ASSIGN_OR_THROW(auto buffer, merged_->readBufferAt(i));
-    veloxBuffers.push_back(convertToVeloxBuffer(std::move(buffer)));
-  }
-  auto rowVector = deserialize(rowType_, merged_->numRows(), veloxBuffers, veloxPool_);
+  auto columnarBatch = makeColumnarBatch(rowType_, std::move(merged_), veloxPool_);
+
+  // Save remaining rows.
   if (!arrowBuffers.empty()) {
     merged_ = std::make_unique<MergeBlockPayload>(
         numRows, std::move(arrowBuffers), isValidityBuffer_, memoryPool_, codec_.get());
-  } else {
-    merged_ = nullptr;
   }
-  return std::make_shared<VeloxColumnarBatch>(rowVector);
+  return columnarBatch;
 }
 
 VeloxColumnarBatchDeserializerFactory::VeloxColumnarBatchDeserializerFactory(
