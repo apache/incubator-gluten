@@ -211,13 +211,6 @@
       <groupId>com.fasterxml.jackson.module</groupId>
       <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
     </dependency>
-    <!-- Java Faker for generating random data -->
-    <dependency>
-      <groupId>com.github.javafaker</groupId>
-      <artifactId>javafaker</artifactId>
-      <version>1.0.2</version>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <profiles>
