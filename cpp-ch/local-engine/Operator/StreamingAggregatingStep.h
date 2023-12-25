@@ -33,7 +33,6 @@
 
 namespace local_engine
 {
-#define AGGREGATE_UTIL_H 1
 class StreamingAggregatingTransform : public DB::IProcessor
 {
 public:
@@ -67,12 +66,9 @@ private:
     bool has_output = false;
     DB::Chunk input_chunk;
     DB::Chunk output_chunk;
+    bool input_finished = false;
     
-    #if AGGREGATE_UTIL_H
-    std::unique_ptr<AggregateDataBlockConverter> blokck_converter = nullptr;
-    #else
-    DB::BlocksList pending_blocks;
-    #endif
+    std::unique_ptr<AggregateDataBlockConverter> block_converter = nullptr;
     Poco::Logger * logger = &Poco::Logger::get("StreamingAggregatingTransform");
 
     double per_key_memory_usage = 0;

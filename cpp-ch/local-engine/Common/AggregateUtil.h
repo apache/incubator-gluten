@@ -18,8 +18,20 @@
 #include <Interpreters/Aggregator.h>
 #include <Processors/Transforms/AggregatingTransform.h>
 
+namespace DB
+{
+class GlutenAggregatorUtil
+{
+public:
+    static Int32 getBucketsNum(AggregatedDataVariants & data_variants);
+    static std::optional<Block> safeConvertOneBucketToBlock(Aggregator & aggregator, AggregatedDataVariants & variants, Arena * arena, bool final, Int32 bucket);
+    static void safeReleaseOneBucket(AggregatedDataVariants & variants, Int32 bucket);
+};
+}
+
 namespace local_engine
 {
+
 /// Once data_variants is passed to this class, it should not be changed elsewhere.
 class AggregateDataBlockConverter
 {
@@ -34,5 +46,6 @@ private:
     bool final;
     Int32 buckets_num = 0;
     Int32 current_bucket = 0;
+    DB::BlocksList output_blocks;
 };
 }

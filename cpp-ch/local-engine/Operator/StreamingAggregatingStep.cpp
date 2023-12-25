@@ -48,7 +48,7 @@ StreamingAggregatingTransform::StreamingAggregatingTransform(DB::ContextPtr cont
 
 StreamingAggregatingTransform::~StreamingAggregatingTransform()
 {
-    LOG_ERROR(
+    LOG_INFO(
         logger,
         "Metrics. total_input_blocks: {}, total_input_rows: {},  total_output_blocks: {}, total_output_rows: {}, "
         "total_clear_data_variants_num: {}, total_aggregate_time: {}, total_convert_data_variants_time: {}",
@@ -74,9 +74,10 @@ StreamingAggregatingTransform::Status StreamingAggregatingTransform::prepare()
     {
         if (output.canPush())
         {
-            LOG_ERROR(logger, "xxx push one chunk, rows: {}", output_chunk.getNumRows());
             total_output_rows += output_chunk.getNumRows();
             total_output_blocks++;
+            if (!output_chunk.getNumRows())
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Invalid output chunk");
             output.push(std::move(output_chunk));
             has_output = false;
         }
@@ -88,14 +89,16 @@ StreamingAggregatingTransform::Status StreamingAggregatingTransform::prepare()
 
     if (input.isFinished())
     {
-        if (!data_variants)
+        input_finished = true;
+        if (data_variants || (block_converter && block_converter->hasNext()))
         {
-            output.finish();
-            return Status::Finished;
+            has_input = true;
+            return Status::Ready;
         }
         else
         {
-            return Status::Ready;
+            output.finish();
+            return Status::Finished;
         }
     }
 
@@ -113,6 +116,8 @@ StreamingAggregatingTransform::Status StreamingAggregatingTransform::prepare()
 
 bool StreamingAggregatingTransform::needEvict()
 {
+    if (input_finished)
+        return true;
     /// More greedy memory usage strategy.
     if (!context->getSettingsRef().max_memory_usage)
         return false;
@@ -131,7 +136,7 @@ bool StreamingAggregatingTransform::needEvict()
     {
         if (current_mem_used + per_key_memory_usage * current_result_rows >= max_mem_used)
         {
-            LOG_ERROR(
+            LOG_INFO(
                 logger,
                 "Memory is overflow. current_mem_used: {}, max_mem_used: {}, per_key_memory_usage: {}, aggregator keys: {}",
                 ReadableSize(current_mem_used),
@@ -145,7 +150,7 @@ bool StreamingAggregatingTransform::needEvict()
     {
         if (current_mem_used * 2 >= max_mem_used)
         {
-            LOG_ERROR(
+            LOG_INFO(
                 logger,
                 "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, aggregator keys: {}",
                 ReadableSize(current_mem_used),
@@ -162,114 +167,68 @@ void StreamingAggregatingTransform::work()
 {
     auto pop_one_pending_block = [&]()
     {
-        #if AGGREGATE_UTIL_H
-        if (blokck_converter && blokck_converter->hasNext())
+        bool res = false;
+        if (block_converter)
         {
-            Stopwatch convert_watch;
-            auto block = blokck_converter->next();
-            output_chunk = DB::convertToChunk(block);
-            total_convert_data_variants_time += convert_watch.elapsedMicroseconds();
-            has_output = true;
-            has_input = blokck_converter->hasNext();
-            if (output_chunk.getNumRows())
+            while (block_converter->hasNext())
+            {
+                has_output = false;
+                Stopwatch convert_watch;
+                auto block = block_converter->next();
+                output_chunk = DB::convertToChunk(block);
+                total_convert_data_variants_time += convert_watch.elapsedMicroseconds();
+                if (!output_chunk.getNumRows())
+                    continue;
+                has_output = true;
                 per_key_memory_usage = output_chunk.allocatedBytes() * 1.0 / output_chunk.getNumRows();
-            if (!has_input)
-            {
-                data_variants = nullptr;
-                blokck_converter = nullptr;
+                res = true;
+                break;
             }
-            return true;
-        }
-        return false;
-        #else
-        while (!pending_blocks.empty())
-        {
-            if (!pending_blocks.front().rows())
+            has_input = block_converter->hasNext();
+            if (!block_converter->hasNext())
             {
-                pending_blocks.pop_front();
-                continue;
+                block_converter = nullptr;
             }
-            // downstream is GraceMergingAggregatedStep, don't need this bock_info.
-            // make it be default value.
-            pending_blocks.front().info = DB::BlockInfo();
-
-            output_chunk = DB::convertToChunk(pending_blocks.front());
-            pending_blocks.pop_front();
-            has_output = true;
-            has_input = !pending_blocks.empty();
-            return true;
         }
-        return false;
-        #endif
+        else
+            has_input = false;
+        return res;
     };
 
     if (has_input)
     {
         if (pop_one_pending_block())
             return;
-
-        if (!input_chunk.getNumRows())
+        if (block_converter)
         {
-            has_input = false;
-            return;
+            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "block_converter should be null");
         }
 
         if (!data_variants)
             data_variants = std::make_shared<DB::AggregatedDataVariants>();
 
-        auto num_rows = input_chunk.getNumRows();
-        Stopwatch watch;
-        params->aggregator.executeOnBlock(
-            input_chunk.detachColumns(), 0, num_rows, *data_variants, key_columns, aggregate_columns, no_more_keys);
-        total_aggregate_time += watch.elapsedMicroseconds();
         has_input = false;
+        if (input_chunk.getNumRows())
+        {
+            auto num_rows = input_chunk.getNumRows();
+            Stopwatch watch;
+            params->aggregator.executeOnBlock(
+                input_chunk.detachColumns(), 0, num_rows, *data_variants, key_columns, aggregate_columns, no_more_keys);
+            total_aggregate_time += watch.elapsedMicroseconds();
+            input_chunk = {};
+        }
 
         if (needEvict())
         {
-            #if AGGREGATE_UTIL_H
-            LOG_ERROR(logger, "xxx 1) convert data variants to blocks. data_variants size: {}", data_variants->size());
-            blokck_converter = std::make_unique<AggregateDataBlockConverter>(params->aggregator, data_variants, false);
-            total_clear_data_variants_num++;
-            #else
-            Stopwatch convert_watch;
-            /// When convert data variants to blocks, memory usage may be double.
-            pending_blocks = params->aggregator.convertToBlocks(*data_variants, false, 1);
-
-            size_t total_mem_used = 0;
-            size_t total_rows = 0;
-            for (const auto & block : pending_blocks)
-            {
-                total_mem_used += block.allocatedBytes();
-                total_rows += block.rows();
-            }
-            if (total_rows)
-                per_key_memory_usage = total_mem_used * 1.0 / total_rows;
-
-            total_convert_data_variants_time += convert_watch.elapsedMicroseconds();
-            total_clear_data_variants_num++;
+            block_converter = std::make_unique<AggregateDataBlockConverter>(params->aggregator, data_variants, false);
             data_variants = nullptr;
-            #endif
+            total_clear_data_variants_num++;
             pop_one_pending_block();
         }
     }
     else
     {
-        // NOLINTNEXTLINE
-        if (!data_variants || !data_variants->size())
-        {
-            has_output = false;
-        }
-        Stopwatch convert_watch;
-        #if AGGREGATE_UTIL_H
-        LOG_ERROR(logger, "xxx 2) convert data variants to blocks. data_variants size: {}", data_variants->size());
-        blokck_converter = std::make_unique<AggregateDataBlockConverter>(params->aggregator, data_variants, false);
-        #else
-        pending_blocks = params->aggregator.convertToBlocks(*data_variants, false, 1);
-        data_variants = nullptr;
-        #endif
-        total_clear_data_variants_num++;
-        total_aggregate_time += convert_watch.elapsedMicroseconds();
-        pop_one_pending_block();
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Invalid state");
     }
 }
 

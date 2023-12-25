@@ -27,6 +27,66 @@ namespace ErrorCodes
 {
     extern const int LOGICAL_ERROR;
 }
+
+template <typename Method>
+static Int32 extractMethodBucketsNum(Method & /*method*/)
+{
+    return Method::Data::NUM_BUCKETS;
+}
+
+Int32 GlutenAggregatorUtil::getBucketsNum(AggregatedDataVariants & data_variants)
+{
+    if (!data_variants.isTwoLevel())
+    {
+        return 0;
+    }
+    
+    Int32 buckets_num = 0;
+#define M(NAME) \
+    else if (data_variants.type == AggregatedDataVariants::Type::NAME) \
+        buckets_num = extractMethodBucketsNum(*data_variants.NAME);
+
+    if (false) {} // NOLINT
+    APPLY_FOR_VARIANTS_TWO_LEVEL(M)
+#undef M
+    else
+        throw Exception(ErrorCodes::UNKNOWN_AGGREGATED_DATA_VARIANT, "Unknown aggregated data variant");
+    return buckets_num;
+}
+
+std::optional<Block> GlutenAggregatorUtil::safeConvertOneBucketToBlock(Aggregator & aggregator, AggregatedDataVariants & variants, Arena * arena, bool final, Int32 bucket)
+{
+    if (!variants.isTwoLevel())
+        return {};
+    if (bucket >= getBucketsNum(variants))
+        return {};
+    return aggregator.convertOneBucketToBlock(variants, arena, final, bucket);
+}
+
+template<typename Method>
+static void releaseOneBucket(Method & method, Int32 bucket)
+{
+    method.data.impls[bucket].clearAndShrink();
+}
+
+void GlutenAggregatorUtil::safeReleaseOneBucket(AggregatedDataVariants & variants, Int32 bucket)
+{
+    if (!variants.isTwoLevel())
+        return;
+    if (bucket >= getBucketsNum(variants))
+        return;
+#define M(NAME) \
+    else if (variants.type == AggregatedDataVariants::Type::NAME) \
+        releaseOneBucket(*variants.NAME, bucket);
+
+    if (false) {} // NOLINT
+    APPLY_FOR_VARIANTS_TWO_LEVEL(M)
+#undef M
+    else
+        throw Exception(ErrorCodes::UNKNOWN_AGGREGATED_DATA_VARIANT, "Unknown aggregated data variant");
+
+}
+
 }
 
 namespace local_engine
@@ -36,42 +96,61 @@ AggregateDataBlockConverter::AggregateDataBlockConverter(DB::Aggregator & aggreg
 {
     if (data_variants->isTwoLevel())
     {
-        buckets_num = aggregator.getBucketsNum(*data_variants);
+        buckets_num = DB::GlutenAggregatorUtil::getBucketsNum(*data_variants);
     }
-    else
+    else if (data_variants->size())
         buckets_num = 1;
+    else
+        buckets_num = 0;
 }
 
 bool AggregateDataBlockConverter::hasNext()
 {
-    return current_bucket < buckets_num;
+    while (current_bucket < buckets_num && output_blocks.empty())
+    {
+        if (data_variants->isTwoLevel())
+        {
+            Stopwatch watch;
+            auto optional_block = DB::GlutenAggregatorUtil::safeConvertOneBucketToBlock(
+                aggregator, *data_variants, data_variants->aggregates_pool, final, current_bucket);
+            if (!optional_block)
+                throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Invalid bucket number {} for two-level aggregation", current_bucket);
+            auto & block = *optional_block;
+            LOG_DEBUG(
+                &Poco::Logger::get("AggregateDataBlockConverter"),
+                "convert bucket {} into one block, rows: {}, cols: {}, bytes:{}, total bucket: {}, total rows: {}, time: {}",
+                current_bucket,
+                block.rows(),
+                block.columns(),
+                block.bytes(),
+                buckets_num,
+                data_variants->size(),
+                watch.elapsedMilliseconds());
+            DB::GlutenAggregatorUtil::safeReleaseOneBucket(*data_variants, current_bucket);
+            if (block.rows())
+                output_blocks.emplace_back(std::move(block));
+        }
+        else
+        {
+            auto blocks = aggregator.convertToBlocks(*data_variants, final, 1);
+            while (!blocks.empty())
+            {
+                if (blocks.front().rows())
+                    output_blocks.emplace_back(std::move(blocks.front()));
+                blocks.pop_front();
+            }
+        }
+        ++current_bucket;
+        if (!output_blocks.empty())
+            break;
+    }
+    return !output_blocks.empty();
 }
 
 DB::Block AggregateDataBlockConverter::next()
 {
-    DB::Block block;
-    if (data_variants->isTwoLevel())
-    {
-        Stopwatch watch;
-        auto optional_block = aggregator.safeConvertOneBucketToBlock(*data_variants, data_variants->aggregates_pool, final, current_bucket);
-        if (!optional_block)
-            throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "Invalid bucket number {} for two-level aggregation", current_bucket);
-        block = std::move(*optional_block);
-        LOG_ERROR(
-            &Poco::Logger::get("AggregateDataBlockConverter"),
-            "xxx convert bucket {} into one block, rows: {}, total bucket: {}, total rows: {}, time: {}",
-            current_bucket,
-            block.rows(),
-            buckets_num,
-            data_variants->size(),
-            watch.elapsedMilliseconds());
-        // aggregator.safeReleaseOneBucket(*data_variants, current_bucket);
-    }
-    else
-    {
-        block = aggregator.convertToSingleBlock(*data_variants, final);
-    }
-    ++current_bucket;
+    auto block = output_blocks.front();
+    output_blocks.pop_front();
     return block;
 }
 }

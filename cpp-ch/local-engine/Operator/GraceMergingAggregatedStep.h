@@ -26,6 +26,7 @@
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/SizeLimits.h>
 #include <Poco/Logger.h>
+#include <Common/AggregateUtil.h>
 #include <Common/logger_useful.h>
 
 namespace local_engine
@@ -96,7 +97,7 @@ private:
     void addBlockIntoFileBucket(size_t bucket_index, const DB::Block & block);
     void flushBuckets();
     size_t flushBucket(size_t bucket_index);
-    void prepareBucketOutputBlocks();
+    std::unique_ptr<AggregateDataBlockConverter> prepareBucketOutputBlocks(size_t bucket);
     void mergeOneBlock(const DB::Block &block);
     bool isMemoryOverflow();
 
@@ -106,6 +107,7 @@ private:
     bool has_output = false;
     DB::Chunk output_chunk;
     DB::BlocksList current_final_blocks;
+    std::unique_ptr<AggregateDataBlockConverter> block_converter = nullptr;
     bool no_more_keys = false;
 
     double per_key_memory_usage = 0;
