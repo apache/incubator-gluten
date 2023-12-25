@@ -67,18 +67,14 @@ public:
         if (isString(expr_type))
             result_node = toFunctionNode(actions_dag, "parseDateTimeInJodaSyntaxOrNull", {expr_arg, fmt_arg, time_zone_node});
         else if (isDateOrDate32(expr_type))
-        {
-            const auto * to_datetime_node = toFunctionNode(actions_dag, "toDateTime", {expr_arg, time_zone_node});
-            result_node = toFunctionNode(actions_dag, "toUnixTimestamp", {to_datetime_node});
-        }
+            result_node = toFunctionNode(actions_dag, "sparkToUnixTimestamp", {expr_arg, time_zone_node});
         else if (isDateTime(expr_type) || isDateTime64(expr_type))
             result_node = toFunctionNode(actions_dag, "toUnixTimestamp", {expr_arg, time_zone_node});
         else
             throw Exception(ErrorCodes::ILLEGAL_TYPE_OF_ARGUMENT, "Function {} requires expr type is string/date/timestamp", getName());
 
-       return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
+        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
-
-    static FunctionParserRegister<FunctionParserUnixTimestamp> register_unix_timestamp;
 };
+static FunctionParserRegister<FunctionParserUnixTimestamp> register_unix_timestamp;
 }
