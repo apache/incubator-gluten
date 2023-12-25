@@ -52,8 +52,6 @@ static void BM_CHFloorFunction_For_Int64(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    factory.registerFunction<DB::FunctionFloor>();
-
     auto function = factory.get("floor", local_engine::SerializedPlanParser::global_context);
     Block int64_block = createDataBlock("Int64", 30000000);
     auto executable = function->build(int64_block.getColumnsWithTypeAndName());
@@ -65,8 +63,6 @@ static void BM_CHFloorFunction_For_Float64(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    factory.registerFunction<DB::FunctionFloor>();
-
     auto function = factory.get("floor", local_engine::SerializedPlanParser::global_context);
     Block float64_block = createDataBlock("Float64", 30000000);
     auto executable = function->build(float64_block.getColumnsWithTypeAndName());
@@ -78,9 +74,7 @@ static void BM_SparkFloorFunction_For_Int64(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    factory.registerFunction<local_engine::SparkFunctionFloor>();
-
-    auto function = factory.get("spark_floor", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("sparkFloor", local_engine::SerializedPlanParser::global_context);
     Block int64_block = createDataBlock("Int64", 30000000);
     auto executable = function->build(int64_block.getColumnsWithTypeAndName());
     for (auto _ : state) [[maybe_unused]]
@@ -91,9 +85,7 @@ static void BM_SparkFloorFunction_For_Float64(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    factory.registerFunction<local_engine::SparkFunctionFloor>();
-
-    auto function = factory.get("spark_floor", local_engine::SerializedPlanParser::global_context);
+    auto function = factory.get("sparkFloor", local_engine::SerializedPlanParser::global_context);
     Block float64_block = createDataBlock("Float64", 30000000);
     auto executable = function->build(float64_block.getColumnsWithTypeAndName());
     for (auto _ : state) [[maybe_unused]] 

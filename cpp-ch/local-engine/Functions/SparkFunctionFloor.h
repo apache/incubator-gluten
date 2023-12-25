@@ -93,7 +93,7 @@ public:
 class SparkFunctionFloor : public DB::FunctionFloor
 {
 public:
-    static constexpr auto name = "spark_floor";
+    static constexpr auto name = "sparkFloor";
     static DB::FunctionPtr create(DB::ContextPtr) { return std::make_shared<SparkFunctionFloor>(); }
     SparkFunctionFloor() = default;
     ~SparkFunctionFloor() override = default;

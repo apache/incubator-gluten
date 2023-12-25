@@ -117,10 +117,8 @@ class ShuffleSplitter;
 using ShuffleSplitterPtr = std::unique_ptr<ShuffleSplitter>;
 class ShuffleSplitter : public ShuffleWriterBase
 {
-private:
-    inline const static std::vector<std::string> compress_methods =  {"", "ZSTD", "LZ4"};
-
 public:
+    inline const static std::vector<std::string> compress_methods =  {"", "ZSTD", "LZ4"};
     static ShuffleSplitterPtr create(const std::string & short_name, const SplitOptions & options_);
 
     explicit ShuffleSplitter(const SplitOptions & options);
