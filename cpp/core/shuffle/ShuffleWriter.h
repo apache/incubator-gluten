@@ -51,6 +51,10 @@ class ShuffleWriter : public Reclaimable {
     return partitionBufferPool_->bytes_allocated();
   }
 
+  int64_t maxPartitionBufferSize() const {
+    return partitionBufferPool_->max_memory();
+  }
+
   int64_t totalBytesWritten() const {
     return metrics_.totalBytesWritten;
   }

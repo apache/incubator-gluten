@@ -86,7 +86,7 @@ class SelfEvictedMemoryPool : public arrow::MemoryPool {
   int64_t num_allocations() const override;
 
  private:
-  arrow::Status evict(int64_t size);
+  arrow::Status ensureCapacity(int64_t size);
 
   arrow::MemoryPool* pool_;
   bool failIfOOM_;

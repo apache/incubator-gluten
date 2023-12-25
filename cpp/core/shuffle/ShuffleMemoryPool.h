@@ -43,5 +43,6 @@ class ShuffleMemoryPool : public arrow::MemoryPool {
  private:
   arrow::MemoryPool* pool_;
   uint64_t bytesAllocated_ = 0;
+  uint64_t peakBytesAllocated_ = 0;
 };
 } // namespace gluten

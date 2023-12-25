@@ -345,7 +345,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
 
 TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceReuse) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_->bufferReallocThreshold = 100; // Force re-alloc on buffer size changed.
+  shuffleWriterOptions_->bufferReallocThreshold = 1; // Force re-alloc on buffer size changed.
   auto shuffleWriter = createShuffleWriter();
 
   // First spilt no null.

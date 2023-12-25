@@ -472,7 +472,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
 
   ARROW_ASSIGN_OR_RAISE(totalBytesWritten_, dataFileOs_->Tell());
 
-  // Close Final file, Clear buffered resources.
+  // Close Final file. Clear buffered resources.
   RETURN_NOT_OK(clearResource());
   // Populate shuffle writer metrics.
   RETURN_NOT_OK(populateMetrics(metrics));
@@ -519,7 +519,6 @@ arrow::Status LocalPartitionWriter::evict(
     return arrow::Status::OK();
   }
 
-  // Otherwise do cache evict.
   if (!merger_) {
     merger_ =
         std::make_shared<PayloadMerger>(options_, payloadPool_.get(), codec_ ? codec_.get() : nullptr, hasComplexType);
@@ -540,8 +539,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
   RETURN_NOT_OK(finishSpill());
 
   int64_t reclaimed = 0;
-  // Can reclaim memory from payloadCache and merger.
-  // First toBlockPayload existing evictor and spill.
+  // Reclaim memory from payloadCache.
   if (payloadCache_ && payloadCache_->canSpill()) {
     auto beforeSpill = payloadPool_->bytes_allocated();
     ARROW_ASSIGN_OR_RAISE(auto spillFile, createTempShuffleFile(nextSpilledFileDir()));
@@ -563,7 +561,7 @@ arrow::Status LocalPartitionWriter::reclaimFixedSize(int64_t size, int64_t* actu
         RETURN_NOT_OK(spiller_->spill(pid, std::move(*merged)));
       }
     }
-    // This could not be accurate. When the evicted partition buffers are not copied, the merged ones
+    // This is not accurate. When the evicted partition buffers are not copied, the merged ones
     // are resized from the original buffers thus allocated from partitionBufferPool.
     reclaimed += beforeSpill - payloadPool_->bytes_allocated();
     RETURN_NOT_OK(finishSpill());

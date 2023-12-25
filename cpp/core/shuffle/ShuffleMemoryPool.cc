@@ -25,6 +25,9 @@ arrow::Status ShuffleMemoryPool::Allocate(int64_t size, int64_t alignment, uint8
   auto status = pool_->Allocate(size, alignment, out);
   if (status.ok()) {
     bytesAllocated_ += (pool_->bytes_allocated() - before);
+    if (bytesAllocated_ > peakBytesAllocated_) {
+      peakBytesAllocated_ = bytesAllocated_;
+    }
   }
   return status;
 }
@@ -34,6 +37,9 @@ arrow::Status ShuffleMemoryPool::Reallocate(int64_t old_size, int64_t new_size, 
   auto status = pool_->Reallocate(old_size, new_size, alignment, ptr);
   if (status.ok()) {
     bytesAllocated_ += (pool_->bytes_allocated() - before);
+    if (bytesAllocated_ > peakBytesAllocated_) {
+      peakBytesAllocated_ = bytesAllocated_;
+    }
   }
   return status;
 }
@@ -49,7 +55,7 @@ int64_t ShuffleMemoryPool::bytes_allocated() const {
 }
 
 int64_t ShuffleMemoryPool::max_memory() const {
-  return pool_->max_memory();
+  return peakBytesAllocated_;
 }
 
 std::string ShuffleMemoryPool::backend_name() const {

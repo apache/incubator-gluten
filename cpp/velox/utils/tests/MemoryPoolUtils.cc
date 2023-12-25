@@ -65,7 +65,7 @@ std::string LimitedMemoryPool::backend_name() const {
 bool SelfEvictedMemoryPool::checkEvict(int64_t newCapacity, std::function<void()> block) {
   bytesEvicted_ = 0;
   auto capacity = capacity_;
-  // Limit the capacity to trigger evict.
+  // Limit the capacity to trigger ensureCapacity.
   setCapacity(newCapacity);
 
   block();
@@ -91,13 +91,13 @@ void SelfEvictedMemoryPool::setEvictable(Reclaimable* evictable) {
 }
 
 arrow::Status SelfEvictedMemoryPool::Allocate(int64_t size, int64_t alignment, uint8_t** out) {
-  RETURN_NOT_OK(evict(size));
+  RETURN_NOT_OK(ensureCapacity(size));
   return pool_->Allocate(size, alignment, out);
 }
 
 arrow::Status SelfEvictedMemoryPool::Reallocate(int64_t oldSize, int64_t newSize, int64_t alignment, uint8_t** ptr) {
   if (newSize > oldSize) {
-    RETURN_NOT_OK(evict(newSize - oldSize));
+    RETURN_NOT_OK(ensureCapacity(newSize - oldSize));
   }
   return pool_->Reallocate(oldSize, newSize, alignment, ptr);
 }
@@ -126,7 +126,7 @@ int64_t SelfEvictedMemoryPool::num_allocations() const {
   throw pool_->num_allocations();
 }
 
-arrow::Status SelfEvictedMemoryPool::evict(int64_t size) {
+arrow::Status SelfEvictedMemoryPool::ensureCapacity(int64_t size) {
   VELOX_CHECK_NOT_NULL(evictable_);
   if (size > capacity_ - pool_->bytes_allocated()) {
     // Self evict.

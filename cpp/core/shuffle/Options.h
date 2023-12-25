@@ -29,7 +29,6 @@ static constexpr int32_t kDefaultCompressionThreshold = 100;
 static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
 static constexpr bool kEnableBufferedWrite = true;
-static constexpr bool kWriteEos = true;
 
 enum PartitionWriterType { kLocal, kCeleborn };
 
@@ -50,7 +49,6 @@ struct ShuffleWriterOptions {
   CodecBackend codecBackend = CodecBackend::NONE;
   CompressionMode compressionMode = CompressionMode::BUFFER;
   bool bufferedWrite = kEnableBufferedWrite;
-  bool writeEos = kWriteEos;
 
   PartitionWriterType partitionWriterType = PartitionWriterType::kLocal;
   Partitioning partitioning = Partitioning::kRoundRobin;

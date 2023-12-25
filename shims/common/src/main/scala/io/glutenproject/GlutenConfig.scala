@@ -130,8 +130,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   @deprecated def broadcastCacheTimeout: Int = conf.getConf(COLUMNAR_BROADCAST_CACHE_TIMEOUT)
 
-  def columnarShuffleWriteEOS: Boolean = conf.getConf(COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED)
-
   def columnarShuffleReallocThreshold: Double = conf.getConf(COLUMNAR_SHUFFLE_REALLOC_THRESHOLD)
 
   def columnarShuffleCodec: Option[String] = conf.getConf(COLUMNAR_SHUFFLE_CODEC)
@@ -856,16 +854,11 @@ object GlutenConfig {
       .intConf
       .createWithDefault(-1)
 
-  val COLUMNAR_SHUFFLE_WRITE_EOS_ENABLED =
-    buildConf("spark.gluten.sql.columnar.shuffle.writeEOS")
-      .internal()
-      .booleanConf
-      .createWithDefault(false)
-
   val COLUMNAR_SHUFFLE_REALLOC_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.realloc.threshold")
       .internal()
       .doubleConf
+      .checkValue(v => v >= 0 && v <= 1, "Buffer reallocation threshold must between [0, 1]")
       .createWithDefault(0.25)
 
   val COLUMNAR_SHUFFLE_CODEC =

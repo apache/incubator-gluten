@@ -424,8 +424,6 @@ arrow::Status VeloxShuffleWriter::updateInputHasNull(const facebook::velox::RowV
   SCOPED_TIMER(cpuWallTimingList_[CpuWallTimingHasNull]);
 
   for (size_t col = 0; col < simpleColumnIndices_.size(); ++col) {
-    // check input_has_null_[col] is cheaper than GetNullCount()
-    // once input_has_null_ is set to true, we didn't reset it after evict
     if (!inputHasNull_[col]) {
       auto colIdx = simpleColumnIndices_[col];
       if (vectorHasNull(rv.childAt(colIdx))) {

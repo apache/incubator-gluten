@@ -78,8 +78,6 @@ class ColumnarShuffleWriter[K, V](
   private val bufferCompressThreshold =
     GlutenConfig.getConf.columnarShuffleCompressionThreshold
 
-  private val writeEOS = GlutenConfig.getConf.columnarShuffleWriteEOS
-
   private val reallocThreshold = GlutenConfig.getConf.columnarShuffleReallocThreshold
 
   private val jniWrapper = ShuffleWriterJniWrapper.create()
@@ -159,7 +157,6 @@ class ColumnarShuffleWriter[K, V](
                 }
               )
               .getNativeInstanceHandle,
-            writeEOS,
             reallocThreshold,
             handle,
             taskContext.taskAttemptId(),

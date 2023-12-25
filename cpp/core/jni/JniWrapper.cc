@@ -799,7 +799,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jint numSubDirs,
     jstring localDirsJstr,
     jlong memoryManagerHandle,
-    jboolean writeEOS,
     jdouble reallocThreshold,
     jlong firstBatchHandle,
     jlong taskAttemptId,
@@ -861,14 +860,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     if (localDirsJstr == NULL) {
       throw gluten::GlutenException(std::string("Shuffle DataFile can't be null"));
     }
-
-    shuffleWriterOptions->writeEos = writeEOS;
-    shuffleWriterOptions->bufferReallocThreshold = reallocThreshold;
-
-    if (numSubDirs > 0) {
-      shuffleWriterOptions->numSubDirs = numSubDirs;
-    }
-
     auto dataFileC = env->GetStringUTFChars(dataFileJstr, JNI_FALSE);
     auto dataFile = std::string(dataFileC);
     env->ReleaseStringUTFChars(dataFileJstr, dataFileC);
@@ -876,6 +867,9 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     auto localDirsC = env->GetStringUTFChars(localDirsJstr, JNI_FALSE);
     auto configuredDirs = gluten::splitPaths(std::string(localDirsC));
     env->ReleaseStringUTFChars(localDirsJstr, localDirsC);
+
+    shuffleWriterOptions->bufferReallocThreshold = reallocThreshold;
+    shuffleWriterOptions->numSubDirs = numSubDirs;
 
     partitionWriter =
         std::make_unique<LocalPartitionWriter>(numPartitions, dataFile, configuredDirs, shuffleWriterOptions.get());
@@ -984,7 +978,7 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapp
       shuffleWriter->totalCompressTime(),
       shuffleWriter->totalBytesWritten(),
       shuffleWriter->totalBytesEvicted(),
-      shuffleWriter->partitionBufferSize(),
+      shuffleWriter->maxPartitionBufferSize(),
       partitionLengthArr,
       rawPartitionLengthArr);
 
