@@ -18,8 +18,8 @@
 #include <jni.h>
 #include <Formats/NativeReader.h>
 #include <IO/BufferWithOwnMemory.h>
-#include <Common/BlockIterator.h>
 #include <Storages/IO/NativeReader.h>
+#include <Common/BlockIterator.h>
 
 namespace DB
 {
@@ -34,7 +34,7 @@ class ReadBufferFromJavaInputStream;
 class ShuffleReader : BlockIterator
 {
 public:
-    explicit ShuffleReader(std::unique_ptr<DB::ReadBuffer> in_, bool compressed);
+    explicit ShuffleReader(std::unique_ptr<DB::ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_);
     DB::Block * read();
     ~ShuffleReader();
     static jclass input_stream_class;
@@ -42,8 +42,8 @@ public:
 
 private:
     std::unique_ptr<DB::ReadBuffer> in;
-    size_t max_concatenate_rows;
-    size_t max_concatenate_bytes;
+    Int64 max_shuffle_read_rows;
+    Int64 max_shuffle_read_bytes;
     std::unique_ptr<DB::ReadBuffer> compressed_in;
     std::unique_ptr<local_engine::NativeReader> input_stream;
     DB::Block header;

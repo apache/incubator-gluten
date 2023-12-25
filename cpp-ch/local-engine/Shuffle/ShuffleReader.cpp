@@ -17,7 +17,6 @@
 #include "ShuffleReader.h"
 #include <Compression/CompressedReadBuffer.h>
 #include <IO/ReadBuffer.h>
-#include <jni/SparkBackendSettings.h>
 #include <jni/jni_common.h>
 #include <Common/DebugUtils.h>
 #include <Common/JNIUtils.h>
@@ -33,12 +32,11 @@ void configureCompressedReadBuffer(DB::CompressedReadBuffer & compressedReadBuff
 {
     compressedReadBuffer.disableChecksumming();
 }
-local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed) : in(std::move(in_))
+local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_)
+    : in(std::move(in_))
+    , max_shuffle_read_rows(max_shuffle_read_rows_)
+    , max_shuffle_read_bytes(max_shuffle_read_bytes_)
 {
-    max_concatenate_rows = SparkBackendSettings::getRuntimeLongConf(
-        SparkBackendSettings::max_source_concatenate_rows_key, SparkBackendSettings::default_max_source_concatenate_rows);
-    max_concatenate_bytes = SparkBackendSettings::getRuntimeLongConf(
-        SparkBackendSettings::max_source_concatenate_bytes_key, SparkBackendSettings::default_max_source_concatenate_bytes);
     if (compressed)
     {
         compressed_in = std::make_unique<CompressedReadBuffer>(*in);
@@ -64,7 +62,9 @@ Block * local_engine::ShuffleReader::read()
         pending_block = {};
     }
 
-    while (!buffer_rows || (buffer_rows < max_concatenate_rows && buffer_bytes < max_concatenate_bytes))
+    while (!buffer_rows
+           || ((max_shuffle_read_rows < 0 || buffer_rows < max_shuffle_read_rows)
+               && (max_shuffle_read_bytes < 0 || buffer_bytes < max_shuffle_read_bytes)))
     {
         auto block = input_stream->read();
         if (!block.rows())

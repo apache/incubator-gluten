@@ -19,13 +19,11 @@
 #include <Core/ColumnsWithTypeAndName.h>
 #include <DataTypes/DataTypesNumber.h>
 #include <Processors/Transforms/AggregatingTransform.h>
-#include <jni/SparkBackendSettings.h>
 #include <jni/jni_common.h>
 #include <Common/CHUtil.h>
 #include <Common/DebugUtils.h>
 #include <Common/Exception.h>
 #include <Common/JNIUtils.h>
-
 
 namespace local_engine
 {
@@ -40,6 +38,7 @@ static DB::Block getRealHeader(const DB::Block & header)
         return header;
     return BlockUtil::buildRowCountHeader();
 }
+
 SourceFromJavaIter::SourceFromJavaIter(DB::ContextPtr context_, DB::Block header, jobject java_iter_, bool materialize_input_)
     : DB::ISource(getRealHeader(header))
     , java_iter(java_iter_)
@@ -47,71 +46,37 @@ SourceFromJavaIter::SourceFromJavaIter(DB::ContextPtr context_, DB::Block header
     , original_header(header)
     , context(context_)
 {
-    max_concatenate_rows = SparkBackendSettings::getRuntimeLongConf(
-        SparkBackendSettings::max_source_concatenate_rows_key, SparkBackendSettings::default_max_source_concatenate_rows);
-    max_concatenate_bytes = SparkBackendSettings::getRuntimeLongConf(
-        SparkBackendSettings::max_source_concatenate_bytes_key, SparkBackendSettings::default_max_source_concatenate_bytes);
 }
+
 DB::Chunk SourceFromJavaIter::generate()
 {
     GET_JNIENV(env)
-    size_t max_block_size = context->getSettingsRef().max_block_size;
+    jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext);
     DB::Chunk result;
-    size_t buffer_rows = 0;
-    size_t buffer_bytes = 0;
-    std::vector<DB::Block> blocks;
-    if (pending_block.rows())
+    if (has_next)
     {
-        buffer_rows += pending_block.rows();
-        buffer_bytes += pending_block.bytes();
-        blocks.emplace_back(std::move(pending_block));
-        pending_block = {};
-    }
-
-    while (!buffer_rows || (buffer_rows < max_concatenate_rows && buffer_bytes < max_concatenate_bytes))
-    {
-        jboolean has_next = safeCallBooleanMethod(env, java_iter, serialized_record_batch_iterator_hasNext);
-        if (!has_next)
-            break;
-        jbyteArray block_address = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
-        DB::Block * block = reinterpret_cast<DB::Block *>(byteArrayToLong(env, block_address));
-
-        if (!blocks.empty() && (blocks[0].info.is_overflows != block->info.is_overflows || blocks[0].info.bucket_num != block->info.bucket_num))
+        jbyteArray block = static_cast<jbyteArray>(safeCallObjectMethod(env, java_iter, serialized_record_batch_iterator_next));
+        DB::Block * data = reinterpret_cast<DB::Block *>(byteArrayToLong(env, block));
+        if(materialize_input)
+            materializeBlockInplace(*data);
+        if (data->rows() > 0)
         {
-            pending_block = std::move(*block);
-            break;
-        }
-
-        if (block->rows())
-        {
-            buffer_rows += block->rows();
-            buffer_bytes += block->bytes();
-            blocks.emplace_back(std::move(*block));
+            size_t rows = data->rows();
+            if (original_header.columns())
+            {
+                result.setColumns(data->mutateColumns(), rows);
+                convertNullable(result);
+                auto info = std::make_shared<DB::AggregatedChunkInfo>();
+                info->is_overflows = data->info.is_overflows;
+                info->bucket_num = data->info.bucket_num;
+                result.setChunkInfo(info);
+            }
+            else
+            {
+                result = BlockUtil::buildRowCountChunk(rows);
+            }
         }
     }
-
-    if (buffer_rows)
-    {
-        if (original_header.columns())
-        {
-            auto is_overflows = blocks[0].info.is_overflows;
-            auto bucket_num = blocks[0].info.bucket_num;
-            auto merged_block = DB::concatenateBlocks(blocks);
-            if (materialize_input)
-                materializeBlockInplace(merged_block);
-            result.setColumns(merged_block.getColumns(), buffer_rows);
-            convertNullable(result);
-            auto info = std::make_shared<DB::AggregatedChunkInfo>();
-            info->is_overflows = is_overflows;
-            info->bucket_num = bucket_num;
-            result.setChunkInfo(info);
-        }
-        else
-        {
-            result = BlockUtil::buildRowCountChunk(buffer_rows);
-        }
-    }
-
     CLEAN_JNIENV
     return result;
 }
