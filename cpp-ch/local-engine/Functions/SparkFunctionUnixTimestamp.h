@@ -37,7 +37,14 @@ class SparkFunctionUnixTimestamp : public FunctionToUnixTimestamp
 public:
     static constexpr auto name = "sparkToUnixTimestamp";
     static FunctionPtr create(ContextPtr) { return std::make_shared<SparkFunctionUnixTimestamp>(); }
-    SparkFunctionUnixTimestamp() = default;
+    SparkFunctionUnixTimestamp()
+    {
+        const DateLUTImpl * date_lut = &DateLUT::instance("UTC");
+        UInt32 utc_timestamp = static_cast<UInt32>(0);
+        LocalDateTime date_time(utc_timestamp, *date_lut);
+        UInt32 unix_timestamp = date_time.to_time_t();
+        delta_timestamp_from_utc = unix_timestamp - utc_timestamp;
+    }
     ~SparkFunctionUnixTimestamp() override = default;
     String getName() const override { return name; }
 
@@ -47,31 +54,36 @@ public:
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} argument size must be 1 or 2", name);
         
         ColumnWithTypeAndName first_arg = arguments[0];
-        const DateLUTImpl * date_lut = &DateLUT::instance("UTC");
+        
         if (!isDateOrDate32(first_arg.type))
         {
             return FunctionToUnixTimestamp::executeImpl(arguments, result_type, input_rows);
         }
         else if (isDate(first_arg.type))
-            return executeInternal<UInt16>(first_arg.column, date_lut);
+            return executeInternal<UInt16>(first_arg.column, input_rows);
         else
-            return executeInternal<Int32>(first_arg.column, date_lut);
+            return executeInternal<Int32>(first_arg.column, input_rows);
     }
 
     template<typename T>
-    static ColumnPtr executeInternal(const ColumnPtr & col, const DateLUTImpl * date_lut)
+    ColumnPtr NO_SANITIZE_UNDEFINED executeInternal(const ColumnPtr & col, size_t input_rows) const
     {
         const ColumnVector<T> * col_src = checkAndGetColumn<ColumnVector<T>>(col.get());
         MutableColumnPtr res = ColumnVector<UInt32>::create(col->size());
         PaddedPODArray<UInt32> & data = assert_cast<ColumnVector<UInt32> *>(res.get())->getData();
-        for (size_t i = 0; i < col->size(); ++i)
+        if (col->size() == 0)
+            return res;
+        
+        for (size_t i = 0; i < input_rows; ++i)
         {
             const T t = col_src->getElement(i);
-            LocalDateTime date_time(static_cast<UInt32>(t * DATE_SECONDS_PER_DAY), *date_lut);
-            data[i] = date_time.to_time_t();
+            data[i] = static_cast<UInt32>(t * DATE_SECONDS_PER_DAY) + delta_timestamp_from_utc;
         }
         return res;
     }
+
+private:
+    UInt32 delta_timestamp_from_utc;
 };
 
 }
