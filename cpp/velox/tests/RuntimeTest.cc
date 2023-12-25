@@ -27,6 +27,8 @@ class DummyRuntime final : public Runtime {
 
   void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) override {}
 
+  void parseSplitInfo(const uint8_t* data, int32_t size) override {}
+
   std::shared_ptr<ResultIterator> createResultIterator(
       MemoryManager* memoryManager,
       const std::string& spillDir,

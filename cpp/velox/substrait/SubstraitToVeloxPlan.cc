@@ -16,8 +16,10 @@
  */
 
 #include "SubstraitToVeloxPlan.h"
+
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
+#include "operators/plannodes/RowVectorStream.h"
 #include "velox/connectors/hive/HiveDataSink.h"
 #include "velox/exec/TableWriter.h"
 #include "velox/type/Type.h"
@@ -960,6 +962,40 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 }
 
+core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
+    const ::substrait::ReadRel& readRel,
+    int32_t streamIdx) {
+  VELOX_CHECK_NE(inputIters_.size(), 0, "Invalid input iterator list.");
+  VELOX_CHECK_LT(streamIdx, inputIters_.size(), "Could not find stream index {} in input iterator list.", streamIdx);
+
+  // Get the input schema of this iterator.
+  uint64_t colNum = 0;
+  std::vector<TypePtr> veloxTypeList;
+  if (readRel.has_base_schema()) {
+    const auto& baseSchema = readRel.base_schema();
+    // Input names is not used. Instead, new input/output names will be created
+    // because the ValueStreamNode in Velox does not support name change.
+    colNum = baseSchema.names().size();
+    veloxTypeList = SubstraitParser::parseNamedStruct(baseSchema);
+  }
+
+  std::vector<std::string> outNames;
+  outNames.reserve(colNum);
+  for (int idx = 0; idx < colNum; idx++) {
+    auto colName = SubstraitParser::makeNodeName(planNodeId_, idx);
+    outNames.emplace_back(colName);
+  }
+
+  auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
+  auto vectorStream = std::make_shared<RowVectorStream>(pool_, std::move(inputIters_[streamIdx]), outputType);
+  auto valuesNode = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(vectorStream));
+
+  auto splitInfo = std::make_shared<SplitInfo>();
+  splitInfo->isStream = true;
+  splitInfoMap_[valuesNode->id()] = splitInfo;
+  return valuesNode;
+}
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::ReadRel& readRel) {
   // emit is not allowed in TableScanNode and ValuesNode related
   // outputs
@@ -968,21 +1004,19 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         !readRel.common().has_emit(), "Emit not supported for ValuesNode and TableScanNode related Substrait plans.");
   }
 
-  // Check if the ReadRel specifies an input of stream. If yes, the pre-built
-  // input node will be used as the data source.
-  auto splitInfo = std::make_shared<SplitInfo>();
+  // Check if the ReadRel specifies an input of stream. If yes, build ValueStreamNode as the data source.
   auto streamIdx = getStreamIndex(readRel);
   if (streamIdx >= 0) {
-    if (inputNodesMap_.find(streamIdx) == inputNodesMap_.end()) {
-      VELOX_FAIL("Could not find source index {} in input nodes map.", streamIdx);
-    }
-    auto streamNode = inputNodesMap_[streamIdx];
-    splitInfo->isStream = true;
-    splitInfoMap_[streamNode->id()] = splitInfo;
-    return streamNode;
+    return constructValueStreamNode(readRel, streamIdx);
   }
 
   // Otherwise, will create TableScan node for ReadRel.
+  auto splitInfo = std::make_shared<SplitInfo>();
+  if (!validationMode_) {
+    VELOX_CHECK_LT(splitInfoIdx_, splitInfos_.size(), "Plan must have readRel and related split info.");
+    splitInfo = splitInfos_[splitInfoIdx_++];
+  }
+
   // Get output names and types.
   std::vector<std::string> colNameList;
   std::vector<TypePtr> veloxTypeList;
@@ -1005,48 +1039,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     isPartitionColumns = SubstraitParser::parsePartitionColumns(baseSchema);
   }
 
-  // Parse local files and construct split info.
-  if (readRel.has_local_files()) {
-    using SubstraitFileFormatCase = ::substrait::ReadRel_LocalFiles_FileOrFiles::FileFormatCase;
-    const auto& fileList = readRel.local_files().items();
-    splitInfo->paths.reserve(fileList.size());
-    splitInfo->starts.reserve(fileList.size());
-    splitInfo->lengths.reserve(fileList.size());
-    splitInfo->partitionColumns.reserve(fileList.size());
-    for (const auto& file : fileList) {
-      // Expect all Partitions share the same index.
-      splitInfo->partitionIndex = file.partition_index();
-
-      std::unordered_map<std::string, std::string> partitionColumnMap;
-      for (const auto& partitionColumn : file.partition_columns()) {
-        partitionColumnMap[partitionColumn.key()] = partitionColumn.value();
-      }
-      splitInfo->partitionColumns.emplace_back(partitionColumnMap);
-
-      splitInfo->paths.emplace_back(file.uri_file());
-      splitInfo->starts.emplace_back(file.start());
-      splitInfo->lengths.emplace_back(file.length());
-      switch (file.file_format_case()) {
-        case SubstraitFileFormatCase::kOrc:
-          splitInfo->format = dwio::common::FileFormat::ORC;
-          break;
-        case SubstraitFileFormatCase::kDwrf:
-          splitInfo->format = dwio::common::FileFormat::DWRF;
-          break;
-        case SubstraitFileFormatCase::kParquet:
-          splitInfo->format = dwio::common::FileFormat::PARQUET;
-          break;
-        case SubstraitFileFormatCase::kText:
-          splitInfo->format = dwio::common::FileFormat::TEXT;
-          break;
-        default:
-          splitInfo->format = dwio::common::FileFormat::UNKNOWN;
-          break;
-      }
-
-      fileFormat_ = splitInfo->format;
-    }
-  }
   // Do not hard-code connector ID and allow for connectors other than Hive.
   static const std::string kHiveConnectorId = "test-hive";
 
@@ -1297,7 +1289,7 @@ int32_t SubstraitToVeloxPlanConverter::getStreamIndex(const ::substrait::ReadRel
     std::string filePath = fileList[0].uri_file();
     std::string prefix = "iterator:";
     std::size_t pos = filePath.find(prefix);
-    if (pos == std::string::npos) {
+    if (pos == std::string::npos || validationMode_) {
       return -1;
     }
 
@@ -1309,10 +1301,7 @@ int32_t SubstraitToVeloxPlanConverter::getStreamIndex(const ::substrait::ReadRel
       VELOX_FAIL(err.what());
     }
   }
-  if (validationMode_) {
-    return -1;
-  }
-  VELOX_FAIL("Local file is expected.");
+  return -1;
 }
 
 void SubstraitToVeloxPlanConverter::extractJoinKeys(

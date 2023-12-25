@@ -72,6 +72,8 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
 
   virtual void injectWriteFilesTempPath(const std::string& path) = 0;
 
+  virtual void parseSplitInfo(const uint8_t* data, int32_t size) = 0;
+
   // Just for benchmark
   ::substrait::Plan& getPlan() {
     return substraitPlan_;
@@ -140,6 +142,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
  protected:
   std::unique_ptr<ObjectStore> objStore_ = ObjectStore::create();
   ::substrait::Plan substraitPlan_;
+  std::vector<::substrait::ReadRel_LocalFiles> localFiles_;
   std::optional<std::string> writeFilesTempPath_;
   SparkTaskInfo taskInfo_;
   // Session conf map

@@ -36,44 +36,18 @@ class VeloxPlanConverter {
       const std::optional<std::string> writeFilesTempPath = std::nullopt,
       bool validationMode = false);
 
-  std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(::substrait::Plan& substraitPlan);
+  std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(
+      ::substrait::Plan& substraitPlan,
+      std::vector<::substrait::ReadRel_LocalFiles> localFiles);
 
   const std::unordered_map<facebook::velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfos() {
     return substraitVeloxPlanConverter_.splitInfos();
   }
 
  private:
-  void setInputPlanNode(const ::substrait::WriteRel& writeRel);
-
-  void setInputPlanNode(const ::substrait::FetchRel& fetchRel);
-
-  void setInputPlanNode(const ::substrait::ExpandRel& sExpand);
-
-  void setInputPlanNode(const ::substrait::GenerateRel& sGenerate);
-
-  void setInputPlanNode(const ::substrait::SortRel& sSort);
-
-  void setInputPlanNode(const ::substrait::WindowRel& s);
-
-  void setInputPlanNode(const ::substrait::AggregateRel& sagg);
-
-  void setInputPlanNode(const ::substrait::ProjectRel& sproject);
-
-  void setInputPlanNode(const ::substrait::FilterRel& sfilter);
-
-  void setInputPlanNode(const ::substrait::JoinRel& sJoin);
-
-  void setInputPlanNode(const ::substrait::ReadRel& sread);
-
-  void setInputPlanNode(const ::substrait::Rel& srel);
-
-  void setInputPlanNode(const ::substrait::RelRoot& sroot);
-
   std::string nextPlanNodeId();
 
   int planNodeId_ = 0;
-
-  std::vector<std::shared_ptr<ResultIterator>> inputIters_;
 
   bool validationMode_;
 

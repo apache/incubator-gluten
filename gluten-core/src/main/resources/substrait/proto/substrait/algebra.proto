@@ -159,16 +159,16 @@ message ReadRel {
         DwrfReadOptions dwrf = 13;
         TextReadOptions text = 14;
         JsonReadOptions json = 15;
-     }
+      }
 
-     message partitionColumn {
+      message partitionColumn {
         string key = 1;
         string value = 2;
-     }
-     repeated partitionColumn partition_columns = 16;
+      }
+      repeated partitionColumn partition_columns = 16;
 
-     /// File schema
-     NamedStruct schema = 17;
+      /// File schema
+      NamedStruct schema = 17;
     }
   }
 }

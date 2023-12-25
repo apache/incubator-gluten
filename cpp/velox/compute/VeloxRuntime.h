@@ -37,6 +37,8 @@ class VeloxRuntime final : public Runtime {
 
   void parsePlan(const uint8_t* data, int32_t size, SparkTaskInfo taskInfo) override;
 
+  void parseSplitInfo(const uint8_t* data, int32_t size) override;
+
   static std::shared_ptr<facebook::velox::memory::MemoryPool> getAggregateVeloxPool(MemoryManager* memoryManager) {
     return toVeloxMemoryManager(memoryManager)->getAggregateMemoryPool();
   }

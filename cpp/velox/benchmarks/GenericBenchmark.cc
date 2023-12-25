@@ -110,6 +110,7 @@ void populateWriterMetrics(
 
 auto BM_Generic = [](::benchmark::State& state,
                      const std::string& substraitJsonFile,
+                     const std::string& splitFile,
                      const std::vector<std::string>& inputFiles,
                      const std::unordered_map<std::string, std::string>& conf,
                      FileReaderType readerType) {
@@ -123,7 +124,9 @@ auto BM_Generic = [](::benchmark::State& state,
   auto memoryManager = getDefaultMemoryManager();
   auto runtime = Runtime::create(kVeloxRuntimeKind, conf);
   const auto& filePath = substraitJsonFile;
-  auto plan = getPlanFromFile(filePath);
+  auto plan = getPlanFromFile("Plan", filePath);
+  const auto& splitPath = splitFile;
+  auto split = getPlanFromFile("ReadRel.LocalFiles", splitPath);
   auto startTime = std::chrono::steady_clock::now();
   int64_t collectBatchTime = 0;
   WriterMetrics writerMetrics{};
@@ -145,6 +148,7 @@ auto BM_Generic = [](::benchmark::State& state,
     }
 
     runtime->parsePlan(reinterpret_cast<uint8_t*>(plan.data()), plan.size(), {});
+    runtime->parseSplitInfo(reinterpret_cast<uint8_t*>(split.data()), split.size());
     auto resultIter =
         runtime->createResultIterator(memoryManager.get(), "/tmp/test-spill", std::move(inputIters), conf);
     auto veloxPlan = dynamic_cast<gluten::VeloxRuntime*>(runtime)->getVeloxPlan();
@@ -231,6 +235,7 @@ int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   std::string substraitJsonFile;
+  std::string splitFile;
   std::vector<std::string> inputFiles;
   std::unordered_map<std::string, std::string> conf;
 
@@ -250,10 +255,11 @@ int main(int argc, char** argv) {
       inputFiles[1] = getGeneratedFilePath("example_lineitem");
     } else {
       substraitJsonFile = argv[1];
+      splitFile = argv[2];
       abortIfFileNotExists(substraitJsonFile);
       LOG(INFO) << "Using substrait json file: " << std::endl << substraitJsonFile;
       LOG(INFO) << "Using " << argc - 2 << " input data file(s): ";
-      for (auto i = 2; i < argc; ++i) {
+      for (auto i = 3; i < argc; ++i) {
         inputFiles.emplace_back(argv[i]);
         abortIfFileNotExists(inputFiles.back());
         LOG(INFO) << inputFiles.back();

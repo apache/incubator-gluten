@@ -19,6 +19,7 @@
 
 #include "SubstraitToVeloxExpr.h"
 #include "TypeUtils.h"
+#include "compute/ResultIterator.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/TableHandle.h"
 #include "velox/core/PlanNode.h"
@@ -102,6 +103,8 @@ class SubstraitToVeloxPlanConverter {
   /// Lengths: the lengths in byte to read from the items.
   core::PlanNodePtr toVeloxPlan(const ::substrait::ReadRel& sRead);
 
+  core::PlanNodePtr constructValueStreamNode(const ::substrait::ReadRel& sRead, int32_t streamIdx);
+
   /// Used to convert Substrait Rel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::Rel& sRel);
 
@@ -136,6 +139,15 @@ class SubstraitToVeloxPlanConverter {
   void insertInputNode(uint64_t inputIdx, const std::shared_ptr<const core::PlanNode>& inputNode, int planNodeId) {
     inputNodesMap_[inputIdx] = inputNode;
     planNodeId_ = planNodeId;
+  }
+
+  void setSplitInfos(std::vector<std::shared_ptr<SplitInfo>> splitInfos) {
+    splitInfoIdx_ = 0;
+    splitInfos_ = splitInfos;
+  }
+
+  void setInputIterators(const std::vector<std::shared_ptr<ResultIterator>>& inputIters) {
+    inputIters_ = inputIters;
   }
 
   /// Used to check if ReadRel specifies an input of stream.
@@ -527,9 +539,6 @@ class SubstraitToVeloxPlanConverter {
   /// The unique identification for each PlanNode.
   int planNodeId_ = 0;
 
-  // used to check whether IsNotNull Filter is support
-  facebook::velox::dwio::common::FileFormat fileFormat_ = facebook::velox::dwio::common::FileFormat::UNKNOWN;
-
   /// The map storing the relations between the function id and the function
   /// name. Will be constructed based on the Substrait representation.
   std::unordered_map<uint64_t, std::string> functionMap_;
@@ -541,6 +550,11 @@ class SubstraitToVeloxPlanConverter {
   /// index. This map is only used when the computation of a Substrait plan
   /// depends on other input nodes.
   std::unordered_map<uint64_t, std::shared_ptr<const core::PlanNode>> inputNodesMap_;
+
+  int32_t splitInfoIdx_{0};
+  std::vector<std::shared_ptr<SplitInfo>> splitInfos_;
+
+  std::vector<std::shared_ptr<ResultIterator>> inputIters_;
 
   /// The Expression converter used to convert Substrait representations into
   /// Velox expressions.

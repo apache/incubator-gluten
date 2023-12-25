@@ -47,11 +47,6 @@ import scala.collection.JavaConverters._
 
 class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
 
-  /**
-   * Generate native row partition.
-   *
-   * @return
-   */
   override def genSplitInfo(
       partition: InputPartition,
       partitionSchema: StructType,
@@ -92,6 +87,24 @@ class CHIteratorApi extends IteratorApi with Logging with LogLevelUtil {
           preferredLocations.toList.asJava)
       case _ =>
         throw new UnsupportedOperationException(s"Unsupported input partition.")
+    }
+  }
+
+  /**
+   * Generate native row partition.
+   *
+   * @return
+   */
+  override def genPartitions(wsCtx: WholeStageTransformContext, splitInfos: Seq[Seq[SplitInfo]]): Seq[BaseGlutenPartition] = {
+    splitInfos.zipWithIndex.map {
+      case (splitInfos, index) =>
+        wsCtx.substraitContext.initSplitInfosIndex(0)
+        wsCtx.substraitContext.setSplitInfos(splitInfos)
+        val substraitPlan = wsCtx.root.toProtobuf
+        GlutenPartition(
+          index,
+          substraitPlan.toByteArray,
+          locations = splitInfos.flatMap(_.preferredLocations().asScala).toArray)
     }
   }
 
