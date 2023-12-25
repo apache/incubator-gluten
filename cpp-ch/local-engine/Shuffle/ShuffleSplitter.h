@@ -119,6 +119,7 @@ class ShuffleSplitter : public ShuffleWriterBase
 {
 public:
     inline const static std::vector<std::string> compress_methods =  {"", "ZSTD", "LZ4"};
+
     static ShuffleSplitterPtr create(const std::string & short_name, const SplitOptions & options_);
 
     explicit ShuffleSplitter(const SplitOptions & options);

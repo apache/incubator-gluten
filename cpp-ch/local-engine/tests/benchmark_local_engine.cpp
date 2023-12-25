@@ -18,6 +18,7 @@
 #include <fstream>
 #include <iostream>
 #include <Builder/SerializedPlanBuilder.h>
+#include <Compression/CompressedReadBuffer.h>
 #include <Functions/FunctionFactory.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/HashJoin.h>

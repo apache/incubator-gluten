@@ -27,6 +27,94 @@ using namespace DB;
 namespace local_engine
 {
 
+DECLARE_AVX2_SPECIFIC_CODE(
+
+    inline void checkNullFloat32SIMD(const Float32 * data, UInt8 * null_map, size_t size) {
+        __m256 inf = _mm256_set1_ps(INFINITY);
+        __m256 neg_inf = _mm256_set1_ps(-INFINITY);
+
+        for (size_t i = 0; i < size; i += 8)
+        {
+            __m256 values = _mm256_loadu_ps(&data[i]);
+
+            __m256 cmp_result_inf = _mm256_cmp_ps(values, inf, _CMP_EQ_OQ);
+            __m256 cmp_result_neg_inf = _mm256_cmp_ps(values, neg_inf, _CMP_EQ_OQ);
+            __m256 cmp_result_nan = _mm256_cmp_ps(values, values, _CMP_NEQ_UQ);
+
+            __m256 cmp_result = _mm256_or_ps(_mm256_or_ps(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan);
+
+            int mask = _mm256_movemask_ps(cmp_result);
+            for (size_t j = 0; j < 8; ++j)
+                null_map[i + j] = (mask & (1 << j)) != 0;
+        }
+    }
+
+    inline void checkNullFloat64SIMD(const Float64 * data, UInt8 * null_map, size_t size) {
+        __m256d inf = _mm256_set1_pd(INFINITY);
+        __m256d neg_inf = _mm256_set1_pd(-INFINITY);
+
+        for (size_t i = 0; i < size; i += 4)
+        {
+            __m256d values = _mm256_loadu_pd(&data[i]);
+
+            __m256d cmp_result_inf = _mm256_cmp_pd(values, inf, _CMP_EQ_OQ);
+            __m256d cmp_result_neg_inf = _mm256_cmp_pd(values, neg_inf, _CMP_EQ_OQ);
+            __m256d cmp_result_nan = _mm256_cmp_pd(values, values, _CMP_NEQ_UQ);
+
+            __m256d cmp_result = _mm256_or_pd(_mm256_or_pd(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan);
+
+            int mask = _mm256_movemask_pd(cmp_result);
+            for (size_t j = 0; j < 4; ++j)
+                null_map[i + j] = (mask & (1 << j)) != 0;
+        }
+    }
+
+)
+
+DECLARE_AVX512F_SPECIFIC_CODE(
+
+    inline void checkNullFloat32SIMD(const Float32 * data, UInt8 * null_map, size_t size) {
+        __m512 inf = _mm512_set1_ps(INFINITY);
+        __m512 neg_inf = _mm512_set1_ps(-INFINITY);
+
+        for (size_t i = 0; i < size; i += 16)
+        {
+            __m512 values = _mm512_loadu_ps(&data[i]);
+
+            __mmask16 cmp_result_inf = _mm512_cmp_ps_mask(values, inf, _CMP_EQ_OQ);
+            __mmask16 cmp_result_neg_inf = _mm512_cmp_ps_mask(values, neg_inf, _CMP_EQ_OQ);
+            __mmask16 cmp_result_nan = _mm512_cmp_ps_mask(values, values, _CMP_NEQ_UQ);
+
+            __mmask16 cmp_result = cmp_result_inf | cmp_result_neg_inf | cmp_result_nan;
+
+            for (size_t j = 0; j < 16; ++j)
+                null_map[i + j] = (cmp_result & (1 << j)) != 0;
+        }
+    }
+
+
+    inline void checkNullFloat64SIMD(const Float64 * data, UInt8 * null_map, size_t size) {
+        __m512d inf = _mm512_set1_pd(INFINITY);
+        __m512d neg_inf = _mm512_set1_pd(-INFINITY);
+
+        for (size_t i = 0; i < size; i += 8)
+        {
+            __m512d values = _mm512_loadu_pd(&data[i]);
+
+            __mmask8 cmp_result_inf = _mm512_cmp_pd_mask(values, inf, _CMP_EQ_OQ);
+            __mmask8 cmp_result_neg_inf = _mm512_cmp_pd_mask(values, neg_inf, _CMP_EQ_OQ);
+            __mmask8 cmp_result_nan = _mm512_cmp_pd_mask(values, values, _CMP_NEQ_UQ);
+
+            __mmask8 cmp_result = cmp_result_inf | cmp_result_neg_inf | cmp_result_nan;
+
+            for (size_t j = 0; j < 8; ++j)
+                null_map[i + j] = (cmp_result & (1 << j)) != 0;
+        }
+    }
+
+)
+
+
 template <typename T, ScaleMode scale_mode>
 struct SparkFloatFloorImpl
 {
@@ -59,8 +147,41 @@ public:
             Op::compute(reinterpret_cast<T *>(&tmp_src), mm_scale, reinterpret_cast<T *>(&tmp_dst));
             memcpy(p_out, &tmp_dst, tail_size_bytes);
         }
+
+        if constexpr (std::is_same_v<T, Float32>)
+        {
+            TargetSpecific::AVX2::checkNullFloat32SIMD(out.data(), null_map.data(), out.size());
+        }
+        else if constexpr (std::is_same_v<T, Float64>)
+        {
+            TargetSpecific::AVX2::checkNullFloat64SIMD(out.data(), null_map.data(), out.size());
+        }
+
+        /*
+        for (size_t i = 0; i < out.size(); ++i)
+        {
+            // checkAndSetNullableAutoOpt(out[i], null_map[i]);
+            // checkAndSetNullable(out[i], null_map[i]);
+        }
+        */
+        /*
         for (size_t i = 0; i < out.size(); ++i)
             checkAndSetNullable(out[i], null_map[i]);
+        */
+    }
+
+    static UInt8 checkAndSetNullableAutoOpt(T & t, UInt8 & null_flag)
+    {
+        UInt8 is_nan = (t != t);
+        UInt8 is_inf = 0;
+        if constexpr (std::is_same_v<T, float>)
+            is_inf = ((*reinterpret_cast<const uint32_t *>(&t) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000);
+        else if constexpr (std::is_same_v<T, double>)
+            is_inf
+                = ((*reinterpret_cast<const uint64_t *>(&t) & 0b0111111111111111111111111111111111111111111111111111111111111111)
+                   == 0b0111111111110000000000000000000000000000000000000000000000000000);
+
+        null_flag = is_nan | is_inf;
     }
 
     static void checkAndSetNullable(T & t, UInt8 & null_flag)
@@ -87,6 +208,7 @@ public:
     SparkFunctionFloor() = default;
     ~SparkFunctionFloor() override = default;
     DB::String getName() const override { return name; }
+    // bool useDefaultImplementationForNulls() const { return false; }
 
     DB::DataTypePtr getReturnTypeImpl(const DB::DataTypes & arguments) const override
     {
