@@ -95,7 +95,14 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
     has_first_stage = phase_set.contains(substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE);
     has_inter_stage = phase_set.contains(substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE);
     has_final_stage = phase_set.contains(substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT);
-    has_final_stage |= aggregate_rel->is_final_stage();
+    if (aggregate_rel->measures().empty())
+    {
+        /// According to planAggregateWithoutDistinct in AggUtils.scala, an aggregate without aggregate
+        /// functions will only be organized in two stages, partial and final. In partial stage
+        /// requiredChildDistributionExpressions is None, but in final stage it is Some(Seq[Expression]).
+        auto configs = parseFormattedRelAdvancedOptimization(aggregate_rel->advanced_extension());
+        has_final_stage = getStringConfig(configs, "has_required_child_distribution_expressions") == "true";
+    }
 
     if (phase_set.size() > 1 && has_final_stage)
     {
