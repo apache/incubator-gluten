@@ -34,13 +34,13 @@ static Block createDataBlock(String type_str, size_t rows)
     auto column = type->createColumn();
     for (size_t i = 0; i < rows; ++i)
     {
-        if (type_str == "Int32")
+        if (type_str == "Date32")
         {
-            column->insert(static_cast<Int32>(i));
+            column->insert(i);
         }
-        else if (type_str == "UInt16")
+        else if (type_str == "Date")
         {
-            column->insert(static_cast<UInt16>(i));
+            column->insert(i);
         }
     }
     Block block;
@@ -48,32 +48,51 @@ static Block createDataBlock(String type_str, size_t rows)
     return std::move(block);
 }
 
-static void BM_CHUnixTimestamp_For_Int32(benchmark::State & state)
+static void BM_CHUnixTimestamp_For_Date32(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    factory.registerFunction<DB::FunctionToUnixTimestamp>();
-
     auto function = factory.get("toUnixTimestamp", local_engine::SerializedPlanParser::global_context);
-    Block block = createDataBlock("Int32", 30000000);
+    Block block = createDataBlock("Date32", 30000000);
     auto executable = function->build(block.getColumnsWithTypeAndName());
     for (auto _ : state)[[maybe_unused]]
         auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows());
 }
 
-static void BM_SparkUnixTimestamp_For_Int32(benchmark::State & state)
+static void BM_CHUnixTimestamp_For_Date(benchmark::State & state)
 {
     using namespace DB;
     auto & factory = FunctionFactory::instance();
-    factory.registerFunction<local_engine::SparkFunctionUnixTimestamp>();
+    auto function = factory.get("toUnixTimestamp", local_engine::SerializedPlanParser::global_context);
+    Block block = createDataBlock("Date", 30000000);
+    auto executable = function->build(block.getColumnsWithTypeAndName());
+    for (auto _ : state)[[maybe_unused]]
+        auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows());
+}
 
-    auto function = factory.get("spark_unix_timestamp", local_engine::SerializedPlanParser::global_context);
-    Block block = createDataBlock("Int32", 30000000);
+static void BM_SparkUnixTimestamp_For_Date32(benchmark::State & state)
+{
+    using namespace DB;
+    auto & factory = FunctionFactory::instance();
+    auto function = factory.get("sparkToUnixTimestamp", local_engine::SerializedPlanParser::global_context);
+    Block block = createDataBlock("Date32", 30000000);
     auto executable = function->build(block.getColumnsWithTypeAndName());
     for (auto _ : state)[[maybe_unused]]
          auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows());
 }
 
+static void BM_SparkUnixTimestamp_For_Date(benchmark::State & state)
+{
+    using namespace DB;
+    auto & factory = FunctionFactory::instance();
+    auto function = factory.get("sparkToUnixTimestamp", local_engine::SerializedPlanParser::global_context);
+    Block block = createDataBlock("Date", 30000000);
+    auto executable = function->build(block.getColumnsWithTypeAndName());
+    for (auto _ : state)[[maybe_unused]]
+         auto result = executable->execute(block.getColumnsWithTypeAndName(), executable->getResultType(), block.rows());
+}
 
-BENCHMARK(BM_CHUnixTimestamp_For_Int32)->Unit(benchmark::kMillisecond)->Iterations(10);
-BENCHMARK(BM_SparkUnixTimestamp_For_Int32)->Unit(benchmark::kMillisecond)->Iterations(10);
+BENCHMARK(BM_CHUnixTimestamp_For_Date32)->Unit(benchmark::kMillisecond)->Iterations(10);
+BENCHMARK(BM_CHUnixTimestamp_For_Date)->Unit(benchmark::kMillisecond)->Iterations(10);
+BENCHMARK(BM_SparkUnixTimestamp_For_Date32)->Unit(benchmark::kMillisecond)->Iterations(10);
+BENCHMARK(BM_SparkUnixTimestamp_For_Date)->Unit(benchmark::kMillisecond)->Iterations(10);
