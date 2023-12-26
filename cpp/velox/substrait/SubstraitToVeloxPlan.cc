@@ -1880,6 +1880,28 @@ void SubstraitToVeloxPlanConverter::constructSubfieldFilters(
   if constexpr (KIND == facebook::velox::TypeKind::HUGEINT) {
     // TODO: open it when the Velox's modification is ready.
     VELOX_NYI("constructSubfieldFilters not support for HUGEINT type");
+  } else if constexpr (KIND == facebook::velox::TypeKind::BOOLEAN) {
+    // Handle bool type filters.
+    // Not equal.
+    if (filterInfo.notValue_) {
+      filters[common::Subfield(inputName)] =
+          std::move(std::make_unique<common::BoolValue>(!filterInfo.notValue_.value().value<bool>(), nullAllowed));
+    } else if (rangeSize == 0) {
+      // IsNull/IsNotNull.
+      if (!nullAllowed) {
+        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNotNull>());
+      } else if (isNull) {
+        filters[common::Subfield(inputName)] = std::move(std::make_unique<common::IsNull>());
+      } else {
+        VELOX_NYI("Only IsNotNull and IsNull are supported in constructSubfieldFilters when no other filter ranges.");
+      }
+      return;
+    } else {
+      // Equal.
+      auto value = filterInfo.lowerBounds_[0].value().value<bool>();
+      VELOX_CHECK(value == filterInfo.upperBounds_[0].value().value<bool>(), "invalid state of bool equal");
+      filters[common::Subfield(inputName)] = std::move(std::make_unique<common::BoolValue>(value, nullAllowed));
+    }
   } else if constexpr (KIND == facebook::velox::TypeKind::ARRAY || KIND == facebook::velox::TypeKind::MAP) {
     // Only IsNotNull and IsNull are supported for array and map types.
     if (rangeSize == 0) {
@@ -2054,7 +2076,7 @@ connector::hive::SubfieldFilters SubstraitToVeloxPlanConverter::mapToFilters(
               colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
           break;
         case TypeKind::BOOLEAN:
-          constructSubfieldFilters<TypeKind::BOOLEAN, common::BigintRange>(
+          constructSubfieldFilters<TypeKind::BOOLEAN, common::BoolValue>(
               colIdx, inputNameList[colIdx], inputType, columnToFilterInfo[colIdx], filters);
           break;
         case TypeKind::VARCHAR:
