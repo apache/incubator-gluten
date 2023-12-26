@@ -60,33 +60,22 @@ public:
             memcpy(p_out, &tmp_dst, tail_size_bytes);
         }
         for (size_t i = 0; i < out.size(); ++i)
-            checkAndSetNullable(out[i], null_map[i]);
+            checkAndSetNullableAutoOpt(out[i], null_map[i]);
     }
 
-    static void checkAndSetNullable(T& t, UInt8& null_flag)
+    static void checkAndSetNullableAutoOpt(T & t, UInt8 & null_flag)
     {
-        if (t != t) // means the element is nan
-        {
-            t = 0;
-            null_flag = 1;
-        }
-        else if constexpr (std::is_same<T, float>::value) // means the float type element is inf
-        {
-            if ((std::bit_cast<uint32_t>(t) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000)
-            {
-                t = 0;
-                null_flag = 1;
-            }
-        }
-        else if constexpr (std::is_same<T, double>::value) // means the double type element is inf
-        {
-            if ((std::bit_cast<uint64_t>(t) & 0b0111111111111111111111111111111111111111111111111111111111111111) 
-                == 0b0111111111110000000000000000000000000000000000000000000000000000)
-            {
-                t = 0;
-                null_flag = 1;
-            }
-        }
+        UInt8 is_nan = (t != t);
+        UInt8 is_inf = 0;
+        if constexpr (std::is_same_v<T, float>)
+            is_inf = ((*reinterpret_cast<const uint32_t *>(&t) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000);
+        else if constexpr (std::is_same_v<T, double>)
+            is_inf
+                = ((*reinterpret_cast<const uint64_t *>(&t) & 0b0111111111111111111111111111111111111111111111111111111111111111)
+                   == 0b0111111111110000000000000000000000000000000000000000000000000000);
+
+        null_flag = is_nan | is_inf;
+        if (null_flag) t = 0;
     }
 };
 
