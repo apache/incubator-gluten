@@ -34,7 +34,7 @@ on:
       - 'cpp/CMake/**'
       - 'cpp/velox/**'
       - 'cpp/core/**'
-      - 'dev**'
+      - 'dev/**'
 #      - 'substrait/substrait-spark/**'
 
 env:
