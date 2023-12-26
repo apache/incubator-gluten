@@ -64,17 +64,31 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     return kind_;
   }
 
-  void reserveMemory(velox::memory::MemoryPool* pool, uint64_t) override {
+  uint64_t growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
     std::lock_guard<std::recursive_mutex> l(mutex_);
-    growPoolLocked(pool, memoryPoolInitCapacity_);
+    return growPoolLocked(pool, targetBytes);
   }
 
-  void releaseMemory(velox::memory::MemoryPool* pool) override {
+  uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
     std::lock_guard<std::recursive_mutex> l(mutex_);
-    releaseMemoryLocked(pool);
+    return releaseMemoryLocked(pool, targetBytes);
   }
 
-  uint64_t shrinkMemory(const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools, uint64_t targetBytes)
+  bool growCapacity(
+      velox::memory::MemoryPool* pool,
+      const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& candidatePools,
+      uint64_t targetBytes) override {
+    GLUTEN_CHECK(candidatePools.size() == 1, "ListenableArbitrator should only be used within a single root pool");
+    auto candidate = candidatePools.back();
+    GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
+    {
+      std::lock_guard<std::recursive_mutex> l(mutex_);
+      growPoolLocked(pool, targetBytes);
+    }
+    return true;
+  }
+
+  uint64_t shrinkCapacity(const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools, uint64_t targetBytes)
       override {
     facebook::velox::exec::MemoryReclaimer::Stats status;
     GLUTEN_CHECK(pools.size() == 1, "Should shrink a single pool at a time");
@@ -89,20 +103,6 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     return total;
   }
 
-  bool growMemory(
-      velox::memory::MemoryPool* pool,
-      const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& candidatePools,
-      uint64_t targetBytes) override {
-    GLUTEN_CHECK(candidatePools.size() == 1, "ListenableArbitrator should only be used within a single root pool");
-    auto candidate = candidatePools.back();
-    GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
-    {
-      std::lock_guard<std::recursive_mutex> l(mutex_);
-      growPoolLocked(pool, targetBytes);
-    }
-    return true;
-  }
-
   Stats stats() const override {
     Stats stats; // no-op
     return stats;
@@ -113,14 +113,15 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
  private:
-  void growPoolLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  uint64_t growPoolLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
     listener_->allocationChanged(bytes);
-    pool->grow(bytes);
+    return pool->grow(bytes);
   }
 
-  void releaseMemoryLocked(velox::memory::MemoryPool* pool) {
+  uint64_t releaseMemoryLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
     uint64_t freeBytes = pool->shrink(0);
     listener_->allocationChanged(-freeBytes);
+    return freeBytes;
   }
 
   gluten::AllocationListener* listener_;
@@ -218,7 +219,7 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
           << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
   VLOG(2) << logPrefix << "Shrinking...";
   const uint64_t oldCapacity = pool->capacity();
-  mm->arbitrator()->releaseMemory(pool);
+  mm->arbitrator()->shrinkCapacity(pool, 0);
   const uint64_t newCapacity = pool->capacity();
   int64_t shrunken = oldCapacity - newCapacity;
   VLOG(2) << logPrefix << shrunken << " bytes released from shrinking.";
