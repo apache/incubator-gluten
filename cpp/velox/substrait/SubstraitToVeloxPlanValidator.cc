@@ -335,7 +335,7 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeR
     return false;
   }
 
-  // validate input datatype
+  // Validate input data type.
   std::vector<TypePtr> types;
   if (writeRel.has_named_table()) {
     const auto& extension = writeRel.named_table().advanced_extension();

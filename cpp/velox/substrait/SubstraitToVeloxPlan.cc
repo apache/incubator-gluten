@@ -24,7 +24,6 @@
 
 #include "utils/ConfigExtractor.h"
 
-#include <iostream>
 #include "config/GlutenConfig.h"
 
 namespace gluten {
@@ -450,9 +449,10 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
 }
 
 std::shared_ptr<connector::hive::LocationHandle> makeLocationHandle(
-    std::string targetDirectory,
-    std::optional<std::string> writeDirectory = std::nullopt,
-    connector::hive::LocationHandle::TableType tableType = connector::hive::LocationHandle::TableType::kExisting) {
+    const std::string& targetDirectory,
+    const std::optional<std::string>& writeDirectory = std::nullopt,
+    const connector::hive::LocationHandle::TableType& tableType =
+        connector::hive::LocationHandle::TableType::kExisting) {
   return std::make_shared<connector::hive::LocationHandle>(
       targetDirectory, writeDirectory.value_or(targetDirectory), tableType);
 }
@@ -461,10 +461,10 @@ std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandl
     const std::vector<std::string>& tableColumnNames,
     const std::vector<TypePtr>& tableColumnTypes,
     const std::vector<std::string>& partitionedBy,
-    std::shared_ptr<connector::hive::HiveBucketProperty> bucketProperty,
-    std::shared_ptr<connector::hive::LocationHandle> locationHandle,
-    const dwio::common::FileFormat tableStorageFormat = dwio::common::FileFormat::PARQUET,
-    const std::optional<common::CompressionKind> compressionKind = {}) {
+    const std::shared_ptr<connector::hive::HiveBucketProperty>& bucketProperty,
+    const std::shared_ptr<connector::hive::LocationHandle>& locationHandle,
+    const dwio::common::FileFormat& tableStorageFormat = dwio::common::FileFormat::PARQUET,
+    const std::optional<common::CompressionKind>& compressionKind = {}) {
   std::vector<std::shared_ptr<const connector::hive::HiveColumnHandle>> columnHandles;
   columnHandles.reserve(tableColumnNames.size());
   std::vector<std::string> bucketedBy;
@@ -491,13 +491,13 @@ std::shared_ptr<connector::hive::HiveInsertTableHandle> makeHiveInsertTableHandl
     }
     if (std::find(partitionedBy.cbegin(), partitionedBy.cend(), tableColumnNames.at(i)) != partitionedBy.cend()) {
       ++numPartitionColumns;
-      columnHandles.push_back(std::make_shared<connector::hive::HiveColumnHandle>(
+      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
           tableColumnNames.at(i),
           connector::hive::HiveColumnHandle::ColumnType::kPartitionKey,
           tableColumnTypes.at(i),
           tableColumnTypes.at(i)));
     } else {
-      columnHandles.push_back(std::make_shared<connector::hive::HiveColumnHandle>(
+      columnHandles.emplace_back(std::make_shared<connector::hive::HiveColumnHandle>(
           tableColumnNames.at(i),
           connector::hive::HiveColumnHandle::ColumnType::kRegular,
           tableColumnTypes.at(i),
@@ -549,7 +549,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   // spark default compression code is snappy.
   common::CompressionKind compressionCodec = common::CompressionKind::CompressionKind_SNAPPY;
   if (writeRel.named_table().has_advanced_extension()) {
-    std::cout << "the table has extension" << std::flush << std::endl;
     if (SubstraitParser::configSetInOptimization(writeRel.named_table().advanced_extension(), "isSnappy=")) {
       compressionCodec = common::CompressionKind::CompressionKind_SNAPPY;
     } else if (SubstraitParser::configSetInOptimization(writeRel.named_table().advanced_extension(), "isGzip=")) {

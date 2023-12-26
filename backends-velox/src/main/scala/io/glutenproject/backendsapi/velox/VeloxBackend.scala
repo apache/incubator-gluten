@@ -115,7 +115,9 @@ object BackendSettings extends BackendSettingsApi {
     }
   }
 
-  override def supportWriteExec(format: FileFormat, fields: Array[StructField]): Option[String] = {
+  override def supportWriteFilesExec(
+      format: FileFormat,
+      fields: Array[StructField]): Option[String] = {
     def validateCompressionCodec(): Option[String] = {
       // Velox doesn't support brotli and lzo.
       val unSupportedCompressions = Set("brotli, lzo")
@@ -135,10 +137,10 @@ object BackendSettings extends BackendSettingsApi {
             case struct: StructType if validateDateTypes(struct.fields).nonEmpty =>
               Some("StructType(TimestampType)")
             case array: ArrayType if array.elementType.isInstanceOf[TimestampType] =>
-              Some("MapType(TimestampType)")
+              Some("ArrayType(TimestampType)")
             case map: MapType
-                if (map.keyType.isInstanceOf[TimestampType] ||
-                  map.valueType.isInstanceOf[TimestampType]) =>
+                if map.keyType.isInstanceOf[TimestampType] ||
+                  map.valueType.isInstanceOf[TimestampType] =>
               Some("MapType(TimestampType)")
             case _ => None
           }

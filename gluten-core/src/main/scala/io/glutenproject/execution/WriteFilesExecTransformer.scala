@@ -29,7 +29,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -46,8 +46,7 @@ case class WriteFilesExecTransformer(
     bucketSpec: Option[BucketSpec],
     options: Map[String, String],
     staticPartitions: TablePartitionSpec)
-  extends UnaryExecNode
-  with UnaryTransformSupport {
+  extends UnaryTransformSupport {
   override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
 
   override def output: Seq[Attribute] = Seq.empty
@@ -63,7 +62,7 @@ case class WriteFilesExecTransformer(
       .newBuilder()
       .setValue(writeParametersStr.toString)
       .build()
-    BackendsApiManager.getTransformerApiInstance.getPackMessage(message)
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
   }
 
   def createEnhancement(output: Seq[Attribute]): com.google.protobuf.Any = {
@@ -71,7 +70,7 @@ case class WriteFilesExecTransformer(
       attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)
     }
 
-    BackendsApiManager.getTransformerApiInstance.getPackMessage(
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(
       TypeBuilder.makeStruct(false, inputTypeNodes.asJava).toProtobuf)
   }
 
@@ -136,7 +135,9 @@ case class WriteFilesExecTransformer(
 
   override protected def doValidateInternal(): ValidationResult = {
     val supportedWrite =
-      BackendsApiManager.getSettings.supportWriteExec(fileFormat, child.output.toStructType.fields)
+      BackendsApiManager.getSettings.supportWriteFilesExec(
+        fileFormat,
+        child.output.toStructType.fields)
     if (supportedWrite.nonEmpty) {
       return ValidationResult.notOk("Unsupported native write: " + supportedWrite.get)
     }

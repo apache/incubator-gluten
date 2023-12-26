@@ -84,55 +84,51 @@ class VeloxColumnarWriteFilesExec(
         //     "updateMode":"NEW",
         //     "name":"part1=1/part2=1"
         // }
-        if (iter.hasNext) {
-          val cb = iter.next()
-          val loadedCb = ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, cb)
+        assert(iter.hasNext)
+        val cb = iter.next()
+        val loadedCb = ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, cb)
 
-          val numRows = loadedCb.column(0).getLong(0)
+        val numRows = loadedCb.column(0).getLong(0)
 
-          var updatedPartitions = Set.empty[String]
-          val addedAbsPathFiles: mutable.Map[String, String] = mutable.Map[String, String]()
-          var numBytes = 0L
-          for (i <- 0 until loadedCb.numRows() - 1) {
-            val fragments = loadedCb.column(1).getUTF8String(i + 1)
-            val objectMapper = new ObjectMapper()
-            val jsonObject = objectMapper.readTree(fragments.toString)
+        var updatedPartitions = Set.empty[String]
+        val addedAbsPathFiles: mutable.Map[String, String] = mutable.Map[String, String]()
+        var numBytes = 0L
+        for (i <- 0 until loadedCb.numRows() - 1) {
+          val fragments = loadedCb.column(1).getUTF8String(i + 1)
+          val objectMapper = new ObjectMapper()
+          val jsonObject = objectMapper.readTree(fragments.toString)
 
-            val fileWriteInfos = jsonObject.get("fileWriteInfos").elements()
-            if (jsonObject.get("fileWriteInfos").elements().hasNext) {
-              val writeInfo = fileWriteInfos.next();
-              numBytes += writeInfo.get("fileSize").size()
-              // Get partition information.
-              if (jsonObject.get("name").textValue().nonEmpty) {
-                val targetFileName = writeInfo.get("targetFileName").textValue()
-                val partitionDir = jsonObject.get("name").textValue()
-                updatedPartitions += partitionDir
-                val tmpOutputPath =
-                  writeFilesSpec.description.path + "/" + partitionDir + "/" + targetFileName
-                val absOutputPathObject =
-                  writeFilesSpec.description.customPartitionLocations.get(
-                    PartitioningUtils.parsePathFragment(partitionDir))
-                if (absOutputPathObject.nonEmpty) {
-                  val absOutputPath = absOutputPathObject.get + "/" + targetFileName
-                  addedAbsPathFiles(tmpOutputPath) = absOutputPath
-                }
+          val fileWriteInfos = jsonObject.get("fileWriteInfos").elements()
+          if (jsonObject.get("fileWriteInfos").elements().hasNext) {
+            val writeInfo = fileWriteInfos.next();
+            numBytes += writeInfo.get("fileSize").longValue()
+            // Get partition information.
+            if (jsonObject.get("name").textValue().nonEmpty) {
+              val targetFileName = writeInfo.get("targetFileName").textValue()
+              val partitionDir = jsonObject.get("name").textValue()
+              updatedPartitions += partitionDir
+              val tmpOutputPath =
+                writeFilesSpec.description.path + "/" + partitionDir + "/" + targetFileName
+              val absOutputPathObject =
+                writeFilesSpec.description.customPartitionLocations.get(
+                  PartitioningUtils.parsePathFragment(partitionDir))
+              if (absOutputPathObject.nonEmpty) {
+                val absOutputPath = absOutputPathObject.get + "/" + targetFileName
+                addedAbsPathFiles(tmpOutputPath) = absOutputPath
               }
             }
           }
-
-          // TODO: need to get the partition Internal row?
-          val stats = BasicWriteTaskStats(Seq.empty, (numRows - 1).toInt, numBytes, numRows)
-          val summary =
-            ExecutedWriteSummary(updatedPartitions = updatedPartitions, stats = Seq(stats))
-
-          val result = WriteTaskResult(
-            new TaskCommitMessage(addedAbsPathFiles.toMap -> updatedPartitions),
-            summary)
-          Iterator.single(result)
-        } else {
-          Iterator.empty
         }
 
+        // TODO: need to get the partition Internal row?
+        val stats = BasicWriteTaskStats(Seq.empty, (numRows - 1).toInt, numBytes, numRows)
+        val summary =
+          ExecutedWriteSummary(updatedPartitions = updatedPartitions, stats = Seq(stats))
+
+        val result = WriteTaskResult(
+          new TaskCommitMessage(addedAbsPathFiles.toMap -> updatedPartitions),
+          summary)
+        Iterator.single(result)
     }
   }
 
