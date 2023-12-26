@@ -430,6 +430,7 @@ std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig()
       veloxCfg_->get<bool>(kCaseSensitive, false) == false ? "true" : "false";
   configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = "6";
   configs[velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] = "400";
+  configs[velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
 
   return std::make_shared<velox::core::MemConfig>(configs);
 }

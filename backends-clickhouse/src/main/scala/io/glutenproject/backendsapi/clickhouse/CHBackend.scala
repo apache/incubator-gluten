@@ -270,7 +270,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     SparkEnv.get.conf
       .getLong(GLUTEN_MAX_SHUFFLE_READ_BYTES, GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT)
   }
-  
+
   override def supportWriteFilesExec(
       format: FileFormat,
       fields: Array[StructField]): Option[String] = None
