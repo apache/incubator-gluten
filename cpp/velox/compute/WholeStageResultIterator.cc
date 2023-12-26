@@ -257,6 +257,13 @@ void WholeStageResultIterator::collectMetrics() {
     if (planStats.find(nodeId) == planStats.end()) {
       // Special handing for Filter over Project case. Filter metrics are
       // omitted.
+      metrics_->get(Metrics::kOutputRows)[metricIndex] = 0;
+      metrics_->get(Metrics::kOutputVectors)[metricIndex] = 0;
+      metrics_->get(Metrics::kOutputBytes)[metricIndex] = 0;
+      metrics_->get(Metrics::kCpuCount)[metricIndex] = 0;
+      metrics_->get(Metrics::kWallNanos)[metricIndex] = 0;
+      metrics_->get(Metrics::kPeakMemoryBytes)[metricIndex] = 0;
+      metrics_->get(Metrics::kNumMemoryAllocations)[metricIndex] = 0;
       metricIndex += 1;
       continue;
     }
