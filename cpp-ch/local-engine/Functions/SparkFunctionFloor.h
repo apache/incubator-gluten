@@ -27,13 +27,82 @@ using namespace DB;
 namespace local_engine
 {
 
+template <typename T>
+requires std::is_floating_point_v<T>
+static UInt8 checkAndSetNullableAutoOpt(T t)
+{
+    UInt8 is_nan = (t != t);
+    UInt8 is_inf = 0;
+    if constexpr (std::is_same_v<T, float>)
+        is_inf = ((*reinterpret_cast<const uint32_t *>(&t) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000);
+    else if constexpr (std::is_same_v<T, double>)
+        is_inf
+            = ((*reinterpret_cast<const uint64_t *>(&t) & 0b0111111111111111111111111111111111111111111111111111111111111111)
+               == 0b0111111111110000000000000000000000000000000000000000000000000000);
+
+    return is_nan | is_inf;
+}
+
+DECLARE_AVX_SPECIFIC_CODE(
+
+    inline void checkNullFloat32SIMD(const Float32 * data, UInt8 * null_map, size_t size) {
+        __m128 inf = _mm_set1_ps(INFINITY);
+        __m128 neg_inf = _mm_set1_ps(-INFINITY);
+
+        size_t i = 0;
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 values = _mm_loadu_ps(&data[i]);
+
+            __m128 cmp_result_inf = _mm_cmp_ps(values, inf, _CMP_EQ_OQ);
+            __m128 cmp_result_neg_inf = _mm_cmp_ps(values, neg_inf, _CMP_EQ_OQ);
+            __m128 cmp_result_nan = _mm_cmp_ps(values, values, _CMP_NEQ_UQ);
+
+            __m128 cmp_result = _mm_or_ps(_mm_or_ps(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan);
+
+            int mask = _mm_movemask_ps(cmp_result);
+            for (size_t j = 0; j < 4; ++j)
+                null_map[i + j] = (mask & (1 << j)) != 0;
+        }
+
+        for (; i < size; ++i)
+            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
+    }
+
+    inline void checkNullFloat64SIMD(const Float64 * data, UInt8 * null_map, size_t size) {
+        __m128d inf = _mm_set1_pd(INFINITY);
+        __m128d neg_inf = _mm_set1_pd(-INFINITY);
+
+        size_t i = 0;
+        for (; i + 1 < size; i += 2)
+        {
+            __m128d values = _mm_loadu_pd(&data[i]);
+
+            __m128d cmp_result_inf = _mm_cmp_pd(values, inf, _CMP_EQ_OQ);
+            __m128d cmp_result_neg_inf = _mm_cmp_pd(values, neg_inf, _CMP_EQ_OQ);
+            __m128d cmp_result_nan = _mm_cmp_pd(values, values, _CMP_NEQ_UQ);
+
+            __m128d cmp_result = _mm_or_pd(_mm_or_pd(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan);
+
+            int mask = _mm_movemask_pd(cmp_result);
+            for (size_t j = 0; j < 2; ++j)
+                null_map[i + j] = (mask & (1 << j)) != 0;
+        }
+
+        for (; i < size; ++i)
+            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
+    }
+
+)
+
 DECLARE_AVX2_SPECIFIC_CODE(
 
     inline void checkNullFloat32SIMD(const Float32 * data, UInt8 * null_map, size_t size) {
         __m256 inf = _mm256_set1_ps(INFINITY);
         __m256 neg_inf = _mm256_set1_ps(-INFINITY);
 
-        for (size_t i = 0; i < size; i += 8)
+        size_t i = 0;
+        for (; i + 7 < size; i += 8)
         {
             __m256 values = _mm256_loadu_ps(&data[i]);
 
@@ -41,19 +110,45 @@ DECLARE_AVX2_SPECIFIC_CODE(
             __m256 cmp_result_neg_inf = _mm256_cmp_ps(values, neg_inf, _CMP_EQ_OQ);
             __m256 cmp_result_nan = _mm256_cmp_ps(values, values, _CMP_NEQ_UQ);
 
-            __m256 cmp_result = _mm256_or_ps(_mm256_or_ps(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan);
+            __m256i cmp_result = _mm256_castps_si256(_mm256_or_ps(_mm256_or_ps(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan));
 
-            int mask = _mm256_movemask_ps(cmp_result);
+            UInt32 mask = static_cast<UInt32>(_mm256_movemask_ps(cmp_result));
             for (size_t j = 0; j < 8; ++j)
-                null_map[i + j] = (mask & (1 << j)) != 0;
+            {
+                null_map[i + j] = (mask & 1U);
+                mask >>= 1;
+            }
+
+
+            /*
+            Int32 value = 0;
+
+#define CHECK_NULL_MAP(offset) \
+            value = _mm256_extract_epi32(cmp_result, offset); \
+            null_map[i + offset] = (value != 0); \
+
+
+            CHECK_NULL_MAP(0);
+            CHECK_NULL_MAP(1);
+            CHECK_NULL_MAP(2);
+            CHECK_NULL_MAP(3);
+            CHECK_NULL_MAP(4);
+            CHECK_NULL_MAP(5);
+            CHECK_NULL_MAP(6);
+            CHECK_NULL_MAP(7);
+            */
         }
+
+        for (; i < size; ++i)
+            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
     }
 
     inline void checkNullFloat64SIMD(const Float64 * data, UInt8 * null_map, size_t size) {
         __m256d inf = _mm256_set1_pd(INFINITY);
         __m256d neg_inf = _mm256_set1_pd(-INFINITY);
 
-        for (size_t i = 0; i < size; i += 4)
+        size_t i = 0;
+        for (; i + 3 < size; i += 4)
         {
             __m256d values = _mm256_loadu_pd(&data[i]);
 
@@ -61,12 +156,31 @@ DECLARE_AVX2_SPECIFIC_CODE(
             __m256d cmp_result_neg_inf = _mm256_cmp_pd(values, neg_inf, _CMP_EQ_OQ);
             __m256d cmp_result_nan = _mm256_cmp_pd(values, values, _CMP_NEQ_UQ);
 
-            __m256d cmp_result = _mm256_or_pd(_mm256_or_pd(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan);
+            __m256 cmp_result = _mm256_or_pd(_mm256_or_pd(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan);
 
-            int mask = _mm256_movemask_pd(cmp_result);
+            UInt32 mask = static_cast<UInt32>(_mm256_movemask_pd(cmp_result));
             for (size_t j = 0; j < 4; ++j)
-                null_map[i + j] = (mask & (1 << j)) != 0;
+            {
+                null_map[i + j] = (mask & 1U);
+                mask >>= 1;
+            }
+
+            /*
+            Int64 value = 0;
+
+#define CHECK_NULL_MAP(offset) \
+            value = _mm256_extract_epi64 (cmp_result, offset); \
+            null_map[i + offset] = (value != 0); \
+
+            CHECK_NULL_MAP(0);
+            CHECK_NULL_MAP(1);
+            CHECK_NULL_MAP(2);
+            CHECK_NULL_MAP(3);
+            */
         }
+
+        for (; i < size; ++i)
+            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
     }
 
 )
@@ -77,7 +191,8 @@ DECLARE_AVX512F_SPECIFIC_CODE(
         __m512 inf = _mm512_set1_ps(INFINITY);
         __m512 neg_inf = _mm512_set1_ps(-INFINITY);
 
-        for (size_t i = 0; i < size; i += 16)
+        size_t i = 0;
+        for (; i + 15 < size; i += 16)
         {
             __m512 values = _mm512_loadu_ps(&data[i]);
 
@@ -90,6 +205,9 @@ DECLARE_AVX512F_SPECIFIC_CODE(
             for (size_t j = 0; j < 16; ++j)
                 null_map[i + j] = (cmp_result & (1 << j)) != 0;
         }
+
+        for (; i < size; ++i)
+            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
     }
 
 
@@ -97,7 +215,8 @@ DECLARE_AVX512F_SPECIFIC_CODE(
         __m512d inf = _mm512_set1_pd(INFINITY);
         __m512d neg_inf = _mm512_set1_pd(-INFINITY);
 
-        for (size_t i = 0; i < size; i += 8)
+        size_t i = 0;
+        for (; i + 7 < size; i += 8)
         {
             __m512d values = _mm512_loadu_pd(&data[i]);
 
@@ -110,8 +229,10 @@ DECLARE_AVX512F_SPECIFIC_CODE(
             for (size_t j = 0; j < 8; ++j)
                 null_map[i + j] = (cmp_result & (1 << j)) != 0;
         }
-    }
 
+        for (; i < size; ++i)
+            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
+    }
 )
 
 
@@ -159,30 +280,10 @@ public:
 
         /*
         for (size_t i = 0; i < out.size(); ++i)
-        {
-            // checkAndSetNullableAutoOpt(out[i], null_map[i]);
-            // checkAndSetNullable(out[i], null_map[i]);
-        }
-        */
-        /*
-        for (size_t i = 0; i < out.size(); ++i)
-            checkAndSetNullable(out[i], null_map[i]);
+            null_map[i] = checkAndSetNullableAutoOpt(out[i]);
         */
     }
 
-    static UInt8 checkAndSetNullableAutoOpt(T & t, UInt8 & null_flag)
-    {
-        UInt8 is_nan = (t != t);
-        UInt8 is_inf = 0;
-        if constexpr (std::is_same_v<T, float>)
-            is_inf = ((*reinterpret_cast<const uint32_t *>(&t) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000);
-        else if constexpr (std::is_same_v<T, double>)
-            is_inf
-                = ((*reinterpret_cast<const uint64_t *>(&t) & 0b0111111111111111111111111111111111111111111111111111111111111111)
-                   == 0b0111111111110000000000000000000000000000000000000000000000000000);
-
-        null_flag = is_nan | is_inf;
-    }
 
     static void checkAndSetNullable(T & t, UInt8 & null_flag)
     {
@@ -208,7 +309,6 @@ public:
     SparkFunctionFloor() = default;
     ~SparkFunctionFloor() override = default;
     DB::String getName() const override { return name; }
-    // bool useDefaultImplementationForNulls() const { return false; }
 
     DB::DataTypePtr getReturnTypeImpl(const DB::DataTypes & arguments) const override
     {

@@ -38,7 +38,11 @@ static Block createDataBlock(String type_str, size_t rows)
     auto column = type->createColumn();
     for (size_t i = 0; i < rows; ++i)
     {
-        if (isInt(type))
+        if (i % 100)
+        {
+            column->insertDefault();
+        }
+        else if (isInt(type))
         {
             column->insert(i);
         }
@@ -58,7 +62,7 @@ static void BM_CHFloorFunction_For_Int64(benchmark::State & state)
     using namespace DB;
     auto & factory = FunctionFactory::instance();
     auto function = factory.get("floor", local_engine::SerializedPlanParser::global_context);
-    Block int64_block = createDataBlock("Int64", 65536);
+    Block int64_block = createDataBlock("Nullable(Int64)", 65536);
     auto executable = function->build(int64_block.getColumnsWithTypeAndName());
     for (auto _ : state)
     {
@@ -72,7 +76,7 @@ static void BM_CHFloorFunction_For_Float64(benchmark::State & state)
     using namespace DB;
     auto & factory = FunctionFactory::instance();
     auto function = factory.get("floor", local_engine::SerializedPlanParser::global_context);
-    Block float64_block = createDataBlock("Float64", 65536);
+    Block float64_block = createDataBlock("Nullable(Float64)", 65536);
     auto executable = function->build(float64_block.getColumnsWithTypeAndName());
     for (auto _ : state)
     {
@@ -86,7 +90,7 @@ static void BM_SparkFloorFunction_For_Int64(benchmark::State & state)
     using namespace DB;
     auto & factory = FunctionFactory::instance();
     auto function = factory.get("sparkFloor", local_engine::SerializedPlanParser::global_context);
-    Block int64_block = createDataBlock("Int64", 65536);
+    Block int64_block = createDataBlock("Nullable(Int64)", 65536);
     auto executable = function->build(int64_block.getColumnsWithTypeAndName());
     for (auto _ : state)
     {
@@ -100,7 +104,7 @@ static void BM_SparkFloorFunction_For_Float64(benchmark::State & state)
     using namespace DB;
     auto & factory = FunctionFactory::instance();
     auto function = factory.get("sparkFloor", local_engine::SerializedPlanParser::global_context);
-    Block float64_block = createDataBlock("Float64", 65536);
+    Block float64_block = createDataBlock("Nullable(Float64)", 65536);
     auto executable = function->build(float64_block.getColumnsWithTypeAndName());
     for (auto _ : state)
     {
@@ -133,7 +137,7 @@ static void BMNanInfToNullAutoOpt(benchmark::State & state)
         benchmark::DoNotOptimize(null_map);
     }
 }
-BENCHMARK(BMNanInfToNullAutoOpt)->Unit(benchmark::kMicrosecond)->Iterations(10000);
+BENCHMARK(BMNanInfToNullAutoOpt);
 
 DECLARE_AVX2_SPECIFIC_CODE(
 
@@ -172,7 +176,7 @@ static void BMNanInfToNullAVX2(benchmark::State & state)
         benchmark::DoNotOptimize(null_map);
     }
 }
-BENCHMARK(BMNanInfToNullAVX2)->Unit(benchmark::kMicrosecond)->Iterations(10000);
+BENCHMARK(BMNanInfToNullAVX2);
 
 
 DECLARE_AVX512F_SPECIFIC_CODE(
@@ -211,7 +215,7 @@ static void BMNanInfToNullAVX512(benchmark::State & state)
         benchmark::DoNotOptimize(null_map);
     }
 }
-BENCHMARK(BMNanInfToNullAVX512)->Unit(benchmark::kMicrosecond)->Iterations(10000);
+BENCHMARK(BMNanInfToNullAVX512);
 
 static void nanInfToNull(const float * data, uint8_t * null_map, size_t size)
 {
@@ -238,13 +242,9 @@ static void BMNanInfToNull(benchmark::State & state)
         benchmark::DoNotOptimize(null_map);
     }
 }
-BENCHMARK(BMNanInfToNull)->Unit(benchmark::kMicrosecond)->Iterations(10000);
+BENCHMARK(BMNanInfToNull);
 
 
-// BENCHMARK(BM_CHFloorFunction_For_Int64)->Unit(benchmark::kMillisecond)->Iterations(100);
-// BENCHMARK(BM_CHFloorFunction_For_Float64)->Unit(benchmark::kMillisecond)->Iterations(100);
-// BENCHMARK(BM_SparkFloorFunction_For_Int64)->Unit(benchmark::kMillisecond)->Iterations(100);
-// BENCHMARK(BM_SparkFloorFunction_For_Float64)->Unit(benchmark::kMillisecond)->Iterations(100);
 BENCHMARK(BM_CHFloorFunction_For_Int64);
 BENCHMARK(BM_CHFloorFunction_For_Float64);
 BENCHMARK(BM_SparkFloorFunction_For_Int64);
