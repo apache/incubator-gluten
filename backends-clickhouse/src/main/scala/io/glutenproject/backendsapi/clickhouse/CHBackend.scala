@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.{CH_BRANCH, CH_COMMIT, GlutenConfig, GlutenPlugin}
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat._
 
@@ -129,7 +130,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String]): Boolean = {
+      paths: Seq[String]): ValidationResult = {
 
     def validateFilePath: Boolean = {
       // Fallback to vanilla spark when the input path
@@ -158,12 +159,22 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       !unsupportedDataTypes.isEmpty
     }
     format match {
-      case ParquetReadFormat => validateFilePath
-      case OrcReadFormat => true
-      case MergeTreeReadFormat => true
-      case TextReadFormat => !hasComplexType
-      case JsonReadFormat => true
-      case _ => false
+      case ParquetReadFormat =>
+        if (validateFilePath) {
+          ValidationResult.ok
+        } else {
+          ValidationResult.notOk("Validate file path failed.")
+        }
+      case OrcReadFormat => ValidationResult.ok
+      case MergeTreeReadFormat => ValidationResult.ok
+      case TextReadFormat =>
+        if (!hasComplexType) {
+          ValidationResult.ok
+        } else {
+          ValidationResult.notOk("Has complex type.")
+        }
+      case JsonReadFormat => ValidationResult.ok
+      case _ => ValidationResult.notOk(s"Unsupported file format $format")
     }
   }
 
