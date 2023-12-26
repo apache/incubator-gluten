@@ -61,7 +61,7 @@ void updateHdfsTokens(const facebook::velox::Config* veloxCfg) {
     return;
   }
 
-  // activeCredential already set
+  // active credential already set
   GLUTEN_CHECK(
       activeCredential.value() == newCredential,
       "Gluten currently doesn't allow resetting HDFS activeCredential in session");
