@@ -17,6 +17,7 @@
 package io.glutenproject.extension
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.BroadcastHashJoinExecTransformer
 import io.glutenproject.extension.columnar.{TRANSFORM_UNSUPPORTED, TransformHints}
 
@@ -24,7 +25,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.rules.Rule
-import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, SparkPlan, UnaryExecNode}
+import org.apache.spark.sql.execution.{ColumnarBroadcastExchangeExec, ColumnarToRowExec, CommandResultExec, LeafExecNode, RowToColumnarExec, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AQEShuffleReadExec, BroadcastQueryStageExec, QueryStageExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.command.ExecutedCommandExec
@@ -228,10 +229,10 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     }
   }
 
-  private def fallbackToRowBasedPlan(): SparkPlan = {
+  private def fallbackToRowBasedPlan(outputsColumnar: Boolean): SparkPlan = {
     val transformPostOverrides = TransformPostOverrides(isAdaptiveContext)
-    val planWithColumnarToRow = InsertTransitions.insertTransitions(originalPlan, false)
-    planWithColumnarToRow.transform {
+    val planWithTransitions = InsertTransitions.insertTransitions(originalPlan, outputsColumnar)
+    planWithTransitions.transform {
       case c2r @ ColumnarToRowExec(_: ShuffleQueryStageExec) =>
         transformPostOverrides.transformColumnarToRowExec(c2r)
       case c2r @ ColumnarToRowExec(_: AQEShuffleReadExec) =>
@@ -240,13 +241,20 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
       case ColumnarToRowExec(child: SparkPlan)
           if InMemoryTableScanHelper.isGlutenTableCache(child) =>
         child
+      case plan: RowToColumnarExec =>
+        BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(plan.child)
     }
   }
 
   override def apply(plan: SparkPlan): SparkPlan = {
+    // By default, the outputsColumnar is always false.
+    // The outputsColumnar will be true if it is a cached plan and we are going to
+    // cache columnar batch using Gluten columnar serializer. So we should add a
+    // Gluten RowToColumnar.
+    val outputsColumnar = plan.supportsColumnar
     val reason = fallback(plan)
     if (reason.isDefined) {
-      val fallbackPlan = fallbackToRowBasedPlan()
+      val fallbackPlan = fallbackToRowBasedPlan(outputsColumnar)
       TransformHints.tagAllNotTransformable(
         fallbackPlan,
         TRANSFORM_UNSUPPORTED(reason, appendReasonIfExists = false))

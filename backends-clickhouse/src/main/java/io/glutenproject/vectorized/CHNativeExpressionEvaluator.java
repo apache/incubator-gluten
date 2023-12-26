@@ -26,7 +26,6 @@ import io.glutenproject.substrait.extensions.ExtensionBuilder;
 import io.glutenproject.substrait.plan.PlanBuilder;
 import io.glutenproject.substrait.plan.PlanNode;
 
-import com.google.protobuf.Any;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.internal.SQLConf;
 
@@ -72,7 +71,9 @@ public class CHNativeExpressionEvaluator {
   private PlanNode buildNativeConfNode(Map<String, String> confs) {
     StringMapNode stringMapNode = ExpressionBuilder.makeStringMap(confs);
     AdvancedExtensionNode extensionNode =
-        ExtensionBuilder.makeAdvancedExtension(Any.pack(stringMapNode.toProtobuf()));
+        ExtensionBuilder.makeAdvancedExtension(
+            BackendsApiManager.getTransformerApiInstance()
+                .packPBMessage(stringMapNode.toProtobuf()));
     return PlanBuilder.makePlan(extensionNode);
   }
 

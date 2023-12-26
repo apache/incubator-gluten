@@ -117,6 +117,22 @@ install_tencentos_3.2() {
     install_centos_any_maven
 }
 
+install_debian_11() {
+    apt-get -y install \
+        wget curl tar zip unzip git apt-transport-https \
+        build-essential ccache cmake ninja-build pkg-config autoconf autoconf-archive libtool \
+        flex bison
+
+    # Download the Eclipse Adoptium GPG key
+    wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null
+
+    # Configure the Eclipse Adoptium repository
+    echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list
+
+    # Install JDK
+    apt update && apt-get -y install temurin-8-jdk
+}
+
 ## Install function end
 
 ## Usage

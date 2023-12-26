@@ -22,6 +22,7 @@
 
 #include "operators/functions/RegistrationAllFunctions.h"
 #include "operators/plannodes/RowVectorStream.h"
+#include "utils/ConfigExtractor.h"
 
 #include "shuffle/VeloxShuffleReader.h"
 
@@ -31,27 +32,17 @@
 #ifdef GLUTEN_ENABLE_IAA
 #include "utils/qpl/qpl_codec.h"
 #endif
-#ifdef ENABLE_GCS
-#include <fstream>
-#endif
-#ifdef ENABLE_ABFS
-#include "velox/connectors/hive/storage_adapters/abfs/AbfsFileSystem.h"
-#endif
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniFileSystem.h"
 #include "operators/functions/SparkTokenizer.h"
 #include "udf/UdfLoader.h"
-#include "utils/ConfigExtractor.h"
 #include "utils/exception.h"
 #include "velox/common/caching/SsdCache.h"
 #include "velox/common/file/FileSystems.h"
 #include "velox/common/memory/MmapAllocator.h"
-#include "velox/connectors/hive/HiveConfig.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveDataSource.h"
-#include "velox/dwio/dwrf/reader/DwrfReader.h"
-#include "velox/dwio/parquet/RegisterParquetReader.h"
 #include "velox/serializers/PrestoSerializer.h"
 
 DECLARE_bool(velox_exception_user_stacktrace_enabled);
@@ -120,13 +111,6 @@ const std::string kBacktraceAllocation = "spark.gluten.backtrace.allocation";
 // VeloxShuffleReader print flag.
 const std::string kVeloxShuffleReaderPrintFlag = "spark.gluten.velox.shuffleReaderPrintFlag";
 
-const std::string kVeloxFileHandleCacheEnabled = "spark.gluten.sql.columnar.backend.velox.fileHandleCacheEnabled";
-const bool kVeloxFileHandleCacheEnabledDefault = false;
-
-// Log granularity of AWS C++ SDK
-const std::string kVeloxAwsSdkLogLevel = "spark.gluten.velox.awsSdkLogLevel";
-const std::string kVeloxAwsSdkLogLevelDefault = "FATAL";
-
 } // namespace
 
 namespace gluten {
@@ -142,8 +126,8 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
   gluten::Runtime::registerFactory(gluten::kVeloxRuntimeKind, veloxRuntimeFactory);
 
   // Init glog and log level.
-  auto veloxmemcfg = std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
-  const facebook::velox::Config* veloxcfg = veloxmemcfg.get();
+  std::shared_ptr<const facebook::velox::Config> veloxcfg =
+      std::make_shared<facebook::velox::core::MemConfigMutable>(conf);
 
   if (veloxcfg->get<bool>(kDebugModeEnabled, false)) {
     LOG(INFO) << "VeloxBackend config:" << printConfig(veloxcfg->valuesCopy());
@@ -200,6 +184,9 @@ void VeloxBackend::init(const std::unordered_map<std::string, std::string>& conf
 
   initUdf(veloxcfg);
   registerSparkTokenizer();
+
+  // initialize the global memory manager for current process
+  facebook::velox::memory::MemoryManager::initialize({});
 }
 
 facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const {
@@ -207,7 +194,7 @@ facebook::velox::cache::AsyncDataCache* VeloxBackend::getAsyncDataCache() const 
 }
 
 // JNI-or-local filesystem, for spilling-to-heap if we have extra JVM heap spaces
-void VeloxBackend::initJolFilesystem(const facebook::velox::Config* conf) {
+void VeloxBackend::initJolFilesystem(const std::shared_ptr<const facebook::velox::Config>& conf) {
   int64_t maxSpillFileSize = conf->get<int64_t>(kMaxSpillFileSize, kMaxSpillFileSizeDefault);
 
   // FIXME It's known that if spill compression is disabled, the actual spill file size may
@@ -216,7 +203,7 @@ void VeloxBackend::initJolFilesystem(const facebook::velox::Config* conf) {
   gluten::registerJolFileSystem(maxSpillFileSize);
 }
 
-void VeloxBackend::initCache(const facebook::velox::Config* conf) {
+void VeloxBackend::initCache(const std::shared_ptr<const facebook::velox::Config>& conf) {
   bool veloxCacheEnabled = conf->get<bool>(kVeloxCacheEnabled, false);
   if (veloxCacheEnabled) {
     FLAGS_ssd_odirect = true;
@@ -263,59 +250,17 @@ void VeloxBackend::initCache(const facebook::velox::Config* conf) {
   }
 }
 
-void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
+void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Config>& conf) {
   int32_t ioThreads = conf->get<int32_t>(kVeloxIOThreads, kVeloxIOThreadsDefault);
 
   auto mutableConf = std::make_shared<facebook::velox::core::MemConfigMutable>(conf->valuesCopy());
 
-#ifdef ENABLE_S3
-  std::string awsAccessKey = conf->get<std::string>("spark.hadoop.fs.s3a.access.key", "");
-  std::string awsSecretKey = conf->get<std::string>("spark.hadoop.fs.s3a.secret.key", "");
-  std::string awsEndpoint = conf->get<std::string>("spark.hadoop.fs.s3a.endpoint", "");
-  bool sslEnabled = conf->get<bool>("spark.hadoop.fs.s3a.connection.ssl.enabled", false);
-  bool pathStyleAccess = conf->get<bool>("spark.hadoop.fs.s3a.path.style.access", false);
-  bool useInstanceCredentials = conf->get<bool>("spark.hadoop.fs.s3a.use.instance.credentials", false);
-  std::string iamRole = conf->get<std::string>("spark.hadoop.fs.s3a.iam.role", "");
-  std::string iamRoleSessionName = conf->get<std::string>("spark.hadoop.fs.s3a.iam.role.session.name", "");
-
-  std::string awsSdkLogLevel = conf->get<std::string>(kVeloxAwsSdkLogLevel, kVeloxAwsSdkLogLevelDefault);
-
-  const char* envAwsAccessKey = std::getenv("AWS_ACCESS_KEY_ID");
-  if (envAwsAccessKey != nullptr) {
-    awsAccessKey = std::string(envAwsAccessKey);
+  auto hiveConf = getHiveConfig(conf);
+  for (auto& [k, v] : hiveConf->valuesCopy()) {
+    mutableConf->setValue(k, v);
   }
-  const char* envAwsSecretKey = std::getenv("AWS_SECRET_ACCESS_KEY");
-  if (envAwsSecretKey != nullptr) {
-    awsSecretKey = std::string(envAwsSecretKey);
-  }
-  const char* envAwsEndpoint = std::getenv("AWS_ENDPOINT");
-  if (envAwsEndpoint != nullptr) {
-    awsEndpoint = std::string(envAwsEndpoint);
-  }
-
-  std::unordered_map<std::string, std::string> s3Config({});
-  if (useInstanceCredentials) {
-    mutableConf->setValue("hive.s3.use-instance-credentials", "true");
-  } else if (!iamRole.empty()) {
-    mutableConf->setValue("hive.s3.iam-role", iamRole);
-    if (!iamRoleSessionName.empty()) {
-      mutableConf->setValue("hive.s3.iam-role-session-name", iamRoleSessionName);
-    }
-  } else {
-    mutableConf->setValue("hive.s3.aws-access-key", awsAccessKey);
-    mutableConf->setValue("hive.s3.aws-secret-key", awsSecretKey);
-  }
-  // Only need to set s3 endpoint when not use instance credentials.
-  if (!useInstanceCredentials) {
-    mutableConf->setValue("hive.s3.endpoint", awsEndpoint);
-  }
-  mutableConf->setValue("hive.s3.ssl.enabled", sslEnabled ? "true" : "false");
-  mutableConf->setValue("hive.s3.path-style-access", pathStyleAccess ? "true" : "false");
-  mutableConf->setValue("hive.s3.log-level", awsSdkLogLevel);
-#endif
 
 #ifdef ENABLE_ABFS
-  velox::filesystems::abfs::registerAbfsFileSystem();
   const auto& confValue = conf->valuesCopy();
   for (auto& [k, v] : confValue) {
     if (k.find("fs.azure.account.key") == 0) {
@@ -327,51 +272,6 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
   }
 #endif
 
-#ifdef ENABLE_GCS
-  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
-  auto gsStorageRootUrl = conf->get("spark.hadoop.fs.gs.storage.root.url");
-  if (gsStorageRootUrl.hasValue()) {
-    std::string url = gsStorageRootUrl.value();
-    std::string gcsScheme;
-    std::string gcsEndpoint;
-
-    const auto sep = std::string("://");
-    const auto pos = url.find_first_of(sep);
-    if (pos != std::string::npos) {
-      gcsScheme = url.substr(0, pos);
-      gcsEndpoint = url.substr(pos + sep.length());
-    }
-
-    if (!gcsEndpoint.empty() && !gcsScheme.empty()) {
-      mutableConf->setValue("hive.gcs.scheme", gcsScheme);
-      mutableConf->setValue("hive.gcs.endpoint", gcsEndpoint);
-    }
-  }
-
-  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
-  auto gsAuthType = conf->get("spark.hadoop.fs.gs.auth.type");
-  if (gsAuthType.hasValue()) {
-    std::string type = gsAuthType.value();
-    if (type == "SERVICE_ACCOUNT_JSON_KEYFILE") {
-      auto gsAuthServiceAccountJsonKeyfile = conf->get("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
-      if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
-        auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile.value());
-        stream.exceptions(std::ios::badbit);
-        std::string gsAuthServiceAccountJson = std::string(std::istreambuf_iterator<char>(stream.rdbuf()), {});
-        mutableConf->setValue("hive.gcs.credentials", gsAuthServiceAccountJson);
-      } else {
-        LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
-                        "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
-        throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
-      }
-    }
-  }
-#endif
-
-  mutableConf->setValue(
-      velox::connector::hive::HiveConfig::kEnableFileHandleCache,
-      conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
-
   if (ioThreads > 0) {
     ioExecutor_ = std::make_unique<folly::IOThreadPoolExecutor>(ioThreads);
   }
@@ -381,7 +281,7 @@ void VeloxBackend::initConnector(const facebook::velox::Config* conf) {
       ioExecutor_.get()));
 }
 
-void VeloxBackend::initUdf(const facebook::velox::Config* conf) {
+void VeloxBackend::initUdf(const std::shared_ptr<const facebook::velox::Config>& conf) {
   auto got = conf->get<std::string>(kVeloxUdfLibraryPaths, "");
   if (!got.empty()) {
     auto udfLoader = gluten::UdfLoader::getInstance();

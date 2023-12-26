@@ -37,6 +37,11 @@ function process_setup_centos_7 {
   cp /usr/local/lib/{libre2.so.10,libhdfs3.so.1,libboost_context.so.1.72.0,libboost_filesystem.so.1.72.0,libboost_program_options.so.1.72.0,libboost_system.so.1.72.0,libboost_thread.so.1.72.0,libboost_regex.so.1.72.0,libprotobuf.so.32} $THIRDPARTY_LIB/
 }
 
+function process_setup_debian_11 {
+  cp /usr/lib/x86_64-linux-gnu/{libre2.so.9,libthrift-0.13.0.so,libboost_context.so.1.74.0,libboost_regex.so.1.74.0,libdouble-conversion.so.3,libevent-2.1.so.7,libgflags.so.2.2,libglog.so.0,libsnappy.so.1,libunwind.so.8,libcurl.so.4,libicui18n.so.67,libicuuc.so.67,libnghttp2.so.14,librtmp.so.1,libssh2.so.1,libpsl.so.5,libldap_r-2.4.so.2,liblber-2.4.so.2,libbrotlidec.so.1,libicudata.so.67,libsasl2.so.2,libbrotlicommon.so.1} $THIRDPARTY_LIB/
+  cp /usr/local/lib/libprotobuf.so.32 $THIRDPARTY_LIB/
+}
+
 if [[ "$LINUX_OS" == "ubuntu" || "$LINUX_OS" == "pop" ]]; then
   if [ "$VERSION" == "20.04" ]; then
     process_setup_ubuntu_2004
@@ -58,6 +63,10 @@ elif [ "$LINUX_OS" == "alinux" ]; then
 elif [ "$LINUX_OS" == "tencentos" ]; then
   if [ "$VERSION" == "3.2" ]; then
     process_setup_centos_8
+  fi
+elif [ "$LINUX_OS" == "debian" ]; then
+  if [ "$VERSION" == "11" ]; then
+    process_setup_debian_11
   fi
 fi
 cd $THIRDPARTY_LIB/

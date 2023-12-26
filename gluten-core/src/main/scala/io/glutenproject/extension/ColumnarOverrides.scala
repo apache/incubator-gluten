@@ -162,7 +162,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
    * result columns from the projection.
    */
   private def addProjectionForShuffleExchange(
-      plan: ShuffleExchangeExec): (Int, Partitioning, SparkPlan) = {
+      plan: ShuffleExchangeLike): (Int, Partitioning, SparkPlan) = {
     def selectExpressions(
         exprs: Seq[Expression],
         attributes: Seq[Attribute]): (Seq[NamedExpression], Seq[Int]) = {
@@ -378,7 +378,7 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
         TakeOrderedAndProjectExecTransformer(plan.limit, plan.sortOrder, plan.projectList, child)
-      case plan: ShuffleExchangeExec =>
+      case plan: ShuffleExchangeLike =>
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         val child = replaceWithTransformerPlan(plan.child)
         if (

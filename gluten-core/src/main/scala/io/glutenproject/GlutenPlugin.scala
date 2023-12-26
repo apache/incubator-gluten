@@ -81,7 +81,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
   }
 
   override def registerMetrics(appId: String, pluginContext: PluginContext): Unit = {
-    if (pluginContext.conf().getBoolean("spark.gluten.ui.enabled", true)) {
+    if (pluginContext.conf().getBoolean(GlutenConfig.GLUTEN_UI_ENABLED, true)) {
       _sc.foreach {
         sc =>
           GlutenEventUtils.attachUI(sc)
