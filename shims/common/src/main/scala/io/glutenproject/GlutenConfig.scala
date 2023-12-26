@@ -86,7 +86,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarTableCacheEnabled: Boolean = conf.getConf(COLUMNAR_TABLE_CACHE_ENABLED)
 
-  def enableDateTimestampComparison: Boolean = conf.getConf(ENABLE_DATE_TIMESTAMP_COMPARISON)
+  def enableRewriteDateTimestampComparison: Boolean =
+    conf.getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
+
+  def enableCommonSubexpressionEliminate: Boolean =
+    conf.getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
 
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
@@ -1388,7 +1392,7 @@ object GlutenConfig {
       .intConf
       .createOptional
 
-  val ENABLE_DATE_TIMESTAMP_COMPARISON =
+  val ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON =
     buildConf("spark.gluten.sql.rewrite.dateTimestampComparison")
       .internal()
       .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
@@ -1400,6 +1404,15 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.project.collapse")
       .internal()
       .doc("Combines two columnar project operators into one and perform alias substitution")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
+    buildConf("spark.gluten.sql.commonSubexpressionEliminate")
+      .internal()
+      .doc(
+        "Eliminate common subexpressions in logical plan to avoid multiple evaluation of the same"
+          + "expression, may improve performance")
       .booleanConf
       .createWithDefault(true)
 

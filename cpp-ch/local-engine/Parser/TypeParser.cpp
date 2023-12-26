@@ -254,8 +254,9 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
 
         // This is a partial aggregate data column.
         // It's type is special, must be a struct type contains all arguments types.
+        // Notice: there are some coincidence cases in which the type is not a struct type, e.g. name is "_1#913 + _2#914#928". We need to handle it.
         Poco::StringTokenizer name_parts(name, "#");
-        if (name_parts.count() >= 4)
+        if (name_parts.count() >= 4 && !name.contains(' '))
         {
             auto nested_data_type = DB::removeNullable(ch_type);
             const auto * tuple_type = typeid_cast<const DB::DataTypeTuple *>(nested_data_type.get());

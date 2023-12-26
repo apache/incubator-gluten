@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.exception.GlutenException
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
@@ -67,7 +67,7 @@ case class GenerateExecTransformer(
     val operatorId = context.nextOperatorId(this.nodeName)
     val generatorExpr =
       ExpressionConverter.replaceWithExpressionTransformer(generator, child.output)
-    val generatorNode = generatorExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val generatorNode = generatorExpr.doTransform(args)
     val childOutputNodes = new java.util.ArrayList[ExpressionNode]
     for (target <- requiredChildOutput) {
       val found = child.output.zipWithIndex.filter(_._1.name == target.name)
