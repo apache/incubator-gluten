@@ -100,7 +100,7 @@ WholeStageResultIterator::WholeStageResultIterator(
       taskInfo_(taskInfo),
       memoryManager_(memoryManager) {
 #ifdef ENABLE_HDFS
-  gluten::updateHdfsTokens(veloxCfg_);
+  gluten::updateHdfsTokens(veloxCfg_.get());
 #endif
   spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);

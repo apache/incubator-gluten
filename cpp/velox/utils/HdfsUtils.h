@@ -18,5 +18,5 @@
 #include <velox/core/Config.h>
 #include <memory>
 namespace gluten {
-void updateHdfsTokens(const std::shared_ptr<const facebook::velox::Config>& veloxCfg);
+void updateHdfsTokens(const facebook::velox::Config* veloxCfg);
 }
