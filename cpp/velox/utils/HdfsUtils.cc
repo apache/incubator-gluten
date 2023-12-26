@@ -16,6 +16,7 @@
  */
 
 #include "HdfsUtils.h"
+#include <hdfs/hdfs.h>
 #include "config/GlutenConfig.h"
 #include "utils/exception.h"
 
@@ -39,7 +40,7 @@ void updateHdfsTokens(const facebook::velox::Config* veloxCfg) {
   static std::mutex mtx;
   std::lock_guard lock{mtx};
 
-  static std::optional<Credential> credential{std::nullopt};
+  static std::optional<Credential> activeCredential{std::nullopt};
 
   const auto& newUserName = veloxCfg->get<std::string>(gluten::kUGIUserName);
   const auto& newAllTokens = veloxCfg->get<std::string>(gluten::kUGITokens);
@@ -50,13 +51,19 @@ void updateHdfsTokens(const facebook::velox::Config* veloxCfg) {
 
   Credential newCredential{newUserName.value(), newAllTokens.value()};
 
-  if (!credential.has_value()) {
-    credential.emplace(newCredential);
+  if (!activeCredential.has_value()) {
+    hdfsSetDefautUserName(activeCredential->userName.c_str());
+    std::vector<folly::StringPiece> tokens;
+    folly::split('\0', activeCredential->allTokens, tokens);
+    for (auto& token : tokens)
+      hdfsSetTokenForDefaultUser(token.data());
+    activeCredential.emplace(newCredential);
     return;
   }
 
-  // credential already set
+  // activeCredential already set
   GLUTEN_CHECK(
-      credential.value() == newCredential, "Gluten currently doesn't allow resetting HDFS credential in session");
+      activeCredential.value() == newCredential,
+      "Gluten currently doesn't allow resetting HDFS activeCredential in session");
 }
 } // namespace gluten
