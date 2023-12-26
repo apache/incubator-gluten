@@ -92,6 +92,7 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop ubuntu2004-test-$GITHUB_RUN_ID || true
+
   ubuntu2004-test-spark32-slow:
     runs-on: velox-self-hosted
     steps:
