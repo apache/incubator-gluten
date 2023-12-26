@@ -22,6 +22,7 @@ on:
 env:
   JENKINS_HOST: ${{ secrets.SHR_IL_JENKINS_HOST }}
   JENKINS_PORT: ${{ secrets.SHR_IL_JENKINS_PORT }}
+  JENKINS_USER: ${{ secrets.SHR_IL_JENKINS_USER }}
 
 jobs:
   velox-trigger-benchmark-on-comment:
@@ -38,4 +39,4 @@ jobs:
       - name: trigger_tpch_bench
         run: |
           branchname=origin/pr/${{ github.event.issue.number }}/head
-          curl --noproxy $JENKINS_HOST -L -X POST http://$JENKINS_HOST:$JENKINS_PORT/job/Gluten_Perf_Github_Action_Check/build --user jenkins:11fd1b5a82bfd638bd9b3749c96b324ff2 --data-urlencode json='{"parameter": [{"name":"sha1", "value":"'$branchname'"}]}'
+          curl --noproxy $JENKINS_HOST -L -X POST http://$JENKINS_HOST:$JENKINS_PORT/job/Gluten_Perf_Github_Action_Check/build --user $JENKINS_USER --data-urlencode json='{"parameter": [{"name":"sha1", "value":"'$branchname'"}]}'
