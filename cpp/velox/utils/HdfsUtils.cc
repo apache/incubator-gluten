@@ -52,9 +52,9 @@ void updateHdfsTokens(const facebook::velox::Config* veloxCfg) {
   Credential newCredential{newUserName.value(), newAllTokens.value()};
 
   if (!activeCredential.has_value()) {
-    hdfsSetDefautUserName(activeCredential->userName.c_str());
+    hdfsSetDefautUserName(newCredential.userName.c_str());
     std::vector<folly::StringPiece> tokens;
-    folly::split('\0', activeCredential->allTokens, tokens);
+    folly::split('\0', newCredential.allTokens, tokens);
     for (auto& token : tokens)
       hdfsSetTokenForDefaultUser(token.data());
     activeCredential.emplace(newCredential);
