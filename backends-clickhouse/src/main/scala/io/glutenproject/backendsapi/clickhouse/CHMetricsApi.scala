@@ -350,8 +350,18 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       metrics: Map[String, SQLMetric]): MetricsUpdater = new HashJoinMetricsUpdater(metrics)
 
   override def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
-    Map.empty
+    Map(
+      "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes"),
+      "inputRows" -> SQLMetrics.createMetric(sparkContext, "number of input rows"),
+      "inputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of input bytes"),
+      "extraTime" -> SQLMetrics.createTimingMetric(sparkContext, "extra operators time"),
+      "inputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for data"),
+      "outputWaitTime" -> SQLMetrics.createTimingMetric(sparkContext, "time of waiting for output"),
+      "totalTime" -> SQLMetrics.createTimingMetric(sparkContext, "total time")
+    )
 
   override def genGenerateTransformerMetricsUpdater(
-      metrics: Map[String, SQLMetric]): MetricsUpdater = NoopMetricsUpdater
+      metrics: Map[String, SQLMetric]): MetricsUpdater = new GenerateMetricsUpdater(metrics)
 }
