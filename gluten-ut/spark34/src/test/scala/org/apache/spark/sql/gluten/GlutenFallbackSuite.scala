@@ -30,7 +30,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelper {
 
-  ignore("test fallback logging") {
+  test("test fallback logging") {
     val testAppender = new LogAppender("fallback reason")
     withLogAppender(testAppender) {
       withSQLConf(
@@ -41,13 +41,14 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
           sql("SELECT * FROM t").collect()
         }
       }
-      val msgRegex = """Validation failed for plan: Scan parquet default\.t\[QueryId=[0-9]+\],""" +
-        """ due to: columnar FileScan is not enabled in FileSourceScanExec\."""
+      val msgRegex =
+        """Validation failed for plan: Scan parquet spark_catalog.default\.t\[QueryId=[0-9]+\],""" +
+          """ due to: columnar FileScan is not enabled in FileSourceScanExec\."""
       assert(testAppender.loggingEvents.exists(_.getMessage.getFormattedMessage.matches(msgRegex)))
     }
   }
 
-  ignore("test fallback event") {
+  test("test fallback event") {
     val kvStore = spark.sparkContext.statusStore.store.asInstanceOf[ElementTrackingStore]
     val glutenStore = new GlutenSQLAppStatusStore(kvStore)
     assert(glutenStore.buildInfo().info.find(_._1 == "Gluten Version").exists(_._2 == VERSION))
@@ -77,7 +78,7 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
       val id = runExecution("SELECT * FROM t")
       val execution = glutenStore.execution(id)
       assert(execution.isDefined)
-      assert(execution.get.numGlutenNodes == 2)
+      assert(execution.get.numGlutenNodes == 1)
       assert(execution.get.numFallbackNodes == 0)
       assert(execution.get.fallbackNodeToReason.isEmpty)
 
@@ -86,9 +87,9 @@ class GlutenFallbackSuite extends GlutenSQLTestsTrait with AdaptiveSparkPlanHelp
         val execution = glutenStore.execution(id)
         assert(execution.isDefined)
         assert(execution.get.numGlutenNodes == 0)
-        assert(execution.get.numFallbackNodes == 2)
+        assert(execution.get.numFallbackNodes == 1)
         val fallbackReason = execution.get.fallbackNodeToReason.head
-        assert(fallbackReason._1.contains("Scan parquet default.t"))
+        assert(fallbackReason._1.contains("Scan parquet spark_catalog.default.t"))
         assert(fallbackReason._2.contains("columnar FileScan is not enabled in FileSourceScanExec"))
       }
     }
