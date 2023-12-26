@@ -53,8 +53,10 @@ public:
                 log(x)
         */
         auto parsed_args = parseFunctionArguments(substrait_func, "", actions_dag);
-        if (parsed_args.size() != 1
-            && !(parsed_args.size() == 2 && isColumnConst(*parsed_args[0]->column.get()) && parsed_args[0]->result_name.starts_with("2.71828182")))
+        std::cout << "parsed_args[0]: " << parsed_args[0]->result_name << " t: " << parsed_args[0]->result_type->getName() 
+            << " c:" << parsed_args[0]->column->dumpStructure() << std::endl;
+        if (parsed_args.size() != 1 &&
+            !(parsed_args.size() == 2 && isColumnConst(*parsed_args[0]->column.get()) && parsed_args[0]->result_name.starts_with("2.71828182")))
             throw Exception(ErrorCodes::NUMBER_OF_ARGUMENTS_DOESNT_MATCH, "Function {} requires exactly one arguments", getName());
 
         const auto * arg_node = parsed_args.size() == 1 ? parsed_args[0] : parsed_args[1];
