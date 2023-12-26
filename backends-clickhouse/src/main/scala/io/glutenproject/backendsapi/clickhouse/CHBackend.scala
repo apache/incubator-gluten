@@ -116,6 +116,16 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val FORCE: String = "force"
   private val GLUTEN_CLICKHOUSE_AFFINITY_MODE_DEFAULT = SOFT
 
+  val GLUTEN_MAX_BLOCK_SIZE: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
+      ".runtime_settings.max_block_size"
+  // Same as default value in clickhouse
+  val GLUTEN_MAX_BLOCK_SIZE_DEFAULT = 65409
+  val GLUTEN_MAX_SHUFFLE_READ_BYTES: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
+      ".runtime_config.max_source_concatenate_bytes"
+  val GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT = -1
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
@@ -238,4 +248,14 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def requiredInputFilePaths(): Boolean = true
 
   override def enableBloomFilterAggFallbackRule(): Boolean = false
+
+  def maxShuffleReadRows(): Long = {
+    SparkEnv.get.conf
+      .getLong(GLUTEN_MAX_BLOCK_SIZE, GLUTEN_MAX_BLOCK_SIZE_DEFAULT)
+  }
+
+  def maxShuffleReadBytes(): Long = {
+    SparkEnv.get.conf
+      .getLong(GLUTEN_MAX_SHUFFLE_READ_BYTES, GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT)
+  }
 }
