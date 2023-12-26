@@ -40,6 +40,8 @@ on:
 env:
   HTTP_PROXY_HOST: ${{ secrets.SHR_IL_HTTP_PROXY_HOST }}
   HTTP_PROXY_PORT: ${{ secrets.SHR_IL_HTTP_PROXY_PORT }}
+  DOCKER_REGISTRY_HOST: ${{ secrets.SHR_IL_DOCKER_REGISTRY_HOST }}
+  DOCKER_REGISTRY_PORT: ${{ secrets.SHR_IL_DOCKER_REGISTRY_PORT }}
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
@@ -54,7 +56,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name ubuntu2004-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/ubuntu:20.04 \
+          -v $PWD:/opt/gluten --name ubuntu2004-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/ubuntu:20.04 \
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
@@ -100,7 +102,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name ubuntu2004-test-slow-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/ubuntu:20.04 \
+          -v $PWD:/opt/gluten --name ubuntu2004-test-slow-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/ubuntu:20.04 \
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
@@ -137,7 +139,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/ubuntu:20.04 \
+          -v $PWD:/opt/gluten --name ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/ubuntu:20.04 \
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
@@ -173,7 +175,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name ubuntu2004-test-spark33-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/ubuntu:20.04 \
+          -v $PWD:/opt/gluten --name ubuntu2004-test-spark33-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/ubuntu:20.04 \
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
@@ -203,7 +205,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name ubuntu2004-test-spark34-slow-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/ubuntu:20.04 \
+          -v $PWD:/opt/gluten --name ubuntu2004-test-spark34-slow-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/ubuntu:20.04 \
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
@@ -239,7 +241,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name ubuntu2004-test-spark34-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/ubuntu:20.04 \
+          -v $PWD:/opt/gluten --name ubuntu2004-test-spark34-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/ubuntu:20.04 \
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
@@ -269,7 +271,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name ubuntu2204-test-spark33-spark34-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/ubuntu:22.04 \
+          -v $PWD:/opt/gluten --name ubuntu2204-test-spark33-spark34-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/ubuntu:22.04 \
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
@@ -320,7 +322,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name ubuntu2204-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/ubuntu:22.04 \
+          -v $PWD:/opt/gluten --name ubuntu2204-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/ubuntu:22.04 \
           'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
@@ -371,7 +373,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name centos8-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/centos:8 \
+          -v $PWD:/opt/gluten --name centos8-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/centos:8 \
           bash -c 'cd /opt/gluten && sleep 14400'
       - name: Build Gluten velox third party
         run: |
@@ -509,7 +511,7 @@ jobs:
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/centos:7 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/centos:7 \
           bash -c 'cd /opt/gluten && sleep 14400'
       - name: Build Gluten CPP library
         run: |
@@ -530,7 +532,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (centos 8)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.2.4:5000/gluten-dev/centos:8 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/centos:8 \
           bash -c 'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
@@ -539,7 +541,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 20.04)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.2.4:5000/gluten-dev/ubuntu:20.04 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/ubuntu:20.04 \
           'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
@@ -548,7 +550,7 @@ jobs:
       - name: TPC-H SF1.0 && TPC-DS SF1.0 Parquet local spark3.2 (ubuntu 22.04)
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 10.0.2.4:5000/gluten-dev/ubuntu:22.04 \
+          -v $PWD:/opt/gluten --name static-build-test-$GITHUB_RUN_ID-tpc -e NUM_THREADS=30 $DOCKER_REGISTRY_HOST:$DOCKER_REGISTRY_PORT/gluten-dev/ubuntu:22.04 \
           'cd /opt/gluten/tools/gluten-it \
           && GLUTEN_IT_JVM_ARGS=-Xmx5G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
