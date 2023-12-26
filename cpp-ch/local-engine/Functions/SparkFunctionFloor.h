@@ -60,10 +60,10 @@ public:
             memcpy(p_out, &tmp_dst, tail_size_bytes);
         }
         for (size_t i = 0; i < out.size(); ++i)
-            checkAndSetNullableAutoOpt(out[i], null_map[i]);
+            checkAndSetNullable(out[i], null_map[i]);
     }
 
-    static void checkAndSetNullableAutoOpt(T & t, UInt8 & null_flag)
+    static void checkAndSetNullable(T & t, UInt8 & null_flag)
     {
         UInt8 is_nan = (t != t);
         UInt8 is_inf = 0;
