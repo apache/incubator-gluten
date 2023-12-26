@@ -25,7 +25,7 @@
 #include "utils/ConfigExtractor.h"
 
 #ifdef ENABLE_HDFS
-#include <hdfs/hdfs.h>
+#include "utils/HdfsUtils.h"
 #endif
 
 using namespace facebook;
@@ -100,7 +100,7 @@ WholeStageResultIterator::WholeStageResultIterator(
       taskInfo_(taskInfo),
       memoryManager_(memoryManager) {
 #ifdef ENABLE_HDFS
-  updateHdfsTokens();
+  gluten::updateHdfsTokens(veloxCfg_);
 #endif
   spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
@@ -422,22 +422,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   }
   return configs;
 }
-
-#ifdef ENABLE_HDFS
-void WholeStageResultIterator::updateHdfsTokens() {
-  std::lock_guard lock{mutex};
-  const auto& username = veloxCfg_->get<std::string>(kUGIUserName);
-  const auto& allTokens = veloxCfg_->get<std::string>(kUGITokens);
-
-  if (!username.has_value() || !allTokens.has_value())
-    return;
-  hdfsSetDefautUserName(username.value().c_str());
-  std::vector<folly::StringPiece> tokens;
-  folly::split('\0', allTokens.value(), tokens);
-  for (auto& token : tokens)
-    hdfsSetTokenForDefaultUser(token.data());
-}
-#endif
 
 std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {
   std::unordered_map<std::string, std::string> configs = {};
