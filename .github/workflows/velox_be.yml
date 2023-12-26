@@ -37,6 +37,9 @@ on:
       - 'dev**'
 #      - 'substrait/substrait-spark/**'
 
+env:
+  HTTP_PROXY_HOST: ${{ secrets.SHR_IL_HTTP_PROXY_HOST }}
+  HTTP_PROXY_PORT: ${{ secrets.SHR_IL_HTTP_PROXY_PORT }}
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
