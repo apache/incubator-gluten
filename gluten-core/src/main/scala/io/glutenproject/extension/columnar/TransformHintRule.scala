@@ -434,9 +434,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           val childIsScan = plan.child.isInstanceOf[FileSourceScanExec] ||
             plan.child.isInstanceOf[BatchScanExec]
           if (!enableColumnarFilter) {
-            TransformHints.tagNotTransformable(
-              plan,
-              "columnar Filter is not enabled in FilterExec")
+            TransformHints.tagNotTransformable(plan, "columnar Filter is not enabled in FilterExec")
           } else if (scanOnly && !childIsScan) {
             // When scanOnly is enabled, filter after scan will be offloaded.
             TransformHints.tagNotTransformable(
