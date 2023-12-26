@@ -216,7 +216,7 @@ private:
                     arg0->CopyFrom(scalar_function_pb.arguments(0));
                     auto * arg1 = decoded_json_function.add_arguments();
                     arg1->mutable_value()->mutable_literal()->set_string(required_fields_str);
-                    
+
                     substrait::Expression new_get_json_object_arg0;
                     new_get_json_object_arg0.mutable_scalar_function()->CopyFrom(decoded_json_function);
                     *scalar_function_pb.mutable_arguments()->Mutable(0)->mutable_value() = new_get_json_object_arg0;
