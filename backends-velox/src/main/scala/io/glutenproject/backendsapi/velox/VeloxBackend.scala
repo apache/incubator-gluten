@@ -98,7 +98,16 @@ object BackendSettings extends BackendSettingsApi {
       case DwrfReadFormat => ValidationResult.ok
       case OrcReadFormat =>
         val typeValidator: PartialFunction[DataType, String] = {
-          case _: TimestampType => "TimestampType"
+          case _: ByteType => "ByteType not support"
+          case arrayType: ArrayType if arrayType.elementType.isInstanceOf[StructType] =>
+            "StructType as element in ArrayType"
+          case arrayType: ArrayType if arrayType.elementType.isInstanceOf[ArrayType] =>
+            "ArrayType as element in ArrayType"
+          case mapType: MapType if mapType.keyType.isInstanceOf[StructType] =>
+            "StructType as Key in MapType"
+          case mapType: MapType if mapType.valueType.isInstanceOf[ArrayType] =>
+            "ArrayType as Value in MapType"
+          case _: TimestampType => "TimestampType not support"
         }
         validateTypes(typeValidator)
       case _ => ValidationResult.notOk(s"Unsupported file format for $format.")
