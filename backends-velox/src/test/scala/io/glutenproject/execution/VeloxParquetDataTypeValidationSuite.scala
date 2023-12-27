@@ -451,7 +451,7 @@ class VeloxParquetDataTypeValidationSuite extends VeloxWholeStageTransformerSuit
         dir =>
           val write_path = dir.toURI.getPath
           val data_path = getClass.getResource("/").getPath + "/data-type-validation-data/type1"
-          // Spark 3.4 native write doesn't support Timestamp type.
+          // Velox native write doesn't support Timestamp type.
           val df = spark.read.format("parquet").load(data_path).drop("timestamp")
           df.write.mode("append").format("parquet").save(write_path)
           val parquetDf = spark.read

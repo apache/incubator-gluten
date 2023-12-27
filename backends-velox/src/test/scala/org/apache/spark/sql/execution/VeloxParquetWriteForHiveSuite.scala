@@ -128,18 +128,10 @@ class VeloxParquetWriteForHiveSuite extends GlutenQueryTest with SQLTestUtils {
         "CREATE TABLE t (c int, d long, e long)" +
           " STORED AS PARQUET partitioned by (c, d)")
       withSQLConf("spark.sql.hive.convertMetastoreParquet" -> "true") {
-        if (SparkShimLoader.getSparkVersion.startsWith("3.4")) {
-          checkNativeStaticPartitionWrite(
-            "INSERT OVERWRITE TABLE t partition(c=1, d)" +
-              " SELECT 3 as e, 2 as e",
-            native = false)
-        } else {
-          checkNativeStaticPartitionWrite(
-            "INSERT OVERWRITE TABLE t partition(c=1, d)" +
-              " SELECT 3 as e, 2 as e",
-            native = false)
-        }
-
+        checkNativeStaticPartitionWrite(
+          "INSERT OVERWRITE TABLE t partition(c=1, d)" +
+            " SELECT 3 as e, 2 as e",
+          native = false)
       }
       checkAnswer(spark.table("t"), Row(3, 1, 2))
     }

@@ -87,8 +87,7 @@ class VeloxColumnarWriteFilesExec(
         assert(iter.hasNext)
         val cb = iter.next()
         val loadedCb = ColumnarBatches.ensureLoaded(ArrowBufferAllocators.contextInstance, cb)
-
-        val numRows = loadedCb.column(0).getLong(0)
+        val numWrittenRows = loadedCb.column(0).getLong(0)
 
         var updatedPartitions = Set.empty[String]
         val addedAbsPathFiles: mutable.Map[String, String] = mutable.Map[String, String]()
@@ -121,7 +120,7 @@ class VeloxColumnarWriteFilesExec(
         }
 
         // TODO: need to get the partition Internal row?
-        val stats = BasicWriteTaskStats(Seq.empty, (numRows - 1).toInt, numBytes, numRows)
+        val stats = BasicWriteTaskStats(Seq.empty, loadedCb.numRows() - 1, numBytes, numWrittenRows)
         val summary =
           ExecutedWriteSummary(updatedPartitions = updatedPartitions, stats = Seq(stats))
 
