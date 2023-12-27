@@ -39,6 +39,7 @@ class GlutenClickHouseTPCDSParquetColumnarShuffleSuite extends GlutenClickHouseT
       //      .set("spark.sql.files.maxPartitionBytes", "134217728")
       //      .set("spark.sql.files.openCostInBytes", "134217728")
       .set("spark.memory.offHeap.size", "4g")
+    // .set("spark.sql.planChangeLog.level", "error")
   }
 
   executeTPCDSTest(false)

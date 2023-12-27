@@ -18,7 +18,7 @@ package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.exception.GlutenException
-import io.glutenproject.expression.{ConverterUtils, ExpressionConverter, ExpressionTransformer}
+import io.glutenproject.expression.{ConverterUtils, ExpressionConverter}
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.TypeBuilder
@@ -29,8 +29,6 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.SparkPlan
-
-import com.google.protobuf.Any
 
 import java.util.{ArrayList => JArrayList, List => JList}
 
@@ -69,7 +67,7 @@ case class GenerateExecTransformer(
     val operatorId = context.nextOperatorId(this.nodeName)
     val generatorExpr =
       ExpressionConverter.replaceWithExpressionTransformer(generator, child.output)
-    val generatorNode = generatorExpr.asInstanceOf[ExpressionTransformer].doTransform(args)
+    val generatorNode = generatorExpr.doTransform(args)
     val childOutputNodes = new java.util.ArrayList[ExpressionNode]
     for (target <- requiredChildOutput) {
       val found = child.output.zipWithIndex.filter(_._1.name == target.name)
@@ -164,7 +162,8 @@ case class GenerateExecTransformer(
       val inputTypeNodeList =
         inputAttributes.map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable)).asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeGenerateRel(input, generator, childOutput, extensionNode, context, operatorId)
     }
   }

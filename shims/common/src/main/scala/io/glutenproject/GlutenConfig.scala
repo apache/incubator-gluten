@@ -86,7 +86,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarTableCacheEnabled: Boolean = conf.getConf(COLUMNAR_TABLE_CACHE_ENABLED)
 
-  def enableDateTimestampComparison: Boolean = conf.getConf(ENABLE_DATE_TIMESTAMP_COMPARISON)
+  def enableRewriteDateTimestampComparison: Boolean =
+    conf.getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
+
+  def enableCommonSubexpressionEliminate: Boolean =
+    conf.getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
 
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
@@ -360,6 +364,16 @@ object GlutenConfig {
   val ABFS_ACCOUNT_KEY = "hadoop.fs.azure.account.key"
   val SPARK_ABFS_ACCOUNT_KEY: String = "spark." + ABFS_ACCOUNT_KEY
 
+  // GCS config
+  val GCS_PREFIX = "fs.gs."
+  val GCS_STORAGE_ROOT_URL = "fs.gs.storage.root.url"
+  val SPARK_GCS_STORAGE_ROOT_URL: String = HADOOP_PREFIX + GCS_STORAGE_ROOT_URL
+  val GCS_AUTH_TYPE = "fs.gs.auth.type"
+  val SPARK_GCS_AUTH_TYPE: String = HADOOP_PREFIX + GCS_AUTH_TYPE
+  val GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE = "fs.gs.auth.service.account.json.keyfile"
+  val SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE: String =
+    HADOOP_PREFIX + GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "qat"
   val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("gzip", "zstd")
@@ -433,6 +447,8 @@ object GlutenConfig {
   // Tokens of current user, split by `\0`
   val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
 
+  val GLUTEN_UI_ENABLED = "spark.gluten.ui.enabled"
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
@@ -465,7 +481,21 @@ object GlutenConfig {
       "spark.io.compression.codec",
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
-      COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key
+      COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,
+      // s3 config
+      SPARK_S3_ACCESS_KEY,
+      SPARK_S3_SECRET_KEY,
+      SPARK_S3_ENDPOINT,
+      SPARK_S3_CONNECTION_SSL_ENABLED,
+      SPARK_S3_PATH_STYLE_ACCESS,
+      SPARK_S3_USE_INSTANCE_CREDENTIALS,
+      SPARK_S3_IAM,
+      SPARK_S3_IAM_SESSION_NAME,
+      AWS_SDK_LOG_LEVEL.key,
+      // gcs config
+      SPARK_GCS_STORAGE_ROOT_URL,
+      SPARK_GCS_AUTH_TYPE,
+      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
     )
     keys.forEach(
       k => {
@@ -1384,7 +1414,7 @@ object GlutenConfig {
       .intConf
       .createOptional
 
-  val ENABLE_DATE_TIMESTAMP_COMPARISON =
+  val ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON =
     buildConf("spark.gluten.sql.rewrite.dateTimestampComparison")
       .internal()
       .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
@@ -1396,6 +1426,15 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.project.collapse")
       .internal()
       .doc("Combines two columnar project operators into one and perform alias substitution")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
+    buildConf("spark.gluten.sql.commonSubexpressionEliminate")
+      .internal()
+      .doc(
+        "Eliminate common subexpressions in logical plan to avoid multiple evaluation of the same"
+          + "expression, may improve performance")
       .booleanConf
       .createWithDefault(true)
 

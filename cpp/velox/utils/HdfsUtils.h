@@ -14,15 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.exchange
 
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.GlutenSQLTestsBaseTrait
-
-class GlutenEnsureRequirementsSuite extends EnsureRequirementsSuite with GlutenSQLTestsBaseTrait {
-  override def sparkConf: SparkConf = {
-    // Native SQL configs
-    super.sparkConf
-      .set("spark.sql.shuffle.partitions", "5")
-  }
+#include <velox/core/Config.h>
+#include <memory>
+namespace gluten {
+void updateHdfsTokens(const facebook::velox::Config* veloxCfg);
 }

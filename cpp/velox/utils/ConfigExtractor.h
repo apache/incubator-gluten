@@ -35,4 +35,7 @@ std::string getConfigValue(
 
 bool debugModeEnabled(const std::unordered_map<std::string, std::string>& confMap);
 
+std::shared_ptr<facebook::velox::core::MemConfigMutable> getHiveConfig(
+    const std::shared_ptr<const facebook::velox::Config>& conf);
+
 } // namespace gluten

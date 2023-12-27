@@ -34,7 +34,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate._
 import org.apache.spark.sql.types._
 
-import com.google.protobuf.{Any, StringValue}
+import com.google.protobuf.StringValue
 
 import java.util.{ArrayList => JArrayList, List => JList}
 
@@ -266,7 +266,8 @@ abstract class HashAggregateExecBaseTransformer(
         .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
         input,
         preExprNodes,
@@ -379,7 +380,8 @@ abstract class HashAggregateExecBaseTransformer(
         .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
         aggRel,
         resExprNodes,
@@ -557,7 +559,8 @@ abstract class HashAggregateExecBaseTransformer(
       val inputTypeNodeList = originalInputAttributes
         .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         .asJava
-      Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf)
+      BackendsApiManager.getTransformerApiInstance.packPBMessage(
+        TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf)
     } else {
       null
     }
@@ -568,7 +571,7 @@ abstract class HashAggregateExecBaseTransformer(
       "0"
     }
     val optimization =
-      BackendsApiManager.getTransformerApiInstance.getPackMessage(
+      BackendsApiManager.getTransformerApiInstance.packPBMessage(
         StringValue.newBuilder.setValue(s"isStreaming=$isStreaming\n").build)
     ExtensionBuilder.makeAdvancedExtension(optimization, enhancement)
   }

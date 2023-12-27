@@ -26,10 +26,6 @@
 #include "velox/core/PlanNode.h"
 #include "velox/exec/Task.h"
 
-#ifdef ENABLE_HDFS
-#include <mutex>
-#endif
-
 namespace gluten {
 
 class WholeStageResultIterator : public ColumnarBatchIterator {
@@ -76,12 +72,6 @@ class WholeStageResultIterator : public ColumnarBatchIterator {
  private:
   /// Get the Spark confs to Velox query context.
   std::unordered_map<std::string, std::string> getQueryContextConf();
-
-#ifdef ENABLE_HDFS
-  /// Set latest tokens to global HiveConnector
-  inline static std::mutex mutex;
-  void updateHdfsTokens();
-#endif
 
   /// Get all the children plan node ids with postorder traversal.
   void getOrderedNodeIds(

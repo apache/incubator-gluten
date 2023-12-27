@@ -111,6 +111,26 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
   @transient
   private var wholeStageTransformerContext: Option[WholeStageTransformContext] = None
 
+  private var outputSchemaForPlan: Option[TypeNode] = None
+
+  private def inferSchemaFromAttributes(attrs: Seq[Attribute]): TypeNode = {
+    val outputTypeNodeList = new java.util.ArrayList[TypeNode]()
+    for (attr <- attrs) {
+      outputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+    }
+
+    TypeBuilder.makeStruct(false, outputTypeNodeList)
+  }
+
+  def setOutputSchemaForPlan(expectOutput: Seq[Attribute]): Unit = {
+    if (outputSchemaForPlan.isDefined) {
+      return
+    }
+
+    // Fixes issue-1874
+    outputSchemaForPlan = Some(inferSchemaFromAttributes(expectOutput))
+  }
+
   def substraitPlan: PlanNode = {
     if (wholeStageTransformerContext.isDefined) {
       // TODO: remove this work around after we make `RelNode#toProtobuf` idempotent
@@ -190,16 +210,19 @@ case class WholeStageTransformer(child: SparkPlan, materializeInput: Boolean = f
     if (childCtx == null) {
       throw new NullPointerException(s"WholeStageTransformer can't do Transform on $child")
     }
+
     val outNames = new java.util.ArrayList[String]()
+    for (attr <- childCtx.outputAttributes) {
+      outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
+    }
+
     val planNode = if (BackendsApiManager.getSettings.needOutputSchemaForPlan()) {
-      val outputTypeNodeList = new java.util.ArrayList[TypeNode]()
-      for (attr <- childCtx.outputAttributes) {
-        outNames.add(ConverterUtils.genColumnNameWithExprId(attr))
-        outputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+      val outputSchema = if (outputSchemaForPlan.isDefined) {
+        outputSchemaForPlan.get
+      } else {
+        inferSchemaFromAttributes(childCtx.outputAttributes)
       }
 
-      // Fixes issue-1874
-      val outputSchema = TypeBuilder.makeStruct(false, outputTypeNodeList)
       PlanBuilder.makePlan(
         substraitContext,
         Lists.newArrayList(childCtx.root),

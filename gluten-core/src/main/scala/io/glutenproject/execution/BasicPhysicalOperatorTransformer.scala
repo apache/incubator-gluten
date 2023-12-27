@@ -33,8 +33,6 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV
 import org.apache.spark.sql.utils.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import com.google.protobuf.Any
-
 import scala.collection.JavaConverters._
 
 abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkPlan)
@@ -88,7 +86,8 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
         .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeFilterRel(input, condExprNode, extensionNode, context, operatorId)
     }
   }
@@ -221,7 +220,8 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
         .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
         input,
         projExprNodeList,
@@ -281,6 +281,14 @@ object ProjectExecTransformer {
 
 // An alternatives for UnionExec.
 case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
+  children.foreach(
+    child =>
+      child match {
+        case w: WholeStageTransformer =>
+          w.setOutputSchemaForPlan(output)
+        case _ =>
+      })
+
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {

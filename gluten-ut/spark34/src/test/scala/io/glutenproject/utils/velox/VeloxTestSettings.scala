@@ -114,7 +114,6 @@ class VeloxTestSettings extends BackendTestSettings {
       "INCONSISTENT_BEHAVIOR_CROSS_VERSION: compatibility with Spark 2.4/3.2 in reading/writing dates")
     .exclude("FAILED_EXECUTE_UDF: execute user defined function")
     .exclude("UNRECOGNIZED_SQL_TYPE: unrecognized SQL type -100")
-    .exclude("INVALID_BUCKET_FILE: error if there exists any malformed bucket files")
     .excludeByPrefix("SCALAR_SUBQUERY_TOO_MANY_ROWS:")
     .excludeByPrefix("UNSUPPORTED_FEATURE.MULTI_ACTION_ALTER:")
   enableSuite[GlutenQueryParsingErrorsSuite]
@@ -183,7 +182,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .includeByPrefix(
       "gluten",
       "SPARK-29906",
-//      "SPARK-30291",
+      "SPARK-30291",
       "SPARK-30403",
       "SPARK-30719",
       "SPARK-31384",
@@ -196,7 +195,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-35585",
       "SPARK-32932",
       "SPARK-33494",
-//      "SPARK-33933",
+      "SPARK-33933",
       "SPARK-31220",
       "SPARK-35874",
       "SPARK-39551"
@@ -886,9 +885,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenMergedParquetReadSchemaSuite]
   enableSuite[GlutenEnsureRequirementsSuite]
-    // Rewrite to change the shuffle partitions for optimizing repartition
-    .excludeByPrefix("SPARK-35675")
-    .exclude("SPARK-41986: Introduce shuffle on SinglePartition")
 
 //  enableSuite[GlutenBroadcastJoinSuite]
 //    .exclude("Shouldn't change broadcast join buildSide if user clearly specified")
@@ -987,7 +983,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenCTEHintSuite]
-    .exclude("Resolve join hint in CTE")
   enableSuite[GlutenCTEInlineSuiteAEOff]
   enableSuite[GlutenCTEInlineSuiteAEOn]
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -1117,6 +1112,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
     // exclude as original metric not correct when task offloaded to velox
     .exclude("SPARK-37585: test input metrics for DSV2 with output limits")
+    // TODO(yuan): fix the input bytes on ORC code path
+    .exclude("SPARK-30362: test input metrics for DSV2")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
   enableSuite[GlutenInjectRuntimeFilterSuite]

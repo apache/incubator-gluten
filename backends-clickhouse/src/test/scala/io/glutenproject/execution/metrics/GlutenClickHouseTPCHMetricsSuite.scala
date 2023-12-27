@@ -16,7 +16,7 @@
  */
 package io.glutenproject.execution.metrics
 
-import io.glutenproject.execution.{BasicScanExecTransformer, ColumnarNativeIterator, FileSourceScanExecTransformer, FilterExecTransformerBase, GlutenClickHouseTPCHAbstractSuite, HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformer}
+import io.glutenproject.execution.{BasicScanExecTransformer, ColumnarNativeIterator, FileSourceScanExecTransformer, FilterExecTransformerBase, GenerateExecTransformer, GlutenClickHouseTPCHAbstractSuite, HashAggregateExecBaseTransformer, ProjectExecTransformer, WholeStageTransformer}
 import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.vectorized.GeneralInIterator
 
@@ -75,6 +75,24 @@ class GlutenClickHouseTPCHMetricsSuite extends GlutenClickHouseTPCHAbstractSuite
         // Execute Sort operator, it will read the data twice.
         assert(plans(0).metrics("outputRows").value === 4)
         assert(plans(0).metrics("outputVectors").value === 1)
+    }
+  }
+
+  test("test Generate metrics") {
+    val sql =
+      """
+        |select n_nationkey, a from nation lateral view explode(split(n_comment, ' ')) as a
+        |order by n_nationkey, a
+        |""".stripMargin
+    runQueryAndCompare(sql) {
+      df =>
+        val plans = df.queryExecution.executedPlan.collect {
+          case generate: GenerateExecTransformer => generate
+        }
+        assert(plans.size == 1)
+        assert(plans.head.metrics("inputRows").value == 25)
+        assert(plans.head.metrics("outputRows").value == 266)
+        assert(plans.head.metrics("outputVectors").value == 1)
     }
   }
 

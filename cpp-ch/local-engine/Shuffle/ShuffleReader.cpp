@@ -32,7 +32,10 @@ void configureCompressedReadBuffer(DB::CompressedReadBuffer & compressedReadBuff
 {
     compressedReadBuffer.disableChecksumming();
 }
-local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed) : in(std::move(in_))
+local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_)
+    : in(std::move(in_))
+    , max_shuffle_read_rows(max_shuffle_read_rows_)
+    , max_shuffle_read_bytes(max_shuffle_read_bytes_)
 {
     if (compressed)
     {
@@ -48,17 +51,20 @@ local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool
 Block * local_engine::ShuffleReader::read()
 {
     // Avoid to generate out a lot of small blocks.
-    const size_t at_least_block_size = 64 * 1024;
-    size_t total_rows = 0;
+    size_t buffer_rows = 0;
+    size_t buffer_bytes = 0;
     std::vector<DB::Block> blocks;
     if (pending_block)
     {
         blocks.emplace_back(std::move(pending_block));
-        total_rows += blocks.back().rows();
+        buffer_rows += blocks.back().rows();
+        buffer_bytes += blocks.back().bytes();
         pending_block = {};
     }
 
-    while(total_rows < at_least_block_size)
+    while (!buffer_rows
+           || ((max_shuffle_read_rows < 0 || buffer_rows < max_shuffle_read_rows)
+               && (max_shuffle_read_bytes < 0 || buffer_bytes < max_shuffle_read_bytes)))
     {
         auto block = input_stream->read();
         if (!block.rows())
@@ -71,7 +77,8 @@ Block * local_engine::ShuffleReader::read()
             pending_block = std::move(block);
             break;
         }
-        total_rows += block.rows();
+        buffer_rows += block.rows();
+        buffer_bytes += block.bytes();
         blocks.emplace_back(std::move(block));
     }
 

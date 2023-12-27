@@ -25,6 +25,7 @@
 #include "compute/VeloxRuntime.h"
 #include "config/GlutenConfig.h"
 
+#include "utils/ConfigExtractor.h"
 #include "utils/VeloxArrowUtils.h"
 #include "velox/common/compression/Compression.h"
 #include "velox/core/QueryConfig.h"
@@ -49,10 +50,12 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     sink_ = std::make_unique<WriteFileSink>(std::move(localWriteFile), path);
   } else if (isSupportedS3SdkPath(filePath_)) {
 #ifdef ENABLE_S3
-    auto fileSystem = getFileSystem(filePath_, nullptr);
-    auto* s3FileSystem = dynamic_cast<filesystems::S3FileSystem*>(fileSystem.get());
-    sink_ = std::make_unique<dwio::common::WriteFileSink>(
-        s3FileSystem->openFileForWrite(filePath_, {{}, s3SinkPool_.get()}), filePath_);
+    auto confs = std::make_shared<facebook::velox::core::MemConfigMutable>(sparkConfs);
+    auto hiveConfs = getHiveConfig(confs);
+    sink_ = dwio::common::FileSink::create(
+        filePath_,
+        {.connectorProperties = std::make_shared<facebook::velox::core::MemConfig>(hiveConfs->valuesCopy()),
+         .pool = s3SinkPool_.get()});
 #else
     throw std::runtime_error(
         "The write path is S3 path but the S3 haven't been enabled when writing parquet data in velox runtime!");
