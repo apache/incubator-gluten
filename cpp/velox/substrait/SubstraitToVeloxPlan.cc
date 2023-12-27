@@ -199,7 +199,7 @@ core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationStep(con
       SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "allowIntermediateOutput=")) {
     return core::AggregationNode::Step::kPartial;
   }
-  return core::AggregationNode::Step::kFinal;
+  return core::AggregationNode::Step::kSingle;
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::JoinRel& sJoin) {
