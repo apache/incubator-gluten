@@ -48,6 +48,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.gluten.supported.scala.udfs", "my_add")
+    // .set("spark.sql.planChangeLog.level", "error")
   }
 
   override protected val createNullableTables = true
@@ -2263,6 +2264,15 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |    select p_partkey, p_partkey%2 as is_new from part where p_partkey is not null
         |  ) t1
         |) t2 where rank = 1 order by p_partkey limit 100
+        |""".stripMargin
+    runQueryAndCompare(sql)({ _ => })
+  }
+
+  test("GLUTEN-4190: crush on flattening a const null column") {
+    val sql =
+      """
+        | select n_nationkey, rank() over (partition by n_regionkey, null order by n_nationkey)
+        |from nation
         |""".stripMargin
     runQueryAndCompare(sql)({ _ => })
   }

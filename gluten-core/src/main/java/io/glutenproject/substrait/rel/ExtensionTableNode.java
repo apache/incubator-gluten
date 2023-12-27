@@ -16,7 +16,8 @@
  */
 package io.glutenproject.substrait.rel;
 
-import com.google.protobuf.Any;
+import io.glutenproject.backendsapi.BackendsApiManager;
+
 import com.google.protobuf.StringValue;
 import io.substrait.proto.ReadRel;
 
@@ -69,7 +70,8 @@ public class ExtensionTableNode implements SplitInfo {
     ReadRel.ExtensionTable.Builder extensionTableBuilder = ReadRel.ExtensionTable.newBuilder();
     StringValue extensionTable =
         StringValue.newBuilder().setValue(extensionTableStr.toString()).build();
-    extensionTableBuilder.setDetail(Any.pack(extensionTable));
+    extensionTableBuilder.setDetail(
+        BackendsApiManager.getTransformerApiInstance().packPBMessage(extensionTable));
     return extensionTableBuilder.build();
   }
 }

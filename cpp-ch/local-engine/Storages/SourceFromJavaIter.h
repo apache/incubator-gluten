@@ -43,8 +43,6 @@ private:
     bool materialize_input;
     DB::ContextPtr context;
     DB::Block original_header;
-
-    DB::Block pending_block;
 };
 
 }

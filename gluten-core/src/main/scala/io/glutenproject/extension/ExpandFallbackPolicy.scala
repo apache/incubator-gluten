@@ -68,8 +68,9 @@ import org.apache.spark.sql.execution.exchange.Exchange
 case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkPlan)
   extends Rule[SparkPlan] {
 
-  private def countFallback(plan: SparkPlan): Int = {
-    var fallbacks = 0
+  private def countTransitionCost(plan: SparkPlan): Int = {
+    val ignoreRowToColumnar = GlutenConfig.getConf.fallbackIgnoreRowToColumnar
+    var transitionCost = 0
     def countFallbackInternal(plan: SparkPlan): Unit = {
       plan match {
         case _: QueryStageExec => // Another stage.
@@ -82,21 +83,26 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
             if !u.isInstanceOf[GlutenPlan] && InMemoryTableScanHelper.isGlutenTableCache(u.child) =>
           // Vanilla Spark plan will call `InMemoryTableScanExec.convertCachedBatchToInternalRow`
           // which is a kind of `ColumnarToRowExec`.
-          fallbacks = fallbacks + 1
+          transitionCost = transitionCost + 1
           countFallbackInternal(u.child)
         case ColumnarToRowExec(p: GlutenPlan) =>
           logDebug(s"Find a columnar to row for gluten plan:\n$p")
-          fallbacks = fallbacks + 1
+          transitionCost = transitionCost + 1
           countFallbackInternal(p)
+        case r: RowToColumnarExec =>
+          if (!ignoreRowToColumnar) {
+            transitionCost = transitionCost + 1
+          }
+          countFallbackInternal(r.child)
         case leafPlan: LeafExecNode if InMemoryTableScanHelper.isGlutenTableCache(leafPlan) =>
         case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[GlutenPlan] =>
           // Possible fallback for leaf node.
-          fallbacks = fallbacks + 1
+          transitionCost = transitionCost + 1
         case p => p.children.foreach(countFallbackInternal)
       }
     }
     countFallbackInternal(plan)
-    fallbacks
+    transitionCost
   }
 
   /**
@@ -132,16 +138,17 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
    *
    * spotless:on
    */
-  private def countStageFallbackCost(plan: SparkPlan): Int = {
-    var stageFallbackCost = 0
+  private def countStageFallbackTransitionCost(plan: SparkPlan): Int = {
+    var stageFallbackTransitionCost = 0
 
     /**
-     * 1) Find a Gluten plan whose child is InMemoryTableScanExec. Then, increase stageFallbackCost
-     * if InMemoryTableScanExec is gluten's table cache and decrease stageFallbackCost if not. 2)
-     * Find a Gluten plan whose child is QueryStageExec. Then, increase stageFallbackCost if the
-     * last query stage's plan is GlutenPlan and decrease stageFallbackCost if not.
+     * 1) Find a Gluten plan whose child is InMemoryTableScanExec. Then, increase
+     * stageFallbackTransitionCost if InMemoryTableScanExec is gluten's table cache and decrease
+     * stageFallbackTransitionCost if not. 2) Find a Gluten plan whose child is QueryStageExec.
+     * Then, increase stageFallbackTransitionCost if the last query stage's plan is GlutenPlan and
+     * decrease stageFallbackTransitionCost if not.
      */
-    def countStageFallbackCostInternal(plan: SparkPlan): Unit = {
+    def countStageFallbackTransitionCostInternal(plan: SparkPlan): Unit = {
       plan match {
         case glutenPlan: GlutenPlan =>
           val leaves = glutenPlan.collectLeaves()
@@ -151,11 +158,8 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
               // For this case, table cache will internally execute ColumnarToRow if
               // we make the stage fall back.
               case tableCache if InMemoryTableScanHelper.isGlutenTableCache(tableCache) =>
-                stageFallbackCost = stageFallbackCost + 1
-              // For other case, table cache will save internal RowToColumnar if we make
-              // the stage fall back.
+                stageFallbackTransitionCost = stageFallbackTransitionCost + 1
               case _ =>
-                stageFallbackCost = stageFallbackCost - 1
             }
           leaves
             .filter(_.isInstanceOf[QueryStageExec])
@@ -164,17 +168,14 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
                   if stage.plan.isInstanceOf[GlutenPlan] ||
                     // For TableCacheQueryStageExec since spark 3.5.
                     InMemoryTableScanHelper.isGlutenTableCache(stage) =>
-                stageFallbackCost = stageFallbackCost + 1
-              // For other cases, RowToColumnar will be removed if stage falls back, so reduce
-              // the cost.
+                stageFallbackTransitionCost = stageFallbackTransitionCost + 1
               case _ =>
-                stageFallbackCost = stageFallbackCost - 1
             }
-        case _ => plan.children.foreach(countStageFallbackCostInternal)
+        case _ => plan.children.foreach(countStageFallbackTransitionCostInternal)
       }
     }
-    countStageFallbackCostInternal(plan)
-    stageFallbackCost
+    countStageFallbackTransitionCostInternal(plan)
+    stageFallbackTransitionCost
   }
 
   private def hasColumnarBroadcastExchangeWithJoin(plan: SparkPlan): Boolean = {
@@ -192,40 +193,44 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     }.isDefined
   }
 
-  private def fallback(plan: SparkPlan): Option[String] = {
+  private def fallback(plan: SparkPlan): FallbackInfo = {
     val fallbackThreshold = if (isAdaptiveContext) {
       GlutenConfig.getConf.wholeStageFallbackThreshold
     } else if (plan.find(_.isInstanceOf[AdaptiveSparkPlanExec]).isDefined) {
       // if we are here, that means we are now at `QueryExecution.preparations` and
       // AQE is actually not applied. We do nothing for this case, and later in
       // AQE we can check `wholeStageFallbackThreshold`.
-      return None
+      return FallbackInfo.DO_NOT_FALLBACK()
     } else {
       // AQE is not applied, so we use the whole query threshold to check if should fallback
       GlutenConfig.getConf.queryFallbackThreshold
     }
     if (fallbackThreshold < 0) {
-      return None
+      return FallbackInfo.DO_NOT_FALLBACK()
     }
 
     // not safe to fallback row-based BHJ as the broadcast exchange is already columnar
     if (hasColumnarBroadcastExchangeWithJoin(plan)) {
-      return None
+      return FallbackInfo.DO_NOT_FALLBACK()
     }
 
-    val fallbackNum = countFallback(plan)
-    val fallbackCost = if (isAdaptiveContext) {
-      countStageFallbackCost(plan)
+    val transitionCost = countTransitionCost(plan)
+    val fallbackTransitionCost = if (isAdaptiveContext) {
+      countStageFallbackTransitionCost(plan)
     } else {
       0
     }
-    val netFallbackNum = fallbackNum - fallbackCost
-    if (netFallbackNum >= fallbackThreshold) {
-      Some(
-        s"Fallback policy is taking effect, net fallback number: $netFallbackNum, " +
-          s"fallback num: $fallbackNum, cost: $fallbackCost, threshold: $fallbackThreshold")
+    val netTransitionCost = transitionCost - fallbackTransitionCost
+    if (netTransitionCost >= fallbackThreshold) {
+      FallbackInfo(
+        Some(
+          s"Fallback policy is taking effect, net transition cost: $netTransitionCost, " +
+            s"cost: $transitionCost, fallback cost: $fallbackTransitionCost, " +
+            s"threshold: $fallbackThreshold"),
+        netTransitionCost
+      )
     } else {
-      None
+      FallbackInfo(netTransitionCost = netTransitionCost)
     }
   }
 
@@ -246,22 +251,49 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
     }
   }
 
+  private def countTransitionCostForVanillaSparkPlan(plan: SparkPlan): Int = {
+    // Vanilla Spark should only contains `ColumnarToRowExec`
+    plan.collect { case c: ColumnarToRowExec => c }.size
+  }
+
   override def apply(plan: SparkPlan): SparkPlan = {
     // By default, the outputsColumnar is always false.
     // The outputsColumnar will be true if it is a cached plan and we are going to
     // cache columnar batch using Gluten columnar serializer. So we should add a
     // Gluten RowToColumnar.
     val outputsColumnar = plan.supportsColumnar
-    val reason = fallback(plan)
-    if (reason.isDefined) {
-      val fallbackPlan = fallbackToRowBasedPlan(outputsColumnar)
-      TransformHints.tagAllNotTransformable(
-        fallbackPlan,
-        TRANSFORM_UNSUPPORTED(reason, appendReasonIfExists = false))
-      FallbackNode(fallbackPlan)
+    val fallbackInfo = fallback(plan)
+    if (fallbackInfo.shouldFallback) {
+      // If the transition cost of vanilla Spark plan is not smaller than Gluten plan,
+      // then we prefer to use Gluten even if Gluten plan contains `ColumnarToRow`.
+      // For example, use Gluten parquet scan rather than vanilla Spark parquet scan:
+      //  Scan Parquet
+      //       |
+      //  ColumnarToRow
+      val vanillaSparkPlan = fallbackToRowBasedPlan(outputsColumnar)
+      val vanillaSparkTransitionCost = countTransitionCostForVanillaSparkPlan(vanillaSparkPlan)
+      if (
+        GlutenConfig.getConf.fallbackPreferColumnar &&
+        fallbackInfo.netTransitionCost <= vanillaSparkTransitionCost
+      ) {
+        plan
+      } else {
+        TransformHints.tagAllNotTransformable(
+          vanillaSparkPlan,
+          TRANSFORM_UNSUPPORTED(fallbackInfo.reason, appendReasonIfExists = false))
+        FallbackNode(vanillaSparkPlan)
+      }
     } else {
       plan
     }
+  }
+
+  case class FallbackInfo(reason: Option[String] = None, netTransitionCost: Int = 0) {
+    def shouldFallback: Boolean = reason.isDefined
+  }
+
+  object FallbackInfo {
+    def DO_NOT_FALLBACK(): FallbackInfo = FallbackInfo()
   }
 }
 

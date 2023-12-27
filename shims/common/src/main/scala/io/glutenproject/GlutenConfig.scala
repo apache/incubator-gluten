@@ -86,7 +86,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarTableCacheEnabled: Boolean = conf.getConf(COLUMNAR_TABLE_CACHE_ENABLED)
 
-  def enableDateTimestampComparison: Boolean = conf.getConf(ENABLE_DATE_TIMESTAMP_COMPARISON)
+  def enableRewriteDateTimestampComparison: Boolean =
+    conf.getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
+
+  def enableCommonSubexpressionEliminate: Boolean =
+    conf.getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
 
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
@@ -174,6 +178,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def queryFallbackThreshold: Int = conf.getConf(COLUMNAR_QUERY_FALLBACK_THRESHOLD)
 
+  def fallbackIgnoreRowToColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR)
+
+  def fallbackPreferColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
+
   def numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean = conf.getConf(COLUMNAR_NUMA_BINDING_ENABLED)
     if (!enableNumaBinding) {
@@ -200,9 +208,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def memoryOverAcquiredRatio: Double = conf.getConf(COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO)
 
   def memoryReservationBlockSize: Long = conf.getConf(COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE)
-
-  def conservativeOffHeapMemorySize: Long =
-    conf.getConf(COLUMNAR_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES)
 
   def conservativeTaskOffHeapMemorySize: Long =
     conf.getConf(COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES)
@@ -398,8 +403,6 @@ object GlutenConfig {
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
-  val GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY =
-    "spark.gluten.memory.conservative.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
   val GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY =
     "spark.gluten.memory.conservative.task.offHeap.size.in.bytes"
@@ -438,6 +441,8 @@ object GlutenConfig {
   val GLUTEN_UGI_USERNAME = "spark.gluten.ugi.username"
   // Tokens of current user, split by `\0`
   val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
+
+  val GLUTEN_UI_ENABLED = "spark.gluten.ui.enabled"
 
   var ins: GlutenConfig = _
 
@@ -969,6 +974,24 @@ object GlutenConfig {
       .intConf
       .createWithDefault(-1)
 
+  val COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR =
+    buildConf("spark.gluten.sql.columnar.fallback.ignoreRowToColumnar")
+      .internal()
+      .doc(
+        "When true, the fallback policy ignores the RowToColumnar when counting fallback number.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_FALLBACK_PREFER_COLUMNAR =
+    buildConf("spark.gluten.sql.columnar.fallback.preferColumnar")
+      .internal()
+      .doc(
+        "When true, the fallback policy prefers to use Gluten plan rather than vanilla " +
+          "Spark plan if the both of them contains ColumnarToRow and the vanilla Spark plan " +
+          "ColumnarToRow number is not smaller than Gluten plan.")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_NUMA_BINDING_ENABLED =
     buildConf("spark.gluten.sql.columnar.numaBinding")
       .internal()
@@ -983,16 +1006,6 @@ object GlutenConfig {
 
   val COLUMNAR_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY)
-      .internal()
-      .doc(
-        "Must provide default value since non-execution operations " +
-          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
-          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("0")
-
-  val COLUMNAR_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES =
-    buildConf(GlutenConfig.GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY)
       .internal()
       .doc(
         "Must provide default value since non-execution operations " +
@@ -1386,7 +1399,7 @@ object GlutenConfig {
       .intConf
       .createOptional
 
-  val ENABLE_DATE_TIMESTAMP_COMPARISON =
+  val ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON =
     buildConf("spark.gluten.sql.rewrite.dateTimestampComparison")
       .internal()
       .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
@@ -1398,6 +1411,15 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.project.collapse")
       .internal()
       .doc("Combines two columnar project operators into one and perform alias substitution")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
+    buildConf("spark.gluten.sql.commonSubexpressionEliminate")
+      .internal()
+      .doc(
+        "Eliminate common subexpressions in logical plan to avoid multiple evaluation of the same"
+          + "expression, may improve performance")
       .booleanConf
       .createWithDefault(true)
 

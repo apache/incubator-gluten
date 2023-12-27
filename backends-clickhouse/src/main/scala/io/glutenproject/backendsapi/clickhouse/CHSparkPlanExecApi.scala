@@ -49,6 +49,7 @@ import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildS
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.ClickHouseAnalysis
+import org.apache.spark.sql.extension.CommonSubexpressionEliminateRule
 import org.apache.spark.sql.extension.RewriteDateTimestampComparisonRule
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -340,7 +341,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = {
     val analyzers = List(spark => new ClickHouseAnalysis(spark, spark.sessionState.conf))
-    if (GlutenConfig.getConf.enableDateTimestampComparison) {
+    if (GlutenConfig.getConf.enableRewriteDateTimestampComparison) {
       analyzers :+ (spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
     } else {
       analyzers
@@ -353,7 +354,12 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List.empty
+    var optimizers = List.empty[SparkSession => Rule[LogicalPlan]]
+    if (GlutenConfig.getConf.enableCommonSubexpressionEliminate) {
+      optimizers = optimizers :+ (
+        spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf))
+    }
+    optimizers
   }
 
   /**

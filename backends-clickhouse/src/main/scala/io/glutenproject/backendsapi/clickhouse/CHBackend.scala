@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi.clickhouse
 import io.glutenproject.{CH_BRANCH, CH_COMMIT, GlutenConfig, GlutenPlugin}
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat._
 
@@ -116,6 +117,16 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   val FORCE: String = "force"
   private val GLUTEN_CLICKHOUSE_AFFINITY_MODE_DEFAULT = SOFT
 
+  val GLUTEN_MAX_BLOCK_SIZE: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
+      ".runtime_settings.max_block_size"
+  // Same as default value in clickhouse
+  val GLUTEN_MAX_BLOCK_SIZE_DEFAULT = 65409
+  val GLUTEN_MAX_SHUFFLE_READ_BYTES: String =
+    GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
+      ".runtime_config.max_source_concatenate_bytes"
+  val GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT = -1
+
   def affinityMode: String = {
     SparkEnv.get.conf
       .get(
@@ -129,7 +140,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String]): Boolean = {
+      paths: Seq[String]): ValidationResult = {
 
     def validateFilePath: Boolean = {
       // Fallback to vanilla spark when the input path
@@ -158,12 +169,22 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
       !unsupportedDataTypes.isEmpty
     }
     format match {
-      case ParquetReadFormat => validateFilePath
-      case OrcReadFormat => true
-      case MergeTreeReadFormat => true
-      case TextReadFormat => !hasComplexType
-      case JsonReadFormat => true
-      case _ => false
+      case ParquetReadFormat =>
+        if (validateFilePath) {
+          ValidationResult.ok
+        } else {
+          ValidationResult.notOk("Validate file path failed.")
+        }
+      case OrcReadFormat => ValidationResult.ok
+      case MergeTreeReadFormat => ValidationResult.ok
+      case TextReadFormat =>
+        if (!hasComplexType) {
+          ValidationResult.ok
+        } else {
+          ValidationResult.notOk("Has complex type.")
+        }
+      case JsonReadFormat => ValidationResult.ok
+      case _ => ValidationResult.notOk(s"Unsupported file format $format")
     }
   }
 
@@ -238,4 +259,14 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
   override def requiredInputFilePaths(): Boolean = true
 
   override def enableBloomFilterAggFallbackRule(): Boolean = false
+
+  def maxShuffleReadRows(): Long = {
+    SparkEnv.get.conf
+      .getLong(GLUTEN_MAX_BLOCK_SIZE, GLUTEN_MAX_BLOCK_SIZE_DEFAULT)
+  }
+
+  def maxShuffleReadBytes(): Long = {
+    SparkEnv.get.conf
+      .getLong(GLUTEN_MAX_SHUFFLE_READ_BYTES, GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT)
+  }
 }
