@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.extension.GlutenPlan
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.SparkPlan
@@ -41,7 +42,7 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
 
     spark
       .range(100)
-      .selectExpr("cast(id % 3 as int) as c1")
+      .selectExpr("cast(id % 3 as int) as c1", "id as c2")
       .write
       .format("parquet")
       .saveAsTable("tmp1")
@@ -142,6 +143,37 @@ class FallbackSuite extends VeloxWholeStageTransformerSuite with AdaptiveSparkPl
             }.size == 2,
             df.queryExecution.executedPlan)
       }
+    }
+  }
+
+  test("Prefer to use Gluten plan in fallback policy") {
+    withSQLConf(GlutenConfig.COLUMNAR_QUERY_FALLBACK_THRESHOLD.key -> "1") {
+      runQueryAndCompare("SELECT * FROM tmp1 WHERE c1 > 0") {
+        df =>
+          val plan = df.queryExecution.executedPlan
+          assert(collect(plan) { case f: FileSourceScanExecTransformer => f }.size == 1)
+          assert(collect(plan) { case f: FilterExecTransformer => f }.size == 1)
+      }
+    }
+  }
+
+  test("test ignore row to columnar") {
+    Seq("true", "false").foreach {
+      ignoreRowToColumnar =>
+        withSQLConf(
+          GlutenConfig.COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR.key -> ignoreRowToColumnar,
+          GlutenConfig.EXPRESSION_BLACK_LIST.key -> "collect_set",
+          GlutenConfig.COLUMNAR_WHOLESTAGE_FALLBACK_THRESHOLD.key -> "1"
+        ) {
+          runQueryAndCompare("SELECT c1, collect_set(c2) FROM tmp1 GROUP BY c1") {
+            df =>
+              val plan = df.queryExecution.executedPlan
+              // fallback if not ignore row to columnar
+              assert(collect(plan) {
+                case g: GlutenPlan => g
+              }.nonEmpty == ignoreRowToColumnar.toBoolean)
+          }
+        }
     }
   }
 }
