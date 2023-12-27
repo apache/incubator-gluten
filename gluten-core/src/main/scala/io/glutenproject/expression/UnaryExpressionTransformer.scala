@@ -20,7 +20,7 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.ListNode
 import io.glutenproject.substrait.`type`.MapNode
-import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.expression.{BooleanLiteralNode, ExpressionBuilder, ExpressionNode, IntLiteralNode}
 
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
@@ -211,6 +211,30 @@ case class RandTransformer(
       functionMap,
       ConverterUtils.makeFuncName(substraitExprName, Seq(original.child.dataType)))
     val inputNodes = Lists.newArrayList[ExpressionNode]()
+    val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
+    ExpressionBuilder.makeScalarFunction(functionId, inputNodes, typeNode)
+  }
+}
+
+case class GetArrayStructFieldsTransformer(
+    substraitExprName: String,
+    child: ExpressionTransformer,
+    ordinal: Int,
+    numFields: Int,
+    containsNull: Boolean,
+    original: GetArrayStructFields)
+  extends ExpressionTransformer {
+
+  override def doTransform(args: java.lang.Object): ExpressionNode = {
+    val functionMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
+    val functionId = ExpressionBuilder.newScalarFunction(
+      functionMap,
+      ConverterUtils.makeFuncName(
+        substraitExprName,
+        Seq(original.child.dataType, IntegerType),
+        FunctionConfig.OPT))
+    val inputNodes =
+      Lists.newArrayList(child.doTransform(args), new IntLiteralNode(ordinal))
     val typeNode = ConverterUtils.getTypeNode(original.dataType, original.nullable)
     ExpressionBuilder.makeScalarFunction(functionId, inputNodes, typeNode)
   }

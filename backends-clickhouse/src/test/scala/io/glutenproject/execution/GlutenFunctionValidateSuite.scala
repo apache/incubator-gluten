@@ -618,4 +618,19 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
       }
     }
   }
+
+  test("test function getarraystructfields") {
+    val sql =
+      """
+        |SELECT id,
+        |       struct_array[0].field1,
+        |       struct_array[0].field2
+        |FROM (
+        |  SELECT id,
+        |         array(struct(id as field1, (id+1) as field2)) as struct_array
+        |  FROM range(10)
+        |) t
+      """.stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
 }

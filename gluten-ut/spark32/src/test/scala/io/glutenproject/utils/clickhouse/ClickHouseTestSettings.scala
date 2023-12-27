@@ -670,7 +670,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenComplexTypeSuite]
     .exclude("SPARK-33386: GetArrayItem ArrayIndexOutOfBoundsException")
     .exclude("SPARK-33460: GetMapValue NoSuchElementException")
-    .exclude("GetArrayStructFields")
+    // .exclude("GetArrayStructFields")
     .exclude("CreateMap")
     .exclude("MapFromArrays")
   enableSuite[GlutenConditionalExpressionSuite]

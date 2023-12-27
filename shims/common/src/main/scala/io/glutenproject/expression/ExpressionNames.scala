@@ -218,6 +218,7 @@ object ExpressionNames {
   final val ARRAY_DISTINCT = "array_distinct"
   final val ARRAY_UNION = "array_union"
   final val ARRAY_INTERSECT = "array_intersect"
+  final val GET_ARRAY_STRUCT_FIELDS = "get_array_struct_fields"
 
   // Map functions
   final val CREATE_MAP = "map"
