@@ -27,7 +27,7 @@ import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 import io.glutenproject.utils.VeloxIntermediateData
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateMode, _}
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -194,7 +194,7 @@ abstract class HashAggregateExecTransformer(
       aggregateMode match {
         case Partial =>
           val partialNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
             childrenNodeList,
             modeKeyWord,
             VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
@@ -203,7 +203,7 @@ abstract class HashAggregateExecTransformer(
         case PartialMerge =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
             VeloxAggregateFunctionsBuilder
-              .create(args, aggregateFunction, mixedPartialAndMerge, purePartialMerge),
+              .create(args, aggregateFunction, aggregateMode),
             childrenNodeList,
             modeKeyWord,
             VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
@@ -211,7 +211,7 @@ abstract class HashAggregateExecTransformer(
           aggregateNodeList.add(aggFunctionNode)
         case Final =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
             childrenNodeList,
             modeKeyWord,
             ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
@@ -228,7 +228,7 @@ abstract class HashAggregateExecTransformer(
           case Partial =>
             // For Partial mode output type is binary.
             val partialNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
               childrenNodeList,
               modeKeyWord,
               ConverterUtils.getTypeNode(
@@ -239,7 +239,7 @@ abstract class HashAggregateExecTransformer(
           case Final =>
             // For Final mode output type is long.
             val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
               childrenNodeList,
               modeKeyWord,
               ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
@@ -252,11 +252,7 @@ abstract class HashAggregateExecTransformer(
         generateMergeCompanionNode()
       case _ =>
         val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-          VeloxAggregateFunctionsBuilder.create(
-            args,
-            aggregateFunction,
-            aggregateMode == PartialMerge && mixedPartialAndMerge,
-            aggregateMode == PartialMerge && purePartialMerge),
+          VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
           childrenNodeList,
           modeKeyWord,
           ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
@@ -359,7 +355,8 @@ abstract class HashAggregateExecTransformer(
       val aggFunc = aggregateExpression.aggregateFunction
       val functionInputAttributes = aggFunc.inputAggBufferAttributes
       aggFunc match {
-        case _ if mixedPartialAndMerge && aggregateExpression.mode == Partial =>
+        case _
+            if aggregateExpression.mode == Partial => // FIXME: Any difference with the last branch?
           val childNodes = aggFunc.children
             .map(
               ExpressionConverter
@@ -494,21 +491,6 @@ abstract class HashAggregateExecTransformer(
   }
 
   /**
-   * Whether this is a mixed aggregation of partial and partial-merge aggregation functions.
-   * @return
-   *   whether partial and partial-merge functions coexist.
-   */
-  def mixedPartialAndMerge: Boolean = {
-    val partialMergeExists = aggregateExpressions.exists(_.mode == PartialMerge)
-    val partialExists = aggregateExpressions.exists(_.mode == Partial)
-    partialMergeExists && partialExists
-  }
-
-  def purePartialMerge: Boolean = {
-    aggregateExpressions.forall(_.mode == PartialMerge)
-  }
-
-  /**
    * Create and return the Rel for the this aggregation.
    * @param context
    *   the Substrait context
@@ -584,8 +566,7 @@ object VeloxAggregateFunctionsBuilder {
   def create(
       args: java.lang.Object,
       aggregateFunc: AggregateFunction,
-      forMergeCompanion: Boolean = false,
-      purePartialMerge: Boolean = false): Long = {
+      mode: AggregateMode): Long = {
     val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
 
     var sigName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
@@ -601,23 +582,22 @@ object VeloxAggregateFunctionsBuilder {
       case _ =>
     }
 
-    // Use companion function for partial-merge aggregation functions on count distinct.
-    val substraitAggFuncName = {
-      if (purePartialMerge) {
+    val substraitAggFuncName = mode match {
+      case Partial =>
         sigName.get + "_partial"
-      } else if (forMergeCompanion) {
+      case PartialMerge =>
         sigName.get + "_merge"
-      } else {
+      case Final | Complete =>
         sigName.get
-      }
     }
 
     ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName(
         substraitAggFuncName,
-        VeloxIntermediateData.getInputTypes(aggregateFunc, forMergeCompanion),
-        FunctionConfig.REQ))
+        VeloxIntermediateData.getInputTypes(aggregateFunc, mode == PartialMerge || mode == Final),
+        FunctionConfig.REQ)
+    )
   }
 }
 
