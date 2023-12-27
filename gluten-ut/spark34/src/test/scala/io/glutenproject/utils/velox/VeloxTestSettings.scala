@@ -68,44 +68,14 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
     .exclude("partitioned join: only one side reports partitioning")
     .exclude("partitioned join: join with two partition keys and different # of partition keys")
+    // disable as both checks for SMJ node
     .excludeByPrefix("SPARK-41413: partitioned join:")
-    .exclude("SPARK-42038: partially clustered: with different partition keys and both sides partially clustered")
-    .exclude("SPARK-42038: partially clustered: with different partition keys and missing keys on left-hand side")
-    .exclude("SPARK-42038: partially clustered: with different partition keys and missing keys on right-hand side")
-    .exclude("SPARK-42038: partially clustered: left outer join")
-    .exclude("SPARK-42038: partially clustered: right outer join")
-    .exclude("SPARK-42038: partially clustered: full outer join is not applicable")
-    .exclude("SPARK-42038: partially clustered: with dynamic partition filtering")
+    .excludeByPrefix("SPARK-42038: partially clustered:")
   enableSuite[GlutenLocalScanSuite]
   enableSuite[GlutenMetadataColumnSuite]
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]
   enableSuite[GlutenWriteDistributionAndOrderingSuite]
-    .exclude("ordered distribution and sort with same exprs: append")
-    .exclude("ordered distribution and sort with same exprs: overwrite")
-    .exclude("ordered distribution and sort with same exprs: overwriteDynamic")
-    .exclude("clustered distribution and sort with same exprs: append")
-    .exclude("clustered distribution and sort with same exprs: overwrite")
-    .exclude("clustered distribution and sort with same exprs: overwriteDynamic")
-    .exclude("clustered distribution and sort with extended exprs: append")
-    .exclude("clustered distribution and sort with extended exprs: overwrite")
-    .exclude("clustered distribution and sort with extended exprs: overwriteDynamic")
-    .exclude("ordered distribution and sort with manual global sort: append")
-    .exclude("ordered distribution and sort with manual global sort: overwrite")
-    .exclude("ordered distribution and sort with manual global sort: overwriteDynamic")
-    .exclude("ordered distribution and sort with incompatible global sort: append")
-    .exclude("ordered distribution and sort with incompatible global sort: overwrite")
-    .exclude("ordered distribution and sort with incompatible global sort: overwriteDynamic")
-    .exclude("ordered distribution and sort with manual local sort: append")
-    .exclude("ordered distribution and sort with manual local sort: overwrite")
-    .exclude("ordered distribution and sort with manual local sort: overwriteDynamic")
-    .exclude("clustered distribution and local sort with manual global sort: append")
-    .exclude("clustered distribution and local sort with manual global sort: overwrite")
-    .exclude("clustered distribution and local sort with manual global sort: overwriteDynamic")
-    .exclude("clustered distribution and local sort with manual local sort: append")
-    .exclude("clustered distribution and local sort with manual local sort: overwrite")
-    .exclude("clustered distribution and local sort with manual local sort: overwriteDynamic")
-
   enableSuite[GlutenQueryCompilationErrorsDSv2Suite]
   enableSuite[GlutenQueryCompilationErrorsSuite]
   enableSuite[GlutenQueryExecutionErrorsSuite]
@@ -1123,6 +1093,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenJoinSuite]
     // exclude as it check spark plan
     .exclude("SPARK-36794: Ignore duplicated key when building relation for semi/anti hash join")
+    // exclude as it check for SMJ node
     .exclude(
       "SPARK-43113: Full outer join with duplicate stream-side references in condition (SMJ)")
   enableSuite[GlutenMathFunctionsSuite]
