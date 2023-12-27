@@ -1182,6 +1182,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     return toVeloxPlan(rel.filter());
   } else if (rel.has_join()) {
     return toVeloxPlan(rel.join());
+  } else if (rel.has_cross()) {
+    return toVeloxPlan(rel.cross());
   } else if (rel.has_read()) {
     return toVeloxPlan(rel.read());
   } else if (rel.has_sort()) {

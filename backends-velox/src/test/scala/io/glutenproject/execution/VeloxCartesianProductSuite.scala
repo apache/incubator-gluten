@@ -14,28 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.joins
-
-import io.glutenproject.execution.CartesianProductExecTransformer
+package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, TPCHBase}
-import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
+import org.apache.spark.sql.execution.joins.CartesianProductExec
 
-class GlutenCartesianProductSuite extends TPCHBase with GlutenSQLTestsBaseTrait {
+class VeloxCartesianProductSuite extends VeloxWholeStageTransformerSuite {
+  override protected val backend: String = "velox"
+  override protected val resourcePath: String = "/tpch-data-parquet-velox"
+  override protected val fileFormat: String = "parquet"
 
-  override def sparkConf: SparkConf = {
-    val conf = super.sparkConf
-      .set("spark.sql.crossJoin.enabled", "true")
-      .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-    conf
-  }
+  override protected def sparkConf: SparkConf = super.sparkConf
+    .set("spark.sql.crossJoin.enabled", "true")
+    .set("spark.sql.autoBroadcastJoinThreshold", "-1")
 
   test(
-    GLUTEN_TEST + "cross join with equi join condition should not get " +
+    "cross join with equi join condition should not get " +
       "converted to cartesian product") {
-
-    val query = "select * from lineitem cross join orders on l_orderkey = o_orderkey"
+    createTPCHNotNullTables()
+    val query = "select * from nation cross join region on n_regionkey = r_regionkey"
     val df = sql(query)
     df.collect()
 
@@ -43,8 +40,9 @@ class GlutenCartesianProductSuite extends TPCHBase with GlutenSQLTestsBaseTrait 
     assert(plan.collectWithSubqueries { case c: CartesianProductExecTransformer => c }.isEmpty)
   }
 
-  test(GLUTEN_TEST + "cross join with non equi join conditions are not yet supported") {
-    val query = "select * from lineitem cross join orders on l_orderkey < o_orderkey"
+  test("cross join with non equi join conditions are not yet supported") {
+    createTPCHNotNullTables()
+    val query = "select * from nation cross join region on n_regionkey < r_regionkey"
     val df = sql(query)
     df.collect()
 
@@ -54,9 +52,10 @@ class GlutenCartesianProductSuite extends TPCHBase with GlutenSQLTestsBaseTrait 
   }
 
   test(
-    GLUTEN_TEST + "cross join with no join condition should get converted to  " +
+    "cross join with no join condition should get converted to  " +
       "CartesianProductExecTransformer") {
-    val query = "select * from lineitem cross join orders"
+    createTPCHNotNullTables()
+    val query = "select * from nation cross join region"
     val df = sql(query)
     df.collect()
 
