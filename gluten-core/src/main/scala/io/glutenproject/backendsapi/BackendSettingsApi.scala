@@ -17,6 +17,7 @@
 package io.glutenproject.backendsapi
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.SparkConf
@@ -33,7 +34,7 @@ trait BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String]): Boolean = false
+      paths: Seq[String]): ValidationResult = ValidationResult.ok
   def supportExpandExec(): Boolean = false
   def supportSortExec(): Boolean = false
   def supportSortMergeJoinExec(): Boolean = true

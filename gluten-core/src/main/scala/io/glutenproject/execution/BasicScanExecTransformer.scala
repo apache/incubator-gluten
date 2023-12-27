@@ -83,17 +83,16 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
 
   override protected def doValidateInternal(): ValidationResult = {
     val fileFormat = ConverterUtils.getFileFormat(this)
-    if (
-      !BackendsApiManager.getSettings
-        .supportFileFormatRead(
-          fileFormat,
-          schema.fields,
-          getPartitionSchema.nonEmpty,
-          getInputFilePaths)
-    ) {
-      return ValidationResult.notOk(
-        s"Not supported file format or complex type for scan: $fileFormat")
+    val validationResult = BackendsApiManager.getSettings
+      .supportFileFormatRead(
+        fileFormat,
+        schema.fields,
+        getPartitionSchema.nonEmpty,
+        getInputFilePaths)
+    if (!validationResult.isValid) {
+      return validationResult
     }
+
     val substraitContext = new SubstraitContext
     val relNode = doTransform(substraitContext).root
 

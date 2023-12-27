@@ -19,6 +19,7 @@ package io.glutenproject.backendsapi.velox
 import io.glutenproject.{GlutenConfig, GlutenPlugin, VELOX_BRANCH, VELOX_REVISION, VELOX_REVISION_TIME}
 import io.glutenproject.backendsapi._
 import io.glutenproject.expression.WindowFunctionsBuilder
+import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFormat, OrcReadFormat, ParquetReadFormat}
 
@@ -64,49 +65,52 @@ object BackendSettings extends BackendSettingsApi {
       format: ReadFileFormat,
       fields: Array[StructField],
       partTable: Boolean,
-      paths: Seq[String]): Boolean = {
+      paths: Seq[String]): ValidationResult = {
     // Validate if all types are supported.
-    def validateTypes: Boolean = {
+    def validateTypes(validatorFunc: PartialFunction[DataType, String]): ValidationResult = {
       // Collect unsupported types.
-      val unsupportedDataTypes = fields.map(_.dataType).collect {
-        case _: ByteType => "ByteType"
-        // Parquet scan of nested array with struct/array as element type is not supported in Velox.
-        case arrayType: ArrayType if arrayType.elementType.isInstanceOf[StructType] =>
-          "StructType as element type in ArrayType"
-        case arrayType: ArrayType if arrayType.elementType.isInstanceOf[ArrayType] =>
-          "ArrayType as element type in ArrayType"
-        // Parquet scan of nested map with struct as key type,
-        // or array type as value type is not supported in Velox.
-        case mapType: MapType if mapType.keyType.isInstanceOf[StructType] =>
-          "StructType as Key type in MapType"
-        case mapType: MapType if mapType.valueType.isInstanceOf[ArrayType] =>
-          "ArrayType as Value type in MapType"
+      val unsupportedDataTypeReason = fields.map(_.dataType).collect(validatorFunc)
+      if (unsupportedDataTypeReason.isEmpty) {
+        ValidationResult.ok
+      } else {
+        ValidationResult.notOk(
+          s"Found unsupported data type in $format: ${unsupportedDataTypeReason.mkString(", ")}.")
       }
-      for (unsupportedDataType <- unsupportedDataTypes) {
-        // scalastyle:off println
-        println(
-          s"Validation failed for ${this.getClass.toString}" +
-            s" due to: data type $unsupportedDataType. in file schema. ")
-        // scalastyle:on println
-      }
-      unsupportedDataTypes.isEmpty
     }
 
     format match {
-      case ParquetReadFormat => validateTypes
-      case DwrfReadFormat => true
-      case OrcReadFormat =>
-        val unsupportedDataTypes =
-          fields.map(_.dataType).collect { case _: TimestampType => "TimestampType" }
-        for (unsupportedDataType <- unsupportedDataTypes) {
-          // scalastyle:off println
-          println(
-            s"Validation failed for ${this.getClass.toString}" +
-              s" due to: data type $unsupportedDataType. in file schema. ")
-          // scalastyle:on println
+      case ParquetReadFormat =>
+        val typeValidator: PartialFunction[DataType, String] = {
+          case _: ByteType => "ByteType not support"
+          // Parquet scan of nested array with struct/array as element type is unsupported in Velox.
+          case arrayType: ArrayType if arrayType.elementType.isInstanceOf[StructType] =>
+            "StructType as element in ArrayType"
+          case arrayType: ArrayType if arrayType.elementType.isInstanceOf[ArrayType] =>
+            "ArrayType as element in ArrayType"
+          // Parquet scan of nested map with struct as key type,
+          // or array type as value type is not supported in Velox.
+          case mapType: MapType if mapType.keyType.isInstanceOf[StructType] =>
+            "StructType as Key in MapType"
+          case mapType: MapType if mapType.valueType.isInstanceOf[ArrayType] =>
+            "ArrayType as Value in MapType"
         }
-        unsupportedDataTypes.isEmpty && validateTypes
-      case _ => false
+        validateTypes(typeValidator)
+      case DwrfReadFormat => ValidationResult.ok
+      case OrcReadFormat =>
+        val typeValidator: PartialFunction[DataType, String] = {
+          case _: ByteType => "ByteType not support"
+          case arrayType: ArrayType if arrayType.elementType.isInstanceOf[StructType] =>
+            "StructType as element in ArrayType"
+          case arrayType: ArrayType if arrayType.elementType.isInstanceOf[ArrayType] =>
+            "ArrayType as element in ArrayType"
+          case mapType: MapType if mapType.keyType.isInstanceOf[StructType] =>
+            "StructType as Key in MapType"
+          case mapType: MapType if mapType.valueType.isInstanceOf[ArrayType] =>
+            "ArrayType as Value in MapType"
+          case _: TimestampType => "TimestampType not support"
+        }
+        validateTypes(typeValidator)
+      case _ => ValidationResult.notOk(s"Unsupported file format for $format.")
     }
   }
 
