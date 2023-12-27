@@ -126,6 +126,10 @@ object ConverterUtils extends Logging {
     collectAttributeNamesDFS(attributes)(attr => normalizeColName(attr.name))
   }
 
+  def collectAttributeNames(attributes: Seq[Attribute]): JList[String] = {
+    collectAttributeNamesDFS(attributes)(_.name)
+  }
+
   private def collectAttributeNamesDFS(attributes: Seq[Attribute])(
       f: Attribute => String): JList[String] = {
     val nameList = new JArrayList[String]()

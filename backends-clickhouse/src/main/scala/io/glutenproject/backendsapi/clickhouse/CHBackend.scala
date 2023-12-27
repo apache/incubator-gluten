@@ -30,6 +30,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning}
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 
@@ -269,4 +270,8 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     SparkEnv.get.conf
       .getLong(GLUTEN_MAX_SHUFFLE_READ_BYTES, GLUTEN_MAX_SHUFFLE_READ_BYTES_DEFAULT)
   }
+
+  override def supportWriteFilesExec(
+      format: FileFormat,
+      fields: Array[StructField]): Option[String] = None
 }

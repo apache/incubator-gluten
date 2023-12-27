@@ -29,7 +29,8 @@ import org.apache.spark.sql.catalyst.plans.JoinType
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
-import org.apache.spark.sql.execution.datasources.InsertIntoHadoopFsRelationCommand
+import org.apache.spark.sql.execution.datasources.{FileFormat, InsertIntoHadoopFsRelationCommand}
+import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.expression.UDFResolver
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -112,6 +113,58 @@ object BackendSettings extends BackendSettingsApi {
         validateTypes(typeValidator)
       case _ => ValidationResult.notOk(s"Unsupported file format for $format.")
     }
+  }
+
+  override def supportWriteFilesExec(
+      format: FileFormat,
+      fields: Array[StructField]): Option[String] = {
+    def validateCompressionCodec(): Option[String] = {
+      // Velox doesn't support brotli and lzo.
+      val unSupportedCompressions = Set("brotli, lzo")
+      if (unSupportedCompressions.contains(SQLConf.get.parquetCompressionCodec.toLowerCase())) {
+        Some("brotli or lzo compression codec is not support in velox backend.")
+      } else {
+        None
+      }
+    }
+
+    // Validate if all types are supported.
+    def validateDateTypes(fields: Array[StructField]): Option[String] = {
+      fields.flatMap {
+        field =>
+          field.dataType match {
+            case _: TimestampType => Some("TimestampType")
+            case struct: StructType if validateDateTypes(struct.fields).nonEmpty =>
+              Some("StructType(TimestampType)")
+            case array: ArrayType if array.elementType.isInstanceOf[TimestampType] =>
+              Some("ArrayType(TimestampType)")
+            case map: MapType
+                if map.keyType.isInstanceOf[TimestampType] ||
+                  map.valueType.isInstanceOf[TimestampType] =>
+              Some("MapType(TimestampType)")
+            case _ => None
+          }
+      }.headOption
+    }
+
+    def validateFieldMetadata(fields: Array[StructField]): Option[String] = {
+      if (fields.exists(!_.metadata.equals(Metadata.empty))) {
+        Some("StructField contain the metadata information.")
+      } else None
+    }
+
+    def validateFileFormat(format: FileFormat): Option[String] = {
+      format match {
+        case _: ParquetFileFormat => None
+        case _: FileFormat => Some("Only parquet fileformat is supported in native write.")
+      }
+    }
+
+    val fileFormat = validateFileFormat(format)
+    val metadata = validateFieldMetadata(fields)
+    val dataTypes = validateDateTypes(fields)
+    val compression = validateCompressionCodec()
+    compression.orElse(dataTypes).orElse(metadata).orElse(fileFormat)
   }
 
   override def supportExpandExec(): Boolean = true
