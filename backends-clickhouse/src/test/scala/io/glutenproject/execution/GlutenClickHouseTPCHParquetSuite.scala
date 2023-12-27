@@ -2285,5 +2285,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("GLUTEN-4202: fixed hash partition on null rows") {
+    val sql =
+      """
+        |select a,b,c,d, rank() over (partition by a+d, if (a=3, b, null) sort by c ) as r
+        |from(
+        |select a,b,c,d from
+        |values(0,'d', 4.0,1), (1, 'a', 1.0, 0), (0, 'b', 2.0, 1), (1, 'c', 3.0, 0) as data(a,b,c,d)
+        |)
+        |""".stripMargin
+    runQueryAndCompare(sql)({ _ => })
+  }
 }
 // scalastyle:on line.size.limit
