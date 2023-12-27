@@ -587,7 +587,9 @@ object VeloxAggregateFunctionsBuilder {
         sigName.get + "_partial"
       case PartialMerge =>
         sigName.get + "_merge"
-      case Final | Complete =>
+      case Final =>
+        sigName.get + "_merge_extract"
+      case Complete =>
         sigName.get
     }
 
