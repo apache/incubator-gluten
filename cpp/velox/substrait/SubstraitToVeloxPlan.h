@@ -61,6 +61,9 @@ class SubstraitToVeloxPlanConverter {
       bool validationMode = false)
       : pool_(pool), confMap_(confMap), validationMode_(validationMode) {}
 
+  /// Used to convert Substrait WriteRel into Velox PlanNode.
+  core::PlanNodePtr toVeloxPlan(const ::substrait::WriteRel& writeRel);
+
   /// Used to convert Substrait ExpandRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::ExpandRel& expandRel);
 

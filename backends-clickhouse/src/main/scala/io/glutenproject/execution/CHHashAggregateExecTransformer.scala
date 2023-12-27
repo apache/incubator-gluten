@@ -16,11 +16,13 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.CHHashAggregateExecTransformer.getAggregateResultAttributes
 import io.glutenproject.expression._
-import io.glutenproject.substrait.`type`.TypeNode
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.{AggregationParams, SubstraitContext}
 import io.glutenproject.substrait.expression.{AggregateFunctionNode, ExpressionBuilder, ExpressionNode}
+import io.glutenproject.substrait.extensions.{AdvancedExtensionNode, ExtensionBuilder}
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
 import org.apache.spark.sql.catalyst.expressions._
@@ -29,7 +31,11 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.aggregate.BaseAggregateExec
 import org.apache.spark.sql.types._
 
+import com.google.protobuf.{Any, StringValue}
+
 import java.util
+
+import scala.collection.JavaConverters._
 
 object CHHashAggregateExecTransformer {
   def getAggregateResultAttributes(
@@ -388,5 +394,26 @@ case class CHHashAggregateExecTransformer(
   override protected def withNewChildInternal(
       newChild: SparkPlan): CHHashAggregateExecTransformer = {
     copy(child = newChild)
+  }
+
+  override protected def getAdvancedExtension(
+      validation: Boolean = false,
+      originalInputAttributes: Seq[Attribute] = Seq.empty): AdvancedExtensionNode = {
+    val enhancement = if (validation) {
+      // Use a extension node to send the input types through Substrait plan for validation.
+      val inputTypeNodeList = originalInputAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava
+      Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf)
+    } else {
+      null
+    }
+    val optimizationContent = s"has_required_child_distribution_expressions=" +
+      s"${requiredChildDistributionExpressions.isDefined}\n"
+    val optimization =
+      BackendsApiManager.getTransformerApiInstance.packPBMessage(
+        StringValue.newBuilder.setValue(optimizationContent).build)
+    ExtensionBuilder.makeAdvancedExtension(optimization, enhancement)
+
   }
 }

@@ -2267,5 +2267,23 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
         |""".stripMargin
     runQueryAndCompare(sql)({ _ => })
   }
+
+  test("GLUTEN-4190: crush on flattening a const null column") {
+    val sql =
+      """
+        | select n_nationkey, rank() over (partition by n_regionkey, null order by n_nationkey)
+        |from nation
+        |""".stripMargin
+    runQueryAndCompare(sql)({ _ => })
+  }
+
+  test("GLUTEN-4115 aggregate without any function") {
+    val sql =
+      """
+        | select n_regionkey, n_nationkey from nation group by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
 }
 // scalastyle:on line.size.limit

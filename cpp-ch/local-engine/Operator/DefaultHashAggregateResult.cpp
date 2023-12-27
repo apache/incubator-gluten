@@ -25,6 +25,7 @@
 #include <Operator/ExpandTransorm.h>
 #include <Processors/Chunk.h>
 #include <Processors/IProcessor.h>
+#include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
 #include <Poco/Logger.h>
@@ -114,6 +115,8 @@ public:
             }
             has_input = true;
             output_chunk = DB::Chunk(result_cols, 1);
+            auto info = std::make_shared<DB::AggregatedChunkInfo>();
+            output_chunk.setChunkInfo(info);
             return Status::Ready;
         }
 
@@ -121,6 +124,11 @@ public:
         if (input.hasData())
         {
             output_chunk = input.pull(true);
+            if (!output_chunk.hasChunkInfo())
+            {
+                auto info = std::make_shared<DB::AggregatedChunkInfo>();
+                output_chunk.setChunkInfo(info);
+            }
             has_input = true;
             return Status::Ready;
         }

@@ -37,6 +37,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
+import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, FileScan}
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
@@ -370,6 +371,24 @@ case class TransformPreOverrides(isAdaptiveContext: Boolean)
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
         ExpandExecTransformer(plan.projections, plan.output, child)
+      case plan: WriteFilesExec =>
+        val child = replaceWithTransformerPlan(plan.child)
+        logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+        val writeTransformer = WriteFilesExecTransformer(
+          child,
+          plan.fileFormat,
+          plan.partitionColumns,
+          plan.bucketSpec,
+          plan.options,
+          plan.staticPartitions)
+        BackendsApiManager.getSparkPlanExecApiInstance.createColumnarWriteFilesExec(
+          writeTransformer,
+          plan.fileFormat,
+          plan.partitionColumns,
+          plan.bucketSpec,
+          plan.options,
+          plan.staticPartitions
+        )
       case plan: SortExec =>
         val child = replaceWithTransformerPlan(plan.child)
         logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
