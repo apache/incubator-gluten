@@ -118,4 +118,17 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
       checkAnswer(sql("SELECT s LIKE 'm@@ca' ESCAPE '@' FROM df"), Row(true))
     }
   }
+
+  test(GlutenTestConstants.GLUTEN_TEST + "the escape character is not allowed to end with") {
+    withTempView("df") {
+      Seq("jialiuping").toDF("a").createOrReplaceTempView("df")
+
+      val e = intercept[SparkException] {
+        sql("SELECT a LIKE 'jialiuping%' ESCAPE '%' FROM df").collect()
+      }
+      assert(
+        e.getMessage.contains(
+          "Escape character must be followed by '%', '_' or the escape character itself"))
+    }
+  }
 }
