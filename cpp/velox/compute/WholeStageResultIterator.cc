@@ -82,6 +82,7 @@ const std::string kProcessedStrides = "processedStrides";
 const std::string kRemainingFilterTime = "totalRemainingFilterTime";
 const std::string kIoWaitTime = "ioWaitNanos";
 const std::string kPreloadSplits = "readyPreloadedSplits";
+const std::string kNumWrittenFiles = "numWrittenFiles";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
@@ -305,6 +306,18 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kIoWaitTime)[metricIndex] = runtimeMetric("sum", second->customStats, kIoWaitTime);
       metrics_->get(Metrics::kPreloadSplits)[metricIndex] =
           runtimeMetric("sum", entry.second->customStats, kPreloadSplits);
+
+      // Update the Write metrics.
+      for (int i = 0; i < task_->taskStats().pipelineStats.size(); ++i) {
+        auto operatorStats = task_->taskStats().pipelineStats.at(i).operatorStats;
+        for (int j = 0; j < operatorStats.size(); ++j) {
+          auto operatorStat = operatorStats.at(j);
+          if (operatorStat.operatorType == "TableWrite") {
+            metrics_->get(Metrics::kNumWrittenFiles)[metricIndex] = operatorStat.runtimeStats.at(kNumWrittenFiles).sum;
+            metrics_->get(Metrics::kPhysicalWrittenBytes)[metricIndex] = operatorStat.physicalWrittenBytes;
+          }
+        }
+      }
       metricIndex += 1;
     }
   }
