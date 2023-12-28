@@ -1993,10 +1993,10 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
             {
                 const auto & ifs = if_then.ifs(i);
                 auto if_node = parseArgumentToAST(names, ifs.if_());
-                args.emplace_back(std::move(if_node));
+                args.emplace_back(if_node);
 
                 auto then_node = parseArgumentToAST(names, ifs.then());
-                args.emplace_back(std::move(then_node));
+                args.emplace_back(then_node);
             }
 
             auto else_node = parseArgumentToAST(names, if_then.else_());
