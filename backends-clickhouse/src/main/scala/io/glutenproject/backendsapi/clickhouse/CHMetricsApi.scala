@@ -349,6 +349,16 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
   override def genHashJoinTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new HashJoinMetricsUpdater(metrics)
 
+  def genCartesianProductTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "outputVectors" -> SQLMetrics.createMetric(sparkContext, "number of output vectors"),
+      "outputBytes" -> SQLMetrics.createSizeMetric(sparkContext, "number of output bytes")
+    )
+
+  def genCartesianProductTransformerMetricsUpdater(
+      metrics: Map[String, SQLMetric]): MetricsUpdater = new CartesianProductMetricsUpdater(metrics)
+
   override def genGenerateTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),

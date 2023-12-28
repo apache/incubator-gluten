@@ -186,6 +186,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       right,
       isNullAwareAntiJoin)
 
+  /** Generate CartesianProductExecTransformer */
+  override def genCartesianProductExecTransformer(
+      left: SparkPlan,
+      right: SparkPlan,
+      condition: Option[Expression]): CartesianProductExecTransformer =
+    throw new UnsupportedOperationException(
+      "CartesianProductExecTransformer is not supported in ch backend.")
+
   /** Generate an expression transformer to transform GetMapValue to Substrait. */
   def genGetMapValueTransformer(
       substraitExprName: String,
