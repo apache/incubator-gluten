@@ -108,7 +108,7 @@ case class ColumnarSubqueryBroadcastExec(
         }
         val dataSize = rows.map(_.asInstanceOf[UnsafeRow].getSizeInBytes).sum
         longMetric("dataSize") += dataSize
-        metrics("numOutputRows").add(rows.length)
+        longMetric("numOutputRows") += rows.length
         SQLMetrics.postDriverMetricUpdates(sparkContext, executionId, metrics.values.toSeq)
         rows
       }

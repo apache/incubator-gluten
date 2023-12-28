@@ -484,9 +484,9 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
           scanOption.get
         }
 
-        def getDriverMetrics(plan: SparkPlan, key: String): Option[SQLMetric] = {
-          find(plan) { case _: FileSourceScanExec => true }
-            .flatMap(_.asInstanceOf[FileSourceScanExec].driverMetrics.get(key))
+        def getDriverMetrics(plan: SparkPlan, key: String): Option[SQLMetric] = plan match {
+          case fs: FileSourceScanExec => fs.driverMetrics.get(key)
+          case _ => None
         }
 
         // No dynamic partition pruning, so no static metrics
@@ -496,6 +496,7 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
         val scan1 = getFactScan(df1.queryExecution.executedPlan)
         assert(!scan1.metrics.contains("staticFilesNum"))
         assert(!scan1.metrics.contains("staticFilesSize"))
+
         val allFilesNum: Long = getDriverMetrics(scan1, "numFiles").map(_.value).getOrElse(-1)
         val allFilesSize: Long = getDriverMetrics(scan1, "filesSize").map(_.value).getOrElse(-1)
         val allPartitions: Long =
@@ -606,9 +607,9 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
           scanOption.get
         }
 
-        def getDriverMetrics(plan: SparkPlan, key: String): Option[SQLMetric] = {
-          find(plan) { case _: FileSourceScanExec => true }
-            .flatMap(_.asInstanceOf[FileSourceScanExec].driverMetrics.get(key))
+        def getDriverMetrics(plan: SparkPlan, key: String): Option[SQLMetric] = plan match {
+          case fs: FileSourceScanExec => fs.driverMetrics.get(key)
+          case _ => None
         }
 
         // No dynamic partition pruning, so no static metrics
