@@ -47,7 +47,7 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
   }
 
   override protected def createTPCHNotNullTables(): Unit = {
-    TPCHTables = TPCHTable
+    TPCHTables
       .map(_.name)
       .map {
         table =>
@@ -60,9 +60,7 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
   }
 
   override protected def afterAll(): Unit = {
-    if (TPCHTables != null) {
-      TPCHTables.keys.foreach(v => spark.sql(s"DROP TABLE IF EXISTS $v"))
-    }
+    TPCHTables.map(_.name).foreach(table => spark.sql(s"DROP TABLE IF EXISTS $table"))
     super.afterAll()
   }
 
@@ -96,7 +94,7 @@ class VeloxTPCHIcebergSuite extends VeloxTPCHSuite {
 
 class VeloxPartitionedTableTPCHIcebergSuite extends VeloxTPCHIcebergSuite {
   override protected def createTPCHNotNullTables(): Unit = {
-    TPCHTables = TPCHTable.map {
+    TPCHTables.map {
       table =>
         val tablePath = new File(resourcePath, table.name).getAbsolutePath
         val tableDF = spark.read.format(fileFormat).load(tablePath)

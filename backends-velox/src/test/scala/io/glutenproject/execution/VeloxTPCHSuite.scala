@@ -244,7 +244,7 @@ class VeloxTPCHV2BhjSuite extends VeloxTPCHSuite {
 
 class VeloxPartitionedTableTPCHSuite extends VeloxTPCHSuite {
   override protected def createTPCHNotNullTables(): Unit = {
-    TPCHTables = TPCHTable.map {
+    TPCHTableDataFrames = TPCHTables.map {
       table =>
         val tableDir = getClass.getResource(resourcePath).getFile
         val tablePath = new File(tableDir, table.name).getAbsolutePath
@@ -260,8 +260,8 @@ class VeloxPartitionedTableTPCHSuite extends VeloxTPCHSuite {
   }
 
   override protected def afterAll(): Unit = {
-    if (TPCHTables != null) {
-      TPCHTables.keys.foreach(v => spark.sql(s"DROP TABLE IF EXISTS $v"))
+    if (TPCHTableDataFrames != null) {
+      TPCHTableDataFrames.keys.foreach(table => spark.sql(s"DROP TABLE IF EXISTS $table"))
     }
     super.afterAll()
   }

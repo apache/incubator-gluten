@@ -32,7 +32,7 @@ class VeloxOrcDataTypeValidationSuite extends VeloxWholeStageTransformerSuite {
   }
 
   protected def createDataTypeTable(): Unit = {
-    TPCHTables = Seq(
+    TPCHTableDataFrames = Seq(
       "type1",
       "type2"
     ).map {

@@ -41,7 +41,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   protected val fileFormat: String
   protected val logLevel: String = "WARN"
 
-  protected val TPCHTable = Seq(
+  protected val TPCHTables = Seq(
     Table("part", partitionColumns = "p_brand" :: Nil),
     Table("supplier", partitionColumns = Nil),
     Table("partsupp", partitionColumns = Nil),
@@ -52,7 +52,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
     Table("region", partitionColumns = Nil)
   )
 
-  protected var TPCHTables: Map[String, DataFrame] = _
+  protected var TPCHTableDataFrames: Map[String, DataFrame] = _
 
   private val isFallbackCheckDisabled0 = new AtomicBoolean(false)
 
@@ -67,14 +67,14 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   }
 
   override protected def afterAll(): Unit = {
-    if (TPCHTables != null) {
-      TPCHTables.keys.foreach(v => spark.sessionState.catalog.dropTempView(v))
+    if (TPCHTableDataFrames != null) {
+      TPCHTableDataFrames.keys.foreach(v => spark.sessionState.catalog.dropTempView(v))
     }
     super.afterAll()
   }
 
   protected def createTPCHNotNullTables(): Unit = {
-    TPCHTables = TPCHTable
+    TPCHTableDataFrames = TPCHTables
       .map(_.name)
       .map {
         table =>
