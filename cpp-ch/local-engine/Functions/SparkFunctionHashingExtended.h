@@ -219,7 +219,11 @@ private:
         }
 
         WhichDataType which(removeNullable(from_type->shared_from_this()));
-        if (which.isUInt8())
+
+        /// Skip column with type Nullable(Nothing)
+        if (which.isNothing())
+            ;
+        else if (which.isUInt8())
             executeNumberType<UInt8>(from_const, data_column, null_map, vec_to);
         else if (which.isUInt16())
             executeNumberType<UInt16>(from_const, data_column, null_map, vec_to);
