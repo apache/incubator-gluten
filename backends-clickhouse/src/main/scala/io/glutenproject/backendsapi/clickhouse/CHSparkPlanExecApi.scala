@@ -455,6 +455,14 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
     CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
   }
 
+  override def genPosExplodeTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: PosExplode,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    CHPosExplodeTransformer(substraitExprName, child, original, attributeSeq)
+  }
+
   override def createColumnarWriteFilesExec(
       child: SparkPlan,
       fileFormat: FileFormat,

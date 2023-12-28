@@ -159,6 +159,14 @@ trait SparkPlanExecApi {
       rightNode: ExpressionNode,
       original: GetArrayItem): ExpressionNode
 
+  def genPosExplodeTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: PosExplode,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    PosExplodeTransformer(substraitExprName, child, original, attributeSeq)
+  }
+
   /**
    * Generate ShuffleDependency for ColumnarShuffleExchangeExec.
    *
