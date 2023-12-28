@@ -66,6 +66,11 @@ else()
     include_directories(benchmark_local_engine SYSTEM PUBLIC
         ${ClickHouse_SOURCE_DIR}/utils/extern-local_engine
     )
-    add_executable(benchmark_local_engine benchmark_local_engine.cpp benchmark_parquet_read.cpp benchmark_spark_row.cpp)
+    add_executable(benchmark_local_engine
+        benchmark_local_engine.cpp
+        benchmark_parquet_read.cpp
+        benchmark_spark_row.cpp
+        benchmark_unix_timestamp_function.cpp
+        )
     target_link_libraries(benchmark_local_engine PRIVATE gluten_clickhouse_backend_libs ch_contrib::gbenchmark_all loggers)
 endif()
