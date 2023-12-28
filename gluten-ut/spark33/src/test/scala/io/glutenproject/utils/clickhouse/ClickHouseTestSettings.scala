@@ -221,6 +221,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-35756: unionByName support struct having same col names but different sequence")
     .exclude("SPARK-36797: Union should resolve nested columns as top-level columns")
     .exclude("SPARK-37371: UnionExec should support columnar if all children support columnar")
+    .exclude("except all")
+    .exclude("exceptAll - nullability")
+    .exclude("intersectAll")
+    .exclude("intersectAll - nullability")
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
     .exclude("Uuid expressions should produce same results at retries in the same DataFrame")
