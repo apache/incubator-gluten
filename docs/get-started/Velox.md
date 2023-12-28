@@ -739,7 +739,7 @@ var gluten_root = "/PATH/TO/GLUTEN"
 Below script shows an example about how to run the testing, you should modify the parameters such as executor cores, memory, offHeap size based on your environment. 
 
 ```bash
-export GLUTEN_JAR = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
+export GLUTEN_JAR = /PATH/TO/GLUTEN/package/target/<gluten-jar>
 cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
   --master yarn --deploy-mode client \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
