@@ -1700,10 +1700,14 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
 
         case substrait::Expression::RexTypeCase::kIfThen: {
             const auto & if_then = rel.if_then();
-            auto function_multi_if = DB::FunctionFactory::instance().get("multiIf", context);
+            DB::FunctionOverloadResolverPtr function_ptr = nullptr;
+            auto condition_nums = if_then.ifs_size();
+            if (condition_nums == 1)
+                function_ptr = DB::FunctionFactory::instance().get("if", context);
+            else
+                function_ptr = DB::FunctionFactory::instance().get("multiIf", context);
             DB::ActionsDAG::NodeRawConstPtrs args;
 
-            auto condition_nums = if_then.ifs_size();
             for (int i = 0; i < condition_nums; ++i)
             {
                 const auto & ifs = if_then.ifs(i);
@@ -1717,8 +1721,12 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             const auto * else_node = parseExpression(actions_dag, if_then.else_());
             args.emplace_back(else_node);
             std::string args_name = join(args, ',');
-            auto result_name = "multiIf(" + args_name + ")";
-            const auto * function_node = &actions_dag->addFunction(function_multi_if, args, result_name);
+            std::string result_name;
+            if (condition_nums == 1)
+                result_name = "if(" + args_name + ")";
+            else
+                result_name = "multiIf(" + args_name + ")";
+            const auto * function_node = &actions_dag->addFunction(function_ptr, args, result_name);
             actions_dag->addOrReplaceInOutputs(*function_node);
             return function_node;
         }
@@ -1976,11 +1984,11 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
         }
         case substrait::Expression::RexTypeCase::kIfThen: {
             const auto & if_then = rel.if_then();
-            const auto * ch_function_name = "multiIf";
+            auto condition_nums = if_then.ifs_size();
+            std::string ch_function_name = condition_nums == 1 ? "if" : "multiIf";
             auto function_multi_if = DB::FunctionFactory::instance().get(ch_function_name, context);
             ASTs args;
 
-            auto condition_nums = if_then.ifs_size();
             for (int i = 0; i < condition_nums; ++i)
             {
                 const auto & ifs = if_then.ifs(i);
@@ -1992,6 +2000,7 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
             }
 
             auto else_node = parseArgumentToAST(names, if_then.else_());
+            args.emplace_back(std::move(else_node));
             return makeASTFunction(ch_function_name, args);
         }
         case substrait::Expression::RexTypeCase::kScalarFunction: {

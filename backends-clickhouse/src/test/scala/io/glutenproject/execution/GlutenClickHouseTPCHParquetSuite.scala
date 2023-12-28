@@ -2285,5 +2285,28 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(sql, true, { _ => })
   }
 
+  test("GLUTEN-4202: fixed hash partition on null rows") {
+    val sql =
+      """
+        |select a,b,c,d, rank() over (partition by a+d, if (a=3, b, null) sort by c ) as r
+        |from(
+        |select a,b,c,d from
+        |values(0,'d', 4.0,1), (1, 'a', 1.0, 0), (0, 'b', 2.0, 1), (1, 'c', 3.0, 0) as data(a,b,c,d)
+        |)
+        |""".stripMargin
+    runQueryAndCompare(sql)({ _ => })
+  }
+
+  test("GLUTEN-4085: Fix unix_timestamp") {
+    val tbl_create_sql = "create table test_tbl_4085(id bigint, data string) using parquet";
+    val data_insert_sql =
+      "insert into test_tbl_4085 values(1, '2023-12-18'),(2, '2023-12-19'), (3, '2023-12-20')";
+    val select_sql =
+      "select id, unix_timestamp(to_date(data), 'yyyy-MM-dd') from test_tbl_4085"
+    spark.sql(tbl_create_sql)
+    spark.sql(data_insert_sql)
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_4085")
+  }
 }
 // scalastyle:on line.size.limit
