@@ -94,18 +94,10 @@ public:
         const auto * arr_is_null_node = toFunctionNode(actions_dag, "isNull", {arr_arg});
         const auto * start_is_null_node = toFunctionNode(actions_dag, "isNull", {start_arg});
         const auto * length_is_null_node = toFunctionNode(actions_dag, "isNull", {length_arg});
+        const auto * or_condition_node = toFunctionNode(actions_dag, "or", {arr_is_null_node, start_is_null_node, length_is_null_node});
 
-        const auto * multi_if_ndoe = toFunctionNode(actions_dag, "multiIf", {
-            arr_is_null_node,
-            null_const_node,
-            start_is_null_node,
-            null_const_node,
-            length_is_null_node,
-            null_const_node,
-            wrap_slice_node
-        });
-
-        return multi_if_ndoe;
+        const auto * if_node = toFunctionNode(actions_dag, "if", {or_condition_node, null_const_node, wrap_slice_node });
+        return convertNodeTypeIfNeeded(substrait_func, if_node, actions_dag);
     }
 
 private:
