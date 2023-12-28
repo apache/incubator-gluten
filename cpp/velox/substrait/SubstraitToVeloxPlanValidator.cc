@@ -933,6 +933,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
 
   for (const auto& smea : aggRel.measures()) {
     const auto& aggFunction = smea.measure();
+    const auto& funcStep = planConverter_.toAggregationFunctionStep(aggFunction);
     auto funcSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
     std::vector<TypePtr> types;
     bool isDecimal = false;
@@ -949,7 +950,8 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
           err.message());
       return false;
     }
-    auto funcName = SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
+    auto baseFuncName = SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
+    auto funcName = planConverter_.toAggregationFunctionName(baseFuncName, funcStep);
     auto signaturesOpt = exec::getAggregateFunctionSignatures(funcName);
     if (!signaturesOpt) {
       logValidateMsg(
@@ -962,7 +964,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
       exec::SignatureBinder binder(*signature, types);
       if (binder.tryBind()) {
         auto resolveType = binder.tryResolveType(
-            exec::isPartialOutput(planConverter_.toAggregationStep(aggRel)) ? signature->intermediateType()
+            exec::isPartialOutput(funcStep) ? signature->intermediateType()
                                                                             : signature->returnType());
         if (resolveType == nullptr) {
           logValidateMsg(
@@ -1069,91 +1071,28 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
   // to be registered.
   static const std::unordered_set<std::string> supportedAggFuncs = {
       "sum",
-      "sum_partial",
-      "sum_merge",
-      "sum_merge_extract",
       "collect_set",
       "count",
-      "count_partial",
-      "count_merge",
-      "count_merge_extract",
       "avg",
-      "avg_partial",
-      "avg_merge",
-      "avg_merge_extract",
       "min",
-      "min_partial",
-      "min_merge",
-      "min_merge_extract",
       "max",
-      "max_partial",
-      "max_merge",
-      "max_merge_extract",
       "min_by",
-      "min_by_partial",
-      "min_by_merge",
-      "min_by_merge_extract",
       "max_by",
-      "max_by_partial",
-      "max_by_merge",
-      "max_by_merge_extract",
       "stddev_samp",
-      "stddev_samp_partial",
-      "stddev_samp_merge",
-      "stddev_samp_merge_extract",
       "stddev_pop",
-      "stddev_pop_partial",
-      "stddev_pop_merge",
-      "stddev_pop_merge_extract",
       "bloom_filter_agg",
       "var_samp",
-      "var_samp_partial",
-      "var_samp_merge",
-      "var_samp_merge_extract",
       "var_pop",
-      "var_pop_partial",
-      "var_pop_merge",
-      "var_pop_merge_extract",
       "bit_and",
-      "bit_and_partial",
-      "bit_and_merge",
-      "bit_and_merge_extract",
       "bit_or",
-      "bit_or_partial",
-      "bit_or_merge",
-      "bit_or_merge_extract",
       "bit_xor",
-      "bit_xor_partial",
-      "bit_xor_merge",
-      "bit_xor_merge_extract",
       "first",
-      "first_partial",
-      "first_merge",
-      "first_merge_extract",
       "first_ignore_null",
-      "first_ignore_null_partial",
-      "first_ignore_null_merge",
-      "first_ignore_null_merge_extract",
       "last",
-      "last_partial",
-      "last_merge",
-      "last_merge_extract",
       "last_ignore_null",
-      "last_ignore_null_partial",
-      "last_ignore_null_merge",
-      "last_ignore_null_merge_extract",
       "corr",
-      "corr_partial",
-      "corr_merge",
-      "corr_merge_extract",
       "covar_pop",
-      "covar_pop_partial",
-      "covar_pop_merge",
-      "covar_pop_merge_extract",
       "covar_samp",
-      "covar_samp_partial",
-      "covar_samp_merge",
-      "covar_samp_merge_extract",
       "approx_distinct"};
 
   for (const auto& funcSpec : funcSpecs) {

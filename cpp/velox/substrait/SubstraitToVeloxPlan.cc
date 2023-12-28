@@ -202,6 +202,32 @@ core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationStep(con
   return core::AggregationNode::Step::kSingle;
 }
 
+/// Get aggregation function step for AggregateFunction.
+/// The returned step value will be used to decide which Velox aggregate function or companion function
+/// is used for the actual data processing.
+core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationFunctionStep(const ::substrait::AggregateFunction& sAggFuc) {
+  const auto& phase = sAggFuc.phase();
+  switch(phase) {
+    case ::substrait::AGGREGATION_PHASE_UNSPECIFIED:
+      VELOX_FAIL("Aggregation phase not specufied.")
+      break;
+    case ::substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE:
+      return core::AggregationNode::Step::kPartial;
+    case ::substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE:
+      return core::AggregationNode::Step::kIntermediate;
+    case ::substrait::AGGREGATION_PHASE_INITIAL_TO_RESULT:
+      return core::AggregationNode::Step::kSingle;
+    case ::substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT:
+      return core::AggregationNode::Step::kFinal;
+    default:
+      VELOX_FAIL("Unexpected aggregation phase.")
+  }
+}
+
+std::string SubstraitToVeloxPlanConverter::toAggregationFunctionName(const std::string& baseName, const core::AggregationNode::Step& step) {
+  // todo
+}
+
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::JoinRel& sJoin) {
   if (!sJoin.has_left()) {
     VELOX_FAIL("Left Rel is expected in JoinRel.");
@@ -338,7 +364,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       }
     }
     const auto& aggFunction = measure.measure();
-    auto funcName = SubstraitParser::findVeloxFunction(functionMap_, aggFunction.function_reference());
+    auto baseFuncName = SubstraitParser::findVeloxFunction(functionMap_, aggFunction.function_reference());
+    auto funcName = toAggregationFunctionName(baseFuncName, toAggregationFunctionStep(aggFunction));
     std::vector<core::TypedExprPtr> aggParams;
     aggParams.reserve(aggFunction.arguments().size());
     for (const auto& arg : aggFunction.arguments()) {
