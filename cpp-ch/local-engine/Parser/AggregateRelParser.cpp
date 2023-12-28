@@ -245,7 +245,8 @@ void AggregateRelParser::addMergingAggregatedStep()
     AggregateDescriptions aggregate_descriptions;
     buildAggregateDescriptions(aggregate_descriptions);
     auto settings = getContext()->getSettingsRef();
-    Aggregator::Params params(grouping_keys, aggregate_descriptions, false, settings.max_threads, settings.max_block_size);
+    Aggregator::Params params(
+        grouping_keys, aggregate_descriptions, false, settings.max_threads, settings.max_block_size, settings.min_hit_rate_to_use_consecutive_keys_optimization);
     bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", false);
     if (enable_streaming_aggregating)
     {
@@ -300,7 +301,9 @@ void AggregateRelParser::addAggregatingStep()
             settings.max_block_size,
             /*enable_prefetch*/ true,
             /*only_merge*/ false,
-            settings.optimize_group_by_constant_keys);
+            settings.optimize_group_by_constant_keys,
+            settings.min_hit_rate_to_use_consecutive_keys_optimization,
+            /*StatsCollectingParams*/{});
         auto aggregating_step = std::make_unique<StreamingAggregatingStep>(getContext(), plan->getCurrentDataStream(), params);
         steps.emplace_back(aggregating_step.get());
         plan->addStep(std::move(aggregating_step));
@@ -325,7 +328,9 @@ void AggregateRelParser::addAggregatingStep()
             settings.max_block_size,
             /*enable_prefetch*/ true,
             /*only_merge*/ false,
-            settings.optimize_group_by_constant_keys);
+            settings.optimize_group_by_constant_keys,
+            settings.min_hit_rate_to_use_consecutive_keys_optimization,
+            /*StatsCollectingParams*/{});
 
         auto aggregating_step = std::make_unique<AggregatingStep>(
             plan->getCurrentDataStream(),
