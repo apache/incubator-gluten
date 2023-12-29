@@ -15,10 +15,11 @@
  * limitations under the License.
  */
 
+#include <Poco/Logger.h>
 #include <Common/AggregateUtil.h>
 #include <Common/Exception.h>
 #include <Common/Stopwatch.h>
-#include <Poco/Logger.h>
+#include <Common/formatReadable.h>
 #include <Common/logger_useful.h>
 
 namespace DB
@@ -118,11 +119,11 @@ bool AggregateDataBlockConverter::hasNext()
             auto & block = *optional_block;
             LOG_DEBUG(
                 &Poco::Logger::get("AggregateDataBlockConverter"),
-                "convert bucket {} into one block, rows: {}, cols: {}, bytes:{}, total bucket: {}, total rows: {}, time: {}",
+                "Convert bucket {} into one block, rows: {}, cols: {}, bytes:{}, total bucket: {}, total rows: {}, time: {}",
                 current_bucket,
                 block.rows(),
                 block.columns(),
-                block.bytes(),
+                ReadableSize(block.allocatedBytes()),
                 buckets_num,
                 data_variants->size(),
                 watch.elapsedMilliseconds());
@@ -132,17 +133,30 @@ bool AggregateDataBlockConverter::hasNext()
         }
         else
         {
+            size_t keys = data_variants->size();
             auto blocks = aggregator.convertToBlocks(*data_variants, final, 1);
+            size_t total_allocated_bytes = 0;
+            size_t total_bytes = 0;
             while (!blocks.empty())
             {
                 if (blocks.front().rows())
+                {
+                    total_allocated_bytes += blocks.front().allocatedBytes();
+                    total_bytes += blocks.front().bytes();
                     output_blocks.emplace_back(std::move(blocks.front()));
+                }
                 blocks.pop_front();
             }
+            LOG_DEBUG(
+                &Poco::Logger::get("AggregateDataBlockConverter"),
+                "Convert single level hash table into blocks. blocks: {}, total bytes: {}, total allocated bytes: {}, total rows: {}",
+                output_blocks.size(),
+                ReadableSize(total_bytes),
+                ReadableSize(total_allocated_bytes),
+                keys);
+            data_variants = nullptr;
         }
         ++current_bucket;
-        if (!output_blocks.empty())
-            break;
     }
     return !output_blocks.empty();
 }

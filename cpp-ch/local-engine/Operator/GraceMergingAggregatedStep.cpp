@@ -107,10 +107,13 @@ GraceMergingAggregatedTransform::GraceMergingAggregatedTransform(const DB::Block
     max_buckets = context->getConfigRef().getUInt64("max_grace_merging_buckets", 32);
     throw_on_overflow_buckets = context->getConfigRef().getBool("throw_on_overflow_grace_merging_buckets", false);
     aggregated_keys_before_extend_buckets = context->getConfigRef().getUInt64("aggregated_keys_before_extend_grace_merging_buckets", 8196);
+    aggregated_keys_before_extend_buckets = PODArrayUtil::adjustMemoryEfficientSize(aggregated_keys_before_extend_buckets);
     max_pending_flush_blocks_per_bucket = context->getConfigRef().getUInt64("max_pending_flush_blocks_per_grace_merging_bucket", 1024 * 1024);
     max_allowed_memory_usage_ratio = context->getConfigRef().getDouble("max_allowed_memory_usage_ratio", 0.9);
     // bucket 0 is for in-memory data, it's just a placeholder.
     buckets.emplace(0, BufferFileStream());
+
+    current_data_variants = std::make_shared<DB::AggregatedDataVariants>();
 }
 
 GraceMergingAggregatedTransform::~GraceMergingAggregatedTransform()
@@ -142,6 +145,12 @@ GraceMergingAggregatedTransform::Status GraceMergingAggregatedTransform::prepare
     {
         if (output.canPush())
         {
+            LOG_DEBUG(
+                logger,
+                "Output one chunk. rows: {}, bytes: {}, current memory usage: {}",
+                output_chunk.getNumRows(),
+                ReadableSize(output_chunk.bytes()),
+                ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
             total_output_rows += output_chunk.getNumRows();
             total_output_blocks++;
             output.push(std::move(output_chunk));
@@ -165,6 +174,12 @@ GraceMergingAggregatedTransform::Status GraceMergingAggregatedTransform::prepare
         if (!input.hasData())
             return Status::NeedData;
         input_chunk = input.pull(true);
+        LOG_DEBUG(
+            logger,
+            "Input one new chunk. rows: {}, bytes: {}, current memory usage: {}",
+            input_chunk.getNumRows(),
+            ReadableSize(input_chunk.bytes()),
+            ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
         total_input_rows += input_chunk.getNumRows();
         total_input_blocks++;
         has_input = true;
@@ -231,6 +246,8 @@ bool GraceMergingAggregatedTransform::extendBuckets()
 
     auto current_size = getBucketsNum();
     auto next_size = current_size * 2;
+    /// We have a soft limit on the number of buckets. When throw_on_overflow_buckets = false, we just
+    /// continue to run with the current number of buckets until the executor is killed by spark scheduler.
     if (next_size > max_buckets)
     {
         if (throw_on_overflow_buckets)
@@ -241,7 +258,7 @@ bool GraceMergingAggregatedTransform::extendBuckets()
         else
          return false;
     }
-    LOG_INFO(logger, "extend buckets from {} to {}", current_size, next_size);
+    LOG_DEBUG(logger, "Extend buckets num from {} to {}", current_size, next_size);
     for (size_t i = current_size; i < next_size; ++i)
         buckets.emplace(i, BufferFileStream());
     return true;
@@ -249,29 +266,42 @@ bool GraceMergingAggregatedTransform::extendBuckets()
 
 void GraceMergingAggregatedTransform::rehashDataVariants()
 {
-    AggregateDataBlockConverter converter(params->aggregator, current_data_variants, false);
+    auto before_memoery_usage = MemoryUtil::getCurrentMemoryUsage();
+
+    auto converter = currentDataVariantToBlockConverter(false);
+    checkAndSetupCurrentDataVariants();
     size_t block_rows = 0;
     size_t block_memory_usage = 0;
     no_more_keys = false;
-    auto new_data_variants = std::make_shared<DB::AggregatedDataVariants>();
-    while(converter.hasNext())
+
+    size_t bucket_n = 0;
+    while(converter->hasNext())
     {
-        auto block = converter.next();
+        auto block = converter->next();
+        if (!block.rows())
+            continue;
         block_rows += block.rows();
         block_memory_usage += block.allocatedBytes();
-
         auto scattered_blocks = scatterBlock(block);
         block = {};
+        /// the new scattered blocks from block will alway belongs to the buckets with index >= current_bucket_index
         for (size_t i = current_bucket_index + 1; i < getBucketsNum(); ++i)
         {
             addBlockIntoFileBucket(i, scattered_blocks[i]);
             scattered_blocks[i] = {};
         }
-        params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *new_data_variants, no_more_keys);
+        params->aggregator.mergeOnBlock(scattered_blocks[current_bucket_index], *current_data_variants, no_more_keys);
     }
     if (block_rows)
         per_key_memory_usage = block_memory_usage * 1.0 / block_rows;
-    current_data_variants = new_data_variants;
+
+    LOG_INFO(
+        logger,
+        "Rehash data variants. current_bucket_index: {}, buckets num: {}, memory usage change, from {} to {}",
+        current_bucket_index,
+        getBucketsNum(),
+        ReadableSize(before_memoery_usage),
+        ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
 };
 
 DB::Blocks GraceMergingAggregatedTransform::scatterBlock(const DB::Block & block)
@@ -280,8 +310,6 @@ DB::Blocks GraceMergingAggregatedTransform::scatterBlock(const DB::Block & block
         return {};
     Stopwatch watch;
     size_t bucket_num = getBucketsNum();
-    if (static_cast<size_t>(block.info.bucket_num) == bucket_num)
-        return {block};
     auto blocks = DB::JoinCommon::scatterBlockByHash(params->params.keys, block, bucket_num);
     for (auto & new_block : blocks)
     {
@@ -296,27 +324,24 @@ void GraceMergingAggregatedTransform::addBlockIntoFileBucket(size_t bucket_index
     if (!block.rows())
         return;
     auto & file_stream = buckets[bucket_index];
-    pending_flush_blocks_bytes += block.bytes();
+    file_stream.pending_bytes += block.allocatedBytes();
     file_stream.blocks.push_back(block);
+    if (file_stream.pending_bytes > max_pending_flush_blocks_per_bucket)
+    {
+        flushBucket(bucket_index);
+        file_stream.pending_bytes = 0;
+    }
 }
 
 void GraceMergingAggregatedTransform::flushBuckets()
 {
-    if (pending_flush_blocks_bytes < getBucketsNum() * max_pending_flush_blocks_per_bucket)
-        return;
-    auto before_mem = MemoryUtil::getCurrentMemoryUsage();
-    size_t flush_bytes = 0;
-    Stopwatch watch;
     for (size_t i = current_bucket_index + 1; i < getBucketsNum(); ++i)
-        flush_bytes += flushBucket(i);
-    total_spill_disk_time += watch.elapsedMilliseconds();
-    total_spill_disk_bytes += flush_bytes;
-    LOG_INFO(logger, "flush {} in {} ms, memoery usage: {} -> {}", ReadableSize(flush_bytes), watch.elapsedMilliseconds(), ReadableSize(before_mem), ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
-    pending_flush_blocks_bytes = 0;
+        flushBucket(i);
 }
 
 size_t GraceMergingAggregatedTransform::flushBucket(size_t bucket_index)
 {
+    Stopwatch watch;
     auto & file_stream = buckets[bucket_index];
     if (file_stream.blocks.empty())
         return 0;
@@ -334,7 +359,7 @@ size_t GraceMergingAggregatedTransform::flushBucket(size_t bucket_index)
             file_stream.blocks.pop_front();
         }
         auto bucket = blocks.front().info.bucket_num;
-        auto merged_block = DB::concatenateBlocks(blocks);
+        auto merged_block = BlockUtil::concatenateBlocksMemoryEfficiently(std::move(blocks));
         merged_block.info.bucket_num = bucket;
         blocks.clear();
         flush_bytes += merged_block.bytes();
@@ -343,6 +368,10 @@ size_t GraceMergingAggregatedTransform::flushBucket(size_t bucket_index)
             file_stream.file_stream->write(merged_block);
         }
     }
+    if (flush_bytes)
+        file_stream.file_stream->flush();
+    total_spill_disk_bytes += flush_bytes;
+    total_spill_disk_time += watch.elapsedMilliseconds();
     return flush_bytes;
 }
 
@@ -360,11 +389,7 @@ std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::pr
     size_t read_rows = 0;
     Stopwatch watch;
 
-    if (!current_data_variants)
-    {
-        current_data_variants =  std::make_shared<DB::AggregatedDataVariants>();
-        no_more_keys = false;
-    }
+    checkAndSetupCurrentDataVariants();
 
     if (buffer_file_stream.file_stream)
     {
@@ -390,12 +415,13 @@ std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::pr
             block = {};
         }
     }
-    auto converter = std::make_unique<AggregateDataBlockConverter>(params->aggregator, current_data_variants, true);
+
+    auto converter = currentDataVariantToBlockConverter(true);
     LOG_INFO(
         logger,
-        "prepare to output bucket {}, aggregated keys: {}, keys size: {}, read bytes: {}, read rows: {}, time: {} ms",
+        "prepare to output bucket {}, aggregated result keys: {}, keys size: {}, read bytes from disk: {}, read rows: {}, time: {} ms",
         bucket_index,
-        current_data_variants->size(),
+        last_data_variants_size,
         params->params.keys_size,
         ReadableSize(read_bytes),
         read_rows,
@@ -403,19 +429,45 @@ std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::pr
     return std::move(converter);
 }
 
+std::unique_ptr<AggregateDataBlockConverter> GraceMergingAggregatedTransform::currentDataVariantToBlockConverter(bool final)
+{
+    if (!current_data_variants)
+    {
+        throw DB::Exception(DB::ErrorCodes::LOGICAL_ERROR, "current data variants is null");
+    }
+    last_data_variants_type = current_data_variants->type;
+    last_data_variants_size = current_data_variants->size();
+    auto converter = std::make_unique<AggregateDataBlockConverter>(params->aggregator, current_data_variants, final);
+    current_data_variants = nullptr;
+    return std::move(converter);
+}
+
+void GraceMergingAggregatedTransform::checkAndSetupCurrentDataVariants()
+{
+    if (!current_data_variants)
+    {
+        current_data_variants = std::make_shared<DB::AggregatedDataVariants>();
+        if (last_data_variants_size)
+        {
+            // it's helpful to cut the overhead of changing single level hash table into two level
+            // and rehashing the hash table.
+            current_data_variants->init(last_data_variants_type, last_data_variants_size);
+        }
+        no_more_keys = false;
+    }
+}
+
 void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
 {
     if (!block.rows())
         return;
-    if (!current_data_variants)
-    {
-        current_data_variants =  std::make_shared<DB::AggregatedDataVariants>();
-        no_more_keys = false;
-    }
 
+    checkAndSetupCurrentDataVariants();
+
+    // first to flush pending bytes into disk.
     if (isMemoryOverflow())
         flushBuckets();
-
+    // then try to extend buckets.
     if (isMemoryOverflow() && extendBuckets())
     {
         rehashDataVariants();
@@ -431,12 +483,15 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
         getBucketsNum(),
         ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
 
+    /// the block could be one read from disk. block.info.bucket_num stores the number of buckets when it was scattered.
+    /// so if the buckets number is not changed since it was scattered, we don't need to scatter it again.
     if (block.info.bucket_num == static_cast<Int32>(getBucketsNum()) || getBucketsNum() == 1)
     {
         params->aggregator.mergeOnBlock(block, *current_data_variants, no_more_keys);
     }
     else
     {
+        auto bucket_num = block.info.bucket_num;
         auto scattered_blocks = scatterBlock(block);
         for (size_t i = current_bucket_index + 1; i < getBucketsNum(); ++i)
         {
@@ -449,6 +504,8 @@ void GraceMergingAggregatedTransform::mergeOneBlock(const DB::Block &block)
 bool GraceMergingAggregatedTransform::isMemoryOverflow()
 {
     /// More greedy memory usage strategy.
+    if (!current_data_variants)
+        return false;
     if (!context->getSettingsRef().max_memory_usage)
         return false;
     auto max_mem_used = static_cast<size_t>(context->getSettingsRef().max_memory_usage * max_allowed_memory_usage_ratio);

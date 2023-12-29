@@ -20,6 +20,7 @@
 
 namespace DB
 {
+/// Util class to access private methods of Aggregator.
 class GlutenAggregatorUtil
 {
 public:
@@ -31,7 +32,7 @@ public:
 
 namespace local_engine
 {
-
+/// Act like a iterator to convert AggregatedDataVariants to block stream.
 /// Once data_variants is passed to this class, it should not be changed elsewhere.
 class AggregateDataBlockConverter
 {
@@ -43,6 +44,7 @@ public:
 private:
     DB::Aggregator & aggregator;
     DB::AggregatedDataVariantsPtr data_variants;
+    /// Convert the aggregated states into final data or not.
     bool final;
     Int32 buckets_num = 0;
     Int32 current_bucket = 0;

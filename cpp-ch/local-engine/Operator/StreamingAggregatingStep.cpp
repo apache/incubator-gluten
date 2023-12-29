@@ -42,6 +42,7 @@ StreamingAggregatingTransform::StreamingAggregatingTransform(DB::ContextPtr cont
     , params(params_)
 {
     aggregated_keys_before_evict = context->getConfigRef().getUInt64("aggregated_keys_before_streaming_aggregating_evict", 1024);
+    aggregated_keys_before_evict = PODArrayUtil::adjustMemoryEfficientSize(aggregated_keys_before_evict);
     max_allowed_memory_usage_ratio = context->getConfigRef().getDouble("max_memory_usage_ratio_for_streaming_aggregating", 0.9);
     high_cardinality_threshold = context->getConfigRef().getDouble("high_cardinality_threshold_for_streaming_aggregating", 0.8);
 }
@@ -51,14 +52,15 @@ StreamingAggregatingTransform::~StreamingAggregatingTransform()
     LOG_INFO(
         logger,
         "Metrics. total_input_blocks: {}, total_input_rows: {},  total_output_blocks: {}, total_output_rows: {}, "
-        "total_clear_data_variants_num: {}, total_aggregate_time: {}, total_convert_data_variants_time: {}",
+        "total_clear_data_variants_num: {}, total_aggregate_time: {}, total_convert_data_variants_time: {}, current mem usage: {}",
         total_input_blocks,
         total_input_rows,
         total_output_blocks,
         total_output_rows,
         total_clear_data_variants_num,
         total_aggregate_time,
-        total_convert_data_variants_time);
+        total_convert_data_variants_time,
+        ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
 }
 
 StreamingAggregatingTransform::Status StreamingAggregatingTransform::prepare()
@@ -74,6 +76,12 @@ StreamingAggregatingTransform::Status StreamingAggregatingTransform::prepare()
     {
         if (output.canPush())
         {
+            LOG_DEBUG(
+                logger,
+                "Output one chunk. rows: {}, bytes: {}, current memory usage: {}",
+                output_chunk.getNumRows(),
+                ReadableSize(output_chunk.bytes()),
+                ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
             total_output_rows += output_chunk.getNumRows();
             total_output_blocks++;
             if (!output_chunk.getNumRows())
@@ -89,7 +97,10 @@ StreamingAggregatingTransform::Status StreamingAggregatingTransform::prepare()
 
     if (input.isFinished())
     {
+        /// to trigger the evict action anyway.
         input_finished = true;
+
+        /// data is not cleared
         if (data_variants || (block_converter && block_converter->hasNext()))
         {
             has_input = true;
@@ -108,6 +119,12 @@ StreamingAggregatingTransform::Status StreamingAggregatingTransform::prepare()
         return Status::NeedData;
     }
     input_chunk = input.pull(true);
+    LOG_DEBUG(
+        logger,
+        "Input one new chunk. rows: {}, bytes: {}, current memory usage: {}",
+        input_chunk.getNumRows(),
+        ReadableSize(input_chunk.bytes()),
+        ReadableSize(MemoryUtil::getCurrentMemoryUsage()));
     total_input_rows += input_chunk.getNumRows();
     total_input_blocks++;
     has_input = true;
@@ -118,11 +135,12 @@ bool StreamingAggregatingTransform::needEvict()
 {
     if (input_finished)
         return true;
-    /// More greedy memory usage strategy.
     if (!context->getSettingsRef().max_memory_usage)
         return false;
+
     auto max_mem_used = static_cast<size_t>(context->getSettingsRef().max_memory_usage * max_allowed_memory_usage_ratio);
     auto current_result_rows = data_variants->size();
+    /// avoid evict empty or too small aggregated results. 
     if (current_result_rows < aggregated_keys_before_evict)
         return false;
     
@@ -134,6 +152,7 @@ bool StreamingAggregatingTransform::needEvict()
     auto current_mem_used = MemoryUtil::getCurrentMemoryUsage();
     if (per_key_memory_usage > 0)
     {
+        /// When we know each key memory usage, we can take a more greedy memory usage strategy
         if (current_mem_used + per_key_memory_usage * current_result_rows >= max_mem_used)
         {
             LOG_INFO(
@@ -148,6 +167,8 @@ bool StreamingAggregatingTransform::needEvict()
     }
     else
     {
+        /// For safety, we should evict data variants when memory usage is overflow on half of max usage at the firs time.
+        /// Usually, the peak memory usage to convert aggregated data variant into blocks is about double of the hash table.
         if (current_mem_used * 2 >= max_mem_used)
         {
             LOG_INFO(
@@ -197,6 +218,7 @@ void StreamingAggregatingTransform::work()
 
     if (has_input)
     {
+        /// If there is a AggregateDataBlockConverter in working, generate one block and return.
         if (pop_one_pending_block())
             return;
         if (block_converter)
@@ -205,7 +227,13 @@ void StreamingAggregatingTransform::work()
         }
 
         if (!data_variants)
+        {
             data_variants = std::make_shared<DB::AggregatedDataVariants>();
+            if (last_data_variants_size)
+            {
+                data_variants->init(last_data_variants_type, last_data_variants_size);
+            }
+        }
 
         has_input = false;
         if (input_chunk.getNumRows())
@@ -220,6 +248,8 @@ void StreamingAggregatingTransform::work()
 
         if (needEvict())
         {
+            last_data_variants_size = data_variants->size();
+            last_data_variants_type = data_variants->type;
             block_converter = std::make_unique<AggregateDataBlockConverter>(params->aggregator, data_variants, false);
             data_variants = nullptr;
             total_clear_data_variants_num++;

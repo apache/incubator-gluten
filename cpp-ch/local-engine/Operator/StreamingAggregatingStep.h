@@ -33,6 +33,9 @@
 
 namespace local_engine
 {
+/// A memory efficient aggregating processor.
+/// When the memory usage reaches the limit, it will evict current AggregatedDataVariants and generate
+/// intermediate aggregated result blocks, and its downstream processor should be GraceMergingAggregatedTransform.
 class StreamingAggregatingTransform : public DB::IProcessor
 {
 public:
@@ -50,12 +53,13 @@ private:
     DB::AggregatingTransformParamsPtr params;
 
     /// Followings are configurations defined in context config.
-    // Even the memory usage has reached the limit, we still allow to aggregate some more keys.
+    /// In extreme cases, other operators may occupy very large memory, and keep this processor evicting
+    /// empty or very small aggregated data variants. Add a size limit to avoid this situation.
     size_t aggregated_keys_before_evict = 1024;
-    // The ratio of memory usage to the total memory usage of the whole query.
+    // Avoid this processor take the whole remained memory and make other processors OOM.
     double max_allowed_memory_usage_ratio = 0.9;
-    // If the cardinality of a key is larger than this threshold, we will evict data before the
-    // the hash table grows too large.
+    // If the cardinality of the keys is larger than this threshold, we will evict data once the keys size in
+    // aggregate data variant is over aggregated_keys_before_evict, avoid the aggregated hash table becomes too large.
     double high_cardinality_threshold = 0.8;
 
     bool no_more_keys = false;
@@ -72,6 +76,8 @@ private:
     Poco::Logger * logger = &Poco::Logger::get("StreamingAggregatingTransform");
 
     double per_key_memory_usage = 0;
+    DB::AggregatedDataVariants::Type last_data_variants_type = DB::AggregatedDataVariants::Type::EMPTY;
+    size_t last_data_variants_size = 0;
 
     // metrics
     size_t total_input_blocks = 0;

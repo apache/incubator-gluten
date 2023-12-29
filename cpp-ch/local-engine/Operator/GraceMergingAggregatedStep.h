@@ -31,6 +31,9 @@
 
 namespace local_engine
 {
+/// It's used to merged aggregated data from intermediate aggregate stages, it's the final stage of
+/// aggregating.
+/// It support spilling data into disk when the memory usage is overflow.
 class GraceMergingAggregatedStep : public DB::ITransformingStep
 {
 public:
@@ -87,6 +90,7 @@ private:
     {
         std::list<DB::Block> blocks;
         DB::TemporaryFileStream * file_stream = nullptr;
+        size_t pending_bytes = 0;
     };
     std::unordered_map<size_t, BufferFileStream> buckets;
 
@@ -94,10 +98,17 @@ private:
     bool extendBuckets();
     void rehashDataVariants();
     DB::Blocks scatterBlock(const DB::Block & block);
+    /// Add a block into a bucket, if the pending bytes reaches limit, flush it into disk.
     void addBlockIntoFileBucket(size_t bucket_index, const DB::Block & block);
     void flushBuckets();
     size_t flushBucket(size_t bucket_index);
+    /// Load blocks from disk and merge them into a new hash table, make a new AggregateDataBlockConverter
+    /// to generate output blocks.
     std::unique_ptr<AggregateDataBlockConverter> prepareBucketOutputBlocks(size_t bucket);
+    /// Pass current_final_blocks into a new AggregateDataBlockConverter to generate output blocks.
+    std::unique_ptr<AggregateDataBlockConverter> currentDataVariantToBlockConverter(bool final);
+    void checkAndSetupCurrentDataVariants();
+    /// Merge one block into current_data_variants.
     void mergeOneBlock(const DB::Block &block);
     bool isMemoryOverflow();
 
@@ -111,7 +122,9 @@ private:
     bool no_more_keys = false;
 
     double per_key_memory_usage = 0;
-    size_t pending_flush_blocks_bytes = 0;
+    // record the last data variants type and size, improve the performance of subsequent processing
+    DB::AggregatedDataVariants::Type last_data_variants_type = DB::AggregatedDataVariants::Type::EMPTY;
+    size_t last_data_variants_size = 0;
 
     // metrics
     size_t total_input_blocks = 0;
