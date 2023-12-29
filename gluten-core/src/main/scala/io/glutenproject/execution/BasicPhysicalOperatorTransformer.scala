@@ -340,7 +340,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
  * Contains functions for the comparision and separation of the filter conditions in Scan and
  * Filter. Contains the function to manually push down the conditions into Scan.
  */
-object FilterHandler {
+object FilterHandler extends PredicateHelper {
 
   /**
    * Get the original filter conditions in Scan for the comparison with those in Filter.
@@ -369,28 +369,6 @@ object FilterHandler {
   }
 
   /**
-   * Flatten the condition connected with 'And'. Return the filter conditions with sequence.
-   *
-   * @param condition
-   *   : the condition connected with 'And'
-   * @return
-   *   flattened conditions in sequence
-   */
-  def flattenCondition(condition: Expression): Seq[Expression] = {
-    var expressions: Seq[Expression] = Seq()
-    condition match {
-      case and: And =>
-        and.children.foreach(
-          expression => {
-            expressions ++= flattenCondition(expression)
-          })
-      case _ =>
-        expressions = expressions :+ condition
-    }
-    expressions
-  }
-
-  /**
    * Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
    *
    * @param scanFilters
@@ -400,15 +378,8 @@ object FilterHandler {
    * @return
    *   the filter conditions not pushed down into Scan.
    */
-  def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] = {
-    var leftFilters: Seq[Expression] = Seq()
-    for (expression <- filters) {
-      if (!scanFilters.exists(_.semanticEquals(expression))) {
-        leftFilters = leftFilters :+ expression.clone()
-      }
-    }
-    leftFilters
-  }
+  def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] =
+    (ExpressionSet(filters) -- ExpressionSet(scanFilters)).toSeq
 
   // Separate and compare the filter conditions in Scan and Filter.
   // Push down the left conditions in Filter into Scan.
@@ -416,7 +387,7 @@ object FilterHandler {
     filter.child match {
       case fileSourceScan: FileSourceScanExec =>
         val leftFilters =
-          getLeftFilters(fileSourceScan.dataFilters, flattenCondition(filter.condition))
+          getLeftFilters(fileSourceScan.dataFilters, splitConjunctivePredicates(filter.condition))
         ScanTransformerFactory.createFileSourceScanTransformer(
           fileSourceScan,
           reuseSubquery,
