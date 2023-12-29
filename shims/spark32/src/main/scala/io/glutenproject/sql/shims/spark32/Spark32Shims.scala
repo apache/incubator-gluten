@@ -16,6 +16,7 @@
  */
 package io.glutenproject.sql.shims.spark32
 
+import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
@@ -24,6 +25,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.plans.physical.{Distribution, HashClusteredDistribution}
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
@@ -106,4 +108,8 @@ class Spark32Shims extends SparkShims {
       agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean = false
 
   override def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan] = None
+
+  override def getExtendedColumnarPostRules(session: SparkSession): Option[Rule[SparkPlan]] = {
+    Some(GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRules(session))
+  }
 }

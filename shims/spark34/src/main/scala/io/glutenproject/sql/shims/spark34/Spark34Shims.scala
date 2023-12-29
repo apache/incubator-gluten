@@ -29,6 +29,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanLike, PartitionedFileUtil, SparkPlan}
@@ -155,4 +156,6 @@ class Spark34Shims extends SparkShims {
       messageParameters = Map("path" -> path),
       cause = null)
   }
+
+  override def getExtendedColumnarPostRules(session: SparkSession): Option[Rule[SparkPlan]] = None
 }

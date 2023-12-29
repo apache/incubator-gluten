@@ -17,6 +17,7 @@
 package io.glutenproject.sql.shims.spark33
 
 import io.glutenproject.GlutenConfig
+import io.glutenproject.execution.datasource.GlutenParquetWriterInjects
 import io.glutenproject.expression.{ExpressionNames, Sig}
 import io.glutenproject.sql.shims.{ShimDescriptor, SparkShims}
 
@@ -27,6 +28,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, PartitionedFileUtil, SparkPlan}
@@ -150,5 +152,9 @@ class Spark33Shims extends SparkShims {
       errorClass = "INVALID_BUCKET_FILE",
       messageParameters = Array(path),
       cause = null)
+  }
+
+  override def getExtendedColumnarPostRules(session: SparkSession): Option[Rule[SparkPlan]] = {
+    Some(GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRules(session))
   }
 }
