@@ -317,7 +317,9 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "dataSize" -> SQLMetrics.createMetric(sparkContext, "data size (bytes)"),
-      "collectTime" -> SQLMetrics.createMetric(sparkContext, "time to collect (ms)"))
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "collectTime" -> SQLMetrics.createMetric(sparkContext, "time to collect (ms)")
+    )
 
   override def genHashJoinTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
