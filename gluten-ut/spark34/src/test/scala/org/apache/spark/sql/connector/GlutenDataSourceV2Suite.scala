@@ -74,7 +74,8 @@ class GlutenDataSourceV2Suite extends DataSourceV2Suite with GlutenSQLTestsBaseT
       ).foreach {
         cls =>
           withClue(cls.getName) {
-            // we test report ordering (together with report partitioning) with these transformations:
+            // we test report ordering (together with report partitioning) with these
+            // transformations:
             // - groupBy("i").flatMapGroups:
             //   hash-partitions by "i" and sorts each partition by "i"
             //   requires partitioning and sort by "i"
