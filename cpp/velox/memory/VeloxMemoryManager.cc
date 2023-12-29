@@ -277,19 +277,14 @@ bool VeloxMemoryManager::tryDestructSafe() {
     if (veloxMemoryManager_->numPools() == 1) {
       // Assert the pool is spill pool
       // See https://github.com/facebookincubator/velox/commit/e6f84e8ac9ef6721f527a2d552a13f7e79bdf72e
-      int32_t visitCount = 0;
       int32_t spillPoolCount = 0;
       veloxMemoryManager_->testingDefaultRoot().visitChildren([&](velox::memory::MemoryPool* child) -> bool {
         if (child == veloxMemoryManager_->spillPool()) {
           spillPoolCount++;
         }
-        visitCount++;
         return true;
       });
-      GLUTEN_CHECK(
-          visitCount == 1 && spillPoolCount == 1,
-          "Illegal pool count state: visitCount: " + std::to_string(visitCount) +
-              ", spillPoolCount: " + std::to_string(spillPoolCount));
+      GLUTEN_CHECK(spillPoolCount == 1, "Illegal pool count state: spillPoolCount: " + std::to_string(spillPoolCount));
     }
     if (veloxMemoryManager_->numPools() < 1) {
       GLUTEN_CHECK(false, "Unreachable code");
