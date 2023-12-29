@@ -950,7 +950,8 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
           err.message());
       return false;
     }
-    auto baseFuncName = SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
+    auto baseFuncName =
+        SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
     auto funcName = planConverter_.toAggregationFunctionName(baseFuncName, funcStep);
     auto signaturesOpt = exec::getAggregateFunctionSignatures(funcName);
     if (!signaturesOpt) {
@@ -964,8 +965,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
       exec::SignatureBinder binder(*signature, types);
       if (binder.tryBind()) {
         auto resolveType = binder.tryResolveType(
-            exec::isPartialOutput(funcStep) ? signature->intermediateType()
-                                                                            : signature->returnType());
+            exec::isPartialOutput(funcStep) ? signature->intermediateType() : signature->returnType());
         if (resolveType == nullptr) {
           logValidateMsg(
               "native validation failed due to: Validation failed for function " + funcName +
