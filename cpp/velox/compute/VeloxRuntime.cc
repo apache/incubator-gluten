@@ -161,7 +161,8 @@ std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
     const std::string& filePath,
     MemoryManager* memoryManager,
     std::shared_ptr<arrow::Schema> schema) {
-  auto veloxPool = getAggregateVeloxPool(memoryManager);
+  static std::atomic_uint32_t id{0UL};
+  auto veloxPool = getAggregateVeloxPool(memoryManager)->addAggregateChild("datasource." + std::to_string(id));
   // Pass a dedicate pool for S3 sink as can't share veloxPool
   // with parquet writer.
   auto s3SinkPool = getLeafVeloxPool(memoryManager);
