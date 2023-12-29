@@ -109,7 +109,7 @@ class Spark32Shims extends SparkShims {
 
   override def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan] = None
 
-  override def getExtendedColumnarPostRules(session: SparkSession): Option[Rule[SparkPlan]] = {
-    Some(GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRules(session))
+  override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
+    List(session => GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRule(session))
   }
 }

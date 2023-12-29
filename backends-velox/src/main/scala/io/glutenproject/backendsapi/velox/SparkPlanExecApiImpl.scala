@@ -496,16 +496,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-
-    List(
-      spark =>
-        if (SparkShimLoader.getSparkShims.getExtendedColumnarPostRules(spark).nonEmpty) {
-          SparkShimLoader.getSparkShims.getExtendedColumnarPostRules(spark).get
-        } else {
-          new Rule[SparkPlan] {
-            override def apply(plan: SparkPlan): SparkPlan = plan
-          }
-        })
+    SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
   }
 
   /**

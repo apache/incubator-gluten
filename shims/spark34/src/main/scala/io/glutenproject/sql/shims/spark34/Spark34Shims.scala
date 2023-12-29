@@ -157,5 +157,5 @@ class Spark34Shims extends SparkShims {
       cause = null)
   }
 
-  override def getExtendedColumnarPostRules(session: SparkSession): Option[Rule[SparkPlan]] = None
+  override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
 }

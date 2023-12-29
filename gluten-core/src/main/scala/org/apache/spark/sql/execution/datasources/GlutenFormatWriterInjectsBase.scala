@@ -70,7 +70,7 @@ trait GlutenFormatWriterInjectsBase extends GlutenFormatWriterInjects {
     FakeRowAdaptor(wst).execute()
   }
 
-  override def getExtendedColumnarPostRules(session: SparkSession): Rule[SparkPlan] = {
+  override def getExtendedColumnarPostRule(session: SparkSession): Rule[SparkPlan] = {
     NativeWritePostRule(session)
   }
 }

@@ -88,5 +88,5 @@ trait SparkShims {
 
   def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan]
 
-  def getExtendedColumnarPostRules(session: SparkSession): Option[Rule[SparkPlan]]
+  def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
 }

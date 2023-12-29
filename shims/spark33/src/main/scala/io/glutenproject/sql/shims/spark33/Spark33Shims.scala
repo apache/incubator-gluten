@@ -154,7 +154,7 @@ class Spark33Shims extends SparkShims {
       cause = null)
   }
 
-  override def getExtendedColumnarPostRules(session: SparkSession): Option[Rule[SparkPlan]] = {
-    Some(GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRules(session))
+  override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
+    List(session => GlutenParquetWriterInjects.getInstance().getExtendedColumnarPostRule(session))
   }
 }

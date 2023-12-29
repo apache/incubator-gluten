@@ -49,7 +49,7 @@ trait GlutenFormatWriterInjects {
 
   def getFormatName(): String
 
-  def getExtendedColumnarPostRules(session: SparkSession): Rule[SparkPlan]
+  def getExtendedColumnarPostRule(session: SparkSession): Rule[SparkPlan]
 }
 
 trait GlutenRowSplitter {
