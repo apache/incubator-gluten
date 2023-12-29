@@ -324,8 +324,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       throw new SparkException(
         s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
     }
-    numOutputRows += countsAndBytes.map(_._1).sum
-    ClickHouseBuildSideRelation(mode, newOutput, batches.flatten, newBuildKeys)
+    val rowCount = countsAndBytes.map(_._1).sum
+    numOutputRows += rowCount
+    ClickHouseBuildSideRelation(mode, newOutput, batches.flatten, rowCount, newBuildKeys)
   }
 
   /**

@@ -26,7 +26,6 @@ import io.substrait.proto.NamedStruct;
 import io.substrait.proto.Type;
 import org.apache.spark.sql.catalyst.expressions.Attribute;
 import org.apache.spark.sql.catalyst.expressions.Expression;
-import org.apache.spark.storage.CHShuffleReadStreamFactory;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -41,7 +40,8 @@ public class StorageJoinBuilder {
 
   private static native long nativeBuild(
       String buildHashTableId,
-      ShuffleInputStream in,
+      byte[] in,
+      long rowCount,
       String joinKeys,
       int joinType,
       byte[] namedStruct);
@@ -51,38 +51,35 @@ public class StorageJoinBuilder {
   /** build storage join object */
   public static long build(
       byte[] batches,
+      long rowCount,
       BroadCastHashJoinContext broadCastContext,
       List<Expression> newBuildKeys,
       List<Attribute> newOutput) {
-    ShuffleInputStream in = CHShuffleReadStreamFactory.create(batches, true);
-    try {
-      ConverterUtils$ converter = ConverterUtils$.MODULE$;
-      List<Expression> keys;
-      List<Attribute> output;
-      if (newBuildKeys.isEmpty()) {
-        keys = JavaConverters.<Expression>seqAsJavaList(broadCastContext.buildSideJoinKeys());
-        output = JavaConverters.<Attribute>seqAsJavaList(broadCastContext.buildSideStructure());
-      } else {
-        keys = newBuildKeys;
-        output = newOutput;
-      }
-      String joinKey =
-          keys.stream()
-              .map(
-                  (Expression key) -> {
-                    Attribute attr = converter.getAttrFromExpr(key, false);
-                    return converter.genColumnNameWithExprId(attr);
-                  })
-              .collect(Collectors.joining(","));
-      return nativeBuild(
-          broadCastContext.buildHashTableId(),
-          in,
-          joinKey,
-          SubstraitUtil.toSubstrait(broadCastContext.joinType()).ordinal(),
-          toNameStruct(output).toByteArray());
-    } finally {
-      in.close();
+    ConverterUtils$ converter = ConverterUtils$.MODULE$;
+    List<Expression> keys;
+    List<Attribute> output;
+    if (newBuildKeys.isEmpty()) {
+      keys = JavaConverters.<Expression>seqAsJavaList(broadCastContext.buildSideJoinKeys());
+      output = JavaConverters.<Attribute>seqAsJavaList(broadCastContext.buildSideStructure());
+    } else {
+      keys = newBuildKeys;
+      output = newOutput;
     }
+    String joinKey =
+        keys.stream()
+            .map(
+                (Expression key) -> {
+                  Attribute attr = converter.getAttrFromExpr(key, false);
+                  return converter.genColumnNameWithExprId(attr);
+                })
+            .collect(Collectors.joining(","));
+    return nativeBuild(
+        broadCastContext.buildHashTableId(),
+        batches,
+        rowCount,
+        joinKey,
+        SubstraitUtil.toSubstrait(broadCastContext.joinType()).ordinal(),
+        toNameStruct(output).toByteArray());
   }
 
   /** create table named struct */

@@ -34,7 +34,8 @@ class ReadBufferFromJavaInputStream;
 class ShuffleReader : BlockIterator
 {
 public:
-    explicit ShuffleReader(std::unique_ptr<DB::ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_);
+    explicit ShuffleReader(
+        std::unique_ptr<DB::ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_);
     DB::Block * read();
     ~ShuffleReader();
     static jclass input_stream_class;
@@ -51,7 +52,7 @@ private:
 };
 
 
-class ReadBufferFromJavaInputStream : public DB::BufferWithOwnMemory<DB::ReadBuffer>
+class ReadBufferFromJavaInputStream final : public DB::BufferWithOwnMemory<DB::ReadBuffer>
 {
 public:
     explicit ReadBufferFromJavaInputStream(jobject input_stream);
@@ -59,7 +60,19 @@ public:
 
 private:
     jobject java_in;
-    int readFromJava();
+    int readFromJava() const;
+    bool nextImpl() override;
+};
+
+class ReadBufferFromByteArray final : public DB::BufferWithOwnMemory<DB::ReadBuffer>
+{
+public:
+    ReadBufferFromByteArray(const jbyteArray array, const size_t array_size) : array_(array), array_size_(array_size) { }
+
+private:
+    const jbyteArray array_;
+    const size_t array_size_;
+    size_t read_pos_ = 0;
     bool nextImpl() override;
 };
 
