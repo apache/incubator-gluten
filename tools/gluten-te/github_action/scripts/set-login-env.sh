@@ -14,12 +14,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -ex
-
-if [ -z "$GITHUB_RUN_ID" ]
-then
-  echo "Unable to parse GITHUB_RUN_ID."
-  exit 1
-fi
-
-docker stop gha-checkout-$GITHUB_JOB-$GITHUB_RUN_ID || true
+ENV="$*"
+echo "export $ENV" >> /etc/profile.d/99-gluten.sh

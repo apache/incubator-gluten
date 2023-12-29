@@ -16,10 +16,26 @@
 
 set -ex
 
+BASEDIR=$(readlink -f $(dirname $0))
+
+source "$BASEDIR/defaults.conf"
+
 if [ -z "$GITHUB_RUN_ID" ]
 then
   echo "Unable to parse GITHUB_RUN_ID."
   exit 1
 fi
 
-docker stop gha-checkout-$GITHUB_JOB-$GITHUB_RUN_ID || true
+export EXTRA_DOCKER_OPTIONS="$EXTRA_DOCKER_OPTIONS --name gha-checkout-$GITHUB_JOB-$GITHUB_RUN_ID --detach -v $BASEDIR/scripts:/opt/scripts"
+export NON_INTERACTIVE=ON
+
+$BASEDIR/cbash-build.sh 'sleep 14400'
+
+# The target branches
+TARGET_GLUTEN_REPO=${TARGET_GLUTEN_REPO:-$DEFAULT_GLUTEN_REPO}
+FALLBACK_GLUTEN_BRANCH=${FALLBACK_GLUTEN_BRANCH:-$DEFAULT_GLUTEN_BRANCH}
+FALLBACK_GLUTEN_COMMIT="$(git ls-remote $TARGET_GLUTEN_REPO $FALLBACK_GLUTEN_BRANCH | awk '{print $1;}')"
+
+TARGET_GLUTEN_COMMIT="${GITHUB_SHA:-$FALLBACK_GLUTEN_COMMIT}"
+
+$BASEDIR/exec.sh "/opt/scripts/init.sh $TARGET_GLUTEN_REPO $TARGET_GLUTEN_COMMIT"

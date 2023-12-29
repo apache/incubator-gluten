@@ -16,10 +16,10 @@
 
 set -ex
 
-if [ -z "$GITHUB_RUN_ID" ]
-then
-  echo "Unable to parse GITHUB_RUN_ID."
-  exit 1
-fi
+TARGET_GLUTEN_REPO=$1
+TARGET_GLUTEN_COMMIT=$2
 
-docker stop gha-checkout-$GITHUB_JOB-$GITHUB_RUN_ID || true
+cd /opt/gluten
+
+git fetch $TARGET_GLUTEN_REPO $TARGET_GLUTEN_COMMIT:build_$TARGET_GLUTEN_COMMIT
+git checkout build_$TARGET_GLUTEN_COMMIT

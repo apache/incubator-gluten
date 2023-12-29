@@ -1,0 +1,75 @@
+ARG OS_IMAGE
+
+FROM $OS_IMAGE AS gluten-buildenv
+MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
+
+SHELL ["/bin/bash", "-c"]
+
+# REQUIRED PROXYS: WGET, GIT, MAVEN (also Maven mirror)
+ARG HTTP_PROXY_HOST
+ARG HTTP_PROXY_PORT
+
+ENV http_proxy=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
+ENV https_proxy=${HTTP_PROXY_HOST:+"http://$HTTP_PROXY_HOST:$HTTP_PROXY_PORT"}
+
+ARG MAVEN_MIRROR_URL
+
+RUN if [ -n "$MAVEN_MIRROR_URL" ]; \
+    then \
+      MAVEN_SETTINGS_TEMPLATE="<settings><mirrors><mirror><id>mavenmirror</id><mirrorOf>central</mirrorOf><name>MavenMirror</name><url>{{MAVEN_MIRROR_URL}}</url></mirror></mirrors><proxies><proxy><id>httpproxy</id><active>{{MAVEN_PROXY_ENABLE}}</active><protocol>http</protocol><host>{{MAVEN_PROXY_HOST}}</host><port>{{MAVEN_PROXY_PORT}}</port></proxy><proxy><id>httpsproxy</id><active>{{MAVEN_PROXY_ENABLE}}</active><protocol>https</protocol><host>{{MAVEN_PROXY_HOST}}</host><port>{{MAVEN_PROXY_PORT}}</port></proxy></proxies></settings>"; \
+      MAVEN_SETTINGS_TEMPLATE=$(echo $MAVEN_SETTINGS_TEMPLATE | sed "s@{{MAVEN_MIRROR_URL}}@$MAVEN_MIRROR_URL@g"); \
+    else \
+      MAVEN_SETTINGS_TEMPLATE="<settings><proxies><proxy><id>httpproxy</id><active>{{MAVEN_PROXY_ENABLE}}</active><protocol>http</protocol><host>{{MAVEN_PROXY_HOST}}</host><port>{{MAVEN_PROXY_PORT}}</port></proxy><proxy><id>httpsproxy</id><active>{{MAVEN_PROXY_ENABLE}}</active><protocol>https</protocol><host>{{MAVEN_PROXY_HOST}}</host><port>{{MAVEN_PROXY_PORT}}</port></proxy></proxies></settings>"; \
+    fi \
+    && if [ -n "$HTTP_PROXY_HOST" ]; \
+    then \
+      MAVEN_SETTINGS_TEMPLATE=$(echo $MAVEN_SETTINGS_TEMPLATE | sed "s/{{MAVEN_PROXY_ENABLE}}/true/g"); \
+      MAVEN_SETTINGS_TEMPLATE=$(echo $MAVEN_SETTINGS_TEMPLATE | sed "s/{{MAVEN_PROXY_HOST}}/$HTTP_PROXY_HOST/g"); \
+      MAVEN_SETTINGS_TEMPLATE=$(echo $MAVEN_SETTINGS_TEMPLATE | sed "s/{{MAVEN_PROXY_PORT}}/$HTTP_PROXY_PORT/g"); \
+    else \
+      MAVEN_SETTINGS_TEMPLATE=$(echo $MAVEN_SETTINGS_TEMPLATE | sed "s/{{MAVEN_PROXY_ENABLE}}/false/g"); \
+      MAVEN_SETTINGS_TEMPLATE=$(echo $MAVEN_SETTINGS_TEMPLATE | sed "s/{{MAVEN_PROXY_HOST}}/localhost/g"); \
+      MAVEN_SETTINGS_TEMPLATE=$(echo $MAVEN_SETTINGS_TEMPLATE | sed "s/{{MAVEN_PROXY_PORT}}/8888/g"); \
+    fi \
+    && MAVEN_SETTINGS=$MAVEN_SETTINGS_TEMPLATE \
+    && mkdir -p /root/.m2/ \
+    && echo $MAVEN_SETTINGS > /root/.m2/settings.xml
+
+# Display environment information
+RUN ulimit -a
+RUN env
+RUN cat /root/.m2/settings.xml
+
+# Install deps from repo
+ARG OS_VERSION
+COPY centos-$OS_VERSION-deps.sh /tmp/deps.sh
+RUN /tmp/deps.sh \
+  && rm /tmp/deps.sh \
+  && yum clean all \
+  && dnf clean all \
+  && rm -rf /var/cache/yum
+
+# Install deps from url
+ENV PATH="$PATH:/usr/lib/jvm/java-1.8.0-openjdk/bin"
+RUN wget https://downloads.apache.org/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz && \
+    tar -xvf apache-maven-3.8.8-bin.tar.gz && \
+    rm apache-maven-3.8.8-bin.tar.gz && \
+    mv apache-maven-3.8.8 /usr/lib/maven
+
+# # Build & install Spark 3.2.2
+# RUN cd /opt && git clone --depth 1 --branch v3.2.2 https://github.com/apache/spark.git spark322
+# RUN cd /opt/spark322 && ./build/mvn -Pyarn -DskipTests clean install
+
+# # Build & install Spark 3.3.1
+# RUN cd /opt && git clone --depth 1 --branch v3.3.1 https://github.com/apache/spark.git spark331
+# RUN cd /opt/spark331 && ./build/mvn -Pyarn -DskipTests clean install
+
+ENV PATH="$PATH:/usr/lib/maven/bin"
+ENV LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib:/usr/lib64:/usr/lib:/lib64:/lib
+
+# Velox setup scripts require sudo
+RUN yum -y install sudo \
+    && yum clean all
+RUN echo '%wheel ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+COPY scripts/env.sh /env.sh
