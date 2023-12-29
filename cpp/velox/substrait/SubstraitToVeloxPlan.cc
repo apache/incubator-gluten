@@ -205,9 +205,10 @@ core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationStep(con
 /// Get aggregation function step for AggregateFunction.
 /// The returned step value will be used to decide which Velox aggregate function or companion function
 /// is used for the actual data processing.
-core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationFunctionStep(const ::substrait::AggregateFunction& sAggFuc) {
+core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationFunctionStep(
+    const ::substrait::AggregateFunction& sAggFuc) {
   const auto& phase = sAggFuc.phase();
-  switch(phase) {
+  switch (phase) {
     case ::substrait::AGGREGATION_PHASE_UNSPECIFIED:
       VELOX_FAIL("Aggregation phase not specufied.")
       break;
@@ -224,8 +225,27 @@ core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationFunction
   }
 }
 
-std::string SubstraitToVeloxPlanConverter::toAggregationFunctionName(const std::string& baseName, const core::AggregationNode::Step& step) {
-  // todo
+std::string SubstraitToVeloxPlanConverter::toAggregationFunctionName(
+    const std::string& baseName,
+    const core::AggregationNode::Step& step) {
+  std::string suffix;
+  switch (step) {
+    case core::AggregationNode::Step::kPartial:
+      suffix = "_partial";
+      break;
+    case core::AggregationNode::Step::kFinal:
+      suffix = "_merge_extract";
+      break;
+    case core::AggregationNode::Step::kIntermediate:
+      suffix = "_merge";
+      break;
+    case core::AggregationNode::Step::kSingle:
+      suffix = "";
+      break;
+    default:
+      VELOX_FAIL("Unexpected aggregation node step.")
+  }
+  return baseName + suffix;
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::JoinRel& sJoin) {
