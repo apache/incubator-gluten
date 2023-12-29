@@ -16,7 +16,7 @@
 name: Code style checks
 
 on:
-  pull_request_target
+  pull_request
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}

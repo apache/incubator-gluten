@@ -16,7 +16,7 @@
 name: Velox backend Performance Tests on Merge
 
 on:
-  pull_request_target:
+  pull_request:
     types: [ closed ]
     branches:
       - main
