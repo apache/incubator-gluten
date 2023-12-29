@@ -56,6 +56,7 @@ cd /path/to/gluten
 ## After a complete build, if you need to re-build the project and only some gluten code is changed,
 ## you can use the following command to skip building velox and protobuf.
 # ./dev/buildbundle-veloxbe.sh --enable_ep_cache=ON --build_protobuf=OFF
+## If you have the same error with issue-3283, you need to add the parameter `--compile_arrow_java=ON`
 ```
 
 **For aarch64 build:**

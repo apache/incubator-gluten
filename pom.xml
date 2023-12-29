@@ -49,7 +49,7 @@
     <spark.version>3.4.1</spark.version>
     <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
     <celeborn.version>0.3.0-incubating</celeborn.version>
-    <arrow.version>12.0.0</arrow.version>
+    <arrow.version>14.0.1</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>2.7.4</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -231,7 +231,7 @@
       </modules>
       <properties>
         <backend_type>velox</backend_type>
-        <arrow.version>12.0.0</arrow.version>
+        <arrow.version>14.0.1</arrow.version>
         <build_velox_backend>ON</build_velox_backend>
       </properties>
     </profile>
