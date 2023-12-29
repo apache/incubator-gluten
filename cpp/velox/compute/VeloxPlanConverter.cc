@@ -212,6 +212,7 @@ std::shared_ptr<const facebook::velox::core::PlanNode> VeloxPlanConverter::toVel
     }
   }
   auto veloxPlan = substraitVeloxPlanConverter_.toVeloxPlan(substraitPlan);
+  DLOG(INFO) << "Plan Node: " << std::endl << veloxPlan->toString(true, true);
   return veloxPlan;
 }
 

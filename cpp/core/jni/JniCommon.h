@@ -105,11 +105,13 @@ static inline jmethodID getStaticMethodIdOrError(JNIEnv* env, jclass thisClass, 
 static inline void attachCurrentThreadAsDaemonOrThrow(JavaVM* vm, JNIEnv** out) {
   int getEnvStat = vm->GetEnv(reinterpret_cast<void**>(out), jniVersion);
   if (getEnvStat == JNI_EDETACHED) {
+    DLOG(INFO) << "JNIEnv was not attached to current thread.";
     // Reattach current thread to JVM
     getEnvStat = vm->AttachCurrentThreadAsDaemon(reinterpret_cast<void**>(out), NULL);
     if (getEnvStat != JNI_OK) {
       throw gluten::GlutenException("Failed to reattach current thread to JVM.");
     }
+    DLOG(INFO) << "Succeeded attaching current thread.";
     return;
   }
   if (getEnvStat != JNI_OK) {

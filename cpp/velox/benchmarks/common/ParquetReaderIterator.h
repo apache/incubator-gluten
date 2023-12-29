@@ -50,11 +50,13 @@ class ParquetStreamReaderIterator final : public ParquetReaderIterator {
  public:
   explicit ParquetStreamReaderIterator(const std::string& path) : ParquetReaderIterator(path) {
     createReader();
+    DLOG(INFO) << "ParquetStreamReaderIterator open file: " << path;
   }
 
   std::shared_ptr<gluten::ColumnarBatch> next() override {
     auto startTime = std::chrono::steady_clock::now();
     GLUTEN_ASSIGN_OR_THROW(auto batch, recordBatchReader_->Next());
+    DLOG(INFO) << "ParquetStreamReaderIterator get a batch, num rows: " << (batch ? batch->num_rows() : 0);
     collectBatchTime_ +=
         std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - startTime).count();
     if (batch == nullptr) {
@@ -70,6 +72,12 @@ class ParquetBufferedReaderIterator final : public ParquetReaderIterator {
     createReader();
     collectBatches();
     iter_ = batches_.begin();
+    DLOG(INFO) << "ParquetBufferedReaderIterator open file: " << path;
+    DLOG(INFO) << "Number of input batches: " << std::to_string(batches_.size());
+    if (iter_ != batches_.cend()) {
+      DLOG(INFO) << "columns: " << (*iter_)->num_columns();
+      DLOG(INFO) << "rows: " << (*iter_)->num_rows();
+    }
   }
 
   std::shared_ptr<gluten::ColumnarBatch> next() override {
