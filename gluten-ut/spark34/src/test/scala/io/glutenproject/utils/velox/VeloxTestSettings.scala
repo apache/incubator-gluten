@@ -58,7 +58,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceV2SQLSuiteV1Filter]
   enableSuite[GlutenDataSourceV2SQLSuiteV2Filter]
   enableSuite[GlutenDataSourceV2Suite]
-    // Rewrite the following test in GlutenDataSourceV2Suite.
+    // Rewrite the following tests in GlutenDataSourceV2Suite.
     .exclude("partitioning reporting")
     .exclude("ordering and partitioning reporting")
   enableSuite[GlutenDeleteFromTableSuite]
@@ -68,54 +68,25 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
     .exclude("partitioned join: only one side reports partitioning")
     .exclude("partitioned join: join with two partition keys and different # of partition keys")
+    // disable as both checks for SMJ node
     .excludeByPrefix("SPARK-41413: partitioned join:")
-    .exclude("SPARK-42038: partially clustered: with different partition keys and both sides partially clustered")
-    .exclude("SPARK-42038: partially clustered: with different partition keys and missing keys on left-hand side")
-    .exclude("SPARK-42038: partially clustered: with different partition keys and missing keys on right-hand side")
-    .exclude("SPARK-42038: partially clustered: left outer join")
-    .exclude("SPARK-42038: partially clustered: right outer join")
-    .exclude("SPARK-42038: partially clustered: full outer join is not applicable")
-    .exclude("SPARK-42038: partially clustered: with dynamic partition filtering")
+    .excludeByPrefix("SPARK-42038: partially clustered:")
   enableSuite[GlutenLocalScanSuite]
   enableSuite[GlutenMetadataColumnSuite]
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]
   enableSuite[GlutenWriteDistributionAndOrderingSuite]
-    .exclude("ordered distribution and sort with same exprs: append")
-    .exclude("ordered distribution and sort with same exprs: overwrite")
-    .exclude("ordered distribution and sort with same exprs: overwriteDynamic")
-    .exclude("clustered distribution and sort with same exprs: append")
-    .exclude("clustered distribution and sort with same exprs: overwrite")
-    .exclude("clustered distribution and sort with same exprs: overwriteDynamic")
-    .exclude("clustered distribution and sort with extended exprs: append")
-    .exclude("clustered distribution and sort with extended exprs: overwrite")
-    .exclude("clustered distribution and sort with extended exprs: overwriteDynamic")
-    .exclude("ordered distribution and sort with manual global sort: append")
-    .exclude("ordered distribution and sort with manual global sort: overwrite")
-    .exclude("ordered distribution and sort with manual global sort: overwriteDynamic")
-    .exclude("ordered distribution and sort with incompatible global sort: append")
-    .exclude("ordered distribution and sort with incompatible global sort: overwrite")
-    .exclude("ordered distribution and sort with incompatible global sort: overwriteDynamic")
-    .exclude("ordered distribution and sort with manual local sort: append")
-    .exclude("ordered distribution and sort with manual local sort: overwrite")
-    .exclude("ordered distribution and sort with manual local sort: overwriteDynamic")
-    .exclude("clustered distribution and local sort with manual global sort: append")
-    .exclude("clustered distribution and local sort with manual global sort: overwrite")
-    .exclude("clustered distribution and local sort with manual global sort: overwriteDynamic")
-    .exclude("clustered distribution and local sort with manual local sort: append")
-    .exclude("clustered distribution and local sort with manual local sort: overwrite")
-    .exclude("clustered distribution and local sort with manual local sort: overwriteDynamic")
-
   enableSuite[GlutenQueryCompilationErrorsDSv2Suite]
   enableSuite[GlutenQueryCompilationErrorsSuite]
   enableSuite[GlutenQueryExecutionErrorsSuite]
     // NEW SUITE: disable as it expects exception which doesn't happen when offloaded to gluten
     .exclude(
       "INCONSISTENT_BEHAVIOR_CROSS_VERSION: compatibility with Spark 2.4/3.2 in reading/writing dates")
-    .exclude("FAILED_EXECUTE_UDF: execute user defined function")
+    // JDBC test
     .exclude("UNRECOGNIZED_SQL_TYPE: unrecognized SQL type -100")
-    .exclude("INVALID_BUCKET_FILE: error if there exists any malformed bucket files")
+    // gluten throws different exception
     .excludeByPrefix("SCALAR_SUBQUERY_TOO_MANY_ROWS:")
+    // JDBC test
     .excludeByPrefix("UNSUPPORTED_FEATURE.MULTI_ACTION_ALTER:")
   enableSuite[GlutenQueryParsingErrorsSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
@@ -183,7 +154,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .includeByPrefix(
       "gluten",
       "SPARK-29906",
-//      "SPARK-30291",
+      "SPARK-30291",
       "SPARK-30403",
       "SPARK-30719",
       "SPARK-31384",
@@ -196,7 +167,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-35585",
       "SPARK-32932",
       "SPARK-33494",
-//      "SPARK-33933",
+      "SPARK-33933",
       "SPARK-31220",
       "SPARK-35874",
       "SPARK-39551"
@@ -221,6 +192,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
     .excludeByPrefix("lineSep with 2 chars when multiLine set to")
     .exclude("test for FAILFAST parsing mode")
+    // exception test
     .exclude("SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
     .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
@@ -230,6 +202,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Complex field and type inferring")
     .exclude("SPARK-4228 DataFrame to JSON")
   enableSuite[GlutenJsonV2Suite]
+    // exception test
     .exclude("SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern")
     .exclude("Complex field and type inferring")
     .exclude("SPARK-4228 DataFrame to JSON")
@@ -692,6 +665,10 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetInteroperabilitySuite]
     .exclude("parquet timestamp conversion")
   enableSuite[GlutenParquetIOSuite]
+    // Velox doesn't write file metadata into parquet file.
+    .exclude("Write Spark version into Parquet metadata")
+    // Spark except exception but not occur in velox.
+    .exclude("SPARK-7837 Do not close output writer twice when commitTask() fails")
     // Disable Spark's vectorized reading tests.
     .exclude("Standard mode - fixed-length decimals")
     .exclude("Legacy mode - fixed-length decimals")
@@ -716,8 +693,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("vectorized reader: required array with optional elements")
     .exclude("vectorized reader: required array with legacy format")
     .exclude("SPARK-36726: test incorrect Parquet row group file offset")
+    // add support in native reader
     .exclude("SPARK-41096: FIXED_LEN_BYTE_ARRAY support")
     .exclude("SPARK-40128 read DELTA_LENGTH_BYTE_ARRAY encoded strings")
+    // Timestamp is read as INT96
     .exclude("Read TimestampNTZ and TimestampLTZ for various logical TIMESTAMP types")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     // Timezone is not supported yet.
@@ -733,6 +712,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(("Various inferred partition value types"))
   enableSuite[GlutenParquetProtobufCompatibilitySuite]
   enableSuite[GlutenParquetV1QuerySuite]
+    // Velox convert the null as minimum value of int, which cause the partition dir is not align with spark.
+    .exclude("SPARK-11997 parquet with null partition values")
     // Only for testing a type mismatch issue caused by hive (before hive 2.2).
     // Only reproducible when spark.sql.parquet.enableVectorizedReader=true.
     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
@@ -752,6 +733,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-26677: negated null-safe equality comparison should not filter matched row groups")
   enableSuite[GlutenParquetV2QuerySuite]
+    // Velox convert the null as minimum value of int, which cause the partition dir is not align with spark.
+    .exclude("SPARK-11997 parquet with null partition values")
     // Only for testing a type mismatch issue caused by hive (before hive 2.2).
     // Only reproducible when spark.sql.parquet.enableVectorizedReader=true.
     .exclude("SPARK-16632: read Parquet int32 as ByteType and ShortType")
@@ -770,10 +753,14 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenParquetV1SchemaPruningSuite]
   enableSuite[GlutenParquetV2SchemaPruningSuite]
   enableSuite[GlutenParquetRebaseDatetimeV1Suite]
+    // Velox doesn't write file metadata into parquet file.
+    .excludeByPrefix("SPARK-33163, SPARK-37705: write the metadata keys")
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ, rewrite some
     .excludeByPrefix("SPARK-31159")
     .excludeByPrefix("SPARK-35427")
   enableSuite[GlutenParquetRebaseDatetimeV2Suite]
+    // Velox doesn't write file metadata into parquet file.
+    .excludeByPrefix("SPARK-33163, SPARK-37705: write the metadata keys")
     // jar path and ignore PARQUET_REBASE_MODE_IN_READ
     .excludeByPrefix("SPARK-31159")
     .excludeByPrefix("SPARK-35427")
@@ -782,7 +769,6 @@ class VeloxTestSettings extends BackendTestSettings {
     // error message mismatch is accepted
     .exclude("schema mismatch failure error message for parquet reader")
     .exclude("schema mismatch failure error message for parquet vectorized reader")
-    .excludeByPrefix("SPARK-40819:")
   enableSuite[GlutenParquetThriftCompatibilitySuite]
     // Rewrite for file locating.
     .exclude("Read Parquet file generated by parquet-thrift")
@@ -796,6 +782,8 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceStrategySuite]
   enableSuite[GlutenDataSourceSuite]
   enableSuite[GlutenFileFormatWriterSuite]
+    // Velox doesn't write file if the data is null.
+    .exclude("empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileMetadataStructSuite]
     .exclude("SPARK-41896: Filter on row_index and a stored column at the same time")
@@ -808,8 +796,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("nested column: Max(top level column) not push down")
     .exclude("nested column: Count(nested sub-field) not push down")
   enableSuite[GlutenParquetCodecSuite]
-    // Unsupported compression codec.
-    .exclude("write and read - file source parquet - codec: lz4")
   enableSuite[GlutenOrcCodecSuite]
   enableSuite[GlutenFileSourceStrategySuite]
     // Plan comparison.
@@ -886,9 +872,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenVectorizedParquetReadSchemaSuite]
   enableSuite[GlutenMergedParquetReadSchemaSuite]
   enableSuite[GlutenEnsureRequirementsSuite]
-    // Rewrite to change the shuffle partitions for optimizing repartition
-    .excludeByPrefix("SPARK-35675")
-    .exclude("SPARK-41986: Introduce shuffle on SinglePartition")
 
 //  enableSuite[GlutenBroadcastJoinSuite]
 //    .exclude("Shouldn't change broadcast join buildSide if user clearly specified")
@@ -958,12 +941,16 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFilteredScanSuite]
   enableSuite[GlutenFiltersSuite]
   enableSuite[GlutenInsertSuite]
+    // Spark except exception but not occur in velox.
+    .exclude("SPARK-35106: Throw exception when rename custom partition paths returns false")
+    .exclude("Stop task set if FileAlreadyExistsException was thrown")
     .exclude("INSERT rows, ALTER TABLE ADD COLUMNS with DEFAULTs, then SELECT them")
     .exclude("SPARK-39557 INSERT INTO statements with tables with array defaults")
     .exclude("SPARK-39557 INSERT INTO statements with tables with struct defaults")
     .exclude("SPARK-39557 INSERT INTO statements with tables with map defaults")
-    .exclude("SPARK-39844 Restrict adding DEFAULT columns for existing tables to certain sources")
   enableSuite[GlutenPartitionedWriteSuite]
+    // Velox doesn't support maxRecordsPerFile parameter.
+    .exclude("maxRecordsPerFile setting in non-partitioned write path")
   enableSuite[GlutenPathOptionSuite]
   enableSuite[GlutenPrunedScanSuite]
   enableSuite[GlutenResolvedDataSourceSuite]
@@ -987,7 +974,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenCTEHintSuite]
-    .exclude("Resolve join hint in CTE")
   enableSuite[GlutenCTEInlineSuiteAEOff]
   enableSuite[GlutenCTEInlineSuiteAEOn]
   enableSuite[GlutenDataFrameAggregateSuite]
@@ -1078,27 +1064,20 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("to_unix_timestamp")
   enableSuite[GlutenDeprecatedAPISuite]
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOff]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
-    .excludeByPrefix("static scan metrics")
-    .excludeByPrefix("Gluten - static scan metrics")
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOn]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOnDisableScan]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV1SuiteAEOffDisableScan]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOff]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOn]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOnDisableScan]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenDynamicPartitionPruningV2SuiteAEOffDisableScan]
-    .exclude("SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec")
   enableSuite[GlutenExpressionsSchemaSuite]
     .exclude("Check schemas for expression examples")
   enableSuite[GlutenExtraStrategiesSuite]
   enableSuite[GlutenFileBasedDataSourceSuite]
+    // The following suites failed because velox will not write empty data frame.
+    .excludeByPrefix("SPARK-15474 Write and read back non-empty schema with empty dataframe ")
+    .excludeByPrefix("SPARK-23271 empty RDD when saved should write a metadata only file ")
     // test data path is jar path, rewrite
     .exclude("Option recursiveFileLookup: disable partition inferring")
     // gluten executor exception cannot get in driver, rewrite
@@ -1117,6 +1096,8 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-31116: Select nested schema with case insensitive mode")
     // exclude as original metric not correct when task offloaded to velox
     .exclude("SPARK-37585: test input metrics for DSV2 with output limits")
+    // TODO(yuan): fix the input bytes on ORC code path
+    .exclude("SPARK-30362: test input metrics for DSV2")
   enableSuite[GlutenFileScanSuite]
   enableSuite[GlutenGeneratorFunctionSuite]
   enableSuite[GlutenInjectRuntimeFilterSuite]
@@ -1126,6 +1107,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenJoinSuite]
     // exclude as it check spark plan
     .exclude("SPARK-36794: Ignore duplicated key when building relation for semi/anti hash join")
+    // exclude as it check for SMJ node
     .exclude(
       "SPARK-43113: Full outer join with duplicate stream-side references in condition (SMJ)")
   enableSuite[GlutenMathFunctionsSuite]
@@ -1142,12 +1124,16 @@ class VeloxTestSettings extends BackendTestSettings {
   // following UT is removed in spark3.3.1
   // enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
+    // velox convert string null as -1583242847, which is not same with spark.
+    .exclude("SPARK-30844: static partition should also follow StoreAssignmentPolicy")
     .exclude(
       "SPARK-41982: treat the partition field as string literal when keepPartitionSpecAsStringLiteral is enabled")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
     .exclude(
       "SPARK-41982: treat the partition field as string literal when keepPartitionSpecAsStringLiteral is enabled")
   enableSuite[GlutenSQLQuerySuite]
+    // Velox doesn't support spark.sql.optimizer.metadataOnly config.
+    .exclude("SPARK-26709: OptimizeMetadataOnlyQuery does not handle empty records correctly")
     // Decimal precision exceeds.
     .exclude("should be able to resolve a persistent view")
     // Unstable. Needs to be fixed.
@@ -1164,17 +1150,28 @@ class VeloxTestSettings extends BackendTestSettings {
     // Not useful and time consuming.
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL")
     .exclude("SPARK-33084: Add jar support Ivy URI in SQL -- jar contains udf class")
-    // ReaderFactory is not registered for format orc.
+    // overflow support needed in velox
     .exclude("SPARK-38548: try_sum should return null if overflow happens before merging")
+    // exception test, rewritten in gluten
     .exclude("the escape character is not allowed to end with")
-    .exclude("SPARK-40245: Fix FileScan canonicalization when partition or data filter columns are not read")
     // ORC related
     .exclude("SPARK-37965: Spark support read/write orc file with invalid char in field name")
     .exclude("SPARK-38173: Quoted column cannot be recognized correctly when quotedRegexColumnNames is true")
   enableSuite[GlutenSQLQueryTestSuite]
   enableSuite[GlutenStatisticsCollectionSuite]
+    // The following five unit tests failed after enabling native table write, because the velox convert the null to Timestamp
+    // with minimum value of int, which will cause overflow when calling toMicro() method.
+    .exclude("column stats collection for null columns")
+    .exclude("store and retrieve column stats in different time zones")
+    .exclude(
+      "SPARK-38140: describe column stats (min, max) for timestamp column: desc results should be consistent with the written value if writing and desc happen in the same time zone")
+    .exclude(
+      "SPARK-38140: describe column stats (min, max) for timestamp column: desc should show different results if writing in UTC and desc in other time zones")
+    .exclude("Gluten - store and retrieve column stats in different time zones")
     .exclude("SPARK-33687: analyze all tables in a specific database")
   enableSuite[GlutenSubquerySuite]
+    // Velox doesn't write file if the data is null.
+    .exclude("SPARK-42745: Improved AliasAwareOutputExpression works with DSv2")
     .excludeByPrefix(
       "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.
     )

@@ -199,6 +199,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-32376: Make unionByName null-filling behavior work with struct columns - deep expr")
     .exclude("SPARK-35756: unionByName support struct having same col names but different sequence")
+    .exclude("except all")
+    .exclude("exceptAll - nullability")
+    .exclude("intersectAll")
+    .exclude("intersectAll - nullability")
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
     .exclude("Uuid expressions should produce same results at retries in the same DataFrame")

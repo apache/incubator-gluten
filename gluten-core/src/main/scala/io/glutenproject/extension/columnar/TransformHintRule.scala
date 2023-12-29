@@ -34,6 +34,7 @@ import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, BroadcastQueryStageExec, QueryStageExec}
 import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
+import org.apache.spark.sql.execution.datasources.WriteFilesExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange._
 import org.apache.spark.sql.execution.joins._
@@ -267,7 +268,7 @@ case class FallbackEmptySchemaRelation() extends Rule[SparkPlan] {
           TransformHints.tagNotTransformable(p, "at least one of its children has empty output")
           p.children.foreach {
             child =>
-              if (child.output.isEmpty) {
+              if (child.output.isEmpty && !child.isInstanceOf[WriteFilesExec]) {
                 TransformHints.tagNotTransformable(
                   child,
                   "at least one of its children has empty output")
@@ -361,6 +362,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
   val enableTakeOrderedAndProject: Boolean =
     !scanOnly && columnarConf.enableTakeOrderedAndProject &&
       enableColumnarSort && enableColumnarLimit && enableColumnarShuffle && enableColumnarProject
+  val enableColumnarWrite: Boolean = columnarConf.enableNativeWriter
 
   def apply(plan: SparkPlan): SparkPlan = {
     addTransformableTags(plan)
@@ -433,8 +435,10 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
         case plan: FilterExec =>
           val childIsScan = plan.child.isInstanceOf[FileSourceScanExec] ||
             plan.child.isInstanceOf[BatchScanExec]
-          // When scanOnly is enabled, filter after scan will be offloaded.
-          if ((!scanOnly && !enableColumnarFilter) || (scanOnly && !childIsScan)) {
+          if (!enableColumnarFilter) {
+            TransformHints.tagNotTransformable(plan, "columnar Filter is not enabled in FilterExec")
+          } else if (scanOnly && !childIsScan) {
+            // When scanOnly is enabled, filter after scan will be offloaded.
             TransformHints.tagNotTransformable(
               plan,
               "ScanOnly enabled and plan child is not Scan in FilterExec")
@@ -511,6 +515,22 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tagNotTransformable(plan, "columnar Expand is not enabled in ExpandExec")
           } else {
             val transformer = ExpandExecTransformer(plan.projections, plan.output, plan.child)
+            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          }
+
+        case plan: WriteFilesExec =>
+          if (!enableColumnarWrite) {
+            TransformHints.tagNotTransformable(
+              plan,
+              "columnar Write is not enabled in WriteFilesExec")
+          } else {
+            val transformer = WriteFilesExecTransformer(
+              plan.child,
+              plan.fileFormat,
+              plan.partitionColumns,
+              plan.bucketSpec,
+              plan.options,
+              plan.staticPartitions)
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: SortExec =>

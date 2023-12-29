@@ -329,6 +329,47 @@ bool SubstraitToVeloxPlanValidator::validateExpression(
   }
 }
 
+bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeRel) {
+  if (writeRel.has_input() && !validate(writeRel.input())) {
+    logValidateMsg("Validation failed for input type validation in WriteRel.");
+    return false;
+  }
+
+  // Validate input data type.
+  std::vector<TypePtr> types;
+  if (writeRel.has_named_table()) {
+    const auto& extension = writeRel.named_table().advanced_extension();
+    if (!validateInputTypes(extension, types)) {
+      logValidateMsg("Validation failed for input type validation in WriteRel.");
+      return false;
+    }
+  }
+
+  // Validate partition key type.
+  if (writeRel.has_table_schema()) {
+    const auto& tableSchema = writeRel.table_schema();
+    auto isPartitionColumns = SubstraitParser::parsePartitionColumns(tableSchema);
+    for (auto i = 0; i < types.size(); i++) {
+      if (isPartitionColumns[i]) {
+        switch (types[i]->kind()) {
+          case TypeKind::BOOLEAN:
+          case TypeKind::TINYINT:
+          case TypeKind::SMALLINT:
+          case TypeKind::INTEGER:
+          case TypeKind::BIGINT:
+          case TypeKind::VARCHAR:
+          case TypeKind::VARBINARY:
+            break;
+          default:
+            return false;
+        }
+      }
+    }
+  }
+
+  return true;
+}
+
 bool SubstraitToVeloxPlanValidator::validate(const ::substrait::FetchRel& fetchRel) {
   RowTypePtr rowType = nullptr;
   // Get and validate the input types from extension.
@@ -1024,51 +1065,73 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
     }
   }
 
-  // The supported aggregation functions.
+  // The supported aggregation functions. TODO: Remove this set when Presto aggregate functions in Velox are not needed
+  // to be registered.
   static const std::unordered_set<std::string> supportedAggFuncs = {
       "sum",
+      "sum_partial",
       "sum_merge",
       "collect_set",
       "count",
+      "count_partial",
       "count_merge",
       "avg",
+      "avg_partial",
       "avg_merge",
       "min",
+      "min_partial",
       "min_merge",
       "max",
+      "max_partial",
       "max_merge",
       "min_by",
+      "min_by_partial",
       "min_by_merge",
       "max_by",
+      "max_by_partial",
       "max_by_merge",
       "stddev_samp",
+      "stddev_samp_partial",
       "stddev_samp_merge",
       "stddev_pop",
+      "stddev_pop_partial",
       "stddev_pop_merge",
       "bloom_filter_agg",
       "var_samp",
+      "var_samp_partial",
       "var_samp_merge",
       "var_pop",
+      "var_pop_partial",
       "var_pop_merge",
       "bit_and",
+      "bit_and_partial",
       "bit_and_merge",
       "bit_or",
+      "bit_or_partial",
       "bit_or_merge",
       "bit_xor",
+      "bit_xor_partial",
       "bit_xor_merge",
       "first",
+      "first_partial",
       "first_merge",
       "first_ignore_null",
+      "first_ignore_null_partial",
       "first_ignore_null_merge",
       "last",
+      "last_partial",
       "last_merge",
       "last_ignore_null",
+      "last_ignore_null_partial",
       "last_ignore_null_merge",
       "corr",
+      "corr_partial",
       "corr_merge",
       "covar_pop",
+      "covar_pop_partial",
       "covar_pop_merge",
       "covar_samp",
+      "covar_samp_partial",
       "covar_samp_merge",
       "approx_distinct"};
 
@@ -1163,6 +1226,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
     return validate(rel.fetch());
   } else if (rel.has_window()) {
     return validate(rel.window());
+  } else if (rel.has_write()) {
+    return validate(rel.write());
   } else {
     return false;
   }

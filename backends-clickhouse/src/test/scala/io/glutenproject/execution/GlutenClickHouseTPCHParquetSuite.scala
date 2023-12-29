@@ -48,6 +48,7 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
       .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.gluten.supported.scala.udfs", "my_add")
+    // .set("spark.sql.planChangeLog.level", "error")
   }
 
   override protected val createNullableTables = true
@@ -2253,5 +2254,59 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     }
   }
 
+  test("GLUTEN-4032: fix shuffle read coredump after union") {
+    val sql =
+      """
+        |select p_partkey from (
+        |    select *, row_number() over (partition by p_partkey order by is_new) as rank from(
+        |    select p_partkey, 0 as is_new from part where p_partkey is not null
+        |    union all
+        |    select p_partkey, p_partkey%2 as is_new from part where p_partkey is not null
+        |  ) t1
+        |) t2 where rank = 1 order by p_partkey limit 100
+        |""".stripMargin
+    runQueryAndCompare(sql)({ _ => })
+  }
+
+  test("GLUTEN-4190: crush on flattening a const null column") {
+    val sql =
+      """
+        | select n_nationkey, rank() over (partition by n_regionkey, null order by n_nationkey)
+        |from nation
+        |""".stripMargin
+    runQueryAndCompare(sql)({ _ => })
+  }
+
+  test("GLUTEN-4115 aggregate without any function") {
+    val sql =
+      """
+        | select n_regionkey, n_nationkey from nation group by n_regionkey, n_nationkey
+        |""".stripMargin
+    compareResultsAgainstVanillaSpark(sql, true, { _ => })
+  }
+
+  test("GLUTEN-4202: fixed hash partition on null rows") {
+    val sql =
+      """
+        |select a,b,c,d, rank() over (partition by a+d, if (a=3, b, null) sort by c ) as r
+        |from(
+        |select a,b,c,d from
+        |values(0,'d', 4.0,1), (1, 'a', 1.0, 0), (0, 'b', 2.0, 1), (1, 'c', 3.0, 0) as data(a,b,c,d)
+        |)
+        |""".stripMargin
+    runQueryAndCompare(sql)({ _ => })
+  }
+
+  test("GLUTEN-4085: Fix unix_timestamp") {
+    val tbl_create_sql = "create table test_tbl_4085(id bigint, data string) using parquet";
+    val data_insert_sql =
+      "insert into test_tbl_4085 values(1, '2023-12-18'),(2, '2023-12-19'), (3, '2023-12-20')";
+    val select_sql =
+      "select id, unix_timestamp(to_date(data), 'yyyy-MM-dd') from test_tbl_4085"
+    spark.sql(tbl_create_sql)
+    spark.sql(data_insert_sql)
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_4085")
+  }
 }
 // scalastyle:on line.size.limit

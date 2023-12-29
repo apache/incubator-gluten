@@ -79,15 +79,10 @@ public:
 
         const auto * str_is_null_node = toFunctionNode(actions_dag, "isNull", {str_arg});
         const auto * str_array_is_null_node = toFunctionNode(actions_dag, "isNull", {str_array_arg});
+        const auto * or_condition_node = toFunctionNode(actions_dag, "or", {str_is_null_node, str_array_is_null_node});
 
-        const auto * result_node = toFunctionNode(actions_dag, "multiIf", {
-            str_is_null_node,
-            null_const_node,
-            str_array_is_null_node,
-            null_const_node,
-            nullable_index_of_node
-        });
-       return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
+        const auto * result_node = toFunctionNode(actions_dag, "if", {or_condition_node, null_const_node, nullable_index_of_node});
+        return convertNodeTypeIfNeeded(substrait_func, result_node, actions_dag);
     }
 };
 

@@ -83,9 +83,9 @@ case class PosExplodeTransformer(
   override def doTransform(args: java.lang.Object): ExpressionNode = {
     val childNode: ExpressionNode = child.doTransform(args)
 
-    // sequence(0, size(array_or_map)-1)
-    val startExpr = new Literal(0, IntegerType)
-    val stopExpr = new Subtract(Size(original.child, false), Literal(1, IntegerType))
+    // sequence(1, size(array_or_map))
+    val startExpr = new Literal(1, IntegerType)
+    val stopExpr = new Size(Size(original.child, false))
     val stepExpr = new Literal(1, IntegerType)
     val sequenceExpr = new Sequence(startExpr, stopExpr, stepExpr)
     val sequenceExprNode = ExpressionConverter
@@ -94,36 +94,27 @@ case class PosExplodeTransformer(
 
     val funcMap = args.asInstanceOf[java.util.HashMap[String, java.lang.Long]]
 
-    // map_from_arrays_unaligned(sequence(0, size(array_or_map)-1), array_or_map)
-    val mapFromArraysUnalignedFuncId = ExpressionBuilder.newScalarFunction(
+    val mapFromArraysFuncId = ExpressionBuilder.newScalarFunction(
       funcMap,
       ConverterUtils.makeFuncName(
-        "map_from_arrays_unaligned",
+        ExpressionNames.MAP_FROM_ARRAYS,
         Seq(sequenceExpr.dataType, original.child.dataType),
         FunctionConfig.OPT))
 
-    // Notice that in CH mapFromArraysUnaligned accepts the second arguments as MapType or ArrayType
-    // But in Spark, it accepts ArrayType.
     val keyType = IntegerType
     val (valType, valContainsNull) = original.child.dataType match {
       case a: ArrayType => (a.elementType, a.containsNull)
-      case m: MapType =>
-        (
-          StructType(
-            StructField("", m.keyType, false) ::
-              StructField("", m.valueType, m.valueContainsNull) :: Nil),
-          false)
       case _ =>
         throw new UnsupportedOperationException(
           s"posexplode(${original.child.dataType}) not supported yet.")
     }
     val outputType = MapType(keyType, valType, valContainsNull)
-    val mapFromArraysUnalignedExprNode = ExpressionBuilder.makeScalarFunction(
-      mapFromArraysUnalignedFuncId,
+    val mapFromArraysExprNode = ExpressionBuilder.makeScalarFunction(
+      mapFromArraysFuncId,
       Lists.newArrayList(sequenceExprNode, childNode),
       ConverterUtils.getTypeNode(outputType, original.child.nullable))
 
-    // posexplode(map_from_arrays_unaligned(sequence(0, size(array_or_map)-1), array_or_map))
+    // posexplode(map_from_arrays(sequence(1, size(array_or_map)), array_or_map))
     val funcId = ExpressionBuilder.newScalarFunction(
       funcMap,
       ConverterUtils.makeFuncName(ExpressionNames.POSEXPLODE, Seq(outputType), FunctionConfig.OPT))
@@ -138,7 +129,7 @@ case class PosExplodeTransformer(
             StructField("col", a.elementType, a.containsNull)))
         ExpressionBuilder.makeScalarFunction(
           funcId,
-          Lists.newArrayList(mapFromArraysUnalignedExprNode),
+          Lists.newArrayList(mapFromArraysExprNode),
           ConverterUtils.getTypeNode(structType, false))
       case m: MapType =>
         // Output pos, key, value when input is map
@@ -149,7 +140,7 @@ case class PosExplodeTransformer(
             StructField("value", m.valueType, m.valueContainsNull)))
         ExpressionBuilder.makeScalarFunction(
           funcId,
-          Lists.newArrayList(mapFromArraysUnalignedExprNode),
+          Lists.newArrayList(mapFromArraysExprNode),
           ConverterUtils.getTypeNode(structType, false))
       case _ =>
         throw new UnsupportedOperationException(s"posexplode($childType) not supported yet.")

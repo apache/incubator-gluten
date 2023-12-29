@@ -57,8 +57,8 @@ class VeloxColumnarCacheSuite extends VeloxWholeStageTransformerSuite with Adapt
   }
 
   test("input columnar batch") {
-    TPCHTables.foreach {
-      case (table, _) =>
+    TPCHTables.map(_.name).foreach {
+      table =>
         runQueryAndCompare(s"SELECT * FROM $table", cache = true) {
           df => checkColumnarTableCache(df.queryExecution.executedPlan)
         }

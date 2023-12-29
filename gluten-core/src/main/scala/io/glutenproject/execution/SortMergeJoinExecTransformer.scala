@@ -193,7 +193,7 @@ case class SortMergeJoinExecTransformer(
       .newBuilder()
       .setValue(joinParametersStr.toString)
       .build()
-    BackendsApiManager.getTransformerApiInstance.getPackMessage(message)
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
   }
 
   // Direct output order of substrait join operation
@@ -282,10 +282,6 @@ case class SortMergeJoinExecTransformer(
     context.registerJoinParam(operatorId, joinParams)
 
     JoinUtils.createTransformContext(false, output, joinRel, inputStreamedOutput, inputBuildOutput)
-  }
-
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
   override protected def withNewChildrenInternal(

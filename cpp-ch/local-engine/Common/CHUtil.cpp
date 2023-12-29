@@ -141,7 +141,8 @@ BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively,
         DB::DataTypePtr nested_type = removeNullable(elem.type);
         DB::ColumnPtr nested_col = elem.column;
         DB::ColumnPtr null_map_col = nullptr;
-        if (elem.type->isNullable())
+        // A special case, const(Nullable(nothing))
+        if (elem.type->isNullable() && typeid_cast<const DB::ColumnNullable *>(elem.column->getPtr().get()))
         {
             const auto * nullable_col = typeid_cast<const DB::ColumnNullable *>(elem.column->getPtr().get());
             nested_col = nullable_col->getNestedColumnPtr();

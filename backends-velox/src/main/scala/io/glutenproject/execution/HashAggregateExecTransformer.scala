@@ -16,6 +16,7 @@
  */
 package io.glutenproject.execution
 
+import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.expression.ConverterUtils.FunctionConfig
 import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
@@ -30,8 +31,6 @@ import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-
-import com.google.protobuf.Any
 
 import java.lang.{Long => JLong}
 import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList}
@@ -162,7 +161,8 @@ case class HashAggregateExecTransformer(
         groupingExpressions.size + aggregateExpressions.size)
     } else {
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, getPartialAggOutTypes).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, getPartialAggOutTypes).toProtobuf))
       RelBuilder.makeProjectRel(
         aggRel,
         expressionNodes,
@@ -174,7 +174,14 @@ case class HashAggregateExecTransformer(
   }
 
   override protected def modeToKeyWord(aggregateMode: AggregateMode): String = {
-    super.modeToKeyWord(if (mixedPartialAndMerge) Partial else aggregateMode)
+    super.modeToKeyWord(if (mixedPartialAndMerge) {
+      Partial
+    } else {
+      aggregateMode match {
+        case PartialMerge => Final
+        case _ => aggregateMode
+      }
+    })
   }
 
   // Create aggregate function node and add to list.
@@ -201,7 +208,7 @@ case class HashAggregateExecTransformer(
         case PartialMerge =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
             VeloxAggregateFunctionsBuilder
-              .create(args, aggregateFunction, mixedPartialAndMerge),
+              .create(args, aggregateFunction, mixedPartialAndMerge, purePartialMerge),
             childrenNodeList,
             modeKeyWord,
             VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
@@ -253,7 +260,8 @@ case class HashAggregateExecTransformer(
           VeloxAggregateFunctionsBuilder.create(
             args,
             aggregateFunction,
-            aggregateMode == PartialMerge && mixedPartialAndMerge),
+            aggregateMode == PartialMerge && mixedPartialAndMerge,
+            aggregateMode == PartialMerge && purePartialMerge),
           childrenNodeList,
           modeKeyWord,
           ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
@@ -427,7 +435,8 @@ case class HashAggregateExecTransformer(
         .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
         inputRel,
         exprNodes,
@@ -498,6 +507,10 @@ case class HashAggregateExecTransformer(
     val partialMergeExists = aggregateExpressions.exists(_.mode == PartialMerge)
     val partialExists = aggregateExpressions.exists(_.mode == Partial)
     partialMergeExists && partialExists
+  }
+
+  def purePartialMerge: Boolean = {
+    aggregateExpressions.forall(_.mode == PartialMerge)
   }
 
   /**
@@ -576,7 +589,8 @@ object VeloxAggregateFunctionsBuilder {
   def create(
       args: java.lang.Object,
       aggregateFunc: AggregateFunction,
-      forMergeCompanion: Boolean = false): Long = {
+      forMergeCompanion: Boolean = false,
+      purePartialMerge: Boolean = false): Long = {
     val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
 
     var sigName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
@@ -593,7 +607,15 @@ object VeloxAggregateFunctionsBuilder {
     }
 
     // Use companion function for partial-merge aggregation functions on count distinct.
-    val substraitAggFuncName = if (!forMergeCompanion) sigName.get else sigName.get + "_merge"
+    val substraitAggFuncName = {
+      if (purePartialMerge) {
+        sigName.get + "_partial"
+      } else if (forMergeCompanion) {
+        sigName.get + "_merge"
+      } else {
+        sigName.get
+      }
+    }
 
     ExpressionBuilder.newScalarFunction(
       functionMap,

@@ -68,7 +68,7 @@ for arg in "$@"; do
     ENABLE_TESTS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --build_benchmarks=*)
+  --build_velox_benchmarks=*)
     ENABLE_BENCHMARK=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
@@ -115,7 +115,7 @@ function compile {
     fi
   else
     echo "ENABLE_BENCHMARK is ON. Disabling Tests, GCS and ABFS connectors if enabled."
-    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_BENCHMARKS=ON"
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_BENCHMARKS=ON"
   fi
 
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"

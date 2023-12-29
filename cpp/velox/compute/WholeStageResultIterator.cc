@@ -25,7 +25,7 @@
 #include "utils/ConfigExtractor.h"
 
 #ifdef ENABLE_HDFS
-#include <hdfs/hdfs.h>
+#include "utils/HdfsUtils.h"
 #endif
 
 using namespace facebook;
@@ -83,6 +83,7 @@ const std::string kSkippedStrides = "skippedStrides";
 const std::string kProcessedStrides = "processedStrides";
 const std::string kRemainingFilterTime = "totalRemainingFilterTime";
 const std::string kIoWaitTime = "ioWaitNanos";
+const std::string kPreloadSplits = "readyPreloadedSplits";
 
 // others
 const std::string kHiveDefaultPartition = "__HIVE_DEFAULT_PARTITION__";
@@ -99,7 +100,7 @@ WholeStageResultIterator::WholeStageResultIterator(
       taskInfo_(taskInfo),
       memoryManager_(memoryManager) {
 #ifdef ENABLE_HDFS
-  updateHdfsTokens();
+  gluten::updateHdfsTokens(veloxCfg_.get());
 #endif
   spillStrategy_ = veloxCfg_->get<std::string>(kSpillStrategy, kSpillStrategyDefaultValue);
   getOrderedNodeIds(veloxPlan_, orderedNodeIds_);
@@ -185,7 +186,7 @@ int64_t WholeStageResultIterator::spillFixedSize(int64_t size) {
     ConditionalSuspendedSection noCancel(thisDriver, thisDriver != nullptr);
     velox::exec::MemoryReclaimer::Stats status;
     auto* mm = memoryManager_->getMemoryManager();
-    uint64_t spilledOut = mm->arbitrator()->shrinkMemory({pool}, remaining); // this conducts spilling
+    uint64_t spilledOut = mm->arbitrator()->shrinkCapacity({pool}, remaining); // this conducts spilling
     LOG(INFO) << logPrefix << "Successfully spilled out " << spilledOut << " bytes.";
     uint64_t total = shrunken + spilledOut;
     VLOG(2) << logPrefix << "Successfully reclaimed total " << total << " bytes.";
@@ -256,6 +257,13 @@ void WholeStageResultIterator::collectMetrics() {
     if (planStats.find(nodeId) == planStats.end()) {
       // Special handing for Filter over Project case. Filter metrics are
       // omitted.
+      metrics_->get(Metrics::kOutputRows)[metricIndex] = 0;
+      metrics_->get(Metrics::kOutputVectors)[metricIndex] = 0;
+      metrics_->get(Metrics::kOutputBytes)[metricIndex] = 0;
+      metrics_->get(Metrics::kCpuCount)[metricIndex] = 0;
+      metrics_->get(Metrics::kWallNanos)[metricIndex] = 0;
+      metrics_->get(Metrics::kPeakMemoryBytes)[metricIndex] = 0;
+      metrics_->get(Metrics::kNumMemoryAllocations)[metricIndex] = 0;
       metricIndex += 1;
       continue;
     }
@@ -297,6 +305,8 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kRemainingFilterTime)[metricIndex] =
           runtimeMetric("sum", second->customStats, kRemainingFilterTime);
       metrics_->get(Metrics::kIoWaitTime)[metricIndex] = runtimeMetric("sum", second->customStats, kIoWaitTime);
+      metrics_->get(Metrics::kPreloadSplits)[metricIndex] =
+          runtimeMetric("sum", entry.second->customStats, kPreloadSplits);
       metricIndex += 1;
     }
   }
@@ -413,28 +423,14 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
   return configs;
 }
 
-#ifdef ENABLE_HDFS
-void WholeStageResultIterator::updateHdfsTokens() {
-  std::lock_guard lock{mutex};
-  const auto& username = veloxCfg_->get<std::string>(kUGIUserName);
-  const auto& allTokens = veloxCfg_->get<std::string>(kUGITokens);
-
-  if (!username.has_value() || !allTokens.has_value())
-    return;
-  hdfsSetDefautUserName(username.value().c_str());
-  std::vector<folly::StringPiece> tokens;
-  folly::split('\0', allTokens.value(), tokens);
-  for (auto& token : tokens)
-    hdfsSetTokenForDefaultUser(token.data());
-}
-#endif
-
 std::shared_ptr<velox::Config> WholeStageResultIterator::createConnectorConfig() {
   std::unordered_map<std::string, std::string> configs = {};
   // The semantics of reading as lower case is opposite with case-sensitive.
   configs[velox::connector::hive::HiveConfig::kFileColumnNamesReadAsLowerCaseSession] =
       veloxCfg_->get<bool>(kCaseSensitive, false) == false ? "true" : "false";
   configs[velox::connector::hive::HiveConfig::kArrowBridgeTimestampUnit] = "6";
+  configs[velox::connector::hive::HiveConfig::kMaxPartitionsPerWritersSession] = "400";
+  configs[velox::connector::hive::HiveConfig::kPartitionPathAsLowerCaseSession] = "false";
 
   return std::make_shared<velox::core::MemConfig>(configs);
 }

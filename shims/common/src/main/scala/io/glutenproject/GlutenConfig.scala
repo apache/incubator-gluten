@@ -86,7 +86,11 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def columnarTableCacheEnabled: Boolean = conf.getConf(COLUMNAR_TABLE_CACHE_ENABLED)
 
-  def enableDateTimestampComparison: Boolean = conf.getConf(ENABLE_DATE_TIMESTAMP_COMPARISON)
+  def enableRewriteDateTimestampComparison: Boolean =
+    conf.getConf(ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON)
+
+  def enableCommonSubexpressionEliminate: Boolean =
+    conf.getConf(ENABLE_COMMON_SUBEXPRESSION_ELIMINATE)
 
   // whether to use ColumnarShuffleManager
   def isUseColumnarShuffleManager: Boolean =
@@ -174,6 +178,10 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def queryFallbackThreshold: Int = conf.getConf(COLUMNAR_QUERY_FALLBACK_THRESHOLD)
 
+  def fallbackIgnoreRowToColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR)
+
+  def fallbackPreferColumnar: Boolean = conf.getConf(COLUMNAR_FALLBACK_PREFER_COLUMNAR)
+
   def numaBindingInfo: GlutenNumaBindingInfo = {
     val enableNumaBinding: Boolean = conf.getConf(COLUMNAR_NUMA_BINDING_ENABLED)
     if (!enableNumaBinding) {
@@ -200,9 +208,6 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def memoryOverAcquiredRatio: Double = conf.getConf(COLUMNAR_MEMORY_OVER_ACQUIRED_RATIO)
 
   def memoryReservationBlockSize: Long = conf.getConf(COLUMNAR_MEMORY_RESERVATION_BLOCK_SIZE)
-
-  def conservativeOffHeapMemorySize: Long =
-    conf.getConf(COLUMNAR_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES)
 
   def conservativeTaskOffHeapMemorySize: Long =
     conf.getConf(COLUMNAR_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES)
@@ -356,6 +361,16 @@ object GlutenConfig {
   val ABFS_ACCOUNT_KEY = "hadoop.fs.azure.account.key"
   val SPARK_ABFS_ACCOUNT_KEY: String = "spark." + ABFS_ACCOUNT_KEY
 
+  // GCS config
+  val GCS_PREFIX = "fs.gs."
+  val GCS_STORAGE_ROOT_URL = "fs.gs.storage.root.url"
+  val SPARK_GCS_STORAGE_ROOT_URL: String = HADOOP_PREFIX + GCS_STORAGE_ROOT_URL
+  val GCS_AUTH_TYPE = "fs.gs.auth.type"
+  val SPARK_GCS_AUTH_TYPE: String = HADOOP_PREFIX + GCS_AUTH_TYPE
+  val GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE = "fs.gs.auth.service.account.json.keyfile"
+  val SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE: String =
+    HADOOP_PREFIX + GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
+
   // QAT config
   val GLUTEN_QAT_BACKEND_NAME = "qat"
   val GLUTEN_QAT_SUPPORTED_CODEC: Set[String] = Set("gzip", "zstd")
@@ -388,8 +403,6 @@ object GlutenConfig {
 
   // Added back to Spark Conf during executor initialization
   val GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.offHeap.size.in.bytes"
-  val GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY =
-    "spark.gluten.memory.conservative.offHeap.size.in.bytes"
   val GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY = "spark.gluten.memory.task.offHeap.size.in.bytes"
   val GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY =
     "spark.gluten.memory.conservative.task.offHeap.size.in.bytes"
@@ -429,6 +442,8 @@ object GlutenConfig {
   // Tokens of current user, split by `\0`
   val GLUTEN_UGI_TOKENS = "spark.gluten.ugi.tokens"
 
+  val GLUTEN_UI_ENABLED = "spark.gluten.ui.enabled"
+
   var ins: GlutenConfig = _
 
   def getConf: GlutenConfig = {
@@ -461,7 +476,21 @@ object GlutenConfig {
       "spark.io.compression.codec",
       COLUMNAR_VELOX_BLOOM_FILTER_EXPECTED_NUM_ITEMS.key,
       COLUMNAR_VELOX_BLOOM_FILTER_NUM_BITS.key,
-      COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key
+      COLUMNAR_VELOX_BLOOM_FILTER_MAX_NUM_BITS.key,
+      // s3 config
+      SPARK_S3_ACCESS_KEY,
+      SPARK_S3_SECRET_KEY,
+      SPARK_S3_ENDPOINT,
+      SPARK_S3_CONNECTION_SSL_ENABLED,
+      SPARK_S3_PATH_STYLE_ACCESS,
+      SPARK_S3_USE_INSTANCE_CREDENTIALS,
+      SPARK_S3_IAM,
+      SPARK_S3_IAM_SESSION_NAME,
+      AWS_SDK_LOG_LEVEL.key,
+      // gcs config
+      SPARK_GCS_STORAGE_ROOT_URL,
+      SPARK_GCS_AUTH_TYPE,
+      SPARK_GCS_AUTH_SERVICE_ACCOUNT_JSON_KEYFILE
     )
     keys.forEach(
       k => {
@@ -945,6 +974,24 @@ object GlutenConfig {
       .intConf
       .createWithDefault(-1)
 
+  val COLUMNAR_FALLBACK_IGNORE_ROW_TO_COLUMNAR =
+    buildConf("spark.gluten.sql.columnar.fallback.ignoreRowToColumnar")
+      .internal()
+      .doc(
+        "When true, the fallback policy ignores the RowToColumnar when counting fallback number.")
+      .booleanConf
+      .createWithDefault(true)
+
+  val COLUMNAR_FALLBACK_PREFER_COLUMNAR =
+    buildConf("spark.gluten.sql.columnar.fallback.preferColumnar")
+      .internal()
+      .doc(
+        "When true, the fallback policy prefers to use Gluten plan rather than vanilla " +
+          "Spark plan if the both of them contains ColumnarToRow and the vanilla Spark plan " +
+          "ColumnarToRow number is not smaller than Gluten plan.")
+      .booleanConf
+      .createWithDefault(true)
+
   val COLUMNAR_NUMA_BINDING_ENABLED =
     buildConf("spark.gluten.sql.columnar.numaBinding")
       .internal()
@@ -959,16 +1006,6 @@ object GlutenConfig {
 
   val COLUMNAR_OFFHEAP_SIZE_IN_BYTES =
     buildConf(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY)
-      .internal()
-      .doc(
-        "Must provide default value since non-execution operations " +
-          "(e.g. org.apache.spark.sql.Dataset#summary) doesn't propagate configurations using " +
-          "org.apache.spark.sql.execution.SQLExecution#withSQLConfPropagated")
-      .bytesConf(ByteUnit.BYTE)
-      .createWithDefaultString("0")
-
-  val COLUMNAR_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES =
-    buildConf(GlutenConfig.GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY)
       .internal()
       .doc(
         "Must provide default value since non-execution operations " +
@@ -1362,7 +1399,7 @@ object GlutenConfig {
       .intConf
       .createOptional
 
-  val ENABLE_DATE_TIMESTAMP_COMPARISON =
+  val ENABLE_REWRITE_DATE_TIMESTAMP_COMPARISON =
     buildConf("spark.gluten.sql.rewrite.dateTimestampComparison")
       .internal()
       .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
@@ -1374,6 +1411,15 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.project.collapse")
       .internal()
       .doc("Combines two columnar project operators into one and perform alias substitution")
+      .booleanConf
+      .createWithDefault(true)
+
+  val ENABLE_COMMON_SUBEXPRESSION_ELIMINATE =
+    buildConf("spark.gluten.sql.commonSubexpressionEliminate")
+      .internal()
+      .doc(
+        "Eliminate common subexpressions in logical plan to avoid multiple evaluation of the same"
+          + "expression, may improve performance")
       .booleanConf
       .createWithDefault(true)
 

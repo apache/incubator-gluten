@@ -162,7 +162,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(e.child, attributeSeq, expressionsMap),
           e)
       case p: PosExplode =>
-        PosExplodeTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genPosExplodeTransformer(
           substraitExprName,
           replaceWithExpressionTransformerInternal(p.child, attributeSeq, expressionsMap),
           p,
@@ -535,8 +535,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
     }
 
-    if (GlutenConfig.getConf.enableScanOnly) {
-      // Disable ColumnarSubqueryBroadcast for scan-only execution.
+    if (
+      GlutenConfig.getConf.enableScanOnly || !GlutenConfig.getConf.enableColumnarBroadcastExchange
+    ) {
+      // Disable ColumnarSubqueryBroadcast for scan-only execution
+      // or ColumnarBroadcastExchange was disabled.
       partitionFilters
     } else {
       val newPartitionFilters = partitionFilters.map {

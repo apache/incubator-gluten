@@ -95,6 +95,14 @@ void AggregateRelParser::setup(DB::QueryPlanPtr query_plan, const substrait::Rel
     has_first_stage = phase_set.contains(substrait::AggregationPhase::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE);
     has_inter_stage = phase_set.contains(substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE);
     has_final_stage = phase_set.contains(substrait::AggregationPhase::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT);
+    if (aggregate_rel->measures().empty())
+    {
+        /// According to planAggregateWithoutDistinct in AggUtils.scala, an aggregate without aggregate
+        /// functions will only be organized in two stages, partial and final. In partial stage
+        /// requiredChildDistributionExpressions is None, but in final stage it is Some(Seq[Expression]).
+        auto configs = parseFormattedRelAdvancedOptimization(aggregate_rel->advanced_extension());
+        has_final_stage = getStringConfig(configs, "has_required_child_distribution_expressions") == "true";
+    }
 
     if (phase_set.size() > 1 && has_final_stage)
     {
@@ -237,7 +245,8 @@ void AggregateRelParser::addMergingAggregatedStep()
     AggregateDescriptions aggregate_descriptions;
     buildAggregateDescriptions(aggregate_descriptions);
     auto settings = getContext()->getSettingsRef();
-    Aggregator::Params params(grouping_keys, aggregate_descriptions, false, settings.max_threads, settings.max_block_size);
+    Aggregator::Params params(
+        grouping_keys, aggregate_descriptions, false, settings.max_threads, settings.max_block_size, settings.min_hit_rate_to_use_consecutive_keys_optimization);
     bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", false);
     if (enable_streaming_aggregating)
     {
@@ -292,7 +301,9 @@ void AggregateRelParser::addAggregatingStep()
             settings.max_block_size,
             /*enable_prefetch*/ true,
             /*only_merge*/ false,
-            settings.optimize_group_by_constant_keys);
+            settings.optimize_group_by_constant_keys,
+            settings.min_hit_rate_to_use_consecutive_keys_optimization,
+            /*StatsCollectingParams*/{});
         auto aggregating_step = std::make_unique<StreamingAggregatingStep>(getContext(), plan->getCurrentDataStream(), params);
         steps.emplace_back(aggregating_step.get());
         plan->addStep(std::move(aggregating_step));
@@ -317,7 +328,9 @@ void AggregateRelParser::addAggregatingStep()
             settings.max_block_size,
             /*enable_prefetch*/ true,
             /*only_merge*/ false,
-            settings.optimize_group_by_constant_keys);
+            settings.optimize_group_by_constant_keys,
+            settings.min_hit_rate_to_use_consecutive_keys_optimization,
+            /*StatsCollectingParams*/{});
 
         auto aggregating_step = std::make_unique<AggregatingStep>(
             plan->getCurrentDataStream(),
