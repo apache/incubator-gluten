@@ -38,10 +38,10 @@ on:
 #      - 'substrait/substrait-spark/**'
 
 env:
-  HTTP_PROXY_HOST: ${{ secrets.SHR_IL_HTTP_PROXY_HOST }}
-  HTTP_PROXY_PORT: ${{ secrets.SHR_IL_HTTP_PROXY_PORT }}
-  DOCKER_REGISTRY_HOST: ${{ secrets.SHR_IL_DOCKER_REGISTRY_HOST }}
-  DOCKER_REGISTRY_PORT: ${{ secrets.SHR_IL_DOCKER_REGISTRY_PORT }}
+  HTTP_PROXY_HOST: 10.240.252.16
+  HTTP_PROXY_PORT: 911
+  DOCKER_REGISTRY_HOST: 10.0.2.4
+  DOCKER_REGISTRY_PORT: 5000
 
 concurrency:
   group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
