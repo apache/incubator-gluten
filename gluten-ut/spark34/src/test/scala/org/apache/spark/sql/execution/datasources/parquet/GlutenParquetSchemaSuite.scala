@@ -22,4 +22,9 @@ class GlutenParquetSchemaInferenceSuite
   extends ParquetSchemaInferenceSuite
   with GlutenSQLTestsBaseTrait {}
 
-class GlutenParquetSchemaSuite extends ParquetSchemaSuite with GlutenSQLTestsBaseTrait {}
+class GlutenParquetSchemaSuite extends ParquetSchemaSuite with GlutenSQLTestsBaseTrait {
+
+  override protected def testFile(fileName: String): String = {
+    getWorkspaceFilePath("sql", "core", "src", "test", "resources").toString + "/" + fileName
+  }
+}

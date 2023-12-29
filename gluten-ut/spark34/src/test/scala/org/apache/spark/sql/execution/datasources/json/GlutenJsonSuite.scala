@@ -17,12 +17,17 @@
 package org.apache.spark.sql.execution.datasources.json
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.{sources, GlutenSQLTestsBaseTrait}
+import org.apache.spark.sql.{sources, GlutenSQLTestsBaseTrait, Row}
+import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.execution.datasources.{InMemoryFileIndex, NoopCache}
 import org.apache.spark.sql.execution.datasources.v2.json.JsonScanBuilder
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{IntegerType, StructType}
+import org.apache.spark.sql.types.{DateType, IntegerType, StructType, TimestampType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+
+import org.scalatest.exceptions.TestFailedException
+
+import java.sql.{Date, Timestamp}
 
 class GlutenJsonSuite extends JsonSuite with GlutenSQLTestsBaseTrait {
 
@@ -39,6 +44,8 @@ class GlutenJsonV1Suite extends GlutenJsonSuite with GlutenSQLTestsBaseTrait {
 }
 
 class GlutenJsonV2Suite extends GlutenJsonSuite with GlutenSQLTestsBaseTrait {
+
+  import testImplicits._
   override def sparkConf: SparkConf =
     super.sparkConf
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
@@ -71,6 +78,54 @@ class GlutenJsonV2Suite extends GlutenJsonSuite with GlutenSQLTestsBaseTrait {
           val scanBuilder = getBuilder(file.getCanonicalPath)
           assert(scanBuilder.pushDataFilters(filters) === Array.empty[sources.Filter])
       }
+    }
+  }
+
+  test(GLUTEN_TEST + "SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern") {
+    withTempPath {
+      path =>
+        Seq(
+          """{"date": "2020011", "ts": "2020011"}""",
+          """{"date": "20201203", "ts": "20201203"}""")
+          .toDF()
+          .repartition(1)
+          .write
+          .text(path.getAbsolutePath)
+        val schema = new StructType()
+          .add("date", DateType)
+          .add("ts", TimestampType)
+        val output = spark.read
+          .schema(schema)
+          .option("dateFormat", "yyyyMMdd")
+          .option("timestampFormat", "yyyyMMdd")
+          .json(path.getAbsolutePath)
+
+        def check(mode: String, res: Seq[Row]): Unit = {
+          withSQLConf(SQLConf.LEGACY_TIME_PARSER_POLICY.key -> mode) {
+            checkAnswer(output, res)
+          }
+        }
+
+        check(
+          "legacy",
+          Seq(
+            Row(Date.valueOf("2020-01-01"), Timestamp.valueOf("2020-01-01 00:00:00")),
+            Row(Date.valueOf("2020-12-03"), Timestamp.valueOf("2020-12-03 00:00:00"))
+          )
+        )
+
+        check(
+          "corrected",
+          Seq(
+            Row(null, null),
+            Row(Date.valueOf("2020-12-03"), Timestamp.valueOf("2020-12-03 00:00:00"))
+          )
+        )
+
+        val err = intercept[TestFailedException] {
+          check("exception", Nil)
+        }
+        assert(err.message.get.contains("org.apache.spark.SparkUpgradeException"))
     }
   }
 }
