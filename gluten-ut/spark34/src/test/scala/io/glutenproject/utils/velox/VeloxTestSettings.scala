@@ -1128,13 +1128,7 @@ class VeloxTestSettings extends BackendTestSettings {
   // following UT is removed in spark3.3.1
   // enableSuite[GlutenSimpleShowCreateTableSuite]
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
-    // velox convert string null as -1583242847, which is not same with spark.
-    .exclude("SPARK-30844: static partition should also follow StoreAssignmentPolicy")
-    .exclude(
-      "SPARK-41982: treat the partition field as string literal when keepPartitionSpecAsStringLiteral is enabled")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
-    .exclude(
-      "SPARK-41982: treat the partition field as string literal when keepPartitionSpecAsStringLiteral is enabled")
   enableSuite[GlutenSQLQuerySuite]
     // Velox doesn't support spark.sql.optimizer.metadataOnly config.
     .exclude("SPARK-26709: OptimizeMetadataOnlyQuery does not handle empty records correctly")
