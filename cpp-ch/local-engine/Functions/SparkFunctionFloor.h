@@ -105,7 +105,7 @@ DECLARE_AVX2_SPECIFIC_CODE(
             __m256d is_neg_inf = _mm256_cmp_pd(values, neg_inf, _CMP_EQ_OQ);
             __m256d is_nan = _mm256_cmp_pd(values, values, _CMP_NEQ_UQ);
             __m256d is_null = _mm256_or_pd(_mm256_or_pd(is_inf, is_neg_inf), is_nan);
-            __m256d new_values = _mm256_blendv_ps(values, zero, is_null);
+            __m256d new_values = _mm256_blendv_pd(values, zero, is_null);
 
             _mm256_storeu_pd(&data[i], new_values);
 
