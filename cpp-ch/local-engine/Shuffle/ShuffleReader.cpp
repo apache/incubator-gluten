@@ -16,12 +16,12 @@
  */
 #include "ShuffleReader.h"
 #include <Compression/CompressedReadBuffer.h>
+#include <Core/Block.h>
 #include <IO/ReadBuffer.h>
 #include <jni/jni_common.h>
 #include <Common/DebugUtils.h>
 #include <Common/JNIUtils.h>
 #include <Common/Stopwatch.h>
-#include <Core/Block.h>
 
 using namespace DB;
 
@@ -32,10 +32,8 @@ void configureCompressedReadBuffer(DB::CompressedReadBuffer & compressedReadBuff
 {
     compressedReadBuffer.disableChecksumming();
 }
-local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_)
-    : in(std::move(in_))
-    , max_shuffle_read_rows(max_shuffle_read_rows_)
-    , max_shuffle_read_bytes(max_shuffle_read_bytes_)
+ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool compressed, Int64 max_shuffle_read_rows_, Int64 max_shuffle_read_bytes_)
+    : in(std::move(in_)), max_shuffle_read_rows(max_shuffle_read_rows_), max_shuffle_read_bytes(max_shuffle_read_bytes_)
 {
     if (compressed)
     {
@@ -48,7 +46,7 @@ local_engine::ShuffleReader::ShuffleReader(std::unique_ptr<ReadBuffer> in_, bool
         input_stream = std::make_unique<NativeReader>(*in);
     }
 }
-Block * local_engine::ShuffleReader::read()
+Block * ShuffleReader::read()
 {
     // Avoid to generate out a lot of small blocks.
     size_t buffer_rows = 0;
@@ -68,9 +66,7 @@ Block * local_engine::ShuffleReader::read()
     {
         auto block = input_stream->read();
         if (!block.rows())
-        {
             break;
-        }
         if (!blocks.empty()
             && (blocks[0].info.is_overflows != block.info.is_overflows || blocks[0].info.bucket_num != block.info.bucket_num))
         {
@@ -109,12 +105,10 @@ bool ReadBufferFromJavaInputStream::nextImpl()
 {
     int count = readFromJava();
     if (count > 0)
-    {
         working_buffer.resize(count);
-    }
     return count > 0;
 }
-int ReadBufferFromJavaInputStream::readFromJava()
+int ReadBufferFromJavaInputStream::readFromJava() const
 {
     GET_JNIENV(env)
     jint count = safeCallIntMethod(
@@ -132,4 +126,16 @@ ReadBufferFromJavaInputStream::~ReadBufferFromJavaInputStream()
     CLEAN_JNIENV
 }
 
+bool ReadBufferFromByteArray::nextImpl()
+{
+    if (read_pos_ >= array_size_)
+        return false;
+    GET_JNIENV(env)
+    const size_t read_size = std::min(memory.m_capacity, array_size_ - read_pos_);
+    env->GetByteArrayRegion(array_, read_pos_, read_size, reinterpret_cast<jbyte *>(working_buffer.begin()));
+    working_buffer.resize(read_size);
+    read_pos_ += read_size;
+    CLEAN_JNIENV
+    return true;
+}
 }

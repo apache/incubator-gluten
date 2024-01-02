@@ -47,5 +47,6 @@ git clone https://github.com/oap-project/gluten.git
 cd gluten
 
 # To access HDFS or S3, you need to add the parameters `--enable_hdfs=ON` and `--enable_s3=ON`
+# If you have the same error with issue-3283, you need to add the parameter `--compile_arrow_java=ON`
 ./dev/buildbundle-veloxbe.sh
 ```

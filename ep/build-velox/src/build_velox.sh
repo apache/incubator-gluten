@@ -30,6 +30,7 @@ ENABLE_BENCHMARK=OFF
 ENABLE_TESTS=OFF
 RUN_SETUP_SCRIPT=ON
 OTHER_ARGUMENTS=""
+COMPILE_ARROW_JAVA=OFF
 
 OS=`uname -s`
 ARCH=`uname -m`
@@ -74,6 +75,10 @@ for arg in "$@"; do
     ;;
   --run_setup_script=*)
     RUN_SETUP_SCRIPT=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --compile_arrow_java=*)
+    COMPILE_ARROW_JAVA=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -244,6 +249,22 @@ function setup_linux {
   fi
 }
 
+function compile_arrow_java_module() {
+    ARROW_HOME="${VELOX_HOME}/_build/$COMPILE_TYPE/third_party/arrow_ep/src/arrow_ep"
+    ARROW_INSTALL_DIR="${ARROW_HOME}/../../install"
+
+    # Arrow C Data Interface CPP libraries
+    pushd $ARROW_HOME/java
+    mvn generate-resources -P generate-libs-cdata-all-os -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR -N
+    popd
+
+    # Arrow Java libraries
+    pushd $ARROW_HOME/java
+    mvn clean install -P arrow-c-data -pl c -am -DskipTests -Dcheckstyle.skip \
+      -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
+    popd
+}
+
 CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
   pwd
@@ -272,6 +293,10 @@ echo "Target Velox build: $TARGET_BUILD_SUMMARY"
 
 check_commit
 compile
+
+if [ $COMPILE_ARROW_JAVA == "ON" ]; then
+  compile_arrow_java_module
+fi
 
 echo "Successfully built Velox from Source."
 echo $TARGET_BUILD_SUMMARY >"${VELOX_HOME}/velox-build.cache"

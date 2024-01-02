@@ -31,6 +31,7 @@ VELOX_REPO=""
 VELOX_BRANCH=""
 VELOX_HOME=""
 VELOX_PARAMETER=""
+COMPILE_ARROW_JAVA=OFF
 
 for arg in "$@"
 do
@@ -121,6 +122,10 @@ do
         BUILD_VELOX_BENCHMARKS=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --compile_arrow_java=*)
+        COMPILE_ARROW_JAVA=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
 	      *)
         OTHER_ARGUMENTS+=("$1")
         shift # Remove generic argument from processing
@@ -156,7 +161,8 @@ concat_velox_param
 cd $GLUTEN_DIR/ep/build-velox/src
 ./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --enable_abfs=$ENABLE_ABFS $VELOX_PARAMETER
 ./build_velox.sh --run_setup_script=$RUN_SETUP_SCRIPT --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
-                 --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_tests=$BUILD_VELOX_TESTS --build_velox_benchmarks=$BUILD_VELOX_BENCHMARKS
+                 --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_tests=$BUILD_VELOX_TESTS --build_velox_benchmarks=$BUILD_VELOX_BENCHMARKS \
+                 --compile_arrow_java=$COMPILE_ARROW_JAVA
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp

@@ -49,7 +49,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
   }
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
 
-    // /home/chang/test/tpch/parquet/s100/supplier 3 * 20 false
+    // /home/chang/test/tpch/parquet/s100/supplier * 200
     val (parquetDir, scanSchema, executedCnt) =
       if (mainArgs.isEmpty) {
         ("/data/tpch-data/parquet/lineitem", "l_orderkey,l_receiptdate", 5)
@@ -110,6 +110,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
       NoopBroadcastMode,
       child.output,
       allBytes,
+      count0,
       Seq(BoundReference(0, child.output.head.dataType, child.output.head.nullable)))
   }
 
@@ -133,6 +134,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
       NoopBroadcastMode,
       child.output,
       allBytes,
+      count0,
       Seq(BoundReference(0, child.output.head.dataType, child.output.head.nullable)))
   }
 
@@ -154,6 +156,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
       NoopBroadcastMode,
       child.output,
       allBytes,
+      count0,
       Seq(BoundReference(0, child.output.head.dataType, child.output.head.nullable)))
   }
 
@@ -175,6 +178,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
       NoopBroadcastMode,
       child.output,
       allBytes,
+      count0,
       Seq(BoundReference(0, child.output.head.dataType, child.output.head.nullable)))
   }
 
@@ -205,6 +209,7 @@ object CHStorageJoinBenchmark extends SqlBasedBenchmark with CHSqlBasedBenchmark
       NoopBroadcastMode,
       child.output,
       allBytes,
+      count0,
       Seq(BoundReference(0, child.output.head.dataType, child.output.head.nullable)))
   }
 

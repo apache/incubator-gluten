@@ -2308,5 +2308,16 @@ class GlutenClickHouseTPCHParquetSuite extends GlutenClickHouseTPCHAbstractSuite
     compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
     spark.sql("drop table test_tbl_4085")
   }
+
+  test("GLUTEN-3951: Bug fix floor") {
+    val tbl_create_sql = "create table test_tbl_3951(d double) using parquet";
+    val data_insert_sql = "insert into test_tbl_3951 values(1.0), (2.0), (2.5)";
+    val select_sql =
+      "select floor(d), floor(log10(d-1)), floor(log10(d-2)) from test_tbl_3951"
+    spark.sql(tbl_create_sql)
+    spark.sql(data_insert_sql)
+    compareResultsAgainstVanillaSpark(select_sql, true, { _ => })
+    spark.sql("drop table test_tbl_3951")
+  }
 }
 // scalastyle:on line.size.limit
