@@ -60,7 +60,7 @@ static void checkAndSetNullable(T & t, UInt8 & null_flag)
 
 DECLARE_AVX2_SPECIFIC_CODE(
 
-    inline void checkNullFloat32SIMD(Float32 * data, UInt8 * null_map, size_t size) {
+    inline void checkFloat32AndSetNullable(Float32 * data, UInt8 * null_map, size_t size) {
         const __m256 inf = _mm256_set1_ps(INFINITY);
         const __m256 neg_inf = _mm256_set1_ps(-INFINITY);
         const __m256 zero = _mm256_set1_ps(0.0f);
@@ -91,7 +91,7 @@ DECLARE_AVX2_SPECIFIC_CODE(
             checkAndSetNullable(data[i], null_map[i]);
     }
 
-    inline void checkNullFloat64SIMD(Float64 * data, UInt8 * null_map, size_t size) {
+    inline void checkFloat64AndSetNullable(Float64 * data, UInt8 * null_map, size_t size) {
         const __m256d inf = _mm256_set1_pd(INFINITY);
         const __m256d neg_inf = _mm256_set1_pd(-INFINITY);
         const __m256d zero = _mm256_set1_pd(0.0);
@@ -160,9 +160,9 @@ public:
         if (isArchSupported(TargetArch::AVX2))
         {
             if constexpr (std::is_same_v<T, Float32>)
-                TargetSpecific::AVX2::checkNullFloat32SIMD(out.data(), null_map.data(), out.size());
+                TargetSpecific::AVX2::checkFloat32AndSetNullable(out.data(), null_map.data(), out.size());
             else if constexpr (std::is_same_v<T, Float64>)
-                TargetSpecific::AVX2::checkNullFloat64SIMD(out.data(), null_map.data(), out.size());
+                TargetSpecific::AVX2::checkFloat64AndSetNullable(out.data(), null_map.data(), out.size());
         }
         else
         {
