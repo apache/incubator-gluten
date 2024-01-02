@@ -81,7 +81,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
         case ColumnarToRowExec(s: Exchange) if isAdaptiveContext =>
           countFallbackInternal(s)
         case u: UnaryExecNode
-            if !u.isInstanceOf[GlutenPlan] && PlanUtil.isGlutenTableCache(u.child) =>
+            if !PlanUtil.isGlutenColumnarOp(u) && PlanUtil.isGlutenTableCache(u.child) =>
           // Vanilla Spark plan will call `InMemoryTableScanExec.convertCachedBatchToInternalRow`
           // which is a kind of `ColumnarToRowExec`.
           transitionCost = transitionCost + 1
@@ -96,7 +96,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
           }
           countFallbackInternal(r.child)
         case leafPlan: LeafExecNode if PlanUtil.isGlutenTableCache(leafPlan) =>
-        case leafPlan: LeafExecNode if !leafPlan.isInstanceOf[GlutenPlan] =>
+        case leafPlan: LeafExecNode if !PlanUtil.isGlutenColumnarOp(leafPlan) =>
           // Possible fallback for leaf node.
           transitionCost = transitionCost + 1
         case p => p.children.foreach(countFallbackInternal)
@@ -166,7 +166,7 @@ case class ExpandFallbackPolicy(isAdaptiveContext: Boolean, originalPlan: SparkP
             .filter(_.isInstanceOf[QueryStageExec])
             .foreach {
               case stage: QueryStageExec
-                  if stage.plan.isInstanceOf[GlutenPlan] ||
+                  if PlanUtil.isGlutenColumnarOp(stage.plan) ||
                     // For TableCacheQueryStageExec since spark 3.5.
                     PlanUtil.isGlutenTableCache(stage) =>
                 stageFallbackTransitionCost = stageFallbackTransitionCost + 1

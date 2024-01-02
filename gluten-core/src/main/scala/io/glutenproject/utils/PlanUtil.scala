@@ -73,4 +73,10 @@ object PlanUtil {
       case _ => !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
     }
   }
+
+  def isGlutenColumnarOp(plan: SparkPlan): Boolean = {
+    plan match {
+      case _ => plan.isInstanceOf[GlutenPlan]
+    }
+  }
 }

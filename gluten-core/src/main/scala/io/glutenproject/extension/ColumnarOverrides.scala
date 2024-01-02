@@ -685,12 +685,17 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   private def replaceWithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
-    case c2r: ColumnarToRowExecBase if PlanUtil.isVanillaColumnarOp(c2r.child) =>
-      ColumnarToRowExec(c2r.child)
-    case c2r: ColumnarToRowExec if PlanUtil.isVanillaColumnarOp(c2r.child) =>
-      c2r
-    case _ if PlanUtil.isVanillaColumnarOp(plan) =>
-      BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(ColumnarToRowExec(plan))
+    case _ if PlanUtil.isGlutenColumnarOp(plan) =>
+      plan.withNewChildren(plan.children.map {
+        c =>
+          val child = replaceWithVanillaColumnarToRow(c)
+          if (PlanUtil.isVanillaColumnarOp(child)) {
+            BackendsApiManager.getSparkPlanExecApiInstance.genRowToColumnarExec(
+              ColumnarToRowExec(child))
+          } else {
+            child
+          }
+      })
     case _ =>
       plan.withNewChildren(plan.children.map(replaceWithVanillaColumnarToRow))
   }
@@ -700,7 +705,7 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
       plan.withNewChildren(plan.children.map {
         c =>
           val child = replaceWithVanillaRowToColumnar(c)
-          if (child.isInstanceOf[GlutenPlan]) {
+          if (PlanUtil.isGlutenColumnarOp(child)) {
             RowToColumnarExec(
               BackendsApiManager.getSparkPlanExecApiInstance.genColumnarToRowExec(child))
           } else {
