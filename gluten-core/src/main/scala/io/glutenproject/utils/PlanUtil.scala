@@ -64,19 +64,18 @@ object PlanUtil {
         } else {
           !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
         }
-      case _: AQEShuffleReadExec => false
-      case _: QueryStageExec => false
+      case a: AQEShuffleReadExec => isVanillaColumnarOp(a.child)
+      case s: QueryStageExec => isVanillaColumnarOp(s.plan)
       case _: RowToColumnarExec => false
       case _: InputAdapter => false
       case _: WholeStageCodegenExec => false
-      case _: ReusedExchangeExec => false
+      case r: ReusedExchangeExec => isVanillaColumnarOp(r.child)
+      case p if p.getClass.getSimpleName == "VeloxColumnarWriteFilesExec" => false
       case _ => !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
     }
   }
 
   def isGlutenColumnarOp(plan: SparkPlan): Boolean = {
-    plan match {
-      case _ => plan.isInstanceOf[GlutenPlan]
-    }
+    plan.isInstanceOf[GlutenPlan]
   }
 }
