@@ -21,9 +21,16 @@ public class CHDatasourceJniWrapper {
   public native long nativeInitFileWriterWrapper(
       String filePath, String[] preferredColumnNames, String formatHint);
 
+  public native long nativeInitMergeTreeWriterWrapper(
+      byte[] schema, String uuid, String taskId, String partition_dir, String bucket_dir);
+
   public native void write(long instanceId, long blockAddress);
 
+  public native void writeToMergeTree(long instanceId, long blockAddress);
+
   public native void close(long instanceId);
+
+  public native String closeMergeTreeWriter(long instanceId);
 
   /*-
    * The input block is already sorted by partition columns + bucket expressions. (check
@@ -43,5 +50,8 @@ public class CHDatasourceJniWrapper {
    * to help FileFormatDataWriter to aware partition/bucket changes.
    */
   public static native BlockStripes splitBlockByPartitionAndBucket(
-      long blockAddress, int[] partitionColIndice, boolean hasBucket);
+      long blockAddress,
+      int[] partitionColIndice,
+      boolean hasBucket,
+      boolean reserve_partition_columns);
 }

@@ -220,7 +220,7 @@ static const std::set<std::string> FUNCTION_NEED_KEEP_ARGUMENTS = {"alias"};
 struct QueryContext
 {
     StorageSnapshotPtr storage_snapshot;
-    std::shared_ptr<DB::StorageInMemoryMetadata> metadata;
+    std::shared_ptr<const DB::StorageInMemoryMetadata> metadata;
     std::shared_ptr<CustomStorageMergeTree> custom_storage_merge_tree;
 };
 
@@ -277,8 +277,6 @@ public:
 
     DB::QueryPlanStepPtr parseReadRealWithLocalFile(const substrait::ReadRel & rel);
     DB::QueryPlanStepPtr parseReadRealWithJavaIter(const substrait::ReadRel & rel);
-    // mergetree need create two steps in parse, can't return single step
-    DB::QueryPlanPtr parseMergeTreeTable(const substrait::ReadRel & rel, std::vector<IQueryPlanStep *> & steps);
     PrewhereInfoPtr parsePreWhereInfo(const substrait::Expression & rel, Block & input);
 
     static bool isReadRelFromJava(const substrait::ReadRel & rel);

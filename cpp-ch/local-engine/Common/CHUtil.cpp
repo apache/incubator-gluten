@@ -61,6 +61,8 @@
 #include <Common/Logger.h>
 #include <Common/logger_useful.h>
 #include <Common/typeid_cast.h>
+#include <Disks/registerDisks.h>
+#include <Storages/StorageMergeTreeFactory.h>
 
 #include <boost/algorithm/string/case_conv.hpp>
 #include <boost/algorithm/string/predicate.hpp>
@@ -728,6 +730,7 @@ void registerAllFunctions()
         auto & factory = AggregateFunctionCombinatorFactory::instance();
         registerAggregateFunctionCombinatorPartialMerge(factory);
     }
+    registerDisks(true);
 }
 
 void BackendInitializerUtil::registerAllFactories()
@@ -828,6 +831,7 @@ void BackendFinalizerUtil::finalizeGlobally()
 {
     // Make sure client caches release before ClientCacheRegistry
     ReadBufferBuilderFactory::instance().clean();
+    StorageMergeTreeFactory::clear();
     auto & global_context = SerializedPlanParser::global_context;
     auto & shared_context = SerializedPlanParser::shared_context;
     if (global_context)

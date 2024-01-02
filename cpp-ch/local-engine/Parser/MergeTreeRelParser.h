@@ -37,6 +37,8 @@ using namespace DB;
 class MergeTreeRelParser : public RelParser
 {
 public:
+    static std::shared_ptr<CustomStorageMergeTree> parseStorage(const substrait::Rel & rel_, ContextMutablePtr context);
+
     explicit MergeTreeRelParser(
         SerializedPlanParser * plan_paser_, ContextPtr & context_, QueryContext & query_context_, ContextMutablePtr & global_context_)
         : RelParser(plan_paser_), context(context_), query_context(query_context_), global_context(global_context_)

@@ -17,6 +17,7 @@
 package io.glutenproject.substrait.rel;
 
 import java.util.List;
+import java.util.Map;
 
 public class ExtensionTableBuilder {
   private ExtensionTableBuilder() {}
@@ -27,8 +28,27 @@ public class ExtensionTableBuilder {
       String database,
       String tableName,
       String relativePath,
+      String orderByKey,
+      String primaryKey,
+      List<String> partList,
+      List<Long> starts,
+      List<Long> lengths,
+      String tableSchemaJson,
+      Map<String, String> clickhouseTableConfigs,
       List<String> preferredLocations) {
     return new ExtensionTableNode(
-        minPartsNum, maxPartsNum, database, tableName, relativePath, preferredLocations);
+        minPartsNum,
+        maxPartsNum,
+        database,
+        tableName,
+        relativePath,
+        orderByKey,
+        primaryKey,
+        partList,
+        starts,
+        lengths,
+        tableSchemaJson,
+        clickhouseTableConfigs,
+        preferredLocations);
   }
 }

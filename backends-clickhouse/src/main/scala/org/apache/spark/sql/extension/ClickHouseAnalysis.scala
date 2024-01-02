@@ -24,7 +24,6 @@ import org.apache.spark.sql.delta.metering.DeltaLogging
 import org.apache.spark.sql.delta.util.AnalysisHelper
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
-import org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseConfig
 import org.apache.spark.sql.execution.datasources.v2.clickhouse.table.ClickHouseTableV2
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -39,17 +38,7 @@ class ClickHouseAnalysis(session: SparkSession, conf: SQLConf)
   override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsDown {
     // This rule falls back to V1 nodes according to 'spark.gluten.sql.columnar.backend.ch.use.v2'
     case dsv2 @ DataSourceV2Relation(tableV2: ClickHouseTableV2, _, _, _, options) =>
-      if (
-        conf
-          .getConfString(
-            ClickHouseConfig.USE_DATASOURCE_V2,
-            ClickHouseConfig.DEFAULT_USE_DATASOURCE_V2)
-          .toBoolean
-      ) {
-        dsv2
-      } else {
-        ClickHouseAnalysis.fromV2Relation(tableV2, dsv2, options)
-      }
+      ClickHouseAnalysis.fromV2Relation(tableV2, dsv2, options)
   }
 }
 

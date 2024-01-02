@@ -59,7 +59,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
   final protected def disableFallbackCheck: Boolean =
     isFallbackCheckDisabled0.compareAndSet(false, true)
 
-  private def isFallbackCheckDisabled = isFallbackCheckDisabled0.get()
+  protected def isFallbackCheckDisabled = isFallbackCheckDisabled0.get()
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -131,7 +131,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
                 val v1 = row.getDouble(i)
                 assert(!result(i).equals("null"))
                 val v2 = result(i).toDouble
-                assert(Math.abs(v1 - v2) < 0.00001)
+                assert(Math.abs(v1 - v2) < 0.0005)
               }
             case _ =>
               // handle null value

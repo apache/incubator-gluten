@@ -22,7 +22,7 @@ class GlutenClickHouseDSV2Suite extends GlutenClickHouseTPCHAbstractSuite {
 
   override protected val tablesPath: String = basePath + "/tpch-data-ch"
   override protected val tpchQueries: String = rootPath + "queries/tpch-queries-ch"
-  override protected val queriesResults: String = rootPath + "queries-output"
+  override protected val queriesResults: String = rootPath + "mergetree-queries-output"
 
   /** Run Gluten + ClickHouse Backend with ColumnarShuffleManager */
   override protected def sparkConf: SparkConf = {
@@ -31,7 +31,6 @@ class GlutenClickHouseDSV2Suite extends GlutenClickHouseTPCHAbstractSuite {
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "1")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
-      .set("spark.gluten.sql.columnar.backend.ch.use.v2", "true")
   }
 
   test("TPCH Q1") {
@@ -50,7 +49,7 @@ class GlutenClickHouseDSV2Suite extends GlutenClickHouseTPCHAbstractSuite {
         val scanExec = df.queryExecution.executedPlan.collect {
           case scanExec: BasicScanExecTransformer => scanExec
         }
-        assert(scanExec.size == 9)
+        assert(scanExec.size == 8)
     }
   }
 

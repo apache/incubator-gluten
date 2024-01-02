@@ -199,7 +199,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
   --conf spark.gluten.sql.enable.native.validation=false \
   --conf spark.io.compression.codec=snappy \
-  --conf spark.gluten.sql.columnar.backend.ch.use.v2=false \
   --conf spark.gluten.sql.columnar.forceShuffledHashJoin=true \
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
   --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
@@ -381,7 +380,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
   --conf spark.gluten.sql.enable.native.validation=false \
   --conf spark.io.compression.codec=snappy \
-  --conf spark.gluten.sql.columnar.backend.ch.use.v2=false \
   --conf spark.gluten.sql.columnar.forceShuffledHashJoin=true \
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
   --conf spark.databricks.delta.maxSnapshotLineageLength=20 \
@@ -573,7 +571,6 @@ cd spark-3.2.2-bin-hadoop2.7
   --conf spark.gluten.sql.columnar.hashagg.enablefinal=true \
   --conf spark.gluten.sql.enable.native.validation=false \
   --conf spark.io.compression.codec=snappy \
-  --conf spark.gluten.sql.columnar.backend.ch.use.v2=false \
   --conf spark.gluten.sql.columnar.forceShuffledHashJoin=true \
   --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.execution.datasources.v2.clickhouse.ClickHouseSparkCatalog \
   --conf spark.databricks.delta.maxSnapshotLineageLength=20 \

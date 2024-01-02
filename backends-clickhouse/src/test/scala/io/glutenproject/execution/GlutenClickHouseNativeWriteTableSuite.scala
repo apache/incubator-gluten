@@ -257,12 +257,12 @@ class GlutenClickHouseNativeWriteTableSuite
 
       for (format <- formats) {
         spark.sql(
-          s"insert overwrite local directory './test_insert_into_${format}_dir1' "
+          s"insert overwrite local directory '$basePath/test_insert_into_${format}_dir1' "
             + s"stored as $format select "
             + fields.keys.mkString(",") +
             " from origin_table cluster by (byte_field)")
         spark.sql(
-          s"insert overwrite local directory './test_insert_into_${format}_dir2' " +
+          s"insert overwrite local directory '$basePath/test_insert_into_${format}_dir2' " +
             s"stored as $format " +
             "select string_field, sum(int_field) as x from origin_table group by string_field")
       }

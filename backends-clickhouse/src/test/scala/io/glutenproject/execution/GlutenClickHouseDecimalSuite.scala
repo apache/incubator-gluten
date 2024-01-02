@@ -51,7 +51,6 @@ class GlutenClickHouseDecimalSuite
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.sql.decimalOperations.allowPrecisionLoss", "false")
   }
 

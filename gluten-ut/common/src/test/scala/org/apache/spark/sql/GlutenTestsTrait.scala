@@ -111,7 +111,6 @@ trait GlutenTestsTrait extends GlutenTestsCommonTrait {
         sparkBuilder
           .config("spark.io.compression.codec", "LZ4")
           .config("spark.gluten.sql.columnar.backend.ch.worker.id", "1")
-          .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
           .config("spark.gluten.sql.enable.native.validation", "false")
           .config("spark.sql.files.openCostInBytes", "134217728")
           .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)

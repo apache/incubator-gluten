@@ -23,7 +23,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeSet}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, UnaryNode}
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.{SparkPlan, SparkStrategy, UnaryExecNode}
 import org.apache.spark.sql.execution.datasources.LogicalRelation
@@ -89,7 +88,6 @@ object DummyFilterColmnarHelper {
         .config("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
         .config(GlutenConfig.GLUTEN_LIB_PATH, SystemParameters.getClickHouseLibPath)
         .config("spark.io.compression.codec", "LZ4")
-        .config("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
         .config("spark.gluten.sql.enable.native.validation", "false")
     } else {
       SparkSession

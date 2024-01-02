@@ -64,17 +64,68 @@ StorageInMemoryMetadataPtr StorageMergeTreeFactory::getMetadata(StorageID id, st
     if (!metadata_map.contains(table_name))
     {
         if (!metadata_map.contains(table_name))
-        {
             metadata_map.emplace(table_name, creator());
-        }
     }
     return metadata_map.at(table_name);
+}
+DataPartsVector StorageMergeTreeFactory::getDataParts(StorageID id, std::unordered_set<String> part_name)
+{
+    DataPartsVector res;
+    auto table_name = id.database_name + "." + id.table_name;
+    std::lock_guard lock(datapart_mutex);
+    CustomStorageMergeTreePtr storage_merge_tree;
+    {
+        std::lock_guard storage_lock(storage_map_mutex);
+        storage_merge_tree = storage_map.at(table_name);
+    }
+    std::unordered_set<String> missing_names;
+
+    if (!datapart_map.contains(table_name)) [[unlikely]]
+    {
+        datapart_map.emplace(table_name, std::unordered_map<String, DataPartPtr>());
+    }
+
+    for (const auto & name : part_name)
+    {
+        if (!datapart_map[table_name].contains(name))
+        {
+            missing_names.emplace(name);
+        }
+        else
+        {
+            res.emplace_back(datapart_map[table_name].at(name));
+        }
+    }
+    auto missing_parts = storage_merge_tree->loadDataPartsWithNames(missing_names);
+    for (const auto & part : missing_parts)
+    {
+        res.emplace_back(part);
+        datapart_map[table_name].emplace(part->name, part);
+    }
+    return res;
+}
+void StorageMergeTreeFactory::addDataPartToCache(StorageID id, String part_name, DataPartPtr part)
+{
+    auto table_name = id.database_name + "." + id.table_name;
+    std::lock_guard lock(datapart_mutex);
+    if (!datapart_map.contains(table_name))
+    {
+        std::unordered_map<String, DataPartPtr> item;
+        item.emplace(part_name, part);
+        datapart_map.emplace(table_name, item);
+    }
+    else
+    {
+        datapart_map[table_name].emplace(part_name, part);
+    }
 }
 
 
 std::unordered_map<std::string, CustomStorageMergeTreePtr> StorageMergeTreeFactory::storage_map;
 std::unordered_map<std::string, std::set<std::string>> StorageMergeTreeFactory::storage_columns_map;
+std::unordered_map<std::string, std::unordered_map<std::string, DataPartPtr>> StorageMergeTreeFactory::datapart_map;
 std::mutex StorageMergeTreeFactory::storage_map_mutex;
+std::mutex StorageMergeTreeFactory::datapart_mutex;
 
 std::unordered_map<std::string, StorageInMemoryMetadataPtr> StorageMergeTreeFactory::metadata_map;
 std::mutex StorageMergeTreeFactory::metadata_map_mutex;

@@ -25,29 +25,44 @@
 #include <Parsers/ASTFunction.h>
 #include <Parsers/ASTSelectQuery.h>
 #include <Storages/MergeTree/MergeTreeSettings.h>
+#include <Storages/MergeTree/RangesInDataPart.h>
 #include <Storages/SelectQueryInfo.h>
 #include <Storages/StorageInMemoryMetadata.h>
-
+#include <Interpreters/MergeTreeTransaction.h>
+#include <substrait/plan.pb.h>
 
 namespace local_engine
 {
 using namespace DB;
-std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(DB::NamesAndTypesList columns, ContextPtr context);
+
+
+struct MergeTreePart
+{
+    String name;
+    size_t begin;
+    size_t end;
+};
+
+struct MergeTreeTable
+{
+    inline static const String TUPLE = "tuple()";
+    std::string database;
+    std::string table;
+    substrait::NamedStruct schema;
+    std::string order_by_key;
+    std::string primary_key = "";
+    std::string relative_path;
+    std::string table_configs_json;
+    std::vector<MergeTreePart> parts;
+    std::unordered_set<String> getPartNames() const;
+    RangesInDataParts extractRange(DataPartsVector parts_vector) const;
+};
+
+std::shared_ptr<DB::StorageInMemoryMetadata> buildMetaData(const DB::NamesAndTypesList &columns, ContextPtr context, const MergeTreeTable &);
 
 std::unique_ptr<MergeTreeSettings> buildMergeTreeSettings();
 
 std::unique_ptr<SelectQueryInfo> buildQueryInfo(NamesAndTypesList & names_and_types_list);
-
-struct MergeTreeTable
-{
-    std::string database;
-    std::string table;
-    std::string relative_path;
-    int min_block;
-    int max_block;
-
-    std::string toString() const;
-};
 
 MergeTreeTable parseMergeTreeTableString(const std::string & info);
 

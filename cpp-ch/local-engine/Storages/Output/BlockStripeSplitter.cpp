@@ -20,7 +20,7 @@
 using namespace local_engine;
 
 BlockStripes
-local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vector<size_t> & partition_column_indices, bool has_bucket)
+local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vector<size_t> & partition_column_indices, bool has_bucket, bool reserve_partition_columns)
 {
     BlockStripes ret;
     ret.origin_block_address = reinterpret_cast<int64_t>(&block);
@@ -66,8 +66,9 @@ local_engine::BlockStripeSplitter::split(const DB::Block & block, const std::vec
     DB::ColumnsWithTypeAndName output_columns;
     for (size_t col_i = 0; col_i < block.columns(); ++col_i)
     {
-        /// Partition columns will not be written to the file (they're written to folder name)
-        if (std::find(partition_column_indices.begin(), partition_column_indices.end(), col_i) != partition_column_indices.end())
+//        /// Partition columns will not be written to the file (they're written to folder name)
+
+        if (!reserve_partition_columns && std::find(partition_column_indices.begin(), partition_column_indices.end(), col_i) != partition_column_indices.end())
             continue;
 
         /// The last column is a column representing bucketing hash value (__bucket_value__), which is not written to the file

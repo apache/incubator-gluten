@@ -168,34 +168,6 @@ object GenTPCHTableScripts {
     res
   }
 
-  def genOneTPCDSParquetTableSQL(
-      res: ArrayBuffer[String],
-      dataPathRoot: String,
-      tblName: String,
-      tblFields: String,
-      tblPartitionCols: String,
-      tablePrefix: String,
-      tableSuffix: String): Unit = {
-    // scalastyle:off println
-    println(s"start to generate sqls for table $tblName")
-    // scalastyle:on println
-    res += s"""DROP TABLE IF EXISTS $tablePrefix$tblName$tableSuffix;"""
-    res +=
-      s"""
-         |CREATE TABLE IF NOT EXISTS $tablePrefix$tblName$tableSuffix (
-         |$tblFields
-         | )
-         | USING PARQUET
-         | $tblPartitionCols
-         | LOCATION '${dataPathRoot + tblName}'
-         | ;
-         |""".stripMargin
-
-    if (!tblPartitionCols.isEmpty) {
-      res += s"""MSCK REPAIR TABLE $tablePrefix$tblName$tableSuffix;"""
-    }
-  }
-
   def genTPCHMergeTreeTables(dataPathRoot: String): ArrayBuffer[String] = {
     // scalastyle:off println
     val dbName = "default"

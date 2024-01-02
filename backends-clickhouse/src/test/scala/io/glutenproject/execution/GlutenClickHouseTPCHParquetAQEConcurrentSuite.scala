@@ -49,7 +49,6 @@ class GlutenClickHouseTPCHParquetAQEConcurrentSuite
       .set("spark.io.compression.codec", "snappy")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.gluten.sql.columnar.backend.ch.use.v2", "true")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.sql.autoBroadcastJoinThreshold", "-1")
   }

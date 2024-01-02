@@ -42,7 +42,6 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
       .set("spark.io.compression.codec", "LZ4")
       .set("spark.sql.shuffle.partitions", "5")
       .set("spark.sql.autoBroadcastJoinThreshold", "10MB")
-      .set("spark.gluten.sql.columnar.backend.ch.use.v2", "false")
       .set("spark.sql.adaptive.enabled", "true")
       .set("spark.gluten.sql.columnar.backend.ch.shuffle.hash.algorithm", "sparkMurmurHash3_32")
       .set(
@@ -183,8 +182,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   test("TPCH Q7 - with shuffle.partitions=1") {
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
+      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(7) { df => }
     }
   }
@@ -192,8 +190,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   test("TPCH Q7") {
     withSQLConf(
       ("spark.sql.shuffle.partitions", "2"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
+      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(7) { df => }
     }
   }
@@ -201,8 +198,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   test("TPCH Q8") {
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
+      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(8) { df => }
     }
   }
@@ -237,8 +233,7 @@ class GlutenClickHouseTPCHColumnarShuffleParquetAQESuite
   test("TPCH Q14") {
     withSQLConf(
       ("spark.sql.shuffle.partitions", "1"),
-      ("spark.sql.autoBroadcastJoinThreshold", "-1"),
-      ("spark.gluten.sql.columnar.backend.ch.use.v2", "true")) {
+      ("spark.sql.autoBroadcastJoinThreshold", "-1")) {
       runTPCHQuery(14) { df => }
     }
   }
