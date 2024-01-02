@@ -306,21 +306,8 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kIoWaitTime)[metricIndex] = runtimeMetric("sum", second->customStats, kIoWaitTime);
       metrics_->get(Metrics::kPreloadSplits)[metricIndex] =
           runtimeMetric("sum", entry.second->customStats, kPreloadSplits);
-
-      // Update the Write metrics.
-      if (entry.first == "TableWrite") {
-        for (int i = 0; i < task_->taskStats().pipelineStats.size(); ++i) {
-          auto operatorStats = task_->taskStats().pipelineStats.at(i).operatorStats;
-          for (int j = 0; j < operatorStats.size(); ++j) {
-            auto operatorStat = operatorStats.at(j);
-            if (operatorStat.operatorType == "TableWrite") {
-              metrics_->get(Metrics::kNumWrittenFiles)[metricIndex] =
-                  operatorStat.runtimeStats.at(kNumWrittenFiles).sum;
-              metrics_->get(Metrics::kPhysicalWrittenBytes)[metricIndex] = operatorStat.physicalWrittenBytes;
-            }
-          }
-        }
-      }
+      metrics_->get(Metrics::kNumWrittenFiles)[metricIndex] =
+                  runtimeMetric("sum", entry.second->customStats, kNumWrittenFiles);
 
       metricIndex += 1;
     }
