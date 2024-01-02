@@ -34,6 +34,7 @@ case class ClickHouseBuildSideRelation(
     mode: BroadcastMode,
     output: Seq[Attribute],
     batches: Array[Byte],
+    numOfRows: Long,
     newBuildKeys: Seq[Expression] = Seq.empty)
   extends BuildSideRelation
   with Logging {
@@ -52,8 +53,12 @@ case class ClickHouseBuildSideRelation(
           s"BHJ value size: " +
             s"${broadCastContext.buildHashTableId} = ${batches.length}")
         // Build the hash table
-        hashTableData =
-          StorageJoinBuilder.build(batches, broadCastContext, newBuildKeys.asJava, output.asJava)
+        hashTableData = StorageJoinBuilder.build(
+          batches,
+          numOfRows,
+          broadCastContext,
+          newBuildKeys.asJava,
+          output.asJava)
         (hashTableData, this)
       } else {
         (StorageJoinBuilder.nativeCloneBuildHashTable(hashTableData), null)
