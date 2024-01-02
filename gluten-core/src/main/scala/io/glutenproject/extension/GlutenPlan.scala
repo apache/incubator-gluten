@@ -46,6 +46,22 @@ object ValidationResult {
       notOk(fallbackInfo)
     }
   }
+
+  /**
+   * Merge the results of two ValidationResult objects, including combining the reasons message for
+   * invalid ValidationResult.
+   *   - valid merge valid = valid
+   *   - invalid merge valid = invalid
+   *   - invalid merge invalid = invalid
+   */
+  def merge(first: ValidationResult, second: ValidationResult): ValidationResult = {
+    if (first.isValid && second.isValid) {
+      ok
+    } else {
+      val reasonStr = first.reason.getOrElse("") + second.reason.getOrElse("")
+      notOk(reasonStr)
+    }
+  }
 }
 
 /** Every Gluten Operator should extend this trait. */

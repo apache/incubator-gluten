@@ -19,7 +19,7 @@ package io.glutenproject.extension.columnar
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution._
-import io.glutenproject.extension.{GlutenPlan, ValidationResult}
+import io.glutenproject.extension.{GlutenPlan, InsertPostProject, ValidationResult}
 import io.glutenproject.sql.shims.SparkShimLoader
 import io.glutenproject.utils.PhysicalPlanSelector
 
@@ -462,7 +462,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
                 plan.resultExpressions,
                 plan.child
               )
-            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+            val allTransformable = InsertPostProject
+              .getTransformedPlan(transformer)
+              .map(_.asInstanceOf[GlutenPlan].doValidate())
+              .reduce(ValidationResult.merge)
+            TransformHints.tag(plan, allTransformable.toTransformHint)
           }
         case plan: SortAggregateExec =>
           if (!BackendsApiManager.getSettings.replaceSortAggWithHashAgg) {
@@ -483,7 +487,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
               plan.resultExpressions,
               plan.child
             )
-          TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+          val allTransformable = InsertPostProject
+            .getTransformedPlan(transformer)
+            .map(_.asInstanceOf[GlutenPlan].doValidate())
+            .reduce(ValidationResult.merge)
+          TransformHints.tag(plan, allTransformable.toTransformHint)
         case plan: ObjectHashAggregateExec =>
           if (!enableColumnarHashAgg) {
             TransformHints.tagNotTransformable(
@@ -500,7 +508,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
                 plan.resultExpressions,
                 plan.child
               )
-            TransformHints.tag(plan, transformer.doValidate().toTransformHint)
+            val allTransformable = InsertPostProject
+              .getTransformedPlan(transformer)
+              .map(_.asInstanceOf[GlutenPlan].doValidate())
+              .reduce(ValidationResult.merge)
+            TransformHints.tag(plan, allTransformable.toTransformHint)
           }
         case plan: UnionExec =>
           if (!enableColumnarUnion) {

@@ -421,6 +421,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-26893: Allow pushdown of partition pruning subquery filters to file source")
     .exclude("SPARK-28441: COUNT bug in nested subquery with non-foldable expr")
     .exclude("SPARK-28441: COUNT bug with non-foldable expression in Filter condition")
+    .exclude("Merge non-correlated scalar subqueries in a subquery")
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite].exclude("cases when literal is max")
   enableSuite[GlutenXPathFunctionsSuite]

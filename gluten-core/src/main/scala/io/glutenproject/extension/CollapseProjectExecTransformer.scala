@@ -31,12 +31,13 @@ object CollapseProjectExecTransformer extends Rule[SparkPlan] {
       return plan
     }
     plan.transformUp {
-      case p1 @ ProjectExecTransformer(_, p2: ProjectExecTransformer)
+      case p1 @ ProjectExecTransformer(_, p2: ProjectExecTransformer, _)
           if !containsNamedStructAlias(p2.projectList)
             && CollapseProjectShim.canCollapseExpressions(
               p1.projectList,
               p2.projectList,
               alwaysInline = false) =>
+        // Keep child project type when collapsing projection.
         val collapsedProject = p2.copy(projectList =
           CollapseProjectShim.buildCleanedProjectList(p1.projectList, p2.projectList))
         val validationResult = collapsedProject.doValidate()

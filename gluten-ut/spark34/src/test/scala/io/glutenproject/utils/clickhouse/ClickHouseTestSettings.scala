@@ -444,6 +444,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36656: Do not collapse projects with correlate scalar subqueries")
     .exclude("Merge non-correlated scalar subqueries from different parent plans")
     .exclude("Merge non-correlated scalar subqueries with conflicting names")
+    .exclude("Merge non-correlated scalar subqueries in a subquery")
+    .exclude("Merge non-correlated scalar subqueries from different levels")
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite].exclude("cases when literal is max")
   enableSuite[GlutenXPathFunctionsSuite]
@@ -773,6 +775,15 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]
   enableSuite[GlutenWriteDistributionAndOrderingSuite]
+    // disable as they check vanilla spark plan
+    .exclude("clustered distribution and local sort contains v2 function: append")
+    .exclude("clustered distribution and local sort contains v2 function: overwrite")
+    .exclude("clustered distribution and local sort contains v2 function: overwriteDynamic")
+    .exclude(
+      "clustered distribution and local sort contains v2 function with numPartitions: append")
+    .exclude(
+      "clustered distribution and local sort contains v2 function with numPartitions: overwrite")
+    .exclude("clustered distribution and local sort contains v2 function with numPartitions: overwriteDynamic")
   enableSuite[GlutenQueryCompilationErrorsSuite]
     .exclude("CANNOT_USE_MIXTURE: Using aggregate function with grouped aggregate pandas UDF")
     .exclude("UNSUPPORTED_FEATURE: Using pandas UDF aggregate expression with pivot")

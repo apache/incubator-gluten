@@ -513,21 +513,11 @@ abstract class HashAggregateExecTransformer(
       validation: Boolean = false): RelNode = {
     val originalInputAttributes = child.output
 
-    var aggRel = if (needsPreProjection) {
-      aggParams.preProjectionNeeded = true
-      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
+    var aggRel = if (rowConstructNeeded) {
+      aggParams.rowConstructionNeeded = true
+      getAggRelWithRowConstruct(context, originalInputAttributes, operatorId, input, validation)
     } else {
-      if (rowConstructNeeded) {
-        aggParams.preProjectionNeeded = true
-        getAggRelWithRowConstruct(context, originalInputAttributes, operatorId, input, validation)
-      } else {
-        getAggRelWithoutPreProjection(
-          context,
-          originalInputAttributes,
-          operatorId,
-          input,
-          validation)
-      }
+      getAggRelInternal(context, originalInputAttributes, operatorId, input, validation)
     }
 
     if (extractStructNeeded()) {
@@ -535,14 +525,8 @@ abstract class HashAggregateExecTransformer(
       aggRel = applyExtractStruct(context, aggRel, operatorId, validation)
     }
 
-    val resRel = if (!needsPostProjection(allAggregateResultAttributes)) {
-      aggRel
-    } else {
-      aggParams.postProjectionNeeded = true
-      applyPostProjection(context, aggRel, operatorId, validation)
-    }
     context.registerAggregationParam(operatorId, aggParams)
-    resRel
+    aggRel
   }
 
   def isStreaming: Boolean = false
@@ -624,6 +608,26 @@ case class RegularHashAggregateExecTransformer(
   override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
     copy(child = newChild)
   }
+
+  override def copySelf(
+      requiredChildDistributionExpressions: Option[Seq[Expression]],
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributes: Seq[Attribute],
+      initialInputBufferOffset: Int,
+      resultExpressions: Seq[NamedExpression],
+      child: SparkPlan): HashAggregateExecTransformer = {
+    val res = copy(
+      requiredChildDistributionExpressions,
+      groupingExpressions,
+      aggregateExpressions,
+      aggregateAttributes,
+      initialInputBufferOffset,
+      resultExpressions,
+      child)
+    res.copyTagsFrom(this)
+    res
+  }
 }
 
 // Hash aggregation that emits pre-aggregated data which allows duplications on grouping keys
@@ -655,5 +659,23 @@ case class FlushableHashAggregateExecTransformer(
 
   override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
     copy(child = newChild)
+  }
+
+  override def copySelf(
+      requiredChildDistributionExpressions: Option[Seq[Expression]],
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributes: Seq[Attribute],
+      initialInputBufferOffset: Int,
+      resultExpressions: Seq[NamedExpression],
+      child: SparkPlan): HashAggregateExecTransformer = {
+    copy(
+      requiredChildDistributionExpressions,
+      groupingExpressions,
+      aggregateExpressions,
+      aggregateAttributes,
+      initialInputBufferOffset,
+      resultExpressions,
+      child)
   }
 }

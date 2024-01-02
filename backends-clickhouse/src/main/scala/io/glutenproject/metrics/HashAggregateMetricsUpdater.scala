@@ -30,18 +30,8 @@ class HashAggregateMetricsUpdater(val metrics: Map[String, SQLMetric])
       if (opMetrics != null) {
         val operatorMetrics = opMetrics.asInstanceOf[OperatorMetrics]
         if (!operatorMetrics.metricsList.isEmpty && operatorMetrics.aggParams != null) {
-          val aggregationParams = operatorMetrics.aggParams
           var currentIdx = operatorMetrics.metricsList.size() - 1
           var totalTime = 0L
-
-          // pre projection
-          if (aggregationParams.preProjectionNeeded) {
-            metrics("preProjectTime") +=
-              (operatorMetrics.metricsList.get(currentIdx).time / 1000L).toLong
-            metrics("outputVectors") += operatorMetrics.metricsList.get(currentIdx).outputVectors
-            totalTime += operatorMetrics.metricsList.get(currentIdx).time
-            currentIdx -= 1
-          }
 
           // aggregating
           val aggMetricsData = operatorMetrics.metricsList.get(currentIdx)
@@ -72,14 +62,6 @@ class HashAggregateMetricsUpdater(val metrics: Map[String, SQLMetric])
 
           currentIdx -= 1
 
-          // post projection
-          if (aggregationParams.postProjectionNeeded) {
-            metrics("postProjectTime") +=
-              (operatorMetrics.metricsList.get(currentIdx).time / 1000L).toLong
-            metrics("outputVectors") += operatorMetrics.metricsList.get(currentIdx).outputVectors
-            totalTime += operatorMetrics.metricsList.get(currentIdx).time
-            currentIdx -= 1
-          }
           metrics("totalTime") += (totalTime / 1000L).toLong
         }
       }

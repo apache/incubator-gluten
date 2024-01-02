@@ -108,7 +108,7 @@ class GlutenCollapseProjectExecTransformerSuite extends GlutenSQLTestsTrait {
             )
             assert(
               getExecutedPlan(df).exists {
-                case _ @ProjectExecTransformer(_, _: ProjectExecTransformer) => true
+                case _ @ProjectExecTransformer(_, _: ProjectExecTransformer, _) => true
                 case _ => false
               } == !collapsed
             )

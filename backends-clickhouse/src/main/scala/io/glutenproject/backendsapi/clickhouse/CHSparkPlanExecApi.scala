@@ -355,7 +355,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List(spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf))
+    super.genExtendedOptimizers() ::
+      List(spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf))
   }
 
   /**
@@ -363,7 +364,8 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
+  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] =
+    super.genExtendedColumnarPreRules()
 
   /**
    * Generate extended columnar post-rules.

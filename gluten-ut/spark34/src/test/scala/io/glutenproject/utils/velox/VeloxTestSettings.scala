@@ -77,6 +77,15 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenSupportsCatalogOptionsSuite]
   enableSuite[GlutenTableCapabilityCheckSuite]
   enableSuite[GlutenWriteDistributionAndOrderingSuite]
+    // disable as they check vanilla spark plan
+    .exclude("clustered distribution and local sort contains v2 function: append")
+    .exclude("clustered distribution and local sort contains v2 function: overwrite")
+    .exclude("clustered distribution and local sort contains v2 function: overwriteDynamic")
+    .exclude(
+      "clustered distribution and local sort contains v2 function with numPartitions: append")
+    .exclude(
+      "clustered distribution and local sort contains v2 function with numPartitions: overwrite")
+    .exclude("clustered distribution and local sort contains v2 function with numPartitions: overwriteDynamic")
   enableSuite[GlutenQueryCompilationErrorsDSv2Suite]
   enableSuite[GlutenQueryCompilationErrorsSuite]
   enableSuite[GlutenQueryExecutionErrorsSuite]
@@ -1145,6 +1154,10 @@ class VeloxTestSettings extends BackendTestSettings {
     )
     // exclude as it checks spark plan
     .exclude("SPARK-36280: Remove redundant aliases after RewritePredicateSubquery")
+    // exclude as pre-project change the number of reused subquery in plan
+    .exclude("Merge non-correlated scalar subqueries in a subquery")
+    .exclude("Merge non-correlated scalar subqueries from different levels")
+    .exclude("Merge non-correlated scalar subqueries from different parent plans")
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite]
     // Rewrite with NaN test cases excluded.

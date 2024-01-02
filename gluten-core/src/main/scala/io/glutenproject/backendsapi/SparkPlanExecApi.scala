@@ -18,6 +18,8 @@ package io.glutenproject.backendsapi
 
 import io.glutenproject.execution._
 import io.glutenproject.expression._
+import io.glutenproject.extension.{CollapseProjectExecTransformer, InsertPostProject}
+import io.glutenproject.extension.AddExtraOptimizations
 import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 
 import org.apache.spark.ShuffleDependency
@@ -230,11 +232,19 @@ trait SparkPlanExecApi {
   def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]]
 
   /**
+   * Generate extended CheckRules. Currently only for Velox backend.
+   *
+   * @return
+   */
+  def genExtendedCheckRules(): List[SparkSession => LogicalPlan => Unit] =
+    List(AddExtraOptimizations)
+
+  /**
    * Generate extended Optimizers. Currently only for Velox backend.
    *
    * @return
    */
-  def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]]
+  def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = Nil
 
   /**
    * Generate extended Strategies
@@ -248,7 +258,11 @@ trait SparkPlanExecApi {
    *
    * @return
    */
-  def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]]
+  def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = {
+    List(
+      (_: SparkSession) => InsertPostProject,
+      (_: SparkSession) => CollapseProjectExecTransformer)
+  }
 
   /**
    * Generate extended columnar post-rules.

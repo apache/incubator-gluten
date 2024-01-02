@@ -167,31 +167,13 @@ case class CHHashAggregateExecTransformer(
       aggParams: AggregationParams,
       input: RelNode = null,
       validation: Boolean = false): RelNode = {
-    val originalInputAttributes = child.output
-    val aggRel = if (needsPreProjection) {
-      aggParams.preProjectionNeeded = true
-      getAggRelWithPreProjection(context, originalInputAttributes, operatorId, input, validation)
-    } else {
-      getAggRelWithoutPreProjection(
-        context,
-        aggregateResultAttributes,
-        operatorId,
-        input,
-        validation)
-    }
-    // Will check if post-projection is needed. If yes, a ProjectRel will be added after the
-    // AggregateRel.
-    val resRel = if (!needsPostProjection(allAggregateResultAttributes)) {
-      aggRel
-    } else {
-      aggParams.postProjectionNeeded = true
-      applyPostProjection(context, aggRel, operatorId, validation)
-    }
+    val aggRel =
+      getAggRelInternal(context, aggregateResultAttributes, operatorId, input, validation)
     context.registerAggregationParam(operatorId, aggParams)
-    resRel
+    aggRel
   }
 
-  override def getAggRelWithoutPreProjection(
+  override def getAggRelInternal(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
       operatorId: Long,
@@ -415,5 +397,23 @@ case class CHHashAggregateExecTransformer(
         StringValue.newBuilder.setValue(optimizationContent).build)
     ExtensionBuilder.makeAdvancedExtension(optimization, enhancement)
 
+  }
+
+  override def copySelf(
+      requiredChildDistributionExpressions: Option[Seq[Expression]],
+      groupingExpressions: Seq[NamedExpression],
+      aggregateExpressions: Seq[AggregateExpression],
+      aggregateAttributes: Seq[Attribute],
+      initialInputBufferOffset: Int,
+      resultExpressions: Seq[NamedExpression],
+      child: SparkPlan): CHHashAggregateExecTransformer = {
+    copy(
+      requiredChildDistributionExpressions,
+      groupingExpressions,
+      aggregateExpressions,
+      aggregateAttributes,
+      initialInputBufferOffset,
+      resultExpressions,
+      child)
   }
 }

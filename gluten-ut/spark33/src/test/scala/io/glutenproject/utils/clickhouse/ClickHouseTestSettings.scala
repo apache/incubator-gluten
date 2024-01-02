@@ -446,6 +446,9 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("SPARK-36656: Do not collapse projects with correlate scalar subqueries")
     .exclude("Merge non-correlated scalar subqueries from different parent plans")
     .exclude("Merge non-correlated scalar subqueries with conflicting names")
+    .exclude("Merge non-correlated scalar subqueries in a subquery")
+    // exclude as pre-project change the number of reused subquery in plan
+    .exclude("Merge non-correlated scalar subqueries from different levels")
   enableSuite[GlutenTypedImperativeAggregateSuite]
   enableSuite[GlutenUnwrapCastInComparisonEndToEndSuite].exclude("cases when literal is max")
   enableSuite[GlutenXPathFunctionsSuite]

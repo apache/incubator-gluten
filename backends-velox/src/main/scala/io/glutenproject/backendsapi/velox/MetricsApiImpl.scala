@@ -219,18 +219,12 @@ class MetricsApiImpl extends MetricsApi with Logging {
         "number of spilled partitions"),
       "aggSpilledFiles" -> SQLMetrics.createMetric(sparkContext, "number of spilled files"),
       "flushRowCount" -> SQLMetrics.createMetric(sparkContext, "number of flushed rows"),
-      "preProjectionCpuCount" -> SQLMetrics.createMetric(
+      "rowConstructionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
-        "preProjection cpu wall time count"),
-      "preProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
+        "rowConstruction cpu wall time count"),
+      "rowConstructionWallNanos" -> SQLMetrics.createNanoTimingMetric(
         sparkContext,
-        "totaltime of preProjection"),
-      "postProjectionCpuCount" -> SQLMetrics.createMetric(
-        sparkContext,
-        "postProjection cpu wall time count"),
-      "postProjectionWallNanos" -> SQLMetrics.createNanoTimingMetric(
-        sparkContext,
-        "totaltime of postProjection"),
+        "totaltime of rowConstruction"),
       "extractionCpuCount" -> SQLMetrics.createMetric(
         sparkContext,
         "extraction cpu wall time count"),

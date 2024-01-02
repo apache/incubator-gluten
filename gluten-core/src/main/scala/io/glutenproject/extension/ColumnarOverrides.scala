@@ -791,8 +791,7 @@ case class ColumnarOverrideRules(session: SparkSession)
         (_: SparkSession) => TransformPreOverrides(isAdaptiveContext),
         (_: SparkSession) => RemoveNativeWriteFilesSortAndProject(),
         (spark: SparkSession) => RewriteTransformer(spark),
-        (_: SparkSession) => EnsureLocalSortRequirements,
-        (_: SparkSession) => CollapseProjectExecTransformer
+        (_: SparkSession) => EnsureLocalSortRequirements
       ) :::
       BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules() :::
       SparkRuleUtil.extendedColumnarRules(session, GlutenConfig.getConf.extendedColumnarPreRules)
@@ -866,5 +865,12 @@ case class ColumnarOverrideRules(session: SparkSession)
 object ColumnarOverrides extends GlutenSparkExtensionsInjector {
   override def inject(extensions: SparkSessionExtensions): Unit = {
     extensions.injectColumnar(spark => ColumnarOverrideRules(spark))
+  }
+
+  def applyExtendedColumnarPreRules(plan: SparkPlan): SparkPlan = {
+    BackendsApiManager.getSparkPlanExecApiInstance.genExtendedColumnarPreRules().foldLeft(plan) {
+      case (latestPlan, rule) =>
+        rule.apply(plan.session)(latestPlan)
+    }
   }
 }
