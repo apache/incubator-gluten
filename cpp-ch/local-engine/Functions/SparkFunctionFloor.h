@@ -35,7 +35,7 @@ static void checkAndSetNullable(T & t, UInt8 & null_flag)
     UInt8 is_inf = 0;
     if constexpr (std::is_same_v<T, float>)
         is_inf = ((*reinterpret_cast<const uint32_t *>(&t) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000);
-    else if constexpr (std::is_same_v<T, double>)
+    else
         is_inf
             = ((*reinterpret_cast<const uint64_t *>(&t) & 0b0111111111111111111111111111111111111111111111111111111111111111)
                == 0b0111111111110000000000000000000000000000000000000000000000000000);
@@ -157,13 +157,17 @@ public:
             memcpy(p_out, &tmp_dst, tail_size_bytes);
         }
 
-        if constexpr (std::is_same_v<T, Float32>)
+        if (isArchSupported(TargetArch::AVX2))
         {
-            TargetSpecific::AVX2::checkNullFloat32SIMD(out.data(), null_map.data(), out.size());
+            if constexpr (std::is_same_v<T, Float32>)
+                TargetSpecific::AVX2::checkNullFloat32SIMD(out.data(), null_map.data(), out.size());
+            else if constexpr (std::is_same_v<T, Float64>)
+                TargetSpecific::AVX2::checkNullFloat64SIMD(out.data(), null_map.data(), out.size());
         }
-        else if constexpr (std::is_same_v<T, Float64>)
+        else
         {
-            TargetSpecific::AVX2::checkNullFloat64SIMD(out.data(), null_map.data(), out.size());
+            for (size_t i = 0; i < out.size(); ++i)
+                checkAndSetNullable(out[i], null_map[i]);
         }
     }
 
