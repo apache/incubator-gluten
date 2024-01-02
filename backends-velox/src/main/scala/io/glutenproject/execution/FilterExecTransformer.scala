@@ -19,11 +19,12 @@ package io.glutenproject.execution
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.SubstraitContext
 
-import org.apache.spark.sql.catalyst.expressions.{And, Expression}
+import org.apache.spark.sql.catalyst.expressions.{And, Expression, PredicateHelper}
 import org.apache.spark.sql.execution.SparkPlan
 
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecTransformerBase(condition, child) {
+  extends FilterExecTransformerBase(condition, child)
+  with PredicateHelper {
 
   override protected def doValidateInternal(): ValidationResult = {
     val leftCondition = getLeftCondition
@@ -76,7 +77,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
       condition
     } else {
       val leftFilters =
-        FilterHandler.getLeftFilters(scanFilters, FilterHandler.flattenCondition(condition))
+        FilterHandler.getLeftFilters(scanFilters, splitConjunctivePredicates(condition))
       leftFilters.reduceLeftOption(And).orNull
     }
   }
