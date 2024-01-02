@@ -186,17 +186,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Exception.
     .exclude("column pruning - non-readable file")
   enableSuite[GlutenCSVv1Suite]
-    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
-    .excludeByPrefix("lineSep with 2 chars when multiLine set to")
   enableSuite[GlutenCSVv2Suite]
-    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
-    .excludeByPrefix("lineSep with 2 chars when multiLine set to")
-    .exclude("test for FAILFAST parsing mode")
-    // exception test
-    .exclude("SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
-    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
-    .excludeByPrefix("lineSep with 2 chars when multiLine set to")
   enableSuite[GlutenJsonV1Suite]
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")
