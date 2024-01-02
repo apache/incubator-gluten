@@ -26,7 +26,7 @@ then
   exit 1
 fi
 
-export EXTRA_DOCKER_OPTIONS="$EXTRA_DOCKER_OPTIONS --name gha-checkout-$GITHUB_RUN_ID --detach -v $BASEDIR/scripts:/opt/scripts"
+export EXTRA_DOCKER_OPTIONS="$EXTRA_DOCKER_OPTIONS --name gha-checkout-$GITHUB_JOB-$GITHUB_RUN_ID --detach -v $BASEDIR/scripts:/opt/scripts"
 export NON_INTERACTIVE=ON
 
 $BASEDIR/../../cbash-build.sh 'sleep 14400'
