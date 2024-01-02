@@ -156,8 +156,7 @@ case class WriteFilesExecTransformer(
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val writePath = child.session.sparkContext.getLocalProperty("writePath")
-    assert(writePath.size > 0)
+    val writePath = WriteFilesExecTransformer.getWriteFilePath
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
 
     val operatorId = context.nextOperatorId(this.nodeName)
@@ -174,4 +173,24 @@ case class WriteFilesExecTransformer(
 
   override protected def withNewChildInternal(newChild: SparkPlan): WriteFilesExecTransformer =
     copy(child = newChild)
+}
+
+object WriteFilesExecTransformer {
+  private val writeFilePathThreadLocal = new ThreadLocal[String]
+
+  def withWriteFilePath[T](path: String)(f: => T): T = {
+    val origin = writeFilePathThreadLocal.get()
+    writeFilePathThreadLocal.set(path)
+    try {
+      f
+    } finally {
+      writeFilePathThreadLocal.set(origin)
+    }
+  }
+
+  def getWriteFilePath: String = {
+    val writeFilePath = writeFilePathThreadLocal.get()
+    assert(writeFilePath != null)
+    writeFilePath
+  }
 }
