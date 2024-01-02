@@ -671,7 +671,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
 
     local_engine::SplitOptions options{
         .split_size = static_cast<size_t>(split_size),
-        .io_buffer_size = DBMS_DEFAULT_BUFFER_SIZE,
+        .io_buffer_size = DB::DBMS_DEFAULT_BUFFER_SIZE,
         .data_file = jstring2string(env, data_file),
         .local_dirs_list = std::move(local_dirs_list),
         .num_sub_dirs = num_sub_dirs,
@@ -735,7 +735,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
 
     local_engine::SplitOptions options{
         .split_size = static_cast<size_t>(split_size),
-        .io_buffer_size = DBMS_DEFAULT_BUFFER_SIZE,
+        .io_buffer_size = DB::DBMS_DEFAULT_BUFFER_SIZE,
         .shuffle_id = shuffle_id,
         .map_id = static_cast<int>(map_id),
         .partition_num = static_cast<size_t>(num_partitions),

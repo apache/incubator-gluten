@@ -33,8 +33,8 @@ namespace local_engine
 {
 struct SplitOptions
 {
-    size_t split_size = DEFAULT_BLOCK_SIZE;
-    size_t io_buffer_size = DBMS_DEFAULT_BUFFER_SIZE;
+    size_t split_size = DB::DEFAULT_BLOCK_SIZE;
+    size_t io_buffer_size = DB::DBMS_DEFAULT_BUFFER_SIZE;
     std::string data_file;
     std::vector<std::string> local_dirs_list;
     int num_sub_dirs;
