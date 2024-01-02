@@ -113,13 +113,17 @@ static void BM_SparkFloorFunction_For_Float64(benchmark::State & state)
     }
 }
 
-static void nanInfToNullAutoOpt(const float * data, uint8_t * null_map, size_t size)
+static void nanInfToNullAutoOpt(float * data, uint8_t * null_map, size_t size)
 {
     for (size_t i = 0; i < size; ++i)
     {
         uint8_t is_nan = (data[i] != data[i]);
         uint8_t is_inf = ((*reinterpret_cast<const uint32_t *>(&data[i]) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000);
-        null_map[i] = is_nan | is_inf;
+        uint8_t null_flag = is_nan | is_inf;
+        null_map[i] = null_flag;
+
+        UInt32 * uint_data = reinterpret_cast<UInt32 *>(&data[i]);
+        *uint_data &= ~(-null_flag);
     }
 }
 
@@ -141,23 +145,31 @@ BENCHMARK(BMNanInfToNullAutoOpt);
 
 DECLARE_AVX2_SPECIFIC_CODE(
 
-    void nanInfToNullSIMD(const float * data, uint8_t * null_map, size_t size) {
-        __m256 inf = _mm256_set1_ps(INFINITY);
-        __m256 neg_inf = _mm256_set1_ps(-INFINITY);
+    void nanInfToNullSIMD(float * data, uint8_t * null_map, size_t size) {
+        const __m256 inf = _mm256_set1_ps(INFINITY);
+        const __m256 neg_inf = _mm256_set1_ps(-INFINITY);
+        const __m256 zero = _mm256_set1_ps(0.0f);
 
-        for (size_t i = 0; i < size; i += 8)
+        size_t i = 0;
+        for (; i + 7 < size; i += 8)
         {
             __m256 values = _mm256_loadu_ps(&data[i]);
 
-            __m256 cmp_result_inf = _mm256_cmp_ps(values, inf, _CMP_EQ_OQ);
-            __m256 cmp_result_neg_inf = _mm256_cmp_ps(values, neg_inf, _CMP_EQ_OQ);
-            __m256 cmp_result_nan = _mm256_cmp_ps(values, values, _CMP_NEQ_UQ);
+            __m256 is_inf = _mm256_cmp_ps(values, inf, _CMP_EQ_OQ);
+            __m256 is_neg_inf = _mm256_cmp_ps(values, neg_inf, _CMP_EQ_OQ);
+            __m256 is_nan = _mm256_cmp_ps(values, values, _CMP_NEQ_UQ);
+            __m256 is_null = _mm256_or_ps(_mm256_or_ps(is_inf, is_neg_inf), is_nan);
+            __m256 new_values = _mm256_blendv_ps(values, zero, is_null);
 
-            __m256 cmp_result = _mm256_or_ps(_mm256_or_ps(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan);
+            _mm256_storeu_ps(&data[i], new_values);
 
-            int mask = _mm256_movemask_ps(cmp_result);
+            UInt32 mask = static_cast<UInt32>(_mm256_movemask_ps(is_null));
             for (size_t j = 0; j < 8; ++j)
-                null_map[i + j] = (mask & (1 << j)) != 0;
+            {
+                UInt8 null_flag = (mask & 1U);
+                null_map[i + j] = null_flag;
+                mask >>= 1;
+            }
         }
     }
 )
@@ -178,54 +190,20 @@ static void BMNanInfToNullAVX2(benchmark::State & state)
 }
 BENCHMARK(BMNanInfToNullAVX2);
 
-
-DECLARE_AVX512F_SPECIFIC_CODE(
-
-    void nanInfToNullSIMD(const float * data, uint8_t * null_map, size_t size) {
-        __m512 inf = _mm512_set1_ps(INFINITY);
-        __m512 neg_inf = _mm512_set1_ps(-INFINITY);
-
-        for (size_t i = 0; i < size; i += 16)
-        {
-            __m512 values = _mm512_loadu_ps(&data[i]);
-
-            __mmask16 cmp_result_inf = _mm512_cmp_ps_mask(values, inf, _CMP_EQ_OQ);
-            __mmask16 cmp_result_neg_inf = _mm512_cmp_ps_mask(values, neg_inf, _CMP_EQ_OQ);
-            __mmask16 cmp_result_nan = _mm512_cmp_ps_mask(values, values, _CMP_NEQ_UQ);
-
-            __mmask16 cmp_result = cmp_result_inf | cmp_result_neg_inf | cmp_result_nan;
-
-            for (size_t j = 0; j < 16; ++j)
-                null_map[i + j] = (cmp_result & (1 << j)) != 0;
-        }
-    }
-)
-
-static void BMNanInfToNullAVX512(benchmark::State & state)
+static void nanInfToNull(float * data, uint8_t * null_map, size_t size)
 {
-    constexpr size_t size = 8192;
-    float data[size];
-    uint8_t null_map[size] = {0};
     for (size_t i = 0; i < size; ++i)
-        data[i] = static_cast<float>(rand()) / rand();
-
-    for (auto _ : state)
     {
-        ::TargetSpecific::AVX512F::nanInfToNullSIMD(data, null_map, size);
-        benchmark::DoNotOptimize(null_map);
-    }
-}
-BENCHMARK(BMNanInfToNullAVX512);
-
-static void nanInfToNull(const float * data, uint8_t * null_map, size_t size)
-{
-    for (size_t i = 0; i < size; ++i)
         if (data[i] != data[i])
             null_map[i] = 1;
         else if ((*reinterpret_cast<const uint32_t *>(&data[i]) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000)
             null_map[i] = 1;
         else
             null_map[i] = 0;
+
+        if (null_map[i])
+            data[i] = 0.0;
+    }
 }
 
 static void BMNanInfToNull(benchmark::State & state)
