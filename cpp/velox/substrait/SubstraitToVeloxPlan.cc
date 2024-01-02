@@ -894,26 +894,6 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   }
 }
 
-bool isPushDownSupportedByFormat(
-    const dwio::common::FileFormat& format,
-    connector::hive::SubfieldFilters& subfieldFilters) {
-  switch (format) {
-    case dwio::common::FileFormat::PARQUET:
-    case dwio::common::FileFormat::ORC:
-    case dwio::common::FileFormat::DWRF:
-    case dwio::common::FileFormat::RC:
-    case dwio::common::FileFormat::RC_TEXT:
-    case dwio::common::FileFormat::RC_BINARY:
-    case dwio::common::FileFormat::TEXT:
-    case dwio::common::FileFormat::JSON:
-    case dwio::common::FileFormat::ALPHA:
-    case dwio::common::FileFormat::UNKNOWN:
-    default:
-      break;
-  }
-  return true;
-}
-
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::FetchRel& fetchRel) {
   core::PlanNodePtr childNode;
   // Check the input of fetchRel, if it's sortRel, convert them into
@@ -1056,8 +1036,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     // pushed down.
     std::vector<::substrait::Expression_ScalarFunction> subfieldFunctions;
     std::vector<::substrait::Expression_ScalarFunction> remainingFunctions;
-    std::vector<::substrait::Expression_SingularOrList> subfieldrOrLists;
-    std::vector<::substrait::Expression_SingularOrList> remainingrOrLists;
+    std::vector<::substrait::Expression_SingularOrList> subfieldOrLists;
+    std::vector<::substrait::Expression_SingularOrList> remainingOrLists;
 
     separateFilters(
         rangeRecorders,
@@ -1065,24 +1045,15 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
         subfieldFunctions,
         remainingFunctions,
         singularOrLists,
-        subfieldrOrLists,
-        remainingrOrLists,
+        subfieldOrLists,
+        remainingOrLists,
         veloxTypeList,
         splitInfo->format);
 
     // Create subfield filters based on the constructed filter info map.
-    auto subfieldFilters = createSubfieldFilters(colNameList, veloxTypeList, subfieldFunctions, subfieldrOrLists);
+    auto subfieldFilters = createSubfieldFilters(colNameList, veloxTypeList, subfieldFunctions, subfieldOrLists);
     // Connect the remaining filters with 'and'.
-    core::TypedExprPtr remainingFilter;
-
-    if (!isPushDownSupportedByFormat(splitInfo->format, subfieldFilters)) {
-      // A subfieldFilter is not supported by the format,
-      // mark all filter as remaining filters.
-      subfieldFilters.clear();
-      remainingFilter = connectWithAnd(colNameList, veloxTypeList, scalarFunctions, singularOrLists, ifThens);
-    } else {
-      remainingFilter = connectWithAnd(colNameList, veloxTypeList, remainingFunctions, remainingrOrLists, ifThens);
-    }
+    auto remainingFilter = connectWithAnd(colNameList, veloxTypeList, remainingFunctions, remainingOrLists, ifThens);
 
     tableHandle = std::make_shared<connector::hive::HiveTableHandle>(
         kHiveConnectorId, "hive_table", filterPushdownEnabled, std::move(subfieldFilters), remainingFilter);
