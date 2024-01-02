@@ -98,8 +98,7 @@ void SubstraitFileSource::setKeyCondition(const DB::ActionsDAG::NodeRawConstPtrs
         filter_actions_dag,
         context_,
         keys.getNames(),
-        std::make_shared<DB::ExpressionActions>(std::make_shared<DB::ActionsDAG>(keys.getColumnsWithTypeAndName())),
-        DB::NameSet{});
+        std::make_shared<DB::ExpressionActions>(std::make_shared<DB::ActionsDAG>(keys.getColumnsWithTypeAndName())));
 }
 
 DB::Chunk SubstraitFileSource::generate()
