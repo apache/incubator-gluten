@@ -29,7 +29,7 @@ namespace local_engine
 
 template <typename T>
 requires std::is_floating_point_v<T>
-static UInt8 checkAndSetNullableAutoOpt(T t)
+static void checkAndSetNullable(T & t, UInt8 & null_flag)
 {
     UInt8 is_nan = (t != t);
     UInt8 is_inf = 0;
@@ -40,201 +40,89 @@ static UInt8 checkAndSetNullableAutoOpt(T t)
             = ((*reinterpret_cast<const uint64_t *>(&t) & 0b0111111111111111111111111111111111111111111111111111111111111111)
                == 0b0111111111110000000000000000000000000000000000000000000000000000);
 
-    return is_nan | is_inf;
+    null_flag = is_nan | is_inf;
+
+    /* Equivalent code:
+    if (null_flag)
+        t = 0;
+    */
+    if constexpr (std::is_same_v<T, float>)
+    {
+        UInt32 * uint_data = reinterpret_cast<UInt32 *>(&t);
+        *uint_data &= ~(-null_flag);
+    }
+    else
+    {
+        UInt64 * uint_data = reinterpret_cast<UInt64 *>(&t);
+        *uint_data &= ~(-null_flag);
+    }
 }
-
-DECLARE_AVX_SPECIFIC_CODE(
-
-    inline void checkNullFloat32SIMD(const Float32 * data, UInt8 * null_map, size_t size) {
-        __m128 inf = _mm_set1_ps(INFINITY);
-        __m128 neg_inf = _mm_set1_ps(-INFINITY);
-
-        size_t i = 0;
-        for (; i + 3 < size; i += 4)
-        {
-            __m128 values = _mm_loadu_ps(&data[i]);
-
-            __m128 cmp_result_inf = _mm_cmp_ps(values, inf, _CMP_EQ_OQ);
-            __m128 cmp_result_neg_inf = _mm_cmp_ps(values, neg_inf, _CMP_EQ_OQ);
-            __m128 cmp_result_nan = _mm_cmp_ps(values, values, _CMP_NEQ_UQ);
-
-            __m128 cmp_result = _mm_or_ps(_mm_or_ps(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan);
-
-            int mask = _mm_movemask_ps(cmp_result);
-            for (size_t j = 0; j < 4; ++j)
-                null_map[i + j] = (mask & (1 << j)) != 0;
-        }
-
-        for (; i < size; ++i)
-            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
-    }
-
-    inline void checkNullFloat64SIMD(const Float64 * data, UInt8 * null_map, size_t size) {
-        __m128d inf = _mm_set1_pd(INFINITY);
-        __m128d neg_inf = _mm_set1_pd(-INFINITY);
-
-        size_t i = 0;
-        for (; i + 1 < size; i += 2)
-        {
-            __m128d values = _mm_loadu_pd(&data[i]);
-
-            __m128d cmp_result_inf = _mm_cmp_pd(values, inf, _CMP_EQ_OQ);
-            __m128d cmp_result_neg_inf = _mm_cmp_pd(values, neg_inf, _CMP_EQ_OQ);
-            __m128d cmp_result_nan = _mm_cmp_pd(values, values, _CMP_NEQ_UQ);
-
-            __m128d cmp_result = _mm_or_pd(_mm_or_pd(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan);
-
-            int mask = _mm_movemask_pd(cmp_result);
-            for (size_t j = 0; j < 2; ++j)
-                null_map[i + j] = (mask & (1 << j)) != 0;
-        }
-
-        for (; i < size; ++i)
-            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
-    }
-
-)
 
 DECLARE_AVX2_SPECIFIC_CODE(
 
-    inline void checkNullFloat32SIMD(const Float32 * data, UInt8 * null_map, size_t size) {
-        __m256 inf = _mm256_set1_ps(INFINITY);
-        __m256 neg_inf = _mm256_set1_ps(-INFINITY);
+    inline void checkNullFloat32SIMD(Float32 * data, UInt8 * null_map, size_t size) {
+        const __m256 inf = _mm256_set1_ps(INFINITY);
+        const __m256 neg_inf = _mm256_set1_ps(-INFINITY);
+        const __m256 zero = _mm256_set1_ps(0.0f);
 
         size_t i = 0;
         for (; i + 7 < size; i += 8)
         {
             __m256 values = _mm256_loadu_ps(&data[i]);
 
-            __m256 cmp_result_inf = _mm256_cmp_ps(values, inf, _CMP_EQ_OQ);
-            __m256 cmp_result_neg_inf = _mm256_cmp_ps(values, neg_inf, _CMP_EQ_OQ);
-            __m256 cmp_result_nan = _mm256_cmp_ps(values, values, _CMP_NEQ_UQ);
+            __m256 is_inf = _mm256_cmp_ps(values, inf, _CMP_EQ_OQ);
+            __m256 is_neg_inf = _mm256_cmp_ps(values, neg_inf, _CMP_EQ_OQ);
+            __m256 is_nan = _mm256_cmp_ps(values, values, _CMP_NEQ_UQ);
+            __m256 is_null = _mm256_or_ps(_mm256_or_ps(is_inf, is_neg_inf), is_nan);
+            __m256 new_values = _mm256_blendv_ps(values, zero, is_null);
 
-            __m256i cmp_result = _mm256_castps_si256(_mm256_or_ps(_mm256_or_ps(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan));
+            _mm256_storeu_ps(&data[i], new_values);
 
-            UInt32 mask = static_cast<UInt32>(_mm256_movemask_ps(cmp_result));
+            UInt32 mask = static_cast<UInt32>(_mm256_movemask_ps(is_null));
             for (size_t j = 0; j < 8; ++j)
             {
-                null_map[i + j] = (mask & 1U);
+                UInt8 null_flag = (mask & 1U);
+                null_map[i + j] = null_flag;
                 mask >>= 1;
             }
-
-
-            /*
-            Int32 value = 0;
-
-#define CHECK_NULL_MAP(offset) \
-            value = _mm256_extract_epi32(cmp_result, offset); \
-            null_map[i + offset] = (value != 0); \
-
-
-            CHECK_NULL_MAP(0);
-            CHECK_NULL_MAP(1);
-            CHECK_NULL_MAP(2);
-            CHECK_NULL_MAP(3);
-            CHECK_NULL_MAP(4);
-            CHECK_NULL_MAP(5);
-            CHECK_NULL_MAP(6);
-            CHECK_NULL_MAP(7);
-            */
         }
 
         for (; i < size; ++i)
-            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
+            checkAndSetNullable(data[i], null_map[i]);
     }
 
-    inline void checkNullFloat64SIMD(const Float64 * data, UInt8 * null_map, size_t size) {
-        __m256d inf = _mm256_set1_pd(INFINITY);
-        __m256d neg_inf = _mm256_set1_pd(-INFINITY);
+    inline void checkNullFloat64SIMD(Float64 * data, UInt8 * null_map, size_t size) {
+        const __m256d inf = _mm256_set1_pd(INFINITY);
+        const __m256d neg_inf = _mm256_set1_pd(-INFINITY);
+        const __m256d zero = _mm256_set1_pd(0.0);
 
         size_t i = 0;
         for (; i + 3 < size; i += 4)
         {
             __m256d values = _mm256_loadu_pd(&data[i]);
 
-            __m256d cmp_result_inf = _mm256_cmp_pd(values, inf, _CMP_EQ_OQ);
-            __m256d cmp_result_neg_inf = _mm256_cmp_pd(values, neg_inf, _CMP_EQ_OQ);
-            __m256d cmp_result_nan = _mm256_cmp_pd(values, values, _CMP_NEQ_UQ);
+            __m256d is_inf = _mm256_cmp_pd(values, inf, _CMP_EQ_OQ);
+            __m256d is_neg_inf = _mm256_cmp_pd(values, neg_inf, _CMP_EQ_OQ);
+            __m256d is_nan = _mm256_cmp_pd(values, values, _CMP_NEQ_UQ);
+            __m256d is_null = _mm256_or_pd(_mm256_or_pd(is_inf, is_neg_inf), is_nan);
+            __m256d new_values = _mm256_blendv_ps(values, zero, is_null);
 
-            __m256 cmp_result = _mm256_or_pd(_mm256_or_pd(cmp_result_inf, cmp_result_neg_inf), cmp_result_nan);
+            _mm256_storeu_pd(&data[i], new_values);
 
-            UInt32 mask = static_cast<UInt32>(_mm256_movemask_pd(cmp_result));
+            UInt32 mask = static_cast<UInt32>(_mm256_movemask_pd(is_null));
             for (size_t j = 0; j < 4; ++j)
             {
-                null_map[i + j] = (mask & 1U);
+                UInt8 null_flag = (mask & 1U);
+                null_map[i + j] = null_flag;
                 mask >>= 1;
             }
-
-            /*
-            Int64 value = 0;
-
-#define CHECK_NULL_MAP(offset) \
-            value = _mm256_extract_epi64 (cmp_result, offset); \
-            null_map[i + offset] = (value != 0); \
-
-            CHECK_NULL_MAP(0);
-            CHECK_NULL_MAP(1);
-            CHECK_NULL_MAP(2);
-            CHECK_NULL_MAP(3);
-            */
         }
 
         for (; i < size; ++i)
-            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
+            checkAndSetNullable(data[i], null_map[i]);
     }
 
 )
-
-DECLARE_AVX512F_SPECIFIC_CODE(
-
-    inline void checkNullFloat32SIMD(const Float32 * data, UInt8 * null_map, size_t size) {
-        __m512 inf = _mm512_set1_ps(INFINITY);
-        __m512 neg_inf = _mm512_set1_ps(-INFINITY);
-
-        size_t i = 0;
-        for (; i + 15 < size; i += 16)
-        {
-            __m512 values = _mm512_loadu_ps(&data[i]);
-
-            __mmask16 cmp_result_inf = _mm512_cmp_ps_mask(values, inf, _CMP_EQ_OQ);
-            __mmask16 cmp_result_neg_inf = _mm512_cmp_ps_mask(values, neg_inf, _CMP_EQ_OQ);
-            __mmask16 cmp_result_nan = _mm512_cmp_ps_mask(values, values, _CMP_NEQ_UQ);
-
-            __mmask16 cmp_result = cmp_result_inf | cmp_result_neg_inf | cmp_result_nan;
-
-            for (size_t j = 0; j < 16; ++j)
-                null_map[i + j] = (cmp_result & (1 << j)) != 0;
-        }
-
-        for (; i < size; ++i)
-            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
-    }
-
-
-    inline void checkNullFloat64SIMD(const Float64 * data, UInt8 * null_map, size_t size) {
-        __m512d inf = _mm512_set1_pd(INFINITY);
-        __m512d neg_inf = _mm512_set1_pd(-INFINITY);
-
-        size_t i = 0;
-        for (; i + 7 < size; i += 8)
-        {
-            __m512d values = _mm512_loadu_pd(&data[i]);
-
-            __mmask8 cmp_result_inf = _mm512_cmp_pd_mask(values, inf, _CMP_EQ_OQ);
-            __mmask8 cmp_result_neg_inf = _mm512_cmp_pd_mask(values, neg_inf, _CMP_EQ_OQ);
-            __mmask8 cmp_result_nan = _mm512_cmp_pd_mask(values, values, _CMP_NEQ_UQ);
-
-            __mmask8 cmp_result = cmp_result_inf | cmp_result_neg_inf | cmp_result_nan;
-
-            for (size_t j = 0; j < 8; ++j)
-                null_map[i + j] = (cmp_result & (1 << j)) != 0;
-        }
-
-        for (; i < size; ++i)
-            null_map[i] = checkAndSetNullableAutoOpt(data[i]);
-    }
-)
-
 
 template <typename T, ScaleMode scale_mode>
 struct SparkFloatFloorImpl
@@ -277,28 +165,8 @@ public:
         {
             TargetSpecific::AVX2::checkNullFloat64SIMD(out.data(), null_map.data(), out.size());
         }
-
-        /*
-        for (size_t i = 0; i < out.size(); ++i)
-            null_map[i] = checkAndSetNullableAutoOpt(out[i]);
-        */
     }
 
-
-    static void checkAndSetNullable(T & t, UInt8 & null_flag)
-    {
-        UInt8 is_nan = (t != t);
-        UInt8 is_inf = 0;
-        if constexpr (std::is_same_v<T, float>)
-            is_inf = ((*reinterpret_cast<const uint32_t *>(&t) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000);
-        else if constexpr (std::is_same_v<T, double>)
-            is_inf
-                = ((*reinterpret_cast<const uint64_t *>(&t) & 0b0111111111111111111111111111111111111111111111111111111111111111)
-                   == 0b0111111111110000000000000000000000000000000000000000000000000000);
-
-        null_flag = is_nan | is_inf;
-        if (null_flag) t = 0;
-    }
 };
 
 class SparkFunctionFloor : public DB::FunctionFloor
