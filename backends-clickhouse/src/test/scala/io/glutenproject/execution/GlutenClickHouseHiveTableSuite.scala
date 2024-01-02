@@ -1155,4 +1155,29 @@ class GlutenClickHouseHiveTableSuite()
         """.stripMargin
     runQueryAndCompare(querySql)(df => checkOperatorCount[ProjectExecTransformer](1)(df))
   }
+
+  test("GLUTEN-4251: Bug fix empty nullable string field") {
+    val data_path = rootPath + "/text-data/empty_as_default"
+    spark.sql(s"""
+                 | CREATE TABLE test_tbl_4521(
+                 | a string,
+                 | b string,
+                 | c string)
+                 | ROW FORMAT SERDE
+                 |  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
+                 |WITH SERDEPROPERTIES (
+                 |   'field.delim'=','
+                 | )
+                 | STORED AS INPUTFORMAT
+                 |  'org.apache.hadoop.mapred.TextInputFormat'
+                 |OUTPUTFORMAT
+                 |  'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+                 |LOCATION '$data_path'
+                 |""".stripMargin)
+    withSQLConf("spark.gluten.sql.text.input.empty.as.default", "true") {
+      val select_sql = "select * from test_tbl_4521"
+      compareResultsAgainstVanillaSpark(select_sql, compareResult = true, _ => {})
+    }
+    spark.sql("DROP TABLE test_tbl_4521")
+  }
 }

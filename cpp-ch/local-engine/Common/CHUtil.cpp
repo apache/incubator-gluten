@@ -666,6 +666,7 @@ void BackendInitializerUtil::initSettings(std::map<std::string, std::string> & b
     settings.set("function_json_value_return_type_allow_complex", true);
     settings.set("function_json_value_return_type_allow_nullable", true);
     settings.set("allow_execute_multiif_columnar_by_memcpy", true);
+    settings.set("input_format_csv_empty_not_as_null_for_nullable_string_field", true);
     settings.set("precise_float_parsing", true);
 }
 
