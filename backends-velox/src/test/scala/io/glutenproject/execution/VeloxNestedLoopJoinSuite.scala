@@ -17,9 +17,8 @@
 package io.glutenproject.execution
 
 import org.apache.spark.SparkConf
-import org.apache.spark.sql.execution.joins.CartesianProductExec
 
-class VeloxCartesianProductSuite extends VeloxWholeStageTransformerSuite {
+class VeloxNestedLoopJoinSuite extends VeloxWholeStageTransformerSuite {
   override protected val backend: String = "velox"
   override protected val resourcePath: String = "/tpch-data-parquet-velox"
   override protected val fileFormat: String = "parquet"
@@ -40,15 +39,16 @@ class VeloxCartesianProductSuite extends VeloxWholeStageTransformerSuite {
     assert(plan.collectWithSubqueries { case c: CartesianProductExecTransformer => c }.isEmpty)
   }
 
-  test("cross join with non equi join conditions are not yet supported") {
+  test(
+    "cross join with non equi join conditions should get converted to" +
+      "CartesianProductExecTransformer") {
     createTPCHNotNullTables()
-    val query = "select * from nation cross join region on n_regionkey < r_regionkey"
+    val query = "select * from nation cross join region on n_regionkey != r_regionkey"
     val df = sql(query)
     df.collect()
 
     val plan = df.queryExecution.executedPlan
-    assert(plan.collectWithSubqueries { case c: CartesianProductExecTransformer => c }.isEmpty)
-    assert(plan.isInstanceOf[CartesianProductExec])
+    assert(plan.collectWithSubqueries { case c: CartesianProductExecTransformer => c }.size == 1)
   }
 
   test(

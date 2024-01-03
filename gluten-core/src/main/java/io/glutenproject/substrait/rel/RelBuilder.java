@@ -165,11 +165,12 @@ public class RelBuilder {
   public static RelNode makeCrossRel(
       RelNode left,
       RelNode right,
+      ExpressionNode expression,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new CrossRelNode(left, right, extensionNode);
+    return new CrossRelNode(left, right, expression, extensionNode);
   }
 
   public static RelNode makeExpandRel(

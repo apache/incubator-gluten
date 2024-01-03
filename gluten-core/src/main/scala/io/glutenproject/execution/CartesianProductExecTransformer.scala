@@ -17,6 +17,7 @@
 package io.glutenproject.execution
 
 import io.glutenproject.backendsapi.BackendsApiManager
+import io.glutenproject.expression.ExpressionConverter
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.SubstraitContext
@@ -30,7 +31,6 @@ import org.apache.spark.sql.execution.joins.BaseJoinExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-// Only supports basic cartesian product with no conditions for now
 case class CartesianProductExecTransformer(
     left: SparkPlan,
     right: SparkPlan,
@@ -64,14 +64,22 @@ case class CartesianProductExecTransformer(
     val (inputRightRelNode, inputRightOutput) =
       (rightPlanContext.root, rightPlanContext.outputAttributes)
 
+    val expressionNode = condition.map {
+      expr =>
+        ExpressionConverter
+          .replaceWithExpressionTransformer(expr, inputLeftOutput ++ inputRightOutput)
+          .doTransform(context.registeredFunction)
+    }
+
     val extensionNode =
-      JoinUtils.createExtensionNode(inputLeftOutput ++ inputRightOutput, validation = true)
+      JoinUtils.createExtensionNode(inputLeftOutput ++ inputRightOutput, validation = false)
 
     val operatorId = context.nextOperatorId(this.nodeName)
 
     val currRel = RelBuilder.makeCrossRel(
       inputLeftRelNode,
       inputRightRelNode,
+      expressionNode.orNull,
       extensionNode,
       context,
       operatorId
@@ -80,15 +88,25 @@ case class CartesianProductExecTransformer(
   }
 
   override protected def doValidateInternal(): ValidationResult = {
-    // Ideally joins with "=" join condition should get changed into
-    // other join types like shuffle hash join
-    // Only joins with non equi join conditions should come here.
-    // TODO: Support conditions in CrossRel
-    if (condition.isDefined) {
-      return ValidationResult
-        .notOk(s"Conditions are not supported for Cartesian product")
+    val substraitContext = new SubstraitContext
+    val expressionNode = condition.map {
+      expr =>
+        ExpressionConverter
+          .replaceWithExpressionTransformer(expr, left.output ++ right.output)
+          .doTransform(substraitContext.registeredFunction)
     }
-    ValidationResult.ok
+    val extensionNode =
+      JoinUtils.createExtensionNode(left.output ++ right.output, validation = true)
+
+    val currRel = RelBuilder.makeCrossRel(
+      null,
+      null,
+      expressionNode.orNull,
+      extensionNode,
+      substraitContext,
+      substraitContext.nextOperatorId(this.nodeName)
+    )
+    doNativeValidation(substraitContext, currRel)
   }
 
   override def nodeName: String = "CartesianProductExecTransformer"

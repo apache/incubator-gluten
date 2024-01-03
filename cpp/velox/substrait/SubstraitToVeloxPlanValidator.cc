@@ -965,6 +965,25 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::CrossRel& crossR
     logValidateMsg("native validation failed due to: Validation failed for input types in CrossRel");
     return false;
   }
+
+  int32_t inputPlanNodeId = 0;
+  std::vector<std::string> names;
+  names.reserve(types.size());
+  for (auto colIdx = 0; colIdx < types.size(); colIdx++) {
+    names.emplace_back(SubstraitParser::makeNodeName(inputPlanNodeId, colIdx));
+  }
+  auto rowType = std::make_shared<RowType>(std::move(names), std::move(types));
+
+  if (crossRel.has_expression()) {
+    try {
+      auto expression = exprConverter_->toVeloxExpr(crossRel.expression(), rowType);
+      exec::ExprSet exprSet({std::move(expression)}, execCtx_);
+    } catch (const VeloxException& err) {
+      logValidateMsg("native validation failed due to: crossRel expression validation fails, " + err.message());
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -1210,6 +1229,8 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::Rel& rel) {
     return validate(rel.filter());
   } else if (rel.has_join()) {
     return validate(rel.join());
+  } else if (rel.has_cross()) {
+    return validate(rel.cross());
   } else if (rel.has_read()) {
     return validate(rel.read());
   } else if (rel.has_sort()) {

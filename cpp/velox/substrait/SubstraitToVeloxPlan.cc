@@ -366,8 +366,21 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   auto leftNode = toVeloxPlan(crossRel.left());
   auto rightNode = toVeloxPlan(crossRel.right());
 
+  auto inputRowType = getJoinInputType(leftNode, rightNode);
+  core::TypedExprPtr joinConditions;
+  if (crossRel.has_expression()) {
+    joinConditions = exprConverter_->toVeloxExpr(crossRel.expression(), inputRowType);
+  }
+
+  core::JoinType joinType = core::JoinType::kInner;
+
   return std::make_shared<core::NestedLoopJoinNode>(
-      nextPlanNodeId(), leftNode, rightNode, getJoinInputType(leftNode, rightNode));
+      nextPlanNodeId(),
+      joinType,
+      joinConditions,
+      leftNode,
+      rightNode,
+      getJoinOutputType(leftNode, rightNode, joinType));
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::AggregateRel& aggRel) {

@@ -16,6 +16,7 @@
  */
 package io.glutenproject.substrait.rel;
 
+import io.glutenproject.substrait.expression.ExpressionNode;
 import io.glutenproject.substrait.extensions.AdvancedExtensionNode;
 
 import io.substrait.proto.CrossRel;
@@ -27,11 +28,14 @@ import java.io.Serializable;
 public class CrossRelNode implements RelNode, Serializable {
   private final RelNode left;
   private final RelNode right;
+  private final ExpressionNode expression;
   private final AdvancedExtensionNode extensionNode;
 
-  CrossRelNode(RelNode left, RelNode right, AdvancedExtensionNode extensionNode) {
+  CrossRelNode(
+      RelNode left, RelNode right, ExpressionNode expression, AdvancedExtensionNode extensionNode) {
     this.left = left;
     this.right = right;
+    this.expression = expression;
     this.extensionNode = extensionNode;
   }
 
@@ -48,6 +52,9 @@ public class CrossRelNode implements RelNode, Serializable {
     }
     if (right != null) {
       crossRelBuilder.setRight(right.toProtobuf());
+    }
+    if (expression != null) {
+      crossRelBuilder.setExpression(expression.toProtobuf());
     }
     if (extensionNode != null) {
       crossRelBuilder.setAdvancedExtension(extensionNode.toProtobuf());
