@@ -685,10 +685,6 @@ case class VanillaColumnarPlanOverrides(session: SparkSession) extends Rule[Spar
   @transient private val planChangeLogger = new PlanChangeLogger[SparkPlan]()
 
   private def replaceWithVanillaColumnarToRow(plan: SparkPlan): SparkPlan = plan match {
-    case c2r: ColumnarToRowExecBase if PlanUtil.isVanillaColumnarOp(c2r.child) =>
-      ColumnarToRowExec(c2r.child)
-    case c2r: ColumnarToRowExec if PlanUtil.isVanillaColumnarOp(c2r.child) =>
-      c2r
     case _ if PlanUtil.isGlutenColumnarOp(plan) =>
       plan.withNewChildren(plan.children.map {
         c =>

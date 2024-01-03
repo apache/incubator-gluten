@@ -70,7 +70,6 @@ object PlanUtil {
       case _: InputAdapter => false
       case _: WholeStageCodegenExec => false
       case r: ReusedExchangeExec => isVanillaColumnarOp(r.child)
-      case p if p.getClass.getSimpleName == "VeloxColumnarWriteFilesExec" => false
       case _ => !plan.isInstanceOf[GlutenPlan] && plan.supportsColumnar
     }
   }
