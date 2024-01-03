@@ -53,13 +53,6 @@ class SubstraitExtensionCollector {
   /// using ExtensionFunctionId.
   int getReferenceNumber(const std::string& functionName, const std::vector<TypePtr>& arguments);
 
-  /// Given an aggregate function name and argument types and aggregation Step,
-  /// return the functionId using ExtensionFunctionId.
-  int getReferenceNumber(
-      const std::string& functionName,
-      const std::vector<TypePtr>& arguments,
-      core::AggregationNode::Step aggregationStep);
-
   /// Add extension functions to Substrait plan.
   void addExtensionsToPlan(::substrait::Plan* plan) const;
 
