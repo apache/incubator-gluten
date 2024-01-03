@@ -781,8 +781,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileMetadataStructSuite]
-    .exclude("SPARK-41896: Filter on row_index and a stored column at the same time")
-    .exclude("SPARK-43450: Filter on aliased _metadata.row_index")
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
   enableSuite[GlutenParquetV2AggregatePushDownSuite]
   enableSuite[GlutenOrcV1AggregatePushDownSuite]
@@ -1024,16 +1022,14 @@ class VeloxTestSettings extends BackendTestSettings {
       "NaN is greater than all other non-NaN numeric values",
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
-      // The describe issue is just fixed by https://github.com/apache/spark/pull/40914.
-      // We can enable the below test for spark 3.4 and higher versions.
-      "Gluten - describe",
       // decimal failed ut.
       "SPARK-22271: mean overflows and returns null for some decimal variables",
       // Result depends on the implementation for nondeterministic expression rand.
       // Not really an issue.
-      "SPARK-9083: sort with non-deterministic expressions",
-      "SPARK-41048: Improve output partitioning and ordering with AQE cache"
+      "SPARK-9083: sort with non-deterministic expressions"
     )
+    // test for sort node not present but gluten uses shuffle hash join
+    .exclude("SPARK-41048: Improve output partitioning and ordering with AQE cache")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameWindowFramesSuite]
