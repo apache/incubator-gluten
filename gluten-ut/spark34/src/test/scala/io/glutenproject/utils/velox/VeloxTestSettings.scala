@@ -64,6 +64,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDeleteFromTableSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
   enableSuite[GlutenKeyGroupedPartitioningSuite]
+    .exclude("SPARK-44641: duplicated records when SPJ is not triggered")
     // NEW SUITE: disable as they check vanilla spark plan
     .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
     .exclude("partitioned join: only one side reports partitioning")
@@ -90,6 +91,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("UNSUPPORTED_FEATURE.MULTI_ACTION_ALTER:")
   enableSuite[GlutenQueryParsingErrorsSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
+    .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
     .exclude(
       "% (Remainder)" // Velox will throw exception when right is zero, need fallback
     )
@@ -1100,12 +1102,14 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Merge runtime bloom filters")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenJoinSuite]
+    .exclude("SPARK-45882: BroadcastHashJoinExec propagate partitioning should respect CoalescedHashPartitioning")
     // exclude as it check spark plan
     .exclude("SPARK-36794: Ignore duplicated key when building relation for semi/anti hash join")
     // exclude as it check for SMJ node
     .exclude(
       "SPARK-43113: Full outer join with duplicate stream-side references in condition (SMJ)")
   enableSuite[GlutenMathFunctionsSuite]
+    .exclude("SPARK-44973: conv must allocate enough space for all digits plus negative sign")
   enableSuite[GlutenMetadataCacheSuite]
     .exclude("SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
   enableSuite[GlutenMiscFunctionsSuite]
