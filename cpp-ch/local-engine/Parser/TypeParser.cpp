@@ -43,8 +43,8 @@ namespace DB
 {
 namespace ErrorCodes
 {
-    extern const int UNKNOWN_TYPE;
-    extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
+extern const int UNKNOWN_TYPE;
+extern const int NUMBER_OF_ARGUMENTS_DOESNT_MATCH;
 }
 }
 
@@ -64,8 +64,7 @@ std::unordered_map<String, String> TypeParser::type_names_mapping
        {"StringType", "String"},
        {"string", "String"},
        {"DateType", "Date32"},
-       {"date", "Date32"}
-    };
+       {"date", "Date32"}};
 
 String TypeParser::getCHTypeName(const String & spark_type_name)
 {
@@ -92,7 +91,7 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
 {
     DB::DataTypePtr ch_type = nullptr;
 
-    std::string_view field_name;
+    std::string field_name;
     if (field_names)
     {
         assert(!field_names->empty());
@@ -127,7 +126,12 @@ DB::DataTypePtr TypeParser::parseType(const substrait::Type & substrait_type, st
     }
     else if (substrait_type.has_string())
     {
+        static std::set<std::string> low_card_cols = {"l_returnflag", "l_linestatus", "l_shipinstruct", "l_shipmode"};
         ch_type = std::make_shared<DB::DataTypeString>();
+        if (low_card_cols.contains(field_name))
+        {
+            ch_type = std::make_shared<DB::DataTypeLowCardinality>(ch_type);
+        }
         ch_type = tryWrapNullable(substrait_type.string().nullability(), ch_type);
     }
     else if (substrait_type.has_binary())
@@ -279,8 +283,8 @@ DB::Block TypeParser::buildBlockFromNamedStruct(const substrait::NamedStruct & s
             auto agg_function_name = function_parser->getCHFunctionName(args_types);
             auto action = NullsAction::EMPTY;
             ch_type = AggregateFunctionFactory::instance()
-                            .get(agg_function_name, action, args_types, function_parser->getDefaultFunctionParameters(), properties)
-                            ->getStateType();
+                          .get(agg_function_name, action, args_types, function_parser->getDefaultFunctionParameters(), properties)
+                          ->getStateType();
         }
 
         internal_cols.push_back(ColumnWithTypeAndName(ch_type, name));
@@ -303,7 +307,7 @@ DB::Block TypeParser::buildBlockFromNamedStructWithoutDFS(const substrait::Named
     for (int i = 0; i < size; ++i)
     {
         const auto & name = names[i];
-        const auto & type =  types[i];
+        const auto & type = types[i];
         auto ch_type = parseType(type);
         columns.emplace_back(ColumnWithTypeAndName(ch_type, name));
     }

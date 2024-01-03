@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 #include "NativeWriter.h"
+
+#include "DataTypes/DataTypeLowCardinality.h"
 #include <IO/WriteBuffer.h>
 #include <IO/WriteHelpers.h>
 #include <DataTypes/Serializations/ISerialization.h>
@@ -29,8 +31,8 @@ using namespace DB;
 
 namespace local_engine
 {
+const String NativeWriter::AGG_STATE_SUFFIX = "#optagg";
 
-const String NativeWriter::AGG_STATE_SUFFIX= "#optagg";
 void NativeWriter::flush()
 {
     ostr.next();
@@ -72,6 +74,8 @@ size_t NativeWriter::write(const DB::Block & block)
         auto column = block.safeGetByPosition(i);
         /// agg state will convert to fixedString, need write actual agg state type
         auto original_type = header.safeGetByPosition(i).type;
+        original_type = recursiveRemoveLowCardinality(original_type);
+
         /// Type
         String type_name = original_type->getName();
         bool is_agg_opt = WhichDataType(original_type).isAggregateFunction()
@@ -85,10 +89,14 @@ size_t NativeWriter::write(const DB::Block & block)
             writeStringBinary(type_name, ostr);
         }
 
-        SerializationPtr serialization = column.type->getDefaultSerialization();
         column.column = recursiveRemoveSparse(column.column);
+        column.column = recursiveRemoveLowCardinality(column.column);
+        SerializationPtr serialization = recursiveRemoveLowCardinality(column.type)->getDefaultSerialization();
+        // SerializationPtr serialization = column.type->getDefaultSerialization();
+        // column.column = recursiveRemoveSparse(column.column);
+
         /// Data
-        if (rows)    /// Zero items of data is always represented as zero number of bytes.
+        if (rows) /// Zero items of data is always represented as zero number of bytes.
         {
             const auto * agg_type = checkAndGetDataType<DataTypeAggregateFunction>(original_type.get());
             if (is_agg_opt && agg_type && !isFixedSizeAggregateFunction(agg_type->getFunction()))
