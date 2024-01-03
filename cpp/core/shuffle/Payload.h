@@ -112,7 +112,6 @@ class BlockPayload : public Payload {
   arrow::util::Codec* codec_;
 };
 
-// Type of MergeBlockPayload can be either kMergedCompressed or kMergedUncompressed.
 class MergeBlockPayload : public BlockPayload {
  public:
   MergeBlockPayload(

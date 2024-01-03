@@ -43,6 +43,8 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
    *
    * @param part contains the partitioning parameter needed by native splitter
    * @param bufferSize size of native buffers held by each partition writer
+   * @param mergeBufferSize maximum size of the merged buffer
+   * @param mergeThreshold threshold to control whether native partition buffer need to be merged
    * @param codec compression codec
    * @param codecBackend HW backend for offloading compression
    * @param dataFile acquired from spark IndexShuffleBlockResolver
@@ -54,6 +56,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       NativePartitioning part,
       int bufferSize,
       int mergeBufferSize,
+      double mergeThreshold,
       String codec,
       String codecBackend,
       int bufferCompressThreshold,
@@ -71,6 +74,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         part.getNumPartitions(),
         bufferSize,
         mergeBufferSize,
+        mergeThreshold,
         codec,
         codecBackend,
         bufferCompressThreshold,
@@ -115,6 +119,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
         part.getNumPartitions(),
         bufferSize,
         0,
+        0,
         codec,
         null,
         bufferCompressThreshold,
@@ -137,6 +142,7 @@ public class ShuffleWriterJniWrapper implements RuntimeAware {
       int numPartitions,
       int bufferSize,
       int mergeBufferSize,
+      double mergeThreshold,
       String codec,
       String codecBackend,
       int bufferCompressThreshold,

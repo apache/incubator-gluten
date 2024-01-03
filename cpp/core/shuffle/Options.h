@@ -28,6 +28,7 @@ static constexpr int32_t kDefaultNumSubDirs = 64;
 static constexpr int32_t kDefaultCompressionThreshold = 100;
 static constexpr int32_t kDefaultBufferAlignment = 64;
 static constexpr double kDefaultBufferReallocThreshold = 0.25;
+static constexpr double kDefaultMergeBufferThreshold = 0.25;
 static constexpr bool kEnableBufferedWrite = true;
 
 enum PartitionWriterType { kLocal, kCeleborn };
@@ -45,6 +46,8 @@ struct ShuffleWriterOptions {
   int32_t numSubDirs = kDefaultNumSubDirs;
   int32_t compressionThreshold = kDefaultCompressionThreshold;
   double bufferReallocThreshold = kDefaultBufferReallocThreshold;
+  double mergeThreshold = kDefaultMergeBufferThreshold;
+
   arrow::Compression::type compressionType = arrow::Compression::LZ4_FRAME;
   CodecBackend codecBackend = CodecBackend::NONE;
   CompressionMode compressionMode = CompressionMode::BUFFER;

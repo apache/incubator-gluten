@@ -111,57 +111,83 @@ class LocalPartitionWriter::LocalSpiller {
 class LocalPartitionWriter::PayloadMerger {
  public:
   PayloadMerger(ShuffleWriterOptions* options, arrow::MemoryPool* pool, arrow::util::Codec* codec, bool hasComplexType)
-      : options_(options), pool_(pool), codec_(codec), hasComplexType_(hasComplexType) {}
+      : pool_(pool),
+        codec_(codec),
+        hasComplexType_(hasComplexType),
+        compressionThreshold_(options->compressionThreshold),
+        mergeBufferSize_(options->mergeBufferSize),
+        mergeBufferMinSize_(options->mergeBufferSize * options->mergeThreshold) {}
 
-  arrow::Result<std::optional<std::unique_ptr<BlockPayload>>> merge(
+  arrow::Result<std::vector<std::unique_ptr<BlockPayload>>> merge(
       uint32_t partitionId,
       uint32_t numRows,
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
       bool reuseBuffers) {
+    std::vector<std::unique_ptr<BlockPayload>> merged{};
     if (hasComplexType_) {
       // TODO: Merging complex type is currently not supported.
-      return createBlockPayload(numRows, std::move(buffers), isValidityBuffer, reuseBuffers);
+      merged.emplace_back();
+      ARROW_ASSIGN_OR_RAISE(
+          merged.back(), createBlockPayload(numRows, std::move(buffers), isValidityBuffer, reuseBuffers));
+      return merged;
     }
 
     MergeGuard mergeGuard(partitionInMerge_, partitionId);
 
-    if (!hasMerged(partitionId)) {
-      if (numRows < options_->mergeBufferSize) {
+    auto cacheOrFinish = [&]() {
+      if (numRows <= mergeBufferMinSize_) {
         // Save for merge.
         ARROW_ASSIGN_OR_RAISE(
             partitionMergePayload_[partitionId],
             createMergeBlockPayload(numRows, std::move(buffers), isValidityBuffer, reuseBuffers));
-        return std::nullopt;
+        return arrow::Status::OK();
       }
-      // If current buffer rows reaches merging threshold, return BlockPayload.
-      return createBlockPayload(numRows, std::move(buffers), isValidityBuffer, reuseBuffers);
+      merged.emplace_back();
+      // If current buffer rows reaches merging threshold, create BlockPayload.
+      ARROW_ASSIGN_OR_RAISE(
+          merged.back(), createBlockPayload(numRows, std::move(buffers), isValidityBuffer, reuseBuffers));
+      return arrow::Status::OK();
+    };
+
+    if (!hasMerged(partitionId)) {
+      RETURN_NOT_OK(cacheOrFinish());
+      return merged;
     }
+
     auto lastPayload = std::move(partitionMergePayload_[partitionId]);
     auto mergedRows = numRows + lastPayload->numRows();
-    if (mergedRows > options_->mergeBufferSize) {
-      // Save current buffers for merge, and return merged.
+    if (mergedRows > mergeBufferSize_ || numRows > mergeBufferMinSize_) {
+      merged.emplace_back();
       ARROW_ASSIGN_OR_RAISE(
-          partitionMergePayload_[partitionId],
-          createMergeBlockPayload(numRows, std::move(buffers), isValidityBuffer, reuseBuffers));
-      return lastPayload;
+          merged.back(),
+          lastPayload->toBlockPayload(
+              codec_ != nullptr && numRows >= compressionThreshold_ ? Payload::kCompressed : Payload::kUncompressed));
+      RETURN_NOT_OK(cacheOrFinish());
+      return merged;
     }
+
     // Merge buffers.
     DEBUG_OUT << "Merged partition: " << partitionId << ", numRows before: " << lastPayload->numRows()
               << ", numRows appended: " << numRows << ", numRows after: " << mergedRows << std::endl;
     ARROW_ASSIGN_OR_RAISE(
-        auto merged, MergeBlockPayload::merge(std::move(lastPayload), numRows, std::move(buffers), pool_, codec_));
-    if (mergedRows < options_->mergeBufferSize) {
+        auto payload, MergeBlockPayload::merge(std::move(lastPayload), numRows, std::move(buffers), pool_, codec_));
+    if (mergedRows < mergeBufferSize_) {
       // Still not reach merging threshold, save for next merge.
-      partitionMergePayload_[partitionId] = std::move(merged);
-      return std::nullopt;
+      partitionMergePayload_[partitionId] = std::move(payload);
+      return merged;
     }
-    return merged->toBlockPayload(
-        codec_ != nullptr && numRows >= options_->compressionThreshold ? Payload::kCompressed : Payload::kUncompressed);
+    // mergedRows == mergeBufferSize_
+    merged.emplace_back();
+    ARROW_ASSIGN_OR_RAISE(
+        merged.back(),
+        payload->toBlockPayload(
+            codec_ != nullptr && numRows >= compressionThreshold_ ? Payload::kCompressed : Payload::kUncompressed));
+    return merged;
   }
 
   arrow::Result<std::optional<std::unique_ptr<BlockPayload>>> finishForSpill(uint32_t partitionId) {
-    // We need to check whether the spill source is from compressing the merged buffers.
+    // We need to check whether the spill source is from compressing/copying the merged buffers.
     if ((partitionInMerge_.has_value() && *partitionInMerge_ == partitionId) || !hasMerged(partitionId)) {
       return std::nullopt;
     }
@@ -175,8 +201,8 @@ class LocalPartitionWriter::PayloadMerger {
     }
     auto numRows = partitionMergePayload_[partitionId]->numRows();
     // Because this is the last BlockPayload, delay the compression before writing to the final data file.
-    auto payloadType = (codec_ != nullptr && numRows >= options_->compressionThreshold) ? Payload::kToBeCompressed
-                                                                                        : Payload::kUncompressed;
+    auto payloadType =
+        (codec_ != nullptr && numRows >= compressionThreshold_) ? Payload::kToBeCompressed : Payload::kUncompressed;
     auto payload = std::move(partitionMergePayload_[partitionId]);
     return payload->toBlockPayload(payloadType);
   }
@@ -187,10 +213,12 @@ class LocalPartitionWriter::PayloadMerger {
   }
 
  private:
-  ShuffleWriterOptions* options_;
   arrow::MemoryPool* pool_;
   arrow::util::Codec* codec_;
   bool hasComplexType_;
+  int32_t compressionThreshold_;
+  int32_t mergeBufferSize_;
+  int32_t mergeBufferMinSize_;
   std::unordered_map<uint32_t, std::unique_ptr<MergeBlockPayload>> partitionMergePayload_;
   std::optional<uint32_t> partitionInMerge_;
 
@@ -243,7 +271,7 @@ class LocalPartitionWriter::PayloadMerger {
       std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
       bool reuseBuffers) {
-    auto createCompressed = codec_ != nullptr && numRows >= options_->compressionThreshold;
+    auto createCompressed = codec_ != nullptr && numRows >= compressionThreshold_;
     if (reuseBuffers && !createCompressed) {
       // For uncompressed buffers, need to copy before caching.
       RETURN_NOT_OK(copyBuffers(buffers));
@@ -525,11 +553,14 @@ arrow::Status LocalPartitionWriter::evict(
   }
   ARROW_ASSIGN_OR_RAISE(
       auto merged, merger_->merge(partitionId, numRows, std::move(buffers), isValidityBuffer, reuseBuffers));
-  if (merged.has_value()) {
-    if (!payloadCache_) {
+  if (!merged.empty()) {
+    if (UNLIKELY(!payloadCache_)) {
       payloadCache_ = std::make_shared<PayloadCache>(numPartitions_);
     }
-    RETURN_NOT_OK(payloadCache_->cache(partitionId, std::move(*merged)));
+    for (auto& payload : merged) {
+      RETURN_NOT_OK(payloadCache_->cache(partitionId, std::move(payload)));
+    }
+    merged.clear();
   }
   return arrow::Status::OK();
 }

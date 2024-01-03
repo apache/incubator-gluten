@@ -791,6 +791,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jint numPartitions,
     jint bufferSize,
     jint mergeBufferSize,
+    jdouble mergeThreshold,
     jstring codecJstr,
     jstring codecBackendJstr,
     jint bufferCompressThreshold,
@@ -820,6 +821,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
 
   shuffleWriterOptions->bufferSize = bufferSize;
   shuffleWriterOptions->mergeBufferSize = mergeBufferSize;
+  shuffleWriterOptions->mergeThreshold = mergeThreshold;
 
   shuffleWriterOptions->compressionType = getCompressionType(env, codecJstr);
   if (codecJstr != NULL) {

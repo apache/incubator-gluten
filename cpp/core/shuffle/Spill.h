@@ -31,11 +31,6 @@ class Spill final {
  public:
   enum SpillType { kSequentialSpill, kBatchedSpill };
 
-  struct PartitionPayload {
-    uint32_t partitionId{};
-    std::unique_ptr<Payload> payload{};
-  };
-
   Spill(SpillType type, uint32_t numPartitions, const std::string& spillFile);
 
   ~Spill();
@@ -56,6 +51,11 @@ class Spill final {
       arrow::util::Codec* codec);
 
  private:
+  struct PartitionPayload {
+    uint32_t partitionId{};
+    std::unique_ptr<Payload> payload{};
+  };
+
   SpillType type_;
   uint32_t numPartitions_;
   std::shared_ptr<arrow::io::MemoryMappedFile> is_;

@@ -65,6 +65,8 @@ class ColumnarShuffleWriter[K, V](
 
   private val nativeMergeBufferSize = GlutenConfig.getConf.maxBatchSize
 
+  private val nativeMergeThreshold = GlutenConfig.getConf.columnarShuffleMergeThreshold
+
   private val compressionCodec =
     if (conf.getBoolean(SHUFFLE_COMPRESS.key, SHUFFLE_COMPRESS.defaultValue.get)) {
       GlutenShuffleUtils.getCompressionCodec(conf)
@@ -126,6 +128,7 @@ class ColumnarShuffleWriter[K, V](
             dep.nativePartitioning,
             nativeBufferSize,
             nativeMergeBufferSize,
+            nativeMergeThreshold,
             compressionCodec,
             compressionCodecBackend,
             bufferCompressThreshold,
