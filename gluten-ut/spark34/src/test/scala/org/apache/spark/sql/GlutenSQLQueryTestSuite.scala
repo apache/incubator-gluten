@@ -255,7 +255,7 @@ class GlutenSQLQueryTestSuite
     "datetime-special.sql",
 //    "decimalArithmeticOperations.sql",
     "describe-part-after-analyze.sql",
-//    "describe-query.sql",
+    "describe-query.sql",
 //    "describe-table-after-alter-table.sql",
 //    "describe-table-column.sql",
 //    "describe.sql",
