@@ -74,7 +74,7 @@ for arg in "$@"; do
     ENABLE_TESTS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --build_velox_benchmarks=*)
+  --build_benchmarks=*)
     ENABLE_BENCHMARK=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
