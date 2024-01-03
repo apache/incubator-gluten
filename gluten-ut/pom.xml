@@ -163,6 +163,28 @@
               <jvmArg>-Xss128m</jvmArg>
             </jvmArgs>
           </configuration>
+          <executions>
+            <execution>
+              <id>process-sources</id>
+              <goals>
+                <goal>compile</goal>
+                <goal>testCompile</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>attach-javadocs</id>
+              <phase>verify</phase>
+              <goals>
+                <goal>doc-jar</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>attach-sources</id>
+              <goals>
+                <goal>add-source</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
         <plugin>
           <groupId>org.scalastyle</groupId>
