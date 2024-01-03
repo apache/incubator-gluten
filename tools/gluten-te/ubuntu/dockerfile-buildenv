@@ -1,6 +1,7 @@
 ARG OS_IMAGE
+ARG OS_VERSION
 
-FROM $OS_IMAGE AS gluten-buildenv
+FROM $OS_IMAGE:$OS_VERSION AS gluten-buildenv
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
 SHELL ["/bin/bash", "-l", "-c"]
@@ -113,6 +114,8 @@ RUN cd /opt/spark331 && ./build/mvn -Pyarn -DskipTests clean install
 # Build & install Spark 3.4.1
 RUN cd /opt && git clone --depth 1 --branch v3.4.1 https://github.com/apache/spark.git spark341
 RUN cd /opt/spark341 && ./build/mvn -Pyarn -DskipTests clean install
+
+RUN cd /opt && git clone --depth 1 --branch v0.3.0-incubating https://github.com/apache/incubator-celeborn.git apache-celeborn-0.3.0-incubating-bin
 
 # Prepare entry command
 COPY scripts/cmd.sh /root/.cmd.sh

@@ -17,7 +17,7 @@
 set -ex
 
 BASEDIR=$(dirname $0)
-
+source "$BASEDIR/defaults.conf"
 source "$BASEDIR/buildenv.sh"
 
 ## Debug build flags

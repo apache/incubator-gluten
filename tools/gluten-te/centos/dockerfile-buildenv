@@ -1,6 +1,8 @@
 ARG OS_IMAGE
+ARG OS_VERSION
 
-FROM $OS_IMAGE AS gluten-buildenv
+FROM $OS_IMAGE:$OS_VERSION AS gluten-buildenv
+
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
 SHELL ["/bin/bash", "-c"]
