@@ -105,7 +105,7 @@ void CachedShuffleWriter::split(DB::Block & block)
     split_result.total_split_time += split_time_watch.elapsedNanoseconds();
 
     Stopwatch compute_pid_time_watch;
-    PartitionInfo partition_info = partitioner->build(block);
+    PartitionInfoPtr partition_info = partitioner->build(block);
     split_result.total_compute_pid_time += compute_pid_time_watch.elapsedNanoseconds();
 
     DB::Block out_block;
@@ -114,16 +114,8 @@ void CachedShuffleWriter::split(DB::Block & block)
         out_block.insert(block.getByPosition(output_columns_indicies[col_i]));
     }
 
-    /// Insert column partition
-    ColumnWithTypeAndName col_partition;
-    col_partition.name = "_partition_" + std::to_string(reinterpret_cast<uintptr_t>(this));
-    col_partition.type = std::make_shared<DataTypeUInt64>();
-    auto column_partition = ColumnVector<UInt64>::create();
-    column_partition->getData() = std::move(partition_info.partition_selector);
-    col_partition.column = column_partition->getPtr();
-    out_block.insert(std::move(col_partition));
     out_block.info = block_info;
-    partition_writer->writeV3(out_block);
+    partition_writer->writeV3(*partition_info, out_block);
 }
 
 void CachedShuffleWriter::initOutputIfNeeded(Block & block)
@@ -151,17 +143,7 @@ void CachedShuffleWriter::initOutputIfNeeded(Block & block)
 
 SplitResult CachedShuffleWriter::stop()
 {
-    auto old_before_alloc = CurrentMemoryTracker::before_alloc;
-    auto old_before_free = CurrentMemoryTracker::before_free;
-    CurrentMemoryTracker::before_alloc = nullptr;
-    CurrentMemoryTracker::before_free = nullptr;
-    SCOPE_EXIT({
-        CurrentMemoryTracker::before_alloc = old_before_alloc;
-        CurrentMemoryTracker::before_free = old_before_free;
-    });
-
     partition_writer->stopV3();
-
     static auto * logger = &Poco::Logger::get("CachedShuffleWriter");
     LOG_INFO(logger, "CachedShuffleWriter stop, split result: {}", split_result.toString());
     return split_result;

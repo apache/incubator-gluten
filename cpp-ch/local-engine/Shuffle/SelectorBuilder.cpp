@@ -49,44 +49,41 @@ extern const int LOGICAL_ERROR;
 namespace local_engine
 {
 
-PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t partition_num)
+PartitionInfo::PartitionInfo(DB::IColumn::Selector partition_ids_, size_t partition_num_)
+    : partition_ids(std::move(partition_ids_))
+    , partition_num(partition_num_)
+    , partition_start_points(partition_num + 1, 0)
+    , partition_selector(partition_ids.size(), 0)
 {
-    return PartitionInfo{.partition_selector = std::move(selector)};
-}
-
-/*
-PartitionInfo PartitionInfo::fromSelector(DB::IColumn::Selector selector, size_t partition_num)
-{
-    auto rows = selector.size();
-    std::vector<size_t> partition_row_idx_start_points(partition_num + 1, 0);
-    IColumn::Selector partition_selector(rows, 0);
+    auto rows = partition_ids.size();
     for (size_t i = 0; i < rows; ++i)
-        partition_row_idx_start_points[selector[i]]++;
+        partition_start_points[partition_ids[i]]++;
 
     for (size_t i = 1; i <= partition_num; ++i)
-        partition_row_idx_start_points[i] += partition_row_idx_start_points[i - 1];
+        partition_start_points[i] += partition_start_points[i - 1];
+
     for (size_t i = rows; i-- > 0;)
     {
-        partition_selector[partition_row_idx_start_points[selector[i]] - 1] = i;
-        partition_row_idx_start_points[selector[i]]--;
+        partition_selector[partition_start_points[partition_ids[i]] - 1] = i;
+        partition_start_points[partition_ids[i]]--;
     }
-    return PartitionInfo{
-        .partition_selector = std::move(partition_selector),
-        .partition_start_points = partition_row_idx_start_points,
-        .partition_num = partition_num};
 }
-*/
 
-PartitionInfo RoundRobinSelectorBuilder::build(DB::Block & block)
+PartitionInfoPtr PartitionInfo::create(DB::IColumn::Selector partition_ids, size_t partition_num)
 {
-    DB::IColumn::Selector result;
-    result.resize_fill(block.rows(), 0);
-    for (auto & pid : result)
+    return std::make_shared<PartitionInfo>(std::move(partition_ids), partition_num);
+}
+
+PartitionInfoPtr RoundRobinSelectorBuilder::build(DB::Block & block)
+{
+    DB::IColumn::Selector partition_ids;
+    partition_ids.resize_fill(block.rows(), 0);
+    for (auto & pid : partition_ids)
     {
         pid = pid_selection;
         pid_selection = (pid_selection + 1) % parts_num;
     }
-    return PartitionInfo::fromSelector(std::move(result), parts_num);
+    return PartitionInfo::create(std::move(partition_ids), parts_num);
 }
 
 HashSelectorBuilder::HashSelectorBuilder(
@@ -95,7 +92,7 @@ HashSelectorBuilder::HashSelectorBuilder(
 {
 }
 
-PartitionInfo HashSelectorBuilder::build(DB::Block & block)
+PartitionInfoPtr HashSelectorBuilder::build(DB::Block & block)
 {
     ColumnsWithTypeAndName args;
     for (size_t i = 0; i < exprs_index.size(); i++)
@@ -162,7 +159,7 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
             }
         }
     }
-    return PartitionInfo::fromSelector(std::move(partition_ids), parts_num);
+    return PartitionInfo::create(std::move(partition_ids), parts_num);
 }
 
 
@@ -178,11 +175,11 @@ RangeSelectorBuilder::RangeSelectorBuilder(const std::string & option, const siz
     partition_num = partition_num_;
 }
 
-PartitionInfo RangeSelectorBuilder::build(DB::Block & block)
+PartitionInfoPtr RangeSelectorBuilder::build(DB::Block & block)
 {
-    DB::IColumn::Selector result;
-    computePartitionIdByBinarySearch(block, result);
-    return PartitionInfo::fromSelector(std::move(result), partition_num);
+    DB::IColumn::Selector partition_ids;
+    computePartitionIdByBinarySearch(block, partition_ids);
+    return PartitionInfo::create(std::move(partition_ids), partition_num);
 }
 
 void RangeSelectorBuilder::initSortInformation(Poco::JSON::Array::Ptr orderings)

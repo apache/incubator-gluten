@@ -151,7 +151,7 @@ private:
 
 protected:
     bool stopped = false;
-    PartitionInfo partition_info;
+    PartitionInfoPtr partition_info;
     std::vector<ColumnsBufferPtr> partition_buffer;
     std::vector<std::unique_ptr<local_engine::NativeWriter>> partition_outputs;
     std::vector<std::unique_ptr<DB::WriteBuffer>> partition_write_buffers;

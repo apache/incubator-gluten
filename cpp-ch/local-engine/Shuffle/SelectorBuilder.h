@@ -31,20 +31,30 @@
 
 namespace local_engine
 {
+
+struct PartitionInfo;
+using PartitionInfoPtr = std::shared_ptr<PartitionInfo>;
+
 struct PartitionInfo
 {
-    DB::IColumn::Selector partition_selector;
-    std::vector<size_t> partition_start_points;
+    DB::IColumn::Selector partition_ids;
     size_t partition_num;
+    DB::IColumn::Selector partition_start_points;
+    DB::IColumn::Selector partition_selector;
 
-    static PartitionInfo fromSelector(DB::IColumn::Selector selector, size_t partition_num);
+    PartitionInfo() = default;
+    PartitionInfo(DB::IColumn::Selector partition_ids, size_t partition_num);
+    ~PartitionInfo() = default;
+
+    static PartitionInfoPtr create(DB::IColumn::Selector partition_ids, size_t partition_num);
 };
+
 
 class SelectorBuilder
 {
 public:
     virtual ~SelectorBuilder() = default;
-    virtual PartitionInfo build(DB::Block & block) = 0;
+    virtual PartitionInfoPtr build(DB::Block & block) = 0;
 };
 
 class RoundRobinSelectorBuilder : public SelectorBuilder
@@ -52,7 +62,7 @@ class RoundRobinSelectorBuilder : public SelectorBuilder
 public:
     explicit RoundRobinSelectorBuilder(size_t parts_num_) : parts_num(parts_num_) { }
     ~RoundRobinSelectorBuilder() override = default;
-    PartitionInfo build(DB::Block & block) override;
+    PartitionInfoPtr build(DB::Block & block) override;
 
 private:
     size_t parts_num;
@@ -64,7 +74,7 @@ class HashSelectorBuilder : public SelectorBuilder
 public:
     explicit HashSelectorBuilder(UInt32 parts_num_, const std::vector<size_t> & exprs_index_, const std::string & hash_function_name_);
     ~HashSelectorBuilder() override = default;
-    PartitionInfo build(DB::Block & block) override;
+    PartitionInfoPtr build(DB::Block & block) override;
 
 private:
     UInt32 parts_num;
@@ -78,7 +88,7 @@ class RangeSelectorBuilder : public SelectorBuilder
 public:
     explicit RangeSelectorBuilder(const std::string & options_, const size_t partition_num_);
     ~RangeSelectorBuilder() override = default;
-    PartitionInfo build(DB::Block & block) override;
+    PartitionInfoPtr build(DB::Block & block) override;
 
 private:
     DB::SortDescription sort_descriptions;

@@ -31,6 +31,7 @@
 #include <Common/CHUtil.h>
 #include <Common/Stopwatch.h>
 #include <Common/ThreadPool.h>
+#include "DataTypes/DataTypesNumber.h"
 
 
 namespace DB
@@ -45,9 +46,9 @@ using namespace DB;
 namespace local_engine
 {
 
-void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & block)
+void PartitionWriter::write(PartitionInfo & partition_info, DB::Block & block)
 {
-    /// PartitionWriter::write is alwasy the top frame who occupies evicting_or_writing
+    /// PartitionWriter::write is always the top frame which occupies evicting_or_writing
     if (evicting_or_writing)
         throw Exception(ErrorCodes::LOGICAL_ERROR, "PartitionWriter::write is invoked with evicting_or_writing being occupied");
 
@@ -120,10 +121,10 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
     shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
 }
 
-void PartitionWriter::writeV3(DB::Block & block)
+void PartitionWriter::writeV3(PartitionInfo & info, DB::Block & block)
 {
     if (evicting_or_writing)
-        return;
+        throw Exception(ErrorCodes::LOGICAL_ERROR, "PartitionWriter::write is invoked with evicting_or_writing being occupied");
 
     evicting_or_writing = true;
     SCOPE_EXIT({evicting_or_writing = false;});
@@ -134,6 +135,17 @@ void PartitionWriter::writeV3(DB::Block & block)
     if (rows == 0)
         return;
 
+    /// Insert column partition for later sort
+    {
+        ColumnWithTypeAndName col_partition;
+        col_partition.name = "_partition_" + std::to_string(reinterpret_cast<uintptr_t>(this));
+        col_partition.type = std::make_shared<DataTypeUInt64>();
+        auto column_partition = ColumnVector<UInt64>::create();
+        column_partition->getData().swap(info.partition_ids);
+        col_partition.column = column_partition->getPtr();
+        block.insert(std::move(col_partition));
+    }
+
     if (!sorted_buffer)
     {
         size_t bytes_per_row = block.bytes() / rows;
@@ -141,14 +153,14 @@ void PartitionWriter::writeV3(DB::Block & block)
         sorted_buffer = std::make_shared<ColumnsBuffer>(reserve_size);
     }
 
+    /// Merge current block into sorted_buffer
     if (sorted_buffer->size() + rows <= sorted_buffer->reserveSize())
     {
         sorted_buffer->append(block, 0, rows);
         return;
     }
 
-
-    /// First order by block by partition column
+    /// Sort block released from sorted_buffer by partition column
     Block sorted_block = sorted_buffer->releaseColumns();
     SCOPE_EXIT({ sorted_buffer->append(block, 0, rows); });
     {
@@ -162,7 +174,7 @@ void PartitionWriter::writeV3(DB::Block & block)
     const auto col_partition = sorted_block.getByPosition(sorted_block.columns() - 1);
     sorted_block.erase(sorted_block.columns() - 1);
 
-    /// Then evict sorted_block to celeborn by partition
+    /// Evict sorted_block by partitions
     const auto & partition_data = checkAndGetColumn<ColumnUInt64>(col_partition.column.get())->getData();
     if (partition_data.empty())
         return;
@@ -187,8 +199,6 @@ void PartitionWriter::writeV3(DB::Block & block)
     shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
     std::cout << "split bytes:" << sorted_block.bytes() << " rows:" << sorted_block.rows() << " in " << watch.elapsedMilliseconds() << " ms"
               << std::endl;
-
-
 }
 
 size_t LocalPartitionWriter::unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer)

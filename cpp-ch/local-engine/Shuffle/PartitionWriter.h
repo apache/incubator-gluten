@@ -66,8 +66,8 @@ public:
 
     virtual String getName() const = 0;
 
-    void write(const PartitionInfo& info, DB::Block & block);
-    void writeV3(DB::Block & block);
+    void write(PartitionInfo & info, DB::Block & block);
+    void writeV3(PartitionInfo & info, DB::Block & block);
 
     size_t evictPartitions(bool for_memory_spill = false, bool flush_block_buffer = false);
 

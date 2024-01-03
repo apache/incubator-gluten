@@ -65,7 +65,7 @@ protected:
     virtual void computePartitionId(DB::Block &) = 0;
 
     Options options;
-    PartitionInfo partition_info;
+    PartitionInfoPtr partition_info;
     std::vector<size_t> output_columns_indicies;
     DB::Block output_header;
 

@@ -111,13 +111,13 @@ void ShuffleSplitter::splitBlockByPartition(DB::Block & block)
     }
     for (size_t col = 0; col < output_header.columns(); ++col)
     {
-        for (size_t j = 0; j < partition_info.partition_num; ++j)
+        for (size_t j = 0; j < partition_info->partition_num; ++j)
         {
-            size_t from = partition_info.partition_start_points[j];
-            size_t length = partition_info.partition_start_points[j + 1] - from;
+            size_t from = partition_info->partition_start_points[j];
+            size_t length = partition_info->partition_start_points[j + 1] - from;
             if (length == 0)
                 continue; // no data for this partition continue;
-            partition_buffer[j]->appendSelective(col, out_block, partition_info.partition_selector, from, length);
+            partition_buffer[j]->appendSelective(col, out_block, partition_info->partition_selector, from, length);
         }
     }
     split_result.total_split_time += split_time_watch.elapsedNanoseconds();
