@@ -135,7 +135,7 @@
       <properties>
         <sparkbundle.version>3.4</sparkbundle.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
-        <spark.version>3.4.1</spark.version>
+        <spark.version>3.4.2</spark.version>
         <delta.version>2.4.0</delta.version>
         <delta.binary.version>24</delta.binary.version>
       </properties>
