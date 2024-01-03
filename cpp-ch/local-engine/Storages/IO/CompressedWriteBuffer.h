@@ -17,13 +17,12 @@
 #pragma once
 
 #include <memory>
-
-#include <Common/PODArray.h>
-
-#include <IO/WriteBuffer.h>
-#include <IO/BufferWithOwnMemory.h>
-#include <Compression/ICompressionCodec.h>
 #include <Compression/CompressionFactory.h>
+#include <Compression/ICompressionCodec.h>
+#include <Core/Defines.h>
+#include <IO/BufferWithOwnMemory.h>
+#include <IO/WriteBuffer.h>
+#include <Common/PODArray.h>
 
 
 namespace local_engine
@@ -35,7 +34,7 @@ public:
     explicit CompressedWriteBuffer(
         DB::WriteBuffer & out_,
         DB::CompressionCodecPtr codec_ = DB::CompressionCodecFactory::instance().getDefaultCodec(),
-        size_t buf_size = DB::DBMS_DEFAULT_BUFFER_SIZE,
+        size_t buf_size = DBMS_DEFAULT_BUFFER_SIZE,
         bool checksum = false);
 
     ~CompressedWriteBuffer() override;

@@ -120,103 +120,6 @@ void PartitionWriter::write(const PartitionInfo & partition_info, DB::Block & bl
     shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
 }
 
-void PartitionWriter::writeV2(DB::Block & block)
-{
-    if (evicting_or_writing)
-        return;
-
-    evicting_or_writing = true;
-    SCOPE_EXIT({evicting_or_writing = false;});
-
-    Stopwatch watch;
-
-    /// First order by block by partition column
-    {
-        const auto & col_partition = block.getByPosition(block.columns() - 1);
-        SortDescription sort_description;
-        sort_description.emplace_back(col_partition.name, 1, 1);
-        sortBlock(block, sort_description);
-    }
-
-    /// Get sorted partition column and remove it from block
-    const auto col_partition = block.getByPosition(block.columns() - 1);
-    block.erase(block.columns() - 1);
-
-    const auto & partition_data = checkAndGetColumn<ColumnUInt64>(col_partition.column.get())->getData();
-    if (partition_data.empty())
-        return;
-
-    size_t current_cached_bytes = bytes();
-    auto write_range = [&](size_t start_, size_t end_)
-    {
-        size_t partition_id = partition_data[end_ - 1];
-        // std::cout << "write range of partition:" << partition_id << " row range:" << start_ << "-" << end_ << std::endl;
-
-        /// Make sure buffer size is no greater than split_size
-        auto & block_buffer = partition_block_buffer[partition_id];
-        auto & buffer = partition_buffer[partition_id];
-        if (block_buffer->size() && block_buffer->size() + end_ - start_ >= shuffle_writer->options.split_size)
-            buffer->addBlock(block_buffer->releaseColumns());
-
-        current_cached_bytes -= block_buffer->bytes();
-        block_buffer->append(block, start_, end_);
-        current_cached_bytes += block_buffer->bytes();
-
-        /// Only works for celeborn partitiion writer
-        if (supportsEvictSinglePartition() && options->spill_threshold > 0 && current_cached_bytes >= options->spill_threshold)
-        {
-            /// Calculate average rows of each partition block buffer
-            size_t avg_size = 0;
-            size_t cnt = 0;
-            for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
-                 i = (i + 1) % options->partition_num)
-            {
-                avg_size += partition_block_buffer[i]->size();
-                ++cnt;
-            }
-            avg_size /= cnt;
-
-
-            for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
-                 i = (i + 1) % options->partition_num)
-            {
-                /// Flush partition block buffer if it's size is no less than average rows
-                bool flush_block_buffer = partition_block_buffer[i]->size() >= avg_size;
-                current_cached_bytes -= flush_block_buffer ? partition_block_buffer[i]->bytes() + partition_buffer[i]->bytes()
-                                                           : partition_buffer[i]->bytes();
-                unsafeEvictSinglePartition(false, flush_block_buffer, i);
-            }
-
-            last_partition_id = partition_id;
-        }
-    };
-
-    size_t start = 0;
-    size_t end = 0;
-    for (size_t row_i = 1; row_i < partition_data.size(); ++row_i)
-    {
-        if (partition_data[row_i] == partition_data[start])
-            continue;
-
-        end = row_i;
-        write_range(start, end);
-
-        start = row_i;
-    }
-
-    end = partition_data.size();
-    write_range(start, end);
-
-    /// Only works for local partition writer
-    if (!supportsEvictSinglePartition() && options->spill_threshold && current_cached_bytes >= options->spill_threshold)
-    {
-        unsafeEvictPartitions(false, true);
-    }
-
-    shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
-}
-
-
 void PartitionWriter::writeV3(DB::Block & block)
 {
     if (evicting_or_writing)
@@ -236,13 +139,11 @@ void PartitionWriter::writeV3(DB::Block & block)
         size_t bytes_per_row = block.bytes() / rows;
         size_t reserve_size = options->spill_threshold / bytes_per_row;
         sorted_buffer = std::make_shared<ColumnsBuffer>(reserve_size);
-        // std::cout << "create sorted buffer with reserve size:" << reserve_size << std::endl;
     }
 
     if (sorted_buffer->size() + rows <= sorted_buffer->reserveSize())
     {
         sorted_buffer->append(block, 0, rows);
-        // std::cout << "append block with rows:" << rows << " sorted_buffer rows:" << sorted_buffer->size() << std::endl;
         return;
     }
 
@@ -581,7 +482,6 @@ size_t CelebornPartitionWriter::unsafeEvictSinglePartitionFromBlock(
         CompressedWriteBuffer compressed_output(output, codec, shuffle_writer->options.io_buffer_size);
         NativeWriter writer(compressed_output, shuffle_writer->output_header);
 
-        // std::cout << "evict data from block partition:" << partition_id << " start:" << start << " length:" << length << std::endl;
         size_t written_bytes = writer.write(block, start, length);
         res += written_bytes;
         compressed_output.sync();
@@ -630,7 +530,6 @@ size_t CelebornPartitionWriter::unsafeEvictSinglePartition(bool for_memory_spill
             auto & block_buffer = partition_block_buffer[partition_id];
             if (!block_buffer->empty())
             {
-                // std::cout << "flush block buffer for partition:" << partition_id << " rows:" << block_buffer->size() << std::endl;
                 buffer->addBlock(block_buffer->releaseColumns());
             }
         }
@@ -648,9 +547,6 @@ size_t CelebornPartitionWriter::unsafeEvictSinglePartition(bool for_memory_spill
         size_t written_bytes = buffer->spill(writer);
         res += written_bytes;
         compressed_output.sync();
-
-        // std::cout << "evict partition " << partition_id << " uncompress_bytes:" << compressed_output.getUncompressedBytes()
-        //           << " compress_bytes:" << compressed_output.getCompressedBytes() << std::endl;
 
         Stopwatch push_time_watch;
         celeborn_client->pushPartitionData(partition_id, output.str().data(), output.str().size());
