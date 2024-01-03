@@ -588,7 +588,8 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
         } else {
           auto vector = BaseVector::create(type, 1, pool_);
           auto flatVector = vector->as<FlatVector<int128_t>>();
-          flatVector->set(0, HugeInt::build(static_cast<uint64_t>(decimalValue >> 64), static_cast<uint64_t>(decimalValue)));
+          flatVector->set(
+              0, HugeInt::build(static_cast<uint64_t>(decimalValue >> 64), static_cast<uint64_t>(decimalValue)));
           vectors.emplace_back(vector);
         }
         break;
@@ -596,7 +597,8 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
       case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
         auto veloxType = SubstraitParser::parseType(child.null());
         auto kind = veloxType->kind();
-        auto vecPtr = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVectorForStruct, kind, child, 1, veloxType, pool_);
+        auto vecPtr =
+            VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVectorForStruct, kind, child, 1, veloxType, pool_);
         vectors.emplace_back(vecPtr);
         break;
       }
