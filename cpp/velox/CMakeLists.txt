@@ -316,6 +316,10 @@ if (ENABLE_HDFS)
   list(APPEND VELOX_SRCS utils/HdfsUtils.cc)
 endif ()
 
+if(ENABLE_S3)
+  find_package(ZLIB)
+endif()
+
 if(BUILD_TESTS OR BUILD_BENCHMARKS)
   list(APPEND VELOX_SRCS utils/tests/MemoryPoolUtils.cc)
 endif()
@@ -392,7 +396,6 @@ endif()
 if(ENABLE_S3)
   add_definitions(-DENABLE_S3)
   find_awssdk()
-  find_package(ZLIB)
   target_link_libraries(velox PUBLIC ${AWSSDK_LIBRARIES})
 endif()
 

@@ -89,6 +89,202 @@ public:
 private:
     using ToType = typename Impl::ReturnType;
 
+    static ToType applyGeneric(const Field & field, UInt64 seed, const DataTypePtr & type)
+    {
+        /// Do nothing when field is null
+        if (field.isNull())
+            return seed;
+
+        DataTypePtr non_nullable_type = removeNullable(type);
+        WhichDataType which(non_nullable_type);
+        if (which.isNothing())
+            return seed;
+        else if (which.isUInt8())
+            return applyNumber<UInt8>(field.get<UInt8>(), seed);
+        else if (which.isUInt16())
+            return applyNumber<UInt16>(field.get<UInt16>(), seed);
+        else if (which.isUInt32())
+            return applyNumber<UInt32>(field.get<UInt32>(), seed);
+        else if (which.isUInt64())
+            return applyNumber<UInt64>(field.get<UInt64>(), seed);
+        else if (which.isInt8())
+            return applyNumber<Int8>(field.get<Int8>(), seed);
+        else if (which.isInt16())
+            return applyNumber<Int16>(field.get<Int16>(), seed);
+        else if (which.isInt32())
+            return applyNumber<Int32>(field.get<Int32>(), seed);
+        else if (which.isInt64())
+            return applyNumber<Int64>(field.get<Int64>(), seed);
+        else if (which.isFloat32())
+            return applyNumber<Float32>(field.get<Float32>(), seed);
+        else if (which.isFloat64())
+            return applyNumber<Float64>(field.get<Float64>(), seed);
+        else if (which.isDate())
+            return applyNumber<UInt16>(field.get<UInt16>(), seed);
+        else if (which.isDate32())
+            return applyNumber<Int32>(field.get<Int32>(), seed);
+        else if (which.isDateTime())
+            return applyNumber<UInt32>(field.get<UInt32>(), seed);
+        else if (which.isDateTime64())
+            return applyDecimal<DateTime64>(field.get<DateTime64>(), seed);
+        else if (which.isDecimal32())
+            return applyDecimal<Decimal32>(field.get<Decimal32>(), seed);
+        else if (which.isDecimal64())
+            return applyDecimal<Decimal64>(field.get<Decimal64>(), seed);
+        else if (which.isDecimal128())
+            return applyDecimal<Decimal128>(field.get<Decimal128>(), seed);
+        else if (which.isStringOrFixedString())
+        {
+            const String & str = field.get<String>();
+            return applyUnsafeBytes(str.data(), str.size(), seed);
+        }
+        else if (which.isTuple())
+        {
+            const auto * tuple_type = checkAndGetDataType<DataTypeTuple>(non_nullable_type.get());
+            assert(tuple_type);
+
+            const auto & elements = tuple_type->getElements();
+            const Tuple & tuple = field.get<Tuple>();
+            assert(tuple.size() == elements.size());
+
+            for (size_t i = 0; i < elements.size(); ++i)
+            {
+                seed = applyGeneric(tuple[i], seed, elements[i]);
+            }
+            return seed;
+        }
+        else if (which.isArray())
+        {
+            const auto * array_type = checkAndGetDataType<DataTypeArray>(non_nullable_type.get());
+            assert(array_type);
+
+            const auto & nested_type = array_type->getNestedType();
+            const Array & array = field.get<Array>();
+            for (size_t i=0; i < array.size(); ++i)
+            {
+                seed = applyGeneric(array[i], seed, nested_type);
+            }
+            return seed;
+        }
+        else
+        {
+            /// Note: No need to implement for big int type in gluten
+            /// Note: No need to implement for uuid/ipv4/ipv6/enum* type in gluten
+            /// Note: No need to implement for decimal256 type in gluten
+            /// Note: No need to implement for map type as long as spark.sql.legacy.allowHashOnMapType is false(default)
+            throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Unsupported type {}", type->getName());
+        }
+    }
+
+    static ToType applyUnsafeBytes(const char * begin, size_t size, UInt64 seed)
+    {
+        return Impl::apply(begin, size, seed);
+    }
+
+    template <typename T>
+        requires std::is_arithmetic_v<T>
+    static ToType applyNumber(T n, UInt64 seed)
+    {
+        if constexpr (std::is_integral_v<T>)
+        {
+            if constexpr (IntHashPromotion<T>::need_promotion_v)
+            {
+                using PromotedType = typename IntHashPromotion<T>::Type;
+                PromotedType v = n;
+                return Impl::apply(reinterpret_cast<const char *>(&v), sizeof(v), seed);
+            }
+            else
+                return Impl::apply(reinterpret_cast<const char *>(&n), sizeof(n), seed);
+        }
+        else
+        {
+            if constexpr (std::is_same_v<T, Float32>)
+            {
+                if (n == -0.0f) [[unlikely]]
+                    return applyNumber<Int32>(0, seed);
+                else
+                    return Impl::apply(reinterpret_cast<const char *>(&n), sizeof(n), seed);
+            }
+            else
+            {
+                if (n == -0.0) [[unlikely]]
+                    return applyNumber<Int64>(0, seed);
+                else
+                    return Impl::apply(reinterpret_cast<const char *>(&n), sizeof(n), seed);
+            }
+        }
+    }
+
+    template <typename T>
+        requires is_decimal<T>
+    static ToType applyDecimal(const T & n, UInt64 seed)
+    {
+        using NativeType = typename T::NativeType;
+
+        if constexpr (sizeof(NativeType) <= 8)
+        {
+            Int64 v = n.value;
+            return Impl::apply(reinterpret_cast<const char *>(&v), sizeof(v), seed);
+        }
+        else
+        {
+            using base_type = typename NativeType::base_type;
+
+            NativeType v = n.value;
+
+            /// Calculate leading zeros
+            constexpr size_t item_count = std::size(v.items);
+            constexpr size_t total_bytes = sizeof(base_type) * item_count;
+            bool negative = v < 0;
+            size_t leading_zeros = 0;
+            for (size_t i = 0; i < item_count; ++i)
+            {
+                base_type item = v.items[item_count - 1 - i];
+                base_type temp = negative ? ~item : item;
+                size_t curr_leading_zeros = getLeadingZeroBits(temp);
+                leading_zeros += curr_leading_zeros;
+
+                if (curr_leading_zeros != sizeof(base_type) * 8)
+                    break;
+            }
+
+            size_t offset = total_bytes - (total_bytes * 8 - leading_zeros + 8) / 8;
+
+            /// Convert v to big-endian style
+            for (size_t i = 0; i < item_count; ++i)
+                v.items[i] = __builtin_bswap64(v.items[i]);
+            for (size_t i = 0; i < item_count / 2; ++i)
+                std::swap(v.items[i], v.items[std::size(v.items) -1 - i]);
+
+            /// Calculate hash(refer to https://docs.oracle.com/javase/8/docs/api/java/math/BigInteger.html#toByteArray)
+            const char * buffer = reinterpret_cast<const char *>(&v.items[0]) + offset;
+            size_t length = item_count * sizeof(base_type) - offset;
+            return Impl::apply(buffer, length, seed);
+        }
+    }
+
+    void executeGeneric(
+        const IDataType * from_type,
+        bool from_const,
+        const IColumn * data_column,
+        const NullMap * null_map,
+        typename ColumnVector<ToType>::Container & vec_to) const
+    {
+        size_t size = vec_to.size();
+        if (!from_const)
+        {
+            for (size_t i = 0; i < size; ++i)
+                if (!null_map || !(*null_map)[i]) [[likely]]
+                    vec_to[i] = applyGeneric((*data_column)[i], vec_to[i], from_type->shared_from_this());
+        }
+        else if (!null_map || !(*null_map)[0]) [[likely]]
+        {
+            auto value = (*data_column)[0];
+            for (size_t i = 0; i < size; ++i)
+                vec_to[i] = applyGeneric(value, vec_to[i], from_type->shared_from_this());
+        }
+    }
+
     template <typename FromType>
     void executeNumberType(
         bool from_const, const IColumn * data_column, const NullMap * null_map, typename ColumnVector<ToType>::Container & vec_to) const
@@ -219,7 +415,11 @@ private:
         }
 
         WhichDataType which(removeNullable(from_type->shared_from_this()));
-        if (which.isUInt8())
+
+        /// Skip column with type Nullable(Nothing)
+        if (which.isNothing())
+            ;
+        else if (which.isUInt8())
             executeNumberType<UInt8>(from_const, data_column, null_map, vec_to);
         else if (which.isUInt16())
             executeNumberType<UInt16>(from_const, data_column, null_map, vec_to);
@@ -257,13 +457,18 @@ private:
             executeString(from_const, data_column, null_map, vec_to);
         else if (which.isFixedString())
             executeFixedString(from_const, data_column, null_map, vec_to);
-        /// TODO(taiyang-li): implement for array and tuple type
-        /// Note: No need to implement for big int type in gluten
-        /// Note: No need to implement for uuid/ipv4/ipv6/enum* type in gluten
-        /// Note: No need to implement for decimal256 type in gluten
-        /// Note: No need to implement for map type as long as spark.sql.legacy.allowHashOnMapType is false(default)
+        else if (which.isArray())
+            executeGeneric(from_type, from_const, data_column, null_map, vec_to);
+        else if (which.isTuple())
+            executeGeneric(from_type, from_const, data_column, null_map, vec_to);
         else
+        {
+            /// Note: No need to implement for big int type in gluten
+            /// Note: No need to implement for uuid/ipv4/ipv6/enum* type in gluten
+            /// Note: No need to implement for decimal256 type in gluten
+            /// Note: No need to implement for map type as long as spark.sql.legacy.allowHashOnMapType is false(default)
             throw Exception(ErrorCodes::NOT_IMPLEMENTED, "Function {} hasn't supported type {}", getName(), from_type->getName());
+        }
     }
 
     void executeForArgument(
@@ -307,92 +512,7 @@ public:
         return col_to;
     }
 
-    static ToType applyUnsafeBytes(const char * begin, size_t size, UInt64 seed)
-    {
-        return Impl::apply(begin, size, seed);
-    }
 
-    template <typename T>
-        requires std::is_arithmetic_v<T>
-    static ToType applyNumber(T n, UInt64 seed)
-    {
-        if constexpr (std::is_integral_v<T>)
-        {
-            if constexpr (IntHashPromotion<T>::need_promotion_v)
-            {
-                using PromotedType = typename IntHashPromotion<T>::Type;
-                PromotedType v = n;
-                return Impl::apply(reinterpret_cast<const char *>(&v), sizeof(v), seed);
-            }
-            else
-                return Impl::apply(reinterpret_cast<const char *>(&n), sizeof(n), seed);
-        }
-        else
-        {
-            if constexpr (std::is_same_v<T, Float32>)
-            {
-                if (n == -0.0f) [[unlikely]]
-                    return applyNumber<Int32>(0, seed);
-                else
-                    return Impl::apply(reinterpret_cast<const char *>(&n), sizeof(n), seed);
-            }
-            else
-            {
-                if (n == -0.0) [[unlikely]]
-                    return applyNumber<Int64>(0, seed);
-                else
-                    return Impl::apply(reinterpret_cast<const char *>(&n), sizeof(n), seed);
-            }
-        }
-    }
-
-    template <typename T>
-        requires is_decimal<T>
-    static ToType applyDecimal(const T & n, UInt64 seed)
-    {
-        using NativeType = typename T::NativeType;
-
-        if constexpr (sizeof(NativeType) <= 8)
-        {
-            Int64 v = n.value;
-            return Impl::apply(reinterpret_cast<const char *>(&v), sizeof(v), seed);
-        }
-        else
-        {
-            using base_type = typename NativeType::base_type;
-
-            NativeType v = n.value;
-
-            /// Calculate leading zeros
-            constexpr size_t item_count = std::size(v.items);
-            constexpr size_t total_bytes = sizeof(base_type) * item_count;
-            bool negative = v < 0;
-            size_t leading_zeros = 0;
-            for (size_t i = 0; i < item_count; ++i)
-            {
-                base_type item = v.items[item_count - 1 - i];
-                base_type temp = negative ? ~item : item;
-                size_t curr_leading_zeros = getLeadingZeroBits(temp);
-                leading_zeros += curr_leading_zeros;
-
-                if (curr_leading_zeros != sizeof(base_type) * 8)
-                    break;
-            }
-
-            size_t offset = total_bytes - (total_bytes * 8 - leading_zeros + 8) / 8;
-
-            /// Convert v to big-endian style
-            for (size_t i = 0; i < item_count; ++i)
-                v.items[i] = __builtin_bswap64(v.items[i]);
-            for (size_t i = 0; i < item_count / 2; ++i)
-                std::swap(v.items[i], v.items[std::size(v.items) -1 - i]);
-
-            /// Calculate hash(refer to https://docs.oracle.com/javase/8/docs/api/java/math/BigInteger.html#toByteArray)
-            const char * buffer = reinterpret_cast<const char *>(&v.items[0]) + offset;
-            size_t length = item_count * sizeof(base_type) - offset;
-            return Impl::apply(buffer, length, seed);
-        }
-    }
 };
 
 ) // DECLARE_MULTITARGET_CODE
