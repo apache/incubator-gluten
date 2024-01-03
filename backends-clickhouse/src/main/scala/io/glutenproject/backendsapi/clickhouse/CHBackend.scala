@@ -99,7 +99,7 @@ object CHBackendSettings extends BackendSettingsApi with Logging {
     GlutenConfig.GLUTEN_CONFIG_PREFIX + CHBackend.BACKEND_NAME +
       ".shuffle.hash.algorithm"
   // valid values are: cityHash64 or sparkMurmurHash3_32
-  private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM_DEFAULT = "cityHash64"
+  private val GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM_DEFAULT = "sparkMurmurHash3_32"
   def shuffleHashAlgorithm: String = {
     val algorithm = SparkEnv.get.conf.get(
       CHBackendSettings.GLUTEN_CLICKHOUSE_SHUFFLE_HASH_ALGORITHM,
