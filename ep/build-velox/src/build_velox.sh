@@ -28,6 +28,7 @@ VELOX_HOME=""
 ENABLE_EP_CACHE=OFF
 ENABLE_BENCHMARK=OFF
 ENABLE_TESTS=OFF
+BUILD_TEST_UTILS=OFF
 RUN_SETUP_SCRIPT=ON
 OTHER_ARGUMENTS=""
 COMPILE_ARROW_JAVA=OFF
@@ -65,11 +66,15 @@ for arg in "$@"; do
     ENABLE_EP_CACHE=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+  --build_test_utils=*)
+    BUILD_TEST_UTILS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
   --build_tests=*)
     ENABLE_TESTS=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
-  --build_velox_benchmarks=*)
+  --build_benchmarks=*)
     ENABLE_BENCHMARK=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
@@ -100,7 +105,10 @@ function compile {
     fi
   fi
 
-  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_BUILD_TEST_UTILS=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_ENABLE_PARSE=OFF"
+  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF"
+  if [ $BUILD_TEST_UTILS == "ON" ]; then
+      COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
+  fi
   if [ $ENABLE_HDFS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
   fi
