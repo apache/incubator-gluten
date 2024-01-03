@@ -334,6 +334,22 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     checkLengthAndPlan(df2, 10)
   }
 
+  test("test function xxhash64 with complex types") {
+    val sql =
+      """
+        |select
+        |  xxhash64(array(id, null, id+1, 100)),
+        |  xxhash64(array(cast(id as string), null, 'spark')),
+        |  xxhash64(array(null)),
+        |  xxhash64(cast(null as array<int>)),
+        |  xxhash64(array(array(id, null, id+1))),
+        |  xxhash64(cast(null as struct<a:int, b:string>)),
+        |  xxhash64(struct(id, cast(id as string), 100, 'spark', null))
+        |from range(10);
+      """.stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test 'function murmur3hash'") {
     val df1 = runQueryAndCompare(
       "select hash(cast(id as int)), hash(cast(id as byte)), hash(cast(id as short)), " +
@@ -356,6 +372,22 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         "hash(cast(id as decimal(30, 2)), 'spark') from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df2, 10)
+  }
+
+  test("test function murmur3hash with complex types") {
+    val sql =
+      """
+        |select
+        |  hash(array(id, null, id+1, 100)),
+        |  hash(array(cast(id as string), null, 'spark')),
+        |  hash(array(null)),
+        |  hash(cast(null as array<int>)),
+        |  hash(array(array(id, null, id+1))),
+        |  hash(cast(null as struct<a:int, b:string>)),
+        |  hash(struct(id, cast(id as string), 100, 'spark', null))
+        |from range(10);
+      """.stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
 
   test("test next_day const") {
