@@ -46,7 +46,7 @@ using namespace DB;
 namespace local_engine
 {
 
-void PartitionWriter::write(PartitionInfo & partition_info, DB::Block & block)
+void PartitionWriter::write(PartitionInfo & info, DB::Block & block)
 {
     /// PartitionWriter::write is always the top frame which occupies evicting_or_writing
     if (evicting_or_writing)
@@ -56,6 +56,15 @@ void PartitionWriter::write(PartitionInfo & partition_info, DB::Block & block)
     SCOPE_EXIT({evicting_or_writing = false;});
 
     Stopwatch watch;
+    if (useSortBasedWrite())
+        sortBasedWrite(info, block);
+    else
+        hashBasedWrite(info, block);
+    shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
+}
+
+void PartitionWriter::hashBasedWrite(PartitionInfo & partition_info, DB::Block & block)
+{
     size_t current_cached_bytes = bytes();
     for (size_t partition_id = 0; partition_id < partition_info.partition_num; ++partition_id)
     {
@@ -118,19 +127,10 @@ void PartitionWriter::write(PartitionInfo & partition_info, DB::Block & block)
         unsafeEvictPartitions(false, options->flush_block_buffer_before_evict);
     }
 
-    shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
 }
 
-void PartitionWriter::writeV3(PartitionInfo & info, DB::Block & block)
+void PartitionWriter::sortBasedWrite(PartitionInfo & info, DB::Block & block)
 {
-    if (evicting_or_writing)
-        throw Exception(ErrorCodes::LOGICAL_ERROR, "PartitionWriter::write is invoked with evicting_or_writing being occupied");
-
-    evicting_or_writing = true;
-    SCOPE_EXIT({evicting_or_writing = false;});
-
-    Stopwatch watch;
-
     size_t rows = block.rows();
     if (rows == 0)
         return;
@@ -146,7 +146,7 @@ void PartitionWriter::writeV3(PartitionInfo & info, DB::Block & block)
         block.insert(std::move(col_partition));
     }
 
-    if (!sorted_buffer)
+    if (!sorted_buffer) [[unlikely]]
     {
         size_t bytes_per_row = block.bytes() / rows;
         size_t reserve_size = options->spill_threshold / bytes_per_row;
@@ -196,9 +196,6 @@ void PartitionWriter::writeV3(PartitionInfo & info, DB::Block & block)
     unsafeEvictSinglePartitionFromBlock(false, partition_data[start], sorted_block, start, end - start);
 
     shuffle_writer->split_result.total_bytes_spilled += sorted_block.bytes();
-    shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
-    std::cout << "split bytes:" << sorted_block.bytes() << " rows:" << sorted_block.rows() << " in " << watch.elapsedMilliseconds() << " ms"
-              << std::endl;
 }
 
 size_t LocalPartitionWriter::unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer)

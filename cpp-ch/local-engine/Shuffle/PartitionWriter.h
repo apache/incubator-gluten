@@ -67,14 +67,15 @@ public:
     virtual String getName() const = 0;
 
     void write(PartitionInfo & info, DB::Block & block);
-    void writeV3(PartitionInfo & info, DB::Block & block);
-
     size_t evictPartitions(bool for_memory_spill = false, bool flush_block_buffer = false);
-
     void stop();
     void stopV3();
 
 protected:
+    bool useSortBasedWrite() const { return options->partition_num >= 1000UL; }
+    void hashBasedWrite(PartitionInfo & info, DB::Block & block);
+    void sortBasedWrite(PartitionInfo & info, DB::Block & block);
+
     size_t bytes() const;
 
     virtual size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer = false) = 0;

@@ -115,7 +115,7 @@ void CachedShuffleWriter::split(DB::Block & block)
     }
 
     out_block.info = block_info;
-    partition_writer->writeV3(*partition_info, out_block);
+    partition_writer->write(*partition_info, out_block);
 }
 
 void CachedShuffleWriter::initOutputIfNeeded(Block & block)
