@@ -24,6 +24,12 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
 
+/**
+ * To transform regular aggregation to intermediate aggregation that internally enables
+ * optimizations such as flushing and abandoning.
+ *
+ * Currently not in use. Will be enabled via a configuration after necessary verification is done.
+ */
 case class IntermediateHashAggregateRule(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case shuffle: ShuffleExchangeLike =>
