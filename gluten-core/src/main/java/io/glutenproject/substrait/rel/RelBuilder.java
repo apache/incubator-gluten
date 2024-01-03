@@ -184,12 +184,11 @@ public class RelBuilder {
       List<TypeNode> types,
       List<String> names,
       List<ColumnTypeNode> columnTypeNodes,
-      String writePath,
       AdvancedExtensionNode extensionNode,
       SubstraitContext context,
       Long operatorId) {
     context.registerRelToOperator(operatorId);
-    return new WriteRelNode(input, types, names, columnTypeNodes, writePath, extensionNode);
+    return new WriteRelNode(input, types, names, columnTypeNodes, extensionNode);
   }
 
   public static RelNode makeSortRel(

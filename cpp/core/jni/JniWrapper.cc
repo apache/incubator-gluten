@@ -349,6 +349,22 @@ JNIEXPORT jstring JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapp
   JNI_METHOD_END(nullptr)
 }
 
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_injectWriteFilesTempPath( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jbyteArray path) {
+  JNI_METHOD_START
+
+  auto len = env->GetArrayLength(path);
+  jbyte* bytes = env->GetByteArrayElements(path, 0);
+  std::string pathStr(reinterpret_cast<char*>(bytes), len);
+  auto ctx = gluten::getRuntime(env, wrapper);
+  ctx->injectWriteFilesTempPath(pathStr);
+  env->ReleaseByteArrayElements(path, bytes, JNI_ABORT);
+
+  JNI_METHOD_END()
+}
+
 JNIEXPORT jlong JNICALL
 Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_nativeCreateKernelWithIterator( // NOLINT
     JNIEnv* env,
