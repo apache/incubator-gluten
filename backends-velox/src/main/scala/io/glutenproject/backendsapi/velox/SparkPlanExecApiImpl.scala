@@ -46,7 +46,6 @@ import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ColumnarBuildSideRelation, SparkPlan, VeloxColumnarWriteFilesExec}
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
-import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BuildSideRelation
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -497,12 +496,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = {
-    val Array(major, minor, _) = SparkShimLoader.getSparkShims.getShimDescriptor.toString.split('.')
-    if (major.toInt > 3 || (major.toInt == 3 && (minor.toInt >= 4))) {
-      List()
-    } else {
-      List(spark => NativeWritePostRule(spark))
-    }
+    SparkShimLoader.getSparkShims.getExtendedColumnarPostRules() ::: List()
   }
 
   /**

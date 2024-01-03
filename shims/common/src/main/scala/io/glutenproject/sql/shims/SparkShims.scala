@@ -23,6 +23,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{Expression, PlanExpression}
 import org.apache.spark.sql.catalyst.plans.physical.Distribution
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanExec, SparkPlan}
@@ -86,4 +87,6 @@ trait SparkShims {
       agg: org.apache.spark.sql.execution.aggregate.ObjectHashAggregateExec): Boolean
 
   def extractSubPlanFromMightContain(expr: Expression): Option[SparkPlan]
+
+  def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]]
 }
