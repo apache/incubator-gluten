@@ -560,18 +560,18 @@ jobs:
         if: ${{ always() }}
         run: |
           docker stop static-build-test-$GITHUB_RUN_ID || true
-  static-package-test:
+  build-script-test:
     runs-on: velox-self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           docker run --rm --init --privileged --ulimit nofile=65536:65536 --ulimit core=-1 --security-opt seccomp=unconfined \
-          -v $PWD:/opt/gluten --name static-package-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/centos:8 \
+          -v $PWD:/opt/gluten --name build-script-test-$GITHUB_RUN_ID -e NUM_THREADS=30 -detach 10.0.2.4:5000/gluten-dev/centos:8 \
           bash -c 'cd /opt/gluten && sleep 14400'
-      - name: Exec package
+      - name: Build Script Test
         run: |
-          docker exec static-package-test-$GITHUB_RUN_ID bash -c '
+          docker exec build-script-test-$GITHUB_RUN_ID bash -c '
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ && \
@@ -579,4 +579,4 @@ jobs:
       - name: Exit docker container
         if: ${{ always() }}
         run: |
-          docker stop static-package-test-$GITHUB_RUN_ID || true
+          docker stop build-script-test-$GITHUB_RUN_ID || true
