@@ -307,7 +307,7 @@ void WholeStageResultIterator::collectMetrics() {
       metrics_->get(Metrics::kPreloadSplits)[metricIndex] =
           runtimeMetric("sum", entry.second->customStats, kPreloadSplits);
       metrics_->get(Metrics::kNumWrittenFiles)[metricIndex] =
-                  runtimeMetric("sum", entry.second->customStats, kNumWrittenFiles);
+          runtimeMetric("sum", entry.second->customStats, kNumWrittenFiles);
       metrics_->get(Metrics::kPhysicalWrittenBytes)[metricIndex] = second->physicalWrittenBytes;
 
       metricIndex += 1;
