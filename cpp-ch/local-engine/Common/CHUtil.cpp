@@ -732,6 +732,12 @@ static void load_medadata_impl(std::vector<String> & metadata_lines, String & ta
                     auto name = field->getValue<String>("name");
                     auto type = TypeParser::getCHTypeByName(field->getValue<String>("type"));
 
+                    static std::set<std::string> low_card_cols = {"l_returnflag", "l_linestatus", "l_shipinstruct", "l_shipmode"};
+                    if (low_card_cols.contains(name))
+                    {
+                        type = std::make_shared<DB::DataTypeLowCardinality>(type);
+                    }
+
                     if (field->getValue<bool>("nullable"))
                         type = makeNullable(type);
 

@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 #include "SerializedPlanBuilder.h"
+
+#include "DataTypes/DataTypeLowCardinality.h"
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeDateTime64.h>
 #include <DataTypes/DataTypeMap.h>
@@ -240,12 +242,14 @@ SerializedPlanBuilder & SerializedPlanBuilder::project(const std::vector<substra
 
 std::shared_ptr<substrait::Type> SerializedPlanBuilder::buildType(const DB::DataTypePtr & ch_type)
 {
-    const auto * ch_type_nullable = checkAndGetDataType<DataTypeNullable>(ch_type.get());
+    const auto ch_type_wo_lowcardinality = DB::removeLowCardinality(ch_type);
+
+    const auto * ch_type_nullable = checkAndGetDataType<DataTypeNullable>(ch_type_wo_lowcardinality.get());
     const bool is_nullable = (ch_type_nullable != nullptr);
     auto type_nullability
         = is_nullable ? substrait::Type_Nullability_NULLABILITY_NULLABLE : substrait::Type_Nullability_NULLABILITY_REQUIRED;
 
-    const auto ch_type_without_nullable = DB::removeNullable(ch_type);
+    const auto ch_type_without_nullable = DB::removeNullable(ch_type_wo_lowcardinality);
     const DB::WhichDataType which(ch_type_without_nullable);
 
     auto res = std::make_shared<substrait::Type>();

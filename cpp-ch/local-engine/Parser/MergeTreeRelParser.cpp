@@ -122,9 +122,15 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
     primary_key_names_positions = fillNamesPositions(metadata->primary_key.column_names);
 
     for (const auto & [name, sizes] : storage->getColumnSizes())
-        column_sizes[name] = sizes.data_compressed;
+    {
+        auto name_and_type = names_and_types_list.tryGetByName(name);
+        if (name_and_type.has_value() && name_and_type.value().type->getFamilyName() == "String")
+            column_sizes[name] = sizes.data_compressed * 1; // punish string column as it's more costly to read & compare
+        else
+            column_sizes[name] = sizes.data_compressed;
+    }
 
-    query_context.storage_snapshot = std::make_shared<StorageSnapshot>(*storage,  metadata);
+    query_context.storage_snapshot = std::make_shared<StorageSnapshot>(*storage, metadata);
     query_context.custom_storage_merge_tree = storage;
     auto query_info = buildQueryInfo(names_and_types_list);
 
@@ -135,6 +141,7 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
         non_nullable_columns = non_nullable_columns_resolver.resolve();
         query_info->prewhere_info = parsePreWhereInfo(rel.filter(), header);
     }
+    // std::cout << "prewhere is:" << query_info->prewhere_info->dump() << std::endl;
     auto data_parts = query_context.custom_storage_merge_tree->getAllDataPartsVector();
     int min_block = merge_tree_table.min_block;
     int max_block = merge_tree_table.max_block;
@@ -155,7 +162,10 @@ MergeTreeRelParser::parse(DB::QueryPlanPtr query_plan, const substrait::Rel & re
         *query_info,
         context,
         context->getSettingsRef().max_block_size,
-        1);
+        1,
+        nullptr,
+        nullptr,
+        false);
 
     steps.emplace_back(read_step.get());
     query_plan->addStep(std::move(read_step));

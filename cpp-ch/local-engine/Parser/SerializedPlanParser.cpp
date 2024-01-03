@@ -581,6 +581,16 @@ QueryPlanPtr SerializedPlanParser::parseOp(const substrait::Rel & rel, std::list
                 std::list<const substrait::Rel *> stack;
                 query_plan = mergeTreeParser.parse(std::make_unique<QueryPlan>(), rel, stack);
                 steps = mergeTreeParser.getSteps();
+
+                // // Add a buffer after source, it try to preload data from source and reduce the
+                // // waiting time of downstream nodes.
+                // if (context->getSettingsRef().max_threads !=1)
+                // {
+                //     std::cout << "hello max_thread4" << std::endl;
+                //     auto buffer_step = std::make_unique<BlocksBufferPoolStep>(query_plan->getCurrentDataStream());
+                //     steps.emplace_back(buffer_step.get());
+                //     query_plan->addStep(std::move(buffer_step));
+                // }
             }
             break;
         }
@@ -1793,7 +1803,7 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             elem_set->finishInsert();
 
             auto future_set = std::make_shared<FutureSetFromStorage>(std::move(elem_set));
-            auto arg = ColumnSet::create(1, std::move(future_set));
+            auto arg = ColumnConst::create(ColumnSet::create(1, std::move(future_set)), 1);
             args.emplace_back(&actions_dag->addColumn(ColumnWithTypeAndName(std::move(arg), std::make_shared<DataTypeSet>(), name)));
 
             const auto * function_node = toFunctionNode(actions_dag, "in", args);
@@ -2102,6 +2112,7 @@ SharedContextHolder SerializedPlanParser::shared_context;
 
 LocalExecutor::~LocalExecutor()
 {
+    //std::cout << "dump in ~LocalExecutor: " << executor->dump() << std::endl;
     if (spark_buffer)
     {
         ch_column_to_spark_row->freeMem(spark_buffer->address, spark_buffer->size);
@@ -2137,6 +2148,7 @@ void LocalExecutor::execute(QueryPlanPtr query_plan)
             = ExpressionActionsSettings{.can_compile_expressions = true, .min_count_to_compile_expression = 3, .compile_expressions = CompileExpressions::yes},
             .process_list_element = query_status});
 
+    //
     LOG_DEBUG(logger, "clickhouse plan after optimization:\n{}", PlanUtil::explainPlan(*current_query_plan));
     query_pipeline = QueryPipelineBuilder::getPipeline(std::move(*pipeline_builder));
     LOG_DEBUG(logger, "clickhouse pipeline:\n{}", QueryPipelineUtil::explainPipeline(query_pipeline));
