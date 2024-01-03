@@ -438,7 +438,7 @@ class GlutenAdaptiveQueryExecSuite extends AdaptiveQueryExecSuite with GlutenSQL
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       // magic threshold, ch backend has two bhj when threshold is 100
-      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "90",
+      SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "70",
       SQLConf.SHUFFLE_PARTITIONS.key -> "5"
     ) {
       val (plan, adaptivePlan) = runAdaptiveAndVerifyResult(
