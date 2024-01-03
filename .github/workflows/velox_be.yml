@@ -63,7 +63,7 @@ jobs:
           docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/ep/build-velox/src && \
           ./get_velox.sh --velox_home=/opt/velox && \
-          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --build_tests=ON'
+          ./build_velox.sh --velox_home=/opt/velox --enable_ep_cache=ON --build_test_utils=ON'
       - name: Build Gluten CPP library
         run: |
           docker exec ubuntu2004-test-$GITHUB_RUN_ID bash -c '
