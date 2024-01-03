@@ -689,6 +689,11 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
             TransformHints.tag(plan, transformer.doValidate().toTransformHint)
           }
         case plan: CartesianProductExec =>
+          if (!GlutenConfig.getConf.cartesianProductTransformerEnabled) {
+            TransformHints.tagNotTransformable(
+              plan,
+              "conversion to CartesianProductTransformer is not enabled.")
+          }
           val transformer = CartesianProductExecTransformer(plan.left, plan.right, plan.condition)
           TransformHints.tag(plan, transformer.doValidate().toTransformHint)
         case plan: WindowExec =>

@@ -257,6 +257,9 @@ class GlutenConfig(conf: SQLConf) extends Logging {
   def chColumnarFlushBlockBufferBeforeEvict: Boolean =
     conf.getConf(COLUMNAR_CH_FLUSH_BLOCK_BUFFER_BEFORE_EVICT)
 
+  def cartesianProductTransformerEnabled: Boolean =
+    conf.getConf(CARTESIAN_PRODUCT_TRANSFORMER_ENABLED)
+
   def transformPlanLogLevel: String = conf.getConf(TRANSFORM_PLAN_LOG_LEVEL)
 
   def substraitPlanLogLevel: String = conf.getConf(SUBSTRAIT_PLAN_LOG_LEVEL)
@@ -1521,6 +1524,13 @@ object GlutenConfig {
         "if files are mutable, i.e. file content may change while file path stays the same.")
       .booleanConf
       .createWithDefault(false)
+
+  val CARTESIAN_PRODUCT_TRANSFORMER_ENABLED =
+    buildConf("spark.gluten.sql.cartesianProductTransformerEnabled")
+      .internal()
+      .doc("Config to enable CartesianProductExecTransformer.")
+      .booleanConf
+      .createWithDefault(true)
 
   val CACHE_WHOLE_STAGE_TRANSFORMER_CONTEXT =
     buildConf("spark.gluten.sql.cacheWholeStageTransformerContext")
