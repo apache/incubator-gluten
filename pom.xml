@@ -484,31 +484,31 @@
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-annotations</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-core</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-guava</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.module</groupId>
         <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.maven.plugins</groupId>
