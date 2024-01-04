@@ -521,7 +521,7 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
   }
   std::vector<VectorPtr> vectors;
   vectors.reserve(structLiteral.struct_().fields().size());
-  for (auto& child : structLiteral.struct_().fields()) {
+  for (const auto& child : structLiteral.struct_().fields()) {
     auto typeCase = child.literal_type_case();
     switch (typeCase) {
       case ::substrait::Expression_Literal::LiteralTypeCase::kBoolean: {
@@ -580,18 +580,16 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
         int128_t decimalValue;
         memcpy(&decimalValue, decimal.c_str(), 16);
         auto type = DECIMAL(precision, scale);
+        auto vector = BaseVector::create(type, 1, pool_);
         if (precision <= 18) {
-          auto vector = BaseVector::create(type, 1, pool_);
           auto flatVector = vector->as<FlatVector<int64_t>>();
           flatVector->set(0, static_cast<int64_t>(decimalValue));
-          vectors.emplace_back(vector);
         } else {
-          auto vector = BaseVector::create(type, 1, pool_);
           auto flatVector = vector->as<FlatVector<int128_t>>();
           flatVector->set(
               0, HugeInt::build(static_cast<uint64_t>(decimalValue >> 64), static_cast<uint64_t>(decimalValue)));
-          vectors.emplace_back(vector);
         }
+        vectors.emplace_back(vector);
         break;
       }
       case ::substrait::Expression_Literal::LiteralTypeCase::kList: {
