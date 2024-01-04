@@ -89,6 +89,9 @@ class DummyRuntime final : public Runtime {
   std::string planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) override {
     throw GlutenException("Not yet implemented");
   }
+  void injectWriteFilesTempPath(const std::string& path) override {
+    throw GlutenException("Not yet implemented");
+  }
 
  private:
   ResourceMap<std::shared_ptr<ResultIterator>> resultIteratorHolder_;

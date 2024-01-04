@@ -539,11 +539,12 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     }
   }
 
-  std::vector<std::string> writePath;
-  writePath.reserve(1);
-  VELOX_CHECK(writeRel.named_table().names().size() == 1)
-  for (const auto& name : writeRel.named_table().names()) {
-    writePath.emplace_back(name);
+  std::string writePath;
+  if (writeFilesTempPath_.has_value()) {
+    writePath = writeFilesTempPath_.value();
+  } else {
+    VELOX_CHECK(validationMode_, "WriteRel should have the write path before initializing the plan.");
+    writePath = "";
   }
 
   // spark default compression code is snappy.
@@ -582,7 +583,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               inputType->children(),
               partitionedKey,
               nullptr /*bucketProperty*/,
-              makeLocationHandle(writePath[0]),
+              makeLocationHandle(writePath),
               dwio::common::FileFormat::PARQUET, // Currently only support parquet format.
               compressionCodec)),
       (partitionedKey.size() > 0) ? true : false,

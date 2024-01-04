@@ -1782,6 +1782,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenFilteredScanSuite]
   enableSuite[GlutenFiltersSuite]
   enableSuite[GlutenInsertSuite]
+    .excludeByPrefix("Gluten: ")
   enableSuite[GlutenPartitionedWriteSuite]
   enableSuite[GlutenPathOptionSuite]
   enableSuite[GlutenPrunedScanSuite]

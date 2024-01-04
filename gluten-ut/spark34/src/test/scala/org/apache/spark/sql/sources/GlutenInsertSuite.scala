@@ -20,10 +20,13 @@ import org.apache.spark.SparkConf
 import org.apache.spark.executor.OutputMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.execution.{CommandResultExec, QueryExecution, VeloxColumnarWriteFilesExec}
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.QueryExecutionListener
+
+import java.io.File
 
 class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
 
@@ -73,10 +76,29 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
         assert(sqlMetrics("numOutputBytes").value > 0)
         assert(sqlMetrics("numFiles").value == 1)
 
+        checkAnswer(spark.sql("SELECT * FROM pt"), Row(1, "a", "a") :: Row(2, "b", "a") :: Nil)
       } finally {
         spark.sparkContext.removeSparkListener(taskListener)
         spark.listenerManager.unregister(queryListener)
       }
+    }
+  }
+
+  test("Cleanup staging files if job is failed") {
+    withTable("t") {
+      spark.sql("CREATE TABLE t (c1 int, c2 string) USING PARQUET")
+      val table = spark.sessionState.catalog.getTableMetadata(TableIdentifier("t"))
+      assert(new File(table.location).list().length == 0)
+
+      intercept[Exception] {
+        spark.sql(
+          """
+            |INSERT INTO TABLE t
+            |SELECT id, assert_true(SPARK_PARTITION_ID() = 1) FROM range(1, 3, 1, 2)
+            |""".stripMargin
+        )
+      }
+      assert(new File(table.location).list().length == 0)
     }
   }
 }

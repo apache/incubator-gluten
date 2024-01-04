@@ -35,7 +35,6 @@ public class WriteRelNode implements RelNode, Serializable {
   private final List<TypeNode> types = new ArrayList<>();
   private final List<String> names = new ArrayList<>();
 
-  private final String writePath;
   private final List<ColumnTypeNode> columnTypeNodes = new ArrayList<>();
 
   private final AdvancedExtensionNode extensionNode;
@@ -45,13 +44,11 @@ public class WriteRelNode implements RelNode, Serializable {
       List<TypeNode> types,
       List<String> names,
       List<ColumnTypeNode> partitionColumnTypeNodes,
-      String writePath,
       AdvancedExtensionNode extensionNode) {
     this.input = input;
     this.types.addAll(types);
     this.names.addAll(names);
     this.columnTypeNodes.addAll(partitionColumnTypeNodes);
-    this.writePath = writePath;
     this.extensionNode = extensionNode;
   }
 
@@ -79,9 +76,6 @@ public class WriteRelNode implements RelNode, Serializable {
     writeBuilder.setTableSchema(nStructBuilder);
 
     NamedObjectWrite.Builder nameObjectWriter = NamedObjectWrite.newBuilder();
-    if (writePath != "") {
-      nameObjectWriter.addNames(writePath);
-    }
 
     if (extensionNode != null) {
       nameObjectWriter.setAdvancedExtension(extensionNode.toProtobuf());

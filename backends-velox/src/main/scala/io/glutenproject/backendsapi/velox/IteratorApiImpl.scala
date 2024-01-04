@@ -116,6 +116,11 @@ class IteratorApiImpl extends IteratorApi with Logging {
     (paths, starts, lengths, partitionColumns)
   }
 
+  override def injectWriteFilesTempPath(path: String): Unit = {
+    val transKernel = NativePlanEvaluator.create()
+    transKernel.injectWriteFilesTempPath(path)
+  }
+
   /**
    * Generate Iterator[ColumnarBatch] for first stage.
    *

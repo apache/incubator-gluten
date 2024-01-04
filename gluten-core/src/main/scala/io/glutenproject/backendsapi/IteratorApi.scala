@@ -45,6 +45,12 @@ trait IteratorApi {
       fileFormat: ReadFileFormat): SplitInfo
 
   /**
+   * Inject the task attempt temporary path for native write files, this method should be called
+   * before `genFirstStageIterator` or `genFinalStageIterator`
+   */
+  def injectWriteFilesTempPath(path: String): Unit = throw new UnsupportedOperationException()
+
+  /**
    * Generate Iterator[ColumnarBatch] for first stage. ("first" means it does not depend on other
    * SCAN inputs)
    *

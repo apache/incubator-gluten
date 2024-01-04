@@ -33,10 +33,11 @@ VeloxPlanConverter::VeloxPlanConverter(
     const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
     velox::memory::MemoryPool* veloxPool,
     const std::unordered_map<std::string, std::string>& confMap,
+    const std::optional<std::string> writeFilesTempPath,
     bool validationMode)
     : inputIters_(inputIters),
       validationMode_(validationMode),
-      substraitVeloxPlanConverter_(veloxPool, confMap, validationMode),
+      substraitVeloxPlanConverter_(veloxPool, confMap, writeFilesTempPath, validationMode),
       pool_(veloxPool) {}
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::WriteRel& writeRel) {

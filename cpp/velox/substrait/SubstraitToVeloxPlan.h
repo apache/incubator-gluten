@@ -58,8 +58,9 @@ class SubstraitToVeloxPlanConverter {
   SubstraitToVeloxPlanConverter(
       memory::MemoryPool* pool,
       const std::unordered_map<std::string, std::string>& confMap = {},
+      const std::optional<std::string> writeFilesTempPath = std::nullopt,
       bool validationMode = false)
-      : pool_(pool), confMap_(confMap), validationMode_(validationMode) {}
+      : pool_(pool), confMap_(confMap), writeFilesTempPath_(writeFilesTempPath), validationMode_(validationMode) {}
 
   /// Used to convert Substrait WriteRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::WriteRel& writeRel);
@@ -540,6 +541,9 @@ class SubstraitToVeloxPlanConverter {
 
   /// A map of custom configs.
   std::unordered_map<std::string, std::string> confMap_;
+
+  /// The temporary path used to write files.
+  std::optional<std::string> writeFilesTempPath_;
 
   /// A flag used to specify validation.
   bool validationMode_ = false;
