@@ -31,8 +31,8 @@ import java.lang.reflect.Field
 
 /**
  * A wrapper for [[HadoopMapReduceCommitProtocol]]. This class only affects the task side commit
- * process. e.g., `setupTask`, `newTaskAttemptTempPath`, `commitTask`, `abortTask` The job commit
- * process is at vanilla Spark side.
+ * process. e.g., `setupTask`, `newTaskAttemptTempPath`, `commitTask`, `abortTask`. The job commit
+ * process is at vanilla Spark driver side.
  */
 class SparkWriteFilesCommitProtocol(
     jobTrackerID: String,
@@ -91,7 +91,7 @@ class SparkWriteFilesCommitProtocol(
       committer.commitTask(taskAttemptContext)
     }
 
-    // just for update task commit time
+    // Just for update task commit time
     description.statsTrackers.foreach {
       stats => stats.newTaskInstance().getFinalStats(taskCommitTime)
     }
@@ -101,9 +101,7 @@ class SparkWriteFilesCommitProtocol(
     committer.abortTask(taskAttemptContext)
   }
 
-  def close(): Unit = {}
-
-  // copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version
+  // Copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version
   private def createJobID(jobTrackerID: String, id: Int): JobID = {
     if (id < 0) {
       throw new IllegalArgumentException("Job number is negative")

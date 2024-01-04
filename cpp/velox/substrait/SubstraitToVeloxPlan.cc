@@ -543,6 +543,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
   if (writeFilesTempPath_.has_value()) {
     writePath = writeFilesTempPath_.value();
   } else {
+    VELOX_CHECK(validationMode_, "WriteRel should have the write path before initializing the plan.");
     writePath = "";
   }
 

@@ -82,7 +82,8 @@ case class VeloxWriteFilesMetrics(
 // Velox write files metrics end
 
 /**
- * This RDD is used to make sure we have injected staging write path before initialize native plan
+ * This RDD is used to make sure we have injected staging write path before initializing the native
+ * plan, and support Spark file commit protocol.
  */
 class VeloxColumnarWriteFilesRDD(
     var prev: RDD[ColumnarBatch],
@@ -118,7 +119,7 @@ class VeloxColumnarWriteFilesRDD(
 
       // part1=1/part2=1
       val partitionFragment = metrics.name
-      // write a non-partitioned table
+      // Write a non-partitioned table
       if (partitionFragment != "") {
         updatedPartitions += partitionFragment
         val tmpOutputPath = outputPath + "/" + partitionFragment + "/" + targetFileName
@@ -168,7 +169,7 @@ class VeloxColumnarWriteFilesRDD(
       Utils.tryWithSafeFinallyAndFailureCallbacks(block = {
         BackendsApiManager.getIteratorApiInstance.injectWriteFilesTempPath(writePath)
 
-        // initialize the native plan
+        // Initialize the native plan
         val iter = firstParent[ColumnarBatch].iterator(split, context)
         assert(iter.hasNext)
         resultColumnarBatch = iter.next()
@@ -178,9 +179,6 @@ class VeloxColumnarWriteFilesRDD(
           // If there is an error, abort the task
           commitProtocol.abortTask()
           logError(s"Job ${commitProtocol.getJobId} aborted.")
-        },
-        finallyBlock = {
-          commitProtocol.close()
         }
       )
     } catch {
