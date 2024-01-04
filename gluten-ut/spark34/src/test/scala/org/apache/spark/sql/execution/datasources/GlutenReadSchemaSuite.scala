@@ -136,7 +136,19 @@ class GlutenMergedOrcReadSchemaSuite
   extends MergedOrcReadSchemaSuite
   with GlutenSQLTestsBaseTrait {}
 
-class GlutenParquetReadSchemaSuite extends ParquetReadSchemaSuite with GlutenSQLTestsBaseTrait {}
+class GlutenParquetReadSchemaSuite extends ParquetReadSchemaSuite with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf = if (BackendTestUtils.isVeloxBackendLoaded()) {
+    // Disable native write because of below failure in :
+    // 'add a nested column at the end of the leaf struct column'
+    // Reason: Field name must not be empty.
+    // Function: validateSchemaRecursive
+    // File: ../../velox/dwio/parquet/writer/Writer.cpp
+    // Line: 151
+    super.sparkConf.set("spark.gluten.sql.native.writer.enabled", "false")
+  } else {
+    super.sparkConf
+  }
+}
 
 class GlutenVectorizedParquetReadSchemaSuite
   extends VectorizedParquetReadSchemaSuite
@@ -156,4 +168,16 @@ class GlutenVectorizedParquetReadSchemaSuite
 
 class GlutenMergedParquetReadSchemaSuite
   extends MergedParquetReadSchemaSuite
-  with GlutenSQLTestsBaseTrait {}
+  with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf = if (BackendTestUtils.isVeloxBackendLoaded()) {
+    // Disable native write because of below failure in :
+    // 'add a nested column at the end of the leaf struct column'
+    // Reason: Field name must not be empty.
+    // Function: validateSchemaRecursive
+    // File: ../../velox/dwio/parquet/writer/Writer.cpp
+    // Line: 151
+    super.sparkConf.set("spark.gluten.sql.native.writer.enabled", "false")
+  } else {
+    super.sparkConf
+  }
+}
