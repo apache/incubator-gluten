@@ -16,4 +16,20 @@
  */
 package io.glutenproject.execution
 
-abstract class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSuite {}
+abstract class GlutenClickHouseWholeStageTransformerSuite extends WholeStageTransformerSuite {
+
+  val DBL_EPSILON = 2.2204460492503131e-16
+  val DBL_RELAX_EPSILON: Double = Math.pow(10, -11)
+  val FLT_EPSILON = 1.19209290e-07f
+  def AlmostEqualsIsRel(expected: Double, actual: Double, EPSILON: Double = DBL_EPSILON): Unit = {
+    val diff = Math.abs(expected - actual)
+    val epsilon = EPSILON * Math.max(Math.abs(expected), Math.abs(actual))
+    if (diff > epsilon) {
+      fail(s"""
+              |expected: $expected
+              |actual:   $actual
+              | abs(expected-expected) ~ epsilon = $diff ~ $epsilon
+              |""".stripMargin)
+    }
+  }
+}
