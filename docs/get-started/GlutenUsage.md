@@ -23,6 +23,9 @@ Please set them via `--`, e.g. `--build_type=Release`.
 | enable_hdfs      | build with hdfs lib                                 | OFF           |
 | enable_ep_cache  | enable caching for external project build (Velox)   | OFF           |
 | enable_vcpkg     | enable vcpkg for static build                       | OFF           |
+| enable_abfs      | build with abfs lib                                 | OFF           |
+| build_velox_tests| build with velox tests                              | OFF           |
+| build_velox_benchmarks| build velox benchmarks(velox_tests and connectors will be disabled if ON)                | OFF           |
 
 ## Parameters for build_velox.sh
 Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
