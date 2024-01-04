@@ -34,8 +34,8 @@ public:
 
     friend class IHashBasedPartitionWriter;
     friend class LocalHashBasedPartitionWriter;
-
     friend class CelebornHashBasedPartitionWriter;
+
     friend class ISortBasedPartitionWriter;
     friend class CelebornSortedBasedPartitionWriter;
 

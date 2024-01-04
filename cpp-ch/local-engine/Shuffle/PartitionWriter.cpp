@@ -149,7 +149,7 @@ void IHashBasedPartitionWriter::unsafeWrite(PartitionInfo & info, DB::Block & bl
         /// Make sure buffer size is no greater than split_size
         auto & block_buffer = partition_block_buffer[partition_id];
         auto & buffer = partition_buffer[partition_id];
-        if (block_buffer->size() && block_buffer->size() + length >= shuffle_writer->options.split_size)
+        if (block_buffer->size() && block_buffer->size() + length > shuffle_writer->options.split_size)
             buffer->addBlock(block_buffer->releaseColumns());
 
         current_cached_bytes -= block_buffer->bytes();
@@ -439,76 +439,40 @@ void ISortBasedPartitionWriter::unsafeWrite(PartitionInfo & info, DB::Block & bl
     if (rows == 0)
         return;
 
-    /// Insert column partition for later sort
-    {
-        ColumnWithTypeAndName col_partition;
-        col_partition.name = "_partition_" + std::to_string(reinterpret_cast<uintptr_t>(this));
-        col_partition.type = std::make_shared<DataTypeUInt64>();
-        auto column_partition = ColumnVector<UInt64>::create();
-        column_partition->getData().swap(info.partition_ids);
-        col_partition.column = column_partition->getPtr();
-        block.insert(std::move(col_partition));
-    }
+    /// Make sure sorted_block_buffer do not exceed split_size
+    if (sorted_block_buffer && sorted_block_buffer->size() + rows > options->split_size)
+        flushSortedBlockBuffer();
 
-    if (!sorted_buffer) [[unlikely]]
+    /// Create sorted_block_buffer if not exists
+    if (!sorted_block_buffer) [[unlikely]]
     {
         size_t bytes_per_row = block.bytes() / rows;
         size_t reserve_size = options->spill_threshold / bytes_per_row;
-        sorted_buffer = std::make_shared<ColumnsBuffer>(reserve_size);
+        sorted_block_buffer = std::make_shared<ColumnsBuffer>(reserve_size);
     }
+
+    /// Insert column partition for later sort
+    ColumnWithTypeAndName col_partition;
+    col_partition.name = "_partition_" + std::to_string(reinterpret_cast<uintptr_t>(this));
+    col_partition.type = std::make_shared<DataTypeUInt64>();
+    auto column_partition = ColumnVector<UInt64>::create();
+    column_partition->getData().swap(info.partition_ids);
+    col_partition.column = column_partition->getPtr();
+    block.insert(std::move(col_partition));
 
     /// Merge current block into sorted_buffer
-    if (sorted_buffer->size() + rows <= sorted_buffer->reserveSize())
-    {
-        sorted_buffer->append(block, 0, rows);
-        return;
-    }
-
-    /// Sort block released from sorted_buffer by partition column
-    Block sorted_block = sorted_buffer->releaseColumns();
-    SCOPE_EXIT({ sorted_buffer->append(block, 0, rows); });
-    {
-        const auto & col_partition = sorted_block.getByPosition(sorted_block.columns() - 1);
-        SortDescription sort_description;
-        sort_description.emplace_back(col_partition.name, 1, 1);
-        sortBlock(sorted_block, sort_description);
-    }
-
-    /// Remove the last partition column
-    const auto col_partition = sorted_block.getByPosition(sorted_block.columns() - 1);
-    sorted_block.erase(sorted_block.columns() - 1);
-
-    /// Evict sorted_block by partitions
-    const auto & partition_data = checkAndGetColumn<ColumnUInt64>(col_partition.column.get())->getData();
-    if (partition_data.empty())
-        return;
-
-    size_t start = 0;
-    size_t end = 0;
-    for (size_t row_i = 1; row_i < partition_data.size(); ++row_i)
-    {
-        if (partition_data[row_i] == partition_data[start])
-            continue;
-
-        end = row_i;
-        unsafeEvictSinglePartitionFromBlock(false, partition_data[start], sorted_block, start, end - start);
-
-        start = row_i;
-    }
-
-    end = partition_data.size();
-    unsafeEvictSinglePartitionFromBlock(false, partition_data[start], sorted_block, start, end - start);
-
-    shuffle_writer->split_result.total_bytes_spilled += sorted_block.bytes();
+    sorted_block_buffer->append(block, 0, rows);
 }
 
-void ISortBasedPartitionWriter::flushSortedBuffer()
+size_t ISortBasedPartitionWriter::flushSortedBlockBuffer()
 {
-    if (!sorted_buffer || sorted_buffer->empty())
-        return;
+    if (!sorted_block_buffer || sorted_block_buffer->empty())
+        return 0;
+
+    size_t res = 0;
 
     /// Sort block released from sorted_buffer by partition column
-    Block sorted_block = sorted_buffer->releaseColumns();
+    Block sorted_block = sorted_block_buffer->releaseColumns();
     {
         const auto & col_partition = sorted_block.getByPosition(sorted_block.columns() - 1);
         SortDescription sort_description;
@@ -530,32 +494,35 @@ void ISortBasedPartitionWriter::flushSortedBuffer()
             continue;
 
         end = row_i;
-        unsafeEvictSinglePartitionFromBlock(false, partition_data[start], sorted_block, start, end - start);
+        res += unsafeEvictSinglePartitionFromBlock(partition_data[start], sorted_block, start, end - start);
 
         start = row_i;
     }
 
     end = partition_data.size();
-    unsafeEvictSinglePartitionFromBlock(false, partition_data[start], sorted_block, start, end - start);
-
+    res += unsafeEvictSinglePartitionFromBlock(partition_data[start], sorted_block, start, end - start);
     shuffle_writer->split_result.total_bytes_spilled += sorted_block.bytes();
+    return res;
 }
 
 void ISortBasedPartitionWriter::unsafeStop()
 {
-    flushSortedBuffer();
+    flushSortedBlockBuffer();
 }
 
-size_t ISortBasedPartitionWriter::unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer)
+size_t ISortBasedPartitionWriter::unsafeEvictPartitions(bool /*for_memory_spill*/, bool flush_block_buffer)
 {
-    flushSortedBuffer();
+    if (!flush_block_buffer)
+        return 0;
+
+    return flushSortedBlockBuffer();
 }
 
 size_t CelebornSortedBasedPartitionWriter::unsafeEvictSinglePartitionFromBlock(
-        bool for_memory_spill, size_t partition_id, const DB::Block & block, size_t start, size_t length)
+    size_t partition_id, const DB::Block & block, size_t start, size_t length)
 {
     size_t res = 0;
-    auto spill_to_celeborn = [this, for_memory_spill, partition_id, start, length, &block, &res]()
+    auto spill_to_celeborn = [this, partition_id, start, length, &block, &res]()
     {
         Stopwatch serialization_time_watch;
 
@@ -584,22 +551,9 @@ size_t CelebornSortedBasedPartitionWriter::unsafeEvictSinglePartitionFromBlock(
     };
 
     Stopwatch spill_time_watch;
-    if (for_memory_spill && options->throw_if_memory_exceed)
-    {
-        // escape memory track from current thread status; add untracked memory limit for create thread object, avoid trigger memory spill again
-        IgnoreMemoryTracker ignore(2 * 1024 * 1024);
-        ThreadFromGlobalPool thread(spill_to_celeborn);
-        thread.join();
-    }
-    else
-    {
-        spill_to_celeborn();
-    }
-
+    spill_to_celeborn();
     shuffle_writer->split_result.total_spill_time += spill_time_watch.elapsedNanoseconds();
-    // shuffle_writer->split_result.total_bytes_spilled += spilled_bytes;
     return res;
 }
 
 }
-
