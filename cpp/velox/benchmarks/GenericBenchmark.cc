@@ -109,7 +109,7 @@ void populateWriterMetrics(
 } // namespace
 
 auto BM_Generic = [](::benchmark::State& state,
-                     const std::string& substraitJsonFile,
+                     const std::string& planFile,
                      const std::string& splitFile,
                      const std::vector<std::string>& inputFiles,
                      const std::unordered_map<std::string, std::string>& conf,
@@ -123,9 +123,7 @@ auto BM_Generic = [](::benchmark::State& state,
   memory::MemoryManager::testingSetInstance({});
   auto memoryManager = getDefaultMemoryManager();
   auto runtime = Runtime::create(kVeloxRuntimeKind, conf);
-  const auto& filePath = substraitJsonFile;
-  auto plan = getPlanFromFile("Plan", filePath);
-  const auto& splitPath = splitFile;
+  auto plan = getPlanFromFile("Plan", planFile);
   auto split = getPlanFromFile("ReadRel.LocalFiles", splitPath);
   auto startTime = std::chrono::steady_clock::now();
   int64_t collectBatchTime = 0;

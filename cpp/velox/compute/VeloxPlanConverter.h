@@ -37,7 +37,7 @@ class VeloxPlanConverter {
       bool validationMode = false);
 
   std::shared_ptr<const facebook::velox::core::PlanNode> toVeloxPlan(
-      ::substrait::Plan& substraitPlan,
+      const ::substrait::Plan& substraitPlan,
       std::vector<::substrait::ReadRel_LocalFiles> localFiles);
 
   const std::unordered_map<facebook::velox::core::PlanNodeId, std::shared_ptr<SplitInfo>>& splitInfos() {

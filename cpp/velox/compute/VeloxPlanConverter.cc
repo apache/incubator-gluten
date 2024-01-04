@@ -36,10 +36,17 @@ VeloxPlanConverter::VeloxPlanConverter(
     : validationMode_(validationMode),
       substraitVeloxPlanConverter_(veloxPool, confMap, writeFilesTempPath, validationMode),
       pool_(veloxPool) {
+  // avoid include RowVectorStream.h in SubstraitToVeloxPlan.cpp, it may cause redefintion of array abi.h.
+  auto factory = [](std::string nodeId,
+                    memory::MemoryPool* pool,
+                    std::shared_ptr<ResultIterator> inputIter,
+                    RowTypePtr outputType) {
+    auto vectorStream = std::make_shared<RowVectorStream>(pool, std::move(inputIter), outputType);
+    return std::make_shared<ValueStreamNode>(nodeId, outputType, std::move(vectorStream));
+  };
+  substraitVeloxPlanConverter_.setValueStreamNodeFactory(std::move(factory));
   substraitVeloxPlanConverter_.setInputIterators(inputIters);
 }
-
-
 
 namespace {
 std::shared_ptr<SplitInfo> parseScanSplitInfo(
@@ -101,7 +108,7 @@ void parseLocalFileNodes(
 } // namespace
 
 std::shared_ptr<const facebook::velox::core::PlanNode> VeloxPlanConverter::toVeloxPlan(
-    ::substrait::Plan& substraitPlan,
+    const ::substrait::Plan& substraitPlan,
     std::vector<::substrait::ReadRel_LocalFiles> localFiles) {
   if (!validationMode_) {
     parseLocalFileNodes(&substraitVeloxPlanConverter_, localFiles);

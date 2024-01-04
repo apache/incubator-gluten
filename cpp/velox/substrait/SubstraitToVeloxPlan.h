@@ -19,13 +19,12 @@
 
 #include "SubstraitToVeloxExpr.h"
 #include "TypeUtils.h"
-#include "compute/ResultIterator.h"
-#include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/TableHandle.h"
 #include "velox/core/PlanNode.h"
 #include "velox/dwio/common/Options.h"
 
 namespace gluten {
+class ResultIterator;
 
 // Holds names of Spark OffsetWindowFunctions.
 static const std::unordered_set<std::string> kOffsetWindowFunctions = {"nth_value"};
@@ -148,6 +147,12 @@ class SubstraitToVeloxPlanConverter {
 
   void setInputIterators(const std::vector<std::shared_ptr<ResultIterator>>& inputIters) {
     inputIters_ = inputIters;
+  }
+
+  void setValueStreamNodeFactory(
+      std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, std::shared_ptr<ResultIterator>, RowTypePtr)>
+          factory) {
+    valueStreamNodeFactory_ = std::move(factory);
   }
 
   /// Used to check if ReadRel specifies an input of stream.
@@ -545,6 +550,9 @@ class SubstraitToVeloxPlanConverter {
 
   /// The map storing the split stats for each PlanNode.
   std::unordered_map<core::PlanNodeId, std::shared_ptr<SplitInfo>> splitInfoMap_;
+
+  std::function<core::PlanNodePtr(std::string, memory::MemoryPool*, std::shared_ptr<ResultIterator>, RowTypePtr)>
+      valueStreamNodeFactory_;
 
   /// The map storing the pre-built plan nodes which can be accessed through
   /// index. This map is only used when the computation of a Substrait plan

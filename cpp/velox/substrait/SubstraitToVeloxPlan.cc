@@ -16,10 +16,8 @@
  */
 
 #include "SubstraitToVeloxPlan.h"
-
 #include "TypeUtils.h"
 #include "VariantToVectorConverter.h"
-#include "operators/plannodes/RowVectorStream.h"
 #include "velox/connectors/hive/HiveDataSink.h"
 #include "velox/exec/TableWriter.h"
 #include "velox/type/Type.h"
@@ -987,13 +985,12 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::constructValueStreamNode(
   }
 
   auto outputType = ROW(std::move(outNames), std::move(veloxTypeList));
-  auto vectorStream = std::make_shared<RowVectorStream>(pool_, std::move(inputIters_[streamIdx]), outputType);
-  auto valuesNode = std::make_shared<ValueStreamNode>(nextPlanNodeId(), outputType, std::move(vectorStream));
+  auto node = valueStreamNodeFactory_(nextPlanNodeId(), pool_, std::move(inputIters_[streamIdx]), outputType);
 
   auto splitInfo = std::make_shared<SplitInfo>();
   splitInfo->isStream = true;
-  splitInfoMap_[valuesNode->id()] = splitInfo;
-  return valuesNode;
+  splitInfoMap_[node->id()] = splitInfo;
+  return node;
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::ReadRel& readRel) {
