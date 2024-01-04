@@ -101,7 +101,7 @@ If you want to use Gluten **ClickHouse** backend, see [Build with ClickHouse Bac
 
 ### 3.2.3 Build options
 
-See [Gluten Usage](./docs/get-started/GlutenUsage.md).
+See [Gluten build guide](./docs/get-started/build-guide.md).
 
 # 4 Contribution
 
