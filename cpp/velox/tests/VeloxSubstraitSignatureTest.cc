@@ -59,10 +59,10 @@ TEST_F(VeloxSubstraitSignatureTest, toSubstraitSignatureWithType) {
   ASSERT_EQ(toSubstraitSignature(ARRAY(BOOLEAN())), "list");
   ASSERT_EQ(toSubstraitSignature(ARRAY(INTEGER())), "list");
   ASSERT_EQ(toSubstraitSignature(MAP(INTEGER(), BIGINT())), "map");
-  ASSERT_EQ(toSubstraitSignature(ROW({INTEGER(), BIGINT()})), "struct");
-  ASSERT_EQ(toSubstraitSignature(ROW({ARRAY(INTEGER())})), "struct");
-  ASSERT_EQ(toSubstraitSignature(ROW({MAP(INTEGER(), INTEGER())})), "struct");
-  ASSERT_EQ(toSubstraitSignature(ROW({ROW({INTEGER()})})), "struct");
+  ASSERT_EQ(toSubstraitSignature(ROW({INTEGER(), BIGINT()})), "struct<i32,i64>");
+  ASSERT_EQ(toSubstraitSignature(ROW({ARRAY(INTEGER())})), "struct<list>");
+  ASSERT_EQ(toSubstraitSignature(ROW({MAP(INTEGER(), INTEGER())})), "struct<map>");
+  ASSERT_EQ(toSubstraitSignature(ROW({ROW({INTEGER()})})), "struct<struct<i32>>");
   ASSERT_EQ(toSubstraitSignature(UNKNOWN()), "u!name");
 }
 

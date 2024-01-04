@@ -116,7 +116,7 @@ TEST_F(SubstraitExtensionCollectorTest, addExtensionsToPlan) {
   ASSERT_EQ(getFunctionName(3), "array_sum:list");
   ASSERT_EQ(getFunctionName(4), "sum:i32");
   ASSERT_EQ(getFunctionName(5), "avg:i32");
-  ASSERT_EQ(getFunctionName(6), "avg:struct");
+  ASSERT_EQ(getFunctionName(6), "avg:struct<fp64,i64>");
   ASSERT_EQ(getFunctionName(7), "count:i32");
 }
 
