@@ -631,7 +631,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  test("Support get native plan tree string") {
+  test("Support get native plan tree string, Velox single aggregation") {
     runQueryAndCompare("select l_partkey + 1, count(*) from lineitem group by l_partkey + 1") {
       df =>
         val wholeStageTransformers = collect(df.queryExecution.executedPlan) {
