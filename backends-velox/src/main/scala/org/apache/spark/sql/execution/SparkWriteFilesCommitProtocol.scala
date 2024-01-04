@@ -18,7 +18,7 @@ package org.apache.spark.sql.execution
 
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.io.{FileCommitProtocol, HadoopMapReduceCommitProtocol, SparkHadoopWriterUtils}
+import org.apache.spark.internal.io.{FileCommitProtocol, HadoopMapReduceCommitProtocol}
 import org.apache.spark.sql.execution.datasources.WriteJobDescription
 import org.apache.spark.util.Utils
 
@@ -44,7 +44,7 @@ class SparkWriteFilesCommitProtocol(
   private val sparkStageId = TaskContext.get().stageId()
   private val sparkPartitionId = TaskContext.get().partitionId()
   private val sparkAttemptNumber = TaskContext.get().taskAttemptId().toInt & Int.MaxValue
-  private val jobId = SparkHadoopWriterUtils.createJobID(jobTrackerID, sparkStageId)
+  private val jobId = createJobID(jobTrackerID, sparkStageId)
 
   private val taskId = new TaskID(jobId, TaskType.MAP, sparkPartitionId)
   private val taskAttemptId = new TaskAttemptID(taskId, sparkAttemptNumber)
@@ -102,4 +102,12 @@ class SparkWriteFilesCommitProtocol(
   }
 
   def close(): Unit = {}
+
+  // copied from `SparkHadoopWriterUtils.createJobID` to be compatible with multi-version
+  private def createJobID(jobTrackerID: String, id: Int): JobID = {
+    if (id < 0) {
+      throw new IllegalArgumentException("Job number is negative")
+    }
+    new JobID(jobTrackerID, id)
+  }
 }
