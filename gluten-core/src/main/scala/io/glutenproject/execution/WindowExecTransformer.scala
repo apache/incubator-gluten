@@ -101,7 +101,7 @@ case class WindowExecTransformer(
     BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
   }
 
-  private def needsPreProject: Boolean = (partitionSpec ++ orderSpec.map(_.child)).exists {
+  private def needsProject: Boolean = (partitionSpec ++ orderSpec.map(_.child)).exists {
     case _: Attribute => false
     case _ => true
   }
@@ -172,7 +172,7 @@ case class WindowExecTransformer(
     }
   }
 
-  private def getWindowRelWithPreProjection(
+  private def getWindowRelWithProjection(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
       operatorId: Long,
@@ -230,7 +230,7 @@ case class WindowExecTransformer(
         operatorId,
         emitStartIndex)
     }
-    getWindowRelAfterProject(
+    createWindowRelAfterProjection(
       context,
       originalInputAttributes,
       preExprNodes,
@@ -240,7 +240,7 @@ case class WindowExecTransformer(
       validation)
   }
 
-  private def getWindowRelAfterProject(
+  private def createWindowRelAfterProjection(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
       preExprNodes: JList[ExpressionNode],
@@ -315,7 +315,7 @@ case class WindowExecTransformer(
         context,
         operatorId)
     }
-    getPostProjection(
+    createPostProjection(
       context,
       originalInputAttributes,
       preExprNodes,
@@ -325,7 +325,7 @@ case class WindowExecTransformer(
       validation)
   }
 
-  private def getPostProjection(
+  private def createPostProjection(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
       preExprNodes: JList[ExpressionNode],
@@ -381,7 +381,7 @@ case class WindowExecTransformer(
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
     val relNode = if (needsPreProject) {
-      getWindowRelWithPreProjection(
+      getWindowRelWithProjection(
         substraitContext,
         child.output,
         operatorId,
@@ -408,8 +408,8 @@ case class WindowExecTransformer(
       return childCtx
     }
 
-    val currRel = if (needsPreProject) {
-      getWindowRelWithPreProjection(
+    val currRel = if (needsProject) {
+      getWindowRelWithProjection(
         context,
         child.output,
         operatorId,
