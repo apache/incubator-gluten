@@ -1018,9 +1018,7 @@ class VeloxTestSettings extends BackendTestSettings {
       "SPARK-22271: mean overflows and returns null for some decimal variables",
       // Result depends on the implementation for nondeterministic expression rand.
       // Not really an issue.
-      "SPARK-9083: sort with non-deterministic expressions",
-      // Result doesn't match: [[1,null]]    [[1,0]]
-      "SPARK-27671: Fix analysis exception when casting null in nested field in struct"
+      "SPARK-9083: sort with non-deterministic expressions"
     )
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameTungstenSuite]

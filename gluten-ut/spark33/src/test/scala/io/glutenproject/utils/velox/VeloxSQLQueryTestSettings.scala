@@ -226,8 +226,7 @@ object VeloxSQLQueryTestSettings extends SQLQueryTestSettings {
     "typeCoercion/native/mapconcat.sql",
     "typeCoercion/native/mapconcat.sql",
     "typeCoercion/native/promoteStrings.sql",
-    // Result different: Expected "{"a":[null]}", but got "{"a":[0]}"
-    // "typeCoercion/native/stringCastAndExpressions.sql",
+    "typeCoercion/native/stringCastAndExpressions.sql",
     "typeCoercion/native/widenSetOperationTypes.sql",
     "typeCoercion/native/windowFrameCoercion.sql"
   )
