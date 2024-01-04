@@ -163,11 +163,12 @@ std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
     std::shared_ptr<arrow::Schema> schema) {
   static std::atomic_uint32_t id{0UL};
   auto veloxPool = getAggregateVeloxPool(memoryManager)->addAggregateChild("datasource." + std::to_string(id++));
-  // Pass a dedicate pool for S3 sink as can't share veloxPool
+  // Pass a dedicate pool for S3 and GCS sinks as can't share veloxPool
   // with parquet writer.
   auto s3SinkPool = getLeafVeloxPool(memoryManager);
+  auto gcsSinkPool = getLeafVeloxPool(memoryManager);
 
-  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, s3SinkPool, schema);
+  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, s3SinkPool, gcsSinkPool, schema);
 }
 
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(
