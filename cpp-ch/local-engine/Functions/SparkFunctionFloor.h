@@ -41,21 +41,6 @@ static void checkAndSetNullable(T & t, UInt8 & null_flag)
                == 0b0111111111110000000000000000000000000000000000000000000000000000);
 
     null_flag = is_nan | is_inf;
-
-    /* Equivalent code:
-    if (null_flag)
-        t = 0;
-    */
-    if constexpr (std::is_same_v<T, float>)
-    {
-        UInt32 * uint_data = reinterpret_cast<UInt32 *>(&t);
-        *uint_data &= ~(-null_flag);
-    }
-    else
-    {
-        UInt64 * uint_data = reinterpret_cast<UInt64 *>(&t);
-        *uint_data &= ~(-null_flag);
-    }
 }
 
 DECLARE_AVX2_SPECIFIC_CODE(
