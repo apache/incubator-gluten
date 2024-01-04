@@ -25,20 +25,22 @@ import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.protobuf.{Any, StringValue}
 
 import scala.collection.JavaConverters._
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
+/**
+ * Note that, the output staging path is set by `VeloxColumnarWriteFilesExec`, each task should have
+ * its own staging path.
+ */
 case class WriteFilesExecTransformer(
     child: SparkPlan,
     fileFormat: FileFormat,
@@ -77,7 +79,6 @@ case class WriteFilesExecTransformer(
   def getRelNode(
       context: SubstraitContext,
       originalInputAttributes: Seq[Attribute],
-      writePath: String,
       operatorId: Long,
       input: RelNode,
       validation: Boolean): RelNode = {
@@ -103,34 +104,22 @@ case class WriteFilesExecTransformer(
 
     val nameList =
       ConverterUtils.collectAttributeNames(inputAttributes.toSeq)
-
-    if (!validation) {
-      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+    val extensionNode = if (!validation) {
+      ExtensionBuilder.makeAdvancedExtension(
         genWriteParameters(),
         createEnhancement(originalInputAttributes))
-      RelBuilder.makeWriteRel(
-        input,
-        typeNodes,
-        nameList,
-        columnTypeNodes,
-        writePath,
-        extensionNode,
-        context,
-        operatorId)
     } else {
       // Use a extension node to send the input types through Substrait plan for validation.
-      val extensionNode =
-        ExtensionBuilder.makeAdvancedExtension(createEnhancement(originalInputAttributes))
-      RelBuilder.makeWriteRel(
-        input,
-        typeNodes,
-        nameList,
-        columnTypeNodes,
-        writePath,
-        extensionNode,
-        context,
-        operatorId)
+      ExtensionBuilder.makeAdvancedExtension(createEnhancement(originalInputAttributes))
     }
+    RelBuilder.makeWriteRel(
+      input,
+      typeNodes,
+      nameList,
+      columnTypeNodes,
+      extensionNode,
+      context,
+      operatorId)
   }
 
   override protected def doValidateInternal(): ValidationResult = {
@@ -148,28 +137,17 @@ case class WriteFilesExecTransformer(
 
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
-
-    val relNode =
-      getRelNode(substraitContext, child.output, "", operatorId, null, validation = true)
+    val relNode = getRelNode(substraitContext, child.output, operatorId, null, validation = true)
 
     doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
-    val writePath = child.session.sparkContext.getLocalProperty("writePath")
-    assert(writePath.size > 0)
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
-
     val operatorId = context.nextOperatorId(this.nodeName)
-
-    val currRel =
-      getRelNode(context, child.output, writePath, operatorId, childCtx.root, validation = false)
+    val currRel = getRelNode(context, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Write Rel should be valid")
     TransformContext(childCtx.outputAttributes, output, currRel)
-  }
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): WriteFilesExecTransformer =

@@ -19,6 +19,7 @@ package io.glutenproject.execution.datasource
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.datasources.BlockStripes
 import org.apache.spark.sql.execution.datasources.FakeRow
@@ -47,6 +48,8 @@ trait GlutenFormatWriterInjects {
       compressionCodec: String): java.util.Map[String, String]
 
   def getFormatName(): String
+
+  def getExtendedColumnarPostRule(session: SparkSession): Rule[SparkPlan]
 }
 
 trait GlutenRowSplitter {

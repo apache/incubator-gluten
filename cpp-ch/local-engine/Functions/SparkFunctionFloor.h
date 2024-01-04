@@ -27,7 +27,105 @@ using namespace DB;
 namespace local_engine
 {
 
+template <typename T>
+requires std::is_floating_point_v<T>
+static void checkAndSetNullable(T & t, UInt8 & null_flag)
+{
+    UInt8 is_nan = (t != t);
+    UInt8 is_inf = 0;
+    if constexpr (std::is_same_v<T, float>)
+        is_inf = ((*reinterpret_cast<const uint32_t *>(&t) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000);
+    else
+        is_inf
+            = ((*reinterpret_cast<const uint64_t *>(&t) & 0b0111111111111111111111111111111111111111111111111111111111111111)
+               == 0b0111111111110000000000000000000000000000000000000000000000000000);
+
+    null_flag = is_nan | is_inf;
+
+    /* Equivalent code:
+    if (null_flag)
+        t = 0;
+    */
+    if constexpr (std::is_same_v<T, float>)
+    {
+        UInt32 * uint_data = reinterpret_cast<UInt32 *>(&t);
+        *uint_data &= ~(-null_flag);
+    }
+    else
+    {
+        UInt64 * uint_data = reinterpret_cast<UInt64 *>(&t);
+        *uint_data &= ~(-null_flag);
+    }
+}
+
+DECLARE_AVX2_SPECIFIC_CODE(
+
+    inline void checkFloat32AndSetNullables(Float32 * data, UInt8 * null_map, size_t size) {
+        const __m256 inf = _mm256_set1_ps(INFINITY);
+        const __m256 neg_inf = _mm256_set1_ps(-INFINITY);
+        const __m256 zero = _mm256_set1_ps(0.0f);
+
+        size_t i = 0;
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 values = _mm256_loadu_ps(&data[i]);
+
+            __m256 is_inf = _mm256_cmp_ps(values, inf, _CMP_EQ_OQ);
+            __m256 is_neg_inf = _mm256_cmp_ps(values, neg_inf, _CMP_EQ_OQ);
+            __m256 is_nan = _mm256_cmp_ps(values, values, _CMP_NEQ_UQ);
+            __m256 is_null = _mm256_or_ps(_mm256_or_ps(is_inf, is_neg_inf), is_nan);
+            __m256 new_values = _mm256_blendv_ps(values, zero, is_null);
+
+            _mm256_storeu_ps(&data[i], new_values);
+
+            UInt32 mask = static_cast<UInt32>(_mm256_movemask_ps(is_null));
+            for (size_t j = 0; j < 8; ++j)
+            {
+                UInt8 null_flag = (mask & 1U);
+                null_map[i + j] = null_flag;
+                mask >>= 1;
+            }
+        }
+
+        for (; i < size; ++i)
+            checkAndSetNullable(data[i], null_map[i]);
+    }
+
+    inline void checkFloat64AndSetNullables(Float64 * data, UInt8 * null_map, size_t size) {
+        const __m256d inf = _mm256_set1_pd(INFINITY);
+        const __m256d neg_inf = _mm256_set1_pd(-INFINITY);
+        const __m256d zero = _mm256_set1_pd(0.0);
+
+        size_t i = 0;
+        for (; i + 3 < size; i += 4)
+        {
+            __m256d values = _mm256_loadu_pd(&data[i]);
+
+            __m256d is_inf = _mm256_cmp_pd(values, inf, _CMP_EQ_OQ);
+            __m256d is_neg_inf = _mm256_cmp_pd(values, neg_inf, _CMP_EQ_OQ);
+            __m256d is_nan = _mm256_cmp_pd(values, values, _CMP_NEQ_UQ);
+            __m256d is_null = _mm256_or_pd(_mm256_or_pd(is_inf, is_neg_inf), is_nan);
+            __m256d new_values = _mm256_blendv_pd(values, zero, is_null);
+
+            _mm256_storeu_pd(&data[i], new_values);
+
+            UInt32 mask = static_cast<UInt32>(_mm256_movemask_pd(is_null));
+            for (size_t j = 0; j < 4; ++j)
+            {
+                UInt8 null_flag = (mask & 1U);
+                null_map[i + j] = null_flag;
+                mask >>= 1;
+            }
+        }
+
+        for (; i < size; ++i)
+            checkAndSetNullable(data[i], null_map[i]);
+    }
+
+)
+
 template <typename T, ScaleMode scale_mode>
+requires std::is_floating_point_v<T>
 struct SparkFloatFloorImpl
 {
 private:
@@ -35,7 +133,7 @@ private:
     using Op = FloatRoundingComputation<T, RoundingMode::Floor, scale_mode>;
     using Data = std::array<T, Op::data_count>;
 public:
-    static NO_INLINE void apply(const PaddedPODArray<T> & in, size_t scale, PaddedPODArray<T> & out, PaddedPODArray<UInt8> & null_map)
+    static void apply(const PaddedPODArray<T> & in, size_t scale, PaddedPODArray<T> & out, PaddedPODArray<UInt8> & null_map)
     {
         auto mm_scale = Op::prepare(scale);
         const size_t data_count = std::tuple_size<Data>();
@@ -59,24 +157,21 @@ public:
             Op::compute(reinterpret_cast<T *>(&tmp_src), mm_scale, reinterpret_cast<T *>(&tmp_dst));
             memcpy(p_out, &tmp_dst, tail_size_bytes);
         }
-        for (size_t i = 0; i < out.size(); ++i)
-            checkAndSetNullable(out[i], null_map[i]);
+
+        if (isArchSupported(TargetArch::AVX2))
+        {
+            if constexpr (std::is_same_v<T, Float32>)
+                TargetSpecific::AVX2::checkFloat32AndSetNullables(out.data(), null_map.data(), out.size());
+            else if constexpr (std::is_same_v<T, Float64>)
+                TargetSpecific::AVX2::checkFloat64AndSetNullables(out.data(), null_map.data(), out.size());
+        }
+        else
+        {
+            for (size_t i = 0; i < out.size(); ++i)
+                checkAndSetNullable(out[i], null_map[i]);
+        }
     }
 
-    static void checkAndSetNullable(T & t, UInt8 & null_flag)
-    {
-        UInt8 is_nan = (t != t);
-        UInt8 is_inf = 0;
-        if constexpr (std::is_same_v<T, float>)
-            is_inf = ((*reinterpret_cast<const uint32_t *>(&t) & 0b01111111111111111111111111111111) == 0b01111111100000000000000000000000);
-        else if constexpr (std::is_same_v<T, double>)
-            is_inf
-                = ((*reinterpret_cast<const uint64_t *>(&t) & 0b0111111111111111111111111111111111111111111111111111111111111111)
-                   == 0b0111111111110000000000000000000000000000000000000000000000000000);
-
-        null_flag = is_nan | is_inf;
-        if (null_flag) t = 0;
-    }
 };
 
 class SparkFunctionFloor : public DB::FunctionFloor

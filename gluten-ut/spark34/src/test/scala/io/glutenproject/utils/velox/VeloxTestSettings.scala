@@ -64,6 +64,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDeleteFromTableSuite]
   enableSuite[GlutenFileDataSourceV2FallBackSuite]
   enableSuite[GlutenKeyGroupedPartitioningSuite]
+    .exclude("SPARK-44641: duplicated records when SPJ is not triggered")
     // NEW SUITE: disable as they check vanilla spark plan
     .exclude("partitioned join: number of buckets mismatch should trigger shuffle")
     .exclude("partitioned join: only one side reports partitioning")
@@ -90,6 +91,7 @@ class VeloxTestSettings extends BackendTestSettings {
     .excludeByPrefix("UNSUPPORTED_FEATURE.MULTI_ACTION_ALTER:")
   enableSuite[GlutenQueryParsingErrorsSuite]
   enableSuite[GlutenArithmeticExpressionSuite]
+    .exclude("SPARK-45786: Decimal multiply, divide, remainder, quot")
     .exclude(
       "% (Remainder)" // Velox will throw exception when right is zero, need fallback
     )
@@ -186,17 +188,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Exception.
     .exclude("column pruning - non-readable file")
   enableSuite[GlutenCSVv1Suite]
-    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
-    .excludeByPrefix("lineSep with 2 chars when multiLine set to")
   enableSuite[GlutenCSVv2Suite]
-    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
-    .excludeByPrefix("lineSep with 2 chars when multiLine set to")
-    .exclude("test for FAILFAST parsing mode")
-    // exception test
-    .exclude("SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern")
   enableSuite[GlutenCSVLegacyTimeParserSuite]
-    .exclude("SPARK-23786: warning should be printed if CSV header doesn't conform to schema")
-    .excludeByPrefix("lineSep with 2 chars when multiLine set to")
   enableSuite[GlutenJsonV1Suite]
     // FIXME: Array direct selection fails
     .exclude("Complex field and type inferring")
@@ -790,8 +783,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileMetadataStructSuite]
-    .exclude("SPARK-41896: Filter on row_index and a stored column at the same time")
-    .exclude("SPARK-43450: Filter on aliased _metadata.row_index")
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
   enableSuite[GlutenParquetV2AggregatePushDownSuite]
   enableSuite[GlutenOrcV1AggregatePushDownSuite]
@@ -1033,16 +1024,14 @@ class VeloxTestSettings extends BackendTestSettings {
       "NaN is greater than all other non-NaN numeric values",
       // Rewrite this test because the describe functions creates unmatched plan.
       "describe",
-      // The describe issue is just fixed by https://github.com/apache/spark/pull/40914.
-      // We can enable the below test for spark 3.4 and higher versions.
-      "Gluten - describe",
       // decimal failed ut.
       "SPARK-22271: mean overflows and returns null for some decimal variables",
       // Result depends on the implementation for nondeterministic expression rand.
       // Not really an issue.
-      "SPARK-9083: sort with non-deterministic expressions",
-      "SPARK-41048: Improve output partitioning and ordering with AQE cache"
+      "SPARK-9083: sort with non-deterministic expressions"
     )
+    // test for sort node not present but gluten uses shuffle hash join
+    .exclude("SPARK-41048: Improve output partitioning and ordering with AQE cache")
   enableSuite[GlutenDataFrameTimeWindowingSuite]
   enableSuite[GlutenDataFrameTungstenSuite]
   enableSuite[GlutenDataFrameWindowFramesSuite]
@@ -1109,12 +1098,15 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Merge runtime bloom filters")
   enableSuite[GlutenIntervalFunctionsSuite]
   enableSuite[GlutenJoinSuite]
+    .exclude(
+      "SPARK-45882: BroadcastHashJoinExec propagate partitioning should respect CoalescedHashPartitioning")
     // exclude as it check spark plan
     .exclude("SPARK-36794: Ignore duplicated key when building relation for semi/anti hash join")
     // exclude as it check for SMJ node
     .exclude(
       "SPARK-43113: Full outer join with duplicate stream-side references in condition (SMJ)")
   enableSuite[GlutenMathFunctionsSuite]
+    .exclude("SPARK-44973: conv must allocate enough space for all digits plus negative sign")
   enableSuite[GlutenMetadataCacheSuite]
     .exclude("SPARK-16336,SPARK-27961 Suggest fixing FileNotFoundException")
   enableSuite[GlutenMiscFunctionsSuite]
@@ -1130,11 +1122,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenFileSourceSQLInsertTestSuite]
     // velox convert string null as -1583242847, which is not same with spark.
     .exclude("SPARK-30844: static partition should also follow StoreAssignmentPolicy")
-    .exclude(
-      "SPARK-41982: treat the partition field as string literal when keepPartitionSpecAsStringLiteral is enabled")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
-    .exclude(
-      "SPARK-41982: treat the partition field as string literal when keepPartitionSpecAsStringLiteral is enabled")
   enableSuite[GlutenSQLQuerySuite]
     // Velox doesn't support spark.sql.optimizer.metadataOnly config.
     .exclude("SPARK-26709: OptimizeMetadataOnlyQuery does not handle empty records correctly")
@@ -1190,6 +1178,7 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenHiveSQLQuerySuite]
   enableSuite[GlutenCollapseProjectExecTransformerSuite]
   enableSuite[GlutenExpressionMappingSuite]
+  enableSuite[GlutenSparkSessionExtensionSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = VeloxSQLQueryTestSettings
 }

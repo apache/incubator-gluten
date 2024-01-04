@@ -37,7 +37,7 @@ class NativeSplitter : BlockIterator
 public:
     struct Options
     {
-        size_t buffer_size = DEFAULT_BLOCK_SIZE;
+        size_t buffer_size = DB::DEFAULT_BLOCK_SIZE;
         size_t partition_num;
         std::string exprs_buffer;
         std::string schema_buffer;

@@ -19,15 +19,16 @@ package io.glutenproject.execution
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.substrait.SubstraitContext
 
-import org.apache.spark.sql.catalyst.expressions.{And, Expression}
+import org.apache.spark.sql.catalyst.expressions.{And, Expression, PredicateHelper}
 import org.apache.spark.sql.execution.SparkPlan
 
 case class FilterExecTransformer(condition: Expression, child: SparkPlan)
-  extends FilterExecTransformerBase(condition, child) {
+  extends FilterExecTransformerBase(condition, child)
+  with PredicateHelper {
 
   override protected def doValidateInternal(): ValidationResult = {
-    val leftCondition = getLeftCondition
-    if (leftCondition == null) {
+    val remainingCondition = getRemainingCondition
+    if (remainingCondition == null) {
       // All the filters can be pushed down and the computing of this Filter
       // is not needed.
       return ValidationResult.ok
@@ -36,17 +37,23 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
     // Firstly, need to check if the Substrait plan for this operator can be successfully generated.
     val relNode =
-      getRelNode(substraitContext, leftCondition, child.output, operatorId, null, validation = true)
+      getRelNode(
+        substraitContext,
+        remainingCondition,
+        child.output,
+        operatorId,
+        null,
+        validation = true)
     // Then, validate the generated plan in native engine.
     doNativeValidation(substraitContext, relNode)
   }
 
   override def doTransform(context: SubstraitContext): TransformContext = {
     val childCtx = child.asInstanceOf[TransformSupport].doTransform(context)
-    val leftCondition = getLeftCondition
+    val remainingCondition = getRemainingCondition
 
     val operatorId = context.nextOperatorId(this.nodeName)
-    if (leftCondition == null) {
+    if (remainingCondition == null) {
       // The computing for this filter is not needed.
       context.registerEmptyRelToOperator(operatorId)
       return childCtx
@@ -54,7 +61,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
 
     val currRel = getRelNode(
       context,
-      leftCondition,
+      remainingCondition,
       child.output,
       operatorId,
       childCtx.root,
@@ -63,7 +70,7 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     TransformContext(childCtx.outputAttributes, output, currRel)
   }
 
-  private def getLeftCondition: Expression = {
+  private def getRemainingCondition: Expression = {
     val scanFilters = child match {
       // Get the filters including the manually pushed down ones.
       case basicScanExecTransformer: BasicScanExecTransformer =>
@@ -75,9 +82,9 @@ case class FilterExecTransformer(condition: Expression, child: SparkPlan)
     if (scanFilters.isEmpty) {
       condition
     } else {
-      val leftFilters =
-        FilterHandler.getLeftFilters(scanFilters, FilterHandler.flattenCondition(condition))
-      leftFilters.reduceLeftOption(And).orNull
+      val remainingFilters =
+        FilterHandler.getRemainingFilters(scanFilters, splitConjunctivePredicates(condition))
+      remainingFilters.reduceLeftOption(And).orNull
     }
   }
 

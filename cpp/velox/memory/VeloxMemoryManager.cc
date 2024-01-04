@@ -29,31 +29,6 @@ namespace gluten {
 
 using namespace facebook;
 
-// So far HbmMemoryAllocator would not work correctly since the underlying
-//   gluten allocator is only used to do allocation-reporting to Spark in mmap case
-// This allocator only hook `allocateBytes` and `freeBytes`, we can not ensure this behavior is safe enough,
-// so, only use this allocator when build with GLUTEN_ENABLE_HBM.
-class VeloxMemoryAllocator final : public velox::memory::MallocAllocator {
- public:
-  VeloxMemoryAllocator(gluten::MemoryAllocator* glutenAlloc)
-      : MallocAllocator(velox::memory::kMaxMemory), glutenAlloc_(glutenAlloc) {}
-
- protected:
-  void* allocateBytesWithoutRetry(uint64_t bytes, uint16_t alignment) override {
-    void* out;
-    VELOX_CHECK(glutenAlloc_->allocateAligned(alignment, bytes, &out), "Issue allocating bytes");
-    return out;
-  }
-
- public:
-  void freeBytes(void* p, uint64_t size) noexcept override {
-    VELOX_CHECK(glutenAlloc_->free(p, size));
-  }
-
- private:
-  gluten::MemoryAllocator* glutenAlloc_;
-};
-
 /// We assume in a single Spark task. No thread-safety should be guaranteed.
 class ListenableArbitrator : public velox::memory::MemoryArbitrator {
  public:
@@ -163,31 +138,18 @@ VeloxMemoryManager::VeloxMemoryManager(
   glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(glutenAlloc_.get());
 
-  auto veloxAlloc = velox::memory::MemoryAllocator::getInstance();
-
-#ifdef GLUTEN_ENABLE_HBM
-  wrappedAlloc_ = std::make_unique<VeloxMemoryAllocator>(allocator.get(), veloxAlloc);
-  veloxAlloc = wrappedAlloc_.get();
-#endif
-
   ArbitratorFactoryRegister afr(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
-      velox::memory::MemoryAllocator::kMaxAlignment,
-      velox::memory::kMaxMemory,
-      velox::memory::kMaxMemory,
-      true, // memory usage tracking
-      true, // leak check
-      false, // debug
-      false, // coreOnAllocationFailureEnabled
-#ifdef GLUTEN_ENABLE_HBM
-      wrappedAlloc.get(),
-#else
-      veloxAlloc,
-#endif
-      afr.getKind(),
-      0,
-      32 << 20,
-      0};
+      .alignment = velox::memory::MemoryAllocator::kMaxAlignment,
+      .trackDefaultUsage = true, // memory usage tracking
+      .checkUsageLeak = true, // leak check
+      .debugEnabled = false, // debug
+      .coreOnAllocationFailureEnabled = false,
+      .allocatorCapacity = velox::memory::kMaxMemory,
+      .arbitratorKind = afr.getKind(),
+      .memoryPoolInitCapacity = 0,
+      .memoryPoolTransferCapacity = 32 << 20,
+      .memoryReclaimWaitMs = 0};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(

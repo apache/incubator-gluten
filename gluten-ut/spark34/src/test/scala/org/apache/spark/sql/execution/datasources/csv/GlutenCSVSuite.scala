@@ -16,7 +16,9 @@
  */
 package org.apache.spark.sql.execution.datasources.csv
 
-import org.apache.spark.SparkConf
+import io.glutenproject.exception.GlutenException
+
+import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
 import org.apache.spark.sql.GlutenTestConstants.GLUTEN_TEST
 import org.apache.spark.sql.internal.SQLConf
@@ -46,6 +48,32 @@ class GlutenCSVv2Suite extends GlutenCSVSuite {
   override def sparkConf: SparkConf =
     super.sparkConf
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
+
+  override def testNameBlackList: Seq[String] = Seq(
+    // overwritten with different test
+    "test for FAILFAST parsing mode",
+    "SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern"
+  )
+
+  test(GLUTEN_TEST + "test for FAILFAST parsing mode") {
+    Seq(false, true).foreach {
+      multiLine =>
+        val exception = intercept[SparkException] {
+          spark.read
+            .format("csv")
+            .option("multiLine", multiLine)
+            .options(Map("header" -> "true", "mode" -> "failfast"))
+            .load(testFile(carsFile))
+            .collect()
+        }
+
+        assert(exception.getCause.isInstanceOf[GlutenException])
+        assert(
+          exception.getMessage.contains(
+            "[MALFORMED_RECORD_IN_PARSING] Malformed records are detected in record parsing: " +
+              "[2015,Chevy,Volt,null,null]"))
+    }
+  }
 
   test(GLUTEN_TEST + "SPARK-39731: Correctly parse dates and timestamps with yyyyMMdd pattern") {
     withTempPath {

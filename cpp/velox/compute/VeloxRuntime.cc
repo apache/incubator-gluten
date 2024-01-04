@@ -74,9 +74,13 @@ void VeloxRuntime::getInfoAndIds(
 std::string VeloxRuntime::planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) {
   std::vector<std::shared_ptr<ResultIterator>> inputs;
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
-  VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), sessionConf, true);
+  VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), sessionConf, std::nullopt, true);
   auto veloxPlan = veloxPlanConverter.toVeloxPlan(substraitPlan_);
   return veloxPlan->toString(details, true);
+}
+
+void VeloxRuntime::injectWriteFilesTempPath(const std::string& path) {
+  writeFilesTempPath_ = path;
 }
 
 std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
@@ -88,7 +92,8 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     LOG(INFO) << "VeloxRuntime session config:" << printConfig(confMap_);
   }
 
-  VeloxPlanConverter veloxPlanConverter(inputs, getLeafVeloxPool(memoryManager).get(), sessionConf);
+  VeloxPlanConverter veloxPlanConverter(
+      inputs, getLeafVeloxPool(memoryManager).get(), sessionConf, writeFilesTempPath_);
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
 
   // Scan node can be required.
@@ -163,11 +168,12 @@ std::shared_ptr<Datasource> VeloxRuntime::createDatasource(
     std::shared_ptr<arrow::Schema> schema) {
   static std::atomic_uint32_t id{0UL};
   auto veloxPool = getAggregateVeloxPool(memoryManager)->addAggregateChild("datasource." + std::to_string(id++));
-  // Pass a dedicate pool for S3 sink as can't share veloxPool
+  // Pass a dedicate pool for S3 and GCS sinks as can't share veloxPool
   // with parquet writer.
   auto s3SinkPool = getLeafVeloxPool(memoryManager);
+  auto gcsSinkPool = getLeafVeloxPool(memoryManager);
 
-  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, s3SinkPool, schema);
+  return std::make_shared<VeloxParquetDatasource>(filePath, veloxPool, s3SinkPool, gcsSinkPool, schema);
 }
 
 std::shared_ptr<ShuffleReader> VeloxRuntime::createShuffleReader(

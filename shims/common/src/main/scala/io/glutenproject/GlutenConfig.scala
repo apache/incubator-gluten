@@ -858,7 +858,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.columnar.shuffle.writeEOS")
       .internal()
       .booleanConf
-      .createWithDefault(true)
+      .createWithDefault(false)
 
   val COLUMNAR_SHUFFLE_REALLOC_THRESHOLD =
     buildConf("spark.gluten.sql.columnar.shuffle.realloc.threshold")

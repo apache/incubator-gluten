@@ -58,6 +58,16 @@ void VeloxParquetDatasource::init(const std::unordered_map<std::string, std::str
     throw std::runtime_error(
         "The write path is S3 path but the S3 haven't been enabled when writing parquet data in velox runtime!");
 #endif
+  } else if (strncmp(filePath_.c_str(), "gs:", 3) == 0) {
+#ifdef ENABLE_GCS
+    auto fileSystem = getFileSystem(filePath_, nullptr);
+    auto* gcsFileSystem = dynamic_cast<filesystems::GCSFileSystem*>(fileSystem.get());
+    sink_ = std::make_unique<dwio::common::WriteFileSink>(
+        gcsFileSystem->openFileForWrite(filePath_, {{}, gcsSinkPool_.get()}), filePath_);
+#else
+    throw std::runtime_error(
+        "The write path is GCS path but the GCS haven't been enabled when writing parquet data in velox runtime!");
+#endif
   } else if (strncmp(filePath_.c_str(), "hdfs:", 5) == 0) {
 #ifdef ENABLE_HDFS
     sink_ = dwio::common::FileSink::create(filePath_, {.pool = pool_.get()});

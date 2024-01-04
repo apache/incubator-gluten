@@ -16,8 +16,6 @@
  */
 package io.glutenproject.utils
 
-import io.glutenproject.extension.GlutenPlan
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{AdaptiveSparkPlanExec, AdaptiveSparkPlanHelper, QueryStageExec}
@@ -68,12 +66,12 @@ object FallbackUtil extends Logging with AdaptiveSparkPlanHelper {
     var fallbackOperator: Seq[SparkPlan] = null
     if (plan.isInstanceOf[AdaptiveSparkPlanExec]) {
       fallbackOperator = collectWithSubqueries(plan) {
-        case plan if !plan.isInstanceOf[GlutenPlan] && !skip(plan) =>
+        case plan if !PlanUtil.isGlutenColumnarOp(plan) && !skip(plan) =>
           plan
       }
     } else {
       fallbackOperator = plan.collectWithSubqueries {
-        case plan if !plan.isInstanceOf[GlutenPlan] && !skip(plan) =>
+        case plan if !PlanUtil.isGlutenColumnarOp(plan) && !skip(plan) =>
           plan
       }
     }
