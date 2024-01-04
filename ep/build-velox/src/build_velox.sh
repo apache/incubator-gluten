@@ -15,23 +15,27 @@
 # limitations under the License.
 
 set -exu
-#Set on run gluten on S3
+# New build option may need to be included in get_build_summary to ensure EP build cache workable.
+# Enable S3 connector.
 ENABLE_S3=OFF
-#Set on run gluten on GCS
+# Enable GCS connector.
 ENABLE_GCS=OFF
-#Set on run gluten on HDFS
+# Enable HDFS connector.
 ENABLE_HDFS=OFF
-#Set on run gluten on ABFS
+# Enable ABFS connector.
 ENABLE_ABFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
 ENABLE_EP_CACHE=OFF
+# May be deprecated in Gluten build.
 ENABLE_BENCHMARK=OFF
+# May be deprecated in Gluten build.
 ENABLE_TESTS=OFF
+# Set to ON for gluten cpp test build.
 BUILD_TEST_UTILS=OFF
 RUN_SETUP_SCRIPT=ON
-OTHER_ARGUMENTS=""
 COMPILE_ARROW_JAVA=OFF
+OTHER_ARGUMENTS=""
 
 OS=`uname -s`
 ARCH=`uname -m`
@@ -171,7 +175,12 @@ function compile {
 function get_build_summary {
   COMMIT_HASH=$1
   # Ideally all script arguments should be put into build summary.
-  echo "ENABLE_S3=$ENABLE_S3,ENABLE_GCS=$ENABLE_GCS,ENABLE_HDFS=$ENABLE_HDFS,BUILD_TYPE=$BUILD_TYPE,VELOX_HOME=$VELOX_HOME,ENABLE_EP_CACHE=$ENABLE_EP_CACHE,ENABLE_BENCHMARK=$ENABLE_BENCHMARK,ENABLE_TESTS=$ENABLE_TESTS,RUN_SETUP_SCRIPT=$RUN_SETUP_SCRIPT,OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
+  # ENABLE_EP_CACHE is excluded. Thus, in current build with ENABLE_EP_CACHE=ON, we can use EP cache
+  # from last build with ENABLE_EP_CACHE=OFF,
+  echo "ENABLE_S3=$ENABLE_S3,ENABLE_GCS=$ENABLE_GCS,ENABLE_HDFS=$ENABLE_HDFS,ENABLE_ABFS=$ENABLE_ABFS,\
+BUILD_TYPE=$BUILD_TYPE,VELOX_HOME=$VELOX_HOME,ENABLE_BENCHMARK=$ENABLE_BENCHMARK,\
+ENABLE_TESTS=$ENABLE_TESTS,BUILD_TEST_UTILS=$BUILD_TEST_UTILS,RUN_SETUP_SCRIPT=$RUN_SETUP_SCRIPT,\
+COMPILE_ARROW_JAVA=$COMPILE_ARROW_JAVA,OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
 }
 
 function check_commit {

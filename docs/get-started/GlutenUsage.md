@@ -4,58 +4,73 @@ title: Build Parameters for Velox Backend
 nav_order: 4
 parent: Getting-Started
 ---
-# Build parameters
-## Parameters for buildbundle-veloxbe.sh or builddeps-veloxbe.sh
+## Build Parameters
+### Native build parameters for buildbundle-veloxbe.sh or builddeps-veloxbe.sh
 Please set them via `--`, e.g. `--build_type=Release`.
 
-| Parameters       | Description                                         | Default value |
-|------------------|-----------------------------------------------------|---------------|
-| build_type       | build type for velox & gluten cpp, CMAKE_BUILD_TYPE | Release       |
-| build_tests      | build test code in cpp folder                       | OFF           |
-| build_benchmarks | build benchmark code in cpp folder                  | OFF           |
-| build_jemalloc   | build with jemalloc                                 | ON            |
-| build_protobuf   | build protobuf lib                                  | ON            |
-| enable_qat       | enable QAT for shuffle data de/compression          | OFF           |
-| enable_iaa       | enable IAA for shuffle data de/compression          | OFF           |
-| enable_hbm       | enable HBM allocator                                | OFF           |
-| enable_s3        | build with s3 lib                                   | OFF           |
-| enable_gcs       | build with gcs lib                                  | OFF           |
-| enable_hdfs      | build with hdfs lib                                 | OFF           |
-| enable_ep_cache  | enable caching for external project build (Velox)   | OFF           |
-| enable_vcpkg     | enable vcpkg for static build                       | OFF           |
-| enable_abfs      | build with abfs lib                                 | OFF           |
-| build_velox_tests| build with velox tests                              | OFF           |
-| build_velox_benchmarks| build velox benchmarks(velox_tests and connectors will be disabled if ON)                | OFF           |
+| Parameters             | Description                                                                | Default |
+|------------------------|----------------------------------------------------------------------------|---------|
+| build_type             | Build type for Velox & gluten cpp, CMAKE_BUILD_TYPE.                       | Release |
+| build_tests            | Build gluten cpp tests.                                                    | OFF     |
+| build_examples         | Build udf example.                                                         | OFF     |
+| build_benchmarks       | Build gluten cpp benchmarks.                                               | OFF     |
+| build_jemalloc         | Build with jemalloc.                                                       | ON      |
+| build_protobuf         | Build protobuf lib.                                                        | ON      |
+| enable_qat             | Enable QAT for shuffle data de/compression.                                | OFF     |
+| enable_iaa             | Enable IAA for shuffle data de/compression.                                | OFF     |
+| enable_hbm             | Enable HBM allocator.                                                      | OFF     |
+| enable_s3              | Build with S3 support.                                                     | OFF     |
+| enable_gcs             | Build with GCs support.                                                    | OFF     |
+| enable_hdfs            | Build with HDFS support.                                                   | OFF     |
+| enable_abfs            | Build with ABFS support.                                                   | OFF     |
+| enable_ep_cache        | Enable caching for external project build (Velox).                         | OFF     |
+| enable_vcpkg           | Enable vcpkg for static build.                                             | OFF     |
+| run_setup_script       | Run setup script to install Velox dependencies.                            | ON      |
+| velox_repo             | Specify your own Velox repo to build.                                      | ""      |
+| velox_branch           | Specify your own Velox branch to build.                                    | ""      |
+| velox_home             | Specify your own Velox source path to build.                               | ""      |
+| build_velox_tests      | Build Velox tests.                                                         | OFF     |
+| build_velox_benchmarks | Build Velox benchmarks (velox_tests and connectors will be disabled if ON) | OFF     |
+| compile_arrow_java     | Compile arrow java for gluten build to use to fix invalid pointer issues.  | OFF     |
 
-## Parameters for build_velox.sh
+### Velox build parameters for build_velox.sh
 Please set them via `--`, e.g., `--velox_home=/YOUR/PATH`.
 
-| Parameters | Description | Default value |
-| ---------- | ----------- | ------------- |
-| velox_home | Velox build path                          | GLUTEN_DIR/ep/build-velox/build/velox_ep|
-| build_type | Velox build type, CMAKE_BUILD_TYPE        | Release|
-| enable_s3  | Build Velox with -DENABLE_S3              | OFF           |
-| enable_gcs  | Build Velox with -DENABLE_GCS            | OFF           |
-| enable_hdfs | Build Velox with -DENABLE_HDFS           | OFF           |
-| build_protobuf | build protobuf from source            | ON           |
-| run_setup_script | Run Velox setup script before build | ON           |
+| Parameters         | Description                                                             | Default                                  |
+|--------------------|-------------------------------------------------------------------------|------------------------------------------|
+| velox_home         | Specify Velox source path to build.                                     | GLUTEN_SRC/ep/build-velox/build/velox_ep |
+| build_type         | Velox build type, i.e., CMAKE_BUILD_TYPE.                               | Release                                  |
+| enable_s3          | Build Velox with S3 support.                                            | OFF                                      |
+| enable_gcs         | Build Velox with GCS support.                                           | OFF                                      |
+| enable_hdfs        | Build Velox with HDFS support.                                          | OFF                                      |
+| enable_abfs        | Build Velox with ABFS support.                                          | OFF                                      |
+| run_setup_script   | Run setup script to install Velox dependencies before build.            | ON                                       |
+| enable_ep_cache    | Enable and reuse cache of Velox build.                                  | OFF                                      |
+| build_test_utils   | Build Velox with cmake arg -DVELOX_BUILD_TEST_UTILS=ON if ON.           | OFF                                      |
+| build_tests        | Build Velox test.                                                       | OFF                                      |
+| build_benchmarks   | Build Velox benchmarks.                                                 | OFF                                      |
+| compile_arrow_java | Build arrow java for gluten build to use to fix invalid pointer issues. | OFF                                      |
 
-## Maven building parameters
-To build different backends, there are 3 parameters can be set via `-P` for mvn.
+### Maven build parameters
+The below parameters can be set via `-P` for mvn.
 
-| Parameters          | Description                                                                                    | Activation state by default |
-|---------------------|------------------------------------------------------------------------------------------------|-----------------------------|
-| backends-velox      | Add -Pbackends-velox in maven command to compile the JVM part of Velox backend.                | disabled                    |
-| backends-clickhouse | Add -Pbackends-clickhouse in maven command to compile the JVM part of ClickHouse backend.      | disabled                    |
-| rss                 | Add -Prss in maven command to compile the JVM part of rss, current only support Velox backend. | disabled                    |
+| Parameters          | Description                                                                  | Default state |
+|---------------------|------------------------------------------------------------------------------|---------------|
+| backends-velox      | Build Gluten Velox backend.                                                  | disabled      |
+| backends-clickhouse | Build Gluten ClickHouse backend.                                             | disabled      |
+| rss                 | Build Gluten with Remote Shuffle Service, only applicable for Velox backend. | disabled      |
+| delta               | Build Gluten with Delta Lake support.                                        | disabled      |
+| iceberg             | Build Gluten with Iceberg support.                                           | disabled      |
+| spark-3.2           | Build Gluten for Spark 3.2.                                                  | enabled       |
+| spark-3.3           | Build Gluten for Spark 3.3.                                                  | disabled      |
+| spark-3.4           | Build Gluten for Spark 3.4.                                                  | disabled      |
 
-# Gluten jar for deployment
+## Gluten jar for Deployment
+The gluten jar built out is under `GLUTEN_SRC/package/target/`.
+It's name pattern is `gluten-<backend_type>-bundle-spark<spark.bundle.version>_<scala.binary.version>-<os.detected.release>_<os.detected.release.version>-<project.version>.jar`.
 
-The gluten jar's name pattern is `gluten-<backend_type>-bundle-spark<sparkbundle.version>_<scala.binary.version>-<os.detected.release>_<os.detected.release.version>-<project.version>.jar`.
-
-| Spark Version | sparkbundle.version | scala.binary.version |
-| ---------- | ----------- | ------------- |
-| 3.2.2 | 3.2 | 2.12 |
-| 3.3.1 | 3.3 | 2.12 |
-
-The velox backend and the clickhouse backend support both spark-3.2.2 and spark-3.3.1.
+| Spark Version | spark.bundle.version | scala.binary.version |
+|---------------|----------------------|----------------------|
+| 3.2.2         | 3.2                  | 2.12                 |
+| 3.3.1         | 3.3                  | 2.12                 |
+| 3.4.3         | 3.4                  | 2.12                 |
