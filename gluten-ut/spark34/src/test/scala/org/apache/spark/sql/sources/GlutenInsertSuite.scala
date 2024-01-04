@@ -76,7 +76,7 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
         assert(sqlMetrics("numOutputBytes").value > 0)
         assert(sqlMetrics("numFiles").value == 1)
 
-        checkAnswer(spark.sql("SELECT * FROM pt"), Row(1, "a") :: Row(2, "b") :: Nil)
+        checkAnswer(spark.sql("SELECT * FROM pt"), Row(1, "a", "a") :: Row(2, "b", "a") :: Nil)
       } finally {
         spark.sparkContext.removeSparkListener(taskListener)
         spark.listenerManager.unregister(queryListener)
