@@ -2024,6 +2024,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude("fallbackSummary with shuffle")
     .exclude("fallbackSummary with cache")
     .exclude("fallbackSummary with cached data and shuffle")
+  enableSuite[GlutenSparkSessionExtensionSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }

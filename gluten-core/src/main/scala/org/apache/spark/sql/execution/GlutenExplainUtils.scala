@@ -17,7 +17,8 @@
 package org.apache.spark.sql.execution
 
 import io.glutenproject.execution.WholeStageTransformer
-import io.glutenproject.extension.{GlutenPlan, InMemoryTableScanHelper}
+import io.glutenproject.extension.GlutenPlan
+import io.glutenproject.utils.PlanUtil
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.expressions.{Expression, PlanExpression}
@@ -94,7 +95,7 @@ object GlutenExplainUtils extends AdaptiveSparkPlanHelper {
           numGlutenNodes += 1
           p.innerChildren.foreach(collect)
         case i: InMemoryTableScanExec =>
-          if (InMemoryTableScanHelper.isGlutenTableCache(i)) {
+          if (PlanUtil.isGlutenTableCache(i)) {
             numGlutenNodes += 1
           } else {
             addFallbackNodeWithReason(i, "Columnar table cache is disabled", fallbackNodeToReason)

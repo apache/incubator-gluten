@@ -378,20 +378,34 @@ object FilterHandler extends PredicateHelper {
    * @return
    *   the filter conditions not pushed down into Scan.
    */
-  def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] =
+  def getRemainingFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] =
     (ExpressionSet(filters) -- ExpressionSet(scanFilters)).toSeq
 
   // Separate and compare the filter conditions in Scan and Filter.
-  // Push down the left conditions in Filter into Scan.
-  def applyFilterPushdownToScan(filter: FilterExec, reuseSubquery: Boolean): GlutenPlan =
+  // Push down the remaining conditions in Filter into Scan.
+  def applyFilterPushdownToScan(filter: FilterExec, reuseSubquery: Boolean): SparkPlan =
     filter.child match {
       case fileSourceScan: FileSourceScanExec =>
-        val leftFilters =
-          getLeftFilters(fileSourceScan.dataFilters, splitConjunctivePredicates(filter.condition))
+        val remainingFilters =
+          getRemainingFilters(
+            fileSourceScan.dataFilters,
+            splitConjunctivePredicates(filter.condition))
         ScanTransformerFactory.createFileSourceScanTransformer(
           fileSourceScan,
           reuseSubquery,
-          extraFilters = leftFilters)
+          extraFilters = remainingFilters)
+      case batchScan: BatchScanExec =>
+        val remainingFilters = batchScan.scan match {
+          case fileScan: FileScan =>
+            getRemainingFilters(fileScan.dataFilters, splitConjunctivePredicates(filter.condition))
+          case _ =>
+            // TODO: For data lake format use pushedFilters in SupportsPushDownFilters
+            splitConjunctivePredicates(filter.condition)
+        }
+        ScanTransformerFactory.createBatchScanTransformer(
+          batchScan,
+          reuseSubquery,
+          pushdownFilters = remainingFilters)
       case other =>
         throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
     }
