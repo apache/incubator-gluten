@@ -210,7 +210,7 @@ core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationFunction
   const auto& phase = sAggFuc.phase();
   switch (phase) {
     case ::substrait::AGGREGATION_PHASE_UNSPECIFIED:
-      VELOX_FAIL("Aggregation phase not specufied.")
+      VELOX_FAIL("Aggregation phase not specified.")
       break;
     case ::substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE:
       return core::AggregationNode::Step::kPartial;
