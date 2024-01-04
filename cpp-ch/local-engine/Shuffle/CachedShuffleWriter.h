@@ -32,9 +32,14 @@ class CelebornPartitionWriter;
 class CachedShuffleWriter : public ShuffleWriterBase
 {
 public:
-    friend class PartitionWriter;
-    friend class LocalPartitionWriter;
-    friend class CelebornPartitionWriter;
+    friend class IPartitionWriter;
+    friend class LocalHashBasedPartitionWriter;
+    friend class CelebornSortedBasedPartitionWriter;
+    friend class CelebornHashBasedPartitionWriter;
+
+    // friend class PartitionWriter;
+    // friend class LocalPartitionWriter;
+    // friend class CelebornPartitionWriter;
 
     explicit CachedShuffleWriter(const String & short_name, const SplitOptions & options, jobject rss_pusher = nullptr);
     ~CachedShuffleWriter() override = default;

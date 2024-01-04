@@ -58,6 +58,130 @@ private:
 
 class CachedShuffleWriter;
 using PartitionPtr = std::shared_ptr<Partition>;
+
+class IPartitionWriter : boost::noncopyable
+{
+public:
+    explicit IPartitionWriter(CachedShuffleWriter* shuffle_writer_);
+    virtual ~IPartitionWriter() = default;
+
+    virtual String getName() const = 0;
+
+    void write(PartitionInfo & info, DB::Block & block);
+    void stop();
+    size_t evictPartitions(bool for_memory_spill = false, bool flush_block_buffer = false);
+
+protected:
+    virtual size_t bytes() const = 0;
+    virtual void unsafeWrite(PartitionInfo & info, DB::Block & block) = 0;
+    virtual void unsafeStop() = 0;
+    virtual size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) = 0;
+
+    CachedShuffleWriter * shuffle_writer;
+    const SplitOptions * options;
+
+private:
+    /// Make sure memory spill doesn't happen while write/stop are executed.
+    bool evicting_or_writing{false};
+};
+
+class IHashBasedPartitionWriter : public IPartitionWriter
+{
+public:
+    explicit IHashBasedPartitionWriter(CachedShuffleWriter * shuffle_writer_);
+    virtual ~IHashBasedPartitionWriter() override = default;
+
+protected:
+    size_t bytes() const override;
+
+    void unsafeWrite(PartitionInfo & info, DB::Block & block) override;
+    virtual bool supportsEvictSinglePartition() const { return false; }
+    virtual size_t unsafeEvictSinglePartition(bool for_memory_spill, bool flush_block_buffer, size_t partition_id)
+    {
+        throw DB::Exception(DB::ErrorCodes::NOT_IMPLEMENTED, "Evict single partition is not supported for {}", getName());
+    }
+
+    std::vector<ColumnsBufferPtr> partition_block_buffer;
+    std::vector<PartitionPtr> partition_buffer;
+
+private:
+    /// Only valid when supportsEvictSinglePartition() returns true
+    size_t last_partition_id;
+};
+
+class LocalHashBasedPartitionWriter : public IHashBasedPartitionWriter
+{
+public:
+    explicit LocalHashBasedPartitionWriter(CachedShuffleWriter * shuffle_writer_) : IHashBasedPartitionWriter(shuffle_writer_) { }
+    virtual ~LocalHashBasedPartitionWriter() override = default;
+
+    String getName() const override { return "LocalHashBasedPartitionWriter"; }
+
+protected:
+    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
+    void unsafeStop() override;
+
+private:
+    String getNextSpillFile();
+    std::vector<UInt64> mergeSpills(DB::WriteBuffer & data_file);
+    std::vector<SpillInfo> spill_infos;
+};
+
+class CelebornHashBasedPartitionWriter : public IHashBasedPartitionWriter
+{
+public:
+    explicit CelebornHashBasedPartitionWriter(CachedShuffleWriter * shuffle_writer_, std::unique_ptr<CelebornClient> celeborn_client_)
+        : IHashBasedPartitionWriter(shuffle_writer_), celeborn_client(std::move(celeborn_client_))
+    {
+    }
+
+    virtual ~CelebornHashBasedPartitionWriter() override = default;
+
+    String getName() const override { return "CelebornHashBasedPartitionWriter"; }
+
+protected:
+    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
+    void unsafeStop() override;
+
+    bool supportsEvictSinglePartition() const override { return true; }
+    size_t unsafeEvictSinglePartition(bool for_memory_spill, bool flush_block_buffer, size_t partition_id) override;
+
+private:
+    std::unique_ptr<CelebornClient> celeborn_client;
+};
+
+class ISortBasedPartitionWriter : public IPartitionWriter
+{
+public:
+    explicit ISortBasedPartitionWriter(CachedShuffleWriter* shuffle_writer_);
+    virtual ~ISortBasedPartitionWriter() override = default;
+
+protected:
+    void unsafeWrite(PartitionInfo & info, DB::Block & block) override;
+    void unsafeStop() override;
+    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
+
+    virtual size_t
+    unsafeEvictSinglePartitionFromBlock(bool for_memory_spill, size_t partition_id, const DB::Block & block, size_t start, size_t length)
+        = 0;
+};
+
+class CelebornSortedBasedPartitionWriter : public ISortBasedPartitionWriter
+{
+public:
+    explicit CelebornSortedBasedPartitionWriter(CachedShuffleWriter* shuffle_writer_, std::unique_ptr<CelebornClient> celeborn_client_);
+    virtual ~CelebornSortedBasedPartitionWriter() override = default;
+
+protected:
+    size_t unsafeEvictSinglePartitionFromBlock(
+        bool for_memory_spill, size_t partition_id, const DB::Block & block, size_t start, size_t length) override;
+
+private:
+    std::unique_ptr<CelebornClient> celeborn_client;
+};
+
+
+
 class PartitionWriter : boost::noncopyable
 {
 public:
@@ -72,9 +196,10 @@ public:
     void stopV3();
 
 protected:
-    bool useSortBasedWrite() const { return options->partition_num >= 1000UL; }
+    bool shouldUseSortBasedWrite() const { return options->partition_num >= 1000UL && supportsEvictSinglePartition(); }
     void hashBasedWrite(PartitionInfo & info, DB::Block & block);
     void sortBasedWrite(PartitionInfo & info, DB::Block & block);
+    void flushSortedBuffer();
 
     size_t bytes() const;
 
@@ -98,55 +223,18 @@ protected:
     CachedShuffleWriter * shuffle_writer;
     const SplitOptions * options;
 
-    ColumnsBufferPtr sorted_buffer;
-    std::vector<ColumnsBufferPtr> partition_block_buffer;
-    std::vector<PartitionPtr> partition_buffer;
-
     /// Make sure memory spill doesn't happen while write/stop are executed.
     bool evicting_or_writing{false};
 
+    /// Only valid when useSortBasedWrite() returns true
+    ColumnsBufferPtr sorted_buffer;
+
+    /// Only valid when useSortBasedWrite() returns false
+    std::vector<ColumnsBufferPtr> partition_block_buffer;
+    std::vector<PartitionPtr> partition_buffer;
+
     /// Only valid in celeborn partition writer
     size_t last_partition_id;
-};
-
-class LocalPartitionWriter : public PartitionWriter
-{
-public:
-    explicit LocalPartitionWriter(CachedShuffleWriter * shuffle_writer);
-    ~LocalPartitionWriter() override = default;
-
-    String getName() const override { return "LocalPartitionWriter"; }
-
-protected:
-    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
-    void unsafeStop() override;
-
-    String getNextSpillFile();
-    std::vector<UInt64> mergeSpills(DB::WriteBuffer & data_file);
-
-    std::vector<SpillInfo> spill_infos;
-};
-
-class CelebornPartitionWriter : public PartitionWriter
-{
-public:
-    CelebornPartitionWriter(CachedShuffleWriter * shuffleWriter, std::unique_ptr<CelebornClient> celeborn_client);
-    ~CelebornPartitionWriter() override = default;
-
-    String getName() const override { return "CelebornPartitionWriter"; }
-
-protected:
-    size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
-
-    bool supportsEvictSinglePartition() const override { return true; }
-    size_t unsafeEvictSinglePartition(bool for_memory_spill, bool flush_block_buffer, size_t partition_id) override;
-
-    size_t unsafeEvictSinglePartitionFromBlock(
-        bool for_memory_spill, size_t partition_id, const DB::Block & block, size_t start, size_t length) override;
-
-    void unsafeStop() override;
-
-    std::unique_ptr<CelebornClient> celeborn_client;
 };
 }
 
