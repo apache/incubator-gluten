@@ -95,6 +95,9 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
         partition_writer = std::make_unique<LocalHashBasedPartitionWriter>(this);
     }
 
+    static auto * logger = &Poco::Logger::get("CachedShuffleWriter");
+    LOG_INFO(logger, "Use {}", partition_writer->getName());
+
     split_result.partition_lengths.resize(options.partition_num, 0);
     split_result.raw_partition_lengths.resize(options.partition_num, 0);
 }
