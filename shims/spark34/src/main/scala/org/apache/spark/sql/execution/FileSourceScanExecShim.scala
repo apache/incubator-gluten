@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution
 import io.glutenproject.metrics.GlutenTimeMetric
 
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, PlanExpression, Predicate}
+import org.apache.spark.sql.catalyst.expressions.{And, Attribute, AttributeReference, BoundReference, DynamicPruningExpression, Expression, FileSourceConstantMetadataAttribute, FileSourceGeneratedMetadataAttribute, PlanExpression, Predicate}
 import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, PartitionDirectory}
 import org.apache.spark.sql.execution.datasources.parquet.ParquetUtils
 import org.apache.spark.sql.execution.metric.SQLMetric
@@ -50,6 +50,11 @@ class FileSourceScanExecShim(
   // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
   @transient override lazy val metrics: Map[String, SQLMetric] = Map()
 
+  lazy val metadataColumns = output.collect {
+    case FileSourceConstantMetadataAttribute(attr) => attr
+    case FileSourceGeneratedMetadataAttribute(attr) => attr
+  }
+
   override def equals(other: Any): Boolean = other match {
     case that: FileSourceScanExecShim =>
       (that.canEqual(this)) && super.equals(that)
@@ -60,7 +65,7 @@ class FileSourceScanExecShim(
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[FileSourceScanExecShim]
 
-  def hasMetadataColumns: Boolean = fileConstantMetadataColumns.nonEmpty
+  def hasMetadataColumns: Boolean = metadataColumns.nonEmpty
 
   def hasFieldIds: Boolean = ParquetUtils.hasFieldIds(requiredSchema)
 
