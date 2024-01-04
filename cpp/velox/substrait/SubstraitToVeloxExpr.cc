@@ -594,14 +594,6 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
         }
         break;
       }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
-        auto veloxType = SubstraitParser::parseType(child.null());
-        auto kind = veloxType->kind();
-        auto vecPtr =
-            VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVectorForStruct, kind, child, 1, veloxType, pool_);
-        vectors.emplace_back(vecPtr);
-        break;
-      }
       case ::substrait::Expression_Literal::LiteralTypeCase::kList: {
         vectors.emplace_back(literalsToArrayVector(child));
         break;
