@@ -380,7 +380,7 @@ case class WindowExecTransformer(
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
-    val relNode = if (needsPreProject) {
+    val relNode = if (needsProject) {
       getWindowRelWithProjection(
         substraitContext,
         child.output,
