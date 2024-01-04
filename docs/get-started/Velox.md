@@ -42,8 +42,8 @@ git clone https://github.com/oap-project/gluten.git
 
 # Build Gluten with Velox Backend
 
-It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
-[Gluten Usage](./GlutenUsage.md) listed the parameters and their default value of build command for your reference.
+It's recommended to use buildbundle-veloxbe.sh to build gluten in one script.
+[Gluten build guide](./build-guide.md) listed the parameters and their default value of build command for your reference.
 
 **For x86_64 build**
 
@@ -758,7 +758,7 @@ cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
   --conf spark.driver.maxResultSize=32g
 ```
 
-Refer to [Gluten parameters ](../Configuration.md) for more details of each parameter used by Gluten.
+Refer to [Gluten configuration](../Configuration.md) for more details.
 
 ## Result
 *wholestagetransformer* indicates that the offload works.
