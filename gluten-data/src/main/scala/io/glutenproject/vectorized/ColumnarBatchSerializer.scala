@@ -151,7 +151,10 @@ private class ColumnarBatchSerializerInstance(
         resourceId,
         s"ShuffleReaderDeserializationStream_${wrappedOut.getId}",
         50) {
-        this.close0()
+        if (!isClosed) {
+          this.close0()
+          isClosed = true
+        }
       }
 
       override def asIterator: Iterator[Any] = {
@@ -202,22 +205,22 @@ private class ColumnarBatchSerializerInstance(
       }
 
       override def close(): Unit = {
-        TaskResources.removeResource(resourceId)
-        close0()
+        if (!isClosed) {
+          TaskResources.removeResource(resourceId)
+          close0()
+          isClosed = true
+        }
       }
 
       private def close0(): Unit = {
-        if (!isClosed) {
-          if (numBatchesTotal > 0) {
-            readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
-          }
-          numOutputRows += numRowsTotal
-          wrappedOut.close()
-          byteIn.close()
-          if (cb != null) {
-            cb.close()
-          }
-          isClosed = true
+        if (numBatchesTotal > 0) {
+          readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
+        }
+        numOutputRows += numRowsTotal
+        wrappedOut.close()
+        byteIn.close()
+        if (cb != null) {
+          cb.close()
         }
       }
     }
