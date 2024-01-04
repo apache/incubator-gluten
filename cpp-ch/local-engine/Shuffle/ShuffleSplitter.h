@@ -48,7 +48,7 @@ struct SplitOptions
     size_t spill_threshold = 300 * 1024 * 1024;
     std::string hash_algorithm;
     bool throw_if_memory_exceed = true;
-    /// Whether to flush partition_block_buffer in PartitionWriter before evict.
+    /// Whether to flush partition_block_buffer in IPartitionWriter before evict.
     bool flush_block_buffer_before_evict = false;
 };
 
@@ -91,7 +91,7 @@ struct SplitResult
 {
     UInt64 total_compute_pid_time = 0;           // Total nanoseconds to compute partition id
     UInt64 total_write_time = 0;                 // Total nanoseconds to write data to local/celeborn, including the time writing to buffer
-    UInt64 total_spill_time = 0;                 // Total nanoseconds to execute PartitionWriter::evictPartitions
+    UInt64 total_spill_time = 0;                 // Total nanoseconds to execute IPartitionWriter::evictPartitions
     UInt64 total_compress_time = 0;              // Total nanoseconds to execute compression before writing data to local/celeborn
     UInt64 total_bytes_written = 0;              // Sum of partition_length
     UInt64 total_bytes_spilled = 0;              // Total bytes of blocks spilled to local/celeborn before serialization and compression

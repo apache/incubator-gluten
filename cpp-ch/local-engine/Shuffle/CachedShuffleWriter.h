@@ -17,29 +17,27 @@
 #pragma once
 #include <algorithm>
 #include <memory>
-#include <Shuffle/ShuffleSplitter.h>
-#include <Shuffle/SelectorBuilder.h>
-#include <Shuffle/ShuffleWriterBase.h>
 #include <jni.h>
+#include <Shuffle/PartitionWriter.h>
+#include <Shuffle/SelectorBuilder.h>
+#include <Shuffle/ShuffleSplitter.h>
+#include <Shuffle/ShuffleWriterBase.h>
 
 namespace local_engine
 {
 
-class PartitionWriter;
-class LocalPartitionWriter;
-class CelebornPartitionWriter;
-
+class IPartitionWriter;
 class CachedShuffleWriter : public ShuffleWriterBase
 {
 public:
     friend class IPartitionWriter;
-    friend class LocalHashBasedPartitionWriter;
-    friend class CelebornSortedBasedPartitionWriter;
-    friend class CelebornHashBasedPartitionWriter;
 
-    // friend class PartitionWriter;
-    // friend class LocalPartitionWriter;
-    // friend class CelebornPartitionWriter;
+    friend class IHashBasedPartitionWriter;
+    friend class LocalHashBasedPartitionWriter;
+
+    friend class CelebornHashBasedPartitionWriter;
+    friend class ISortBasedPartitionWriter;
+    friend class CelebornSortedBasedPartitionWriter;
 
     explicit CachedShuffleWriter(const String & short_name, const SplitOptions & options, jobject rss_pusher = nullptr);
     ~CachedShuffleWriter() override = default;
@@ -47,6 +45,8 @@ public:
     void split(DB::Block & block) override;
     size_t evictPartitions() override;
     SplitResult stop() override;
+
+    bool useSortBasedShuffle() const { return options.partition_num >= 1000; }
 
 private:
     void initOutputIfNeeded(DB::Block & block);
@@ -57,7 +57,7 @@ private:
     SplitResult split_result;
     std::unique_ptr<SelectorBuilder> partitioner;
     std::vector<size_t> output_columns_indicies;
-    std::unique_ptr<PartitionWriter> partition_writer;
+    std::unique_ptr<IPartitionWriter> partition_writer;
 };
 }
 

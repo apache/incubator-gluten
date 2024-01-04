@@ -83,12 +83,16 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
         jmethodID celeborn_push_partition_data_method =
             GetMethodID(env, celeborn_partition_pusher_class, "pushPartitionData", "(I[BI)I");
         CLEAN_JNIENV
+
         auto celeborn_client = std::make_unique<CelebornClient>(rss_pusher, celeborn_push_partition_data_method);
-        partition_writer = std::make_unique<CelebornPartitionWriter>(this, std::move(celeborn_client));
+        if (useSortBasedShuffle())
+            partition_writer = std::make_unique<CelebornSortedBasedPartitionWriter>(this, std::move(celeborn_client));
+        else
+            partition_writer = std::make_unique<CelebornHashBasedPartitionWriter>(this, std::move(celeborn_client));
     }
     else
     {
-        partition_writer = std::make_unique<LocalPartitionWriter>(this);
+        partition_writer = std::make_unique<LocalHashBasedPartitionWriter>(this);
     }
 
     split_result.partition_lengths.resize(options.partition_num, 0);
@@ -143,7 +147,8 @@ void CachedShuffleWriter::initOutputIfNeeded(Block & block)
 
 SplitResult CachedShuffleWriter::stop()
 {
-    partition_writer->stopV3();
+    partition_writer->stop();
+
     static auto * logger = &Poco::Logger::get("CachedShuffleWriter");
     LOG_INFO(logger, "CachedShuffleWriter stop, split result: {}", split_result.toString());
     return split_result;

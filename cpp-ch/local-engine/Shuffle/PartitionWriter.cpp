@@ -433,91 +433,7 @@ size_t CelebornHashBasedPartitionWriter::unsafeEvictSinglePartition(bool for_mem
     return res;
 }
 
-/// ====================================================
-
-void PartitionWriter::write(PartitionInfo & info, DB::Block & block)
-{
-    /// PartitionWriter::write is always the top frame which occupies evicting_or_writing
-    if (evicting_or_writing)
-        throw Exception(ErrorCodes::LOGICAL_ERROR, "PartitionWriter::write is invoked with evicting_or_writing being occupied");
-
-    evicting_or_writing = true;
-    SCOPE_EXIT({evicting_or_writing = false;});
-
-    Stopwatch watch;
-    if (shouldUseSortBasedWrite())
-        sortBasedWrite(info, block);
-    else
-        hashBasedWrite(info, block);
-    shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
-}
-
-void PartitionWriter::hashBasedWrite(PartitionInfo & partition_info, DB::Block & block)
-{
-    size_t current_cached_bytes = bytes();
-    for (size_t partition_id = 0; partition_id < partition_info.partition_num; ++partition_id)
-    {
-        size_t from = partition_info.partition_start_points[partition_id];
-        size_t length = partition_info.partition_start_points[partition_id + 1] - from;
-
-        /// Make sure buffer size is no greater than split_size
-        auto & block_buffer = partition_block_buffer[partition_id];
-        auto & buffer = partition_buffer[partition_id];
-        if (block_buffer->size() && block_buffer->size() + length >= shuffle_writer->options.split_size)
-            buffer->addBlock(block_buffer->releaseColumns());
-
-        current_cached_bytes -= block_buffer->bytes();
-        for (size_t col_i = 0; col_i < block.columns(); ++col_i)
-            block_buffer->appendSelective(col_i, block, partition_info.partition_selector, from, length);
-        current_cached_bytes += block_buffer->bytes();
-
-        /// Only works for celeborn partitiion writer
-        if (supportsEvictSinglePartition() && options->spill_threshold > 0 && current_cached_bytes >= options->spill_threshold)
-        {
-            /// If flush_block_buffer_before_evict is disabled, evict partitions from (last_partition_id+1)%partition_num to partition_id directly without flush,
-            /// Otherwise flush partition block buffer if it's size is no less than average rows, then evict partitions as above.
-            if (!options->flush_block_buffer_before_evict)
-            {
-                for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
-                     i = (i + 1) % options->partition_num)
-                    unsafeEvictSinglePartition(false, false, i);
-            }
-            else
-            {
-                /// Calculate average rows of each partition block buffer
-                size_t avg_size = 0;
-                size_t cnt = 0;
-                for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
-                     i = (i + 1) % options->partition_num)
-                {
-                    avg_size += partition_block_buffer[i]->size();
-                    ++cnt;
-                }
-                avg_size /= cnt;
-
-
-                for (size_t i = (last_partition_id + 1) % options->partition_num; i != (partition_id + 1) % options->partition_num;
-                     i = (i + 1) % options->partition_num)
-                {
-                    bool flush_block_buffer = partition_block_buffer[i]->size() >= avg_size;
-                    current_cached_bytes -= flush_block_buffer ? partition_block_buffer[i]->bytes() + partition_buffer[i]->bytes()
-                                                               : partition_buffer[i]->bytes();
-                    unsafeEvictSinglePartition(false, flush_block_buffer, i);
-                }
-            }
-
-            last_partition_id = partition_id;
-        }
-    }
-
-    /// Only works for local partition writer
-    if (!supportsEvictSinglePartition() && options->spill_threshold && current_cached_bytes >= options->spill_threshold)
-    {
-        unsafeEvictPartitions(false, options->flush_block_buffer_before_evict);
-    }
-}
-
-void PartitionWriter::sortBasedWrite(PartitionInfo & info, DB::Block & block)
+void ISortBasedPartitionWriter::unsafeWrite(PartitionInfo & info, DB::Block & block)
 {
     size_t rows = block.rows();
     if (rows == 0)
@@ -586,7 +502,7 @@ void PartitionWriter::sortBasedWrite(PartitionInfo & info, DB::Block & block)
     shuffle_writer->split_result.total_bytes_spilled += sorted_block.bytes();
 }
 
-void PartitionWriter::flushSortedBuffer()
+void ISortBasedPartitionWriter::flushSortedBuffer()
 {
     if (!sorted_buffer || sorted_buffer->empty())
         return;
@@ -625,110 +541,17 @@ void PartitionWriter::flushSortedBuffer()
     shuffle_writer->split_result.total_bytes_spilled += sorted_block.bytes();
 }
 
-PartitionWriter::PartitionWriter(CachedShuffleWriter * shuffle_writer_)
-    : shuffle_writer(shuffle_writer_)
-    , options(&shuffle_writer->options)
-    , partition_block_buffer(options->partition_num)
-    , partition_buffer(options->partition_num)
-    , last_partition_id(options->partition_num - 1)
+void ISortBasedPartitionWriter::unsafeStop()
 {
-    for (size_t partition_id = 0; partition_id < options->partition_num; ++partition_id)
-    {
-        partition_block_buffer[partition_id] = std::make_shared<ColumnsBuffer>(options->split_size);
-        partition_buffer[partition_id] = std::make_shared<Partition>();
-    }
+    flushSortedBuffer();
 }
 
-size_t PartitionWriter::evictPartitions(bool for_memory_spill, bool flush_block_buffer)
+size_t ISortBasedPartitionWriter::unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer)
 {
-    if (evicting_or_writing)
-        return 0;
-
-    evicting_or_writing = true;
-    SCOPE_EXIT({evicting_or_writing = false;});
-    return unsafeEvictPartitions(for_memory_spill, flush_block_buffer);
+    flushSortedBuffer();
 }
 
-void PartitionWriter::stop()
-{
-    if (evicting_or_writing)
-        throw Exception(ErrorCodes::LOGICAL_ERROR, "PartitionWriter::stop is invoked with evicting_or_writing being occupied");
-
-    evicting_or_writing = true;
-    SCOPE_EXIT({evicting_or_writing = false;});
-    return unsafeStop();
-}
-
-void PartitionWriter::stopV3()
-{
-     if (evicting_or_writing)
-        return;
-
-    evicting_or_writing = true;
-    SCOPE_EXIT({evicting_or_writing = false;});
-
-    Stopwatch watch;
-
-    if (sorted_buffer->empty())
-        return;
-
-    /// First order by block by partition column
-    Block sorted_block = sorted_buffer->releaseColumns();
-    {
-        const auto & col_partition = sorted_block.getByPosition(sorted_block.columns() - 1);
-        SortDescription sort_description;
-        sort_description.emplace_back(col_partition.name, 1, 1);
-        sortBlock(sorted_block, sort_description);
-    }
-
-    /// Remove the last partition column
-    const auto col_partition = sorted_block.getByPosition(sorted_block.columns() - 1);
-    sorted_block.erase(sorted_block.columns() - 1);
-
-    /// Then evict sorted_block to celeborn by partition
-    const auto & partition_data = checkAndGetColumn<ColumnUInt64>(col_partition.column.get())->getData();
-    if (partition_data.empty())
-        return;
-
-    size_t start = 0;
-    size_t end = 0;
-    for (size_t row_i = 1; row_i < partition_data.size(); ++row_i)
-    {
-        if (partition_data[row_i] == partition_data[start])
-            continue;
-
-        end = row_i;
-        unsafeEvictSinglePartitionFromBlock(false, partition_data[start], sorted_block, start, end - start);
-
-        start = row_i;
-    }
-
-    end = partition_data.size();
-    unsafeEvictSinglePartitionFromBlock(false, partition_data[start], sorted_block, start, end - start);
-
-    shuffle_writer->split_result.total_bytes_spilled += sorted_block.bytes();
-    shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
-    std::cout << "split bytes:" << sorted_block.bytes() << " rows:" << sorted_block.rows() << " in " << watch.elapsedMilliseconds() << " ms"
-              << std::endl;
-
-    for (const auto & length : shuffle_writer->split_result.partition_lengths)
-        shuffle_writer->split_result.total_bytes_written += length;
-}
-
-size_t PartitionWriter::bytes() const
-{
-    size_t bytes = 0;
-
-    for (const auto & buffer : partition_block_buffer)
-        bytes += buffer->bytes();
-
-    for (const auto & buffer : partition_buffer)
-        bytes += buffer->bytes();
-
-    return bytes;
-}
-
-size_t CelebornPartitionWriter::unsafeEvictSinglePartitionFromBlock(
+size_t CelebornSortedBasedPartitionWriter::unsafeEvictSinglePartitionFromBlock(
         bool for_memory_spill, size_t partition_id, const DB::Block & block, size_t start, size_t length)
 {
     size_t res = 0;
@@ -777,5 +600,6 @@ size_t CelebornPartitionWriter::unsafeEvictSinglePartitionFromBlock(
     // shuffle_writer->split_result.total_bytes_spilled += spilled_bytes;
     return res;
 }
+
 }
 

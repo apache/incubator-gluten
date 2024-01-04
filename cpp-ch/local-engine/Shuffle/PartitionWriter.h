@@ -19,14 +19,15 @@
 #include <memory>
 #include <mutex>
 #include <vector>
-#include <IO/WriteBuffer.h>
 #include <Core/Block.h>
+#include <IO/WriteBuffer.h>
 #include <Shuffle/ShuffleSplitter.h>
 #include <jni/CelebornClient.h>
 
 namespace local_engine
 {
-struct PartitionSpillInfo {
+struct PartitionSpillInfo
+{
     size_t partition_id;
     size_t start;
     size_t length; // in Bytes
@@ -62,7 +63,7 @@ using PartitionPtr = std::shared_ptr<Partition>;
 class IPartitionWriter : boost::noncopyable
 {
 public:
-    explicit IPartitionWriter(CachedShuffleWriter* shuffle_writer_);
+    explicit IPartitionWriter(CachedShuffleWriter * shuffle_writer_);
     virtual ~IPartitionWriter() = default;
 
     virtual String getName() const = 0;
@@ -153,10 +154,11 @@ private:
 class ISortBasedPartitionWriter : public IPartitionWriter
 {
 public:
-    explicit ISortBasedPartitionWriter(CachedShuffleWriter* shuffle_writer_);
+    explicit ISortBasedPartitionWriter(CachedShuffleWriter * shuffle_writer_) : IPartitionWriter(shuffle_writer_) { }
     virtual ~ISortBasedPartitionWriter() override = default;
 
 protected:
+    size_t bytes() const override { return sorted_buffer->bytes(); }
     void unsafeWrite(PartitionInfo & info, DB::Block & block) override;
     void unsafeStop() override;
     size_t unsafeEvictPartitions(bool for_memory_spill, bool flush_block_buffer) override;
@@ -164,13 +166,23 @@ protected:
     virtual size_t
     unsafeEvictSinglePartitionFromBlock(bool for_memory_spill, size_t partition_id, const DB::Block & block, size_t start, size_t length)
         = 0;
+
+    void flushSortedBuffer();
+
+    ColumnsBufferPtr sorted_buffer;
 };
 
 class CelebornSortedBasedPartitionWriter : public ISortBasedPartitionWriter
 {
 public:
-    explicit CelebornSortedBasedPartitionWriter(CachedShuffleWriter* shuffle_writer_, std::unique_ptr<CelebornClient> celeborn_client_);
+    explicit CelebornSortedBasedPartitionWriter(CachedShuffleWriter * shuffle_writer_, std::unique_ptr<CelebornClient> celeborn_client_)
+        : ISortBasedPartitionWriter(shuffle_writer_), celeborn_client(std::move(celeborn_client_))
+    {
+    }
+
     virtual ~CelebornSortedBasedPartitionWriter() override = default;
+
+    String getName() const override { return "CelebornSortedBasedPartitionWriter"; }
 
 protected:
     size_t unsafeEvictSinglePartitionFromBlock(
@@ -180,8 +192,7 @@ private:
     std::unique_ptr<CelebornClient> celeborn_client;
 };
 
-
-
+/*
 class PartitionWriter : boost::noncopyable
 {
 public:
@@ -236,7 +247,5 @@ protected:
     /// Only valid in celeborn partition writer
     size_t last_partition_id;
 };
+*/
 }
-
-
-
