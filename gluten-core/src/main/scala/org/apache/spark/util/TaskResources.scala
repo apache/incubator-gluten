@@ -24,8 +24,10 @@ import _root_.io.glutenproject.memory.SimpleMemoryUsageRecorder
 import _root_.io.glutenproject.utils.TaskListener
 
 import java.util
-import java.util.{Comparator, PriorityQueue, UUID}
+import java.util.{Collections, UUID}
 import java.util.concurrent.atomic.AtomicLong
+
+import scala.collection.JavaConverters._
 
 object TaskResources extends TaskListener with Logging {
   // And open java assert mode to get memory stack
@@ -94,24 +96,12 @@ object TaskResources extends TaskListener with Logging {
     })
   }
 
-  def addRecycler(id: String, name: String, prio: Int)(f: => Unit): Unit = {
-    addResource(
-      id,
-      new TaskResource {
-        override def release(): Unit = f
-
-        override def priority(): Int = prio
-
-        override def resourceName(): String = name
-      })
-  }
-
   def addResource[T <: TaskResource](id: String, resource: T): T = {
     getTaskResourceRegistry().addResource(id, resource)
   }
 
-  def removeResource(id: String): Unit = {
-    getTaskResourceRegistry().removeResource(id)
+  def releaseResource(id: String): Unit = {
+    getTaskResourceRegistry().releaseResource(id)
   }
 
   def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T = {
@@ -193,51 +183,60 @@ object TaskResources extends TaskListener with Logging {
 // thread safe
 class TaskResourceRegistry extends Logging {
   private val sharedUsage = new SimpleMemoryUsageRecorder()
-  type TaskResourceWithOrdering = (TaskResource, Int)
-  private val resources = new util.HashMap[String, TaskResourceWithOrdering]()
-  // A monotonically increasing accumulator to specify the task resource ordering
-  // when inserting into queue
-  private var resourceOrdering = 0
-  // 0 is lowest, Int.MaxValue is highest
-  private val resourcesPriorityQueue =
-    new PriorityQueue[TaskResourceWithOrdering](new Comparator[TaskResourceWithOrdering]() {
-      override def compare(t1: TaskResourceWithOrdering, t2: TaskResourceWithOrdering): Int = {
-        val diff = t2._1.priority() - t1._1.priority()
-        if (diff == 0) {
-          // If the task resource has same priority, we should follow the LIFO
-          t2._2 - t1._2
-        } else {
-          diff
-        }
-      }
-    })
+  private val resources = new util.HashMap[String, TaskResource]()
+  private val priorityToResourcesMapping: util.HashMap[Int, util.LinkedHashSet[TaskResource]] =
+    new util.HashMap[Int, util.LinkedHashSet[TaskResource]]()
 
   private def addResource0(id: String, resource: TaskResource): Unit = synchronized {
-    val resourceWithOrdering = (resource, resourceOrdering)
-    resources.put(id, resourceWithOrdering)
-    resourcesPriorityQueue.add(resourceWithOrdering)
-    resourceOrdering += 1
+    resources.put(id, resource)
+    priorityToResourcesMapping
+      .computeIfAbsent(resource.priority(), _ => new util.LinkedHashSet[TaskResource]())
+      .add(resource)
   }
 
   /** Release all managed resources according to priority and reversed order */
   private[util] def releaseAll(): Unit = synchronized {
-    while (!resourcesPriorityQueue.isEmpty) {
-      val resource = resourcesPriorityQueue.poll()._1
-      try {
-        resource.release()
-      } catch {
-        case e: Throwable =>
-          logWarning(s"Failed to call release() on task resource ${resource.resourceName()}", e)
+    val table = new util.ArrayList(priorityToResourcesMapping.entrySet())
+    Collections.sort(
+      table,
+      (
+          o1: util.Map.Entry[Int, util.LinkedHashSet[TaskResource]],
+          o2: util.Map.Entry[Int, util.LinkedHashSet[TaskResource]]) => {
+        val diff = o2.getKey - o1.getKey // descending by priority
+        if (diff > 0) 1 else if (diff < 0) -1 else 0
       }
+    )
+    table.forEach {
+      _.getValue.asScala.toSeq.reverse
+        .foreach(_.release()) // lifo for all resources within the same priority
     }
+    priorityToResourcesMapping.clear()
     resources.clear()
-    resourceOrdering = 0
+  }
+
+  /** Release single resource by ID */
+  private[util] def releaseResource(id: String): Unit = synchronized {
+    if (!resources.containsKey(id)) {
+      throw new IllegalArgumentException(
+        String.format("TaskResource with ID %s is not registered", id))
+    }
+    val resource = resources.get(id)
+    if (!priorityToResourcesMapping.containsKey(resource.priority())) {
+      throw new IllegalStateException("TaskResource's priority not found in priority mapping")
+    }
+    val samePrio = priorityToResourcesMapping.get(resource.priority())
+    if (!samePrio.contains(resource)) {
+      throw new IllegalStateException("TaskResource not found in priority mapping")
+    }
+    resource.release()
+    samePrio.remove(resource)
+    resources.remove(id)
   }
 
   private[util] def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T =
     synchronized {
       if (resources.containsKey(id)) {
-        return resources.get(id)._1.asInstanceOf[T]
+        return resources.get(id).asInstanceOf[T]
       }
       val resource = factory.apply()
       addResource0(id, resource)
@@ -262,19 +261,10 @@ class TaskResourceRegistry extends Logging {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is not registered", id))
     }
-    resources.get(id)._1.asInstanceOf[T]
+    resources.get(id).asInstanceOf[T]
   }
 
   private[util] def getSharedUsage(): SimpleMemoryUsageRecorder = synchronized {
     sharedUsage
-  }
-
-  private[util] def removeResource(id: String): Unit = synchronized {
-    if (!resources.containsKey(id)) {
-      throw new IllegalArgumentException(
-        String.format("TaskResource with ID %s is not registered", id))
-    }
-    resourcesPriorityQueue.remove(resources.get(id))
-    resources.remove(id)
   }
 }

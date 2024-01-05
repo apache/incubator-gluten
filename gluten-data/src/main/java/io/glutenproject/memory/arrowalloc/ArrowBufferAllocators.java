@@ -81,9 +81,9 @@ public class ArrowBufferAllocators {
       long accumulated = TaskResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
       LOGGER.warn(
           String.format(
-              "Detected leaked Arrow allocator, size: %d, "
+              "Detected leaked Arrow allocator [%s], size: %d, "
                   + "process accumulated leaked size: %d...",
-              leakBytes, accumulated));
+              resourceName(), leakBytes, accumulated));
       if (TaskResources.DEBUG()) {
         LOGGER.warn(String.format("Leaked allocator stack %s", managed.toVerboseString()));
         LEAKED.add(managed);
