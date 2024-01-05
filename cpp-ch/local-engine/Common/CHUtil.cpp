@@ -27,6 +27,7 @@
 #include <Columns/IColumn.h>
 #include <Core/Block.h>
 #include <Core/ColumnWithTypeAndName.h>
+#include <Core/Defines.h>
 #include <Core/NamesAndTypes.h>
 #include <DataTypes/DataTypeArray.h>
 #include <DataTypes/DataTypeNullable.h>
@@ -53,7 +54,9 @@
 #include <google/protobuf/wrappers.pb.h>
 #include <Poco/Logger.h>
 #include <Poco/Util/MapConfiguration.h>
+#include <Common/BitHelpers.h>
 #include <Common/Config/ConfigProcessor.h>
+#include <Common/CurrentThread.h>
 #include <Common/GlutenSignalHandler.h>
 #include <Common/Logger.h>
 #include <Common/logger_useful.h>
@@ -64,6 +67,11 @@
 
 #include <regex>
 #include "CHUtil.h"
+
+#include <sys/resource.h>
+
+#include <stdio.h>
+#include <unistd.h>
 
 namespace DB
 {
@@ -253,6 +261,53 @@ BlockUtil::flattenBlock(const DB::Block & block, UInt64 flags, bool recursively,
     }
 
     return res;
+}
+
+DB::Block BlockUtil::concatenateBlocksMemoryEfficiently(std::vector<DB::Block> && blocks)
+{
+    if (blocks.empty())
+        return {};
+
+    size_t num_rows = 0;
+    for (const auto & block : blocks)
+        num_rows += block.rows();
+
+    Block out = blocks[0].cloneEmpty();
+    MutableColumns columns = out.mutateColumns();
+
+    for (size_t i = 0; i < columns.size(); ++i)
+    {
+        columns[i]->reserve(num_rows);
+        for (auto & block : blocks)
+        {
+            const auto & tmp_column = *block.getByPosition(0).column;
+            columns[i]->insertRangeFrom(tmp_column, 0, block.rows());
+            block.erase(0);
+        }
+    }
+    blocks.clear();
+
+    out.setColumns(std::move(columns));
+    return out;
+}
+
+
+size_t PODArrayUtil::adjustMemoryEfficientSize(size_t n)
+{
+    /// According to definition of DEFUALT_BLOCK_SIZE
+    size_t padding_n = 2 * PADDING_FOR_SIMD - 1;
+    size_t rounded_n = roundUpToPowerOfTwoOrZero(n);
+    size_t padded_n = n;
+    if (rounded_n > n + n / 2)
+    {
+        size_t smaller_rounded_n = rounded_n / 2;
+        padded_n = smaller_rounded_n < padding_n ? n : smaller_rounded_n - padding_n;
+    }
+    else
+    {
+        padded_n = rounded_n - padding_n;    
+    }
+    return padded_n;
 }
 
 std::string PlanUtil::explainPlan(DB::QueryPlan & plan)
@@ -793,6 +848,33 @@ void BackendFinalizerUtil::finalizeSessionally()
 Int64 DateTimeUtil::currentTimeMillis()
 {
     return timeInMilliseconds(std::chrono::system_clock::now());
+}
+
+UInt64 MemoryUtil::getCurrentMemoryUsage(size_t depth)
+{
+    Int64 current_memory_usage = 0;
+    auto * current_mem_tracker = DB::CurrentThread::getMemoryTracker();
+    for (size_t i = 0; i < depth && current_mem_tracker; ++i)
+    {
+        current_mem_tracker = current_mem_tracker->getParent();
+    }
+    if (current_mem_tracker)
+        current_memory_usage = current_mem_tracker->get();
+    return current_memory_usage < 0 ? 0 : current_memory_usage;
+}
+
+UInt64 MemoryUtil::getMemoryRSS()
+{
+    long rss = 0L;
+    FILE* fp = NULL;
+    char buf[4096];
+    sprintf(buf, "/proc/%d/statm", getpid());
+    if ((fp = fopen(buf, "r")) == NULL) {
+        return 0;
+    }
+    fscanf(fp, "%*s%ld", &rss);
+    fclose(fp);
+    return rss * sysconf(_SC_PAGESIZE);
 }
 
 }
