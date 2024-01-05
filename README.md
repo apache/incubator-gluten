@@ -2,6 +2,7 @@
 *<b>This project is still under active development now, and doesn't have a stable release. Welcome to evaluate it.</b>*
 
 # 1 Introduction
+
 ## 1.1 Problem Statement
 
 Apache Spark is a stable, mature project that has been developed for many years. It is one of the best frameworks to scale out for processing petabyte-scale datasets. However, the Spark community has had to address performance challenges that require various optimizations over time. As a key optimization in Spark 2.0, Whole Stage Code Generation is introduced to replace Volcano Model, which achieves 2x speedup. Henceforth, most optimizations are at query plan level. Single operator's performance almost stops growing.
