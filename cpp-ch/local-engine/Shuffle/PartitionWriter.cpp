@@ -440,7 +440,7 @@ void ISortBasedPartitionWriter::unsafeWrite(PartitionInfo & info, DB::Block & bl
         return;
 
     /// Make sure sorted_block_buffer do not exceed split_size
-    if (sorted_block_buffer && sorted_block_buffer->size() + rows > options->split_size)
+    if (sorted_block_buffer && sorted_block_buffer->size() + rows > sorted_block_buffer->reserveSize())
         flushSortedBlockBuffer();
 
     /// Create sorted_block_buffer if not exists
@@ -508,6 +508,10 @@ size_t ISortBasedPartitionWriter::flushSortedBlockBuffer()
 void ISortBasedPartitionWriter::unsafeStop()
 {
     flushSortedBlockBuffer();
+    for (const auto & length : shuffle_writer->split_result.partition_lengths)
+    {
+        shuffle_writer->split_result.total_bytes_written += length;
+    }
 }
 
 size_t ISortBasedPartitionWriter::unsafeEvictPartitions(bool /*for_memory_spill*/, bool flush_block_buffer)
