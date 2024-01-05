@@ -154,7 +154,7 @@ std::shared_ptr<RowToColumnarConverter> VeloxRuntime::createRow2ColumnarConverte
 std::shared_ptr<ShuffleWriter> VeloxRuntime::createShuffleWriter(
     int numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
-    std::unique_ptr<ShuffleWriterOptions> options,
+    ShuffleWriterOptions options,
     MemoryManager* memoryManager) {
   auto ctxPool = getLeafVeloxPool(memoryManager);
   auto arrowPool = memoryManager->getArrowMemoryPool();

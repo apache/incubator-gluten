@@ -42,13 +42,10 @@ struct ShuffleReaderOptions {
 struct ShuffleWriterOptions {
   int32_t bufferSize = kDefaultShuffleWriterBufferSize;
   double bufferReallocThreshold = kDefaultBufferReallocThreshold;
-
-  PartitionWriterType partitionWriterType = PartitionWriterType::kLocal;
   Partitioning partitioning = Partitioning::kRoundRobin;
-
-  int64_t threadId = -1;
   int64_t taskAttemptId = -1;
   int32_t startPartitionId = 0;
+  int64_t threadId = -1;
 };
 
 struct PartitionWriterOptions {

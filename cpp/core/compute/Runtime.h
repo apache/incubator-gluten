@@ -104,7 +104,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
   virtual std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
-      std::unique_ptr<ShuffleWriterOptions> options,
+      ShuffleWriterOptions options,
       MemoryManager* memoryManager) = 0;
 
   virtual Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;

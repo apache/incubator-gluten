@@ -108,9 +108,9 @@ class BenchmarkShuffleSplit {
       setCpu(state.thread_index());
     }
 
-    auto options = std::make_unique<ShuffleWriterOptions>();
-    options->bufferSize = kPartitionBufferSize;
-    options->partitioning = Partitioning::kRoundRobin;
+    auto options = ShuffleWriterOptions{};
+    options.bufferSize = kPartitionBufferSize;
+    options.partitioning = Partitioning::kRoundRobin;
     std::string dataFile;
     std::vector<std::string> localDirs;
     bool isFromEnv;
@@ -198,7 +198,7 @@ class BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      std::unique_ptr<ShuffleWriterOptions> options,
+      ShuffleWriterOptions options,
       const std::string& dataFile,
       const std::vector<std::string>& localDirs,
       benchmark::State& state) {}
@@ -223,7 +223,7 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      std::unique_ptr<ShuffleWriterOptions> options,
+      ShuffleWriterOptions options,
       const std::string& dataFile,
       const std::vector<std::string>& localDirs,
       benchmark::State& state) {
@@ -316,7 +316,7 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
       int64_t& numRows,
       int64_t& splitTime,
       const int numPartitions,
-      std::unique_ptr<ShuffleWriterOptions> options,
+      ShuffleWriterOptions options,
       const std::string& dataFile,
       const std::vector<std::string>& localDirs,
       benchmark::State& state) {

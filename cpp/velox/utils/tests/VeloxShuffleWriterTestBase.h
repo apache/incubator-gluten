@@ -78,7 +78,6 @@ struct ShuffleTestParams {
 class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase {
  public:
   virtual arrow::Status initShuffleWriterOptions() {
-    shuffleWriterOptions_ = std::make_unique<ShuffleWriterOptions>();
     RETURN_NOT_OK(setLocalDirsAndDataFile());
     return arrow::Status::OK();
   }
@@ -203,7 +202,7 @@ class VeloxShuffleWriterTestBase : public facebook::velox::test::VectorTestBase 
 
   virtual std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) = 0;
 
-  std::unique_ptr<ShuffleWriterOptions> shuffleWriterOptions_{};
+  ShuffleWriterOptions shuffleWriterOptions_{};
   PartitionWriterOptions partitionWriterOptions_{};
 
   std::vector<std::unique_ptr<arrow::internal::TemporaryDir>> tmpDirs_;
@@ -231,9 +230,6 @@ class VeloxShuffleWriterTest : public ::testing::TestWithParam<ShuffleTestParams
     RETURN_NOT_OK(VeloxShuffleWriterTestBase::initShuffleWriterOptions());
 
     ShuffleTestParams params = GetParam();
-    if (params.partitionWriterType == PartitionWriterType::kCeleborn) {
-      shuffleWriterOptions_->partitionWriterType = kCeleborn;
-    }
     partitionWriterOptions_.compressionType = params.compressionType;
     partitionWriterOptions_.compressionThreshold = params.compressionThreshold;
     partitionWriterOptions_.mergeBufferSize = params.mergeBufferSize;
@@ -320,16 +316,11 @@ class SinglePartitioningShuffleWriter : public VeloxShuffleWriterTest {
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) override {
-    shuffleWriterOptions_->bufferSize = 10;
-    shuffleWriterOptions_->partitioning = Partitioning::kSingle;
+    shuffleWriterOptions_.bufferSize = 10;
+    shuffleWriterOptions_.partitioning = Partitioning::kSingle;
     static const uint32_t kNumPartitions = 1;
     auto partitionWriter = createPartitionWriter(
-        shuffleWriterOptions_->partitionWriterType,
-        kNumPartitions,
-        dataFile_,
-        localDirs_,
-        partitionWriterOptions_,
-        arrowPool);
+        GetParam().partitionWriterType, kNumPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
         VeloxShuffleWriter::create(
@@ -396,16 +387,11 @@ class HashPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) override {
-    shuffleWriterOptions_->bufferSize = 4;
-    shuffleWriterOptions_->partitioning = Partitioning::kHash;
+    shuffleWriterOptions_.bufferSize = 4;
+    shuffleWriterOptions_.partitioning = Partitioning::kHash;
     static const uint32_t kNumPartitions = 2;
     auto partitionWriter = createPartitionWriter(
-        shuffleWriterOptions_->partitionWriterType,
-        kNumPartitions,
-        dataFile_,
-        localDirs_,
-        partitionWriterOptions_,
-        arrowPool);
+        GetParam().partitionWriterType, kNumPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
         VeloxShuffleWriter::create(
@@ -436,16 +422,11 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
   }
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) override {
-    shuffleWriterOptions_->bufferSize = 4;
-    shuffleWriterOptions_->partitioning = Partitioning::kRange;
+    shuffleWriterOptions_.bufferSize = 4;
+    shuffleWriterOptions_.partitioning = Partitioning::kRange;
     static const uint32_t kNumPartitions = 2;
     auto partitionWriter = createPartitionWriter(
-        shuffleWriterOptions_->partitionWriterType,
-        kNumPartitions,
-        dataFile_,
-        localDirs_,
-        partitionWriterOptions_,
-        arrowPool);
+        GetParam().partitionWriterType, kNumPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
         VeloxShuffleWriter::create(
@@ -472,15 +453,10 @@ class RangePartitioningShuffleWriter : public MultiplePartitioningShuffleWriter 
 class RoundRobinPartitioningShuffleWriter : public MultiplePartitioningShuffleWriter {
  protected:
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(arrow::MemoryPool* arrowPool) override {
-    shuffleWriterOptions_->bufferSize = 4;
+    shuffleWriterOptions_.bufferSize = 4;
     static const uint32_t kNumPartitions = 2;
     auto partitionWriter = createPartitionWriter(
-        shuffleWriterOptions_->partitionWriterType,
-        kNumPartitions,
-        dataFile_,
-        localDirs_,
-        partitionWriterOptions_,
-        arrowPool);
+        GetParam().partitionWriterType, kNumPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
         VeloxShuffleWriter::create(
@@ -500,12 +476,7 @@ class VeloxShuffleWriterMemoryTest : public VeloxShuffleWriterTestBase, public t
 
   std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(uint32_t numPartitions, arrow::MemoryPool* arrowPool) {
     auto partitionWriter = createPartitionWriter(
-        shuffleWriterOptions_->partitionWriterType,
-        numPartitions,
-        dataFile_,
-        localDirs_,
-        partitionWriterOptions_,
-        arrowPool);
+        PartitionWriterType::kLocal, numPartitions, dataFile_, localDirs_, partitionWriterOptions_, arrowPool);
     GLUTEN_ASSIGN_OR_THROW(
         auto shuffleWriter,
         VeloxShuffleWriter::create(

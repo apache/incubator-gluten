@@ -89,7 +89,7 @@ class ShuffleWriter : public Reclaimable {
   ShuffleWriter(
       int32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
-      std::unique_ptr<ShuffleWriterOptions> options,
+      ShuffleWriterOptions options,
       arrow::MemoryPool* pool)
       : numPartitions_(numPartitions),
         options_(std::move(options)),
@@ -101,7 +101,7 @@ class ShuffleWriter : public Reclaimable {
 
   int32_t numPartitions_;
 
-  std::unique_ptr<ShuffleWriterOptions> options_;
+  ShuffleWriterOptions options_;
 
   arrow::MemoryPool* pool_;
   // Memory Pool used to track memory usage of partition buffers.

@@ -18,7 +18,6 @@
 #include <jni.h>
 #include <filesystem>
 
-#include "compute/ProtobufUtils.h"
 #include "compute/Runtime.h"
 #include "config/GlutenConfig.h"
 #include "jni/JniCommon.h"
@@ -814,15 +813,13 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     throw gluten::GlutenException(std::string("Short partitioning name can't be null"));
   }
 
-  auto shuffleWriterOptions = std::make_unique<ShuffleWriterOptions>();
-
-  shuffleWriterOptions->bufferSize = bufferSize;
-  shuffleWriterOptions->bufferReallocThreshold = reallocThreshold;
-  shuffleWriterOptions->taskAttemptId = (int64_t)taskAttemptId;
-  shuffleWriterOptions->startPartitionId = startPartitionId;
-
-  auto partitioningName = jStringToCString(env, partitioningNameJstr);
-  shuffleWriterOptions->partitioning = gluten::toPartitioning(partitioningName);
+  auto shuffleWriterOptions = ShuffleWriterOptions{
+      .bufferSize = bufferSize,
+      .bufferReallocThreshold = reallocThreshold,
+      .partitioning = gluten::toPartitioning(jStringToCString(env, partitioningNameJstr)),
+      .taskAttemptId = (int64_t)taskAttemptId,
+      .startPartitionId = startPartitionId,
+  };
 
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
@@ -834,7 +831,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jmethodID midGetid = getMethodIdOrError(env, cls, "getId", "()J");
     jlong sid = env->CallLongMethod(thread, midGetid);
     checkException(env);
-    shuffleWriterOptions->threadId = (int64_t)sid;
+    shuffleWriterOptions.threadId = (int64_t)sid;
   }
 
   auto partitionWriterOptions = PartitionWriterOptions{
@@ -855,7 +852,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   auto partitionWriterType = std::string(partitionWriterTypeC);
   env->ReleaseStringUTFChars(partitionWriterTypeJstr, partitionWriterTypeC);
   if (partitionWriterType == "local") {
-    shuffleWriterOptions->partitionWriterType = kLocal;
     if (dataFileJstr == NULL) {
       throw gluten::GlutenException(std::string("Shuffle DataFile can't be null"));
     }
@@ -877,7 +873,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
         dataFile,
         configuredDirs);
   } else if (partitionWriterType == "celeborn") {
-    shuffleWriterOptions->partitionWriterType = PartitionWriterType::kCeleborn;
     jclass celebornPartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
     jmethodID celebornPushPartitionDataMethod =

@@ -126,7 +126,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   static arrow::Result<std::shared_ptr<VeloxShuffleWriter>> create(
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
-      std::unique_ptr<ShuffleWriterOptions> options,
+      ShuffleWriterOptions options,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       arrow::MemoryPool* arrowPool);
 
@@ -146,7 +146,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   // For test only.
   void setPartitionBufferSize(int32_t newSize) {
-    options_->bufferSize = newSize;
+    options_.bufferSize = newSize;
   }
 
   // for debugging
@@ -200,7 +200,7 @@ class VeloxShuffleWriter final : public ShuffleWriter {
   VeloxShuffleWriter(
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
-      std::unique_ptr<ShuffleWriterOptions> options,
+      ShuffleWriterOptions options,
       std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
       arrow::MemoryPool* pool)
       : ShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), pool),

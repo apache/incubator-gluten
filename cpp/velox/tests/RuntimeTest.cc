@@ -56,7 +56,7 @@ class DummyRuntime final : public Runtime {
   std::shared_ptr<ShuffleWriter> createShuffleWriter(
       int numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
-      std::unique_ptr<ShuffleWriterOptions> options,
+      ShuffleWriterOptions,
       MemoryManager* memoryManager) override {
     throw GlutenException("Not yet implemented");
   }

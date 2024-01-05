@@ -80,8 +80,8 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
       dataFile,
       localDirs);
 
-  auto options = std::make_unique<ShuffleWriterOptions>();
-  options->partitioning = gluten::toPartitioning(FLAGS_partitioning);
+  auto options = ShuffleWriterOptions{};
+  options.partitioning = gluten::toPartitioning(FLAGS_partitioning);
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter,
       VeloxShuffleWriter::create(

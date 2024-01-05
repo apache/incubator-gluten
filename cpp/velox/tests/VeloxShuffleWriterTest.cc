@@ -290,7 +290,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, roundRobin) {
 
 TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_->bufferReallocThreshold = 0; // Force re-alloc on buffer size changed.
+  shuffleWriterOptions_.bufferReallocThreshold = 0; // Force re-alloc on buffer size changed.
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
 
   // First spilt no null.
@@ -345,7 +345,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
 
 TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceReuse) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_->bufferReallocThreshold = 1; // Force re-alloc on buffer size changed.
+  shuffleWriterOptions_.bufferReallocThreshold = 1; // Force re-alloc on buffer size changed.
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
 
   // First spilt no null.
@@ -417,7 +417,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, spillVerifyResult) {
 TEST_F(VeloxShuffleWriterMemoryTest, memoryLeak) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LimitedMemoryPool>();
-  shuffleWriterOptions_->bufferSize = 4;
+  shuffleWriterOptions_.bufferSize = 4;
 
   auto shuffleWriter = createShuffleWriter(pool.get());
 
@@ -435,7 +435,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, memoryLeak) {
 TEST_F(VeloxShuffleWriterMemoryTest, spillFailWithOutOfMemory) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
   std::shared_ptr<arrow::MemoryPool> pool = std::make_shared<LimitedMemoryPool>(0);
-  shuffleWriterOptions_->bufferSize = 4;
+  shuffleWriterOptions_.bufferSize = 4;
 
   auto shuffleWriter = createShuffleWriter(pool.get());
 
@@ -447,7 +447,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, spillFailWithOutOfMemory) {
 
 TEST_F(VeloxShuffleWriterMemoryTest, kInit) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_->bufferSize = 4;
+  shuffleWriterOptions_.bufferSize = 4;
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
 
   // Test spill all partition buffers.
@@ -517,8 +517,8 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInit) {
 
 TEST_F(VeloxShuffleWriterMemoryTest, kInitSingle) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_->partitioning = Partitioning::kSingle;
-  shuffleWriterOptions_->bufferSize = 4;
+  shuffleWriterOptions_.partitioning = Partitioning::kSingle;
+  shuffleWriterOptions_.bufferSize = 4;
   auto shuffleWriter = createShuffleWriter(defaultArrowMemoryPool().get());
 
   {
@@ -539,7 +539,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kInitSingle) {
 
 TEST_F(VeloxShuffleWriterMemoryTest, kSplit) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_->bufferSize = 4;
+  shuffleWriterOptions_.bufferSize = 4;
   auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get());
   auto shuffleWriter = createShuffleWriter(&pool);
 
@@ -561,7 +561,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kSplit) {
 
 TEST_F(VeloxShuffleWriterMemoryTest, kSplitSingle) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_->partitioning = Partitioning::kSingle;
+  shuffleWriterOptions_.partitioning = Partitioning::kSingle;
   auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get(), false);
 
   auto shuffleWriter = createShuffleWriter(1, &pool);
@@ -580,8 +580,8 @@ TEST_F(VeloxShuffleWriterMemoryTest, kSplitSingle) {
 TEST_F(VeloxShuffleWriterMemoryTest, kStop) {
   for (const auto partitioning : {Partitioning::kSingle, Partitioning::kRoundRobin}) {
     ASSERT_NOT_OK(initShuffleWriterOptions());
-    shuffleWriterOptions_->partitioning = partitioning;
-    shuffleWriterOptions_->bufferSize = 4;
+    shuffleWriterOptions_.partitioning = partitioning;
+    shuffleWriterOptions_.bufferSize = 4;
     auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get(), false);
     auto shuffleWriter = createShuffleWriter(&pool);
 
@@ -601,7 +601,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kStop) {
 
 TEST_F(VeloxShuffleWriterMemoryTest, evictPartitionBuffers) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_->bufferSize = 4;
+  shuffleWriterOptions_.bufferSize = 4;
   auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get());
   auto shuffleWriter = createShuffleWriter(&pool);
 
@@ -623,7 +623,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, evictPartitionBuffers) {
 
 TEST_F(VeloxShuffleWriterMemoryTest, kUnevictableSingle) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_->partitioning = Partitioning::kSingle;
+  shuffleWriterOptions_.partitioning = Partitioning::kSingle;
   auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get());
   auto shuffleWriter = createShuffleWriter(&pool);
 
@@ -645,7 +645,7 @@ TEST_F(VeloxShuffleWriterMemoryTest, kUnevictableSingle) {
 
 TEST_F(VeloxShuffleWriterMemoryTest, resizeBinaryBufferTriggerSpill) {
   ASSERT_NOT_OK(initShuffleWriterOptions());
-  shuffleWriterOptions_->bufferReallocThreshold = 1;
+  shuffleWriterOptions_.bufferReallocThreshold = 1;
   auto pool = SelfEvictedMemoryPool(defaultArrowMemoryPool().get(), false);
   auto shuffleWriter = createShuffleWriter(&pool);
 
