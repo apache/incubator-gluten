@@ -46,7 +46,7 @@
     <scala.version>2.12.15</scala.version>
     <spark.major.version>3</spark.major.version>
     <sparkbundle.version>3.2</sparkbundle.version>
-    <spark.version>3.4.1</spark.version>
+    <spark.version>3.4.2</spark.version>
     <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
     <celeborn.version>0.3.0-incubating</celeborn.version>
     <arrow.version>14.0.1</arrow.version>
