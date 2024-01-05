@@ -18,7 +18,6 @@
 #include <iostream>
 
 #include "shuffle/Spill.h"
-#include "utils/DebugOut.h"
 
 namespace gluten {
 

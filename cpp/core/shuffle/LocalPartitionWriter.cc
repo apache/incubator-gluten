@@ -63,8 +63,8 @@ class LocalPartitionWriter::LocalSpiller {
     // Because payload is uncompressed, no compress time.
     spillTime_ += payload->getWriteTime();
     ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
-    DEBUG_OUT << "LocalSpiller: Spilled partition " << partitionId << " file start: " << start << ", file end: " << end
-              << ", file: " << spillFile_ << std::endl;
+    DLOG(INFO) << "LocalSpiller: Spilled partition " << partitionId << " file start: " << start << ", file end: " << end
+               << ", file: " << spillFile_;
 
     auto payloadType = codec_ != nullptr && payload->numRows() >= compressionThreshold_ ? Payload::kToBeCompressed
                                                                                         : Payload::kUncompressed;
@@ -168,8 +168,8 @@ class LocalPartitionWriter::PayloadMerger {
     }
 
     // Merge buffers.
-    DEBUG_OUT << "Merged partition: " << partitionId << ", numRows before: " << lastPayload->numRows()
-              << ", numRows appended: " << numRows << ", numRows after: " << mergedRows << std::endl;
+    DLOG(INFO) << "Merged partition: " << partitionId << ", numRows before: " << lastPayload->numRows()
+               << ", numRows appended: " << numRows << ", numRows after: " << mergedRows;
     ARROW_ASSIGN_OR_RAISE(
         auto payload, MergeBlockPayload::merge(std::move(lastPayload), numRows, std::move(buffers), pool_, codec_));
     if (mergedRows < mergeBufferSize_) {
@@ -352,8 +352,8 @@ class LocalPartitionWriter::PayloadCache {
             diskSpill = std::make_unique<Spill>(Spill::SpillType::kBatchedSpill, numPartitions_, spillFile);
           }
           ARROW_ASSIGN_OR_RAISE(auto end, os->Tell());
-          DEBUG_OUT << "PayloadCache: Spilled partition " << pid << " file start: " << start << ", file end: " << end
-                    << ", file: " << spillFile << std::endl;
+          DLOG(INFO) << "PayloadCache: Spilled partition " << pid << " file start: " << start << ", file end: " << end
+                     << ", file: " << spillFile;
           diskSpill->insertPayload(
               pid, payload->type(), payload->numRows(), payload->isValidityBuffer(), end - start, pool, codec);
           start = end;
@@ -447,8 +447,7 @@ arrow::Status LocalPartitionWriter::mergeSpills(uint32_t partitionId) {
     }
     ++spillIter;
     ARROW_ASSIGN_OR_RAISE(auto ed, dataFileOs_->Tell());
-    DEBUG_OUT << "Partition " << partitionId << " spilled from spillResult " << spillId++ << " of bytes " << ed - st
-              << std::endl;
+    DLOG(INFO) << "Partition " << partitionId << " spilled from spillResult " << spillId++ << " of bytes " << ed - st;
   }
   return arrow::Status::OK();
 }
@@ -466,7 +465,7 @@ arrow::Status LocalPartitionWriter::stop(ShuffleWriterMetrics* metrics) {
   RETURN_NOT_OK(openDataFile());
 
   int64_t endInFinalFile = 0;
-  DEBUG_OUT << "LocalPartitionWriter stopped. Total spills: " << spills_.size() << std::endl;
+  DLOG(INFO) << "LocalPartitionWriter stopped. Total spills: " << spills_.size();
   // Iterator over pid.
   for (auto pid = 0; pid < numPartitions_; ++pid) {
     // Record start offset.
