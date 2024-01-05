@@ -700,13 +700,6 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::SortRel& sortRel
     return false;
   }
 
-  for (const auto& type : types) {
-    if (type->kind() == TypeKind::TIMESTAMP) {
-      logValidateMsg("native validation failed due to: Timestamp type is not supported in SortRel.");
-      return false;
-    }
-  }
-
   int32_t inputPlanNodeId = 0;
   std::vector<std::string> names;
   names.reserve(types.size());
