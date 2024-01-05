@@ -794,7 +794,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     jdouble mergeThreshold,
     jstring codecJstr,
     jstring codecBackendJstr,
-    jint bufferCompressThreshold,
+    jint compressionThreshold,
     jstring compressionModeJstr,
     jstring dataFileJstr,
     jint numSubDirs,
@@ -816,18 +816,13 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
 
   auto shuffleWriterOptions = std::make_unique<ShuffleWriterOptions>();
 
+  shuffleWriterOptions->bufferSize = bufferSize;
+  shuffleWriterOptions->bufferReallocThreshold = reallocThreshold;
+  shuffleWriterOptions->taskAttemptId = (int64_t)taskAttemptId;
+  shuffleWriterOptions->startPartitionId = startPartitionId;
+
   auto partitioningName = jStringToCString(env, partitioningNameJstr);
   shuffleWriterOptions->partitioning = gluten::toPartitioning(partitioningName);
-
-  shuffleWriterOptions->bufferSize = bufferSize;
-  shuffleWriterOptions->mergeBufferSize = mergeBufferSize;
-  shuffleWriterOptions->mergeThreshold = mergeThreshold;
-
-  shuffleWriterOptions->compressionType = getCompressionType(env, codecJstr);
-  if (codecJstr != NULL) {
-    shuffleWriterOptions->codecBackend = getCodecBackend(env, codecBackendJstr);
-    shuffleWriterOptions->compressionMode = getCompressionMode(env, compressionModeJstr);
-  }
 
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
@@ -842,17 +837,23 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     shuffleWriterOptions->threadId = (int64_t)sid;
   }
 
-  shuffleWriterOptions->taskAttemptId = (int64_t)taskAttemptId;
-  shuffleWriterOptions->startPartitionId = startPartitionId;
-  shuffleWriterOptions->compressionThreshold = bufferCompressThreshold;
+  auto partitionWriterOptions = PartitionWriterOptions{
+      .mergeBufferSize = mergeBufferSize,
+      .mergeThreshold = mergeThreshold,
+      .compressionThreshold = compressionThreshold,
+      .compressionType = getCompressionType(env, codecJstr),
+      .bufferedWrite = true,
+      .numSubDirs = numSubDirs,
+      .pushBufferMaxSize = pushBufferMaxSize > 0 ? pushBufferMaxSize : kDefaultShuffleWriterBufferSize};
+  if (codecJstr != NULL) {
+    partitionWriterOptions.codecBackend = getCodecBackend(env, codecBackendJstr);
+    partitionWriterOptions.compressionMode = getCompressionMode(env, compressionModeJstr);
+  }
+  std::unique_ptr<PartitionWriter> partitionWriter;
 
   auto partitionWriterTypeC = env->GetStringUTFChars(partitionWriterTypeJstr, JNI_FALSE);
   auto partitionWriterType = std::string(partitionWriterTypeC);
   env->ReleaseStringUTFChars(partitionWriterTypeJstr, partitionWriterTypeC);
-
-  auto arrowPool = memoryManager->getArrowMemoryPool();
-
-  std::unique_ptr<PartitionWriter> partitionWriter;
   if (partitionWriterType == "local") {
     shuffleWriterOptions->partitionWriterType = kLocal;
     if (dataFileJstr == NULL) {
@@ -869,20 +870,18 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     auto configuredDirs = gluten::splitPaths(std::string(localDirsC));
     env->ReleaseStringUTFChars(localDirsJstr, localDirsC);
 
-    shuffleWriterOptions->bufferReallocThreshold = reallocThreshold;
-    shuffleWriterOptions->numSubDirs = numSubDirs;
-
     partitionWriter = std::make_unique<LocalPartitionWriter>(
-        numPartitions, dataFile, configuredDirs, shuffleWriterOptions.get(), arrowPool);
+        numPartitions,
+        std::move(partitionWriterOptions),
+        memoryManager->getArrowMemoryPool(),
+        dataFile,
+        configuredDirs);
   } else if (partitionWriterType == "celeborn") {
     shuffleWriterOptions->partitionWriterType = PartitionWriterType::kCeleborn;
     jclass celebornPartitionPusherClass =
         createGlobalClassReferenceOrError(env, "Lorg/apache/spark/shuffle/CelebornPartitionPusher;");
     jmethodID celebornPushPartitionDataMethod =
         getMethodIdOrError(env, celebornPartitionPusherClass, "pushPartitionData", "(I[BI)I");
-    if (pushBufferMaxSize > 0) {
-      shuffleWriterOptions->pushBufferMaxSize = pushBufferMaxSize;
-    }
     JavaVM* vm;
     if (env->GetJavaVM(&vm) != JNI_OK) {
       throw gluten::GlutenException("Unable to get JavaVM instance");
@@ -890,7 +889,10 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     std::shared_ptr<CelebornClient> celebornClient =
         std::make_shared<CelebornClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
     partitionWriter = std::make_unique<CelebornPartitionWriter>(
-        numPartitions, shuffleWriterOptions.get(), arrowPool, std::move(celebornClient));
+        numPartitions,
+        std::move(partitionWriterOptions),
+        memoryManager->getArrowMemoryPool(),
+        std::move(celebornClient));
   } else {
     throw gluten::GlutenException("Unrecognizable partition writer type: " + partitionWriterType);
   }

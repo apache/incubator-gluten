@@ -25,7 +25,6 @@
 #include "shuffle/Payload.h"
 #include "shuffle/Spill.h"
 #include "shuffle/Utils.h"
-#include "utils/StringUtil.h"
 #include "utils/Timer.h"
 
 namespace gluten {
@@ -110,13 +109,17 @@ class LocalPartitionWriter::LocalSpiller {
 
 class LocalPartitionWriter::PayloadMerger {
  public:
-  PayloadMerger(ShuffleWriterOptions* options, arrow::MemoryPool* pool, arrow::util::Codec* codec, bool hasComplexType)
+  PayloadMerger(
+      const PartitionWriterOptions& options,
+      arrow::MemoryPool* pool,
+      arrow::util::Codec* codec,
+      bool hasComplexType)
       : pool_(pool),
         codec_(codec),
         hasComplexType_(hasComplexType),
-        compressionThreshold_(options->compressionThreshold),
-        mergeBufferSize_(options->mergeBufferSize),
-        mergeBufferMinSize_(options->mergeBufferSize * options->mergeThreshold) {}
+        compressionThreshold_(options.compressionThreshold),
+        mergeBufferSize_(options.mergeBufferSize),
+        mergeBufferMinSize_(options.mergeBufferSize * options.mergeThreshold) {}
 
   arrow::Result<std::vector<std::unique_ptr<BlockPayload>>> merge(
       uint32_t partitionId,
@@ -386,17 +389,17 @@ class LocalPartitionWriter::PayloadCache {
 
 LocalPartitionWriter::LocalPartitionWriter(
     uint32_t numPartitions,
+    PartitionWriterOptions options,
+    arrow::MemoryPool* pool,
     const std::string& dataFile,
-    const std::vector<std::string>& localDirs,
-    ShuffleWriterOptions* options,
-    arrow::MemoryPool* pool)
-    : PartitionWriter(numPartitions, options, pool), dataFile_(dataFile), localDirs_(localDirs) {
+    const std::vector<std::string>& localDirs)
+    : PartitionWriter(numPartitions, std::move(options), pool), dataFile_(dataFile), localDirs_(localDirs) {
   init();
 }
 
 std::string LocalPartitionWriter::nextSpilledFileDir() {
   auto spilledFileDir = getSpilledShuffleFileDir(localDirs_[dirSelection_], subDirSelection_[dirSelection_]);
-  subDirSelection_[dirSelection_] = (subDirSelection_[dirSelection_] + 1) % options_->numSubDirs;
+  subDirSelection_[dirSelection_] = (subDirSelection_[dirSelection_] + 1) % options_.numSubDirs;
   dirSelection_ = (dirSelection_ + 1) % localDirs_.size();
   return spilledFileDir;
 }
@@ -405,7 +408,7 @@ arrow::Status LocalPartitionWriter::openDataFile() {
   // open data file output stream
   std::shared_ptr<arrow::io::FileOutputStream> fout;
   ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(dataFile_));
-  if (options_->bufferedWrite) {
+  if (options_.bufferedWrite) {
     // Output stream buffer is neither partition buffer memory nor ipc memory.
     ARROW_ASSIGN_OR_RAISE(dataFileOs_, arrow::io::BufferedOutputStream::Create(16384, pool_, fout));
   } else {
@@ -424,7 +427,6 @@ arrow::Status LocalPartitionWriter::clearResource() {
 void LocalPartitionWriter::init() {
   partitionLengths_.resize(numPartitions_, 0);
   rawPartitionLengths_.resize(numPartitions_, 0);
-  fs_ = std::make_shared<arrow::fs::LocalFileSystem>();
 
   // Shuffle the configured local directories. This prevents each task from using the same directory for spilled
   // files.
@@ -511,7 +513,7 @@ arrow::Status LocalPartitionWriter::requestSpill() {
   if (!spiller_ || spiller_->finished()) {
     ARROW_ASSIGN_OR_RAISE(auto spillFile, createTempShuffleFile(nextSpilledFileDir()));
     spiller_ = std::make_unique<LocalSpiller>(
-        numPartitions_, spillFile, options_->compressionThreshold, payloadPool_.get(), codec_.get());
+        numPartitions_, spillFile, options_.compressionThreshold, payloadPool_.get(), codec_.get());
   }
   return arrow::Status::OK();
 }

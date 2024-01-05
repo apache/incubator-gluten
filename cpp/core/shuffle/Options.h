@@ -41,17 +41,7 @@ struct ShuffleReaderOptions {
 
 struct ShuffleWriterOptions {
   int32_t bufferSize = kDefaultShuffleWriterBufferSize;
-  int32_t mergeBufferSize = kDefaultShuffleWriterBufferSize;
-  int32_t pushBufferMaxSize = kDefaultShuffleWriterBufferSize;
-  int32_t numSubDirs = kDefaultNumSubDirs;
-  int32_t compressionThreshold = kDefaultCompressionThreshold;
   double bufferReallocThreshold = kDefaultBufferReallocThreshold;
-  double mergeThreshold = kDefaultMergeBufferThreshold;
-
-  arrow::Compression::type compressionType = arrow::Compression::LZ4_FRAME;
-  CodecBackend codecBackend = CodecBackend::NONE;
-  CompressionMode compressionMode = CompressionMode::BUFFER;
-  bool bufferedWrite = kEnableBufferedWrite;
 
   PartitionWriterType partitionWriterType = PartitionWriterType::kLocal;
   Partitioning partitioning = Partitioning::kRoundRobin;
@@ -62,6 +52,19 @@ struct ShuffleWriterOptions {
 };
 
 struct PartitionWriterOptions {
+  int32_t mergeBufferSize = kDefaultShuffleWriterBufferSize;
+  double mergeThreshold = kDefaultMergeBufferThreshold;
+
+  int32_t compressionThreshold = kDefaultCompressionThreshold;
+  arrow::Compression::type compressionType = arrow::Compression::LZ4_FRAME;
+  CodecBackend codecBackend = CodecBackend::NONE;
+  CompressionMode compressionMode = CompressionMode::BUFFER;
+
+  bool bufferedWrite = kEnableBufferedWrite;
+
+  int32_t numSubDirs = kDefaultNumSubDirs;
+
+  int32_t pushBufferMaxSize = kDefaultShuffleWriterBufferSize;
 };
 
 struct ShuffleWriterMetrics {

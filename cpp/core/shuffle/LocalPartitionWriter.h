@@ -30,10 +30,10 @@ class LocalPartitionWriter : public PartitionWriter {
  public:
   explicit LocalPartitionWriter(
       uint32_t numPartitions,
+      PartitionWriterOptions options,
+      arrow::MemoryPool* pool,
       const std::string& dataFile,
-      const std::vector<std::string>& localDirs,
-      ShuffleWriterOptions* options,
-      arrow::MemoryPool* pool);
+      const std::vector<std::string>& localDirs);
 
   arrow::Status evict(
       uint32_t partitionId,
@@ -98,7 +98,6 @@ class LocalPartitionWriter : public PartitionWriter {
   std::vector<std::string> localDirs_;
 
   bool stopped_{false};
-  std::shared_ptr<arrow::fs::LocalFileSystem> fs_{nullptr};
   std::shared_ptr<LocalSpiller> spiller_{nullptr};
   std::shared_ptr<PayloadMerger> merger_{nullptr};
   std::shared_ptr<PayloadCache> payloadCache_{nullptr};

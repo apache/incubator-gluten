@@ -30,10 +30,10 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
  public:
   CelebornPartitionWriter(
       uint32_t numPartitions,
-      ShuffleWriterOptions* options,
+      PartitionWriterOptions options,
       arrow::MemoryPool* pool,
       std::shared_ptr<RssClient> celebornClient)
-      : RemotePartitionWriter(numPartitions, options, pool), celebornClient_(celebornClient) {
+      : RemotePartitionWriter(numPartitions, std::move(options), pool), celebornClient_(celebornClient) {
     init();
   }
 
