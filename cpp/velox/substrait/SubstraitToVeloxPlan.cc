@@ -196,7 +196,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::processEmit(
 core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationStep(const ::substrait::AggregateRel& aggRel) {
   // TODO Simplify Velox's aggregation steps
   if (aggRel.has_advanced_extension() &&
-      SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "allowIntermediateOutput=")) {
+      SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "allowFlush=")) {
     return core::AggregationNode::Step::kPartial;
   }
   return core::AggregationNode::Step::kSingle;

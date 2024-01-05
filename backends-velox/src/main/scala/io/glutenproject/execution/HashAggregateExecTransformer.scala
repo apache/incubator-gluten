@@ -173,12 +173,12 @@ abstract class HashAggregateExecTransformer(
   // fully aggregated. If true, aggregation could flush its in memory
   // aggregated data whenever is needed rather than waiting for all input
   // to be read.
-  protected def allowIntermediateOutput: Boolean
+  protected def allowFlush: Boolean
 
   override protected def formatExtOptimizationString(isStreaming: Boolean): String = {
     val isStreamingStr = if (isStreaming) "1" else "0"
-    val allowIntermediateOutputStr = if (allowIntermediateOutput) "1" else "0"
-    s"isStreaming=$isStreamingStr\nallowIntermediateOutput=$allowIntermediateOutputStr\n"
+    val allowFlushStr = if (allowFlush) "1" else "0"
+    s"isStreaming=$isStreamingStr\nallowFlush=$allowFlushStr\n"
   }
 
   // Create aggregate function node and add to list.
@@ -613,7 +613,7 @@ case class RegularHashAggregateExecTransformer(
     resultExpressions,
     child) {
 
-  override protected def allowIntermediateOutput: Boolean = false
+  override protected def allowFlush: Boolean = false
 
   override def simpleString(maxFields: Int): String = s"${super.simpleString(maxFields)}"
 
@@ -624,7 +624,7 @@ case class RegularHashAggregateExecTransformer(
 
 // Hash aggregation that emits pre-aggregated data which allows duplications on grouping keys
 // among its output rows.
-case class IntermediateHashAggregateExecTransformer(
+case class FlushableHashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
@@ -641,7 +641,7 @@ case class IntermediateHashAggregateExecTransformer(
     resultExpressions,
     child) {
 
-  override protected def allowIntermediateOutput: Boolean = true
+  override protected def allowFlush: Boolean = true
 
   override def simpleString(maxFields: Int): String =
     s"Intermediate${super.simpleString(maxFields)}"

@@ -276,13 +276,13 @@ void VeloxToSubstraitPlanConvertor::toSubstrait(
     // Process measure, eg:sum(a).
     ::substrait::AggregateFunction* aggFunction = aggMeasures->mutable_measure();
 
-    // Use aggregate node's step information to write advanced extension 'allowIntermediateOutput'.
+    // Use aggregate node's step information to write advanced extension 'allowFlush'.
     const auto& step = aggregateNode->step();
     switch (step) {
       case core::AggregationNode::Step::kPartial: {
         substrait::extensions::AdvancedExtension ae{};
         google::protobuf::StringValue msg;
-        msg.set_value("allowIntermediateOutput=1");
+        msg.set_value("allowFlush=1");
         ae.mutable_optimization()->PackFrom(msg);
         aggregateRel->mutable_advanced_extension()->MergeFrom(ae);
         break;

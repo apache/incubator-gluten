@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.catalyst
 
-import io.glutenproject.execution.{IntermediateHashAggregateExecTransformer, RegularHashAggregateExecTransformer}
+import io.glutenproject.execution.{FlushableHashAggregateExecTransformer, RegularHashAggregateExecTransformer}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Partial, PartialMerge}
@@ -30,7 +30,7 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
  *
  * Currently not in use. Will be enabled via a configuration after necessary verification is done.
  */
-case class IntermediateHashAggregateRule(session: SparkSession) extends Rule[SparkPlan] {
+case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case shuffle: ShuffleExchangeLike =>
       // If an exchange follows a hash aggregate in which all functions are in partial mode,
@@ -39,7 +39,7 @@ case class IntermediateHashAggregateRule(session: SparkSession) extends Rule[Spa
         case h: RegularHashAggregateExecTransformer =>
           if (h.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge)) {
             shuffle.withNewChildren(
-              Seq(IntermediateHashAggregateExecTransformer(
+              Seq(FlushableHashAggregateExecTransformer(
                 h.requiredChildDistributionExpressions,
                 h.groupingExpressions,
                 h.aggregateExpressions,
