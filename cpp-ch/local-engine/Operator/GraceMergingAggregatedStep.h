@@ -26,10 +26,14 @@
 #include <Processors/Transforms/AggregatingTransform.h>
 #include <QueryPipeline/SizeLimits.h>
 #include <Poco/Logger.h>
+#include <Common/AggregateUtil.h>
 #include <Common/logger_useful.h>
 
 namespace local_engine
 {
+/// It's used to merged aggregated data from intermediate aggregate stages, it's the final stage of
+/// aggregating.
+/// It support spilling data into disk when the memory usage is overflow.
 class GraceMergingAggregatedStep : public DB::ITransformingStep
 {
 public:
@@ -54,7 +58,6 @@ private:
 class GraceMergingAggregatedTransform : public DB::IProcessor
 {
 public:
-    static constexpr size_t max_buckets = 32;
     using Status = DB::IProcessor::Status;
     explicit GraceMergingAggregatedTransform(const DB::Block &header_, DB::AggregatingTransformParamsPtr params_, DB::ContextPtr context_);
     ~GraceMergingAggregatedTransform() override;
@@ -69,24 +72,44 @@ private:
     DB::TemporaryDataOnDiskPtr tmp_data_disk;
     DB::AggregatedDataVariantsPtr current_data_variants = nullptr;
     size_t current_bucket_index = 0;
+    
+    /// Followings are configurations defined in context config.
+    // max buckets number, default is 32
+    size_t max_buckets = 0;
+    // If the buckets number is overflow the max_buckets, throw exception or not.
+    bool throw_on_overflow_buckets = false;
+    // Even the memory usage has reached the limit, we still allow to aggregate some more keys before
+    // extend the buckets.
+    size_t aggregated_keys_before_extend_buckets = 8196;
+    // The ratio of memory usage to the total memory usage of the whole query.
+    double max_allowed_memory_usage_ratio = 0.9;
+    // configured by max_pending_flush_blocks_per_grace_merging_bucket
+    size_t max_pending_flush_blocks_per_bucket = 0;
 
     struct BufferFileStream
     {
         std::list<DB::Block> blocks;
         DB::TemporaryFileStream * file_stream = nullptr;
+        size_t pending_bytes = 0;
     };
     std::unordered_map<size_t, BufferFileStream> buckets;
 
     size_t getBucketsNum() const { return buckets.size(); }
-    void extendBuckets();
+    bool extendBuckets();
     void rehashDataVariants();
     DB::Blocks scatterBlock(const DB::Block & block);
+    /// Add a block into a bucket, if the pending bytes reaches limit, flush it into disk.
     void addBlockIntoFileBucket(size_t bucket_index, const DB::Block & block);
     void flushBuckets();
     size_t flushBucket(size_t bucket_index);
-    void prepareBucketOutputBlocks();
+    /// Load blocks from disk and merge them into a new hash table, make a new AggregateDataBlockConverter
+    /// to generate output blocks.
+    std::unique_ptr<AggregateDataBlockConverter> prepareBucketOutputBlocks(size_t bucket);
+    /// Pass current_final_blocks into a new AggregateDataBlockConverter to generate output blocks.
+    std::unique_ptr<AggregateDataBlockConverter> currentDataVariantToBlockConverter(bool final);
+    void checkAndSetupCurrentDataVariants();
+    /// Merge one block into current_data_variants.
     void mergeOneBlock(const DB::Block &block);
-    size_t getMemoryUsage();
     bool isMemoryOverflow();
 
     bool input_finished = false;
@@ -95,9 +118,13 @@ private:
     bool has_output = false;
     DB::Chunk output_chunk;
     DB::BlocksList current_final_blocks;
+    std::unique_ptr<AggregateDataBlockConverter> block_converter = nullptr;
     bool no_more_keys = false;
 
     double per_key_memory_usage = 0;
+    // record the last data variants type and size, improve the performance of subsequent processing
+    DB::AggregatedDataVariants::Type last_data_variants_type = DB::AggregatedDataVariants::Type::EMPTY;
+    size_t last_data_variants_size = 0;
 
     // metrics
     size_t total_input_blocks = 0;

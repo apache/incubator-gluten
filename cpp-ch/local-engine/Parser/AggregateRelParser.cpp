@@ -30,6 +30,7 @@
 #include <Processors/QueryPlan/AggregatingStep.h>
 #include <Processors/QueryPlan/ExpressionStep.h>
 #include <Processors/QueryPlan/MergingAggregatedStep.h>
+#include <Common/CHUtil.h>
 #include "Common/PODArray.h"
 #include <Common/StringUtils/StringUtils.h>
 
@@ -246,8 +247,13 @@ void AggregateRelParser::addMergingAggregatedStep()
     buildAggregateDescriptions(aggregate_descriptions);
     auto settings = getContext()->getSettingsRef();
     Aggregator::Params params(
-        grouping_keys, aggregate_descriptions, false, settings.max_threads, settings.max_block_size, settings.min_hit_rate_to_use_consecutive_keys_optimization);
-    bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", false);
+        grouping_keys,
+        aggregate_descriptions,
+        false,
+        settings.max_threads,
+        PODArrayUtil::adjustMemoryEfficientSize(settings.max_block_size),
+        settings.min_hit_rate_to_use_consecutive_keys_optimization);
+    bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", true);
     if (enable_streaming_aggregating)
     {
         auto merging_step = std::make_unique<GraceMergingAggregatedStep>(getContext(), plan->getCurrentDataStream(), params);
@@ -278,7 +284,7 @@ void AggregateRelParser::addAggregatingStep()
     AggregateDescriptions aggregate_descriptions;
     buildAggregateDescriptions(aggregate_descriptions);
     auto settings = getContext()->getSettingsRef();
-    bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", false);
+    bool enable_streaming_aggregating = getContext()->getConfigRef().getBool("enable_streaming_aggregating", true);
 
     if (enable_streaming_aggregating)
     {
@@ -298,7 +304,7 @@ void AggregateRelParser::addAggregatingStep()
             settings.min_free_disk_space_for_temporary_data,
             true,
             3,
-            settings.max_block_size,
+            PODArrayUtil::adjustMemoryEfficientSize(settings.max_block_size),
             /*enable_prefetch*/ true,
             /*only_merge*/ false,
             settings.optimize_group_by_constant_keys,
@@ -325,7 +331,7 @@ void AggregateRelParser::addAggregatingStep()
             settings.min_free_disk_space_for_temporary_data,
             true,
             3,
-            settings.max_block_size,
+            PODArrayUtil::adjustMemoryEfficientSize(settings.max_block_size),
             /*enable_prefetch*/ true,
             /*only_merge*/ false,
             settings.optimize_group_by_constant_keys,
