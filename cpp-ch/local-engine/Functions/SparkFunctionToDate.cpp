@@ -43,7 +43,7 @@ public:
     ~SparkFunctionConvertToDate() override = default;
     DB::String getName() const override { return name; }
 
-    bool checkDateFormat(DB::ReadBuffer & buf) const
+    bool checkAndGetDate32(DB::ReadBuffer & buf, DB::DataTypeDate32::FieldType &x, const DateLUTImpl & date_lut) const
     {
         auto checkNumbericASCII = [&](DB::ReadBuffer & rb, size_t start, size_t length) -> bool
         {
@@ -69,10 +69,10 @@ public:
             return false;
         else
         {
-            int month = (*(buf.position() + 5) - '0') * 10 + (*(buf.position() + 6) - '0');
+            UInt8 month = (*(buf.position() + 5) - '0') * 10 + (*(buf.position() + 6) - '0');
             if (month <= 0 || month > 12)
                 return false;
-            int day = (*(buf.position() + 8) - '0') * 10 + (*(buf.position() + 9) - '0');
+            UInt8 day = (*(buf.position() + 8) - '0') * 10 + (*(buf.position() + 9) - '0');
             if (day <= 0 || day > 31)
                 return false;
             else if (day == 31 && (month == 2 || month == 4 || month == 6 || month == 9 || month == 11))
@@ -81,14 +81,17 @@ public:
                 return false;
             else
             {
-                int year = (*(buf.position() + 0) - '0') * 1000 + 
+                Int16 year = (*(buf.position() + 0) - '0') * 1000 + 
                     (*(buf.position() + 1) - '0') * 100 + 
                     (*(buf.position() + 2) - '0') * 10 + 
                     (*(buf.position() + 3) - '0');
                 if (day == 29 && month == 2 && year % 4 != 0)
                     return false;
                 else
+                {
+                    x = date_lut.makeDayNum(year, month, day, -static_cast<Int32>(date_lut.getDayNumOffsetEpoch()));
                     return true;
+                }
             }
         }
     }
@@ -137,15 +140,14 @@ public:
                     result_container[i] = 0;
                     continue;
                 }
-                if (!checkDateFormat(buf))
+                if (!checkAndGetDate32(buf, result_container[i], *time_zone))
                 {
                     null_container[i] = true;
                     result_container[i] = 0;
                 }
                 else
                 {
-                    bool parsed = tryParseImpl<DB::DataTypeDate32>(result_container[i], buf, time_zone, false);
-                    null_container[i] = !parsed;
+                    null_container[i] = false;
                 }
             }
         }
