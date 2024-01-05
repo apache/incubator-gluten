@@ -16,6 +16,9 @@
  */
 package org.apache.spark.sql.execution.datasources
 
+import io.glutenproject.utils.BackendTestUtils
+
+import org.apache.spark.SparkConf
 import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, GlutenTestConstants}
 import org.apache.spark.sql.internal.SQLConf
 
@@ -133,12 +136,48 @@ class GlutenMergedOrcReadSchemaSuite
   extends MergedOrcReadSchemaSuite
   with GlutenSQLTestsBaseTrait {}
 
-class GlutenParquetReadSchemaSuite extends ParquetReadSchemaSuite with GlutenSQLTestsBaseTrait {}
+class GlutenParquetReadSchemaSuite extends ParquetReadSchemaSuite with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf = if (BackendTestUtils.isVeloxBackendLoaded()) {
+    // Disable native write because of below failure in :
+    // 'add a nested column at the end of the leaf struct column'
+    // Reason: Field name must not be empty.
+    // Function: validateSchemaRecursive
+    // File: ../../velox/dwio/parquet/writer/Writer.cpp
+    // Line: 151
+    super.sparkConf.set("spark.gluten.sql.native.writer.enabled", "false")
+  } else {
+    super.sparkConf
+  }
+}
 
 class GlutenVectorizedParquetReadSchemaSuite
   extends VectorizedParquetReadSchemaSuite
-  with GlutenSQLTestsBaseTrait {}
+  with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf = if (BackendTestUtils.isVeloxBackendLoaded()) {
+    // Disable native write because of below failure in :
+    // 'add a nested column at the end of the leaf struct column'
+    // Reason: Field name must not be empty.
+    // Function: validateSchemaRecursive
+    // File: ../../velox/dwio/parquet/writer/Writer.cpp
+    // Line: 151
+    super.sparkConf.set("spark.gluten.sql.native.writer.enabled", "false")
+  } else {
+    super.sparkConf
+  }
+}
 
 class GlutenMergedParquetReadSchemaSuite
   extends MergedParquetReadSchemaSuite
-  with GlutenSQLTestsBaseTrait {}
+  with GlutenSQLTestsBaseTrait {
+  override def sparkConf: SparkConf = if (BackendTestUtils.isVeloxBackendLoaded()) {
+    // Disable native write because of below failure in :
+    // 'add a nested column at the end of the leaf struct column'
+    // Reason: Field name must not be empty.
+    // Function: validateSchemaRecursive
+    // File: ../../velox/dwio/parquet/writer/Writer.cpp
+    // Line: 151
+    super.sparkConf.set("spark.gluten.sql.native.writer.enabled", "false")
+  } else {
+    super.sparkConf
+  }
+}

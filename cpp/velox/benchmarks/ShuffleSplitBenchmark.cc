@@ -254,7 +254,7 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
     localSchema = std::make_shared<arrow::Schema>(fields);
 
     if (state.thread_index() == 0)
-      std::cout << localSchema->ToString() << std::endl;
+      LOG(INFO) << localSchema->ToString();
 
     auto pool = options.memory_pool;
     GLUTEN_ASSIGN_OR_THROW(
@@ -279,8 +279,8 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
         numRows += recordBatch->num_rows();
       }
     } while (recordBatch);
-    std::cout << "parquet parse done elapsed time " << elapseRead / 1000000 << " ms " << std::endl;
-    std::cout << "batches = " << numBatches << " rows = " << numRows << std::endl;
+    LOG(INFO) << "parquet parse done elapsed time " << elapseRead / 1000000 << " ms ";
+    LOG(INFO) << "batches = " << numBatches << " rows = " << numRows;
 
     for (auto _ : state) {
       for_each(
@@ -291,8 +291,8 @@ class BenchmarkShuffleSplitCacheScanBenchmark : public BenchmarkShuffleSplit {
             ARROW_ASSIGN_OR_THROW(cb, recordBatch2VeloxColumnarBatch(*recordBatch));
             TIME_NANO_OR_THROW(splitTime, shuffleWriter->split(cb, ShuffleWriter::kMinMemLimit));
           });
-      // std::cout << " split done memory allocated = " <<
-      // options.memory_pool->bytes_allocated() << std::endl;
+      // LOG(INFO) << " split done memory allocated = " <<
+      // options.memory_pool->bytes_allocated() ;
     }
 
     TIME_NANO_OR_THROW(splitTime, shuffleWriter->stop());
@@ -315,7 +315,7 @@ class BenchmarkShuffleSplitIterateScanBenchmark : public BenchmarkShuffleSplit {
       ShuffleWriterOptions options,
       benchmark::State& state) {
     if (state.thread_index() == 0)
-      std::cout << schema_->ToString() << std::endl;
+      LOG(INFO) << schema_->ToString();
 
     GLUTEN_ASSIGN_OR_THROW(
         shuffleWriter,
@@ -353,7 +353,7 @@ int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   if (FLAGS_file.size() == 0) {
-    std::cerr << "No input data file. Please specify via argument --file" << std::endl;
+    LOG(WARNING) << "No input data file. Please specify via argument --file";
   }
 
   if (FLAGS_partitions == -1) {

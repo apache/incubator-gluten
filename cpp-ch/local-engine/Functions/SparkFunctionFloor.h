@@ -41,21 +41,6 @@ static void checkAndSetNullable(T & t, UInt8 & null_flag)
                == 0b0111111111110000000000000000000000000000000000000000000000000000);
 
     null_flag = is_nan | is_inf;
-
-    /* Equivalent code:
-    if (null_flag)
-        t = 0;
-    */
-    if constexpr (std::is_same_v<T, float>)
-    {
-        UInt32 * uint_data = reinterpret_cast<UInt32 *>(&t);
-        *uint_data &= ~(-null_flag);
-    }
-    else
-    {
-        UInt64 * uint_data = reinterpret_cast<UInt64 *>(&t);
-        *uint_data &= ~(-null_flag);
-    }
 }
 
 DECLARE_AVX2_SPECIFIC_CODE(
@@ -63,7 +48,6 @@ DECLARE_AVX2_SPECIFIC_CODE(
     inline void checkFloat32AndSetNullables(Float32 * data, UInt8 * null_map, size_t size) {
         const __m256 inf = _mm256_set1_ps(INFINITY);
         const __m256 neg_inf = _mm256_set1_ps(-INFINITY);
-        const __m256 zero = _mm256_set1_ps(0.0f);
 
         size_t i = 0;
         for (; i + 7 < size; i += 8)
@@ -74,9 +58,6 @@ DECLARE_AVX2_SPECIFIC_CODE(
             __m256 is_neg_inf = _mm256_cmp_ps(values, neg_inf, _CMP_EQ_OQ);
             __m256 is_nan = _mm256_cmp_ps(values, values, _CMP_NEQ_UQ);
             __m256 is_null = _mm256_or_ps(_mm256_or_ps(is_inf, is_neg_inf), is_nan);
-            __m256 new_values = _mm256_blendv_ps(values, zero, is_null);
-
-            _mm256_storeu_ps(&data[i], new_values);
 
             UInt32 mask = static_cast<UInt32>(_mm256_movemask_ps(is_null));
             for (size_t j = 0; j < 8; ++j)
@@ -94,7 +75,6 @@ DECLARE_AVX2_SPECIFIC_CODE(
     inline void checkFloat64AndSetNullables(Float64 * data, UInt8 * null_map, size_t size) {
         const __m256d inf = _mm256_set1_pd(INFINITY);
         const __m256d neg_inf = _mm256_set1_pd(-INFINITY);
-        const __m256d zero = _mm256_set1_pd(0.0);
 
         size_t i = 0;
         for (; i + 3 < size; i += 4)
@@ -105,9 +85,6 @@ DECLARE_AVX2_SPECIFIC_CODE(
             __m256d is_neg_inf = _mm256_cmp_pd(values, neg_inf, _CMP_EQ_OQ);
             __m256d is_nan = _mm256_cmp_pd(values, values, _CMP_NEQ_UQ);
             __m256d is_null = _mm256_or_pd(_mm256_or_pd(is_inf, is_neg_inf), is_nan);
-            __m256d new_values = _mm256_blendv_pd(values, zero, is_null);
-
-            _mm256_storeu_pd(&data[i], new_values);
 
             UInt32 mask = static_cast<UInt32>(_mm256_movemask_pd(is_null));
             for (size_t j = 0; j < 4; ++j)

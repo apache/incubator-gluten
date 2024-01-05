@@ -25,6 +25,7 @@
 #include <arrow/type_fwd.h>
 #include <benchmark/benchmark.h>
 #include <execinfo.h>
+#include <glog/logging.h>
 #include <parquet/arrow/reader.h>
 #include <parquet/file_reader.h>
 #include <sched.h>
@@ -126,7 +127,7 @@ class BenchmarkCompression {
       }
       case gluten::kQatZstd: {
         ipcWriteOptions.codec = createArrowIpcCodec(arrow::Compression::ZSTD, CodecBackend::QAT);
-        std::cout << "load qatzstd" << std::endl;
+        LOG(INFO) << "load qatzstd";
         break;
       }
 #endif
@@ -163,7 +164,7 @@ class BenchmarkCompression {
         state);
     auto endTime = std::chrono::steady_clock::now();
     auto totalTime = (endTime - startTime).count();
-    std::cout << "Thread " << state.thread_index() << " took " << (1.0 * totalTime / 1e9) << "s" << std::endl;
+    LOG(INFO) << "Thread " << state.thread_index() << " took " << (1.0 * totalTime / 1e9) << "s";
 
     state.counters["rowgroups"] =
         benchmark::Counter(rowGroupIndices_.size(), benchmark::Counter::kAvgThreads, benchmark::Counter::OneK::kIs1000);
@@ -301,8 +302,8 @@ class BenchmarkCompressionCacheScanBenchmark final : public BenchmarkCompression
       }
     } while (recordBatch);
 
-    std::cout << "parquet parse done elapsed time " << elapseRead / 1e6 << " ms " << std::endl;
-    std::cout << "batches = " << numBatches << " rows = " << numRows << std::endl;
+    LOG(INFO) << "parquet parse done elapsed time " << elapseRead / 1e6 << " ms ";
+    LOG(INFO) << "batches = " << numBatches << " rows = " << numRows;
 
     std::vector<std::shared_ptr<arrow::ipc::IpcPayload>> payloads(batches.size());
     std::vector<std::vector<int64_t>> uncompressedBufferSize(batches.size());
@@ -418,16 +419,16 @@ int main(int argc, char** argv) {
     } else if (strcmp(argv[i], "--file") == 0) {
       datafile = argv[i + 1];
     } else if (strcmp(argv[i], "--qat-gzip") == 0) {
-      std::cout << "QAT gzip is used as codec" << std::endl;
+      LOG(INFO) << "QAT gzip is used as codec";
       codec = gluten::kQatGzip;
     } else if (strcmp(argv[i], "--qat-zstd") == 0) {
-      std::cout << "QAT zstd is used as codec" << std::endl;
+      LOG(INFO) << "QAT zstd is used as codec";
       codec = gluten::kQatZstd;
     } else if (strcmp(argv[i], "--qpl-gzip") == 0) {
-      std::cout << "QPL gzip is used as codec" << std::endl;
+      LOG(INFO) << "QPL gzip is used as codec";
       codec = gluten::kQplGzip;
     } else if (strcmp(argv[i], "--zstd") == 0) {
-      std::cout << "CPU zstd is used as codec" << std::endl;
+      LOG(INFO) << "CPU zstd is used as codec";
       codec = gluten::kZstd;
     } else if (strcmp(argv[i], "--buffer-size") == 0) {
       compressBufferSize = atol(argv[i + 1]);
@@ -435,9 +436,9 @@ int main(int argc, char** argv) {
       cpuOffset = atol(argv[i + 1]);
     }
   }
-  std::cout << "iterations = " << iterations << std::endl;
-  std::cout << "threads = " << threads << std::endl;
-  std::cout << "datafile = " << datafile << std::endl;
+  LOG(INFO) << "iterations = " << iterations;
+  LOG(INFO) << "threads = " << threads;
+  LOG(INFO) << "datafile = " << datafile;
 
   gluten::BenchmarkCompressionIterateScanBenchmark bmIterateScan(datafile, compressBufferSize);
   gluten::BenchmarkCompressionCacheScanBenchmark bmCacheScan(datafile, compressBufferSize);
