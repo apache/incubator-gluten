@@ -19,7 +19,6 @@
 #include <random>
 #include <thread>
 #include "shuffle/Utils.h"
-#include "utils/DebugOut.h"
 #include "utils/StringUtil.h"
 #include "utils/Timer.h"
 
@@ -129,7 +128,7 @@ class FlushOnSpillEvictHandle final : public LocalPartitionWriter::LocalEvictHan
     ARROW_ASSIGN_OR_RAISE(auto start, os_->Tell());
     RETURN_NOT_OK(arrow::ipc::WriteIpcPayload(*payload, options_, os_.get(), &metadataLength));
     ARROW_ASSIGN_OR_RAISE(auto end, os_->Tell());
-    DEBUG_OUT << "Spilled partition " << partitionId << " file start: " << start << ", file end: " << end << std::endl;
+    DLOG(INFO) << "Spilled partition " << partitionId << " file start: " << start << ", file end: " << end;
     spillInfo_->partitionSpillInfos.push_back({partitionId, end - start});
     return arrow::Status::OK();
   }

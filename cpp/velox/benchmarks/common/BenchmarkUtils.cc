@@ -116,7 +116,7 @@ bool checkPathExists(const std::string& filepath) {
 
 void abortIfFileNotExists(const std::string& filepath) {
   if (!checkPathExists(filepath)) {
-    std::cerr << "File path does not exist: " << filepath << std::endl;
+    LOG(WARNING) << "File path does not exist: " << filepath;
     ::benchmark::Shutdown();
     std::exit(EXIT_FAILURE);
   }
@@ -147,7 +147,7 @@ void setCpu(uint32_t cpuindex) {
   CPU_ZERO(&cs);
   CPU_SET(cpuindex, &cs);
   if (sched_setaffinity(0, sizeof(cs), &cs) == -1) {
-    std::cerr << "Error binding CPU " << std::to_string(cpuindex) << std::endl;
+    LOG(WARNING) << "Error binding CPU " << std::to_string(cpuindex);
     exit(EXIT_FAILURE);
   }
 }

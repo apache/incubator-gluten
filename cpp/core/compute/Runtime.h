@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <glog/logging.h>
+
 #include "compute/ProtobufUtils.h"
 #include "compute/ResultIterator.h"
 #include "memory/ArrowMemoryPool.h"
@@ -29,7 +31,6 @@
 #include "shuffle/ShuffleReader.h"
 #include "shuffle/ShuffleWriter.h"
 #include "substrait/plan.pb.h"
-#include "utils/DebugOut.h"
 #include "utils/ObjectStore.h"
 
 namespace gluten {
