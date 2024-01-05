@@ -106,6 +106,7 @@ class Runtime : public std::enable_shared_from_this<Runtime> {
       std::unique_ptr<PartitionWriter> partitionWriter,
       std::unique_ptr<ShuffleWriterOptions> options,
       MemoryManager* memoryManager) = 0;
+
   virtual Metrics* getMetrics(ColumnarBatchIterator* rawIter, int64_t exportNanos) = 0;
 
   virtual std::shared_ptr<Datasource> createDatasource(

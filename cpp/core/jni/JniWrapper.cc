@@ -829,8 +829,6 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     shuffleWriterOptions->compressionMode = getCompressionMode(env, compressionModeJstr);
   }
 
-  shuffleWriterOptions->memoryPool = memoryManager->getArrowMemoryPool();
-
   jclass cls = env->FindClass("java/lang/Thread");
   jmethodID mid = env->GetStaticMethodID(cls, "currentThread", "()Ljava/lang/Thread;");
   jobject thread = env->CallStaticObjectMethod(cls, mid);
@@ -852,8 +850,9 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   auto partitionWriterType = std::string(partitionWriterTypeC);
   env->ReleaseStringUTFChars(partitionWriterTypeJstr, partitionWriterTypeC);
 
-  std::unique_ptr<PartitionWriter> partitionWriter;
+  auto arrowPool = memoryManager->getArrowMemoryPool();
 
+  std::unique_ptr<PartitionWriter> partitionWriter;
   if (partitionWriterType == "local") {
     shuffleWriterOptions->partitionWriterType = kLocal;
     if (dataFileJstr == NULL) {
@@ -873,8 +872,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     shuffleWriterOptions->bufferReallocThreshold = reallocThreshold;
     shuffleWriterOptions->numSubDirs = numSubDirs;
 
-    partitionWriter =
-        std::make_unique<LocalPartitionWriter>(numPartitions, dataFile, configuredDirs, shuffleWriterOptions.get());
+    partitionWriter = std::make_unique<LocalPartitionWriter>(
+        numPartitions, dataFile, configuredDirs, shuffleWriterOptions.get(), arrowPool);
   } else if (partitionWriterType == "celeborn") {
     shuffleWriterOptions->partitionWriterType = PartitionWriterType::kCeleborn;
     jclass celebornPartitionPusherClass =
@@ -890,8 +889,8 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
     }
     std::shared_ptr<CelebornClient> celebornClient =
         std::make_shared<CelebornClient>(vm, partitionPusher, celebornPushPartitionDataMethod);
-    partitionWriter =
-        std::make_unique<CelebornPartitionWriter>(numPartitions, shuffleWriterOptions.get(), std::move(celebornClient));
+    partitionWriter = std::make_unique<CelebornPartitionWriter>(
+        numPartitions, shuffleWriterOptions.get(), arrowPool, std::move(celebornClient));
   } else {
     throw gluten::GlutenException("Unrecognizable partition writer type: " + partitionWriterType);
   }

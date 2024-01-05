@@ -59,7 +59,9 @@ struct ShuffleWriterOptions {
   int64_t threadId = -1;
   int64_t taskAttemptId = -1;
   int32_t startPartitionId = 0;
-  arrow::MemoryPool* memoryPool{};
+};
+
+struct PartitionWriterOptions {
 };
 
 struct ShuffleWriterMetrics {

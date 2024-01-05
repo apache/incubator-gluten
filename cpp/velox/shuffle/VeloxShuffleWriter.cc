@@ -198,7 +198,8 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
     uint32_t numPartitions,
     std::unique_ptr<PartitionWriter> partitionWriter,
     std::unique_ptr<ShuffleWriterOptions> options,
-    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool) {
+    std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+    arrow::MemoryPool* arrowPool) {
 #if VELOX_SHUFFLE_WRITER_LOG_FLAG
   std::ostringstream oss;
   oss << "Velox shuffle writer created,";
@@ -213,7 +214,7 @@ arrow::Result<std::shared_ptr<VeloxShuffleWriter>> VeloxShuffleWriter::create(
   LOG(INFO) << oss.str();
 #endif
   std::shared_ptr<VeloxShuffleWriter> res(
-      new VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), veloxPool));
+      new VeloxShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), veloxPool, arrowPool));
   RETURN_NOT_OK(res->init());
   return res;
 } // namespace gluten
@@ -229,8 +230,6 @@ arrow::Status VeloxShuffleWriter::init() {
   VELOX_CHECK_LE(numPartitions_, 64 * 1024);
   // Split record batch size should be less than 32k.
   VELOX_CHECK_LE(options_->bufferSize, 32 * 1024);
-  // memoryPool should be assigned.
-  VELOX_CHECK_NOT_NULL(options_->memoryPool);
 
   ARROW_ASSIGN_OR_RAISE(
       partitioner_, Partitioner::make(options_->partitioning, numPartitions_, options_->startPartitionId));

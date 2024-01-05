@@ -388,8 +388,9 @@ LocalPartitionWriter::LocalPartitionWriter(
     uint32_t numPartitions,
     const std::string& dataFile,
     const std::vector<std::string>& localDirs,
-    ShuffleWriterOptions* options)
-    : PartitionWriter(numPartitions, options), dataFile_(dataFile), localDirs_(localDirs) {
+    ShuffleWriterOptions* options,
+    arrow::MemoryPool* pool)
+    : PartitionWriter(numPartitions, options, pool), dataFile_(dataFile), localDirs_(localDirs) {
   init();
 }
 
@@ -406,7 +407,7 @@ arrow::Status LocalPartitionWriter::openDataFile() {
   ARROW_ASSIGN_OR_RAISE(fout, arrow::io::FileOutputStream::Open(dataFile_));
   if (options_->bufferedWrite) {
     // Output stream buffer is neither partition buffer memory nor ipc memory.
-    ARROW_ASSIGN_OR_RAISE(dataFileOs_, arrow::io::BufferedOutputStream::Create(16384, options_->memoryPool, fout));
+    ARROW_ASSIGN_OR_RAISE(dataFileOs_, arrow::io::BufferedOutputStream::Create(16384, pool_, fout));
   } else {
     dataFileOs_ = fout;
   }

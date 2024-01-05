@@ -127,7 +127,8 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       std::unique_ptr<ShuffleWriterOptions> options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool);
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+      arrow::MemoryPool* arrowPool);
 
   arrow::Status split(std::shared_ptr<ColumnarBatch> cb, int64_t memLimit) override;
 
@@ -195,8 +196,10 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       uint32_t numPartitions,
       std::unique_ptr<PartitionWriter> partitionWriter,
       std::unique_ptr<ShuffleWriterOptions> options,
-      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool)
-      : ShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options)), veloxPool_(std::move(veloxPool)) {
+      std::shared_ptr<facebook::velox::memory::MemoryPool> veloxPool,
+      arrow::MemoryPool* pool)
+      : ShuffleWriter(numPartitions, std::move(partitionWriter), std::move(options), pool),
+        veloxPool_(std::move(veloxPool)) {
     arenas_.resize(numPartitions);
   }
 

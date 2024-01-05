@@ -67,8 +67,7 @@ arrow::Status CelebornPartitionWriter::evict(
       BlockPayload::fromBuffers(
           payloadType, numRows, std::move(buffers), isValidityBuffer, payloadPool_.get(), codec_.get()));
   // Copy payload to arrow buffered os.
-  ARROW_ASSIGN_OR_RAISE(
-      auto celebornBufferOs, arrow::io::BufferOutputStream::Create(options_->bufferSize, options_->memoryPool));
+  ARROW_ASSIGN_OR_RAISE(auto celebornBufferOs, arrow::io::BufferOutputStream::Create(options_->bufferSize, pool_));
   RETURN_NOT_OK(payload->serialize(celebornBufferOs.get()));
   payload = nullptr; // Invalidate payload immediately.
 

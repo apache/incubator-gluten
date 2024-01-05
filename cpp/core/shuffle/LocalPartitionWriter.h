@@ -32,7 +32,8 @@ class LocalPartitionWriter : public PartitionWriter {
       uint32_t numPartitions,
       const std::string& dataFile,
       const std::vector<std::string>& localDirs,
-      ShuffleWriterOptions* options);
+      ShuffleWriterOptions* options,
+      arrow::MemoryPool* pool);
 
   arrow::Status evict(
       uint32_t partitionId,

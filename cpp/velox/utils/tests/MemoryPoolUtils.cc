@@ -65,7 +65,7 @@ std::string LimitedMemoryPool::backend_name() const {
 bool SelfEvictedMemoryPool::checkEvict(int64_t newCapacity, std::function<void()> block) {
   bytesEvicted_ = 0;
   auto capacity = capacity_;
-  // Limit the capacity to trigger ensureCapacity.
+  // Limit the capacity to trigger evict.
   setCapacity(newCapacity);
 
   block();

@@ -18,6 +18,7 @@
 #pragma once
 
 #include <arrow/io/api.h>
+#include <arrow/memory_pool.h>
 
 #include "shuffle/rss/RemotePartitionWriter.h"
 #include "shuffle/rss/RssClient.h"
@@ -30,8 +31,9 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
   CelebornPartitionWriter(
       uint32_t numPartitions,
       ShuffleWriterOptions* options,
+      arrow::MemoryPool* pool,
       std::shared_ptr<RssClient> celebornClient)
-      : RemotePartitionWriter(numPartitions, options), celebornClient_(celebornClient) {
+      : RemotePartitionWriter(numPartitions, options, pool), celebornClient_(celebornClient) {
     init();
   }
 
