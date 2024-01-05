@@ -27,7 +27,8 @@ class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
     sparkContext.setLogLevel("WARN")
 
     conf.setConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED, false)
-    conf.setConf(SQLConf.READ_SIDE_CHAR_PADDING, false)
+    // introduced in spark 3.4
+    spark.conf.set("spark.sql.readSideCharPadding", "false")
   }
 
   // "q9" failed in spark 3.3
