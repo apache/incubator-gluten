@@ -113,7 +113,7 @@ struct SplitResult
             << " spill time(s):" << to_seconds(total_spill_time) << " serialize_time(s):" << to_seconds(total_serialize_time)
             << " compress_time(s):" << to_seconds(total_compress_time) << " write_time(s):" << to_seconds(total_write_time)
             << " bytes_writen:" << total_bytes_written << " bytes_spilled:" << total_bytes_spilled
-            << " partition_num: " << partition_lengths.size() << std::endl;
+            << " partition_num:" << partition_lengths.size() << std::endl;
         return oss.str();
     }
 };

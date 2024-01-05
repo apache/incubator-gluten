@@ -104,16 +104,16 @@ CachedShuffleWriter::CachedShuffleWriter(const String & short_name, const SplitO
 
 void CachedShuffleWriter::split(DB::Block & block)
 {
+    Stopwatch split_watch;
     auto block_info = block.info;
     initOutputIfNeeded(block);
 
-    Stopwatch split_time_watch;
     block = convertAggregateStateInBlock(block);
-    split_result.total_split_time += split_time_watch.elapsedNanoseconds();
 
     Stopwatch compute_pid_time_watch;
     PartitionInfoPtr partition_info = partitioner->build(block);
-    split_result.total_compute_pid_time += compute_pid_time_watch.elapsedNanoseconds();
+    auto compute_pid_time = compute_pid_time_watch.elapsedNanoseconds();
+    split_result.total_compute_pid_time += compute_pid_time;
 
     DB::Block out_block;
     for (size_t col_i = 0; col_i < output_header.columns(); ++col_i)
@@ -123,6 +123,7 @@ void CachedShuffleWriter::split(DB::Block & block)
 
     out_block.info = block_info;
     partition_writer->write(*partition_info, out_block);
+    split_result.total_split_time += split_watch.elapsedNanoseconds();
 }
 
 void CachedShuffleWriter::initOutputIfNeeded(Block & block)

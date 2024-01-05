@@ -46,8 +46,8 @@ public:
     size_t evictPartitions() override;
     SplitResult stop() override;
 
-    bool useSortBasedShuffle() const { return options.partition_num >= 1000; }
-    // bool useSortBasedShuffle() const { return false; }
+    // bool useSortBasedShuffle() const { return options.partition_num >= 1000; }
+    bool useSortBasedShuffle() const { return false; }
 
 private:
     void initOutputIfNeeded(DB::Block & block);

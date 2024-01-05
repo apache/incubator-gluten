@@ -87,9 +87,7 @@ void IPartitionWriter::write(PartitionInfo & info, DB::Block & block)
     evicting_or_writing = true;
     SCOPE_EXIT({ evicting_or_writing = false; });
 
-    Stopwatch watch;
     unsafeWrite(info, block);
-    shuffle_writer->split_result.total_split_time += watch.elapsedNanoseconds();
 }
 
 void IPartitionWriter::stop()
@@ -449,6 +447,7 @@ void ISortBasedPartitionWriter::unsafeWrite(PartitionInfo & info, DB::Block & bl
         size_t bytes_per_row = block.bytes() / rows;
         size_t reserve_size = options->spill_threshold / bytes_per_row;
         sorted_block_buffer = std::make_shared<ColumnsBuffer>(reserve_size);
+        std::cout << "create sorted buffer with reserve size:" << reserve_size << std::endl;
     }
 
     /// Insert column partition for later sort
@@ -462,10 +461,13 @@ void ISortBasedPartitionWriter::unsafeWrite(PartitionInfo & info, DB::Block & bl
 
     /// Merge current block into sorted_buffer
     sorted_block_buffer->append(block, 0, rows);
+    std::cout << "append block with rows:" << rows << " sorted_buffer rows:" << sorted_block_buffer->size() << std::endl;
 }
 
 size_t ISortBasedPartitionWriter::flushSortedBlockBuffer()
 {
+    Stopwatch watch;
+
     if (!sorted_block_buffer || sorted_block_buffer->empty())
         return 0;
 
@@ -502,6 +504,8 @@ size_t ISortBasedPartitionWriter::flushSortedBlockBuffer()
     end = partition_data.size();
     res += unsafeEvictSinglePartitionFromBlock(partition_data[start], sorted_block, start, end - start);
     shuffle_writer->split_result.total_bytes_spilled += sorted_block.bytes();
+    std::cout << "split bytes:" << sorted_block.bytes() << " rows:" << sorted_block.rows() << " in " << watch.elapsedMilliseconds() << " ms"
+              << std::endl;
     return res;
 }
 
