@@ -157,7 +157,17 @@ class SubstraitToVeloxPlanConverter {
       std::vector<const ::substrait::Expression::FieldReference*>& rightExprs);
 
   /// Get aggregation step from AggregateRel.
+  /// If returned Partial, it means the aggregate generated can leveraging flushing and abandoning like
+  /// what streaming pre-aggregation can do in MPP databases.
   core::AggregationNode::Step toAggregationStep(const ::substrait::AggregateRel& sAgg);
+
+  /// Get aggregation function step for AggregateFunction.
+  /// The returned step value will be used to decide which Velox aggregate function or companion function
+  /// is used for the actual data processing.
+  core::AggregationNode::Step toAggregationFunctionStep(const ::substrait::AggregateFunction& sAggFuc);
+
+  /// We use companion functions if the aggregate is not single.
+  std::string toAggregationFunctionName(const std::string& baseName, const core::AggregationNode::Step& step);
 
   /// Helper Function to convert Substrait sortField to Velox sortingKeys and
   /// sortingOrders.

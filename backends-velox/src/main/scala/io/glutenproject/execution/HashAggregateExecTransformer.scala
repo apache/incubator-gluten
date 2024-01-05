@@ -38,7 +38,7 @@ import java.util.{ArrayList => JArrayList, HashMap => JHashMap, List => JList}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-case class HashAggregateExecTransformer(
+abstract class HashAggregateExecTransformer(
     requiredChildDistributionExpressions: Option[Seq[Expression]],
     groupingExpressions: Seq[NamedExpression],
     aggregateExpressions: Seq[AggregateExpression],
@@ -67,10 +67,6 @@ case class HashAggregateExecTransformer(
       case _ =>
         super.checkAggFuncModeSupport(aggFunc, mode)
     }
-  }
-
-  override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
-    copy(child = newChild)
   }
 
   /**
@@ -173,15 +169,16 @@ case class HashAggregateExecTransformer(
     }
   }
 
-  override protected def modeToKeyWord(aggregateMode: AggregateMode): String = {
-    super.modeToKeyWord(if (mixedPartialAndMerge) {
-      Partial
-    } else {
-      aggregateMode match {
-        case PartialMerge => Final
-        case _ => aggregateMode
-      }
-    })
+  // Whether the output data allows to be just pre-aggregated rather than
+  // fully aggregated. If true, aggregation could flush its in memory
+  // aggregated data whenever is needed rather than waiting for all input
+  // to be read.
+  protected def allowFlush: Boolean
+
+  override protected def formatExtOptimizationString(isStreaming: Boolean): String = {
+    val isStreamingStr = if (isStreaming) "1" else "0"
+    val allowFlushStr = if (allowFlush) "1" else "0"
+    s"isStreaming=$isStreamingStr\nallowFlush=$allowFlushStr\n"
   }
 
   // Create aggregate function node and add to list.
@@ -191,15 +188,13 @@ case class HashAggregateExecTransformer(
       childrenNodeList: JList[ExpressionNode],
       aggregateMode: AggregateMode,
       aggregateNodeList: JList[AggregateFunctionNode]): Unit = {
-    // This is a special handling for PartialMerge in the execution of distinct.
-    // Use Partial phase instead for this aggregation.
     val modeKeyWord = modeToKeyWord(aggregateMode)
 
     def generateMergeCompanionNode(): Unit = {
       aggregateMode match {
         case Partial =>
           val partialNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
             childrenNodeList,
             modeKeyWord,
             VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
@@ -208,7 +203,7 @@ case class HashAggregateExecTransformer(
         case PartialMerge =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
             VeloxAggregateFunctionsBuilder
-              .create(args, aggregateFunction, mixedPartialAndMerge, purePartialMerge),
+              .create(args, aggregateFunction, aggregateMode),
             childrenNodeList,
             modeKeyWord,
             VeloxIntermediateData.getIntermediateTypeNode(aggregateFunction)
@@ -216,7 +211,7 @@ case class HashAggregateExecTransformer(
           aggregateNodeList.add(aggFunctionNode)
         case Final =>
           val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+            VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
             childrenNodeList,
             modeKeyWord,
             ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
@@ -233,7 +228,7 @@ case class HashAggregateExecTransformer(
           case Partial =>
             // For Partial mode output type is binary.
             val partialNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
               childrenNodeList,
               modeKeyWord,
               ConverterUtils.getTypeNode(
@@ -244,7 +239,7 @@ case class HashAggregateExecTransformer(
           case Final =>
             // For Final mode output type is long.
             val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction),
+              VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
               childrenNodeList,
               modeKeyWord,
               ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
@@ -257,11 +252,7 @@ case class HashAggregateExecTransformer(
         generateMergeCompanionNode()
       case _ =>
         val aggFunctionNode = ExpressionBuilder.makeAggregateFunction(
-          VeloxAggregateFunctionsBuilder.create(
-            args,
-            aggregateFunction,
-            aggregateMode == PartialMerge && mixedPartialAndMerge,
-            aggregateMode == PartialMerge && purePartialMerge),
+          VeloxAggregateFunctionsBuilder.create(args, aggregateFunction, aggregateMode),
           childrenNodeList,
           modeKeyWord,
           ConverterUtils.getTypeNode(aggregateFunction.dataType, aggregateFunction.nullable)
@@ -364,7 +355,8 @@ case class HashAggregateExecTransformer(
       val aggFunc = aggregateExpression.aggregateFunction
       val functionInputAttributes = aggFunc.inputAggBufferAttributes
       aggFunc match {
-        case _ if mixedPartialAndMerge && aggregateExpression.mode == Partial =>
+        case _
+            if aggregateExpression.mode == Partial => // FIXME: Any difference with the last branch?
           val childNodes = aggFunc.children
             .map(
               ExpressionConverter
@@ -499,21 +491,6 @@ case class HashAggregateExecTransformer(
   }
 
   /**
-   * Whether this is a mixed aggregation of partial and partial-merge aggregation functions.
-   * @return
-   *   whether partial and partial-merge functions coexist.
-   */
-  def mixedPartialAndMerge: Boolean = {
-    val partialMergeExists = aggregateExpressions.exists(_.mode == PartialMerge)
-    val partialExists = aggregateExpressions.exists(_.mode == Partial)
-    partialMergeExists && partialExists
-  }
-
-  def purePartialMerge: Boolean = {
-    aggregateExpressions.forall(_.mode == PartialMerge)
-  }
-
-  /**
    * Create and return the Rel for the this aggregation.
    * @param context
    *   the Substrait context
@@ -589,8 +566,7 @@ object VeloxAggregateFunctionsBuilder {
   def create(
       args: java.lang.Object,
       aggregateFunc: AggregateFunction,
-      forMergeCompanion: Boolean = false,
-      purePartialMerge: Boolean = false): Long = {
+      mode: AggregateMode): Long = {
     val functionMap = args.asInstanceOf[JHashMap[String, JLong]]
 
     var sigName = ExpressionMappings.expressionsMap.get(aggregateFunc.getClass)
@@ -606,22 +582,71 @@ object VeloxAggregateFunctionsBuilder {
       case _ =>
     }
 
-    // Use companion function for partial-merge aggregation functions on count distinct.
-    val substraitAggFuncName = {
-      if (purePartialMerge) {
-        sigName.get + "_partial"
-      } else if (forMergeCompanion) {
-        sigName.get + "_merge"
-      } else {
-        sigName.get
-      }
-    }
-
     ExpressionBuilder.newScalarFunction(
       functionMap,
       ConverterUtils.makeFuncName(
-        substraitAggFuncName,
-        VeloxIntermediateData.getInputTypes(aggregateFunc, forMergeCompanion),
-        FunctionConfig.REQ))
+        // Substrait-to-Velox procedure will choose appropriate companion function if needed.
+        sigName.get,
+        VeloxIntermediateData.getInputTypes(aggregateFunc, mode == PartialMerge || mode == Final),
+        FunctionConfig.REQ
+      )
+    )
+  }
+}
+
+// Hash aggregation that emits full-aggregated data, this works like regular hash
+// aggregation in Vanilla Spark.
+case class RegularHashAggregateExecTransformer(
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute],
+    initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan)
+  extends HashAggregateExecTransformer(
+    requiredChildDistributionExpressions,
+    groupingExpressions,
+    aggregateExpressions,
+    aggregateAttributes,
+    initialInputBufferOffset,
+    resultExpressions,
+    child) {
+
+  override protected def allowFlush: Boolean = false
+
+  override def simpleString(maxFields: Int): String = s"${super.simpleString(maxFields)}"
+
+  override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
+    copy(child = newChild)
+  }
+}
+
+// Hash aggregation that emits pre-aggregated data which allows duplications on grouping keys
+// among its output rows.
+case class FlushableHashAggregateExecTransformer(
+    requiredChildDistributionExpressions: Option[Seq[Expression]],
+    groupingExpressions: Seq[NamedExpression],
+    aggregateExpressions: Seq[AggregateExpression],
+    aggregateAttributes: Seq[Attribute],
+    initialInputBufferOffset: Int,
+    resultExpressions: Seq[NamedExpression],
+    child: SparkPlan)
+  extends HashAggregateExecTransformer(
+    requiredChildDistributionExpressions,
+    groupingExpressions,
+    aggregateExpressions,
+    aggregateAttributes,
+    initialInputBufferOffset,
+    resultExpressions,
+    child) {
+
+  override protected def allowFlush: Boolean = true
+
+  override def simpleString(maxFields: Int): String =
+    s"Intermediate${super.simpleString(maxFields)}"
+
+  override protected def withNewChildInternal(newChild: SparkPlan): HashAggregateExecTransformer = {
+    copy(child = newChild)
   }
 }

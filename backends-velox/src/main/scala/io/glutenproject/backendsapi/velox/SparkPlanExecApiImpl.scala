@@ -157,7 +157,7 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
       initialInputBufferOffset: Int,
       resultExpressions: Seq[NamedExpression],
       child: SparkPlan): HashAggregateExecBaseTransformer =
-    HashAggregateExecTransformer(
+    RegularHashAggregateExecTransformer(
       requiredChildDistributionExpressions,
       groupingExpressions,
       aggregateExpressions,
@@ -488,7 +488,8 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = List()
+  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] =
+    List()
 
   /**
    * Generate extended columnar post-rules.
