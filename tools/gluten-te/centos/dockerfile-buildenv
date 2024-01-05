@@ -1,6 +1,8 @@
-ARG OS_IMAGE
+ARG OS_IMAGE_NAME
+ARG OS_IMAGE_TAG
 
-FROM $OS_IMAGE AS gluten-buildenv
+FROM $OS_IMAGE_NAME:$OS_IMAGE_TAG AS gluten-buildenv
+
 MAINTAINER Hongze Zhang<hongze.zhang@intel.com>
 
 SHELL ["/bin/bash", "-c"]
@@ -41,8 +43,8 @@ RUN env
 RUN cat /root/.m2/settings.xml
 
 # Install deps from repo
-ARG OS_VERSION
-COPY centos-$OS_VERSION-deps.sh /tmp/deps.sh
+ARG OS_IMAGE_TAG
+COPY centos-$OS_IMAGE_TAG-deps.sh /tmp/deps.sh
 RUN /tmp/deps.sh \
   && rm /tmp/deps.sh \
   && yum clean all \
