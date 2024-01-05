@@ -30,6 +30,9 @@ public class StructLiteralNode extends LiteralNodeWithValue<InternalRow> {
   public LiteralNode getFieldLiteral(int index) {
     InternalRow value = getValue();
     TypeNode type = ((StructNode) getTypeNode()).getFieldTypes().get(index);
+    if (value.isNullAt(index)) {
+      return ExpressionBuilder.makeNullLiteral(type);
+    }
 
     if (type instanceof BooleanTypeNode) {
       return ExpressionBuilder.makeLiteral(value.getBoolean(index), type);
