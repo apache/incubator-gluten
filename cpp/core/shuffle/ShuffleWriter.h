@@ -83,10 +83,6 @@ class ShuffleWriter : public Reclaimable {
     return metrics_.rawPartitionLengths;
   }
 
-  ShuffleWriterOptions* options() {
-    return options_.get();
-  }
-
   virtual const uint64_t cachedPayloadSize() const = 0;
 
  protected:

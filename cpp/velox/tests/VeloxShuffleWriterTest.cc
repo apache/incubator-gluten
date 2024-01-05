@@ -335,7 +335,7 @@ TEST_P(RoundRobinPartitioningShuffleWriter, preAllocForceRealloc) {
   // Evict cached data first.
   ASSERT_NOT_OK(shuffleWriter->reclaimFixedSize(shuffleWriter->cachedPayloadSize(), &evicted));
   // Set a large buffer size.
-  shuffleWriter->options()->bufferSize = 100;
+  shuffleWriter->setPartitionBufferSize(100);
   ASSERT_NOT_OK(splitRowVector(*shuffleWriter, inputVector1_));
   // No data got evicted so the cached size is 0.
   ASSERT_EQ(shuffleWriter->cachedPayloadSize(), 0);

@@ -58,33 +58,38 @@ std::shared_ptr<VeloxShuffleWriter> createShuffleWriter(
     VeloxMemoryManager* memoryManager,
     const std::string& dataFile,
     const std::vector<std::string>& localDirs) {
-  auto options = std::make_unique<ShuffleWriterOptions>();
-  options->memoryPool = memoryManager->getArrowMemoryPool();
-  options->partitioning = gluten::toPartitioning(FLAGS_partitioning);
+  PartitionWriterOptions partitionWriterOptions{};
   if (FLAGS_zstd) {
-    options->codecBackend = CodecBackend::NONE;
-    options->compressionType = arrow::Compression::ZSTD;
+    partitionWriterOptions.codecBackend = CodecBackend::NONE;
+    partitionWriterOptions.compressionType = arrow::Compression::ZSTD;
   } else if (FLAGS_qat_gzip) {
-    options->codecBackend = CodecBackend::QAT;
-    options->compressionType = arrow::Compression::GZIP;
+    partitionWriterOptions.codecBackend = CodecBackend::QAT;
+    partitionWriterOptions.compressionType = arrow::Compression::GZIP;
   } else if (FLAGS_qat_zstd) {
-    options->codecBackend = CodecBackend::QAT;
-    options->compressionType = arrow::Compression::ZSTD;
+    partitionWriterOptions.codecBackend = CodecBackend::QAT;
+    partitionWriterOptions.compressionType = arrow::Compression::ZSTD;
   } else if (FLAGS_iaa_gzip) {
-    options->codecBackend = CodecBackend::IAA;
-    options->compressionType = arrow::Compression::GZIP;
+    partitionWriterOptions.codecBackend = CodecBackend::IAA;
+    partitionWriterOptions.compressionType = arrow::Compression::GZIP;
   }
 
-  std::unique_ptr<PartitionWriter> partitionWriter =
-      std::make_unique<LocalPartitionWriter>(FLAGS_shuffle_partitions, dataFile, localDirs, options.get());
+  std::unique_ptr<PartitionWriter> partitionWriter = std::make_unique<LocalPartitionWriter>(
+      FLAGS_shuffle_partitions,
+      std::move(partitionWriterOptions),
+      memoryManager->getArrowMemoryPool(),
+      dataFile,
+      localDirs);
 
+  auto options = std::make_unique<ShuffleWriterOptions>();
+  options->partitioning = gluten::toPartitioning(FLAGS_partitioning);
   GLUTEN_ASSIGN_OR_THROW(
       auto shuffleWriter,
       VeloxShuffleWriter::create(
           FLAGS_shuffle_partitions,
           std::move(partitionWriter),
           std::move(options),
-          memoryManager->getLeafMemoryPool()));
+          memoryManager->getLeafMemoryPool(),
+          memoryManager->getArrowMemoryPool()));
 
   return shuffleWriter;
 }

@@ -144,6 +144,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
     return std::accumulate(metrics_.rawPartitionLengths.begin(), metrics_.rawPartitionLengths.end(), 0LL);
   }
 
+  // For test only.
+  void setPartitionBufferSize(int32_t newSize) {
+    options_->bufferSize = newSize;
+  }
+
   // for debugging
   void printColumnsInfo() const {
     VS_PRINT_FUNCTION_SPLIT_LINE();

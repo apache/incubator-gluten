@@ -194,24 +194,26 @@ set(SPARK_COLUMNAR_PLUGIN_SRCS
         memory/ArrowMemoryPool.cc
         memory/ColumnarBatch.cc
         operators/writer/ArrowWriter.cc
-        shuffle/Options.cc
-        shuffle/ShuffleReader.cc
-        shuffle/Partitioner.cc
         shuffle/FallbackRangePartitioner.cc
         shuffle/HashPartitioner.cc
-        shuffle/RoundRobinPartitioner.cc
-        shuffle/SinglePartitioner.cc
-        shuffle/Partitioning.cc
         shuffle/LocalPartitionWriter.cc
-        shuffle/ShuffleMemoryPool.cc
+        shuffle/Options.cc
+        shuffle/Partitioner.cc
+        shuffle/Partitioning.cc
+        shuffle/Payload.cc
         shuffle/rss/RemotePartitionWriter.cc
         shuffle/rss/CelebornPartitionWriter.cc
+        shuffle/RoundRobinPartitioner.cc
+        shuffle/ShuffleMemoryPool.cc
+        shuffle/ShuffleReader.cc
+        shuffle/SinglePartitioner.cc
+        shuffle/Spill.cc
         shuffle/Utils.cc
         utils/Compression.cc
         utils/StringUtil.cc
         utils/ObjectStore.cc
         jni/JniError.cc
-        jni/JniCommon.cc shuffle/Payload.cc shuffle/Spill.cc)
+        jni/JniCommon.cc)
 
 file(MAKE_DIRECTORY ${root_directory}/releases)
 add_library(gluten SHARED ${SPARK_COLUMNAR_PLUGIN_SRCS})
