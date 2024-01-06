@@ -284,47 +284,6 @@ void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Co
   }
 #endif
 
-#ifdef ENABLE_GCS
-  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#api-client-configuration
-  auto gsStorageRootUrl = conf->get("spark.hadoop.fs.gs.storage.root.url");
-  if (gsStorageRootUrl.hasValue()) {
-    std::string url = gsStorageRootUrl.value();
-    std::string gcsScheme;
-    std::string gcsEndpoint;
-
-    const auto sep = std::string("://");
-    const auto pos = url.find_first_of(sep);
-    if (pos != std::string::npos) {
-      gcsScheme = url.substr(0, pos);
-      gcsEndpoint = url.substr(pos + sep.length());
-    }
-
-    if (!gcsEndpoint.empty() && !gcsScheme.empty()) {
-      mutableConf->setValue("hive.gcs.scheme", gcsScheme);
-      mutableConf->setValue("hive.gcs.endpoint", gcsEndpoint);
-    }
-  }
-
-  // https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md#authentication
-  auto gsAuthType = conf->get("spark.hadoop.fs.gs.auth.type");
-  if (gsAuthType.hasValue()) {
-    std::string type = gsAuthType.value();
-    if (type == "SERVICE_ACCOUNT_JSON_KEYFILE") {
-      auto gsAuthServiceAccountJsonKeyfile = conf->get("spark.hadoop.fs.gs.auth.service.account.json.keyfile");
-      if (gsAuthServiceAccountJsonKeyfile.hasValue()) {
-        auto stream = std::ifstream(gsAuthServiceAccountJsonKeyfile.value());
-        stream.exceptions(std::ios::badbit);
-        std::string gsAuthServiceAccountJson = std::string(std::istreambuf_iterator<char>(stream.rdbuf()), {});
-        mutableConf->setValue("hive.gcs.credentials", gsAuthServiceAccountJson);
-      } else {
-        LOG(WARNING) << "STARTUP: conf spark.hadoop.fs.gs.auth.type is set to SERVICE_ACCOUNT_JSON_KEYFILE, "
-                        "however conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set";
-        throw GlutenException("Conf spark.hadoop.fs.gs.auth.service.account.json.keyfile is not set");
-      }
-    }
-  }
-#endif
-
   mutableConf->setValue(
       velox::connector::hive::HiveConfig::kEnableFileHandleCache,
       conf->get<bool>(kVeloxFileHandleCacheEnabled, kVeloxFileHandleCacheEnabledDefault) ? "true" : "false");
@@ -340,7 +299,7 @@ void VeloxBackend::initConnector(const std::shared_ptr<const facebook::velox::Co
   mutableConf->setValue(
       velox::connector::hive::HiveConfig::kLoadQuantum, conf->get<std::string>(kLoadQuantum, "268435456")); // 256M
   mutableConf->setValue(
-      velox::connector::hive::HiveConfig::kDirectorySizeGuess,
+      velox::connector::hive::HiveConfig::kFooterEstimatedSize,
       conf->get<std::string>(kDirectorySizeGuess, "32768")); // 32K
   mutableConf->setValue(
       velox::connector::hive::HiveConfig::kFilePreloadThreshold,
