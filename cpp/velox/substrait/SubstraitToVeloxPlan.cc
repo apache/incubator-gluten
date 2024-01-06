@@ -194,26 +194,58 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::processEmit(
 }
 
 core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationStep(const ::substrait::AggregateRel& aggRel) {
-  if (aggRel.measures().size() == 0) {
-    // When only groupings exist, set the phase to be Single.
-    return core::AggregationNode::Step::kSingle;
+  // TODO Simplify Velox's aggregation steps
+  if (aggRel.has_advanced_extension() &&
+      SubstraitParser::configSetInOptimization(aggRel.advanced_extension(), "allowFlush=")) {
+    return core::AggregationNode::Step::kPartial;
   }
+  return core::AggregationNode::Step::kSingle;
+}
 
-  // Use the first measure to set aggregation phase.
-  const auto& firstMeasure = aggRel.measures()[0];
-  const auto& aggFunction = firstMeasure.measure();
-  switch (aggFunction.phase()) {
+/// Get aggregation function step for AggregateFunction.
+/// The returned step value will be used to decide which Velox aggregate function or companion function
+/// is used for the actual data processing.
+core::AggregationNode::Step SubstraitToVeloxPlanConverter::toAggregationFunctionStep(
+    const ::substrait::AggregateFunction& sAggFuc) {
+  const auto& phase = sAggFuc.phase();
+  switch (phase) {
+    case ::substrait::AGGREGATION_PHASE_UNSPECIFIED:
+      VELOX_FAIL("Aggregation phase not specified.")
+      break;
     case ::substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE:
       return core::AggregationNode::Step::kPartial;
     case ::substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_INTERMEDIATE:
       return core::AggregationNode::Step::kIntermediate;
-    case ::substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT:
-      return core::AggregationNode::Step::kFinal;
     case ::substrait::AGGREGATION_PHASE_INITIAL_TO_RESULT:
       return core::AggregationNode::Step::kSingle;
+    case ::substrait::AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT:
+      return core::AggregationNode::Step::kFinal;
     default:
-      VELOX_FAIL("Aggregate phase is not supported.");
+      VELOX_FAIL("Unexpected aggregation phase.")
   }
+}
+
+std::string SubstraitToVeloxPlanConverter::toAggregationFunctionName(
+    const std::string& baseName,
+    const core::AggregationNode::Step& step) {
+  std::string suffix;
+  switch (step) {
+    case core::AggregationNode::Step::kPartial:
+      suffix = "_partial";
+      break;
+    case core::AggregationNode::Step::kFinal:
+      suffix = "_merge_extract";
+      break;
+    case core::AggregationNode::Step::kIntermediate:
+      suffix = "_merge";
+      break;
+    case core::AggregationNode::Step::kSingle:
+      suffix = "";
+      break;
+    default:
+      VELOX_FAIL("Unexpected aggregation node step.")
+  }
+  return baseName + suffix;
 }
 
 core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::JoinRel& sJoin) {
@@ -352,7 +384,8 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
       }
     }
     const auto& aggFunction = measure.measure();
-    auto funcName = SubstraitParser::findVeloxFunction(functionMap_, aggFunction.function_reference());
+    auto baseFuncName = SubstraitParser::findVeloxFunction(functionMap_, aggFunction.function_reference());
+    auto funcName = toAggregationFunctionName(baseFuncName, toAggregationFunctionStep(aggFunction));
     std::vector<core::TypedExprPtr> aggParams;
     aggParams.reserve(aggFunction.arguments().size());
     for (const auto& arg : aggFunction.arguments()) {
@@ -539,11 +572,12 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
     }
   }
 
-  std::vector<std::string> writePath;
-  writePath.reserve(1);
-  VELOX_CHECK(writeRel.named_table().names().size() == 1)
-  for (const auto& name : writeRel.named_table().names()) {
-    writePath.emplace_back(name);
+  std::string writePath;
+  if (writeFilesTempPath_.has_value()) {
+    writePath = writeFilesTempPath_.value();
+  } else {
+    VELOX_CHECK(validationMode_, "WriteRel should have the write path before initializing the plan.");
+    writePath = "";
   }
 
   // spark default compression code is snappy.
@@ -582,7 +616,7 @@ core::PlanNodePtr SubstraitToVeloxPlanConverter::toVeloxPlan(const ::substrait::
               inputType->children(),
               partitionedKey,
               nullptr /*bucketProperty*/,
-              makeLocationHandle(writePath[0]),
+              makeLocationHandle(writePath),
               dwio::common::FileFormat::PARQUET, // Currently only support parquet format.
               compressionCodec)),
       (partitionedKey.size() > 0) ? true : false,

@@ -248,7 +248,7 @@ abstract class WholeStageTransformerSuite extends GlutenQueryTest with SharedSpa
    */
   def checkOperatorMatch[T <: TransformSupport](df: DataFrame)(implicit tag: ClassTag[T]): Unit = {
     val executedPlan = getExecutedPlan(df)
-    assert(executedPlan.exists(plan => plan.getClass == tag.runtimeClass))
+    assert(executedPlan.exists(plan => tag.runtimeClass.isInstance(plan)))
   }
 
   /**

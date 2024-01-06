@@ -61,7 +61,7 @@ public class AggregateFunctionNode implements Serializable {
           aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INTERMEDIATE_TO_RESULT);
           break;
         default:
-          aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_UNSPECIFIED);
+          aggBuilder.setPhase(AggregationPhase.AGGREGATION_PHASE_INITIAL_TO_RESULT);
       }
     }
     for (ExpressionNode expressionNode : expressionNodes) {

@@ -16,6 +16,7 @@
  */
 
 #include "ObjectStore.h"
+#include <glog/logging.h>
 #include <iostream>
 
 gluten::ObjectStore::~ObjectStore() {
@@ -24,7 +25,7 @@ gluten::ObjectStore::~ObjectStore() {
   for (auto itr = aliveObjectHandles_.rbegin(); itr != aliveObjectHandles_.rend(); itr++) {
     ResourceHandle handle = *itr;
     if (store_.lookup(handle) == nullptr) {
-      std::cerr << "Fatal: resource handle " + std::to_string(handle) + " not found in store." << std::endl;
+      LOG(WARNING) << "Fatal: resource handle " + std::to_string(handle) + " not found in store.";
     }
     store_.erase(handle);
   }

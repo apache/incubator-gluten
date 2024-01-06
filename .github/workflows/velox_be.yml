@@ -115,7 +115,7 @@ jobs:
           docker exec ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox'
-      - name: Build and run unit test for Spark 3.2.2(slow tests)
+      - name: Build and run unit test for Spark 3.2.2 (slow tests)
         run: |
           docker exec ubuntu2004-test-slow-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \
@@ -152,7 +152,7 @@ jobs:
           docker exec ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox'
-      - name: Build and Run unit test for Spark 3.3.1(slow tests)
+      - name: Build and Run unit test for Spark 3.3.1 (slow tests)
         run: |
           docker exec ubuntu2004-test-spark33-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten && \
           mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
@@ -188,7 +188,7 @@ jobs:
           docker exec ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --build_examples=ON'
-      - name: Build and Run unit test for Spark 3.3.1(other tests)
+      - name: Build and Run unit test for Spark 3.3.1 (other tests)
         run: |
           docker exec ubuntu2004-test-spark33-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
           mvn clean install -Pspark-3.3 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
@@ -218,7 +218,7 @@ jobs:
           docker exec ubuntu2004-test-spark34-slow-$GITHUB_RUN_ID bash -l -c '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox '
-      - name: Build and Run unit test for Spark 3.4.1(slow tests)
+      - name: Build and Run unit test for Spark 3.4.2 (slow tests)
         run: |
           docker exec ubuntu2004-test-spark34-slow-$GITHUB_RUN_ID bash -l -c 'cd /opt/gluten && \
           mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToInclude=org.apache.spark.tags.ExtendedSQLTest'
@@ -254,7 +254,7 @@ jobs:
           docker exec ubuntu2004-test-spark34-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten/cpp && \
           ./compile.sh --build_velox_backend=ON --velox_home=/opt/velox --build_examples=ON'
-      - name: Build and Run unit test for Spark 3.4.1(other tests)
+      - name: Build and Run unit test for Spark 3.4.2 (other tests)
         run: |
           docker exec ubuntu2004-test-spark34-$GITHUB_RUN_ID bash -c 'cd /opt/gluten && \
           mvn clean install -Pspark-3.4 -Pbackends-velox -Prss -Piceberg -Pdelta -Pspark-ut -DargLine="-Dspark.test.home=/opt/spark331" -DtagsToExclude=org.apache.spark.tags.ExtendedSQLTest,io.glutenproject.tags.UDFTest,io.glutenproject.tags.SkipTestTags && \
@@ -297,7 +297,7 @@ jobs:
             --local --preset=velox --benchmark-type=h --error-on-memleak --disable-aqe --off-heap-size=10g -s=1.0 --threads=16 --iterations=1 \
           && GLUTEN_IT_JVM_ARGS=-Xmx20G sbin/gluten-it.sh queries-compare \
             --local --preset=velox --benchmark-type=ds --error-on-memleak --off-heap-size=30g -s=10.0 --threads=32 --iterations=1'
-      - name: Build for Spark 3.4.1
+      - name: Build for Spark 3.4.2
         run: |
           docker exec ubuntu2204-test-spark33-spark34-$GITHUB_RUN_ID bash -c '
           cd /opt/gluten && \

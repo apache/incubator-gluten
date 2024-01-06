@@ -28,15 +28,6 @@ int SubstraitExtensionCollector::getReferenceNumber(
   return getReferenceNumber({"", substraitFunctionSignature});
 }
 
-int SubstraitExtensionCollector::getReferenceNumber(
-    const std::string& functionName,
-    const std::vector<TypePtr>& arguments,
-    const core::AggregationNode::Step /* aggregationStep */) {
-  // TODO: Ignore aggregationStep for now, will refactor when introduce velox
-  // registry for function signature binding
-  return getReferenceNumber(functionName, arguments);
-}
-
 template <typename T>
 bool SubstraitExtensionCollector::BiDirectionHashMap<T>::putIfAbsent(const int& key, const T& value) {
   if (forwardMap_.find(key) == forwardMap_.end() && reverseMap_.find(value) == reverseMap_.end()) {

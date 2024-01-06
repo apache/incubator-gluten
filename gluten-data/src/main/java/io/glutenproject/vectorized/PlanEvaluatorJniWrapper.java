@@ -56,6 +56,8 @@ public class PlanEvaluatorJniWrapper implements RuntimeAware {
 
   public native String nativePlanString(byte[] substraitPlan, Boolean details);
 
+  public native void injectWriteFilesTempPath(byte[] path);
+
   /**
    * Create a native compute kernel and return a columnar result iterator.
    *

@@ -29,9 +29,13 @@
 #include <QueryPipeline/SizeLimits.h>
 #include <Poco/Logger.h>
 #include <Common/logger_useful.h>
+#include <Common/AggregateUtil.h>
 
 namespace local_engine
 {
+/// A memory efficient aggregating processor.
+/// When the memory usage reaches the limit, it will evict current AggregatedDataVariants and generate
+/// intermediate aggregated result blocks, and its downstream processor should be GraceMergingAggregatedTransform.
 class StreamingAggregatingTransform : public DB::IProcessor
 {
 public:
@@ -48,6 +52,16 @@ private:
     DB::Aggregator::AggregateColumns aggregate_columns;
     DB::AggregatingTransformParamsPtr params;
 
+    /// Followings are configurations defined in context config.
+    /// In extreme cases, other operators may occupy very large memory, and keep this processor evicting
+    /// empty or very small aggregated data variants. Add a size limit to avoid this situation.
+    size_t aggregated_keys_before_evict = 1024;
+    // Avoid this processor take the whole remained memory and make other processors OOM.
+    double max_allowed_memory_usage_ratio = 0.9;
+    // If the cardinality of the keys is larger than this threshold, we will evict data once the keys size in
+    // aggregate data variant is over aggregated_keys_before_evict, avoid the aggregated hash table becomes too large.
+    double high_cardinality_threshold = 0.8;
+
     bool no_more_keys = false;
     bool is_consume_finished = false;
     bool is_clear_aggregator = false;
@@ -56,11 +70,14 @@ private:
     bool has_output = false;
     DB::Chunk input_chunk;
     DB::Chunk output_chunk;
+    bool input_finished = false;
     
-    DB::BlocksList pending_blocks;
+    std::unique_ptr<AggregateDataBlockConverter> block_converter = nullptr;
     Poco::Logger * logger = &Poco::Logger::get("StreamingAggregatingTransform");
 
     double per_key_memory_usage = 0;
+    DB::AggregatedDataVariants::Type last_data_variants_type = DB::AggregatedDataVariants::Type::EMPTY;
+    size_t last_data_variants_size = 0;
 
     // metrics
     size_t total_input_blocks = 0;
@@ -71,7 +88,7 @@ private:
     size_t total_aggregate_time = 0;
     size_t total_convert_data_variants_time = 0;
 
-    bool isMemoryOverflow();
+    bool needEvict();
 };
 
 class StreamingAggregatingStep : public DB::ITransformingStep

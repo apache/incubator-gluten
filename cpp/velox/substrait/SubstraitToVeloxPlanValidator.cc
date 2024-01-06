@@ -933,6 +933,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
 
   for (const auto& smea : aggRel.measures()) {
     const auto& aggFunction = smea.measure();
+    const auto& funcStep = planConverter_.toAggregationFunctionStep(aggFunction);
     auto funcSpec = planConverter_.findFuncSpec(aggFunction.function_reference());
     std::vector<TypePtr> types;
     bool isDecimal = false;
@@ -949,7 +950,9 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
           err.message());
       return false;
     }
-    auto funcName = SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
+    auto baseFuncName =
+        SubstraitParser::mapToVeloxFunction(SubstraitParser::getNameBeforeDelimiter(funcSpec), isDecimal);
+    auto funcName = planConverter_.toAggregationFunctionName(baseFuncName, funcStep);
     auto signaturesOpt = exec::getAggregateFunctionSignatures(funcName);
     if (!signaturesOpt) {
       logValidateMsg(
@@ -962,8 +965,7 @@ bool SubstraitToVeloxPlanValidator::validateAggRelFunctionType(const ::substrait
       exec::SignatureBinder binder(*signature, types);
       if (binder.tryBind()) {
         auto resolveType = binder.tryResolveType(
-            exec::isPartialOutput(planConverter_.toAggregationStep(aggRel)) ? signature->intermediateType()
-                                                                            : signature->returnType());
+            exec::isPartialOutput(funcStep) ? signature->intermediateType() : signature->returnType());
         if (resolveType == nullptr) {
           logValidateMsg(
               "native validation failed due to: Validation failed for function " + funcName +
@@ -1069,70 +1071,28 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::AggregateRel& ag
   // to be registered.
   static const std::unordered_set<std::string> supportedAggFuncs = {
       "sum",
-      "sum_partial",
-      "sum_merge",
       "collect_set",
       "count",
-      "count_partial",
-      "count_merge",
       "avg",
-      "avg_partial",
-      "avg_merge",
       "min",
-      "min_partial",
-      "min_merge",
       "max",
-      "max_partial",
-      "max_merge",
       "min_by",
-      "min_by_partial",
-      "min_by_merge",
       "max_by",
-      "max_by_partial",
-      "max_by_merge",
       "stddev_samp",
-      "stddev_samp_partial",
-      "stddev_samp_merge",
       "stddev_pop",
-      "stddev_pop_partial",
-      "stddev_pop_merge",
       "bloom_filter_agg",
       "var_samp",
-      "var_samp_partial",
-      "var_samp_merge",
       "var_pop",
-      "var_pop_partial",
-      "var_pop_merge",
       "bit_and",
-      "bit_and_partial",
-      "bit_and_merge",
       "bit_or",
-      "bit_or_partial",
-      "bit_or_merge",
       "bit_xor",
-      "bit_xor_partial",
-      "bit_xor_merge",
       "first",
-      "first_partial",
-      "first_merge",
       "first_ignore_null",
-      "first_ignore_null_partial",
-      "first_ignore_null_merge",
       "last",
-      "last_partial",
-      "last_merge",
       "last_ignore_null",
-      "last_ignore_null_partial",
-      "last_ignore_null_merge",
       "corr",
-      "corr_partial",
-      "corr_merge",
       "covar_pop",
-      "covar_pop_partial",
-      "covar_pop_merge",
       "covar_samp",
-      "covar_samp_partial",
-      "covar_samp_merge",
       "approx_distinct"};
 
   for (const auto& funcSpec : funcSpecs) {

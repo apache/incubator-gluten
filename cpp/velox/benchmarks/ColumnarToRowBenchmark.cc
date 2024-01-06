@@ -131,7 +131,7 @@ class GoogleBenchmarkColumnarToRowCacheScanBenchmark : public GoogleBenchmarkCol
     localSchema = std::make_shared<arrow::Schema>(*schema_.get());
 
     if (state.thread_index() == 0)
-      std::cout << localSchema->ToString() << std::endl;
+      LOG(INFO) << localSchema->ToString();
 
     std::unique_ptr<::parquet::arrow::FileReader> parquetReader;
     std::shared_ptr<RecordBatchReader> recordBatchReader;
@@ -150,7 +150,7 @@ class GoogleBenchmarkColumnarToRowCacheScanBenchmark : public GoogleBenchmarkCol
       }
     } while (recordBatch);
 
-    std::cout << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows << std::endl;
+    LOG(INFO) << " parquet parse done elapsed time = " << elapseRead / 1000000 << " rows = " << numRows;
 
     // reuse the columnarToRowConverter for batches caused system % increase a lot
     auto ctxPool = defaultLeafVeloxMemoryPool();
@@ -263,10 +263,10 @@ int main(int argc, char** argv) {
       cpu = atol(argv[i + 1]);
     }
   }
-  std::cout << "iterations = " << iterations << std::endl;
-  std::cout << "threads = " << threads << std::endl;
-  std::cout << "datafile = " << datafile << std::endl;
-  std::cout << "cpu = " << cpu << std::endl;
+  LOG(INFO) << "iterations = " << iterations;
+  LOG(INFO) << "threads = " << threads;
+  LOG(INFO) << "datafile = " << datafile;
+  LOG(INFO) << "cpu = " << cpu;
 
   gluten::GoogleBenchmarkColumnarToRowCacheScanBenchmark bck(datafile);
 

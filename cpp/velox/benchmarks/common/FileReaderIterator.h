@@ -24,7 +24,6 @@
 #include "compute/ResultIterator.h"
 #include "memory/ColumnarBatch.h"
 #include "memory/ColumnarBatchIterator.h"
-#include "utils/DebugOut.h"
 
 namespace gluten {
 

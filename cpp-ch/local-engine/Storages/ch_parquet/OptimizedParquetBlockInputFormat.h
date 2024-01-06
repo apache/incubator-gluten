@@ -48,7 +48,7 @@ public:
     const BlockMissingValues & getMissingValues() const override;
 
 private:
-    Chunk generate() override;
+    Chunk read() override;
 
 protected:
     void prepareReader();

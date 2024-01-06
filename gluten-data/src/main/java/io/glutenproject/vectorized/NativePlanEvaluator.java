@@ -31,6 +31,7 @@ import org.apache.spark.TaskContext;
 import org.apache.spark.util.SparkDirectoryUtil;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -56,6 +57,10 @@ public class NativePlanEvaluator {
 
   public NativePlanValidationInfo doNativeValidateWithFailureReason(byte[] subPlan) {
     return jniWrapper.nativeValidateWithFailureReason(subPlan);
+  }
+
+  public void injectWriteFilesTempPath(String path) {
+    jniWrapper.injectWriteFilesTempPath(path.getBytes(StandardCharsets.UTF_8));
   }
 
   // Used by WholeStageTransform to create the native computing pipeline and

@@ -101,7 +101,7 @@ auto BM = [](::benchmark::State& state,
         state.SkipWithError(maybeBatch.status().message().c_str());
         return;
       }
-      std::cout << maybeBatch.ValueOrDie()->ToString() << std::endl;
+      LOG(INFO) << maybeBatch.ValueOrDie()->ToString();
     }
   }
   Runtime::release(runtime);

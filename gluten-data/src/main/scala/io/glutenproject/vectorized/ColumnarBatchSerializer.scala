@@ -38,6 +38,7 @@ import org.apache.arrow.memory.BufferAllocator
 
 import java.io._
 import java.nio.ByteBuffer
+import java.util.UUID
 
 import scala.reflect.ClassTag
 
@@ -145,8 +146,15 @@ private class ColumnarBatchSerializerInstance(
       // E.g. A Velox limit operator may suddenly drop the input stream after emitting enough
       // rows. In the case DeserializationStream#close() will not be called. Spark doesn't
       // call close() either. So we should handle the case especially.
-      TaskResources.addRecycler(s"ShuffleReaderDeserializationStream_${wrappedOut.getId}", 50) {
-        this.close()
+      private val resourceId = UUID.randomUUID().toString
+      TaskResources.addRecycler(
+        resourceId,
+        s"ShuffleReaderDeserializationStream_${wrappedOut.getId}",
+        50) {
+        if (!isClosed) {
+          this.close0()
+          isClosed = true
+        }
       }
 
       override def asIterator: Iterator[Any] = {
@@ -198,16 +206,21 @@ private class ColumnarBatchSerializerInstance(
 
       override def close(): Unit = {
         if (!isClosed) {
-          if (numBatchesTotal > 0) {
-            readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
-          }
-          numOutputRows += numRowsTotal
-          wrappedOut.close()
-          byteIn.close()
-          if (cb != null) {
-            cb.close()
-          }
+          TaskResources.removeResource(resourceId)
+          close0()
           isClosed = true
+        }
+      }
+
+      private def close0(): Unit = {
+        if (numBatchesTotal > 0) {
+          readBatchNumRows.set(numRowsTotal.toDouble / numBatchesTotal)
+        }
+        numOutputRows += numRowsTotal
+        wrappedOut.close()
+        byteIn.close()
+        if (cb != null) {
+          cb.close()
         }
       }
     }

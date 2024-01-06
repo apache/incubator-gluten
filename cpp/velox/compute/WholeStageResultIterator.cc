@@ -39,8 +39,6 @@ const std::string kHiveConnectorId = "test-hive";
 // memory
 const std::string kSpillStrategy = "spark.gluten.sql.columnar.backend.velox.spillStrategy";
 const std::string kSpillStrategyDefaultValue = "auto";
-const std::string kPartialAggregationSpillEnabled =
-    "spark.gluten.sql.columnar.backend.velox.partialAggregationSpillEnabled";
 const std::string kAggregationSpillEnabled = "spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled";
 const std::string kJoinSpillEnabled = "spark.gluten.sql.columnar.backend.velox.joinSpillEnabled";
 const std::string kOrderBySpillEnabled = "spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled";
@@ -237,8 +235,8 @@ void WholeStageResultIterator::collectMetrics() {
     const auto& nodeId = orderedNodeIds_[idx];
     if (planStats.find(nodeId) == planStats.end()) {
       if (omittedNodeIds_.find(nodeId) == omittedNodeIds_.end()) {
-        DEBUG_OUT << "Not found node id: " << nodeId << std::endl;
-        DEBUG_OUT << "Plan Node: " << std::endl << veloxPlan_->toString(true, true) << std::endl;
+        LOG(WARNING) << "Not found node id: " << nodeId;
+        LOG(WARNING) << "Plan Node: " << std::endl << veloxPlan_->toString(true, true);
         throw std::runtime_error("Node id cannot be found in plan status.");
       }
       // Special handing for Filter over Project case. Filter metrics are
@@ -378,8 +376,6 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
     }
     configs[velox::core::QueryConfig::kAggregationSpillEnabled] =
         std::to_string(veloxCfg_->get<bool>(kAggregationSpillEnabled, true));
-    configs[velox::core::QueryConfig::kPartialAggregationSpillEnabled] =
-        std::to_string(veloxCfg_->get<bool>(kPartialAggregationSpillEnabled, true));
     configs[velox::core::QueryConfig::kJoinSpillEnabled] =
         std::to_string(veloxCfg_->get<bool>(kJoinSpillEnabled, true));
     configs[velox::core::QueryConfig::kOrderBySpillEnabled] =
@@ -415,6 +411,9 @@ std::unordered_map<std::string, std::string> WholeStageResultIterator::getQueryC
         std::to_string(veloxCfg_->get<int32_t>(kVeloxSplitPreloadPerDriver, 2));
 
     configs[velox::core::QueryConfig::kArrowBridgeTimestampUnit] = "6";
+
+    // Disable driver cpu time slicing.
+    configs[velox::core::QueryConfig::kDriverCpuTimeSliceLimitMs] = "0";
 
   } catch (const std::invalid_argument& err) {
     std::string errDetails = err.what();

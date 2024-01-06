@@ -74,9 +74,13 @@ void VeloxRuntime::getInfoAndIds(
 std::string VeloxRuntime::planString(bool details, const std::unordered_map<std::string, std::string>& sessionConf) {
   std::vector<std::shared_ptr<ResultIterator>> inputs;
   auto veloxMemoryPool = gluten::defaultLeafVeloxMemoryPool();
-  VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), sessionConf, true);
+  VeloxPlanConverter veloxPlanConverter(inputs, veloxMemoryPool.get(), sessionConf, std::nullopt, true);
   auto veloxPlan = veloxPlanConverter.toVeloxPlan(substraitPlan_);
   return veloxPlan->toString(details, true);
+}
+
+void VeloxRuntime::injectWriteFilesTempPath(const std::string& path) {
+  writeFilesTempPath_ = path;
 }
 
 std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
@@ -88,7 +92,8 @@ std::shared_ptr<ResultIterator> VeloxRuntime::createResultIterator(
     LOG(INFO) << "VeloxRuntime session config:" << printConfig(confMap_);
   }
 
-  VeloxPlanConverter veloxPlanConverter(inputs, getLeafVeloxPool(memoryManager).get(), sessionConf);
+  VeloxPlanConverter veloxPlanConverter(
+      inputs, getLeafVeloxPool(memoryManager).get(), sessionConf, writeFilesTempPath_);
   veloxPlan_ = veloxPlanConverter.toVeloxPlan(substraitPlan_);
 
   // Scan node can be required.

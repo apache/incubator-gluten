@@ -26,6 +26,7 @@ import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat.{DwrfReadFor
 import org.apache.spark.sql.catalyst.expressions.{Alias, CumeDist, DenseRank, Descending, Expression, Literal, NamedExpression, NthValue, PercentRank, Rand, RangeFrame, Rank, RowNumber, SortOrder, SpecialFrameBoundary, SpecifiedWindowFrame}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Count, Sum}
 import org.apache.spark.sql.catalyst.plans.JoinType
+import org.apache.spark.sql.catalyst.util.CharVarcharUtils
 import org.apache.spark.sql.execution.{ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.command.CreateDataSourceTableAsSelectCommand
@@ -68,9 +69,9 @@ object BackendSettings extends BackendSettingsApi {
       partTable: Boolean,
       paths: Seq[String]): ValidationResult = {
     // Validate if all types are supported.
-    def validateTypes(validatorFunc: PartialFunction[DataType, String]): ValidationResult = {
+    def validateTypes(validatorFunc: PartialFunction[StructField, String]): ValidationResult = {
       // Collect unsupported types.
-      val unsupportedDataTypeReason = fields.map(_.dataType).collect(validatorFunc)
+      val unsupportedDataTypeReason = fields.collect(validatorFunc)
       if (unsupportedDataTypeReason.isEmpty) {
         ValidationResult.ok
       } else {
@@ -81,34 +82,45 @@ object BackendSettings extends BackendSettingsApi {
 
     format match {
       case ParquetReadFormat =>
-        val typeValidator: PartialFunction[DataType, String] = {
-          case _: ByteType => "ByteType not support"
+        val typeValidator: PartialFunction[StructField, String] = {
+          case StructField(_, ByteType, _, _) => "ByteType not support"
           // Parquet scan of nested array with struct/array as element type is unsupported in Velox.
-          case arrayType: ArrayType if arrayType.elementType.isInstanceOf[StructType] =>
+          case StructField(_, arrayType: ArrayType, _, _)
+              if arrayType.elementType.isInstanceOf[StructType] =>
             "StructType as element in ArrayType"
-          case arrayType: ArrayType if arrayType.elementType.isInstanceOf[ArrayType] =>
+          case StructField(_, arrayType: ArrayType, _, _)
+              if arrayType.elementType.isInstanceOf[ArrayType] =>
             "ArrayType as element in ArrayType"
           // Parquet scan of nested map with struct as key type,
           // or array type as value type is not supported in Velox.
-          case mapType: MapType if mapType.keyType.isInstanceOf[StructType] =>
+          case StructField(_, mapType: MapType, _, _) if mapType.keyType.isInstanceOf[StructType] =>
             "StructType as Key in MapType"
-          case mapType: MapType if mapType.valueType.isInstanceOf[ArrayType] =>
+          case StructField(_, mapType: MapType, _, _)
+              if mapType.valueType.isInstanceOf[ArrayType] =>
             "ArrayType as Value in MapType"
         }
         validateTypes(typeValidator)
       case DwrfReadFormat => ValidationResult.ok
       case OrcReadFormat =>
-        val typeValidator: PartialFunction[DataType, String] = {
-          case _: ByteType => "ByteType not support"
-          case arrayType: ArrayType if arrayType.elementType.isInstanceOf[StructType] =>
+        val typeValidator: PartialFunction[StructField, String] = {
+          case StructField(_, ByteType, _, _) => "ByteType not support"
+          case StructField(_, arrayType: ArrayType, _, _)
+              if arrayType.elementType.isInstanceOf[StructType] =>
             "StructType as element in ArrayType"
-          case arrayType: ArrayType if arrayType.elementType.isInstanceOf[ArrayType] =>
+          case StructField(_, arrayType: ArrayType, _, _)
+              if arrayType.elementType.isInstanceOf[ArrayType] =>
             "ArrayType as element in ArrayType"
-          case mapType: MapType if mapType.keyType.isInstanceOf[StructType] =>
+          case StructField(_, mapType: MapType, _, _) if mapType.keyType.isInstanceOf[StructType] =>
             "StructType as Key in MapType"
-          case mapType: MapType if mapType.valueType.isInstanceOf[ArrayType] =>
+          case StructField(_, mapType: MapType, _, _)
+              if mapType.valueType.isInstanceOf[ArrayType] =>
             "ArrayType as Value in MapType"
-          case _: TimestampType => "TimestampType not support"
+          case StructField(_, stringType: StringType, _, metadata)
+              if CharVarcharUtils
+                .getRawTypeString(metadata)
+                .getOrElse(stringType.catalogString) != stringType.catalogString =>
+            CharVarcharUtils.getRawTypeString(metadata) + " not support"
+          case StructField(_, TimestampType, _, _) => "TimestampType not support"
         }
         validateTypes(typeValidator)
       case _ => ValidationResult.notOk(s"Unsupported file format for $format.")

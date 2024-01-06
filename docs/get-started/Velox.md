@@ -42,8 +42,8 @@ git clone https://github.com/oap-project/gluten.git
 
 # Build Gluten with Velox Backend
 
-It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
-[Gluten Usage](./GlutenUsage.md) listed the parameters and their default value of build command for your reference.
+It's recommended to use buildbundle-veloxbe.sh to build gluten in one script.
+[Gluten build guide](./build-guide.md) listed the parameters and their default value of build command for your reference.
 
 **For x86_64 build**
 
@@ -327,7 +327,6 @@ Using the following configuration options to customize spilling:
 |--------------------------------------------------------------------------|---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | spark.gluten.sql.columnar.backend.velox.spillStrategy                    | auto          | none: Disable spill on Velox backend; auto: Let Spark memory manager manage Velox's spilling                                                                                      |
 | spark.gluten.sql.columnar.backend.velox.spillFileSystem                  | local         | The filesystem used to store spill data. local: The local file system. heap-over-local: Write files to JVM heap if having extra heap space. Otherwise write to local file system. |
-| spark.gluten.sql.columnar.backend.velox.partialAggregationSpillEnabled   | true          | Whether spill is enabled on partial aggregations                                                                                                                                  |
 | spark.gluten.sql.columnar.backend.velox.aggregationSpillEnabled          | true          | Whether spill is enabled on aggregations                                                                                                                                          |
 | spark.gluten.sql.columnar.backend.velox.joinSpillEnabled                 | true          | Whether spill is enabled on joins                                                                                                                                                 |
 | spark.gluten.sql.columnar.backend.velox.orderBySpillEnabled              | true          | Whether spill is enabled on sorts                                                                                                                                                 |
@@ -758,7 +757,7 @@ cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
   --conf spark.driver.maxResultSize=32g
 ```
 
-Refer to [Gluten parameters ](../Configuration.md) for more details of each parameter used by Gluten.
+Refer to [Gluten configuration](../Configuration.md) for more details.
 
 ## Result
 *wholestagetransformer* indicates that the offload works.

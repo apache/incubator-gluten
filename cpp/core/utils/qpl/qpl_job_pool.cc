@@ -37,7 +37,7 @@ QplJobHWPool& QplJobHWPool::GetInstance() {
 QplJobHWPool::QplJobHWPool() : randomEngine(std::random_device()()), distribution(0, MAX_JOB_NUMBER - 1) {
   uint64_t initTime = 0;
   TIME_NANO(initTime, InitJobPool());
-  DEBUG_OUT << "Init job pool took " << 1.0 * initTime / 1e6 << "ms" << std::endl;
+  DLOG(INFO) << "Init job pool took " << 1.0 * initTime / 1e6 << "ms";
 }
 
 QplJobHWPool::~QplJobHWPool() {
@@ -96,7 +96,7 @@ qpl_job* QplJobHWPool::AcquireJob(uint32_t& jobId) {
     }
   }
   jobId = MAX_JOB_NUMBER - index;
-  DEBUG_OUT << "Acquired job index " << index << " after " << retry << " retries." << std::endl;
+  DLOG(INFO) << "Acquired job index " << index << " after " << retry << " retries.";
   return jobPool[index];
 }
 

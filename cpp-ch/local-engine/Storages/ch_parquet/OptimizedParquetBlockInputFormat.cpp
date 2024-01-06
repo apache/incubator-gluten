@@ -45,7 +45,7 @@ OptimizedParquetBlockInputFormat::OptimizedParquetBlockInputFormat(ReadBuffer & 
 {
 }
 
-Chunk OptimizedParquetBlockInputFormat::generate()
+Chunk OptimizedParquetBlockInputFormat::read()
 {
     Chunk res;
     block_missing_values.clear();
@@ -62,7 +62,7 @@ Chunk OptimizedParquetBlockInputFormat::generate()
     std::shared_ptr<arrow::Table> table;
     arrow::Status read_status = file_reader->ReadRowGroup(row_group_current, column_indices, &table);
     if (!read_status.ok())
-        throw ParsingException(ErrorCodes::CANNOT_READ_ALL_DATA, "Error while reading Parquet data: {}", read_status.ToString());
+        throw Exception(ErrorCodes::CANNOT_READ_ALL_DATA, "Error while reading Parquet data: {}", read_status.ToString());
 
     if (format_settings.use_lowercase_column_name)
         table = *table->RenameColumns(column_names);
