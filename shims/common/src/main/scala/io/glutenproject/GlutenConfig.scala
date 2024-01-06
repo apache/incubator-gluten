@@ -39,6 +39,8 @@ class GlutenConfig(conf: SQLConf) extends Logging {
 
   def enableAnsiMode: Boolean = conf.ansiEnabled
 
+  def enableGluten: Boolean = conf.getConf(GLUTEN_ENABLED)
+
   // FIXME the option currently controls both JVM and native validation against a Substrait plan.
   def enableNativeValidation: Boolean = conf.getConf(NATIVE_VALIDATION_ENABLED)
 
@@ -1403,7 +1405,7 @@ object GlutenConfig {
     buildConf("spark.gluten.sql.rewrite.dateTimestampComparison")
       .internal()
       .doc("Rewrite the comparision between date and timestamp to timestamp comparison."
-        + "For example `fron_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
+        + "For example `from_unixtime(ts) > date` will be rewritten to `ts > to_unixtime(date)`")
       .booleanConf
       .createWithDefault(true)
 
