@@ -14,20 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.glutenproject.extension
 
-import io.glutenproject.execution.{DataSourceScanTransformerRegister, FileSourceScanExecTransformer}
+#include <Functions/SparkFunctionFloor.h>
 
-import org.apache.spark.sql.catalyst.expressions.Expression
-import org.apache.spark.sql.execution.FileSourceScanExec
+namespace local_engine
+{
 
-class DeltaScanTransformerProvider extends DataSourceScanTransformerRegister {
+REGISTER_FUNCTION(SparkFunctionFloor)
+{
+    factory.registerFunction<SparkFunctionFloor>();
+}
 
-  override val scanClassName: String = "org.apache.spark.sql.delta.files.TahoeLogFileIndex"
-
-  override def createDataSourceTransformer(
-      batchScan: FileSourceScanExec,
-      newPartitionFilters: Seq[Expression]): FileSourceScanExecTransformer = {
-    DeltaScanTransformer(batchScan, newPartitionFilters)
-  }
 }

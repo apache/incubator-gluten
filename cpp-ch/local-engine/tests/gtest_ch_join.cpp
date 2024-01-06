@@ -199,6 +199,7 @@ TEST(TestJoin, StorageJoinFromReadBufferTest)
     auto table_join = std::make_shared<TableJoin>(SizeLimits(), false, JoinKind::Left, JoinStrictness::All, cols);
     auto join_storage = std::shared_ptr<StorageJoinFromReadBuffer>(new StorageJoinFromReadBuffer( // NOLINT
         *in,
+        2048, // Even if you don't know the number of rows, passing an arbitrary value is fine
         cols,
         false,
         table_join,

@@ -76,7 +76,6 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"pmod", "pmod"},
        {"abs", "abs"},
        {"ceil", "ceil"},
-       {"floor", "floor"},
        {"round", "roundHalfUp"},
        {"bround", "roundBankers"},
        {"exp", "exp"},
@@ -180,6 +179,7 @@ static const std::map<std::string, std::string> SCALAR_FUNCTIONS
        {"add_months", "addMonths"},
        {"date_trunc", "dateTrunc"},
        {"floor_datetime", "dateTrunc"},
+       {"floor", "sparkFloor"},
        {"months_between", "sparkMonthsBetween"},
 
        // array functions

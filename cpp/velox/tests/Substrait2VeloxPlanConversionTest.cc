@@ -18,6 +18,7 @@
 #include "JsonToProtoConverter.h"
 
 #include <filesystem>
+#include "memory/VeloxMemoryManager.h"
 #include "substrait/SubstraitToVeloxPlan.h"
 #include "substrait/SubstraitToVeloxPlanValidator.h"
 #include "velox/common/base/tests/GTestUtils.h"
@@ -72,10 +73,7 @@ class Substrait2VeloxPlanConversionTest : public exec::test::HiveConnectorTestBa
 
   std::shared_ptr<exec::test::TempDirectoryPath> tmpDir_{exec::test::TempDirectoryPath::create()};
   std::shared_ptr<SubstraitToVeloxPlanConverter> planConverter_ =
-      std::make_shared<SubstraitToVeloxPlanConverter>(memoryPool_.get());
-
- private:
-  std::shared_ptr<memory::MemoryPool> memoryPool_{memory::addDefaultLeafMemoryPool()};
+      std::make_shared<SubstraitToVeloxPlanConverter>(gluten::defaultLeafVeloxMemoryPool().get());
 };
 
 // This test will firstly generate mock TPC-H lineitem ORC file. Then, Velox's
@@ -125,7 +123,6 @@ TEST_F(Substrait2VeloxPlanConversionTest, q6) {
            VARCHAR(),
            VARCHAR(),
            VARCHAR()});
-  std::shared_ptr<memory::MemoryPool> pool{memory::addDefaultLeafMemoryPool()};
   std::vector<VectorPtr> vectors;
   // TPC-H lineitem table has 16 columns.
   int colNum = 16;

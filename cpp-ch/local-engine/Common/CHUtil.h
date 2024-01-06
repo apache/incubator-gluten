@@ -58,6 +58,20 @@ public:
         UInt64 flags = FLAT_STRUCT | FLAT_NESTED_TABLE,
         bool recursively = false,
         const std::unordered_set<size_t> & columns_to_skip_flatten = {});
+
+    static DB::Block concatenateBlocksMemoryEfficiently(std::vector<DB::Block> && blocks);
+
+};
+
+class PODArrayUtil
+{
+public:
+    /// To allocate n bytes, PODArray will allocate n + pad_left + pad_right bytes in fact. So when
+    /// we want to allocate 2^k bytes, 2^(k+1) bytes are allocated. This makes the memory usage far
+    /// more than we expected, and easy to cause OOM. For example, we want to limit the max block size to be
+    /// 64k rows, CH will make the memory usage equal to 128k rows, and half of the reserved memory is not used.
+    /// So we adjust the size by considering the padding bytes, the return value may be samller then n.
+    static size_t adjustMemoryEfficientSize(size_t n);
 };
 
 /// Use this class to extract element columns from columns of nested type in a block, e.g. named Tuple.
@@ -205,6 +219,13 @@ class DateTimeUtil
 {
 public:
     static Int64 currentTimeMillis();
+};
+
+class MemoryUtil
+{
+public:
+    static UInt64 getCurrentMemoryUsage(size_t depth = 1);
+    static UInt64 getMemoryRSS();
 };
 
 }

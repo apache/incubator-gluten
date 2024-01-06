@@ -444,6 +444,7 @@ message Rel {
     ExpandRel expand = 15;
     WindowRel window = 16;
     GenerateRel generate = 17;
+    WriteRel write = 18;
   }
 }
 

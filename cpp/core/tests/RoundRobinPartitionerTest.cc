@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "shuffle/RoundRobinPartitioner.h"
+#include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <numeric>
 
@@ -46,10 +47,11 @@ class RoundRobinPartitionerTest : public ::testing::Test {
 
   template <typename T>
   void toString(const std::vector<T>& vec, const std::string& name) const {
-    std::cout << name << " = [";
-    std::copy(vec.cbegin(), vec.cend(), std::ostream_iterator<T>(std::cout, ","));
-    std::cout << " ]";
-    std::cout << std::endl;
+    std::stringstream ss;
+    ss << name << " = [";
+    std::copy(vec.cbegin(), vec.cend(), std::ostream_iterator<T>(ss, ","));
+    ss << " ]";
+    LOG(INFO) << ss.str();
   }
 
   int32_t getPidSelection() const {

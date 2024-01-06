@@ -16,11 +16,11 @@
  */
 #include "StorageJoinFromReadBuffer.h"
 
-#include <Storages/IO/NativeReader.h>
 #include <Interpreters/Context.h>
 #include <Interpreters/HashJoin.h>
 #include <Interpreters/TableJoin.h>
 #include <QueryPipeline/ProfileInfo.h>
+#include <Storages/IO/NativeReader.h>
 #include <Common/Exception.h>
 
 namespace DB
@@ -29,12 +29,12 @@ class HashJoin;
 using HashJoinPtr = std::shared_ptr<HashJoin>;
 namespace ErrorCodes
 {
-    extern const int NOT_IMPLEMENTED;
-    extern const int LOGICAL_ERROR;
-    extern const int UNSUPPORTED_JOIN_KEYS;
-    extern const int NO_SUCH_COLUMN_IN_TABLE;
-    extern const int INCOMPATIBLE_TYPE_OF_JOIN;
-    extern const int DEADLOCK_AVOIDED;
+extern const int NOT_IMPLEMENTED;
+extern const int LOGICAL_ERROR;
+extern const int UNSUPPORTED_JOIN_KEYS;
+extern const int NO_SUCH_COLUMN_IN_TABLE;
+extern const int INCOMPATIBLE_TYPE_OF_JOIN;
+extern const int DEADLOCK_AVOIDED;
 }
 }
 
@@ -43,15 +43,12 @@ using namespace DB;
 void restore(DB::ReadBuffer & in, IJoin & join, const Block & sample_block)
 {
     local_engine::NativeReader block_stream(in);
-
     ProfileInfo info;
+    while (Block block = block_stream.read())
     {
-        while (Block block = block_stream.read())
-        {
-            auto final_block = sample_block.cloneWithColumns(block.mutateColumns());
-            info.update(final_block);
-            join.addBlockToJoin(final_block, true);
-        }
+        auto final_block = sample_block.cloneWithColumns(block.mutateColumns());
+        info.update(final_block);
+        join.addBlockToJoin(final_block, true);
     }
 }
 
@@ -59,12 +56,8 @@ DB::Block rightSampleBlock(bool use_nulls, const StorageInMemoryMetadata & stora
 {
     DB::Block block = storage_metadata_.getSampleBlock();
     if (use_nulls && isLeftOrFull(kind))
-    {
         for (auto & col : block)
-        {
             DB::JoinCommon::convertColumnToNullable(col);
-        }
-    }
     return block;
 }
 
@@ -73,6 +66,7 @@ namespace local_engine
 
 StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
     DB::ReadBuffer & in,
+    size_t row_count_,
     const Names & key_names,
     bool use_nulls,
     std::shared_ptr<DB::TableJoin> table_join,
@@ -90,7 +84,7 @@ StorageJoinFromReadBuffer::StorageJoinFromReadBuffer(
         if (!storage_metadata_.getColumns().hasPhysical(key))
             throw Exception(ErrorCodes::NO_SUCH_COLUMN_IN_TABLE, "Key column ({}) does not exist in table declaration.", key);
     right_sample_block_ = rightSampleBlock(use_nulls, storage_metadata_, table_join->kind());
-    join_ = std::make_shared<HashJoin>(table_join, right_sample_block_, overwrite);
+    join_ = std::make_shared<HashJoin>(table_join, right_sample_block_, overwrite, row_count_);
     restore(in, *join_, storage_metadata_.getSampleBlock());
 }
 

@@ -120,6 +120,7 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
     {
         if (hash_function_name == "sparkMurmurHash3_32")
         {
+            /// sparkMurmurHash3_32 returns are all not null.
             auto parts_num_int32 = static_cast<Int32>(parts_num);
             for (size_t i = 0; i < rows; i++)
             {
@@ -135,8 +136,21 @@ PartitionInfo HashSelectorBuilder::build(DB::Block & block)
         }
         else
         {
-            for (size_t i = 0; i < rows; i++)
-                partition_ids.emplace_back(static_cast<UInt64>(hash_column->get64(i) % parts_num));
+            if (hash_column->isNullable())
+            {
+                const auto * null_col = typeid_cast<const ColumnNullable *>(hash_column->getPtr().get());
+                auto & null_map = null_col->getNullMapData();
+                for (size_t i = 0; i < rows; ++i)
+                {
+                    auto hash_value = static_cast<UInt64>(hash_column->get64(i)) & static_cast<UInt64>(static_cast<Int64>(null_map[i]) - 1);
+                    partition_ids.emplace_back(static_cast<UInt64>(hash_value % parts_num));
+                }
+            }
+            else
+            {
+                for (size_t i = 0; i < rows; i++)
+                    partition_ids.emplace_back(static_cast<UInt64>(hash_column->get64(i) % parts_num));
+            }
         }
     }
     return PartitionInfo::fromSelector(std::move(partition_ids), parts_num);

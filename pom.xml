@@ -16,7 +16,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.glutenproject</groupId>
   <artifactId>gluten-parent</artifactId>
-  <version>1.1.0-SNAPSHOT</version>
+  <version>1.2.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Gluten Parent Pom</name>
@@ -46,10 +46,10 @@
     <scala.version>2.12.15</scala.version>
     <spark.major.version>3</spark.major.version>
     <sparkbundle.version>3.2</sparkbundle.version>
-    <spark.version>3.4.1</spark.version>
+    <spark.version>3.4.2</spark.version>
     <sparkshim.artifactId>spark-sql-columnar-shims-spark32</sparkshim.artifactId>
     <celeborn.version>0.3.0-incubating</celeborn.version>
-    <arrow.version>12.0.0</arrow.version>
+    <arrow.version>14.0.1</arrow.version>
     <arrow-memory.artifact>arrow-memory-unsafe</arrow-memory.artifact>
     <hadoop.version>2.7.4</hadoop.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -135,9 +135,9 @@
       <properties>
         <sparkbundle.version>3.4</sparkbundle.version>
         <sparkshim.artifactId>spark-sql-columnar-shims-spark34</sparkshim.artifactId>
-        <spark.version>3.4.1</spark.version>
-        <delta.version>2.2.0</delta.version>
-        <delta.binary.version>22</delta.binary.version>
+        <spark.version>3.4.2</spark.version>
+        <delta.version>2.4.0</delta.version>
+        <delta.binary.version>24</delta.binary.version>
       </properties>
     </profile>
     <profile>
@@ -231,7 +231,7 @@
       </modules>
       <properties>
         <backend_type>velox</backend_type>
-        <arrow.version>12.0.0</arrow.version>
+        <arrow.version>14.0.1</arrow.version>
         <build_velox_backend>ON</build_velox_backend>
       </properties>
     </profile>
@@ -484,31 +484,31 @@
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-annotations</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-core</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-guava</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.module</groupId>
         <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
         <version>${fasterxml.version}</version>
-        <scope>test</scope>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>org.apache.maven.plugins</groupId>

@@ -1020,7 +1020,12 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type) && !converted_decimal_args)
         {
             auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
-            if (isDecimalOrNullableDecimal(result_type))
+            bool castNullableFloatToInt = false;
+            if (function_node->result_type->isNullable() && result_type->isNullable()
+                && isFloat(DB::removeNullable(function_node->result_type))
+                && isInt(DB::removeNullable(result_type)))
+                castNullableFloatToInt = true;
+            if (isDecimalOrNullableDecimal(result_type) || castNullableFloatToInt)
             {
                 result_node = ActionsDAGUtil::convertNodeType(
                     actions_dag,
@@ -1642,7 +1647,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             args.emplace_back(parseExpression(actions_dag, input));
 
             const auto & substrait_type = rel.cast().type();
-            auto to_ch_type = TypeParser::parseType(substrait_type);
             const ActionsDAG::Node * function_node = nullptr;
             if (DB::isString(DB::removeNullable(args.back()->result_type)) && substrait_type.has_date())
             {
@@ -1660,23 +1664,6 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             {
                 // Spark cast(x as BINARY) -> CH reinterpretAsStringSpark(x)
                 function_node = toFunctionNode(actions_dag, "reinterpretAsStringSpark", args);
-            }
-            else if (DB::isFloat(DB::removeNullable(args[0]->result_type)) && DB::isNativeInteger(DB::removeNullable(to_ch_type)))
-            {
-                /// It looks like by design in CH that forbids cast NaN/Inf to integer.
-                auto zero_node = addColumn(actions_dag, args[0]->result_type, 0.0);
-                const auto * if_not_finite_node = toFunctionNode(actions_dag, "ifNotFinite", {args[0], zero_node});
-                const auto * final_arg_node = if_not_finite_node;
-                if (args[0]->result_type->isNullable())
-                {
-                    DB::Field null_field;
-                    const auto * null_value = addColumn(actions_dag, args[0]->result_type, null_field);
-                    const auto * is_null_node = toFunctionNode(actions_dag, "isNull", {args[0]});
-                    const auto * if_node = toFunctionNode(actions_dag, "if", {is_null_node, null_value, if_not_finite_node});
-                    final_arg_node = if_node;
-                }
-                function_node = toFunctionNode(
-                    actions_dag, "CAST", {final_arg_node, addColumn(actions_dag, std::make_shared<DataTypeString>(), to_ch_type->getName())});
             }
             else
             {
@@ -1700,10 +1687,14 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
 
         case substrait::Expression::RexTypeCase::kIfThen: {
             const auto & if_then = rel.if_then();
-            auto function_multi_if = DB::FunctionFactory::instance().get("multiIf", context);
+            DB::FunctionOverloadResolverPtr function_ptr = nullptr;
+            auto condition_nums = if_then.ifs_size();
+            if (condition_nums == 1)
+                function_ptr = DB::FunctionFactory::instance().get("if", context);
+            else
+                function_ptr = DB::FunctionFactory::instance().get("multiIf", context);
             DB::ActionsDAG::NodeRawConstPtrs args;
 
-            auto condition_nums = if_then.ifs_size();
             for (int i = 0; i < condition_nums; ++i)
             {
                 const auto & ifs = if_then.ifs(i);
@@ -1717,8 +1708,12 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             const auto * else_node = parseExpression(actions_dag, if_then.else_());
             args.emplace_back(else_node);
             std::string args_name = join(args, ',');
-            auto result_name = "multiIf(" + args_name + ")";
-            const auto * function_node = &actions_dag->addFunction(function_multi_if, args, result_name);
+            std::string result_name;
+            if (condition_nums == 1)
+                result_name = "if(" + args_name + ")";
+            else
+                result_name = "multiIf(" + args_name + ")";
+            const auto * function_node = &actions_dag->addFunction(function_ptr, args, result_name);
             actions_dag->addOrReplaceInOutputs(*function_node);
             return function_node;
         }
@@ -1976,11 +1971,11 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
         }
         case substrait::Expression::RexTypeCase::kIfThen: {
             const auto & if_then = rel.if_then();
-            const auto * ch_function_name = "multiIf";
+            auto condition_nums = if_then.ifs_size();
+            std::string ch_function_name = condition_nums == 1 ? "if" : "multiIf";
             auto function_multi_if = DB::FunctionFactory::instance().get(ch_function_name, context);
             ASTs args;
 
-            auto condition_nums = if_then.ifs_size();
             for (int i = 0; i < condition_nums; ++i)
             {
                 const auto & ifs = if_then.ifs(i);
@@ -1992,6 +1987,7 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
             }
 
             auto else_node = parseArgumentToAST(names, if_then.else_());
+            args.emplace_back(std::move(else_node));
             return makeASTFunction(ch_function_name, args);
         }
         case substrait::Expression::RexTypeCase::kScalarFunction: {

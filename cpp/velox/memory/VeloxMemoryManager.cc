@@ -23,34 +23,11 @@
 #include "memory/ArrowMemoryPool.h"
 #include "utils/exception.h"
 
+DECLARE_int32(gluten_velox_aysnc_timeout_on_task_stopping);
+
 namespace gluten {
 
 using namespace facebook;
-
-// So far HbmMemoryAllocator would not work correctly since the underlying
-//   gluten allocator is only used to do allocation-reporting to Spark in mmap case
-// This allocator only hook `allocateBytes` and `freeBytes`, we can not ensure this behavior is safe enough,
-// so, only use this allocator when build with GLUTEN_ENABLE_HBM.
-class VeloxMemoryAllocator final : public velox::memory::MallocAllocator {
- public:
-  VeloxMemoryAllocator(gluten::MemoryAllocator* glutenAlloc)
-      : MallocAllocator(velox::memory::kMaxMemory), glutenAlloc_(glutenAlloc) {}
-
- protected:
-  void* allocateBytesWithoutRetry(uint64_t bytes, uint16_t alignment) override {
-    void* out;
-    VELOX_CHECK(glutenAlloc_->allocateAligned(alignment, bytes, &out), "Issue allocating bytes");
-    return out;
-  }
-
- public:
-  void freeBytes(void* p, uint64_t size) noexcept override {
-    VELOX_CHECK(glutenAlloc_->free(p, size));
-  }
-
- private:
-  gluten::MemoryAllocator* glutenAlloc_;
-};
 
 /// We assume in a single Spark task. No thread-safety should be guaranteed.
 class ListenableArbitrator : public velox::memory::MemoryArbitrator {
@@ -62,17 +39,31 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     return kind_;
   }
 
-  void reserveMemory(velox::memory::MemoryPool* pool, uint64_t) override {
+  uint64_t growCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
     std::lock_guard<std::recursive_mutex> l(mutex_);
-    growPoolLocked(pool, memoryPoolInitCapacity_);
+    return growPoolLocked(pool, targetBytes);
   }
 
-  void releaseMemory(velox::memory::MemoryPool* pool) override {
+  uint64_t shrinkCapacity(velox::memory::MemoryPool* pool, uint64_t targetBytes) override {
     std::lock_guard<std::recursive_mutex> l(mutex_);
-    releaseMemoryLocked(pool);
+    return releaseMemoryLocked(pool, targetBytes);
   }
 
-  uint64_t shrinkMemory(const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools, uint64_t targetBytes)
+  bool growCapacity(
+      velox::memory::MemoryPool* pool,
+      const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& candidatePools,
+      uint64_t targetBytes) override {
+    GLUTEN_CHECK(candidatePools.size() == 1, "ListenableArbitrator should only be used within a single root pool");
+    auto candidate = candidatePools.back();
+    GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
+    {
+      std::lock_guard<std::recursive_mutex> l(mutex_);
+      growPoolLocked(pool, targetBytes);
+    }
+    return true;
+  }
+
+  uint64_t shrinkCapacity(const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& pools, uint64_t targetBytes)
       override {
     facebook::velox::exec::MemoryReclaimer::Stats status;
     GLUTEN_CHECK(pools.size() == 1, "Should shrink a single pool at a time");
@@ -87,20 +78,6 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
     return total;
   }
 
-  bool growMemory(
-      velox::memory::MemoryPool* pool,
-      const std::vector<std::shared_ptr<velox::memory::MemoryPool>>& candidatePools,
-      uint64_t targetBytes) override {
-    GLUTEN_CHECK(candidatePools.size() == 1, "ListenableArbitrator should only be used within a single root pool");
-    auto candidate = candidatePools.back();
-    GLUTEN_CHECK(pool->root() == candidate.get(), "Illegal state in ListenableArbitrator");
-    {
-      std::lock_guard<std::recursive_mutex> l(mutex_);
-      growPoolLocked(pool, targetBytes);
-    }
-    return true;
-  }
-
   Stats stats() const override {
     Stats stats; // no-op
     return stats;
@@ -111,14 +88,15 @@ class ListenableArbitrator : public velox::memory::MemoryArbitrator {
   }
 
  private:
-  void growPoolLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
+  uint64_t growPoolLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
     listener_->allocationChanged(bytes);
-    pool->grow(bytes);
+    return pool->grow(bytes);
   }
 
-  void releaseMemoryLocked(velox::memory::MemoryPool* pool) {
+  uint64_t releaseMemoryLocked(velox::memory::MemoryPool* pool, uint64_t bytes) {
     uint64_t freeBytes = pool->shrink(0);
     listener_->allocationChanged(-freeBytes);
+    return freeBytes;
   }
 
   gluten::AllocationListener* listener_;
@@ -160,31 +138,18 @@ VeloxMemoryManager::VeloxMemoryManager(
   glutenAlloc_ = std::make_unique<ListenableMemoryAllocator>(allocator.get(), listener_.get());
   arrowPool_ = std::make_unique<ArrowMemoryPool>(glutenAlloc_.get());
 
-  auto veloxAlloc = velox::memory::MemoryAllocator::getInstance();
-
-#ifdef GLUTEN_ENABLE_HBM
-  wrappedAlloc_ = std::make_unique<VeloxMemoryAllocator>(allocator.get(), veloxAlloc);
-  veloxAlloc = wrappedAlloc_.get();
-#endif
-
   ArbitratorFactoryRegister afr(listener_.get());
   velox::memory::MemoryManagerOptions mmOptions{
-      velox::memory::MemoryAllocator::kMaxAlignment,
-      velox::memory::kMaxMemory,
-      velox::memory::kMaxMemory,
-      true, // memory usage tracking
-      true, // leak check
-      false, // debug
-      false, // coreOnAllocationFailureEnabled
-#ifdef GLUTEN_ENABLE_HBM
-      wrappedAlloc.get(),
-#else
-      veloxAlloc,
-#endif
-      afr.getKind(),
-      0,
-      32 << 20,
-      0};
+      .alignment = velox::memory::MemoryAllocator::kMaxAlignment,
+      .trackDefaultUsage = true, // memory usage tracking
+      .checkUsageLeak = true, // leak check
+      .debugEnabled = false, // debug
+      .coreOnAllocationFailureEnabled = false,
+      .allocatorCapacity = velox::memory::kMaxMemory,
+      .arbitratorKind = afr.getKind(),
+      .memoryPoolInitCapacity = 0,
+      .memoryPoolTransferCapacity = 32 << 20,
+      .memoryReclaimWaitMs = 0};
   veloxMemoryManager_ = std::make_unique<velox::memory::MemoryManager>(mmOptions);
 
   veloxAggregatePool_ = veloxMemoryManager_->addRootPool(
@@ -216,7 +181,7 @@ int64_t shrinkVeloxMemoryPool(velox::memory::MemoryManager* mm, velox::memory::M
           << pool->root()->capacity() << "/" << pool->root()->maxCapacity() << " bytes.";
   VLOG(2) << logPrefix << "Shrinking...";
   const uint64_t oldCapacity = pool->capacity();
-  mm->arbitrator()->releaseMemory(pool);
+  mm->arbitrator()->shrinkCapacity(pool, 0);
   const uint64_t newCapacity = pool->capacity();
   int64_t shrunken = oldCapacity - newCapacity;
   VLOG(2) << logPrefix << shrunken << " bytes released from shrinking.";
@@ -267,8 +232,25 @@ bool VeloxMemoryManager::tryDestructSafe() {
   veloxAggregatePool_.reset();
 
   // Velox memory manager considered safe to destruct when no alive pools.
-  if (veloxMemoryManager_ && veloxMemoryManager_->numPools() != 0) {
-    return false;
+  if (veloxMemoryManager_) {
+    if (veloxMemoryManager_->numPools() > 1) {
+      return false;
+    }
+    if (veloxMemoryManager_->numPools() == 1) {
+      // Assert the pool is spill pool
+      // See https://github.com/facebookincubator/velox/commit/e6f84e8ac9ef6721f527a2d552a13f7e79bdf72e
+      int32_t spillPoolCount = 0;
+      veloxMemoryManager_->testingDefaultRoot().visitChildren([&](velox::memory::MemoryPool* child) -> bool {
+        if (child == veloxMemoryManager_->spillPool()) {
+          spillPoolCount++;
+        }
+        return true;
+      });
+      GLUTEN_CHECK(spillPoolCount == 1, "Illegal pool count state: spillPoolCount: " + std::to_string(spillPoolCount));
+    }
+    if (veloxMemoryManager_->numPools() < 1) {
+      GLUTEN_CHECK(false, "Unreachable code");
+    }
   }
   veloxMemoryManager_.reset();
 
@@ -283,23 +265,21 @@ bool VeloxMemoryManager::tryDestructSafe() {
 }
 
 VeloxMemoryManager::~VeloxMemoryManager() {
-  // Wait (50 + 100 + 200 + 400 + 800)ms = 1550ms to let possible async tasks (e.g. preload split) complete.
-  for (int32_t tryCount = 0; tryCount < 5; tryCount++) {
+  static const uint32_t kWaitTimeoutMs = FLAGS_gluten_velox_aysnc_timeout_on_task_stopping; // 30s by default
+  uint32_t accumulatedWaitMs = 0UL;
+  for (int32_t tryCount = 0; accumulatedWaitMs < kWaitTimeoutMs; tryCount++) {
     if (tryDestructSafe()) {
       if (tryCount > 0) {
         LOG(INFO) << "All the outstanding memory resources successfully released. ";
       }
       break;
     }
-    uint32_t waitMs = 50 * static_cast<uint32_t>(pow(2, tryCount));
+    uint32_t waitMs = 50 * static_cast<uint32_t>(pow(1.5, tryCount)); // 50ms, 75ms, 112.5ms ...
     LOG(INFO) << "There are still outstanding Velox memory allocations. Waiting for " << waitMs
               << " ms to let possible async tasks done... ";
     usleep(waitMs * 1000);
+    accumulatedWaitMs += waitMs;
   }
-}
-
-velox::memory::MemoryManager* getDefaultVeloxMemoryManager() {
-  return &(facebook::velox::memory::defaultMemoryManager());
 }
 
 } // namespace gluten

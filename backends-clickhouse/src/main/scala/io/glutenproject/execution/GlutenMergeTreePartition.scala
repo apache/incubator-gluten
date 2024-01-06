@@ -14,15 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.glutenproject.execution
 
-#include "DebugOut.h"
+import io.glutenproject.substrait.plan.PlanBuilder
 
-namespace gluten {
-
-#ifndef GLUTEN_PRINT_DEBUG
-
-FakeOut fakeOut;
-
-#endif
-
-} // namespace gluten
+case class GlutenMergeTreePartition(
+    index: Int,
+    engine: String,
+    database: String,
+    table: String,
+    tablePath: String,
+    minParts: Long,
+    maxParts: Long,
+    plan: Array[Byte] = PlanBuilder.EMPTY_PLAN)
+  extends BaseGlutenPartition {
+  override def preferredLocations(): Array[String] = {
+    Array.empty[String]
+  }
+}

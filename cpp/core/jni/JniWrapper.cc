@@ -18,7 +18,6 @@
 #include <jni.h>
 #include <filesystem>
 
-#include <glog/logging.h>
 #include "compute/ProtobufUtils.h"
 #include "compute/Runtime.h"
 #include "config/GlutenConfig.h"
@@ -92,11 +91,10 @@ class JavaInputStreamAdaptor final : public arrow::io::InputStream {
     try {
       auto status = JavaInputStreamAdaptor::Close();
       if (!status.ok()) {
-        DEBUG_OUT << __func__ << " call JavaInputStreamAdaptor::Close() failed, status:" << status.ToString()
-                  << std::endl;
+        LOG(WARNING) << __func__ << " call JavaInputStreamAdaptor::Close() failed, status:" << status.ToString();
       }
     } catch (std::exception& e) {
-      DEBUG_OUT << __func__ << " call JavaInputStreamAdaptor::Close() got exception:" << e.what() << std::endl;
+      LOG(WARNING) << __func__ << " call JavaInputStreamAdaptor::Close() got exception:" << e.what();
     }
   }
 
@@ -254,7 +252,7 @@ jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   metricsBuilderClass = createGlobalClassReferenceOrError(env, "Lio/glutenproject/metrics/Metrics;");
 
   metricsBuilderConstructor = getMethodIdOrError(
-      env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
+      env, metricsBuilderClass, "<init>", "([J[J[J[J[J[J[J[J[J[JJ[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J[J)V");
 
   serializedColumnarBatchIteratorClass =
       createGlobalClassReferenceOrError(env, "Lio/glutenproject/vectorized/ColumnarBatchInIterator;");
@@ -347,6 +345,22 @@ JNIEXPORT jstring JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapp
   return env->NewStringUTF(planString.c_str());
 
   JNI_METHOD_END(nullptr)
+}
+
+JNIEXPORT void JNICALL Java_io_glutenproject_vectorized_PlanEvaluatorJniWrapper_injectWriteFilesTempPath( // NOLINT
+    JNIEnv* env,
+    jobject wrapper,
+    jbyteArray path) {
+  JNI_METHOD_START
+
+  auto len = env->GetArrayLength(path);
+  jbyte* bytes = env->GetByteArrayElements(path, 0);
+  std::string pathStr(reinterpret_cast<char*>(bytes), len);
+  auto ctx = gluten::getRuntime(env, wrapper);
+  ctx->injectWriteFilesTempPath(pathStr);
+  env->ReleaseByteArrayElements(path, bytes, JNI_ABORT);
+
+  JNI_METHOD_END()
 }
 
 JNIEXPORT jlong JNICALL
@@ -487,7 +501,8 @@ JNIEXPORT jobject JNICALL Java_io_glutenproject_vectorized_ColumnarBatchOutItera
       longArray[Metrics::kSkippedStrides],
       longArray[Metrics::kProcessedStrides],
       longArray[Metrics::kRemainingFilterTime],
-      longArray[Metrics::kIoWaitTime]);
+      longArray[Metrics::kIoWaitTime],
+      longArray[Metrics::kPreloadSplits]);
 
   JNI_METHOD_END(nullptr)
 }
@@ -819,7 +834,7 @@ JNIEXPORT jlong JNICALL Java_io_glutenproject_vectorized_ShuffleWriterJniWrapper
   jobject thread = env->CallStaticObjectMethod(cls, mid);
   checkException(env);
   if (thread == NULL) {
-    std::cerr << "Thread.currentThread() return NULL" << std::endl;
+    LOG(WARNING) << "Thread.currentThread() return NULL";
   } else {
     jmethodID midGetid = getMethodIdOrError(env, cls, "getId", "()J");
     jlong sid = env->CallLongMethod(thread, midGetid);

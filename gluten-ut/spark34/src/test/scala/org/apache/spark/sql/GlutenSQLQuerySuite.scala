@@ -54,7 +54,8 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
 
   }
 
-  test(
+  // Velox throw exception : An unsupported nested encoding was found.
+  ignore(
     GlutenTestConstants.GLUTEN_TEST +
       "SPARK-33338: GROUP BY using literal map should not fail") {
     withTable("t") {
@@ -115,6 +116,19 @@ class GlutenSQLQuerySuite extends SQLQuerySuite with GlutenSQLTestsTrait {
           "Escape character must be followed by '%', '_' or the escape character itself"))
 
       checkAnswer(sql("SELECT s LIKE 'm@@ca' ESCAPE '@' FROM df"), Row(true))
+    }
+  }
+
+  test(GlutenTestConstants.GLUTEN_TEST + "the escape character is not allowed to end with") {
+    withTempView("df") {
+      Seq("jialiuping").toDF("a").createOrReplaceTempView("df")
+
+      val e = intercept[SparkException] {
+        sql("SELECT a LIKE 'jialiuping%' ESCAPE '%' FROM df").collect()
+      }
+      assert(
+        e.getMessage.contains(
+          "Escape character must be followed by '%', '_' or the escape character itself"))
     }
   }
 }

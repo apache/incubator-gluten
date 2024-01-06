@@ -19,9 +19,10 @@
 #include <jni.h>
 #include <substrait/algebra.pb.h>
 
-// Forward Declarations
-struct JNIEnv_;
-using JNIEnv = JNIEnv_;
+namespace DB
+{
+class ReadBuffer;
+}
 
 namespace local_engine
 {
@@ -29,17 +30,18 @@ class StorageJoinFromReadBuffer;
 namespace BroadCastJoinBuilder
 {
 
-    std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
-        const std::string & key,
-        jobject input,
-        const std::string & join_keys,
-        substrait::JoinRel_JoinType join_type,
-        const std::string & named_struct);
-    void cleanBuildHashTable(const std::string & hash_table_id, jlong instance);
-    std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & hash_table_id);
+std::shared_ptr<StorageJoinFromReadBuffer> buildJoin(
+    const std::string & key,
+    DB::ReadBuffer & input,
+    jlong row_count,
+    const std::string & join_keys,
+    substrait::JoinRel_JoinType join_type,
+    const std::string & named_struct);
+void cleanBuildHashTable(const std::string & hash_table_id, jlong instance);
+std::shared_ptr<StorageJoinFromReadBuffer> getJoin(const std::string & hash_table_id);
 
 
-    void init(JNIEnv *);
-    void destroy(JNIEnv *);
+void init(JNIEnv *);
+void destroy(JNIEnv *);
 }
 }

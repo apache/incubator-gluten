@@ -87,14 +87,9 @@ public:
         const auto * wrap_index_of_node = ActionsDAGUtil::convertNodeType(
             actions_dag, ch_function_node, wrap_arr_nullable_type->getName(), ch_function_node->result_name);
         const auto * null_const_node = addColumnToActionsDAG(actions_dag, wrap_arr_nullable_type, Field{});
+        const auto * or_condition_node = toFunctionNode(actions_dag, "or", {arr_is_null_node, val_is_null_node});
 
-        const auto * if_node = toFunctionNode(actions_dag, "multiIf", {
-            arr_is_null_node,
-            null_const_node,
-            val_is_null_node,
-            null_const_node, 
-            wrap_index_of_node
-        });
+        const auto * if_node = toFunctionNode(actions_dag, "if", {or_condition_node, null_const_node, wrap_index_of_node});
         return convertNodeTypeIfNeeded(substrait_func, if_node, actions_dag);
     }
 protected:

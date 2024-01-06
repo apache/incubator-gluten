@@ -631,14 +631,27 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  test("Support get native plan tree string") {
+  test("Support get native plan tree string, Velox single aggregation") {
     runQueryAndCompare("select l_partkey + 1, count(*) from lineitem group by l_partkey + 1") {
       df =>
         val wholeStageTransformers = collect(df.queryExecution.executedPlan) {
           case w: WholeStageTransformer => w
         }
         val nativePlanString = wholeStageTransformers.head.nativePlanString()
-        assert(nativePlanString.contains("Aggregation[FINAL"))
+        assert(nativePlanString.contains("Aggregation[SINGLE"))
+        assert(nativePlanString.contains("TableScan"))
+    }
+  }
+
+  // After IntermediateHashAggregateRule is enabled
+  ignore("Support get native plan tree string") {
+    runQueryAndCompare("select l_partkey + 1, count(*) from lineitem group by l_partkey + 1") {
+      df =>
+        val wholeStageTransformers = collect(df.queryExecution.executedPlan) {
+          case w: WholeStageTransformer => w
+        }
+        val nativePlanString = wholeStageTransformers.head.nativePlanString()
+        assert(nativePlanString.contains("Aggregation[SINGLE"))
         assert(nativePlanString.contains("Aggregation[PARTIAL"))
         assert(nativePlanString.contains("TableScan"))
     }
@@ -691,6 +704,46 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
           sql("create table t using parquet as select sum(l_partkey) from lineitem")
         }.message
         assert(msg.contains("contains invalid character"))
+      }
+    }
+  }
+
+  test("test explode function") {
+    runQueryAndCompare("""
+                         |SELECT explode(array(1, 2, 3));
+                         |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |SELECT explode(map(1, 'a', 2, 'b'));
+                         |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+    runQueryAndCompare(
+      """
+        |SELECT explode(array(map(1, 'a', 2, 'b'), map(3, 'c', 4, 'd'), map(5, 'e', 6, 'f')));
+        |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+    runQueryAndCompare("""
+                         |SELECT explode(map(1, array(1, 2), 2, array(3, 4)));
+                         |""".stripMargin) {
+      checkOperatorMatch[GenerateExecTransformer]
+    }
+  }
+
+  test("Support bool type filter in scan") {
+    withTable("t") {
+      sql("create table t (id int, b boolean) using parquet")
+      sql("insert into t values (1, true), (2, false), (3, null)")
+      runQueryAndCompare("select * from t where b = true") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+      runQueryAndCompare("select * from t where b = false") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+      runQueryAndCompare("select * from t where b is NULL") {
+        checkOperatorMatch[FileSourceScanExecTransformer]
       }
     }
   }

@@ -363,7 +363,7 @@ public:
                 fs::create_directories(cache_base_path);
 
             file_cache_settings.base_path = cache_base_path;
-            file_cache = DB::FileCacheFactory::instance().getOrCreate("s3_local_cache", file_cache_settings);
+            file_cache = DB::FileCacheFactory::instance().getOrCreate("s3_local_cache", file_cache_settings, "");
             file_cache->initialize();
 
             new_settings.remote_fs_cache = file_cache;
@@ -585,12 +585,16 @@ private:
         stripQuote(sk);
         const DB::Settings & global_settings = context->getGlobalContext()->getSettingsRef();
         const DB::Settings & local_settings = context->getSettingsRef();
+        DB::S3::ClientSettings client_settings{
+            .use_virtual_addressing = false,
+            .disable_checksum = local_settings.s3_disable_checksum,
+            .gcs_issue_compose_request = context->getConfigRef().getBool("s3.gcs_issue_compose_request", false),
+        };
         if (use_assumed_role)
         {
             auto new_client = DB::S3::ClientFactory::instance().create(
                 client_configuration,
-                local_settings.s3_disable_checksum,
-                false,  // is_virtual_hosted_style
+                client_settings,
                 ak,     // access_key_id
                 sk,     // secret_access_key
                 "",     // server_side_encryption_customer_key_base64
@@ -613,8 +617,7 @@ private:
         {
             auto new_client = DB::S3::ClientFactory::instance().create(
                 client_configuration,
-                local_settings.s3_disable_checksum,
-                false,  // is_virtual_hosted_style
+                client_settings,
                 ak,     // access_key_id
                 sk,     // secret_access_key
                 "",     // server_side_encryption_customer_key_base64

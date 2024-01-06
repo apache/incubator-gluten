@@ -14,6 +14,8 @@ BUILD_EXAMPLES=OFF
 BUILD_BENCHMARKS=OFF
 BUILD_JEMALLOC=OFF
 BUILD_PROTOBUF=ON
+BUILD_VELOX_TESTS=OFF
+BUILD_VELOX_BENCHMARKS=OFF
 ENABLE_QAT=OFF
 ENABLE_IAA=OFF
 ENABLE_HBM=OFF
@@ -25,6 +27,11 @@ ENABLE_EP_CACHE=OFF
 ARROW_ENABLE_CUSTOM_CODEC=OFF
 ENABLE_VCPKG=OFF
 RUN_SETUP_SCRIPT=ON
+VELOX_REPO=""
+VELOX_BRANCH=""
+VELOX_HOME=""
+VELOX_PARAMETER=""
+COMPILE_ARROW_JAVA=OFF
 
 for arg in "$@"
 do
@@ -95,6 +102,30 @@ do
         RUN_SETUP_SCRIPT=("${arg#*=}")
         shift # Remove argument name from processing
         ;;
+        --velox_repo=*)
+        VELOX_REPO=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --velox_branch=*)
+        VELOX_BRANCH=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --velox_home=*)
+        VELOX_HOME=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_velox_tests=*)
+        BUILD_VELOX_TESTS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --build_velox_benchmarks=*)
+        BUILD_VELOX_BENCHMARKS=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
+        --compile_arrow_java=*)
+        COMPILE_ARROW_JAVA=("${arg#*=}")
+        shift # Remove argument name from processing
+        ;;
 	      *)
         OTHER_ARGUMENTS+=("$1")
         shift # Remove generic argument from processing
@@ -102,17 +133,37 @@ do
     esac
 done
 
+function concat_velox_param {
+    # check velox repo
+    if [[ -n $VELOX_REPO ]]; then
+        VELOX_PARAMETER+="--velox_repo=$VELOX_REPO "
+    fi
+
+    # check velox branch
+    if [[ -n $VELOX_BRANCH ]]; then
+        VELOX_PARAMETER+="--velox_branch=$VELOX_BRANCH "
+    fi
+
+    # check velox home
+    if [[ -n $VELOX_HOME ]]; then
+        VELOX_PARAMETER+="--velox_home=$VELOX_HOME "
+    fi
+}
+
 if [ "$ENABLE_VCPKG" = "ON" ]; then
     # vcpkg will install static depends and init build environment
     envs="$("$GLUTEN_DIR/dev/vcpkg/init.sh")"
     eval "$envs"
 fi
 
-##install velox
+## build velox
+concat_velox_param
 cd $GLUTEN_DIR/ep/build-velox/src
-./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --enable_abfs=$ENABLE_ABFS
+./get_velox.sh --enable_hdfs=$ENABLE_HDFS --build_protobuf=$BUILD_PROTOBUF --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --enable_abfs=$ENABLE_ABFS $VELOX_PARAMETER
+# When BUILD_TESTS is on for gluten cpp, we need turn on VELOX_BUILD_TEST_UTILS via build_test_utils.
 ./build_velox.sh --run_setup_script=$RUN_SETUP_SCRIPT --enable_s3=$ENABLE_S3 --enable_gcs=$ENABLE_GCS --build_type=$BUILD_TYPE --enable_hdfs=$ENABLE_HDFS \
-                 --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_tests=$BUILD_TESTS --build_benchmarks=$BUILD_BENCHMARKS
+                 --enable_abfs=$ENABLE_ABFS --enable_ep_cache=$ENABLE_EP_CACHE --build_test_utils=$BUILD_TESTS --build_tests=$BUILD_VELOX_TESTS --build_benchmarks=$BUILD_VELOX_BENCHMARKS \
+                 --compile_arrow_java=$COMPILE_ARROW_JAVA
 
 ## compile gluten cpp
 cd $GLUTEN_DIR/cpp

@@ -5,7 +5,7 @@
   <parent>
     <artifactId>gluten-parent</artifactId>
     <groupId>io.glutenproject</groupId>
-    <version>1.1.0-SNAPSHOT</version>
+    <version>1.2.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -163,6 +163,12 @@
       <artifactId>xchart</artifactId>
       <version>3.6.5</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>de.erichseifert.vectorgraphics2d</groupId>
+          <artifactId>VectorGraphics2D</artifactId>		      
+	</exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.glutenproject</groupId>
@@ -192,22 +198,18 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.module</groupId>
       <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 

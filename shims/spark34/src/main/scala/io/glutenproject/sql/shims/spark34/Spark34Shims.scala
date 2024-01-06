@@ -29,6 +29,7 @@ import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.BloomFilterAggregate
 import org.apache.spark.sql.catalyst.plans.physical.{ClusteredDistribution, Distribution}
+import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.{FileSourceScanLike, PartitionedFileUtil, SparkPlan}
@@ -116,7 +117,7 @@ class Spark34Shims extends SparkShims {
         f =>
           BucketingUtils
             .getBucketId(f.toPath.getName)
-            .getOrElse(throw invalidBucketFile(f.toPath.getName))
+            .getOrElse(throw invalidBucketFile(f.urlEncodedPath))
       }
   }
 
@@ -148,10 +149,13 @@ class Spark34Shims extends SparkShims {
     }
   }
 
+  // https://issues.apache.org/jira/browse/SPARK-40400
   private def invalidBucketFile(path: String): Throwable = {
     new SparkException(
       errorClass = "INVALID_BUCKET_FILE",
-      messageParameters = Map("error" -> path),
+      messageParameters = Map("path" -> path),
       cause = null)
   }
+
+  override def getExtendedColumnarPostRules(): List[SparkSession => Rule[SparkPlan]] = List()
 }

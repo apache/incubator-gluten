@@ -12,8 +12,6 @@ Gluten was initiated by Intel and Kyligence in 2022. Several companies such as I
 ## Technical Support
 If you need any help or have questions on this product, please contact us:
 
-<a href="mailto:rui.mo@intel.com">rui.mo@intel.com</a>
-
 <a href="mailto:binwei.yang@intel.com">binwei.yang@intel.com</a>
 
 <a href="mailto:weiting.chen@intel.com">weiting.chen@intel.com</a>

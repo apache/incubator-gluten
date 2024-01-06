@@ -87,11 +87,14 @@ class ListenerApiImpl extends ListenerApi {
       new SharedLibraryLoaderCentos8
     } else if (systemName.contains("Red Hat") && systemVersion.startsWith("7")) {
       new SharedLibraryLoaderCentos7
+    } else if (systemName.contains("Debian") && systemVersion.startsWith("11")) {
+      new SharedLibraryLoaderDebian11
     } else {
       throw new GlutenException(
         "Found unsupported OS! Currently, Gluten's Velox backend" +
           " only supports Ubuntu 20.04/22.04, CentOS 7/8, " +
-          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8.")
+          "Alibaba Cloud Linux 2/3 & Anolis 7/8, tencentos 3.2, RedHat 7/8, " +
+          "Debian 11.")
     }
     loader.loadLib(load)
   }
@@ -149,11 +152,11 @@ class ListenerApiImpl extends ListenerApi {
     val libPath = conf.get(GlutenConfig.GLUTEN_LIB_PATH, StringUtils.EMPTY)
     if (StringUtils.isNotBlank(libPath)) { // Path based load. Ignore all other loadees.
       JniLibLoader.loadFromPath(libPath, false)
-      return
+    } else {
+      val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
+      loader.mapAndLoad(baseLibName, false)
+      loader.mapAndLoad(VeloxBackend.BACKEND_NAME, false)
     }
-    val baseLibName = conf.get(GlutenConfig.GLUTEN_LIB_NAME, "gluten")
-    loader.mapAndLoad(baseLibName, false)
-    loader.mapAndLoad(VeloxBackend.BACKEND_NAME, false)
 
     initializeNative(conf.getAll.toMap)
 

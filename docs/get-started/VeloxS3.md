@@ -45,6 +45,17 @@ Note that `spark.hadoop.fs.s3a.iam.role.session.name` is optional.
 
 - [AWS temporary credential](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html)
 
+## Log granularity of AWS C++ SDK in velox
+
+You can change log granularity of AWS C++ SDK by setting the `spark.gluten.velox.awsSdkLogLevel` configuration. The Allowed values are:
+* OFF
+* FATAL
+* ERROR
+* WARN
+* INFO
+* DEBUG
+* TRACE
+
 # Local Caching support
 
 Velox supports a local cache when reading data from HDFS/S3. The feature is very useful if remote storage is slow, e.g., reading from a public S3 bucket and stronger performance is desired. With this feature, Velox can asynchronously cache the data on local disk when reading from remote storage, and the future reading requests on already cached blocks will be serviced from local cache files. To enable the local caching feature, below configurations are required:

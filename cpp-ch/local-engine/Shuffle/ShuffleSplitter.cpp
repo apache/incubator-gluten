@@ -22,7 +22,7 @@
 #include <fcntl.h>
 #include <Compression/CompressionFactory.h>
 #include <Storages/IO/AggregateSerializationUtils.h>
-#include <IO/BrotliWriteBuffer.h>
+#include <IO/WriteBuffer.h>
 #include <IO/ReadBufferFromFile.h>
 #include <IO/WriteHelpers.h>
 #include <Parser/SerializedPlanParser.h>

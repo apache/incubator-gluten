@@ -30,6 +30,7 @@ import org.apache.spark.sql.execution.adaptive._
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeLike, ReusedExchangeExec}
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
+import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.streaming.{MemoryStream, StreamingQueryWrapper}
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.internal.SQLConf
@@ -48,6 +49,7 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
 
   override def testNameBlackList: Seq[String] = Seq(
     // overwritten with different plan
+    "SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec",
     "Make sure dynamic pruning works on uncorrelated queries",
     "Subquery reuse across the whole plan",
     // struct join key not supported, fell-back to Vanilla join
@@ -281,6 +283,37 @@ abstract class GlutenDynamicPartitionPruningSuiteBase
     }
   }
 
+  test(GLUTEN_TEST + "SPARK-38674: Remove useless deduplicate in SubqueryBroadcastExec") {
+    withTable("duplicate_keys") {
+      withSQLConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED.key -> "true") {
+        Seq[(Int, String)]((1, "NL"), (1, "NL"), (3, "US"), (3, "US"), (3, "US"))
+          .toDF("store_id", "country")
+          .write
+          .format(tableFormat)
+          .saveAsTable("duplicate_keys")
+
+        val df = sql("""
+                       |SELECT date_id, product_id FROM fact_sk f
+                       |JOIN duplicate_keys s
+                       |ON f.store_id = s.store_id WHERE s.country = 'US' AND date_id > 1050
+          """.stripMargin)
+
+        checkPartitionPruningPredicate(df, withSubquery = false, withBroadcast = true)
+
+        val subqueryBroadcastExecs = collectWithSubqueries(df.queryExecution.executedPlan) {
+          case s: ColumnarSubqueryBroadcastExec => s
+        }
+        assert(subqueryBroadcastExecs.size === 1)
+        subqueryBroadcastExecs.foreach {
+          subqueryBroadcastExec =>
+            assert(subqueryBroadcastExec.metrics("numOutputRows").value === 1)
+        }
+
+        checkAnswer(df, Row(1060, 2) :: Row(1060, 2) :: Row(1060, 2) :: Nil)
+      }
+    }
+  }
+
   // === Following methods override super class's methods ===
 
   override protected def collectDynamicPruningExpressions(plan: SparkPlan): Seq[Expression] = {
@@ -451,6 +484,11 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
           scanOption.get
         }
 
+        def getDriverMetrics(plan: SparkPlan, key: String): Option[SQLMetric] = plan match {
+          case fs: FileSourceScanExec => fs.driverMetrics.get(key)
+          case _ => None
+        }
+
         // No dynamic partition pruning, so no static metrics
         // All files in fact table are scanned
         val df1 = sql("SELECT sum(f1) FROM fact")
@@ -458,10 +496,15 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
         val scan1 = getFactScan(df1.queryExecution.executedPlan)
         assert(!scan1.metrics.contains("staticFilesNum"))
         assert(!scan1.metrics.contains("staticFilesSize"))
-        val allFilesNum = scan1.metrics("numFiles").value
-        val allFilesSize = scan1.metrics("filesSize").value
-        assert(scan1.metrics("numPartitions").value === numPartitions)
-        assert(scan1.metrics("pruningTime").value === -1)
+
+        val allFilesNum: Long = getDriverMetrics(scan1, "numFiles").map(_.value).getOrElse(-1)
+        val allFilesSize: Long = getDriverMetrics(scan1, "filesSize").map(_.value).getOrElse(-1)
+        val allPartitions: Long =
+          getDriverMetrics(scan1, "numPartitions").map(_.value).getOrElse(-1)
+        assert(allPartitions === numPartitions)
+        val pruningTimeVal1: Long =
+          getDriverMetrics(scan1, "pruningTime").map(_.value).getOrElse(-1)
+        assert(pruningTimeVal1 === 0)
 
         // No dynamic partition pruning, so no static metrics
         // Only files from fid = 5 partition are scanned
@@ -470,12 +513,16 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
         val scan2 = getFactScan(df2.queryExecution.executedPlan)
         assert(!scan2.metrics.contains("staticFilesNum"))
         assert(!scan2.metrics.contains("staticFilesSize"))
-        val partFilesNum = scan2.metrics("numFiles").value
-        val partFilesSize = scan2.metrics("filesSize").value
+        val partFilesNum: Long = getDriverMetrics(scan2, "numFiles").map(_.value).getOrElse(-1)
+        val partFilesSize: Long = getDriverMetrics(scan2, "filesSize").map(_.value).getOrElse(-1)
+        val partPartitions: Long =
+          getDriverMetrics(scan2, "numPartitions").map(_.value).getOrElse(-1)
         assert(0 < partFilesNum && partFilesNum < allFilesNum)
         assert(0 < partFilesSize && partFilesSize < allFilesSize)
-        assert(scan2.metrics("numPartitions").value === 1)
-        assert(scan2.metrics("pruningTime").value === -1)
+        assert(partPartitions === 1)
+        val pruningTimeVal2: Long =
+          getDriverMetrics(scan2, "pruningTime").map(_.value).getOrElse(-1)
+        assert(pruningTimeVal2 === 0)
 
         // Dynamic partition pruning is used
         // Static metrics are as-if reading the whole fact table
@@ -483,12 +530,22 @@ abstract class GlutenDynamicPartitionPruningV1Suite extends GlutenDynamicPartiti
         val df3 = sql("SELECT sum(f1) FROM fact, dim WHERE fid = did AND d1 = 6")
         df3.collect()
         val scan3 = getFactScan(df3.queryExecution.executedPlan)
-        assert(scan3.metrics("staticFilesNum").value == allFilesNum)
-        assert(scan3.metrics("staticFilesSize").value == allFilesSize)
-        assert(scan3.metrics("numFiles").value == partFilesNum)
-        assert(scan3.metrics("filesSize").value == partFilesSize)
-        assert(scan3.metrics("numPartitions").value === 1)
-        assert(scan3.metrics("pruningTime").value !== -1)
+        val staticFilesNumVal: Long =
+          getDriverMetrics(scan3, "staticFilesNum").map(_.value).getOrElse(-1)
+        val staticFilesSizeVal: Long =
+          getDriverMetrics(scan3, "staticFilesSize").map(_.value).getOrElse(-1)
+        val numFilesVal: Long = getDriverMetrics(scan3, "numFiles").map(_.value).getOrElse(-1)
+        val filesSizeVal: Long = getDriverMetrics(scan3, "filesSize").map(_.value).getOrElse(-1)
+        val numPartitionsVal: Long =
+          getDriverMetrics(scan3, "numPartitions").map(_.value).getOrElse(-1)
+        val pruningTimeVal3: Long =
+          getDriverMetrics(scan3, "pruningTime").map(_.value).getOrElse(-1)
+        assert(staticFilesNumVal == allFilesNum)
+        assert(staticFilesSizeVal == allFilesSize)
+        assert(numFilesVal == partFilesNum)
+        assert(filesSizeVal == partFilesSize)
+        assert(numPartitionsVal === 1)
+        assert(pruningTimeVal3 > -1)
       }
     }
   }
@@ -550,6 +607,11 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
           scanOption.get
         }
 
+        def getDriverMetrics(plan: SparkPlan, key: String): Option[SQLMetric] = plan match {
+          case fs: FileSourceScanExec => fs.driverMetrics.get(key)
+          case _ => None
+        }
+
         // No dynamic partition pruning, so no static metrics
         // All files in fact table are scanned
         val df1 = sql("SELECT sum(f1) FROM fact")
@@ -557,10 +619,14 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
         val scan1 = getFactScan(df1.queryExecution.executedPlan)
         assert(!scan1.metrics.contains("staticFilesNum"))
         assert(!scan1.metrics.contains("staticFilesSize"))
-        val allFilesNum = scan1.metrics("numFiles").value
-        val allFilesSize = scan1.metrics("filesSize").value
-        assert(scan1.metrics("numPartitions").value === numPartitions)
-        assert(scan1.metrics("pruningTime").value === -1)
+        val allFilesNum: Long = getDriverMetrics(scan1, "numFiles").map(_.value).getOrElse(-1)
+        val allFilesSize: Long = getDriverMetrics(scan1, "filesSize").map(_.value).getOrElse(-1)
+        val allPartitions: Long =
+          getDriverMetrics(scan1, "numPartitions").map(_.value).getOrElse(-1)
+        assert(allPartitions === numPartitions)
+        val pruningTimeVal1: Long =
+          getDriverMetrics(scan1, "pruningTime").map(_.value).getOrElse(-1)
+        assert(pruningTimeVal1 === 0)
 
         // No dynamic partition pruning, so no static metrics
         // Only files from fid = 5 partition are scanned
@@ -569,12 +635,16 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
         val scan2 = getFactScan(df2.queryExecution.executedPlan)
         assert(!scan2.metrics.contains("staticFilesNum"))
         assert(!scan2.metrics.contains("staticFilesSize"))
-        val partFilesNum = scan2.metrics("numFiles").value
-        val partFilesSize = scan2.metrics("filesSize").value
+        val partFilesNum: Long = getDriverMetrics(scan2, "numFiles").map(_.value).getOrElse(-1)
+        val partFilesSize: Long = getDriverMetrics(scan2, "filesSize").map(_.value).getOrElse(-1)
+        val partPartitions: Long =
+          getDriverMetrics(scan2, "numPartitions").map(_.value).getOrElse(-1)
         assert(0 < partFilesNum && partFilesNum < allFilesNum)
         assert(0 < partFilesSize && partFilesSize < allFilesSize)
-        assert(scan2.metrics("numPartitions").value === 1)
-        assert(scan2.metrics("pruningTime").value === -1)
+        assert(partPartitions === 1)
+        val pruningTimeVal2: Long =
+          getDriverMetrics(scan2, "pruningTime").map(_.value).getOrElse(-1)
+        assert(pruningTimeVal2 === 0)
 
         // Dynamic partition pruning is used
         // Static metrics are as-if reading the whole fact table
@@ -582,12 +652,22 @@ class GlutenDynamicPartitionPruningV1SuiteAEOff
         val df3 = sql("SELECT sum(f1) FROM fact, dim WHERE fid = did AND d1 = 6")
         df3.collect()
         val scan3 = getFactScan(df3.queryExecution.executedPlan)
-        assert(scan3.metrics("staticFilesNum").value == allFilesNum)
-        assert(scan3.metrics("staticFilesSize").value == allFilesSize)
-        assert(scan3.metrics("numFiles").value == partFilesNum)
-        assert(scan3.metrics("filesSize").value == partFilesSize)
-        assert(scan3.metrics("numPartitions").value === 1)
-        assert(scan3.metrics("pruningTime").value !== -1)
+        val staticFilesNumVal: Long =
+          getDriverMetrics(scan3, "staticFilesNum").map(_.value).getOrElse(-1)
+        val staticFilesSizeVal: Long =
+          getDriverMetrics(scan3, "staticFilesSize").map(_.value).getOrElse(-1)
+        val numFilesVal: Long = getDriverMetrics(scan3, "numFiles").map(_.value).getOrElse(-1)
+        val filesSizeVal: Long = getDriverMetrics(scan3, "filesSize").map(_.value).getOrElse(-1)
+        val numPartitionsVal: Long =
+          getDriverMetrics(scan3, "numPartitions").map(_.value).getOrElse(-1)
+        val pruningTimeVal3: Long =
+          getDriverMetrics(scan3, "pruningTime").map(_.value).getOrElse(-1)
+        assert(staticFilesNumVal == allFilesNum)
+        assert(staticFilesSizeVal == allFilesSize)
+        assert(numFilesVal == partFilesNum)
+        assert(filesSizeVal == partFilesSize)
+        assert(numPartitionsVal === 1)
+        assert(pruningTimeVal3 > -1)
       }
     }
   }

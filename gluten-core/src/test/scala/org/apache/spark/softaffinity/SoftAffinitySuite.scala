@@ -17,7 +17,7 @@
 package org.apache.spark.softaffinity
 
 import io.glutenproject.GlutenConfig
-import io.glutenproject.execution.{GlutenMergeTreePartition, GlutenPartition}
+import io.glutenproject.execution.GlutenPartition
 import io.glutenproject.softaffinity.SoftAffinityManager
 import io.glutenproject.softaffinity.scheduler.SoftAffinityListener
 import io.glutenproject.sql.shims.SparkShimLoader
@@ -60,7 +60,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(
+    val locations = SoftAffinity.getFilePartitionLocations(
       partition.files.map(_.filePath.toString),
       partition.preferredLocations())
 
@@ -91,7 +91,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(
+    val locations = SoftAffinity.getFilePartitionLocations(
       partition.files.map(_.filePath.toString),
       partition.preferredLocations())
 
@@ -123,7 +123,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(
+    val locations = SoftAffinity.getFilePartitionLocations(
       partition.files.map(_.filePath.toString),
       partition.preferredLocations())
 
@@ -135,9 +135,20 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
   }
 
   def generateNativePartition4(): Unit = {
-    val partition = GlutenMergeTreePartition(0, "", "", "", "fakePath", 0, 0)
+    val partition = FilePartition(
+      0,
+      Seq(
+        SparkShimLoader.getSparkShims.generatePartitionedFile(
+          InternalRow.empty,
+          "fakePath_0",
+          0,
+          100)
+      ).toArray
+    )
 
-    val locations = SoftAffinityUtil.getNativeMergeTreePartitionLocations(partition)
+    val locations = SoftAffinity.getFilePartitionLocations(
+      partition.files.map(_.filePath.toString),
+      partition.preferredLocations())
 
     val nativePartition = GlutenPartition(0, PlanBuilder.EMPTY_PLAN, locations)
 
@@ -167,7 +178,7 @@ class SoftAffinitySuite extends QueryTest with SharedSparkSession with Predicate
       ).toArray
     )
 
-    val locations = SoftAffinityUtil.getFilePartitionLocations(
+    val locations = SoftAffinity.getFilePartitionLocations(
       partition.files.map(_.filePath.toString),
       partition.preferredLocations())
 

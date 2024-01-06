@@ -50,8 +50,20 @@ std::string VeloxSubstraitSignature::toSubstraitSignature(const TypePtr& type) {
       return "list";
     case TypeKind::MAP:
       return "map";
-    case TypeKind::ROW:
-      return "struct";
+    case TypeKind::ROW: {
+      std::stringstream buffer;
+      buffer << "struct<";
+      const auto& rt = asRowType(type);
+      for (size_t i = 0; i < rt->children().size(); i++) {
+        buffer << toSubstraitSignature(rt->childAt(i));
+        if (i == rt->children().size() - 1) {
+          continue;
+        }
+        buffer << ",";
+      }
+      buffer << ">";
+      return buffer.str();
+    }
     case TypeKind::UNKNOWN:
       return "u!name";
     default:

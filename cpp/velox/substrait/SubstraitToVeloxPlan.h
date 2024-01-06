@@ -58,8 +58,12 @@ class SubstraitToVeloxPlanConverter {
   SubstraitToVeloxPlanConverter(
       memory::MemoryPool* pool,
       const std::unordered_map<std::string, std::string>& confMap = {},
+      const std::optional<std::string> writeFilesTempPath = std::nullopt,
       bool validationMode = false)
-      : pool_(pool), confMap_(confMap), validationMode_(validationMode) {}
+      : pool_(pool), confMap_(confMap), writeFilesTempPath_(writeFilesTempPath), validationMode_(validationMode) {}
+
+  /// Used to convert Substrait WriteRel into Velox PlanNode.
+  core::PlanNodePtr toVeloxPlan(const ::substrait::WriteRel& writeRel);
 
   /// Used to convert Substrait ExpandRel into Velox PlanNode.
   core::PlanNodePtr toVeloxPlan(const ::substrait::ExpandRel& expandRel);
@@ -153,7 +157,17 @@ class SubstraitToVeloxPlanConverter {
       std::vector<const ::substrait::Expression::FieldReference*>& rightExprs);
 
   /// Get aggregation step from AggregateRel.
+  /// If returned Partial, it means the aggregate generated can leveraging flushing and abandoning like
+  /// what streaming pre-aggregation can do in MPP databases.
   core::AggregationNode::Step toAggregationStep(const ::substrait::AggregateRel& sAgg);
+
+  /// Get aggregation function step for AggregateFunction.
+  /// The returned step value will be used to decide which Velox aggregate function or companion function
+  /// is used for the actual data processing.
+  core::AggregationNode::Step toAggregationFunctionStep(const ::substrait::AggregateFunction& sAggFuc);
+
+  /// We use companion functions if the aggregate is not single.
+  std::string toAggregationFunctionName(const std::string& baseName, const core::AggregationNode::Step& step);
 
   /// Helper Function to convert Substrait sortField to Velox sortingKeys and
   /// sortingOrders.
@@ -537,6 +551,9 @@ class SubstraitToVeloxPlanConverter {
 
   /// A map of custom configs.
   std::unordered_map<std::string, std::string> confMap_;
+
+  /// The temporary path used to write files.
+  std::optional<std::string> writeFilesTempPath_;
 
   /// A flag used to specify validation.
   bool validationMode_ = false;

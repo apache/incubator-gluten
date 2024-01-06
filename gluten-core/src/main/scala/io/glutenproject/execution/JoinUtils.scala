@@ -41,7 +41,7 @@ object JoinUtils {
     // Normally the enhancement node is only used for plan validation. But here the enhancement
     // is also used in execution phase. In this case an empty typeUrlPrefix need to be passed,
     // so that it can be correctly parsed into json string on the cpp side.
-    BackendsApiManager.getTransformerApiInstance.getPackMessage(
+    BackendsApiManager.getTransformerApiInstance.packPBMessage(
       TypeBuilder.makeStruct(false, inputTypeNodes.asJava).toProtobuf)
   }
 

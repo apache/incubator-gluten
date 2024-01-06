@@ -19,9 +19,8 @@ package io.glutenproject.expression
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.execution.{ColumnarToRowExecBase, WholeStageTransformer}
-import io.glutenproject.extension.GlutenPlan
 import io.glutenproject.test.TestStats
-import io.glutenproject.utils.DecimalArithmeticUtil
+import io.glutenproject.utils.{DecimalArithmeticUtil, PlanUtil}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.{InternalRow, SQLConfHelper}
@@ -162,7 +161,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
           replaceWithExpressionTransformerInternal(e.child, attributeSeq, expressionsMap),
           e)
       case p: PosExplode =>
-        PosExplodeTransformer(
+        BackendsApiManager.getSparkPlanExecApiInstance.genPosExplodeTransformer(
           substraitExprName,
           replaceWithExpressionTransformerInternal(p.child, attributeSeq, expressionsMap),
           p,
@@ -522,7 +521,7 @@ object ExpressionConverter extends SQLConfHelper with Logging {
         // get WholeStageTransformer directly
         case c2r: ColumnarToRowExecBase => c2r.child
         // in fallback case
-        case plan: UnaryExecNode if !plan.isInstanceOf[GlutenPlan] =>
+        case plan: UnaryExecNode if !PlanUtil.isGlutenColumnarOp(plan) =>
           plan.child match {
             case _: ColumnarToRowExec =>
               val wholeStageTransformer = exchange.find(_.isInstanceOf[WholeStageTransformer])
@@ -535,8 +534,11 @@ object ExpressionConverter extends SQLConfHelper with Logging {
       ColumnarBroadcastExchangeExec(exchange.mode, newChild)
     }
 
-    if (GlutenConfig.getConf.enableScanOnly) {
-      // Disable ColumnarSubqueryBroadcast for scan-only execution.
+    if (
+      GlutenConfig.getConf.enableScanOnly || !GlutenConfig.getConf.enableColumnarBroadcastExchange
+    ) {
+      // Disable ColumnarSubqueryBroadcast for scan-only execution
+      // or ColumnarBroadcastExchange was disabled.
       partitionFilters
     } else {
       val newPartitionFilters = partitionFilters.map {

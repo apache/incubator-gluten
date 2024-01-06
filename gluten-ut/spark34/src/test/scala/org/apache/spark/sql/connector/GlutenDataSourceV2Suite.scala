@@ -16,11 +16,15 @@
  */
 package org.apache.spark.sql.connector
 
+import io.glutenproject.execution.SortExecTransformer
+
 import org.apache.spark.sql.{GlutenSQLTestsBaseTrait, Row}
 import org.apache.spark.sql.execution.ColumnarShuffleExchangeExec
+import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.functions.row_number
 import org.apache.spark.sql.internal.SQLConf
 
-import test.org.apache.spark.sql.connector.JavaPartitionAwareDataSource
+import test.org.apache.spark.sql.connector.{JavaOrderAndPartitionAwareDataSource, JavaPartitionAwareDataSource}
 
 class GlutenDataSourceV2Suite extends DataSourceV2Suite with GlutenSQLTestsBaseTrait {
   import testImplicits._
@@ -57,6 +61,105 @@ class GlutenDataSourceV2Suite extends DataSourceV2Suite with GlutenSQLTestsBaseT
             assert(collectFirst(groupByAPlusB.queryExecution.executedPlan) {
               case e: ColumnarShuffleExchangeExec => e
             }.isDefined)
+          }
+      }
+    }
+  }
+
+  test("gluten - ordering and partitioning reporting") {
+    withSQLConf(SQLConf.V2_BUCKETING_ENABLED.key -> "true") {
+      Seq(
+        classOf[OrderAndPartitionAwareDataSource],
+        classOf[JavaOrderAndPartitionAwareDataSource]
+      ).foreach {
+        cls =>
+          withClue(cls.getName) {
+            // we test report ordering (together with report partitioning) with these
+            // transformations:
+            // - groupBy("i").flatMapGroups:
+            //   hash-partitions by "i" and sorts each partition by "i"
+            //   requires partitioning and sort by "i"
+            // - aggregation function over window partitioned by "i" and ordered by "j":
+            //   hash-partitions by "i" and sorts each partition by "j"
+            //   requires partitioning by "i" and sort by "i" and "j"
+            Seq(
+              // with no partitioning and no order, we expect shuffling AND sorting
+              (None, None, (true, true), (true, true)),
+              // partitioned by i and no order, we expect NO shuffling BUT sorting
+              (Some("i"), None, (false, true), (false, true)),
+              // partitioned by i and in-partition sorted by i,
+              // we expect NO shuffling AND sorting for groupBy but sorting for window function
+              (Some("i"), Some("i"), (false, false), (false, true)),
+              // partitioned by i and in-partition sorted by j, we expect NO shuffling BUT sorting
+              (Some("i"), Some("j"), (false, true), (false, true)),
+              // partitioned by i and in-partition sorted by i,j, we expect NO shuffling NOR sorting
+              (Some("i"), Some("i,j"), (false, false), (false, false)),
+              // partitioned by j and in-partition sorted by i, we expect shuffling AND sorting
+              (Some("j"), Some("i"), (true, true), (true, true)),
+              // partitioned by j and in-partition sorted by i,j, we expect shuffling and sorting
+              (Some("j"), Some("i,j"), (true, true), (true, true))
+            ).foreach {
+              testParams =>
+                val (partitionKeys, orderKeys, groupByExpects, windowFuncExpects) = testParams
+
+                withClue(f"${partitionKeys.orNull} ${orderKeys.orNull}") {
+                  val df = spark.read
+                    .option("partitionKeys", partitionKeys.orNull)
+                    .option("orderKeys", orderKeys.orNull)
+                    .format(cls.getName)
+                    .load()
+                  checkAnswer(
+                    df,
+                    Seq(Row(1, 4), Row(1, 5), Row(3, 5), Row(2, 6), Row(4, 1), Row(4, 2)))
+
+                  // groupBy(i).flatMapGroups
+                  {
+                    val groupBy = df
+                      .groupBy($"i")
+                      .as[Int, (Int, Int)]
+                      .flatMapGroups {
+                        (i: Int, it: Iterator[(Int, Int)]) => Iterator.single((i, it.length))
+                      }
+                    checkAnswer(
+                      groupBy.toDF(),
+                      Seq(Row(1, 2), Row(2, 1), Row(3, 1), Row(4, 2))
+                    )
+
+                    val (shuffleExpected, sortExpected) = groupByExpects
+                    assert(collectFirst(groupBy.queryExecution.executedPlan) {
+                      case e: ColumnarShuffleExchangeExec => e
+                    }.isDefined === shuffleExpected)
+                    assert(collectFirst(groupBy.queryExecution.executedPlan) {
+                      case e: SortExecTransformer => e
+                    }.isDefined === sortExpected)
+                  }
+
+                  // aggregation function over window partitioned by i and ordered by j
+                  {
+                    val windowPartByColIOrderByColJ = df.withColumn(
+                      "no",
+                      row_number().over(Window.partitionBy(Symbol("i")).orderBy(Symbol("j"))))
+                    checkAnswer(
+                      windowPartByColIOrderByColJ,
+                      Seq(
+                        Row(1, 4, 1),
+                        Row(1, 5, 2),
+                        Row(2, 6, 1),
+                        Row(3, 5, 1),
+                        Row(4, 1, 1),
+                        Row(4, 2, 2)
+                      ))
+
+                    val (shuffleExpected, sortExpected) = windowFuncExpects
+                    assert(collectFirst(windowPartByColIOrderByColJ.queryExecution.executedPlan) {
+                      case e: ColumnarShuffleExchangeExec => e
+                    }.isDefined === shuffleExpected)
+                    assert(collectFirst(windowPartByColIOrderByColJ.queryExecution.executedPlan) {
+                      case e: SortExecTransformer => e
+                    }.isDefined === sortExpected)
+                  }
+                }
+            }
           }
       }
     }

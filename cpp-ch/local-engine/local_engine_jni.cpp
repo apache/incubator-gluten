@@ -18,7 +18,9 @@
 #include <regex>
 #include <string>
 #include <jni.h>
+
 #include <Builder/SerializedPlanBuilder.h>
+#include <Compression/CompressedReadBuffer.h>
 #include <DataTypes/DataTypeNullable.h>
 #include <Join/BroadCastJoinBuilder.h>
 #include <Operator/BlockCoalesceOperator.h>
@@ -95,7 +97,7 @@ extern "C" {
 
 namespace dbms
 {
-    class LocalExecutor;
+class LocalExecutor;
 }
 
 static jclass spark_row_info_class;
@@ -140,7 +142,8 @@ JNIEXPORT jint JNI_OnLoad(JavaVM * vm, void * /*reserved*/)
     local_engine::SourceFromJavaIter::serialized_record_batch_iterator_next
         = local_engine::GetMethodID(env, local_engine::SourceFromJavaIter::serialized_record_batch_iterator_class, "next", "()[B");
 
-    local_engine::ShuffleReader::input_stream_read = local_engine::GetMethodID(env, local_engine::ShuffleReader::input_stream_class, "read", "(JJ)J");
+    local_engine::ShuffleReader::input_stream_read
+        = local_engine::GetMethodID(env, local_engine::ShuffleReader::input_stream_class, "read", "(JJ)J");
 
     local_engine::NativeSplitter::iterator_has_next
         = local_engine::GetMethodID(env, local_engine::NativeSplitter::iterator_class, "hasNext", "()Z");
@@ -408,9 +411,7 @@ JNIEXPORT jboolean Java_io_glutenproject_vectorized_CHColumnVector_nativeGetBool
     auto col = getColumnFromColumnVector(env, obj, block_address, column_position);
     DB::ColumnPtr nested_col = col.column;
     if (const auto * nullable_col = checkAndGetColumn<DB::ColumnNullable>(nested_col.get()))
-    {
         nested_col = nullable_col->getNestedColumnPtr();
-    }
     return nested_col->getBool(row_id);
     LOCAL_ENGINE_JNI_METHOD_END(env, false)
 }
@@ -422,9 +423,7 @@ JNIEXPORT jbyte Java_io_glutenproject_vectorized_CHColumnVector_nativeGetByte(
     auto col = getColumnFromColumnVector(env, obj, block_address, column_position);
     DB::ColumnPtr nested_col = col.column;
     if (const auto * nullable_col = checkAndGetColumn<DB::ColumnNullable>(nested_col.get()))
-    {
         nested_col = nullable_col->getNestedColumnPtr();
-    }
     return reinterpret_cast<const jbyte *>(nested_col->getDataAt(row_id).data)[0];
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
 }
@@ -436,9 +435,7 @@ JNIEXPORT jshort Java_io_glutenproject_vectorized_CHColumnVector_nativeGetShort(
     auto col = getColumnFromColumnVector(env, obj, block_address, column_position);
     DB::ColumnPtr nested_col = col.column;
     if (const auto * nullable_col = checkAndGetColumn<DB::ColumnNullable>(nested_col.get()))
-    {
         nested_col = nullable_col->getNestedColumnPtr();
-    }
     return reinterpret_cast<const jshort *>(nested_col->getDataAt(row_id).data)[0];
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
@@ -450,17 +447,11 @@ JNIEXPORT jint Java_io_glutenproject_vectorized_CHColumnVector_nativeGetInt(
     auto col = getColumnFromColumnVector(env, obj, block_address, column_position);
     DB::ColumnPtr nested_col = col.column;
     if (const auto * nullable_col = checkAndGetColumn<DB::ColumnNullable>(nested_col.get()))
-    {
         nested_col = nullable_col->getNestedColumnPtr();
-    }
     if (col.type->getTypeId() == DB::TypeIndex::Date)
-    {
         return nested_col->getUInt(row_id);
-    }
     else
-    {
         return nested_col->getInt(row_id);
-    }
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
 
@@ -471,9 +462,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHColumnVector_nativeGetLong(
     auto col = getColumnFromColumnVector(env, obj, block_address, column_position);
     DB::ColumnPtr nested_col = col.column;
     if (const auto * nullable_col = checkAndGetColumn<DB::ColumnNullable>(nested_col.get()))
-    {
         nested_col = nullable_col->getNestedColumnPtr();
-    }
     return nested_col->getInt(row_id);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
@@ -485,9 +474,7 @@ JNIEXPORT jfloat Java_io_glutenproject_vectorized_CHColumnVector_nativeGetFloat(
     auto col = getColumnFromColumnVector(env, obj, block_address, column_position);
     DB::ColumnPtr nested_col = col.column;
     if (const auto * nullable_col = checkAndGetColumn<DB::ColumnNullable>(nested_col.get()))
-    {
         nested_col = nullable_col->getNestedColumnPtr();
-    }
     return nested_col->getFloat32(row_id);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0.0)
 }
@@ -499,9 +486,7 @@ JNIEXPORT jdouble Java_io_glutenproject_vectorized_CHColumnVector_nativeGetDoubl
     auto col = getColumnFromColumnVector(env, obj, block_address, column_position);
     DB::ColumnPtr nested_col = col.column;
     if (const auto * nullable_col = checkAndGetColumn<DB::ColumnNullable>(nested_col.get()))
-    {
         nested_col = nullable_col->getNestedColumnPtr();
-    }
     return nested_col->getFloat64(row_id);
     LOCAL_ENGINE_JNI_METHOD_END(env, 0.0)
 }
@@ -513,9 +498,7 @@ JNIEXPORT jstring Java_io_glutenproject_vectorized_CHColumnVector_nativeGetStrin
     auto col = getColumnFromColumnVector(env, obj, block_address, column_position);
     DB::ColumnPtr nested_col = col.column;
     if (const auto * nullable_col = checkAndGetColumn<DB::ColumnNullable>(nested_col.get()))
-    {
         nested_col = nullable_col->getNestedColumnPtr();
-    }
     const auto * string_col = checkAndGetColumn<DB::ColumnString>(nested_col.get());
     auto result = string_col->getDataAt(row_id);
     return local_engine::charTojstring(env, result.toString().c_str());
@@ -564,12 +547,13 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHNativeBlock_nativeTotalBytes(
 }
 
 JNIEXPORT jlong Java_io_glutenproject_vectorized_CHStreamReader_createNativeShuffleReader(
-    JNIEnv * env, jclass /*clazz*/, jobject input_stream, jboolean compressed)
+    JNIEnv * env, jclass /*clazz*/, jobject input_stream, jboolean compressed, jlong max_shuffle_read_rows, jlong max_shuffle_read_bytes)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     auto * input = env->NewGlobalRef(input_stream);
     auto read_buffer = std::make_unique<local_engine::ReadBufferFromJavaInputStream>(input);
-    auto * shuffle_reader = new local_engine::ShuffleReader(std::move(read_buffer), compressed);
+    auto * shuffle_reader
+        = new local_engine::ShuffleReader(std::move(read_buffer), compressed, max_shuffle_read_rows, max_shuffle_read_bytes);
     return reinterpret_cast<jlong>(shuffle_reader);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
@@ -687,7 +671,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
 
     local_engine::SplitOptions options{
         .split_size = static_cast<size_t>(split_size),
-        .io_buffer_size = DBMS_DEFAULT_BUFFER_SIZE,
+        .io_buffer_size = DB::DBMS_DEFAULT_BUFFER_SIZE,
         .data_file = jstring2string(env, data_file),
         .local_dirs_list = std::move(local_dirs_list),
         .num_sub_dirs = num_sub_dirs,
@@ -704,13 +688,9 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
     auto name = jstring2string(env, short_name);
     local_engine::SplitterHolder * splitter;
     if (prefer_spill)
-    {
         splitter = new local_engine::SplitterHolder{.splitter = local_engine::ShuffleSplitter::create(name, options)};
-    }
     else
-    {
         splitter = new local_engine::SplitterHolder{.splitter = std::make_unique<local_engine::CachedShuffleWriter>(name, options)};
-    }
     return reinterpret_cast<jlong>(splitter);
     LOCAL_ENGINE_JNI_METHOD_END(env, -1)
 }
@@ -755,7 +735,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_CHShuffleSplitterJniWrapper_nat
 
     local_engine::SplitOptions options{
         .split_size = static_cast<size_t>(split_size),
-        .io_buffer_size = DBMS_DEFAULT_BUFFER_SIZE,
+        .io_buffer_size = DB::DBMS_DEFAULT_BUFFER_SIZE,
         .shuffle_id = shuffle_id,
         .map_id = static_cast<int>(map_id),
         .partition_num = static_cast<size_t>(num_partitions),
@@ -852,9 +832,7 @@ Java_io_glutenproject_vectorized_CHBlockConverterJniWrapper_convertColumnarToRow
         jint * values = env->GetIntArrayElements(masks, &is_cp);
         mask = std::make_unique<std::vector<size_t>>();
         for (int j = 0; j < size; j++)
-        {
             mask->push_back(values[j]);
-        }
         env->ReleaseIntArrayElements(masks, values, JNI_ABORT);
     }
     spark_row_info = converter.convertCHColumnToSparkRow(*block, mask);
@@ -1036,19 +1014,22 @@ JNIEXPORT jobject Java_org_apache_spark_sql_execution_datasources_CHDatasourceJn
 }
 
 JNIEXPORT jlong Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeBuild(
-    JNIEnv * env, jclass, jstring hash_table_id_, jobject in, jstring join_key_, jint join_type_, jbyteArray named_struct)
+    JNIEnv * env, jclass, jstring key, jbyteArray in, jlong row_count_, jstring join_key_, jint join_type_, jbyteArray named_struct)
 {
     LOCAL_ENGINE_JNI_METHOD_START
-    auto * input = env->NewGlobalRef(in);
-    auto hash_table_id = jstring2string(env, hash_table_id_);
-    auto join_key = jstring2string(env, join_key_);
-    jsize struct_size = env->GetArrayLength(named_struct);
+    const auto hash_table_id = jstring2string(env, key);
+    const auto join_key = jstring2string(env, join_key_);
+    const jsize struct_size = env->GetArrayLength(named_struct);
     jbyte * struct_address = env->GetByteArrayElements(named_struct, nullptr);
     std::string struct_string;
     struct_string.assign(reinterpret_cast<const char *>(struct_address), struct_size);
-    substrait::JoinRel_JoinType join_type = static_cast<substrait::JoinRel_JoinType>(join_type_);
-    auto * obj = local_engine::make_wrapper(
-        local_engine::BroadCastJoinBuilder::buildJoin(hash_table_id, input, join_key, join_type, struct_string));
+    const auto join_type = static_cast<substrait::JoinRel_JoinType>(join_type_);
+    const jsize length = env->GetArrayLength(in);
+    local_engine::ReadBufferFromByteArray read_buffer_from_java_array(in, length);
+    DB::CompressedReadBuffer input(read_buffer_from_java_array);
+    local_engine::configureCompressedReadBuffer(input);
+    const auto * obj
+        = make_wrapper(local_engine::BroadCastJoinBuilder::buildJoin(hash_table_id, input, row_count_, join_key, join_type, struct_string));
     env->ReleaseByteArrayElements(named_struct, struct_address, JNI_ABORT);
     return obj->instance();
     LOCAL_ENGINE_JNI_METHOD_END(env, 0)
@@ -1074,7 +1055,15 @@ Java_io_glutenproject_vectorized_StorageJoinBuilder_nativeCleanBuildHashTable(JN
 
 // BlockSplitIterator
 JNIEXPORT jlong Java_io_glutenproject_vectorized_BlockSplitIterator_nativeCreate(
-    JNIEnv * env, jobject, jobject in, jstring name, jstring expr, jstring schema, jint partition_num, jint buffer_size, jstring hash_algorithm)
+    JNIEnv * env,
+    jobject,
+    jobject in,
+    jstring name,
+    jstring expr,
+    jstring schema,
+    jint partition_num,
+    jint buffer_size,
+    jstring hash_algorithm)
 {
     LOCAL_ENGINE_JNI_METHOD_START
     local_engine::NativeSplitter::Options options;
@@ -1085,9 +1074,7 @@ JNIEXPORT jlong Java_io_glutenproject_vectorized_BlockSplitIterator_nativeCreate
     auto expr_str = jstring2string(env, expr);
     std::string schema_str;
     if (schema)
-    {
         schema_str = jstring2string(env, schema);
-    }
     options.exprs_buffer.swap(expr_str);
     options.schema_buffer.swap(schema_str);
     local_engine::NativeSplitter::Holder * splitter = new local_engine::NativeSplitter::Holder{

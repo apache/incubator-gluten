@@ -31,6 +31,8 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.CHShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
+import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BuildSide
@@ -40,6 +42,7 @@ import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
+import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
@@ -49,6 +52,7 @@ import org.apache.spark.sql.execution.joins.{BuildSideRelation, ClickHouseBuildS
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.execution.utils.CHExecUtil
 import org.apache.spark.sql.extension.ClickHouseAnalysis
+import org.apache.spark.sql.extension.CommonSubexpressionEliminateRule
 import org.apache.spark.sql.extension.RewriteDateTimestampComparisonRule
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.vectorized.ColumnarBatch
@@ -320,8 +324,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       throw new SparkException(
         s"Cannot broadcast the table that is larger than 8GB: ${rawSize >> 30} GB")
     }
-    numOutputRows += countsAndBytes.map(_._1).sum
-    ClickHouseBuildSideRelation(mode, newOutput, batches.flatten, newBuildKeys)
+    val rowCount = countsAndBytes.map(_._1).sum
+    numOutputRows += rowCount
+    ClickHouseBuildSideRelation(mode, newOutput, batches.flatten, rowCount, newBuildKeys)
   }
 
   /**
@@ -340,7 +345,7 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    */
   override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = {
     val analyzers = List(spark => new ClickHouseAnalysis(spark, spark.sessionState.conf))
-    if (GlutenConfig.getConf.enableDateTimestampComparison) {
+    if (GlutenConfig.getConf.enableRewriteDateTimestampComparison) {
       analyzers :+ (spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
     } else {
       analyzers
@@ -353,7 +358,12 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedOptimizers(): List[SparkSession => Rule[LogicalPlan]] = {
-    List.empty
+    var optimizers = List.empty[SparkSession => Rule[LogicalPlan]]
+    if (GlutenConfig.getConf.enableCommonSubexpressionEliminate) {
+      optimizers = optimizers :+ (
+        spark => new CommonSubexpressionEliminateRule(spark, spark.sessionState.conf))
+    }
+    optimizers
   }
 
   /**
@@ -444,6 +454,24 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
       timeZoneId: Option[String],
       original: TruncTimestamp): ExpressionTransformer = {
     CHTruncTimestampTransformer(substraitExprName, format, timestamp, timeZoneId, original)
+  }
+
+  override def genPosExplodeTransformer(
+      substraitExprName: String,
+      child: ExpressionTransformer,
+      original: PosExplode,
+      attributeSeq: Seq[Attribute]): ExpressionTransformer = {
+    CHPosExplodeTransformer(substraitExprName, child, original, attributeSeq)
+  }
+
+  override def createColumnarWriteFilesExec(
+      child: SparkPlan,
+      fileFormat: FileFormat,
+      partitionColumns: Seq[Attribute],
+      bucketSpec: Option[BucketSpec],
+      options: Map[String, String],
+      staticPartitions: TablePartitionSpec): WriteFilesExec = {
+    throw new UnsupportedOperationException("ColumnarWriteFilesExec is not support in ch backend.")
   }
 
   /**
