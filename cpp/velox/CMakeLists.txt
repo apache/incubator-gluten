@@ -271,11 +271,9 @@ macro(find_gcssdk)
 endmacro()
 
 macro(find_azure)
-  if(NOT CURL_FOUND)
-    find_package(CURL REQUIRED)
-  endif()
+  find_package(CURL REQUIRED)
+  find_package(LibXml2 REQUIRED)
   set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-  find_package(CURL CONFIG QUIET)
   find_package(azure-storage-blobs-cpp CONFIG REQUIRED)
 endmacro()
 
