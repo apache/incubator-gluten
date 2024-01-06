@@ -44,12 +44,29 @@ int16_t getLiteralValue(const ::substrait::Expression::Literal& literal) {
 
 template <>
 int32_t getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  if (literal.has_date()) {
+    return int32_t(literal.date());
+  }
   return literal.i32();
 }
 
 template <>
 int64_t getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  if (literal.has_decimal()) {
+    auto decimal = literal.decimal().value();
+    int128_t decimalValue;
+    memcpy(&decimalValue, decimal.c_str(), 16);
+    return static_cast<int64_t>(decimalValue);
+  }
   return literal.i64();
+}
+
+template <>
+int128_t getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  auto decimal = literal.decimal().value();
+  int128_t decimalValue;
+  memcpy(&decimalValue, decimal.c_str(), 16);
+  return HugeInt::build(static_cast<uint64_t>(decimalValue >> 64), static_cast<uint64_t>(decimalValue));
 }
 
 template <>
@@ -70,6 +87,19 @@ bool getLiteralValue(const ::substrait::Expression::Literal& literal) {
 template <>
 Timestamp getLiteralValue(const ::substrait::Expression::Literal& literal) {
   return Timestamp::fromMicros(literal.timestamp());
+}
+
+template <>
+StringView getLiteralValue(const ::substrait::Expression::Literal& literal) {
+  if (literal.has_string()) {
+    return StringView(literal.string());
+  } else if (literal.has_var_char()) {
+    return StringView(literal.var_char().value());
+  } else if (literal.has_binary()) {
+    return StringView(literal.binary());
+  } else {
+    VELOX_FAIL("Unexpected string or binary literal");
+  }
 }
 
 ArrayVectorPtr makeArrayVector(const VectorPtr& elements) {
@@ -127,19 +157,6 @@ template <typename T>
 void setLiteralValue(const ::substrait::Expression::Literal& literal, FlatVector<T>* vector, vector_size_t index) {
   if (literal.has_null()) {
     vector->setNull(index, true);
-  } else if constexpr (std::is_same_v<T, StringView>) {
-    if (literal.has_string()) {
-      vector->set(index, StringView(literal.string()));
-    } else if (literal.has_var_char()) {
-      vector->set(index, StringView(literal.var_char().value()));
-    } else if (literal.has_binary()) {
-      vector->set(index, StringView(literal.binary()));
-    } else {
-      VELOX_FAIL("Unexpected string or binary literal");
-    }
-  } else if (vector->type()->isDate()) {
-    auto dateVector = vector->template asFlatVector<int32_t>();
-    dateVector->set(index, int(literal.date()));
   } else {
     vector->set(index, getLiteralValue<T>(literal));
   }
@@ -161,6 +178,44 @@ VectorPtr constructFlatVector(
     setLiteralValue(element, flatVector, i);
   }
   return vector;
+}
+
+TypePtr getScalarType(const ::substrait::Expression::Literal& literal) {
+  auto typeCase = literal.literal_type_case();
+  switch (typeCase) {
+    case ::substrait::Expression_Literal::LiteralTypeCase::kBoolean:
+      return BOOLEAN();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kI8:
+      return TINYINT();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kI16:
+      return SMALLINT();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kI32:
+      return INTEGER();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kFp32:
+      return REAL();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kI64:
+      return BIGINT();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kFp64:
+      return DOUBLE();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kString:
+      return VARCHAR();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kDate:
+      return DATE();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
+      return TIMESTAMP();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kVarChar:
+      return VARCHAR();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kBinary:
+      return VARBINARY();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kDecimal: {
+      auto precision = literal.decimal().precision();
+      auto scale = literal.decimal().scale();
+      auto type = DECIMAL(precision, scale);
+      return type;
+    }
+    default:
+      return nullptr;
+  }
 }
 
 /// Whether null will be returned on cast failure.
@@ -188,6 +243,19 @@ VectorPtr constructFlatVectorForStruct(
   auto flatVector = vector->as<FlatVector<T>>();
   setLiteralValue(child, flatVector, 0);
   return vector;
+}
+
+template <TypeKind kind>
+std::shared_ptr<core::ConstantTypedExpr> constructConstantVector(
+    const ::substrait::Expression::Literal& substraitLit,
+    const TypePtr& type) {
+  VELOX_CHECK(type->isPrimitiveType());
+  if (substraitLit.has_binary()) {
+    return std::make_shared<core::ConstantTypedExpr>(type, variant::binary(getLiteralValue<StringView>(substraitLit)));
+  } else {
+    using T = typename TypeTraits<kind>::NativeType;
+    return std::make_shared<core::ConstantTypedExpr>(type, variant(getLiteralValue<T>(substraitLit)));
+  }
 }
 
 core::FieldAccessTypedExprPtr
@@ -354,31 +422,6 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
     const ::substrait::Expression::Literal& substraitLit) {
   auto typeCase = substraitLit.literal_type_case();
   switch (typeCase) {
-    case ::substrait::Expression_Literal::LiteralTypeCase::kBoolean:
-      return std::make_shared<core::ConstantTypedExpr>(BOOLEAN(), variant(substraitLit.boolean()));
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI8:
-      // SubstraitLit.i8() will return int32, so we need this type conversion.
-      return std::make_shared<core::ConstantTypedExpr>(TINYINT(), variant(static_cast<int8_t>(substraitLit.i8())));
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI16:
-      // SubstraitLit.i16() will return int32, so we need this type conversion.
-      return std::make_shared<core::ConstantTypedExpr>(SMALLINT(), variant(static_cast<int16_t>(substraitLit.i16())));
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI32:
-      return std::make_shared<core::ConstantTypedExpr>(INTEGER(), variant(substraitLit.i32()));
-    case ::substrait::Expression_Literal::LiteralTypeCase::kFp32:
-      return std::make_shared<core::ConstantTypedExpr>(REAL(), variant(substraitLit.fp32()));
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI64:
-      return std::make_shared<core::ConstantTypedExpr>(BIGINT(), variant(substraitLit.i64()));
-    case ::substrait::Expression_Literal::LiteralTypeCase::kFp64:
-      return std::make_shared<core::ConstantTypedExpr>(DOUBLE(), variant(substraitLit.fp64()));
-    case ::substrait::Expression_Literal::LiteralTypeCase::kString:
-      return std::make_shared<core::ConstantTypedExpr>(VARCHAR(), variant(substraitLit.string()));
-    case ::substrait::Expression_Literal::LiteralTypeCase::kDate:
-      return std::make_shared<core::ConstantTypedExpr>(DATE(), variant(int(substraitLit.date())));
-    case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
-      return std::make_shared<core::ConstantTypedExpr>(
-          TIMESTAMP(), variant(Timestamp::fromMicros(substraitLit.timestamp())));
-    case ::substrait::Expression_Literal::LiteralTypeCase::kVarChar:
-      return std::make_shared<core::ConstantTypedExpr>(VARCHAR(), variant(substraitLit.var_char().value()));
     case ::substrait::Expression_Literal::LiteralTypeCase::kList: {
       auto constantVector = BaseVector::wrapInConstant(1, 0, literalsToArrayVector(substraitLit));
       return std::make_shared<const core::ConstantTypedExpr>(constantVector);
@@ -387,27 +430,9 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
       auto constantVector = BaseVector::wrapInConstant(1, 0, literalsToMapVector(substraitLit));
       return std::make_shared<const core::ConstantTypedExpr>(constantVector);
     }
-    case ::substrait::Expression_Literal::LiteralTypeCase::kBinary:
-      return std::make_shared<core::ConstantTypedExpr>(VARBINARY(), variant::binary(substraitLit.binary()));
     case ::substrait::Expression_Literal::LiteralTypeCase::kStruct: {
       auto constantVector = BaseVector::wrapInConstant(1, 0, literalsToRowVector(substraitLit));
       return std::make_shared<const core::ConstantTypedExpr>(constantVector);
-    }
-    case ::substrait::Expression_Literal::LiteralTypeCase::kDecimal: {
-      auto decimal = substraitLit.decimal().value();
-      auto precision = substraitLit.decimal().precision();
-      auto scale = substraitLit.decimal().scale();
-      int128_t decimalValue;
-      memcpy(&decimalValue, decimal.c_str(), 16);
-      if (precision <= 18) {
-        auto type = DECIMAL(precision, scale);
-        return std::make_shared<core::ConstantTypedExpr>(type, variant(static_cast<int64_t>(decimalValue)));
-      } else {
-        auto type = DECIMAL(precision, scale);
-        return std::make_shared<core::ConstantTypedExpr>(
-            type,
-            variant(HugeInt::build(static_cast<uint64_t>(decimalValue >> 64), static_cast<uint64_t>(decimalValue))));
-      }
     }
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
       auto veloxType = SubstraitParser::parseType(substraitLit.null());
@@ -420,6 +445,11 @@ std::shared_ptr<const core::ConstantTypedExpr> SubstraitVeloxExprConverter::toVe
       }
     }
     default:
+      auto veloxType = getScalarType(substraitLit);
+      if (veloxType) {
+        auto kind = veloxType->kind();
+        return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructConstantVector, kind, substraitLit, veloxType);
+      }
       VELOX_NYI("Substrait conversion not supported for type case '{}'", typeCase);
   }
 }
@@ -455,32 +485,11 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
     const ::substrait::Expression::Literal& literal,
     std::function<::substrait::Expression::Literal(vector_size_t /* idx */)> elementAtFunc) {
   switch (childTypeCase) {
-    case ::substrait::Expression_Literal::LiteralTypeCase::kBoolean:
-      return constructFlatVector<TypeKind::BOOLEAN>(elementAtFunc, childSize, BOOLEAN(), pool_);
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI8:
-      return constructFlatVector<TypeKind::TINYINT>(elementAtFunc, childSize, TINYINT(), pool_);
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI16:
-      return constructFlatVector<TypeKind::SMALLINT>(elementAtFunc, childSize, SMALLINT(), pool_);
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI32:
-      return constructFlatVector<TypeKind::INTEGER>(elementAtFunc, childSize, INTEGER(), pool_);
-    case ::substrait::Expression_Literal::LiteralTypeCase::kFp32:
-      return constructFlatVector<TypeKind::REAL>(elementAtFunc, childSize, REAL(), pool_);
-    case ::substrait::Expression_Literal::LiteralTypeCase::kI64:
-      return constructFlatVector<TypeKind::BIGINT>(elementAtFunc, childSize, BIGINT(), pool_);
-    case ::substrait::Expression_Literal::LiteralTypeCase::kFp64:
-      return constructFlatVector<TypeKind::DOUBLE>(elementAtFunc, childSize, DOUBLE(), pool_);
-    case ::substrait::Expression_Literal::LiteralTypeCase::kString:
-    case ::substrait::Expression_Literal::LiteralTypeCase::kVarChar:
-      return constructFlatVector<TypeKind::VARCHAR>(elementAtFunc, childSize, VARCHAR(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
       auto veloxType = SubstraitParser::parseType(literal.null());
       auto kind = veloxType->kind();
       return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
     }
-    case ::substrait::Expression_Literal::LiteralTypeCase::kDate:
-      return constructFlatVector<TypeKind::INTEGER>(elementAtFunc, childSize, DATE(), pool_);
-    case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
-      return constructFlatVector<TypeKind::TIMESTAMP>(elementAtFunc, childSize, TIMESTAMP(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond:
       return constructFlatVector<TypeKind::BIGINT>(elementAtFunc, childSize, INTERVAL_DAY_TIME(), pool_);
     case ::substrait::Expression_Literal::LiteralTypeCase::kList: {
@@ -509,7 +518,25 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
       }
       return mapVector;
     }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kStruct: {
+      RowVectorPtr rowVector;
+      for (int i = 0; i < childSize; i++) {
+        auto element = elementAtFunc(i);
+        RowVectorPtr grandVector = literalsToRowVector(element);
+        if (!rowVector) {
+          rowVector = grandVector;
+        } else {
+          rowVector->append(grandVector.get());
+        }
+      }
+      return rowVector;
+    }
     default:
+      auto veloxType = getScalarType(elementAtFunc(0));
+      if (veloxType) {
+        auto kind = veloxType->kind();
+        return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
+      }
       VELOX_NYI("literals not supported for type case '{}'", childTypeCase);
   }
 }
@@ -524,72 +551,15 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
   for (const auto& child : structLiteral.struct_().fields()) {
     auto typeCase = child.literal_type_case();
     switch (typeCase) {
-      case ::substrait::Expression_Literal::LiteralTypeCase::kBoolean: {
-        vectors.emplace_back(constructFlatVectorForStruct<TypeKind::BOOLEAN>(child, 1, BOOLEAN(), pool_));
-        break;
-      }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kI8: {
-        vectors.emplace_back(constructFlatVectorForStruct<TypeKind::TINYINT>(child, 1, TINYINT(), pool_));
-        break;
-      }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kI16: {
-        vectors.emplace_back(constructFlatVectorForStruct<TypeKind::SMALLINT>(child, 1, SMALLINT(), pool_));
-        break;
-      }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kI32: {
-        vectors.emplace_back(constructFlatVectorForStruct<TypeKind::INTEGER>(child, 1, INTEGER(), pool_));
-        break;
-      }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kFp32: {
-        vectors.emplace_back(constructFlatVectorForStruct<TypeKind::REAL>(child, 1, REAL(), pool_));
-        break;
-      }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kI64: {
-        vectors.emplace_back(constructFlatVectorForStruct<TypeKind::BIGINT>(child, 1, BIGINT(), pool_));
-        break;
-      }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kFp64: {
-        vectors.emplace_back(constructFlatVectorForStruct<TypeKind::DOUBLE>(child, 1, DOUBLE(), pool_));
-        break;
-      }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kString:
-      case ::substrait::Expression_Literal::LiteralTypeCase::kVarChar: {
-        vectors.emplace_back(constructFlatVectorForStruct<TypeKind::VARCHAR>(child, 1, VARCHAR(), pool_));
-        break;
-      }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kDate: {
-        vectors.emplace_back(constructFlatVectorForStruct<TypeKind::INTEGER>(child, 1, DATE(), pool_));
-        break;
-      }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp: {
-        vectors.emplace_back(constructFlatVectorForStruct<TypeKind::TIMESTAMP>(child, 1, TIMESTAMP(), pool_));
-        break;
-      }
       case ::substrait::Expression_Literal::LiteralTypeCase::kIntervalDayToSecond: {
         vectors.emplace_back(constructFlatVectorForStruct<TypeKind::BIGINT>(child, 1, INTERVAL_DAY_TIME(), pool_));
         break;
       }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kBinary: {
-        vectors.emplace_back(constructFlatVectorForStruct<TypeKind::VARBINARY>(child, 1, VARBINARY(), pool_));
-        break;
-      }
-      case ::substrait::Expression_Literal::LiteralTypeCase::kDecimal: {
-        auto decimal = child.decimal().value();
-        auto precision = child.decimal().precision();
-        auto scale = child.decimal().scale();
-        int128_t decimalValue;
-        memcpy(&decimalValue, decimal.c_str(), 16);
-        auto type = DECIMAL(precision, scale);
-        auto vector = BaseVector::create(type, 1, pool_);
-        if (precision <= 18) {
-          auto flatVector = vector->as<FlatVector<int64_t>>();
-          flatVector->set(0, static_cast<int64_t>(decimalValue));
-        } else {
-          auto flatVector = vector->as<FlatVector<int128_t>>();
-          flatVector->set(
-              0, HugeInt::build(static_cast<uint64_t>(decimalValue >> 64), static_cast<uint64_t>(decimalValue)));
-        }
-        vectors.emplace_back(vector);
+      case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
+        auto veloxType = SubstraitParser::parseType(child.null());
+        auto kind = veloxType->kind();
+        auto vecPtr = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVectorForStruct, kind, child, 1, veloxType, pool_);
+        vectors.emplace_back(vecPtr);
         break;
       }
       case ::substrait::Expression_Literal::LiteralTypeCase::kList: {
@@ -605,7 +575,14 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
         break;
       }
       default:
-        VELOX_NYI("literalsToRowVector not supported for type case '{}'", typeCase);
+        auto veloxType = getScalarType(child);
+        if (veloxType) {
+          auto kind = veloxType->kind();
+          auto vecPtr = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVectorForStruct, kind, child, 1, veloxType, pool_);
+          vectors.emplace_back(vecPtr);
+        } else {
+          VELOX_NYI("literalsToRowVector not supported for type case '{}'", typeCase);
+        }
     }
   }
   return makeRowVector(vectors);

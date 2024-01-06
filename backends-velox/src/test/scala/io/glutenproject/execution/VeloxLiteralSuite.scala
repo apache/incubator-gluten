@@ -20,7 +20,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.execution.ProjectExec
 
 class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
-  override protected val resourcePath: String = "/tpch-data-literal-velox"
+  override protected val resourcePath: String = "placeholder"
   override protected val fileFormat: String = "parquet"
   override protected val backend: String = "velox"
 
@@ -48,6 +48,15 @@ class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
     }
   }
 
+  def validateFallbackResult(sql: String): Unit = {
+    runQueryAndCompare(sql) {
+      df =>
+        val plan = df.queryExecution.executedPlan
+        assert(plan.find(_.isInstanceOf[ProjectExecTransformer]).isEmpty, sql)
+        assert(plan.find(_.isInstanceOf[ProjectExec]).isDefined, sql)
+    }
+  }
+
   test("Struct Literal") {
     validateOffloadResult("SELECT struct('Spark', 5)")
     validateOffloadResult("SELECT struct(7, struct(5, 'test'))")
@@ -61,5 +70,71 @@ class VeloxLiteralSuite extends VeloxWholeStageTransformerSuite {
     validateOffloadResult("SELECT struct(TIMESTAMP'2020-12-31')")
     validateOffloadResult("SELECT struct(X'1234')")
     validateOffloadResult("SELECT struct(DATE'2020-12-31')")
+  }
+
+  test("Array Literal") {
+    validateOffloadResult("SELECT array('Spark', '5')")
+    validateOffloadResult("SELECT array(5, 1, -1)")
+    validateOffloadResult("SELECT array(5S, 1S, -1S)")
+    validateOffloadResult("SELECT array(5Y, 1Y, -1Y)")
+    validateOffloadResult("SELECT array(true, false)")
+    validateOffloadResult("SELECT array(1D, -1D)")
+    validateOffloadResult("SELECT array(1F, -1F)")
+    validateOffloadResult("SELECT array(1.0, 5.321)")
+    validateOffloadResult("SELECT array(5.321E2BD, 5.321E2BD)")
+    validateOffloadResult("SELECT array(5.321E2BD, 0.1, 5.321E22BD)")
+    validateOffloadResult("SELECT array(TIMESTAMP'2020-12-31', TIMESTAMP'2020-12-30')")
+    validateOffloadResult("SELECT array(X'1234', X'a')")
+    validateOffloadResult("SELECT array(DATE'2020-12-31', DATE'2020-12-30')")
+    validateOffloadResult("SELECT array(array(3, 4), array(5, 6))")
+    validateOffloadResult("SELECT array(map(1,2,3,4))")
+    validateOffloadResult("SELECT array(map('red', 1), map('green', 2))")
+    validateOffloadResult("SELECT array(struct(6, 'test1'), struct(5, 'test'))")
+  }
+
+  test("Map Literal") {
+    validateOffloadResult("SELECT map('b', 'a', 'e', 'e')")
+    validateOffloadResult("SELECT map(1D, 'a', 2D, 'e')")
+    validateOffloadResult("SELECT map(1.0, map(1, 2, 3, 4))")
+    validateOffloadResult("SELECT map(array(1, 2 ,3), array(1))")
+    validateOffloadResult("SELECT map(array(1, 2), map(false, 2))")
+    validateOffloadResult("SELECT map(struct(1, 2), struct(1, 2))")
+  }
+
+  test("Null Literal") {
+    validateOffloadResult("SELECT cast(null as int)")
+    validateOffloadResult("SELECT cast(null as decimal)")
+    validateOffloadResult("SELECT array(5, 1, null)")
+    validateOffloadResult("SELECT array(5.321E2BD, 0.1, null)")
+    validateOffloadResult("SELECT struct('Spark', cast(null as int))")
+    validateOffloadResult("SELECT struct(cast(null as decimal))")
+    validateOffloadResult("SELECT map('b', 'a', 'e', null)")
+  }
+
+  test("Scalar Type Literal") {
+    validateOffloadResult("SELECT 'Spark', ''")
+    validateOffloadResult("SELECT 5, 1, -1")
+    validateOffloadResult("SELECT 5S, 1S, -1S")
+    validateOffloadResult("SELECT 5Y, 1Y, -1Y")
+    validateOffloadResult("SELECT true, false")
+    validateOffloadResult("SELECT 1D, -1D")
+    validateOffloadResult("SELECT 1F, -1F")
+    validateOffloadResult("SELECT 5.321E2BD, 0.1, 5.321E22BD")
+    validateOffloadResult("SELECT TIMESTAMP'2020-12-31', TIMESTAMP'2020-12-30'")
+    validateOffloadResult("SELECT X'1234', X'a'")
+    validateOffloadResult("SELECT DATE'2020-12-31', DATE'2020-12-30'")
+  }
+
+  test("Literal Fallback") {
+    validateFallbackResult("SELECT array()")
+    validateFallbackResult("SELECT array(array())")
+    validateFallbackResult("SELECT array(map())")
+    validateFallbackResult("SELECT map()")
+    validateFallbackResult("SELECT map(1, array())")
+    validateFallbackResult("SELECT map(1, map())")
+    validateFallbackResult("SELECT array(null)")
+    validateFallbackResult("SELECT array(cast(null as int))")
+    validateFallbackResult("SELECT map(1, null)")
+    validateFallbackResult("SELECT struct(cast(null as struct<a: string>))")
   }
 }
