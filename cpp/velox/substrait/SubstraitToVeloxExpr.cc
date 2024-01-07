@@ -535,7 +535,8 @@ VectorPtr SubstraitVeloxExprConverter::literalsToVector(
       auto veloxType = getScalarType(elementAtFunc(0));
       if (veloxType) {
         auto kind = veloxType->kind();
-        return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
+        return VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(
+            constructFlatVector, kind, elementAtFunc, childSize, veloxType, pool_);
       }
       VELOX_NYI("literals not supported for type case '{}'", childTypeCase);
   }
@@ -558,7 +559,8 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
       case ::substrait::Expression_Literal::LiteralTypeCase::kNull: {
         auto veloxType = SubstraitParser::parseType(child.null());
         auto kind = veloxType->kind();
-        auto vecPtr = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVectorForStruct, kind, child, 1, veloxType, pool_);
+        auto vecPtr =
+            VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVectorForStruct, kind, child, 1, veloxType, pool_);
         vectors.emplace_back(vecPtr);
         break;
       }
@@ -578,7 +580,8 @@ RowVectorPtr SubstraitVeloxExprConverter::literalsToRowVector(const ::substrait:
         auto veloxType = getScalarType(child);
         if (veloxType) {
           auto kind = veloxType->kind();
-          auto vecPtr = VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVectorForStruct, kind, child, 1, veloxType, pool_);
+          auto vecPtr =
+              VELOX_DYNAMIC_SCALAR_TYPE_DISPATCH(constructFlatVectorForStruct, kind, child, 1, veloxType, pool_);
           vectors.emplace_back(vecPtr);
         } else {
           VELOX_NYI("literalsToRowVector not supported for type case '{}'", typeCase);
