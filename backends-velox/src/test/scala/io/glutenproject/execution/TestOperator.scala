@@ -777,9 +777,9 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
 
   test("Fix incorrect path by decode") {
     val c = "?.+<_>|/"
-    val path = rootPath + "/test+?.+<_>|"
-    val key1 = s"${c}key1$c$c"
-    val key2 = s"${c}key2$c$c"
+    val path = rootPath + "/test +?.+<_>|"
+    val key1 = s"${c}key1 $c$c"
+    val key2 = s"${c}key2 $c$c"
     val valueA = s"${c}some$c${c}value${c}A"
     val valueB = s"${c}some$c${c}value${c}B"
     val valueC = s"${c}some$c${c}value${c}C"
