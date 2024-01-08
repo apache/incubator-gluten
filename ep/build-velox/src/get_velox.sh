@@ -313,6 +313,7 @@ function setup_macos {
   fi
 
   sed -i '' $'/^  run_and_time install_double_conversion/a\\\n  run_and_time install_folly\\\n' scripts/setup-macos.sh
+  sed -i '' $'/^  github_checkout facebook\/folly /a\\\n  brew link --overwrite --force openssl@1.1\\\n' scripts/setup-macos.sh
 }
 
 if [ $OS == 'Linux' ]; then
