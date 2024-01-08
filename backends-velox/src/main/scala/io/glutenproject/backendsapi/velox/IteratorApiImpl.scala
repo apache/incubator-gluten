@@ -80,47 +80,6 @@ class IteratorApiImpl extends IteratorApi with Logging {
     }
   }
 
-  private def fromHex(x: Char): Char = {
-    var y = -1
-    if (x >= 'A' && x <= 'Z') y = x - 'A' + 10
-    else if (x >= 'a' && x <= 'z') y = x - 'a' + 10
-    else if (x >= '0' && x <= '9') y = x - '0'
-    else return x
-    y.toChar
-  }
-
-  private def UrlFix(str: String): String = {
-    val strTemp: StringBuffer = new StringBuffer
-    val length: Int = str.length
-    var i: Int = 0
-    while (i < length) {
-      if (str.charAt(i) == '+') {
-        strTemp.append(' ')
-      }
-      if (str.charAt(i) == ' ') {
-        strTemp.append('+')
-      } else {
-        if (str.charAt(i) == '%') {
-          assert((i + 2 < length))
-          val high: Char = fromHex(str.charAt({
-            i += 1;
-            i
-          }))
-          val low: Char = fromHex(str.charAt({
-            i += 1;
-            i
-          }))
-          strTemp.append(high * 16 + low)
-        } else {
-          strTemp.append(str.charAt(i))
-        }
-      }
-
-      i += 1
-    }
-    String.valueOf(strTemp)
-  }
-
   private def constructSplitInfo(schema: StructType, files: Array[PartitionedFile]) = {
     val paths = new JArrayList[String]()
     val starts = new JArrayList[JLong]
@@ -128,7 +87,12 @@ class IteratorApiImpl extends IteratorApi with Logging {
     val partitionColumns = new JArrayList[JMap[String, String]]
     files.foreach {
       file =>
-        paths.add(UrlFix(URLDecoder.decode(file.filePath.toString, StandardCharsets.UTF_8.name())))
+        // The "file.filePath" in PartitionedFile is not the original encoded path, so the decoded
+        // path is incorrect in some cases and here fix the case of ' '
+        paths.add(
+          URLDecoder
+            .decode(file.filePath.toString, StandardCharsets.UTF_8.name())
+            .replace(' ', '+'))
         starts.add(JLong.valueOf(file.start))
         lengths.add(JLong.valueOf(file.length))
 

@@ -23,7 +23,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.{AnalysisException, DataFrame, Row}
 import org.apache.spark.sql.execution.{GenerateExec, RDDScanExec}
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanHelper
-import org.apache.spark.sql.functions.{avg, col, udf}
+import org.apache.spark.sql.functions.{avg, col, lit, udf}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType}
 
@@ -772,6 +772,27 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
           checkOperatorMatch[SortMergeJoinExecTransformer]
         }
       }
+    }
+  }
+
+  test("Fix incorrect path by decode") {
+    val c = "?.+<_>|/"
+    val path = rootPath + "/test+?.+<_>|"
+    val key1 = s"${c}key1$c$c"
+    val key2 = s"${c}key2$c$c"
+    val valueA = s"${c}some$c${c}value${c}A"
+    val valueB = s"${c}some$c${c}value${c}B"
+    val valueC = s"${c}some$c${c}value${c}C"
+    val valueD = s"${c}some$c${c}value${c}D"
+
+    val df1 = spark.range(3).withColumn(key1, lit(valueA)).withColumn(key2, lit(valueB))
+    val df2 = spark.range(4, 7).withColumn(key1, lit(valueC)).withColumn(key2, lit(valueD))
+    val df = df1.union(df2)
+    df.write.partitionBy(key1, key2).format("parquet").mode("overwrite").save(path)
+
+    spark.read.format("parquet").load(path).createOrReplaceTempView("test")
+    runQueryAndCompare("select * from test") {
+      checkOperatorMatch[BatchScanExecTransformer]
     }
   }
 }
