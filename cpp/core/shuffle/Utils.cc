@@ -162,7 +162,7 @@ arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeCompressedRecordBatch(
     int32_t bufferCompressThreshold,
     CompressionMode compressionMode,
     int64_t& compressionTime) {
-  ScopedTimer timer{compressionTime};
+  ScopedTimer timer{&compressionTime};
   std::vector<std::shared_ptr<arrow::Array>> arrays;
   // header col, numRows, compressionType
   {

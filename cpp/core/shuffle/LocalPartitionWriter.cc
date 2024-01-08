@@ -44,7 +44,7 @@ class LocalPartitionWriter::LocalSpiller {
         codec_(codec) {}
 
   arrow::Status spill(uint32_t partitionId, std::unique_ptr<BlockPayload> payload) {
-    ScopedTimer timer(spillTime_);
+    ScopedTimer timer(&spillTime_);
     // Check spill Type.
     if (payload->type() != Payload::kUncompressed) {
       return arrow::Status::Invalid(
@@ -335,7 +335,7 @@ class LocalPartitionWriter::PayloadCache {
 
   arrow::Result<std::shared_ptr<Spill>>
   spill(const std::string& spillFile, arrow::MemoryPool* pool, arrow::util::Codec* codec) {
-    ScopedTimer timer(spillTime_);
+    ScopedTimer timer(&spillTime_);
 
     std::shared_ptr<Spill> diskSpill = nullptr;
     ARROW_ASSIGN_OR_RAISE(auto os, arrow::io::FileOutputStream::Open(spillFile, true));

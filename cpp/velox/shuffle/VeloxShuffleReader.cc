@@ -241,7 +241,7 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
     std::vector<std::shared_ptr<arrow::Buffer>> arrowBuffers,
     memory::MemoryPool* pool,
     int64_t& deserializeTime) {
-  ScopedTimer timer(deserializeTime);
+  ScopedTimer timer(&deserializeTime);
   std::vector<BufferPtr> veloxBuffers;
   veloxBuffers.reserve(arrowBuffers.size());
   for (auto& buffer : arrowBuffers) {
@@ -256,7 +256,7 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
     std::unique_ptr<BlockPayload> payload,
     memory::MemoryPool* pool,
     int64_t& deserializeTime) {
-  ScopedTimer timer(deserializeTime);
+  ScopedTimer timer(&deserializeTime);
   std::vector<BufferPtr> veloxBuffers;
   auto numBuffers = payload->numBuffers();
   veloxBuffers.reserve(numBuffers);
@@ -467,7 +467,6 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
   }
 
   if (reachEos_) {
-    ScopedTimer timer(deserializeTime_);
     if (merged_) {
       return makeColumnarBatch(rowType_, std::move(merged_), veloxPool_, deserializeTime_);
     }

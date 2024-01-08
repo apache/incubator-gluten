@@ -62,9 +62,9 @@ class Timer {
   int64_t realTimeUsed_ = 0;
 };
 
-class ScopedTimer : public Timer {
+class ScopedTimer {
  public:
-  explicit ScopedTimer(int64_t& toAdd) : Timer(), toAdd_(toAdd) {
+  explicit ScopedTimer(int64_t* toAdd) : toAdd_(toAdd) {
     startInternal();
   }
 
@@ -72,23 +72,24 @@ class ScopedTimer : public Timer {
     stopInternal();
   }
 
-  void switchTo(int64_t& toAdd) {
+  void switchTo(int64_t* toAdd) {
     stopInternal();
     toAdd_ = toAdd;
     startInternal();
   }
 
  private:
-  int64_t& toAdd_;
+  Timer timer_{};
+  int64_t* toAdd_;
 
   void stopInternal() {
-    Timer::stop();
-    toAdd_ += realTimeUsed();
+    timer_.stop();
+    *toAdd_ += timer_.realTimeUsed();
   }
 
   void startInternal() {
-    Timer::reset();
-    Timer::start();
+    timer_.reset();
+    timer_.start();
   }
 };
 } // namespace gluten

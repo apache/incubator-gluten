@@ -99,24 +99,23 @@ arrow::Status compressAndFlush(
     int64_t& compressTime,
     int64_t& writeTime) {
   if (!buffer) {
-    ScopedTimer timer(writeTime);
+    ScopedTimer timer(&writeTime);
     RETURN_NOT_OK(outputStream->Write(&kNullBuffer, sizeof(int64_t)));
     return arrow::Status::OK();
   }
   if (buffer->size() == 0) {
-    ScopedTimer timer(writeTime);
+    ScopedTimer timer(&writeTime);
     RETURN_NOT_OK(outputStream->Write(&kZeroLengthBuffer, sizeof(int64_t)));
     return arrow::Status::OK();
   }
-  ScopedTimer timer(compressTime);
+  ScopedTimer timer(&compressTime);
   auto maxCompressedLength = codec->MaxCompressedLen(buffer->size(), buffer->data());
   ARROW_ASSIGN_OR_RAISE(
-      std::shared_ptr<arrow::ResizableBuffer> compressed,
-      arrow::AllocateResizableBuffer(sizeof(int64_t) * 2 + maxCompressedLength, pool));
+      auto compressed, arrow::AllocateResizableBuffer(sizeof(int64_t) * 2 + maxCompressedLength, pool));
   auto output = compressed->mutable_data();
   ARROW_ASSIGN_OR_RAISE(auto compressedSize, compressBuffer(buffer, output, maxCompressedLength, codec));
 
-  timer.switchTo(writeTime);
+  timer.switchTo(&writeTime);
   RETURN_NOT_OK(outputStream->Write(compressed->data(), compressedSize));
   return arrow::Status::OK();
 }
@@ -154,12 +153,11 @@ arrow::Result<std::shared_ptr<arrow::Buffer>> readCompressedBuffer(
   }
   ARROW_ASSIGN_OR_RAISE(auto compressed, arrow::AllocateBuffer(compressedLength, pool));
   RETURN_NOT_OK(inputStream->Read(compressedLength, const_cast<uint8_t*>(compressed->data())));
+
+  ScopedTimer timer(&decompressTime);
   ARROW_ASSIGN_OR_RAISE(auto output, arrow::AllocateResizableBuffer(uncompressedLength, pool));
-  {
-    ScopedTimer timer(decompressTime);
-    RETURN_NOT_OK(codec->Decompress(
-        compressedLength, compressed->data(), uncompressedLength, const_cast<uint8_t*>(output->data())));
-  }
+  RETURN_NOT_OK(codec->Decompress(
+      compressedLength, compressed->data(), uncompressedLength, const_cast<uint8_t*>(output->data())));
   return output;
 }
 

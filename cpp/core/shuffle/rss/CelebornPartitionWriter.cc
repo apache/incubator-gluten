@@ -59,7 +59,7 @@ arrow::Status CelebornPartitionWriter::evict(
     bool hasComplexType) {
   rawPartitionLengths_[partitionId] += getBufferSize(buffers);
 
-  ScopedTimer timer(spillTime_);
+  ScopedTimer timer(&spillTime_);
   auto payloadType =
       (codec_ && numRows >= options_.compressionThreshold) ? Payload::Type::kCompressed : Payload::Type::kUncompressed;
   ARROW_ASSIGN_OR_RAISE(
