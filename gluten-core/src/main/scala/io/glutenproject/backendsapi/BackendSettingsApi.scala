@@ -112,6 +112,8 @@ trait BackendSettingsApi {
 
   def staticPartitionWriteOnly(): Boolean = false
 
+  def supportTransformWriteFiles: Boolean = false
+
   def requiredInputFilePaths(): Boolean = false
 
   def enableBloomFilterAggFallbackRule(): Boolean = true

@@ -35,7 +35,6 @@ import io.substrait.proto.SortField
 import java.util.{ArrayList => JArrayList}
 
 import scala.collection.JavaConverters._
-import scala.util.control.Breaks.{break, breakable}
 
 case class SortExecTransformer(
     sortOrder: Seq[SortOrder],
@@ -270,15 +269,8 @@ object SortExecTransformer {
   }
 
   def needProjection(sortOrders: Seq[SortOrder]): Boolean = {
-    var needsProjection = false
-    breakable {
-      for (sortOrder <- sortOrders) {
-        if (!sortOrder.child.isInstanceOf[Attribute]) {
-          needsProjection = true
-          break
-        }
-      }
-    }
-    needsProjection
+    sortOrders
+      .map(_.child)
+      .exists(exp => !exp.isInstanceOf[Attribute] && !exp.isInstanceOf[BoundReference])
   }
 }

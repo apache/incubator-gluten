@@ -565,15 +565,16 @@ abstract class HashAggregateExecBaseTransformer(
       null
     }
 
-    val isStreaming = if (isCapableForStreamingAggregation) {
-      "1"
-    } else {
-      "0"
-    }
     val optimization =
       BackendsApiManager.getTransformerApiInstance.packPBMessage(
-        StringValue.newBuilder.setValue(s"isStreaming=$isStreaming\n").build)
+        StringValue.newBuilder
+          .setValue(formatExtOptimizationString(isCapableForStreamingAggregation))
+          .build)
     ExtensionBuilder.makeAdvancedExtension(optimization, enhancement)
+  }
+
+  protected def formatExtOptimizationString(isStreaming: Boolean): String = {
+    s"isStreaming=${if (isStreaming) "1" else "0"}\n"
   }
 
   protected def getAggRel(

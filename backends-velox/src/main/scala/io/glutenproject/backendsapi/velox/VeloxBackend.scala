@@ -375,5 +375,7 @@ object BackendSettings extends BackendSettingsApi {
 
   override def staticPartitionWriteOnly(): Boolean = true
 
+  override def supportTransformWriteFiles: Boolean = true
+
   override def allowDecimalArithmetic: Boolean = SQLConf.get.decimalOperationsAllowPrecisionLoss
 }
