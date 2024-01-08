@@ -18,8 +18,6 @@ package org.apache.spark.shuffle
 
 import io.glutenproject.GlutenConfig
 import io.glutenproject.backendsapi.clickhouse.CHBackendSettings
-import io.glutenproject.memory.alloc.CHNativeMemoryAllocators
-import io.glutenproject.memory.memtarget.{MemoryTarget, Spiller, Spillers}
 import io.glutenproject.vectorized._
 
 import org.apache.spark.SparkEnv
@@ -29,7 +27,6 @@ import org.apache.spark.sql.vectorized.ColumnarBatch
 import org.apache.spark.util.{SparkDirectoryUtil, Utils}
 
 import java.io.IOException
-import java.util
 import java.util.{Locale, UUID}
 
 class CHColumnarShuffleWriter[K, V](
@@ -109,25 +106,6 @@ class CHColumnarShuffleWriter[K, V](
         CHBackendSettings.shuffleHashAlgorithm,
         throwIfMemoryExceed,
         flushBlockBufferBeforeEvict
-      )
-      CHNativeMemoryAllocators.createSpillable(
-        "ShuffleWriter",
-        new Spiller() {
-          override def spill(self: MemoryTarget, size: Long): Long = {
-            if (nativeSplitter == 0) {
-              throw new IllegalStateException(
-                "Fatal: spill() called before a shuffle writer " +
-                  "is created. This behavior should be optimized by moving memory " +
-                  "allocations from make() to split()")
-            }
-            logInfo(s"Gluten shuffle writer: Trying to spill $size bytes of data")
-            val spilled = splitterJniWrapper.evict(nativeSplitter);
-            logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
-            spilled
-          }
-
-          override def applicablePhases(): util.Set[Spiller.Phase] = Spillers.PHASE_SET_SPILL_ONLY
-        }
       )
     }
     while (records.hasNext) {
