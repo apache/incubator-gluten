@@ -16,12 +16,15 @@
  */
 package org.apache.spark.sql.sources
 
+import io.glutenproject.execution.SortExecTransformer
+import io.glutenproject.extension.GlutenPlan
+
 import org.apache.spark.SparkConf
 import org.apache.spark.executor.OutputMetrics
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd}
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.execution.{CommandResultExec, QueryExecution, VeloxColumnarWriteFilesExec}
+import org.apache.spark.sql.execution.{CommandResultExec, QueryExecution, SortExec, VeloxColumnarWriteFilesExec}
 import org.apache.spark.sql.execution.command.DataWritingCommandExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.util.QueryExecutionListener
@@ -32,6 +35,32 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
 
   override def sparkConf: SparkConf = {
     super.sparkConf.set("spark.sql.leafNodeDefaultParallelism", "1")
+  }
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    spark.sql("""
+                |CREATE TABLE source USING PARQUET AS
+                |SELECT cast(id as int) as c1, cast(id % 5 as string) c2 FROM range(100)
+                |""".stripMargin)
+
+    spark.sql("INSERT INTO TABLE source SELECT 0, null")
+    spark.sql("INSERT INTO TABLE source SELECT 0, ''")
+  }
+
+  override def afterAll(): Unit = {
+    spark.sql("DROP TABLE source")
+    super.afterAll()
+  }
+
+  private def getWriteFiles(df: DataFrame): VeloxColumnarWriteFilesExec = {
+    val writeFiles = df.queryExecution.executedPlan
+      .asInstanceOf[CommandResultExec]
+      .commandPhysicalPlan
+      .children
+      .head
+    assert(writeFiles.isInstanceOf[VeloxColumnarWriteFilesExec])
+    writeFiles.asInstanceOf[VeloxColumnarWriteFilesExec]
   }
 
   test("Gluten: insert partition table") {
@@ -62,12 +91,7 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
         val df =
           spark.sql("INSERT INTO TABLE pt partition(pt='a') SELECT * FROM VALUES(1, 'a'),(2, 'b')")
         spark.sparkContext.listenerBus.waitUntilEmpty()
-        val writeFiles = df.queryExecution.executedPlan
-          .asInstanceOf[CommandResultExec]
-          .commandPhysicalPlan
-          .children
-          .head
-        assert(writeFiles.isInstanceOf[VeloxColumnarWriteFilesExec])
+        getWriteFiles(df)
 
         assert(taskMetrics.bytesWritten > 0)
         assert(taskMetrics.recordsWritten == 2)
@@ -84,7 +108,7 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
     }
   }
 
-  test("Cleanup staging files if job is failed") {
+  test("Gluten: Cleanup staging files if job is failed") {
     withTable("t") {
       spark.sql("CREATE TABLE t (c1 int, c2 string) USING PARQUET")
       val table = spark.sessionState.catalog.getTableMetadata(TableIdentifier("t"))
@@ -99,6 +123,42 @@ class GlutenInsertSuite extends InsertSuite with GlutenSQLTestsBaseTrait {
         )
       }
       assert(new File(table.location).list().length == 0)
+    }
+  }
+
+  test("Gluten: remove v1writes sort and project") {
+    withTable("pt") {
+      spark.sql("CREATE TABLE pt (c1 int) USING PARQUET PARTITIONED BY(p string)")
+
+      val df = spark.sql("""
+                           |INSERT OVERWRITE TABLE pt PARTITION(p)
+                           |SELECT c1, c2 as p FROM source
+                           |""".stripMargin)
+      val writeFiles = getWriteFiles(df)
+      assert(
+        writeFiles
+          .find(x => x.isInstanceOf[SortExec] || x.isInstanceOf[SortExecTransformer])
+          .isEmpty)
+      // all operators should be transformed
+      assert(writeFiles.find(!_.isInstanceOf[GlutenPlan]).isEmpty)
+
+      val parts = spark.sessionState.catalog.listPartitionNames(TableIdentifier("pt")).sorted
+      assert(parts == Seq("p=0", "p=1", "p=2", "p=3", "p=4", "p=__HIVE_DEFAULT_PARTITION__"))
+      // the partition columnar should never be empty
+      checkAnswer(
+        spark.sql("SELECT * FROM pt"),
+        spark.sql("SELECT c1, if(c2 = '', null, c2) FROM source"))
+    }
+  }
+
+  test("Gluten: do not remove non-v1writes sort and project") {
+    withTable("t") {
+      spark.sql("CREATE TABLE t (c1 int, c2 string) USING PARQUET")
+
+      val df = spark.sql("INSERT OVERWRITE TABLE t SELECT c1, c2 FROM source SORT BY c1")
+      val writeFiles = getWriteFiles(df)
+      assert(writeFiles.find(x => x.isInstanceOf[SortExecTransformer]).isDefined)
+      checkAnswer(spark.sql("SELECT * FROM t"), spark.sql("SELECT * FROM source SORT BY c1"))
     }
   }
 }
