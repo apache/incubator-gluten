@@ -1285,6 +1285,14 @@ object GlutenConfig {
       .booleanConf
       .createWithDefault(false)
 
+  val REMOVE_NATIVE_WRITE_FILES_SORT_AND_PROJECT =
+    buildConf("spark.gluten.sql.removeNativeWriteFilesSortAndProject")
+      .internal()
+      .doc("When true, Gluten will remove the vanilla Spark V1Writes added sort and project " +
+        "for velox backend.")
+      .booleanConf
+      .createWithDefault(true)
+
   val UT_STATISTIC =
     buildConf("spark.gluten.sql.ut.statistic")
       .internal()

@@ -518,7 +518,7 @@ case class AddTransformHintRule() extends Rule[SparkPlan] {
           }
 
         case plan: WriteFilesExec =>
-          if (!enableColumnarWrite) {
+          if (!enableColumnarWrite || !BackendsApiManager.getSettings.supportTransformWriteFiles) {
             TransformHints.tagNotTransformable(
               plan,
               "columnar Write is not enabled in WriteFilesExec")
