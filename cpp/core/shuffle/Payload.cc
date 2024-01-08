@@ -233,30 +233,39 @@ arrow::Result<std::unique_ptr<BlockPayload>> BlockPayload::fromBuffers(
 }
 
 arrow::Status BlockPayload::serialize(arrow::io::OutputStream* outputStream) {
-  if (type_ == Type::kUncompressed) {
-    RETURN_NOT_OK(outputStream->Write(&kUncompressedType, sizeof(Type)));
-    RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
-    for (auto& buffer : buffers_) {
-      if (!buffer) {
-        RETURN_NOT_OK(outputStream->Write(&kNullBuffer, sizeof(int64_t)));
-        continue;
+  switch (type_) {
+    case Type::kUncompressed: {
+      ScopedTimer timer(&writeTime_);
+      RETURN_NOT_OK(outputStream->Write(&kUncompressedType, sizeof(Type)));
+      RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
+      for (auto& buffer : buffers_) {
+        if (!buffer) {
+          RETURN_NOT_OK(outputStream->Write(&kNullBuffer, sizeof(int64_t)));
+          continue;
+        }
+        int64_t bufferSize = buffer->size();
+        RETURN_NOT_OK(outputStream->Write(&bufferSize, sizeof(int64_t)));
+        if (bufferSize > 0) {
+          RETURN_NOT_OK(outputStream->Write(std::move(buffer)));
+        }
       }
-      int64_t bufferSize = buffer->size();
-      RETURN_NOT_OK(outputStream->Write(&bufferSize, sizeof(int64_t)));
-      if (bufferSize > 0) {
-        RETURN_NOT_OK(outputStream->Write(std::move(buffer)));
+    } break;
+    case Type::kToBeCompressed: {
+      {
+        ScopedTimer timer(&writeTime_);
+        RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
+        RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
       }
-    }
-  } else if (type_ == Type::kToBeCompressed) {
-    RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
-    RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
-    for (auto& buffer : buffers_) {
-      RETURN_NOT_OK(compressAndFlush(std::move(buffer), outputStream, codec_, pool_, compressTime_, writeTime_));
-    }
-  } else {
-    RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
-    RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
-    RETURN_NOT_OK(outputStream->Write(std::move(buffers_[0])));
+      for (auto& buffer : buffers_) {
+        RETURN_NOT_OK(compressAndFlush(std::move(buffer), outputStream, codec_, pool_, compressTime_, writeTime_));
+      }
+    } break;
+    case Type::kCompressed: {
+      ScopedTimer timer(&writeTime_);
+      RETURN_NOT_OK(outputStream->Write(&kCompressedType, sizeof(Type)));
+      RETURN_NOT_OK(outputStream->Write(&numRows_, sizeof(uint32_t)));
+      RETURN_NOT_OK(outputStream->Write(std::move(buffers_[0])));
+    } break;
   }
   buffers_.clear();
   return arrow::Status::OK();
