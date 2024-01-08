@@ -767,8 +767,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         checkOperatorMatch[ShuffledHashJoinExecTransformer]
       }
 
-      withSQLConf(
-        "spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
+      withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
         runQueryAndCompare(
           """
             |select * from t1 cross join t2 on t1.c1 = t2.c1;
@@ -778,8 +777,7 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
         }
       }
 
-      withSQLConf(
-        "spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
         runQueryAndCompare(
           """
             |select * from t1 cross join t2 on t1.c1 = t2.c1;
