@@ -692,7 +692,8 @@ class VeloxTestSettings extends BackendTestSettings {
     // Timestamp is read as INT96
     .exclude("Read TimestampNTZ and TimestampLTZ for various logical TIMESTAMP types")
     // Native writer: Field name must not be empty.
-    .exclude("SPARK-23173 Writing a file with data converted from JSON with and incorrect user schema")
+    .exclude(
+      "SPARK-23173 Writing a file with data converted from JSON with and incorrect user schema")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     // Timezone is not supported yet.
     .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
