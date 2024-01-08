@@ -411,6 +411,9 @@ private:
     DB::QueryPlanPtr current_query_plan;
     RelMetricPtr metric;
     std::vector<QueryPlanPtr> extra_plan_holder;
+
+    /// Dump processor runtime information to log
+    std::string dumpPipeline();
 };
 
 
