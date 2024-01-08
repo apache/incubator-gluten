@@ -643,20 +643,6 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  // After IntermediateHashAggregateRule is enabled
-  ignore("Support get native plan tree string") {
-    runQueryAndCompare("select l_partkey + 1, count(*) from lineitem group by l_partkey + 1") {
-      df =>
-        val wholeStageTransformers = collect(df.queryExecution.executedPlan) {
-          case w: WholeStageTransformer => w
-        }
-        val nativePlanString = wholeStageTransformers.head.nativePlanString()
-        assert(nativePlanString.contains("Aggregation[SINGLE"))
-        assert(nativePlanString.contains("Aggregation[PARTIAL"))
-        assert(nativePlanString.contains("TableScan"))
-    }
-  }
-
   test("Support StreamingAggregate if child output ordering is satisfied") {
     withTable("t") {
       spark
