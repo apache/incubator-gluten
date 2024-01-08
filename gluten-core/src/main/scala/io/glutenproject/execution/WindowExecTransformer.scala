@@ -21,9 +21,9 @@ import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression._
 import io.glutenproject.extension.ValidationResult
 import io.glutenproject.metrics.MetricsUpdater
-import io.glutenproject.substrait.`type`.TypeBuilder
+import io.glutenproject.substrait.`type`.{TypeBuilder, TypeNode}
 import io.glutenproject.substrait.SubstraitContext
-import io.glutenproject.substrait.expression.WindowFunctionNode
+import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode, WindowFunctionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
@@ -35,9 +35,10 @@ import org.apache.spark.sql.execution.window.WindowExecBase
 import com.google.protobuf.{Any, StringValue}
 import io.substrait.proto.SortField
 
-import java.util.{ArrayList => JArrayList}
+import java.util.{ArrayList => JArrayList, List => JList}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
 
 case class WindowExecTransformer(
     windowExpression: Seq[NamedExpression],
@@ -100,11 +101,13 @@ case class WindowExecTransformer(
     BackendsApiManager.getTransformerApiInstance.packPBMessage(message)
   }
 
-  def getRelNode(
+  private def needsProject: Boolean = (partitionSpec ++ orderSpec.map(_.child)).exists {
+    case _: Attribute => false
+    case _ => true
+  }
+
+  def getWindowRelWithoutProjection(
       context: SubstraitContext,
-      windowExpression: Seq[NamedExpression],
-      partitionSpec: Seq[Expression],
-      sortOrder: Seq[SortOrder],
       originalInputAttributes: Seq[Attribute],
       operatorId: Long,
       input: RelNode,
@@ -129,31 +132,18 @@ case class WindowExecTransformer(
 
     // Sort By Expressions
     val sortFieldList =
-      sortOrder.map {
+      orderSpec.map {
         order =>
           val builder = SortField.newBuilder()
           val exprNode = ExpressionConverter
             .replaceWithExpressionTransformer(order.child, attributeSeq = child.output)
             .doTransform(args)
           builder.setExpr(exprNode.toProtobuf)
-
-          (order.direction.sql, order.nullOrdering.sql) match {
-            case ("ASC", "NULLS FIRST") =>
-              builder.setDirectionValue(1);
-            case ("ASC", "NULLS LAST") =>
-              builder.setDirectionValue(2);
-            case ("DESC", "NULLS FIRST") =>
-              builder.setDirectionValue(3);
-            case ("DESC", "NULLS LAST") =>
-              builder.setDirectionValue(4);
-            case _ =>
-              builder.setDirectionValue(0);
-          }
+          builder.setDirectionValue(getSortDirectionValue(order))
           builder.build()
       }.asJava
     if (!validation) {
-      val extensionNode =
-        ExtensionBuilder.makeAdvancedExtension(genWindowParameters(), null)
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(genWindowParameters(), null)
       RelBuilder.makeWindowRel(
         input,
         windowExpressions,
@@ -182,6 +172,206 @@ case class WindowExecTransformer(
     }
   }
 
+  private def getWindowRelWithProjection(
+      context: SubstraitContext,
+      originalInputAttributes: Seq[Attribute],
+      operatorId: Long,
+      input: RelNode,
+      validation: Boolean): RelNode = {
+    val args = context.registeredFunction
+
+    val preExpressions = new ArrayBuffer[Expression]()
+    val selections = new ArrayBuffer[Int]()
+
+    // Window requires all output attributes from child.
+    preExpressions ++= originalInputAttributes
+    selections ++= originalInputAttributes.indices
+
+    def appendIfNotFound(expression: Expression): Unit = {
+      val foundExpr = preExpressions.find(e => e.semanticEquals(expression))
+      if (foundExpr.isDefined) {
+        // If found, no need to add it to preExpressions again.
+        // The selecting index will be found.
+        selections += preExpressions.indexOf(foundExpr.get)
+      } else {
+        // If not found, add this expression into preExpressions.
+        // A new selecting index will be created.
+        preExpressions += expression.clone()
+        selections += (preExpressions.size - 1)
+      }
+    }
+
+    partitionSpec.foreach(appendIfNotFound)
+    orderSpec.foreach(order => appendIfNotFound(order.child))
+
+    // Create the expression nodes needed by Project node.
+    val preExprNodes = preExpressions
+      .map(
+        ExpressionConverter
+          .replaceWithExpressionTransformer(_, originalInputAttributes)
+          .doTransform(args))
+      .asJava
+    val emitStartIndex = originalInputAttributes.size
+    val inputRel = if (!validation) {
+      RelBuilder.makeProjectRel(input, preExprNodes, context, operatorId, emitStartIndex)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for a validation.
+      val inputTypeNodeList = originalInputAttributes
+        .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
+        .asJava
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+      RelBuilder.makeProjectRel(
+        input,
+        preExprNodes,
+        extensionNode,
+        context,
+        operatorId,
+        emitStartIndex)
+    }
+    createWindowRelAfterProjection(
+      context,
+      originalInputAttributes,
+      preExprNodes,
+      selections,
+      inputRel,
+      operatorId,
+      validation)
+  }
+
+  private def createWindowRelAfterProjection(
+      context: SubstraitContext,
+      originalInputAttributes: Seq[Attribute],
+      preExprNodes: JList[ExpressionNode],
+      selections: Seq[Int],
+      inputRel: RelNode,
+      operatorId: Long,
+      validation: Boolean): RelNode = {
+    val args = context.registeredFunction
+
+    // WindowFunction Expressions
+    val windowExpressions = new JArrayList[WindowFunctionNode]()
+    BackendsApiManager.getSparkPlanExecApiInstance.genWindowFunctionsNode(
+      windowExpression,
+      windowExpressions,
+      originalInputAttributes,
+      args
+    )
+
+    var colIdx = originalInputAttributes.size
+    val partitionList = new JArrayList[ExpressionNode]()
+    val partitionAttributes = new ArrayBuffer[AttributeReference]()
+    partitionSpec.foreach {
+      partition =>
+        val partitionExpr = ExpressionBuilder.makeSelection(selections(colIdx))
+        partitionList.add(partitionExpr)
+        partitionAttributes += AttributeReference(s"col_$colIdx", partition.dataType)()
+        colIdx += 1
+    }
+
+    val sortAttributes = new ArrayBuffer[AttributeReference]()
+    val sortFieldList = orderSpec.map {
+      order =>
+        sortAttributes += AttributeReference(s"col_$colIdx", order.child.dataType)()
+        val builder = SortField.newBuilder()
+        val exprNode = ExpressionBuilder.makeSelection(selections(colIdx))
+        colIdx += 1
+        builder.setExpr(exprNode.toProtobuf)
+        builder.setDirectionValue(getSortDirectionValue(order))
+        builder.build()
+    }.asJava
+
+    val inputTypeNodeList = new java.util.ArrayList[TypeNode]()
+    originalInputAttributes.foreach(
+      attr => inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable)))
+    partitionAttributes.foreach(
+      attr => inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable)))
+    sortAttributes.foreach(
+      attr => inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable)))
+
+    val windowRel = if (!validation) {
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(genWindowParameters(), null)
+      RelBuilder.makeWindowRel(
+        inputRel,
+        windowExpressions,
+        partitionList,
+        sortFieldList,
+        extensionNode,
+        context,
+        operatorId)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for validation.
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+
+      RelBuilder.makeWindowRel(
+        inputRel,
+        windowExpressions,
+        partitionList,
+        sortFieldList,
+        extensionNode,
+        context,
+        operatorId)
+    }
+    createPostProjection(
+      context,
+      originalInputAttributes,
+      preExprNodes,
+      inputTypeNodeList,
+      windowRel,
+      operatorId,
+      validation)
+  }
+
+  private def createPostProjection(
+      context: SubstraitContext,
+      originalInputAttributes: Seq[Attribute],
+      preExprNodes: JList[ExpressionNode],
+      inputTypeNodeList: JList[TypeNode],
+      inputRel: RelNode,
+      operatorId: Long,
+      validation: Boolean): RelNode = {
+    val postExprNodes = new JArrayList[ExpressionNode]()
+    postExprNodes.addAll(preExprNodes.subList(0, originalInputAttributes.size))
+    var windowStartIdx = preExprNodes.size()
+    windowExpression.foreach {
+      _ =>
+        postExprNodes.add(ExpressionBuilder.makeSelection(windowStartIdx))
+        windowStartIdx += 1
+    }
+    if (!validation) {
+      RelBuilder.makeProjectRel(
+        inputRel,
+        postExprNodes,
+        context,
+        operatorId,
+        preExprNodes.size() + windowExpression.size)
+    } else {
+      // Use a extension node to send the input types through Substrait plan for a validation.
+      val extensionNode = ExtensionBuilder.makeAdvancedExtension(
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+      RelBuilder.makeProjectRel(
+        inputRel,
+        postExprNodes,
+        extensionNode,
+        context,
+        operatorId,
+        preExprNodes.size() + windowExpression.size)
+    }
+  }
+
+  private def getSortDirectionValue(order: SortOrder): Int =
+    (order.direction.sql, order.nullOrdering.sql) match {
+      case ("ASC", "NULLS FIRST") => 1
+      case ("ASC", "NULLS LAST") => 2
+      case ("DESC", "NULLS FIRST") => 3
+      case ("DESC", "NULLS LAST") => 4
+      case _ => 0
+    }
+
   override protected def doValidateInternal(): ValidationResult = {
     if (!BackendsApiManager.getSettings.supportWindowExec(windowExpression)) {
       return ValidationResult
@@ -190,15 +380,21 @@ case class WindowExecTransformer(
     val substraitContext = new SubstraitContext
     val operatorId = substraitContext.nextOperatorId(this.nodeName)
 
-    val relNode = getRelNode(
-      substraitContext,
-      windowExpression,
-      partitionSpec,
-      orderSpec,
-      child.output,
-      operatorId,
-      null,
-      validation = true)
+    val relNode = if (needsProject) {
+      getWindowRelWithProjection(
+        substraitContext,
+        child.output,
+        operatorId,
+        null,
+        validation = true)
+    } else {
+      getWindowRelWithoutProjection(
+        substraitContext,
+        child.output,
+        operatorId,
+        null,
+        validation = true)
+    }
 
     doNativeValidation(substraitContext, relNode)
   }
@@ -212,15 +408,21 @@ case class WindowExecTransformer(
       return childCtx
     }
 
-    val currRel = getRelNode(
-      context,
-      windowExpression,
-      partitionSpec,
-      orderSpec,
-      child.output,
-      operatorId,
-      childCtx.root,
-      validation = false)
+    val currRel = if (needsProject) {
+      getWindowRelWithProjection(
+        context,
+        child.output,
+        operatorId,
+        childCtx.root,
+        validation = false)
+    } else {
+      getWindowRelWithoutProjection(
+        context,
+        child.output,
+        operatorId,
+        childCtx.root,
+        validation = false)
+    }
     assert(currRel != null, "Window Rel should be valid")
     TransformContext(childCtx.outputAttributes, output, currRel)
   }
