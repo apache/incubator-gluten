@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.catalyst
 
-import io.glutenproject.execution.{FlushableHashAggregateExecTransformer, RegularHashAggregateExecTransformer}
+import io.glutenproject.execution.{FlushableHashAggregateExecTransformer, ProjectExecTransformer, RegularHashAggregateExecTransformer}
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Partial, PartialMerge}
@@ -27,8 +27,6 @@ import org.apache.spark.sql.execution.exchange.ShuffleExchangeLike
 /**
  * To transform regular aggregation to intermediate aggregation that internally enables
  * optimizations such as flushing and abandoning.
- *
- * Currently not in use. Will be enabled via a configuration after necessary verification is done.
  */
 case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkPlan] {
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
@@ -36,21 +34,62 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
       // If an exchange follows a hash aggregate in which all functions are in partial mode,
       // then it's safe to convert the hash aggregate to intermediate hash aggregate.
       shuffle.child match {
-        case h: RegularHashAggregateExecTransformer =>
-          if (h.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge)) {
-            shuffle.withNewChildren(
-              Seq(FlushableHashAggregateExecTransformer(
-                h.requiredChildDistributionExpressions,
-                h.groupingExpressions,
-                h.aggregateExpressions,
-                h.aggregateAttributes,
-                h.initialInputBufferOffset,
-                h.resultExpressions,
-                h.child
-              )))
-          } else {
-            shuffle
-          }
+        case HashAggPropagatedToShuffle(proj, agg) =>
+          shuffle.withNewChildren(
+            Seq(proj.withNewChildren(Seq(FlushableHashAggregateExecTransformer(
+              agg.requiredChildDistributionExpressions,
+              agg.groupingExpressions,
+              agg.aggregateExpressions,
+              agg.aggregateAttributes,
+              agg.initialInputBufferOffset,
+              agg.resultExpressions,
+              agg.child
+            )))))
+        case HashAggWithShuffle(agg) =>
+          shuffle.withNewChildren(
+            Seq(FlushableHashAggregateExecTransformer(
+              agg.requiredChildDistributionExpressions,
+              agg.groupingExpressions,
+              agg.aggregateExpressions,
+              agg.aggregateAttributes,
+              agg.initialInputBufferOffset,
+              agg.resultExpressions,
+              agg.child
+            )))
+        case _ =>
+          shuffle
       }
+  }
+}
+
+object HashAggPropagatedToShuffle {
+  def unapply(
+      plan: SparkPlan): Option[(ProjectExecTransformer, RegularHashAggregateExecTransformer)] = {
+    if (!plan.isInstanceOf[ProjectExecTransformer]) {
+      return None
+    }
+    val proj = plan.asInstanceOf[ProjectExecTransformer]
+    val child = proj.child
+    if (!child.isInstanceOf[RegularHashAggregateExecTransformer]) {
+      return None
+    }
+    val agg = child.asInstanceOf[RegularHashAggregateExecTransformer]
+    if (!agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge)) {
+      return None
+    }
+    Some((proj, agg))
+  }
+}
+
+object HashAggWithShuffle {
+  def unapply(plan: SparkPlan): Option[RegularHashAggregateExecTransformer] = {
+    if (!plan.isInstanceOf[RegularHashAggregateExecTransformer]) {
+      return None
+    }
+    val agg = plan.asInstanceOf[RegularHashAggregateExecTransformer]
+    if (!agg.aggregateExpressions.forall(p => p.mode == Partial || p.mode == PartialMerge)) {
+      return None
+    }
+    Some(agg)
   }
 }
