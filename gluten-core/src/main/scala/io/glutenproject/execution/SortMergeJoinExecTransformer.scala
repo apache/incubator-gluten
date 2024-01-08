@@ -128,7 +128,7 @@ case class SortMergeJoinExecTransformer(
     requiredOrders(leftKeys) :: requiredOrders(rightKeys) :: Nil
 
   override def outputOrdering: Seq[SortOrder] = joinType match {
-    // For inner join, orders of both sides keys should be kept.
+    // For inner like join, orders of both sides keys should be kept.
     case _: InnerLike =>
       val leftKeyOrdering = getKeyOrdering(leftKeys, left.outputOrdering)
       val rightKeyOrdering = getKeyOrdering(rightKeys, right.outputOrdering)
@@ -198,7 +198,7 @@ case class SortMergeJoinExecTransformer(
 
   // Direct output order of substrait join operation
   protected val substraitJoinType = joinType match {
-    case Inner =>
+    case _: InnerLike =>
       JoinRel.JoinType.JOIN_TYPE_INNER
     case FullOuter =>
       JoinRel.JoinType.JOIN_TYPE_OUTER
