@@ -127,7 +127,7 @@ function process_setup_centos8 {
   fi
   # make this function Reentrant
   git checkout scripts/setup-centos8.sh
-
+  sed -i "s/boostorg.jfrog.io\/artifactory\/main\/release\/1.72.0\/source\/boost_1_72_0.tar.gz/src.fedoraproject.org\/repo\/pkgs\/boost\/boost_1_72_0-snapshot.tar.gz\/sha512\/b91d96e0fd76cdfb2accadedde85a7d005d7f8ccdfde50c7f195bd5ea1f0c203520d5dac1fca33f38f20ff484f8400303226d6febb31f644ebb4d9809f91088a\/boost_1_72_0-snapshot.tar.gz/" scripts/setup-centos8.sh
   # # No need to re-install git.
   sed -i 's/dnf_install ninja-build ccache gcc-toolset-9 git/dnf_install ninja-build ccache gcc-toolset-9/' scripts/setup-centos8.sh
   sed -i '/^function dnf_install/i\DEPENDENCY_DIR=${DEPENDENCY_DIR:-$(pwd)}' scripts/setup-centos8.sh
@@ -175,6 +175,7 @@ function process_setup_centos7 {
   # install gtest
   sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_gtest' scripts/setup-centos7.sh
 
+  sed -i "s/boostorg.jfrog.io\/artifactory\/main\/release\/1.72.0\/source\/boost_1_72_0.tar.gz/src.fedoraproject.org\/repo\/pkgs\/boost\/boost_1_72_0-snapshot.tar.gz\/sha512\/b91d96e0fd76cdfb2accadedde85a7d005d7f8ccdfde50c7f195bd5ea1f0c203520d5dac1fca33f38f20ff484f8400303226d6febb31f644ebb4d9809f91088a\/boost_1_72_0-snapshot.tar.gz/" scripts/setup-centos7.sh
   if [ $ENABLE_HDFS = "ON" ]; then
     sed -i '/^function install_protobuf.*/i function install_libhdfs3 {\n cd "\${DEPENDENCY_DIR}"\n github_checkout oap-project/libhdfs3 master \n cmake_install\n}\n' scripts/setup-centos7.sh
     sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_libhdfs3' scripts/setup-centos7.sh
