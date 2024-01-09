@@ -191,28 +191,28 @@ TypePtr getScalarType(const ::substrait::Expression::Literal& literal) {
       return SMALLINT();
     case ::substrait::Expression_Literal::LiteralTypeCase::kI32:
       return INTEGER();
-    case ::substrait::Expression_Literal::LiteralTypeCase::kFp32:
-      return REAL();
     case ::substrait::Expression_Literal::LiteralTypeCase::kI64:
       return BIGINT();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kFp32:
+      return REAL();
     case ::substrait::Expression_Literal::LiteralTypeCase::kFp64:
       return DOUBLE();
-    case ::substrait::Expression_Literal::LiteralTypeCase::kString:
-      return VARCHAR();
-    case ::substrait::Expression_Literal::LiteralTypeCase::kDate:
-      return DATE();
-    case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
-      return TIMESTAMP();
-    case ::substrait::Expression_Literal::LiteralTypeCase::kVarChar:
-      return VARCHAR();
-    case ::substrait::Expression_Literal::LiteralTypeCase::kBinary:
-      return VARBINARY();
     case ::substrait::Expression_Literal::LiteralTypeCase::kDecimal: {
       auto precision = literal.decimal().precision();
       auto scale = literal.decimal().scale();
       auto type = DECIMAL(precision, scale);
       return type;
     }
+    case ::substrait::Expression_Literal::LiteralTypeCase::kDate:
+      return DATE();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kTimestamp:
+      return TIMESTAMP();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kString:
+      return VARCHAR();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kVarChar:
+      return VARCHAR();
+    case ::substrait::Expression_Literal::LiteralTypeCase::kBinary:
+      return VARBINARY();
     default:
       return nullptr;
   }
