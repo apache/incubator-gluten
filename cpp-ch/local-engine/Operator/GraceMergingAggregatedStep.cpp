@@ -517,12 +517,13 @@ bool GraceMergingAggregatedTransform::isMemoryOverflow()
         {
             LOG_INFO(
                 logger,
-                "Memory is overflow. current_mem_used: {}, max_mem_used: {}, per_key_memory_usage: {}, aggregator keys: {}, buckets: {}",
+                "Memory is overflow. current_mem_used: {}, max_mem_used: {}, per_key_memory_usage: {}, aggregator keys: {}, buckets: {}, hash table type: {}",
                 ReadableSize(current_mem_used),
                 ReadableSize(max_mem_used),
                 ReadableSize(per_key_memory_usage),
                 current_result_rows,
-                getBucketsNum());
+                getBucketsNum(),
+                current_data_variants->type);
             return true;
         }
     }
@@ -532,11 +533,12 @@ bool GraceMergingAggregatedTransform::isMemoryOverflow()
         {
             LOG_INFO(
                 logger,
-                "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, aggregator keys: {}, buckets: {}",
+                "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, aggregator keys: {}, buckets: {}, hash table type: {}",
                 ReadableSize(current_mem_used),
                 ReadableSize(max_mem_used),
                 current_result_rows,
-                getBucketsNum());
+                getBucketsNum(),
+                current_data_variants->type);
             return true;
         }
     }
