@@ -29,7 +29,6 @@ object GlutenFileFormatWriter {
       sparkAttemptNumber: Int,
       committer: FileCommitProtocol,
       iterator: Iterator[InternalRow]): WriteTaskResult = {
-    // Before Spark3.4, this method is private
     FileFormatWriter.executeTask(
       description,
       jobTrackerID,

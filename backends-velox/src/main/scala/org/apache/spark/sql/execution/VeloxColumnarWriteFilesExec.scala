@@ -148,7 +148,7 @@ class VeloxColumnarWriteFilesRDD(
     val summary =
       ExecutedWriteSummary(updatedPartitions = updatedPartitions, stats = Seq(stats))
 
-    // write an empty iterator
+    // Write an empty iterator
     if (numFiles == 0) {
       None
     } else {
@@ -159,9 +159,16 @@ class VeloxColumnarWriteFilesRDD(
     }
   }
 
-  private def getNumBytesAndNumWrittenRows(writeTaskResult: WriteTaskResult): (Long, Long) = {
+  private def reportTaskMetrics(writeTaskResult: WriteTaskResult): Unit = {
     val stats = writeTaskResult.summary.stats.head.asInstanceOf[BasicWriteTaskStats]
-    (stats.numBytes, stats.numRows)
+    val (numBytes, numWrittenRows) = (stats.numBytes, stats.numRows)
+    // Reports bytesWritten and recordsWritten to the Spark output metrics.
+    // We should update it after calling `commitTask` to overwrite the metrics.
+    Option(TaskContext.get()).map(_.taskMetrics().outputMetrics).foreach {
+      outputMetrics =>
+        outputMetrics.setBytesWritten(numBytes)
+        outputMetrics.setRecordsWritten(numWrittenRows)
+    }
   }
 
   private def writeFilesForEmptyIterator(
@@ -235,14 +242,7 @@ class VeloxColumnarWriteFilesRDD(
     }
 
     assert(writeTaskResult != null)
-    val (numBytes, numWrittenRows) = getNumBytesAndNumWrittenRows(writeTaskResult)
-    // Reports bytesWritten and recordsWritten to the Spark output metrics.
-    // We should update it after calling `commitTask` to overwrite the metrics.
-    Option(TaskContext.get()).map(_.taskMetrics().outputMetrics).foreach {
-      outputMetrics =>
-        outputMetrics.setBytesWritten(numBytes)
-        outputMetrics.setRecordsWritten(numWrittenRows)
-    }
+    reportTaskMetrics(writeTaskResult)
     Iterator.single(writeTaskResult)
   }
 
