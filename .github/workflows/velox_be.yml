@@ -576,12 +576,13 @@ jobs:
       OS_IMAGE_NAME: centos
       OS_IMAGE_TAG: 8
     steps:
+      - uses: actions/checkout@v4
       - name: Setup docker container
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/checkout.sh
       - name: Build Script Test
         run: |
-           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
+          $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/exec.sh '
           source /env.sh && \
           sudo yum -y install patch && \
           cd /opt/gluten/ && \
