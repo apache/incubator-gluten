@@ -51,21 +51,18 @@ arrow::Status CelebornPartitionWriter::reclaimFixedSize(int64_t size, int64_t* a
 
 arrow::Status CelebornPartitionWriter::evict(
     uint32_t partitionId,
-    uint32_t numRows,
-    std::vector<std::shared_ptr<arrow::Buffer>> buffers,
-    const std::vector<bool>* isValidityBuffer,
-    bool reuseBuffers,
+    std::unique_ptr<InMemoryPayload> inMemoryPayload,
     Evict::type evictType,
+    bool reuseBuffers,
     bool hasComplexType) {
-  rawPartitionLengths_[partitionId] += getBufferSize(buffers);
+  rawPartitionLengths_[partitionId] += inMemoryPayload->getBufferSize();
 
   ScopedTimer timer(&spillTime_);
-  auto payloadType =
-      (codec_ && numRows >= options_.compressionThreshold) ? Payload::Type::kCompressed : Payload::Type::kUncompressed;
+  auto payloadType = (codec_ && inMemoryPayload->numRows() >= options_.compressionThreshold)
+      ? Payload::Type::kCompressed
+      : Payload::Type::kUncompressed;
   ARROW_ASSIGN_OR_RAISE(
-      auto payload,
-      BlockPayload::fromBuffers(
-          payloadType, numRows, std::move(buffers), isValidityBuffer, payloadPool_.get(), codec_.get()));
+      auto payload, inMemoryPayload->toBlockPayload(payloadType, payloadPool_.get(), codec_ ? codec_.get() : nullptr));
   // Copy payload to arrow buffered os.
   ARROW_ASSIGN_OR_RAISE(
       auto celebornBufferOs, arrow::io::BufferOutputStream::Create(options_.pushBufferMaxSize, pool_));

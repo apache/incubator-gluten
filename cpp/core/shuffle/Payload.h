@@ -22,6 +22,7 @@
 #include <arrow/memory_pool.h>
 
 #include "shuffle/Options.h"
+#include "shuffle/Utils.h"
 
 namespace gluten {
 
@@ -112,24 +113,30 @@ class BlockPayload : public Payload {
   arrow::util::Codec* codec_;
 };
 
-class MergeBlockPayload : public BlockPayload {
+class InMemoryPayload final : public Payload {
  public:
-  MergeBlockPayload(
+  InMemoryPayload(
       uint32_t numRows,
-      std::vector<std::shared_ptr<arrow::Buffer>> buffers,
       const std::vector<bool>* isValidityBuffer,
-      arrow::MemoryPool* pool,
-      arrow::util::Codec* codec)
-      : BlockPayload(Type::kUncompressed, numRows, std::move(buffers), isValidityBuffer, pool, codec) {}
+      std::vector<std::shared_ptr<arrow::Buffer>> buffers)
+      : Payload(Type::kUncompressed, numRows, isValidityBuffer), buffers_(std::move(buffers)) {}
 
-  static arrow::Result<std::unique_ptr<MergeBlockPayload>> merge(
-      std::unique_ptr<MergeBlockPayload> source,
-      uint32_t appendNumRows,
-      std::vector<std::shared_ptr<arrow::Buffer>> appendBuffers,
-      arrow::MemoryPool* pool,
-      arrow::util::Codec* codec);
+  static arrow::Result<std::unique_ptr<InMemoryPayload>>
+  merge(std::unique_ptr<InMemoryPayload> source, std::unique_ptr<InMemoryPayload> append, arrow::MemoryPool* pool);
 
-  arrow::Result<std::unique_ptr<BlockPayload>> toBlockPayload(Payload::Type payloadType);
+  arrow::Status serialize(arrow::io::OutputStream* outputStream) override;
+
+  arrow::Result<std::shared_ptr<arrow::Buffer>> readBufferAt(uint32_t index) override;
+
+  arrow::Result<std::unique_ptr<BlockPayload>>
+  toBlockPayload(Payload::Type payloadType, arrow::MemoryPool* pool, arrow::util::Codec* codec);
+
+  int64_t getBufferSize() const;
+
+  arrow::Status copyBuffers(arrow::MemoryPool* pool);
+
+ private:
+  std::vector<std::shared_ptr<arrow::Buffer>> buffers_;
 };
 
 class UncompressedDiskBlockPayload : public Payload {

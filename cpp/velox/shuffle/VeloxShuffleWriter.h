@@ -134,11 +134,11 @@ class VeloxShuffleWriter final : public ShuffleWriter {
 
   arrow::Status stop() override;
 
-  arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers) override;
-
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 
   const uint64_t cachedPayloadSize() const override;
+
+  arrow::Status evictPartitionBuffers(uint32_t partitionId, bool reuseBuffers);
 
   int64_t rawPartitionBytes() const {
     return std::accumulate(metrics_.rawPartitionLengths.begin(), metrics_.rawPartitionLengths.end(), 0LL);
@@ -277,10 +277,6 @@ class VeloxShuffleWriter final : public ShuffleWriter {
       std::vector<BinaryBuf>& dst);
 
   arrow::Result<int64_t> evictCachedPayload(int64_t size);
-
-  arrow::Result<std::shared_ptr<arrow::RecordBatch>> makeRecordBatch(
-      uint32_t numRows,
-      const std::vector<std::shared_ptr<arrow::Buffer>>& buffers);
 
   arrow::Result<std::shared_ptr<arrow::Buffer>> generateComplexTypeBuffers(facebook::velox::RowVectorPtr vector);
 

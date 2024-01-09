@@ -39,12 +39,10 @@ class CelebornPartitionWriter final : public RemotePartitionWriter {
 
   arrow::Status evict(
       uint32_t partitionId,
-      uint32_t numRows,
-      std::vector<std::shared_ptr<arrow::Buffer>> buffers,
-      const std::vector<bool>* isValidityBuffer,
-      bool reuseBuffers, /* unused */
-      Evict::type evictType /* unused */,
-      bool hasComplexType /* unused */) override;
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
+      Evict::type evictType,
+      bool reuseBuffers,
+      bool hasComplexType) override;
 
   arrow::Status reclaimFixedSize(int64_t size, int64_t* actual) override;
 

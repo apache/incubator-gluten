@@ -253,7 +253,7 @@ std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
 
 std::shared_ptr<VeloxColumnarBatch> makeColumnarBatch(
     RowTypePtr type,
-    std::unique_ptr<BlockPayload> payload,
+    std::unique_ptr<InMemoryPayload> payload,
     memory::MemoryPool* pool,
     int64_t& deserializeTime) {
   ScopedTimer timer(&deserializeTime);
@@ -483,8 +483,7 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
       break;
     }
     if (!merged_) {
-      merged_ = std::make_unique<MergeBlockPayload>(
-          numRows, std::move(arrowBuffers), isValidityBuffer_, memoryPool_, codec_.get());
+      merged_ = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, std::move(arrowBuffers));
       arrowBuffers.clear();
       continue;
     }
@@ -492,9 +491,9 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
     if (mergedRows > batchSize_) {
       break;
     }
-    GLUTEN_ASSIGN_OR_THROW(
-        merged_,
-        MergeBlockPayload::merge(std::move(merged_), numRows, std::move(arrowBuffers), memoryPool_, codec_.get()));
+
+    auto append = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, std::move(arrowBuffers));
+    GLUTEN_ASSIGN_OR_THROW(merged_, InMemoryPayload::merge(std::move(merged_), std::move(append), memoryPool_));
     arrowBuffers.clear();
   }
 
@@ -507,8 +506,7 @@ std::shared_ptr<ColumnarBatch> VeloxColumnarBatchDeserializer::next() {
 
   // Save remaining rows.
   if (!arrowBuffers.empty()) {
-    merged_ = std::make_unique<MergeBlockPayload>(
-        numRows, std::move(arrowBuffers), isValidityBuffer_, memoryPool_, codec_.get());
+    merged_ = std::make_unique<InMemoryPayload>(numRows, isValidityBuffer_, std::move(arrowBuffers));
   }
   return columnarBatch;
 }

@@ -55,7 +55,7 @@ class VeloxColumnarBatchDeserializer final : public ColumnarBatchIterator {
   int64_t& deserializeTime_;
   int64_t& decompressTime_;
 
-  std::unique_ptr<MergeBlockPayload> merged_{nullptr};
+  std::unique_ptr<InMemoryPayload> merged_{nullptr};
   bool reachEos_{false};
 };
 

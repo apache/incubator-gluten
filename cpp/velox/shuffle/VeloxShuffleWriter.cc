@@ -353,12 +353,7 @@ arrow::Status VeloxShuffleWriter::split(std::shared_ptr<ColumnarBatch> cb, int64
 arrow::Status VeloxShuffleWriter::stop() {
   if (options_.partitioning != Partitioning::kSingle) {
     for (auto pid = 0; pid < numPartitions_; ++pid) {
-      auto numRows = partitionBufferIdxBase_[pid];
-      if (numRows > 0) {
-        ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(pid, false));
-        RETURN_NOT_OK(partitionWriter_->evict(
-            pid, numRows, std::move(buffers), &isValidityBuffer_, false, Evict::kCache, hasComplexType_));
-      }
+      RETURN_NOT_OK(evictPartitionBuffers(pid, false));
     }
   }
   {
@@ -1026,8 +1021,9 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
   arrow::Status VeloxShuffleWriter::evictBuffers(
       uint32_t partitionId, uint32_t numRows, std::vector<std::shared_ptr<arrow::Buffer>> buffers, bool reuseBuffers) {
     if (!buffers.empty()) {
-      RETURN_NOT_OK(partitionWriter_->evict(
-          partitionId, numRows, std::move(buffers), &isValidityBuffer_, reuseBuffers, Evict::kCache, hasComplexType_));
+      auto payload = std::make_unique<InMemoryPayload>(numRows, &isValidityBuffer_, std::move(buffers));
+      RETURN_NOT_OK(
+          partitionWriter_->evict(partitionId, std::move(payload), Evict::kCache, reuseBuffers, hasComplexType_));
     }
     return arrow::Status::OK();
   }
@@ -1431,8 +1427,8 @@ arrow::Status VeloxShuffleWriter::splitFixedWidthValueBuffer(const facebook::vel
       for (auto& item : pidToSize) {
         auto pid = item.first;
         ARROW_ASSIGN_OR_RAISE(auto buffers, assembleBuffers(pid, false));
-        RETURN_NOT_OK(partitionWriter_->evict(
-            pid, item.second, std::move(buffers), &isValidityBuffer_, false, Evict::kSpill, hasComplexType_));
+        auto payload = std::make_unique<InMemoryPayload>(item.second, &isValidityBuffer_, std::move(buffers));
+        RETURN_NOT_OK(partitionWriter_->evict(pid, std::move(payload), Evict::kSpill, false, hasComplexType_));
         evicted = beforeEvict - partitionBufferPool_->bytes_allocated();
         if (evicted >= size) {
           break;

@@ -343,23 +343,21 @@ void BlockPayload::setCompressionTime(int64_t compressionTime) {
   compressTime_ = compressionTime;
 }
 
-arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
-    std::unique_ptr<MergeBlockPayload> source,
-    uint32_t appendNumRows,
-    std::vector<std::shared_ptr<arrow::Buffer>> appendBuffers,
-    arrow::MemoryPool* pool,
-    arrow::util::Codec* codec) {
-  auto mergedRows = source->numRows() + appendNumRows;
+arrow::Result<std::unique_ptr<InMemoryPayload>> InMemoryPayload::merge(
+    std::unique_ptr<InMemoryPayload> source,
+    std::unique_ptr<InMemoryPayload> append,
+    arrow::MemoryPool* pool) {
+  auto mergedRows = source->numRows() + append->numRows();
   auto isValidityBuffer = source->isValidityBuffer();
 
-  auto numBuffers = appendBuffers.size();
+  auto numBuffers = append->numBuffers();
   ARROW_RETURN_IF(
       numBuffers != source->numBuffers(), arrow::Status::Invalid("Number of merging buffers doesn't match."));
   std::vector<std::shared_ptr<arrow::Buffer>> merged;
   merged.resize(numBuffers);
   for (size_t i = 0; i < numBuffers; ++i) {
     ARROW_ASSIGN_OR_RAISE(auto sourceBuffer, source->readBufferAt(i));
-    auto appendBuffer = std::move(appendBuffers[i]);
+    ARROW_ASSIGN_OR_RAISE(auto appendBuffer, append->readBufferAt(i));
     if (isValidityBuffer->at(i)) {
       if (!sourceBuffer) {
         if (!appendBuffer) {
@@ -371,7 +369,7 @@ arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
           arrow::bit_util::SetBitsTo(buffer->mutable_data(), 0, source->numRows(), true);
           // Write append bits.
           arrow::internal::CopyBitmap(
-              appendBuffer->data(), 0, appendNumRows, buffer->mutable_data(), source->numRows());
+              appendBuffer->data(), 0, append->numRows(), buffer->mutable_data(), source->numRows());
           merged[i] = std::move(buffer);
         }
       } else {
@@ -388,10 +386,10 @@ arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
           memcpy(resizable->mutable_data(), sourceBuffer->data(), sourceBufferSize);
         }
         if (!appendBuffer) {
-          arrow::bit_util::SetBitsTo(resizable->mutable_data(), source->numRows(), appendNumRows, true);
+          arrow::bit_util::SetBitsTo(resizable->mutable_data(), source->numRows(), append->numRows(), true);
         } else {
           arrow::internal::CopyBitmap(
-              appendBuffer->data(), 0, appendNumRows, resizable->mutable_data(), source->numRows());
+              appendBuffer->data(), 0, append->numRows(), resizable->mutable_data(), source->numRows());
         }
         merged[i] = std::move(resizable);
       }
@@ -417,11 +415,40 @@ arrow::Result<std::unique_ptr<MergeBlockPayload>> MergeBlockPayload::merge(
       }
     }
   }
-  return std::make_unique<MergeBlockPayload>(mergedRows, std::move(merged), isValidityBuffer, pool, codec);
+  return std::make_unique<InMemoryPayload>(mergedRows, isValidityBuffer, std::move(merged));
 }
 
-arrow::Result<std::unique_ptr<BlockPayload>> MergeBlockPayload::toBlockPayload(Payload::Type payloadType) {
-  return BlockPayload::fromBuffers(payloadType, numRows_, std::move(buffers_), isValidityBuffer_, pool_, codec_);
+arrow::Result<std::unique_ptr<BlockPayload>>
+InMemoryPayload::toBlockPayload(Payload::Type payloadType, arrow::MemoryPool* pool, arrow::util::Codec* codec) {
+  return BlockPayload::fromBuffers(payloadType, numRows_, std::move(buffers_), isValidityBuffer_, pool, codec);
+}
+
+arrow::Status InMemoryPayload::serialize(arrow::io::OutputStream* outputStream) {
+  return arrow::Status::Invalid("Cannot serialize InMemoryPayload.");
+}
+
+arrow::Result<std::shared_ptr<arrow::Buffer>> InMemoryPayload::readBufferAt(uint32_t index) {
+  return std::move(buffers_[index]);
+}
+
+int64_t InMemoryPayload::getBufferSize() const {
+  return gluten::getBufferSize(buffers_);
+}
+
+arrow::Status InMemoryPayload::copyBuffers(arrow::MemoryPool* pool) {
+  for (auto& buffer : buffers_) {
+    if (!buffer) {
+      continue;
+    }
+    if (buffer->size() == 0) {
+      buffer = zeroLengthNullBuffer();
+      continue;
+    }
+    ARROW_ASSIGN_OR_RAISE(auto copy, arrow::AllocateResizableBuffer(buffer->size(), pool));
+    memcpy(copy->mutable_data(), buffer->data(), buffer->size());
+    buffer = std::move(copy);
+  }
+  return arrow::Status::OK();
 }
 
 UncompressedDiskBlockPayload::UncompressedDiskBlockPayload(

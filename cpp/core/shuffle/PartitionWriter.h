@@ -42,15 +42,11 @@ class PartitionWriter : public Reclaimable {
   virtual arrow::Status stop(ShuffleWriterMetrics* metrics) = 0;
 
   /// Evict buffers for `partitionId` partition.
-  /// \param flush Whether to flush the evicted data immediately. If it's false,
-  /// the data can be cached first.
   virtual arrow::Status evict(
       uint32_t partitionId,
-      uint32_t numRows,
-      std::vector<std::shared_ptr<arrow::Buffer>> buffers,
-      const std::vector<bool>* isValidityBuffer,
-      bool reuseBuffers,
+      std::unique_ptr<InMemoryPayload> inMemoryPayload,
       Evict::type evictType,
+      bool reuseBuffers,
       bool hasComplexType) = 0;
 
   uint64_t cachedPayloadSize() {
