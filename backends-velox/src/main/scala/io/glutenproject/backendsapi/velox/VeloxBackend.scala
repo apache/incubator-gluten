@@ -109,7 +109,7 @@ object BackendSettings extends BackendSettingsApi {
             "StructType as element in ArrayType"
           case StructField(_, arrayType: ArrayType, _, _)
               if arrayType.elementType.isInstanceOf[ArrayType] =>
-            "ArrayType as element in ArrayType"
+            "A rrayType as element in ArrayType"
           case StructField(_, mapType: MapType, _, _) if mapType.keyType.isInstanceOf[StructType] =>
             "StructType as Key in MapType"
           case StructField(_, mapType: MapType, _, _)
@@ -146,14 +146,12 @@ object BackendSettings extends BackendSettingsApi {
         field =>
           field.dataType match {
             case _: TimestampType => Some("TimestampType")
-            case struct: StructType if validateDateTypes(struct.fields).nonEmpty =>
-              Some("StructType(TimestampType)")
-            case array: ArrayType if array.elementType.isInstanceOf[TimestampType] =>
-              Some("ArrayType(TimestampType)")
-            case map: MapType
-                if map.keyType.isInstanceOf[TimestampType] ||
-                  map.valueType.isInstanceOf[TimestampType] =>
-              Some("MapType(TimestampType)")
+            case struct: StructType =>
+              Some("StructType")
+            case array: ArrayType =>
+              Some("ArrayType")
+            case map: MapType =>
+              Some("MapType")
             case _ => None
           }
       }.headOption
