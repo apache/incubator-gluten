@@ -41,7 +41,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.plans.physical.{BroadcastMode, Partitioning}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.execution.adaptive.AQEShuffleReadExec
+import org.apache.spark.sql.execution.adaptive.{AQEShuffleReadExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.datasources.{FileFormat, WriteFilesExec}
 import org.apache.spark.sql.execution.datasources.GlutenWriterColumnarRules.NativeWritePostRule
 import org.apache.spark.sql.execution.datasources.v1.ClickHouseFileIndex
@@ -305,6 +305,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
             // when aqe is open
             // TODO: remove this after pushdowning preprojection
             wrapChild(r)
+          // This case may happen when AQE is enabled but CoalesceShufflePartitions rule is disabled
+          case s: ShuffleQueryStageExec =>
+            wrapChild(s)
           case r2c: RowToCHNativeColumnarExec =>
             wrapChild(r2c)
           case union: UnionExecTransformer =>
