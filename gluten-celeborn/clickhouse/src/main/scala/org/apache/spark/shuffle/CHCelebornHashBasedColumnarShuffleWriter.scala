@@ -82,13 +82,13 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
           override def spill(self: MemoryTarget, size: Long): Long = {
             if (nativeShuffleWriter == -1L) {
               throw new IllegalStateException(
-                "Fatal: spill() called before a celeborn shuffle writer " +
+                "Fatal: spill() called before a Celeborn shuffle writer " +
                   "is created. This behavior should be" +
                   "optimized by moving memory " +
                   "allocations from make() to split()")
             }
             logInfo(s"Gluten shuffle writer: Trying to push $size bytes of data")
-            val spilled = jniWrapper.evict(nativeShuffleWriter);
+            val spilled = jniWrapper.evict(nativeShuffleWriter)
             logInfo(s"Gluten shuffle writer: Spilled $spilled / $size bytes of data")
             spilled
           }
@@ -124,7 +124,7 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
     dep.metrics("bytesSpilled").add(splitResult.getTotalBytesSpilled)
     dep.metrics("dataSize").add(splitResult.getTotalBytesWritten)
     writeMetrics.incBytesWritten(splitResult.getTotalBytesWritten)
-    writeMetrics.incWriteTime(splitResult.getTotalWriteTime + splitResult.getTotalSpillTime)
+    writeMetrics.incWriteTime(splitResult.getTotalWriteTime)
 
     partitionLengths = splitResult.getPartitionLengths
     pushMergedDataToCeleborn()
