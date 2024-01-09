@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 #include "SourceFromJavaIter.h"
+#include <Columns/ColumnConst.h>
 #include <Columns/ColumnNullable.h>
 #include <Columns/ColumnMap.h>
 #include <Columns/ColumnTuple.h>
@@ -130,6 +131,13 @@ DB::ColumnPtr SourceFromJavaIter::convertNestedNullable(const DB::ColumnPtr & co
     DB::WhichDataType column_type(column->getDataType());
     if (column_type.isAggregateFunction())
         return column;
+
+    if (DB::isColumnConst(*column))
+    {
+        const auto & data_column = assert_cast<const DB::ColumnConst &>(*column).getDataColumnPtr();
+        const auto & result_column = convertNestedNullable(data_column, target_type);
+        return DB::ColumnConst::create(result_column, column->size());
+    }
 
     // if target type is non-nullable, the column type must be also non-nullable, recursively converting it's nested type
     // if target type is nullable, the column type may be nullable or non-nullable, converting it and then recursively converting it's nested type
