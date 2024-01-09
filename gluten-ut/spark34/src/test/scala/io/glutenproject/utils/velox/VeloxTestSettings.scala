@@ -691,6 +691,9 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-40128 read DELTA_LENGTH_BYTE_ARRAY encoded strings")
     // Timestamp is read as INT96
     .exclude("Read TimestampNTZ and TimestampLTZ for various logical TIMESTAMP types")
+    // Native writer: Field name must not be empty.
+    .exclude(
+      "SPARK-23173 Writing a file with data converted from JSON with and incorrect user schema")
   enableSuite[GlutenParquetV1PartitionDiscoverySuite]
     // Timezone is not supported yet.
     .exclude("Resolve type conflicts - decimals, dates and timestamps in partition column")
@@ -943,8 +946,10 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-39557 INSERT INTO statements with tables with array defaults")
     .exclude("SPARK-39557 INSERT INTO statements with tables with struct defaults")
     .exclude("SPARK-39557 INSERT INTO statements with tables with map defaults")
-    // Field name must not be empty.
+    // Native writer: Field name must not be empty.
     .exclude("INSERT INTO TABLE - complex type but different names")
+    // Native writer: An unsupported nested encoding was found.
+    .exclude("SPARK-21203 wrong results of insertion of Array of Struct")
   enableSuite[GlutenPartitionedWriteSuite]
     // Velox doesn't support maxRecordsPerFile parameter.
     .exclude("maxRecordsPerFile setting in non-partitioned write path")
