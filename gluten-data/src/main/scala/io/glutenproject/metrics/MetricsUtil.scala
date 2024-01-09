@@ -96,6 +96,8 @@ object MetricsUtil extends Logging {
     val outputVectors = operatorMetrics.get(0).outputVectors
     val outputBytes = operatorMetrics.get(0).outputBytes
 
+    val physicalWrittenBytes = operatorMetrics.get(0).physicalWrittenBytes
+
     var cpuCount: Long = 0
     var wallNanos: Long = 0
     var peakMemoryBytes: Long = 0
@@ -116,6 +118,7 @@ object MetricsUtil extends Logging {
     var remainingFilterTime: Long = 0
     var ioWaitTime: Long = 0
     var preloadSplits: Long = 0
+    var numWrittenFiles: Long = 0
 
     val metricsIterator = operatorMetrics.iterator()
     while (metricsIterator.hasNext) {
@@ -140,6 +143,7 @@ object MetricsUtil extends Logging {
       remainingFilterTime += metrics.remainingFilterTime
       ioWaitTime += metrics.ioWaitTime
       preloadSplits += metrics.preloadSplits
+      numWrittenFiles += metrics.numWrittenFiles
     }
 
     new OperatorMetrics(
@@ -170,7 +174,9 @@ object MetricsUtil extends Logging {
       processedStrides,
       remainingFilterTime,
       ioWaitTime,
-      preloadSplits
+      preloadSplits,
+      physicalWrittenBytes,
+      numWrittenFiles
     )
   }
 

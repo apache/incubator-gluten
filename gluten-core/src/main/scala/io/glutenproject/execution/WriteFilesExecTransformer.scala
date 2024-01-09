@@ -19,7 +19,7 @@ package io.glutenproject.execution
 import io.glutenproject.backendsapi.BackendsApiManager
 import io.glutenproject.expression.ConverterUtils
 import io.glutenproject.extension.ValidationResult
-import io.glutenproject.metrics.{MetricsUpdater, NoopMetricsUpdater}
+import io.glutenproject.metrics.MetricsUpdater
 import io.glutenproject.substrait.`type`.{ColumnTypeNode, TypeBuilder}
 import io.glutenproject.substrait.SubstraitContext
 import io.glutenproject.substrait.extensions.ExtensionBuilder
@@ -49,7 +49,12 @@ case class WriteFilesExecTransformer(
     options: Map[String, String],
     staticPartitions: TablePartitionSpec)
   extends UnaryTransformSupport {
-  override def metricsUpdater(): MetricsUpdater = NoopMetricsUpdater
+  // Note: "metrics" is made transient to avoid sending driver-side metrics to tasks.
+  @transient override lazy val metrics =
+    BackendsApiManager.getMetricsApiInstance.genWriteFilesTransformerMetrics(sparkContext)
+
+  override def metricsUpdater(): MetricsUpdater =
+    BackendsApiManager.getMetricsApiInstance.genWriteFilesTransformerMetricsUpdater(metrics)
 
   override def output: Seq[Attribute] = Seq.empty
 
