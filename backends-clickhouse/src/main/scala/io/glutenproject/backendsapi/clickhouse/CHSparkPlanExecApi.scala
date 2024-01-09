@@ -344,12 +344,9 @@ class CHSparkPlanExecApi extends SparkPlanExecApi {
    * @return
    */
   override def genExtendedAnalyzers(): List[SparkSession => Rule[LogicalPlan]] = {
-    val analyzers = List(spark => new ClickHouseAnalysis(spark, spark.sessionState.conf))
-    if (GlutenConfig.getConf.enableRewriteDateTimestampComparison) {
-      analyzers :+ (spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
-    } else {
-      analyzers
-    }
+    List(
+      spark => new ClickHouseAnalysis(spark, spark.sessionState.conf),
+      spark => new RewriteDateTimestampComparisonRule(spark, spark.sessionState.conf))
   }
 
   /**
