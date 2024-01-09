@@ -277,7 +277,6 @@ std::vector<TypePtr> SubstraitParser::sigToTypes(const std::string& signature) {
   return types;
 }
 
-
 template <typename T>
 T SubstraitParser::getLiteralValue(const ::substrait::Expression::Literal& /* literal */) {
   VELOX_NYI();
@@ -352,7 +351,6 @@ StringView SubstraitParser::getLiteralValue(const ::substrait::Expression::Liter
     VELOX_FAIL("Unexpected string or binary literal");
   }
 }
-
 
 std::unordered_map<std::string, std::string> SubstraitParser::substraitVeloxFunctionMap_ = {
     {"is_not_null", "isnotnull"}, /*Spark functions.*/

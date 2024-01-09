@@ -174,10 +174,12 @@ std::shared_ptr<core::ConstantTypedExpr> constructConstantVector(
     const TypePtr& type) {
   VELOX_CHECK(type->isPrimitiveType());
   if (substraitLit.has_binary()) {
-    return std::make_shared<core::ConstantTypedExpr>(type, variant::binary(gluten::SubstraitParser::getLiteralValue<StringView>(substraitLit)));
+    return std::make_shared<core::ConstantTypedExpr>(
+        type, variant::binary(gluten::SubstraitParser::getLiteralValue<StringView>(substraitLit)));
   } else {
     using T = typename TypeTraits<kind>::NativeType;
-    return std::make_shared<core::ConstantTypedExpr>(type, variant(gluten::SubstraitParser::getLiteralValue<T>(substraitLit)));
+    return std::make_shared<core::ConstantTypedExpr>(
+        type, variant(gluten::SubstraitParser::getLiteralValue<T>(substraitLit)));
   }
 }
 
