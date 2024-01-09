@@ -1017,16 +1017,10 @@ const ActionsDAG::Node * SerializedPlanParser::parseFunctionWithDAG(
         result_name = ch_func_name + "(" + args_name + ")";
         const auto * function_node = &actions_dag->addFunction(function_builder, args, result_name);
         result_node = function_node;
-
         if (!TypeParser::isTypeMatched(rel.scalar_function().output_type(), function_node->result_type) && !converted_decimal_args)
         {
             auto result_type = TypeParser::parseType(rel.scalar_function().output_type());
-            bool castNullableFloatToInt = false;
-            if (function_node->result_type->isNullable() && result_type->isNullable()
-                && isFloat(DB::removeNullable(function_node->result_type))
-                && isInt(DB::removeNullable(result_type)))
-                castNullableFloatToInt = true;
-            if (isDecimalOrNullableDecimal(result_type) || castNullableFloatToInt)
+            if (isDecimalOrNullableDecimal(result_type))
             {
                 result_node = ActionsDAGUtil::convertNodeType(
                     actions_dag,
@@ -1677,8 +1671,16 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
                 }
                 else
                 {
-                    args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeString>(), ch_type->getName()));
-                    function_node = toFunctionNode(actions_dag, "CAST", args);
+                    if (isFloat(DB::removeNullable(args[0]->result_type)) && isInt(DB::removeNullable(ch_type)))
+                    {
+                        String function_name = "sparkCastFloatTo" + DB::removeNullable(ch_type)->getName();
+                        function_node = toFunctionNode(actions_dag, function_name, args);
+                    }
+                    else
+                    {
+                        args.emplace_back(addColumn(actions_dag, std::make_shared<DataTypeString>(), ch_type->getName()));
+                        function_node = toFunctionNode(actions_dag, "CAST", args);
+                    }
                 }
             }
 
