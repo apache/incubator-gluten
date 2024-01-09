@@ -35,7 +35,7 @@ on:
       - 'cpp/velox/**'
       - 'cpp/core/**'
       - 'dev/**'
-#      - 'substrait/substrait-spark/**'
+      - 'substrait/substrait-spark/**'
 
 env:
   HTTP_PROXY_HOST: 10.240.252.16
