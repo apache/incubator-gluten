@@ -782,8 +782,6 @@ class VeloxTestSettings extends BackendTestSettings {
   enableSuite[GlutenDataSourceStrategySuite]
   enableSuite[GlutenDataSourceSuite]
   enableSuite[GlutenFileFormatWriterSuite]
-    // Velox doesn't write file if the data is null.
-    .exclude("empty file should be skipped while write to file")
   enableSuite[GlutenFileIndexSuite]
   enableSuite[GlutenFileMetadataStructSuite]
   enableSuite[GlutenParquetV1AggregatePushDownSuite]
@@ -1075,9 +1073,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Check schemas for expression examples")
   enableSuite[GlutenExtraStrategiesSuite]
   enableSuite[GlutenFileBasedDataSourceSuite]
-    // The following suites failed because velox will not write empty data frame.
-    .excludeByPrefix("SPARK-15474 Write and read back non-empty schema with empty dataframe ")
-    .excludeByPrefix("SPARK-23271 empty RDD when saved should write a metadata only file ")
     // test data path is jar path, rewrite
     .exclude("Option recursiveFileLookup: disable partition inferring")
     // gluten executor exception cannot get in driver, rewrite
@@ -1169,8 +1164,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("Gluten - store and retrieve column stats in different time zones")
     .exclude("SPARK-33687: analyze all tables in a specific database")
   enableSuite[GlutenSubquerySuite]
-    // Velox doesn't write file if the data is null.
-    .exclude("SPARK-42745: Improved AliasAwareOutputExpression works with DSv2")
     .excludeByPrefix(
       "SPARK-26893" // Rewrite this test because it checks Spark's physical operators.
     )
