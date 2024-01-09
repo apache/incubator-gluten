@@ -319,7 +319,7 @@ jobs:
         run: |
           $PATH_TO_GLUTEN_TE/$OS_IMAGE_NAME/gha/gha-checkout/clean.sh
 
-  ubuntu2204-test-spark32:
+  ubuntu2204-test:
     runs-on: velox-self-hosted
     env:
       OS_IMAGE_NAME: ubuntu
