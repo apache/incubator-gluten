@@ -942,8 +942,6 @@ class VeloxTestSettings extends BackendTestSettings {
     .exclude("SPARK-39557 INSERT INTO statements with tables with struct defaults")
     .exclude("SPARK-39557 INSERT INTO statements with tables with map defaults")
   enableSuite[GlutenPartitionedWriteSuite]
-    // Velox doesn't support maxRecordsPerFile parameter.
-    .exclude("maxRecordsPerFile setting in non-partitioned write path")
   enableSuite[GlutenPathOptionSuite]
   enableSuite[GlutenPrunedScanSuite]
   enableSuite[GlutenResolvedDataSourceSuite]
