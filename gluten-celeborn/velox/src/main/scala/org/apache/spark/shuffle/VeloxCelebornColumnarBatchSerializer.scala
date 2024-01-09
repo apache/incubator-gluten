@@ -68,7 +68,7 @@ private class CelebornColumnarBatchSerializerInstance(
 
   private lazy val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
-      .contextInstance()
+      .contextInstance(classOf[CelebornColumnarBatchSerializerInstance].getSimpleName)
       .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
     val arrowSchema =
       SparkSchemaUtil.toArrowSchema(schema, SQLConf.get.sessionLocalTimeZone)
