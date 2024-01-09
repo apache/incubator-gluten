@@ -124,7 +124,7 @@ auto BM_Generic = [](::benchmark::State& state,
   auto memoryManager = getDefaultMemoryManager();
   auto runtime = Runtime::create(kVeloxRuntimeKind, conf);
   auto plan = getPlanFromFile("Plan", planFile);
-  auto split = getPlanFromFile("ReadRel.LocalFiles", splitPath);
+  auto split = getPlanFromFile("ReadRel.LocalFiles", splitFile);
   auto startTime = std::chrono::steady_clock::now();
   int64_t collectBatchTime = 0;
   WriterMetrics writerMetrics{};

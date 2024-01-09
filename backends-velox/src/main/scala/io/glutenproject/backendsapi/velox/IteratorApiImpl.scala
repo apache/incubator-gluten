@@ -202,8 +202,10 @@ class IteratorApiImpl extends IteratorApi with Logging {
     val nativeResultIterator =
       transKernel.createKernelWithBatchIterator(
         rootNode.toProtobuf.toByteArray,
+        // Final iterator does not contain scan split, so pass empty split info to native here.
         new Array[Array[Byte]](0),
-        columnarNativeIterator)
+        columnarNativeIterator
+      )
 
     Iterators
       .wrap(nativeResultIterator.asScala)

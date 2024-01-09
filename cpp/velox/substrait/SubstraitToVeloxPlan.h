@@ -141,7 +141,6 @@ class SubstraitToVeloxPlanConverter {
   }
 
   void setSplitInfos(std::vector<std::shared_ptr<SplitInfo>> splitInfos) {
-    splitInfoIdx_ = 0;
     splitInfos_ = splitInfos;
   }
 
