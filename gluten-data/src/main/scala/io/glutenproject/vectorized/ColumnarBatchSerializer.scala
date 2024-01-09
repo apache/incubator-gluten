@@ -124,11 +124,10 @@ private class ColumnarBatchSerializerInstance(
   }
 
   override def deserializeStream(in: InputStream): DeserializationStream = {
-    val uuid = UUID.randomUUID().toString
-    TaskResources.addResource(uuid, new TaskDeserializationStream(uuid, in))
+    new TaskDeserializationStream(in)
   }
 
-  private class TaskDeserializationStream(resourceId: String, in: InputStream)
+  private class TaskDeserializationStream(in: InputStream)
     extends DeserializationStream
     with TaskResource {
     private lazy val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
@@ -144,7 +143,15 @@ private class ColumnarBatchSerializerInstance(
     private var numBatchesTotal: Long = _
     private var numRowsTotal: Long = _
 
-    private var isClosed: Boolean = false
+    // Otherwise calling close() twice would cause resource ID not found error.
+    private val closeCalled: AtomicBoolean = new AtomicBoolean(false)
+
+    // Otherwise calling release() twice would cause #close0() to be called twice.
+    private val releaseCalled: AtomicBoolean = new AtomicBoolean(false)
+
+    private val resourceId = UUID.randomUUID().toString
+
+    TaskResources.addResource(resourceId, this)
 
     override def asIterator: Iterator[Any] = {
       // This method is never called by shuffle code.
@@ -192,12 +199,6 @@ private class ColumnarBatchSerializerInstance(
       // This method is never called by shuffle code.
       throw new UnsupportedOperationException
     }
-
-    // Otherwise calling close() twice would cause resource ID not found error.
-    private val closeCalled: AtomicBoolean = new AtomicBoolean(false)
-
-    // Otherwise calling release() twice would cause #close0() to be called twice.
-    private val releaseCalled: AtomicBoolean = new AtomicBoolean(false)
 
     override def close(): Unit = {
       if (!closeCalled.compareAndSet(false, true)) {
