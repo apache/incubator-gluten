@@ -111,7 +111,7 @@ object BackendSettings extends BackendSettingsApi {
             "StructType as element in ArrayType"
           case StructField(_, arrayType: ArrayType, _, _)
               if arrayType.elementType.isInstanceOf[ArrayType] =>
-            "A rrayType as element in ArrayType"
+            "ArrayType as element in ArrayType"
           case StructField(_, mapType: MapType, _, _) if mapType.keyType.isInstanceOf[StructType] =>
             "StructType as Key in MapType"
           case StructField(_, mapType: MapType, _, _)
