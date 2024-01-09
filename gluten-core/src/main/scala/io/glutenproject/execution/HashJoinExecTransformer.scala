@@ -44,6 +44,8 @@ import io.substrait.proto.JoinRel
 import java.lang.{Long => JLong}
 import java.util.{Map => JMap}
 
+import scala.collection.mutable
+
 trait ColumnarShuffledJoin extends BaseJoinExec {
   def isSkewJoin: Boolean
 
@@ -170,7 +172,7 @@ trait HashJoinLikeExecTransformer
   override def outputPartitioning: Partitioning = joinBuildSide match {
     case BuildLeft =>
       joinType match {
-        case _: InnerLike | RightOuter => right.outputPartitioning
+        case _: InnerLike | RightOuter => expandPartitioning(right.outputPartitioning)
         case LeftOuter => left.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
@@ -179,12 +181,82 @@ trait HashJoinLikeExecTransformer
     case BuildRight =>
       joinType match {
         case _: InnerLike | LeftOuter | LeftSemi | LeftAnti | _: ExistenceJoin =>
-          left.outputPartitioning
+          expandPartitioning(left.outputPartitioning)
         case RightOuter => right.outputPartitioning
         case x =>
           throw new IllegalArgumentException(
             s"HashJoin should not take $x as the JoinType with building right side")
       }
+  }
+
+  // https://issues.apache.org/jira/browse/SPARK-31869
+  // ToDo: https://issues.apache.org/jira/browse/SPARK-45882
+  private def expandPartitioning(partitioning: Partitioning) = {
+    joinType match {
+      case _: InnerLike if conf.broadcastHashJoinOutputPartitioningExpandLimit > 0 =>
+        partitioning match {
+          case h: HashPartitioning => expandOutputPartitioning(h)
+          case c: PartitioningCollection => expandOutputPartitioning(c)
+          case other => other
+        }
+      case _ => partitioning
+    }
+  }
+
+  // Expands the given partitioning collection recursively.
+  private def expandOutputPartitioning(
+      partitioning: PartitioningCollection): PartitioningCollection = {
+    PartitioningCollection(partitioning.partitionings.flatMap {
+      case h: HashPartitioning => expandOutputPartitioning(h).partitionings
+      case c: PartitioningCollection => Seq(expandOutputPartitioning(c))
+      case other => Seq(other)
+    })
+  }
+
+  // Expands the given hash partitioning by substituting streamed keys with build keys.
+  // For example, if the expressions for the given partitioning are Seq("a", "b", "c")
+  // where the streamed keys are Seq("b", "c") and the build keys are Seq("x", "y"),
+  // the expanded partitioning will have the following expressions:
+  // Seq("a", "b", "c"), Seq("a", "b", "y"), Seq("a", "x", "c"), Seq("a", "x", "y").
+  // The expanded expressions are returned as PartitioningCollection.
+  private def expandOutputPartitioning(partitioning: HashPartitioning): PartitioningCollection = {
+    val maxNumCombinations = conf.broadcastHashJoinOutputPartitioningExpandLimit
+    var currentNumCombinations = 0
+
+    def generateExprCombinations(
+        current: Seq[Expression],
+        accumulated: Seq[Expression]): Seq[Seq[Expression]] = {
+      if (currentNumCombinations >= maxNumCombinations) {
+        Nil
+      } else if (current.isEmpty) {
+        currentNumCombinations += 1
+        Seq(accumulated)
+      } else {
+        val buildKeysOpt = streamedKeyToBuildKeyMapping.get(current.head.canonicalized)
+        generateExprCombinations(current.tail, accumulated :+ current.head) ++
+          buildKeysOpt
+            .map(_.flatMap(b => generateExprCombinations(current.tail, accumulated :+ b)))
+            .getOrElse(Nil)
+      }
+    }
+
+    PartitioningCollection(
+      generateExprCombinations(partitioning.expressions, Nil)
+        .map(exprs => partitioning.withNewChildren(exprs).asInstanceOf[HashPartitioningLike]))
+  }
+
+  // An one-to-many mapping from a streamed key to build keys.
+  private lazy val streamedKeyToBuildKeyMapping = {
+    val mapping = mutable.Map.empty[Expression, Seq[Expression]]
+    streamedKeyExprs.zip(buildKeyExprs).foreach {
+      case (streamedKey, buildKey) =>
+        val key = streamedKey.canonicalized
+        mapping.get(key) match {
+          case Some(v) => mapping.put(key, v :+ buildKey)
+          case None => mapping.put(key, Seq(buildKey))
+        }
+    }
+    mapping.toMap
   }
 
   override protected def doValidateInternal(): ValidationResult = {
