@@ -25,9 +25,11 @@ import _root_.io.glutenproject.utils.TaskListener
 
 import java.util
 import java.util.{Collections, UUID}
+import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.JavaConverters._
+import scala.compat.Platform.ConcurrentModificationException
 
 object TaskResources extends TaskListener with Logging {
   // And open java assert mode to get memory stack
@@ -187,7 +189,23 @@ class TaskResourceRegistry extends Logging {
   private val priorityToResourcesMapping: util.HashMap[Int, util.LinkedHashSet[TaskResource]] =
     new util.HashMap[Int, util.LinkedHashSet[TaskResource]]()
 
-  private def addResource0(id: String, resource: TaskResource): Unit = synchronized {
+  private var isLocked = false
+  private def withLock[T](body: => T): T = {
+    synchronized {
+      try {
+        if (isLocked) {
+          // We disallow re-entrant of the protected code.
+          throw new ConcurrentModificationException()
+        }
+        isLocked = true
+        body
+      } finally {
+        isLocked = false
+      }
+    }
+  }
+
+  private def addResource0(id: String, resource: TaskResource): Unit = withLock {
     resources.put(id, resource)
     priorityToResourcesMapping
       .computeIfAbsent(resource.priority(), _ => new util.LinkedHashSet[TaskResource]())
@@ -195,7 +213,7 @@ class TaskResourceRegistry extends Logging {
   }
 
   /** Release all managed resources according to priority and reversed order */
-  private[util] def releaseAll(): Unit = synchronized {
+  private[util] def releaseAll(): Unit = withLock {
     val table = new util.ArrayList(priorityToResourcesMapping.entrySet())
     Collections.sort(
       table,
@@ -217,7 +235,7 @@ class TaskResourceRegistry extends Logging {
   }
 
   /** Release single resource by ID */
-  private[util] def releaseResource(id: String): Unit = synchronized {
+  private[util] def releaseResource(id: String): Unit = withLock {
     if (!resources.containsKey(id)) {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is not registered", id))
@@ -236,7 +254,7 @@ class TaskResourceRegistry extends Logging {
   }
 
   private[util] def addResourceIfNotRegistered[T <: TaskResource](id: String, factory: () => T): T =
-    synchronized {
+    withLock {
       if (resources.containsKey(id)) {
         return resources.get(id).asInstanceOf[T]
       }
@@ -245,7 +263,7 @@ class TaskResourceRegistry extends Logging {
       resource
     }
 
-  private[util] def addResource[T <: TaskResource](id: String, resource: T): T = synchronized {
+  private[util] def addResource[T <: TaskResource](id: String, resource: T): T = withLock {
     if (resources.containsKey(id)) {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is already registered", id))
@@ -254,11 +272,11 @@ class TaskResourceRegistry extends Logging {
     resource
   }
 
-  private[util] def isResourceRegistered(id: String): Boolean = synchronized {
+  private[util] def isResourceRegistered(id: String): Boolean = withLock {
     resources.containsKey(id)
   }
 
-  private[util] def getResource[T <: TaskResource](id: String): T = synchronized {
+  private[util] def getResource[T <: TaskResource](id: String): T = withLock {
     if (!resources.containsKey(id)) {
       throw new IllegalArgumentException(
         String.format("TaskResource with ID %s is not registered", id))
@@ -266,7 +284,7 @@ class TaskResourceRegistry extends Logging {
     resources.get(id).asInstanceOf[T]
   }
 
-  private[util] def getSharedUsage(): SimpleMemoryUsageRecorder = synchronized {
+  private[util] def getSharedUsage(): SimpleMemoryUsageRecorder = withLock {
     sharedUsage
   }
 }
