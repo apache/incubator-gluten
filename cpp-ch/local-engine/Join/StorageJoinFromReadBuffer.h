@@ -33,6 +33,7 @@ class StorageJoinFromReadBuffer
 public:
     StorageJoinFromReadBuffer(
         DB::ReadBuffer & in_,
+        size_t row_count_,
         const DB::Names & key_names_,
         bool use_nulls_,
         std::shared_ptr<DB::TableJoin> table_join_,

@@ -26,13 +26,9 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartitioning}
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.vectorized.ColumnarBatch
-
-import com.google.protobuf.Any
 
 import java.util.{ArrayList => JArrayList, List => JList}
 
@@ -117,7 +113,8 @@ case class ExpandExecTransformer(
           inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         }
         val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-          Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+          BackendsApiManager.getTransformerApiInstance.packPBMessage(
+            TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
         RelBuilder.makeProjectRel(
           input,
           preExprNodes,
@@ -169,7 +166,8 @@ case class ExpandExecTransformer(
         }
 
         val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-          Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+          BackendsApiManager.getTransformerApiInstance.packPBMessage(
+            TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
         RelBuilder.makeExpandRel(input, projectSetExprNodes, extensionNode, context, operatorId)
       }
     }
@@ -205,10 +203,6 @@ case class ExpandExecTransformer(
       getRelNode(context, projections, child.output, operatorId, childCtx.root, validation = false)
     assert(currRel != null, "Expand Rel should be valid")
     TransformContext(childCtx.outputAttributes, output, currRel)
-  }
-
-  override protected def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ExpandExecTransformer =

@@ -26,7 +26,8 @@ import io.glutenproject.substrait.rel.{ReadRelNode, RelBuilder, SplitInfo}
 import io.glutenproject.substrait.rel.LocalFilesNode.ReadFileFormat
 
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.catalyst.expressions.{And, Attribute, Expression}
+import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.types.BooleanType
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
 import com.google.common.collect.Lists
@@ -82,17 +83,16 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
 
   override protected def doValidateInternal(): ValidationResult = {
     val fileFormat = ConverterUtils.getFileFormat(this)
-    if (
-      !BackendsApiManager.getSettings
-        .supportFileFormatRead(
-          fileFormat,
-          schema.fields,
-          getPartitionSchema.nonEmpty,
-          getInputFilePaths)
-    ) {
-      return ValidationResult.notOk(
-        s"Not supported file format or complex type for scan: $fileFormat")
+    val validationResult = BackendsApiManager.getSettings
+      .supportFileFormatRead(
+        fileFormat,
+        schema.fields,
+        getPartitionSchema.nonEmpty,
+        getInputFilePaths)
+    if (!validationResult.isValid) {
+      return validationResult
     }
+
     val substraitContext = new SubstraitContext
     val relNode = doTransform(substraitContext).root
 
@@ -113,6 +113,11 @@ trait BasicScanExecTransformer extends LeafTransformSupport with BaseDataSource 
     }.asJava
     // Will put all filter expressions into an AND expression
     val transformer = filterExprs()
+      .map {
+        case ar: AttributeReference if ar.dataType == BooleanType =>
+          EqualNullSafe(ar, Literal.TrueLiteral)
+        case e => e
+      }
       .reduceLeftOption(And)
       .map(ExpressionConverter.replaceWithExpressionTransformer(_, output))
     val filterNodes = transformer.map(_.doTransform(context.registeredFunction))

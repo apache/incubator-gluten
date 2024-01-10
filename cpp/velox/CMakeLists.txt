@@ -106,6 +106,7 @@ endmacro()
 
 macro(ADD_VELOX_DEPENDENCIES)
   add_velox_objects()
+  add_velox_dependency(expression::sigparser "${VELOX_COMPONENTS_PATH}/expression/signature_parser/libvelox_signature_parser.a")
   add_velox_dependency(functions::sparksql::lib "${VELOX_COMPONENTS_PATH}/functions/sparksql/libvelox_functions_spark.a")
   add_velox_dependency(functions::sparksql::agg "${VELOX_COMPONENTS_PATH}/functions/sparksql/aggregates/libvelox_functions_spark_aggregates.a")
   add_velox_dependency(functions::window::sparksql "${VELOX_COMPONENTS_PATH}/functions/sparksql/window/libvelox_functions_spark_window.a")
@@ -270,6 +271,8 @@ macro(find_gcssdk)
 endmacro()
 
 macro(find_azure)
+  find_package(CURL REQUIRED)
+  find_package(LibXml2 REQUIRED)
   set (CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   find_package(azure-storage-blobs-cpp CONFIG REQUIRED)
 endmacro()
@@ -310,6 +313,14 @@ set(VELOX_SRCS
     utils/ConfigExtractor.cc
     utils/Common.cc
     )
+
+if (ENABLE_HDFS)
+  list(APPEND VELOX_SRCS utils/HdfsUtils.cc)
+endif ()
+
+if(ENABLE_S3)
+  find_package(ZLIB)
+endif()
 
 if(BUILD_TESTS OR BUILD_BENCHMARKS)
   list(APPEND VELOX_SRCS utils/tests/MemoryPoolUtils.cc)
@@ -403,5 +414,5 @@ endif()
 if(ENABLE_ABFS)
   add_definitions(-DENABLE_ABFS)
   find_azure()
-  target_link_libraries(velox PRIVATE Azure::azure-storage-blobs)
+  target_link_libraries(velox PUBLIC Azure::azure-storage-blobs)
 endif()

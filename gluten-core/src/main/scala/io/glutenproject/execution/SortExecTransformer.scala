@@ -26,19 +26,15 @@ import io.glutenproject.substrait.expression.{ExpressionBuilder, ExpressionNode}
 import io.glutenproject.substrait.extensions.ExtensionBuilder
 import io.glutenproject.substrait.rel.{RelBuilder, RelNode}
 
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import com.google.protobuf.Any
 import io.substrait.proto.SortField
 
 import java.util.{ArrayList => JArrayList}
 
 import scala.collection.JavaConverters._
-import scala.util.control.Breaks.{break, breakable}
 
 case class SortExecTransformer(
     sortOrder: Seq[SortOrder],
@@ -114,7 +110,8 @@ case class SortExecTransformer(
       }
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
         input,
         projectExpressions,
@@ -138,7 +135,8 @@ case class SortExecTransformer(
 
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
 
       RelBuilder.makeSortRel(inputRel, sortFieldList, extensionNode, context, operatorId)
     }
@@ -159,7 +157,8 @@ case class SortExecTransformer(
       }
 
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
         sortRel,
         new JArrayList[ExpressionNode](selectOrigins),
@@ -197,7 +196,8 @@ case class SortExecTransformer(
       val inputTypeNodeList = originalInputAttributes.map(
         attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList.asJava).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList.asJava).toProtobuf))
 
       RelBuilder.makeSortRel(input, sortFieldList.asJava, extensionNode, context, operatorId)
     }
@@ -253,10 +253,6 @@ case class SortExecTransformer(
     TransformContext(childCtx.outputAttributes, output, currRel)
   }
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
   override protected def withNewChildInternal(newChild: SparkPlan): SortExecTransformer =
     copy(child = newChild)
 }
@@ -273,15 +269,8 @@ object SortExecTransformer {
   }
 
   def needProjection(sortOrders: Seq[SortOrder]): Boolean = {
-    var needsProjection = false
-    breakable {
-      for (sortOrder <- sortOrders) {
-        if (!sortOrder.child.isInstanceOf[Attribute]) {
-          needsProjection = true
-          break
-        }
-      }
-    }
-    needsProjection
+    sortOrders
+      .map(_.child)
+      .exists(exp => !exp.isInstanceOf[Attribute] && !exp.isInstanceOf[BoundReference])
   }
 }

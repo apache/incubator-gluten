@@ -83,17 +83,9 @@ public:
         const auto * len_const_node = addColumnToActionsDAG(actions_dag, std::make_shared<DataTypeInt32>(), array_args.size());
         const auto * less_or_equal_node = toFunctionNode(actions_dag, "lessOrEquals", {index_arg, zero_const_node});
         const auto * greater_node = toFunctionNode(actions_dag, "greater", {index_arg, len_const_node});
-
-        const auto * result_node = toFunctionNode(actions_dag, "multiIf", {
-            is_null_node,
-            null_const_node,
-            less_or_equal_node,
-            null_const_node,
-            greater_node,
-            null_const_node,
-            nullable_array_element_node
-        });
-       return result_node;
+        const auto * or_condition_node = toFunctionNode(actions_dag, "or", {is_null_node, less_or_equal_node, greater_node});
+        const auto * result_node = toFunctionNode(actions_dag, "if", {or_condition_node, null_const_node, nullable_array_element_node});
+        return result_node;
     }
 };
 

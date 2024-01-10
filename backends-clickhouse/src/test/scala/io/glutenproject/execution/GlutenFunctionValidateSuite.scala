@@ -19,7 +19,9 @@ package io.glutenproject.execution
 import io.glutenproject.GlutenConfig
 import io.glutenproject.utils.UTSystemParameters
 
+import org.apache.spark.SPARK_VERSION_SHORT
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.optimizer.{ConstantFolding, NullPropagation}
 import org.apache.spark.sql.internal.SQLConf
@@ -29,6 +31,7 @@ import java.nio.file.Files
 import java.sql.Date
 
 import scala.collection.immutable.Seq
+import scala.reflect.ClassTag
 
 class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerSuite {
   override protected val resourcePath: String = {
@@ -38,6 +41,11 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
   override protected val fileFormat: String = "parquet"
   protected val rootPath: String = getClass.getResource("/").getPath
   protected val basePath: String = rootPath + "unit-tests-working-home"
+
+  protected lazy val sparkVersion: String = {
+    val version = SPARK_VERSION_SHORT.split("\\.")
+    version(0) + "." + version(1)
+  }
 
   protected val tablesPath: String = basePath + "/tpch-data"
   protected val tpchQueries: String =
@@ -326,6 +334,22 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
     checkLengthAndPlan(df2, 10)
   }
 
+  test("test function xxhash64 with complex types") {
+    val sql =
+      """
+        |select
+        |  xxhash64(array(id, null, id+1, 100)),
+        |  xxhash64(array(cast(id as string), null, 'spark')),
+        |  xxhash64(array(null)),
+        |  xxhash64(cast(null as array<int>)),
+        |  xxhash64(array(array(id, null, id+1))),
+        |  xxhash64(cast(null as struct<a:int, b:string>)),
+        |  xxhash64(struct(id, cast(id as string), 100, 'spark', null))
+        |from range(10);
+      """.stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
+  }
+
   test("test 'function murmur3hash'") {
     val df1 = runQueryAndCompare(
       "select hash(cast(id as int)), hash(cast(id as byte)), hash(cast(id as short)), " +
@@ -348,6 +372,22 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
         "hash(cast(id as decimal(30, 2)), 'spark') from range(10)"
     )(checkOperatorMatch[ProjectExecTransformer])
     checkLengthAndPlan(df2, 10)
+  }
+
+  test("test function murmur3hash with complex types") {
+    val sql =
+      """
+        |select
+        |  hash(array(id, null, id+1, 100)),
+        |  hash(array(cast(id as string), null, 'spark')),
+        |  hash(array(null)),
+        |  hash(cast(null as array<int>)),
+        |  hash(array(array(id, null, id+1))),
+        |  hash(cast(null as struct<a:int, b:string>)),
+        |  hash(struct(id, cast(id as string), 100, 'spark', null))
+        |from range(10);
+      """.stripMargin
+    runQueryAndCompare(sql)(checkOperatorMatch[ProjectExecTransformer])
   }
 
   test("test next_day const") {
@@ -525,6 +565,53 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
           "from range(100)",
         noFallBack = true
       )(checkOperatorMatch[ProjectExecTransformer])
+    }
+  }
+
+  test("test common subexpression eliminate") {
+    def checkOperatorCount[T <: TransformSupport](count: Int)(df: DataFrame)(implicit
+        tag: ClassTag[T]): Unit = {
+      if (sparkVersion.equals("3.3")) {
+        assert(
+          getExecutedPlan(df).count(
+            plan => {
+              plan.getClass == tag.runtimeClass
+            }) == count,
+          s"executed plan: ${getExecutedPlan(df)}")
+      }
+    }
+
+    withSQLConf(("spark.gluten.sql.commonSubexpressionEliminate", "true")) {
+      // CSE in project
+      runQueryAndCompare("select hash(id), hash(id)+1, hash(id)-1 from range(10)") {
+        df => checkOperatorCount[ProjectExecTransformer](2)(df)
+      }
+
+      // CSE in filter(not work yet)
+      // runQueryAndCompare(
+      //   "select id from range(10) " +
+      //     "where hex(id) != '' and upper(hex(id)) != '' and lower(hex(id)) != ''") { _ => }
+
+      // CSE in window
+      runQueryAndCompare(
+        "SELECT id, AVG(id) OVER (PARTITION BY id % 2 ORDER BY id) as avg_id, " +
+          "SUM(id) OVER (PARTITION BY id % 2 ORDER BY id) as sum_id FROM range(10)") {
+        df => checkOperatorCount[ProjectExecTransformer](4)(df)
+      }
+
+      // CSE in aggregate
+      runQueryAndCompare(
+        "select id % 2, max(hash(id)), min(hash(id)) " +
+          "from range(10) group by id % 2") {
+        df => checkOperatorCount[ProjectExecTransformer](1)(df)
+      }
+
+      // CSE in sort
+      runQueryAndCompare(
+        "select id from range(10) " +
+          "order by hash(id%10), hash(hash(id%10))") {
+        df => checkOperatorCount[ProjectExecTransformer](2)(df)
+      }
     }
   }
 }

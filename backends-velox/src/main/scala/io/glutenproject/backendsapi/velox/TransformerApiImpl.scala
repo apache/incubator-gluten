@@ -96,5 +96,5 @@ class TransformerApiImpl extends TransformerApi with Logging {
     }
   }
 
-  override def getPackMessage(message: Message): Any = Any.pack(message, "")
+  override def packPBMessage(message: Message): Any = Any.pack(message, "")
 }

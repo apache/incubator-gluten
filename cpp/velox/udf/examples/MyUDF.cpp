@@ -92,5 +92,5 @@ DEFINE_REGISTER_UDF {
       "myudf1", integerSignatures(), std::make_unique<PlusConstantFunction<facebook::velox::TypeKind::INTEGER>>(5));
   facebook::velox::exec::registerVectorFunction(
       "myudf2", bigintSignatures(), std::make_unique<PlusConstantFunction<facebook::velox::TypeKind::BIGINT>>(5));
-  std::cout << "registered myudf1, myudf2" << std::endl;
+  LOG(INFO) << "registered myudf1, myudf2";
 }

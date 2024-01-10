@@ -15,20 +15,26 @@
 # limitations under the License.
 
 set -exu
-#Set on run gluten on S3
+# New build option may need to be included in get_build_summary to ensure EP build cache workable.
+# Enable S3 connector.
 ENABLE_S3=OFF
-#Set on run gluten on GCS
+# Enable GCS connector.
 ENABLE_GCS=OFF
-#Set on run gluten on HDFS
+# Enable HDFS connector.
 ENABLE_HDFS=OFF
-#Set on run gluten on ABFS
+# Enable ABFS connector.
 ENABLE_ABFS=OFF
 BUILD_TYPE=release
 VELOX_HOME=""
 ENABLE_EP_CACHE=OFF
+# May be deprecated in Gluten build.
 ENABLE_BENCHMARK=OFF
+# May be deprecated in Gluten build.
 ENABLE_TESTS=OFF
+# Set to ON for gluten cpp test build.
+BUILD_TEST_UTILS=OFF
 RUN_SETUP_SCRIPT=ON
+COMPILE_ARROW_JAVA=OFF
 OTHER_ARGUMENTS=""
 
 OS=`uname -s`
@@ -64,6 +70,10 @@ for arg in "$@"; do
     ENABLE_EP_CACHE=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
+  --build_test_utils=*)
+    BUILD_TEST_UTILS=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
   --build_tests=*)
     ENABLE_TESTS=("${arg#*=}")
     shift # Remove argument name from processing
@@ -74,6 +84,10 @@ for arg in "$@"; do
     ;;
   --run_setup_script=*)
     RUN_SETUP_SCRIPT=("${arg#*=}")
+    shift # Remove argument name from processing
+    ;;
+  --compile_arrow_java=*)
+    COMPILE_ARROW_JAVA=("${arg#*=}")
     shift # Remove argument name from processing
     ;;
   *)
@@ -95,24 +109,30 @@ function compile {
     fi
   fi
 
-  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF -DVELOX_BUILD_TEST_UTILS=OFF -DVELOX_ENABLE_DUCKDB=OFF -DVELOX_ENABLE_PARSE=OFF"
-  if [ $ENABLE_BENCHMARK == "ON" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_BENCHMARKS=ON"
-  fi
-  if [ $ENABLE_TESTS == "ON" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=ON "
+  COMPILE_OPTION="-DVELOX_ENABLE_PARQUET=ON -DVELOX_BUILD_TESTING=OFF"
+  if [ $BUILD_TEST_UTILS == "ON" ]; then
+      COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TEST_UTILS=ON"
   fi
   if [ $ENABLE_HDFS == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_HDFS=ON"
   fi
-  if [ $ENABLE_ABFS == "ON" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_ABFS=ON"
-  fi
   if [ $ENABLE_S3 == "ON" ]; then
     COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_S3=ON"
   fi
-  if [ $ENABLE_GCS == "ON" ]; then
-    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GCS=ON"
+  # If ENABLE_BENCHMARK == ON, Velox disables tests and connectors
+  if [ $ENABLE_BENCHMARK == "OFF" ]; then
+    if [ $ENABLE_TESTS == "ON" ]; then
+        COMPILE_OPTION="$COMPILE_OPTION -DVELOX_BUILD_TESTING=ON "
+    fi
+    if [ $ENABLE_ABFS == "ON" ]; then
+      COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_ABFS=ON"
+    fi
+    if [ $ENABLE_GCS == "ON" ]; then
+      COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_GCS=ON"
+    fi
+  else
+    echo "ENABLE_BENCHMARK is ON. Disabling Tests, GCS and ABFS connectors if enabled."
+    COMPILE_OPTION="$COMPILE_OPTION -DVELOX_ENABLE_BENCHMARKS=ON"
   fi
 
   COMPILE_OPTION="$COMPILE_OPTION -DCMAKE_BUILD_TYPE=${BUILD_TYPE}"
@@ -155,7 +175,12 @@ function compile {
 function get_build_summary {
   COMMIT_HASH=$1
   # Ideally all script arguments should be put into build summary.
-  echo "ENABLE_S3=$ENABLE_S3,ENABLE_GCS=$ENABLE_GCS,ENABLE_HDFS=$ENABLE_HDFS,BUILD_TYPE=$BUILD_TYPE,VELOX_HOME=$VELOX_HOME,ENABLE_EP_CACHE=$ENABLE_EP_CACHE,ENABLE_BENCHMARK=$ENABLE_BENCHMARK,ENABLE_TESTS=$ENABLE_TESTS,RUN_SETUP_SCRIPT=$RUN_SETUP_SCRIPT,OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
+  # ENABLE_EP_CACHE is excluded. Thus, in current build with ENABLE_EP_CACHE=ON, we can use EP cache
+  # from last build with ENABLE_EP_CACHE=OFF,
+  echo "ENABLE_S3=$ENABLE_S3,ENABLE_GCS=$ENABLE_GCS,ENABLE_HDFS=$ENABLE_HDFS,ENABLE_ABFS=$ENABLE_ABFS,\
+BUILD_TYPE=$BUILD_TYPE,VELOX_HOME=$VELOX_HOME,ENABLE_BENCHMARK=$ENABLE_BENCHMARK,\
+ENABLE_TESTS=$ENABLE_TESTS,BUILD_TEST_UTILS=$BUILD_TEST_UTILS,RUN_SETUP_SCRIPT=$RUN_SETUP_SCRIPT,\
+COMPILE_ARROW_JAVA=$COMPILE_ARROW_JAVA,OTHER_ARGUMENTS=$OTHER_ARGUMENTS,COMMIT_HASH=$COMMIT_HASH"
 }
 
 function check_commit {
@@ -241,6 +266,22 @@ function setup_linux {
   fi
 }
 
+function compile_arrow_java_module() {
+    ARROW_HOME="${VELOX_HOME}/_build/$COMPILE_TYPE/third_party/arrow_ep/src/arrow_ep"
+    ARROW_INSTALL_DIR="${ARROW_HOME}/../../install"
+
+    # Arrow C Data Interface CPP libraries
+    pushd $ARROW_HOME/java
+    mvn generate-resources -P generate-libs-cdata-all-os -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR -N
+    popd
+
+    # Arrow Java libraries
+    pushd $ARROW_HOME/java
+    mvn clean install -P arrow-c-data -pl c -am -DskipTests -Dcheckstyle.skip \
+      -Darrow.c.jni.dist.dir=$ARROW_INSTALL_DIR/lib -Dmaven.gitcommitid.skip=true
+    popd
+}
+
 CURRENT_DIR=$(
   cd "$(dirname "$BASH_SOURCE")"
   pwd
@@ -269,6 +310,10 @@ echo "Target Velox build: $TARGET_BUILD_SUMMARY"
 
 check_commit
 compile
+
+if [ $COMPILE_ARROW_JAVA == "ON" ]; then
+  compile_arrow_java_module
+fi
 
 echo "Successfully built Velox from Source."
 echo $TARGET_BUILD_SUMMARY >"${VELOX_HOME}/velox-build.cache"

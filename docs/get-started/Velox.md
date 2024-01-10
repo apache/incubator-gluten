@@ -42,8 +42,8 @@ git clone https://github.com/oap-project/gluten.git
 
 # Build Gluten with Velox Backend
 
-It's recommended to use buildbundle-veloxbe.sh and build gluten in one script.
-[Gluten Usage](./GlutenUsage.md) listed the parameters and their default value of build command for your reference.
+It's recommended to use buildbundle-veloxbe.sh to build gluten in one script.
+[Gluten build guide](./build-guide.md) listed the parameters and their default value of build command for your reference.
 
 **For x86_64 build**
 
@@ -56,6 +56,7 @@ cd /path/to/gluten
 ## After a complete build, if you need to re-build the project and only some gluten code is changed,
 ## you can use the following command to skip building velox and protobuf.
 # ./dev/buildbundle-veloxbe.sh --enable_ep_cache=ON --build_protobuf=OFF
+## If you have the same error with issue-3283, you need to add the parameter `--compile_arrow_java=ON`
 ```
 
 **For aarch64 build:**
@@ -103,7 +104,7 @@ Once building successfully, the Jar file will be generated in the directory: pac
 
 With config `enable_vcpkg=ON`, the dependency libraries will be built and staticly linked into libvelox.so and libgluten.so, which is packed into the gluten-jar. In this way, only the gluten-jar is needed to add to `spark.<driver|executor>.extraClassPath` and spark will deploy the jar to each worker node. It's better to build the static version using a clean docker image without any extra libraries installed. On host with some libraries like jemalloc installed, the script may crash with odd message. You may need to uninstall those libraries to get a clean host.
 
-With config `enable_vcpkg=OFF`, the dependency libraries won't be staticly linked, instead the script will install the libraries to system then pack the dependency libraries into another jar named gluten-package-<version>-SNAPSHOT.jar. Then you need to add the jar to extraClassPath then set `spark.gluten.loadLibFromJar=true`. Or you already manually deployed the dependency libraries on each worker node. You may find the libraries list from the gluten-package jar.
+With config `enable_vcpkg=OFF`, the dependency libraries won't be staticly linked, instead the script will install the libraries to system then pack the dependency libraries into another jar named gluten-package-${Maven-artifact-version}.jar. Then you need to add the jar to extraClassPath then set `spark.gluten.loadLibFromJar=true`. Or you already manually deployed the dependency libraries on each worker node. You may find the libraries list from the gluten-package jar.
 
 ## HDFS support
 
@@ -738,7 +739,7 @@ var gluten_root = "/PATH/TO/GLUTEN"
 Below script shows an example about how to run the testing, you should modify the parameters such as executor cores, memory, offHeap size based on your environment. 
 
 ```bash
-export GLUTEN_JAR = /PATH/TO/GLUTEN/backends-velox/target/<gluten-jar>
+export GLUTEN_JAR = /PATH/TO/GLUTEN/package/target/<gluten-jar>
 cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
   --master yarn --deploy-mode client \
   --conf spark.plugins=io.glutenproject.GlutenPlugin \
@@ -756,7 +757,7 @@ cat tpch_parquet.scala | spark-shell --name tpch_powertest_velox \
   --conf spark.driver.maxResultSize=32g
 ```
 
-Refer to [Gluten parameters ](../Configuration.md) for more details of each parameter used by Gluten.
+Refer to [Gluten configuration](../Configuration.md) for more details.
 
 ## Result
 *wholestagetransformer* indicates that the offload works.

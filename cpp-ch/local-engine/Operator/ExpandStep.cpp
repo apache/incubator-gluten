@@ -59,14 +59,8 @@ DB::Block ExpandStep::buildOutputHeader(const DB::Block & , const ExpandField & 
     const auto & names = project_set_exprs_.getNames();
 
     for (size_t i = 0; i < project_set_exprs_.getExpandCols(); ++i)
-    {
-        String col_name;
-        if (!names[i].empty())
-            col_name = names[i];
-        else
-            col_name = "expand_" + std::to_string(i);
-        cols.push_back(DB::ColumnWithTypeAndName(types[i], col_name));
-    }
+        cols.push_back(DB::ColumnWithTypeAndName(types[i], names[i]));
+
     return DB::Block(cols);
 }
 

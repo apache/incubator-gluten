@@ -27,6 +27,8 @@ class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
     sparkContext.setLogLevel("WARN")
 
     conf.setConf(SQLConf.DYNAMIC_PARTITION_PRUNING_ENABLED, false)
+    // introduced in spark 3.4
+    spark.conf.set("spark.sql.readSideCharPadding", "false")
   }
 
   // "q9" failed in spark 3.3
@@ -35,7 +37,7 @@ class TPCDSPlan extends TPCDSBase with SubstraitPlanTestBase {
   tpcdsQueries.foreach {
     q =>
       if (runAllQueriesIncludeFailed || successfulSQL.contains(q)) {
-        ignore(s"check simplified (tpcds-v1.4/$q)") {
+        test(s"check simplified (tpcds-v1.4/$q)") {
           testQuery("tpcds", q)
         }
       } else {

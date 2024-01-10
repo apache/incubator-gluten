@@ -74,6 +74,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
         "number of dynamic filters accepted"),
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
+      "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
@@ -114,6 +115,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
+      "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
@@ -154,6 +156,7 @@ class MetricsApiImpl extends MetricsApi with Logging {
       "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
       "skippedSplits" -> SQLMetrics.createMetric(sparkContext, "number of skipped splits"),
       "processedSplits" -> SQLMetrics.createMetric(sparkContext, "number of processed splits"),
+      "preloadSplits" -> SQLMetrics.createMetric(sparkContext, "number of preloaded splits"),
       "skippedStrides" -> SQLMetrics.createMetric(sparkContext, "number of skipped row groups"),
       "processedStrides" -> SQLMetrics.createMetric(sparkContext, "number of processed row groups"),
       "remainingFilterTime" -> SQLMetrics.createNanoTimingMetric(
@@ -332,6 +335,15 @@ class MetricsApiImpl extends MetricsApi with Logging {
   override def genLimitTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
     new LimitMetricsUpdater(metrics)
 
+  def genWriteFilesTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
+    Map(
+      "physicalWrittenBytes" -> SQLMetrics.createMetric(sparkContext, "number of written bytes"),
+      "numWrittenFiles" -> SQLMetrics.createMetric(sparkContext, "number of written files")
+    )
+
+  def genWriteFilesTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater =
+    new WriteFilesMetricsUpdater(metrics)
+
   override def genSortTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "outputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
@@ -400,7 +412,9 @@ class MetricsApiImpl extends MetricsApi with Logging {
       sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(
       "dataSize" -> SQLMetrics.createMetric(sparkContext, "data size (bytes)"),
-      "collectTime" -> SQLMetrics.createMetric(sparkContext, "time to collect (ms)"))
+      "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
+      "collectTime" -> SQLMetrics.createMetric(sparkContext, "time to collect (ms)")
+    )
 
   override def genHashJoinTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] =
     Map(

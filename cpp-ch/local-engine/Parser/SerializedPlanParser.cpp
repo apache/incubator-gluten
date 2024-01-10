@@ -75,6 +75,7 @@
 #include <Processors/Transforms/MaterializingTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <QueryPipeline/printPipeline.h>
 #include <Storages/CustomStorageMergeTree.h>
 #include <Storages/IStorage.h>
 #include <Storages/MergeTree/MergeTreeData.h>
@@ -1700,10 +1701,14 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
 
         case substrait::Expression::RexTypeCase::kIfThen: {
             const auto & if_then = rel.if_then();
-            auto function_multi_if = DB::FunctionFactory::instance().get("multiIf", context);
+            DB::FunctionOverloadResolverPtr function_ptr = nullptr;
+            auto condition_nums = if_then.ifs_size();
+            if (condition_nums == 1)
+                function_ptr = DB::FunctionFactory::instance().get("if", context);
+            else
+                function_ptr = DB::FunctionFactory::instance().get("multiIf", context);
             DB::ActionsDAG::NodeRawConstPtrs args;
 
-            auto condition_nums = if_then.ifs_size();
             for (int i = 0; i < condition_nums; ++i)
             {
                 const auto & ifs = if_then.ifs(i);
@@ -1717,8 +1722,12 @@ const ActionsDAG::Node * SerializedPlanParser::parseExpression(ActionsDAGPtr act
             const auto * else_node = parseExpression(actions_dag, if_then.else_());
             args.emplace_back(else_node);
             std::string args_name = join(args, ',');
-            auto result_name = "multiIf(" + args_name + ")";
-            const auto * function_node = &actions_dag->addFunction(function_multi_if, args, result_name);
+            std::string result_name;
+            if (condition_nums == 1)
+                result_name = "if(" + args_name + ")";
+            else
+                result_name = "multiIf(" + args_name + ")";
+            const auto * function_node = &actions_dag->addFunction(function_ptr, args, result_name);
             actions_dag->addOrReplaceInOutputs(*function_node);
             return function_node;
         }
@@ -1976,11 +1985,11 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
         }
         case substrait::Expression::RexTypeCase::kIfThen: {
             const auto & if_then = rel.if_then();
-            const auto * ch_function_name = "multiIf";
+            auto condition_nums = if_then.ifs_size();
+            std::string ch_function_name = condition_nums == 1 ? "if" : "multiIf";
             auto function_multi_if = DB::FunctionFactory::instance().get(ch_function_name, context);
             ASTs args;
 
-            auto condition_nums = if_then.ifs_size();
             for (int i = 0; i < condition_nums; ++i)
             {
                 const auto & ifs = if_then.ifs(i);
@@ -1992,6 +2001,7 @@ ASTPtr ASTParser::parseArgumentToAST(const Names & names, const substrait::Expre
             }
 
             auto else_node = parseArgumentToAST(names, if_then.else_());
+            args.emplace_back(std::move(else_node));
             return makeASTFunction(ch_function_name, args);
         }
         case substrait::Expression::RexTypeCase::kScalarFunction: {
@@ -2093,6 +2103,8 @@ SharedContextHolder SerializedPlanParser::shared_context;
 
 LocalExecutor::~LocalExecutor()
 {
+    if (context->getConfigRef().getBool("dump_pipeline", false))
+        LOG_INFO(&Poco::Logger::get("LocalExecutor"), "Dump pipeline:\n{}", dumpPipeline());
     if (spark_buffer)
     {
         ch_column_to_spark_row->freeMem(spark_buffer->address, spark_buffer->size);
@@ -2223,6 +2235,29 @@ Block & LocalExecutor::getHeader()
 LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_)
     : query_context(_query_context), context(context_)
 {
+}
+
+std::string LocalExecutor::dumpPipeline()
+{
+    const auto & processors = query_pipeline.getProcessors();
+    for (auto & processor : processors)
+    {
+        DB::WriteBufferFromOwnString buffer;
+        auto data_stats = processor->getProcessorDataStats();
+        buffer << "(";
+        buffer << "\nexcution time: " << processor->getElapsedUs() << " us.";
+        buffer << "\ninput wait time: " << processor->getInputWaitElapsedUs() << " us.";
+        buffer << "\noutput wait time: " << processor->getOutputWaitElapsedUs() << " us.";
+        buffer << "\ninput rows: " << data_stats.input_rows;
+        buffer << "\ninput bytes: " << data_stats.input_bytes;
+        buffer << "\noutput rows: " << data_stats.output_rows;
+        buffer << "\noutput bytes: " << data_stats.output_bytes;
+        buffer << ")";
+        processor->setDescription(buffer.str());
+    }
+    DB::WriteBufferFromOwnString out;
+    DB::printPipeline(processors, out);
+    return out.str();
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(

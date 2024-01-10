@@ -234,5 +234,5 @@ class CHTransformerApi extends TransformerApi with Logging {
     throw new UnsupportedOperationException("CH backend does not support this method")
   }
 
-  override def getPackMessage(message: Message): Any = Any.pack(message)
+  override def packPBMessage(message: Message): Any = Any.pack(message)
 }

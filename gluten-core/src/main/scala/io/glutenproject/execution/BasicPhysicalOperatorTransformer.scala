@@ -33,8 +33,6 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV
 import org.apache.spark.sql.utils.StructTypeFWD
 import org.apache.spark.sql.vectorized.ColumnarBatch
 
-import com.google.protobuf.Any
-
 import scala.collection.JavaConverters._
 
 abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkPlan)
@@ -65,10 +63,6 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
   override def metricsUpdater(): MetricsUpdater =
     BackendsApiManager.getMetricsApiInstance.genFilterTransformerMetricsUpdater(metrics)
 
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
-  }
-
   def getRelNode(
       context: SubstraitContext,
       condExpr: Expression,
@@ -92,7 +86,8 @@ abstract class FilterExecTransformerBase(val cond: Expression, val input: SparkP
         .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeFilterRel(input, condExprNode, extensionNode, context, operatorId)
     }
   }
@@ -225,7 +220,8 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
         .map(attr => ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
         .asJava
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(
         input,
         projExprNodeList,
@@ -234,10 +230,6 @@ case class ProjectExecTransformer private (projectList: Seq[NamedExpression], ch
         operatorId,
         emitStartIndex)
     }
-  }
-
-  override def doExecuteColumnar(): RDD[ColumnarBatch] = {
-    throw new UnsupportedOperationException(s"This operator doesn't support doExecuteColumnar().")
   }
 
   override protected def withNewChildInternal(newChild: SparkPlan): ProjectExecTransformer =
@@ -289,6 +281,14 @@ object ProjectExecTransformer {
 
 // An alternatives for UnionExec.
 case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with GlutenPlan {
+  children.foreach(
+    child =>
+      child match {
+        case w: WholeStageTransformer =>
+          w.setOutputSchemaForPlan(output)
+        case _ =>
+      })
+
   override def supportsColumnar: Boolean = true
 
   override def output: Seq[Attribute] = {
@@ -340,7 +340,7 @@ case class UnionExecTransformer(children: Seq[SparkPlan]) extends SparkPlan with
  * Contains functions for the comparision and separation of the filter conditions in Scan and
  * Filter. Contains the function to manually push down the conditions into Scan.
  */
-object FilterHandler {
+object FilterHandler extends PredicateHelper {
 
   /**
    * Get the original filter conditions in Scan for the comparison with those in Filter.
@@ -369,28 +369,6 @@ object FilterHandler {
   }
 
   /**
-   * Flatten the condition connected with 'And'. Return the filter conditions with sequence.
-   *
-   * @param condition
-   *   : the condition connected with 'And'
-   * @return
-   *   flattened conditions in sequence
-   */
-  def flattenCondition(condition: Expression): Seq[Expression] = {
-    var expressions: Seq[Expression] = Seq()
-    condition match {
-      case and: And =>
-        and.children.foreach(
-          expression => {
-            expressions ++= flattenCondition(expression)
-          })
-      case _ =>
-        expressions = expressions :+ condition
-    }
-    expressions
-  }
-
-  /**
    * Compare the semantics of the filter conditions pushed down to Scan and in the Filter.
    *
    * @param scanFilters
@@ -400,27 +378,34 @@ object FilterHandler {
    * @return
    *   the filter conditions not pushed down into Scan.
    */
-  def getLeftFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] = {
-    var leftFilters: Seq[Expression] = Seq()
-    for (expression <- filters) {
-      if (!scanFilters.exists(_.semanticEquals(expression))) {
-        leftFilters = leftFilters :+ expression.clone()
-      }
-    }
-    leftFilters
-  }
+  def getRemainingFilters(scanFilters: Seq[Expression], filters: Seq[Expression]): Seq[Expression] =
+    (ExpressionSet(filters) -- ExpressionSet(scanFilters)).toSeq
 
   // Separate and compare the filter conditions in Scan and Filter.
-  // Push down the left conditions in Filter into Scan.
-  def applyFilterPushdownToScan(filter: FilterExec, reuseSubquery: Boolean): GlutenPlan =
+  // Push down the remaining conditions in Filter into Scan.
+  def applyFilterPushdownToScan(filter: FilterExec, reuseSubquery: Boolean): SparkPlan =
     filter.child match {
       case fileSourceScan: FileSourceScanExec =>
-        val leftFilters =
-          getLeftFilters(fileSourceScan.dataFilters, flattenCondition(filter.condition))
+        val remainingFilters =
+          getRemainingFilters(
+            fileSourceScan.dataFilters,
+            splitConjunctivePredicates(filter.condition))
         ScanTransformerFactory.createFileSourceScanTransformer(
           fileSourceScan,
           reuseSubquery,
-          extraFilters = leftFilters)
+          extraFilters = remainingFilters)
+      case batchScan: BatchScanExec =>
+        val remainingFilters = batchScan.scan match {
+          case fileScan: FileScan =>
+            getRemainingFilters(fileScan.dataFilters, splitConjunctivePredicates(filter.condition))
+          case _ =>
+            // TODO: For data lake format use pushedFilters in SupportsPushDownFilters
+            splitConjunctivePredicates(filter.condition)
+        }
+        ScanTransformerFactory.createBatchScanTransformer(
+          batchScan,
+          reuseSubquery,
+          pushdownFilters = remainingFilters)
       case other =>
         throw new UnsupportedOperationException(s"${other.getClass.toString} is not supported.")
     }

@@ -52,7 +52,7 @@ option(ENABLE_GCS "Enable GCS" OFF)
 option(ENABLE_S3 "Enable S3" OFF)
 option(ENABLE_HDFS "Enable HDFS" OFF)
 option(ENABLE_ORC "Enable ORC" OFF)
-option(VELOX_ENABLE_ABFS "Enable ABFS" OFF)
+option(ENABLE_ABFS "Enable ABFS" OFF)
 
 set(root_directory ${PROJECT_BINARY_DIR})
 get_filename_component(GLUTEN_HOME ${CMAKE_SOURCE_DIR} DIRECTORY)
@@ -74,13 +74,7 @@ include(ResolveDependency)
 # Compiler flags
 #
 
-if (${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
-# keep this original logic
-  add_definitions(-DGLUTEN_PRINT_DEBUG)
-  message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
-elseif (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-  add_definitions(-DGLUTEN_PRINT_DEBUG)
-  message(STATUS "Add definition GLUTEN_PRINT_DEBUG")
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -O0")
   message(STATUS "CMAKE_CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG}")
 else ()
@@ -165,7 +159,7 @@ function(ADD_TEST_CASE TEST_NAME)
   endif()
 
   add_executable(${TEST_NAME} ${SOURCES})
-  target_link_libraries(${TEST_NAME} gluten GTest::gtest GTest::gtest_main Threads::Threads)
+  target_link_libraries(${TEST_NAME} gluten google::glog GTest::gtest GTest::gtest_main Threads::Threads)
   target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/core)
 
   if(ARG_EXTRA_LINK_LIBS)

@@ -16,11 +16,45 @@
  */
 
 #include "VeloxToSubstraitPlan.h"
+#include <google/protobuf/wrappers.pb.h>
+#include "utils/exception.h"
 
 namespace gluten {
 
 namespace {
-::substrait::AggregationPhase toAggregationPhase(core::AggregationNode::Step step) {
+
+struct AggregateCompanion {
+  std::string functionName;
+  core::AggregationNode::Step step;
+};
+
+AggregateCompanion toAggregateCompanion(const core::AggregationNode::Aggregate& aggregate) {
+  const auto& companionName = aggregate.call->name();
+  auto offset = companionName.find_last_of('_');
+  if (offset == std::string::npos) {
+    return {companionName, core::AggregationNode::Step::kSingle};
+  }
+  // found '_'
+  const auto& suffix = companionName.substr(offset + 1);
+  if (suffix.empty()) {
+    // the last char is '_'
+    return {companionName, core::AggregationNode::Step::kSingle};
+  }
+  const auto& functionName = companionName.substr(0, offset);
+  if (suffix == "_partial") {
+    return {functionName, core::AggregationNode::Step::kPartial};
+  }
+  if (suffix == "_merge_extract") {
+    return {functionName, core::AggregationNode::Step::kFinal};
+  }
+  if (suffix == "_merge") {
+    return {functionName, core::AggregationNode::Step::kIntermediate};
+  }
+  // others, not a companion function
+  return {companionName, core::AggregationNode::Step::kSingle};
+}
+
+::substrait::AggregationPhase toAggregationPhase(const core::AggregationNode::Step& step) {
   switch (step) {
     case core::AggregationNode::Step::kPartial: {
       return ::substrait::AGGREGATION_PHASE_INITIAL_TO_INTERMEDIATE;
@@ -242,10 +276,26 @@ void VeloxToSubstraitPlanConvertor::toSubstrait(
     // Process measure, eg:sum(a).
     ::substrait::AggregateFunction* aggFunction = aggMeasures->mutable_measure();
 
-    // Aggregation function name.
-    const auto& funName = aggregate.call->name();
-    // set aggFunction args.
+    // Use aggregate node's step information to write advanced extension 'allowFlush'.
+    const auto& step = aggregateNode->step();
+    switch (step) {
+      case core::AggregationNode::Step::kPartial: {
+        substrait::extensions::AdvancedExtension ae{};
+        google::protobuf::StringValue msg;
+        msg.set_value("allowFlush=1");
+        ae.mutable_optimization()->PackFrom(msg);
+        aggregateRel->mutable_advanced_extension()->MergeFrom(ae);
+        break;
+      }
+      case core::AggregationNode::Step::kSingle:
+        break;
+      case core::AggregationNode::Step::kFinal:
+      case core::AggregationNode::Step::kIntermediate:
+        VELOX_USER_FAIL("Step not supported");
+        break;
+    }
 
+    // Set aggFunction args.
     std::vector<TypePtr> arguments;
     arguments.reserve(aggregate.call->inputs().size());
     for (const auto& expr : aggregate.call->inputs()) {
@@ -260,15 +310,16 @@ void VeloxToSubstraitPlanConvertor::toSubstrait(
       }
     }
 
+    const auto& aggregateCompanion = toAggregateCompanion(aggregate);
     auto referenceNumber =
-        extensionCollector_->getReferenceNumber(funName, aggregate.rawInputTypes, aggregateNode->step());
+        extensionCollector_->getReferenceNumber(aggregateCompanion.functionName, aggregate.rawInputTypes);
 
     aggFunction->set_function_reference(referenceNumber);
 
     aggFunction->mutable_output_type()->MergeFrom(typeConvertor_->toSubstraitType(arena, aggregate.call->type()));
 
     // Set substrait aggregate Function phase.
-    aggFunction->set_phase(toAggregationPhase(aggregateNode->step()));
+    aggFunction->set_phase(toAggregationPhase(aggregateCompanion.step));
   }
 
   // Direct output.

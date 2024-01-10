@@ -34,8 +34,6 @@ import org.apache.spark.sql.execution.SparkPlan
 import org.apache.spark.sql.execution.python.EvalPythonExec
 import org.apache.spark.sql.types.StructType
 
-import com.google.protobuf.Any
-
 import java.util.{ArrayList => JArrayList, List => JList}
 
 case class EvalPythonExecTransformer(
@@ -120,7 +118,8 @@ case class EvalPythonExecTransformer(
         inputTypeNodeList.add(ConverterUtils.getTypeNode(attr.dataType, attr.nullable))
       }
       val extensionNode = ExtensionBuilder.makeAdvancedExtension(
-        Any.pack(TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
+        BackendsApiManager.getTransformerApiInstance.packPBMessage(
+          TypeBuilder.makeStruct(false, inputTypeNodeList).toProtobuf))
       RelBuilder.makeProjectRel(input, expressionNodes, extensionNode, context, operatorId, -1)
     }
   }

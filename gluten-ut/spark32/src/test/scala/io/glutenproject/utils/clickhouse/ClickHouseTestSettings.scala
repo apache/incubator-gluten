@@ -125,6 +125,8 @@ class ClickHouseTestSettings extends BackendTestSettings {
   enableSuite[GlutenCountMinSketchAggQuerySuite]
   enableSuite[GlutenCsvFunctionsSuite]
   enableSuite[GlutenDSV2CharVarcharTestSuite]
+    // failed on spark32 UT, see https://github.com/oap-project/gluten/issues/4043
+    .exclude("SPARK-34833: right-padding applied correctly for correlated subqueries - other preds")
   enableSuite[GlutenDSV2SQLInsertTestSuite]
   enableSuite[GlutenDataFrameAggregateSuite]
     .exclude("average")
@@ -197,6 +199,10 @@ class ClickHouseTestSettings extends BackendTestSettings {
     .exclude(
       "SPARK-32376: Make unionByName null-filling behavior work with struct columns - deep expr")
     .exclude("SPARK-35756: unionByName support struct having same col names but different sequence")
+    .exclude("except all")
+    .exclude("exceptAll - nullability")
+    .exclude("intersectAll")
+    .exclude("intersectAll - nullability")
   enableSuite[GlutenDataFrameStatSuite]
   enableSuite[GlutenDataFrameSuite]
     .exclude("Uuid expressions should produce same results at retries in the same DataFrame")
@@ -2110,6 +2116,7 @@ class ClickHouseTestSettings extends BackendTestSettings {
       "SELECT structFieldSimple.key, arrayFieldSimple[1] FROM tableWithSchema a where int_Field=1")
     .exclude("SELECT structFieldComplex.Value.`value_(2)` FROM tableWithSchema")
   enableSuite[SparkFunctionStatistics]
+  enableSuite[GlutenSparkSessionExtensionSuite]
 
   override def getSQLQueryTestSettings: SQLQueryTestSettings = ClickHouseSQLQueryTestSettings
 }

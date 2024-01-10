@@ -81,7 +81,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
   }
 
   override def registerMetrics(appId: String, pluginContext: PluginContext): Unit = {
-    if (pluginContext.conf().getBoolean("spark.gluten.ui.enabled", true)) {
+    if (pluginContext.conf().getBoolean(GlutenConfig.GLUTEN_UI_ENABLED, true)) {
       _sc.foreach {
         sc =>
           GlutenEventUtils.attachUI(sc)
@@ -148,6 +148,7 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     }
     // Session's local time zone must be set. If not explicitly set by user, its default
     // value (detected for the platform) is used, consistent with spark.
+    conf.set(GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
 
     // task slots
     val taskSlots = SparkResourceUtil.getTaskSlots(conf)
@@ -158,17 +159,11 @@ private[glutenproject] class GlutenDriverPlugin extends DriverPlugin with Loggin
     conf.set(GlutenConfig.GLUTEN_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapSize.toString)
     val offHeapPerTask = offHeapSize / taskSlots
     conf.set(GlutenConfig.GLUTEN_TASK_OFFHEAP_SIZE_IN_BYTES_KEY, offHeapPerTask.toString)
-    conf.set(GLUTEN_DEFAULT_SESSION_TIMEZONE_KEY, SQLConf.SESSION_LOCAL_TIMEZONE.defaultValueString)
 
     // Pessimistic off-heap sizes, with the assumption that all non-borrowable storage memory
     // determined by spark.memory.storageFraction was used.
     val fraction = 1.0d - conf.getDouble("spark.memory.storageFraction", 0.5d)
-    val conservativeOffHeapSize = (offHeapSize
-      * fraction).toLong
-    conf.set(
-      GlutenConfig.GLUTEN_CONSERVATIVE_OFFHEAP_SIZE_IN_BYTES_KEY,
-      conservativeOffHeapSize.toString)
-    val conservativeOffHeapPerTask = conservativeOffHeapSize / taskSlots
+    val conservativeOffHeapPerTask = (offHeapSize * fraction).toLong / taskSlots
     conf.set(
       GlutenConfig.GLUTEN_CONSERVATIVE_TASK_OFFHEAP_SIZE_IN_BYTES_KEY,
       conservativeOffHeapPerTask.toString)

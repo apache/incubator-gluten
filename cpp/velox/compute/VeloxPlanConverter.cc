@@ -22,7 +22,6 @@
 #include "compute/ResultIterator.h"
 #include "config/GlutenConfig.h"
 #include "operators/plannodes/RowVectorStream.h"
-#include "utils/DebugOut.h"
 #include "velox/common/file/FileSystems.h"
 
 namespace gluten {
@@ -33,11 +32,20 @@ VeloxPlanConverter::VeloxPlanConverter(
     const std::vector<std::shared_ptr<ResultIterator>>& inputIters,
     velox::memory::MemoryPool* veloxPool,
     const std::unordered_map<std::string, std::string>& confMap,
+    const std::optional<std::string> writeFilesTempPath,
     bool validationMode)
     : inputIters_(inputIters),
       validationMode_(validationMode),
-      substraitVeloxPlanConverter_(veloxPool, confMap, validationMode),
+      substraitVeloxPlanConverter_(veloxPool, confMap, writeFilesTempPath, validationMode),
       pool_(veloxPool) {}
+
+void VeloxPlanConverter::setInputPlanNode(const ::substrait::WriteRel& writeRel) {
+  if (writeRel.has_input()) {
+    setInputPlanNode(writeRel.input());
+  } else {
+    throw std::runtime_error("Child expected");
+  }
+}
 
 void VeloxPlanConverter::setInputPlanNode(const ::substrait::FetchRel& fetchRel) {
   if (fetchRel.has_input()) {
@@ -176,6 +184,8 @@ void VeloxPlanConverter::setInputPlanNode(const ::substrait::Rel& srel) {
     setInputPlanNode(srel.window());
   } else if (srel.has_generate()) {
     setInputPlanNode(srel.generate());
+  } else if (srel.has_write()) {
+    setInputPlanNode(srel.write());
   } else {
     throw std::runtime_error("Rel is not supported: " + srel.DebugString());
   }
@@ -202,7 +212,7 @@ std::shared_ptr<const facebook::velox::core::PlanNode> VeloxPlanConverter::toVel
     }
   }
   auto veloxPlan = substraitVeloxPlanConverter_.toVeloxPlan(substraitPlan);
-  DEBUG_OUT << "Plan Node: " << std::endl << veloxPlan->toString(true, true) << std::endl;
+  DLOG(INFO) << "Plan Node: " << std::endl << veloxPlan->toString(true, true);
   return veloxPlan;
 }
 
