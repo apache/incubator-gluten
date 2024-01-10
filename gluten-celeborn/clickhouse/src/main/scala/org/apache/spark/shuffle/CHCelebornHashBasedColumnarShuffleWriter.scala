@@ -82,7 +82,7 @@ class CHCelebornHashBasedColumnarShuffleWriter[K, V](
           override def spill(self: MemoryTarget, size: Long): Long = {
             if (nativeShuffleWriter == -1L) {
               throw new IllegalStateException(
-                "Fatal: spill() called before a Celeborn shuffle writer " +
+                "Fatal: spill() called before a celeborn shuffle writer " +
                   "is created. This behavior should be" +
                   "optimized by moving memory " +
                   "allocations from make() to split()")
