@@ -417,6 +417,9 @@ jobs:
 
   centos7-test:
     runs-on: velox-self-hosted
+    env:
+      OS_IMAGE_NAME: centos
+      OS_IMAGE_TAG: 7
     steps:
       - uses: actions/checkout@v4
       - name: Setup docker container
@@ -424,8 +427,8 @@ jobs:
           EXTRA_DOCKER_OPTIONS="--name centos7-test-$GITHUB_RUN_ID -e NUM_THREADS=30 --detach" \
           NON_INTERACTIVE=ON \
           MOUNT_MAVEN_CACHE=OFF \
-          OS_IMAGE=centos:7 \
-          OS_VERSION=7 \
+          OS_IMAGE_NAME=centos \
+          OS_IMAGE_TAG=7 \
           tools/gluten-te/centos/cbash-mount.sh sleep 14400
       - name: Build Gluten velox third party
         run: |
