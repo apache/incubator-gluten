@@ -33,7 +33,7 @@ import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{GenShuffleWriterParameters, GlutenShuffleWriterWrapper}
 import org.apache.spark.shuffle.utils.ShuffleUtil
 import org.apache.spark.sql.{SparkSession, Strategy}
-import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FunctionIdentifier}
+import org.apache.spark.sql.catalyst.{AggregateFunctionRewriteRule, FlushableHashAggregateRule, FunctionIdentifier}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
@@ -63,7 +63,7 @@ import javax.ws.rs.core.UriBuilder
 import java.lang.{Long => JLong}
 import java.util.{Map => JMap}
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 class SparkPlanExecApiImpl extends SparkPlanExecApi {
 
@@ -488,8 +488,13 @@ class SparkPlanExecApiImpl extends SparkPlanExecApi {
    *
    * @return
    */
-  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] =
-    List()
+  override def genExtendedColumnarPreRules(): List[SparkSession => Rule[SparkPlan]] = {
+    val buf: ListBuffer[SparkSession => Rule[SparkPlan]] = ListBuffer()
+    if (GlutenConfig.getConf.enableVeloxFlushablePartialAggregation) {
+      buf += FlushableHashAggregateRule.apply
+    }
+    buf.result
+  }
 
   /**
    * Generate extended columnar post-rules.
