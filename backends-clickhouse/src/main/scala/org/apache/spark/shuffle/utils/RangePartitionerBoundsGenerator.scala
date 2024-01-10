@@ -168,9 +168,7 @@ class RangePartitionerBoundsGenerator[K: Ordering: ClassTag, V](
         node.put("is_nullable", ordering.nullable)
         node.put(
           "direction",
-          SortExecTransformer.transformSortDirection(
-            ordering.direction.sql,
-            ordering.nullOrdering.sql))
+          SortExecTransformer.transformSortDirection(ordering))
         arrayNode.add(node)
     }
   }
