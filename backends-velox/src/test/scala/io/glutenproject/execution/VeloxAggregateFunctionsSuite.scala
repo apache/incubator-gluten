@@ -704,7 +704,7 @@ abstract class VeloxAggregateFunctionsSuite extends VeloxWholeStageTransformerSu
 class VeloxAggregateFunctionsDefaultSuite extends VeloxAggregateFunctionsSuite {
   override protected def sparkConf: SparkConf = {
     super.sparkConf
-      // To test flush behaviors, set low flush threshold to ensure flush happens.
+      // Disable flush. This may cause spilling to happen on partial aggregations.
       .set(GlutenConfig.VELOX_FLUSHABLE_PARTIAL_AGGREGATION_ENABLED.key, "false")
   }
 

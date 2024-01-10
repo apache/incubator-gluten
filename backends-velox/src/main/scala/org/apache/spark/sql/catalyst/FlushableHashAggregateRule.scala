@@ -32,7 +32,7 @@ case class FlushableHashAggregateRule(session: SparkSession) extends Rule[SparkP
   override def apply(plan: SparkPlan): SparkPlan = plan.transformUp {
     case shuffle: ShuffleExchangeLike =>
       // If an exchange follows a hash aggregate in which all functions are in partial mode,
-      // then it's safe to convert the hash aggregate to intermediate hash aggregate.
+      // then it's safe to convert the hash aggregate to flushable hash aggregate.
       shuffle.child match {
         case HashAggPropagatedToShuffle(proj, agg) =>
           shuffle.withNewChildren(
