@@ -311,6 +311,21 @@ class GlutenConfig(conf: SQLConf) extends Logging {
     conf.getConf(ABANDON_PARTIAL_AGGREGATION_MIN_ROWS)
   def enableNativeWriter: Boolean = conf.getConf(NATIVE_WRITER_ENABLED)
 
+  def directorySizeGuess: Option[Int] =
+    conf.getConf(DIRECTORY_SIZE_GUESS)
+  def filePreloadThreshold: Option[Int] =
+    conf.getConf(FILE_PRELOAD_THRESHOLD)
+  def prefetchRowGroups: Option[Int] =
+    conf.getConf(PREFETCH_ROW_GROUPS)
+  def loadQuantum: Option[Int] =
+    conf.getConf(LOAD_QUANTUM)
+  def maxCoalescedDistanceBytes: Option[Int] =
+    conf.getConf(MAX_COALESCED_DISTANCE_BYTES)
+  def maxCoalescedBytes: Option[Int] =
+    conf.getConf(MAX_COALESCED_BYTES)
+  def cachePrefetchMinPct: Option[Int] =
+    conf.getConf(CACHE_PREFETCH_MINPCT)
+
   def enableColumnarProjectCollapse: Boolean = conf.getConf(ENABLE_COLUMNAR_PROJECT_COLLAPSE)
 
   def awsSdkLogLevel: String = conf.getConf(AWS_SDK_LOG_LEVEL)
@@ -1503,6 +1518,55 @@ object GlutenConfig {
         "`WholeStageTransformerContext`.")
       .booleanConf
       .createWithDefault(false)
+
+  val DIRECTORY_SIZE_GUESS =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.directorySizeGuess")
+      .internal()
+      .doc(" Set the directory size guess for velox file scan")
+      .intConf
+      .createOptional
+
+  val FILE_PRELOAD_THRESHOLD =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.filePreloadThreshold")
+      .internal()
+      .doc(" Set the file preload threshold for velox file scan")
+      .intConf
+      .createOptional
+
+  val PREFETCH_ROW_GROUPS =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.prefetchRowGroups")
+      .internal()
+      .doc(" Set the prefetch row groups for velox file scan")
+      .intConf
+      .createOptional
+
+  val LOAD_QUANTUM =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.loadQuantum")
+      .internal()
+      .doc(" Set the load quantum for velox file scan")
+      .intConf
+      .createOptional
+
+  val MAX_COALESCED_DISTANCE_BYTES =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedDistanceBytes")
+      .internal()
+      .doc(" Set the max coalesced distance bytes for velox file scan")
+      .intConf
+      .createOptional
+
+  val MAX_COALESCED_BYTES =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.maxCoalescedBytes")
+      .internal()
+      .doc(" Set the max coalesced bytes for velox file scan")
+      .intConf
+      .createOptional
+
+  val CACHE_PREFETCH_MINPCT =
+    buildStaticConf("spark.gluten.sql.columnar.backend.velox.cachePrefetchMinPct")
+      .internal()
+      .doc(" Set prefetch cache min pct for velox file scan")
+      .intConf
+      .createOptional
 
   val AWS_SDK_LOG_LEVEL =
     buildConf("spark.gluten.velox.awsSdkLogLevel")
