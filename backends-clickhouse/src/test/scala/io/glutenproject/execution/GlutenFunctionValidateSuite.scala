@@ -615,8 +615,14 @@ class GlutenFunctionValidateSuite extends GlutenClickHouseWholeStageTransformerS
           |CREATE TABLE `test_cse`(
           |  `uid` bigint,
           |  `event` struct<time:bigint,event_info:map<string,string>>
-          |)  stored as parquet PARTITIONED BY (
+          |)  PARTITIONED BY (
           |  `day` string)
+          |ROW FORMAT SERDE
+          |  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'
+          |STORED AS INPUTFORMAT
+          |  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat'
+          |OUTPUTFORMAT
+          |  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
         """.stripMargin
       spark.sql(createTableSql)
       val querySql =
