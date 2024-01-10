@@ -361,6 +361,9 @@ bool SubstraitToVeloxPlanValidator::validate(const ::substrait::WriteRel& writeR
           case TypeKind::VARBINARY:
             break;
           default:
+            logValidateMsg(
+                "Validation failed for input type validation in WriteRel, not support partition column type: " +
+                mapTypeKindToName(types[i]->kind()));
             return false;
         }
       }

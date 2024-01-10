@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.extension
 
+import io.glutenproject.GlutenConfig
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions._
@@ -46,7 +48,11 @@ class RewriteDateTimestampComparisonRule(session: SparkSession, conf: SQLConf)
   }
 
   override def apply(plan: LogicalPlan): LogicalPlan = {
-    if (plan.resolved) {
+    if (
+      plan.resolved &&
+      GlutenConfig.getConf.enableGluten &&
+      GlutenConfig.getConf.enableRewriteDateTimestampComparison
+    ) {
       visitPlan(plan)
     } else {
       plan
@@ -193,6 +199,7 @@ class RewriteDateTimestampComparisonRule(session: SparkSession, conf: SQLConf)
     Add(toUnixTimestampExpr, adjustExpr)
   }
 
+  // rewrite an expressiont that converts unix timestamp to date back to unix timestamp
   private def rewriteUnixTimestampToDate(expr: Expression): Expression = {
     expr match {
       case toDate: ParseToDate =>
@@ -302,25 +309,15 @@ class RewriteDateTimestampComparisonRule(session: SparkSession, conf: SQLConf)
       return cmp
     }
     val zoneId = getTimeZoneId(cmp.left)
-    val timestampLeft = rewriteUnixTimestampToDate(cmp.left)
-    val adjustedOffset = Literal(TimeUnitToSeconds(timeUnit.get), timestampLeft.dataType)
-    val addjustedOffsetExpr = Remainder(timestampLeft, adjustedOffset)
-    val newLeft = Subtract(timestampLeft, addjustedOffsetExpr)
+    val newLeft = rewriteUnixTimestampToDate(cmp.left)
+    val adjustedOffset = Literal(TimeUnitToSeconds(timeUnit.get), newLeft.dataType)
     val newRight = rewriteConstDate(cmp.right, timeUnit.get, zoneId, 0)
-    EqualTo(newLeft, newRight)
+    val leftBound = GreaterThanOrEqual(newLeft, newRight)
+    val rigtBound = LessThan(newLeft, Add(newRight, adjustedOffset))
+    And(leftBound, rigtBound)
   }
 
   private def rewriteEqualNullSafe(cmp: EqualNullSafe): Expression = {
-    val timeUnit = getDateTimeUnit(cmp.left)
-    if (timeUnit.isEmpty) {
-      return cmp
-    }
-    val zoneId = getTimeZoneId(cmp.left)
-    val timestampLeft = rewriteUnixTimestampToDate(cmp.left)
-    val adjustedOffset = Literal(TimeUnitToSeconds(timeUnit.get), timestampLeft.dataType)
-    val addjustedOffsetExpr = Remainder(timestampLeft, adjustedOffset)
-    val newLeft = Subtract(timestampLeft, addjustedOffsetExpr)
-    val newRight = rewriteConstDate(cmp.right, timeUnit.get, zoneId, 0)
-    EqualNullSafe(newLeft, newRight)
+    cmp
   }
 }

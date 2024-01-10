@@ -75,6 +75,7 @@
 #include <Processors/Transforms/MaterializingTransform.h>
 #include <QueryPipeline/Pipe.h>
 #include <QueryPipeline/QueryPipelineBuilder.h>
+#include <QueryPipeline/printPipeline.h>
 #include <Storages/CustomStorageMergeTree.h>
 #include <Storages/IStorage.h>
 #include <Storages/MergeTree/MergeTreeData.h>
@@ -2102,6 +2103,8 @@ SharedContextHolder SerializedPlanParser::shared_context;
 
 LocalExecutor::~LocalExecutor()
 {
+    if (context->getConfigRef().getBool("dump_pipeline", false))
+        LOG_INFO(&Poco::Logger::get("LocalExecutor"), "Dump pipeline:\n{}", dumpPipeline());
     if (spark_buffer)
     {
         ch_column_to_spark_row->freeMem(spark_buffer->address, spark_buffer->size);
@@ -2232,6 +2235,29 @@ Block & LocalExecutor::getHeader()
 LocalExecutor::LocalExecutor(QueryContext & _query_context, ContextPtr context_)
     : query_context(_query_context), context(context_)
 {
+}
+
+std::string LocalExecutor::dumpPipeline()
+{
+    const auto & processors = query_pipeline.getProcessors();
+    for (auto & processor : processors)
+    {
+        DB::WriteBufferFromOwnString buffer;
+        auto data_stats = processor->getProcessorDataStats();
+        buffer << "(";
+        buffer << "\nexcution time: " << processor->getElapsedUs() << " us.";
+        buffer << "\ninput wait time: " << processor->getInputWaitElapsedUs() << " us.";
+        buffer << "\noutput wait time: " << processor->getOutputWaitElapsedUs() << " us.";
+        buffer << "\ninput rows: " << data_stats.input_rows;
+        buffer << "\ninput bytes: " << data_stats.input_bytes;
+        buffer << "\noutput rows: " << data_stats.output_rows;
+        buffer << "\noutput bytes: " << data_stats.output_bytes;
+        buffer << ")";
+        processor->setDescription(buffer.str());
+    }
+    DB::WriteBufferFromOwnString out;
+    DB::printPipeline(processors, out);
+    return out.str();
 }
 
 NonNullableColumnsResolver::NonNullableColumnsResolver(

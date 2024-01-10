@@ -36,6 +36,7 @@
         "boost-program-options",
         "boost-process",
         "boost-regex",
+        "boost-locale",
         "boost-system",
         "boost-stacktrace",
         "boost-sort",
@@ -48,7 +49,8 @@
         "protobuf",
         "benchmark",
         "jemalloc",
-        "icu"
+        "icu",
+        "thrift"
       ]
     },
     "velox-s3": {
@@ -86,7 +88,8 @@
     "velox-abfs": {
       "description": "Velox ABFS Support",
       "dependencies": [
-        "azure-storage-blobs-cpp"
+        "azure-storage-blobs-cpp",
+        "azure-storage-files-datalake-cpp"
       ]
     },
     "hbm": {

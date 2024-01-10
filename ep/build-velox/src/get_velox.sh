@@ -17,7 +17,7 @@
 set -exu
 
 VELOX_REPO=https://github.com/oap-project/velox.git
-VELOX_BRANCH=2024_01_05-2
+VELOX_BRANCH=2024_01_09
 VELOX_HOME=""
 
 #Set on run gluten on HDFS
@@ -114,7 +114,7 @@ function process_setup_ubuntu {
     sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-ubuntu.sh
   fi
   if [ $ENABLE_ABFS == "ON" ]; then
-    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-ubuntu.sh
+    sed -i '/^  run_and_time install_fmt/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-ubuntu.sh
   fi
   sed -i 's/run_and_time install_conda/#run_and_time install_conda/' scripts/setup-ubuntu.sh
 
@@ -154,7 +154,7 @@ function process_setup_centos8 {
     sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos8.sh
   fi
   if [ $ENABLE_ABFS == "ON" ]; then
-    sed -i '/^cmake_install_deps fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos8.sh
+    sed -i '/^cmake_install_deps fmt/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos8.sh
   fi
 }
 
@@ -192,7 +192,9 @@ function process_setup_centos7 {
     sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh gcs' scripts/setup-centos7.sh
   fi
   if [ $ENABLE_ABFS == "ON" ]; then
-    sed -i '/^  run_and_time install_fmt/a \ \ '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos7.sh
+    sed -i '/^function cmake_install_deps.*/i function install_curl {\n cd "${DEPENDENCY_DIR}" \n github_checkout curl/curl curl-7_68_0 \n cmake -DCMAKE_BUILD_TYPE=Release -DOPENSSL_USE_STATIC_LIBS=TRUE -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON && cmake --build . && sudo cmake --install . \n}\n'     scripts/setup-centos7.sh
+    sed -i '/^  run_and_time install_fmt/a \ \ run_and_time install_curl' scripts/setup-centos7.sh
+    sed -i '/^  run_and_time install_curl/a \ \ export AZURE_SDK_DISABLE_AUTO_VCPKG=ON \n '${VELOX_HOME}/scripts'/setup-adapters.sh abfs' scripts/setup-centos7.sh
   fi
 }
 

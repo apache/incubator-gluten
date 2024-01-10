@@ -643,20 +643,6 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
     }
   }
 
-  // After IntermediateHashAggregateRule is enabled
-  ignore("Support get native plan tree string") {
-    runQueryAndCompare("select l_partkey + 1, count(*) from lineitem group by l_partkey + 1") {
-      df =>
-        val wholeStageTransformers = collect(df.queryExecution.executedPlan) {
-          case w: WholeStageTransformer => w
-        }
-        val nativePlanString = wholeStageTransformers.head.nativePlanString()
-        assert(nativePlanString.contains("Aggregation[SINGLE"))
-        assert(nativePlanString.contains("Aggregation[PARTIAL"))
-        assert(nativePlanString.contains("TableScan"))
-    }
-  }
-
   test("Support StreamingAggregate if child output ordering is satisfied") {
     withTable("t") {
       spark
@@ -744,6 +730,47 @@ class TestOperator extends VeloxWholeStageTransformerSuite with AdaptiveSparkPla
       }
       runQueryAndCompare("select * from t where b is NULL") {
         checkOperatorMatch[FileSourceScanExecTransformer]
+      }
+    }
+  }
+
+  test("test cross join with equi join conditions") {
+    withTable("t1", "t2") {
+      sql("""
+            |create table t1 using parquet as
+            |select cast(id as int) as c1, cast(id as string) c2 from range(100)
+            |""".stripMargin)
+      sql("""
+            |create table t2 using parquet as
+            |select cast(id as int) as c1, cast(id as string) c2 from range(100) order by c1 desc;
+            |""".stripMargin)
+
+      runQueryAndCompare(
+        """
+          |select * from t1 cross join t2 on t1.c1 = t2.c1;
+          |""".stripMargin
+      ) {
+        checkOperatorMatch[ShuffledHashJoinExecTransformer]
+      }
+
+      withSQLConf("spark.sql.autoBroadcastJoinThreshold" -> "1MB") {
+        runQueryAndCompare(
+          """
+            |select * from t1 cross join t2 on t1.c1 = t2.c1;
+            |""".stripMargin
+        ) {
+          checkOperatorMatch[GlutenBroadcastHashJoinExecTransformer]
+        }
+      }
+
+      withSQLConf("spark.gluten.sql.columnar.forceShuffledHashJoin" -> "false") {
+        runQueryAndCompare(
+          """
+            |select * from t1 cross join t2 on t1.c1 = t2.c1;
+            |""".stripMargin
+        ) {
+          checkOperatorMatch[SortMergeJoinExecTransformer]
+        }
       }
     }
   }

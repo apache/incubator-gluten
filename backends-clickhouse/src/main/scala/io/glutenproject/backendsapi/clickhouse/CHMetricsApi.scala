@@ -364,4 +364,15 @@ class CHMetricsApi extends MetricsApi with Logging with LogLevelUtil {
 
   override def genGenerateTransformerMetricsUpdater(
       metrics: Map[String, SQLMetric]): MetricsUpdater = new GenerateMetricsUpdater(metrics)
+
+  def genWriteFilesTransformerMetrics(sparkContext: SparkContext): Map[String, SQLMetric] = {
+    throw new UnsupportedOperationException(
+      s"WriteFilesTransformer metrics update is not supported in CH backend")
+  }
+
+  def genWriteFilesTransformerMetricsUpdater(metrics: Map[String, SQLMetric]): MetricsUpdater = {
+    throw new UnsupportedOperationException(
+      s"WriteFilesTransformer metrics update is not supported in CH backend")
+  }
+
 }
