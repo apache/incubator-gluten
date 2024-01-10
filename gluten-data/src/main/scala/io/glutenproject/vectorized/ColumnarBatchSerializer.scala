@@ -130,8 +130,8 @@ private class ColumnarBatchSerializerInstance(
   private class TaskDeserializationStream(in: InputStream)
     extends DeserializationStream
     with TaskResource {
-    private lazy val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
-    private lazy val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
+    private val byteIn: JniByteInputStream = JniByteInputStreams.create(in)
+    private val wrappedOut: GeneralOutIterator = new ColumnarBatchOutIterator(
       Runtimes.contextInstance(),
       ShuffleReaderJniWrapper
         .create()
