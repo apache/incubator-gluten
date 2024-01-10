@@ -64,9 +64,9 @@ private class CelebornColumnarBatchSerializerInstance(
   extends SerializerInstance
   with Logging {
 
-  private lazy val nmm = NativeMemoryManagers.contextInstance("ShuffleReader")
+  private val nmm = NativeMemoryManagers.contextInstance("ShuffleReader")
 
-  private lazy val shuffleReaderHandle = {
+  private val shuffleReaderHandle = {
     val allocator: BufferAllocator = ArrowBufferAllocators
       .contextInstance(classOf[CelebornColumnarBatchSerializerInstance].getSimpleName)
       .newChildAllocator("GlutenColumnarBatch deserialize", 0, Long.MaxValue)
