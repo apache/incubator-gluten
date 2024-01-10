@@ -210,7 +210,15 @@ class TaskResourceRegistry extends Logging {
     )
     table.forEach {
       _.getValue.asScala.toSeq.reverse
-        .foreach(_.release()) // lifo for all resources within the same priority
+        .foreach {
+          r =>
+            // scalastyle:off println
+            println(
+              s"Releasing ${r.resourceName()},${r.priority()} " +
+                s"from task ${TaskContext.get().taskAttemptId()}...")
+            // scalastyle:on println
+            r.release()
+        } // lifo for all resources within the same priority
     }
     priorityToResourcesMapping.clear()
     resources.clear()
@@ -230,6 +238,11 @@ class TaskResourceRegistry extends Logging {
     if (!samePrio.contains(resource)) {
       throw new IllegalStateException("TaskResource not found in priority mapping")
     }
+    // scalastyle:off println
+    println(
+      s"[SINGLE] Releasing ${resource.resourceName()},${resource.priority()} " +
+        s"from task ${TaskContext.get().taskAttemptId()}...")
+    // scalastyle:on println
     resource.release()
     samePrio.remove(resource)
     resources.remove(id)

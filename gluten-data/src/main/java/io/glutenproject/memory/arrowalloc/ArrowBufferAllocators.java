@@ -21,6 +21,7 @@ import io.glutenproject.memory.memtarget.MemoryTargets;
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
+import org.apache.spark.TaskContext;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.util.TaskResource;
 import org.apache.spark.util.TaskResources;
@@ -90,9 +91,9 @@ public class ArrowBufferAllocators {
       long accumulated = TaskResources.ACCUMULATED_LEAK_BYTES().addAndGet(leakBytes);
       LOGGER.warn(
           String.format(
-              "Detected leaked Arrow allocator [%s], size: %d, "
+              "Detected leaked Arrow allocator [%s][%s], size: %d, "
                   + "process accumulated leaked size: %d...",
-              resourceName(), leakBytes, accumulated));
+              TaskContext.get().taskAttemptId(), resourceName(), leakBytes, accumulated));
       if (TaskResources.DEBUG()) {
         LOGGER.warn(String.format("Leaked allocator stack %s", managed.toVerboseString()));
         LEAKED.add(managed);
