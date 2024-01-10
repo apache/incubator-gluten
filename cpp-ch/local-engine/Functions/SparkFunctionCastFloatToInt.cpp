@@ -49,7 +49,6 @@ using SparkFunctionCastFloatToUInt64 = local_engine::SparkFunctionCastFloatToInt
 using SparkFunctionCastFloatToUInt128 = local_engine::SparkFunctionCastFloatToInt<UInt128, NameToUInt128>;
 using SparkFunctionCastFloatToUInt256 = local_engine::SparkFunctionCastFloatToInt<UInt256, NameToUInt256>;
 
-
 REGISTER_FUNCTION(SparkFunctionCastToInt)
 {
     factory.registerFunction<SparkFunctionCastFloatToInt8>();
