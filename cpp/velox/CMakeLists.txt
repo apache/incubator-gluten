@@ -91,7 +91,7 @@ macro(ADD_VELOX_OBJECTS)
 endmacro()
 
 macro(add_duckdb)
-  set(DUCKDB_LIB_PATH "${VELOX_COMPONENTS_PATH}/_deps/duckdb-build/src/libduckdb_static.a")
+  set(DUCKDB_LIB_PATH "${VELOX_BUILD_PATH}/_deps/duckdb-build/src/libduckdb_static.a")
   if(NOT EXISTS ${DUCKDB_LIB_PATH})
     find_package(DuckDB)
     if(NOT DuckDB_FOUND)
