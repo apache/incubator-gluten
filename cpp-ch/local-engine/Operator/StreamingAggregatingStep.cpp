@@ -157,11 +157,12 @@ bool StreamingAggregatingTransform::needEvict()
         {
             LOG_INFO(
                 logger,
-                "Memory is overflow. current_mem_used: {}, max_mem_used: {}, per_key_memory_usage: {}, aggregator keys: {}",
+                "Memory is overflow. current_mem_used: {}, max_mem_used: {}, per_key_memory_usage: {}, aggregator keys: {}, hash table type: {}",
                 ReadableSize(current_mem_used),
                 ReadableSize(max_mem_used),
                 ReadableSize(per_key_memory_usage),
-                current_result_rows);
+                current_result_rows,
+                data_variants->type);
             return true;
         }
     }
@@ -173,10 +174,11 @@ bool StreamingAggregatingTransform::needEvict()
         {
             LOG_INFO(
                 logger,
-                "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, aggregator keys: {}",
+                "Memory is overflow on half of max usage. current_mem_used: {}, max_mem_used: {}, aggregator keys: {}, hash table type: {}",
                 ReadableSize(current_mem_used),
                 ReadableSize(max_mem_used),
-                current_result_rows);
+                current_result_rows,
+                data_variants->type);
             return true;
         }
     }
@@ -229,7 +231,10 @@ void StreamingAggregatingTransform::work()
         if (!data_variants)
         {
             data_variants = std::make_shared<DB::AggregatedDataVariants>();
-            if (last_data_variants_size)
+            // If it is a high cardinality aggregating, the first data variants may be a two level hash table.
+            // but later we will evict it before the hash table growing too large. In this case we should not
+            // initialize the data variants with a two level hash table.
+            if (last_data_variants_size  > params->params.group_by_two_level_threshold)
             {
                 data_variants->init(last_data_variants_type, last_data_variants_size);
             }
